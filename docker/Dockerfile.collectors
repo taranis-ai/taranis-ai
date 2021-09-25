@@ -1,0 +1,51 @@
+FROM python:3.7-alpine3.14
+
+WORKDIR /app/
+
+# install numpy, blis, pandas - save tons of time when re-building the image
+RUN \
+    apk add --no-cache --virtual .build-deps gcc g++ make musl-dev python3-dev libxslt-dev libxml2-dev libffi-dev postgresql-dev && \
+    pip install numpy==1.18.3 && \
+    pip install blis==0.7.4 && \
+    pip install pandas==1.0.3 && \
+    pip install spacy==3.1.3 && \
+    apk --purge del .build-deps
+
+COPY ./src/collectors/requirements.txt /app/taranis-ng-collectors/requirements.txt
+COPY ./src/common/requirements.txt /app/taranis-ng-common/requirements.txt
+
+# install dependencies
+RUN \
+    apk add --no-cache postgresql-libs libpq glib firefox-esr=78.13.0-r0 && \
+    apk add --no-cache --virtual .build-deps gcc g++ make musl-dev python3-dev libxslt-dev libxml2-dev libffi-dev postgresql-dev && \
+    pip install --no-cache-dir -r /app/taranis-ng-collectors/requirements.txt && \
+    pip install --no-cache-dir -r /app/taranis-ng-common/requirements.txt && \
+    apk --purge del .build-deps
+
+ADD https://github.com/mozilla/geckodriver/releases/download/v0.30.0/geckodriver-v0.30.0-linux64.tar.gz /usr/bin/
+
+COPY ./src/collectors/. /app/taranis-ng-collectors
+COPY ./src/common/. /app/taranis-ng-common
+
+COPY ./docker/start.sh /start.sh
+RUN chmod +x /start.sh
+
+COPY ./docker/prestart.sh /app/prestart.sh
+RUN chmod +x /app/prestart.sh
+
+COPY ./docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+COPY ./docker/gunicorn_conf.py /gunicorn_conf.py
+
+EXPOSE 80
+
+# setup environment variables
+ENV PYTHONPATH=/app
+ENV MODULE_NAME taranis-ng-collectors.run
+ENV VARIABLE_NAME app
+ENV GUNICORN_CMD_ARGS --timeout 120 --preload
+ENV WORKERS_PER_CORE 8
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["/start.sh"]

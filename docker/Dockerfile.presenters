@@ -1,0 +1,101 @@
+FROM python:3.7-alpine3.14
+
+WORKDIR /app/
+
+COPY ./src/presenters/requirements.txt /app/taranis-ng-presenters/requirements.txt
+COPY ./src/common/requirements.txt /app/taranis-ng-common/requirements.txt
+
+# install dependencies
+RUN \
+    apk add --no-cache postgresql-libs libpq libpng libjpeg wkhtmltopdf && \
+    apk add --no-cache --virtual .build-deps gcc g++ make musl-dev python3-dev libffi-dev postgresql-dev && \
+    pip install --no-cache-dir -r /app/taranis-ng-presenters/requirements.txt && \
+    pip install --no-cache-dir -r /app/taranis-ng-common/requirements.txt && \
+    apk --purge del .build-deps
+
+# install fonts
+RUN apk add --no-cache msttcorefonts-installer fontconfig && \
+    update-ms-fonts && \
+    apk add --no-cache \
+    msttcorefonts-installer fontconfig \
+    font-noto \
+    font-noto-adlam \
+    font-noto-adlamunjoined \
+    font-noto-arabic \
+    font-noto-armenian \
+    font-noto-avestan \
+    font-noto-bamum \
+    font-noto-bengali \
+    font-noto-buhid \
+    font-noto-carian \
+    font-noto-chakma \
+    font-noto-cherokee \
+    font-noto-cypriot \
+    font-noto-deseret \
+    font-noto-devanagari \
+    font-noto-ethiopic \
+    font-noto-extra \
+    font-noto-georgian \
+    font-noto-glagolitic \
+    font-noto-gothic \
+    font-noto-gujarati \
+    font-noto-gurmukhi \
+    font-noto-hebrew \
+    font-noto-kannada \
+    font-noto-kayahli \
+    font-noto-khmer \
+    font-noto-lao \
+    font-noto-lisu \
+    font-noto-malayalam \
+    font-noto-mandaic \
+    font-noto-myanmar \
+    font-noto-nko \
+    font-noto-olchiki \
+    font-noto-oldturkic \
+    font-noto-oriya \
+    font-noto-osage \
+    font-noto-osmanya \
+    font-noto-shavian \
+    font-noto-sinhala \
+    font-noto-tamil \
+    font-noto-telugu \
+    font-noto-thaana \
+    font-noto-thai \
+    font-noto-tibetan \
+    font-noto-tifinagh \
+    font-noto-vai \
+    terminus-font \
+    ttf-opensans \
+    font-bakoma \
+    font-misc-misc \
+    font-croscore \
+    freetype && \
+    fc-cache -f && rm -rf /var/cache/*
+
+COPY ./docker/start.sh /start.sh
+RUN chmod +x /start.sh
+
+COPY ./docker/prestart.sh /app/prestart.sh
+RUN chmod +x /app/prestart.sh
+
+COPY ./docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+COPY ./docker/gunicorn_conf.py /gunicorn_conf.py
+
+COPY ./src/common/. /app/taranis-ng-common
+COPY ./src/presenters/. /app/taranis-ng-presenters
+
+EXPOSE 80
+
+# setup environment variables
+ENV PYTHONPATH=/app
+ENV MODULE_NAME taranis-ng-presenters.run
+ENV VARIABLE_NAME app
+ENV GUNICORN_CMD_ARGS --timeout 120 --preload
+ENV WORKERS_PER_CORE 8
+
+VOLUME ["/app/taranis-ng-presenters/templates"]
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["/start.sh"]

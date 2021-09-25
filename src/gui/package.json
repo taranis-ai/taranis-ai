@@ -1,0 +1,98 @@
+{
+  "name": "taranis-ng-ui",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "serve": "vue-cli-service serve",
+    "build": "vue-cli-service build",
+    "lint": "vue-cli-service lint",
+    "addrouter": "vue add router",
+    "addvuetify": "vue add vuetify",
+    "installvuetify": "npm -S install vuetify",
+    "installaxios": "npm install axios",
+    "installvuex": "npm install vuex",
+    "installmdiicons": "npm install @mdi/font -D",
+    "installmaterialicons": "npm install material-design-icons-iconfont -D",
+    "installveevalidate": "npm install vee-validate",
+    "installvuei18n": "npm install vue-i18n",
+    "installckeditor": "npm install --save @ckeditor/ckeditor5-build-classic @ckeditor/ckeditor5-vue vue-keypress ",
+    "installcookie": "npm install vue-cookies --save",
+    "installchat": "npm install --save vue-quick-chat vue-quick-chat/dist/vue-quick-chat.css vue-wordcloud",
+    "installvuesse": "npm install --save vue-sse",
+    "installvuecsvimport": "npm install --save vue-csv-import",
+    "installvuedatetime": "npm install --save vuetify-datetime-picker",
+    "installdatepicker": "npm install --save vuetify-datetime-picker vue2-datepicker",
+    "installeditor": "npm install --save vue2-editor",
+    "installdropzone": "npm install --save vue2-dropzone"
+  },
+  "dependencies": {
+    "@ckeditor/ckeditor5-build-classic": "^16.0.0",
+    "@ckeditor/ckeditor5-vue": "^1.0.1",
+    "@vue/cli": "^4.3.1",
+    "axios": "^0.19.2",
+    "ckeditor": "^4.12.1",
+    "ckeditor5-vuejs": "^1.0.18",
+    "core-js": "^2.6.11",
+    "papaparse": "^5.2.0",
+    "tinymce-vue-2": "0.0.5",
+    "vee-validate": "^2.2.15",
+    "vue": "^2.6.11",
+    "vue-ckeditor2": "^2.1.5",
+    "vue-cli": "^2.9.6",
+    "vue-cookies": "^1.6.1",
+    "vue-csv-import": "^3.3.2",
+    "vue-cvss": "^1.0.2",
+    "vue-i18n": "^8.15.3",
+    "vue-keypress": "^1.1.0",
+    "vue-quick-chat": "^1.1.1",
+    "vue-quill-editor": "^3.0.6",
+    "vue-router": "^3.1.5",
+    "vue-shortkey": "^3.1.7",
+    "vue-sse": "^1.0.2",
+    "vue-wordcloud": "^1.1.1",
+    "vue2-datepicker": "^3.6.2",
+    "vue2-dropzone": "^3.6.0",
+    "vue2-editor": "^2.10.2",
+    "vuetify": "^2.2.6",
+    "vuetify-datetime-picker": "^2.1.1",
+    "vuex": "^3.1.2"
+  },
+  "devDependencies": {
+    "@ckeditor/ckeditor5-alignment": "^20.0.0",
+    "@mdi/font": "^3.9.97",
+    "@vue/cli-plugin-babel": "^3.12.1",
+    "@vue/cli-plugin-eslint": "^3.12.1",
+    "@vue/cli-service": "^4.1.2",
+    "babel-eslint": "^10.0.3",
+    "eslint": "^5.16.0",
+    "eslint-plugin-vue": "^5.0.0",
+    "sass": "^1.25.0",
+    "sass-loader": "^7.3.1",
+    "vue-cli-plugin-vuetify": "^0.6.3",
+    "vue-template-compiler": "^2.6.11",
+    "vuetify-loader": "^1.4.3"
+  },
+  "eslintConfig": {
+    "root": true,
+    "env": {
+      "node": true
+    },
+    "extends": [
+      "plugin:vue/essential",
+      "eslint:recommended"
+    ],
+    "rules": {},
+    "parserOptions": {
+      "parser": "babel-eslint"
+    }
+  },
+  "postcss": {
+    "plugins": {
+      "autoprefixer": {}
+    }
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions"
+  ]
+}

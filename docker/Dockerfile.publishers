@@ -1,0 +1,40 @@
+FROM python:3.7-alpine3.14
+
+WORKDIR /app/
+
+COPY ./src/publishers/requirements.txt /app/taranis-ng-publishers/requirements.txt
+COPY ./src/common/requirements.txt /app/taranis-ng-common/requirements.txt
+
+# install dependencies
+RUN \
+    apk add --no-cache postgresql-libs libpq && \
+    apk add --no-cache --virtual .build-deps build-base gcc g++ make musl-dev python3-dev libffi-dev postgresql-dev rust && \
+    pip install --no-cache-dir -r /app/taranis-ng-publishers/requirements.txt && \
+    pip install --no-cache-dir -r /app/taranis-ng-common/requirements.txt && \
+    apk --purge del .build-deps
+
+COPY ./src/publishers/. /app/taranis-ng-publishers
+COPY ./src/common/. /app/taranis-ng-common
+
+COPY ./docker/start.sh /start.sh
+RUN chmod +x /start.sh
+
+COPY ./docker/prestart.sh /app/prestart.sh
+RUN chmod +x /app/prestart.sh
+
+COPY ./docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+COPY ./docker/gunicorn_conf.py /gunicorn_conf.py
+
+EXPOSE 80
+
+# setup environment variables
+ENV PYTHONPATH=/app
+ENV MODULE_NAME taranis-ng-publishers.run
+ENV VARIABLE_NAME app
+ENV GUNICORN_CMD_ARGS --timeout 120 --preload
+ENV WORKERS_PER_CORE 8
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["/start.sh"]

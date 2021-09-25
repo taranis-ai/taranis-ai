@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="/app/taranis-ng-presenters/templates/css/bootstrap.css">
+    <link rel="stylesheet" type="text/css" href="/app/taranis-ng-presenters/templates/css/custom.css">
+</head>
+<body>
+    <div>
+
+        <table class="table table-bordered header_info" style="width: 100%">
+        {% for dict_item in data %}
+
+            <tr class="table-row">
+                <td class="w25 py-0">
+                    <div class="mt-2">CONFIDENTIALITY:</div>
+                </td>
+                <td class="w15 py-0">
+                    <div class="mt-2">
+                      <label class="checkbox-button">
+                        <input type="checkbox" class="checkbox-button__input" id="low" name="low" {% if dict_item['Confidentiality'][0] == 'UNRESTRICTED' %}checked{% endif %}>
+                        <span class="checkbox-button__control"></span>
+                        <span class="checkbox-button__label">Unrestricted</span>
+                      </label>
+                    </div>
+                </td>
+                <td class="w15 py-0">
+                    <div class="mt-2">
+                      <label class="checkbox-button">
+                        <input type="checkbox" class="checkbox-button__input" id="middle" name="middle" {% if dict_item['Confidentiality'][0] == 'CLASSIFIED' %}checked{% endif %}>
+                        <span class="checkbox-button__control"></span>
+                        <span class="checkbox-button__label">Classified</span>
+                      </label>
+                    </div>
+                </td>
+                <td class="w15 py-0">
+                    <div class="mt-2">
+                      <label class="checkbox-button">
+                        <input type="checkbox" class="checkbox-button__input" id="high" name="high" {% if dict_item['Confidentiality'][0] == 'CONFIDENTIAL' %}checked{% endif %}>
+                        <span class="checkbox-button__control"></span>
+                        <span class="checkbox-button__label">Confidential</span>
+                      </label>
+                    </div>
+                </td>
+                <td class="w15 py-0">
+                    <div class="mt-2">
+                      <label class="checkbox-button">
+                        <input type="checkbox" class="checkbox-button__input" id="critical" name="critical" {% if dict_item['Confidentiality'][0] == 'SECRET' %}checked{% endif %}>
+                        <span class="checkbox-button__control"></span>
+                        <span class="checkbox-button__label">Secret</span>
+                      </label>
+                    </div>
+                </td>
+                <td class="w15 py-0">
+                    <div class="mt-2">CVSS: <span class="cvss">{{ dict_item['CVSS'][0]|e }} </span></div>
+                </td>
+            </tr>
+
+
+            <tr>
+                <td class="w25 py-0">
+                    <div class="mt-2">TLP:</div>
+                </td>
+                <td class="py-0" colspan="2">
+                    <div class="mt-2">
+                      <label class="checkbox-button">
+                        <input type="checkbox" class="checkbox-button__input" id="public" name="public" {% if dict_item['TLP'][0] == 'WHITE' %}checked{% endif %}>
+                        <span class="checkbox-button__control"></span>
+                        <span class="checkbox-button__label">TLP:white</span>
+                      </label>
+                    </div>
+                </td>
+                <td class="py-0">
+                    <div class="mt-2">
+                      <label class="checkbox-button">
+                        <input type="checkbox" class="checkbox-button__input" id="reserved" name="reserved" {% if dict_item['TLP'][0] == 'GREEN' %}checked{% endif %}>
+                        <span class="checkbox-button__control"></span>
+                        <span class="checkbox-button__label">TLP:green</span>
+                      </label>
+                    </div>
+                </td>
+                <td class="py-0">
+                    <div class="mt-2">
+                      <label class="checkbox-button">
+                        <input type="checkbox" class="checkbox-button__input" id="confidential" name="confidential" {% if dict_item['TLP'][0] == 'AMBER' %}checked{% endif %}>
+                        <span class="checkbox-button__control"></span>
+                        <span class="checkbox-button__label">TLP:amber</span>
+                      </label>
+                    </div>
+                </td>
+                <td class="py-0">
+                    <div class="mt-2">
+                      <label class="checkbox-button">
+                        <input type="checkbox" class="checkbox-button__input" id="secret" name="secret" {% if dict_item['TLP'][0] == 'RED' %}checked{% endif %}>
+                        <span class="checkbox-button__control"></span>
+                        <span class="checkbox-button__label">TLP:red</span>
+                      </label>
+                    </div>
+                </td>
+            </tr>
+        </table>
+
+        <br>
+
+        <table class="table table-bordered">
+            <tr>
+                <th class="th_data py-2">DESCRIPTION</th>
+            </tr>
+            <tr>
+                <td class="text-justify text_in_tab">
+                    {{ dict_item['Description'][0]|e }}
+                </td>
+            </tr>
+        </table>
+
+        <table class="table table-bordered">
+            <tr>
+                <th class="th_data py-2">EXPOSURE DATE</th>
+            </tr>
+            <tr>
+                <td class="text-justify text_in_tab">
+                    {{ dict_item['Exposure Date'][0] }}
+                </td>
+            </tr>
+        </table>
+
+        <table class="table table-bordered">
+            <tr>
+                <th class="th_data py-2">UPDATE DATE</th>
+            </tr>
+            <tr>
+                <td class="text-justify text_in_tab">
+                    {{ dict_item['Update Date'][0] }}
+                </td>
+            </tr>
+        </table>
+
+        <table class="table table-bordered">
+            <tr>
+                <th class="th_data py-2">CVE</th>
+            </tr>
+            <tr>
+                <td class="text-justify text_in_tab">
+                    {% if dict_item['CVE'] %}{{ dict_item['CVE'][0]|e }}{% endif %}
+                </td>
+            </tr>
+        </table>
+
+        <table class="table table-bordered">
+            <tr>
+                <th class="th_data py-2">IMPACT</th>
+            </tr>
+            <tr>
+                <td class="text-justify text_in_tab">
+                    {% if dict_item['Impact'] %}{{ dict_item['Impact'][0]|e }}{% endif %}
+                </td>
+            </tr>
+        </table>
+
+        <table class="table table-bordered">
+            <tr>
+                <th class="th_data py-2">IOC</th>
+            </tr>
+            <tr>
+                <td class="text-justify text_in_tab">
+                    {% if dict_item['IOC'] %}{{ dict_item['IOC'][0]|e }}{% endif %}
+                </td>
+            </tr>
+        </table>
+
+       <table class="table table-bordered">
+            <tr>
+                <th class="th_data py-2">AFFECTED SYSTEMS</th>
+            </tr>
+            <tr>
+                <td class="text-justify text_in_tab">
+                    {% if dict_item['Affected systems'] %}{{ dict_item['Affected systems'][0]|e }}{% endif %}
+                </td>
+            </tr>
+        </table>
+
+        <table class="table table-bordered">
+            <tr>
+                <th class="th_data py-2">RECOMMENDATIONS</th>
+            </tr>
+            <tr>
+                <td class="text-justify text_in_tab">
+                    {% if dict_item['Recommendations'] %}{{ dict_item['Recommendations'][0]|e }}{% endif %}
+                </td>
+            </tr>
+        </table>
+
+        <table class="table table-bordered">
+            <tr>
+                <th class="th_data py-2">LINKS</th>
+            </tr>
+            <tr>
+                <td class="text-justify text_in_tab">
+                    <ul class="list-unstyled">
+                        {% if dict_item['Links'] %}{{ dict_item['Links'][0]|e }}{% endif %}
+                    </ul>
+                </td>
+            </tr>
+        </table>
+ {% endfor %}
+    </div>
+</body>
+</html>

@@ -1,0 +1,167 @@
+version: "3.9"
+
+services:
+  redis:
+    image: "redis:${REDIS_TAG}"
+    restart: unless-stopped
+    volumes:
+      - "redis_conf:/usr/local/etc/redis"
+    logging:
+        driver: "json-file"
+        options:
+            max-size: "200k"
+            max-file: "10"
+
+  database:
+    image: "postgres:${POSTGRES_TAG}"
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: "taranis-ng"
+      POSTGRES_USER: "taranis-ng"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+    volumes:
+      - "database_data:/var/lib/postgresql/data"
+    logging:
+        driver: "json-file"
+        options:
+            max-size: "200k"
+            max-file: "10"
+
+  core:
+    depends_on: 
+      - "redis"
+      - "database"
+    restart: unless-stopped
+    image: "skcert/taranis-ng-core:${TARANIS_NG_TAG}"
+    build:
+      context: ..
+      dockerfile: ./docker/Dockerfile.core
+    environment: 
+      REDIS_URL: "redis://redis"
+      DB_URL: "database"
+      DB_DATABASE: "taranis-ng"
+      DB_USER: "taranis-ng"
+      DB_PASSWORD: "${POSTGRES_PASSWORD}"
+      DB_POOL_SIZE: 100
+      DB_POOL_RECYCLE: 300
+      DB_POOL_TIMEOUT: 5
+
+      JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
+      OPENID_LOGOUT_URL: ""
+      WORKERS_PER_CORE: "1"
+      TARANIS_NG_SAMPLE_DATA: "true"
+
+      CVE_UPDATE_FILE: "${CVE_UPDATE_FILE}"
+      CPE_UPDATE_FILE: "${CPE_UPDATE_FILE}"
+    ports: 
+      - "5000:80"
+    volumes:
+      - "core_data:/data"
+    logging:
+        driver: "json-file"
+        options:
+            max-size: "200k"
+            max-file: "10"
+
+  # bots:
+  #   depends_on:
+  #     - "core"
+  #   image: "skcert/taranis-ng-bots:${TARANIS_NG_TAG}"
+  #   build:
+  #     context: ..
+  #     dockerfile: ./docker/Dockerfile.bots
+  #   environment:
+  #     API_KEY: "${COLLECTOR_PRESENTER_PUBLISHER_API_KEY}"
+  #     TARANIS_NG_CORE_URL: "http://core/api/v1"
+  #     WORKERS_PER_CORE: "1"
+  #  logging:
+  #      driver: "json-file"
+  #      options:
+  #          max-size: "200k"
+  #          max-file: "10"
+    
+  collectors:
+    depends_on:
+      - "core"
+    restart: unless-stopped
+    image: "skcert/taranis-ng-collectors:${TARANIS_NG_TAG}"
+    build:
+      context: ..
+      dockerfile: ./docker/Dockerfile.collectors
+    environment:
+      TARANIS_NG_CORE_URL: "http://core"
+      API_KEY: "${COLLECTOR_PRESENTER_PUBLISHER_API_KEY}"
+      WORKERS_PER_CORE: "1"
+    ports:
+      - "5001:80"
+    logging:
+        driver: "json-file"
+        options:
+            max-size: "200k"
+            max-file: "10"
+    
+  presenters:
+    depends_on:
+      - "core"
+    restart: unless-stopped
+    image: "skcert/taranis-ng-presenters:${TARANIS_NG_TAG}"
+    build:
+      context: ..
+      dockerfile: ./docker/Dockerfile.presenters
+    environment:
+      TARANIS_NG_CORE_URL: "http://core"
+      API_KEY: "${COLLECTOR_PRESENTER_PUBLISHER_API_KEY}"
+      WORKERS_PER_CORE: "1"
+    ports:
+      - "5002:80"
+    volumes:
+      - "presenters_templates:/app/taranis-ng-presenters/templates"
+    logging:
+        driver: "json-file"
+        options:
+            max-size: "200k"
+            max-file: "10"
+    
+  publishers:
+    depends_on:
+      - "core"
+    restart: unless-stopped
+    image: "skcert/taranis-ng-publishers:${TARANIS_NG_TAG}"
+    build:
+      context: ..
+      dockerfile: ./docker/Dockerfile.publishers
+    environment:
+      TARANIS_NG_CORE_URL: "http://core"
+      API_KEY: "${COLLECTOR_PRESENTER_PUBLISHER_API_KEY}"
+      WORKERS_PER_CORE: "1"
+    ports:
+      - "5003:80"
+    
+  gui:
+    depends_on:
+      - "core"
+    restart: unless-stopped
+    image: "skcert/taranis-ng-gui:${TARANIS_NG_TAG}"
+    build:
+      context: ..
+      dockerfile: ./docker/Dockerfile.gui
+    ports: 
+      - "8080:80"
+    environment:
+      NGINX_WORKERS: "4"
+      NGINX_CONNECTIONS: "16"
+      VUE_APP_TARANIS_NG_CORE_API: "http://localhost:5000/api/v1"
+      VUE_APP_TARANIS_NG_CORE_SSE: "http://localhost:5000/sse"
+      VUE_APP_TARANIS_NG_URL: http://localhost:8080
+      VUE_APP_TARANIS_NG_LOCALE: en
+    logging:
+        driver: "json-file"
+        options:
+            max-size: "200k"
+            max-file: "10"
+
+volumes:
+  redis_conf:
+  database_data:
+  core_data:
+  presenters_templates:
