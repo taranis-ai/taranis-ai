@@ -40,7 +40,7 @@ This is just a taste of its features:
 - generate many different products with help of product templates
 - easily publish to different channels
 - time is money: collaborate with other teams by sharing interesting data. Each partnership can be configured and customized.
-- split the work responsibilities any way you like, or have multiple teams process partially overlaping data using advanced role and permission system
+- split the work responsibilities any way you like, or have multiple teams process partially overlapping data using advanced role and permission system
 - use wordlists for filtering and highlighting
 - publish the self-service asset management portal to your constituency and allow them to set various notification profiles for those times when a vulnerability hits their product.
 
@@ -69,7 +69,7 @@ Resources: [CHANGELOG](CHANGELOG.md), [LICENSE](LICENSE.md).
 
 ## Architecture
 
-<img src="https://raw.githubusercontent.com/SK-CERT/Taranis-NG/main/doc/taranis-ng-block-diagram.png?sanitize=true&raw=true" />
+<img src="https://raw.githubusercontent.com/SK-CERT/Taranis-NG/main/doc/static/img/taranis-ng-block-diagram.png?sanitize=true&raw=true" />
 
 ## Getting started with Docker installation
 
@@ -138,7 +138,7 @@ dictionary and a current list of CVEs preloaded in Taranis NG.
 
 2. Upload the dictionary to the proper path, and import into the database
 ```bash
-gzcat ~/Documents/official-cpe-dictionary_v2.3.xml.gz | \
+gzcat official-cpe-dictionary_v2.3.xml.gz | \
     docker exec -i taranis-ng_core_1 python manage.py dictionary --upload-cpe
 ```
 
@@ -148,6 +148,6 @@ in xml.gz format.
 
 4. Upload the dictionary to the proper path, and import into the database
 ```bash
-gzcat official-cpe-dictionary_v2.3.xml.gz | \
+gzcat allitems.xml.gz | \
     docker exec -i taranis-ng_core_1 python manage.py dictionary --upload-cve
 ```

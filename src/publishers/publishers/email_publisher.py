@@ -1,15 +1,14 @@
-from publishers.base_publisher import BasePublisher
-from taranisng.schema.parameter import Parameter, ParameterType
 import datetime
 import smtplib
-import os
+from email.message import Message
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from email.message import Message
+
 import gnupg
 
-os.chdir("../taranis-ng-publishers/")
+from publishers.base_publisher import BasePublisher
+from taranisng.schema.parameter import Parameter, ParameterType
 
 
 class EMAILPublisher(BasePublisher):

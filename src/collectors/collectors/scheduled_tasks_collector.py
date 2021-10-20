@@ -1,14 +1,13 @@
 import datetime
 import hashlib
-import uuid
+import os
 import random
 import string
-import os
-from .base_collector import BaseCollector
+import uuid
+
 from taranisng.schema.news_item import NewsItemData
 from taranisng.schema.parameter import Parameter, ParameterType
-
-os.chdir('../taranis-ng-collectors/')
+from .base_collector import BaseCollector
 
 
 class ScheduledTasksCollector(BaseCollector):

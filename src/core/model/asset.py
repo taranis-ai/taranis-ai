@@ -24,6 +24,7 @@ class AssetCpe(db.Model):
     asset = db.relationship("Asset")
 
     def __init__(self, value):
+        self.id = None
         self.value = value
 
 
@@ -50,6 +51,7 @@ class Asset(db.Model):
     vulnerabilities_count = db.Column(db.Integer, default=0)
 
     def __init__(self, id, name, serial, description, asset_group_id, asset_cpes):
+        self.id = None
         self.name = name
         self.serial = serial
         self.description = description
@@ -213,6 +215,7 @@ class AssetVulnerability(db.Model):
     report_item = db.relationship("ReportItem")
 
     def __init__(self, asset_id, report_item_id):
+        self.id = None
         self.asset_id = asset_id
         self.report_item_id = report_item_id
 

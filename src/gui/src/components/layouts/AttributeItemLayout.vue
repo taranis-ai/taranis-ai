@@ -12,10 +12,10 @@
                             mandatory
 
                     >
-                        <v-chip small class="px-0 mr-1">
+                        <v-chip small class="px-0 mr-1" :title="$t('report_item.tooltip.sort_time')">
                             <v-icon class="px-2" small center @click="sort(false)">mdi-clock-outline</v-icon>
                         </v-chip>
-                        <v-chip small class="px-0 mr-1">
+                        <v-chip small class="px-0 mr-1" :title="$t('report_item.tooltip.sort_user')">
                             <v-icon class="px-2" small center @click="sort(true, $store.getters.getUserName)">mdi-account</v-icon>
                         </v-chip>
                     </v-chip-group>
@@ -27,7 +27,7 @@
         </v-row>
         <v-row class="ml-3 mr-5">
             <slot name="footer" class="pr-0">
-                <v-btn v-if="add_button" depressed small block class="mt-2 " @click="add">
+                <v-btn v-if="add_button" depressed small block class="mt-2 " @click="add" :title="$t('report_item.tooltip.add_value')">
                     <v-icon center>mdi-plus</v-icon>
                 </v-btn>
             </slot>

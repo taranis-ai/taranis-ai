@@ -36,6 +36,7 @@ class RemoteAccess(db.Model):
     last_synced_report_items = db.Column(db.DateTime, default=datetime.now())
 
     def __init__(self, id, name, description, enabled, access_key, osint_sources, report_item_types):
+        self.id = None
         self.name = name
         self.description = description
         self.enabled = enabled
@@ -229,6 +230,7 @@ class RemoteNode(db.Model):
 
     def __init__(self, id, name, description, enabled, remote_url, events_url, access_key, sync_news_items,
                  sync_report_items, osint_source_group_id):
+        self.id = None
         self.name = name
         self.description = description
         self.remote_url = remote_url

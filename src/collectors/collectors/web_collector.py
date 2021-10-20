@@ -143,7 +143,7 @@ class WebCollector(BaseCollector):
             return driver
 
         def get_prefix_and_selector(element_selector):
-            selector_split = element_selector.split(':')
+            selector_split = element_selector.split(':', 1)
             prefix = selector_split[0].strip()
             selector = selector_split[1].lstrip()
             return prefix, selector
@@ -335,12 +335,12 @@ class WebCollector(BaseCollector):
                                                         new_published_selector).text
 
                             if published:
-                                # TODO: Delete IF statement for Dnes and Vcera, it is just for testing and root.cz web
-                                if published == 'Dnes':
+                                # TODO: make these configurable
+                                if published.lower() in [ 'today', 'dnes']:
                                     published = datetime.datetime.today()
                                     published = published.strftime("%d-%m-%Y")
                                     published = parse(published, dayfirst=True)
-                                elif published == 'Včera':
+                                elif published.lower() in [ 'yesterday', 'včera']:
                                     published = datetime.datetime.today() - datetime.timedelta(days=1)
                                     published = published.strftime("%d-%m-%Y")
                                     published = parse(published, dayfirst=True)

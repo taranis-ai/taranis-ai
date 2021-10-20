@@ -3,7 +3,11 @@ FROM node:lts-alpine as build-stage
 WORKDIR /app
 COPY ./src/gui/package*.json ./
 RUN npm install
-COPY ./src/gui/. .
+COPY ./src/gui/public /app/public
+COPY ./src/gui/src /app/src
+COPY ./src/gui/babel.config.js .
+COPY ./src/gui/package.json .
+COPY ./src/gui/package-lock.json .
 RUN npm run build
 
 # production stage

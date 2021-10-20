@@ -17,13 +17,13 @@
                 />
             </v-col>
             <v-col>
-                <v-btn v-if="delButton && attribute_group.min_occurence != attribute_group.max_occurence" text small @click="del(index)">
+                <v-btn v-if="delButton && attribute_group.min_occurrence != attribute_group.max_occurrence" text small @click="del(index)">
                     <v-icon>mdi-close-circle</v-icon>
                 </v-btn>
             </v-col>
         </v-row>
         <v-row>
-            <v-btn v-if="values.length < attribute_group.max_occurence && !read_only && canModify" depressed small block class="mt-2"
+            <v-btn v-if="values.length < attribute_group.max_occurrence && !read_only && canModify" depressed small block class="mt-2"
                    @click="add">
                 <v-icon>mdi-plus</v-icon>
             </v-btn>
@@ -44,7 +44,7 @@
                         v-if="!read_only && canModify && !values[index].remote"
                         :del_button="delButtonVisible"
                         @del-value="del(index)"
-                        :occurence="attribute_group.min_occurence"
+                        :occurrence="attribute_group.min_occurrence"
                         :values="values"
                         :val_index="index"
                 >

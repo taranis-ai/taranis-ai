@@ -1,16 +1,19 @@
-from managers.db_manager import db
+import uuid
+
 from marshmallow import post_load, fields
+from sqlalchemy import orm, func, or_, and_
+
+from managers.db_manager import db
+from model.acl_entry import ACLEntry
+from model.collector import Collector
+from model.collectors_node import CollectorsNode
+from model.parameter_value import NewParameterValueSchema
+from model.word_list import WordList
+from taranisng.schema.acl_entry import ItemType
 from taranisng.schema.osint_source import OSINTSourceSchema, OSINTSourceGroupSchema, OSINTSourceIdSchema, \
     OSINTSourcePresentationSchema, OSINTSourceGroupPresentationSchema
-from model.parameter_value import NewParameterValueSchema
-from model.collectors_node import CollectorsNode
-from model.collector import Collector
-from model.word_list import WordList
 from taranisng.schema.word_list import WordListIdSchema
-import uuid
-from sqlalchemy import orm, func, or_, and_
-from model.acl_entry import ACLEntry
-from taranisng.schema.acl_entry import ItemType
+from datetime import datetime
 
 
 class NewOSINTSourceSchema(OSINTSourceSchema):
@@ -34,6 +37,13 @@ class OSINTSource(db.Model):
                                        cascade="all")
 
     word_lists = db.relationship('WordList', secondary='osint_source_word_list')
+
+    modified = db.Column(db.DateTime, default=datetime.now)
+    last_collected = db.Column(db.DateTime, default=None)
+    last_attempted = db.Column(db.DateTime, default=None)
+    state = db.Column(db.SmallInteger, default=0)
+    last_error_message = db.Column(db.String, default=None)
+    screenshot = db.Column(db.LargeBinary, default=None)
 
     def __init__(self, id, name, description, collector_id, parameter_values, word_lists):
         self.id = str(uuid.uuid4())
@@ -114,6 +124,7 @@ class OSINTSource(db.Model):
         osint_source = new_osint_source_schema.load(data)
         db.session.add(osint_source)
         db.session.commit()
+        return osint_source
 
     @classmethod
     def delete(cls, osint_source_id):
@@ -136,6 +147,7 @@ class OSINTSource(db.Model):
 
         osint_source.word_lists = updated_osint_source.word_lists
         db.session.commit()
+        return osint_source
 
 
 class OSINTSourceParameterValue(db.Model):

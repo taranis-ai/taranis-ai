@@ -2,19 +2,21 @@ FROM python:3.7-alpine3.14
 
 WORKDIR /app/
 
+# install common packages
+RUN \
+    apk add --no-cache \
+    postgresql-libs \
+    libpq
+
 COPY ./src/bots/requirements.txt /app/taranis-ng-bots/requirements.txt
 COPY ./src/common/requirements.txt /app/taranis-ng-common/requirements.txt
 
 # install dependencies
 RUN \
-    apk add --no-cache postgresql-libs libpq && \
     apk add --no-cache --virtual .build-deps gcc g++ make musl-dev python3-dev libffi-dev postgresql-dev && \
     pip install --no-cache-dir -r /app/taranis-ng-bots/requirements.txt && \
     pip install --no-cache-dir -r /app/taranis-ng-common/requirements.txt && \
     apk --purge del .build-deps
-
-COPY ./src/bots/. /app/taranis-ng-bots
-COPY ./src/common/. /app/taranis-ng-common
 
 COPY ./docker/start.sh /start.sh
 RUN chmod +x /start.sh
@@ -26,6 +28,9 @@ COPY ./docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 COPY ./docker/gunicorn_conf.py /gunicorn_conf.py
+
+COPY ./src/bots/. /app/taranis-ng-bots
+COPY ./src/common/. /app/taranis-ng-common
 
 EXPOSE 80
 

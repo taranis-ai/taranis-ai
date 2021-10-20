@@ -18,6 +18,7 @@ class Parameter(db.Model):
     type = db.Column(db.Enum(parameter.ParameterType))
 
     def __init__(self, id, key, name, description, type):
+        self.id = None
         self.key = key
         self.name = name
         self.description = description

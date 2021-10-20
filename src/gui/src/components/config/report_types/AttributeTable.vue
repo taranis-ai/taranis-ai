@@ -47,14 +47,14 @@
 
                             <v-row>
                                 <v-col>
-                                    <v-text-field v-model="edited_attribute.min_occurence"
-                                                  :label="$t('attribute.min_occurence')"
+                                    <v-text-field v-model="edited_attribute.min_occurrence"
+                                                  :label="$t('attribute.min_occurrence')"
                                                   :spellcheck="$store.state.settings.spellcheck"
                                     ></v-text-field>
                                 </v-col>
                                 <v-col>
-                                    <v-text-field v-model="edited_attribute.max_occurence"
-                                                  :label="$t('attribute.max_occurence')"
+                                    <v-text-field v-model="edited_attribute.max_occurrence"
+                                                  :label="$t('attribute.max_occurrence')"
                                                   :spellcheck="$store.state.settings.spellcheck"
                                     ></v-text-field>
                                 </v-col>
@@ -116,8 +116,8 @@
                 {text: 'Type', value: 'attribute_name', align: 'left', sortable: false},
                 {text: 'Name', value: 'title', sortable: false},
                 {text: 'Description', value: 'description', sortable: false},
-                {text: 'Min Occurence', value: 'min_occurence', sortable: false},
-                {text: 'Max Occurence', value: 'max_occurence', sortable: false},
+                {text: 'Min Occurence', value: 'min_occurrence', sortable: false},
+                {text: 'Max Occurence', value: 'max_occurrence', sortable: false},
                 {text: 'Actions', value: 'action', align: 'right', sortable: false},
             ],
             dialog: false,
@@ -130,8 +130,8 @@
                 attribute_name: "",
                 title: "",
                 description: "",
-                min_occurence: 0,
-                max_occurence: 1
+                min_occurrence: 0,
+                max_occurrence: 1
             },
             default_attribute: {
                 index: 0,
@@ -140,8 +140,8 @@
                 attribute_name: "",
                 title: "",
                 description: "",
-                min_occurence: 0,
-                max_occurence: 1
+                min_occurrence: 0,
+                max_occurrence: 1
             },
         }),
         computed: {

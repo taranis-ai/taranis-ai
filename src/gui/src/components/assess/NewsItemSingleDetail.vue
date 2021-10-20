@@ -12,28 +12,28 @@
                         <v-spacer></v-spacer>
 
                         <div v-if="!multiSelectActive && !analyze_selector">
-                            <v-btn v-if="canDelete" small icon @click.stop="cardItemToolbar('delete')">
+                            <v-btn v-if="canDelete" small icon @click.stop="cardItemToolbar('delete')" :title="$t('assess.tooltip.delete_item')">
                                 <v-icon small color="accent">mdi-delete</v-icon>
                             </v-btn>
-                            <a v-if="canAccess" :href="news_item.news_items[0].news_item_data.link" target="_blank">
+                            <a v-if="canAccess" :href="news_item.news_items[0].news_item_data.link" target="_blank" :title="$t('assess.tooltip.open_source')">
                                 <v-btn small icon>
                                     <v-icon small color="accent">mdi-open-in-app</v-icon>
                                 </v-btn>
                             </a>
                             <v-btn v-if="canCreateReport" small icon @click.stop="cardItemToolbar('new')"
-                                   data-btn="new">
+                                   data-btn="new" :title="$t('assess.tooltip.analyze_item')">
                                 <v-icon small color="accent">mdi-file-outline</v-icon>
                             </v-btn>
-                            <v-btn v-if="canModify" small icon @click.stop="cardItemToolbar('read')">
+                            <v-btn v-if="canModify" small icon @click.stop="cardItemToolbar('read')" :title="$t('assess.tooltip.read_item')">
                                 <v-icon small :color="buttonStatus(news_item.read)">mdi-eye</v-icon>
                             </v-btn>
-                            <v-btn v-if="canModify" small icon @click.stop="cardItemToolbar('important')">
+                            <v-btn v-if="canModify" small icon @click.stop="cardItemToolbar('important')" :title="$t('assess.tooltip.important_item')">
                                 <v-icon small :color="buttonStatus(news_item.important)">mdi-star</v-icon>
                             </v-btn>
-                            <v-btn v-if="canModify" small icon @click.stop="cardItemToolbar('like')">
+                            <v-btn v-if="canModify" small icon @click.stop="cardItemToolbar('like')" :title="$t('assess.tooltip.like_item')">
                                 <v-icon small :color="buttonStatus(news_item.me_like)">mdi-thumb-up</v-icon>
                             </v-btn>
-                            <v-btn v-if="canModify" small icon @click.stop="cardItemToolbar('unlike')">
+                            <v-btn v-if="canModify" small icon @click.stop="cardItemToolbar('unlike')" :title="$t('assess.tooltip.dislike_item')">
                                 <v-icon small :color="buttonStatus(news_item.me_dislike)">mdi-thumb-down</v-icon>
                             </v-btn>
                         </div>
@@ -115,9 +115,6 @@
                                         <a :href="news_item.news_items[0].news_item_data.link" target="_blank">
                                             <span>{{ news_item.news_items[0].news_item_data.link }}</span>
                                         </a>
-                                    </v-row>
-                                    <v-row>
-                                        <span>{{ news_item.news_items[0].news_item_data.source }}</span>
                                     </v-row>
                                 </v-container>
 

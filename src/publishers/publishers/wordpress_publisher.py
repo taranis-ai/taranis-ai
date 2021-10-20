@@ -1,12 +1,11 @@
-from publishers.base_publisher import BasePublisher
-from taranisng.schema.parameter import Parameter, ParameterType
 import base64
 from base64 import b64decode
-import os
-import requests
 from datetime import datetime
 
-os.chdir("../taranis-ng-publishers/")
+import requests
+
+from publishers.base_publisher import BasePublisher
+from taranisng.schema.parameter import Parameter, ParameterType
 
 
 class WORDPRESSPublisher(BasePublisher):

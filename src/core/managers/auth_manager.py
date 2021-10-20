@@ -1,21 +1,23 @@
+import os
+from enum import Enum, auto
 from functools import wraps
-from auth.test_authenticator import TestAuthenticator
-from auth.openid_authenticator import OpenIDAuthenticator
-from flask_jwt_extended import JWTManager, get_jwt_claims, get_jwt_identity, verify_jwt_in_request, get_raw_jwt
-from flask_jwt_extended.exceptions import JWTExtendedException
+
 import jwt
 from flask import request
-from model.collectors_node import CollectorsNode
-from model.user import User
-from model.permission import Permission
-from model.osint_source import OSINTSourceGroup
-import os
+from flask_jwt_extended import JWTManager, get_jwt_claims, get_jwt_identity, verify_jwt_in_request, get_raw_jwt
+from flask_jwt_extended.exceptions import JWTExtendedException
+
+from auth.openid_authenticator import OpenIDAuthenticator
+from auth.test_authenticator import TestAuthenticator
 from managers import log_manager
-from enum import Enum, auto
-from model.report_item import ReportItem
-from model.product_type import ProductType
+from model.collectors_node import CollectorsNode
 from model.news_item import NewsItem
+from model.osint_source import OSINTSourceGroup
+from model.permission import Permission
+from model.product_type import ProductType
 from model.remote import RemoteAccess
+from model.report_item import ReportItem
+from model.user import User
 
 authenticators = [TestAuthenticator(), OpenIDAuthenticator()]
 current_authenticator = 0
@@ -27,6 +29,10 @@ def get_required_credentials():
 
 def authenticate(credentials):
     return authenticators[current_authenticator].authenticate(credentials)
+
+
+def refresh(user):
+    return authenticators[current_authenticator].refresh(user)
 
 
 def logout():
@@ -108,44 +114,51 @@ def auth_required(permissions, *acl_args):
     def auth_required_wrap(fn):
         @wraps(fn)
         def wrapper(*args, **kwargs):
-
-            try:
-                verify_jwt_in_request()
-            except JWTExtendedException:
-                log_manager.store_auth_error_activity("Missing JWT")
-                return {'error': 'authorization required'}, 401
-
-            identity = get_jwt_identity()
-            if not identity:
-                log_manager.store_auth_error_activity("Missing identity in JWT: " + get_raw_jwt())
-                return {'error': 'authorization failed'}, 401
-
-            claims = get_jwt_claims()
-            if not claims or 'permissions' not in claims:
-                log_manager.store_auth_error_activity("Missing permissions in JWT for identity: " + identity)
-                return {'error': 'authorization failed'}, 401
+            error = ({'error': 'not authorized'}, 401)
 
             if isinstance(permissions, list):
                 permissions_set = set(permissions)
             else:
                 permissions_set = {permissions}
 
+            # do we have a JWT token?
+            try:
+                verify_jwt_in_request()
+            except JWTExtendedException:
+                log_manager.store_auth_error_activity("Missing JWT")
+                return error
+
+            # does it encode an identity?
+            identity = get_jwt_identity()
+            if not identity:
+                log_manager.store_auth_error_activity("Missing identity in JWT: " + get_raw_jwt())
+                return error
+
             user = User.find(identity)
 
-            if permissions_set.intersection(set(claims['permissions'])):
-                access_allowed = True
-                if len(acl_args) > 0:
-                    access_allowed = check_acl(kwargs[get_id_name_by_acl(acl_args[0])], acl_args[0], user)
-
-                if access_allowed is True:
-                    log_manager.store_user_activity(user, str(permissions), str(request.json))
-                    return fn(*args, **kwargs)
-                else:
-                    return {'error': 'not authorized'}, 401
-            else:
+            # does it include permissions?
+            claims = get_jwt_claims()
+            if not claims or 'permissions' not in claims:
                 log_manager.store_user_auth_error_activity(user,
-                                                           "Insufficient permissions in JWT for identity: " + identity)
-                return {'error': 'not authorized'}, 401
+                        "Missing permissions in JWT for identity: " + identity)
+                return error
+
+            # is there at least one match with the permissions required by the call?
+            if not permissions_set.intersection(set(claims['permissions'])):
+                log_manager.store_user_auth_error_activity(user,
+                        "Insufficient permissions in JWT for identity: " + identity)
+                return error
+
+            # if the object does have an ACL, do we match it?
+            if len(acl_args) > 0:
+                if not check_acl(kwargs[get_id_name_by_acl(acl_args[0])], acl_args[0], user):
+                    log_manager.store_user_auth_error_activity(user,
+                            "Access denied by ACL in JWT for identity: " + identity)
+                    return error
+
+            # allow
+            log_manager.store_user_activity(user, str(permissions), str(request.json))
+            return fn(*args, **kwargs)
 
         return wrapper
 
@@ -155,21 +168,28 @@ def auth_required(permissions, *acl_args):
 def api_key_required(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
-        if request.headers.has_key('Authorization'):
-            auth_header = request.headers['Authorization']
-            if auth_header.startswith('Bearer'):
-                if CollectorsNode.exists_by_api_key(auth_header.replace('Bearer ', '')):
-                    return fn(*args, **kwargs)
-                else:
-                    log_manager.store_auth_error_activity("Incorrect api key: "
-                                                          + auth_header.replace('Bearer ',
-                                                                                '') + " for external access")
-            else:
-                log_manager.store_auth_error_activity("Missing Authorization Bearer for external access")
-        else:
-            log_manager.store_auth_error_activity("Missing Authorization header for external access")
+        error = ({'error': 'not authorized'}, 401)
 
-        return {'error': 'not authorized'}, 401
+        # do we have the authorization header?
+        if not request.headers.has_key('Authorization'):
+            log_manager.store_auth_error_activity("Missing Authorization header for external access")
+            return error
+
+        # is it properly encoded?
+        auth_header = request.headers['Authorization']
+        if not auth_header.startswith('Bearer'):
+            log_manager.store_auth_error_activity("Missing Authorization Bearer for external access")
+            return error
+
+        # does it match some of our collector's keys?
+        if not CollectorsNode.exists_by_api_key(auth_header.replace('Bearer ', '')):
+            log_manager.store_auth_error_activity("Incorrect api key: "
+                                                  + auth_header.replace('Bearer ',
+                                                                        '') + " for external access")
+            return error
+
+        # allow
+        return fn(*args, **kwargs)
 
     return wrapper
 
@@ -177,21 +197,53 @@ def api_key_required(fn):
 def access_key_required(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
-        if request.headers.has_key('Authorization'):
-            auth_header = request.headers['Authorization']
-            if auth_header.startswith('Bearer'):
-                if RemoteAccess.exists_by_access_key(auth_header.replace('Bearer ', '')):
-                    return fn(*args, **kwargs)
-                else:
-                    log_manager.store_auth_error_activity("Incorrect access key: "
-                                                          + auth_header.replace('Bearer ',
-                                                                                '') + " for remote access")
-            else:
-                log_manager.store_auth_error_activity("Missing Authorization Bearer for remote access")
-        else:
-            log_manager.store_auth_error_activity("Missing Authorization header for remote access")
+        error = ({'error': 'not authorized'}, 401)
 
-        return {'error': 'not authorized'}, 401
+        # do we have the authorization header?
+        if not request.headers.has_key('Authorization'):
+            log_manager.store_auth_error_activity("Missing Authorization header for remote access")
+            return error
+
+        # is it properly encoded?
+        auth_header = request.headers['Authorization']
+        if not auth_header.startswith('Bearer'):
+            log_manager.store_auth_error_activity("Missing Authorization Bearer for remote access")
+            return error
+
+        # does it match some of our remote peer's access keys?
+        if not RemoteAccess.exists_by_access_key(auth_header.replace('Bearer ', '')):
+            log_manager.store_auth_error_activity("Incorrect access key: "
+                                                  + auth_header.replace('Bearer ',
+                                                                        '') + " for remote access")
+            return error
+
+        # allow
+        return fn(*args, **kwargs)
+    return wrapper
+
+
+def jwt_required(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+
+        try:
+            verify_jwt_in_request()
+        except JWTExtendedException:
+            log_manager.store_auth_error_activity("Missing JWT")
+            return {'error': 'authorization required'}, 401
+
+        identity = get_jwt_identity()
+        if not identity:
+            log_manager.store_auth_error_activity("Missing identity in JWT: " + get_raw_jwt())
+            return {'error': 'authorization failed'}, 401
+
+        user = User.find(identity)
+        if user is None:
+            log_manager.store_auth_error_activity("Unknown identity: " + identity)
+            return {'error': 'authorization failed'}, 401
+
+        log_manager.store_user_activity(user, "API_ACCESS", "Access permitted")
+        return fn(*args, **kwargs)
 
     return wrapper
 

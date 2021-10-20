@@ -28,7 +28,7 @@
                             transition='slide-x-reverse-transition'
                     >
 
-                        <v-btn v-if="canDelete" fab x-small color="red" @click.stop="cardItemToolbar('delete')">
+                        <v-btn v-if="canDelete" fab x-small color="red" @click.stop="cardItemToolbar('delete')" :title="$t('publish.tooltip.delete_item')">
                             <v-icon color="white">mdi-trash-can-outline</v-icon>
                         </v-btn>
                     </v-speed-dial>

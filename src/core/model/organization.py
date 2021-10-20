@@ -22,6 +22,7 @@ class Organization(db.Model):
     address = db.relationship("Address", cascade="all")
 
     def __init__(self, id, name, description, address):
+        self.id = None
         self.name = name
         self.description = description
         self.address = address

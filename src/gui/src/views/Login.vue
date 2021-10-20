@@ -50,6 +50,8 @@
 
 <script>
 
+    import AuthMixin from "@/services/auth/auth_mixin";
+
     export default {
         name: 'Login',
         data: () => ({
@@ -57,6 +59,7 @@
             password: '',
             show_login_error: false
         }),
+        mixins: [AuthMixin],
         methods: {
             authenticate() {
                 this.$validator.validateAll().then(() => {
@@ -64,9 +67,9 @@
                     if (!this.$validator.errors.any()) {
                         this.$store.dispatch('login', {username: this.username, password: this.password})
                             .then(() => {
-                                if (this.$store.getters.isAuthenticated) {
+                                if (this.isAuthenticated()) {
                                     this.show_login_error = false;
-                                    this.$router.push(this.$router.history.current.query.redirect || '/')
+                                    this.$router.push('/')
                                     this.$store.dispatch('getUserProfile').then(() => {
                                         this.$vuetify.theme.dark = this.$store.getters.getProfileDarkTheme
                                     });

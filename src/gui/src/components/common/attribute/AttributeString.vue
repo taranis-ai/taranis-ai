@@ -23,7 +23,7 @@
 
         </v-row>
 
-        <v-btn v-if="values.length < attribute_group.max_occurence && !read_only && canModify" depressed small @click="add">
+        <v-btn v-if="values.length < attribute_group.max_occurrence && !read_only && canModify" depressed small @click="add">
             <v-icon>mdi-plus</v-icon>
         </v-btn>
 
@@ -42,7 +42,7 @@
                         v-if="!read_only && canModify && !values[index].remote"
                         :del_button="delButtonVisible"
                         @del-value="del(index)"
-                        :occurence="attribute_group.min_occurence"
+                        :occurrence="attribute_group.min_occurrence"
                         :values="values"
                         :val_index="index"
                 >

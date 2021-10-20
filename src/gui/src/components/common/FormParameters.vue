@@ -1,36 +1,55 @@
 <template>
     <div><!-- TODO: i18 -->
         <v-container v-for="(parameter, index) in sources" :key="parameter.key">
-            <v-text-field v-if="ui === 'text'"
 
-                          :label="parameter.name"
-                          name="value0"
-                          type="text"
-                          v-model="values[index]"
-                          v-validate="'required'"
-                          data-vv-name="parameter"
-                          :disabled="disabled"
-                          :error-messages="errors.collect('parameter')"
-            />
+            <v-row>
+                <v-text-field v-if="ui === 'text'"
 
-            <v-combobox v-else-if="ui === 'combobox'"
+                              :label="parameter.name"
+                              :name="'parameter' + index"
+                              type="text"
+                              v-model="values[index]"
+                              v-validate="'required'"
+                              :data-vv-name="'parameter' + index"
+                              :disabled="disabled"
+                              :error-messages="errors.collect('parameter' + index)"
+                />
 
-                        :label=$t(parameter.name)
-                        :items="[]"
-                        item-text="name"
-            />
+                <v-combobox v-else-if="ui === 'combobox'"
 
-            <v-select v-else-if="ui === 'select'"
+                            :label=$t(parameter.name)
+                            :items="[]"
+                            item-text="name"
+                />
 
-                      :label=$t(parameter.name)
-            />
+                <v-select v-else-if="ui === 'select'"
 
-            <v-textarea v-else-if="ui === 'textarea'"
+                          :label=$t(parameter.name)
+                />
+
+                <v-textarea v-else-if="ui === 'textarea'"
 
 
-                        :label=$t(parameter.name)
-                        :name="parameter.name"
-            />
+                            :label=$t(parameter.name)
+                            :name="parameter.name"
+                />
+
+                <v-tooltip left>
+                  <template v-slot:activator="{ on, attrs }">
+                    <v-icon
+                      color="primary"
+                      dark
+                      v-bind="attrs"
+                      v-on="on"
+                      class="pr-2"
+                    >
+                      mdi-help-circle
+                    </v-icon>
+                  </template>
+                  <span>{{ parameter.description }}</span>
+                </v-tooltip>
+
+            </v-row>
         </v-container>
     </div>
 </template>

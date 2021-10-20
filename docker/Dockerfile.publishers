@@ -2,19 +2,21 @@ FROM python:3.7-alpine3.14
 
 WORKDIR /app/
 
+# install common packages
+RUN \
+    apk add --no-cache \
+    postgresql-libs \
+    libpq
+
 COPY ./src/publishers/requirements.txt /app/taranis-ng-publishers/requirements.txt
 COPY ./src/common/requirements.txt /app/taranis-ng-common/requirements.txt
 
 # install dependencies
 RUN \
-    apk add --no-cache postgresql-libs libpq && \
     apk add --no-cache --virtual .build-deps build-base gcc g++ make musl-dev python3-dev libffi-dev postgresql-dev rust && \
     pip install --no-cache-dir -r /app/taranis-ng-publishers/requirements.txt && \
     pip install --no-cache-dir -r /app/taranis-ng-common/requirements.txt && \
     apk --purge del .build-deps
-
-COPY ./src/publishers/. /app/taranis-ng-publishers
-COPY ./src/common/. /app/taranis-ng-common
 
 COPY ./docker/start.sh /start.sh
 RUN chmod +x /start.sh
@@ -28,6 +30,9 @@ RUN chmod +x /entrypoint.sh
 COPY ./docker/gunicorn_conf.py /gunicorn_conf.py
 
 EXPOSE 80
+
+COPY ./src/publishers/. /app/taranis-ng-publishers
+COPY ./src/common/. /app/taranis-ng-common
 
 # setup environment variables
 ENV PYTHONPATH=/app

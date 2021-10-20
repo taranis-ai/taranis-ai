@@ -345,11 +345,11 @@ class OSINTSource(Resource):
 
     @auth_required('CONFIG_OSINT_SOURCE_UPDATE')
     def put(self, source_id):
-        osint_source.OSINTSource.update(source_id, request.json)
+        collectors_manager.update_osint_source(source_id, request.json)
 
     @auth_required('CONFIG_OSINT_SOURCE_DELETE')
     def delete(self, source_id):
-        osint_source.OSINTSource.delete(source_id)
+        collectors_manager.delete_osint_source(source_id)
 
 
 class OSINTSourceGroups(Resource):

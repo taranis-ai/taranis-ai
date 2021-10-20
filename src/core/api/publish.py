@@ -101,7 +101,7 @@ def initialize(api):
     api.add_resource(Products, "/api/v1/publish/products")
     api.add_resource(Product, "/api/v1/publish/products/<int:product_id>")
     api.add_resource(ProductsOverview, "/api/v1/publish/products/<int:product_id>/overview")
-    api.add_resource(PublishProduct, "/api/v1/publish/products/<int:product_id>/publishers/<int:publisher_id>")
+    api.add_resource(PublishProduct, "/api/v1/publish/products/<int:product_id>/publishers/<string:publisher_id>")
 
     Permission.add("PUBLISH_ACCESS", "Publish access", "Access to publish module")
     Permission.add("PUBLISH_CREATE", "Publish create", "Create product")

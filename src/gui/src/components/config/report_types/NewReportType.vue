@@ -332,8 +332,8 @@
                             attribute_name: data.attribute_groups[i].attribute_group_items[j].attribute.name,
                             title: data.attribute_groups[i].attribute_group_items[j].title,
                             description: data.attribute_groups[i].attribute_group_items[j].description,
-                            min_occurence: data.attribute_groups[i].attribute_group_items[j].min_occurence,
-                            max_occurence: data.attribute_groups[i].attribute_group_items[j].max_occurence
+                            min_occurrence: data.attribute_groups[i].attribute_group_items[j].min_occurrence,
+                            max_occurrence: data.attribute_groups[i].attribute_group_items[j].max_occurrence
                         })
                     }
 
@@ -654,8 +654,8 @@
                             attribute_name: data.attribute_groups[i].attribute_group_items[j].attribute.name,
                             title: data.attribute_groups[i].attribute_group_items[j].title,
                             description: data.attribute_groups[i].attribute_group_items[j].description,
-                            min_occurence: data.attribute_groups[i].attribute_group_items[j].min_occurence,
-                            max_occurence: data.attribute_groups[i].attribute_group_items[j].max_occurence
+                            min_occurrence: data.attribute_groups[i].attribute_group_items[j].min_occurrence,
+                            max_occurrence: data.attribute_groups[i].attribute_group_items[j].max_occurrence
                         })
                     }
 

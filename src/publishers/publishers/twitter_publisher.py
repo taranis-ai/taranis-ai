@@ -1,10 +1,9 @@
+from base64 import b64decode
+
+import tweepy
+
 from publishers.base_publisher import BasePublisher
 from taranisng.schema.parameter import Parameter, ParameterType
-from base64 import b64decode
-import tweepy
-import os
-
-os.chdir("../taranis-ng-publishers/")
 
 
 class TWITTERPublisher(BasePublisher):

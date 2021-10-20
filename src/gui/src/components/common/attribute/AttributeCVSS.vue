@@ -40,7 +40,7 @@
                 </v-row>
             </v-card>
         </v-row>
-        <v-btn v-if="values.length < attribute_group.max_occurence && !read_only && canModify" depressed small
+        <v-btn v-if="values.length < attribute_group.max_occurrence && !read_only && canModify" depressed small
                @click="add">
             <v-icon>mdi-plus</v-icon>
         </v-btn>
@@ -60,7 +60,7 @@
                         v-if="!read_only && canModify && !values[index].remote"
                         :del_button="delButtonVisible"
                         @del-value="del(index)"
-                        :occurence="attribute_group.min_occurence"
+                        :occurrence="attribute_group.min_occurrence"
                         :values="values"
                         :val_index="index"
                 >
@@ -118,7 +118,7 @@
             rules: {
                 vector: value => {
                     const pattern = /^CVSS:3\.1\/((AV:[NALP]|AC:[LH]|PR:[UNLH]|UI:[NR]|S:[UC]|[CIA]:[NLH]|E:[XUPFH]|RL:[XOTWU]|RC:[XURC]|[CIA]R:[XLMH]|MAV:[XNALP]|MAC:[XLH]|MPR:[XUNLH]|MUI:[XNR]|MS:[XUC]|M[CIA]:[XNLH])\/)*(AV:[NALP]|AC:[LH]|PR:[UNLH]|UI:[NR]|S:[UC]|[CIA]:[NLH]|E:[XUPFH]|RL:[XOTWU]|RC:[XURC]|[CIA]R:[XLMH]|MAV:[XNALP]|MAC:[XLH]|MPR:[XUNLH]|MUI:[XNR]|MS:[XUC]|M[CIA]:[XNLH])$/
-                    return value == '' || pattern.test(value) || 'Invalid or Uncomplete Vector String'
+                    return value == '' || pattern.test(value) || 'Invalid or Incomplete Vector String'
                 }
             }
         }),

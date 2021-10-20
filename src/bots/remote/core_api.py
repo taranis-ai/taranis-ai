@@ -5,6 +5,8 @@ import requests
 
 class CoreApi:
     api_url = os.getenv('TARANIS_NG_CORE_URL')
+    if api_url.endswith("/"):
+        api_url = api_url[:-1]
     api_key = os.getenv('API_KEY')
     headers = {'Authorization': 'Bearer ' + api_key}
 

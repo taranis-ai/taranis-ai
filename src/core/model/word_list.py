@@ -1,12 +1,13 @@
-from managers.db_manager import db
-from taranisng.schema.word_list import WordListCategorySchema, WordListEntrySchema, WordListSchema, \
-    WordListPresentationSchema
+import sqlalchemy
 from marshmallow import post_load, fields
 from sqlalchemy import orm, func, or_, and_
+from sqlalchemy.sql.expression import cast
+
+from managers.db_manager import db
 from model.acl_entry import ACLEntry
 from taranisng.schema.acl_entry import ItemType
-import sqlalchemy
-from sqlalchemy.sql.expression import cast
+from taranisng.schema.word_list import WordListCategorySchema, WordListEntrySchema, WordListSchema, \
+    WordListPresentationSchema
 
 
 class NewWordListEntrySchema(WordListEntrySchema):
@@ -41,6 +42,7 @@ class WordList(db.Model):
     categories = db.relationship("WordListCategory", cascade="all, delete-orphan")
 
     def __init__(self, id, name, description, categories, use_for_stop_words):
+        self.id = None
         self.name = name
         self.description = description
         self.categories = categories
@@ -146,6 +148,7 @@ class WordListCategory(db.Model):
     entries = db.relationship("WordListEntry", cascade="all, delete-orphan")
 
     def __init__(self, name, description, entries):
+        self.id = None
         self.name = name
         self.description = description
         self.entries = entries
@@ -173,6 +176,7 @@ class WordListEntry(db.Model):
     word_list_category_id = db.Column(db.Integer, db.ForeignKey('word_list_category.id'))
 
     def __init__(self, value, description):
+        self.id = None
         self.value = value
         self.description = description
 
@@ -198,3 +202,12 @@ class WordListEntry(db.Model):
             if not WordListEntry.identical(entry.value, word_list_category.id):
                 word_list_category.entries.append(entry)
                 db.session.commit()
+
+    @classmethod
+    def stopwords_subquery(cls):
+        return db.session.query(func.lower(WordListEntry.value)).distinct().group_by(WordListEntry.value).join(
+            WordListCategory,
+            WordListCategory.id == WordListEntry.word_list_category_id).join(
+            WordList, WordList.id == WordListCategory.word_list_id).filter(
+            WordList.use_for_stop_words == True).subquery()
+

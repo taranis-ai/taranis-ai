@@ -15,7 +15,10 @@ from model.osint_source import OSINTSource, OSINTSourceGroup
 from managers import db_manager
 import sys
 
-def run(db):
+from sqlalchemy.exc import IntegrityError
+
+
+def main(db):
     user_role = Role(None, 'User', 'Test user role', [])
     user_role.permissions.append(Permission.find("ASSESS_ACCESS"))
     user_role.permissions.append(Permission.find("ASSESS_CREATE"))
@@ -548,6 +551,17 @@ def run(db):
     report_type = ReportItemType(None, "MISP Report", "MISP report type", [group4, group5])
     db.session.add(report_type)
     db.session.commit()
+
+
+def run(db):
+    try:
+        main(db_manager.db)
+    except IntegrityError as exc:
+        print(exc, file=sys.stderr)
+        print('Detected UniqueViolation exception. Probably the '
+              'sample data has already been imported. If not, please report '
+              'this as bug.', file=sys.stderr)
+
 
 if __name__ == '__main__':
     run(db_manager.db)

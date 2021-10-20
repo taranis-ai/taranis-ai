@@ -17,19 +17,19 @@ export function deleteAssetGroup(group) {
 }
 
 export function getAllNotificationTemplates(filter) {
-    return ApiService.get('/my-assets/notification-templates?search=' + filter.search)
+    return ApiService.get('/my-assets/asset-notification-templates?search=' + filter.search)
 }
 
 export function createNewNotificationTemplate(template) {
-    return ApiService.post('/my-assets/notification-templates', template)
+    return ApiService.post('/my-assets/asset-notification-templates', template)
 }
 
 export function updateNotificationTemplate(template) {
-    return ApiService.put('/my-assets/notification-templates/' + template.id, template)
+    return ApiService.put('/my-assets/asset-notification-templates/' + template.id, template)
 }
 
 export function deleteNotificationTemplate(template) {
-    return ApiService.delete('/my-assets/notification-templates/' + template.id)
+    return ApiService.delete('/my-assets/asset-notification-templates/' + template.id)
 }
 
 export function getAllAssets(data) {

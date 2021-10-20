@@ -31,6 +31,7 @@ class ProductType(db.Model):
     parameter_values = db.relationship('ParameterValue', secondary='product_type_parameter_value', cascade="all")
 
     def __init__(self, id, title, description, presenter_id, parameter_values):
+        self.id = None
         self.title = title
         self.description = description
         self.presenter_id = presenter_id

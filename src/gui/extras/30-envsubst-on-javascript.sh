@@ -2,7 +2,7 @@
 
 # This script is started when Docker container starts.
 # It goes through /usr/share/nginx/html/js/*.js, and replaces
-# occurences of $VUE_SOMETHING by the contents of
+# occurrences of $VUE_SOMETHING by the contents of
 # environment variables of that name.
 
 set -e

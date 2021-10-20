@@ -11,6 +11,9 @@ var AuthMixin = {
         isAuthenticated() {
             return AuthService.isAuthenticated()
         },
+        needTokenRefresh() {
+            return AuthService.needTokenRefresh()
+        },
         checkPermission(permission) {
             return AuthService.hasPermission(permission)
         }

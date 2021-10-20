@@ -3,7 +3,7 @@ from marshmallow import post_load
 import uuid
 from taranisng.schema.collectors_node import CollectorsNodeSchema, CollectorsNodePresentationSchema
 from sqlalchemy import orm, or_, func
-
+from datetime import datetime
 
 class NewCollectorsNodeSchema(CollectorsNodeSchema):
 
@@ -19,6 +19,9 @@ class CollectorsNode(db.Model):
 
     api_url = db.Column(db.String(), nullable=False)
     api_key = db.Column(db.String(), nullable=False)
+
+    created = db.Column(db.DateTime, default=datetime.now)
+    last_seen = db.Column(db.DateTime, default=None)
 
     collectors = db.relationship('Collector', back_populates="node", cascade="all")
 
@@ -57,6 +60,10 @@ class CollectorsNode(db.Model):
                 func.lower(CollectorsNode.description).like(search_string)))
 
         return query.order_by(db.asc(CollectorsNode.name)).all(), query.count()
+
+    @classmethod
+    def get_by_id(cls, id):
+        return cls.query.filter_by(id=id).first()
 
     @classmethod
     def get_all_json(cls, search):
@@ -101,4 +108,9 @@ class CollectorsNode(db.Model):
                 raise Exception("Collectors has mapped sources")
 
         db.session.delete(node)
+        db.session.commit()
+
+    def updateLastSeen(self):
+        self.last_seen = datetime.now()
+        db.session.add(self)
         db.session.commit()

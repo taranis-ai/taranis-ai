@@ -9,11 +9,18 @@ from model import osint_source, news_item
 class OSINTSourcesForCollectors(Resource):
 
     @api_key_required
-    def get(self):
+    def get(self, collector_id):
         parser = reqparse.RequestParser()
         parser.add_argument("api_key")
         parser.add_argument("collector_type")
         parameters = parser.parse_args()
+
+        collector = osint_source.CollectorsNode.get_by_id(collector_id)
+        if not collector:
+            return '', 404
+
+        collector.updateLastSeen()
+
         return osint_source.OSINTSource.get_all_for_collector_json(parameters)
 
 
@@ -27,5 +34,5 @@ class AddNewsItems(Resource):
 
 
 def initialize(api):
-    api.add_resource(OSINTSourcesForCollectors, "/api/v1/collectors/osint-sources")
+    api.add_resource(OSINTSourcesForCollectors, "/api/v1/collectors/<string:collector_id>/osint-sources")
     api.add_resource(AddNewsItems, "/api/v1/collectors/news-items")

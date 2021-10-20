@@ -1,8 +1,9 @@
-from flask_restful import Resource, reqparse, request, ResponseBase
 from flask import redirect, make_response
-from managers import auth_manager
-from managers.auth_manager import no_auth
+from flask_restful import Resource, reqparse, request, ResponseBase
+
 from config import Config
+from managers import auth_manager
+from managers.auth_manager import no_auth, jwt_required
 
 
 class Login(Resource):
@@ -28,6 +29,13 @@ class Login(Resource):
         return auth_manager.authenticate(credentials)
 
 
+class Refresh(Resource):
+
+    @jwt_required
+    def get(self):
+        return auth_manager.refresh(auth_manager.get_user_from_jwt())
+
+
 class Logout(Resource):
 
     @no_auth
@@ -44,4 +52,5 @@ class Logout(Resource):
 
 def initialize(api):
     api.add_resource(Login, "/api/v1/auth/login")
+    api.add_resource(Refresh, "/api/v1/auth/refresh")
     api.add_resource(Logout, "/api/v1/auth/logout")

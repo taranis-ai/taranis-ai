@@ -3,6 +3,7 @@ aniso8601==8.0.0
 async-timeout==3.0.1
 attrs==19.3.0
 beautifulsoup4==4.8.1
+bleach==4.1.0
 blis==0.7.4
 catalogue==2.0.6
 certifi==2019.11.28
@@ -12,7 +13,7 @@ cssselect==1.1.0
 cymem==2.0.3
 feedparser==5.2.1
 Flask==1.1.1
-Flask-Cors==3.0.8
+Flask-Cors==3.0.10
 Flask-RESTful==0.3.7
 gevent==21.8.0
 greenlet==1.1.1
@@ -51,7 +52,7 @@ srsly==2.4.1
 thinc==8.0.10
 tqdm==4.45.0
 tweepy==3.8.0
-urllib3==1.25.7
+urllib3==1.26.7
 vaderSentiment==3.3.1
 wasabi==0.8.2
 webencodings==0.5.1

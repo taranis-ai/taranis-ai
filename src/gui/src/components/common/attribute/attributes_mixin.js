@@ -25,10 +25,10 @@ var AttributesMixin = {
             return this.edit === false || (this.checkPermission(Permissions.ANALYZE_UPDATE) && this.modify === true)
         },
         addButtonVisible() {
-            return (this.values.length < this.attribute_group.max_occurence && !this.read_only && this.canModify);
+            return (this.values.length < this.attribute_group.max_occurrence && !this.read_only && this.canModify);
         },
         delButtonVisible() {
-            return this.delButton && !(this.attribute_group.min_occurence >= this.values.length);
+            return this.delButton && !(this.attribute_group.min_occurrence >= this.values.length);
         }
     },
 
@@ -244,7 +244,7 @@ var AttributesMixin = {
     },
 
     mounted() {
-        if (this.attribute_group.min_occurence > 0 && this.values.length === 0) {
+        if (this.attribute_group.min_occurrence > 0 && this.values.length === 0) {
             this.add()
         }
 

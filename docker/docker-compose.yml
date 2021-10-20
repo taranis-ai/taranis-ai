@@ -7,10 +7,10 @@ services:
     volumes:
       - "redis_conf:/usr/local/etc/redis"
     logging:
-        driver: "json-file"
-        options:
-            max-size: "200k"
-            max-file: "10"
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
 
   database:
     image: "postgres:${POSTGRES_TAG}"
@@ -22,10 +22,10 @@ services:
     volumes:
       - "database_data:/var/lib/postgresql/data"
     logging:
-        driver: "json-file"
-        options:
-            max-size: "200k"
-            max-file: "10"
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
 
   core:
     depends_on: 
@@ -58,27 +58,28 @@ services:
     volumes:
       - "core_data:/data"
     logging:
-        driver: "json-file"
-        options:
-            max-size: "200k"
-            max-file: "10"
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
 
-  # bots:
-  #   depends_on:
-  #     - "core"
-  #   image: "skcert/taranis-ng-bots:${TARANIS_NG_TAG}"
-  #   build:
-  #     context: ..
-  #     dockerfile: ./docker/Dockerfile.bots
-  #   environment:
-  #     API_KEY: "${COLLECTOR_PRESENTER_PUBLISHER_API_KEY}"
-  #     TARANIS_NG_CORE_URL: "http://core/api/v1"
-  #     WORKERS_PER_CORE: "1"
-  #  logging:
-  #      driver: "json-file"
-  #      options:
-  #          max-size: "200k"
-  #          max-file: "10"
+  bots:
+    depends_on:
+      - "core"
+    image: "skcert/taranis-ng-bots:${TARANIS_NG_TAG}"
+    build:
+      context: ..
+      dockerfile: ./docker/Dockerfile.bots
+    environment:
+      API_KEY: "${COLLECTOR_PRESENTER_PUBLISHER_API_KEY}"
+      TARANIS_NG_CORE_URL: "http://core/api/v1"
+      TARANIS_NG_CORE_SSE: "http://core/sse"
+      WORKERS_PER_CORE: "1"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
     
   collectors:
     depends_on:
@@ -94,11 +95,13 @@ services:
       WORKERS_PER_CORE: "1"
     ports:
       - "5001:80"
+    volumes:
+      - "collector_storage:/app/storage"
     logging:
-        driver: "json-file"
-        options:
-            max-size: "200k"
-            max-file: "10"
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
     
   presenters:
     depends_on:
@@ -117,10 +120,10 @@ services:
     volumes:
       - "presenters_templates:/app/taranis-ng-presenters/templates"
     logging:
-        driver: "json-file"
-        options:
-            max-size: "200k"
-            max-file: "10"
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
     
   publishers:
     depends_on:
@@ -136,6 +139,11 @@ services:
       WORKERS_PER_CORE: "1"
     ports:
       - "5003:80"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
     
   gui:
     depends_on:
@@ -155,13 +163,14 @@ services:
       VUE_APP_TARANIS_NG_URL: http://localhost:8080
       VUE_APP_TARANIS_NG_LOCALE: en
     logging:
-        driver: "json-file"
-        options:
-            max-size: "200k"
-            max-file: "10"
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
 
 volumes:
   redis_conf:
   database_data:
   core_data:
   presenters_templates:
+  collector_storage:

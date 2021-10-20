@@ -117,7 +117,7 @@ class GroupAction(Resource):
     @auth_required('ASSESS_UPDATE')
     def put(self):
         user = auth_manager.get_user_from_jwt()
-        if request.json['type'] == 'delete':
+        if request.json['action'] == 'DELETE':
             response, code = news_item.NewsItemAggregate.group_action_delete(request.json, user)
             sse_manager.news_items_updated()
             return response, code

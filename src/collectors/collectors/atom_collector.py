@@ -1,13 +1,15 @@
 import datetime
 import hashlib
 import uuid
+
 import feedparser
 import requests
 from bs4 import BeautifulSoup
-from .base_collector import BaseCollector
+from dateutil.parser import parse
+
 from taranisng.schema.news_item import NewsItemData
 from taranisng.schema.parameter import Parameter, ParameterType
-from dateutil.parser import parse
+from .base_collector import BaseCollector
 
 
 class AtomCollector(BaseCollector):
@@ -28,15 +30,19 @@ class AtomCollector(BaseCollector):
         feed_url = source.parameter_values['ATOM_FEED_URL']
         user_agent = source.parameter_values['USER_AGENT']
         interval = source.parameter_values['REFRESH_INTERVAL']
-        proxy_server = source.parameter_values['PROXY_SERVER']
 
-        proxies = {
-            'http': 'socks5://' + proxy_server,
-            'https': 'socks5://' + proxy_server
-        }
+        proxies = {}
+        if 'PROXY_SERVER' in source.parameter_values:
+            proxy_server = source.parameter_values['PROXY_SERVER']
+            if proxy_server.startswith('https://'):
+                proxies['https'] = proxy_server
+            elif proxy_server.startswith('http://'):
+                proxies['http'] = proxy_server
+            else:
+                proxies['http'] = 'http://' + proxy_server
 
         try:
-            if proxy_server:
+            if proxies:
                 atom_xml = requests.get(feed_url, headers={'User-Agent': user_agent}, proxies=proxies)
                 feed = feedparser.parse(atom_xml.text)
             else:
@@ -54,7 +60,7 @@ class AtomCollector(BaseCollector):
 
                     link_for_article = feed_entry['link']
 
-                    if proxy_server:
+                    if proxies:
                         page = requests.get(link_for_article, headers={'User-Agent': user_agent}, proxies=proxies)
                     else:
                         page = requests.get(link_for_article, headers={'User-Agent': user_agent})

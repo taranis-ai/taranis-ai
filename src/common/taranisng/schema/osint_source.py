@@ -59,7 +59,6 @@ class OSINTSource:
 
         self.word_lists = word_lists
 
-
 class OSINTSourceGroupSchema(Schema):
     id = fields.Str()
     name = fields.Str()

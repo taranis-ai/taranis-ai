@@ -19,6 +19,7 @@ class Address(db.Model):
     country = db.Column(db.String())
 
     def __init__(self, street, city, zip, country):
+        self.id = None
         self.street = street
         self.city = city
         self.zip = zip

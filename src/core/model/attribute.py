@@ -28,6 +28,8 @@ class AttributeEnum(db.Model):
     def __init__(self, id, index, value, description):
         if id is not None and id != -1:
             self.id = id
+        else:
+            self.id = None
 
         self.index = index
         self.value = value
@@ -136,6 +138,7 @@ class Attribute(db.Model):
     validator_parameter = db.Column(db.String())
 
     def __init__(self, id, name, description, type, default_value, validator, validator_parameter, attribute_enums):
+        self.id = None
         self.name = name
         self.description = description
         self.type = type

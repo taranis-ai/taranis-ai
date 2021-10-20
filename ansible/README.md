@@ -13,7 +13,7 @@ Taranis NG is internally comprised of several components:
 
 Also, there is one more component that is external to Taranis NG software, but is used to authenticate users. It's not strictly needed for just evaluating Taranis NG - you can use a simple built-in internal authenticator for that.
 
-- **External Autentication and Authorization** - an external application that Taranis NG trusts to provide user identities and validate their credentials. We recommend an open-source software [Keycloak](https://www.keycloak.org/). And yes, you can also log into Taranis NG using Google, Facebook or Microsoft login, and more.
+- **External Authentication and Authorization** - an external application that Taranis NG trusts to provide user identities and validate their credentials. We recommend an open-source software [Keycloak](https://www.keycloak.org/). And yes, you can also log into Taranis NG using Google, Facebook or Microsoft login, and more.
 
 All of these components may be installed on separate hosts, or together on one host.
 

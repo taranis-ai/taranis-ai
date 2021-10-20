@@ -1,4 +1,4 @@
-import {authenticate} from "@/api/auth";
+import {authenticate, refresh} from "@/api/auth";
 import ApiService from "@/services/api_service";
 
 const state = {
@@ -13,6 +13,18 @@ const actions = {
             .then(response => {
                 context.commit('setJwtToken', response.data.access_token);
                 context.dispatch('setUser', context.getters.getUserData);
+            })
+            .catch(() => {
+                context.commit('clearJwtToken')
+            })
+    },
+
+    refresh(context) {
+
+        return refresh()
+            .then(response => {
+                context.commit('setJwtToken', response.data.access_token);
+                context.dispatch('setUser', context.getters.getUserData)
             })
             .catch(() => {
                 context.commit('clearJwtToken')
@@ -51,26 +63,15 @@ const getters = {
         return data.sub
     },
 
-    isAuthenticated(state) {
-        let jwt = state.jwt;
-        if (!jwt || jwt.split('.').length < 3) {
-            return false
-        }
-        const data = JSON.parse(atob(jwt.split('.')[1]));
-        const exp = new Date(data.exp * 1000);
-        const now = new Date();
-        return now < exp
-    },
-
     hasExternalLoginUrl() {
-        if (typeof(process.env) == "undefined")
+        if (typeof (process.env) == "undefined")
             return (("$VUE_APP_TARANIS_NG_LOGIN_URL" != "") && ("$VUE_APP_TARANIS_NG_LOGIN_URL"[0] != "$"));
 
         return process.env.VUE_APP_TARANIS_NG_LOGIN_URL != null;
     },
 
     getLoginURL() {
-        if (typeof(process.env) == "undefined") {
+        if (typeof (process.env) == "undefined") {
             if (("$VUE_APP_TARANIS_NG_LOGIN_URL" != "") && ("$VUE_APP_TARANIS_NG_LOGIN_URL"[0] != "$"))
                 return "$VUE_APP_TARANIS_NG_LOGIN_URL";
         } else {
@@ -81,14 +82,14 @@ const getters = {
     },
 
     hasExternalLogoutUrl() {
-        if (typeof(process.env) == "undefined")
+        if (typeof (process.env) == "undefined")
             return (("$VUE_APP_TARANIS_NG_LOGOUT_URL" != "") && ("$VUE_APP_TARANIS_NG_LOGOUT_URL"[0] != "$"));
 
         return process.env.VUE_APP_TARANIS_NG_LOGOUT_URL != null
     },
 
     getLogoutURL() {
-        if (typeof(process.env) == "undefined") {
+        if (typeof (process.env) == "undefined") {
             if (("$VUE_APP_TARANIS_NG_LOGOUT_URL" != "") && ("$VUE_APP_TARANIS_NG_LOGOUT_URL"[0] != "$"))
                 return "$VUE_APP_TARANIS_NG_LOGOUT_URL";
         } else {

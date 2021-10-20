@@ -54,7 +54,7 @@
                         v-if="!read_only && canModify && !values[index].remote"
                         :del_button="delButtonVisible"
                         @del-value="del(index)"
-                        :occurence="attribute_group.min_occurence"
+                        :occurrence="attribute_group.min_occurrence"
                         :values="values"
                         :val_index="index"
                 >

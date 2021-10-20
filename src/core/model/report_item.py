@@ -47,6 +47,7 @@ class ReportItemAttribute(db.Model):
 
     def __init__(self, id, value, binary_mime_type, binary_size, binary_description, attribute_group_item_id,
                  attribute_group_item_title):
+        self.id = None
         self.value = value
         self.binary_mime_type = binary_mime_type
         self.binary_size = binary_size
@@ -110,8 +111,7 @@ class ReportItem(db.Model):
     def __init__(self, id, uuid, title, title_prefix, report_item_type_id, news_item_aggregates, remote_report_items,
                  attributes, completed):
 
-        if id is not None:
-            self.id = id
+        self.id = id
 
         if uuid is None:
             self.uuid = str(uuid_generator.uuid4())
@@ -220,10 +220,10 @@ class ReportItem(db.Model):
                 func.lower(ReportItem.title).like(search_string),
                 func.lower(ReportItem.title_prefix).like(search_string)))
 
-        if 'completed' in filter and filter['completed'] is True:
+        if 'completed' in filter and filter['completed'].lower() == "true":
             query = query.filter(ReportItem.completed == True)
 
-        if 'incompleted' in filter and filter['incompleted'] is True:
+        if 'incompleted' in filter and filter['incompleted'].lower() == "true":
             query = query.filter(ReportItem.completed == False)
 
         if 'range' in filter and filter['range'] != 'ALL':
@@ -573,4 +573,5 @@ class ReportItemCpe(db.Model):
     report_item = db.relationship("ReportItem")
 
     def __init__(self, value):
+        self.id = None
         self.value = value

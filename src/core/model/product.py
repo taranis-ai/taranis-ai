@@ -41,6 +41,8 @@ class Product(db.Model):
 
         if id != -1:
             self.id = id
+        else:
+            self.id = None
 
         self.title = title
         self.description = description

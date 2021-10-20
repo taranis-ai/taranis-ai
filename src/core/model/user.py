@@ -34,6 +34,7 @@ class User(db.Model):
     profile = db.relationship("UserProfile", cascade="all")
 
     def __init__(self, id, username, name, organizations, roles, permissions):
+        self.id = None
         self.username = username
         self.name = name
         self.organizations = []
@@ -248,6 +249,7 @@ class UserProfile(db.Model):
     word_lists = db.relationship('WordList', secondary='user_profile_word_list')
 
     def __init__(self, spellcheck, dark_theme, hotkeys, word_lists):
+        self.id = None
         self.spellcheck = spellcheck
         self.dark_theme = dark_theme
         self.hotkeys = hotkeys
@@ -272,6 +274,7 @@ class Hotkey(db.Model):
     user_profile_id = db.Column(db.Integer, db.ForeignKey('user_profile.id'))
 
     def __init__(self, key_code, key, alias):
+        self.id = None
         self.key_code = key_code
         self.key = key
         self.alias = alias

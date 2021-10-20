@@ -5,7 +5,7 @@
                 @mouseenter.native="toolbar=true"
                 @mouseleave.native="toolbar=false"
         >
-            <v-layout row wrap class="pa-3 pl-0 status">
+            <v-layout row wrap class="pa-3 pl-0 status" v-bind:class="cardStatus()">
                 <v-flex md1 class="obj center">
                     <div class="caption grey--text"><br/></div>
                     <div>
@@ -72,6 +72,13 @@
                         this.itemClicked(this.card);
                         break;
                 }
+            },
+            cardStatus: function () {
+                if (this.card.status === undefined) {
+                    return "status-green"
+                } else {
+                    return "status-" + this.card.status
+                }
             }
         }
     }
@@ -80,6 +87,15 @@
 <style>
     .card .status {
         border-left: 4px solid #33DD40;
+    }
+    .card .status.status-orange {
+        border-left: 4px solid #ffd556;
+    }
+    .card .status.status-green {
+        border-left: 4px solid #33DD40;
+    }
+    .card .status.status-red {
+        border-left: 4px solid red;
     }
     .card .obj.center {
         text-align: center;

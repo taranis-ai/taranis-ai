@@ -8,10 +8,7 @@ echo "Done."
 
 if [[ -n "$TARANIS_NG_SAMPLE_DATA" ]]; then
 
-    if [[ ! -e /data/sample-data.lock ]]; then
-        python manage.py sample-data
-        touch /data/sample-data.lock
-    fi
+    python manage.py sample-data
 
 elif [[ -n "$TARANIS_NG_ADMIN_USERNAME" && -n "$TARANIS_NG_ADMIN_PASSWORD" ]]; then
 

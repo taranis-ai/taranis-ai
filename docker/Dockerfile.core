@@ -2,23 +2,22 @@ FROM python:3.7-alpine3.14
 
 WORKDIR /app/
 
-RUN mkdir /data
+# install common packages
+RUN \
+    apk add --no-cache \
+    postgresql-libs \
+    libpq \
+    glib
 
 COPY ./src/core/requirements.txt /app/taranis-ng-core/requirements.txt
 COPY ./src/common/requirements.txt /app/taranis-ng-common/requirements.txt
 
 # install dependencies
 RUN \
-    apk add --no-cache postgresql-libs libpq glib && \
     apk add --no-cache --virtual .build-deps gcc g++ make glib-dev musl-dev python3-dev libffi-dev postgresql-dev && \
     pip install --no-cache-dir -r /app/taranis-ng-core/requirements.txt && \
     pip install --no-cache-dir -r /app/taranis-ng-common/requirements.txt && \
     apk --purge del .build-deps
-
-COPY ./src/core/. /app/taranis-ng-core
-COPY ./src/common/. /app/taranis-ng-common
-
-RUN mv /app/taranis-ng-core/manage.py /app/manage.py
 
 COPY ./docker/start.sh /start.sh
 RUN chmod +x /start.sh
@@ -30,6 +29,11 @@ COPY ./docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 COPY ./docker/gunicorn_conf.py /gunicorn_conf.py
+
+COPY ./src/core/. /app/taranis-ng-core
+COPY ./src/common/. /app/taranis-ng-common
+
+RUN mv /app/taranis-ng-core/manage.py /app/manage.py
 
 EXPOSE 80
 

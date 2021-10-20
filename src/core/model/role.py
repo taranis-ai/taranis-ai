@@ -21,6 +21,7 @@ class Role(db.Model):
     permissions = db.relationship(Permission, secondary='role_permission')
 
     def __init__(self, id, name, description, permissions):
+        self.id = None
         self.name = name
         self.description = description
         self.permissions = []

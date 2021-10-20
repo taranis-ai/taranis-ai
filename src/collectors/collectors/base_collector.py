@@ -1,9 +1,22 @@
-from taranisng.schema import collector, osint_source, news_item
-from remote.core_api import CoreApi
-from managers import time_manager
-from taranisng.schema.parameter import Parameter, ParameterType
 import datetime
+import hashlib
+import uuid
+import threading
+import time
+import logging
+import bleach
+import re
+
 from dateutil import tz
+
+from managers import time_manager, log_manager
+from remote.core_api import CoreApi
+from taranisng.schema import collector, osint_source, news_item
+from taranisng.schema.parameter import Parameter, ParameterType
+
+logger = logging.getLogger('gunicorn.error')
+logger.level = logging.INFO
+# logger.level = logging.DEBUG
 
 
 class BaseCollector:
@@ -161,41 +174,144 @@ class BaseCollector:
             return news_items
 
     @staticmethod
+    def presanitize_html(html):
+        # these re.sub are not security sensitive ; bleach is supposed to fix the remaining stuff
+        html = re.sub(r'(?i)<head[^>/]*>.*?</head[^>/]*>', '', html, re.DOTALL)
+        html = re.sub(r'(?i)<script[^>/]*>.*?</script[^>/]*>', '', html, re.DOTALL)
+        html = re.sub(r'(?i)<style[^>/]*>.*?</style[^>/]*>', '', html, re.DOTALL)
+
+        clean = bleach.clean(html, tags=['p','b','i','b','u','pre'], strip=True)
+        return clean
+
+    @staticmethod
+    def sanitize_news_items(news_items, source):
+        for item in news_items:
+            if item.id is None:
+                item.id = uuid.uuid4()
+            if item.title is None:
+                item.title = ''
+            if item.review is None:
+                item.review = ''
+            if item.source is None:
+                item.source = ''
+            if item.link is None:
+                item.link = ''
+            if item.author is None:
+                item.author = ''
+            if item.content is None:
+                item.content = ''
+            if item.published is None:
+                item.published = datetime.datetime.now()
+            else:
+                item.published = presanitize_html(item.published) # TODO: replace with dateparser
+            if item.collected is None:
+                item.collected = datetime.datetime.now()
+            else:
+                item.collected = presanitize_html(item.collected) # TODO: replace with dateparser
+            if item.hash is None:
+                for_hash = item.author + item.title + item.link
+                item.hash = hashlib.sha256(for_hash.encode()).hexdigest()
+            if item.osint_source_id is None:
+                item.osint_source_id = source.id
+            if item.attributes is None:
+                item.attributes = []
+            item.title = presanitize_html(item.title)
+            item.review = presanitize_html(item.review)
+            item.content = presanitize_html(item.content)
+            item.author = presanitize_html(item.author)
+            item.source = presanitize_html(item.source) # TODO: replace with link sanitizer
+            item.link = presanitize_html(item.link) # TODO: replace with link sanitizer
+
+    @staticmethod
     def publish(news_items, source):
+        BaseCollector.sanitize_news_items(news_items, source)
         filtered_news_items = BaseCollector.filter_by_word_list(news_items, source)
         news_items_schema = news_item.NewsItemDataSchema(many=True)
         CoreApi.add_news_items(news_items_schema.dump(filtered_news_items))
 
-    def initialize(self):
-        response, code = CoreApi.get_osint_sources(self.type)
-        if code == 200 and response is not None:
-            source_schema = osint_source.OSINTSourceSchemaBase(many=True)
-            self.osint_sources = source_schema.load(response)
-
+    def refresh(self):
+        while True:
+            logger.debug("thread is running")
+            # cancel all existing jobs
+            # TODO: cannot cancel jobs that are running and are scheduled for further in time than 60 seconds
+            # updating of the configuration needs to be done more gracefully
             for source in self.osint_sources:
-                self.collect(source)
-                interval = source.parameter_values["REFRESH_INTERVAL"]
+                try:
+                    time_manager.cancel_job(source.scheduler_job)
+                except:
+                    pass
+            self.osint_sources = []
 
-                if interval != '':
-                    if interval[0].isdigit() and ':' in interval:
-                        time_manager.schedule_job_every_day(interval, self.collect, source)
-                    elif interval[0].isalpha():
-                        interval = interval.split(',')
-                        day = interval[0].strip()
-                        at = interval[1].strip()
-                        if day == 'Monday':
-                            time_manager.schedule_job_on_monday(at, self.collect, source)
-                        elif day == 'Tuesday':
-                            time_manager.schedule_job_on_tuesday(at, self.collect, source)
-                        elif day == 'Wednesday':
-                            time_manager.schedule_job_on_wednesday(at, self.collect, source)
-                        elif day == 'Thursday':
-                            time_manager.schedule_job_on_thursday(at, self.collect, source)
-                        elif day == 'Friday':
-                            time_manager.schedule_job_on_friday(at, self.collect, source)
-                        elif day == 'Saturday':
-                            time_manager.schedule_job_on_saturday(at, self.collect, source)
+            logger.debug("stopped all running scheduled jobs")
+
+            # get new node configuration
+            response, code = CoreApi.get_osint_sources(self.type)
+
+            logger.debug("HTTP {}: Got the following reply: {}".format(code, response))
+
+            try:
+                # if configuration was successfully received
+                if code == 200 and response is not None:
+                    source_schema = osint_source.OSINTSourceSchemaBase(many=True)
+                    self.osint_sources = source_schema.load(response)
+
+                    logger.debug("{} data loaded".format(len(self.osint_sources)))
+
+                    # start collection
+                    for source in self.osint_sources:
+                        logger.debug("run collection")
+                        self.collect(source)
+                        logger.debug("collection finished")
+                        interval = source.parameter_values["REFRESH_INTERVAL"]
+
+                        # do not schedule if no interval is set
+                        if interval == '':
+                            continue
+
+                        logger.debug("scheduling.....")
+
+                        # run task every day at XY
+                        if interval[0].isdigit() and ':' in interval:
+                            source.scheduler_job = time_manager.schedule_job_every_day(interval, self.collect, source)
+                        # run task at a specific day (XY, ZZ:ZZ:ZZ)
+                        elif interval[0].isalpha():
+                            interval = interval.split(',')
+                            day = interval[0].strip()
+                            at = interval[1].strip()
+                            if day == 'Monday':
+                                source.scheduler_job = time_manager.schedule_job_on_monday(at, self.collect, source)
+                            elif day == 'Tuesday':
+                                source.scheduler_job = time_manager.schedule_job_on_tuesday(at, self.collect, source)
+                            elif day == 'Wednesday':
+                                source.scheduler_job = time_manager.schedule_job_on_wednesday(at, self.collect, source)
+                            elif day == 'Thursday':
+                                source.scheduler_job = time_manager.schedule_job_on_thursday(at, self.collect, source)
+                            elif day == 'Friday':
+                                source.scheduler_job = time_manager.schedule_job_on_friday(at, self.collect, source)
+                            elif day == 'Saturday':
+                                source.scheduler_job = time_manager.schedule_job_on_saturday(at, self.collect, source)
+                            elif day == 'Sunday':
+                                source.scheduler_job = time_manager.schedule_job_on_sunday(at, self.collect, source)
+                        # run task every XY minutes
                         else:
-                            time_manager.schedule_job_on_sunday(at, self.collect, source)
-                    else:
-                        time_manager.schedule_job_minutes(int(interval), self.collect, source)
+                            logger.debug("scheduling for {}".format(int(interval)))
+                            source.scheduler_job = time_manager.schedule_job_minutes(int(interval), self.collect, source)
+                else:
+                    # TODO: send update to core with the error message
+                    pass
+            except Exception as ex:
+                logger.debug(ex)
+                pass
+
+            logger.debug("going to sleep for 60s")
+            time.sleep(60)
+            logger.debug("unsleep")
+
+
+    def initialize(self):
+        logger.debug("im in init")
+        # check config and run collector jobs
+        self.config_checker_thread = threading.Thread(target=self.refresh)
+        self.config_checker_thread.daemon = True
+        self.config_checker_thread.start()
+        logger.debug("i finished init")

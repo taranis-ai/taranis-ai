@@ -34,6 +34,7 @@ class ACLEntry(db.Model):
     modify = db.Column(db.Boolean)
 
     def __init__(self, id, name, description, item_type, item_id, everyone, users, see, access, modify, roles):
+        self.id = None
         self.name = name
         self.description = description
         self.item_type = item_type

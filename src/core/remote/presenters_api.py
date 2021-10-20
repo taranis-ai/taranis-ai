@@ -5,6 +5,8 @@ class PresentersApi:
 
     def __init__(self, api_url, api_key):
         self.api_url = api_url
+        if self.api_url.endswith("/"):
+            self.api_url = self.api_url[:-1]
         self.api_key = api_key
         self.headers = {'Authorization': 'Bearer ' + self.api_key}
 

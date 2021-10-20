@@ -73,9 +73,10 @@
             cardReindex() {
                 this.keyRemaper();
 
-                setTimeout( ()=>{
-                    this.scrollPos();
-                },1 )
+                // this scrolls the page all the way up... it should only scroll to the top of the newly-loaded items
+                // setTimeout( ()=>{
+                //     this.scrollPos();
+                // },1 )
 
                 if(this.focus) {
                     this.$refs.contentData.checkFocus(this.pos);

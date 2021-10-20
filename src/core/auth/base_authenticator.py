@@ -1,6 +1,7 @@
 from flask_jwt_extended import create_access_token
-from model.user import User
+
 from managers import log_manager
+from model.user import User
 
 
 class BaseAuthenticator:
@@ -10,6 +11,9 @@ class BaseAuthenticator:
 
     def authenticate(self, credentials):
         return BaseAuthenticator.generate_error()
+
+    def refresh(self, user):
+        return BaseAuthenticator.generate_jwt(user.username)
 
     @staticmethod
     def logout():

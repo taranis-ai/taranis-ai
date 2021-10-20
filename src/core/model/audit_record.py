@@ -20,6 +20,7 @@ class AuditRecord(db.Model):
 
     def __init__(self, ip_address, user_id, user_name, system_id, system_name, activity_type, activity_resource,
                  activity_detail):
+        self.id = None
         self.ip_address = ip_address
         self.user_id = user_id
         self.user_name = user_name

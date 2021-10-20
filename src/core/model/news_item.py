@@ -344,6 +344,7 @@ class NewsItemVote(db.Model):
     remote_user = db.Column(db.String())
 
     def __init__(self, news_item_id, user_id):
+        self.id = None
         self.news_item_id = news_item_id
         self.user_id = user_id
         self.like = False
@@ -422,16 +423,16 @@ class NewsItemAggregate(db.Model):
                                NewsItemAggregate.id == NewsItemAggregateSearchIndex.news_item_aggregate_id).filter(
                 NewsItemAggregateSearchIndex.data.like(search_string))
 
-        if 'read' in filter and filter['read'] is True:
+        if 'read' in filter and filter['read'].lower() == "true":
             query = query.filter(NewsItemAggregate.read == False)
 
-        if 'important' in filter and filter['important'] is True:
+        if 'important' in filter and filter['important'].lower() == "true":
             query = query.filter(NewsItemAggregate.important == True)
 
-        if 'relevant' in filter and filter['relevant'] is True:
+        if 'relevant' in filter and filter['relevant'].lower() == "true":
             query = query.filter(NewsItemAggregate.likes > 0)
 
-        if 'in_analyze' in filter and filter['in_analyze'] is True:
+        if 'in_analyze' in filter and filter['in_analyze'].lower() == "true":
             query = query.join(ReportItemNewsItemAggregate,
                                NewsItemAggregate.id == ReportItemNewsItemAggregate.news_item_aggregate_id)
 
@@ -977,6 +978,7 @@ class NewsItemAttribute(db.Model):
 
     def __init__(self, key, value, binary_mime_type, binary_value):
         # self.id = id
+        self.id = None
         self.key = key
         self.value = value
         self.binary_mime_type = binary_mime_type

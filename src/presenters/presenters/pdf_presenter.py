@@ -1,13 +1,13 @@
-import pdfkit
-import jinja2
-import os
 import datetime
+import os
 import tempfile
 from base64 import b64encode
+
+import jinja2
+import pdfkit
+
 from presenters.base_presenter import BasePresenter
 from taranisng.schema.parameter import Parameter, ParameterType
-
-os.chdir("../taranis-ng-presenters/")
 
 
 class PDFPresenter(BasePresenter):

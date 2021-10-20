@@ -20,6 +20,7 @@ class EmailRecipient(db.Model):
     notification_template_id = db.Column(db.Integer, db.ForeignKey('notification_template.id'))
 
     def __init__(self, email, name):
+        self.id = None
         self.email = email
         self.name = name
 
@@ -44,6 +45,7 @@ class NotificationTemplate(db.Model):
     organizations = db.relationship("Organization", secondary="notification_template_organization")
 
     def __init__(self, id, name, description, message_title, message_body, recipients):
+        self.id = None
         self.name = name
         self.description = description
         self.message_title = message_title

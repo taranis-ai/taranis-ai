@@ -1,10 +1,10 @@
-import jinja2
 import os
 from base64 import b64encode
+
+import jinja2
+
 from presenters.base_presenter import BasePresenter
 from taranisng.schema.parameter import Parameter, ParameterType
-
-os.chdir("../taranis-ng-presenters/")
 
 
 class MISPPresenter(BasePresenter):

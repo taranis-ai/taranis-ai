@@ -26,6 +26,7 @@ class LogRecord(db.Model):
 
     def __init__(self, ip_address, user_id, user_name, system_id, system_name, module_id, activity_type,
                  activity_resource, activity_detail, activity_method, activity_data):
+        self.id = None
         self.ip_address = ip_address
         self.user_id = user_id
         self.user_name = user_name

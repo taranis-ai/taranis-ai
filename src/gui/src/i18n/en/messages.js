@@ -1,6 +1,10 @@
 const messages_en = {
 
     validations: {
+        messages: {
+            _default: 'Please fill in required field'
+        },
+
         custom: {
             username: {
                 required: "Please fill in your username"
@@ -418,8 +422,8 @@ const messages_en = {
         attribute: "attribute",
         attributes: "Attributes",
         new_attribute: "New Attribute",
-        min_occurence: "Min Occurence",
-        max_occurence: "Max Occurence",
+        min_occurrence: "Min Occurrence",
+        max_occurrence: "Max Occurrence",
         total_count: "Attributes count: ",
         import: "Import",
         load_csv_file: "Load CSV File",
@@ -496,7 +500,7 @@ const messages_en = {
         reasonable: "Reasonable",
         confirmed: "Confirmed",
 
-        validator: "Invalid or Uncomplete Vector String"
+        validator: "Invalid or Incomplete Vector String"
 
     },
 
@@ -645,7 +649,15 @@ const messages_en = {
         attributes: "Attributes",
         import_csv: "Import CSV",
         import_from_csv: "Import CVE/CPE from CSV",
-        delete_existing_codes: "Delete existing CVE/CPE codes"
+        delete_existing_codes: "Delete existing CVE/CPE codes",
+        tooltip: {
+            sort_time: 'Sort values from newest',
+            sort_user: 'Show my values first then others',
+            cvss_detail: 'Show CVSS calculator definition',
+            enum_selector: 'Show value search window',
+            delete_value: 'Delete value from this attribute',
+            add_value: 'Add new value to this attribute'
+        }
     },
 
     product: {
@@ -674,7 +686,28 @@ const messages_en = {
         from: "From",
         to: "To",
         add_new: "Add New",
-        total_count: "Report items count: "
+        total_count: "Report items count: ",
+        tooltip: {
+            filter_completed: "Show/hide completed report items",
+            filter_incomplete: "Show/hide incomplete report items",
+            range: {
+                ALL: 'Show all report items',
+                TODAY: "Show today's report items",
+                WEEK: 'Show report items for the last week',
+                MONTH: 'Show report items for the last month'
+            },
+            sort: {
+                time: {
+                    ascending: 'Sort report items by creation date ascending',
+                    descending: 'Sort report items by creation date descending'
+                }
+            },
+            toggle_selection: 'Toggle report items selection mode',
+            delete_items: 'Delete report items',
+            publish_items: 'Create product from report items',
+            delete_item: 'Delete report item',
+            publish_item: 'Create product from report item',
+        }
     },
 
     assess: {
@@ -694,7 +727,65 @@ const messages_en = {
         title: "Title",
         description: "Description",
         download: "Download",
-        total_count: "News items count: "
+        total_count: "News items count: ",
+        tooltip: {
+            filter_read: "Show/hide unread news items",
+            filter_important: "Show/hide important news items",
+            filter_relevant: "Show/hide relevant news items",
+            filter_in_analyze: "Show/hide news items in analysis",
+            range: {
+                ALL: 'Show all news items',
+                TODAY: "Show today's news items",
+                WEEK: 'Show news items for the last week',
+                MONTH: 'Show news items for the last month'
+            },
+            sort: {
+                time: {
+                    ascending: 'Sort news items by collected date ascending',
+                    descending: 'Sort news items by collected date descending'
+                },
+                relevance: {
+                    ascending: 'Sort news items by relevance ascending',
+                    descending: 'Sort news items by relevance descending'
+                }
+            },
+            highlight_wordlist: 'Highlight words by word lists',
+            toggle_selection: 'Toggle news items selection mode',
+            group_items: 'Group news items into aggregate',
+            ungroup_items: 'Ungroup news items from aggregate',
+            analyze_items: 'Create analysis report from news items',
+            read_items: 'Mark news items as read',
+            important_items: 'Mark news items as important',
+            like_items: 'Like news items',
+            dislike_items: 'Dislike news items',
+            delete_items: 'Delete news items',
+            open_source: "Open news item's source in a new tab",
+            ungroup_item: 'Ungroup news item from aggregate',
+            analyze_item: 'Create analysis report from news item',
+            read_item: 'Mark news item as read',
+            important_item: 'Mark news item as important',
+            like_item: 'Like news item',
+            dislike_item: 'Dislike news item',
+            delete_item: 'Delete news item',
+        }
+    },
+
+    publish: {
+        tooltip: {
+            range: {
+                ALL: 'Show all products',
+                TODAY: "Show today's products",
+                WEEK: 'Show products for the last week',
+                MONTH: 'Show products for the last month'
+            },
+            sort: {
+                time: {
+                    ascending: 'Sort products by creation date ascending',
+                    descending: 'Sort products by creation date descending'
+                }
+            },
+            delete_item: 'Delete product',
+        }
     },
 
     toolbar_filter: {

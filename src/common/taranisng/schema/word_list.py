@@ -60,7 +60,7 @@ class WordListCategory:
 
 class WordListEntry:
 
-    def __init__(self, value, description):
+    def __init__(self, value = '', description = ''):
         self.value = value
         self.description = description
 

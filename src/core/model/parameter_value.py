@@ -18,5 +18,6 @@ class ParameterValue(db.Model):
     parameter = db.relationship("Parameter")
 
     def __init__(self, value, parameter):
+        self.id = None
         self.value = value
         self.parameter_id = parameter.id

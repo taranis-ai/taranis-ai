@@ -102,7 +102,7 @@
 
             infiniteScrolling(entries, observer, isIntersecting) {
 
-                if (this.data_loaded && isIntersecting) {
+                if (this.news_items_data_loaded && isIntersecting) {
                     this.updateData(true, false)
                 }
             },

@@ -2,6 +2,14 @@ FROM python:3.7-alpine3.14
 
 WORKDIR /app/
 
+# install common packages
+RUN \
+    apk add --no-cache \
+    postgresql-libs \
+    libpq \
+    glib \
+    firefox-esr=78.13.0-r0
+
 # install numpy, blis, pandas - save tons of time when re-building the image
 RUN \
     apk add --no-cache --virtual .build-deps gcc g++ make musl-dev python3-dev libxslt-dev libxml2-dev libffi-dev postgresql-dev && \
@@ -16,16 +24,12 @@ COPY ./src/common/requirements.txt /app/taranis-ng-common/requirements.txt
 
 # install dependencies
 RUN \
-    apk add --no-cache postgresql-libs libpq glib firefox-esr=78.13.0-r0 && \
     apk add --no-cache --virtual .build-deps gcc g++ make musl-dev python3-dev libxslt-dev libxml2-dev libffi-dev postgresql-dev && \
     pip install --no-cache-dir -r /app/taranis-ng-collectors/requirements.txt && \
     pip install --no-cache-dir -r /app/taranis-ng-common/requirements.txt && \
     apk --purge del .build-deps
 
 ADD https://github.com/mozilla/geckodriver/releases/download/v0.30.0/geckodriver-v0.30.0-linux64.tar.gz /usr/bin/
-
-COPY ./src/collectors/. /app/taranis-ng-collectors
-COPY ./src/common/. /app/taranis-ng-common
 
 COPY ./docker/start.sh /start.sh
 RUN chmod +x /start.sh
@@ -38,6 +42,9 @@ RUN chmod +x /entrypoint.sh
 
 COPY ./docker/gunicorn_conf.py /gunicorn_conf.py
 
+COPY ./src/collectors/. /app/taranis-ng-collectors
+COPY ./src/common/. /app/taranis-ng-common
+
 EXPOSE 80
 
 # setup environment variables
@@ -46,6 +53,8 @@ ENV MODULE_NAME taranis-ng-collectors.run
 ENV VARIABLE_NAME app
 ENV GUNICORN_CMD_ARGS --timeout 120 --preload
 ENV WORKERS_PER_CORE 8
+
+VOLUME ["/app/storage"]
 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["/start.sh"]

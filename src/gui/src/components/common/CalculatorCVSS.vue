@@ -1,6 +1,6 @@
 <template>
     <div>
-        <v-btn text small @click.prevent="show">
+        <v-btn text small @click.prevent="show" :title="$t('report_item.tooltip.cvss_detail')">
             <v-icon>mdi-calculator</v-icon>
         </v-btn>
         <v-row justify="center">

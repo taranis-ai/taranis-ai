@@ -11,8 +11,8 @@ class AttributeGroupItemSchema(Schema):
     title = fields.Str()
     description = fields.Str()
     index = fields.Int()
-    min_occurence = fields.Int()
-    max_occurence = fields.Int()
+    min_occurrence = fields.Int()
+    max_occurrence = fields.Int()
     attribute = fields.Nested(AttributeSchema)
 
     @post_load
@@ -22,13 +22,13 @@ class AttributeGroupItemSchema(Schema):
 
 class AttributeGroupItem:
 
-    def __init__(self, id, title, description, index, min_occurence, max_occurence, attribute):
+    def __init__(self, id, title, description, index, min_occurrence, max_occurrence, attribute):
         self.id = id
         self.title = title
         self.description = description
         self.index = index
-        self.min_occurence = min_occurence
-        self.max_occurence = max_occurence
+        self.min_occurrence = min_occurrence
+        self.max_occurrence = max_occurrence
         self.attribute = attribute
 
 

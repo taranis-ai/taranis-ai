@@ -12,7 +12,7 @@
         </div>
         <div class="col-right">
             <slot name="col_right">
-                <v-btn v-if="delButtonVisible" text small @click="del">
+                <v-btn v-if="delButtonVisible" text small @click="del" :title="$t('report_item.tooltip.delete_value')">
                     <v-icon>mdi-close-circle</v-icon>
                 </v-btn>
             </slot>
@@ -26,7 +26,7 @@ export default {
     props: {
         del_button: null,
         val_index: null,
-        occurence: null,
+        occurrence: null,
         values: null
     },
     data: () => ({
@@ -34,7 +34,7 @@ export default {
     }),
     computed: {
         delButtonVisible() {
-            return this.itemHover && !(this.occurence >= this.values.length);
+            return this.itemHover && !(this.occurrence >= this.values.length);
         },
 
         modifiedTooltip() {

@@ -29,7 +29,7 @@
                     mandatory
             >
                 <v-chip v-for="day in days" :key="day.filter" small class="px-0 mr-1" @click="filterRange(day.filter)">
-                    <span class="px-3">{{$t(day.title)}}</span>
+                    <span class="px-3" :title="$t('assess.tooltip.range.' + day.filter)">{{$t(day.title)}}</span>
                 </v-chip>
             </v-chip-group>
 
@@ -43,16 +43,21 @@
                     class="pr-4"
             >
                 <v-chip small class="px-0 mr-1" @click="filterRead">
-                    <v-icon small center class="px-2">mdi-eye-off</v-icon>
+                    <v-tooltip bottom>
+                        <template v-slot:activator="{on}">
+                            <v-icon small center class="px-2" :title="$t('assess.tooltip.filter_read')">mdi-eye-off</v-icon>
+                        </template>
+                        <span>{{ $t('assess.tooltip.filter_read') }}</span>
+                    </v-tooltip>
                 </v-chip>
                 <v-chip small class="px-0 mr-1" @click="filterImportant">
-                    <v-icon small center class="px-2">mdi-star-circle</v-icon>
+                    <v-icon small center class="px-2" :title="$t('assess.tooltip.filter_important')">mdi-star-circle</v-icon>
                 </v-chip>
                 <v-chip small class="px-0 mr-1" @click="filterRelevant">
-                    <v-icon small center class="px-2">mdi-thumb-up</v-icon>
+                    <v-icon small center class="px-2" :title="$t('assess.tooltip.filter_relevant')">mdi-thumb-up</v-icon>
                 </v-chip>
                 <v-chip small class="px-0 mr-1" @click="filterInAnalyze">
-                    <v-icon small center class="px-2">mdi-file-cog-outline</v-icon>
+                    <v-icon small center class="px-2" :title="$t('assess.tooltip.filter_in_analyze')">mdi-file-cog-outline</v-icon>
                 </v-chip>
             </v-chip-group>
 
@@ -66,20 +71,20 @@
                     mandatory
 
             >
-                <v-chip small class="px-0 mr-1" @click="filterSort('DATE_DESC')">
+                <v-chip small class="px-0 mr-1" @click="filterSort('DATE_DESC')" :title="$t('assess.tooltip.sort.date.descending')">
                     <v-icon class="pl-2" small center>mdi-clock-outline</v-icon>
                     <v-icon class="pr-2" small center>mdi-sort-descending</v-icon>
                 </v-chip>
-                <v-chip small class="px-0 mr-1" @click="filterSort('DATE_ASC')">
+                <v-chip small class="px-0 mr-1" @click="filterSort('DATE_ASC')" :title="$t('assess.tooltip.sort.date.ascending')">
                     <v-icon class="pl-2" small center>mdi-clock-outline</v-icon>
                     <v-icon class="pr-2" small center>mdi-sort-ascending</v-icon>
                 </v-chip>
 
-                <v-chip small class="px-0 mr-1" @click="filterSort('RELEVANCE_DESC')">
+                <v-chip small class="px-0 mr-1" @click="filterSort('RELEVANCE_DESC')" :title="$t('assess.tooltip.sort.relevance.descending')">
                     <v-icon class="pl-2" small center>mdi-thumb-up</v-icon>
                     <v-icon class="pr-2" small center>mdi-sort-descending</v-icon>
                 </v-chip>
-                <v-chip small class="px-0 mr-1" @click="filterSort('RELEVANCE_ASC')">
+                <v-chip small class="px-0 mr-1" @click="filterSort('RELEVANCE_ASC')" :title="$t('assess.tooltip.sort.relevance.descending')">
                     <v-icon class="pl-2" small center>mdi-thumb-down</v-icon>
                     <v-icon class="pr-2" small center>mdi-sort-ascending</v-icon>
                 </v-chip>
@@ -96,7 +101,7 @@
 
             <v-spacer></v-spacer>
             <!-- Wordlist -->
-            <v-btn x-small text @click="hideWordlist" class="wl pa-0 ma-0 mr-3">
+            <v-btn x-small text @click="hideWordlist" class="wl pa-0 ma-0 mr-3" :title="$t('assess.tooltip.highlight_wordlist')">
                 <v-icon v-if="word_list_toggle" center color="black" class="">mdi-alphabetical-variant-off</v-icon>
                 <v-icon v-else center color="orange" class="">mdi-alphabetical-variant</v-icon>
             </v-btn>

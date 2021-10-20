@@ -9,6 +9,7 @@ class TokenBlacklist(db.Model):
     created = db.Column(db.DateTime, default=datetime.datetime.now)
 
     def __init__(self, token):
+        self.id = None
         self.token = token
 
     @classmethod
