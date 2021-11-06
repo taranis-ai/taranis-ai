@@ -1,0 +1,21 @@
+entryPoints:
+    web:
+        address: ":80"
+    websecure:
+        address: ":443"
+    traefik:
+        address: ":9090"
+
+# API is only on the endpoint "traefik" which is not exposed outside of the container
+api:
+    insecure: true
+    dashboard: true
+
+providers:
+    docker:
+        exposedByDefault: false
+    file:
+        directory: /etc/traefik/dynamic
+        watch: true
+
+accessLog: {}
