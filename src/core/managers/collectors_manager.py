@@ -7,10 +7,13 @@ from taranisng.schema import collectors_node
 
 def add_collectors_node(data):
     node = collectors_node.CollectorsNode.create(data)
-    collectors_info, status_code = CollectorsApi(node.api_url, node.api_key).get_collectors_info(node.id)
+    collectors_info, status_code = CollectorsApi(node.api_url, node.api_key).get_collectors_info("")
+
     if status_code == 200:
         collectors = Collector.create_all(collectors_info)
-        CollectorsNode.add_new(data, collectors)
+        node = CollectorsNode.add_new(data, collectors)
+
+        collectors_info, status_code = CollectorsApi(node.api_url, node.api_key).get_collectors_info(node.id)
 
     return status_code
 

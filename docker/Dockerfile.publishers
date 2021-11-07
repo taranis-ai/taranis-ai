@@ -2,18 +2,22 @@ FROM python:3.7-alpine3.14
 
 WORKDIR /app/
 
-# install common packages
-RUN \
-    apk add --no-cache \
-    postgresql-libs \
-    libpq
+# upgrade pip
+RUN python -m pip install --upgrade pip
 
 COPY ./src/publishers/requirements.txt /app/taranis-ng-publishers/requirements.txt
 COPY ./src/common/requirements.txt /app/taranis-ng-common/requirements.txt
 
 # install dependencies
 RUN \
-    apk add --no-cache --virtual .build-deps build-base gcc g++ make musl-dev python3-dev libffi-dev postgresql-dev rust && \
+    apk add --no-cache --virtual .build-deps build-base \
+    gcc \
+    g++ \
+    make \
+    musl-dev \
+    python3-dev \
+    libffi-dev \
+    rust && \
     pip install --no-cache-dir -r /app/taranis-ng-publishers/requirements.txt && \
     pip install --no-cache-dir -r /app/taranis-ng-common/requirements.txt && \
     apk --purge del .build-deps

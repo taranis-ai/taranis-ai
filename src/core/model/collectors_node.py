@@ -78,6 +78,7 @@ class CollectorsNode(db.Model):
         node.collectors = collectors
         db.session.add(node)
         db.session.commit()
+        return node
 
     @classmethod
     def update(cls, node_id, node_data, collectors):

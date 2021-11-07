@@ -2,21 +2,21 @@ FROM python:3.7-alpine3.14
 
 WORKDIR /app/
 
+# upgrade pip
+RUN python -m pip install --upgrade pip
+
 # install common packages
 RUN \
     apk add --no-cache \
-    postgresql-libs \
-    libpq \
     libpng \
     libjpeg \
     wkhtmltopdf
 
 # install fonts
 RUN \
-    apk add --no-cache msttcorefonts-installer fontconfig && \
-    update-ms-fonts && \
     apk add --no-cache \
-    msttcorefonts-installer fontconfig \
+    msttcorefonts-installer \
+    fontconfig \
     font-noto \
     font-noto-adlam \
     font-noto-adlamunjoined \
@@ -69,14 +69,22 @@ RUN \
     font-misc-misc \
     font-croscore \
     freetype && \
-    fc-cache -f && rm -rf /var/cache/*
+    fc-cache -f && \
+    update-ms-fonts && \
+    rm -rf /var/cache/*
 
 COPY ./src/presenters/requirements.txt /app/taranis-ng-presenters/requirements.txt
 COPY ./src/common/requirements.txt /app/taranis-ng-common/requirements.txt
 
 # install dependencies
 RUN \
-    apk add --no-cache --virtual .build-deps gcc g++ make musl-dev python3-dev libffi-dev postgresql-dev && \
+    apk add --no-cache --virtual .build-deps \
+    gcc \
+    g++ \
+    make \
+    musl-dev \
+    python3-dev \
+    libffi-dev && \
     pip install --no-cache-dir -r /app/taranis-ng-presenters/requirements.txt && \
     pip install --no-cache-dir -r /app/taranis-ng-common/requirements.txt && \
     apk --purge del .build-deps

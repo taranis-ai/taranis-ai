@@ -1,2 +1,2 @@
-marshmallow==3.3.0
+marshmallow==3.5.0
 marshmallow-enum==1.5.1

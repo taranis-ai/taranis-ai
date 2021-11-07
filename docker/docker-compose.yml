@@ -19,6 +19,7 @@ services:
       POSTGRES_DB: "taranis-ng"
       POSTGRES_USER: "taranis-ng"
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+    command: ["postgres", "-c", "shared_buffers=${DB_SHARED_BUFFERS}", "-c", "max_connections=${DB_MAX_CONNECTIONS}"]
     volumes:
       - "database_data:/var/lib/postgresql/data"
     logging:
@@ -110,6 +111,7 @@ services:
       TARANIS_NG_CORE_URL: "http://core"
       API_KEY: "${COLLECTOR_PRESENTER_PUBLISHER_API_KEY}"
       WORKERS_PER_CORE: "1"
+      DEBUG: "true"
     ports:
       - "5001:80"
     volumes:

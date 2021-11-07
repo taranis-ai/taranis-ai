@@ -7,7 +7,7 @@ import urllib
 from urllib.request import ProxyHandler
 import requests
 from bs4 import BeautifulSoup
-from dateutil.parser import parse
+import dateparser
 
 from taranisng.schema.news_item import NewsItemData
 from taranisng.schema.parameter import Parameter, ParameterType
@@ -69,7 +69,7 @@ class RSSCollector(BaseCollector):
 
                 limit = BaseCollector.history(interval)
                 published = feed_entry['published']
-                published = parse(published, tzinfos=BaseCollector.timezone_info())
+                published = dateparser.parse(published, settings={'DATE_ORDER': 'DMY'})
 
                 # if published > limit: TODO: uncomment after testing, we need some initial data now
                 link_for_article = feed_entry['link']

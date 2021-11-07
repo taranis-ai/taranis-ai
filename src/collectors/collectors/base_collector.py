@@ -3,21 +3,18 @@ import hashlib
 import uuid
 import threading
 import time
-import logging
 import bleach
 import re
 
 from dateutil import tz
 
-from managers import time_manager, log_manager
+from managers import time_manager
 from remote.core_api import CoreApi
 from taranisng.schema import collector, osint_source, news_item
 from taranisng.schema.parameter import Parameter, ParameterType
+from taranisng.managers.log_manager import log_debug, log_info
 
-logger = logging.getLogger('gunicorn.error')
-logger.level = logging.INFO
-# logger.level = logging.DEBUG
-
+import traceback
 
 class BaseCollector:
     type = "BASE_COLLECTOR"
@@ -43,12 +40,12 @@ class BaseCollector:
 
     @staticmethod
     def print_exception(source, error):
-        print('OSINTSource ID: ' + source.id)
-        print('OSINTSource name: ' + source.name)
+        log_info('OSINTSource ID: ' + source.id)
+        log_info('OSINTSource name: ' + source.name)
         if str(error).startswith('b'):
-            print('ERROR: ' + str(error)[2:-1])
+            log_info('ERROR: ' + str(error)[2:-1])
         else:
-            print('ERROR: ' + str(error))
+            log_info('ERROR: ' + str(error))
 
     @staticmethod
     def timezone_info():
@@ -176,6 +173,7 @@ class BaseCollector:
     @staticmethod
     def presanitize_html(html):
         # these re.sub are not security sensitive ; bleach is supposed to fix the remaining stuff
+        html = re.sub(r'(?i)(&nbsp;|\xa0)', ' ', html, re.DOTALL)
         html = re.sub(r'(?i)<head[^>/]*>.*?</head[^>/]*>', '', html, re.DOTALL)
         html = re.sub(r'(?i)<script[^>/]*>.*?</script[^>/]*>', '', html, re.DOTALL)
         html = re.sub(r'(?i)<style[^>/]*>.*?</style[^>/]*>', '', html, re.DOTALL)
@@ -202,12 +200,8 @@ class BaseCollector:
                 item.content = ''
             if item.published is None:
                 item.published = datetime.datetime.now()
-            else:
-                item.published = presanitize_html(item.published) # TODO: replace with dateparser
             if item.collected is None:
                 item.collected = datetime.datetime.now()
-            else:
-                item.collected = presanitize_html(item.collected) # TODO: replace with dateparser
             if item.hash is None:
                 for_hash = item.author + item.title + item.link
                 item.hash = hashlib.sha256(for_hash.encode()).hexdigest()
@@ -215,12 +209,12 @@ class BaseCollector:
                 item.osint_source_id = source.id
             if item.attributes is None:
                 item.attributes = []
-            item.title = presanitize_html(item.title)
-            item.review = presanitize_html(item.review)
-            item.content = presanitize_html(item.content)
-            item.author = presanitize_html(item.author)
-            item.source = presanitize_html(item.source) # TODO: replace with link sanitizer
-            item.link = presanitize_html(item.link) # TODO: replace with link sanitizer
+            item.title = BaseCollector.presanitize_html(item.title)
+            item.review = BaseCollector.presanitize_html(item.review)
+            item.content = BaseCollector.presanitize_html(item.content)
+            item.author = BaseCollector.presanitize_html(item.author)
+            item.source = BaseCollector.presanitize_html(item.source) # TODO: replace with link sanitizer
+            item.link = BaseCollector.presanitize_html(item.link) # TODO: replace with link sanitizer
 
     @staticmethod
     def publish(news_items, source):
@@ -231,7 +225,7 @@ class BaseCollector:
 
     def refresh(self):
         while True:
-            logger.debug("thread is running")
+            log_debug("thread is running")
             # cancel all existing jobs
             # TODO: cannot cancel jobs that are running and are scheduled for further in time than 60 seconds
             # updating of the configuration needs to be done more gracefully
@@ -242,12 +236,12 @@ class BaseCollector:
                     pass
             self.osint_sources = []
 
-            logger.debug("stopped all running scheduled jobs")
+            log_debug("stopped all running scheduled jobs")
 
             # get new node configuration
             response, code = CoreApi.get_osint_sources(self.type)
 
-            logger.debug("HTTP {}: Got the following reply: {}".format(code, response))
+            log_debug("HTTP {}: Got the following reply: {}".format(code, response))
 
             try:
                 # if configuration was successfully received
@@ -255,20 +249,20 @@ class BaseCollector:
                     source_schema = osint_source.OSINTSourceSchemaBase(many=True)
                     self.osint_sources = source_schema.load(response)
 
-                    logger.debug("{} data loaded".format(len(self.osint_sources)))
+                    log_debug("{} data loaded".format(len(self.osint_sources)))
 
                     # start collection
                     for source in self.osint_sources:
-                        logger.debug("run collection")
+                        log_debug("run collection")
                         self.collect(source)
-                        logger.debug("collection finished")
+                        log_debug("collection finished")
                         interval = source.parameter_values["REFRESH_INTERVAL"]
 
                         # do not schedule if no interval is set
                         if interval == '':
                             continue
 
-                        logger.debug("scheduling.....")
+                        log_debug("scheduling.....")
 
                         # run task every day at XY
                         if interval[0].isdigit() and ':' in interval:
@@ -294,24 +288,24 @@ class BaseCollector:
                                 source.scheduler_job = time_manager.schedule_job_on_sunday(at, self.collect, source)
                         # run task every XY minutes
                         else:
-                            logger.debug("scheduling for {}".format(int(interval)))
+                            log_debug("scheduling for {}".format(int(interval)))
                             source.scheduler_job = time_manager.schedule_job_minutes(int(interval), self.collect, source)
                 else:
                     # TODO: send update to core with the error message
                     pass
             except Exception as ex:
-                logger.debug(ex)
+                log_debug(traceback.format_exc())
                 pass
 
-            logger.debug("going to sleep for 60s")
-            time.sleep(60)
-            logger.debug("unsleep")
+            log_debug("going to sleep for 600s")
+            time.sleep(600)
+            log_debug("unsleep")
 
 
     def initialize(self):
-        logger.debug("im in init")
+        log_debug("im in init")
         # check config and run collector jobs
         self.config_checker_thread = threading.Thread(target=self.refresh)
         self.config_checker_thread.daemon = True
         self.config_checker_thread.start()
-        logger.debug("i finished init")
+        log_debug("i finished init")

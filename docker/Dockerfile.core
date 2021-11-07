@@ -2,19 +2,30 @@ FROM python:3.7-alpine3.14
 
 WORKDIR /app/
 
+# upgrade pip
+RUN python -m pip install --upgrade pip
+
 # install common packages
 RUN \
     apk add --no-cache \
     postgresql-libs \
     libpq \
-    glib
+    curl
 
 COPY ./src/core/requirements.txt /app/taranis-ng-core/requirements.txt
 COPY ./src/common/requirements.txt /app/taranis-ng-common/requirements.txt
 
 # install dependencies
 RUN \
-    apk add --no-cache --virtual .build-deps gcc g++ make glib-dev musl-dev python3-dev libffi-dev postgresql-dev && \
+    apk add --no-cache --virtual .build-deps \
+    gcc \
+    g++ \
+    make \
+    glib-dev \
+    musl-dev \
+    python3-dev \
+    libffi-dev \
+    postgresql-dev && \
     pip install --no-cache-dir -r /app/taranis-ng-core/requirements.txt && \
     pip install --no-cache-dir -r /app/taranis-ng-common/requirements.txt && \
     apk --purge del .build-deps
@@ -45,6 +56,8 @@ ENV GUNICORN_CMD_ARGS --timeout 120 --preload
 ENV WORKERS_PER_CORE 8
 
 VOLUME ["/data"]
+
+HEALTHCHECK --interval=60s --timeout=3s --retries=5 CMD curl --fail http://localhost/api/v1/isalive || exit 1
 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["/start.sh"]
