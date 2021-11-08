@@ -1,35 +1,16 @@
 <template>
-    <div class="multiselect">
-        <v-row class="ml-5 mt-0 mb-2">
-            <v-btn :class="multi_select === true ? 'multi-select-button-pressed' : ''" small icon @click.stop="multiSelect" data-btn="multi_select" :title="$t('assess.tooltip.toggle_selection')">
-                <v-icon small color="white">mdi-checkbox-multiple-marked-outline</v-icon>
+    <div :class="UI.CLASS.multiselect">
+        <v-btn v-bind="UI.TOOLBAR.BUTTON.SELECTOR" :style="multi_select ? UI.STYLE.multiselect_active : ''"
+               @click.stop="multiSelect" data-btn="multi_select" :title="$t('assess.tooltip.toggle_selection')">
+            <v-icon v-bind="UI.TOOLBAR.ICON.SELECTOR">{{ UI.ICON.MULTISELECT }}</v-icon>
+        </v-btn>
+        <v-icon v-bind="UI.TOOLBAR.ICON.SELECTOR_SEPARATOR">{{ UI.ICON.SEPARATOR }}</v-icon>
+        <div v-for="btn in actions" :key="btn.action" :class="UI.CLASS.multiselect_buttons">
+            <v-btn v-bind="UI.TOOLBAR.BUTTON.SELECTOR"
+                   v-if="btn.can" :disabled="btn.disabled" @click.stop="action(btn.action)" :data-btn="btn.data_btn" :title="btn.title">
+                <v-icon v-bind="UI.TOOLBAR.ICON.SELECTOR">{{ UI.ICON[btn.ui_icon] }}</v-icon>
             </v-btn>
-            <v-icon center color="grey lighten-2" class="ma-0 pa-0 pt-1">mdi-drag-vertical</v-icon>
-            <v-btn v-if="canModify" small icon :disabled="!multi_select" @click.stop="action('GROUP')" data-btn="group" :title="$t('assess.tooltip.group_items')">
-                <v-icon small color="white">mdi-group</v-icon>
-            </v-btn>
-            <v-btn v-if="canModify" class="ml-1" small icon :disabled="!multi_select" @click.stop="action('UNGROUP')" data-btn="ungroup" :title="$t('assess.tooltip.ungroup_items')">
-                <v-icon small color="white">mdi-ungroup</v-icon>
-            </v-btn>
-            <v-btn v-if="canCreateReport" class="ml-1" small icon :disabled="!multi_select" @click.stop="analyze" data-btn="analyze" :title="$t('assess.tooltip.analyze_items')">
-                <v-icon small color="white">mdi-file-outline</v-icon>
-            </v-btn>
-            <v-btn v-if="canModify" class="ml-1" small icon :disabled="!multi_select" @click.stop="action('READ')" data-btn="read" :title="$t('assess.tooltip.read_items')">
-                <v-icon small color="white">mdi-eye</v-icon>
-            </v-btn>
-            <v-btn v-if="canModify" class="ml-1" small icon :disabled="!multi_select" @click.stop="action('IMPORTANT')" data-btn="important" :title="$t('assess.tooltip.important_items')">
-                <v-icon small color="white">mdi-star</v-icon>
-            </v-btn>
-            <v-btn v-if="canModify" class="ml-1" small icon :disabled="!multi_select" @click.stop="action('LIKE')" data-btn="like" :title="$t('assess.tooltip.like_items')">
-                <v-icon small color="white">mdi-thumb-up</v-icon>
-            </v-btn>
-            <v-btn v-if="canModify" class="ml-1" small icon :disabled="!multi_select" @click.stop="action('DISLIKE')" data-btn="dislike" :title="$t('assess.tooltip.dislike_items')">
-                <v-icon small color="white">mdi-thumb-down</v-icon>
-            </v-btn>
-            <v-btn v-if="canDelete" class="ml-1" small icon :disabled="!multi_select" @click.stop="action('DELETE')" data-btn="delete" :title="$t('assess.tooltip.delete_items')">
-                <v-icon small color="white">mdi-delete</v-icon>
-            </v-btn>
-        </v-row>
+        </div>
     </div>
 </template>
 
@@ -40,6 +21,8 @@
 
     export default {
         name: "ToolbarGroupAssess",
+        components: {
+        },
         data: () => ({
             multi_select: false
         }),
@@ -55,6 +38,19 @@
 
             canCreateReport() {
                 return this.checkPermission(Permissions.ANALYZE_CREATE)
+            },
+
+            actions() {
+                return [
+                    { can: this.canModify, disabled: !this.multi_select, action: 'GROUP', data_btn: 'group', title: this.$t('assess.tooltip.group_items'), ui_icon: 'GROUP' },
+                    { can: this.canModify, disabled: !this.multi_select, action: 'UNGROUP', data_btn: 'ungroup', title: this.$t('assess.tooltip.ungroup_items'), ui_icon: 'UNGROUP' },
+                    { can: this.canCreateReport, disabled: !this.multi_select, action: 'ANALYZE', data_btn: 'analyze', title: this.$t('assess.tooltip.analyze_items'), ui_icon: 'ANALYZE' },
+                    { can: this.canModify, disabled: !this.multi_select, action: 'READ', data_btn: 'read', title: this.$t('assess.tooltip.read_items'), ui_icon: 'READ' },
+                    { can: this.canModify, disabled: !this.multi_select, action: 'IMPORTANT', data_btn: 'important', title: this.$t('assess.tooltip.important_items'), ui_icon: 'IMPORTANT' },
+                    { can: this.canModify, disabled: !this.multi_select, action: 'LIKE', data_btn: 'like', title: this.$t('assess.tooltip.like_items'), ui_icon: 'LIKE' },
+                    { can: this.canModify, disabled: !this.multi_select, action: 'DISLIKE', data_btn: 'dislike', title: this.$t('assess.tooltip.dislike_items'), ui_icon: 'UNLIKE' },
+                    { can: this.canDelete, disabled: !this.multi_select, action: 'DELETE', data_btn: 'delete', title: this.$t('assess.tooltip.delete_items'), ui_icon: 'DELETE' }
+                ]
             }
         },
         methods: {
@@ -93,26 +89,30 @@
             },
 
             action(type) {
-                let selection = this.$store.getters.getSelection
-                let items = []
-                for (let i = 0; i < selection.length; i++) {
-                    items.push({
-                        'type': selection[i].type,
-                        'id': selection[i].id
-                    })
-                }
-                if (items.length > 0) {
-                    groupAction({'group':this.getGroupId(), 'action': type, 'items': items}).then(() => {
-                        this.multiSelect()
-                        this.$root.$emit('update-news-items-list');
-                    }).catch((error) => {
-                        this.$root.$emit('notification',
-                            {
-                                type: 'error',
-                                loc: 'error.' + error.response.data
-                            }
-                        )
-                    });
+                if (type === 'ANALYZE') {
+                    this.analyze();
+                } else {
+                    let selection = this.$store.getters.getSelection
+                    let items = []
+                    for (let i = 0; i < selection.length; i++) {
+                        items.push({
+                            'type': selection[i].type,
+                            'id': selection[i].id
+                        })
+                    }
+                    if (items.length > 0) {
+                        groupAction({'group':this.getGroupId(), 'action': type, 'items': items}).then(() => {
+                            this.multiSelect()
+                            this.$root.$emit('update-news-items-list');
+                        }).catch((error) => {
+                            this.$root.$emit('notification',
+                                {
+                                    type: 'error',
+                                    loc: 'error.' + error.response.data
+                                }
+                            )
+                        });
+                    }
                 }
             },
 
@@ -133,11 +133,3 @@
         }
     }
 </script>
-
-<style>
-
-    .view .view-panel button.multi-select-button-pressed {
-        background-color: orange !important;
-    }
-
-</style>

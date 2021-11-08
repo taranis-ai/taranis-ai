@@ -2,9 +2,10 @@ import datetime
 import hashlib
 import uuid
 import tweepy
-from collectors.base_collector import BaseCollector
-from taranisng.schema.news_item import NewsItemData
-from taranisng.schema.parameter import Parameter, ParameterType
+
+from .base_collector import BaseCollector
+from schema.news_item import NewsItemData
+from schema.parameter import Parameter, ParameterType
 
 
 class TwitterCollector(BaseCollector):

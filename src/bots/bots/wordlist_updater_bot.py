@@ -1,8 +1,9 @@
-from bots.base_bot import BaseBot
-from taranisng.schema.parameter import Parameter, ParameterType
-from taranisng.schema import word_list
-from remote.core_api import CoreApi
 import requests
+
+from .base_bot import BaseBot
+from schema import word_list
+from schema.parameter import Parameter, ParameterType
+from remote.core_api import CoreApi
 
 
 class WordlistUpdaterBot(BaseBot):

@@ -1,61 +1,55 @@
 <template>
-    <div>
+    <v-row v-bind="UI.DIALOG.ROW.WINDOW">
         <v-btn v-if="modify && groups.length > 0" depressed small @click="openSelector">
             <v-icon left>mdi-plus</v-icon>
             <span>{{$t('report_item.select_remote')}}</span>
         </v-btn>
 
-        <v-row>
-            <div class="pt-2"></div>
-        </v-row>
+        <v-dialog v-bind="UI.DIALOG.FULLSCREEN" v-model="dialog" news-item-selector>
 
-        <v-row justify="center">
-            <v-dialog v-model="dialog" fullscreen news-item-selector>
+            <v-card fixed>
+                <v-toolbar v-bind="UI.DIALOG.TOOLBAR" :style="UI.STYLE.z10000">
+                    <v-btn icon dark @click="close">
+                        <v-icon>mdi-close-circle</v-icon>
+                    </v-btn>
+                    <v-toolbar-title>{{$t('report_item.select_remote')}}</v-toolbar-title>
+                    <v-spacer></v-spacer>
+                    <v-btn text dark @click="add">
+                        <v-icon left>mdi-plus-box</v-icon>
+                        <span>{{$t('report_item.add')}}</span>
+                    </v-btn>
+                </v-toolbar>
 
-                <v-card fixed>
-                    <v-toolbar dark color="primary" style="z-index: 10000">
-                        <v-btn icon dark @click="close">
-                            <v-icon>mdi-close-circle</v-icon>
-                        </v-btn>
-                        <v-toolbar-title>{{$t('report_item.select_remote')}}</v-toolbar-title>
-                        <v-spacer></v-spacer>
-                        <v-btn text dark @click="add">
-                            <v-icon left>mdi-plus-box</v-icon>
-                            <span>{{$t('report_item.add')}}</span>
-                        </v-btn>
-                    </v-toolbar>
+                <v-row class="cs-inside">
+                    <v-col class="cs-panel">
+                        <v-list-item dense v-for="link in links" :key="link.id"
+                                     @click="changeGroup($event, link.id)"
+                                     :class="link.id === selected_group_id ? 'active' : ''">
+                            <v-list-item-content v-if="!link.separator">
+                                <v-icon regular color="cx-drawer-text">{{ link.icon }}</v-icon>
+                                <v-list-item-title class="cx-drawer-text--text">{{ $t(link.title) }}
+                                </v-list-item-title>
+                            </v-list-item-content>
+                            <v-list-item-content class="separator" v-else>
+                                <v-divider class="section-divider " color="white"></v-divider>
+                            </v-list-item-content>
+                        </v-list-item>
+                    </v-col>
+                    <v-col class="cs-content">
+                        <ToolbarFilterAnalyze publish_selector
+                                              total_count_title="analyze.total_count"
+                                              @update-report-items-filter="updateFilter"
+                                              ref="toolbarFilter"></ToolbarFilterAnalyze>
+                        <ContentDataAnalyze publish_selector :selection="values"
+                                            class="item-selector" card-item="CardAnalyze"
+                                            ref="contentData"
+                                            @show-remote-report-item-detail="showReportItemDetail"
+                                            @new-data-loaded="newDataLoaded"/>
+                    </v-col>
+                </v-row>
 
-                    <v-row class="cs-inside">
-                        <v-col class="cs-panel">
-                            <v-list-item dense v-for="link in links" :key="link.id"
-                                         @click="changeGroup($event, link.id)"
-                                         :class="link.id === selected_group_id ? 'active' : ''">
-                                <v-list-item-content v-if="!link.separator">
-                                    <v-icon regular color="cx-drawer-text">{{ link.icon }}</v-icon>
-                                    <v-list-item-title class="cx-drawer-text--text">{{ $t(link.title) }}
-                                    </v-list-item-title>
-                                </v-list-item-content>
-                                <v-list-item-content class="separator" v-else>
-                                    <v-divider class="section-divider " color="white"></v-divider>
-                                </v-list-item-content>
-                            </v-list-item>
-                        </v-col>
-                        <v-col class="cs-content">
-                            <ToolbarFilterAnalyze publish_selector
-                                                  total_count_title="analyze.total_count"
-                                                  @update-report-items-filter="updateFilter"
-                                                  ref="toolbarFilter"></ToolbarFilterAnalyze>
-                            <ContentDataAnalyze publish_selector :selection="values"
-                                                class="item-selector" card-item="CardAnalyze"
-                                                ref="contentData"
-                                                @show-remote-report-item-detail="showReportItemDetail"
-                                                @new-data-loaded="newDataLoaded"/>
-                        </v-col>
-                    </v-row>
-
-                </v-card>
-            </v-dialog>
-        </v-row>
+            </v-card>
+        </v-dialog>
 
         <v-spacer style="height:8px"></v-spacer>
 
@@ -65,9 +59,8 @@
                    :card="value"
                    :key="value.id"
                    @show-remote-report-item-detail="showReportItemDetail"
-                   @remove-report-item-from-selector="removeReportItemFromSelector"></component>
-
-    </div>
+                   @remove-report-item-from-selector="removeReportItemFromSelector" />
+    </v-row>
 </template>
 
 <script>
@@ -252,25 +245,3 @@
         }
     }
 </script>
-
-<style>
-    .container.item-selector,
-    .item-selector .row {
-        margin-right: 0;
-        margin-left: 0;
-    }
-
-    .toolbar-filter .row1 .view-heading {
-        height: 40px;
-    }
-
-    .cs-inside .cs-content-full {
-        position: relative;
-        padding: 0;
-    }
-
-    .cs-inside .cs-content-full {
-        width: 100%;
-        margin-left: 0px;
-    }
-</style>

@@ -1,84 +1,70 @@
 <template>
-    <div data-source="news_item_selector">
-        <v-btn v-if="canModify" depressed small @click="openSelector">
-            <v-icon left>mdi-plus</v-icon>
-            <span>{{$t('assess.add_news_item')}}</span>
-        </v-btn>
+    <v-row v-bind="UI.DIALOG.ROW.WINDOW" data-source="news_item_selector">
+        <v-dialog v-bind="UI.DIALOG.FULLSCREEN" v-model="dialog" news-item-selector>
+            <v-card flat>
+                <v-toolbar v-bind="UI.DIALOG.TOOLBAR" :style="UI.STYLE.z10000" style="position: fixed; width: 100%;">
+                    <v-btn icon dark @click="close">
+                        <v-icon>mdi-close-circle</v-icon>
+                    </v-btn>
+                    <v-toolbar-title>{{$t('assess.select_news_item')}}</v-toolbar-title>
+                    <v-spacer></v-spacer>
+                    <v-btn text dark @click="add">
+                        <v-icon left>mdi-plus-box</v-icon>
+                        <span>{{$t('assess.add')}}</span>
+                    </v-btn>
+                </v-toolbar>
+                <v-container class="pa-0 pt-12 grey darken-4" style="max-width: 96px !important; position: fixed; left: 0; top: 0; height: 100%;">
+                    <v-list dense dark>
+                        <v-list-item v-for="link in links" :key="link.id" @click="changeGroup($event, link.id)"
+                                     class="px-0" align="center"
+                                     :class="link.id === selected_group_id ? 'active' : ''">
+                            <v-list-item-content class="">
+                                <v-icon>{{ link.icon }}</v-icon>
+                                <v-list-item-title style="white-space: unset; font-size: 0.7em;">{{ $t(link.title) }}</v-list-item-title>
+                            </v-list-item-content>
+                        </v-list-item>
+                    </v-list>
+                </v-container>
+
+                <v-container fluid class="pa-0 pt-12 pl-8 ma-0 ml-16" style="width: calc(100% - 64px); position: sticky;">
+                    <div :style="UI.STYLE.sticky_filter_toolbar">
+                        <ToolbarFilterAssess analyze_selector
+                                             total_count_title="assess.total_count"
+                                             @update-news-items-filter="updateFilter"
+                                             ref="toolbarFilter"/>
+                    </div>
+
+                    <ContentDataAssess analyze_selector :selection="values"
+                                       class="item-selector"
+                                       card-item="CardAssess"
+                                       selfID="selector_assess_analyze"
+                                       data_set="assess_news_item"
+                                       ref="contentData"
+                                       @new-data-loaded="newDataLoaded"/>
+                </v-container>
+
+            </v-card>
+        </v-dialog>
 
         <v-row>
-            <div class="pt-2"></div>
+            <v-col cols="12" :class="UI.CLASS.card_offset" v-for="value in values" :key="value.id">
+                <component analyze_selector compact_mode class="item-selector" v-bind:is="cardLayout()"
+                           :analyze_can_modify="canModify"
+                           :card="value"
+                           :showToolbar="true"
+                           data_set="assess_report_item"
+                           @remove-item-from-selector="removeFromSelector"
+                           @show-single-aggregate-detail="showSingleAggregateDetail(value)"
+                           @show-aggregate-detail="showAggregateDetail(value)"
+                           @show-item-detail="showItemDetail(value)"
+                />
+            </v-col>
         </v-row>
 
-        <v-row justify="center">
-            <v-dialog v-model="dialog" fullscreen news-item-selector>
-
-                <v-card fixed>
-                    <v-toolbar dark color="primary" style="z-index: 10000">
-                        <v-btn icon dark @click="close">
-                            <v-icon>mdi-close-circle</v-icon>
-                        </v-btn>
-                        <v-toolbar-title>{{$t('assess.select_news_item')}}</v-toolbar-title>
-                        <v-spacer></v-spacer>
-                        <v-btn text dark @click="add">
-                            <v-icon left>mdi-plus-box</v-icon>
-                            <span>{{$t('assess.add')}}</span>
-                        </v-btn>
-                    </v-toolbar>
-
-                    <v-row class="cs-inside">
-                        <v-col class="cs-panel">
-                            <v-list-item dense v-for="link in links" :key="link.id"
-                                         @click="changeGroup($event, link.id)"
-                                         :class="link.id === selected_group_id ? 'active' : ''">
-                                <v-list-item-content v-if="!link.separator">
-                                    <v-icon regular color="cx-drawer-text">{{ link.icon }}</v-icon>
-                                    <v-list-item-title class="cx-drawer-text--text">{{ $t(link.title) }}
-                                    </v-list-item-title>
-                                </v-list-item-content>
-                                <v-list-item-content class="separator" v-else>
-                                    <v-divider class="section-divider " color="white"></v-divider>
-                                </v-list-item-content>
-                            </v-list-item>
-                        </v-col>
-                        <v-col class="cs-content">
-                            <ToolbarFilterAssess analyze_selector
-                                                 total_count_title="assess.total_count"
-                                                 @update-news-items-filter="updateFilter"
-                                                 ref="toolbarFilter"></ToolbarFilterAssess>
-                            <ContentDataAssess analyze_selector :selection="values"
-                                               class="item-selector"
-                                               card-item="CardAssess"
-                                               selfID="selector_assess_analyze"
-                                               data_set="assess_news_item"
-                                               ref="contentData"
-                                               @new-data-loaded="newDataLoaded"
-
-                            />
-                        </v-col>
-                    </v-row>
-
-
-                </v-card>
-            </v-dialog>
-
-            <component analyze_selector compact_mode class="item-selector cs-cards" v-bind:is="cardLayout()"
-                       :analyze_can_modify="canModify"
-                       v-for="value in values"
-                       :card="value"
-                       :key="value.id"
-                       :showToolbar="true"
-                       data_set="assess_report_item"
-                       @remove-item-from-selector="removeFromSelector"
-                       @show-single-aggregate-detail="showSingleAggregateDetail(value)"
-                       @show-aggregate-detail="showAggregateDetail(value)"
-                       @show-item-detail="showItemDetail(value)"
-            />
-            <NewsItemSingleDetail ref="newsItemSingleDetail"/>
-            <NewsItemDetail ref="newsItemeDetail"/>
-            <NewsItemAggregateDetail ref="newsItemAggregateDetail"/>
-
-        </v-row>
-    </div>
+        <NewsItemSingleDetail ref="newsItemSingleDetail"/>
+        <NewsItemDetail ref="newsItemDetail"/>
+        <NewsItemAggregateDetail ref="newsItemAggregateDetail"/>
+    </v-row>
 </template>
 
 <script>
@@ -126,7 +112,6 @@
         },
         methods: {
             cardLayout: function () {
-
                 return "CardAssess";
             },
 
@@ -279,70 +264,5 @@
 </script>
 
 <style>
-    .row {
-        margin-left: 0;
-    }
-
-    .container.item-selector,
-    .item-selector .row {
-        margin-right: 0;
-        margin-left: 0;
-        /*position: fixed;*/
-    }
-
-    .cs-inside {
-        position: fixed;
-        height: 100%;
-        width: calc(100% + 0px);
-        overflow: auto;
-    }
-
-    .cs-inside .cs-panel,
-    .cs-inside .cs-content {
-        position: relative;
-        padding: 0;
-    }
-
-    .cs-inside .cs-panel {
-        max-width: 96px;
-        background-color: #484848;
-        z-index: 200;
-        position: fixed;
-        height: 100%;
-        padding-left: 0px;
-        text-align: center;
-    }
-
-    .cs-inside .cs-panel a {
-        margin: 0;
-        padding: 0;
-    }
-
-    .cs-inside .cs-content {
-        max-width: calc(100% - 96px);
-        margin-left: 96px;
-    }
-
-    .cx-toolbar-filter {
-        position: sticky;
-        top: 0;
-        z-index: 100;
-    }
-
-    .cs-cards {
-        position: relative;
-        float: left;
-        width: calc(100% - 28px);
-        margin-left: 0px;
-
-    }
-
-    .cs-panel.col .v-list-item.active {
-        background-color: rgba(255, 255, 255, 0.1);
-    }
-
-    .cs-inside .cs-panel .v-list-item__title {
-        white-space: normal;
-        font-size: 10px;
-    }
+    .row { margin: 0; }
 </style>

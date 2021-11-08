@@ -48,8 +48,3 @@
         mixins: [AttributesMixin]
     }
 </script>
-
-<style scoped>
-
-
-</style>

@@ -3,10 +3,11 @@ import hashlib
 import uuid
 import time
 from slackclient import SlackClient
-from collectors.base_collector import BaseCollector
-from taranisng.schema.news_item import NewsItemData
-from taranisng.schema.parameter import Parameter, ParameterType
 import socket
+
+from .base_collector import BaseCollector
+from schema.news_item import NewsItemData
+from schema.parameter import Parameter, ParameterType
 
 
 class SlackCollector(BaseCollector):
@@ -44,7 +45,7 @@ class SlackCollector(BaseCollector):
                 s.connect(proxy)
                 s.send(str.encode(connection))
                 s.recv(4096)
-            except:
+            except Exception:
                 print('OSINTSource ID: ' + source.id)
                 print('OSINTSource name: ' + source.name)
                 print('Proxy connection failed')

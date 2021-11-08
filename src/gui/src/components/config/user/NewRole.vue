@@ -1,107 +1,88 @@
 <template>
-    <div>
-        <v-btn v-if="canCreate" depressed small color="white--text ma-2 mt-3 mr-5" @click="addRole">
-            <v-icon left>mdi-plus-circle-outline</v-icon>
-            <span class="subtitle-2">{{$t('role.add_btn')}}</span>
+    <v-row v-bind="UI.DIALOG.ROW.WINDOW">
+        <v-btn v-bind="UI.BUTTON.ADD_NEW" v-if="canCreate" @click="addRole">
+            <v-icon left>{{ UI.ICON.PLUS }}</v-icon>
+            <span>{{$t('role.add_btn')}}</span>
         </v-btn>
+        <v-dialog v-bind="UI.DIALOG.FULLSCREEN" v-model="visible">
+            <v-card v-bind="UI.DIALOG.BASEMENT">
+                <v-toolbar v-bind="UI.DIALOG.TOOLBAR" :style="UI.STYLE.z10000">
+                    <v-btn v-bind="UI.BUTTON.CLOSE_ICON" @click="cancel">
+                        <v-icon>{{ UI.ICON.CLOSE }}</v-icon>
+                    </v-btn>
 
-        <v-row justify="center">
-            <v-dialog v-model="visible" fullscreen hide-overlay transition="dialog-bottom-transition">
-                <v-card>
+                    <v-toolbar-title>
+                        <span v-if="!edit">{{ $t('role.add_new') }}</span>
+                        <span v-else>{{ $t('role.edit') }}</span>
+                    </v-toolbar-title>
 
-                    <v-toolbar dark color="primary" style="z-index: 10000">
-                        <v-btn icon dark @click="cancel">
-                            <v-icon>mdi-close-circle</v-icon>
-                        </v-btn>
-                        <v-toolbar-title v-if="!edit">{{$t('role.add_new')}}</v-toolbar-title>
-                        <v-toolbar-title v-if="edit">{{$t('role.edit')}}</v-toolbar-title>
-                        <v-spacer></v-spacer>
-                        <v-btn v-if="canUpdate" text dark type="submit" form="form">
-                            <v-icon left>mdi-content-save</v-icon>
-                            <span>{{$t('role.save')}}</span>
-                        </v-btn>
-                    </v-toolbar>
+                    <v-spacer></v-spacer>
+                    <v-btn v-if="canUpdate" text dark type="submit" form="form">
+                        <v-icon left>mdi-content-save</v-icon>
+                        <span>{{$t('role.save')}}</span>
+                    </v-btn>
+                </v-toolbar>
 
-                    <v-form @submit.prevent="add" id="form" ref="form">
-                        <v-card>
-                            <v-card-text>
-                                <v-text-field :disabled="!canUpdate"
-                                        :label="$t('role.title')"
-                                        name="title"
-                                        type="text"
-                                        v-model="role.name"
-                                        v-validate="'required'"
-                                        data-vv-name="title"
-                                        :error-messages="errors.collect('title')"
-                                        :spellcheck="$store.state.settings.spellcheck"
-                                ></v-text-field>
-                                <v-textarea :disabled="!canUpdate"
+                <v-form @submit.prevent="add" id="form" ref="form" class="px-4">
+                    <v-row no-gutters>
+                        <v-col cols="12" class="pa-1">
+                            <v-text-field :disabled="!canUpdate"
+                                          :label="$t('role.title')"
+                                          name="title"
+                                          type="text"
+                                          v-model="role.name"
+                                          v-validate="'required'"
+                                          data-vv-name="title"
+                                          :error-messages="errors.collect('title')"
+                                          :spellcheck="$store.state.settings.spellcheck"
+                            />
+                        </v-col>
+                        <v-col cols="12" class="pa-1">
+                            <v-textarea :disabled="!canUpdate"
                                         :label="$t('role.description')"
                                         name="description"
                                         v-model="role.description"
                                         :spellcheck="$store.state.settings.spellcheck"
-                                ></v-textarea>
-                                <v-data-table :disabled="!canUpdate"
-                                        v-model="selected_permissions"
-                                        :headers="headers"
-                                        :items="permissions"
-                                        item-key="id"
-                                        :show-select="canUpdate"
-                                        disable-pagination
-                                        hide-default-footer
-                                        class="elevation-1"
-                                >
-                                    <template v-slot:top>
-                                        <v-toolbar flat color="white">
-                                            <v-toolbar-title>{{$t('role.permissions')}}</v-toolbar-title>
-                                        </v-toolbar>
-                                    </template>
+                            />
+                        </v-col>
+                    </v-row>
+                    <v-row no-gutters>
+                        <v-col cols="12" class="pt-2">
+                            <v-data-table :disabled="!canUpdate"
+                                          v-model="selected_permissions"
+                                          :headers="headers"
+                                          :items="permissions"
+                                          item-key="id"
+                                          :show-select="canUpdate"
+                                          disable-pagination
+                                          hide-default-footer
+                                          class="elevation-1"
+                            >
+                                <template v-slot:top>
+                                    <v-toolbar flat color="white">
+                                        <v-toolbar-title>{{$t('role.permissions')}}</v-toolbar-title>
+                                    </v-toolbar>
+                                </template>
 
-                                </v-data-table>
+                            </v-data-table>
+                        </v-col>
+                    </v-row>
 
-                            </v-card-text>
-                        </v-card>
-
-                    </v-form>
-
-                    <v-alert v-if="show_validation_error" dense type="error" text>
-                        {{$t('role.validation_error')}}
-                    </v-alert>
-                    <v-alert v-if="show_error" dense type="error" text>{{$t('role.error')}}
-                    </v-alert>
-                </v-card>
-            </v-dialog>
-        </v-row>
-    </div>
-
+                    <v-row no-gutters>
+                        <v-col cols="12">
+                            <v-alert v-if="show_validation_error" dense type="error" text>
+                                {{$t('role.validation_error')}}
+                            </v-alert>
+                            <v-alert v-if="show_error" dense type="error" text>
+                                {{$t('role.error')}}
+                            </v-alert>
+                        </v-col>
+                    </v-row>
+                </v-form>
+            </v-card>
+        </v-dialog>
+    </v-row>
 </template>
-
-<style>
-    .div-wrapper .theme--light.v-card {
-        border-left: 5px solid rgb(255, 172, 33);
-    }
-
-    .tabs [role='tablist'] {
-        background-color: #f5ebd5 !important;
-
-    }
-
-    .div-wrapper .v-card-title-dialog {
-        background-color: rgba(207, 158, 37, 0.2);
-        border-radius: 0;
-        font-size: 1.2em;
-        font-weight: bold;
-        padding: 0;
-        padding-left: 1em;
-    }
-
-    .tabs .v-window-item {
-    }
-
-    .icon-field-offset {
-        margin-left: 8px;
-    }
-</style>
 
 <script>
     import AuthMixin from "../../../services/auth/auth_mixin";

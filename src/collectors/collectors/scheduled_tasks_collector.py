@@ -5,9 +5,9 @@ import random
 import string
 import uuid
 
-from taranisng.schema.news_item import NewsItemData
-from taranisng.schema.parameter import Parameter, ParameterType
 from .base_collector import BaseCollector
+from schema.news_item import NewsItemData
+from schema.parameter import Parameter, ParameterType
 
 
 class ScheduledTasksCollector(BaseCollector):

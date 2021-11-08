@@ -15,6 +15,7 @@
                     cardItem="CardPreset"
                     action="getAllAssetGroups"
                     getter="getAssetGroups"
+                    deletePermission="MY_ASSETS_CONFIG"
             />
         </template>
     </ViewLayout>

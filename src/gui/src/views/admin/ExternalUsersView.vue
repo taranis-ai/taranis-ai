@@ -15,6 +15,7 @@
                     cardItem="CardUser"
                     action="getAllExternalUsers"
                     getter="getUsers"
+                    deletePermission="MY_ASSETS_CONFIG"
             />
         </template>
     </ViewLayout>

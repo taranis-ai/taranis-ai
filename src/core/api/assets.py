@@ -3,10 +3,9 @@ from flask_restful import Resource
 
 from managers import auth_manager
 from managers.auth_manager import auth_required
-from model import asset, notification_template
-from model import attribute
+from model import asset, notification_template, attribute
 from model.permission import Permission
-from taranisng.schema.attribute import AttributeType
+from schema.attribute import AttributeType
 
 
 class AssetGroups(Resource):
@@ -125,7 +124,7 @@ class AttributeCPEEnums(Resource):
 
 def initialize(api):
     api.add_resource(AssetGroups, "/api/v1/my-assets/asset-groups")
-    api.add_resource(AssetGroup, "/api/v1/my-assets/asset-groups/<int:group_id>")
+    api.add_resource(AssetGroup, "/api/v1/my-assets/asset-groups/<string:group_id>")
 
     api.add_resource(NotificationTemplates, "/api/v1/my-assets/asset-notification-templates")
     api.add_resource(NotificationTemplate, "/api/v1/my-assets/asset-notification-templates/<int:template_id>")

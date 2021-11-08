@@ -2,10 +2,6 @@
 var ImportCSVMixin = {
 
     methods: {
-        readCVEData(data) {
-            let parse = this.csvStringToArray(data, true)
-            //window.console.debug(data, parse );
-        },
 
         csvStringToArray (strData, header) {
             //const objPattern = new RegExp(("(\\,|\\r?\\n|\\r|^)(?:\"([^\"]*(?:\"\"[^\"]*)*)\"|([^\\,\\r\\n]*))"),"gi");

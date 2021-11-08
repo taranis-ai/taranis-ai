@@ -1,307 +1,293 @@
 <template>
-    <div>
-        <v-btn v-if="canCreate" depressed small color="white--text ma-2 mt-3 mr-5" @click="addAttribute">
-            <v-icon left>mdi-plus-circle-outline</v-icon>
-            <span class="subtitle-2">{{$t('attribute.add_btn')}}</span>
+    <v-row v-bind="UI.DIALOG.ROW.WINDOW">
+        <v-btn v-bind="UI.BUTTON.ADD_NEW" v-if="canCreate" @click="addAttribute">
+            <v-icon left>{{ UI.ICON.PLUS }}</v-icon>
+            <span>{{$t('attribute.add_btn')}}</span>
         </v-btn>
-        <v-row justify="center">
-            <v-dialog v-model="visible" fullscreen hide-overlay transition="dialog-bottom-transition">
-                <v-card>
-                    <v-toolbar dark color="primary">
+        <v-dialog v-bind="UI.DIALOG.FULLSCREEN" v-model="visible">
+            <v-card v-bind="UI.DIALOG.BASEMENT">
+                <v-toolbar v-bind="UI.DIALOG.TOOLBAR">
+                    <v-btn v-bind="UI.BUTTON.CLOSE_ICON" @click="cancel">
+                        <v-icon>{{ UI.ICON.CLOSE }}</v-icon>
+                    </v-btn>
 
-                        <v-btn icon dark @click="cancel">
-                            <v-icon>mdi-close-circle</v-icon>
-                        </v-btn>
-                        <v-toolbar-title v-if="!edit">{{$t('attribute.add_new')}}</v-toolbar-title>
-                        <v-toolbar-title v-if="edit">{{$t('attribute.edit')}}</v-toolbar-title>
-                        <v-spacer></v-spacer>
-                        <v-btn v-if="canUpdate" text dark type="submit" form="form">
-                            <v-icon left>mdi-content-save</v-icon>
-                            <span>{{$t('attribute.save')}}</span>
-                        </v-btn>
-                    </v-toolbar>
+                    <v-toolbar-title>
+                        <span v-if="!edit">{{ $t('attribute.add_new') }}</span>
+                        <span v-else>{{ $t('attribute.edit') }}</span>
+                    </v-toolbar-title>
 
-                    <v-form @submit.prevent="add" id="form" ref="form">
-                        <v-card>
-                            <v-card-text>
-                                <v-text-field :disabled="!canUpdate"
-                                              :label="$t('attribute.name')"
-                                              name="name"
-                                              type="text"
-                                              v-model="attribute.name"
-                                              v-validate="'required'"
-                                              data-vv-name="name"
-                                              :error-messages="errors.collect('name')"
-                                              :spellcheck="$store.state.settings.spellcheck"
-                                ></v-text-field>
-                                <v-textarea :disabled="!canUpdate"
-                                            :label="$t('attribute.description')"
-                                            name="description"
-                                            v-model="attribute.description"
-                                            :spellcheck="$store.state.settings.spellcheck"
-                                ></v-textarea>
-                                <v-row>
-                                    <v-col>
-                                        <v-combobox :disabled="!canUpdate"
-                                                    v-model="selected_type"
-                                                    :items="types"
-                                                    item-text="title"
-                                                    :label="$t('attribute.type')"
-                                        />
-                                    </v-col>
-                                    <v-col>
-                                        <v-text-field :disabled="!canUpdate"
-                                                      :label="$t('attribute.default_value')"
-                                                      name="default_value"
-                                                      type="text"
-                                                      v-model="attribute.default_value"
-                                                      :spellcheck="$store.state.settings.spellcheck"
-                                        ></v-text-field>
-                                    </v-col>
-                                </v-row>
-                                <v-row>
-                                    <v-col>
-                                        <v-combobox :disabled="!canUpdate"
-                                                    v-model="selected_validator"
-                                                    :items="validators"
-                                                    item-text="title"
-                                                    :label="$t('attribute.validator')"
-                                        />
-                                    </v-col>
-                                    <v-col>
-                                        <v-text-field :disabled="!canUpdate"
-                                                      :label="$t('attribute.validator_parameter')"
-                                                      type="text"
-                                                      v-model="attribute.validator_parameter"
-                                                      :spellcheck="$store.state.settings.spellcheck"
-                                        ></v-text-field>
-                                    </v-col>
-                                </v-row>
+                    <v-spacer></v-spacer>
+                    <v-btn v-if="canUpdate" text dark type="submit" form="form">
+                        <v-icon left>mdi-content-save</v-icon>
+                        <span>{{$t('attribute.save')}}</span>
+                    </v-btn>
+                </v-toolbar>
 
-                                <v-data-table :disabled="!canUpdate"
-                                              :headers="headers"
-                                              :items="attribute.attribute_enums"
-                                              :server-items-length="attribute.attribute_enums_total_count"
-                                              @update:options="updateOptions"
-                                              :items-per-page="25"
-                                              class="elevation-1"
-                                              :page.sync="current_page"
-                                              :footer-props="{
+                <v-form @submit.prevent="add" id="form" ref="form" class="px-4">
+                    <v-row no-gutters>
+                        <v-col cols="12">
+                            <v-text-field :disabled="!canUpdate"
+                                          :label="$t('attribute.name')"
+                                          name="name"
+                                          type="text"
+                                          v-model="attribute.name"
+                                          v-validate="'required'"
+                                          data-vv-name="name"
+                                          :error-messages="errors.collect('name')"
+                                          :spellcheck="$store.state.settings.spellcheck"
+                            />
+                        </v-col>
+                        <v-col cols="12">
+                            <v-textarea :disabled="!canUpdate"
+                                        :label="$t('attribute.description')"
+                                        name="description"
+                                        v-model="attribute.description"
+                                        :spellcheck="$store.state.settings.spellcheck"
+                            />
+                        </v-col>
+                    </v-row>
+
+                    <v-row no-gutters>
+                        <v-col cols="6" class="pa-1">
+                            <v-text-field :disabled="!canUpdate"
+                                          :label="$t('attribute.default_value')"
+                                          name="default_value"
+                                          type="text"
+                                          v-model="attribute.default_value"
+                                          :spellcheck="$store.state.settings.spellcheck"
+                            />
+                        </v-col>
+                        <v-col cols="6" class="pa-1">
+                            <v-text-field :disabled="!canUpdate"
+                                          :label="$t('attribute.default_value')"
+                                          name="default_value"
+                                          type="text"
+                                          v-model="attribute.default_value"
+                                          :spellcheck="$store.state.settings.spellcheck"
+                            />
+                        </v-col>
+                        <v-col cols="6" class="pa-1">
+                            <v-combobox :disabled="!canUpdate"
+                                        v-model="selected_validator"
+                                        :items="validators"
+                                        item-text="title"
+                                        :label="$t('attribute.validator')"
+                            />
+                        </v-col>
+                        <v-col cols="6" class="pa-1">
+                            <v-text-field :disabled="!canUpdate"
+                                          :label="$t('attribute.validator_parameter')"
+                                          type="text"
+                                          v-model="attribute.validator_parameter"
+                                          :spellcheck="$store.state.settings.spellcheck"
+                            />
+                        </v-col>
+                    </v-row>
+
+                    <v-row no-gutters>
+                        <v-col cols="12">
+                            <v-data-table :disabled="!canUpdate"
+                                          :headers="headers"
+                                          :items="attribute.attribute_enums"
+                                          :server-items-length="attribute.attribute_enums_total_count"
+                                          @update:options="updateOptions"
+                                          :items-per-page="25"
+                                          class="elevation-1"
+                                          :page.sync="current_page"
+                                          :footer-props="{
                                                       showFirstLastPage: true,
                                                       itemsPerPageOptions: [25, 50, 100],
                                                       showCurrentPage: true
                                                     }"
 
-                                >
-                                    <template v-slot:top>
-                                        <v-toolbar flat color="white">
-                                            <v-toolbar-title>{{$t('attribute.attribute_constants')}}</v-toolbar-title>
-                                            <v-divider
-                                                    class="mx-4"
-                                                    inset
-                                                    vertical
-                                            ></v-divider>
-                                            <v-spacer></v-spacer>
-                                            <v-text-field
-                                                    v-model="search"
-                                                    append-icon="mdi-magnify"
-                                                    :label="$t('attribute.search')"
-                                                    v-on:keyup="filterSearch"
-                                                    single-line
-                                                    hide-details
-                                            ></v-text-field>
-                                            <v-spacer></v-spacer>
-                                            <v-btn v-if="edit && selected_type !== null && selected_type.id === 'CVE'"
-                                                   color="primary" dark class="mb-2 mr-3"
-                                                   @click="reloadDictionary('cve')">
-                                                <v-icon left>mdi-refresh</v-icon>
-                                                <span>{{$t('attribute.reload_cve')}}</span>
-                                            </v-btn>
-                                            <v-btn v-if="edit && selected_type !== null && selected_type.id === 'CPE'"
-                                                   color="primary" dark class="mb-2 mr-3"
-                                                   @click="reloadDictionary('cpe')">
-                                                <v-icon left>mdi-refresh</v-icon>
-                                                <span>{{$t('attribute.reload_cpe')}}</span>
-                                            </v-btn>
+                            >
+                                <template v-slot:top>
+                                    <v-toolbar flat color="white">
+                                        <v-toolbar-title>{{$t('attribute.attribute_constants')}}</v-toolbar-title>
+                                        <v-divider
+                                            class="mx-4"
+                                            inset
+                                            vertical
+                                        ></v-divider>
+                                        <v-spacer></v-spacer>
+                                        <v-text-field
+                                            v-model="search"
+                                            append-icon="mdi-magnify"
+                                            :label="$t('attribute.search')"
+                                            v-on:keyup="filterSearch"
+                                            single-line
+                                            hide-details
+                                        ></v-text-field>
+                                        <v-spacer></v-spacer>
+                                        <v-btn v-if="edit && selected_type !== null && selected_type.id === 'CVE'"
+                                               color="primary" dark class="mb-2 mr-3"
+                                               @click="reloadDictionary('cve')">
+                                            <v-icon left>mdi-refresh</v-icon>
+                                            <span>{{$t('attribute.reload_cve')}}</span>
+                                        </v-btn>
+                                        <v-btn v-if="edit && selected_type !== null && selected_type.id === 'CPE'"
+                                               color="primary" dark class="mb-2 mr-3"
+                                               @click="reloadDictionary('cpe')">
+                                            <v-icon left>mdi-refresh</v-icon>
+                                            <span>{{$t('attribute.reload_cpe')}}</span>
+                                        </v-btn>
 
-                                            <v-dialog v-if="canUpdate" v-model="dialog" max-width="500px">
-                                                <template v-slot:activator="{ on }">
-                                                    <span style="width: 10px"></span>
-                                                    <v-btn color="primary" dark class="mb-2" v-on="on">
-                                                        <v-icon left>mdi-plus</v-icon>
-                                                        <span>{{$t('attribute.new_constant')}}</span>
+                                        <v-dialog v-if="canUpdate" v-model="dialog" max-width="500px">
+                                            <template v-slot:activator="{ on }">
+                                                <span style="width: 10px"></span>
+                                                <v-btn color="primary" dark class="mb-2" v-on="on">
+                                                    <v-icon left>mdi-plus</v-icon>
+                                                    <span>{{$t('attribute.new_constant')}}</span>
+                                                </v-btn>
+
+                                            </template>
+                                            <v-card>
+                                                <v-card-title>
+                                                    <span class="headline">{{ formTitle }}</span>
+                                                </v-card-title>
+
+                                                <v-card-text>
+
+                                                    <v-text-field v-model="edited_constant.value"
+                                                                  :label="$t('attribute.value')"
+                                                                  :spellcheck="$store.state.settings.spellcheck"></v-text-field>
+
+                                                    <v-text-field v-model="edited_constant.description"
+                                                                  :label="$t('attribute.description')"
+                                                                  :spellcheck="$store.state.settings.spellcheck"></v-text-field>
+
+                                                </v-card-text>
+
+                                                <v-card-actions>
+                                                    <v-spacer></v-spacer>
+                                                    <v-btn color="primary" dark @click="save">
+                                                        {{$t('attribute.save')}}
                                                     </v-btn>
-
-                                                </template>
-                                                <v-card>
-                                                    <v-card-title>
-                                                        <span class="headline">{{ formTitle }}</span>
-                                                    </v-card-title>
-
-                                                    <v-card-text>
-
-                                                        <v-text-field v-model="edited_constant.value"
-                                                                      :label="$t('attribute.value')"
-                                                                      :spellcheck="$store.state.settings.spellcheck"></v-text-field>
-
-                                                        <v-text-field v-model="edited_constant.description"
-                                                                      :label="$t('attribute.description')"
-                                                                      :spellcheck="$store.state.settings.spellcheck"></v-text-field>
-
-                                                    </v-card-text>
-
-                                                    <v-card-actions>
-                                                        <v-spacer></v-spacer>
-                                                        <v-btn color="primary" dark @click="save">
-                                                            {{$t('attribute.save')}}
-                                                        </v-btn>
-                                                        <v-btn color="primary" text @click="close">
-                                                            {{$t('attribute.cancel')}}
-                                                        </v-btn>
-                                                    </v-card-actions>
-                                                </v-card>
-                                            </v-dialog>
-
-                                            <v-dialog v-model="importDialog" persistent max-width="290">
-                                                <v-card>
-                                                    <v-card-title class="headline">{{$t('attribute.reloading')}}</v-card-title>
-                                                    <v-progress-linear indeterminate color="primary" />
-                                                </v-card>
-                                            </v-dialog>
-
-                                            <v-dialog v-if="canUpdate" v-model="dialog_csv" max-width="700px">
-                                                <template v-slot:activator="{ on }">
-                                                    <v-btn color="primary" dark class="mb-2" v-on="on">
-                                                        <v-icon left>mdi-upload</v-icon>
-                                                        <span>{{$t('attribute.import_from_csv')}}</span>
+                                                    <v-btn color="primary" text @click="close">
+                                                        {{$t('attribute.cancel')}}
                                                     </v-btn>
-                                                </template>
-                                                <v-card>
-                                                    <v-card-title>
-                                                        <span class="headline">{{$t('attribute.import_from_csv')}}</span>
-                                                    </v-card-title>
+                                                </v-card-actions>
+                                            </v-card>
+                                        </v-dialog>
 
-                                                    <v-row class="ma-6">
-                                                        <VueCsvImport
-                                                                v-model="csv"
-                                                                :map-fields="['value', 'description']"
-                                                        >
+                                        <v-dialog v-model="importDialog" persistent max-width="290">
+                                            <v-card>
+                                                <v-card-title class="headline">{{$t('attribute.reloading')}}</v-card-title>
+                                                <v-progress-linear indeterminate color="primary" />
+                                            </v-card>
+                                        </v-dialog>
 
-                                                            <template slot="hasHeaders" slot-scope="{headers, toggle}">
-                                                                <label>
-                                                                    <input type="checkbox" id="hasHeaders"
-                                                                           :value="headers" @change="toggle">
-                                                                    {{$t('attribute.file_has_header')}}
-                                                                </label>
-                                                            </template>
+                                        <v-dialog v-if="canUpdate" v-model="dialog_csv" max-width="700px">
+                                            <template v-slot:activator="{ on }">
+                                                <v-btn color="primary" dark class="mb-2" v-on="on">
+                                                    <v-icon left>mdi-upload</v-icon>
+                                                    <span>{{$t('attribute.import_from_csv')}}</span>
+                                                </v-btn>
+                                            </template>
+                                            <v-card>
+                                                <v-card-title>
+                                                    <span class="headline">{{$t('attribute.import_from_csv')}}</span>
+                                                </v-card-title>
 
-                                                            <template slot="next" slot-scope="{load}">
-                                                                <button class="load" @click.prevent="load">
-                                                                    {{$t('attribute.load_csv_file')}}
-                                                                </button>
-                                                            </template>
+                                                <v-row class="ma-6">
+                                                    <VueCsvImport
+                                                        v-model="csv"
+                                                        :map-fields="['value', 'description']"
+                                                    >
 
-                                                        </VueCsvImport>
+                                                        <template slot="hasHeaders" slot-scope="{headers, toggle}">
+                                                            <label>
+                                                                <input type="checkbox" id="hasHeaders"
+                                                                       :value="headers" @change="toggle">
+                                                                {{$t('attribute.file_has_header')}}
+                                                            </label>
+                                                        </template>
+
+                                                        <template slot="next" slot-scope="{load}">
+                                                            <button class="load" @click.prevent="load">
+                                                                {{$t('attribute.load_csv_file')}}
+                                                            </button>
+                                                        </template>
+
+                                                    </VueCsvImport>
+                                                </v-row>
+
+                                                <div v-if="csv_preview" class="mt-2 px-4">
+                                                    <v-row class="pa-0 ma-0 grey white--text">
+                                                        <v-col class="pa-0 ma-0">
+                                                            <span class="heading">{{$t('attribute.value')}}</span>
+                                                        </v-col>
+                                                        <v-col class="pa-0 ma-0">
+                                                            <span class="heading">{{$t('attribute.description')}}</span>
+                                                        </v-col>
                                                     </v-row>
 
-                                                    <div v-if="csv_preview" class="mt-2 px-4">
-                                                        <v-row class="pa-0 ma-0 grey white--text">
+                                                    <v-card-text class="ma-0 pa-0" v-for="parse in csv"
+                                                                 :key="parse.value">
+
+                                                        <v-row class="pa-0 ma-0">
                                                             <v-col class="pa-0 ma-0">
-                                                                <span class="heading">{{$t('attribute.value')}}</span>
+                                                                {{parse.value}}
                                                             </v-col>
                                                             <v-col class="pa-0 ma-0">
-                                                                <span class="heading">{{$t('attribute.description')}}</span>
+                                                                {{parse.description}}
                                                             </v-col>
                                                         </v-row>
 
-                                                        <v-card-text class="ma-0 pa-0" v-for="parse in csv"
-                                                                     :key="parse.value">
+                                                    </v-card-text>
+                                                </div>
 
-                                                            <v-row class="pa-0 ma-0">
-                                                                <v-col class="pa-0 ma-0">
-                                                                    {{parse.value}}
-                                                                </v-col>
-                                                                <v-col class="pa-0 ma-0">
-                                                                    {{parse.description}}
-                                                                </v-col>
-                                                            </v-row>
+                                                <v-card-actions>
+                                                    <v-spacer></v-spacer>
+                                                    <v-checkbox v-model="csv_delete_exist_list"
+                                                                :label="$t('attribute.delete_existing')"></v-checkbox>
+                                                    <v-spacer></v-spacer>
+                                                    <v-btn color="primary" dark @click="importCSV">
+                                                        {{$t('attribute.import')}}
+                                                    </v-btn>
+                                                    <v-btn color="primary" text @click="closeCSV">
+                                                        {{$t('attribute.cancel')}}
+                                                    </v-btn>
+                                                </v-card-actions>
+                                            </v-card>
+                                        </v-dialog>
 
-                                                        </v-card-text>
-                                                    </div>
+                                    </v-toolbar>
+                                </template>
+                                <template v-slot:item.action="{ item }">
+                                    <v-icon v-if="canUpdate"
+                                            small
+                                            class="mr-2"
+                                            @click="editItem(item)"
+                                    >
+                                        edit
+                                    </v-icon>
+                                    <v-icon v-if="canUpdate"
+                                            small
+                                            @click="deleteItem(item)"
+                                    >
+                                        delete
+                                    </v-icon>
+                                </template>
+                            </v-data-table>
+                        </v-col>
+                    </v-row>
 
-                                                    <v-card-actions>
-                                                        <v-spacer></v-spacer>
-                                                        <v-checkbox v-model="csv_delete_exist_list"
-                                                                    :label="$t('attribute.delete_existing')"></v-checkbox>
-                                                        <v-spacer></v-spacer>
-                                                        <v-btn color="primary" dark @click="importCSV">
-                                                            {{$t('attribute.import')}}
-                                                        </v-btn>
-                                                        <v-btn color="primary" text @click="closeCSV">
-                                                            {{$t('attribute.cancel')}}
-                                                        </v-btn>
-                                                    </v-card-actions>
-                                                </v-card>
-                                            </v-dialog>
-
-                                        </v-toolbar>
-                                    </template>
-                                    <template v-slot:item.action="{ item }">
-                                        <v-icon v-if="canUpdate"
-                                                small
-                                                class="mr-2"
-                                                @click="editItem(item)"
-                                        >
-                                            edit
-                                        </v-icon>
-                                        <v-icon v-if="canUpdate"
-                                                small
-                                                @click="deleteItem(item)"
-                                        >
-                                            delete
-                                        </v-icon>
-                                    </template>
-                                </v-data-table>
-                            </v-card-text>
-                        </v-card>
-                    </v-form>
-                    <v-alert v-if="show_validation_error" dense type="error" text>
-                        {{$t('attribute.validation_error')}}
-                    </v-alert>
-                    <v-alert v-if="show_error" dense type="error" text>{{$t('attribute.error')}}
-                    </v-alert>
-                </v-card>
-            </v-dialog>
-        </v-row>
-    </div>
-
+                    <v-row no-gutters class="pt-2">
+                        <v-col cols="12">
+                            <v-alert v-if="show_validation_error" dense type="error" text>
+                                {{$t('attribute.validation_error')}}
+                            </v-alert>
+                            <v-alert v-if="show_error" dense type="error" text>
+                                {{$t('attribute.error')}}
+                            </v-alert>
+                        </v-col>
+                    </v-row>
+                </v-form>
+            </v-card>
+        </v-dialog>
+    </v-row>
 </template>
-
-<style>
-    .vue-csv-uploader button.load {
-        margin: 10px;
-        margin-left: 0;
-        padding: 4px 10px 4px 10px;
-        background-color: #4092dd;
-        border-radius: 4px;
-        color: white;
-    }
-
-    .vue-csv-uploader-part-two table {
-        width: 400px;
-    }
-
-    .vue-csv-uploader-part-two table thead {
-        text-align: left;
-    }
-
-    .vue-csv-uploader-part-two table select {
-        -webkit-appearance: auto;
-        -moz-appearance: auto;
-        border: 1px solid gray;
-        border-radius: 4px;
-    }
-</style>
 
 <script>
     import {createNewAttribute} from "@/api/config";

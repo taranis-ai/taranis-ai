@@ -1,6 +1,5 @@
 <template>
     <v-row>
-
         <v-col>
             <span style="margin-right:20px; font-size:12px">{{attribute.key}}</span>
             <br/>
@@ -39,8 +38,3 @@
         }
     }
 </script>
-
-<style scoped>
-
-
-</style>

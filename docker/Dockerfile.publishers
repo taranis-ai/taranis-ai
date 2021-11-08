@@ -5,8 +5,7 @@ WORKDIR /app/
 # upgrade pip
 RUN python -m pip install --upgrade pip
 
-COPY ./src/publishers/requirements.txt /app/taranis-ng-publishers/requirements.txt
-COPY ./src/common/requirements.txt /app/taranis-ng-common/requirements.txt
+COPY ./src/publishers/requirements.txt /app/requirements.txt
 
 # install dependencies
 RUN \
@@ -18,8 +17,7 @@ RUN \
     python3-dev \
     libffi-dev \
     rust && \
-    pip install --no-cache-dir -r /app/taranis-ng-publishers/requirements.txt && \
-    pip install --no-cache-dir -r /app/taranis-ng-common/requirements.txt && \
+    pip install --no-cache-dir -r /app/requirements.txt && \
     apk --purge del .build-deps
 
 COPY ./docker/start.sh /start.sh
@@ -35,12 +33,11 @@ COPY ./docker/gunicorn_conf.py /gunicorn_conf.py
 
 EXPOSE 80
 
-COPY ./src/publishers/. /app/taranis-ng-publishers
-COPY ./src/common/. /app/taranis-ng-common
+COPY ./src/publishers/. /app/
 
 # setup environment variables
 ENV PYTHONPATH=/app
-ENV MODULE_NAME taranis-ng-publishers.run
+ENV MODULE_NAME run
 ENV VARIABLE_NAME app
 ENV GUNICORN_CMD_ARGS --timeout 120 --preload
 ENV WORKERS_PER_CORE 8

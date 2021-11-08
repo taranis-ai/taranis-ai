@@ -1,5 +1,6 @@
-from auth.base_authenticator import BaseAuthenticator
 from flask_oidc import OpenIDConnect
+
+from auth.base_authenticator import BaseAuthenticator
 
 oidc = OpenIDConnect()
 
@@ -21,5 +22,6 @@ class OpenIDAuthenticator(BaseAuthenticator):
         return BaseAuthenticator.generate_error()
 
     @staticmethod
-    def logout():
+    def logout(token):
+        BaseAuthenticator.logout(token)
         oidc.logout()

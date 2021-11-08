@@ -1,112 +1,122 @@
 <template>
-    <div>
-        <v-btn v-if="canCreate" depressed small color="white--text ma-2 mt-3 mr-5" @click="addWordList">
-            <v-icon left>mdi-plus-circle-outline</v-icon>
-            <span class="subtitle-2">{{$t('word_list.add_btn')}}</span>
+    <v-row v-bind="UI.DIALOG.ROW.WINDOW">
+        <v-btn v-bind="UI.BUTTON.ADD_NEW" v-if="canCreate" @click="addWordList">
+            <v-icon left>{{ UI.ICON.PLUS }}</v-icon>
+            <span>{{$t('word_list.add_btn')}}</span>
         </v-btn>
+        <v-dialog v-bind="UI.DIALOG.FULLSCREEN" v-model="visible">
+            <v-card v-bind="UI.DIALOG.BASEMENT">
+                <v-toolbar v-bind="UI.DIALOG.TOOLBAR" :style="UI.STYLE.z10000">
+                    <v-btn v-bind="UI.BUTTON.CLOSE_ICON" @click="cancel">
+                        <v-icon>{{ UI.ICON.CLOSE }}</v-icon>
+                    </v-btn>
 
-        <v-row justify="center">
-            <v-dialog v-model="visible" fullscreen hide-overlay transition="dialog-bottom-transition">
-                <v-card>
-                    <v-toolbar dark color="primary" style="z-index: 10000">
+                    <v-toolbar-title>
+                        <span v-if="!edit">{{ $t('word_list.add_new') }}</span>
+                        <span v-else>{{ $t('word_list.edit') }}</span>
+                    </v-toolbar-title>
 
-                        <v-btn icon dark @click="cancel">
-                            <v-icon>mdi-close-circle</v-icon>
-                        </v-btn>
-                        <v-toolbar-title v-if="!edit">{{$t('word_list.add_new')}}</v-toolbar-title>
-                        <v-toolbar-title v-if="edit">{{$t('word_list.edit')}}</v-toolbar-title>
-                        <v-spacer></v-spacer>
-                        <v-btn v-if="canUpdate" text dark type="submit" form="form">
-                            <v-icon left>mdi-content-save</v-icon>
-                            <span>{{$t('word_list.save')}}</span>
-                        </v-btn>
-                    </v-toolbar>
+                    <v-spacer></v-spacer>
+                    <v-btn v-if="canUpdate" text dark type="submit" form="form">
+                        <v-icon left>mdi-content-save</v-icon>
+                        <span>{{$t('word_list.save')}}</span>
+                    </v-btn>
+                </v-toolbar>
 
-                    <v-form @submit.prevent="add" id="form" ref="form">
-                        <v-card>
-                            <v-card-text>
-
-                                <span v-if="edit">ID: {{word_list.id}}</span>
-
-                                <v-text-field :disabled="!canUpdate"
-                                        :label="$t('word_list.name')"
-                                        name="name"
-                                        type="text"
-                                        v-model="word_list.name"
-                                        v-validate="'required'"
-                                        data-vv-name="name"
-                                        :error-messages="errors.collect('name')"
-                                        :spellcheck="$store.state.settings.spellcheck"
-                                ></v-text-field>
-                                <v-textarea :disabled="!canUpdate"
+                <v-form @submit.prevent="add" id="form" ref="form" class="px-4">
+                    <v-row no-gutters>
+                        <v-col cols="12" class="caption grey--text" v-if="edit">ID: {{word_list.id}}</v-col>
+                        <v-col cols="12">
+                            <v-text-field :disabled="!canUpdate"
+                                          :label="$t('word_list.name')"
+                                          name="name"
+                                          type="text"
+                                          v-model="word_list.name"
+                                          v-validate="'required'"
+                                          data-vv-name="name"
+                                          :error-messages="errors.collect('name')"
+                                          :spellcheck="$store.state.settings.spellcheck"
+                            />
+                        </v-col>
+                        <v-col cols="12">
+                            <v-textarea :disabled="!canUpdate"
                                         :label="$t('word_list.description')"
                                         name="description"
                                         v-model="word_list.description"
                                         :spellcheck="$store.state.settings.spellcheck"
-                                ></v-textarea>
+                            />
+                        </v-col>
+                    </v-row>
 
-                                <v-checkbox :disabled="!canUpdate"
-                                            :label="$t('word_list.use_for_stop_words')"
-                                            name="use_for_stop_words"
-                                            v-model="word_list.use_for_stop_words"
-                                ></v-checkbox>
+                    <v-row no-gutters>
+                        <v-col cols="12">
+                            <v-checkbox :disabled="!canUpdate"
+                                        :label="$t('word_list.use_for_stop_words')"
+                                        name="use_for_stop_words"
+                                        v-model="word_list.use_for_stop_words"
+                            />
+                        </v-col>
+                        <v-col cols="12">
+                            <v-btn v-if="canUpdate" color="primary" @click="addCategory">
+                                <v-icon left>{{ UI.ICON.PLUS }}</v-icon>
+                                <span>{{$t('word_list.new_category')}}</span>
+                            </v-btn>
+                        </v-col>
+                        <v-col cols="12">
+                            <v-card style="margin-top: 8px" v-for="(category, index) in word_list.categories"
+                                    :key="category.index">
 
-                                <v-btn v-if="canUpdate" color="primary" @click="addCategory">
-                                    <v-icon left>mdi-plus</v-icon>
-                                    <span>{{$t('word_list.new_category')}}</span>
-                                </v-btn>
+                                <v-toolbar dark height="32px">
+                                    <v-spacer></v-spacer>
+                                    <v-toolbar-items v-if="canUpdate">
+                                        <v-icon
+                                            @click="deleteCategory(index)"
+                                        >
+                                            delete
+                                        </v-icon>
+                                    </v-toolbar-items>
+                                </v-toolbar>
 
-                                <v-card style="margin-top: 8px" v-for="(category, index) in word_list.categories"
-                                        :key="category.index">
-
-                                    <v-toolbar dark height="32px">
-                                        <v-spacer></v-spacer>
-                                        <v-toolbar-items v-if="canUpdate">
-                                            <v-icon
-                                                    @click="deleteCategory(index)"
-                                            >
-                                                delete
-                                            </v-icon>
-                                        </v-toolbar-items>
-                                    </v-toolbar>
-
-                                    <v-card-text>
-                                        <v-text-field :disabled="!canUpdate"
-                                                :label="$t('word_list.name')"
-                                                name="category_name"
-                                                type="text"
-                                                v-model="category.name"
-                                                :spellcheck="$store.state.settings.spellcheck"
-                                        ></v-text-field>
-                                        <v-textarea :disabled="!canUpdate"
+                                <v-card-text>
+                                    <v-text-field :disabled="!canUpdate"
+                                                  :label="$t('word_list.name')"
+                                                  name="category_name"
+                                                  type="text"
+                                                  v-model="category.name"
+                                                  :spellcheck="$store.state.settings.spellcheck"
+                                    ></v-text-field>
+                                    <v-textarea :disabled="!canUpdate"
                                                 :label="$t('word_list.description')"
                                                 name="category_description"
                                                 v-model="category.description"
                                                 :spellcheck="$store.state.settings.spellcheck"
-                                        ></v-textarea>
+                                    ></v-textarea>
 
-                                        <WordTable :disabled="!canUpdate"
-                                                :words="word_list.categories[index].entries"
-                                                   :id="index"
-                                                @update-categories="update"
-                                        ></WordTable>
+                                    <WordTable :disabled="!canUpdate"
+                                               :words="word_list.categories[index].entries"
+                                               :id="index"
+                                               @update-categories="update"
+                                    ></WordTable>
 
-                                    </v-card-text>
-                                </v-card>
+                                </v-card-text>
+                            </v-card>
+                        </v-col>
+                    </v-row>
 
-                            </v-card-text>
-                        </v-card>
-                    </v-form>
-                    <v-alert v-if="show_validation_error" dense type="error" text>
-                        {{$t('word_list.validation_error')}}
-                    </v-alert>
-                    <v-alert v-if="show_error" dense type="error" text>{{$t('word_list.error')}}
-                    </v-alert>
-                </v-card>
-            </v-dialog>
-        </v-row>
-    </div>
-
+                    <v-row no-gutters class="pt-2">
+                        <v-col cols="12">
+                            <v-alert v-if="show_validation_error" dense type="error" text>
+                                {{$t('word_list.validation_error')}}
+                            </v-alert>
+                            <v-alert v-if="show_error" dense type="error" text>
+                                {{$t('word_list.error')}}
+                            </v-alert>
+                        </v-col>
+                    </v-row>
+                </v-form>
+            </v-card>
+        </v-dialog>
+    </v-row>
 </template>
 
 <script>

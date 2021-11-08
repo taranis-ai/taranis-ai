@@ -1,8 +1,7 @@
 from flask import request
 from flask_restful import Resource, reqparse
 
-from managers import sse_manager
-from managers import log_manager
+from managers import sse_manager, log_manager
 from managers.auth_manager import api_key_required
 from model import bot_preset, news_item, word_list
 

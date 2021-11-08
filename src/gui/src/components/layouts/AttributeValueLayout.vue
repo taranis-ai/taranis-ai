@@ -49,35 +49,3 @@ export default {
     }
 }
 </script>
-
-<style>
-.col-left {
-    width: 8% !important;
-}
-
-.col-middle {
-    width: 82% !important;
-}
-
-.col-right {
-    width: 10% !important;
-}
-
-.col-left, .col-right {
-    line-height: 2;
-}
-
-.attribute-value-layout:hover {
-    background-color: rgba(106, 190, 242, 0.06);
-}
-
-.icon-tooltip {
-    position: absolute;
-    opacity: 0.7;
-    top: -23px;
-    left: -4px;
-    font-size: 10px;
-    width: 320px;
-    color: #4694db;
-}
-</style>

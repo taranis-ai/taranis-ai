@@ -1,53 +1,60 @@
 <template>
-    <div>
-        <v-btn depressed small color="white--text ma-2 mt-3 mr-5" @click="addGroup">
-            <v-icon left>mdi-plus-circle-outline</v-icon>
-            <span class="subtitle-2">{{$t('asset_group.add')}}</span>
+    <v-row v-bind="UI.DIALOG.ROW.WINDOW">
+        <v-btn v-bind="UI.BUTTON.ADD_NEW" @click="addGroup">
+            <v-icon left>{{ UI.ICON.PLUS }}</v-icon>
+            <span>{{$t('asset_group.add')}}</span>
         </v-btn>
-        <v-row justify="center">
-            <v-dialog v-model="visible" fullscreen hide-overlay transition="dialog-bottom-transition">
-                <v-card>
+        <v-dialog v-bind="UI.DIALOG.FULLSCREEN" v-model="visible">
+            <v-card v-bind="UI.DIALOG.BASEMENT">
+                <v-toolbar v-bind="UI.DIALOG.TOOLBAR">
+                    <v-btn v-bind="UI.BUTTON.CLOSE_ICON" @click="cancel">
+                        <v-icon>{{ UI.ICON.CLOSE }}</v-icon>
+                    </v-btn>
 
-                    <v-toolbar dark color="primary">
-                        <v-btn icon dark @click="cancel">
-                            <v-icon>mdi-close-circle</v-icon>
-                        </v-btn>
-                        <v-toolbar-title v-if="!edit">{{$t('asset_group.add_new')}}</v-toolbar-title>
-                        <v-toolbar-title v-if="edit">{{$t('asset_group.edit')}}</v-toolbar-title>
-                        <v-spacer></v-spacer>
-                        <v-btn text type="submit" form="form">
-                            <v-icon left>mdi-content-save</v-icon>
-                            <span>{{$t('asset_group.save')}}</span>
-                        </v-btn>
-                    </v-toolbar>
+                    <v-toolbar-title>
+                        <span v-if="!edit">{{ $t('asset_group.add_new') }}</span>
+                        <span v-else>{{ $t('asset_group.edit') }}</span>
+                    </v-toolbar-title>
 
-                    <v-card-text>
-                        <v-form @submit.prevent="add" id="form" ref="form">
+                    <v-spacer></v-spacer>
+                    <v-btn text type="submit" form="form">
+                        <v-icon left>mdi-content-save</v-icon>
+                        <span>{{$t('asset_group.save')}}</span>
+                    </v-btn>
+                </v-toolbar>
 
-
+                <v-form @submit.prevent="add" id="form" ref="form" class="px-4">
+                    <v-row no-gutters>
+                        <v-col cols="12" class="pa-1">
                             <v-text-field
-                                    :label="$t('asset_group.name')"
-                                    name="name"
-                                    type="text"
-                                    v-model="group.name"
-                                    v-validate="'required'"
-                                    data-vv-name="name"
-                                    :error-messages="errors.collect('name')"
-                                    :spellcheck="$store.state.settings.spellcheck"
-                            ></v-text-field>
+                                :label="$t('asset_group.name')"
+                                name="name"
+                                type="text"
+                                v-model="group.name"
+                                v-validate="'required'"
+                                data-vv-name="name"
+                                :error-messages="errors.collect('name')"
+                                :spellcheck="$store.state.settings.spellcheck"
+                            />
+                        </v-col>
+                        <v-col cols="12" class="pa-1">
                             <v-textarea
-                                    :label="$t('asset_group.description')"
-                                    name="description"
-                                    v-model="group.description"
-                                    :spellcheck="$store.state.settings.spellcheck"
-                            ></v-textarea>
+                                :label="$t('asset_group.description')"
+                                name="description"
+                                v-model="group.description"
+                                :spellcheck="$store.state.settings.spellcheck"
+                            />
+                        </v-col>
+                    </v-row>
+                    <v-row no-gutters>
+                        <v-col cols="12">
                             <v-data-table
-                                    v-model="selected_users"
-                                    :headers="headers"
-                                    :items="users"
-                                    item-key="id"
-                                    show-select
-                                    class="elevation-1"
+                                v-model="selected_users"
+                                :headers="headers"
+                                :items="users"
+                                item-key="id"
+                                show-select
+                                class="elevation-1"
                             >
                                 <template v-slot:top>
                                     <v-toolbar flat color="white">
@@ -56,16 +63,15 @@
                                 </template>
 
                             </v-data-table>
-
-                            <v-spacer class="pt-4"></v-spacer>
-
+                        </v-col>
+                        <v-col cols="12" class="pt-3">
                             <v-data-table
-                                    v-model="selected_templates"
-                                    :headers="headers_template"
-                                    :items="templates"
-                                    item-key="id"
-                                    show-select
-                                    class="elevation-1"
+                                v-model="selected_templates"
+                                :headers="headers_template"
+                                :items="templates"
+                                item-key="id"
+                                show-select
+                                class="elevation-1"
                             >
                                 <template v-slot:top>
                                     <v-toolbar flat color="white">
@@ -74,19 +80,22 @@
                                 </template>
 
                             </v-data-table>
-
+                        </v-col>
+                    </v-row>
+                    <v-row no-gutters class="pt-2">
+                        <v-col cols="12">
                             <v-alert v-if="show_validation_error" dense type="error" text>
                                 {{$t('asset_group.validation_error')}}
                             </v-alert>
-                            <v-alert v-if="show_error" dense type="error" text>{{$t('asset_group.error')}}
+                            <v-alert v-if="show_error" dense type="error" text>
+                                {{$t('asset_group.error')}}
                             </v-alert>
-                        </v-form>
-                    </v-card-text>
-
-                </v-card>
-            </v-dialog>
-        </v-row>
-    </div>
+                        </v-col>
+                    </v-row>
+                </v-form>
+            </v-card>
+        </v-dialog>
+    </v-row>
 </template>
 
 <script>

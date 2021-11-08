@@ -1,10 +1,9 @@
 import os
 from base64 import b64encode
-
 import jinja2
 
-from presenters.base_presenter import BasePresenter
-from taranisng.schema.parameter import Parameter, ParameterType
+from .base_presenter import BasePresenter
+from schema.parameter import Parameter, ParameterType
 
 
 class MISPPresenter(BasePresenter):
@@ -24,11 +23,11 @@ class MISPPresenter(BasePresenter):
         try:
             head, tail = os.path.split(presenter_input.parameter_values_map['MISP_TEMPLATE_PATH'])
 
-            data = BasePresenter.generate_report_data_map(presenter_input)
+            input_data = BasePresenter.generate_input_data(presenter_input)
 
             env = jinja2.Environment(loader=jinja2.FileSystemLoader(head))
 
-            output_text = env.get_template(tail).render(data=data).encode()
+            output_text = env.get_template(tail).render(data=input_data).encode()
 
             base64_bytes = b64encode(output_text)
 

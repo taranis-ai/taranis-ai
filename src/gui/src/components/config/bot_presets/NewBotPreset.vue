@@ -1,18 +1,21 @@
 <template>
-    <div>
-        <v-btn v-if="canCreate" depressed small color="white--text ma-2 mt-3 mr-5" @click="addPreset">
-            <v-icon left>mdi-plus-circle-outline</v-icon>
-            <span class="subtitle-2">{{$t('bot_preset.add_btn')}}</span>
+    <v-row v-bind="UI.DIALOG.ROW.WINDOW">
+        <v-btn v-bind="UI.BUTTON.ADD_NEW" v-if="canCreate" @click="addPreset">
+            <v-icon left>{{ UI.ICON.PLUS }}</v-icon>
+            <span>{{$t('bot_preset.add_btn')}}</span>
         </v-btn>
-        <v-dialog v-model="visible" fullscreen hide-overlay transition="dialog-bottom-transition">
-            <v-card>
-
-                <v-toolbar dark color="primary">
-                    <v-btn icon dark @click="cancel">
-                        <v-icon>mdi-close-circle</v-icon>
+        <v-dialog v-bind="UI.DIALOG.FULLSCREEN" v-model="visible">
+            <v-card v-bind="UI.DIALOG.BASEMENT">
+                <v-toolbar v-bind="UI.DIALOG.TOOLBAR">
+                    <v-btn v-bind="UI.BUTTON.CLOSE_ICON" @click="cancel">
+                        <v-icon>{{ UI.ICON.CLOSE }}</v-icon>
                     </v-btn>
-                    <v-toolbar-title v-if="!edit">{{$t('bot_preset.add_new')}}</v-toolbar-title>
-                    <v-toolbar-title v-if="edit">{{$t('bot_preset.edit')}}</v-toolbar-title>
+
+                    <v-toolbar-title>
+                        <span v-if="!edit">{{ $t('bot_preset.add_new') }}</span>
+                        <span v-else>{{ $t('bot_preset.edit') }}</span>
+                    </v-toolbar-title>
+
                     <v-spacer></v-spacer>
                     <v-btn v-if="canUpdate" text type="submit" form="form">
                         <v-icon left>mdi-content-save</v-icon>
@@ -20,57 +23,71 @@
                     </v-btn>
                 </v-toolbar>
 
-                <v-card-text>
-                    <v-form @submit.prevent="add" id="form" ref="form">
-                        <v-combobox :disabled="edit"
-                                v-model="selected_node"
-                                :items="nodes"
-                                item-text="name"
-                                :label="$t('bot_preset.node')"
-                        ></v-combobox>
-                        <v-combobox v-if="selected_node" :disabled="edit"
-                                    v-model="selected_bot"
-                                    :items="selected_node.bots"
-                                    item-text="name"
-                                    :label="$t('bot_preset.bot')"
-                        ></v-combobox>
-
-
-                        <v-text-field v-if="selected_bot" :disabled="!canUpdate"
-                                      :label="$t('bot_preset.name')"
-                                      name="name"
-                                      type="text"
-                                      v-model="preset.name"
-                                      v-validate="'required'"
-                                      data-vv-name="name"
-                                      :error-messages="errors.collect('name')"
-                                      :spellcheck="$store.state.settings.spellcheck"
-                        ></v-text-field>
-                        <v-textarea v-if="selected_bot" :disabled="!canUpdate"
-                                    :label="$t('bot_preset.description')"
-                                    name="description"
-                                    v-model="preset.description"
-                                    :spellcheck="$store.state.settings.spellcheck"
-                        ></v-textarea>
-
-                        <FormParameters v-if="selected_bot"
-                                        ui="text"
-                                        :sources="selected_bot.parameters"
-                                        :values="values"
-                                        :disabled="!canUpdate"
-                        />
-
-                    </v-form>
-                    <v-alert v-if="show_validation_error" dense type="error" text>
-                        {{$t('bot_preset.validation_error')}}
-                    </v-alert>
-                    <v-alert v-if="show_error" dense type="error" text>
-                        {{$t('bot_preset.error')}}
-                    </v-alert>
-                </v-card-text>
+                <v-form @submit.prevent="add" id="form" ref="form" class="px-4">
+                    <v-row no-gutters>
+                        <v-col cols="12">
+                            <v-combobox :disabled="edit"
+                                        v-model="selected_node"
+                                        :items="nodes"
+                                        item-text="name"
+                                        :label="$t('bot_preset.node')"
+                            />
+                        </v-col>
+                        <v-col cols="12">
+                            <v-combobox v-if="selected_node" :disabled="edit"
+                                        v-model="selected_bot"
+                                        :items="selected_node.bots"
+                                        item-text="name"
+                                        :label="$t('bot_preset.bot')"
+                            />
+                        </v-col>
+                    </v-row>
+                    <v-row no-gutters>
+                        <v-col cols="12">
+                            <v-text-field v-if="selected_bot" :disabled="!canUpdate"
+                                          :label="$t('bot_preset.name')"
+                                          name="name"
+                                          type="text"
+                                          v-model="preset.name"
+                                          v-validate="'required'"
+                                          data-vv-name="name"
+                                          :error-messages="errors.collect('name')"
+                                          :spellcheck="$store.state.settings.spellcheck"
+                            />
+                        </v-col>
+                        <v-col cols="12">
+                            <v-textarea v-if="selected_bot" :disabled="!canUpdate"
+                                        :label="$t('bot_preset.description')"
+                                        name="description"
+                                        v-model="preset.description"
+                                        :spellcheck="$store.state.settings.spellcheck"
+                            />
+                        </v-col>
+                    </v-row>
+                    <v-row no-gutters>
+                        <v-col cols="12">
+                            <FormParameters v-if="selected_bot"
+                                            ui="text"
+                                            :sources="selected_bot.parameters"
+                                            :values="values"
+                                            :disabled="!canUpdate"
+                            />
+                        </v-col>
+                    </v-row>
+                    <v-row no-gutters class="pt-2">
+                        <v-col cols="12">
+                            <v-alert v-if="show_validation_error" dense type="error" text>
+                                {{$t('bot_preset.validation_error')}}
+                            </v-alert>
+                            <v-alert v-if="show_error" dense type="error" text>
+                                {{$t('bot_preset.error')}}
+                            </v-alert>
+                        </v-col>
+                    </v-row>
+                </v-form>
             </v-card>
         </v-dialog>
-    </div>
+    </v-row>
 </template>
 
 <script>

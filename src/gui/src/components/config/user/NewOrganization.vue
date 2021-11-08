@@ -1,15 +1,14 @@
 <template>
-    <div>
-        <v-btn v-if="canCreate" depressed small color="white--text ma-2 mt-3 mr-5" @click="addOrganization">
-            <v-icon left>mdi-plus-circle-outline</v-icon>
-            <span class="subtitle-2">{{$t('organization.add_btn')}}</span>
+    <v-row v-bind="UI.DIALOG.ROW.WINDOW">
+        <v-btn v-bind="UI.BUTTON.ADD_NEW" v-if="canCreate" @click="addOrganization">
+            <v-icon left>{{ UI.ICON.PLUS }}</v-icon>
+            <span>{{$t('organization.add_btn')}}</span>
         </v-btn>
         <v-dialog v-model="visible" persistent max-width="600" >
-            <v-card>
-
-                <v-toolbar dark color="primary">
-                    <v-btn icon dark @click="cancel">
-                        <v-icon>mdi-close-circle</v-icon>
+            <v-card v-bind="UI.DIALOG.BASEMENT">
+                <v-toolbar v-bind="UI.DIALOG.TOOLBAR">
+                    <v-btn v-bind="UI.BUTTON.CLOSE_ICON" @click="cancel">
+                        <v-icon>{{ UI.ICON.CLOSE }}</v-icon>
                     </v-btn>
                     <v-toolbar-title v-if="!edit">{{$t('organization.add_new')}}</v-toolbar-title>
                     <v-toolbar-title v-if="edit">{{$t('organization.edit')}}</v-toolbar-title>
@@ -74,7 +73,7 @@
 
             </v-card>
         </v-dialog>
-    </div>
+    </v-row>
 </template>
 
 <script>

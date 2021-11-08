@@ -51,7 +51,7 @@
             buttons: [
                 {
                     title: 'main_menu.dashboard',
-                    icon: 'mdi-poll-box',
+                    icon: 'mdi-chart-box',
                     permission: 'ASSESS_ACCESS',
                     route: '/dashboard',
                     show: true
@@ -128,33 +128,3 @@
         }
     }
 </script>
-
-<style>
-    .app-header .v-toolbar__content {
-        padding-right: 0;
-    }
-
-    header.app-header.border {
-        border-bottom: 1px solid #b6b6b6 !important;
-    }
-
-    header.app-header.border.dark {
-        border-bottom: 1px solid #484848 !important;
-    }
-
-    .logo {
-        --color-1: black;
-        --color-2: white;
-        --color-3: #4092dd;
-        margin-top: 0.3em;
-    }
-
-    .logo.dark {
-        --color-1: white;
-        --color-2: black;
-    }
-
-    .app-header img.drw-btn {
-        height: 18px;
-    }
-</style>

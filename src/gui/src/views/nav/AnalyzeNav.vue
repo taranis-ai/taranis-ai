@@ -38,7 +38,7 @@
 
                     if (!window.location.pathname.includes("/group/")) {
 
-                        this.$router.push("/analyze/local")
+                        this.$router.push("/analyze/local").catch(()=>{});
                     }
                 });
 

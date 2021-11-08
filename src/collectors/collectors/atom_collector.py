@@ -1,15 +1,14 @@
 import datetime
 import hashlib
 import uuid
-
 import feedparser
 import requests
 from bs4 import BeautifulSoup
 from dateutil.parser import parse
 
-from taranisng.schema.news_item import NewsItemData
-from taranisng.schema.parameter import Parameter, ParameterType
 from .base_collector import BaseCollector
+from schema.news_item import NewsItemData
+from schema.parameter import Parameter, ParameterType
 
 
 class AtomCollector(BaseCollector):

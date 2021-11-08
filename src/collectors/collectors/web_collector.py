@@ -7,22 +7,21 @@ import copy
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.common.exceptions import NoSuchElementException
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
-from selenium.common.exceptions import TimeoutException, NoSuchElementException, InvalidSessionIdException
-
 from urllib.parse import urlparse
-from urllib.error import HTTPError, URLError
-
 import os
 import dateparser
-import base64
 import re
-from taranisng.managers import log_manager
 
-from collectors.base_collector import BaseCollector
-from taranisng.schema.news_item import NewsItemData, NewsItemAttribute
-from taranisng.schema.parameter import Parameter, ParameterType
+from .base_collector import BaseCollector
+from managers import log_manager
+from schema.news_item import NewsItemData, NewsItemAttribute
+from schema.parameter import Parameter, ParameterType
 
 import traceback
 
@@ -56,6 +55,9 @@ class WebCollector(BaseCollector):
 
         # web page parsing options
 
+        ## removing popups
+        Parameter(0, "POPUP_CLOSE_SELECTOR", "SELECTOR at TITLE PAGE: Popup removal",
+                  "OPTIONAL: For sites with popups, this is a selector of the clickable element (button or a link) for the popup removal button",ParameterType.STRING),
         ## navigating the list of articles page by page
         Parameter(0, "NEXT_BUTTON_SELECTOR", "SELECTOR at TITLE PAGE: Next page",
                   "OPTIONAL: For sites with pagination, this is a selector of the clickable element (button or a link) for the 'next page'", ParameterType.STRING),
@@ -100,6 +102,29 @@ class WebCollector(BaseCollector):
         selector = selector_split[1].lstrip()
         return prefix, selector
 
+    # get element locator
+    @staticmethod
+    def __get_element_locator(element_selector):
+        """extracts single element from the headless browser by selector"""
+
+        prefix, selector = WebCollector.__get_prefix_and_selector(element_selector)
+
+        locator = None
+        if prefix == 'id':
+            locator = (By.ID, selector)
+        if prefix == 'name':
+            locator = (By.NAME, selector)
+        elif prefix == 'xpath':
+            locator = (By.XPATH, selector)
+        elif prefix in [ 'tag_name', 'tag' ]:
+            locator = (By.TAG_NAME, selector)
+        elif prefix in [ 'class_name', 'class' ]:
+            locator = (By.CLASS_NAME, selector)
+        elif prefix in [ 'css_selector', 'css' ]:
+            locator = (By.CSS_SELECTOR, selector)
+
+        return locator
+
     # extract element from the headless browser by selector
     @staticmethod
     def __find_element_by(driver, element_selector):
@@ -124,6 +149,21 @@ class WebCollector(BaseCollector):
         return element
 
     @staticmethod
+    def __find_element_text_by(driver, element_selector, return_none = False):
+        if return_none:
+            failure_retval = None
+        else:
+            failure_retval = ''
+
+        try:
+            ret = WebCollector.__find_element_by(driver, element_selector)
+            if not ret:
+                return failure_retval
+            return ret.text
+        except NoSuchElementException as e:
+            return failure_retval
+
+    @staticmethod
     def __find_elements_by(driver, element_selector):
         """extracts list of elements from the headless browser by selector"""
 
@@ -146,10 +186,14 @@ class WebCollector(BaseCollector):
         return elements
 
     @staticmethod
-    def __element_text(element):
-        if element:
-            return element.text
-        return ''
+    def __safe_find_elements_by(driver, element_selector):
+        try:
+            ret = WebCollector.__find_elements_by(driver, element_selector)
+            if not ret:
+                return None
+            return ret
+        except NoSuchElementException as e:
+            return None
 
     @staticmethod
     def __smart_truncate(content, length=500, suffix='...'):
@@ -162,7 +206,7 @@ class WebCollector(BaseCollector):
     def __wait_for_new_tab(browser, timeout, current_tab):
         yield
         WebDriverWait(browser, timeout).until(
-            lambda browser: len(handles_before) != 1
+            lambda browser: len(browser.window_handles) != 1
         )
         for tab in browser.window_handles:
             if tab != current_tab:
@@ -170,8 +214,7 @@ class WebCollector(BaseCollector):
                 return
 
 
-    @staticmethod
-    def __close_other_tabs(browser, handle_to_keep, fallback_url):
+    def __close_other_tabs(self, browser, handle_to_keep, fallback_url):
         try:
             handles_to_close = copy.copy(browser.window_handles)
             for handle_to_close in handles_to_close:
@@ -182,13 +225,13 @@ class WebCollector(BaseCollector):
                 if len(browser.window_handles) == 1:
                     break
             browser.switch_to.window(handle_to_keep)
-        except:
+        except Exception:
             log_manager.log_collector_activity('web', self.source.id, 'Browser tab restoration failed, reloading the title page')
             try:
                 # last resort - at least try to reopen the original page
                 browser.get(fallback_url)
                 return True
-            except:
+            except Exception:
                 return False
         return (browser.current_window_handle == handle_to_keep)
 
@@ -250,13 +293,14 @@ class WebCollector(BaseCollector):
 
         try:
             self.pagination_limit = int(self.source.parameter_values['PAGINATION_LIMIT'])
-        except:
+        except Exception:
             self.pagination_limit = 1
         if self.pagination_limit <= 0:
             self.pagination_limit = 1
 
         self.selectors = {}
 
+        self.selectors['popup_close'] = self.source.parameter_values['POPUP_CLOSE_SELECTOR']
         self.selectors['next_page'] = self.source.parameter_values['NEXT_BUTTON_SELECTOR']
         self.selectors['load_more'] = self.source.parameter_values['LOAD_MORE_BUTTON_SELECTOR']
         self.selectors['single_article_link'] = self.source.parameter_values['SINGLE_ARTICLE_LINK_SELECTOR']
@@ -273,7 +317,7 @@ class WebCollector(BaseCollector):
             self.word_limit = int(self.source.parameter_values['WORD_LIMIT'])
             if self.word_limit < 0:
                 self.word_limit = 0
-        except:
+        except Exception:
             self.word_limit = 0
 
         self.web_driver_type = self.source.parameter_values['WEBDRIVER']
@@ -291,6 +335,8 @@ class WebCollector(BaseCollector):
     def __get_headless_driver_chrome(self):
         """Initializes and returns Chrome driver"""
 
+        chrome_driver_executable = os.environ.get('SELENIUM_CHROME_DRIVER_PATH', '/usr/local/bin/chromedriver')
+
         chrome_options = ChromeOptions()
         chrome_options.page_load_strategy = 'normal' # .get() returns on document ready
         chrome_options.add_argument("--headless")
@@ -301,7 +347,7 @@ class WebCollector(BaseCollector):
         if self.tor_service.lower() == 'yes':
             socks_proxy = "socks5://127.0.0.1:9050"
             chrome_options.add_argument('--proxy-server={}'.format(socks_proxy))
-            driver = webdriver.Chrome(executable_path='/usr/local/bin/chromedriver', options=chrome_options)
+            driver = webdriver.Chrome(executable_path=chrome_driver_executable, options=chrome_options)
         elif self.proxy:
             webdriver.DesiredCapabilities.CHROME['proxy'] = {
                 "proxyType": "MANUAL",
@@ -309,13 +355,15 @@ class WebCollector(BaseCollector):
                 "ftpProxy": self.proxy,
                 "sslProxy": self.proxy
             }
-            driver = webdriver.Chrome(executable_path='/usr/local/bin/chromedriver', options=chrome_options)
+            driver = webdriver.Chrome(executable_path=chrome_driver_executable, options=chrome_options)
         else:
-            driver = webdriver.Chrome(executable_path='/usr/local/bin/chromedriver', options=chrome_options)
+            driver = webdriver.Chrome(executable_path=chrome_driver_executable, options=chrome_options)
         return driver
 
     def __get_headless_driver_firefox(self):
         """Initializes and returns Firefox driver"""
+
+        firefox_driver_executable = os.environ.get('SELENIUM_FIREFOX_DRIVER_PATH', '/usr/local/bin/geckodriver')
 
         firefox_options = FirefoxOptions()
         firefox_options.page_load_strategy = 'normal' # .get() returns on document ready
@@ -329,7 +377,7 @@ class WebCollector(BaseCollector):
             profile.set_preference('network.proxy.type', 1)
             profile.set_preference('network.proxy.socks', '127.0.0.1')
             profile.set_preference('network.proxy.socks_port', 9050)
-            driver = webdriver.Firefox(profile, executable_path='/usr/local/bin/geckodriver',
+            driver = webdriver.Firefox(profile, executable_path=firefox_driver_executable,
                                        options=firefox_options)
         elif self.proxy:
             firefox_capabilities = webdriver.DesiredCapabilities.FIREFOX
@@ -340,10 +388,10 @@ class WebCollector(BaseCollector):
                 "ftpProxy": self.proxy,
                 "sslProxy": self.proxy
             }
-            driver = webdriver.Firefox(executable_path='/usr/local/bin/geckodriver', options=firefox_options,
+            driver = webdriver.Firefox(executable_path=firefox_driver_executable, options=firefox_options,
                                        capabilities=firefox_capabilities)
         else:
-            driver = webdriver.Firefox(executable_path='/usr/local/bin/geckodriver', options=firefox_options)
+            driver = webdriver.Firefox(executable_path=firefox_driver_executable, options=firefox_options)
         return driver
 
     def __get_headless_driver(self):
@@ -356,22 +404,22 @@ class WebCollector(BaseCollector):
                 browser = self.__get_headless_driver_chrome()
             browser.implicitly_wait(15) # how long to wait for elements when selector doesn't match
             return browser
-        except:
+        except Exception:
             return None
 
     def __dispose_of_headless_driver(self, driver):
         """Destroys the headless browser driver, and its browser"""
         try:
             driver.close()
-        except:
+        except Exception:
             pass
         try:
             driver.quit()
-        except:
+        except Exception:
             pass
         try:
             driver.dispose()
-        except:
+        except Exception:
             pass
 
     def __run_tor(self):
@@ -399,8 +447,8 @@ class WebCollector(BaseCollector):
 
         elif self.interpret_as == "directory":
             log_manager.log_collector_activity('web', self.source.id, 'Searching for html files in {}'.format(self.web_url))
-            for file in os.listdir(self.web_url):
-                if file.lower().endswith('.html'):
+            for file_name in os.listdir(self.web_url):
+                if file_name.lower().endswith('.html'):
                     html_file = 'file://' + self.web_url + '/' + file_name
                     result, message = self.__browse_title_page(html_file)
 
@@ -416,23 +464,38 @@ class WebCollector(BaseCollector):
         try:
             browser.get(index_url)
             log_manager.log_collector_activity('web', self.source.id, 'Title page obtained')
-        except:
+        except Exception:
             log_manager.log_collector_activity('web', self.source.id, 'Error obtaining title page')
             self.__dispose_of_headless_driver(browser)
             return False, 'Error obtaining title page', 0, 0
+
+        # if there is a popup selector, click on it!
+        if self.selectors['popup_close']:
+            popup = WebDriverWait(browser, 10).until(EC.presence_of_element_located(self.__get_element_locator(self.selectors['popup_close'])))
+            if popup:
+                popup.click()
 
         # if there is a "load more" selector, click on it!
         page = 1
         while self.selectors['load_more'] and page < self.pagination_limit:
             try:
-                load_more = self.__find_element_by(browser, self.selectors['load_more'])
+                load_more = WebDriverWait(browser, 5).until(
+                    EC.element_to_be_clickable(self.__get_element_locator(self.selectors['load_more'])))
                 # TODO: check for None
-                load_more.click()
-                ActionChains(browser) \
-                    .move_to_element(load_more) \
-                    .click(load_more) \
-                    .perform()
-                time.sleep(1) # is there a better way?
+
+                try:
+                    action = ActionChains(browser)
+                    action.move_to_element(load_more)
+                    load_more.click()
+                except:
+                    browser.execute_script("arguments[0].scrollIntoView(true);", load_more)
+                    load_more.click()
+
+                try:
+                    WebDriverWait(browser, 5).until(EC.staleness_of(load_more))
+                except:
+                    pass
+
             except:
                 break
             page += 1
@@ -450,7 +513,7 @@ class WebCollector(BaseCollector):
                 if not self.__close_other_tabs(browser, title_page_handle, fallback_url = index_url):
                     log_manager.log_collector_activity('web', self.source.id, 'Error during page crawl (after-crawl clean up)')
                     break
-            except:
+            except Exception:
                 log_manager.log_collector_activity('web', self.source.id, 'Error during page crawl (exception)')
                 log_manager.log_debug(traceback.format_exc())
                 break
@@ -469,7 +532,7 @@ class WebCollector(BaseCollector):
                     .move_to_element(next_page) \
                     .click(next_page) \
                     .perform()
-            except:
+            except Exception:
                 log_manager.log_collector_activity('web', self.source.id, 'This was the last page')
                 break
 
@@ -484,9 +547,9 @@ class WebCollector(BaseCollector):
 
         processed_articles, failed_articles = 0, 0
 
-        article_items = self.__find_elements_by(browser, self.selectors['single_article_link'])
+        article_items = self.__safe_find_elements_by(browser, self.selectors['single_article_link'])
         if article_items is None:
-            log_manager.log_collector_activity('web', self.source.id, 'Incorrect selector for article items')
+            log_manager.log_collector_activity('web', self.source.id, 'Invalid page or incorrect selector for article items')
             return 0, 0
 
         index_url_just_before_click = browser.current_url
@@ -495,7 +558,7 @@ class WebCollector(BaseCollector):
             try:
                 href = item.get_attribute('href')
                 log_manager.log_collector_activity('web', self.source.id, 'Visiting article at {}'.format(href))
-            except:
+            except Exception:
                 href = ''
                 log_manager.log_collector_activity('web', self.source.id, 'Visiting article with no link'.format(href))
             click_method = 1 # TODO: some day, make this user-configurable with tri-state enum
@@ -525,7 +588,7 @@ class WebCollector(BaseCollector):
                     self.news_items.append(news_item)
                 else:
                     log_manager.log_collector_activity('web', self.source.id, 'Failed to parse an article')
-            except:
+            except Exception:
                 success = False
                 log_manager.log_collector_activity('web', self.source.id, 'Failed to parse an article (exception)')
                 log_manager.log_debug(traceback.format_exc())
@@ -549,14 +612,14 @@ class WebCollector(BaseCollector):
 
         log_manager.log_collector_activity('web', self.source.id, 'Processing article page: {}'.format(current_url))
 
-        title = self.__element_text(self.__find_element_by(browser, self.selectors['title']))
+        title = self.__find_element_text_by(browser, self.selectors['title'])
 
-        article_full_text = self.__element_text(self.__find_element_by(browser, self.selectors['article_full_text']))
+        article_full_text = self.__find_element_text_by(browser, self.selectors['article_full_text'])
         if self.word_limit > 0:
             article_full_text = ' '.join(re.compile(r'\s+').split(article_full_text)[:self.word_limit])
 
         if self.selectors['article_description']:
-            article_description = self.__element_text(self.__find_element_by(browser, self.selectors['article_description']))
+            article_description = self.__find_element_text_by(browser, self.selectors['article_description'])
         else:
             article_description = ''
         if self.word_limit > 0:
@@ -564,14 +627,14 @@ class WebCollector(BaseCollector):
         if not article_description:
             article_description = self.__smart_truncate(article_full_text)
 
-        published_str = self.__element_text(self.__find_element_by(browser, self.selectors['published']))
+        published_str = self.__find_element_text_by(browser, self.selectors['published'])
         if not published_str:
             published_str = 'today'
         published = dateparser.parse(published_str, settings={'DATE_ORDER': 'DMY'})
 
         link = current_url
 
-        author = self.__element_text(self.__find_element_by(browser, self.selectors['author']))
+        author = self.__find_element_text_by(browser, self.selectors['author'])
 
         for_hash = author + title + article_description
         news_item = NewsItemData(
@@ -588,7 +651,7 @@ class WebCollector(BaseCollector):
         )
 
         if self.selectors['additional_id']:
-            value = self.__element_text(self.__find_element_by(browser, self.selectors['additional_id']))
+            value = self.__find_element_text_by(browser, self.selectors['additional_id'])
             if value:
                 key = 'Additional_ID'
                 binary_mime_type = ''

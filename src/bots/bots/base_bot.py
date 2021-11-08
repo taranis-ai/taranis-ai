@@ -1,8 +1,9 @@
-from taranisng.schema import bot, bot_preset
-from remote.core_api import CoreApi
-from managers import time_manager
-from taranisng.schema.parameter import Parameter, ParameterType
 import datetime
+
+from managers import time_manager
+from schema import bot, bot_preset
+from schema.parameter import Parameter, ParameterType
+from remote.core_api import CoreApi
 
 
 class BaseBot:

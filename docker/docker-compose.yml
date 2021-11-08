@@ -57,6 +57,7 @@ services:
       CVE_UPDATE_FILE: "${CVE_UPDATE_FILE}"
       CPE_UPDATE_FILE: "${CPE_UPDATE_FILE}"
 
+      DEBUG: "true"
     labels:
       traefik.enable: "true"
       traefik.http.services.taranis-api.loadbalancer.server.port: "80"
@@ -68,7 +69,7 @@ services:
       traefik.http.routers.taranis-api-443.service: "taranis-api"
 
       traefik.http.routers.taranis-sse-443.entrypoints: "websecure"
-      traefik.http.routers.taranis-sse-443.rule: "PathPrefix(`/sse/`)"
+      traefik.http.routers.taranis-sse-443.rule: "PathPrefix(`/sse`)"
       traefik.http.routers.taranis-sse-443.tls: "true"
       traefik.http.routers.taranis-sse-443.tls.domains[0].main: "${TARANIS_NG_HOSTNAME}"
       traefik.http.routers.taranis-sse-443.service: "taranis-api"
@@ -83,7 +84,8 @@ services:
 
   bots:
     depends_on:
-      - "core"
+      core:
+        condition: service_healthy
     image: "skcert/taranis-ng-bots:${TARANIS_NG_TAG}"
     build:
       context: ..
@@ -101,7 +103,8 @@ services:
     
   collectors:
     depends_on:
-      - "core"
+      core:
+        condition: service_healthy
     restart: unless-stopped
     image: "skcert/taranis-ng-collectors:${TARANIS_NG_TAG}"
     build:
@@ -124,7 +127,8 @@ services:
     
   presenters:
     depends_on:
-      - "core"
+      core:
+        condition: service_healthy
     restart: unless-stopped
     image: "skcert/taranis-ng-presenters:${TARANIS_NG_TAG}"
     build:
@@ -137,7 +141,7 @@ services:
     ports:
       - "5002:80"
     volumes:
-      - "presenters_templates:/app/taranis-ng-presenters/templates"
+      - "presenters_templates:/app/templates"
     logging:
       driver: "json-file"
       options:
@@ -146,7 +150,8 @@ services:
     
   publishers:
     depends_on:
-      - "core"
+      core:
+        condition: service_healthy
     restart: unless-stopped
     image: "skcert/taranis-ng-publishers:${TARANIS_NG_TAG}"
     build:

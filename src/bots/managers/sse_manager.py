@@ -1,8 +1,9 @@
 import os
-from managers import bots_manager
 import requests
 import sseclient
 import threading
+
+from managers import bots_manager
 
 
 def initialize():

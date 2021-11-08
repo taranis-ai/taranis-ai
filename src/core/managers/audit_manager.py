@@ -1,5 +1,6 @@
-from model.audit_record import AuditRecord
 from flask import request
+
+from model.audit_record import AuditRecord
 
 
 def resolve_ip_address():

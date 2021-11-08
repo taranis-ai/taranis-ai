@@ -1,18 +1,51 @@
-# Taranis NG Docker images
+# Quick project reference
 
-Taranis NG supports deployment in Docker containers. This repository also contains an example [docker-compose.yml](docker-compose.yml) file which runs the whole application in one stack.
+- Source code: [github.com/SK-CERT/Taranis-NG](https://github.com/SK-CERT/Taranis-NG)
+- Docker images: [hub.docker.com/u/skcert](https://hub.docker.com/u/skcert)
+- Maintained by: [SK-CERT](https://www.sk-cert.sk)
+- Project web page: [taranis.ng](https://taranis.ng)
+- Where to file issues (no vulnerability reports please): [GitHub issues page](https://github.com/SK-CERT/Taranis-NG/issues)
+- Where to send security issues and vulnerability reports: [incident@nbu.gov.sk](mailto:incident@nbu.gov.sk)
 
-This folder contains additional support files for the creation of the Docker containers. These include start and pre-start scripts, the application entrypoint, and the [gunicorn](https://gunicorn.org/) configuration file.
+## About Taranis NG
+
+Taranis NG is an OSINT gathering and analysis tool for CSIRT teams and
+organisations. It allows osint gathering, analysis and reporting; team-to-team
+collaboration; and contains a user portal for simple self asset management.
+
+Taranis crawls various **data sources** such as web sites or tweets to gather
+unstructured **news items**. These are processed by analysts to create
+structured **report items**, which are used to create **products** such as PDF
+files, which are finally **published**.
+
+Taranis supports **team-to-team collaboration**, and includes a light weight
+**self service asset management** which automatically links to the advisories
+that mention vulnerabilities in the software.
+
+# Deploying Taranis NG with docker-compose
+
+Taranis NG supports deployment in Docker containers. [The docker/ folder on
+GitHub repository](https://github.com/SK-CERT/Taranis-NG/tree/main/docker)
+contains a sample
+[docker-compose.yml](https://raw.githubusercontent.com/SK-CERT/Taranis-NG/main/docker/docker-compose.yml)
+file which runs the whole application in one stack.
+
+The same folder also contains additional support files for the creation of the
+Docker containers. These include start and pre-start scripts, the application
+entrypoint, and the [gunicorn](https://gunicorn.org/) configuration file.
 
 ## Prerequisites
 
 - [Docker](https://docs.docker.com/engine/install/)
-- [Docker-compose](https://docs.docker.com/compose/install/) >= 1.27.0
+- [docker-compose](https://docs.docker.com/compose/install/) >= 1.27.0
 - (Optional) [Vim](https://www.vim.org/) or other text editor - for configuration and development
 
-## Quickly build and run Taranis NG using [docker-compose](docker-compose.yml)
+Please note it is important to use the abovementioned version of
+`docker-compose` or newer, otherwise the build and deploy will fail.
 
-_First_, you need to clone this repository:
+## Quickly build and run Taranis NG using `docker-compose`
+
+_First_, you need to clone the source code repository:
 
 ```bash
 git clone https://github.com/SK-CERT/Taranis-NG.git
@@ -40,14 +73,22 @@ or, alternatively, build and run the containers with:
 docker-compose -f docker/docker-compose.yml up --build
 ```
 
-**Voila, Taranis NG is up and running. Visit your instance by navigating to [http://127.0.0.1:8080/](http://127.0.0.1:8080/) using your web browser**.
+**Voila, Taranis NG is up and running. Visit your instance by navigating to
+[https://localhost:4443/](https://localhost:4443/) using your web browser**.
 
-Your Taranis NG instance now needs to be configured.
-Continue [here](../README.md#connecting-to-collectors-presenters-and-publishers).
+Your Taranis NG instance now needs to be configured.  Continue
+[here](https://github.com/SK-CERT/Taranis-NG#connecting-to-collectors-presenters-and-publishers).
+
+**The default credentials are `user` / `user` and `admin` / `admin`.**
 
 <hr />
 
-To import the [sample data](../src/core/scripts/sample_data.py) and create basic user accounts, set the environment variable `TARANIS_NG_SAMPLE_DATA` for the core container to `true`, or import sample data using the [management script](#management-script-how-to) (from another terminal):
+To import the
+[sample data](https://github.com/SK-CERT/Taranis-NG/blob/main/src/core/scripts/sample_data.py)
+and create basic user accounts, set the environment variable
+`TARANIS_NG_SAMPLE_DATA` for the core container to `true`, or import sample
+data using the [management script](#management-script-how-to) (from another
+terminal):
 
 ```bash
 docker exec -it taranis-ng_core_1 python manage.py sample-data
@@ -55,15 +96,11 @@ docker exec -it taranis-ng_core_1 python manage.py sample-data
 
 *<u>Note:</u> the container name `taranis-ng_core_1` was automatically generated when running the example [docker-compose.yml](docker-compose.yml) file without any changes. To get the exact container name for the core component of your instance, use `docker ps`.*
 
-<hr />
-
-**The default credentials are `user` / `user` and `admin` / `admin`.**
-
 ## Advanced build methods
 
 ### Individually build the containers
 
-To build the Docker images individually, you need to clone this repository.
+To build the Docker images individually, you need to clone the source code repository.
 
 ```bash
 git clone https://github.com/SK-CERT/Taranis-NG.git
@@ -90,17 +127,17 @@ There are several Dockerfiles and each of them builds a different component of t
 - [Dockerfile.presenters](Dockerfile.presenters)
 - [Dockerfile.publishers](Dockerfile.publishers)
 
-## Configuration
+# Configuration
 
-### Docker configuration
+## Container variables
 
-#### `redis`
+### `redis`
 Any configuration options are available at [https://hub.docker.com/_/redis](https://hub.docker.com/_/redis).
 
-#### `database`
+### `database`
 Any configuration options are available at [https://hub.docker.com/_/postgres](https://hub.docker.com/_/postgres).
 
-#### `core`
+### `core`
 
 | Environment variable        | Description | Example |
 |-----------------------------|-------------|----------|
@@ -121,7 +158,7 @@ Any configuration options are available at [https://hub.docker.com/_/postgres](h
 
 Taranis NG can use [connection pooling](https://docs.sqlalchemy.org/en/14/core/pooling.html) to maintain multiple active connections to the database server. Connection pooling is required when your deployment serves hundreds of customers from one instance. To enable connection pooling, set the `DB_POOL_SIZE`, `DB_POOL_RECYCLE`, and `DB_POOL_TIMEOUT` environment variables.
 
-#### `bots`, `collectors`, `presenters`, `publishers`
+### `bots`, `collectors`, `presenters`, `publishers`
 
 | Environment variable        | Description | Example |
 |-----------------------------|-------------|----------|
@@ -129,7 +166,7 @@ Taranis NG can use [connection pooling](https://docs.sqlalchemy.org/en/14/core/p
 | `API_KEY`                   | Shared API key. | `cuBG/4H9lGTeo47F9X6DUg` |
 | `WORKERS_PER_CORE`          | Number of gunicorn worker threads to spawn per CPU core. | `4` |
 
-#### `gui`
+### `gui`
 
 | Environment variable          | Description | Example |
 |-------------------------------|-------------|----------|
@@ -140,14 +177,14 @@ Taranis NG can use [connection pooling](https://docs.sqlalchemy.org/en/14/core/p
 | `NGINX_WORKERS`               | Number of NginX worker threads to spawn. | `4` |
 | `NGINX_CONNECTIONS`           | Maximum number of allowed connections per one worker thread. | `16` |
 
-### Management script how-to
+## Management script how-to
 
 Taranis NG core container comes with a simple management script that may be used to set up and configure the instance without manual interaction with the database.
 
 To run the management script, launch a shell inside of the docker container for the core component with this command:
 
 ```bash
-docker exec -it [CONTAINER] python manage.py [COMMAND] [PARAMETERS]
+docker exec -it [CONTAINER] manage.py [COMMAND] [PARAMETERS]
 ```
 
 Currently, you may manage the following:
@@ -157,6 +194,7 @@ Currently, you may manage the following:
 | `sample-data` | Install sample data with basic configuration.<br />*This is for show-case and testing purposes only.* | N/A |
 | `account`     | (WIP) List, create, edit and delete user accounts. | `--list`, `-l` : list all user accounts<br /> `--create`, `-c` : create a new user account<br /> `--edit`, `-e` : edit an existing user account<br /> `--delete`, `-d` : delete a user account<br /> `--username` : specify the username<br /> `--name` : specify the user's name<br /> `--password` : specify the user's password<br /> `--roles` : specify a list of roles, divided by a comma (`,`), that the user belongs to |
 | `role`     | (WIP) List, create, edit and delete user roles. | `--list`, `-l` : list all roles<br /> `--filter`, `-f` : filter roles by their name or description<br /> `--create`, `-c` : create a new role<br /> `--edit`, `-e` : edit an existing role<br /> `--delete`, `-d` : delete a role<br /> `--id` : specify the role id (in combination with `--edit` or `--delete`)<br /> `--name` : specify the role name<br /> `--description` : specify the role description (default is `""`)<br /> `--permissions` : specify a list of permissions, divided with a comma (`,`), that the role would allow |
+| `collector`     | (WIP) List, create, edit, delete and update collector nodes. | `--list`, `-l` : list all collector nodes<br /> `--create`, `-c` : create a new node<br /> `--edit`, `-e` : edit an existing node<br /> `--delete`, `-d` : delete a node<br /> `--update`, `-u` : re-initialize collector node<br /> `--all`, `-a` : update all collector nodes (in combination with `--update`)<br /> `--show-api-key` : show API key in plaintext (in combination with `--list`)<br /> `--id` : specify the node id (in combination with `--edit`, `--delete` or `--update`)<br /> `--name` : specify the node name<br /> `--description` : specify the collector description (default is `""`)<br /> `--api-url` : specify the collector node API url<br /> `--api-key` : specify the collector node API key |
 | `dictionary`     | Update CPE and CVE dictionaries. | `--upload-cpe` : upload the CPE dictionary (expected on STDIN in XML format) to the path indicated by `CPE_UPDATE_FILE` environment variable, and update the database from that file.<br /> `--upload-cve` : upload the CVE dictionary (expected on STDIN in XML format) to the path indicated by `CVE_UPDATE_FILE`, and update the database from that file |
 
 
@@ -165,7 +203,7 @@ Currently, you may manage the following:
 ##### Install sample data
 
 ```bash
-python manage.py sample-data
+manage.py sample-data
 ```
 
 Command output:
@@ -179,7 +217,7 @@ Sample data installed.
 ##### Create a new role with a set of permissions
 
 ```bash
-python manage.py role \
+manage.py role \
     --create \
     --name "Custom role 1" \
     --description "Custom role with analysis and assessment access" \
@@ -197,7 +235,7 @@ Role 'Custom role 1' with id 3 created.
 ##### Role filter
 
 ```bash
-python manage.py role \
+manage.py role \
     --list \
     --filter "Custom role 1"
 ```
@@ -211,10 +249,44 @@ Id: 3
 	Permissions: ['ANALYZE_ACCESS', 'ANALYZE_CREATE', 'ANALYZE_UPDATE', 'ANALYZE_DELETE', 'ASSESS_ACCESS', 'ASSESS_CREATE', 'ASSESS_UPDATE', 'ASSESS_DELETE', 'MY_ASSETS_ACCESS', 'MY_ASSETS_CREATE', 'MY_ASSETS_CONFIG']
 ```
 
+##### Create a new collector node
+
+```bash
+manage.py collector \
+    --create \
+    --name "Docker collector" \
+    --description "A simple collector hosted in a Docker container" \
+    --api-url "http://collector.example.com" \
+    --api-key "supersecret"
+```
+
+Command output:
+
+```
+Collector node 'Docker collector' with id 1 created.
+```
+
+##### Re-initialize a collector node
+
+```bash
+manage.py collector \
+    --update \
+    --name "Docker"
+```
+
+Command output:
+
+```
+Collector node 1 updated.
+Collector node 2 updated.
+Unable to update collector node 3.
+    Response: [401] ""
+```
+
 ##### Create a new user account
 
 ```bash
-python manage.py account \
+manage.py account \
     --create \
     --name "John Doe" \
     --username "test_user" \
@@ -231,7 +303,7 @@ User 'test_user' created.
 ##### Upload a CPE dictionary
 
 ```bash
-gzcat official-cpe-dictionary_v2.3.xml.gz | python manage.py dictionary --upload-cpe
+gzcat official-cpe-dictionary_v2.3.xml.gz | manage.py dictionary --upload-cpe
 ```
 
 Command output:

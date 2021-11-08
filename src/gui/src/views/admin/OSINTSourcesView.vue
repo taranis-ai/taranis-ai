@@ -24,7 +24,7 @@
 <script>
     import ViewLayout from "../../components/layouts/ViewLayout";
     import NewOSINTSource from "../../components/config/osint_sources/NewOSINTSource";
-    import ToolbarFilter from "../../components/common/ToolbarFilter";
+    import ToolbarFilter from "../../components/common/ToolbarFilterOSINTSource";
     import ContentData from "../../components/common/content/ContentData"
     import {deleteOSINTSource} from "@/api/config";
 

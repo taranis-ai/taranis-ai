@@ -1,6 +1,6 @@
-/* TEST */
-.row.pink {
-    background-color: pink !important;
+/* common.css */
+.v-chip-group .v-slide-group__content {
+    padding: 0 !important;
 }
 
 .view,
@@ -9,128 +9,51 @@
     margin: 0;
 }
 
-.view .view-panel button {
-    background-color: #0099FF !important;
-    margin-top: 0.5em;
-}
-
 .view .view-panel {
     position: sticky;
     top: 48px;
     z-index: 2;
 }
 
-/* END TEST*/
-
-
-div.content-container > div.container { /* add button */
-    position: relative;
-    /*bottom: 40px;
-    width: 82px;
-    right: 0;*/
-    z-index: 100;
-}
-
-
-
-/* Fullscreen Dialog */
-div.v-dialog__content header {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-}
-
-[role='tablist'] {
-    position: sticky;
-    top: 64px;
-    z-index: 1;
-}
-
-/* NEW */
-/* App Bar */
-.app-header {
-    /*background-color: #c7c7c7 !important;
-    border-bottom: 1px solid red !important;*/
-    box-shadow: 0px 2px 4px -1px rgba(0, 0, 0, 0.02),
-    0px 4px 5px 0px rgba(0, 0, 0, 0.14),
-    0px 1px 10px 0px rgba(0, 0, 0, 0.12);
-}
-
-.app-header img {
-    height: 45px;
-}
-
-/* Dialog */
-/*
-.tabs .theme--light.v-card {
-    border-left: 5px solid rgb(255, 172, 33);
-}
-
-.tabs [role='tablist'] {
-    background-color: #f5ebd5 !important;
-
-}
-
-.tabs .v-card-title-dialog {
-    background-color: rgba(207, 158, 37, 0.2);
-    border-radius: 0;
-    font-size: 1.2em;
-    font-weight: bold;
-    padding: 0;
-    padding-left: 1em;
-}*/
-
-#app.theme--dark .search {
-    background-color: transparent;
-}
-
-.container.toolbar-filter .search {
-    width: 350px !important;
-    position: absolute;
-    left: calc(100% / 2);
-    transform: translate(-50%, 0);
-}
-
 .container {
     max-width: calc(100%) !important;
 }
 
-#app .user-settings-dialog .v-tabs .v-window.v-tabs-items {
-    background-color: transparent !important;
-}
-#app .user-settings-dialog [role="tablist"] {
-    top: 0;
-}
-
-.total-count-text {
-    font-size: 13px;
+.card .status.in_progress,
+.card .status.new,
+.card .status.status-orange {
+    border-left: 4px solid #ffd556;
 }
 
-.wordlist {
-    background-color: yellow;
-    font-weight: bold;
+.card .status,
+.card .status.completed,
+.card .status.read,
+.card .status.status-green {
+    border-left: 4px solid #33DD40;
 }
 
-#app.theme--dark .wordlist {
-    color: black;
-    font-weight: bold;
+.card .status.alert,
+.card .status.important,
+.card .status.status-red {
+    border-left: 4px solid red;
 }
 
-#app.hide-wordlist span.wordlist {
-    font-weight: unset;
-    background: none;
+.v-expansion-panel > .v-expansion-panel-header,
+.v-expansion-panel--active > .v-expansion-panel-header {
+    min-height: 32px;
 }
 
-thead tr th.text-left {
-    min-width: 300px;
+.v-expansion-panels.groups,
+.v-expansion-panels.items .v-expansion-panel:hover,
+.v-expansion-panels.items .v-expansion-panel--active{
+    border-left: 3px solid #4092dd;
 }
 
-div.v-data-table > header {
-    z-index: 1;
-    top: 50px;
-    box-shadow: 0px 1px 0 gray;
+.v-expansion-panels.items .v-expansion-panel {
+    border-left: 3px solid #6abef2;
 }
 
-[role='tablist'][data-booted='true'] {
-    top: 0;
+.valueHolder:hover {
+    background-color: #f8f8f8;
+    box-shadow: -3px 0 0 #6abef2;
 }

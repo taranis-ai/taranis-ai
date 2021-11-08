@@ -1,12 +1,11 @@
 from flask_restful import Resource
 from flask import request
 from flask_jwt_extended import jwt_required
+
 from managers import auth_manager
 from managers.auth_manager import auth_required
-from model import word_list
+from model import word_list, product_type, publisher_preset
 from model.user import User
-from model import product_type
-from model import publisher_preset
 
 
 class UserProfile(Resource):

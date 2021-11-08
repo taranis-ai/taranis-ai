@@ -3,7 +3,7 @@ from publishers.email_publisher import EMAILPublisher
 from publishers.twitter_publisher import TWITTERPublisher
 from publishers.wordpress_publisher import WORDPRESSPublisher
 from publishers.misp_publisher import MISPPublisher
-from taranisng.schema.publisher import PublisherInputSchema
+from schema.publisher import PublisherInputSchema
 
 publishers = {}
 

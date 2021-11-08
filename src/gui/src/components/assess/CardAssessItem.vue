@@ -1,128 +1,118 @@
 <template>
-    <div class="card-item" data-type="item">
+    <v-container v-bind="UI.CARD.CONTAINER" data-type="item">
         <v-row>
-            <v-col v-if="multiSelectActive" cols="1">
+            <v-col v-if="multiSelectActive" :style="UI.STYLE.card_selector_zone">
                 <v-row justify="center" align="center">
                     <v-checkbox v-if="!analyze_selector" v-model="selected" @change="selectionChanged"></v-checkbox>
                 </v-row>
             </v-col>
 
-            <v-col class="pa-0">
-                <v-hover v-slot:default="{hover}" close-delay="150">
-                    <v-card flat class="card mb-1" :elevation="hover ? 12 : 2"
+            <v-col :class="UI.CLASS.card_offset">
+                <v-hover v-slot="{hover}">
+                    <v-card v-bind="UI.CARD.HOVER" :elevation="hover ? 12 : 2"
                             @click.stop="cardItemToolbar"
                             @mouseenter.native="toolbar=true"
                             @mouseleave.native="toolbar=cardFocus"
                             :color="selectedColor"
                     >
-                        <v-layout row wrap class="pa-0 pl-0 status card-assess" v-bind:class="cardStatus()">
+                        <!--CONTENT-->
+                        <v-layout v-bind="UI.CARD.LAYOUT" :class="'status ' + cardStatus">
+                            <v-row v-bind="UI.CARD.ROW.CONTENT">
+                                <!--COLLECTED, PUBLISHED, SOURCE-->
+                                <v-col v-bind="UI.CARD.COL.INFO">
+                                    <div>
+                                        {{ $t('card_item.collected') }}: <strong>{{ news_item.news_item_data.collected }}</strong>
+                                    </div>
+                                </v-col>
+                                <v-col v-bind="UI.CARD.COL.INFO">
+                                    <div align="center">
+                                        {{ $t('card_item.published') }}:
+                                        <strong>{{ news_item.news_item_data.published }}</strong>
+                                    </div>
+                                </v-col>
+                                <v-col v-bind="UI.CARD.COL.INFO">
+                                    <div align="right">
+                                        {{ $t('card_item.source') }}:
+                                        <strong>{{ news_item.news_item_data.source }}</strong>
+                                    </div>
+                                </v-col>
 
-                            <!-- Title, date -->
-                            <v-row justify="center"  style="width: 100%;">
-                                <v-flex class="">
-                                    <v-row class="px-4 py-1 grey--text">
-                                        <v-col>
-                                            <div class="caption text-left">
-                                                {{$t('card_item.collected')}}: <span class="font-weight-bold">{{news_item.news_item_data.collected}}</span>
-                                            </div>
-                                        </v-col>
-                                        <v-col class="">
-                                            <div class="caption text-center">
-                                                {{$t('card_item.published')}}: <span class="font-weight-bold">{{news_item.news_item_data.published}}</span>
-                                            </div>
-                                        </v-col>
-                                        <v-col>
-                                            <div class="caption text-right">
-                                                {{$t('card_item.source')}}: <span
-                                                    class="font-weight-bold">{{news_item.news_item_data.source}}</span>
-                                            </div>
-                                        </v-col>
-                                    </v-row>
-                                </v-flex>
-                            </v-row>
-
-                            <!-- Title -->
-                            <v-row justify="center" style="width: 100%;">
-                                <v-card-title class="font-weight-regular py-0" style="width: inherit;">
+                                <!--TITLE-->
+                                <v-col v-bind="UI.CARD.COL.TITLE">
                                     <div v-if="word_list_regex" v-html="wordCheck(news_item.news_item_data.title)"></div>
-                                    <div v-else>{{news_item.news_item_data.title}}</div>
-                                </v-card-title>
-                            </v-row>
+                                    <div v-else>{{ news_item.news_item_data.title }}</div>
+                                </v-col>
 
-                            <!-- Review -->
-                            <v-row justify="center" style="width: 100%;">
-                                <v-flex>
-                                    <v-card-text v-if="!compact_mode">
-                                        <!--{{news_item.news_item_data.review}}-->
+                                <!--REVIEW-->
+                                <v-col v-bind="UI.CARD.COL.REVIEW">
+                                    <div v-if="!compact_mode">
                                         <div v-if="word_list_regex" v-html="wordCheck(news_item.news_item_data.review)"></div>
-                                        <div v-else>{{news_item.news_item_data.review}}</div>
-                                    </v-card-text>
-                                </v-flex>
+                                        <div v-else>{{ news_item.news_item_data.review }}</div>
+                                    </div>
+                                </v-col>
+
+                                <!--FOOTER-->
+                                <v-row v-bind="UI.CARD.FOOTER">
+                                    <v-col cols="11">
+                                        <span v-if="canAccess" class="caption font-weight-bold px-0 mt-1 pb-0 pt-0 info--text">
+                                            {{ news_item.news_item_data.link }}
+                                        </span>
+
+                                        <span class="caption font-weight-bold grey--text pl-2 pr-1">
+                                            <v-icon color="grey" size="12">mdi-thumb-up</v-icon> {{ news_item.likes }}
+                                        </span>
+
+                                        <span class="caption font-weight-bold grey--text pl-1 pr-2">
+                                            <v-icon color="grey" size="12">mdi-thumb-down</v-icon> {{ news_item.dislikes }}
+                                        </span>
+                                    </v-col>
+
+                                    <!--HOVER TOOLBAR-->
+                                    <v-col cols="1">
+                                        <v-row v-if="!multiSelectActive && !analyze_selector && hover"
+                                               :style="UI.STYLE.card_toolbar">
+                                            <v-col v-bind="UI.CARD.COL.TOOLS" :style="UI.STYLE.card_toolbar_strip_bottom">
+                                                <v-btn v-if="canModify" icon @click.stop="cardItemToolbar('ungroup')" data-btn="ungroup" :title="$t('assess.tooltip.ungroup_item')">
+                                                    <v-icon color="accent">mdi-ungroup</v-icon>
+                                                </v-btn>
+
+                                                <v-btn v-if="canAccess" icon @click.stop="cardItemToolbar('link')" data-btn="link" :title="$t('assess.tooltip.open_source')">
+                                                    <a class="alink" :href="news_item.news_item_data.link" target="_blank" rel="noreferer">
+                                                        <v-icon color="accent">mdi-open-in-app</v-icon>
+                                                    </a>
+                                                </v-btn>
+
+                                                <v-btn v-if="canModify" icon @click.stop="cardItemToolbar('read')" data-btn="read" :title="$t('assess.tooltip.read_item')">
+                                                    <v-icon :color="buttonStatus(news_item.read)">mdi-eye</v-icon>
+                                                </v-btn>
+
+                                                <v-btn v-if="canModify" icon @click.stop="cardItemToolbar('important')" data-btn="important" :title="$t('assess.tooltip.important_item')">
+                                                    <v-icon :color="buttonStatus(news_item.important)">mdi-star</v-icon>
+                                                </v-btn>
+
+                                                <v-btn v-if="canModify" icon @click.stop="cardItemToolbar('like')" data-btn="like" :title="$t('assess.tooltip.like_item')">
+                                                    <v-icon :color="buttonStatus(news_item.me_like)">mdi-thumb-up</v-icon>
+                                                </v-btn>
+
+                                                <v-btn v-if="canModify" icon @click.stop="cardItemToolbar('unlike')" data-btn="unlike" :title="$t('assess.tooltip.dislike_item')">
+                                                    <v-icon :color="buttonStatus(news_item.me_dislike)">mdi-thumb-down</v-icon>
+                                                </v-btn>
+
+                                                <v-btn v-if="canDelete" icon @click.stop="cardItemToolbar('delete')" data-btn="delete" :title="$t('assess.tooltip.delete_item')">
+                                                    <v-icon color="accent">mdi-delete</v-icon>
+                                                </v-btn>
+
+                                            </v-col>
+                                        </v-row>
+                                    </v-col>
+                                </v-row>
                             </v-row>
-
-                            <!-- Url -->
-                            <v-row justify="center" class="pb-4" style="width: 100%;">
-                                <v-flex>
-                                    <v-row justify="center">
-                                        <v-col>
-                                            <div class="caption font-weight-bold px-4 pb-0 pt-0 info--text">
-                                                <div v-if="canAccess">{{news_item.news_item_data.link}}</div>
-                                                <span style="color:grey" class="ml-5"><v-icon style="color:grey" size="12">mdi-thumb-up</v-icon> {{news_item.likes}}</span>
-                                                <span style="color:grey" class="ml-5"><v-icon style="color:grey" size="12">mdi-thumb-down</v-icon> {{news_item.dislikes}}</span>
-                                            </div>
-                                        </v-col>
-                                    </v-row>
-                                </v-flex>
-                            </v-row>
-
-                            <!-- Toolbar -->
-                            <v-speed-dial class="newdial" v-if="!multiSelectActive && !analyze_selector"
-                                          v-model="toolbar"
-                                          direction="left"
-                                          transition='slide-x-reverse-transition'
-                                          bottom>
-
-                                <v-item-group>
-                                    <v-btn v-if="canModify" icon @click.stop="cardItemToolbar('ungroup')" data-btn="ungroup" :title="$t('assess.tooltip.ungroup_item')">
-                                        <v-icon color="accent">mdi-ungroup</v-icon>
-                                    </v-btn>
-
-                                    <v-btn v-if="canAccess" icon @click.stop="cardItemToolbar('link')" data-btn="link" :title="$t('assess.tooltip.open_source')">
-                                        <a class="alink" :href="news_item.news_item_data.link" target="_blank">
-                                            <v-icon color="accent">mdi-open-in-app</v-icon>
-                                        </a>
-                                    </v-btn>
-
-                                    <v-btn v-if="canModify" icon @click.stop="cardItemToolbar('read')" data-btn="read" :title="$t('assess.tooltip.read_item')">
-                                        <v-icon :color="buttonStatus(news_item.read)">mdi-eye</v-icon>
-                                    </v-btn>
-
-                                    <v-btn v-if="canModify" icon @click.stop="cardItemToolbar('important')" data-btn="important" :title="$t('assess.tooltip.important_item')">
-                                        <v-icon :color="buttonStatus(news_item.important)">mdi-star</v-icon>
-                                    </v-btn>
-
-                                    <v-btn v-if="canModify" icon @click.stop="cardItemToolbar('like')" data-btn="like" :title="$t('assess.tooltip.like_item')">
-                                        <v-icon :color="buttonStatus(news_item.me_like)">mdi-thumb-up</v-icon>
-                                    </v-btn>
-
-                                    <v-btn v-if="canModify" icon @click.stop="cardItemToolbar('unlike')" data-btn="unlike" :title="$t('assess.tooltip.dislike_item')">
-                                        <v-icon :color="buttonStatus(news_item.me_dislike)">mdi-thumb-down</v-icon>
-                                    </v-btn>
-
-                                    <v-btn v-if="canDelete" icon @click.stop="cardItemToolbar('delete')" data-btn="delete" :title="$t('assess.tooltip.delete_item')">
-                                        <v-icon color="accent">mdi-delete</v-icon>
-                                    </v-btn>
-
-                                </v-item-group>
-
-                            </v-speed-dial>
                         </v-layout>
-
                     </v-card>
                 </v-hover>
             </v-col>
         </v-row>
-    </div>
+    </v-container>
 </template>
 
 <script>
@@ -179,12 +169,22 @@
                 } else {
                     return false;
                 }
-            }
+            },
+            cardStatus() {
+                if (this.news_item.important) {
+                    return "important"
+                } else if (this.news_item.read) {
+                    return "read"
+                } else {
+                    return "new"
+                }
+            },
         },
         methods: {
             itemClicked(data) {
                 if (this.checkPermission(Permissions.ASSESS_ACCESS) && this.news_item.access === true) {
                     this.$emit('show-item-detail', data);
+                    this.stateChange();
                 }
             },
             selectionChanged() {
@@ -193,6 +193,11 @@
                 } else {
                     this.$store.dispatch("deselect", {'type': 'ITEM', 'id': this.news_item.id, 'item': this.news_item})
                 }
+            },
+            stateChange() {
+                this.$root.$emit('change-state','SHOW_ITEM');
+                this.$root.$emit('check-focus',this.$el.dataset.id);
+                this.$root.$emit('update-pos', parseInt(this.$el.dataset.id));
             },
             getGroupId() {
                 if (window.location.pathname.includes("/group/")) {
@@ -262,15 +267,7 @@
                         break;
                 }
             },
-            cardStatus: function () {
-                if (this.news_item.important) {
-                    return "important"
-                } else if (this.news_item.read) {
-                    return "read"
-                } else {
-                    return "new"
-                }
-            },
+
             buttonStatus: function (active) {
                 if (active) {
                     return "info"
@@ -329,45 +326,3 @@
         }
     }
 </script>
-
-<style>
-    #selector .card.focus {
-        background-color: #caecff;
-    }
-
-    .card .obj.center {
-        text-align: center;
-    }
-
-    .card.elevation-12 {
-        z-index: 1;
-        background-color: rgba(100, 137, 214, 0.1);
-    }
-
-    .v-speed-dial {
-        position: absolute;
-        right: 0;
-        padding-top: 40px;
-    }
-
-    .card-assess .col {
-        margin: 0;
-        padding: 0;
-    }
-
-    .card .status.new {
-        border-left: 4px solid #ffd556;
-    }
-
-    .card .status.read {
-        border-left: 4px solid #33DD40;
-    }
-
-    .card .status.important {
-        border-left: 4px solid red;
-    }
-
-    .newdial .v-speed-dial__list {
-        width: 400px;
-    }
-</style>

@@ -10,12 +10,23 @@ const keyboardMixin = targetId => ({
         isItemOpen: false,
         shortcuts: [],
         card: null,
-        first_dialog: null
+        first_dialog: null,
+        keyboard_state: 'DEFAULT'
     }),
 
     computed: {
         multiSelectActive() {
             return this.$store.getters.getMultiSelect;
+        },
+        state() {
+            return this.keyboard_state;
+        }
+    },
+
+    watch: {
+        keyboard_state(val) {
+            this.keyboard_state = val;
+            //window.console.debug("state>", this.state);
         }
     },
 
@@ -32,7 +43,6 @@ const keyboardMixin = targetId => ({
                 this.$refs.contentData.checkFocus(this.pos);
             }
 
-            //window.console.debug("reindex");
         },
 
         reindexCardItems() {
@@ -58,7 +68,7 @@ const keyboardMixin = targetId => ({
                 which = ".multiselect button";
                 temp = document.querySelector(".multiselect");
             } else {
-                which = ".newdial button";
+                which = ".v-card button";
                 temp = this.card_items[this.pos];
             }
 
@@ -102,7 +112,7 @@ const keyboardMixin = targetId => ({
             return false;
         },
 
-        keyAction(press) {
+        _keyAction(press) {
             //let dialog = document.querySelectorAll(".v-dialog--active").length ? true : false;
 
             if ( !this.isSomeFocused() ) {
@@ -154,6 +164,7 @@ const keyboardMixin = targetId => ({
 
                         case 'show_item':
                             if (!this.isItemOpen) {
+                                this.keyboard_state = 'SHOW_ITEM';
                                 this.card.show.click();
                                 this.isItemOpen = true;
                             }
@@ -231,6 +242,7 @@ const keyboardMixin = targetId => ({
                 } else {
                     switch (keyAlias) {
                         case 'close_item':
+                            this.keyboard_state = 'DEFAULT';
                             this.isItemOpen = false;
                             this.keyRemaper();
                             this.card.close.click();
@@ -244,6 +256,191 @@ const keyboardMixin = targetId => ({
             }
 
             //window.console.debug(this.pos, this.isItemOpen, this.isSomeFocused(), this.focus, this.card);
+        },
+
+        keyAction(press) {
+            //let dialog = document.querySelectorAll(".v-dialog--active").length ? true : false;
+            //window.console.debug("keyAction", press);
+
+            if ( !this.isSomeFocused() ) {
+                let keyAlias = '';
+
+                for (let i = 0; i < this.shortcuts.length; i++) {
+                    if (this.shortcuts[i].key_code == press.keyCode) {
+                        keyAlias = this.shortcuts[i].alias;
+                        if (keyAlias == 'collection_up' || keyAlias == 'collection_down') {
+                            press.preventDefault();
+                        }
+                    }
+                }
+
+                if (!this.focus) {
+                    this.focus = true;
+                    this.$refs.contentData.checkFocus(this.pos);
+                    setTimeout(()=>{
+                        this.keyRemaper();
+                    },150);
+
+                } else if(this.state === 'DEFAULT') {
+                    switch (keyAlias) {
+                        case 'collection_up':
+                            if (this.pos == 0) {
+                                // pass
+                            } else {
+                                this.pos--;
+                                this.$refs.contentData.checkFocus(this.pos);
+                                setTimeout(()=>{
+                                    this.keyRemaper();
+                                },150);
+
+                            }
+                            break;
+                        case 'collection_down':
+                            if (this.pos == this.card_items.length - 1) {
+                                // pass
+                            } else {
+                                this.pos++;
+                                this.$refs.contentData.checkFocus(this.pos);
+                                setTimeout(()=>{
+                                    this.keyRemaper();
+                                },150);
+                            }
+                            break;
+                        case 'show_item':
+                            if (!this.isItemOpen) {
+                                //this.keyboard_state = 'SHOW_ITEM';
+                                this.card.show.click();
+                                this.isItemOpen = true;
+                            }
+                            break;
+                        case 'aggregate_open':
+                            if (this.card.aggregate) {
+                                this.card.aggregate.click();
+
+                                setTimeout(() => {
+                                    //this.keyRemaper();
+                                    this.cardReindex();
+                                }, 150);
+                            }
+                            break;
+                        case 'selection':
+                            if (!this.multiSelectActive) {
+                                this.card.multi_select.click();
+                                setTimeout(() => {
+                                    this.keyRemaper();
+                                }, 1);
+
+                                setTimeout(() => {
+                                    this.card.select.click();
+                                }, 155);
+                            } else {
+                                this.card.select.click();
+                                setTimeout(() => {
+                                    if (!document.querySelectorAll("#selector_assess input[type='checkbox'][aria-checked='true']").length) {
+                                        this.card.multi_select.click();
+                                    }
+                                }, 155);
+
+                            }
+                            break;
+
+                        case 'read_item':
+                            this.card.read.click();
+                            break;
+
+                        case 'important_item':
+                            this.card.important.click();
+                            break;
+
+                        case 'like_item':
+                            this.card.like.click();
+                            break;
+
+                        case 'unlike_item':
+                            this.card.unlike.click();
+                            break;
+
+                        case 'delete_item':
+                            this.card.delete.click();
+                            break;
+
+                        case 'group':
+                            this.card.group.click();
+                            break;
+
+                        case 'ungroup':
+                            this.card.ungroup.click();
+                            break;
+
+                        case 'new_product':
+                            //this.keyboard_state = 'NEW_PRODUCT';
+                            this.card.analyze.click();
+                            this.isItemOpen = true;
+                            break;
+                    }
+                } else if(this.state === 'SHOW_ITEM') {
+                    switch (keyAlias) {
+                        case 'close_item':
+                            if(document.activeElement.className !== 'ql-editor') {
+                                this.isItemOpen = false;
+                                this.keyRemaper();
+                                this.card.close.click();
+                                this.keyboard_state = 'DEFAULT';
+                            }
+                            break;
+
+                        case 'read_item':
+                            this.card.read.click();
+                            break;
+
+                        case 'important_item':
+                            this.card.important.click();
+                            break;
+
+                        case 'like_item':
+                            this.card.like.click();
+                            break;
+
+                        case 'unlike_item':
+                            this.card.unlike.click();
+                            break;
+
+                        case 'delete_item':
+                            this.card.delete.click();
+                            break;
+
+                        case 'group':
+                            this.card.group.click();
+                            break;
+
+                        case 'ungroup':
+                            this.card.ungroup.click();
+                            break;
+
+                        case 'new_product':
+                            this.card.analyze.click();
+                            this.isItemOpen = true;
+                            break;
+
+                        default:
+                            break;
+                    }
+                } else if(this.state === 'NEW_PRODUCT') {
+                    switch(keyAlias) {
+                        case 'close_item':
+                            if(document.activeElement.className !== 'ql-editor') {
+                                this.isItemOpen = false;
+                                this.keyRemaper();
+                                this.card.close.click();
+                                this.keyboard_state = 'DEFAULT';
+                            }
+                            break;
+                    }
+                }
+                this.scrollPos();
+            }
+
+            //window.console.debug(this.pos, this.isItemOpen, this.isSomeFocused(), this.focus);
         },
 
         scrollPos() {
@@ -265,13 +462,28 @@ const keyboardMixin = targetId => ({
         this.shortcuts = this.$store.getters.getProfileHotkeys;
         this.pos = 0;
         this.focus = null;
+
     },
 
     created() {
         this.target = targetId;
+        this.$root.$on('change-state', (_state) => {
+            this.keyboard_state = _state;
+        });
+        this.$root.$on('key-remap', () => {
+            setTimeout(()=>{
+                this.reindexCardItems();
+            },150);
+        });
+        this.$root.$on('update-pos', (_pos) => {
+            this.pos = _pos;
+        });
     },
 
     beforeDestroy() {
+        this.$root.$off('change-state');
+        this.$root.$off('key-remap');
+        this.$root.$off('update-pos');
     }
 });
 

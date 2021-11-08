@@ -1,8 +1,9 @@
-from managers.db_manager import db
-from taranisng.schema.organization import OrganizationSchema, OrganizationPresentationSchema
 from marshmallow import post_load, fields
-from model.address import NewAddressSchema
 from sqlalchemy import func, or_, orm
+
+from managers.db_manager import db
+from model.address import NewAddressSchema
+from schema.organization import OrganizationSchema, OrganizationPresentationSchema
 
 
 class NewOrganizationSchema(OrganizationSchema):

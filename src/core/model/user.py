@@ -1,13 +1,14 @@
+from marshmallow import fields, post_load
+from sqlalchemy import func, or_, orm
+
 from managers.db_manager import db
 from model.role import Role
 from model.permission import Permission
 from model.organization import Organization
-from marshmallow import fields, post_load
-from taranisng.schema.user import UserSchemaBase, UserSchema, UserProfileSchema, HotkeySchema, UserPresentationSchema
-from taranisng.schema.role import RoleIdSchema, PermissionIdSchema
-from taranisng.schema.organization import OrganizationIdSchema
-from taranisng.schema.word_list import WordListIdSchema
-from sqlalchemy import func, or_, orm
+from schema.user import UserSchemaBase, UserProfileSchema, HotkeySchema, UserPresentationSchema
+from schema.role import RoleIdSchema, PermissionIdSchema
+from schema.organization import OrganizationIdSchema
+from schema.word_list import WordListIdSchema
 
 
 class NewUserSchema(UserSchemaBase):

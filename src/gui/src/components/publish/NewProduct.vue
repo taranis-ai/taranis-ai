@@ -1,127 +1,114 @@
 <template>
-    <div>
-        <v-btn v-if="add_button && canCreate" depressed small color="white--text ma-2 mt-3 mr-5" @click="addProduct">
-            <v-icon left>mdi-plus-circle-outline</v-icon>
-            <span class="subtitle-2">{{ $t('product.add_btn') }}</span>
+    <v-row v-bind="UI.DIALOG.ROW.WINDOW">
+        <v-btn v-bind="UI.BUTTON.ADD_NEW" v-if="add_button && canCreate"
+               @click="addProduct">
+            <v-icon left>{{ UI.ICON.PLUS }}</v-icon>
+            <span>{{ $t('product.add_btn') }}</span>
         </v-btn>
 
-        <v-row justify="center">
-            <v-dialog v-model="visible" fullscreen hide-overlay transition="dialog-bottom-transition" new-product>
-                <v-card>
+        <v-dialog v-bind="UI.DIALOG.FULLSCREEN" v-model="visible" new-product>
+            <v-card v-bind="UI.DIALOG.BASEMENT">
+                <v-toolbar v-bind="UI.DIALOG.TOOLBAR" :style="UI.STYLE.z10000">
+                    <v-btn v-bind="UI.BUTTON.CLOSE_ICON" @click="cancel">
+                        <v-icon>{{ UI.ICON.CLOSE }}</v-icon>
+                    </v-btn>
 
-                    <v-toolbar dark color="primary" style="z-index: 10000">
-                        <v-btn icon dark @click="cancel">
-                            <v-icon>mdi-close-circle</v-icon>
-                        </v-btn>
-                        <v-toolbar-title v-if="!edit">{{ $t('product.add_new') }}</v-toolbar-title>
-                        <v-toolbar-title v-if="edit">{{ $t('product.edit') }}</v-toolbar-title>
-                        <v-spacer></v-spacer>
-                        <v-btn v-if="canModify" text dark type="submit" form="form">
-                            <v-icon left>mdi-content-save</v-icon>
-                            <span>{{ $t('report_item.save') }}</span>
-                        </v-btn>
-                    </v-toolbar>
+                    <v-toolbar-title>
+                        <span v-if="!edit">{{ $t('product.add_new') }}</span>
+                        <span v-else>{{ $t('product.edit') }}</span>
+                    </v-toolbar-title>
 
-                    <v-form @submit.prevent="add" id="form" ref="form">
-                        <v-card>
-                            <v-card-text>
-                                <v-row>
-                                    <v-col>
-                                        <v-combobox v-on:change="productSelected" :disabled="!canModify"
-                                                    v-model="selected_type"
-                                                    :items="product_types"
-                                                    item-text="title"
-                                                    :label="$t('product.report_type')"
-                                        />
-                                    </v-col>
-                                    <v-col>
-                                        <v-text-field :disabled="!canModify"
-                                                      :label="$t('product.title')"
-                                                      name="title"
-                                                      type="text"
-                                                      v-model="product.title"
-                                                      v-validate="'required'"
-                                                      data-vv-name="title"
-                                                      :error-messages="errors.collect('title')"
-                                                      :spellcheck="$store.state.settings.spellcheck"
-                                        ></v-text-field>
-                                    </v-col>
-                                </v-row>
-                                <v-textarea :disabled="!canModify"
-                                            :label="$t('product.description')"
-                                            name="description"
-                                            v-model="product.description"
-                                            :spellcheck="$store.state.settings.spellcheck"
-                                ></v-textarea>
-                                <ReportItemSelector :values="report_items" :modify="modify"
-                                                    :edit="edit"></ReportItemSelector>
+                    <v-spacer></v-spacer>
+                    <v-btn v-if="canModify" text dark type="submit" form="form">
+                        <v-icon left>mdi-content-save</v-icon>
+                        <span>{{ $t('report_item.save') }}</span>
+                    </v-btn>
+                </v-toolbar>
 
-                                <v-checkbox v-for="preset in publisher_presets" :key="preset.id"
-                                            :label="preset.name" :disabled="!canModify" v-model="preset.selected">
-                                </v-checkbox>
+                <v-form @submit.prevent="add" id="form" ref="form" class="px-4">
+                    <v-row no-gutters>
+                        <v-col cols="6" class="pr-3">
+                            <v-combobox v-on:change="productSelected" :disabled="!canModify"
+                                        v-model="selected_type"
+                                        :items="product_types"
+                                        item-text="title"
+                                        :label="$t('product.report_type')"
+                            />
+                        </v-col>
+                        <v-col cols="6" class="pr-3">
+                            <v-text-field :disabled="!canModify"
+                                          :label="$t('product.title')"
+                                          name="title"
+                                          type="text"
+                                          v-model="product.title"
+                                          v-validate="'required'"
+                                          data-vv-name="title"
+                                          :error-messages="errors.collect('title')"
+                                          :spellcheck="$store.state.settings.spellcheck"
+                            />
+                        </v-col>
+                        <v-col cols="12" class="pr-3">
+                            <v-textarea :disabled="!canModify"
+                                        :label="$t('product.description')"
+                                        name="description"
+                                        v-model="product.description"
+                                        :spellcheck="$store.state.settings.spellcheck"
+                            />
+                        </v-col>
+                    </v-row>
+                    <v-row no-gutters>
+                        <v-col cols="12" class="mb-2">
+                            <v-btn v-bind="UI.BUTTON.ADD_NEW_IN" v-if="canModify" @click="$refs.report_item_selector.openSelector()">
+                                <v-icon left>{{ UI.ICON.PLUS }}</v-icon>
+                                <span>{{$t('report_item.select')}}</span>
+                            </v-btn>
+                        </v-col>
+                        <v-col cols="12">
+                            <ReportItemSelector ref="report_item_selector" :values="report_items" :modify="modify"
+                                                :edit="edit" />
+                        </v-col>
+                    </v-row>
+                    <v-row no-gutters>
+                        <v-col cols="12">
+                            <v-checkbox v-for="preset in publisher_presets" :key="preset.id"
+                                        :label="preset.name" :disabled="!canModify" v-model="preset.selected">
+                            </v-checkbox>
+                        </v-col>
+                    </v-row>
+                    <v-row no-gutters class="pt-4">
+                        <v-col cols="6">
+                            <v-btn :href="preview_link" style="display: none"
+                                   target="_blank" ref="previewBtn">
+                            </v-btn>
+                            <v-btn depressed small @click="previewProduct">
+                                <v-icon left>mdi-eye-outline</v-icon>
+                                <span>{{ $t('product.preview') }}</span>
+                            </v-btn>
+                        </v-col>
+                        <v-col cols="6">
+                            <v-btn v-if="canPublish" depressed small @click="publishProduct">
+                                <v-icon left>mdi-send-outline</v-icon>
+                                <span>{{ $t('product.publish') }}</span>
+                            </v-btn>
+                        </v-col>
+                    </v-row>
 
-                                <v-row>
-                                    <v-col style="flex-grow: 0">
-                                        <v-btn :href="preview_link" style="display: none"
-                                               target="_blank" ref="previewBtn">
-                                        </v-btn>
-                                        <v-btn depressed small @click="previewProduct">
-                                            <v-icon left>mdi-eye-outline</v-icon>
-                                            <span>{{ $t('product.preview') }}</span>
-                                        </v-btn>
-                                    </v-col>
-                                    <v-col>
-                                        <v-btn v-if="canPublish" depressed small @click="publishProduct">
-                                            <v-icon left>mdi-send-outline</v-icon>
-                                            <span>{{ $t('product.publish') }}</span>
-                                        </v-btn>
-                                    </v-col>
-                                </v-row>
+                    <v-row no-gutters class="pt-2">
+                        <v-col cols="12">
+                            <v-alert v-if="show_validation_error" dense type="error" text>
+                                {{ $t('report_item.validation_error') }}
+                            </v-alert>
+                            <v-alert v-if="show_error" dense type="error" text>
+                                {{ $t('report_item.error') }}
+                            </v-alert>
+                        </v-col>
+                    </v-row>
 
-                            </v-card-text>
-                        </v-card>
-
-                    </v-form>
-
-                    <v-alert v-if="show_validation_error" dense type="error" text>
-                        {{ $t('report_item.validation_error') }}
-                    </v-alert>
-                    <v-alert v-if="show_error" dense type="error" text>{{ $t('report_item.error') }}
-                    </v-alert>
-                </v-card>
-            </v-dialog>
-        </v-row>
-    </div>
-
+                </v-form>
+            </v-card>
+        </v-dialog>
+    </v-row>
 </template>
-
-<style>
-
-.div-wrapper .theme--light.v-card {
-    border-left: 5px solid rgb(255, 172, 33);
-}
-
-.tabs [role='tablist'] {
-    background-color: #f5ebd5 !important;
-
-}
-
-.div-wrapper .v-card-title-dialog {
-    background-color: rgba(207, 158, 37, 0.2);
-    border-radius: 0;
-    font-size: 1.2em;
-    font-weight: bold;
-    padding: 0;
-    padding-left: 1em;
-}
-
-.tabs .v-window-item {
-}
-
-.icon-field-offset {
-    margin-left: 8px;
-}
-</style>
 
 <script>
 import AuthMixin from "../../services/auth/auth_mixin";

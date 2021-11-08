@@ -83,10 +83,3 @@
         }
     }
 </script>
-
-<style>
-    .div-wrapper .theme--light.v-card {
-        border-left: 0;
-        margin-top: 4px;
-    }
-</style>

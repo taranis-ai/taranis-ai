@@ -1,4 +1,5 @@
 from flask_restful import Resource
+
 from managers import bots_manager
 from managers.auth_manager import api_key_required
 

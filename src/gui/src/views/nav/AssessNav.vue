@@ -22,9 +22,13 @@
                 .then(() => {
                     this.groups = this.$store.getters.getOSINTSourceGroups.items;
                     for (let i = 0; i < this.groups.length; i++) {
+                        let title = this.groups[i].name
+                        if (this.groups[i].default === true) {
+                            title = this.$t('osint_source_group.default_group')
+                        }
                         this.links.push({
                             icon: 'mdi-folder-multiple',
-                            title: this.groups[i].name,
+                            title: title,
                             route: '/assess/group/' + this.groups[i].id,
                             id: this.groups[i].id
                         })

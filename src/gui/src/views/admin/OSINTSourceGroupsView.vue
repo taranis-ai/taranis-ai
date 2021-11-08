@@ -12,7 +12,7 @@
         <template v-slot:content>
             <ContentData
                     name="OSINTSourceGroups"
-                    cardItem="CardPreset"
+                    cardItem="CardGroup"
                     action="getAllOSINTSourceGroups"
                     getter="getOSINTSourceGroups"
                     deletePermission="CONFIG_OSINT_SOURCE_GROUP_DELETE"

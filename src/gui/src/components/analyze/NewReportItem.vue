@@ -1,300 +1,210 @@
 <template>
-    <div>
-        <v-btn v-if="add_button && canCreate" depressed small color="white--text ma-2 mt-3 mr-5" @click="addReportItem">
-            <v-icon left>mdi-plus-circle-outline</v-icon>
-            <span class="subtitle-2">{{ $t('analyze.add_new') }}</span>
+    <v-row v-bind="UI.DIALOG.ROW.WINDOW">
+        <v-btn v-bind="UI.BUTTON.ADD_NEW" v-if="add_button && canCreate"
+               @click="addReportItem">
+            <v-icon left>{{ UI.ICON.PLUS }}</v-icon>
+            <span>{{ $t('analyze.add_new') }}</span>
         </v-btn>
 
-        <v-row justify="center">
+        <v-dialog v-bind="UI.DIALOG.FULLSCREEN"
+                  v-model="visible" @keydown.esc="cancel" report-item>
+            <v-overlay :value="overlay" z-index="50000">
+                <v-progress-circular indeterminate size="64"></v-progress-circular>
+            </v-overlay>
 
-            <v-dialog v-model="visible" fullscreen @keydown.esc="cancel" report-item>
+            <v-card v-bind="UI.DIALOG.BASEMENT">
+                <v-toolbar v-bind="UI.DIALOG.TOOLBAR" data-dialog="report-item">
+                    <v-btn icon dark @click="cancel" data-btn="cancel">
+                        <v-icon>mdi-close-circle</v-icon>
+                    </v-btn>
 
-                <v-overlay :value="overlay" z-index="50000">
-                    <v-progress-circular indeterminate size="64"></v-progress-circular>
-                </v-overlay>
+                    <v-toolbar-title>
+                        <span v-if="!edit">{{ $t('report_item.add_new') }}</span>
+                        <span v-else>{{ $t('report_item.edit') }}</span>
+                    </v-toolbar-title>
 
-                <v-card>
+                    <v-spacer></v-spacer>
 
-                    <v-toolbar dark color="primary" style="z-index: 10000" data-dialog="report-item">
-                        <v-btn icon dark @click="cancel" data-btn="cancel">
-                            <v-icon>mdi-close-circle</v-icon>
-                        </v-btn>
-                        <v-toolbar-title v-if="!edit">{{ $t('report_item.add_new') }}</v-toolbar-title>
-                        <v-toolbar-title v-if="edit">{{ $t('report_item.edit') }}</v-toolbar-title>
-
-                        <v-spacer></v-spacer>
-
-                        <!--DiALOG iMPORT CSV-->
-                        <v-dialog v-model="dialog_csv" max-width="500px">
-                            <template v-if="!edit" v-slot:activator="{ on }">
-                                <v-btn v-on="on" text :disabled="!selected_type">
-                                    <v-icon left>mdi-upload</v-icon>
-                                    <span>{{$t('report_item.import_csv')}}</span>
-                                </v-btn>
-                            </template>
-                            <v-card>
-                                <v-card-title>
-                                    <span class="headline">{{$t('report_item.import_from_csv')}}</span>
-                                </v-card-title>
-
-                                <v-row class="ma-6">
-                                    <VueCsvImport v-model="csv" :map-fields="csv_struct" autoMatchFields autoMatchIgnoreCase>
-
-                                        <template slot="hasHeaders" slot-scope="{headers, toggle}">
-                                            <label style="display: none;">
-                                                <input type="checkbox" id="hasHeaders" checked="checked" :value="headers" @change="toggle">
-                                                Headers?
-                                            </label>
-                                        </template>
-
-                                        <template slot="next" slot-scope="{load}">
-                                            <button class="load" @click.prevent="load">{{$t('asset.load_csv_file')}}</button>
-                                        </template>
-
-                                    </VueCsvImport>
-
-                                </v-row>
-
-                                <v-card-actions>
-                                    <v-spacer></v-spacer>
-                                    <v-checkbox style="display: none;" v-model="csv_delete_exist_list" :label="$t('report_item.delete_existing_codes')"></v-checkbox>
-                                    <v-spacer></v-spacer>
-                                    <v-btn color="primary" dark @click="importCSV">
-                                        {{$t('asset.import')}}
-                                    </v-btn>
-                                    <v-btn color="primary" text @click="closeCSV">
-                                        {{$t('asset.cancel')}}
-                                    </v-btn>
-                                </v-card-actions>
-                            </v-card>
-                        </v-dialog>
-                        <v-switch :disabled="!canModify"
-                                  style="padding-top:25px"
-                                  v-model="report_item.completed"
-                                  label="Completed"
-                                  @change="onEdit('completed')"
-                        ></v-switch>
-                        <v-btn v-if="!edit" text dark type="submit" form="form">
-                            <v-icon left>mdi-content-save</v-icon>
-                            <span>{{ $t('report_item.save') }}</span>
-                        </v-btn>
-
-
-                    </v-toolbar>
-
-                    <v-form @submit.prevent="add" id="form" ref="form">
+                    <!--DiALOG iMPORT CSV-->
+                    <v-dialog v-model="dialog_csv" max-width="500px">
+                        <template v-if="!edit" v-slot:activator="{ on }">
+                            <v-btn v-on="on" text :disabled="!selected_type">
+                                <v-icon left>mdi-upload</v-icon>
+                                <span>{{$t('report_item.import_csv')}}</span>
+                            </v-btn>
+                        </template>
                         <v-card>
-                            <v-card-text>
+                            <v-card-title>
+                                <span class="headline">{{$t('report_item.import_from_csv')}}</span>
+                            </v-card-title>
 
-                                <span v-if="edit">ID: {{ report_item.uuid }}</span>
+                            <v-row class="ma-6">
+                                <VueCsvImport v-model="csv" :map-fields="csv_struct" autoMatchFields autoMatchIgnoreCase>
 
-                                <v-row>
-                                    <v-col>
-                                        <v-combobox v-on:change="reportSelected" :disabled="edit"
-                                                    v-model="selected_type"
-                                                    :items="report_types"
-                                                    item-text="title"
-                                                    :label="$t('report_item.report_type')"
-                                        />
-                                    </v-col>
-                                    <v-col>
-                                        <v-text-field @focus="onFocus('title_prefix')"
-                                                      @blur="onBlur('title_prefix')"
-                                                      @keyup="onKeyUp('title_prefix')"
-                                                      :class="getLockedStyle('title_prefix')"
-                                                      :disabled="field_locks.title_prefix || !canModify"
-                                                      :label="$t('report_item.title_prefix')"
-                                                      name="title_prefix"
-                                                      v-model="report_item.title_prefix"
-                                                      :spellcheck="$store.state.settings.spellcheck"
-                                        ></v-text-field>
-                                    </v-col>
-                                    <v-col>
-                                        <v-text-field @focus="onFocus('title')" @blur="onBlur('title')"
-                                                      @keyup="onKeyUp('title')"
-                                                      :class="getLockedStyle('title')"
-                                                      :disabled="field_locks.title || !canModify"
-                                                      :label="$t('report_item.title')"
-                                                      name="title"
-                                                      type="text"
-                                                      v-model="report_item.title"
-                                                      v-validate="'required'"
-                                                      data-vv-name="title"
-                                                      :error-messages="errors.collect('title')"
-                                                      :spellcheck="$store.state.settings.spellcheck"
-                                        ></v-text-field>
-                                    </v-col>
-                                </v-row>
-                                <NewsItemSelector :values="news_item_aggregates" analyze_selector
-                                                  :collections="collections" :modify="modify"
-                                                  :report_item_id="this.report_item.id" :edit="edit"></NewsItemSelector>
+                                    <template slot="hasHeaders" slot-scope="{headers, toggle}">
+                                        <label style="display: none;">
+                                            <input type="checkbox" id="hasHeaders" checked="checked" :value="headers" @change="toggle">
+                                            Headers?
+                                        </label>
+                                    </template>
 
-                                <v-spacer class="mt-4"></v-spacer>
+                                    <template slot="next" slot-scope="{load}">
+                                        <button class="load" @click.prevent="load">{{$t('asset.load_csv_file')}}</button>
+                                    </template>
 
-                                <RemoteReportItemSelector :values="remote_report_items" :modify="modify" :edit="edit"
-                                                          :report_item_id="this.report_item.id"
-                                                          @remote-report-items-changed="updateRemoteAttributes"></RemoteReportItemSelector>
+                                </VueCsvImport>
 
-                            </v-card-text>
+                            </v-row>
+
+                            <v-card-actions>
+                                <v-spacer></v-spacer>
+                                <v-checkbox style="display: none;" v-model="csv_delete_exist_list" :label="$t('report_item.delete_existing_codes')"></v-checkbox>
+                                <v-spacer></v-spacer>
+                                <v-btn color="primary" dark @click="importCSV">
+                                    {{$t('asset.import')}}
+                                </v-btn>
+                                <v-btn color="primary" text @click="closeCSV">
+                                    {{$t('asset.cancel')}}
+                                </v-btn>
+                            </v-card-actions>
                         </v-card>
+                    </v-dialog>
+                    <v-switch :disabled="!canModify"
+                              style="padding-top:25px"
+                              v-model="report_item.completed"
+                              label="Completed"
+                              @change="onEdit('completed')"
+                    ></v-switch>
+                    <v-btn v-if="!edit" text dark type="submit" form="form">
+                        <v-icon left>mdi-content-save</v-icon>
+                        <span>{{ $t('report_item.save') }}</span>
+                    </v-btn>
 
-                        <!--ATTRiBUTES-->
-                        <div style="padding:16px" class="div-wrapper cs_attribute_expa">
-                            <!--GROUP-->
-                            <v-expansion-panels class="groups mb-1"
+                </v-toolbar>
+
+                <v-form @submit.prevent="add" id="form" ref="form" class="px-4">
+                    <v-row no-gutters>
+                        <v-col cols="12" v-if="edit">
+                            <span class="caption grey--text">ID: {{ report_item.uuid }}</span>
+                        </v-col>
+                        <v-col cols="4" class="pr-3">
+                            <v-combobox v-on:change="reportSelected" :disabled="edit"
+                                        v-model="selected_type"
+                                        :items="report_types"
+                                        item-text="title"
+                                        :label="$t('report_item.report_type')"
+                            />
+                        </v-col>
+                        <v-col cols="4" class="pr-3">
+                            <v-text-field @focus="onFocus('title_prefix')"
+                                          @blur="onBlur('title_prefix')"
+                                          @keyup="onKeyUp('title_prefix')"
+                                          :class="getLockedStyle('title_prefix')"
+                                          :disabled="field_locks.title_prefix || !canModify"
+                                          :label="$t('report_item.title_prefix')"
+                                          name="title_prefix"
+                                          v-model="report_item.title_prefix"
+                                          :spellcheck="$store.state.settings.spellcheck"
+                            ></v-text-field>
+                        </v-col>
+                        <v-col cols="4" class="pr-3">
+                            <v-text-field @focus="onFocus('title')" @blur="onBlur('title')"
+                                          @keyup="onKeyUp('title')"
+                                          :class="getLockedStyle('title')"
+                                          :disabled="field_locks.title || !canModify"
+                                          :label="$t('report_item.title')"
+                                          name="title"
+                                          type="text"
+                                          v-model="report_item.title"
+                                          v-validate="'required'"
+                                          data-vv-name="title"
+                                          :error-messages="errors.collect('title')"
+                                          :spellcheck="$store.state.settings.spellcheck"
+                            ></v-text-field>
+                        </v-col>
+                    </v-row>
+                    <v-row no-gutters class="pb-4">
+                        <v-col cols="12">
+                            <v-btn v-bind="UI.BUTTON.ADD_NEW_IN" v-if="canModify"
+                                   @click="$refs.new_item_selector.openSelector()">
+                                <v-icon left>{{ UI.ICON.PLUS }}</v-icon>
+                                <span>{{$t('assess.add_news_item')}}</span>
+                            </v-btn>
+                        </v-col>
+                    </v-row>
+                    <v-row no-gutters>
+                        <v-col cols="12">
+                            <NewsItemSelector ref="new_item_selector" analyze_selector
+                                              :values="news_item_aggregates"
+                                              :modify="modify"
+                                              :collections="collections"
+                                              :report_item_id="this.report_item.id"
+                                              :edit="edit"/>
+                        </v-col>
+                    </v-row>
+                    <v-row no-gutters>
+                        <v-col cols="12">
+                            <RemoteReportItemSelector :values="remote_report_items" :modify="modify" :edit="edit"
+                                                      :report_item_id="this.report_item.id"
+                                                      @remote-report-items-changed="updateRemoteAttributes"/>
+                        </v-col>
+                    </v-row>
+                    <v-row>
+                        <v-col cols="12" class="pa-0 ma-0">
+                            <v-expansion-panels class="mb-1"
                                                 v-for="(attribute_group, i) in attribute_groups"
                                                 :key="attribute_group.id"
                                                 v-model="expandPanelGroups"
                                                 multiple
                             >
                                 <v-expansion-panel>
-                                    <v-expansion-panel-header color="primary--text" class="body-2 text-uppercase py-3">
+                                    <v-expansion-panel-header color="primary--text" class="body-1 text-uppercase pa-3">
                                         {{ attribute_group.title }}
                                     </v-expansion-panel-header>
                                     <v-expansion-panel-content>
-
                                         <!--TYPES-->
                                         <v-expansion-panels multiple focusable class="items" v-model="expand_group_items[i].values">
                                             <v-expansion-panel v-for="attribute_item in attribute_group.attribute_group_items"
                                                                :key="attribute_item.id"
                                                                class="item-panel"
                                             >
-                                                <v-expansion-panel-header class="pa-2">
+                                                <v-expansion-panel-header class="pa-2 font-weight-bold primary--text rounded-0">
                                                     <v-row>
                                                         <!--<v-icon small left>mdi-account</v-icon>-->
                                                         <span>{{attribute_item.attribute_group_item.title}}</span>
                                                     </v-row>
                                                 </v-expansion-panel-header>
-                                                <v-expansion-panel-content class="pt-1">
+                                                <v-expansion-panel-content class="pt-0">
                                                     <AttributeContainer
-                                                                        :attribute_item="attribute_item" :edit="edit" :modify="modify"
-                                                                        :report_item_id="report_item.id"
+                                                        :attribute_item="attribute_item" :edit="edit" :modify="modify"
+                                                        :report_item_id="report_item.id"
                                                     />
                                                 </v-expansion-panel-content>
                                             </v-expansion-panel>
                                         </v-expansion-panels>
-
                                     </v-expansion-panel-content>
                                 </v-expansion-panel>
                             </v-expansion-panels>
-                        </div>
-                    </v-form>
+                        </v-col>
+                    </v-row>
 
-                    <v-alert v-if="show_validation_error" dense type="error" text>
-                        {{ $t('report_item.validation_error') }}
-                    </v-alert>
-                    <v-alert v-if="show_error" dense type="error" text>
-                        {{ $t('report_item.error') }}
-                    </v-alert>
+                    <v-row no-gutters class="pt-2">
+                        <v-col cols="12">
+                            <v-alert v-if="show_validation_error" dense type="error" text>
+                                {{ $t('report_item.validation_error') }}
+                            </v-alert>
+                            <v-alert v-if="show_error" dense type="error" text>
+                                {{ $t('report_item.error') }}
+                            </v-alert>
+                        </v-col>
+                    </v-row>
+                </v-form>
 
-                </v-card>
-            </v-dialog>
-        </v-row>
-    </div>
 
+            </v-card>
+        </v-dialog>
+    </v-row>
 </template>
-
-<style>
-
-.div-wrapper .theme--light.v-card {
-    border-left: 5px solid rgb(255, 172, 33);
-}
-
-.tabs [role='tablist'] {
-    background-color: #f5ebd5 !important;
-
-}
-
-/*.div-wrapper .v-card-title-dialog {
-    background-color: rgba(207, 158, 37, 0.2);
-    border-radius: 0;
-    font-size: 1.2em;
-    font-weight: bold;
-    padding: 0;
-    padding-left: 1em;
-}*/
-
-.tabs .v-window-item {
-}
-
-.icon-field-offset {
-    margin-left: 8px;
-}
-
-.locked-style {
-    border-color: lightblue !important;
-    border-width: 1px;
-    border-style: dashed;
-}
-
-.v-expansion-panel > .v-expansion-panel-header {
-    min-height: 32px;
-}
-
-.v-expansion-panel--active > .v-expansion-panel-header {
-    min-height: 32px;
-}
-
-.v-expansion-panels.groups {
-    border-left: 5px solid #4092dd;
-}
-
-.v-expansion-panels.items .v-expansion-panel {
-    border-left: 3px solid #6abef2;
-}
-
-.v-expansion-panels.items .v-expansion-panel:hover {
-    border-left: 5px solid #6abef2;
-}
-
-.v-expansion-panels.items .v-expansion-panel--active {
-    border-left: 5px solid #6abef2;
-}
-
-.v-expansion-panels.items .v-expansion-panel--active .v-expansion-panel-header--active {
-    border-radius: 0 4px 0 0;
-    font-weight: bold;
-    color: #4694db;
-}
-
-.valueHolder:hover {
-    box-shadow: -3px 0px 0px #6acbff;
-}
-
-.attribute-card {
-    border-left: 4px solid #6abef2 !important;
-}
-
-.attribute-title {
-    background-color: #4694db30 !important;
-    border-radius: 0 4px 0 0 !important;
-}
-
-.vue-csv-uploader button.load {
-    margin: 10px;
-    margin-left: 0;
-    padding: 4px 10px 4px 10px;
-    background-color: #4092dd;
-    border-radius: 4px;
-    color: white;
-}
-
-.vue-csv-uploader-part-two table {
-    width: 400px;
-}
-
-.vue-csv-uploader-part-two table thead {
-    text-align: left;
-}
-
-.vue-csv-uploader-part-two table select {
-    -webkit-appearance: auto;
-    -moz-appearance: auto;
-    border: 1px solid gray;
-    border-radius: 4px;
-}
-
-</style>
 
 <script>
 import AuthMixin from "@/services/auth/auth_mixin";
@@ -427,7 +337,8 @@ export default {
 
         cancel() {
             setTimeout(() => {
-                this.$root.$emit('mouse-click-close');
+                //this.$root.$emit('mouse-click-close');
+                this.$root.$emit('change-state', 'DEFAULT');
                 this.$validator.reset();
                 this.visible = false;
                 this.$root.$emit('first-dialog', '');
@@ -806,7 +717,7 @@ export default {
 
                     this.attribute_groups[i].attribute_group_items[j].values = [];
                     for( let k=0; k<csv_lines-1; k++) {
-                        if(sorted_csv[count][k] != "") {
+                        if(sorted_csv[count][k] !== "") {
                             this.attribute_groups[i].attribute_group_items[j].values.push({ "id": -1, "index": k, "value": sorted_csv[count][k], "user": null });
                         }
                     }
@@ -820,45 +731,8 @@ export default {
             this.$root.$emit('reset-csv-dialog');
 
         },
-        _importCSV() {
-
-            if (this.csv_delete_exist_list) {
-                this.$emit('update-cpes', this.csv);
-            } else {
-
-                let attribute = this.findAttributeType(this.csv[0].value);
-                let codes = attribute.attribut_group_items;
-
-                let arrayWithDuplicates = codes.concat(this.csv);
-
-                let removeDuplicates = function (originalArray, prop) {
-                    let newArray = [];
-                    let lookupObject = {};
-
-                    for (var i in originalArray) {
-                        lookupObject[originalArray[i][prop]] = originalArray[i];
-                    }
-
-                    for (i in lookupObject) {
-                        newArray.push(lookupObject[i]);
-                    }
-
-                    return newArray;
-                }
-
-                let uniqueArray = removeDuplicates(arrayWithDuplicates, "value");
-                //this.$emit('update-cpes', uniqueArray);
-                window.console.debug(uniqueArray);
-            }
-
-            this.dialog_csv = false;
-            this.csv = null;
-            this.csv_delete_exist_list = false;
-            this.$root.$emit('reset-csv-dialog');
-        },
 
         closeCSV() {
-            //window.console.debug(this.csv);
             this.dialog_csv = false;
             this.csv = null;
             this.csv_delete_exist_list = false;

@@ -1,6 +1,7 @@
 from flask_jwt_extended import create_access_token
 
 from managers import log_manager
+from model.token_blacklist import TokenBlacklist
 from model.user import User
 
 
@@ -16,8 +17,9 @@ class BaseAuthenticator:
         return BaseAuthenticator.generate_jwt(user.username)
 
     @staticmethod
-    def logout():
-        pass
+    def logout(token):
+        if token is not None:
+            TokenBlacklist.add(token)
 
     @staticmethod
     def initialize(app):

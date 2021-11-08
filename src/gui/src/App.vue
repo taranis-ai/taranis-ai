@@ -7,12 +7,11 @@
             <router-view name="nav"></router-view>
         </v-navigation-drawer>
 
-        <v-content>
+        <v-main>
             <router-view/>
-        </v-content>
+        </v-main>
 
         <Notification v-if="isAuthenticated()"/>
-
     </v-app>
 </template>
 
@@ -63,7 +62,7 @@ export default {
         }
     },
     updated() {
-        this.$root.$emit('app-updated')
+        this.$root.$emit('app-updated');
     },
     mounted() {
         if (this.$cookies.isKey('jwt')) {
@@ -107,8 +106,10 @@ export default {
         this.$root.$on('logged-in', () => {
             this.connectSSE()
         });
+
     }
 };
 </script>
 
 <style src="./assets/common.css"></style>
+<style src="./assets/centralize.css"></style>

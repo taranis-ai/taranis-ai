@@ -1,8 +1,9 @@
-from model.asset import Asset
-from managers.db_manager import db
-from model.publisher_preset import PublisherPreset
-from managers import publishers_manager
 import threading
+
+from managers.db_manager import db
+from managers import publishers_manager
+from model.asset import Asset
+from model.publisher_preset import PublisherPreset
 
 
 def remove_vulnerability(report_item_id):

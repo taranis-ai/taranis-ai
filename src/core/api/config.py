@@ -1,21 +1,17 @@
-from flask import request
+import io
+
+from flask import request, send_file
 from flask_restful import Resource
 
-from managers import auth_manager, sse_manager, remote_manager, presenters_manager, publishers_manager, bots_manager
-from managers import collectors_manager
-from managers.auth_manager import auth_required
-from model import acl_entry, remote, presenters_node, publisher_preset, publishers_node, bots_node, bot_preset
-from model import attribute
-from model import collectors_node
-from model import organization
-from model import osint_source
-from model import product_type
-from model import report_item_type
-from model import role
-from model import user
-from model import word_list
+from managers import auth_manager, sse_manager, remote_manager, presenters_manager, \
+    publishers_manager, bots_manager, external_auth_manager, log_manager, collectors_manager
+from managers.auth_manager import auth_required, get_user_from_jwt
+from model import acl_entry, remote, presenters_node, publisher_preset, publishers_node, \
+    bots_node, bot_preset, attribute, collectors_node, organization, osint_source, product_type, \
+    report_item_type, role, user, word_list
+from model.news_item import NewsItemAggregate
 from model.permission import Permission
-from taranisng.schema.role import PermissionSchema
+from schema.role import PermissionSchema
 
 
 class DictionariesReload(Resource):
@@ -236,6 +232,13 @@ class Users(Resource):
 
     @auth_required('CONFIG_USER_CREATE')
     def post(self):
+        try:
+            external_auth_manager.create_user(request.json)
+        except Exception as ex:
+            log_manager.debug_log(ex)
+            log_manager.store_data_error_activity(get_user_from_jwt(), "Could not create user in external auth system")
+            return "", 400
+
         user.User.add_new(request.json)
 
 
@@ -243,11 +246,31 @@ class User(Resource):
 
     @auth_required('CONFIG_USER_UPDATE')
     def put(self, user_id):
+        original_user = user.User.find_by_id(user_id)
+        original_username = original_user.username
+
+        try:
+            external_auth_manager.update_user(request.json, original_username)
+        except Exception as ex:
+            log_manager.debug_log(ex)
+            log_manager.store_data_error_activity(get_user_from_jwt(), "Could not update user in external auth system")
+            return "", 400
+
         user.User.update(user_id, request.json)
 
     @auth_required('CONFIG_USER_DELETE')
     def delete(self, user_id):
-        return user.User.delete(user_id)
+        original_user = user.User.find_by_id(user_id)
+        original_username = original_user.username
+
+        user.User.delete(user_id)
+
+        try:
+            external_auth_manager.delete_user(original_username)
+        except Exception as ex:
+            log_manager.debug_log(ex)
+            log_manager.store_data_error_activity(get_user_from_jwt(), "Could not delete user in external auth system")
+            return "", 400
 
 
 class ExternalUsers(Resource):
@@ -345,11 +368,36 @@ class OSINTSource(Resource):
 
     @auth_required('CONFIG_OSINT_SOURCE_UPDATE')
     def put(self, source_id):
-        collectors_manager.update_osint_source(source_id, request.json)
+        updated_osint_source, default_group = collectors_manager.update_osint_source(source_id, request.json)
+        if default_group is not None:
+            NewsItemAggregate.reassign_to_new_groups(updated_osint_source.id, default_group.id)
 
     @auth_required('CONFIG_OSINT_SOURCE_DELETE')
     def delete(self, source_id):
         collectors_manager.delete_osint_source(source_id)
+
+
+class OSINTSourcesExport(Resource):
+
+    @auth_required('CONFIG_OSINT_SOURCE_ACCESS')
+    def post(self):
+        data = collectors_manager.export_osint_sources(request.json)
+        return send_file(
+            io.BytesIO(data),
+            attachment_filename="osint_sources_export.json",
+            mimetype="application/json",
+            as_attachment=True
+        )
+
+
+class OSINTSourcesImport(Resource):
+
+    @auth_required('CONFIG_OSINT_SOURCE_CREATE')
+    def post(self):
+        file = request.files.get('file')
+        if file:
+            collectors_node_id = request.form['collectors_node_id']
+            collectors_manager.import_osint_sources(collectors_node_id, file)
 
 
 class OSINTSourceGroups(Resource):
@@ -370,11 +418,17 @@ class OSINTSourceGroup(Resource):
 
     @auth_required('CONFIG_OSINT_SOURCE_GROUP_UPDATE')
     def put(self, group_id):
-        osint_source.OSINTSourceGroup.update(group_id, request.json)
+        sources_in_default_group, message, code = osint_source.OSINTSourceGroup.update(group_id, request.json)
+        if sources_in_default_group is not None:
+            default_group = osint_source.OSINTSourceGroup.get_default()
+            for source in sources_in_default_group:
+                NewsItemAggregate.reassign_to_new_groups(source.id, default_group.id)
+
+        return message, code
 
     @auth_required('CONFIG_OSINT_SOURCE_GROUP_DELETE')
     def delete(self, group_id):
-        osint_source.OSINTSourceGroup.delete(group_id)
+        return osint_source.OSINTSourceGroup.delete(group_id)
 
 
 class RemoteAccesses(Resource):
@@ -599,6 +653,8 @@ def initialize(api):
     api.add_resource(CollectorsNode, "/api/v1/config/collectors-nodes/<string:node_id>")
     api.add_resource(OSINTSources, "/api/v1/config/osint-sources")
     api.add_resource(OSINTSource, "/api/v1/config/osint-sources/<string:source_id>")
+    api.add_resource(OSINTSourcesExport, "/api/v1/config/export-osint-sources")
+    api.add_resource(OSINTSourcesImport, "/api/v1/config/import-osint-sources")
     api.add_resource(OSINTSourceGroups, "/api/v1/config/osint-source-groups")
     api.add_resource(OSINTSourceGroup, "/api/v1/config/osint-source-groups/<string:group_id>")
 

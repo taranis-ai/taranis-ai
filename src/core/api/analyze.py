@@ -1,14 +1,10 @@
 import io
-
 from flask import request, jsonify, send_file
 from flask_restful import Resource
 
-from managers import asset_manager
-from managers import auth_manager, sse_manager, log_manager
+from managers import asset_manager, auth_manager, sse_manager, log_manager
 from managers.auth_manager import auth_required, ACLCheck
-from model import attribute
-from model import report_item
-from model import report_item_type
+from model import attribute, report_item, report_item_type
 from model.permission import Permission
 
 

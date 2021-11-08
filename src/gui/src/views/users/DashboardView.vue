@@ -270,25 +270,3 @@ export default {
     }
 }
 </script>
-
-<style scoped>
-.v-sheet--offset {
-    top: -8px;
-    position: relative;
-}
-
-.wordCloud {
-    height: 200px;
-}
-
-.v-card .v-btn.next {
-    position: absolute;
-    right: 16px;
-}
-
-.v-card .chips {
-    position: relative;
-    text-align: right;
-    right: 12px;
-}
-</style>

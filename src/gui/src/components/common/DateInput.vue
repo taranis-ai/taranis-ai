@@ -22,13 +22,6 @@
     </v-menu>
 </template>
 
-<style>
-    .v-toolbar .v-input {
-        padding-top: 12px;
-        margin-right: 16px;
-    }
-</style>
-
 <script>
     export default {
         name: "DateInput",

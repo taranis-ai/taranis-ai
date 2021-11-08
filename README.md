@@ -1,4 +1,4 @@
-# TaranisNG
+# Taranis NG
 
 Taranis NG is an OSINT gathering and analysis tool for CSIRT teams and
 organisations. It allows osint gathering, analysis and reporting; team-to-team
@@ -8,6 +8,10 @@ Taranis crawls various **data sources** such as web sites or tweets to gather
 unstructured **news items**. These are processed by analysts to create
 structured **report items**, which are used to create **products** such as PDF
 files, which are finally **published**.
+
+Taranis supports **team-to-team collaboration**, and includes a light weight
+**self service asset management** which automatically links to the advisories
+that mention vulnerabilities in the software.
 
 | Type      | Name                 | Description                           |
 | :-------- | :------------------- | :------------------------------------ |
@@ -56,14 +60,13 @@ Resources: [CHANGELOG](CHANGELOG.md), [LICENSE](LICENSE.md).
 
 ## Directory structure
 
-- src/ - TaranisNG source code:
+- src/ - Taranis NG source code:
   - [Core](src/core/) is the REST API, the central component of Taranis NG
   - [GUI](src/gui/) is the web user interface
   - [Collectors](src/collectors/) retrieve OSINT information from various sources (such as web, twitter, email, atom, rss, slack, and more) and create **news items**.
   - [Presenters](src/presenters/) convert **report items** to **products** such as PDF.
   - [Publishers](src/publishers/) upload the **products** to external places such as e-mail, a WordPress web site, etc.
   - [Bots](src/bots/) are used for automated data processing. Think of them as robotic analysts.
-  - [Common](src/common/) is a shared directory for core, publishers, collectors, presenters.
 - [ansible/](ansible/) - Playbooks, roles, files and inventory to support easy deployment through Ansible
 - [docker/](docker/) - Support files for Docker image creation and example docker-compose file
 
@@ -76,7 +79,7 @@ Resources: [CHANGELOG](CHANGELOG.md), [LICENSE](LICENSE.md).
 Currently, the best way to deploy is via Docker. For more information, see [docker/README.md](docker/README.md).
 
 When your Taranis NG instance is up and running, visit your instance by
-navigating to [http://127.0.0.1:8080/](http://127.0.0.1:8080/) using your web
+navigating to [https://localhost:4433](https://localhost:4433/) using your web
 browser. **The default credentials are `user` / `user` and `admin` / `admin`.**
 
 ### Connecting to collectors, presenters, and publishers
@@ -151,3 +154,37 @@ in xml.gz format.
 gzcat allitems.xml.gz | \
     docker exec -i taranis-ng_core_1 python manage.py dictionary --upload-cve
 ```
+
+### Creating the stop list for better tag cloud
+
+1. Visit Configuration -> Word Lists. Click `Add new`.
+2. Fill in the name and description, check `Use as stop word list`.
+3. Add a new category and name it.
+4. Either enter the words directly, or use the `Import from CSV` button. You can use the file [doc/static/en\_complete.csv](./doc/static/en_complete.csv) as a starting point. Stop lists for other languages can be found [here](https://www.maxqda.de/hilfe-mx20-dictio/stopp-listen).
+
+## About...
+
+This project was inspired by [Taranis3](https://github.com/NCSC-NL/taranis3),
+a great tool made by NCSC-NL. It aims to become a next generation of this
+category of tools. The project was made in collaboration with a wide
+group of European CSIRT teams who are developers and users of Taranis3,
+and would not be possible without their valuable input especially
+during the requirements collection phase. The architecture and design
+of new Taranis NG is a collective brain child of this community.
+
+This project has been co-funded by European Regional Development Fund as part of [Operational Programme Integrated Infrastructure (OPII)](https://www.opii.gov.sk/opii-en/titulka-en).
+
+Further development has been co-funded by “Connecting Europe Facility – Cybersecurity Digital Service Infrastructure Maintenance and Evolution of Core Service Platform Cooperation Mechanism for CSIRTs – MeliCERTes Facility” (SMART 2018/1024).
+
+Further development is being co-funded by European Commission through the Connecting Europe Facility action entitled "Joint Threat Analysis Network", action number 2020-EU-IA-0260.
+
+## Learn more...
+
+Before the new developer and user documentation becomes available, we invite you
+to have a look at the
+[Taranis NG - original requirements.pdf](https://github.com/SK-CERT/Taranis-NG/blob/main/doc/static/Taranis%20NG%20-%20original%20requirements.pdf)
+for detailed description of the features of the first release, its internal
+architecture, and general design goals of the project.
+
+Please note that the version available today may already contain new features
+and changes, which are not documented in the requirements PDF.

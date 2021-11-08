@@ -1,10 +1,6 @@
-from os import path, chdir
-import sys
-from flask_sse import sse
+#! /usr/bin/env python
 
-chdir(path.dirname(path.abspath(__file__)))
-sys.path.append(path.abspath('.'))
-sys.path.append(path.abspath('../taranis-ng-common'))
+from flask_sse import sse
 
 from app import create_app
 

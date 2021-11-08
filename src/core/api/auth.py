@@ -1,3 +1,4 @@
+import urllib
 from flask import redirect, make_response
 from flask_restful import Resource, reqparse, request, ResponseBase
 
@@ -40,12 +41,20 @@ class Logout(Resource):
 
     @no_auth
     def get(self):
-        response = auth_manager.logout()
+        token = None
+        if "jwt" in request.args:
+            if auth_manager.decode_user_from_jwt(request.args["jwt"]) is not None:
+                token = request.args["jwt"]
+
+        response = auth_manager.logout(token)
 
         if not isinstance(response, ResponseBase):
-            if "gotoUrl" in request.args and Config.OPENID_LOGOUT_URL:
-                url = Config.OPENID_LOGOUT_URL.replace('GOTO_URL', request.args["gotoUrl"])
-                return redirect(url)
+            if "gotoUrl" in request.args:
+                if Config.OPENID_LOGOUT_URL:
+                    url = Config.OPENID_LOGOUT_URL.replace('GOTO_URL', urllib.parse.quote(request.args["gotoUrl"]))
+                    return redirect(url)
+                else:
+                    return redirect(request.args["gotoUrl"])
 
         return response
 

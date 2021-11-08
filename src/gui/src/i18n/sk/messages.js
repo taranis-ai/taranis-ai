@@ -19,6 +19,10 @@ const messages_sk = {
                 },
                 parameter: {
                     required: "Parameter je povinný"
+                },
+                password_check: {
+                    required: "Heslo je povinné",
+                    confirmed: "Heslá sa nezhodujú"
                 }
             },
     },

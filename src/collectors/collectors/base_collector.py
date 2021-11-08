@@ -1,20 +1,16 @@
 import datetime
 import hashlib
 import uuid
-import threading
-import time
 import bleach
 import re
-
+import time
 from dateutil import tz
 
 from managers import time_manager
+from managers.log_manager import log_debug, log_info, log_debug_trace
 from remote.core_api import CoreApi
-from taranisng.schema import collector, osint_source, news_item
-from taranisng.schema.parameter import Parameter, ParameterType
-from taranisng.managers.log_manager import log_debug, log_info
-
-import traceback
+from schema import collector, osint_source, news_item
+from schema.parameter import Parameter, ParameterType
 
 class BaseCollector:
     type = "BASE_COLLECTOR"
@@ -24,7 +20,7 @@ class BaseCollector:
     parameters = [
         Parameter(0, "PROXY_SERVER", "Proxy server",
                   "Type SOCKS5 proxy server as username:password@ip:port or ip:port", ParameterType.STRING),
-        Parameter(0, "REFRESH_INTERVAL", "Refresh Interval", "How often is this collector queried for new data",
+        Parameter(0, "REFRESH_INTERVAL", "Refresh interval in minutes", "How often is this collector queried for new data",
                   ParameterType.NUMBER)
     ]
 
@@ -224,88 +220,75 @@ class BaseCollector:
         CoreApi.add_news_items(news_items_schema.dump(filtered_news_items))
 
     def refresh(self):
-        while True:
-            log_debug("thread is running")
-            # cancel all existing jobs
-            # TODO: cannot cancel jobs that are running and are scheduled for further in time than 60 seconds
-            # updating of the configuration needs to be done more gracefully
-            for source in self.osint_sources:
-                try:
-                    time_manager.cancel_job(source.scheduler_job)
-                except:
-                    pass
-            self.osint_sources = []
+        time.sleep(30)
+        log_info("Core API requested a refresh of osint sources for {}...".format(self.type))
 
-            log_debug("stopped all running scheduled jobs")
-
-            # get new node configuration
-            response, code = CoreApi.get_osint_sources(self.type)
-
-            log_debug("HTTP {}: Got the following reply: {}".format(code, response))
-
+        # cancel all existing jobs
+        # TODO: cannot cancel jobs that are running and are scheduled for further in time than 60 seconds
+        # updating of the configuration needs to be done more gracefully
+        for source in self.osint_sources:
             try:
-                # if configuration was successfully received
-                if code == 200 and response is not None:
-                    source_schema = osint_source.OSINTSourceSchemaBase(many=True)
-                    self.osint_sources = source_schema.load(response)
-
-                    log_debug("{} data loaded".format(len(self.osint_sources)))
-
-                    # start collection
-                    for source in self.osint_sources:
-                        log_debug("run collection")
-                        self.collect(source)
-                        log_debug("collection finished")
-                        interval = source.parameter_values["REFRESH_INTERVAL"]
-
-                        # do not schedule if no interval is set
-                        if interval == '':
-                            continue
-
-                        log_debug("scheduling.....")
-
-                        # run task every day at XY
-                        if interval[0].isdigit() and ':' in interval:
-                            source.scheduler_job = time_manager.schedule_job_every_day(interval, self.collect, source)
-                        # run task at a specific day (XY, ZZ:ZZ:ZZ)
-                        elif interval[0].isalpha():
-                            interval = interval.split(',')
-                            day = interval[0].strip()
-                            at = interval[1].strip()
-                            if day == 'Monday':
-                                source.scheduler_job = time_manager.schedule_job_on_monday(at, self.collect, source)
-                            elif day == 'Tuesday':
-                                source.scheduler_job = time_manager.schedule_job_on_tuesday(at, self.collect, source)
-                            elif day == 'Wednesday':
-                                source.scheduler_job = time_manager.schedule_job_on_wednesday(at, self.collect, source)
-                            elif day == 'Thursday':
-                                source.scheduler_job = time_manager.schedule_job_on_thursday(at, self.collect, source)
-                            elif day == 'Friday':
-                                source.scheduler_job = time_manager.schedule_job_on_friday(at, self.collect, source)
-                            elif day == 'Saturday':
-                                source.scheduler_job = time_manager.schedule_job_on_saturday(at, self.collect, source)
-                            elif day == 'Sunday':
-                                source.scheduler_job = time_manager.schedule_job_on_sunday(at, self.collect, source)
-                        # run task every XY minutes
-                        else:
-                            log_debug("scheduling for {}".format(int(interval)))
-                            source.scheduler_job = time_manager.schedule_job_minutes(int(interval), self.collect, source)
-                else:
-                    # TODO: send update to core with the error message
-                    pass
-            except Exception as ex:
-                log_debug(traceback.format_exc())
+                time_manager.cancel_job(source.scheduler_job)
+            except Exception:
                 pass
+        self.osint_sources = []
 
-            log_debug("going to sleep for 600s")
-            time.sleep(600)
-            log_debug("unsleep")
+        # get new node configuration
+        response, code = CoreApi.get_osint_sources(self.type)
 
+        log_debug("HTTP {}: Got the following reply: {}".format(code, response))
+
+        try:
+            # if configuration was successfully received
+            if code == 200 and response is not None:
+                source_schema = osint_source.OSINTSourceSchemaBase(many=True)
+                self.osint_sources = source_schema.load(response)
+
+                log_debug("{} data loaded".format(len(self.osint_sources)))
+
+                # start collection
+                for source in self.osint_sources:
+                    self.collect(source)
+                    interval = source.parameter_values["REFRESH_INTERVAL"]
+
+                    # do not schedule if no interval is set
+                    if interval == '':
+                        continue
+
+                    log_debug("scheduling.....")
+
+                    # run task every day at XY
+                    if interval[0].isdigit() and ':' in interval:
+                        source.scheduler_job = time_manager.schedule_job_every_day(interval, self.collect, source)
+                    # run task at a specific day (XY, ZZ:ZZ:ZZ)
+                    elif interval[0].isalpha():
+                        interval = interval.split(',')
+                        day = interval[0].strip()
+                        at = interval[1].strip()
+                        if day == 'Monday':
+                            source.scheduler_job = time_manager.schedule_job_on_monday(at, self.collect, source)
+                        elif day == 'Tuesday':
+                            source.scheduler_job = time_manager.schedule_job_on_tuesday(at, self.collect, source)
+                        elif day == 'Wednesday':
+                            source.scheduler_job = time_manager.schedule_job_on_wednesday(at, self.collect, source)
+                        elif day == 'Thursday':
+                            source.scheduler_job = time_manager.schedule_job_on_thursday(at, self.collect, source)
+                        elif day == 'Friday':
+                            source.scheduler_job = time_manager.schedule_job_on_friday(at, self.collect, source)
+                        elif day == 'Saturday':
+                            source.scheduler_job = time_manager.schedule_job_on_saturday(at, self.collect, source)
+                        elif day == 'Sunday':
+                            source.scheduler_job = time_manager.schedule_job_on_sunday(at, self.collect, source)
+                    # run task every XY minutes
+                    else:
+                        log_debug("scheduling for {}".format(int(interval)))
+                        source.scheduler_job = time_manager.schedule_job_minutes(int(interval), self.collect, source)
+            else:
+                # TODO: send update to core with the error message
+                pass
+        except Exception as ex:
+            log_debug_trace()
+            pass
 
     def initialize(self):
-        log_debug("im in init")
-        # check config and run collector jobs
-        self.config_checker_thread = threading.Thread(target=self.refresh)
-        self.config_checker_thread.daemon = True
-        self.config_checker_thread.start()
-        log_debug("i finished init")
+        self.refresh()

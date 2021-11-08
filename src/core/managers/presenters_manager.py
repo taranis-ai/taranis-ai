@@ -1,13 +1,13 @@
 from model.presenters_node import PresentersNode
 from model.presenter import Presenter
-from remote.presenters_api import PresentersApi
-from taranisng.schema import presenters_node
 from model.product import Product
-from taranisng.schema.presenter import PresenterInput, PresenterInputSchema
+from remote.presenters_api import PresentersApi
+from schema.presenters_node import PresentersNode as PresentersNodeSchema
+from schema.presenter import PresenterInput, PresenterInputSchema
 
 
 def add_presenters_node(data):
-    node = presenters_node.PresentersNode.create(data)
+    node = PresentersNodeSchema.create(data)
     presenters_info, status_code = PresentersApi(node.api_url, node.api_key).get_presenters_info()
     if status_code == 200:
         presenters = Presenter.create_all(presenters_info)
@@ -17,7 +17,7 @@ def add_presenters_node(data):
 
 
 def update_presenters_node(node_id, data):
-    node = presenters_node.PresentersNode.create(data)
+    node = PresentersNodeSchema.create(data)
     presenters_info, status_code = PresentersApi(node.api_url, node.api_key).get_presenters_info()
     if status_code == 200:
         presenters = Presenter.create_all(presenters_info)

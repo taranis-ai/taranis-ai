@@ -1,14 +1,14 @@
-{% for dict_item in data %}
-CONFIDENTIALITY: {% if dict_item['Confidentiality'][0] == 'UNRESTRICTED' %}Unrestricted{% endif %}{% if dict_item['Confidentiality'][0] == 'CLASSIFIED' %}Classified{% endif %}{% if dict_item['Confidentiality'][0] == 'CONFIDENTIAL' %}Confidential{% endif %}{% if dict_item['Confidentiality'][0] == 'SECRET' %}Secret{% endif %}{% if dict_item['Confidentiality'][0] == 'TOP SECRET' %}Top Secret{% endif %}
-TLP: {% if dict_item['TLP'][0] == 'WHITE' %}cTLP:white{% endif %}{% if dict_item['TLP'][0] == 'GREEN' %}TLP:green{% endif %}{% if dict_item['TLP'][0] == 'AMBER' %}TLP:amber{% endif %}{% if dict_item['TLP'][0] == 'RED' %}TLP:red{% endif %}
-CVSS score: {% if dict_item['CVSS'] %}{{ dict_item['CVSS'][0]|e }}{% endif %}
-DESCRIPTION: {% if dict_item['Description'] %}{{ dict_item['Description'][0]|e }}{% endif %}
-EXPOSURE DATE: {% if dict_item['Exposure Date'] %}{{ dict_item['Exposure Date'][0] }}{% endif %}
-UPDATE DATE: {% if dict_item['Update Date'] %}{{ dict_item['Update Date'][0] }}{% endif %}
-CVE: {% if dict_item['CVE'] %}{{ dict_item['CVE'][0]|e }}{% endif %}
-IMPACT: {% if dict_item['Impact'] %}{{ dict_item['Impact'][0]|e }}{% endif %}
-IOC: {% if dict_item['IOC'] %}{{ dict_item['IOC'][0]|e }}{% endif %}
-AFFECTED SYSTEMS: {% if dict_item['Affected systems'] %}{{ dict_item['Affected systems'][0]|e }}{% endif %}
-RECOMMENDATIONS: {% if dict_item['Recommendations'] %}{{ dict_item['Recommendations'][0]|e }}{% endif %}
-LINKS: {% if dict_item['Links']|length > 1 %}{{ dict_item['Links'][0]|e|length }}{% endif %}
+{% for report_item in data.report_items %}
+CONFIDENTIALITY: {{ report_item.attrs.confidentiality }}
+TLP: {{ report_item.attrs.tlp }}
+CVSS VECTOR: {% if report_item.attrs.cvss %}{{ report_item.attrs.cvss|e }}{% endif %}
+DESCRIPTION: {% if report_item.attrs.description %}{{ report_item.attrs.description|e }}{% endif %}
+EXPOSURE DATE: {% if report_item.attrs.exposure_date %}{{ report_item.attrs.exposure_date }}{% endif %}
+UPDATE DATE: {% if report_item.attrs.update_date %}{{ report_item.attrs.update_date }}{% endif %}
+CVE: {% if report_item.attrs.cve %}{{ report_item.attrs.cve[0]|e }}{% endif %}
+IMPACT: {% if report_item.attrs.impact %}{{ report_item.attrs.impact[0]|e }}{% endif %}
+IOC: {% if report_item.attrs.ioc %}{{ report_item.attrs.ioc[0]|e }}{% endif %}
+{% for item in report_item.attrs.affected_systems %}AFFECTED SYSTEMS: {{ item|e }}{% endfor %}
+RECOMMENDATIONS: {% if report_item.attrs.recommendations %}{{ report_item.attrs.recommendations|e }}{% endif %}
+LINKS: {% if report_item.attrs.links|length > 1 %}{{ report_item.attrs.links[0]|e|length }}{% endif %}
 {% endfor %}

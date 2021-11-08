@@ -30,14 +30,6 @@
     </v-toolbar>
 </template>
 
-<style>
-    .toolbar-buttons-right {
-        padding-top:4px;
-        position:absolute;
-        right:0;
-    }
-</style>
-
 <script>
     import DateInput from "../../components/common/DateInput";
 

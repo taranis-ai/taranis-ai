@@ -1,89 +1,68 @@
 <template>
-    <div class="card-item" data-type="report-item">
-        <v-row>
-            <v-col v-if="multiSelectActive" cols="1">
+    <v-container v-bind="UI.CARD.CONTAINER" class="card-item" data-type="report-item">
+        <v-row no-gutters>
+            <v-col v-if="multiSelectActive" :style="UI.STYLE.card_selector_zone">
                 <v-row justify="center" align="center">
                     <v-checkbox v-if="!preselected" v-model="selected" @change="selectionChanged"></v-checkbox>
                 </v-row>
             </v-col>
 
-            <v-col class="pa-0">
-                <v-hover v-slot:default="{hover}" close-delay="150">
-                    <v-card flat class="card mb-1" :elevation="hover ? 12 : 2"
+            <v-col :class="UI.CLASS.card_offset">
+                <v-hover v-slot="{hover}">
+                    <v-card v-bind="UI.CARD.HOVER" :elevation="hover ? 12 : 2"
                             @click.stop="cardItemToolbar"
-                            @mouseenter.native="toolbar=true"
-                            @mouseleave.native="toolbar=false"
-                            :color="selectedColor"
-                    >
-                        <v-layout row wrap class="pa-1 pl-0 status" v-bind:class="itemStatus()">
-                            <v-row justify="center">
-                                <v-flex>
-                                    <v-row>
+                            :color="selectedColor">
 
-                                        <!-- Icon -->
-                                        <v-col class="cs-card-col-0">
-                                            <div>
-                                                <v-icon center class="pa-1 pt-2">{{ card.tag }}</v-icon>
-                                            </div>
-                                        </v-col>
-
-                                        <!--Title-->
-                                        <v-col class="cs-card-col-1">
-                                            <div class="caption grey--text">{{ $t('card_item.title') }}</div>
-                                            <span>{{ card.title }}</span>
-                                        </v-col>
-
-                                        <!--Date/Time-->
-                                        <v-col class="cs-card-col-2">
-                                            <div class="caption grey--text">{{ $t('card_item.created') }}</div>
-                                            <span>{{ card.created }}</span>
-                                        </v-col>
-
-                                        <!-- Toolbar -->
-                                        <v-col class="cs-card-col-3">
-                                            <v-speed-dial v-if="!multiSelectActive && !publish_selector"
-                                                          v-model="toolbar"
-                                                          direction="left"
-                                                          transition='slide-x-reverse-transition'
-                                            >
-
-                                                <v-btn v-if="canDelete" fab x-small color="red"
+                        <!--CONTENT-->
+                        <v-layout v-bind="UI.CARD.LAYOUT" :class="'status ' + itemStatus">
+                            <v-row v-bind="UI.CARD.ROW.CONTENT">
+                                <v-col :style="UI.STYLE.card_tag">
+                                    <v-icon center>{{ card.tag }}</v-icon>
+                                </v-col>
+                                <v-col>
+                                    <div class="grey--text">{{$t('card_item.title')}}</div>
+                                    <span>{{card.title}}</span>
+                                </v-col>
+                                <v-col>
+                                    <div class="grey--text">{{ $t('card_item.created') }}</div>
+                                    <span>{{ card.created }}</span>
+                                </v-col>
+                                <v-col :style="UI.STYLE.card_hover_toolbar">
+                                    <!--HOVER TOOLBAR-->
+                                    <div v-if="hover">
+                                        <v-row v-if="!multiSelectActive && !publish_selector"
+                                               v-bind="UI.CARD.TOOLBAR.COMPACT" :style="UI.STYLE.card_toolbar">
+                                            <v-col v-bind="UI.CARD.COL.TOOLS">
+                                                <v-btn v-if="canDelete" icon class="red"
                                                        @click.stop="cardItemToolbar('delete')"
                                                        :title="$t('analyze.tooltip.delete_item')">
                                                     <v-icon color="white">mdi-trash-can-outline</v-icon>
                                                 </v-btn>
-
                                                 <v-btn v-if="canCreateProduct" icon
                                                        @click.stop="cardItemToolbar('new')"
                                                        :title="$t('analyze.tooltip.publish_item')">
                                                     <v-icon color="info">mdi-file-outline</v-icon>
                                                 </v-btn>
-                                            </v-speed-dial>
-
-                                            <v-speed-dial class="newdialshort" v-if="publish_selector"
-                                                          v-model="toolbar"
-                                                          direction="left"
-                                                          transition='slide-x-reverse-transition'
-                                                          bottom>
-                                                <v-item-group>
-                                                    <v-btn v-if="canModify" icon
-                                                           @click.stop="cardItemToolbar('remove')">
-                                                        <v-icon color="accent">mdi-minus-circle-outline</v-icon>
-                                                    </v-btn>
-                                                </v-item-group>
-
-                                            </v-speed-dial>
-                                        </v-col>
-
-                                    </v-row>
-                                </v-flex>
+                                            </v-col>
+                                        </v-row>
+                                        <v-row v-if="publish_selector"
+                                               v-bind="UI.CARD.TOOLBAR.COMPACT" :style="UI.STYLE.card_toolbar">
+                                            <v-col v-bind="UI.CARD.COL.TOOLS">
+                                                <v-btn v-if="canModify" icon
+                                                       @click.stop="cardItemToolbar('remove')">
+                                                    <v-icon color="accent">mdi-minus-circle-outline</v-icon>
+                                                </v-btn>
+                                            </v-col>
+                                        </v-row>
+                                    </div>
+                                </v-col>
                             </v-row>
                         </v-layout>
                     </v-card>
                 </v-hover>
             </v-col>
         </v-row>
-    </div>
+    </v-container>
 </template>
 
 <script>
@@ -126,6 +105,13 @@ export default {
                 return "orange lighten-4"
             } else {
                 return ""
+            }
+        },
+        itemStatus() {
+            if (this.card.completed) {
+                return "completed"
+            } else {
+                return "in_progress"
             }
         }
     },
@@ -171,13 +157,7 @@ export default {
                     break;
             }
         },
-        itemStatus: function () {
-            if (this.card.completed) {
-                return "completed"
-            } else {
-                return "in_progress"
-            }
-        },
+
         multiSelectOff() {
             this.selected = false
         }
@@ -190,34 +170,3 @@ export default {
     }
 }
 </script>
-
-<style>
-
-.card .cs-card-col-0 {
-    max-width: 5%;
-}
-
-.card .cs-card-col-1 {
-    max-width: 60%;
-}
-
-.card .cs-card-col-2 {
-    max-width: 30%;
-}
-
-.card .cs-card-col-3 {
-    max-width: 5%;
-}
-
-.card .status.in_progress {
-    border-left: 4px solid #ffd556;
-}
-
-.card .status.completed {
-    border-left: 4px solid #33DD40;
-}
-
-.card .status.alert {
-    border-left: 4px solid red;
-}
-</style>

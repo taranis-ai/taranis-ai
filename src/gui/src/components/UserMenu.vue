@@ -47,32 +47,6 @@
     </div>
 </template>
 
-<style>
-.user-menu {
-    display: inherit;
-}
-
-.user-menu-button {
-    margin-right: 0;
-    margin-left: 0;
-    /*height: 46px !important;*/
-}
-
-.user-menu .v-badge__badge {
-    height: 18px;
-    min-width: 18px;
-    top: 2px;
-    right: 2px;
-}
-
-.dark-mode-switch .v-list-item__icon {
-    margin-right: 8px !important;
-    margin-bottom: 8px;
-    margin-top: 0;
-    height: 54px;
-}
-</style>
-
 <script>
 import UserSettings from "./UserSettings";
 

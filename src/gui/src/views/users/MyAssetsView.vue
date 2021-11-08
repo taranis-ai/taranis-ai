@@ -2,8 +2,13 @@
     <ViewLayout>
         <template v-slot:panel>
             <ToolbarFilterAssets title='main_menu.my_assets' total_count_title="asset.total_count">
-                <template v-slot:addbutton>
+                <template v-if="canAddAssets" v-slot:addbutton>
                     <NewAsset/>
+                </template>
+                <template v-else v-slot:addbutton>
+                    <span class="caption orange white--text pa-1 px-3 rounded">
+                        {{$t('asset.add_group_info')}}
+                    </span>
                 </template>
             </ToolbarFilterAssets>
         </template>
@@ -14,12 +19,6 @@
     </ViewLayout>
 
 </template>
-
-<style>
-    .np {
-        display: none;
-    }
-</style>
 
 <script>
     import ViewLayout from "../../components/layouts/ViewLayout";
@@ -37,6 +36,11 @@
             ContentDataAssets,
             NewAsset,
             VulnerabilityDetail
+        },
+        computed: {
+            canAddAssets() {
+                return this.$store.getters.getAssetGroups.items.length > 0;
+            }
         },
         mounted() {
             this.$root.$on('delete-asset', (item) => {

@@ -1,15 +1,11 @@
-from os import path, chdir
-import sys
+#! /usr/bin/env python
+
 import socket
 import time
-
-chdir(path.dirname(path.abspath(__file__)))
-sys.path.append(path.abspath('.'))
-sys.path.append(path.abspath('../taranis-ng-common'))
-
 from flask import Flask
 from flask_script import Manager
 from flask_migrate import Migrate, MigrateCommand
+
 from managers import db_manager
 from model import *
 

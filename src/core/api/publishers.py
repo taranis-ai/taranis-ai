@@ -1,9 +1,9 @@
 from flask_restful import Resource, reqparse
 from flask import request
+
 from managers import publishers_manager
 from managers.auth_manager import auth_required, api_key_required
-from model import publishers_node
-from model import publisher_preset
+from model import publishers_node, publisher_preset
 from model.permission import Permission
 
 

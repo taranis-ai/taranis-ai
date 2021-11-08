@@ -1,19 +1,19 @@
 {
-{% for dict_item in data %}
-    "threat_level_id": {% if dict_item['Event threat level'][0] == 'High' %}"1"{% endif %}{% if dict_item['Event threat level'][0] == 'Medium' %}"2"{% endif %}{% if dict_item['Event threat level'][0] == 'Low' %}"3"{% endif %}{% if dict_item['Event threat level'][0] == 'Undefined' %}"4"{% endif %},
-    "info": {% if dict_item['Event info'] %}"{{ dict_item['Event info'][0] }}"{% endif %},
+{% for report_item in data.report_items %}
+    "threat_level_id": {% if report_item.attrs.event_threat_level == 'High' %}"1"{% endif %}{% if report_item.attrs.event_threat_level == 'Medium' %}"2"{% endif %}{% if report_item.attrs.event_threat_level == 'Low' %}"3"{% endif %}{% if report_item.attrs.event_threat_level == 'Undefined' %}"4"{% endif %},
+    "info": {% if report_item.attrs.event_info %}"{{ report_item.attrs.event_info }}"{% endif %},
     "published": false,
-    "distribution": {% if dict_item['Event distribution'][0] == 'Your Organisation only' %}"0"{% endif %}{% if dict_item['Event distribution'][0] == 'This Community Only' %}"1"{% endif %}{% if dict_item['Event distribution'][0] == 'Conected Communities' %}"2"{% endif %}{% if dict_item['Event distribution'][0] == 'All Communities' %}"3"{% endif %}{% if dict_item['Event distribution'][0] == 'Sharing Group' %}"4"{% endif %},
-    "analysis": {% if dict_item['Event analysis'][0] == 'Initial' %}"0"{% endif %}{% if dict_item['Event analysis'][0] == 'Ongoing' %}"1"{% endif %}{% if dict_item['Event analysis'][0] == 'Complete' %}"2"{% endif %},
+    "distribution": {% if report_item.attrs.event_distribution == 'Your Organisation only' %}"0"{% endif %}{% if report_item.attrs.event_distribution == 'This Community Only' %}"1"{% endif %}{% if report_item.attrs.event_distribution == 'Conected Communities' %}"2"{% endif %}{% if report_item.attrs.event_distribution == 'All Communities' %}"3"{% endif %}{% if report_item.attrs.event_distribution == 'Sharing Group' %}"4"{% endif %},
+    "analysis": {% if report_item.attrs.event_analysis == 'Initial' %}"0"{% endif %}{% if report_item.attrs.event_analysis == 'Ongoing' %}"1"{% endif %}{% if report_item.attrs.event_analysis == 'Complete' %}"2"{% endif %},
     "Attribute": [
         {
-        "type": {% if dict_item['Attribute type'] %}"{{ dict_item['Attribute type'][0] }}"{% endif %},
-        "category": {% if dict_item['Attribute category'] %}"{{ dict_item['Attribute category'][0] }}"{% endif %},
-        "to_ids": {% if dict_item['Attribute additional information'][0] == 'For Intrusion Detection System' %}true{% else %}false{% endif %},
-        "disable_correlation": {% if dict_item['Attribute additional information'][0] == 'Disable Correlation' %}true{% else %}false{% endif %},
-        "distribution": {% if dict_item['Attribute distribution'][0] == 'Your Organisation Only' %}"0"{% endif %}{% if dict_item['Attribute distribution'][0] == 'This Community Only' %}"1"{% endif %}{% if dict_item['Attribute distribution'][0] == 'Connected Communities' %}"2"{% endif %}{% if dict_item['Attribute distribution'][0] == 'All Communities' %}"3"{% endif %}{% if dict_item['Attribute distribution'][0] == 'Sharing Group' %}"4"{% endif %}{% if dict_item['Attribute distribution'][0] == 'Inherit Event' %}"5"{% endif %},
-        "comment": {% if dict_item['Attribute contextual comment'] %}"{{ dict_item['Attribute contextual comment'][0] }}"{% endif %},
-        "value": {% if dict_item['Attribute value'] %}"{{ dict_item['Attribute value'][0] }}"{% endif %}
+        "type": {% if report_item.attrs.attribute_type %}"{{ report_item.attrs.attribute_type }}"{% endif %},
+        "category": {% if report_item.attrs.attribute_category %}"{{ report_item.attrs.attribute_category }}"{% endif %},
+        "to_ids": {% if report_item.attrs.attribute_additional_information == 'For Intrusion Detection System' %}true{% else %}false{% endif %},
+        "disable_correlation": {% if report_item.attrs.attribute_additional_information == 'Disable Correlation' %}true{% else %}false{% endif %},
+        "distribution": {% if report_item.attrs.attribute_distribution == 'Your Organisation Only' %}"0"{% endif %}{% if report_item.attrs.attribute_distribution == 'This Community Only' %}"1"{% endif %}{% if report_item.attrs.attribute_distribution == 'Connected Communities' %}"2"{% endif %}{% if report_item.attrs.attribute_distribution == 'All Communities' %}"3"{% endif %}{% if report_item.attrs.attribute_distribution == 'Sharing Group' %}"4"{% endif %}{% if report_item.attrs.attribute_distribution == 'Inherit Event' %}"5"{% endif %},
+        "comment": {% if report_item.attrs.attribute_contextual_comment %}"{{ report_item.attrs.attribute_contextual_comment }}"{% endif %},
+        "value": {% if report_item.attrs.attribute_value %}"{{ report_item.attrs.attribute_value }}"{% endif %}
         }
     ]
 {% endfor %}

@@ -29,7 +29,32 @@ const ApiService = {
 
     delete(resource) {
         return axios.delete(resource)
-    }
+    },
+
+    upload(resource, form_data) {
+        return axios.post(resource, form_data, {
+            headers: {
+                "Content-Type": "multipart/form-data"
+            }
+        });
+    },
+
+    download(resource, data, file_name) {
+        axios({
+            url: resource,
+            method: 'POST',
+            responseType: 'blob',
+            data: data
+        }).then((response) => {
+            let fileURL = window.URL.createObjectURL(new Blob([response.data]))
+            let fileLink = document.createElement('a')
+            fileLink.href = fileURL
+            fileLink.setAttribute('download', file_name)
+            document.body.appendChild(fileLink)
+            fileLink.click()
+            document.body.removeChild(fileLink)
+        });
+    },
 };
 
 export default ApiService

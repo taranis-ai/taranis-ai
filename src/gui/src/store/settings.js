@@ -11,7 +11,7 @@ const state = {
         {key_code: 73, key: 'i', alias: 'important_item', icon: 'mdi-star'},
         {key_code: 76, key: 'l', alias: 'like_item', icon: 'mdi-thumb-up'},
         {key_code: 68, key: 'd', alias: 'unlike_item', icon: 'mdi-thumb-down'},
-        {key_code: 8, key: 'Backspace', alias: 'delete_item', icon: 'mdi-delete'},
+        {key_code: 46, key: 'Delete', alias: 'delete_item', icon: 'mdi-delete'},
         {key_code: 83, key: 's', alias: 'selection', icon: 'mdi-checkbox-multiple-marked-outline'},
         {key_code: 71, key: 'g', alias: 'group', icon: 'mdi-group'},
         {key_code: 85, key: 'u', alias: 'ungroup', icon: 'mdi-ungroup'},

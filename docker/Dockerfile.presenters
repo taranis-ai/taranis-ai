@@ -73,8 +73,7 @@ RUN \
     update-ms-fonts && \
     rm -rf /var/cache/*
 
-COPY ./src/presenters/requirements.txt /app/taranis-ng-presenters/requirements.txt
-COPY ./src/common/requirements.txt /app/taranis-ng-common/requirements.txt
+COPY ./src/presenters/requirements.txt /app/requirements.txt
 
 # install dependencies
 RUN \
@@ -85,8 +84,7 @@ RUN \
     musl-dev \
     python3-dev \
     libffi-dev && \
-    pip install --no-cache-dir -r /app/taranis-ng-presenters/requirements.txt && \
-    pip install --no-cache-dir -r /app/taranis-ng-common/requirements.txt && \
+    pip install --no-cache-dir -r /app/requirements.txt && \
     apk --purge del .build-deps
 
 COPY ./docker/start.sh /start.sh
@@ -100,19 +98,18 @@ RUN chmod +x /entrypoint.sh
 
 COPY ./docker/gunicorn_conf.py /gunicorn_conf.py
 
-COPY ./src/common/. /app/taranis-ng-common
-COPY ./src/presenters/. /app/taranis-ng-presenters
+COPY ./src/presenters/. /app/
 
 EXPOSE 80
 
 # setup environment variables
 ENV PYTHONPATH=/app
-ENV MODULE_NAME taranis-ng-presenters.run
+ENV MODULE_NAME run
 ENV VARIABLE_NAME app
 ENV GUNICORN_CMD_ARGS --timeout 120 --preload
 ENV WORKERS_PER_CORE 8
 
-VOLUME ["/app/taranis-ng-presenters/templates"]
+VOLUME ["/app/templates"]
 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["/start.sh"]

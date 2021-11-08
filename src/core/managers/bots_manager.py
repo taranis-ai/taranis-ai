@@ -2,11 +2,11 @@ from model.bots_node import BotsNode
 from model.bot import Bot
 from model.bot_preset import BotPreset
 from remote.bots_api import BotsApi
-from taranisng.schema import bots_node
+from schema.bots_node import BotsNode as BotsNodeSchema
 
 
 def add_bots_node(data):
-    node = bots_node.BotsNode.create(data)
+    node = BotsNodeSchema.create(data)
     bots_info, status_code = BotsApi(node.api_url, node.api_key).get_bots_info()
     if status_code == 200:
         bots = Bot.create_all(bots_info)
@@ -16,7 +16,7 @@ def add_bots_node(data):
 
 
 def update_bots_node(node_id, data):
-    node = bots_node.BotsNode.create(data)
+    node = BotsNodeSchema.create(data)
     bots_info, status_code = BotsApi(node.api_url, node.api_key).get_bots_info()
     if status_code == 200:
         bots = Bot.create_all(bots_info)

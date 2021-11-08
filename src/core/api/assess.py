@@ -1,13 +1,10 @@
 import io
-
 from flask import request, send_file
 from flask_restful import Resource
 
 from managers import auth_manager, sse_manager, log_manager
-from managers.auth_manager import ACLCheck
-from managers.auth_manager import auth_required
-from model import news_item
-from model import osint_source
+from managers.auth_manager import ACLCheck, auth_required
+from model import news_item, osint_source
 from model.permission import Permission
 
 

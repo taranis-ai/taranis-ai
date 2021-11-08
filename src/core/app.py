@@ -1,5 +1,6 @@
 from flask import Flask
 from flask_cors import CORS
+
 from managers import *
 from model import *  # just until all new model classes are used regularly
 

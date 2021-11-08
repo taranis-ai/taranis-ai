@@ -1,5 +1,6 @@
 from flask_restful import Resource
 from flask import request
+
 from managers import presenters_manager
 from managers.auth_manager import auth_required
 from model import presenters_node

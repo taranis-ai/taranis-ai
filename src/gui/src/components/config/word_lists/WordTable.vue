@@ -132,32 +132,6 @@
     </v-data-table>
 </template>
 
-<style>
-    .vue-csv-uploader button.load {
-        margin: 10px;
-        margin-left: 0;
-        padding: 4px 10px 4px 10px;
-        background-color: #4092dd;
-        border-radius: 4px;
-        color: white;
-    }
-
-    .vue-csv-uploader-part-two table {
-        width: 400px;
-    }
-
-    .vue-csv-uploader-part-two table thead {
-        text-align: left;
-    }
-
-    .vue-csv-uploader-part-two table select {
-        -webkit-appearance: auto;
-        -moz-appearance: auto;
-        border: 1px solid gray;
-        border-radius: 4px;
-    }
-</style>
-
 <script>
     import VueCsvImport from '@/components/common/ImportCSV';
 

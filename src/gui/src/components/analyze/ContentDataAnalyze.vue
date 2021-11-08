@@ -11,31 +11,6 @@
 
 </template>
 
-<style>
-    html {
-        scroll-behavior: smooth;
-    }
-
-    #selector_analyze .card-assess {
-        transition: background-color 1s;
-    }
-
-    #selector_analyze .focus.in_progress {
-        box-shadow: inset 0 0 0 3px #ffd556;
-        background-color: rgba(255, 213, 86, 0.3);
-    }
-
-    #selector_analyze .focus.read {
-        box-shadow: inset 0 0 0 3px #33DD40;
-        background-color: rgba(0, 128, 0, 0.3);
-    }
-
-    #selector_analyze .focus.important {
-        box-shadow: inset 0 0 0 3px red;
-        background-color: rgba(255, 0, 0, 0.3);
-    }
-</style>
-
 <script>
     import CardAnalyze from "./CardAnalyze";
 

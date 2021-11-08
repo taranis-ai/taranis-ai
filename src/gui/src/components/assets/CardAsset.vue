@@ -1,53 +1,51 @@
 <template>
-    <v-hover v-slot:default="{hover}" close-delay="150">
-        <v-card flat class="card mb-1" :elevation="hover ? 12 : 2"
-                @click.stop="cardItemToolbar"
-                @mouseenter.native="toolbar=true"
-                @mouseleave.native="toolbar=false"
-        >
-            <v-layout row wrap class="pa-3 pl-0 status" v-bind:class="itemStatus">
-                <v-row justify="center" style="width: 100%;">
-                    <v-flex md1 class="obj center">
-                        <div class="caption grey--text"><br/></div>
-                        <div>
-                            <v-icon center>{{card.tag}}</v-icon>
-                        </div>
-                    </v-flex>
-                    <v-flex md5>
-                        <div class="caption grey--text">{{$t('card_item.title')}}</div>
-                        <span>{{card.title}}</span>
-                    </v-flex>
-                    <v-flex md5>
-                        <div class="caption grey--text ">{{$t('card_item.description')}}</div>
-                        <span class="font-weight-light caption">{{card.subtitle}}</span>
-                    </v-flex>
-                    <v-flex md1 class="obj center">
-                        <v-speed-dial v-if="deleteAllowed()"
-                                      v-model="toolbar"
-                                      direction="left"
-                                      transition='slide-x-reverse-transition'
-                        >
+    <v-container v-bind="UI.CARD.CONTAINER">
+        <v-row>
+            <v-col :class="UI.CLASS.card_offset">
+                <v-hover v-slot="{hover}">
+                    <v-card v-bind="UI.CARD.HOVER" :elevation="hover ? 12 : 2" @click.stop="cardItemToolbar">
+                        <!--CONTENT-->
+                        <v-layout v-bind="UI.CARD.LAYOUT" :class="'status ' + itemStatus">
+                            <v-row v-bind="UI.CARD.ROW.CONTENT">
+                                <v-col :style="UI.STYLE.card_tag">
+                                    <v-icon center>{{ card.tag }}</v-icon>
+                                </v-col>
+                                <v-col>
+                                    <div class="grey--text">{{ $t('card_item.title') }}</div>
+                                    <span>{{ card.title }}</span>
+                                </v-col>
+                                <v-col>
+                                    <div class="grey--text ">{{ $t('card_item.description') }}</div>
+                                    <span>{{ card.subtitle }}</span>
+                                </v-col>
 
-                            <v-btn fab x-small color="red" @click.stop="cardItemToolbar('delete')">
-                                <v-icon color="white">mdi-trash-can-outline</v-icon>
-                            </v-btn>
-                        </v-speed-dial>
-                    </v-flex>
-                </v-row>
-                <v-row style="width: 100%;">
-                    <span class="pl-4 pt-1">
-                            <v-btn v-if="card.vulnerabilities_count > 0" depressed x-small
-                                   color="red lighten-4">
-                                {{$t('asset.vulnerabilities_count') + card.vulnerabilities_count}}
-                            </v-btn>
-                            <v-btn v-if="card.vulnerabilities_count === 0" depressed x-small>
-                                {{$t('asset.no_vulnerabilities') }}
-                            </v-btn>
-                    </span>
-                </v-row>
-            </v-layout>
-        </v-card>
-    </v-hover>
+                                <!--HOVER TOOLBAR-->
+                                <v-col :style="UI.STYLE.card_hover_toolbar">
+                                    <v-row v-if="deleteAllowed() && hover" v-bind="UI.CARD.TOOLBAR.COMPACT" :style="UI.STYLE.card_toolbar">
+                                        <v-col v-bind="UI.CARD.COL.TOOLS">
+                                            <v-btn icon class="red" @click.stop="cardItemToolbar('delete')">
+                                                <v-icon color="white">{{ UI.ICON.DELETE }}</v-icon>
+                                            </v-btn>
+                                        </v-col>
+                                    </v-row>
+                                </v-col>
+
+                                <!--FOOTER-->
+                                <v-col cols="12" class="py-1 grey lighten-4">
+                                    <v-btn v-if="card.vulnerabilities_count > 0" depressed x-small class="red white--text mr-1">
+                                        {{ $t('asset.vulnerabilities_count') + card.vulnerabilities_count }}
+                                    </v-btn>
+                                    <v-btn v-if="card.vulnerabilities_count === 0" depressed x-small class="green white--text mr-1">
+                                        {{ $t('asset.no_vulnerabilities') }}
+                                    </v-btn>
+                                </v-col>
+                            </v-row>
+                        </v-layout>
+                    </v-card>
+                </v-hover>
+            </v-col>
+        </v-row>
+    </v-container>
 </template>
 
 <script>
@@ -67,7 +65,7 @@
         }),
         mixins: [AuthMixin],
         computed: {
-            itemStatus: function () {
+            itemStatus() {
                 if (this.card.vulnerabilities_count > 0) {
                     return "alert"
                 } else {
@@ -103,26 +101,3 @@
         }
     }
 </script>
-
-<style>
-    .card .obj.center {
-        text-align: center;
-    }
-
-    .card.elevation-12 {
-        z-index: 1;
-        background-color: rgba(100, 137, 214, 0.1);
-    }
-
-    .card .status.in_progress {
-        border-left: 4px solid #ffd556;
-    }
-
-    .card .status.completed {
-        border-left: 4px solid #33DD40;
-    }
-
-    .card .status.alert {
-        border-left: 4px solid red;
-    }
-</style>

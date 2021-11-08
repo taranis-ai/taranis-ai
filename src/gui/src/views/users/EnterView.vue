@@ -1,150 +1,65 @@
 <template>
-    <div>
-        <ViewLayout>
-            <template v-slot:panel>
+    <ViewLayout>
+        <template v-slot:panel>
+            <v-container v-bind="UI.TOOLBAR.CONTAINER" :style="UI.STYLE.shadow + UI.STYLE.enter_special">
+                <v-row v-bind="UI.TOOLBAR.ROW">
+                    <v-col v-bind="UI.TOOLBAR.COL.LEFT">
+                        <div :class="UI.CLASS.toolbar_filter_title">{{$t('nav_menu.enter')}}</div>
+                    </v-col>
+                </v-row>
+            </v-container>
+        </template>
 
-                <v-container fluid class="toolbar-filter ma-0 pa-0 pb-2 cx-toolbar-filter primary">
+        <template v-slot:content>
+            <v-form @submit.prevent="add" id="form" ref="form" style="width: 100%; padding: 8px">
+                <v-card>
+                    <v-card-text>
+                        <v-text-field
+                                :label="$t('enter.title')"
+                                name="title"
+                                type="text"
+                                v-model="news_item.title"
+                                v-validate="'required'"
+                                data-vv-name="title"
+                                :error-messages="errors.collect('title')"
+                        ></v-text-field>
 
-                    <v-row class="row1">
-                        <span class="display-1 primary--text ma-1 pl-4 view-heading">{{$t('nav_menu.enter')}}</span>
-                    </v-row>
-                </v-container>
+                        <v-textarea
+                                :label="$t('enter.review')"
+                                name="review"
+                                v-model="news_item.review"
+                        ></v-textarea>
 
-            </template>
-            <template v-slot:content>
+                        <v-text-field
+                                :label="$t('enter.source')"
+                                name="source"
+                                type="text"
+                                v-model="news_item.source"
+                        ></v-text-field>
 
-                <v-form @submit.prevent="add" id="form" ref="form" style="width: 100%; padding: 8px">
-                    <v-card>
-                        <v-card-text>
-                            <v-text-field
-                                    :label="$t('enter.title')"
-                                    name="title"
-                                    type="text"
-                                    v-model="news_item.title"
-                                    v-validate="'required'"
-                                    data-vv-name="title"
-                                    :error-messages="errors.collect('title')"
-                            ></v-text-field>
+                        <v-text-field
+                                :label="$t('enter.link')"
+                                name="link"
+                                type="text"
+                                v-model="news_item.link"
+                        ></v-text-field>
 
-                            <v-textarea
-                                    :label="$t('enter.review')"
-                                    name="review"
-                                    v-model="news_item.review"
-                            ></v-textarea>
+                        <ckeditor :editor="editor" v-model="editorData" :config="editorConfig"></ckeditor>
 
-                            <v-text-field
-                                    :label="$t('enter.source')"
-                                    name="source"
-                                    type="text"
-                                    v-model="news_item.source"
-                            ></v-text-field>
+                    </v-card-text>
+                </v-card>
+                <v-spacer class="pt-2"></v-spacer>
+                <v-btn color="primary" @click="add()">{{$t('enter.create')}}</v-btn>
+            </v-form>
 
-                            <v-text-field
-                                    :label="$t('enter.link')"
-                                    name="link"
-                                    type="text"
-                                    v-model="news_item.link"
-                            ></v-text-field>
-
-                            <ckeditor :editor="editor" v-model="editorData" :config="editorConfig"></ckeditor>
-
-                        </v-card-text>
-                    </v-card>
-                    <v-spacer class="pt-2"></v-spacer>
-                    <v-btn color="primary" @click="add()">{{$t('enter.create')}}</v-btn>
-                </v-form>
-
-                <v-alert v-if="show_validation_error" dense type="error" text>
-                    {{$t('enter.validation_error')}}
-                </v-alert>
-                <v-alert v-if="show_error" dense type="error" text>{{$t('enter.error')}}
-                </v-alert>
-
-            </template>
-
-        </ViewLayout>
-    </div>
-
+            <v-alert v-if="show_validation_error" dense type="error" text>
+                {{$t('enter.validation_error')}}
+            </v-alert>
+            <v-alert v-if="show_error" dense type="error" text>{{$t('enter.error')}}
+            </v-alert>
+        </template>
+    </ViewLayout>
 </template>
-
-<style>
-    .nri {
-        display: none;
-    }
-
-    .toolbar-filter {
-        box-shadow: 0px 1px 5px rgba(0, 0, 0, 0.4);
-    }
-
-    #app:not(.theme--dark) .toolbar-filter {
-        box-shadow: 0px 1px 5px rgba(0, 0, 0, 0.15);
-    }
-
-    .toolbar-filter .row1 .view-heading {
-        text-transform: uppercase;
-        font-weight: 300;
-    }
-
-    .toolbar-filter .custom-filter {
-        height: 32px;
-    }
-
-    .toolbar-filter .custom-filter .v-input__control {
-        min-height: 32px;
-    }
-
-    .toolbar-filter .custom-filter .v-input__control .v-input__slot {
-        padding: 0;
-        padding-left: 0.1em;
-    }
-
-    .toolbar-filter .custom-filter .v-select__selections {
-        min-height: 32px;
-    }
-
-    .toolbar-filter .custom-filter .filter-tag {
-        height: 22px;
-    }
-
-    .toolbar-filter .custom-filter [placeholder]::placeholder {
-        font-size: 0.8em;
-        padding-left: 1em;
-    }
-
-    .toolbar-filter .admin .v-chip.v-chip--active,
-    .toolbar-filter .user .v-chip.v-chip--active {
-        opacity: 1;
-    }
-
-    .toolbar-filter .admin .v-chip:not(.v-chip--active),
-    .toolbar-filter .user .v-chip:not(.v-chip--active) {
-        opacity: 0.5;
-    }
-
-    .toolbar-filter .v-chip:not(.v-chip--active):hover {
-        opacity: 1;
-    }
-
-    .search {
-        padding-top: 0;
-        padding-left: 8px;
-        padding-right: 8px;
-        margin-top: 8px;
-        height: 32px;
-        background-color: #f8f8f8;
-        border-radius: 4px;
-    }
-
-    .v-chip-group .v-slide-group__content {
-        padding-top: 0 !important;
-    }
-
-    .v-chip-group .v-chip.filter {
-        height: 20px;
-        margin-top: 5px;
-    }
-
-</style>
 
 <script>
     import ViewLayout from "../../components/layouts/ViewLayout";

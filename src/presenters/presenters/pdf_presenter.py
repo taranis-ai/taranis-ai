@@ -2,12 +2,11 @@ import datetime
 import os
 import tempfile
 from base64 import b64encode
-
 import jinja2
 import pdfkit
 
-from presenters.base_presenter import BasePresenter
-from taranisng.schema.parameter import Parameter, ParameterType
+from .base_presenter import BasePresenter
+from schema.parameter import Parameter, ParameterType
 
 
 class PDFPresenter(BasePresenter):
@@ -38,12 +37,12 @@ class PDFPresenter(BasePresenter):
             pdf_footer_template = presenter_input.parameter_values_map['FOOTER_TEMPLATE_PATH']
             head, tail = os.path.split(presenter_input.parameter_values_map['BODY_TEMPLATE_PATH'])
 
-            data = BasePresenter.generate_report_data_map(presenter_input)
+            input_data = BasePresenter.generate_input_data(presenter_input)
 
             env = jinja2.Environment(loader=jinja2.FileSystemLoader(head))
 
             body = env.get_template(tail)
-            output_text = body.render(data=data)
+            output_text = body.render(data=input_data)
             with open(output_body_html, 'w') as output_file:
                 output_file.write(output_text)
 

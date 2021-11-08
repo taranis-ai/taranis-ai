@@ -1,12 +1,10 @@
-from managers import auth_manager
 from flask import request, abort
-from managers import bots_manager
 from flask_sse import sse
 from datetime import datetime
-from managers import time_manager
-from managers import remote_manager
-from model.remote import RemoteAccess
 import os
+
+from managers import auth_manager, bots_manager, time_manager, remote_manager
+from model.remote import RemoteAccess
 
 
 def use_sse():

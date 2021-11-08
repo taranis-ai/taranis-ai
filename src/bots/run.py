@@ -1,10 +1,6 @@
-from os import path, chdir
-import sys
-import os
+#! /usr/bin/env python
 
-chdir(path.dirname(path.abspath(__file__)))
-sys.path.append(path.abspath('.'))
-sys.path.append(path.abspath('../taranis-ng-common'))
+import os
 
 from app import create_app
 

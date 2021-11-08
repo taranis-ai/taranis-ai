@@ -115,29 +115,3 @@
         }
     }
 </script>
-
-<style scoped>
-    .taranis-chat {
-        position: fixed;
-        top: 72px;
-        right: 32px;
-        width: 350px;
-    }
-
-    .chatEnv {
-        position: relative;
-
-        z-index: 20;
-    }
-
-    .chatButton {
-        /*position: relative;
-        left: 0.5em;*/
-    }
-
-    .taranis-chat .quick-chat-container {
-        height: 512px;
-        border: 1px solid #faa;
-        box-shadow: 0px 0px 20px 6px rgba(0, 0, 0, 0.2);
-    }
-</style>

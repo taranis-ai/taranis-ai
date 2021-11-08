@@ -1,3 +1,7 @@
+import sys
+from sqlalchemy.exc import IntegrityError
+
+from managers import db_manager
 from model.role import Role
 from model.permission import Permission
 from model.user import User
@@ -8,14 +12,10 @@ from model.collector import Collector
 from model.parameter import Parameter
 from model.parameter_value import ParameterValue
 from model.attribute import Attribute, AttributeEnum
-from taranisng.schema.attribute import AttributeType
-from taranisng.schema.parameter import ParameterType
 from model.report_item_type import ReportItemType, AttributeGroup, AttributeGroupItem
 from model.osint_source import OSINTSource, OSINTSourceGroup
-from managers import db_manager
-import sys
-
-from sqlalchemy.exc import IntegrityError
+from schema.attribute import AttributeType
+from schema.parameter import ParameterType
 
 
 def main(db):
@@ -182,7 +182,7 @@ def main(db):
 #     collector_rss = Collector("RSS Collector", "Collector for gathering data from RSS feeds", "RSS_COLLECTOR",
 #                             [param1, param2, param3])
 
-#     collectors_node = CollectorsNode(None, "Node A", "First collectors node", "http://127.0.0.1:5001", "12345", [])
+#     collectors_node = CollectorsNode("Node A", "First collectors node", "http://127.0.0.1:5001", "12345")
 #     collectors_node.collectors.append(collector_rss)
 #     db.session.add(collectors_node)
 

@@ -1,5 +1,6 @@
-from managers.db_manager import db
 from datetime import datetime
+
+from managers.db_manager import db
 
 
 class AuditRecord(db.Model):

@@ -3,9 +3,8 @@
         <v-container style="background-color: #c7c7c7; text-align: center; position: relative;" fluid>
             <img src="@/assets/taranis-logo-login.svg" alt="">
             <v-form @submit.prevent="authenticate" id="form" ref="form">
-                <table width="420">
+                <table>
                     <tr>
-
                         <td>
                             <v-flex>
                                 <v-text-field
@@ -86,72 +85,6 @@
                     }
                 })
             }
-        },
+        }
     }
 </script>
-
-<style>
-    /* Login Screen */
-    .login-screen {
-        background-color: #eee;
-    }
-
-    .login-screen .v-form .flex {
-        border: 1px solid #eee;
-        border-radius: 4px;
-        height: 38px;
-        width: 200px;
-        background-color: white;
-    }
-
-    .login-screen .v-form .v-input {
-        margin: 0;
-        padding: 0;
-    }
-
-    .login-screen .offset-login {
-        position: relative;
-        height: 20%;
-    }
-
-    .login-screen div {
-        text-align: center;
-    }
-
-    .login-screen .v-input {
-        transform: scale(0.8);
-        transform-origin: left;
-    }
-
-    .login-screen table {
-        width: 550px;
-        margin: 0 auto;
-        padding-left: 64px;
-    }
-
-    .login-screen table td {
-        padding: 0;
-        margin: 0;
-    }
-
-    .login-screen table td.table-button {
-        vertical-align: top;
-    }
-
-    .login-screen img {
-        position: absolute;
-        width: 400px;
-        bottom: 0;
-        left: 50%;
-        transform: translate(-50%, -20%);
-    }
-
-    .login-screen .v-alert {
-        position: absolute;
-        transform: translate(10px, 74px);
-    }
-
-    .login-screen .v-input__slot {
-        width: 200px;
-    }
-</style>

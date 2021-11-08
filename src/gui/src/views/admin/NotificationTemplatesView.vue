@@ -15,6 +15,7 @@
                     cardItem="CardPreset"
                     action="getAllNotificationTemplates"
                     getter="getNotificationTemplates"
+                    deletePermission="MY_ASSETS_CONFIG"
             />
         </template>
     </ViewLayout>

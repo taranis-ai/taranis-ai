@@ -3,9 +3,7 @@ from flask_restful import Resource
 
 from managers import auth_manager
 from managers.auth_manager import access_key_required
-from model import news_item
-from model import remote
-from model import report_item
+from model import news_item, remote, report_item
 
 
 class RemoteConnect(Resource):

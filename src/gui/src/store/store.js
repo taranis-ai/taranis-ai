@@ -9,6 +9,7 @@ import {publish} from "@/store/publish"
 import {settings} from "@/store/settings";
 import {assets} from "@/store/assets";
 import {dashboard} from "@/store/dashboard";
+import {osint_source} from "@/store/osint_source";
 
 Vue.use(Vuex);
 
@@ -71,6 +72,7 @@ export const store = new Vuex.Store({
         publish,
         settings,
         assets,
-        dashboard
+        dashboard,
+        osint_source
     }
 });

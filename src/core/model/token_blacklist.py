@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime
 
 from managers.db_manager import db
 
@@ -6,7 +6,7 @@ from managers.db_manager import db
 class TokenBlacklist(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     token = db.Column(db.String(), nullable=False)
-    created = db.Column(db.DateTime, default=datetime.datetime.now)
+    created = db.Column(db.DateTime, default=datetime.now)
 
     def __init__(self, token):
         self.id = None

@@ -17,6 +17,7 @@
     import CardProductType from "@/components/config/product_types/CardProductType";
     import CardUser from "@/components/config/user/CardUser";
     import CardSource from "@/components/config/osint_sources/CardSource";
+    import CardGroup from "@/components/config/osint_sources/CardGroup";
 
     export default {
         name: "ContentData",
@@ -29,7 +30,8 @@
             CardPreset,
             CardProductType,
             CardUser,
-            CardSource
+            CardSource,
+            CardGroup
         },
         props: {
             name: String,

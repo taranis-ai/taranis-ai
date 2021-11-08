@@ -1,4 +1,6 @@
-import Vue from 'vue'
+import 'material-design-icons-iconfont/dist/material-design-icons.css';
+import '@mdi/font/css/materialdesignicons.css';
+import Vue from 'vue';
 import Vuetify from 'vuetify/lib';
 //import colors from 'vuetify/lib/util/colors'
 import App from './App.vue'
@@ -14,7 +16,19 @@ import CKEditor from '@ckeditor/ckeditor5-vue'
 import VueCookies from 'vue-cookies'
 import VueSSE from 'vue-sse';
 import DatetimePicker from 'vuetify-datetime-picker';
-import CSButton from '../src/components/common/CSButton'
+import CSButton from '../src/components/common/CSButton';
+
+import './assets/layout_config';
+import layout_config from "./assets/layout_config";
+
+const CSL = {
+    install(Vue) {
+        Vue.prototype.UI = layout_config
+        this.UI = () => {}
+    }
+}
+Vue.use(CSL);
+Vue.component('cs-button', CSButton);
 
 Vue.config.productionTip = false;
 
@@ -29,16 +43,20 @@ Vue.use(Vuetify, {
     }
 });
 
+Vue.use(Vuetify, {
+  iconfont: 'md'
+});
+
+Vue.use(Vuetify, {
+  iconfont: 'mdi'
+});
+
 Vue.use(CKEditor);
 
 const vuetify = new Vuetify({
-
     theme: {
         dark: false,
         themes: Themes['taranisDefault']
-    },
-    icons: {
-        iconfont: 'mdi',
     },
 });
 
@@ -71,6 +89,3 @@ export const vm = new Vue({
     render: h => h(App),
 
 }).$mount('#app');
-
-
-

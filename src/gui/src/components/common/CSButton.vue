@@ -36,9 +36,3 @@
         }
     }
 </script>
-
-<style>
-    .v-tooltip__content.hide-tooltip {
-        display: none !important;
-    }
-</style>

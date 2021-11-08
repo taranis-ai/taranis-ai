@@ -12,8 +12,7 @@ RUN \
     libpq \
     curl
 
-COPY ./src/core/requirements.txt /app/taranis-ng-core/requirements.txt
-COPY ./src/common/requirements.txt /app/taranis-ng-common/requirements.txt
+COPY ./src/core/requirements.txt /app/requirements.txt
 
 # install dependencies
 RUN \
@@ -26,8 +25,7 @@ RUN \
     python3-dev \
     libffi-dev \
     postgresql-dev && \
-    pip install --no-cache-dir -r /app/taranis-ng-core/requirements.txt && \
-    pip install --no-cache-dir -r /app/taranis-ng-common/requirements.txt && \
+    pip install --no-cache-dir -r /app/requirements.txt && \
     apk --purge del .build-deps
 
 COPY ./docker/start.sh /start.sh
@@ -41,23 +39,23 @@ RUN chmod +x /entrypoint.sh
 
 COPY ./docker/gunicorn_conf.py /gunicorn_conf.py
 
-COPY ./src/core/. /app/taranis-ng-core
-COPY ./src/common/. /app/taranis-ng-common
+COPY ./src/core/. /app/
 
-RUN mv /app/taranis-ng-core/manage.py /app/manage.py
+RUN chmod +x /app/manage.py && \
+    chmod +x /app/db_migration.py
 
 EXPOSE 80
 
 # setup environment variables
 ENV PYTHONPATH=/app
-ENV MODULE_NAME taranis-ng-core.run
+ENV MODULE_NAME run
 ENV VARIABLE_NAME app
 ENV GUNICORN_CMD_ARGS --timeout 120 --preload
 ENV WORKERS_PER_CORE 8
 
 VOLUME ["/data"]
 
-HEALTHCHECK --interval=60s --timeout=3s --retries=5 CMD curl --fail http://localhost/api/v1/isalive || exit 1
+HEALTHCHECK --interval=15s --timeout=3s --retries=5 CMD curl --fail http://localhost/api/v1/isalive || exit 1
 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["/start.sh"]

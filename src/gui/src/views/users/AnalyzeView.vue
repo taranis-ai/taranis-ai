@@ -22,12 +22,6 @@
 
 </template>
 
-<style>
-    .np {
-        display: none;
-    }
-</style>
-
 <script>
     import ViewLayout from "../../components/layouts/ViewLayout";
     import ToolbarFilterAnalyze from "@/components/analyze/ToolbarFilterAnalyze";
@@ -67,8 +61,7 @@
                 this.$refs.contentData.updateData(false, false);
             }
         },
-        mounted() {
-            this.analyze_selector = true
+        beforeCreate() {
             this.$root.$on('delete-report-item', (item) => {
                 deleteReportItem(item).then(() => {
 
@@ -79,7 +72,6 @@
                         }
                     )
                 }).catch(() => {
-
                     this.$root.$emit('notification',
                         {
                             type: 'error',
@@ -89,8 +81,11 @@
                 })
             });
         },
+        mounted() {
+            this.analyze_selector = true
+        },
         beforeDestroy() {
-            this.$root.$off('delete-report-item')
+            this.$root.$off('delete-report-item');
         }
     };
 </script>

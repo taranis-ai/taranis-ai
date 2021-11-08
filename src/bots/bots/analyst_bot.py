@@ -1,8 +1,9 @@
-from bots.base_bot import BaseBot
-from taranisng.schema.parameter import Parameter, ParameterType
-from taranisng.schema import news_item
-from remote.core_api import CoreApi
 import re
+
+from .base_bot import BaseBot
+from schema import news_item
+from schema.parameter import Parameter, ParameterType
+from remote.core_api import CoreApi
 
 
 class AnalystBot(BaseBot):

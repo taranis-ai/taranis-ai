@@ -5,8 +5,7 @@ WORKDIR /app/
 # upgrade pip
 RUN python -m pip install --upgrade pip
 
-COPY ./src/bots/requirements.txt /app/taranis-ng-bots/requirements.txt
-COPY ./src/common/requirements.txt /app/taranis-ng-common/requirements.txt
+COPY ./src/bots/requirements.txt /app/requirements.txt
 
 # install dependencies
 RUN \
@@ -17,8 +16,7 @@ RUN \
     musl-dev \
     python3-dev \
     libffi-dev && \
-    pip install --no-cache-dir -r /app/taranis-ng-bots/requirements.txt && \
-    pip install --no-cache-dir -r /app/taranis-ng-common/requirements.txt && \
+    pip install --no-cache-dir -r /app/requirements.txt && \
     apk --purge del .build-deps
 
 COPY ./docker/start.sh /start.sh
@@ -32,14 +30,13 @@ RUN chmod +x /entrypoint.sh
 
 COPY ./docker/gunicorn_conf.py /gunicorn_conf.py
 
-COPY ./src/bots/. /app/taranis-ng-bots
-COPY ./src/common/. /app/taranis-ng-common
+COPY ./src/bots/. /app/
 
 EXPOSE 80
 
 # setup environment variables
 ENV PYTHONPATH=/app
-ENV MODULE_NAME taranis-ng-bots.run
+ENV MODULE_NAME run
 ENV VARIABLE_NAME app
 ENV GUNICORN_CMD_ARGS --timeout 120 --preload
 ENV WORKERS_PER_CORE 8

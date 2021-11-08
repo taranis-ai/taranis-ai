@@ -6,6 +6,8 @@ gevent==21.8.0
 greenlet==1.1.1
 gunicorn==20.0.4
 idna==2.8
+marshmallow==3.5.0
+marshmallow-enum==1.5.1
 oauthlib==3.1.0
 PySocks==1.7.1
 python-dateutil==2.8.1

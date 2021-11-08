@@ -1,4 +1,4 @@
-from taranisng.schema.publisher import PublisherSchema
+from schema.publisher import PublisherSchema
 
 
 class BasePublisher:

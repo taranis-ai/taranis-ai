@@ -1,42 +1,41 @@
 <template>
-    <v-hover v-slot:default="{hover}" close-delay="150">
-        <v-card flat class="card mb-1" :elevation="hover ? 12 : 2"
-                @click.stop="cardItemToolbar"
-                @mouseenter.native="toolbar=true"
-                @mouseleave.native="toolbar=false"
-        >
-            <v-layout row wrap class="pa-3 pl-0 status" v-bind:class="cardStatus()">
-                <v-flex md1 class="obj center">
-                    <div class="caption grey--text"><br/></div>
-                    <div>
-                        <v-icon center>{{card.tag}}</v-icon>
-                    </div>
-                </v-flex>
-                <v-flex md2>
-                    <div class="caption grey--text">{{$t('card_item.title')}}</div>
-                    <div>{{card.name}}</div>
-                </v-flex>
-                <v-flex md4>
-                    <div class="caption grey--text">{{$t('card_item.description')}}</div>
-                    <div>{{card.description}}</div>
-                </v-flex>
-                <v-flex md1 class="obj center">
+    <v-container v-bind="UI.CARD.CONTAINER">
+        <v-row>
+            <v-col :class="UI.CLASS.card_offset">
+                <v-hover v-slot="{hover}">
+                    <v-card v-bind="UI.CARD.HOVER" :elevation="hover ? 12 : 2" @click.stop="cardItemToolbar">
+                        <!--CONTENT-->
+                        <v-layout v-bind="UI.CARD.LAYOUT" :class="'status ' + cardStatus">
+                            <v-row v-bind="UI.CARD.ROW.CONTENT">
+                                <v-col :style="UI.STYLE.card_tag">
+                                    <v-icon center>{{card.tag}}</v-icon>
+                                </v-col>
+                                <v-col>
+                                    <div class="grey--text">{{$t('card_item.title')}}</div>
+                                    <div>{{card.name}}</div>
+                                </v-col>
+                                <v-col>
+                                    <div class="grey--text">{{$t('card_item.description')}}</div>
+                                    <div>{{card.description}}</div>
+                                </v-col>
 
-                    <v-speed-dial
-                            v-model="toolbar"
-                            direction="left"
-                            transition='slide-x-reverse-transition'
-                    >
-
-                        <v-btn v-if="checkPermission(deletePermission)" fab x-small color="red" @click.stop="cardItemToolbar('delete')">
-                            <v-icon color="white">mdi-trash-can-outline</v-icon>
-                        </v-btn>
-                    </v-speed-dial>
-                </v-flex>
-            </v-layout>
-
-        </v-card>
-    </v-hover>
+                                <!--HOVER TOOLBAR-->
+                                <v-col :style="UI.STYLE.card_hover_toolbar">
+                                    <v-row v-if="hover" v-bind="UI.CARD.TOOLBAR.COMPACT" :style="UI.STYLE.card_toolbar">
+                                        <v-col v-bind="UI.CARD.COL.TOOLS">
+                                            <v-btn v-if="checkPermission(deletePermission)" icon class="red" @click.stop="cardItemToolbar('delete')">
+                                                <v-icon color="white">{{ UI.ICON.DELETE }}</v-icon>
+                                            </v-btn>
+                                        </v-col>
+                                    </v-row>
+                                </v-col>
+                            </v-row>
+                        </v-layout>
+                    </v-card>
+                </v-hover>
+            </v-col>
+        </v-row>
+    </v-container>
 </template>
 
 <script>
@@ -50,6 +49,15 @@
         data:() => ({
             toolbar: false
         }),
+        computed: {
+            cardStatus() {
+                if (this.card.status === undefined) {
+                    return "status-green"
+                } else {
+                    return "status-" + this.card.status
+                }
+            }
+        },
         methods: {
             itemClicked(data) {
                 this.$root.$emit('show-edit', data)
@@ -68,35 +76,7 @@
                         this.itemClicked(this.card);
                         break;
                 }
-            },
-            cardStatus: function () {
-                if (this.card.status === undefined) {
-                    return "status-green"
-                } else {
-                    return "status-" + this.card.status
-                }
             }
         }
     }
 </script>
-
-<style>
-    .card .status.status-orange {
-        border-left: 4px solid #ffd556;
-    }
-
-    .card .status.status-green {
-        border-left: 4px solid #33DD40;
-    }
-
-    .card .status.status-red {
-        border-left: 4px solid red;
-    }
-    .card .obj.center {
-        text-align: center;
-    }
-    .card.elevation-12 {
-        z-index: 1;
-        background-color: rgba(100, 137, 214, 0.1);
-    }
-</style>

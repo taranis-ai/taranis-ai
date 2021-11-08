@@ -1,5 +1,5 @@
-from auth.base_authenticator import BaseAuthenticator
 from managers import log_manager
+from auth.base_authenticator import BaseAuthenticator
 
 users = {"user": "user", "user2" : "user", "admin": "admin", "customer": "customer"}
 

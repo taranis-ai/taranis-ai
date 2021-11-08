@@ -1,5 +1,5 @@
 import os
-
+import json
 import requests
 
 
@@ -17,7 +17,7 @@ class CoreApi:
                                                                                       'bot_type': bot_type},
                                      headers=cls.headers)
             return response.json(), response.status_code
-        except requests.exceptions.ConnectionError:
+        except (requests.exceptions.ConnectionError, json.decoder.JSONDecodeError):
             return {}, 503
 
     @classmethod
@@ -25,7 +25,7 @@ class CoreApi:
         try:
             response = requests.get(cls.api_url + '/api/v1/bots/news-item-data?limit=' + limit, headers=cls.headers)
             return response.json()
-        except:
+        except Exception:
             return None, 400
 
     @classmethod
@@ -34,7 +34,7 @@ class CoreApi:
             response = requests.put(cls.api_url + '/api/v1/bots/news-item-data/' + id + '/attributes', json=attributes,
                                     headers=cls.headers)
             return response.status_code
-        except:
+        except Exception:
             return None, 400
 
     @classmethod
@@ -43,7 +43,7 @@ class CoreApi:
             response = requests.delete(cls.api_url + '/api/v1/bots/word-list-categories/' + id + '/entries/' + name,
                                        headers=cls.headers)
             return response.status_code
-        except:
+        except Exception:
             return None, 400
 
     @classmethod
@@ -53,7 +53,7 @@ class CoreApi:
                                     json=entries,
                                     headers=cls.headers)
             return response.status_code
-        except:
+        except Exception:
             return None, 400
 
     @classmethod
@@ -61,7 +61,7 @@ class CoreApi:
         try:
             response = requests.get(cls.api_url + '/api/v1/bots/word-list-categories/' + id, headers=cls.headers)
             return response.json()
-        except:
+        except Exception:
             return None, 400
 
     @classmethod
@@ -70,7 +70,7 @@ class CoreApi:
             response = requests.put(cls.api_url + '/api/v1/bots/word-list-categories/' + id, json=category,
                                     headers=cls.headers)
             return response.status_code
-        except:
+        except Exception:
             return None, 400
 
     @classmethod
@@ -79,7 +79,7 @@ class CoreApi:
             response = requests.get(cls.api_url + '/api/v1/bots/news-item-aggregates-by-group/' + source_group,
                                     json={'limit': limit}, headers=cls.headers)
             return response.json()
-        except:
+        except Exception:
             return None, 400
 
     @classmethod
@@ -88,5 +88,5 @@ class CoreApi:
             response = requests.put(cls.api_url + '/api/v1/bots/news-item-aggregates-group-action',
                                     json=data, headers=cls.headers)
             return response.status_code
-        except:
+        except Exception:
             return None, 400

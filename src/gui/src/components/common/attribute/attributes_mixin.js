@@ -107,7 +107,7 @@ var AttributesMixin = {
                 lockReportItem(this.report_item_id, {'field_id': this.values[field_index].id}).then(() => {
                 })
             }
-            window.console.debug("onFocus")
+            //window.console.debug("onFocus")
         },
 
         onBlur(field_index) {

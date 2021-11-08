@@ -126,11 +126,3 @@
         }
     }
 </script>
-
-<style>
-    .v-card__actions {
-        top: 48px;
-    }
-
-</style>
-

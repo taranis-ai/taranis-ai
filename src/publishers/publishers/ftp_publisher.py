@@ -3,11 +3,10 @@ import ftplib
 import os
 from base64 import b64decode
 from urllib.parse import urlsplit
-
 import paramiko
 
-from publishers.base_publisher import BasePublisher
-from taranisng.schema.parameter import Parameter, ParameterType
+from .base_publisher import BasePublisher
+from schema.parameter import Parameter, ParameterType
 
 
 class FTPPublisher(BasePublisher):

@@ -1,4 +1,5 @@
 from flask_restful import Resource
+
 from managers.auth_manager import no_auth
 
 

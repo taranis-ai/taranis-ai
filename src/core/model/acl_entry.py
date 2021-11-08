@@ -1,11 +1,12 @@
+from sqlalchemy import func, or_, orm, and_
+from marshmallow import fields, post_load
+
 from managers.db_manager import db
 from model.role import Role
 from model.user import User
-from sqlalchemy import func, or_, orm, and_
-from marshmallow import fields, post_load
-from taranisng.schema.role import RoleIdSchema
-from taranisng.schema.user import UserIdSchema
-from taranisng.schema.acl_entry import ACLEntrySchema, ACLEntryPresentationSchema, ItemType
+from schema.role import RoleIdSchema
+from schema.user import UserIdSchema
+from schema.acl_entry import ACLEntrySchema, ACLEntryPresentationSchema, ItemType
 
 
 class NewACLEntrySchema(ACLEntrySchema):

@@ -1,15 +1,16 @@
 import os
+from datetime import datetime, timedelta
 from enum import Enum, auto
 from functools import wraps
-
 import jwt
 from flask import request
 from flask_jwt_extended import JWTManager, get_jwt_claims, get_jwt_identity, verify_jwt_in_request, get_raw_jwt
 from flask_jwt_extended.exceptions import JWTExtendedException
 
+from managers import log_manager, time_manager
+from auth.keycloak_authenticator import KeycloakAuthenticator
 from auth.openid_authenticator import OpenIDAuthenticator
 from auth.test_authenticator import TestAuthenticator
-from managers import log_manager
 from model.collectors_node import CollectorsNode
 from model.news_item import NewsItem
 from model.osint_source import OSINTSourceGroup
@@ -17,32 +18,53 @@ from model.permission import Permission
 from model.product_type import ProductType
 from model.remote import RemoteAccess
 from model.report_item import ReportItem
+from model.token_blacklist import TokenBlacklist
 from model.user import User
 
-authenticators = [TestAuthenticator(), OpenIDAuthenticator()]
-current_authenticator = 0
+current_authenticator = None
+
+api_key = os.getenv('API_KEY')
 
 
-def get_required_credentials():
-    return authenticators[current_authenticator].get_required_credentials()
-
-
-def authenticate(credentials):
-    return authenticators[current_authenticator].authenticate(credentials)
-
-
-def refresh(user):
-    return authenticators[current_authenticator].refresh(user)
-
-
-def logout():
-    return authenticators[current_authenticator].logout()
+def cleanup_token_blacklist(app):
+    with app.app_context():
+        TokenBlacklist.delete_older(datetime.today() - timedelta(days=1))
 
 
 def initialize(app):
+    global current_authenticator
+
     JWTManager(app)
-    for authenticator in authenticators:
-        authenticator.initialize(app)
+
+    which = os.getenv('TARANIS_NG_AUTHENTICATOR')
+    if which == 'openid':
+        current_authenticator = OpenIDAuthenticator()
+    elif which == 'keycloak':
+        current_authenticator = KeycloakAuthenticator()
+    elif which == 'test':
+        current_authenticator = TestAuthenticator()
+    else:
+        current_authenticator = TestAuthenticator()
+
+    current_authenticator.initialize(app)
+
+    time_manager.schedule_job_every_day("00:00", cleanup_token_blacklist, app)
+
+
+def get_required_credentials():
+    return current_authenticator.get_required_credentials()
+
+
+def authenticate(credentials):
+    return current_authenticator.authenticate(credentials)
+
+
+def refresh(user):
+    return current_authenticator.refresh(user)
+
+
+def logout(token):
+    return current_authenticator.logout(token)
 
 
 class ACLCheck(Enum):
@@ -140,20 +162,20 @@ def auth_required(permissions, *acl_args):
             claims = get_jwt_claims()
             if not claims or 'permissions' not in claims:
                 log_manager.store_user_auth_error_activity(user,
-                        "Missing permissions in JWT for identity: " + identity)
+                                                           "Missing permissions in JWT for identity: " + identity)
                 return error
 
             # is there at least one match with the permissions required by the call?
             if not permissions_set.intersection(set(claims['permissions'])):
                 log_manager.store_user_auth_error_activity(user,
-                        "Insufficient permissions in JWT for identity: " + identity)
+                                                           "Insufficient permissions in JWT for identity: " + identity)
                 return error
 
             # if the object does have an ACL, do we match it?
             if len(acl_args) > 0:
                 if not check_acl(kwargs[get_id_name_by_acl(acl_args[0])], acl_args[0], user):
                     log_manager.store_user_auth_error_activity(user,
-                            "Access denied by ACL in JWT for identity: " + identity)
+                                                               "Access denied by ACL in JWT for identity: " + identity)
                     return error
 
             # allow
@@ -219,6 +241,7 @@ def access_key_required(fn):
 
         # allow
         return fn(*args, **kwargs)
+
     return wrapper
 
 

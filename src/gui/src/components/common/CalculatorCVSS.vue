@@ -1,174 +1,172 @@
 <template>
-    <div>
+    <v-row v-bind="UI.DIALOG.ROW.WINDOW">
         <v-btn text small @click.prevent="show" :title="$t('report_item.tooltip.cvss_detail')">
             <v-icon>mdi-calculator</v-icon>
         </v-btn>
-        <v-row justify="center">
-            <v-dialog v-model="visible" fullscreen hide-overlay transition="dialog-bottom-transition">
-                <v-card class="ma-0 pa-0 pb-8" >
-                    <v-toolbar dark color="primary">
-                        <v-btn icon dark @click="cancel">
-                            <v-icon>mdi-close-circle</v-icon>
-                        </v-btn>
-                        <v-toolbar-title>{{$t('cvss_calculator.title')}}</v-toolbar-title>
-                        <v-spacer></v-spacer>
-                        <v-switch v-model="tooltip" label="Tooltip" class="mt-5"></v-switch>
-                    </v-toolbar>
+        <v-dialog v-bind="UI.DIALOG.FULLSCREEN" v-model="visible">
+            <v-card v-bind="UI.DIALOG.BASEMENT">
+                <v-toolbar v-bind="UI.DIALOG.TOOLBAR">
+                    <v-btn v-bind="UI.BUTTON.CLOSE_ICON" @click="cancel">
+                        <v-icon>{{ UI.ICON.CLOSE }}</v-icon>
+                    </v-btn>
+                    <v-toolbar-title>{{$t('cvss_calculator.title')}}</v-toolbar-title>
+                    <v-spacer></v-spacer>
+                    <v-switch v-model="tooltip" label="Tooltip" class="mt-5"></v-switch>
+                </v-toolbar>
 
-                    <!-- Score -->
-                    <v-sheet class="text-center vector-string" color="primary darken-2 white--text">
-                        <span class="caption font-weight-bold" >{{ calc.vectorString }}</span>
-                        <v-sheet class="text-center score-sheet" color="white">
-                            <v-row justify="center" class="score-sheet">
-                                <v-col v-for="metric in calc.all" :key="metric.name" class="cs_cvss_score pa-0 my-1 severity" :class="metric.severity">
-                                    <span class="body-2 white--text">{{ $t('cvss_calculator.'+metric.name+'_score') + " " }}</span>
-                                    <span class="body-2 white--text font-weight-bold text-uppercase">{{ $t('cvss_calculator.' + metric.severity) }}</span>
-                                    <br>
-                                    <span class="px-4 cs_metric_score headline font-weight-medium">{{ metric.score }}</span>
-                                </v-col>
-                            </v-row>
-                        </v-sheet>
+                <!-- Score -->
+                <v-sheet class="text-center vector-string" color="primary darken-2 white--text">
+                    <span class="caption font-weight-bold" >{{ calc.vectorString }}</span>
+                    <v-sheet class="text-center score-sheet" color="white">
+                        <v-row justify="center" class="score-sheet">
+                            <v-col v-for="metric in calc.all" :key="metric.name" class="cs_cvss_score pa-0 my-1 severity" :class="metric.severity">
+                                <span class="body-2 white--text">{{ $t('cvss_calculator.'+metric.name+'_score') + " " }}</span>
+                                <span class="body-2 white--text font-weight-bold text-uppercase">{{ $t('cvss_calculator.' + metric.severity) }}</span>
+                                <br>
+                                <span class="px-4 cs_metric_score headline font-weight-medium">{{ metric.score }}</span>
+                            </v-col>
+                        </v-row>
                     </v-sheet>
+                </v-sheet>
 
-                    <!-- Base -->
-                    <v-card class="bsm px-4 pb-2 pt-0 base-metric" :class="calc.baseSeverity">
-                        <v-row class="pa-0 ma-0">
-                            <v-card-title class="ma-0 pa-0 text-uppercase">
-                                {{$t('cvss_calculator.base_score')}}
-                                <v-tooltip v-if="tooltip" right max-width="500">
-                                    <template v-slot:activator="{on}">
-                                        <v-icon v-on="on" x-small right>mdi-information-outline</v-icon>
-                                    </template>
-                                    <span>{{ $t('cvss_calculator_tooltip.baseMetricGroup_Legend') }}</span>
-                                </v-tooltip>
-                            </v-card-title>
-                        </v-row>
-                        <v-card class="my-2">
-                            <v-row v-for="group in cvss.base" :key="group.model">
-                                <v-card flat @click="update" :ripple="false">
-                                    <v-card-text class="py-2">
-                                        <v-row>
-                                            <span class="blue--text">{{ $t('cvss_calculator.' + group.title) }} </span>
-                                            <v-tooltip v-if="tooltip" right max-width="500">
-                                                <template v-slot:activator="{on}">
-                                                    <v-icon v-on="on" x-small right>mdi-information-outline</v-icon>
+                <!-- Base -->
+                <v-card class="bsm px-4 pb-2 pt-0 base-metric" :class="calc.baseSeverity">
+                    <v-row class="pa-0 ma-0">
+                        <v-card-title class="ma-0 pa-0 text-uppercase">
+                            {{$t('cvss_calculator.base_score')}}
+                            <v-tooltip v-if="tooltip" right max-width="500">
+                                <template v-slot:activator="{on}">
+                                    <v-icon v-on="on" x-small right>mdi-information-outline</v-icon>
+                                </template>
+                                <span>{{ $t('cvss_calculator_tooltip.baseMetricGroup_Legend') }}</span>
+                            </v-tooltip>
+                        </v-card-title>
+                    </v-row>
+                    <v-card class="my-2">
+                        <v-row v-for="group in cvss.base" :key="group.model">
+                            <v-card flat @click="update" :ripple="false">
+                                <v-card-text class="py-2">
+                                    <v-row>
+                                        <span class="blue--text">{{ $t('cvss_calculator.' + group.title) }} </span>
+                                        <v-tooltip v-if="tooltip" right max-width="500">
+                                            <template v-slot:activator="{on}">
+                                                <v-icon v-on="on" x-small right>mdi-information-outline</v-icon>
+                                            </template>
+                                            <span>{{ $t('cvss_calculator_tooltip.' + group.model + '_Heading') }}</span>
+                                        </v-tooltip>
+                                    </v-row>
+                                    <v-row >
+                                        <v-btn-toggle v-model="group.state" mandatory>
+                                            <v-tooltip right max-width="300" v-for="prop in group.props" :key="prop.value" :content-class="hideTooltip">
+                                                <template v-slot:activator="{on}" >
+                                                    <v-btn small v-on="on">
+                                                        <span>{{ $t('cvss_calculator.' + prop.label) }}</span>
+                                                        <v-icon small color="primary">{{ 'mdi-alpha-' + prop.value.toLowerCase() + '-box' }}</v-icon>
+                                                    </v-btn>
                                                 </template>
-                                                <span>{{ $t('cvss_calculator_tooltip.' + group.model + '_Heading') }}</span>
+                                                <span v-if="tooltip">{{ $t('cvss_calculator_tooltip.' + group.model + '_' + prop.value + '_Label') }}</span>
                                             </v-tooltip>
-                                        </v-row>
-                                        <v-row >
-                                            <v-btn-toggle v-model="group.state" mandatory>
-                                                <v-tooltip right max-width="300" v-for="prop in group.props" :key="prop.value" :content-class="hideTooltip">
-                                                    <template v-slot:activator="{on}" >
-                                                        <v-btn small v-on="on">
-                                                            <span>{{ $t('cvss_calculator.' + prop.label) }}</span>
-                                                            <v-icon small color="primary">{{ 'mdi-alpha-' + prop.value.toLowerCase() + '-box' }}</v-icon>
-                                                        </v-btn>
-                                                    </template>
-                                                    <span v-if="tooltip">{{ $t('cvss_calculator_tooltip.' + group.model + '_' + prop.value + '_Label') }}</span>
-                                                </v-tooltip>
-                                            </v-btn-toggle>
-                                        </v-row>
-                                    </v-card-text>
-                                </v-card>
-                            </v-row>
-                        </v-card>
-                    </v-card>
-
-                    <!-- Temporal -->
-                    <v-card class="bsm ma-4 px-4 pb-2 pt-0" :class="calc.temporalSeverity">
-                        <v-row class="pa-0 ma-0">
-                            <v-card-title class="ma-0 pa-0 text-uppercase">
-                                {{$t('cvss_calculator.temporal_score')}}
-                                <v-tooltip v-if="tooltip" right max-width="500">
-                                    <template v-slot:activator="{on}">
-                                        <v-icon v-on="on" x-small right>mdi-information-outline</v-icon>
-                                    </template>
-                                    <span>{{ $t('cvss_calculator_tooltip.temporalMetricGroup_Legend') }}</span>
-                                </v-tooltip>
-                            </v-card-title>
+                                        </v-btn-toggle>
+                                    </v-row>
+                                </v-card-text>
+                            </v-card>
                         </v-row>
-                        <v-card class="my-2">
-                            <v-row v-for="group in cvss.temporal" :key="group.model">
-                                <v-card flat @click="update" :ripple="false">
-                                    <v-card-text class="py-2">
-                                        <v-row>
-                                            <span class="blue--text">{{ $t('cvss_calculator.' + group.title) }}</span>
-                                            <v-tooltip v-if="tooltip" right max-width="500">
-                                                <template v-slot:activator="{on}">
-                                                    <v-icon v-on="on" x-small right>mdi-information-outline</v-icon>
-                                                </template>
-                                                <span>{{ $t('cvss_calculator_tooltip.' + group.model + '_Heading') }}</span>
-                                            </v-tooltip>
-                                        </v-row>
-                                        <v-row >
-                                            <v-btn-toggle v-model="group.state" mandatory>
-                                                <v-tooltip right max-width="300" v-for="prop in group.props" :key="prop.value" :content-class="hideTooltip">
-                                                    <template v-slot:activator="{on}">
-                                                        <v-btn small  v-on="on">
-                                                            <span>{{ $t('cvss_calculator.' + prop.label) }}</span>
-                                                            <v-icon small color="primary">{{ 'mdi-alpha-' + prop.value.toLowerCase() + '-box' }}</v-icon>
-                                                        </v-btn>
-                                                    </template>
-                                                    <span>{{ $t('cvss_calculator_tooltip.' + group.model + '_' + prop.value + '_Label') }}</span>
-                                                </v-tooltip>
-                                            </v-btn-toggle>
-                                        </v-row>
-                                    </v-card-text>
-                                </v-card>
-                            </v-row>
-                        </v-card>
                     </v-card>
-
-                    <!-- Environmental -->
-                    <v-card class="bsm ma-4 px-4 pb-2 pt-0" :class="calc.environmentalSeverity">
-                        <v-row class="pa-0 ma-0">
-                            <v-card-title class="ma-0 pa-0 text-uppercase">
-                                {{$t('cvss_calculator.environmental_score')}}
-                                <v-tooltip v-if="tooltip" right max-width="500">
-                                    <template v-slot:activator="{on}">
-                                        <v-icon v-on="on" x-small right>mdi-information-outline</v-icon>
-                                    </template>
-                                    <span>{{ $t('cvss_calculator_tooltip.environmentalMetricGroup_Legend') }}</span>
-                                </v-tooltip>
-                            </v-card-title>
-                        </v-row>
-                        <v-card class="my-2">
-                            <v-row v-for="group in cvss.environmental" :key="group.model">
-                                <v-card flat @click="update" :ripple="false">
-                                    <v-card-text class="py-2">
-                                        <v-row>
-                                            <span class="blue--text">{{ $t('cvss_calculator.' + group.title) }}</span>
-                                            <v-tooltip v-if="tooltip" right max-width="500">
-                                                <template v-slot:activator="{on}">
-                                                    <v-icon v-on="on" x-small right>mdi-information-outline</v-icon>
-                                                </template>
-                                                <span>{{ $t('cvss_calculator_tooltip.' + group.model + '_Heading') }}</span>
-                                            </v-tooltip>
-                                        </v-row>
-                                        <v-row >
-                                            <v-btn-toggle v-model="group.state" mandatory>
-                                                <v-tooltip right max-width="300" v-for="prop in group.props" :key="prop.value" :content-class="hideTooltip">
-                                                    <template v-slot:activator="{on}">
-                                                        <v-btn small  v-on="on">
-                                                            <span>{{ $t('cvss_calculator.' + prop.label) }}</span>
-                                                            <v-icon small color="primary">{{ 'mdi-alpha-' + prop.value.toLowerCase() + '-box' }}</v-icon>
-                                                        </v-btn>
-                                                    </template>
-                                                    <span>{{ $t('cvss_calculator_tooltip.' + group.model + '_' + prop.value + '_Label') }}</span>
-                                                </v-tooltip>
-                                            </v-btn-toggle>
-                                        </v-row>
-                                    </v-card-text>
-                                </v-card>
-                            </v-row>
-                        </v-card>
-                    </v-card>
-
                 </v-card>
-            </v-dialog>
-        </v-row>
-    </div>
+
+                <!-- Temporal -->
+                <v-card class="bsm ma-4 px-4 pb-2 pt-0" :class="calc.temporalSeverity">
+                    <v-row class="pa-0 ma-0">
+                        <v-card-title class="ma-0 pa-0 text-uppercase">
+                            {{$t('cvss_calculator.temporal_score')}}
+                            <v-tooltip v-if="tooltip" right max-width="500">
+                                <template v-slot:activator="{on}">
+                                    <v-icon v-on="on" x-small right>mdi-information-outline</v-icon>
+                                </template>
+                                <span>{{ $t('cvss_calculator_tooltip.temporalMetricGroup_Legend') }}</span>
+                            </v-tooltip>
+                        </v-card-title>
+                    </v-row>
+                    <v-card class="my-2">
+                        <v-row v-for="group in cvss.temporal" :key="group.model">
+                            <v-card flat @click="update" :ripple="false">
+                                <v-card-text class="py-2">
+                                    <v-row>
+                                        <span class="blue--text">{{ $t('cvss_calculator.' + group.title) }}</span>
+                                        <v-tooltip v-if="tooltip" right max-width="500">
+                                            <template v-slot:activator="{on}">
+                                                <v-icon v-on="on" x-small right>mdi-information-outline</v-icon>
+                                            </template>
+                                            <span>{{ $t('cvss_calculator_tooltip.' + group.model + '_Heading') }}</span>
+                                        </v-tooltip>
+                                    </v-row>
+                                    <v-row >
+                                        <v-btn-toggle v-model="group.state" mandatory>
+                                            <v-tooltip right max-width="300" v-for="prop in group.props" :key="prop.value" :content-class="hideTooltip">
+                                                <template v-slot:activator="{on}">
+                                                    <v-btn small  v-on="on">
+                                                        <span>{{ $t('cvss_calculator.' + prop.label) }}</span>
+                                                        <v-icon small color="primary">{{ 'mdi-alpha-' + prop.value.toLowerCase() + '-box' }}</v-icon>
+                                                    </v-btn>
+                                                </template>
+                                                <span>{{ $t('cvss_calculator_tooltip.' + group.model + '_' + prop.value + '_Label') }}</span>
+                                            </v-tooltip>
+                                        </v-btn-toggle>
+                                    </v-row>
+                                </v-card-text>
+                            </v-card>
+                        </v-row>
+                    </v-card>
+                </v-card>
+
+                <!-- Environmental -->
+                <v-card class="bsm ma-4 px-4 pb-2 pt-0" :class="calc.environmentalSeverity">
+                    <v-row class="pa-0 ma-0">
+                        <v-card-title class="ma-0 pa-0 text-uppercase">
+                            {{$t('cvss_calculator.environmental_score')}}
+                            <v-tooltip v-if="tooltip" right max-width="500">
+                                <template v-slot:activator="{on}">
+                                    <v-icon v-on="on" x-small right>mdi-information-outline</v-icon>
+                                </template>
+                                <span>{{ $t('cvss_calculator_tooltip.environmentalMetricGroup_Legend') }}</span>
+                            </v-tooltip>
+                        </v-card-title>
+                    </v-row>
+                    <v-card class="my-2">
+                        <v-row v-for="group in cvss.environmental" :key="group.model">
+                            <v-card flat @click="update" :ripple="false">
+                                <v-card-text class="py-2">
+                                    <v-row>
+                                        <span class="blue--text">{{ $t('cvss_calculator.' + group.title) }}</span>
+                                        <v-tooltip v-if="tooltip" right max-width="500">
+                                            <template v-slot:activator="{on}">
+                                                <v-icon v-on="on" x-small right>mdi-information-outline</v-icon>
+                                            </template>
+                                            <span>{{ $t('cvss_calculator_tooltip.' + group.model + '_Heading') }}</span>
+                                        </v-tooltip>
+                                    </v-row>
+                                    <v-row >
+                                        <v-btn-toggle v-model="group.state" mandatory>
+                                            <v-tooltip right max-width="300" v-for="prop in group.props" :key="prop.value" :content-class="hideTooltip">
+                                                <template v-slot:activator="{on}">
+                                                    <v-btn small  v-on="on">
+                                                        <span>{{ $t('cvss_calculator.' + prop.label) }}</span>
+                                                        <v-icon small color="primary">{{ 'mdi-alpha-' + prop.value.toLowerCase() + '-box' }}</v-icon>
+                                                    </v-btn>
+                                                </template>
+                                                <span>{{ $t('cvss_calculator_tooltip.' + group.model + '_' + prop.value + '_Label') }}</span>
+                                            </v-tooltip>
+                                        </v-btn-toggle>
+                                    </v-row>
+                                </v-card-text>
+                            </v-card>
+                        </v-row>
+                    </v-card>
+                </v-card>
+
+            </v-card>
+        </v-dialog>
+    </v-row>
 </template>
 
 <script>
@@ -462,61 +460,3 @@
         }
     }
 </script>
-
-<style>
-    .v-tooltip__content.hide-tooltip {
-        display: none !important;
-    }
-    .v-card.bsm {
-        border-left: 4px solid #ddd;
-        transition: border-left-color 250ms;
-    }
-    .score-sheet {
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-        border-radius: 0;
-    }
-    .base-metric {
-        margin: 16px;
-        margin-top: 112px !important;
-    }
-
-    .vector-string {
-        position: fixed;
-        top: 55px;
-        z-index: 1;
-        width: calc(100%);
-        border-radius: 0;
-        padding-top: 8px;
-    }
-
-    .severity { transition: background-color 250ms, color 250ms; font-weight: bold;}
-
-    .severity.none { background-color: #53aa33 !important; }
-    .severity.low { background-color: #ffcb0d !important; }
-    .severity.medium { background-color: #f9a009 !important; }
-    .severity.high { background-color: #df3d03 !important; }
-    .severity.critical { background-color: red !important; }
-
-    .bsm.none { border-left-color: #53aa33 !important; }
-    .bsm.low { border-left-color: #ffcb0d !important; }
-    .bsm.medium { border-left-color: #f9a009 !important; }
-    .bsm.high { border-left-color: #df3d03 !important; }
-    .bsm.critical { border-left-color: red !important; }
-
-    span.cs_metric_score {
-        background-color: rgba(255,255,255,1) !important;
-        border-radius: 4px;
-    }
-
-    .cs_cvss_score {
-        width: calc(100% / 3.2);
-    }
-    .cs_cvss_score:first-child {
-        margin-left: 0px;
-        margin-right: 4px;
-    }
-    .cs_cvss_score:last-child {
-        margin-left: 4px;
-        margin-right: 0px;
-    }
-</style>

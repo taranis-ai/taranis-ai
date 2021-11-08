@@ -1,14 +1,11 @@
 import base64
-
 from flask import Response
 from flask import request
 from flask_restful import Resource
 
 from managers import auth_manager, presenters_manager, publishers_manager, log_manager
 from managers.auth_manager import auth_required, ACLCheck
-from model import product
-from model import product_type
-from model import publisher_preset
+from model import product, product_type, publisher_preset
 from model.permission import Permission
 
 

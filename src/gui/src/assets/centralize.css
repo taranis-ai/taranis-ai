@@ -1,0 +1,1160 @@
+/* Temporary CSS - WiP - Don't modify */
+
+/*div.content-container > div.container { !* add button *!
+    position: relative;
+    !*bottom: 40px;
+    width: 82px;
+    right: 0;*!
+    z-index: 100;
+}*/
+
+/* Fullscreen Dialog */
+div.v-dialog__content header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+[role='tablist'] {
+    position: sticky;
+    top: 64px;
+    z-index: 1;
+}
+
+/* NEW */
+/* App Bar */
+.app-header {
+    /*background-color: #c7c7c7 !important;
+    border-bottom: 1px solid red !important;*/
+    box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.02),
+    0 4px 5px 0 rgba(0, 0, 0, 0.14),
+    0 1px 10px 0 rgba(0, 0, 0, 0.12);
+}
+
+/*.app-header img {
+    height: 45px;
+}*/
+
+/*.container {
+    max-width: calc(100%) !important;
+}*/
+
+#app .user-settings-dialog .v-tabs .v-window.v-tabs-items {
+    background-color: transparent !important;
+}
+#app .user-settings-dialog [role="tablist"] {
+    top: 0;
+}
+
+.total-count-text {
+    font-size: 13px;
+}
+
+.wordlist {
+    background-color: yellow;
+    font-weight: bold;
+}
+
+#app.theme--dark .wordlist {
+    color: black;
+    font-weight: bold;
+}
+
+#app.hide-wordlist span.wordlist {
+    font-weight: unset;
+    background: none;
+}
+
+thead tr th.text-left {
+    min-width: 300px;
+}
+
+div.v-data-table > header {
+    z-index: 1;
+    top: 50px;
+    box-shadow: 0 1px 0 gray;
+}
+
+[role='tablist'][data-booted='true'] {
+    top: 0;
+}
+
+/* --- Login.vue --- */
+/* Login Screen */
+.login-screen {
+    background-color: #eee;
+}
+
+.login-screen .v-form .flex {
+    border: 1px solid #eee;
+    border-radius: 4px;
+    height: 38px;
+    width: 200px;
+    background-color: white;
+}
+
+.login-screen .v-form .v-input {
+    margin: 0;
+    padding: 0;
+}
+
+.login-screen .offset-login {
+    position: relative;
+    height: 20%;
+}
+
+.login-screen div {
+    text-align: center;
+}
+
+.login-screen .v-input {
+    transform: scale(0.8);
+    transform-origin: left;
+}
+
+.login-screen table {
+    width: 550px;
+    margin: 0 auto;
+    padding-left: 64px;
+}
+
+.login-screen table td {
+    padding: 0;
+    margin: 0;
+}
+
+.login-screen table td.table-button {
+    vertical-align: top;
+}
+
+.login-screen img {
+    position: absolute;
+    width: 400px;
+    bottom: 0;
+    left: 50%;
+    transform: translate(-50%, -20%);
+}
+
+.login-screen .v-alert {
+    position: absolute;
+    transform: translate(10px, 74px);
+}
+
+.login-screen .v-input__slot {
+    width: 200px;
+}
+
+/* --- AnalyzeView.vue --- */
+.np {
+    display: none;
+}
+
+/* --- AssessView.vue --- */
+.nri {
+    display: none;
+}
+
+/* --- DashboardView.vue --- */
+.v-sheet--offset {
+    top: -8px;
+    position: relative;
+}
+
+.wordCloud {
+    height: 200px;
+}
+
+.v-card .v-btn.next {
+    position: absolute;
+    right: 16px;
+}
+
+.v-card .chips {
+    position: relative;
+    text-align: right;
+    right: 12px;
+}
+
+/* --- EnterView.vue --- */
+.nri {
+    display: none;
+}
+
+.v-chip-group .v-chip.filter {
+    height: 20px;
+    margin-top: 5px;
+}
+
+/* --- MyAssetsView.vue --- */
+.np {
+    display: none;
+}
+
+/* --- MainMenu.vue --- */
+.app-header .v-toolbar__content {
+    padding-right: 0;
+}
+
+header.app-header.border {
+    border-bottom: 1px solid #b6b6b6 !important;
+}
+
+header.app-header.border.dark {
+    border-bottom: 1px solid #484848 !important;
+}
+
+.logo {
+    --color-1: black;
+    --color-2: white;
+    --color-3: #4092dd;
+    margin-top: 0.3em;
+}
+
+.logo.dark {
+    --color-1: white;
+    --color-2: black;
+}
+
+.app-header img.drw-btn {
+    height: 18px;
+}
+
+/* --- UserMenu.vue --- */
+.user-menu {
+    display: inherit;
+}
+
+.user-menu-button {
+    margin-right: 0;
+    margin-left: 0;
+    /*height: 46px !important;*/
+}
+
+.user-menu .v-badge__badge {
+    height: 18px;
+    min-width: 18px;
+    top: 2px;
+    right: 2px;
+}
+
+.dark-mode-switch .v-list-item__icon {
+    margin-right: 8px !important;
+    margin-bottom: 8px;
+    margin-top: 0;
+    height: 54px;
+}
+
+/* --- UserSettings.vue --- */
+.row.text-center.shortcut {
+    width: calc(100% / 3 + 24px);
+    float: left;
+}
+
+/* --- AnalyzeFilter.vue --- */
+.toolbar-buttons-right {
+    padding-top:4px;
+    position:absolute;
+    right:0;
+}
+
+/* --- CardAnalyze.vue --- */
+
+/* --- ContentDataAnalyze.vue --- */
+html {
+    scroll-behavior: smooth;
+}
+
+#selector_analyze .card-assess {
+    transition: background-color 1s;
+}
+
+#selector_analyze .focus.in_progress {
+    box-shadow: inset 0 0 0 3px #ffd556;
+    background-color: rgba(255, 213, 86, 0.3);
+}
+
+#selector_analyze .focus.read {
+    box-shadow: inset 0 0 0 3px #33DD40;
+    background-color: rgba(0, 128, 0, 0.3);
+}
+
+#selector_analyze .focus.important {
+    box-shadow: inset 0 0 0 3px red;
+    background-color: rgba(255, 0, 0, 0.3);
+}
+
+/* --- NewReportItem.vue --- */
+.div-wrapper .theme--light.v-card {
+    border-left: 5px solid rgb(255, 172, 33);
+}
+
+.tabs [role='tablist'] {
+    background-color: #f5ebd5 !important;
+
+}
+
+
+.tabs .v-window-item {
+}
+
+.icon-field-offset {
+    margin-left: 8px;
+}
+
+.locked-style {
+    border-color: lightblue !important;
+    border-width: 1px;
+    border-style: dashed;
+}
+
+.attribute-card {
+    border-left: 4px solid #6abef2 !important;
+}
+
+.attribute-title {
+    background-color: #4694db30 !important;
+    border-radius: 0 4px 0 0 !important;
+}
+
+.vue-csv-uploader button.load {
+    margin: 10px 10px 10px 0;
+    padding: 4px 10px 4px 10px;
+    background-color: #4092dd;
+    border-radius: 4px;
+    color: white;
+}
+
+.vue-csv-uploader-part-two table {
+    width: 400px;
+}
+
+.vue-csv-uploader-part-two table thead {
+    text-align: left;
+}
+
+.vue-csv-uploader-part-two table select {
+    -webkit-appearance: auto;
+    -moz-appearance: auto;
+    border: 1px solid gray;
+    border-radius: 4px;
+}
+
+/* --- NewsItemSelector.vue --- */
+.row {
+    margin-left: 0;
+}
+
+/* --- RemoteReportItem.vue --- */
+.div-wrapper .theme--light.v-card {
+    border-left: 5px solid rgb(255, 172, 33);
+}
+
+.tabs [role='tablist'] {
+    background-color: #f5ebd5 !important;
+
+}
+
+.div-wrapper .v-card-title-dialog {
+    background-color: rgba(207, 158, 37, 0.2);
+    border-radius: 0;
+    font-size: 1.2em;
+    font-weight: bold;
+    padding: 0;
+    padding-left: 1em;
+}
+
+.tabs .v-window-item {
+}
+
+.icon-field-offset {
+    margin-left: 8px;
+}
+
+.locked-style {
+    border-color: lightblue !important;
+    border-width: 1px;
+    border-style: dashed;
+}
+
+/* --- RemoteRerpotItemSelector.vue --- */
+
+/* --- ToolbarGroupAnalyze.vue --- */
+.view .view-panel button.multi-select-button-pressed {
+    background-color: orange !important;
+}
+
+/* --- CardAssess.vue --- */
+#selector .card.focus {
+    background-color: #caecff;
+}
+
+.card .obj.center {
+    text-align: center;
+}
+
+.card.elevation-12 {
+    z-index: 1;
+    background-color: rgba(100, 137, 214, 0.1);
+}
+
+.alink {
+    text-decoration: none;
+}
+
+/* --- CardAssessItem.vue --- */
+#selector .card.focus {
+    background-color: #caecff;
+}
+
+/* --- ContentDataAssess.vue --- */
+html,
+.v-dialog--active .cs-inside {
+    scroll-behavior: smooth;
+}
+
+.selector_assess .card-assess {
+    transition: background-color 1s;
+}
+
+.selector_assess .focus.new {
+    box-shadow: inset 0 0 0 3px #ffd556;
+    background-color: rgba(255, 213, 86, 0.3);
+}
+
+.selector_assess .focus.read {
+    box-shadow: inset 0 0 0 3px #33DD40;
+    background-color: rgba(0, 128, 0, 0.3);
+}
+
+.selector_assess .focus.important {
+    box-shadow: inset 0 0 0 3px red;
+    background-color: rgba(255, 0, 0, 0.3);
+}
+
+/* --- NewsItemAggregateDetail.vue --- */
+[role='tablist'] {
+    top: 48px;
+}
+
+.title-limit {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 550px;
+    font-size: 1em;
+}
+
+/* --- NewsItemDetail.vue --- */
+[role='tablist'] {
+    top: 48px;
+}
+.title-limit {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 550px;
+    font-size: 1em;
+}
+
+/* --- NewsItemSingleDetail.vue --- */
+[role='tablist'] {
+    top: 48px;
+}
+
+.title-limit {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 550px;
+    font-size: 1em;
+}
+
+/* --- CardAsset.vue --- */
+
+
+/* --- CardVulnerability.vue --- */
+
+/* --- CPETable.vue --- */
+.vue-csv-uploader button.load {
+    margin: 10px;
+    margin-left: 0;
+    padding: 4px 10px 4px 10px;
+    background-color: #4092dd;
+    border-radius: 4px;
+    color: white;
+}
+
+.vue-csv-uploader-part-two table {
+    width: 400px;
+}
+
+.vue-csv-uploader-part-two table thead {
+    text-align: left;
+}
+
+.vue-csv-uploader-part-two table select {
+    -webkit-appearance: auto;
+    -moz-appearance: auto;
+    border: 1px solid gray;
+    border-radius: 4px;
+}
+
+/* --- NewAsset.vue --- */
+
+.cx-toolbar-filter {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+#selector .card.focus {
+    background-color: #caecff;
+}
+
+/* --- ToolbarFilterAssets.vue --- */
+.v-chip-group .v-chip.filter {
+    height: 20px;
+    margin-top: 5px;
+}
+
+/* --- VulnerabilityDetail.vue --- */
+.div-wrapper .theme--light.v-card {
+    border-left: 5px solid rgb(255, 172, 33);
+}
+
+.tabs [role='tablist'] {
+    background-color: #f5ebd5 !important;
+
+}
+
+.div-wrapper .v-card-title-dialog {
+    background-color: rgba(207, 158, 37, 0.2);
+    border-radius: 0;
+    font-size: 1.2em;
+    font-weight: bold;
+    padding: 0;
+    padding-left: 1em;
+}
+
+.tabs .v-window-item {
+}
+
+.icon-field-offset {
+    margin-left: 8px;
+}
+
+/* --- DataInput.vue --- */
+.v-toolbar .v-input {
+    padding-top: 12px;
+    margin-right: 16px;
+}
+
+/* --- CSButton.vue --- */
+.v-tooltip__content.hide-tooltip {
+    display: none !important;
+}
+
+/* --- CalculatorCVSS.vue --- */
+.v-tooltip__content.hide-tooltip {
+    display: none !important;
+}
+.v-card.bsm {
+    border-left: 4px solid #ddd;
+    transition: border-left-color 250ms;
+}
+.score-sheet {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    border-radius: 0;
+}
+.base-metric {
+    margin: 16px;
+    margin-top: 112px !important;
+}
+
+.vector-string {
+    position: fixed;
+    z-index: 1;
+    width: calc(100%);
+    border-radius: 0;
+    padding-top: 8px;
+}
+
+.severity { transition: background-color 250ms, color 250ms; font-weight: bold;}
+
+.severity.none { background-color: #53aa33 !important; }
+.severity.low { background-color: #ffcb0d !important; }
+.severity.medium { background-color: #f9a009 !important; }
+.severity.high { background-color: #df3d03 !important; }
+.severity.critical { background-color: red !important; }
+
+.bsm.none { border-left-color: #53aa33 !important; }
+.bsm.low { border-left-color: #ffcb0d !important; }
+.bsm.medium { border-left-color: #f9a009 !important; }
+.bsm.high { border-left-color: #df3d03 !important; }
+.bsm.critical { border-left-color: red !important; }
+
+span.cs_metric_score {
+    background-color: rgba(255,255,255,1) !important;
+    border-radius: 4px;
+}
+
+.cs_cvss_score {
+    width: calc(100% / 3.2);
+}
+.cs_cvss_score:first-child {
+    margin-left: 0;
+    margin-right: 4px;
+}
+.cs_cvss_score:last-child {
+    margin-left: 4px;
+    margin-right: 0;
+}
+
+/* --- EnumSelector.vue --- */
+tbody tr {
+    user-select: none !important;
+    cursor: pointer;
+}
+
+/* --- Navigation.vue --- */
+.navigation .v-list-item--active:not(.theme--dark) {
+    background-color: rgba(255, 255, 255, 0.3);
+}
+
+.navigation .section-icon,
+.navigation .section-divider {
+    opacity: 0.2;
+}
+
+nav .v-list-item__title {
+    text-align: center;
+    white-space: unset;
+    /*font-size: 1vh;*/
+}
+
+.navigation .navigation-list div.v-list-item:not(.section-icon) {
+    min-height: 10px;
+}
+
+/* --- QuickChat.vue --- scoped */
+.taranis-chat {
+    position: fixed;
+    top: 72px;
+    right: 32px;
+    width: 350px;
+}
+
+.chatEnv {
+    position: relative;
+
+    z-index: 20;
+}
+
+.chatButton {
+    /*position: relative;
+    left: 0.5em;*/
+}
+
+.taranis-chat .quick-chat-container {
+    height: 512px;
+    border: 1px solid #faa;
+    box-shadow: 0 0 20px 6px rgba(0, 0, 0, 0.2);
+}
+
+/* --- AttributeAttachment.vue --- */
+#dropzone {
+    width: 100%;
+    height: 64px;
+    background-color: #e4e4e4;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+[cs] {
+    position: relative;
+    float: left;
+    width: 68px;
+    margin: 4px 12px;
+}
+
+[cs] > div {
+    text-align: center;
+}
+
+[cs] .dz-details {
+
+}
+
+[cs] [data-dz-size] {
+    font-size: 10px;
+    font-weight: bold;
+}
+
+[cs] .dz-filename {
+    width: 64px;
+    overflow: hidden;
+    white-space: pre-wrap;
+    text-overflow: ellipsis;
+    line-height: 1;
+}
+
+[cs] [data-dz-name] {
+    font-size: 10px;
+}
+
+#dropzone.dz-started .dz-message {
+    display: none;
+}
+
+.dropzone-wrapper-div {
+    margin-left: 8px;
+    margin-right: 8px;
+    margin-top: 8px;
+}
+
+/* --- AttributeCVE.vue --- */
+.v-tooltip__content.hide-tooltip {
+    display: none !important;
+}
+
+/* --- AttributeContainer.vue --- */
+.div-wrapper .theme--light.v-card {
+    border-left: 0;
+    margin-top: 4px;
+}
+
+/* --- AttributeDateTime.vue --- */
+.v-card__actions {
+    top: 48px;
+}
+
+/* --- AttributeRichText.vue --- */
+div.ck.ck-editor__main {
+    max-height: 512px;
+    overflow: auto;
+}
+.ql-customControl:after {
+    content: 'T';
+}
+button.ql-insertTemplate,
+button.ql-textTag {
+    width: auto !important;
+}
+button.ql-insertTemplate::after {
+    content: 'Templates';
+}
+button.ql-textTag::after {
+    content: 'Tag'
+}
+
+publish {
+    background-color: #ffff9fa0;
+    box-shadow: 0 0 0 4px #ffff9fa0;
+}
+
+button.ql-publish {
+    width: auto !important;
+    background-color: rgba(0,0,0,0.2) !important;
+    color: white;
+    line-height: 1;
+    border-radius: 16px;
+    padding: 0 12px 0 12px !important;
+    font-size: 0.9em;
+    font-weight: normal;
+}
+button.ql-publish:hover {
+    color: white !important;
+    background-color: rgba(0,0,0,0.5) !important;
+}
+
+.ql-publish:after {
+    content: "Publish";
+}
+
+/* --- RemoteAttributeAttachment.vue --- */
+#dropzone {
+    width: 100%;
+    height: 64px;
+    background-color: #e4e4e4;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+[cs] {
+    position: relative;
+    float: left;
+    width: 68px;
+    margin: 4px 12px;
+}
+
+[cs] > div {
+    text-align: center;
+}
+
+[cs] .dz-details {
+
+}
+
+[cs] [data-dz-size] {
+    font-size: 10px;
+    font-weight: bold;
+}
+
+[cs] .dz-filename {
+    width: 64px;
+    overflow: hidden;
+    white-space: pre-wrap;
+    text-overflow: ellipsis;
+    line-height: 1;
+}
+
+[cs] [data-dz-name] {
+    font-size: 10px;
+}
+
+#dropzone.dz-started .dz-message {
+    display: none;
+}
+
+.dropzone-wrapper-div {
+    margin-left: 8px;
+    margin-right: 8px;
+    margin-top: 8px;
+}
+
+/* --- RemoteAttributeContainer.vue --- scoped */
+.div-wrapper .theme--light.v-card {
+    border-left: 0;
+    margin-top: 4px;
+}
+
+/* --- RemoteAttributeString.vue --- scoped */
+
+/* --- CardCompact.vue --- */
+
+/* --- CardNode.vue --- */
+
+/* --- CardPreset.vue --- */
+
+/* --- NewAttribute.vue --- */
+.vue-csv-uploader button.load {
+    margin: 10px;
+    margin-left: 0;
+    padding: 4px 10px 4px 10px;
+    background-color: #4092dd;
+    border-radius: 4px;
+    color: white;
+}
+
+.vue-csv-uploader-part-two table {
+    width: 400px;
+}
+
+.vue-csv-uploader-part-two table thead {
+    text-align: left;
+}
+
+.vue-csv-uploader-part-two table select {
+    -webkit-appearance: auto;
+    -moz-appearance: auto;
+    border: 1px solid gray;
+    border-radius: 4px;
+}
+
+/* --- CardGroup.vue --- */
+
+/* --- NewRole.vue --- */
+.div-wrapper .theme--light.v-card {
+    border-left: 5px solid rgb(255, 172, 33);
+}
+
+.tabs [role='tablist'] {
+    background-color: #f5ebd5 !important;
+
+}
+
+.div-wrapper .v-card-title-dialog {
+    background-color: rgba(207, 158, 37, 0.2);
+    border-radius: 0;
+    font-size: 1.2em;
+    font-weight: bold;
+    padding: 0;
+    padding-left: 1em;
+}
+
+.icon-field-offset {
+    margin-left: 8px;
+}
+
+/* --- CardSource.vue --- */
+
+/* --- NewOSINTSourceGroup.vue --- */
+.div-wrapper .theme--light.v-card {
+    border-left: 5px solid rgb(255, 172, 33);
+}
+
+.tabs [role='tablist'] {
+    background-color: #f5ebd5 !important;
+
+}
+
+.div-wrapper .v-card-title-dialog {
+    background-color: rgba(207, 158, 37, 0.2);
+    border-radius: 0;
+    font-size: 1.2em;
+    font-weight: bold;
+    padding: 0;
+    padding-left: 1em;
+}
+
+.tabs .v-window-item {
+}
+
+.icon-field-offset {
+    margin-left: 8px;
+}
+
+/* --- CardProductType.vue --- */
+
+/* --- NewRemoteAccess.vue --- */
+.div-wrapper .theme--light.v-card {
+    border-left: 5px solid rgb(255, 172, 33);
+}
+
+.tabs [role='tablist'] {
+    background-color: #f5ebd5 !important;
+
+}
+
+.div-wrapper .v-card-title-dialog {
+    background-color: rgba(207, 158, 37, 0.2);
+    border-radius: 0;
+    font-size: 1.2em;
+    font-weight: bold;
+    padding: 0;
+    padding-left: 1em;
+}
+
+.tabs .v-window-item {
+}
+
+.icon-field-offset {
+    margin-left: 8px;
+}
+
+/* --- NewRemoteNode.vue --- */
+.div-wrapper .theme--light.v-card {
+    border-left: 5px solid rgb(255, 172, 33);
+}
+
+.tabs [role='tablist'] {
+    background-color: #f5ebd5 !important;
+
+}
+
+.div-wrapper .v-card-title-dialog {
+    background-color: rgba(207, 158, 37, 0.2);
+    border-radius: 0;
+    font-size: 1.2em;
+    font-weight: bold;
+    padding: 0;
+    padding-left: 1em;
+}
+
+.tabs .v-window-item {
+}
+
+.icon-field-offset {
+    margin-left: 8px;
+}
+
+/* --- CardUser.vue --- */
+
+/* --- NewACL.vue --- */
+.div-wrapper .theme--light.v-card {
+    border-left: 5px solid rgb(255, 172, 33);
+}
+
+.tabs [role='tablist'] {
+    background-color: #f5ebd5 !important;
+
+}
+
+.div-wrapper .v-card-title-dialog {
+    background-color: rgba(207, 158, 37, 0.2);
+    border-radius: 0;
+    font-size: 1.2em;
+    font-weight: bold;
+    padding: 0;
+    padding-left: 1em;
+}
+
+.tabs .v-window-item {
+}
+
+.icon-field-offset {
+    margin-left: 8px;
+}
+
+/* --- NewExternalUser.vue --- */
+.div-wrapper .theme--light.v-card {
+    border-left: 5px solid rgb(255, 172, 33);
+}
+
+.tabs [role='tablist'] {
+    background-color: #f5ebd5 !important;
+
+}
+
+.div-wrapper .v-card-title-dialog {
+    background-color: rgba(207, 158, 37, 0.2);
+    border-radius: 0;
+    font-size: 1.2em;
+    font-weight: bold;
+    padding: 0;
+    padding-left: 1em;
+}
+
+.tabs .v-window-item {
+}
+
+.icon-field-offset {
+    margin-left: 8px;
+}
+
+/* --- NewUser.vue --- */
+.div-wrapper .theme--light.v-card {
+    border-left: 5px solid rgb(255, 172, 33);
+}
+
+.tabs [role='tablist'] {
+    background-color: #f5ebd5 !important;
+
+}
+
+.div-wrapper .v-card-title-dialog {
+    background-color: rgba(207, 158, 37, 0.2);
+    border-radius: 0;
+    font-size: 1.2em;
+    font-weight: bold;
+    padding: 0;
+    padding-left: 1em;
+}
+
+.tabs .v-window-item {
+}
+
+.icon-field-offset {
+    margin-left: 8px;
+}
+
+/* --- WordTable.vue --- */
+.vue-csv-uploader button.load {
+    margin: 10px;
+    margin-left: 0;
+    padding: 4px 10px 4px 10px;
+    background-color: #4092dd;
+    border-radius: 4px;
+    color: white;
+}
+
+.vue-csv-uploader-part-two table {
+    width: 400px;
+}
+
+.vue-csv-uploader-part-two table thead {
+    text-align: left;
+}
+
+.vue-csv-uploader-part-two table select {
+    -webkit-appearance: auto;
+    -moz-appearance: auto;
+    border: 1px solid gray;
+    border-radius: 4px;
+}
+
+/* --- AttributeItemLayout.vue --- */
+.attribute-item-layout .row {
+    width: 100%;
+}
+
+/* --- AttributeValueLayout.vue --- */
+.col-left {
+    width: 8% !important;
+}
+
+.col-middle {
+    width: 82% !important;
+}
+
+.col-right {
+    width: 10% !important;
+}
+
+.col-left, .col-right {
+    line-height: 2;
+}
+
+.attribute-value-layout:hover {
+    background-color: rgba(106, 190, 242, 0.06);
+}
+
+.icon-tooltip {
+    position: absolute;
+    opacity: 0.7;
+    top: -23px;
+    left: -4px;
+    font-size: 10px;
+    width: 320px;
+    color: #4694db;
+}
+
+/* --- ContentDataPublish.vue --- */
+html {
+    scroll-behavior: smooth;
+}
+#selector_publish .card-assess {
+    transition: background-color 1s;
+}
+#selector_publish .focus.in_progress {
+    box-shadow: inset 0 0 0 3px #ffd556;
+    background-color: rgba(255, 213, 86, 0.3);
+}
+#selector_publish .focus.read {
+    box-shadow: inset 0 0 0 3px #33DD40;
+    background-color: rgba(0, 128, 0, 0.3);
+}
+#selector_publish .focus.important {
+    box-shadow: inset 0 0 0 3px red;
+    background-color: rgba(255, 0, 0, 0.3);
+}
+
+/* --- NewProduct.vue --- */
+.div-wrapper .theme--light.v-card {
+    border-left: 5px solid rgb(255, 172, 33);
+}
+
+.tabs [role='tablist'] {
+    background-color: #f5ebd5 !important;
+
+}
+
+.div-wrapper .v-card-title-dialog {
+    background-color: rgba(207, 158, 37, 0.2);
+    border-radius: 0;
+    font-size: 1.2em;
+    font-weight: bold;
+    padding: 0;
+    padding-left: 1em;
+}
+
+.tabs .v-window-item {
+}
+
+.icon-field-offset {
+    margin-left: 8px;
+}
+
+/* --- ReportItemSelector.vue --- */

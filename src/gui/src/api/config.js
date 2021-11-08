@@ -240,6 +240,14 @@ export function deleteOSINTSource(source) {
     return ApiService.delete('/config/osint-sources/' + source.id)
 }
 
+export function importOSINTSources(form_data) {
+    return ApiService.upload('/config/import-osint-sources', form_data)
+}
+
+export function exportOSINTSources(data) {
+    return ApiService.download('/config/export-osint-sources', data, 'osint_sources_export.json')
+}
+
 export function getAllOSINTSourceGroups(filter) {
     return ApiService.get('/config/osint-source-groups?search=' + filter.search)
 }

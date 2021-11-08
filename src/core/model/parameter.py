@@ -1,9 +1,10 @@
-from managers.db_manager import db
-from taranisng.schema import parameter
 from marshmallow import post_load
 
+from managers.db_manager import db
+from schema.parameter import ParameterType, ParameterSchema
 
-class NewParameterSchema(parameter.ParameterSchema):
+
+class NewParameterSchema(ParameterSchema):
 
     @post_load
     def make_parameter(self, data, **kwargs):
@@ -15,7 +16,7 @@ class Parameter(db.Model):
     key = db.Column(db.String(), nullable=False)
     name = db.Column(db.String(), nullable=False)
     description = db.Column(db.String())
-    type = db.Column(db.Enum(parameter.ParameterType))
+    type = db.Column(db.Enum(ParameterType))
 
     def __init__(self, id, key, name, description, type):
         self.id = None

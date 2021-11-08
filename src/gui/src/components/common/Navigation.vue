@@ -1,32 +1,27 @@
 <template>
+    <v-layout class="navigation" fill-height justify-center>
 
-    <v-layout class="navigation" align-center justify-space-between column fill-height>
-
-        <v-list class="navigation-list pa-0">
-            <v-list-item class="section-icon">
+        <v-list class="navigation-list pa-0" width="100">
+            <v-list-item class="section-icon" dense>
                 <v-list-item-title>
-                    <v-icon regular class="" color="white">{{icon}}</v-icon>
+                    <v-icon class="" color="white">{{icon}}</v-icon>
                 </v-list-item-title>
             </v-list-item>
             <v-divider class="section-divider" color="white"></v-divider>
 
-            <v-list-item dense v-for="link in filteredLinks" :key="link.id" router :to="link.route">
-                <v-list-item-content v-if="!link.separator">
-                    <v-icon regular color="cx-drawer-text">{{ link.icon }}</v-icon>
-                    <v-list-item-title class="cx-drawer-text--text">{{ $t(link.title) }}</v-list-item-title>
+            <v-list-item class="px-1" v-for="link in filteredLinks" :key="link.id" router :to="link.route">
+                <v-list-item-content class="py-2" v-if="!link.separator">
+                    <v-icon color="cx-drawer-text">{{ link.icon }}</v-icon>
+                    <v-list-item-title class="cx-drawer-text--text caption">{{ $t(link.title) }}</v-list-item-title>
                 </v-list-item-content>
-                <v-list-item-content class="separator" v-else>
+                <v-list-item-content class="separator py-0 blue-grey" v-else>
                     <v-divider class="section-divider " color="white"></v-divider>
                 </v-list-item-content>
             </v-list-item>
 
         </v-list>
 
-        <v-btn justify-end text exact icon color="white">
-            <v-icon>mdi-settings</v-icon>
-        </v-btn>
     </v-layout>
-
 </template>
 
 <script>
@@ -76,25 +71,3 @@
         }
     }
 </script>
-
-<style>
-    .navigation .v-list-item--active:not(.theme--dark) {
-        background-color: rgba(255, 255, 255, 0.3);
-    }
-
-    .navigation .section-icon,
-    .navigation .section-divider {
-        opacity: 0.2;
-    }
-
-    nav .v-list-item__title {
-        text-align: center;
-        white-space: unset;
-        font-size: 1vh;
-    }
-
-    .navigation .navigation-list div.v-list-item:not(.section-icon) {
-        min-height: 10px;
-    }
-
-</style>

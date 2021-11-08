@@ -70,9 +70,3 @@ export default {
     }
 }
 </script>
-
-<style>
-.attribute-item-layout .row {
-    width: 100%;
-}
-</style>

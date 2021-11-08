@@ -18,10 +18,3 @@
         },
     }
 </script>
-
-<style scoped>
-    .valueHolder:hover {
-        background-color: #f8f8f8;
-        border-radius: 16px;
-    }
-</style>

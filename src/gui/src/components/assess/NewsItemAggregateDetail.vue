@@ -1,82 +1,79 @@
 <template>
-    <div>
-        <v-row justify="center">
-            <v-dialog v-model="visible" max-width="900" @keydown.esc="close" fullscreen>
-                <v-card height="800">
+    <v-row v-bind="UI.DIALOG.ROW.WINDOW">
+        <v-dialog v-bind="UI.DIALOG.FULLSCREEN" v-model="visible" @keydown.esc="close">
+            <v-card>
 
-                    <v-toolbar dark dense color="primary" data-dialog="aggregate-detail">
-                        <v-btn icon dark @click="close()" data-btn="close">
-                            <v-icon>mdi-close-circle</v-icon>
+                <v-toolbar v-bind="UI.DIALOG.TOOLBAR" data-dialog="aggregate-detail">
+                    <v-btn icon dark @click="close()" data-btn="close">
+                        <v-icon>mdi-close-circle</v-icon>
+                    </v-btn>
+                    <v-toolbar-title class="title-limit">{{$t('assess.aggregate_detail')}}</v-toolbar-title>
+                    <v-spacer></v-spacer>
+
+                    <div v-if="!multiSelectActive && !analyze_selector">
+                        <v-btn v-if="canModify" small icon @click.stop="cardItemToolbar('ungroup')" :title="$t('assess.tooltip.ungroup_item')">
+                            <v-icon small color="accent">mdi-ungroup</v-icon>
                         </v-btn>
-                        <v-toolbar-title class="title-limit">{{$t('assess.aggregate_detail')}}</v-toolbar-title>
-                        <v-spacer></v-spacer>
+                        <v-btn v-if="canDelete" small icon @click.stop="cardItemToolbar('delete')" :title="$t('assess.tooltip.delete_item')">
+                            <v-icon small color="accent">mdi-delete</v-icon>
+                        </v-btn>
+                        <v-btn v-if="canCreateReport" small icon @click.stop="cardItemToolbar('new')" :title="$t('assess.tooltip.analyze_item')">
+                            <v-icon small color="accent">mdi-file-outline</v-icon>
+                        </v-btn>
+                        <v-btn v-if="canModify" small icon @click.stop="cardItemToolbar('read')" :title="$t('assess.tooltip.read_item')">
+                            <v-icon small :color="buttonStatus(news_item.read)">mdi-eye</v-icon>
+                        </v-btn>
+                        <v-btn v-if="canModify" small icon @click.stop="cardItemToolbar('important')" :title="$t('assess.tooltip.important_item')">
+                            <v-icon small :color="buttonStatus(news_item.important)">mdi-star</v-icon>
+                        </v-btn>
+                        <v-btn v-if="canModify" small icon @click.stop="cardItemToolbar('like')" :title="$t('assess.tooltip.like_item')">
+                            <v-icon small :color="buttonStatus(news_item.me_like)">mdi-thumb-up</v-icon>
+                        </v-btn>
+                        <v-btn v-if="canModify" small icon @click.stop="cardItemToolbar('unlike')" :title="$t('assess.tooltip.dislike_item')">
+                            <v-icon small :color="buttonStatus(news_item.me_dislike)">mdi-thumb-down</v-icon>
+                        </v-btn>
+                    </div>
 
-                        <div v-if="!multiSelectActive && !analyze_selector">
-                            <v-btn v-if="canModify" small icon @click.stop="cardItemToolbar('ungroup')" :title="$t('assess.tooltip.ungroup_item')">
-                                <v-icon small color="accent">mdi-ungroup</v-icon>
-                            </v-btn>
-                            <v-btn v-if="canDelete" small icon @click.stop="cardItemToolbar('delete')" :title="$t('assess.tooltip.delete_item')">
-                                <v-icon small color="accent">mdi-delete</v-icon>
-                            </v-btn>
-                            <v-btn v-if="canCreateReport" small icon @click.stop="cardItemToolbar('new')" :title="$t('assess.tooltip.analyze_item')">
-                                <v-icon small color="accent">mdi-file-outline</v-icon>
-                            </v-btn>
-                            <v-btn v-if="canModify" small icon @click.stop="cardItemToolbar('read')" :title="$t('assess.tooltip.read_item')">
-                                <v-icon small :color="buttonStatus(news_item.read)">mdi-eye</v-icon>
-                            </v-btn>
-                            <v-btn v-if="canModify" small icon @click.stop="cardItemToolbar('important')" :title="$t('assess.tooltip.important_item')">
-                                <v-icon small :color="buttonStatus(news_item.important)">mdi-star</v-icon>
-                            </v-btn>
-                            <v-btn v-if="canModify" small icon @click.stop="cardItemToolbar('like')" :title="$t('assess.tooltip.like_item')">
-                                <v-icon small :color="buttonStatus(news_item.me_like)">mdi-thumb-up</v-icon>
-                            </v-btn>
-                            <v-btn v-if="canModify" small icon @click.stop="cardItemToolbar('unlike')" :title="$t('assess.tooltip.dislike_item')">
-                                <v-icon small :color="buttonStatus(news_item.me_dislike)">mdi-thumb-down</v-icon>
-                            </v-btn>
-                        </div>
+                </v-toolbar>
 
-                    </v-toolbar>
+                <v-tabs dark centered grow>
+                    <!-- TABS -->
+                    <v-tab href="#tab-1">
+                        <span>{{$t('assess.aggregate_info')}}</span>
+                    </v-tab>
+                    <v-tab href="#tab-2">
+                        <span>{{$t('assess.comments')}}</span>
+                    </v-tab>
 
-                    <v-tabs dark centered grow>
-                        <!-- TABS -->
-                        <v-tab href="#tab-1">
-                            <span>{{$t('assess.aggregate_info')}}</span>
-                        </v-tab>
-                        <v-tab href="#tab-2">
-                            <span>{{$t('assess.comments')}}</span>
-                        </v-tab>
+                    <!-- TABS CONTENT -->
+                    <v-tab-item value="tab-1" class="px-5">
+                        <v-form id="form" ref="form" style="padding:8px">
+                            <v-text-field
+                                    :label="$t('assess.title')"
+                                    name="title"
+                                    v-model="title"
+                                    :spellcheck="$store.state.settings.spellcheck"
+                            ></v-text-field>
+                            <v-textarea
+                                    :label="$t('assess.description')"
+                                    name="description"
+                                    v-model="description"
+                                    :spellcheck="$store.state.settings.spellcheck"
+                            ></v-textarea>
+                        </v-form>
+                    </v-tab-item>
+                    <v-tab-item value="tab-2" class="pa-5">
+                        <vue-editor
+                                ref="assessAggregateDetailComments"
+                                :editorOptions="editorOptionVue2"
+                        />
+                    </v-tab-item>
 
-                        <!-- TABS CONTENT -->
-                        <v-tab-item value="tab-1" class="px-5">
-                            <v-form id="form" ref="form" style="padding:8px">
-                                <v-text-field
-                                        :label="$t('assess.title')"
-                                        name="title"
-                                        v-model="title"
-                                        :spellcheck="$store.state.settings.spellcheck"
-                                ></v-text-field>
-                                <v-textarea
-                                        :label="$t('assess.description')"
-                                        name="description"
-                                        v-model="description"
-                                        :spellcheck="$store.state.settings.spellcheck"
-                                ></v-textarea>
-                            </v-form>
-                        </v-tab-item>
-                        <v-tab-item value="tab-2" class="pa-5">
-                            <vue-editor
-                                    ref="assessAggregateDetailComments"
-                                    :editorOptions="editorOptionVue2"
-                            />
-                        </v-tab-item>
+                </v-tabs>
 
-                    </v-tabs>
-
-                </v-card>
-            </v-dialog>
-        </v-row>
-    </div>
-
+            </v-card>
+        </v-dialog>
+    </v-row>
 </template>
 
 <script>
@@ -172,6 +169,7 @@
                         this.news_item.description = this.description
                     });
                 }
+                this.$root.$emit('change-state', 'DEFAULT');
 
                 this.$root.$emit('first-dialog','');
             },
@@ -266,17 +264,3 @@
         }
     }
 </script>
-
-<style>
-    [role='tablist'] {
-        top: 48px;
-    }
-
-    .title-limit {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        max-width: 550px;
-        font-size: 1em;
-    }
-</style>

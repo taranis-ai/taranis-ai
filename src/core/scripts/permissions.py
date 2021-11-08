@@ -1,6 +1,7 @@
-from model.permission import Permission
-from managers import db_manager
 import sys
+
+from managers import db_manager
+from model.permission import Permission
 
 def run(db):
     Permission.add("ANALYZE_ACCESS", "Analyze access", "Access to Analyze module")

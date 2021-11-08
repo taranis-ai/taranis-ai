@@ -1,77 +1,74 @@
 <template>
-    <div>
-        <v-btn v-if="canCreate" depressed small color="white--text ma-2 mt-3 mr-5" @click="addNode">
-            <v-icon left>mdi-plus-circle-outline</v-icon>
-            <span class="subtitle-2">{{$t('publishers_node.add_btn')}}</span>
+    <v-row v-bind="UI.DIALOG.ROW.WINDOW">
+        <v-btn v-bind="UI.BUTTON.ADD_NEW" v-if="canCreate" @click="addNode">
+            <v-icon left>{{ UI.ICON.PLUS }}</v-icon>
+            <span>{{$t('publishers_node.add_btn')}}</span>
         </v-btn>
-        <v-row justify="center">
-            <v-dialog v-model="visible" max-width="600" persistent>
-                <v-card>
+        <v-dialog v-model="visible" max-width="600" persistent>
+            <v-card v-bind="UI.DIALOG.BASEMENT">
+                <v-toolbar v-bind="UI.DIALOG.TOOLBAR">
+                    <v-btn v-bind="UI.BUTTON.CLOSE_ICON" @click="cancel">
+                        <v-icon>{{ UI.ICON.CLOSE }}</v-icon>
+                    </v-btn>
+                    <v-toolbar-title v-if="!edit">{{$t('publishers_node.add_new')}}</v-toolbar-title>
+                    <v-toolbar-title v-if="edit">{{$t('publishers_node.edit')}}</v-toolbar-title>
+                    <v-spacer></v-spacer>
+                    <v-btn v-if="canUpdate" text type="submit" form="form">
+                        <v-icon left>mdi-content-save</v-icon>
+                        <span>{{$t('publishers_node.save')}}</span>
+                    </v-btn>
+                </v-toolbar>
 
-                    <v-toolbar dark color="primary">
-                        <v-btn icon dark @click="cancel">
-                            <v-icon>mdi-close-circle</v-icon>
-                        </v-btn>
-                        <v-toolbar-title v-if="!edit">{{$t('publishers_node.add_new')}}</v-toolbar-title>
-                        <v-toolbar-title v-if="edit">{{$t('publishers_node.edit')}}</v-toolbar-title>
-                        <v-spacer></v-spacer>
-                        <v-btn v-if="canUpdate" text type="submit" form="form">
-                            <v-icon left>mdi-content-save</v-icon>
-                            <span>{{$t('publishers_node.save')}}</span>
-                        </v-btn>
-                    </v-toolbar>
-
-                    <v-card-text>
-                        <v-form @submit.prevent="add" id="form" ref="form">
+                <v-card-text>
+                    <v-form @submit.prevent="add" id="form" ref="form">
 
 
-                            <v-text-field :disabled="!canUpdate"
-                                    :label="$t('publishers_node.name')"
-                                    name="name"
-                                    type="text"
-                                    v-model="node.name"
-                                    v-validate="'required'"
-                                    data-vv-name="name"
-                                    :error-messages="errors.collect('name')"
-                                    :spellcheck="$store.state.settings.spellcheck"
-                            ></v-text-field>
-                            <v-textarea :disabled="!canUpdate"
+                        <v-text-field :disabled="!canUpdate"
+                                      :label="$t('publishers_node.name')"
+                                      name="name"
+                                      type="text"
+                                      v-model="node.name"
+                                      v-validate="'required'"
+                                      data-vv-name="name"
+                                      :error-messages="errors.collect('name')"
+                                      :spellcheck="$store.state.settings.spellcheck"
+                        ></v-text-field>
+                        <v-textarea :disabled="!canUpdate"
                                     :label="$t('publishers_node.description')"
                                     name="description"
                                     v-model="node.description"
                                     :spellcheck="$store.state.settings.spellcheck"
-                            ></v-textarea>
-                            <v-text-field :disabled="!canUpdate"
-                                    :label="$t('publishers_node.url')"
-                                    name="url"
-                                    type="text"
-                                    v-model="node.api_url"
-                                    v-validate="'required'"
-                                    data-vv-name="url"
-                                    :error-messages="errors.collect('url')"
-                            ></v-text-field>
-                            <v-text-field :disabled="!canUpdate"
-                                    :label="$t('publishers_node.key')"
-                                    name="key"
-                                    type="text"
-                                    v-model="node.api_key"
-                                    v-validate="'required'"
-                                    data-vv-name="key"
-                                    :error-messages="errors.collect('key')"
-                            ></v-text-field>
+                        ></v-textarea>
+                        <v-text-field :disabled="!canUpdate"
+                                      :label="$t('publishers_node.url')"
+                                      name="url"
+                                      type="text"
+                                      v-model="node.api_url"
+                                      v-validate="'required'"
+                                      data-vv-name="url"
+                                      :error-messages="errors.collect('url')"
+                        ></v-text-field>
+                        <v-text-field :disabled="!canUpdate"
+                                      :label="$t('publishers_node.key')"
+                                      name="key"
+                                      type="text"
+                                      v-model="node.api_key"
+                                      v-validate="'required'"
+                                      data-vv-name="key"
+                                      :error-messages="errors.collect('key')"
+                        ></v-text-field>
 
-                            <v-alert v-if="show_validation_error" dense type="error" text>
-                                {{$t('publishers_node.validation_error')}}
-                            </v-alert>
-                            <v-alert v-if="show_error" dense type="error" text>{{$t('publishers_node.error')}}
-                            </v-alert>
-                        </v-form>
-                    </v-card-text>
+                        <v-alert v-if="show_validation_error" dense type="error" text>
+                            {{$t('publishers_node.validation_error')}}
+                        </v-alert>
+                        <v-alert v-if="show_error" dense type="error" text>{{$t('publishers_node.error')}}
+                        </v-alert>
+                    </v-form>
+                </v-card-text>
 
-                </v-card>
-            </v-dialog>
-        </v-row>
-    </div>
+            </v-card>
+        </v-dialog>
+    </v-row>
 </template>
 
 <script>

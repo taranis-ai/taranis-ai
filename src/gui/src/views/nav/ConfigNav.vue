@@ -31,7 +31,7 @@
                 { id: 14, icon: 'mdi-server-network', title: 'nav_menu.publishers_nodes', route: '/config/publishers/nodes', permission: 'CONFIG_PUBLISHERS_NODE_ACCESS' },
                 { id: 15, icon: 'mdi-file-star-outline', title: 'nav_menu.publisher_presets', route: '/config/publishers/presets', permission: 'CONFIG_PUBLISHER_PRESET_ACCESS' },
                 { id: 16, separator: '1' },
-                { id: 17, icon: 'mdi-iframe-variable-outline', title: 'nav_menu.attributes', route: '/config/reportitems/attributes', permission: 'CONFIG_ATTRIBUTE_ACCESS' },
+                { id: 17, icon: 'mdi-application-variable-outline', title: 'nav_menu.attributes', route: '/config/reportitems/attributes', permission: 'CONFIG_ATTRIBUTE_ACCESS' },
                 {id: 18,  icon: 'mdi-file-table-outline', title: 'nav_menu.report_types', route: '/config/reportitems/types', permission: 'CONFIG_REPORT_TYPE_ACCESS' },
                 { id: 19, separator: '1' },
                 {id: 20,  icon: 'mdi-format-list-text', title: 'nav_menu.word_lists', route: '/config/wordlists', permission: 'CONFIG_WORD_LIST_ACCESS' },

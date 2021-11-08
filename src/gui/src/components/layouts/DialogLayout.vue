@@ -1,9 +1,9 @@
 <template>
-    <v-row justify="center">
-        <v-dialog v-model="visible" fullscreen hide-overlay transition="dialog-bottom-transition">
+    <v-row v-bind="UI.DIALOG.ROW.WINDOW">
+        <v-dialog v-bind="UI.DIALOG.FULLSCREEN" v-model="visible">
             <v-card>
 
-                <v-toolbar dark color="primary">
+                <v-toolbar v-bind="UI.DIALOG.TOOLBAR">
                     <!-- BUTTON CANCEL -->
                     <v-btn icon dark @click="visible = false">
                         <v-icon>mdi-close-circle</v-icon>
