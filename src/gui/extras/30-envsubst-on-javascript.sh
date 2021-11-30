@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env sh
 
 # This script is started when Docker container starts.
 # It goes through /usr/share/nginx/html/js/*.js, and replaces
@@ -7,10 +7,10 @@
 
 set -e
 
-ME=$(basename $0)
+ME="$(basename "$0")"
 
 vue_envsubst() {
-  local js_dir="${VUE_ENVSUBST_JS_DIR:-/usr/share/nginx/html/js}"
+  js_dir="${VUE_ENVSUBST_JS_DIR:-/usr/share/nginx/html/js}"
 
   [ -d "$js_dir" ] || return 0
   if [ ! -w "$js_dir" ]; then
@@ -19,8 +19,7 @@ vue_envsubst() {
   fi
 
   cd "$js_dir"
-  local defined_envs FILE
-  defined_envs=$(printf '${%s} ' $(env | fgrep VUE_ | cut -d= -f1))
+  defined_envs="$(printf '${%s} ' $(env | grep -F VUE_ | cut -d= -f1))"
 
   for FILE in *.js ; do
     if [ ! -f ".$FILE.processed" ]; then
