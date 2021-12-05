@@ -83,12 +83,12 @@ const keyboardMixin = targetId => ({
             card.show = this.card_items[this.pos].querySelector(".card");
             card.id = this.card_items[this.pos].dataset.id;
             card.close = document.querySelector("[data-dialog='" + dialog + "-detail'] [data-btn='close']");
-            //card.close = document.querySelector(".v-dialog--active [data-btn='close']");
+            // Link is always extracted from the news item newdial button, does not work for opening all selected items, but also with opened items
+            card.link = this.card_items[this.pos].querySelector(".v-card button[data-btn='link'] a");
 
             // Speed Dial Toolbar
             card.group = temp.querySelector(which + "[data-btn='group']");
             card.ungroup = temp.querySelector(which + "[data-btn='ungroup']");
-            card.link = temp.querySelector(which + "[data-btn='link']");
             card.analyze = temp.querySelector(which + "[data-btn='new']");
             card.read = temp.querySelector(which + "[data-btn='read']");
             card.important = temp.querySelector(which + "[data-btn='important']");
@@ -112,199 +112,61 @@ const keyboardMixin = targetId => ({
             return false;
         },
 
-        _keyAction(press) {
-            //let dialog = document.querySelectorAll(".v-dialog--active").length ? true : false;
-
-            if ( !this.isSomeFocused() ) {
-                let keyAlias = '';
-
-                for (let i = 0; i < this.shortcuts.length; i++) {
-                    if (this.shortcuts[i].key_code == press.keyCode) {
-                        keyAlias = this.shortcuts[i].alias;
-                        if (keyAlias == 'collection_up' || keyAlias == 'collection_down') {
-                            press.preventDefault();
-                        }
-                    }
-                }
-
-                if (!this.focus) {
-                    this.focus = true;
-                    this.$refs.contentData.checkFocus(this.pos);
-                    setTimeout(()=>{
-                        this.keyRemaper();
-                    },150);
-
-                } else if(!this.isItemOpen) {
-
-                    switch (keyAlias) {
-                        case 'collection_up':
-                            if (this.pos == 0 || this.isItemOpen) {
-                                // pass
-                            } else {
-                                this.pos--;
-                                this.$refs.contentData.checkFocus(this.pos);
-                                setTimeout(()=>{
-                                    this.keyRemaper();
-                                },150);
-
-                            }
-                            break;
-
-                        case 'collection_down':
-                            if (this.pos == this.card_items.length - 1 || this.isItemOpen) {
-                                // pass
-                            } else {
-                                this.pos++;
-                                this.$refs.contentData.checkFocus(this.pos);
-                                setTimeout(()=>{
-                                    this.keyRemaper();
-                                },150);
-                            }
-                            break;
-
-                        case 'show_item':
-                            if (!this.isItemOpen) {
-                                this.keyboard_state = 'SHOW_ITEM';
-                                this.card.show.click();
-                                this.isItemOpen = true;
-                            }
-                            break;
-
-                        case 'read_item':
-                            this.card.read.click();
-                            break;
-
-                        case 'important_item':
-                            this.card.important.click();
-                            break;
-
-                        case 'like_item':
-                            this.card.like.click();
-                            break;
-
-                        case 'unlike_item':
-                            this.card.unlike.click();
-                            break;
-
-                        case 'delete_item':
-                            this.card.delete.click();
-                            break;
-
-                        case 'selection':
-                            if (!this.multiSelectActive) {
-                                this.card.multi_select.click();
-                                setTimeout(() => {
-                                    this.keyRemaper();
-                                }, 1);
-
-                                setTimeout(() => {
-                                    this.card.select.click();
-                                }, 155);
-                            } else {
-                                this.card.select.click();
-                                setTimeout(() => {
-                                    if (!document.querySelectorAll("#selector_assess input[type='checkbox'][aria-checked='true']").length) {
-                                        this.card.multi_select.click();
-                                    }
-                                }, 155);
-
-                            }
-                            break;
-
-                        case 'group':
-                            this.card.group.click();
-                            break;
-
-                        case 'ungroup':
-                            this.card.ungroup.click();
-                            break;
-
-                        case 'new_product':
-                            this.card.analyze.click();
-                            this.isItemOpen = true;
-                            break;
-
-                        case 'aggregate_open':
-                            if (this.card.aggregate) {
-                                this.card.aggregate.click();
-
-                                setTimeout(() => {
-                                    //this.keyRemaper();
-                                    this.cardReindex();
-                                }, 150);
-                            }
-                            break;
-
-                        default:
-                            break;
-                    }
-
-                } else {
-                    switch (keyAlias) {
-                        case 'close_item':
-                            this.keyboard_state = 'DEFAULT';
-                            this.isItemOpen = false;
-                            this.keyRemaper();
-                            this.card.close.click();
-                            break;
-
-                        default:
-                            break;
-                    }
-                }
-                this.scrollPos();
-            }
-
-            //window.console.debug(this.pos, this.isItemOpen, this.isSomeFocused(), this.focus, this.card);
+        setNewsItem(newPosition) {
+            if (newPosition < 0) newPosition = 0;
+            if (newPosition !== undefined) this.pos = newPosition;
+            if (newPosition >= this.card_items.length) this.pos = this.card_items.length - 1
+            this.$refs.contentData.checkFocus(this.pos);
+            setTimeout(()=>{
+                this.keyRemaper();
+            },150);
         },
 
         keyAction(press) {
             //let dialog = document.querySelectorAll(".v-dialog--active").length ? true : false;
             //window.console.debug("keyAction", press);
+            // define here, as it's not allowed in the case-switch
+            let search_field = document.getElementById('search')
+
+            let keyAlias = '';
+            for (let i = 0; i < this.shortcuts.length; i++) {
+                // ignore all presses with Ctrl or Alt key, they have a different meaning
+                if (! ( press.ctrlKey || press.altKey) && (this.shortcuts[i].character == press.key || this.shortcuts[i].key_code == press.keyCode)) {
+                    keyAlias = this.shortcuts[i].alias;
+                    break;
+                }
+            }
 
             if ( !this.isSomeFocused() ) {
-                let keyAlias = '';
-
-                for (let i = 0; i < this.shortcuts.length; i++) {
-                    if (this.shortcuts[i].key_code == press.keyCode) {
-                        keyAlias = this.shortcuts[i].alias;
-                        if (keyAlias == 'collection_up' || keyAlias == 'collection_down') {
-                            press.preventDefault();
-                        }
-                    }
-                }
-
                 if (!this.focus) {
                     this.focus = true;
-                    this.$refs.contentData.checkFocus(this.pos);
-                    setTimeout(()=>{
-                        this.keyRemaper();
-                    },150);
+                    this.setNewsItem();
 
-                } else if(this.state === 'DEFAULT') {
+                } else if(this.state === 'DEFAULT' && this.keyboard_state === 'DEFAULT') {
                     switch (keyAlias) {
                         case 'collection_up':
+                            press.preventDefault();
                             if (this.pos == 0) {
                                 // pass
                             } else {
-                                this.pos--;
-                                this.$refs.contentData.checkFocus(this.pos);
-                                setTimeout(()=>{
-                                    this.keyRemaper();
-                                },150);
-
+                                this.setNewsItem(this.pos-1);
                             }
                             break;
                         case 'collection_down':
+                            press.preventDefault();
                             if (this.pos == this.card_items.length - 1) {
                                 // pass
                             } else {
-                                this.pos++;
-                                this.$refs.contentData.checkFocus(this.pos);
-                                setTimeout(()=>{
-                                    this.keyRemaper();
-                                },150);
+                                this.setNewsItem(this.pos+1);
                             }
+                            break;
+                        case 'end':
+                            press.preventDefault()
+                            this.setNewsItem(this.card_items.length - 1);
+                            break;
+                        case 'home':
+                            press.preventDefault()
+                            this.setNewsItem(0);
                             break;
                         case 'show_item':
                             if (!this.isItemOpen) {
@@ -323,6 +185,42 @@ const keyboardMixin = targetId => ({
                                 }, 150);
                             }
                             break;
+
+                        case 'source_group_up': {
+                            let groups = this.$store.getters.getOSINTSourceGroups.items;
+                            let active_group_element = document.querySelector('.v-list-item--active');
+                            let active_group_id = active_group_element.pathname.split('/')[3];
+                            let index;
+                            console.log(groups)// eslint-disable-line
+                            for (index = 0; index < groups.length; index++) {
+                                if (groups[index].id === active_group_id) {
+                                    break
+                                }
+                            }
+                            if (index > 0) {
+                                index -= 1;
+                            }
+                            this.$router.push('/assess/group/' + groups[index].id)
+                            break;
+                        }
+                        case 'source_group_down': {
+                            let groups = this.$store.getters.getOSINTSourceGroups.items;
+                            let active_group_element = document.querySelector('.v-list-item--active');
+                            let active_group_id = active_group_element.pathname.split('/')[3];
+                            let index;
+                            console.log(groups)// eslint-disable-line
+                            for (index = 0; index < groups.length; index++) {
+                                if (groups[index].id === active_group_id) {
+                                    break
+                                }
+                            }
+                            if (index < groups.length) {
+                                index += 1;
+                            }
+                            this.$router.push('/assess/group/' + groups[index].id)
+                            break;
+                        }
+
                         case 'selection':
                             if (!this.multiSelectActive) {
                                 this.card.multi_select.click();
@@ -346,10 +244,20 @@ const keyboardMixin = targetId => ({
 
                         case 'read_item':
                             this.card.read.click();
+                            if (this.multiSelectActive && this.$store.getters.getFilter.read) {
+                                let selection = this.$store.getters.getSelection
+                                // set focus to the next item to read instead of keeping the current position
+                                this.setNewsItem(this.pos - selection.length + 1)
+                            }
                             break;
 
                         case 'important_item':
                             this.card.important.click();
+                            if (this.multiSelectActive && this.$store.getters.getFilter.important) {
+                                let selection = this.$store.getters.getSelection
+                                // set focus to the next item to read instead of keeping the current position
+                                this.setNewsItem(this.pos - selection.length + 1)
+                            }
                             break;
 
                         case 'like_item':
@@ -358,10 +266,20 @@ const keyboardMixin = targetId => ({
 
                         case 'unlike_item':
                             this.card.unlike.click();
+                            if (this.multiSelectActive && this.$store.getters.getFilter.relevant) {
+                                let selection = this.$store.getters.getSelection
+                                // set focus to the next item to read instead of keeping the current position
+                                this.setNewsItem(this.pos - selection.length + 1)
+                            }
                             break;
 
                         case 'delete_item':
                             this.card.delete.click();
+                            if (this.multiSelectActive) {
+                                let selection = this.$store.getters.getSelection
+                                // set focus to the next item to read instead of keeping the current position
+                                this.setNewsItem(this.pos - selection.length + 1)
+                            }
                             break;
 
                         case 'group':
@@ -377,9 +295,47 @@ const keyboardMixin = targetId => ({
                             this.card.analyze.click();
                             this.isItemOpen = true;
                             break;
+
+                        case 'open_item_source':
+                            console.log('this.card.link:', this.card.link) //eslint-disable-line
+                            // opening all selected news items' sources is not yet supprted
+                            if (! this.multiSelectActive) {
+                                this.card.link.click()
+                            }
+                            break;
+
+                        case 'open_search':
+                            press.preventDefault();
+                            search_field.focus()
+                            break;
+
+                        case 'enter_filter_mode':
+                            this.keyboard_state = 'FILTER';
+                            this.$root.$emit('notification',
+                                {
+                                    type: 'success',
+                                    loc: 'assess.shortcuts.enter_filter_mode'
+                                }
+                            )
+                            break;
+
+                        case 'reload':
+                            this.$root.$emit('news-items-updated')
+                            break;
+
                     }
-                } else if(this.state === 'SHOW_ITEM') {
+                } else if(this.state === 'SHOW_ITEM' && this.keyboard_state === 'SHOW_ITEM') {
                     switch (keyAlias) {
+                        // scroll the dialog instead of the window behind
+                        case 'collection_up':
+                            press.preventDefault();
+                            document.querySelector('.v-dialog--active').scrollBy(0, -100);
+                            break;
+                        case 'collection_down':
+                            press.preventDefault();
+                            document.querySelector('.v-dialog--active').scrollBy(0, 100);
+                            break;
+
                         case 'close_item':
                             if(document.activeElement.className !== 'ql-editor') {
                                 this.isItemOpen = false;
@@ -422,10 +378,15 @@ const keyboardMixin = targetId => ({
                             this.isItemOpen = true;
                             break;
 
+                        case 'open_item_source':
+                            console.log('this.card.link:', this.card.link) //eslint-disable-line
+                            this.card.link.click()
+                            break;
+
                         default:
                             break;
                     }
-                } else if(this.state === 'NEW_PRODUCT') {
+                } else if(this.state === 'NEW_PRODUCT' && this.keyboard_state === 'DEFAULT') {
                     switch(keyAlias) {
                         case 'close_item':
                             if(document.activeElement.className !== 'ql-editor') {
@@ -436,8 +397,45 @@ const keyboardMixin = targetId => ({
                             }
                             break;
                     }
+                } else if (this.keyboard_state === 'FILTER') {
+                    switch(keyAlias) {
+                        case 'read_item':
+                            document.getElementById('button_filter_read').click();
+                            this.keyboard_state = 'DEFAULT';
+                            break;
+
+                        case 'important_item':
+                            document.getElementById('button_filter_important').click();
+                            this.keyboard_state = 'DEFAULT';
+                            break;
+
+                        case 'like_item':
+                            document.getElementById('button_filter_relevant').click();
+                            this.keyboard_state = 'DEFAULT';
+                            break;
+
+                        case 'new_report_item':
+                            document.getElementById('button_filter_analyze').click();
+                            this.keyboard_state = 'DEFAULT';
+                            break;
+
+                        case 'close_item':
+                            // exit mode
+                            this.keyboard_state = 'DEFAULT';
+                            break;
+                    }
                 }
                 this.scrollPos();
+
+            // some item is in focus
+            } else {
+                if(this.state === 'DEFAULT' && keyAlias === 'close_item') {
+                    // Pressing Esc in the search field removes the focus
+                    if(document.activeElement == search_field) {
+                        // clear the focus
+                        search_field.blur()
+                    }
+                }
             }
 
             //window.console.debug(this.pos, this.isItemOpen, this.isSomeFocused(), this.focus);

@@ -820,7 +820,10 @@ const messages_en = {
             like_item: 'Like news item',
             dislike_item: 'Dislike news item',
             delete_item: 'Delete news item',
-        }
+        },
+        shortcuts: {
+            enter_filter_mode: 'Entered filter mode. Exit with Escape.',
+        },
     },
 
     publish: {

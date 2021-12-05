@@ -5,7 +5,8 @@ const state = {
     multi_select: false,
     selection: [],
     current_group_id: "",
-    manual_osint_sources: []
+    manual_osint_sources: [],
+    filter: {},
 };
 
 const actions = {
@@ -41,6 +42,10 @@ const actions = {
                 context.commit('setManualOSINTSources', response.data);
             })
     },
+
+    filter(context, data) {
+        context.commit('setFilter', data);
+    },
 };
 
 const mutations = {
@@ -73,7 +78,11 @@ const mutations = {
 
     setManualOSINTSources(state, new_manual_osint_sources) {
         state.manual_osint_sources = new_manual_osint_sources
-    }
+    },
+
+    setFilter(state, data) {
+        state.filter = data
+    },
 };
 
 const getters = {
@@ -96,7 +105,11 @@ const getters = {
 
     getManualOSINTSources(state) {
         return state.manual_osint_sources
-    }
+    },
+
+    getFilter(state) {
+        return state.filter
+    },
 };
 
 export const assess = {

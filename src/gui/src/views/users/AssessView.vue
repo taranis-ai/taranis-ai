@@ -62,6 +62,7 @@
 
             updateFilter(filter) {
                 this.$refs.contentData.updateFilter(filter)
+                this.$store.dispatch("filter", filter)
             },
 
             cardReindex() {

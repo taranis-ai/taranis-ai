@@ -7,7 +7,8 @@
             <v-col v-bind="UI.TOOLBAR.COL.MIDDLE">
                 <v-text-field v-bind="UI.ELEMENT.SEARCH" v-model="filter.search"
                               :placeholder="$t('toolbar_filter.search')"
-                              v-on:keyup="filterSearch" />
+                              v-on:keyup="filterSearch"
+                              id="search" />
             </v-col>
             <v-col v-bind="UI.TOOLBAR.COL.RIGHT">
                 <slot name="addbutton"></slot>
@@ -28,16 +29,16 @@
 
                 <!-- FAVORITES -->
                 <v-chip-group v-bind="UI.TOOLBAR.GROUP.FAVORITES">
-                    <v-chip v-bind="UI.TOOLBAR.CHIP.GROUP" @click="filterRead">
+                    <v-chip v-bind="UI.TOOLBAR.CHIP.GROUP" @click="filterRead" id="button_filter_read">
                         <v-icon v-bind="UI.TOOLBAR.ICON.FAVORITES_CHIP" :title="$t('assess.tooltip.filter_read')">{{ UI.ICON.UNREAD }}</v-icon>
                     </v-chip>
-                    <v-chip  v-bind="UI.TOOLBAR.CHIP.GROUP" @click="filterImportant">
+                    <v-chip  v-bind="UI.TOOLBAR.CHIP.GROUP" @click="filterImportant" id="button_filter_important">
                         <v-icon v-bind="UI.TOOLBAR.ICON.FAVORITES_CHIP" :title="$t('assess.tooltip.filter_important')">{{ UI.ICON.IMPORTANT }}</v-icon>
                     </v-chip>
-                    <v-chip v-bind="UI.TOOLBAR.CHIP.GROUP" @click="filterRelevant">
+                    <v-chip v-bind="UI.TOOLBAR.CHIP.GROUP" @click="filterRelevant" id="button_filter_relevant">
                         <v-icon v-bind="UI.TOOLBAR.ICON.FAVORITES_CHIP" :title="$t('assess.tooltip.filter_relevant')">{{ UI.ICON.RELEVANT }}</v-icon>
                     </v-chip>
-                    <v-chip v-bind="UI.TOOLBAR.CHIP.GROUP" @click="filterInAnalyze">
+                    <v-chip v-bind="UI.TOOLBAR.CHIP.GROUP" @click="filterInAnalyze" id="button_filter_analyze">
                         <v-icon v-bind="UI.TOOLBAR.ICON.FAVORITES_CHIP" :title="$t('assess.tooltip.filter_in_analyze')">{{ UI.ICON.IN_ANALYZE }}</v-icon>
                     </v-chip>
                 </v-chip-group>
