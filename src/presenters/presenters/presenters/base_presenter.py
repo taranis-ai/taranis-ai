@@ -1,8 +1,6 @@
 from shared.schema.presenter import PresenterSchema
-from presenters.managers.log_manager import logger
-import json
-import datetime
-
+from managers import log_manager
+import json, datetime
 
 class BasePresenter:
     type = "BASE_PRESENTER"

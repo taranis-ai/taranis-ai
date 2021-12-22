@@ -1,6 +1,5 @@
 from shared.schema.publisher import PublisherSchema
-from publishers.managers.log_manager import logger
-
+from managers import log_manager
 
 class BasePublisher:
     type = "BASE_PUBLISHER"

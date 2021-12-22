@@ -21,8 +21,8 @@ from urllib.parse import urlparse
 
 from .base_collector import BaseCollector
 from managers import log_manager
-from schema.news_item import NewsItemData, NewsItemAttribute
-from schema.parameter import Parameter, ParameterType
+from shared.schema.news_item import NewsItemData, NewsItemAttribute
+from shared.schema.parameter import Parameter, ParameterType
 
 import traceback
 
@@ -392,7 +392,7 @@ class WebCollector(BaseCollector):
         log_manager.log_debug('Initializing Firefox driver...')
 
         firefox_driver_executable = os.environ.get('SELENIUM_FIREFOX_DRIVER_PATH', '/usr/local/bin/geckodriver')
-        
+
         core_url = os.environ.get('TARANIS_NG_CORE_URL', 'http://core')
         core_url_host = urlparse(core_url).hostname # get only the hostname from URL
 

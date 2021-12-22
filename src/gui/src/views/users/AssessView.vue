@@ -1,13 +1,29 @@
 <template>
-  <div>
-    <ViewLayout>
-      <template v-slot:panel>
-        <v-expand-transition style="width: 100%">
-          <story-header-assess
-            v-if="showStoryHeader"
-            :story="showStoryHeader"
-          />
-        </v-expand-transition>
+    <div>
+        <ViewLayout>
+            <template v-slot:panel>
+                <ToolbarFilterAssess title='nav_menu.newsitems' total_count_title="assess.total_count" selected_count_title="assess.selected_count"
+                                     @update-news-items-filter="updateFilter"
+                                     ref="toolbarFilter">
+                    <template v-slot:addbutton>
+
+                    </template>
+                </ToolbarFilterAssess>
+            </template>
+            <template v-slot:content>
+                <ContentDataAssess
+                        card-item="CardAssess"
+                        selfID="selector_assess"
+                        data_set="assess"
+                        ref="contentData"
+                        @new-data-loaded="newDataLoaded"
+                        @card-items-reindex="cardReindex"
+                />
+                <NewReportItem class="nri"/>
+            </template>
+
+        </ViewLayout>
+    </div>
 
       </template>
       <template v-slot:content>
