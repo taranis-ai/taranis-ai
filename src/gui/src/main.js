@@ -1,8 +1,6 @@
 import 'material-design-icons-iconfont/dist/material-design-icons.css'
 import '@mdi/font/css/materialdesignicons.css'
 import Vue from 'vue'
-import Vuetify from 'vuetify/lib'
-// import colors from 'vuetify/lib/util/colors'
 import App from './App.vue'
 import { router } from './router'
 import { store } from '@/store/store'
@@ -10,8 +8,6 @@ import ApiService from '@/services/api_service'
 import VueI18n from 'vue-i18n'
 import messages from '@/i18n/messages'
 import VeeValidate from 'vee-validate'
-import Themes from './assets/themes'
-import { Scroll } from 'vuetify/lib/directives'
 import CKEditor from '@ckeditor/ckeditor5-vue'
 import VueCookies from 'vue-cookies'
 import VueSSE from 'vue-sse'
@@ -19,6 +15,7 @@ import DatetimePicker from 'vuetify-datetime-picker'
 import CSButton from '../src/components/common/CSButton'
 
 import layout_config from './assets/layout_config'
+import vuetify from '@/plugins/vuetify'
 
 const CSL = {
   install (Vue) {
@@ -36,28 +33,8 @@ Vue.use(VueCookies)
 Vue.use(VueSSE)
 Vue.use(DatetimePicker)
 
-Vue.use(Vuetify, {
-  directives: {
-    Scroll
-  }
-})
-
-Vue.use(Vuetify, {
-  iconfont: 'md'
-})
-
-Vue.use(Vuetify, {
-  iconfont: 'mdi'
-})
 
 Vue.use(CKEditor)
-
-const vuetify = new Vuetify({
-  theme: {
-    dark: false,
-    themes: Themes.taranisDefault
-  }
-})
 
 Vue.use(VueI18n)
 
@@ -80,11 +57,12 @@ if (localStorage.ACCESS_TOKEN) {
 
 Vue.component('cs-button', CSButton)
 
-export const vm = new Vue({
-  i18n,
-  vuetify,
-  store,
-  router,
-  render: h => h(App)
+console.log(vuetify)
 
+export const vm = new Vue({
+  router,
+  store,
+  vuetify,
+  i18n,
+  render: h => h(App)
 }).$mount('#app')

@@ -49,12 +49,11 @@
 
                     <v-row no-gutters>
                         <v-col cols="6" class="pa-1">
-                            <v-text-field :disabled="!canUpdate"
-                                          :label="$t('attribute.default_value')"
-                                          name="default_value"
-                                          type="text"
-                                          v-model="attribute.default_value"
-                                          :spellcheck="$store.state.settings.spellcheck"
+                            <v-combobox :disabled="!canUpdate"
+                                        v-model="selected_type"
+                                        :items="types"
+                                        item-text="title"
+                                        :label="$t('attribute.type')"
                             />
                         </v-col>
                         <v-col cols="6" class="pa-1">

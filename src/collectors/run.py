@@ -1,5 +1,9 @@
 #! /usr/bin/env python
 
+# patch things
+from gevent import monkey
+monkey.patch_all()
+
 import os
 
 from gevent import monkey

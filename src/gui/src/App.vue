@@ -1,9 +1,10 @@
 <template>
-    <v-app class="taranis">
+    <v-app class="grey lighten-2">
+        <!-- class="taranis" -->
 
         <MainMenu v-if="isAuthenticated()"/>
 
-        <v-navigation-drawer v-model="visible" width="96px" app clipped color="cx-drawer-bg" v-if="isAuthenticated()">
+        <v-navigation-drawer clipped v-model="visible" width="300px" app color="cx-drawer-bg" v-if="isAuthenticated()" class="sidebar">
             <router-view name="nav"></router-view>
         </v-navigation-drawer>
 
@@ -28,7 +29,7 @@ export default {
   },
   data: () => ({
     visible: null,
-    isDark: true
+    // isDark: true
   }),
   mixins: [AuthMixin],
   methods: {
@@ -112,3 +113,4 @@ export default {
 
 <style src="./assets/common.css"></style>
 <style src="./assets/centralize.css"></style>
+<style lang="scss" src="./assets/awake.scss"></style>

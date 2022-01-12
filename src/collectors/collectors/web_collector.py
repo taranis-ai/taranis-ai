@@ -99,6 +99,8 @@ class WebCollector(BaseCollector):
     @staticmethod
     def __get_prefix_and_selector(element_selector):
         selector_split = element_selector.split(':', 1)
+        if len(selector_split) != 2:
+            return '', ''
         prefix = selector_split[0].strip().lower()
         selector = selector_split[1].lstrip()
         return prefix, selector

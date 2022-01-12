@@ -4,8 +4,6 @@ services:
   redis:
     image: "redis:${REDIS_TAG}"
     restart: unless-stopped
-    environment:
-      TZ: "${TZ}"
     volumes:
       - "redis_conf:/usr/local/etc/redis"
     logging:
@@ -21,7 +19,6 @@ services:
       POSTGRES_DB: "taranis-ng"
       POSTGRES_USER: "taranis-ng"
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
-      TZ: "${TZ}"
     command: ["postgres", "-c", "shared_buffers=${DB_SHARED_BUFFERS}", "-c", "max_connections=${DB_MAX_CONNECTIONS}"]
     volumes:
       - "database_data:/var/lib/postgresql/data"
@@ -40,8 +37,8 @@ services:
     build:
       context: ..
       dockerfile: ./docker/Dockerfile.core
-    ports: 
-      - "5000:80"
+#   ports: 
+#     - "5000:80"
     environment: 
       REDIS_URL: "redis://redis"
       DB_URL: "database"
@@ -50,7 +47,7 @@ services:
       DB_PASSWORD: "${POSTGRES_PASSWORD}"
       DB_POOL_SIZE: 100
       DB_POOL_RECYCLE: 300
-      DB_POOL_TIMEOUT: 30
+      DB_POOL_TIMEOUT: 5
 
       JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
       OPENID_LOGOUT_URL: ""
@@ -60,7 +57,6 @@ services:
       CVE_UPDATE_FILE: "${CVE_UPDATE_FILE}"
       CPE_UPDATE_FILE: "${CPE_UPDATE_FILE}"
 
-      TZ: "${TZ}"
       DEBUG: "true"
     labels:
       traefik.enable: "true"
@@ -68,14 +64,14 @@ services:
 
       traefik.http.routers.taranis-api-443.entrypoints: "websecure"
       traefik.http.routers.taranis-api-443.rule: "PathPrefix(`/api/`)"
-      # traefik.http.routers.taranis-api-443.tls: "true"
-      # traefik.http.routers.taranis-api-443.tls.domains[0].main: "${TARANIS_NG_HOSTNAME}"
+      traefik.http.routers.taranis-api-443.tls: "true"
+      traefik.http.routers.taranis-api-443.tls.domains[0].main: "${TARANIS_NG_HOSTNAME}"
       traefik.http.routers.taranis-api-443.service: "taranis-api"
 
       traefik.http.routers.taranis-sse-443.entrypoints: "websecure"
       traefik.http.routers.taranis-sse-443.rule: "PathPrefix(`/sse`)"
-      # traefik.http.routers.taranis-sse-443.tls: "true"
-      # traefik.http.routers.taranis-sse-443.tls.domains[0].main: "${TARANIS_NG_HOSTNAME}"
+      traefik.http.routers.taranis-sse-443.tls: "true"
+      traefik.http.routers.taranis-sse-443.tls.domains[0].main: "${TARANIS_NG_HOSTNAME}"
       traefik.http.routers.taranis-sse-443.service: "taranis-api"
 
     volumes:
@@ -94,19 +90,11 @@ services:
     build:
       context: ..
       dockerfile: ./docker/Dockerfile.bots
-      args:
-        HTTP_PROXY: "${HTTP_PROXY}"
-        HTTPS_PROXY: "${HTTPS_PROXY}"
-        http_proxy: "${HTTP_PROXY}"
-        https_proxy: "${HTTPS_PROXY}"
     environment:
       API_KEY: "${COLLECTOR_PRESENTER_PUBLISHER_API_KEY}"
       TARANIS_NG_CORE_URL: "http://core/api/v1"
       TARANIS_NG_CORE_SSE: "http://core/sse"
       WORKERS_PER_CORE: "1"
-      TZ: "${TZ}"
-    ports:
-      - "${BOT_PORT}:80"
     logging:
       driver: "json-file"
       options:
@@ -122,19 +110,13 @@ services:
     build:
       context: ..
       dockerfile: ./docker/Dockerfile.collectors
-      args:
-        HTTP_PROXY: "${HTTP_PROXY}"
-        HTTPS_PROXY: "${HTTPS_PROXY}"
-        http_proxy: "${HTTP_PROXY}"
-        https_proxy: "${HTTPS_PROXY}"
     environment:
       TARANIS_NG_CORE_URL: "http://core"
       API_KEY: "${COLLECTOR_PRESENTER_PUBLISHER_API_KEY}"
       WORKERS_PER_CORE: "1"
       DEBUG: "true"
-      TZ: "${TZ}"
     ports:
-      - "${COLLECTOR_PORT}:80"
+      - "5001:80"
     volumes:
       - "collector_storage:/app/storage"
     logging:
@@ -152,18 +134,12 @@ services:
     build:
       context: ..
       dockerfile: ./docker/Dockerfile.presenters
-      args:
-        HTTP_PROXY: "${HTTP_PROXY}"
-        HTTPS_PROXY: "${HTTPS_PROXY}"
-        http_proxy: "${HTTP_PROXY}"
-        https_proxy: "${HTTPS_PROXY}"
     environment:
       TARANIS_NG_CORE_URL: "http://core"
       API_KEY: "${COLLECTOR_PRESENTER_PUBLISHER_API_KEY}"
       WORKERS_PER_CORE: "1"
-      TZ: "${TZ}"
     ports:
-      - "${PRESENTER_PORT}:80"
+      - "5002:80"
     volumes:
       - "presenters_templates:/app/templates"
     logging:
@@ -181,74 +157,66 @@ services:
     build:
       context: ..
       dockerfile: ./docker/Dockerfile.publishers
-      args:
-        HTTP_PROXY: "${HTTP_PROXY}"
-        HTTPS_PROXY: "${HTTPS_PROXY}"
-        http_proxy: "${HTTP_PROXY}"
-        https_proxy: "${HTTPS_PROXY}"
     environment:
       TARANIS_NG_CORE_URL: "http://core"
       API_KEY: "${COLLECTOR_PRESENTER_PUBLISHER_API_KEY}"
       WORKERS_PER_CORE: "1"
-      TZ: "${TZ}"
     ports:
-      - "${PUBLISHER_PORT}:80"
+      - "5003:80"
     logging:
       driver: "json-file"
       options:
         max-size: "200k"
         max-file: "10"
 
-#   gui:
-#     depends_on:
-#       - "core"
-#     restart: unless-stopped
-#     image: "skcert/taranis-ng-gui:${TARANIS_NG_TAG}"
-#     build:
-#       context: ..
-#       dockerfile: ./docker/Dockerfile.gui
-# #    ports: 
-# #      - "8080:80"
-#     environment:
-#       NGINX_WORKERS: "4"
-#       NGINX_CONNECTIONS: "16"
-#       VUE_APP_TARANIS_NG_URL: "${TARANIS_NG_HTTPS_URI}"
-#       VUE_APP_TARANIS_NG_CORE_API: "${TARANIS_NG_HTTPS_URI}/api/v1"
-#       VUE_APP_TARANIS_NG_CORE_SSE: "${TARANIS_NG_HTTPS_URI}/sse"
-#       VUE_APP_TARANIS_NG_LOCALE: en
-#     labels:
-#       traefik.enable: "true"
-#       traefik.http.services.taranis-gui.loadbalancer.server.port: "80"
-
-#       traefik.http.middlewares.redirect-to-443.redirectscheme.scheme: "https"
-#       traefik.http.middlewares.redirect-to-443.redirectscheme.port: "${TARANIS_NG_HTTPS_PORT}"
-
-#       traefik.http.routers.taranis-gui-80.entrypoints: "web"
-#       traefik.http.routers.taranis-gui-80.rule: "PathPrefix(`/`)"
-#       traefik.http.routers.taranis-gui-80.middlewares: "redirect-to-443"
-
-#       traefik.http.routers.taranis-gui-443.entrypoints: "websecure"
-#       traefik.http.routers.taranis-gui-443.rule: "PathPrefix(`/`)"
-#       # traefik.http.routers.taranis-gui-443.tls: "true"
-#       # traefik.http.routers.taranis-gui-443.tls.domains[0].main: "${TARANIS_NG_HOSTNAME}"
-#       traefik.http.routers.taranis-gui-443.service: "taranis-gui"
-
-#     logging:
-#       driver: "json-file"
-#       options:
-#         max-size: "200k"
-#         max-file: "10"
-
-      # - "gui"
-  traefik:
+  gui:
     depends_on:
       - "core"
     restart: unless-stopped
-    image: "traefik:latest"
+    image: "skcert/taranis-ng-gui:${TARANIS_NG_TAG}"
+    build:
+      context: ..
+      dockerfile: ./docker/Dockerfile.gui
+#    ports: 
+#      - "8080:80"
     environment:
-      TZ: "${TZ}"
+      NGINX_WORKERS: "4"
+      NGINX_CONNECTIONS: "16"
+      VUE_APP_TARANIS_NG_URL: "${TARANIS_NG_HTTPS_URI}"
+      VUE_APP_TARANIS_NG_CORE_API: "${TARANIS_NG_HTTPS_URI}/api/v1"
+      VUE_APP_TARANIS_NG_CORE_SSE: "${TARANIS_NG_HTTPS_URI}/sse"
+      VUE_APP_TARANIS_NG_LOCALE: en
+    labels:
+      traefik.enable: "true"
+      traefik.http.services.taranis-gui.loadbalancer.server.port: "80"
+
+      traefik.http.middlewares.redirect-to-443.redirectscheme.scheme: "https"
+      traefik.http.middlewares.redirect-to-443.redirectscheme.port: "${TARANIS_NG_HTTPS_PORT}"
+
+      traefik.http.routers.taranis-gui-80.entrypoints: "web"
+      traefik.http.routers.taranis-gui-80.rule: "PathPrefix(`/`)"
+      traefik.http.routers.taranis-gui-80.middlewares: "redirect-to-443"
+
+      traefik.http.routers.taranis-gui-443.entrypoints: "websecure"
+      traefik.http.routers.taranis-gui-443.rule: "PathPrefix(`/`)"
+      traefik.http.routers.taranis-gui-443.tls: "true"
+      traefik.http.routers.taranis-gui-443.tls.domains[0].main: "${TARANIS_NG_HOSTNAME}"
+      traefik.http.routers.taranis-gui-443.service: "taranis-gui"
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
+  traefik:
+    depends_on:
+      - "gui"
+      - "core"
+    restart: unless-stopped
+    image: "traefik:latest"
     ports: 
-      # - "${TARANIS_NG_HTTP_PORT}:80"
+      - "${TARANIS_NG_HTTP_PORT}:80"
       - "${TARANIS_NG_HTTPS_PORT}:443"
       - "${TRAEFIK_MANAGEMENT_PORT}:9090"
     volumes:

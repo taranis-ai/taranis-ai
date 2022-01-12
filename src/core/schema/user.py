@@ -1,4 +1,4 @@
-from marshmallow import Schema, fields, post_load, EXCLUDE
+from marshmallow import Schema, fields, missing, post_load, EXCLUDE
 
 from schema.role import RoleSchema, PermissionSchema
 from schema.organization import OrganizationSchema
@@ -57,8 +57,8 @@ class HotkeySchema(Schema):
     class Meta:
         unknown = EXCLUDE
 
-    key_code = fields.Int()
-    key = fields.Str()
+    key_code = fields.Int(missing=None)
+    key = fields.Str(missing=None)
     alias = fields.Str()
 
 

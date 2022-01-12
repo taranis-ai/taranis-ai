@@ -4,16 +4,16 @@
         <!--USERMENU-->
         <v-menu close-on-click close-on-content-click offset-y st>
             <template v-slot:activator="{ on }">
-                <div class="user-menu-button pl-0 pr-2">
-                    <v-btn icon v-on="on">
-                        <v-icon color="white" medium>mdi-shield-account</v-icon>
+                <div class="user-menu-button pl-0 mr-0">
+                    <v-btn depressed icon tile v-on="on">
+                        <v-icon color="dark-grey" medium>mdi-account</v-icon>
                     </v-btn>
                 </div>
             </template>
             <v-list>
                 <v-list-item>
                     <v-list-item-avatar class="">
-                        <v-icon>mdi-shield-account</v-icon>
+                        <v-icon>mdi-account</v-icon>
                     </v-list-item-avatar>
                     <v-list-item-content>
                         <v-list-item-title>{{ username }}</v-list-item-title>

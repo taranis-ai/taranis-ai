@@ -1,12 +1,14 @@
 <template>
-    <v-app-bar app clipped-left dense class="app-header border" :class="{dark: darkTheme}" color="cx-app-header">
+    <v-app-bar app dense clipped-left flat color="cx-app-header" class="main-menu-bar pr-0 pl-0">
 
-        <v-btn icon v-if="isAuthenticated()" @click.stop="navClicked">
-            <img class="drw-btn" src="../assets/menu_btn.svg" alt="">
+        <v-btn depressed tile color="primary" class="burger-menu" v-if="isAuthenticated()" @click.stop="navClicked">
+          <v-icon :class="['menu-icon', {'closed': !opened}]">mdi-menu-open</v-icon>
+          <!-- <v-icon>mdi-menu</v-icon> -->
         </v-btn>
 
-        <v-toolbar-title class="headline" style="width: 100%">
-            <svg class="logo" :class="{dark: darkTheme}" xmlns="http://www.w3.org/2000/svg" version="1.1" height="48"
+        <v-toolbar-title class="headline" style="width: 300px">
+          <div class="main-logo">
+            <svg class="logo mt-0" :class="{dark: darkTheme}" xmlns="http://www.w3.org/2000/svg" version="1.1" height="30"
                  viewBox="0 0 435 84"
                  style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;">
 
@@ -19,21 +21,23 @@
                           d="M51.249,31.04c-1.668,-2.343 -1.452,-5.619 0.648,-7.72c2.342,-2.341 6.144,-2.341 8.486,0c2.341,2.342 2.341,6.144 0,8.486c-2.101,2.1 -5.377,2.316 -7.72,0.648l-4.345,4.345c2.238,2.877 2.238,6.935 0,9.812l4.345,4.345c2.343,-1.668 5.619,-1.452 7.72,0.649c2.341,2.341 2.341,6.143 0,8.485c-2.101,2.101 -5.377,2.317 -7.72,0.648l-4.345,4.346c2.441,3.137 2.219,7.68 -0.663,10.562c-3.122,3.122 -8.192,3.122 -11.314,0c-3.122,-3.122 -3.122,-8.191 0,-11.313c2.883,-2.883 7.426,-3.104 10.563,-0.664l4.345,-4.345c-1.477,-2.074 -1.477,-4.88 0,-6.953l-4.345,-4.346c-3.137,2.441 -7.68,2.22 -10.563,-0.663c-1.306,-1.306 -2.066,-2.954 -2.279,-4.657l-12.412,0c-0.213,1.703 -0.973,3.351 -2.28,4.657c-3.122,3.122 -8.191,3.122 -11.313,0c-3.122,-3.122 -3.122,-8.192 0,-11.314c3.122,-3.122 8.191,-3.122 11.313,0c1.307,1.307 2.067,2.954 2.28,4.657l12.412,0c0.213,-1.703 0.973,-3.35 2.279,-4.657c2.883,-2.882 7.426,-3.103 10.563,-0.663l4.345,-4.345Zm-13.494,34.707c2.342,-2.342 6.144,-2.342 8.486,0c2.341,2.341 2.341,6.144 0,8.485c-2.342,2.342 -6.144,2.342 -8.486,0c-2.341,-2.341 -2.341,-6.144 0,-8.485Zm-15.556,-15.557c3.122,-3.122 8.192,-3.122 11.314,0c3.122,3.123 3.122,8.192 0,11.314c-3.122,3.122 -8.192,3.122 -11.314,0c-3.122,-3.122 -3.122,-8.191 0,-11.314Zm1.414,1.415c2.342,-2.342 6.144,-2.342 8.485,0c2.342,2.341 2.342,6.143 0,8.485c-2.341,2.342 -6.143,2.342 -8.485,0c-2.341,-2.342 -2.341,-6.144 0,-8.485Zm41.012,-15.557c3.122,-3.122 8.192,-3.122 11.314,0c3.122,3.122 3.122,8.192 0,11.314c-3.122,3.122 -8.192,3.122 -11.314,0c-3.122,-3.122 -3.122,-8.192 0,-11.314Zm1.415,1.415c2.341,-2.342 6.143,-2.342 8.485,0c2.341,2.341 2.341,6.143 0,8.485c-2.342,2.341 -6.144,2.341 -8.485,0c-2.342,-2.342 -2.342,-6.144 0,-8.485Zm-28.285,0c2.342,-2.342 6.144,-2.342 8.486,0c2.341,2.341 2.341,6.143 0,8.485c-2.342,2.341 -6.144,2.341 -8.486,0c-2.341,-2.342 -2.341,-6.144 0,-8.485Zm-28.284,0c2.342,-2.342 6.144,-2.342 8.485,0c2.342,2.341 2.342,6.143 0,8.485c-2.341,2.341 -6.143,2.341 -8.485,0c-2.342,-2.342 -2.342,-6.144 0,-8.485Zm26.207,-19.136c-2.441,-3.137 -2.22,-7.68 0.663,-10.563c3.122,-3.122 8.192,-3.122 11.314,0c3.122,3.122 3.122,8.192 0,11.314c-2.883,2.882 -7.426,3.104 -10.563,0.663l-4.345,4.345c1.668,2.343 1.452,5.619 -0.649,7.72c-2.341,2.341 -6.143,2.341 -8.485,0c-2.341,-2.342 -2.341,-6.144 0,-8.486c2.101,-2.1 5.377,-2.316 7.72,-0.648l4.345,-4.345Zm2.077,-9.149c2.342,-2.341 6.144,-2.341 8.486,0c2.341,2.342 2.341,6.144 0,8.486c-2.342,2.341 -6.144,2.341 -8.486,0c-2.341,-2.342 -2.341,-6.144 0,-8.486Z"/>
                 </g>
             </svg>
-
+          </div>
         </v-toolbar-title>
 
         <v-spacer></v-spacer>
 
-        <v-toolbar dense flat color="transparent" v-if="isAuthenticated()">
+        <v-toolbar dense flat color="transparent" v-if="isAuthenticated()" class="justify-end">
             <div v-for="button in buttons" :key="button.route">
-                <v-btn text route :to="button.route"
+                <v-btn text plain tile route color="main-text-color" :to="button.route"
                        v-if="checkPermission(permissions[button.permission]) && button.show">
-                    <v-icon left>{{button.icon}}</v-icon>
-                    <span class="subtitle-2">{{$t(button.title)}}</span>
+                    <!-- <v-icon left>{{button.icon}}</v-icon> -->
+                    <span class="main-menu-item text-lowercase">{{$t(button.title)}}</span>
                 </v-btn>
             </div>
         </v-toolbar>
-        <v-divider vertical class="ml-2 transparent"></v-divider>
+        
+        <!-- <v-divider vertical class="ml-2 transparent"></v-divider> -->
+
         <UserMenu v-if="isAuthenticated()"></UserMenu>
 
     </v-app-bar>
@@ -48,6 +52,7 @@ export default {
   components: { UserMenu },
   name: 'MainMenu',
   data: () => ({
+    opened: true,
     buttons: [
       {
         title: 'main_menu.dashboard',
@@ -111,6 +116,7 @@ export default {
   mixins: [AuthMixin],
   methods: {
     navClicked () {
+      this.opened = ! this.opened;
       this.$root.$emit('nav-clicked')
     },
 
