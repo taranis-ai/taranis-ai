@@ -17,6 +17,7 @@ from urllib.parse import urlparse
 import os
 import dateparser
 import re
+from urllib.parse import urlparse
 
 from .base_collector import BaseCollector
 from managers import log_manager
@@ -323,12 +324,27 @@ class WebCollector(BaseCollector):
         self.web_driver_type = self.source.parameter_values['WEBDRIVER']
         self.client_cert_directory = self.source.parameter_values['CLIENT_CERT_DIR']
 
+        set_proxy = False
         self.proxy = ''
         param_proxy = self.source.parameter_values['PROXY_SERVER']
         if re.search(r'^(https?|socks[45])://', param_proxy.lower()):
+            set_proxy = True
             self.proxy = param_proxy
         elif re.search(r'^.*:\d+$/', param_proxy.lower()):
+            set_proxy = True
             self.proxy = 'http://' + param_proxy
+
+        if set_proxy:
+            results = re.match(r'(https?)://([^/]+)/?$', self.proxy)
+            if results:
+                self.proxy_port = 8080
+                self.proxy_proto = results.group(1)
+                self.proxy_host = results.group(2)
+            results = re.match(r'(https?)://([^/]+):(\d+)/?$', self.proxy)
+            if results:
+                self.proxy_proto = results.group(1)
+                self.proxy_host = results.group(2)
+                self.proxy_port = results.group(3)
 
         return True
 
@@ -364,34 +380,44 @@ class WebCollector(BaseCollector):
         """Initializes and returns Firefox driver"""
 
         firefox_driver_executable = os.environ.get('SELENIUM_FIREFOX_DRIVER_PATH', '/usr/local/bin/geckodriver')
+        
+        core_url = os.environ.get('TARANIS_NG_CORE_URL', 'http://core')
+        core_url_host = urlparse(core_url).hostname # get only the hostname from URL
 
         firefox_options = FirefoxOptions()
         firefox_options.page_load_strategy = 'normal' # .get() returns on document ready
         firefox_options.add_argument("--headless")
         firefox_options.add_argument('--ignore-certificate-errors')
         firefox_options.add_argument('--incognito')
+
         if self.user_agent:
             firefox_options.add_argument('user-agent=' + self.user_agent)
+
+        profile = webdriver.FirefoxProfile()
+        firefox_capabilities = webdriver.DesiredCapabilities.FIREFOX
+        firefox_capabilities['marionette'] = True
+
         if self.tor_service.lower() == 'yes':
-            profile = webdriver.FirefoxProfile()
-            profile.set_preference('network.proxy.type', 1)
+            profile.set_preference('network.proxy.type', 1) # manual proxy config
             profile.set_preference('network.proxy.socks', '127.0.0.1')
             profile.set_preference('network.proxy.socks_port', 9050)
-            driver = webdriver.Firefox(profile, executable_path=firefox_driver_executable,
-                                       options=firefox_options)
+            profile.set_preference('network.proxy.no_proxies_on', f'localhost, ::1, 127.0.0.1, {core_url_host}, 127.0.0.0/8');
+
         elif self.proxy:
-            firefox_capabilities = webdriver.DesiredCapabilities.FIREFOX
-            firefox_capabilities['marionette'] = True
-            firefox_capabilities['proxy'] = {
-                "proxyType": "MANUAL",
-                "httpProxy": self.proxy,
-                "ftpProxy": self.proxy,
-                "sslProxy": self.proxy
-            }
-            driver = webdriver.Firefox(executable_path=firefox_driver_executable, options=firefox_options,
-                                       capabilities=firefox_capabilities)
+            profile.set_preference('network.proxy.type', 1) # manual proxy config
+            profile.set_preference('network.proxy.http', self.proxy_host)
+            profile.set_preference('network.proxy.http_port', int(self.proxy_port))
+            profile.set_preference('network.proxy.ssl', self.proxy_host)
+            profile.set_preference('network.proxy.ssl_port', int(self.proxy_port))
+            profile.set_preference('network.proxy.ftp', self.proxy)
+            profile.set_preference('network.proxy.ftp_port', int(self.proxy_port))
+            profile.set_preference('network.proxy.no_proxies_on', f'localhost, ::1, 127.0.0.1, {core_url_host}, 127.0.0.0/8');
         else:
-            driver = webdriver.Firefox(executable_path=firefox_driver_executable, options=firefox_options)
+            profile.set_preference('network.proxy.type', 0) # no proxy
+
+        profile.update_preferences()
+        driver = webdriver.Firefox(profile, executable_path=firefox_driver_executable, options=firefox_options, capabilities=firefox_capabilities)
+
         return driver
 
     def __get_headless_driver(self):

@@ -39,7 +39,7 @@ COPY ./src/publishers/. /app/
 ENV PYTHONPATH=/app
 ENV MODULE_NAME run
 ENV VARIABLE_NAME app
-ENV GUNICORN_CMD_ARGS --timeout 120 --preload
+ENV GUNICORN_CMD_ARGS --timeout 120
 ENV WORKERS_PER_CORE 8
 
 ENTRYPOINT ["/entrypoint.sh"]
