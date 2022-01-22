@@ -19,7 +19,7 @@ vue_envsubst() {
   fi
 
   cd "$js_dir"
-  defined_envs="$(printf '${%s} ' $(env | grep -F VUE_ | cut -d= -f1))"
+  defined_envs="$(printf '${%s} ' $(env | grep -Eio '^VUE[-_a-z0-9]+'))"
 
   for FILE in *.js ; do
     if [ ! -f ".$FILE.processed" ]; then
