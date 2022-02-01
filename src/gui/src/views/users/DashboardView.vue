@@ -199,7 +199,45 @@
                         </v-card>
                     </template>
                 </v-col>
+                <v-col v-for="(topic, title) in topics" :key="title" cols="4" class="pa-2 mb-8">
+                  <template>
+                  <v-card class="mt-4 mx-auto" max-width="100%">
+                      <v-sheet
+                          class="v-sheet--offset mx-auto"
+                          color="cyan"
+                          elevation="4"
+                          max-width="calc(100% - 32px)"
+                      >
+                      </v-sheet>
 
+                      <v-card-title class="pt-0">
+                          <h2 class="title mb-2">{{ title }}</h2>
+                      </v-card-title>
+                      <v-card-subtitle>
+                        <div>
+                          <v-btn v-for="tag in topic.tags" :key="tag" rounded :color="stringToColor(tag)" dark x-small>
+                            {{ tag }}
+                          </v-btn>
+                        </div>
+                        <div>
+                          <span class="caption grey--text">Last acitivity <b>{{ topic.last_activity }}</b></span>
+                        </div>
+                      </v-card-subtitle>
+                      <v-divider class="my-2"></v-divider>
+                      <v-card-text>
+                        {{ topic.summary }}
+                      </v-card-text>
+                      <v-card-actions>
+                          <span class="caption grey--text">112/9 |  662 | 34</span>
+                          <v-spacer></v-spacer>
+                          <v-btn icon title="view topic" class="mr-12">
+                              <v-icon>mdi-eye</v-icon>
+                              view topic
+                          </v-btn>
+                      </v-card-actions>
+                  </v-card>
+                  </template>
+                </v-col>
             </v-row>
             <!--<QuickChat/>-->
         </template>
@@ -248,6 +286,23 @@ export default {
             250,
             240,
         ],
+        topics: {
+          "Ukraine": {
+            tags: ["State", "Cyberwar", "Threat", "DDoS"],
+            last_activity: "15th March 2022",
+            summary: "Cyber conflicts are fought in the shadous. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam"
+          },
+          "Log4J": {
+            tags: ["Vulnerability", "Java", "CVE"],
+            last_activity: "10th Jannuary 2022",
+            summary: "Log4Shell (CVE-2021-44228) was a zer-day velnerability in Log4j. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam"
+          },
+          "Siemens SIMATIC": {
+            tags: ["OT/CPS", "Siemens", "Information Disclosure"],
+            last_activity: "1st December 2021",
+            summary: "The affected component stores the credentials of a local system account. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam"
+          }
+        }
     }),
     methods: {
         wordClickHandler(name, value, vm) {
@@ -259,7 +314,15 @@ export default {
                 .then(() => {
                     this.tag_cloud = this.$store.getters.getDashboardData.tag_cloud
                 });
-        }
+        },
+        stringToColor(string) {
+          var hash = 0;
+          for (var i = 0; i < string.length; i++) {
+            hash += string.charCodeAt(i);
+          }
+          var color = '#'+Math.floor((parseFloat("0."+hash))*16777215).toString(16);
+          return color;
+        },
     },
     mounted() {
         this.refreshTagCloud()

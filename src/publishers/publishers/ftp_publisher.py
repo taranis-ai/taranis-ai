@@ -20,12 +20,6 @@ class FTPPublisher(BasePublisher):
 
     def publish(self, publisher_input):
 
-        def get_prefix_and_ftp(ftp_server_url):
-            url = ftp_server_url.split(' ')
-            prefix_ftp = url[0].strip()
-            url_ftp = url[1].lstrip()
-            return prefix_ftp, url_ftp
-
         try:
             ftp_url = publisher_input.parameter_values_map['FTP_URL']
 
@@ -49,32 +43,32 @@ class FTPPublisher(BasePublisher):
             f.write(bytes_data)
             f.close()
 
-            ftp_prefix = get_prefix_and_ftp(ftp_url)[0]
-            ftp_url = get_prefix_and_ftp(ftp_url)[1]
-
             ftp_data = urlsplit(ftp_url)
 
-            ftp_hostname = ftp_data.scheme + '.' + ftp_data.hostname
+            ftp_hostname = ftp_data.hostname
             ftp_username = ftp_data.username
             ftp_password = ftp_data.password
-            ftp_port = ftp_data.port
 
             remote_path = ftp_data.path + filename
 
-            if ftp_prefix == 'sftp:':
+            if ftp_data.scheme == 'sftp':
+                ssh_port = ftp_data.port if ftp_data.port else 22
                 ssh = paramiko.SSHClient()
                 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                ssh.connect(ftp_hostname, ftp_port, ftp_username, ftp_password)
+                ssh.connect(hostname=ftp_hostname, port=ssh_port, username=ftp_username, password=ftp_password)
                 sftp = ssh.open_sftp()
                 sftp.put(filename, remote_path)
                 sftp.close()
-                os.remove(filename)
-            else:
+            elif ftp_data.scheme == 'ftp':
+                ftp_port = ftp_data.port if ftp_data.port else 21
                 ftp = ftplib.FTP()
-                ftp.connect(ftp_hostname, ftp_port)
+                ftp.connect(host=ftp_hostname, port=ftp_port)
                 ftp.login(ftp_username, ftp_password)
                 ftp.storbinary('STOR ' + remote_path, open(filename, 'rb'))
                 ftp.quit()
-                os.remove(filename)
+            else:
+              raise Exception("Schema '{}' not supported, choose 'ftp' or 'sftp'".format(ftp_data.scheme))
         except Exception as error:
             BasePublisher.print_exception(self, error)
+        finally:
+            os.remove(filename)

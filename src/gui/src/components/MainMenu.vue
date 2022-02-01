@@ -57,8 +57,8 @@
                     show: true
                 },
                 {
-                    title: 'main_menu.config',
-                    icon: 'mdi-ballot-outline',
+                    title: 'main_menu.administration',
+                    icon: 'mdi-cog-outline',
                     permission: 'CONFIG_ACCESS',
                     route: '/config',
                     show: true

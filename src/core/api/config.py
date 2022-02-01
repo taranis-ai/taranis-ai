@@ -235,7 +235,7 @@ class Users(Resource):
         try:
             external_auth_manager.create_user(request.json)
         except Exception as ex:
-            log_manager.debug_log(ex)
+            log_manager.log_debug(ex)
             log_manager.store_data_error_activity(get_user_from_jwt(), "Could not create user in external auth system")
             return "", 400
 
@@ -252,7 +252,7 @@ class User(Resource):
         try:
             external_auth_manager.update_user(request.json, original_username)
         except Exception as ex:
-            log_manager.debug_log(ex)
+            log_manager.log_debug(ex)
             log_manager.store_data_error_activity(get_user_from_jwt(), "Could not update user in external auth system")
             return "", 400
 
@@ -268,7 +268,7 @@ class User(Resource):
         try:
             external_auth_manager.delete_user(original_username)
         except Exception as ex:
-            log_manager.debug_log(ex)
+            log_manager.log_debug(ex)
             log_manager.store_data_error_activity(get_user_from_jwt(), "Could not delete user in external auth system")
             return "", 400
 

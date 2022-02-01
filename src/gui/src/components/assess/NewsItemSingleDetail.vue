@@ -2,7 +2,6 @@
     <v-row v-bind="UI.DIALOG.ROW.WINDOW">
         <v-dialog v-bind="UI.DIALOG.FULLSCREEN" v-model="visible" @keydown.esc="close">
             <v-card>
-
                 <v-toolbar v-bind="UI.DIALOG.TOOLBAR" data-dialog="single-detail">
                     <v-btn icon dark @click="close()" data-btn="close">
                         <v-icon>mdi-close-circle</v-icon>

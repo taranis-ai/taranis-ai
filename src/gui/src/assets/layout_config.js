@@ -244,6 +244,7 @@ const icons = {
     LIKE: "mdi-thumb-up",
     UNLIKE: "mdi-thumb-down",
     GROUP: "mdi-group",
+    CLUSTER: "mdi:animation",
     UNGROUP: "mdi-ungroup",
     ANALYZE: "mdi-file-outline",
     DELETE: "mdi-delete",

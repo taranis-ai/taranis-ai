@@ -10,6 +10,12 @@ host = os.getenv("HOST", "0.0.0.0")
 port = os.getenv("PORT", "80")
 bind_env = os.getenv("BIND", None)
 use_loglevel = os.getenv("LOG_LEVEL", "info")
+use_reload = False
+
+if os.getenv("DEBUG", "false").lower() == "true":
+  use_loglevel = "debug"
+  use_reload = True
+
 if bind_env:
     use_bind = bind_env
 else:
@@ -28,8 +34,12 @@ else:
 loglevel = use_loglevel
 workers = web_concurrency
 bind = use_bind
+reload = use_reload
 keepalive = 120
-errorlog = "-"
+errorlog = '-'
+accesslog = '-'
+log_file = '-'
+disable_redirect_access_to_syslog = True
 
 # For debugging and testing
 log_data = {

@@ -1,5 +1,5 @@
 from schema.presenter import PresenterSchema
-
+from managers import log_manager
 
 class BasePresenter:
     type = "BASE_PRESENTER"
@@ -13,11 +13,7 @@ class BasePresenter:
         return info_schema.dump(self)
 
     def print_exception(self, error):
-        print('Presenter name: ' + self.name)
-        if str(error).startswith('b'):
-            print('ERROR: ' + str(error)[2:-1])
-        else:
-            print('ERROR: ' + str(error))
+        log_manager.log_debug_trace("[{0}] {1}".format(self.name, error))
 
     @staticmethod
     def generate_input_data(presenter_input):

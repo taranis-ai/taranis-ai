@@ -42,7 +42,8 @@ class AnalystBot(BaseBot):
             if news_items_data:
 
                 for item in news_items_data:
-
+                    if item is not type(dict):
+                      continue
                     news_item_id = item['id']
                     title = item['title']
                     preview = item['review']

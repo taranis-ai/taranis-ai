@@ -1,5 +1,6 @@
 # built and cached files
 venv/
+.envrc
 __pycache__/
 *.pyc
 node_modules/
@@ -15,6 +16,7 @@ build/
 
 # sensitive data not to be commited
 .env.local
+docker/.env
 .env.*.local
 *.pem
 *.key

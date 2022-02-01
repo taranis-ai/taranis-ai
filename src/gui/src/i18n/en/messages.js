@@ -56,6 +56,7 @@ const messages_en = {
         assess: "Assess",
         analyze: "Analyze",
         publish: "Publish",
+        administration: "Administration",
         config: "Configuration",
         dashboard: "Dashboard",
         my_assets: "My Assets"
@@ -212,6 +213,7 @@ const messages_en = {
         osint_source_groups: "OSINT Source Groups",
         tooltip: {
             group_items: 'Group news items into aggregate',
+            cluster_items: 'Create cluster of related items',
             ungroup_items: 'Ungroup news items from aggregate',
             analyze_items: 'Create analysis report from news items',
             read_items: 'Mark news items as read',
@@ -793,7 +795,7 @@ const messages_en = {
                 MONTH: 'Show news items for the last month'
             },
             sort: {
-                time: {
+                date: {
                     ascending: 'Sort news items by collected date ascending',
                     descending: 'Sort news items by collected date descending'
                 },
@@ -804,6 +806,7 @@ const messages_en = {
             },
             highlight_wordlist: 'Highlight words by word lists',
             toggle_selection: 'Toggle news items selection mode',
+            cluster_items: 'Create cluster of related items',
             group_items: 'Group news items into aggregate',
             ungroup_items: 'Ungroup news items from aggregate',
             analyze_items: 'Create analysis report from news items',

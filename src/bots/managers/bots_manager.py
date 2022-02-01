@@ -1,29 +1,26 @@
-from bots.grouping_bot import GroupingBot
-from bots.analyst_bot import AnalystBot
-from bots.wordlist_updater_bot import WordlistUpdaterBot
+import bots
 
-bots = {}
+bots_dict = {}
 
 
 def initialize():
-    register_bot(AnalystBot())
-    register_bot(GroupingBot())
-    register_bot(WordlistUpdaterBot())
+    for bot in bots.bot_list:
+        register_bot(bot)
 
 
 def register_bot(bot):
-    bots[bot.type] = bot
+    bots_dict[bot.type] = bot
     bot.initialize()
 
 
 def get_registered_bots_info():
     bots_info = []
-    for key in bots:
-        bots_info.append(bots[key].get_info())
+    for key in bots_dict:
+        bots_info.append(bots_dict[key].get_info())
 
     return bots_info
 
 
 def process_event(event_type, data):
-    for key in bots:
-        bots[key].process_event(event_type, data)
+    for key in bots_dict:
+        bots_dict[key].process_event(event_type, data)

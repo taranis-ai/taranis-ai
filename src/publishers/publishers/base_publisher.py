@@ -1,5 +1,5 @@
 from schema.publisher import PublisherSchema
-
+from managers import log_manager
 
 class BasePublisher:
     type = "BASE_PUBLISHER"
@@ -16,8 +16,4 @@ class BasePublisher:
         pass
 
     def print_exception(self, error):
-        print('Publisher name: ' + self.name)
-        if str(error).startswith('b'):
-            print('ERROR: ' + str(error)[2:-1])
-        else:
-            print('ERROR: ' + str(error))
+        log_manager.log_debug_trace("[{0}] {1}".format(self.name, error))

@@ -35,7 +35,7 @@ Keycloak is not needed to run test version of TaranisNG at the moment. You can u
 8. In taranis-ng realm choose **IMPORT** and import file _realm-export.json_ from **taranis-ng-core** root
 9. In CLIENTS choose taranis-ng and regenerate secret in CREDENTIALS -> REGENERATE SECRET and put secret it _into client_secrets.json_ inside **taranis-ng-core** root (_NOTE: this will be properly configurable inside admin interface in the future_) 
 10. Create 2 users **user** and **admin** in USERS -> ADD USER. These are test users in TaranisNG at the moment.
-11. In _taranis-ng-core/managers/auth_manager.py_ set line `current_authenticator = 1` to preselect OpenID Authenticator
+11. Set `TARANIS_NG_AUTHENTICATOR=keycloak` environment variable for the core service.
 12. In **taranis-ng-core** add environment variable OPENID_LOGOUT_URL and set it according to your Keycloak installation e.g. http://127.0.0.1:8081/auth/realms/taranisng/protocol/openid-connect/logout?redirect_uri=<GOTO_URL>
 13. In **taranis-ng-gui** add these environment variables to activate external login:
     VUE_APP_TARANIS_NG_LOGIN_URL=http://127.0.0.1:5000/api/auth/login;VUE_APP_TARANIS_NG_LOGOUT_URL=http://127.0.0.1:5000/api/auth/logout

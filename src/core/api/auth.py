@@ -26,7 +26,6 @@ class Login(Resource):
         for credential in auth_manager.get_required_credentials():
             parser.add_argument(credential)
         credentials = parser.parse_args()
-
         return auth_manager.authenticate(credentials)
 
 

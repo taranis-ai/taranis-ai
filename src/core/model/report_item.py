@@ -1,10 +1,9 @@
-from marshmallow import post_load
+from marshmallow import post_load, fields
 from datetime import datetime
 import uuid as uuid_generator
 from sqlalchemy import orm, or_, func, text, and_
 from sqlalchemy.sql.expression import cast
 import sqlalchemy
-from marshmallow import fields, post_load
 
 from managers.db_manager import db
 from model.news_item import NewsItemAggregate
@@ -14,7 +13,8 @@ from model.acl_entry import ACLEntry
 from schema.acl_entry import ItemType
 from schema.attribute import AttributeType
 from schema.news_item import NewsItemAggregateIdSchema, NewsItemAggregateSchema
-from schema.report_item import ReportItemAttributeBaseSchema, ReportItemBaseSchema, ReportItemIdSchema, RemoteReportItemSchema, ReportItemRemoteSchema, ReportItemSchema, ReportItemPresentationSchema
+from schema.report_item import ReportItemAttributeBaseSchema, ReportItemBaseSchema, ReportItemIdSchema, RemoteReportItemSchema
+from schema.report_item import ReportItemRemoteSchema, ReportItemSchema, ReportItemPresentationSchema
 
 
 class NewReportItemAttributeSchema(ReportItemAttributeBaseSchema):
@@ -108,7 +108,7 @@ class ReportItem(db.Model):
 
     attributes = db.relationship('ReportItemAttribute', back_populates="report_item", cascade="all, delete-orphan")
 
-    report_item_cpes = db.relationship("ReportItemCpe", cascade="all, delete-orphan")
+    report_item_cpes = db.relationship("ReportItemCpe", cascade="all, delete-orphan", back_populates="report_item")
 
     def __init__(self, id, uuid, title, title_prefix, report_item_type_id, news_item_aggregates, remote_report_items,
                  attributes, completed):
@@ -202,11 +202,11 @@ class ReportItem(db.Model):
             query = cls.query.filter(ReportItem.remote_user == group)
         else:
             query = db.session.query(ReportItem, func.count().filter(ACLEntry.id > 0).label("acls"),
-                                     func.count().filter(ACLEntry.access == True).label("access"),
-                                     func.count().filter(ACLEntry.modify == True).label("modify")).distinct().group_by(
+                                     func.count().filter(ACLEntry.access is True).label("access"),
+                                     func.count().filter(ACLEntry.modify is True).label("modify")).distinct().group_by(
                 ReportItem.id)
 
-            query = query.filter(ReportItem.remote_user == None)
+            query = query.filter(ReportItem.remote_user is None)
 
             query = query.outerjoin(ACLEntry, or_(and_(ReportItem.uuid == ACLEntry.item_id,
                                                        ACLEntry.item_type == ItemType.REPORT_ITEM),
@@ -223,10 +223,10 @@ class ReportItem(db.Model):
                 func.lower(ReportItem.title_prefix).like(search_string)))
 
         if 'completed' in filter and filter['completed'].lower() == "true":
-            query = query.filter(ReportItem.completed == True)
+            query = query.filter(ReportItem.completed)
 
         if 'incompleted' in filter and filter['incompleted'].lower() == "true":
-            query = query.filter(ReportItem.completed == False)
+            query = query.filter(ReportItem.completed is False)
 
         if 'range' in filter and filter['range'] != 'ALL':
             date_limit = datetime.now()
@@ -307,7 +307,7 @@ class ReportItem(db.Model):
     @classmethod
     def get_groups(cls):
         result = db.session.query(ReportItem.remote_user).distinct().group_by(ReportItem.remote_user).filter(
-            ReportItem.remote_user != None).all()
+            ReportItem.remote_user is not None).all()
         groups = set()
         for row in result:
             groups.add(row[0])

@@ -123,7 +123,7 @@ class RSSCollector(BaseCollector):
                 news_item = NewsItemData(uuid.uuid4(), hashlib.sha256(for_hash.encode()).hexdigest(),
                                          feed_entry['title'], feed_entry['description'], feed_url, feed_entry['link'],
                                          feed_entry['published'], feed_entry['author'], datetime.datetime.now(),
-                                         content, source.id, [])
+                                         content, source.id, [], [])
 
                 news_items.append(news_item)
 

@@ -38,6 +38,8 @@ class NewsItemDataBaseSchema(Schema):
     author = fields.Str()
     collected = fields.DateTime('%d.%m.%Y - %H:%M')
     osint_source_id = fields.Str(missing=None)
+    tags = fields.List(fields.String(), required=False)
+
 
 
 class NewsItemDataSchema(NewsItemDataBaseSchema):
@@ -72,7 +74,7 @@ class NewsItemDataPresentationSchema(NewsItemDataBaseSchema):
 class NewsItemData:
 
     def __init__(self, id, hash, title, review, source, link, published, author, collected, content,
-                 osint_source_id, attributes):
+                 osint_source_id, attributes, tags):
         self.id = id
         self.hash = hash
         self.title = title
@@ -85,6 +87,7 @@ class NewsItemData:
         self.content = content
         self.osint_source_id = osint_source_id
         self.attributes = attributes
+        self.tags = tags
 
 
 class NewsItemBaseSchema(Schema):

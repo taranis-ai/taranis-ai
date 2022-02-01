@@ -13,13 +13,10 @@ sys_logger = logging.getLogger('SysLogger')
 sys_logger.setLevel(logging.INFO)
 
 # custom module ID to append to log messages
-if "MODULE_ID" in os.environ:
-    module_id = os.environ.get("MODULE_ID")
-else:
-    module_id = None
+module_id = os.environ.get("MODULE_ID", None)
 
 # increase logging level
-if "DEBUG" in os.environ and os.environ.get("DEBUG").lower() == "true":
+if os.environ.get("DEBUG", "false").lower() == "true":
     gunicorn_logger.setLevel(logging.DEBUG)
     sys_logger.setLevel(logging.DEBUG)
 

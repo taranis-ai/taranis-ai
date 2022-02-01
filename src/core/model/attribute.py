@@ -288,11 +288,11 @@ class Attribute(db.Model):
                     element.clear()
                     desc = ""
                     if block_item_count == 1000:
-                        log_manager.debug_log("Processed CVE items: " + str(item_count))
+                        log_manager.log_debug("Processed CVE items: " + str(item_count))
                         block_item_count = 0
                         db.session.commit()
 
-        log_manager.debug_log("Processed CVE items: " + str(item_count))
+        log_manager.log_debug("Processed CVE items: " + str(item_count))
         db.session.commit()
 
     @classmethod
@@ -306,6 +306,7 @@ class Attribute(db.Model):
         desc = ""
         for event, element in iterparse(file_path, events=('start', 'end')):
             if event == 'end':
+                log_manager.log_debug("Element: {}".format(element))
                 if element.tag == "{http://cpe.mitre.org/dictionary/2.0}title":
                     desc = element.text
                 elif element.tag == "{http://cpe.mitre.org/dictionary/2.0}cpe-item":
@@ -318,11 +319,11 @@ class Attribute(db.Model):
                     element.clear()
                     desc = ""
                     if block_item_count == 1000:
-                        log_manager.debug_log("Processed CPE items: " + str(item_count))
+                        log_manager.log_debug("Processed CPE items: " + str(item_count))
                         block_item_count = 0
                         db.session.commit()
 
-        log_manager.debug_log("Processed CPE items: " + str(item_count))
+        log_manager.log_debug("Processed CPE items: " + str(item_count))
         db.session.commit()
 
     @classmethod

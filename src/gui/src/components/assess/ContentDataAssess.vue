@@ -4,11 +4,14 @@
         <component v-bind:is="cardLayout()" v-for="(news_item,i) in news_items_data" :card="news_item"
                    :key="i" :analyze_selector="analyze_selector"
                    :preselected="preselected(news_item.id)"
-                   :word_list_regex="regexWordList" :data_set="data_set"
+                   :word_list_regex="regexWordList"
+                   :data_set="data_set"
+                   :filter="filter"
                    @show-single-aggregate-detail="showSingleAggregateDetail(news_item)"
                    @show-aggregate-detail="showAggregateDetail(news_item)"
                    @show-item-detail="showItemDetail"
                    @aggregate-open="setAggregateOpen"
+                   @update-news-items-filter="updateFilter"
                    ref="card"
                    :aggregate_opened="aggregateOpen(news_item)"
                    @check-focus="checkFocus"
@@ -41,7 +44,8 @@
             selection: Array,
             cardItem: String,
             selfID: String,
-            data_set: String
+            data_set: String,
+            filter: Object
         },
         data: () => ({
             news_items_data: [],
@@ -148,7 +152,7 @@
             },
 
             updateFilter(filter) {
-                this.news_items_filter = filter;
+                Object.assign(this.news_items_filter, filter);
                 this.updateData(false, false);
             },
 

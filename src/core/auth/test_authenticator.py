@@ -1,5 +1,6 @@
 from managers import log_manager
 from auth.base_authenticator import BaseAuthenticator
+from managers import log_manager
 
 users = {"user": "user", "user2" : "user", "admin": "admin", "customer": "customer"}
 
@@ -10,6 +11,11 @@ class TestAuthenticator(BaseAuthenticator):
         return ["username", "password"]
 
     def authenticate(self, credentials):
+        log_manager.log_debug(f"TEST AUTH with {credentials}")
+        if credentials == None:
+          return BaseAuthenticator.generate_error()
+        if "username" not in credentials or "password" not in credentials:
+          return BaseAuthenticator.generate_error()
         if credentials["username"] in users:
             if users[credentials["username"]] == credentials["password"]:
                 return BaseAuthenticator.generate_jwt(credentials["username"])

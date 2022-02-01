@@ -16,8 +16,10 @@
                         selfID="selector_assess"
                         data_set="assess"
                         ref="contentData"
+                        :filter="filter"
                         @new-data-loaded="newDataLoaded"
                         @card-items-reindex="cardReindex"
+                        @update-news-items-filter="updateFilter"
                 />
                 <NewReportItem class="nri"/>
             </template>
@@ -47,7 +49,8 @@
             analyze_selector: Boolean
         },
         data: () => ({
-            dialog_stack: 0
+            dialog_stack: 0,
+            filter: {search: "", tag: ""}
         }),
         mixins: [KeyboardMixin('assess')],
         computed: {
@@ -63,6 +66,7 @@
             updateFilter(filter) {
                 this.$refs.contentData.updateFilter(filter)
                 this.$store.dispatch("filter", filter)
+                this.filter = filter
             },
 
             cardReindex() {
@@ -115,12 +119,16 @@
         created() {
             document.addEventListener("keydown", this.keyAction, false);
             const element = document.querySelector("card-item");
-            element.addEventListener('click', this.targetClick, false);
+            if (element != null) {
+              element.addEventListener('click', this.targetClick, false);
+            }
         },
         beforeDestroy() {
             document.removeEventListener("keydown", this.keyAction);
             const element = document.querySelector("card-item");
-            element.removeEventListener('click');
+            if (element != null) {
+              element.removeEventListener('click');
+            }
             this.$root.$off('first-dialog');
             this.$root.$off('clear-cards');
         }

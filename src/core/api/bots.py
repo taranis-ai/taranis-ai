@@ -37,7 +37,7 @@ class NewsItemData(Resource):
             if 'limit' in request.args and request.args['limit']:
                 limit = request.args['limit']
         except Exception as ex:
-            log_manager.debug_log(ex)
+            log_manager.log_debug_trace(ex)
             return "", 400
 
         return news_item.NewsItemData.get_all_news_items_data(limit)
@@ -50,11 +50,21 @@ class UpdateNewsItemAttributes(Resource):
         news_item.NewsItemData.update_news_item_attributes(news_item_data_id, request.json)
 
 
+class UpdateNewsItemTags(Resource):
+
+    @api_key_required
+    def put(self, news_item_data_id):
+        news_item.NewsItemData.update_news_item_tags(news_item_data_id, request.json)
+
+
 class GetNewsItemsAggregate(Resource):
 
     @api_key_required
     def get(self, group_id):
-        return news_item.NewsItemAggregate.get_news_items_aggregate(group_id, request.json)
+        import json
+        resp_str = news_item.NewsItemAggregate.get_news_items_aggregate(group_id, request.json)
+        resp = json.loads(resp_str)
+        return resp
 
 
 class Categories(Resource):
@@ -82,6 +92,7 @@ class Entries(Resource):
 def initialize(api):
     api.add_resource(BotPresetsForBots, "/api/v1/bots/bots-presets")
     api.add_resource(NewsItemData, "/api/v1/bots/news-item-data")
+    api.add_resource(UpdateNewsItemTags, "/api/v1/bots/news-item-data/<string:news_item_data_id>/tags")
     api.add_resource(UpdateNewsItemAttributes, "/api/v1/bots/news-item-data/<string:news_item_data_id>/attributes")
     api.add_resource(BotGroupAction, "/api/v1/bots/news-item-aggregates-group-action")
     api.add_resource(GetNewsItemsAggregate, "/api/v1/bots/news-item-aggregates-by-group/<string:group_id>")

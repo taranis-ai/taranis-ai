@@ -48,7 +48,7 @@ This is just a taste of its features:
 - use wordlists for filtering and highlighting
 - publish the self-service asset management portal to your constituency and allow them to set various notification profiles for those times when a vulnerability hits their product.
 
-Hardware requirements: make sure to have at least 2 GB of RAM and 5 GB of disk
+Hardware requirements: make sure to have at least 2 GB of RAM, 2 CPU cores and 5 GB of disk
 storage available for running, 20 GB of disk storage if you want to build the
 project from scratch.
 

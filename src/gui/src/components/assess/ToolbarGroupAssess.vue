@@ -43,6 +43,7 @@
             actions() {
                 return [
                     { can: this.canModify, disabled: !this.multi_select, action: 'GROUP', data_btn: 'group', title: this.$t('assess.tooltip.group_items'), ui_icon: 'GROUP' },
+                    { can: this.canModify, disabled: !this.multi_select, action: 'CLUSTER', data_btn: 'cluster', title: this.$t('assess.tooltip.cluster_items'), ui_icon: 'CLUSTER' },
                     { can: this.canModify, disabled: !this.multi_select, action: 'UNGROUP', data_btn: 'ungroup', title: this.$t('assess.tooltip.ungroup_items'), ui_icon: 'UNGROUP' },
                     { can: this.canCreateReport, disabled: !this.multi_select, action: 'ANALYZE', data_btn: 'analyze', title: this.$t('assess.tooltip.analyze_items'), ui_icon: 'ANALYZE' },
                     { can: this.canModify, disabled: !this.multi_select, action: 'READ', data_btn: 'read', title: this.$t('assess.tooltip.read_items'), ui_icon: 'READ' },

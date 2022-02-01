@@ -37,6 +37,7 @@
                     <ContentDataAssess analyze_selector :selection="values"
                                        class="item-selector"
                                        card-item="CardAssess"
+                                       @update-news-items-filter="updateFilter"
                                        selfID="selector_assess_analyze"
                                        data_set="assess_news_item"
                                        ref="contentData"

@@ -46,7 +46,8 @@ def initialize(app):
     else:
         current_authenticator = TestAuthenticator()
 
-    current_authenticator.initialize(app)
+    with app.app_context():
+        current_authenticator.initialize(app)
 
     time_manager.schedule_job_every_day("00:00", cleanup_token_blacklist, app)
 
@@ -88,26 +89,23 @@ def check_acl(item_id, acl_check, user):
         item_type = "OSINT Source Group"
         allowed = OSINTSourceGroup.allowed_with_acl(item_id, user, check_see, check_access, check_modify)
 
-    if acl_check == ACLCheck.NEWS_ITEM_ACCESS or acl_check == ACLCheck.NEWS_ITEM_MODIFY:
+    if acl_check in [ACLCheck.NEWS_ITEM_ACCESS, ACLCheck.NEWS_ITEM_MODIFY]:
         item_type = "News Item"
         allowed = NewsItem.allowed_with_acl(item_id, user, check_see, check_access, check_modify)
 
-    if acl_check == ACLCheck.REPORT_ITEM_ACCESS or acl_check == ACLCheck.REPORT_ITEM_MODIFY:
+    if acl_check in [ACLCheck.REPORT_ITEM_ACCESS, ACLCheck.REPORT_ITEM_MODIFY]:
         item_type = "Report Item"
         allowed = ReportItem.allowed_with_acl(item_id, user, check_see, check_access, check_modify)
 
-    if acl_check == ACLCheck.PRODUCT_TYPE_ACCESS or acl_check == ACLCheck.PRODUCT_TYPE_MODIFY:
+    if acl_check in [ACLCheck.PRODUCT_TYPE_ACCESS, ACLCheck.PRODUCT_TYPE_MODIFY]:
         item_type = "Product Type"
         allowed = ProductType.allowed_with_acl(item_id, user, check_see, check_access, check_modify)
 
     if not allowed:
         if check_access:
-            log_manager.store_user_auth_error_activity(user,
-                                                       "Unauthorized access attempt to " + item_type + ": " + item_id)
+            log_manager.store_user_auth_error_activity(user, "Unauthorized access attempt to {}: {}".format(item_type, item_id))
         else:
-            log_manager.store_user_auth_error_activity(user,
-                                                       "Unauthorized modification attempt to " + item_type
-                                                       + ": " + item_id)
+            log_manager.store_user_auth_error_activity(user, "Unauthorized modification attempt to {}: {}".format(item_type, item_id))
 
     return allowed
 
@@ -161,22 +159,18 @@ def auth_required(permissions, *acl_args):
             # does it include permissions?
             claims = get_jwt_claims()
             if not claims or 'permissions' not in claims:
-                log_manager.store_user_auth_error_activity(user,
-                                                           "Missing permissions in JWT for identity: " + identity)
+                log_manager.store_user_auth_error_activity(user, "Missing permissions in JWT for identity: {}".format(identity))
                 return error
 
             # is there at least one match with the permissions required by the call?
             if not permissions_set.intersection(set(claims['permissions'])):
-                log_manager.store_user_auth_error_activity(user,
-                                                           "Insufficient permissions in JWT for identity: " + identity)
+                log_manager.store_user_auth_error_activity(user, "Insufficient permissions in JWT for identity: {}".format(identity))
                 return error
 
             # if the object does have an ACL, do we match it?
-            if len(acl_args) > 0:
-                if not check_acl(kwargs[get_id_name_by_acl(acl_args[0])], acl_args[0], user):
-                    log_manager.store_user_auth_error_activity(user,
-                                                               "Access denied by ACL in JWT for identity: " + identity)
-                    return error
+            if len(acl_args) > 0 and not check_acl(kwargs[get_id_name_by_acl(acl_args[0])], acl_args[0], user):
+                log_manager.store_user_auth_error_activity(user, "Access denied by ACL in JWT for identity: {}".format(identity))
+                return error
 
             # allow
             log_manager.store_user_activity(user, str(permissions), str(request.json))
@@ -257,12 +251,12 @@ def jwt_required(fn):
 
         identity = get_jwt_identity()
         if not identity:
-            log_manager.store_auth_error_activity("Missing identity in JWT: " + get_raw_jwt())
+            log_manager.store_auth_error_activity("Missing identity in JWT: {}".format(get_raw_jwt()))
             return {'error': 'authorization failed'}, 401
 
         user = User.find(identity)
         if user is None:
-            log_manager.store_auth_error_activity("Unknown identity: " + identity)
+            log_manager.store_auth_error_activity("Unknown identity: ".format(identity))
             return {'error': 'authorization failed'}, 401
 
         log_manager.store_user_activity(user, "API_ACCESS", "Access permitted")

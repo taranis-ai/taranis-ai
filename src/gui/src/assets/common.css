@@ -57,3 +57,10 @@
     background-color: #f8f8f8;
     box-shadow: -3px 0 0 #6abef2;
 }
+
+.v-card .compact {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+}

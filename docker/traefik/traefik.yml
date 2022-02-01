@@ -5,6 +5,8 @@ entryPoints:
         address: ":443"
     traefik:
         address: ":9090"
+    keycloak:
+        address: ":8090"
 
 # API is only on the endpoint "traefik" which is not exposed outside of the container
 api:

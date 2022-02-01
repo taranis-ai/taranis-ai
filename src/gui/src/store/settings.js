@@ -27,6 +27,7 @@ const state = {
         {key_code: 46, key: 'Delete', alias: 'delete_item', icon: 'mdi-delete'},
         {character: 's', alias: 'selection', icon: 'mdi-checkbox-multiple-marked-outline'},
         {character: 'g', alias: 'group', icon: 'mdi-group'},
+        {character: 'c', alias: 'cluster', icon: 'mdi:animation'},
         {character: 'G', alias: 'ungroup', icon: 'mdi-ungroup'},
         {character: 'n', alias: 'new_product', icon: 'mdi-file-outline'},
         {character: 'a', alias: 'aggregate_open', icon: 'mdi-arrow-right-drop-circle'},

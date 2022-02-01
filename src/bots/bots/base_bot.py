@@ -1,10 +1,9 @@
 import datetime
 
-from managers import time_manager
+from managers import time_manager, log_manager
 from schema import bot, bot_preset
 from schema.parameter import Parameter, ParameterType
 from remote.core_api import CoreApi
-
 
 class BaseBot:
     type = "BASE_BOT"
@@ -35,12 +34,8 @@ class BaseBot:
 
     @staticmethod
     def print_exception(preset, error):
-        print('Bot Preset ID: ' + preset.id)
-        print('Bot Preset name: ' + preset.name)
-        if str(error).startswith('b'):
-            print('ERROR: ' + str(error)[2:-1])
-        else:
-            print('ERROR: ' + str(error))
+        log_manager.log_debug(f'Bot Preset ID: {preset.id}\tName: {preset.name}')
+        log_manager.log_debug_trace(error)
 
     @staticmethod
     def history(interval):
@@ -94,4 +89,5 @@ class BaseBot:
                         else:
                             time_manager.schedule_job_on_sunday(at, self.execute, preset)
                     else:
+                        log_manager.log_debug(f"SETTING INTERVAL: {interval} FOR: {self.name}")
                         time_manager.schedule_job_minutes(int(interval), self.execute, preset)
