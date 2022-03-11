@@ -591,26 +591,14 @@ class NewsItemAggregate(db.Model):
                 == ReportItemNewsItemAggregate.news_item_aggregate_id,
             )
 
-        if "range" in filter and filter["range"] != "ALL":
-            date_limit = datetime.now()
-            if filter["range"] == "TODAY":
-                date_limit = date_limit.replace(
-                    hour=0, minute=0, second=0, microsecond=0
-                )
+        if 'range' in filter and filter['range'] != 'ALL':
+            date_limit = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
 
-            if filter["range"] == "WEEK":
-                date_limit = date_limit.replace(
-                    day=date_limit.day - date_limit.weekday(),
-                    hour=0,
-                    minute=0,
-                    second=0,
-                    microsecond=0,
-                )
+            if filter['range'] == 'WEEK':
+                date_limit -= timedelta(days=date_limit.weekday())
 
-            if filter["range"] == "MONTH":
-                date_limit = date_limit.replace(
-                    day=1, hour=0, minute=0, second=0, microsecond=0
-                )
+            elif filter['range'] == 'MONTH':
+                date_limit = date_limit.replace(day=1)
 
             query = query.filter(NewsItemAggregate.created >= date_limit)
 
