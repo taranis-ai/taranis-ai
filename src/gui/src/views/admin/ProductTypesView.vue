@@ -22,46 +22,44 @@
 </template>
 
 <script>
-    import ViewLayout from "../../components/layouts/ViewLayout";
-    import NewProductType from "@/components/config/product_types/NewProductType";
-    import ToolbarFilter from "../../components/common/ToolbarFilter";
-    import ContentData from "../../components/common/content/ContentData"
-    import {deleteProductType} from "@/api/config";
+import ViewLayout from '../../components/layouts/ViewLayout'
+import NewProductType from '@/components/config/product_types/NewProductType'
+import ToolbarFilter from '../../components/common/ToolbarFilter'
+import ContentData from '../../components/common/content/ContentData'
+import { deleteProductType } from '@/api/config'
 
-    export default {
-        name: "ProductTypes",
-        components: {
-            ViewLayout,
-            ToolbarFilter,
-            ContentData,
-            NewProductType
-        },
-        data: () => ({
-        }),
-        mounted() {
-            this.$root.$on('delete-item', (item) => {
-                deleteProductType(item).then(() => {
-
-                    this.$root.$emit('notification',
-                        {
-                            type: 'success',
-                            loc: 'product_type.removed'
-                        }
-                    )
-                }).catch(() => {
-
-                    this.$root.$emit('notification',
-                        {
-                            type: 'error',
-                            loc: 'product_type.removed_error'
-                        }
-                    )
-                })
-            });
-        },
-        beforeDestroy() {
-            this.$root.$off('delete-item')
-        }
-    };
+export default {
+  name: 'ProductTypes',
+  components: {
+    ViewLayout,
+    ToolbarFilter,
+    ContentData,
+    NewProductType
+  },
+  data: () => ({
+  }),
+  mounted () {
+    this.$root.$on('delete-item', (item) => {
+      deleteProductType(item).then(() => {
+        this.$root.$emit('notification',
+          {
+            type: 'success',
+            loc: 'product_type.removed'
+          }
+        )
+      }).catch(() => {
+        this.$root.$emit('notification',
+          {
+            type: 'error',
+            loc: 'product_type.removed_error'
+          }
+        )
+      })
+    })
+  },
+  beforeDestroy () {
+    this.$root.$off('delete-item')
+  }
+}
 
 </script>

@@ -66,107 +66,107 @@
 </template>
 
 <script>
-import Permissions from "@/services/auth/permissions";
-import AuthMixin from "@/services/auth/auth_mixin";
+import Permissions from '@/services/auth/permissions'
+import AuthMixin from '@/services/auth/auth_mixin'
 
 export default {
-    name: "CardAnalyze",
-    props: {
-        card: Object,
-        publish_selector: Boolean,
-        preselected: Boolean,
+  name: 'CardAnalyze',
+  props: {
+    card: Object,
+    publish_selector: Boolean,
+    preselected: Boolean
+  },
+  mixins: [AuthMixin],
+  data: () => ({
+    toolbar: false,
+    selected: false,
+    status: 'in_progress'
+  }),
+  computed: {
+
+    canModify () {
+      return this.checkPermission(Permissions.ANALYZE_UPDATE) && (this.card.modify === true || this.card.remote_user !== null)
     },
-    mixins: [AuthMixin],
-    data: () => ({
-        toolbar: false,
-        selected: false,
-        status: "in_progress"
-    }),
-    computed: {
 
-        canModify() {
-            return this.checkPermission(Permissions.ANALYZE_UPDATE) && (this.card.modify === true || this.card.remote_user !== null)
-        },
-
-        canDelete() {
-            return this.checkPermission(Permissions.ANALYZE_DELETE) && (this.card.modify === true || this.card.remote_user !== null)
-        },
-
-        canCreateProduct() {
-            return this.checkPermission(Permissions.PUBLISH_CREATE) && !window.location.pathname.includes('/group/')
-        },
-
-        multiSelectActive() {
-            return this.$store.getters.getMultiSelectReport
-        },
-
-        selectedColor() {
-            if (this.selected === true || this.preselected) {
-                return "orange lighten-4"
-            } else {
-                return ""
-            }
-        },
-        itemStatus() {
-            if (this.card.completed) {
-                return "completed"
-            } else {
-                return "in_progress"
-            }
-        }
+    canDelete () {
+      return this.checkPermission(Permissions.ANALYZE_DELETE) && (this.card.modify === true || this.card.remote_user !== null)
     },
-    methods: {
 
-        selectionChanged() {
-            if (this.selected === true) {
-                this.$store.dispatch("selectReport", {'id': this.card.id, 'item': this.card})
-            } else {
-                this.$store.dispatch("deselectReport", {'id': this.card.id, 'item': this.card})
-            }
-        },
-
-        itemClicked(data) {
-            if (this.checkPermission(Permissions.ANALYZE_ACCESS) && (this.card.access === true || data.remote_user !== null)) {
-                if (data.remote_user === null) {
-                    this.$emit('show-report-item-detail', data);
-                } else {
-                    this.$emit('show-remote-report-item-detail', data);
-                }
-            }
-        },
-        deleteClicked(data) {
-            this.$root.$emit('delete-report-item', data)
-        },
-        cardItemToolbar(action) {
-            switch (action) {
-                case "delete":
-                    this.deleteClicked(this.card);
-                    break;
-
-                case "new":
-                    this.$root.$emit('new-product', [this.card]);
-                    break;
-
-                case "remove":
-                    this.$emit('remove-report-item-from-selector', this.card);
-                    break;
-
-                default:
-                    this.toolbar = false;
-                    this.itemClicked(this.card);
-                    break;
-            }
-        },
-
-        multiSelectOff() {
-            this.selected = false
-        }
+    canCreateProduct () {
+      return this.checkPermission(Permissions.PUBLISH_CREATE) && !window.location.pathname.includes('/group/')
     },
-    mounted() {
-        this.$root.$on('multi-select-off', this.multiSelectOff);
+
+    multiSelectActive () {
+      return this.$store.getters.getMultiSelectReport
     },
-    beforeDestroy() {
-        this.$root.$off('multi-select-off', this.multiSelectOff);
+
+    selectedColor () {
+      if (this.selected === true || this.preselected) {
+        return 'orange lighten-4'
+      } else {
+        return ''
+      }
+    },
+    itemStatus () {
+      if (this.card.completed) {
+        return 'completed'
+      } else {
+        return 'in_progress'
+      }
     }
+  },
+  methods: {
+
+    selectionChanged () {
+      if (this.selected === true) {
+        this.$store.dispatch('selectReport', { id: this.card.id, item: this.card })
+      } else {
+        this.$store.dispatch('deselectReport', { id: this.card.id, item: this.card })
+      }
+    },
+
+    itemClicked (data) {
+      if (this.checkPermission(Permissions.ANALYZE_ACCESS) && (this.card.access === true || data.remote_user !== null)) {
+        if (data.remote_user === null) {
+          this.$emit('show-report-item-detail', data)
+        } else {
+          this.$emit('show-remote-report-item-detail', data)
+        }
+      }
+    },
+    deleteClicked (data) {
+      this.$root.$emit('delete-report-item', data)
+    },
+    cardItemToolbar (action) {
+      switch (action) {
+        case 'delete':
+          this.deleteClicked(this.card)
+          break
+
+        case 'new':
+          this.$root.$emit('new-product', [this.card])
+          break
+
+        case 'remove':
+          this.$emit('remove-report-item-from-selector', this.card)
+          break
+
+        default:
+          this.toolbar = false
+          this.itemClicked(this.card)
+          break
+      }
+    },
+
+    multiSelectOff () {
+      this.selected = false
+    }
+  },
+  mounted () {
+    this.$root.$on('multi-select-off', this.multiSelectOff)
+  },
+  beforeDestroy () {
+    this.$root.$off('multi-select-off', this.multiSelectOff)
+  }
 }
 </script>

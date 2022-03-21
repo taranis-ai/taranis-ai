@@ -37,36 +37,36 @@
 
 <script>
 export default {
-    name: "AttributeItemLayout",
-    props: {
-        add_button: null,
-        values: Array
+  name: 'AttributeItemLayout',
+  props: {
+    add_button: null,
+    values: Array
+  },
+  methods: {
+    add () {
+      this.$emit('add-value')
     },
-    methods: {
-        add() {
-            this.$emit('add-value');
-        },
 
-        sort(my_first, user_name) {
-            this.values.sort(function (a, b) {
-
-                if (my_first) {
-                    if (user_name === a.user.name && user_name !== b.user.name) {
-                        return 1
-                    } else if (user_name !== a.user.name && user_name === b.user.name) {
-                        return -1
-                    }
-                }
-
-                if (a.last_updated < b.last_updated) {
-                    return -1
-                } else if (a.last_updated > b.last_updated) {
-                    return 1
-                } else {
-                    return 1
-                }
-            });
+    sort (my_first, user_name) {
+      this.values.sort(function (a, b) {
+        if (my_first) {
+          if (user_name === a.user.name && user_name !== b.user.name) {
+            return 1
+          } else if (user_name !== a.user.name && user_name === b.user.name) {
+            return -1
+          }
         }
+
+        if (a.last_updated < b.last_updated) {
+          return -1
+        } else if (a.last_updated > b.last_updated) {
+          // FIXME(mw): Is this needed? This is identical to the default case below
+          return 1
+        } else {
+          return 1
+        }
+      })
     }
+  }
 }
 </script>

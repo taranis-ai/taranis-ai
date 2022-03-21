@@ -29,7 +29,6 @@
 
                 <v-textarea v-else-if="ui === 'textarea'"
 
-
                             :label=$t(parameter.name)
                             :name="parameter.name"
                 />
@@ -55,13 +54,13 @@
 </template>
 
 <script>
-    export default {
-        name: "FormParameters",
-        props: {
-            ui: String,
-            sources: Array,
-            values: Array,
-            disabled: Boolean
-        }
-    }
+export default {
+  name: 'FormParameters',
+  props: {
+    ui: String,
+    sources: Array,
+    values: Array,
+    disabled: Boolean
+  }
+}
 </script>

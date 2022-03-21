@@ -1,23 +1,22 @@
-import AuthService from "@/services/auth/auth_service";
-import Permissions from "@/services/auth/permissions";
+import AuthService from '@/services/auth/auth_service'
+import Permissions from '@/services/auth/permissions'
 
-var AuthMixin = {
+const AuthMixin = {
+  data: () => ({
+    permissions: Permissions
+  }),
 
-    data: () => ({
-        permissions: Permissions
-    }),
-
-    methods: {
-        isAuthenticated() {
-            return AuthService.isAuthenticated()
-        },
-        needTokenRefresh() {
-            return AuthService.needTokenRefresh()
-        },
-        checkPermission(permission) {
-            return AuthService.hasPermission(permission)
-        }
+  methods: {
+    isAuthenticated () {
+      return AuthService.isAuthenticated()
+    },
+    needTokenRefresh () {
+      return AuthService.needTokenRefresh()
+    },
+    checkPermission (permission) {
+      return AuthService.hasPermission(permission)
     }
-};
+  }
+}
 
 export default AuthMixin

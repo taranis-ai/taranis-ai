@@ -10,12 +10,12 @@
 </template>
 
 <script>
-    export default {
-        name: "ViewLayout",
-        data: () => ({
+export default {
+  name: 'ViewLayout',
+  data: () => ({
 
-        }),
-        methods: {
-        }
-    }
+  }),
+  methods: {
+  }
+}
 </script>

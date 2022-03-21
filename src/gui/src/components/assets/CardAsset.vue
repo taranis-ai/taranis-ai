@@ -49,55 +49,55 @@
 </template>
 
 <script>
-    import AuthMixin from "@/services/auth/auth_mixin";
-    import Permissions from "@/services/auth/permissions";
+import AuthMixin from '@/services/auth/auth_mixin'
+import Permissions from '@/services/auth/permissions'
 
-    export default {
-        name: "CardAsset",
-        props: {
-            card: Object,
-        },
+export default {
+  name: 'CardAsset',
+  props: {
+    card: Object
+  },
 
-        data: () => ({
-            toolbar: false,
-            selected: false,
-            status: "in_progress"
-        }),
-        mixins: [AuthMixin],
-        computed: {
-            itemStatus() {
-                if (this.card.vulnerabilities_count > 0) {
-                    return "alert"
-                } else {
-                    return "completed"
-                }
-            }
-        },
-        methods: {
-            itemClicked(data) {
-                this.$root.$emit('show-edit', data);
-            },
-            deleteClicked(data) {
-                this.$root.$emit('delete-asset', data)
-            },
-            deleteAllowed() {
-                return this.checkPermission(Permissions.MY_ASSETS_CREATE)
-            },
-            cardItemToolbar(action) {
-                switch (action) {
-                    case "edit":
-                        break;
-
-                    case "delete":
-                        this.deleteClicked(this.card);
-                        break;
-
-                    default:
-                        this.toolbar = false;
-                        this.itemClicked(this.card);
-                        break;
-                }
-            }
-        }
+  data: () => ({
+    toolbar: false,
+    selected: false,
+    status: 'in_progress'
+  }),
+  mixins: [AuthMixin],
+  computed: {
+    itemStatus () {
+      if (this.card.vulnerabilities_count > 0) {
+        return 'alert'
+      } else {
+        return 'completed'
+      }
     }
+  },
+  methods: {
+    itemClicked (data) {
+      this.$root.$emit('show-edit', data)
+    },
+    deleteClicked (data) {
+      this.$root.$emit('delete-asset', data)
+    },
+    deleteAllowed () {
+      return this.checkPermission(Permissions.MY_ASSETS_CREATE)
+    },
+    cardItemToolbar (action) {
+      switch (action) {
+        case 'edit':
+          break
+
+        case 'delete':
+          this.deleteClicked(this.card)
+          break
+
+        default:
+          this.toolbar = false
+          this.itemClicked(this.card)
+          break
+      }
+    }
+  }
+}
 </script>

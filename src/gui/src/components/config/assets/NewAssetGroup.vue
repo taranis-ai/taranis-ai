@@ -99,153 +99,143 @@
 </template>
 
 <script>
-    import {createNewAssetGroup} from "@/api/assets";
-    import {updateAssetGroup} from "@/api/assets";
+import { createNewAssetGroup, updateAssetGroup } from '@/api/assets'
 
-    export default {
-        name: "NewAssetGroup",
-        data: () => ({
-            visible: false,
-            edit: false,
-            headers: [
-                {
-                    text: 'Username',
-                    align: 'start',
-                    value: 'username',
-                },
-                {text: 'Name', value: 'name'},
-            ],
-            headers_template: [
-                {
-                    text: 'Name',
-                    align: 'start',
-                    value: 'name',
-                },
-                {text: 'Description', value: 'description'},
-            ],
-            selected_users: [],
-            users: [],
-            templates: [],
-            selected_templates: [],
-            show_validation_error: false,
-            show_error: false,
-            group: {
-                id: "",
-                name: "",
-                description: "",
-                users: [],
-                templates: []
-            }
-        }),
-        methods: {
-            addGroup() {
-                this.visible = true
-                this.edit = false
-                this.show_error = false;
-                this.group.name = ""
-                this.group.description = ""
-                this.group.users = []
-                this.group.templates = []
-                this.selected_users = [];
-                this.selected_templates = [];
-                this.$validator.reset();
-            },
-
-            cancel() {
-                this.$validator.reset();
-                this.visible = false
-            },
-
-            add() {
-                this.$validator.validateAll().then(() => {
-
-                    if (!this.$validator.errors.any()) {
-
-                        this.show_validation_error = false;
-                        this.show_error = false;
-
-                        this.group.users = [];
-                        for (let i = 0; i < this.selected_users.length; i++) {
-                            this.group.users.push(
-                                {
-                                    id: this.selected_users[i].id
-                                }
-                            )
-                        }
-
-                        this.group.templates = [];
-                        for (let i = 0; i < this.selected_templates.length; i++) {
-                            this.group.templates.push(
-                                {
-                                    id: this.selected_templates[i].id
-                                }
-                            )
-                        }
-
-                        if (this.edit) {
-                            updateAssetGroup(this.group).then(() => {
-
-                                this.$validator.reset();
-                                this.visible = false;
-                                this.$root.$emit('notification',
-                                    {
-                                        type: 'success',
-                                        loc: 'asset_group.successful_edit'
-                                    }
-                                )
-                            }).catch(() => {
-
-                                this.show_error = true;
-                            })
-                        } else {
-                            createNewAssetGroup(this.group).then(() => {
-
-                                this.$validator.reset();
-                                this.visible = false;
-                                this.$root.$emit('notification',
-                                    {
-                                        type: 'success',
-                                        loc: 'asset_group.successful'
-                                    }
-                                )
-                            }).catch(() => {
-
-                                this.show_error = true;
-                            })
-                        }
-
-
-                    } else {
-
-                        this.show_validation_error = true;
-                    }
-                })
-            }
-        },
-        mounted() {
-            this.$store.dispatch('getAllExternalUsers', {search: ''})
-                .then(() => {
-                    this.users = this.$store.getters.getUsers.items
-                });
-
-            this.$store.dispatch('getAllNotificationTemplates', {search: ''})
-                .then(() => {
-                    this.templates = this.$store.getters.getNotificationTemplates.items
-                });
-
-            this.$root.$on('show-edit', (data) => {
-                this.visible = true;
-                this.edit = true;
-                this.show_error = false;
-                this.group.id = data.id;
-                this.group.name = data.name;
-                this.group.description = data.description;
-                this.selected_users = data.users;
-                this.selected_templates = data.templates;
-            });
-        },
-        beforeDestroy() {
-            this.$root.$off('show-edit')
-        }
+export default {
+  name: 'NewAssetGroup',
+  data: () => ({
+    visible: false,
+    edit: false,
+    headers: [
+      {
+        text: 'Username',
+        align: 'start',
+        value: 'username'
+      },
+      { text: 'Name', value: 'name' }
+    ],
+    headers_template: [
+      {
+        text: 'Name',
+        align: 'start',
+        value: 'name'
+      },
+      { text: 'Description', value: 'description' }
+    ],
+    selected_users: [],
+    users: [],
+    templates: [],
+    selected_templates: [],
+    show_validation_error: false,
+    show_error: false,
+    group: {
+      id: '',
+      name: '',
+      description: '',
+      users: [],
+      templates: []
     }
+  }),
+  methods: {
+    addGroup () {
+      this.visible = true
+      this.edit = false
+      this.show_error = false
+      this.group.name = ''
+      this.group.description = ''
+      this.group.users = []
+      this.group.templates = []
+      this.selected_users = []
+      this.selected_templates = []
+      this.$validator.reset()
+    },
+
+    cancel () {
+      this.$validator.reset()
+      this.visible = false
+    },
+
+    add () {
+      this.$validator.validateAll().then(() => {
+        if (!this.$validator.errors.any()) {
+          this.show_validation_error = false
+          this.show_error = false
+
+          this.group.users = []
+          for (let i = 0; i < this.selected_users.length; i++) {
+            this.group.users.push(
+              {
+                id: this.selected_users[i].id
+              }
+            )
+          }
+
+          this.group.templates = []
+          for (let i = 0; i < this.selected_templates.length; i++) {
+            this.group.templates.push(
+              {
+                id: this.selected_templates[i].id
+              }
+            )
+          }
+
+          if (this.edit) {
+            updateAssetGroup(this.group).then(() => {
+              this.$validator.reset()
+              this.visible = false
+              this.$root.$emit('notification',
+                {
+                  type: 'success',
+                  loc: 'asset_group.successful_edit'
+                }
+              )
+            }).catch(() => {
+              this.show_error = true
+            })
+          } else {
+            createNewAssetGroup(this.group).then(() => {
+              this.$validator.reset()
+              this.visible = false
+              this.$root.$emit('notification',
+                {
+                  type: 'success',
+                  loc: 'asset_group.successful'
+                }
+              )
+            }).catch(() => {
+              this.show_error = true
+            })
+          }
+        } else {
+          this.show_validation_error = true
+        }
+      })
+    }
+  },
+  mounted () {
+    this.$store.dispatch('getAllExternalUsers', { search: '' })
+      .then(() => {
+        this.users = this.$store.getters.getUsers.items
+      })
+
+    this.$store.dispatch('getAllNotificationTemplates', { search: '' })
+      .then(() => {
+        this.templates = this.$store.getters.getNotificationTemplates.items
+      })
+
+    this.$root.$on('show-edit', (data) => {
+      this.visible = true
+      this.edit = true
+      this.show_error = false
+      this.group.id = data.id
+      this.group.name = data.name
+      this.group.description = data.description
+      this.selected_users = data.users
+      this.selected_templates = data.templates
+    })
+  },
+  beforeDestroy () {
+    this.$root.$off('show-edit')
+  }
+}
 </script>

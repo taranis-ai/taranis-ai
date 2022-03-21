@@ -50,74 +50,74 @@
 </template>
 
 <script>
-import AuthMixin from "../../services/auth/auth_mixin";
+import AuthMixin from '../../services/auth/auth_mixin'
 
 export default {
-    name: "ToolbarFilterPublish",
-    props: {
-        title: String,
-        dialog: String,
-        total_count_title: String
-    },
-    computed: {
-        totalCount() {
-            return this.$store.getters.getProducts.total_count
-        }
-    },
-    data: () => ({
-        status: [],
-        days: [
-            {title: 'toolbar_filter.all', icon: 'mdi-information-outline', type: 'info', filter: 'ALL'},
-            {title: 'toolbar_filter.today', icon: 'mdi-calendar-today', type: 'info', filter: 'TODAY'},
-            {title: 'toolbar_filter.this_week', icon: 'mdi-calendar-range', type: 'info', filter: 'WEEK'},
-            {title: 'toolbar_filter.this_month', icon: 'mdi-calendar-month', type: 'info', filter: 'MONTH'}
-        ],
-        filter: {
-            search: "",
-            range: "ALL",
-            sort: "DATE_DESC"
-        },
-        timeout: null
-    }),
-    mixins: [AuthMixin],
-    methods: {
-        filterSort(sort) {
-            this.filter.sort = sort;
-            this.$root.$emit('update-products-filter', this.filter);
-        },
-
-        filterRange(range) {
-            this.filter.range = range;
-            this.$root.$emit('update-products-filter', this.filter);
-        },
-
-        filterSearch: function () {
-            clearTimeout(this.timeout);
-
-            let self = this;
-            this.timeout = setTimeout(function () {
-                self.$root.$emit('update-products-filter', self.filter);
-            }, 800);
-        },
-
-        changeTheme() {
-            this.$vuetify.theme.themes.light.primary = "#f0f";
-            this.$vuetify.theme.themes.light.secondary = '#f00';
-            this.$vuetify.theme.themes.light.bg = '#0f0';
-            this.$vuetify.theme.themes.light.base = '#00f';
-        },
-        remove(item) {
-            this.chips.splice(this.chips.indexOf(item), 1);
-            this.chips = [...this.chips]
-        },
-        /*callDialog: function (e) {
-            this.$root.$emit('callDialog', e);
-        },*/
-        cancel() {
-        },
-        add() {
-        }
-
+  name: 'ToolbarFilterPublish',
+  props: {
+    title: String,
+    dialog: String,
+    total_count_title: String
+  },
+  computed: {
+    totalCount () {
+      return this.$store.getters.getProducts.total_count
     }
+  },
+  data: () => ({
+    status: [],
+    days: [
+      { title: 'toolbar_filter.all', icon: 'mdi-information-outline', type: 'info', filter: 'ALL' },
+      { title: 'toolbar_filter.today', icon: 'mdi-calendar-today', type: 'info', filter: 'TODAY' },
+      { title: 'toolbar_filter.this_week', icon: 'mdi-calendar-range', type: 'info', filter: 'WEEK' },
+      { title: 'toolbar_filter.this_month', icon: 'mdi-calendar-month', type: 'info', filter: 'MONTH' }
+    ],
+    filter: {
+      search: '',
+      range: 'ALL',
+      sort: 'DATE_DESC'
+    },
+    timeout: null
+  }),
+  mixins: [AuthMixin],
+  methods: {
+    filterSort (sort) {
+      this.filter.sort = sort
+      this.$root.$emit('update-products-filter', this.filter)
+    },
+
+    filterRange (range) {
+      this.filter.range = range
+      this.$root.$emit('update-products-filter', this.filter)
+    },
+
+    filterSearch: function () {
+      clearTimeout(this.timeout)
+
+      const self = this
+      this.timeout = setTimeout(function () {
+        self.$root.$emit('update-products-filter', self.filter)
+      }, 800)
+    },
+
+    changeTheme () {
+      this.$vuetify.theme.themes.light.primary = '#f0f'
+      this.$vuetify.theme.themes.light.secondary = '#f00'
+      this.$vuetify.theme.themes.light.bg = '#0f0'
+      this.$vuetify.theme.themes.light.base = '#00f'
+    },
+    remove (item) {
+      this.chips.splice(this.chips.indexOf(item), 1)
+      this.chips = [...this.chips]
+    },
+    /* callDialog: function (e) {
+            this.$root.$emit('callDialog', e);
+        }, */
+    cancel () {
+    },
+    add () {
+    }
+
+  }
 }
 </script>

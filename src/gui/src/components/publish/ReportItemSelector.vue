@@ -42,88 +42,87 @@
 </template>
 
 <script>
-    import ContentDataAnalyze from "@/components/analyze/ContentDataAnalyze";
-    import ToolbarFilter from "@/components/common/ToolbarFilter";
-    import CardAnalyze from "../analyze/CardAnalyze";
-    import ToolbarFilterAnalyze from "@/components/analyze/ToolbarFilterAnalyze";
-    import NewReportItem from "@/components/analyze/NewReportItem";
-    import Permissions from "@/services/auth/permissions";
-    import AuthMixin from "@/services/auth/auth_mixin";
+import ContentDataAnalyze from '@/components/analyze/ContentDataAnalyze'
+import ToolbarFilter from '@/components/common/ToolbarFilter'
+import CardAnalyze from '../analyze/CardAnalyze'
+import ToolbarFilterAnalyze from '@/components/analyze/ToolbarFilterAnalyze'
+import NewReportItem from '@/components/analyze/NewReportItem'
+import Permissions from '@/services/auth/permissions'
+import AuthMixin from '@/services/auth/auth_mixin'
 
-    export default {
-        name: "ReportItemSelector",
-        components: {
-            ToolbarFilterAnalyze,
-            ContentDataAnalyze,
-            ToolbarFilter,
-            CardAnalyze,
-            NewReportItem
-        },
-        mixins: [AuthMixin],
-        props: {
-            values: Array,
-            modify: Boolean,
-            edit: Boolean
-        },
-        data: () => ({
-            dialog: false,
-            value: ""
-        }),
-        computed: {
-            canModify() {
-                return this.edit === false || (this.checkPermission(Permissions.PUBLISH_UPDATE) && this.modify === true)
-            }
-        },
-        methods: {
-            newDataLoaded(count) {
-                this.$refs.toolbarFilter.updateDataCount(count)
-            },
-
-            updateFilter(filter) {
-                this.$refs.contentData.updateFilter(filter)
-            },
-
-            showReportItemDetail(report_item) {
-                this.$refs.reportItemDialog.showDetail(report_item)
-            },
-
-            removeReportItemFromSelector(report_item) {
-                const i = this.values.indexOf(report_item)
-                this.values.splice(i, 1)
-            },
-
-            cardLayout: function () {
-                return "CardAnalyze";
-            },
-
-            openSelector() {
-                this.$store.dispatch("multiSelectReport", true)
-                this.dialog = true;
-            },
-
-            add() {
-                let selection = this.$store.getters.getSelectionReport
-                for (let i = 0; i < selection.length; i++) {
-                    let found = false
-                    for (let j = 0; j < this.values.length; j++) {
-                        if (this.values[j].id === selection[i].item.id) {
-                            found = true
-                            break
-                        }
-                    }
-
-                    if (found === false)
-                        selection[i].item.tag = 'mdi-file-table-outline'
-                        this.values.push(selection[i].item)
-                }
-
-                this.close()
-            },
-
-            close() {
-                this.$store.dispatch("multiSelectReport", false)
-                this.dialog = false;
-            }
-        }
+export default {
+  name: 'ReportItemSelector',
+  components: {
+    ToolbarFilterAnalyze,
+    ContentDataAnalyze,
+    ToolbarFilter,
+    CardAnalyze,
+    NewReportItem
+  },
+  mixins: [AuthMixin],
+  props: {
+    values: Array,
+    modify: Boolean,
+    edit: Boolean
+  },
+  data: () => ({
+    dialog: false,
+    value: ''
+  }),
+  computed: {
+    canModify () {
+      return this.edit === false || (this.checkPermission(Permissions.PUBLISH_UPDATE) && this.modify === true)
     }
+  },
+  methods: {
+    newDataLoaded (count) {
+      this.$refs.toolbarFilter.updateDataCount(count)
+    },
+
+    updateFilter (filter) {
+      this.$refs.contentData.updateFilter(filter)
+    },
+
+    showReportItemDetail (report_item) {
+      this.$refs.reportItemDialog.showDetail(report_item)
+    },
+
+    removeReportItemFromSelector (report_item) {
+      const i = this.values.indexOf(report_item)
+      this.values.splice(i, 1)
+    },
+
+    cardLayout: function () {
+      return 'CardAnalyze'
+    },
+
+    openSelector () {
+      this.$store.dispatch('multiSelectReport', true)
+      this.dialog = true
+    },
+
+    add () {
+      const selection = this.$store.getters.getSelectionReport
+      for (let i = 0; i < selection.length; i++) {
+        let found = false
+        for (let j = 0; j < this.values.length; j++) {
+          if (this.values[j].id === selection[i].item.id) {
+            found = true
+            break
+          }
+        }
+
+        if (found === false) { selection[i].item.tag = 'mdi-file-table-outline' }
+        this.values.push(selection[i].item)
+      }
+
+      this.close()
+    },
+
+    close () {
+      this.$store.dispatch('multiSelectReport', false)
+      this.dialog = false
+    }
+  }
+}
 </script>

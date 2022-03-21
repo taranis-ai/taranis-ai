@@ -9,22 +9,22 @@
 </template>
 
 <script>
-    export default {
-        name: "Notification",
+export default {
+  name: 'Notification',
 
-        props: {
-        },
+  props: {
+  },
 
-        data: () => ({
-            notification: false,
-            notify: Object
-        }),
+  data: () => ({
+    notification: false,
+    notify: Object
+  }),
 
-        mounted() {
-            this.$root.$on('notification', (message) => {
-                this.notification = true
-                this.notify = message
-            })
-        }
-    }
+  mounted () {
+    this.$root.$on('notification', (message) => {
+      this.notification = true
+      this.notify = message
+    })
+  }
+}
 </script>

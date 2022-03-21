@@ -47,162 +47,160 @@
 </template>
 
 <script>
-    import {groupAction, voteNewsItem} from "@/api/assess";
-    import {readNewsItem} from "@/api/assess";
-    import {importantNewsItem} from "@/api/assess";
-    import {deleteNewsItem} from "@/api/assess";
-    import AuthMixin from "@/services/auth/auth_mixin";
-    import Permissions from "@/services/auth/permissions";
+import { groupAction, voteNewsItem, readNewsItem, importantNewsItem, deleteNewsItem } from '@/api/assess'
 
-    export default {
-        name: "CardAssessItem",
-        props: {
-            news_item: Object,
-            analyze_selector: Boolean,
-        },
-        mixins: [AuthMixin],
-        data: () => ({
-            toolbar: false,
-            selected: false
-        }),
-        computed: {
-            multiSelectActive() {
-                return this.$store.getters.getMultiSelect
-            },
-            selectedColor() {
-                if (this.selected === true) {
-                    return "orange lighten-4"
-                } else {
-                    return ""
-                }
-            },
-            cardStatus() {
-                if (this.news_item.important) {
-                    return "important"
-                } else if (this.news_item.read) {
-                    return "read"
-                } else {
-                    return "new"
-                }
-            },
-        },
-        methods: {
-            itemClicked(data) {
-                if (this.checkPermission(Permissions.ASSESS_ACCESS) && this.news_item.access === true) {
-                    this.$emit('show-item-detail', data);
-                    this.stateChange();
-                }
-            },
-            selectionChanged() {
-                if (this.selected === true) {
-                    this.$store.dispatch("select", {'type': 'ITEM', 'id': this.news_item.id, 'item': this.news_item})
-                } else {
-                    this.$store.dispatch("deselect", {'type': 'ITEM', 'id': this.news_item.id, 'item': this.news_item})
-                }
-            },
-            stateChange() {
-                this.$root.$emit('change-state','SHOW_ITEM');
-                this.$root.$emit('check-focus',this.$el.dataset.id);
-                this.$root.$emit('update-pos', parseInt(this.$el.dataset.id));
-            },
-            getGroupId() {
-                if (window.location.pathname.includes("/group/")) {
-                    let i = window.location.pathname.indexOf("/group/");
-                    let len = window.location.pathname.length;
-                    return window.location.pathname.substring(i + 7, len);
-                } else {
-                    return null;
-                }
-            },
-            cardItemToolbar(action) {
-                switch (action) {
-                    case "like":
-                        voteNewsItem(this.getGroupId(), this.news_item.id, 1).then(() => {
-                        });
-                        break;
+import AuthMixin from '@/services/auth/auth_mixin'
+import Permissions from '@/services/auth/permissions'
 
-                    case "unlike":
-                        voteNewsItem(this.getGroupId(), this.news_item.id, -1).then(() => {
-                        });
-                        break;
-
-                    case "link":
-                        break;
-
-                    case "important":
-                        importantNewsItem(this.getGroupId(), this.news_item.id).then(() => {
-                        });
-                        break;
-
-                    case "read":
-                        readNewsItem(this.getGroupId(), this.news_item.id).then(() => {
-                        });
-                        break;
-
-                    case "delete":
-                        deleteNewsItem(this.getGroupId(), this.news_item.id).then(() => {
-                        }).catch((error) => {
-                            this.$root.$emit('notification',
-                                {
-                                    type: 'error',
-                                    loc: 'error.' + error.response.data
-                                }
-                            )
-                        });
-                        break;
-
-                    case "ungroup":
-                        groupAction({
-                            'group': this.getGroupId(),
-                            'action': 'UNGROUP',
-                            'items': [{'type': 'ITEM', 'id': this.news_item.id}]
-                        }).then(() => {
-                        }).catch((error) => {
-                            this.$root.$emit('notification',
-                                {
-                                    type: 'error',
-                                    loc: 'error.' + error.response.data
-                                }
-                            )
-                        });
-                        break;
-
-                    default:
-                        this.toolbar = false;
-                        this.itemClicked(this.news_item);
-                        break;
-                }
-            },
-
-            buttonStatus: function (active) {
-                if (active) {
-                    return "info"
-                } else {
-                    return "accent"
-                }
-            },
-            multiSelectOff() {
-                this.selected = false
-            },
-            setFocus(id) {
-                if(this.$el.dataset.id == id) {
-                    this.toolbar = true;
-                    this.$el.querySelector(".card .layout").classList.add('focus');
-                } else {
-                    this.toolbar = false;
-                    this.$el.querySelector(".card .layout").classList.remove('focus');
-                }
-            }
-        },
-        mounted() {
-            this.$root.$on('multi-select-off', this.multiSelectOff);
-
-            this.$root.$on('check-focus', (id) => {
-                this.setFocus(id);
-            });
-        },
-        beforeDestroy() {
-            this.$root.$off('multi-select-off', this.multiSelectOff);
-        }
+export default {
+  name: 'CardAssessItem',
+  props: {
+    news_item: Object,
+    analyze_selector: Boolean
+  },
+  mixins: [AuthMixin],
+  data: () => ({
+    toolbar: false,
+    selected: false
+  }),
+  computed: {
+    multiSelectActive () {
+      return this.$store.getters.getMultiSelect
+    },
+    selectedColor () {
+      if (this.selected === true) {
+        return 'orange lighten-4'
+      } else {
+        return ''
+      }
+    },
+    cardStatus () {
+      if (this.news_item.important) {
+        return 'important'
+      } else if (this.news_item.read) {
+        return 'read'
+      } else {
+        return 'new'
+      }
     }
+  },
+  methods: {
+    itemClicked (data) {
+      if (this.checkPermission(Permissions.ASSESS_ACCESS) && this.news_item.access === true) {
+        this.$emit('show-item-detail', data)
+        this.stateChange()
+      }
+    },
+    selectionChanged () {
+      if (this.selected === true) {
+        this.$store.dispatch('select', { type: 'ITEM', id: this.news_item.id, item: this.news_item })
+      } else {
+        this.$store.dispatch('deselect', { type: 'ITEM', id: this.news_item.id, item: this.news_item })
+      }
+    },
+    stateChange () {
+      this.$root.$emit('change-state', 'SHOW_ITEM')
+      this.$root.$emit('check-focus', this.$el.dataset.id)
+      this.$root.$emit('update-pos', parseInt(this.$el.dataset.id))
+    },
+    getGroupId () {
+      if (window.location.pathname.includes('/group/')) {
+        const i = window.location.pathname.indexOf('/group/')
+        const len = window.location.pathname.length
+        return window.location.pathname.substring(i + 7, len)
+      } else {
+        return null
+      }
+    },
+    cardItemToolbar (action) {
+      switch (action) {
+        case 'like':
+          voteNewsItem(this.getGroupId(), this.news_item.id, 1).then(() => {
+          })
+          break
+
+        case 'unlike':
+          voteNewsItem(this.getGroupId(), this.news_item.id, -1).then(() => {
+          })
+          break
+
+        case 'link':
+          break
+
+        case 'important':
+          importantNewsItem(this.getGroupId(), this.news_item.id).then(() => {
+          })
+          break
+
+        case 'read':
+          readNewsItem(this.getGroupId(), this.news_item.id).then(() => {
+          })
+          break
+
+        case 'delete':
+          deleteNewsItem(this.getGroupId(), this.news_item.id).then(() => {
+          }).catch((error) => {
+            this.$root.$emit('notification',
+              {
+                type: 'error',
+                loc: 'error.' + error.response.data
+              }
+            )
+          })
+          break
+
+        case 'ungroup':
+          groupAction({
+            group: this.getGroupId(),
+            action: 'UNGROUP',
+            items: [{ type: 'ITEM', id: this.news_item.id }]
+          }).then(() => {
+          }).catch((error) => {
+            this.$root.$emit('notification',
+              {
+                type: 'error',
+                loc: 'error.' + error.response.data
+              }
+            )
+          })
+          break
+
+        default:
+          this.toolbar = false
+          this.itemClicked(this.news_item)
+          break
+      }
+    },
+
+    buttonStatus: function (active) {
+      if (active) {
+        return 'info'
+      } else {
+        return 'accent'
+      }
+    },
+    multiSelectOff () {
+      this.selected = false
+    },
+    setFocus (id) {
+      if (this.$el.dataset.id == id) {
+        this.toolbar = true
+        this.$el.querySelector('.card .layout').classList.add('focus')
+      } else {
+        this.toolbar = false
+        this.$el.querySelector('.card .layout').classList.remove('focus')
+      }
+    }
+  },
+  mounted () {
+    this.$root.$on('multi-select-off', this.multiSelectOff)
+
+    this.$root.$on('check-focus', (id) => {
+      this.setFocus(id)
+    })
+  },
+  beforeDestroy () {
+    this.$root.$off('multi-select-off', this.multiSelectOff)
+  }
+}
 </script>

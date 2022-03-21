@@ -40,37 +40,37 @@
 </template>
 
 <script>
-    import AuthMixin from "@/services/auth/auth_mixin";
+import AuthMixin from '@/services/auth/auth_mixin'
 
-    export default {
-        name: "CardCompact",
-        props: ['card', 'deletePermission'],
-        mixins: [AuthMixin],
-        data: () => ({
-            toolbar: false
-        }),
-        methods: {
-            itemClicked(data) {
-                this.$root.$emit('show-edit', data)
-            },
-            deleteClicked(data) {
-                this.$root.$emit('delete-item', data)
-            },
-            cardItemToolbar(action) {
-                switch (action) {
-                    case "delete":
-                        this.deleteClicked(this.card)
-                        break;
+export default {
+  name: 'CardCompact',
+  props: ['card', 'deletePermission'],
+  mixins: [AuthMixin],
+  data: () => ({
+    toolbar: false
+  }),
+  methods: {
+    itemClicked (data) {
+      this.$root.$emit('show-edit', data)
+    },
+    deleteClicked (data) {
+      this.$root.$emit('delete-item', data)
+    },
+    cardItemToolbar (action) {
+      switch (action) {
+        case 'delete':
+          this.deleteClicked(this.card)
+          break
 
-                    default:
-                        this.toolbar = false;
-                        this.itemClicked(this.card);
-                        break;
-                }
-            }
-        },
-        mounted() {
-            //window.console.debug(this.card.tag);
-        }
+        default:
+          this.toolbar = false
+          this.itemClicked(this.card)
+          break
+      }
     }
+  },
+  mounted () {
+    // window.console.debug(this.card.tag);
+  }
+}
 </script>

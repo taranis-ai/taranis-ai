@@ -41,58 +41,58 @@
 
 <script>
 
-import AuthMixin from "@/services/auth/auth_mixin";
+import AuthMixin from '@/services/auth/auth_mixin'
 
 export default {
-    name: "CardGroup",
-    props: ['card', 'deletePermission'],
-    mixins: [AuthMixin],
-    data: () => ({
-        toolbar: false
-    }),
-    computed: {
-        cardName() {
-            if (this.card.default) {
-                return this.$t('osint_source_group.default_group')
-            } else {
-                return this.card.name
-            }
-        },
-        cardDescription() {
-            if (this.card.default) {
-                return this.$t('osint_source_group.default_group_description')
-            } else {
-                return this.card.desc
-            }
-        },
-        cardStatus() {
-            if (this.card.status === undefined) {
-                return "status-green"
-            } else {
-                return "status-" + this.card.status
-            }
-        }
+  name: 'CardGroup',
+  props: ['card', 'deletePermission'],
+  mixins: [AuthMixin],
+  data: () => ({
+    toolbar: false
+  }),
+  computed: {
+    cardName () {
+      if (this.card.default) {
+        return this.$t('osint_source_group.default_group')
+      } else {
+        return this.card.name
+      }
     },
-    methods: {
-        itemClicked(data) {
-            this.$root.$emit('show-edit', data)
-        },
-        deleteClicked(data) {
-            this.$root.$emit('delete-item', data)
-        },
-        cardItemToolbar(action) {
-            switch (action) {
-                case "delete":
-                    this.deleteClicked(this.card)
-                    break;
-
-                default:
-                    this.toolbar = false;
-                    this.itemClicked(this.card);
-                    break;
-            }
-        },
-
+    cardDescription () {
+      if (this.card.default) {
+        return this.$t('osint_source_group.default_group_description')
+      } else {
+        return this.card.desc
+      }
+    },
+    cardStatus () {
+      if (this.card.status === undefined) {
+        return 'status-green'
+      } else {
+        return 'status-' + this.card.status
+      }
     }
+  },
+  methods: {
+    itemClicked (data) {
+      this.$root.$emit('show-edit', data)
+    },
+    deleteClicked (data) {
+      this.$root.$emit('delete-item', data)
+    },
+    cardItemToolbar (action) {
+      switch (action) {
+        case 'delete':
+          this.deleteClicked(this.card)
+          break
+
+        default:
+          this.toolbar = false
+          this.itemClicked(this.card)
+          break
+      }
+    }
+
+  }
 }
 </script>

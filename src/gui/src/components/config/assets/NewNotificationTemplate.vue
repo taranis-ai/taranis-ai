@@ -83,130 +83,121 @@
 </template>
 
 <script>
-    import {createNewNotificationTemplate} from "@/api/assets";
-    import {updateNotificationTemplate} from "@/api/assets";
-    import RecipientTable from "@/components/config/assets/RecipientTable";
-    import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
+import { createNewNotificationTemplate, updateNotificationTemplate } from '@/api/assets'
 
-    export default {
-        name: "NewNotificationTemplate",
-        components: {
-            RecipientTable
-        },
-        data: () => ({
-            visible: false,
-            edit: false,
-            editor: ClassicEditor,
-            editorData: '<p></p>',
-            editorConfig: {
-                // The configuration of the editor.
-            },
-            show_validation_error: false,
-            show_error: false,
-            template: {
-                id: -1,
-                name: "",
-                description: "",
-                message_title: "",
-                message_body: "",
-                recipients: []
-            }
-        }),
-        methods: {
-            addTemplate() {
-                this.visible = true;
-                this.edit = false
-                this.show_error = false;
-                this.editorData = '<p></p>'
-                this.template.id = -1;
-                this.template.name = "";
-                this.template.description = "";
-                this.template.message_title = "";
-                this.template.message_body = "";
-                this.template.recipients = []
-                this.$validator.reset();
-            },
+import RecipientTable from '@/components/config/assets/RecipientTable'
+import ClassicEditor from '@ckeditor/ckeditor5-build-classic'
 
-            cancel() {
-                this.$validator.reset();
-                this.visible = false
-            },
-
-            add() {
-                this.$validator.validateAll().then(() => {
-
-                    if (!this.$validator.errors.any()) {
-
-                        this.show_validation_error = false;
-                        this.show_error = false;
-                        this.template.message_body = this.editorData;
-
-                        if (this.edit === true) {
-                            updateNotificationTemplate(this.template).then(() => {
-
-                                this.$validator.reset();
-                                this.visible = false;
-                                this.$root.$emit('notification',
-                                    {
-                                        type: 'success',
-                                        loc: 'notification_template.successful_edit'
-                                    }
-                                )
-                            }).catch(() => {
-
-                                this.show_error = true;
-                            })
-                        } else {
-                            createNewNotificationTemplate(this.template).then(() => {
-
-                                this.$validator.reset();
-                                this.visible = false;
-                                this.$root.$emit('notification',
-                                    {
-                                        type: 'success',
-                                        loc: 'notification_template.successful'
-                                    }
-                                )
-                            }).catch(() => {
-
-                                this.show_error = true;
-                            })
-                        }
-
-                    } else {
-
-                        this.show_validation_error = true;
-                    }
-                })
-            }
-        },
-        mounted() {
-            this.$root.$on('show-edit', (data) => {
-
-                this.visible = true;
-                this.edit = true
-                this.show_error = false;
-
-                this.template.id = data.id;
-                this.template.name = data.name;
-                this.template.description = data.description;
-                this.template.message_title = data.message_title;
-                this.template.message_body = data.message_body;
-                this.editorData = data.message_body;
-
-                this.template.recipients = []
-                for (let i = 0; i < data.recipients.length; i++) {
-                    let recipient = {
-                        email: data.recipients[i].email,
-                        name: data.recipients[i].name,
-                    }
-
-                    this.template.recipients.push(recipient)
-                }
-            });
-        },
-        beforeDestroy() {
-            this.$root.$off('show-edit')
-        }
+export default {
+  name: 'NewNotificationTemplate',
+  components: {
+    RecipientTable
+  },
+  data: () => ({
+    visible: false,
+    edit: false,
+    editor: ClassicEditor,
+    editorData: '<p></p>',
+    editorConfig: {
+      // The configuration of the editor.
+    },
+    show_validation_error: false,
+    show_error: false,
+    template: {
+      id: -1,
+      name: '',
+      description: '',
+      message_title: '',
+      message_body: '',
+      recipients: []
     }
+  }),
+  methods: {
+    addTemplate () {
+      this.visible = true
+      this.edit = false
+      this.show_error = false
+      this.editorData = '<p></p>'
+      this.template.id = -1
+      this.template.name = ''
+      this.template.description = ''
+      this.template.message_title = ''
+      this.template.message_body = ''
+      this.template.recipients = []
+      this.$validator.reset()
+    },
+
+    cancel () {
+      this.$validator.reset()
+      this.visible = false
+    },
+
+    add () {
+      this.$validator.validateAll().then(() => {
+        if (!this.$validator.errors.any()) {
+          this.show_validation_error = false
+          this.show_error = false
+          this.template.message_body = this.editorData
+
+          if (this.edit === true) {
+            updateNotificationTemplate(this.template).then(() => {
+              this.$validator.reset()
+              this.visible = false
+              this.$root.$emit('notification',
+                {
+                  type: 'success',
+                  loc: 'notification_template.successful_edit'
+                }
+              )
+            }).catch(() => {
+              this.show_error = true
+            })
+          } else {
+            createNewNotificationTemplate(this.template).then(() => {
+              this.$validator.reset()
+              this.visible = false
+              this.$root.$emit('notification',
+                {
+                  type: 'success',
+                  loc: 'notification_template.successful'
+                }
+              )
+            }).catch(() => {
+              this.show_error = true
+            })
+          }
+        } else {
+          this.show_validation_error = true
+        }
+      })
+    }
+  },
+  mounted () {
+    this.$root.$on('show-edit', (data) => {
+      this.visible = true
+      this.edit = true
+      this.show_error = false
+
+      this.template.id = data.id
+      this.template.name = data.name
+      this.template.description = data.description
+      this.template.message_title = data.message_title
+      this.template.message_body = data.message_body
+      this.editorData = data.message_body
+
+      this.template.recipients = []
+      for (let i = 0; i < data.recipients.length; i++) {
+        const recipient = {
+          email: data.recipients[i].email,
+          name: data.recipients[i].name
+        }
+
+        this.template.recipients.push(recipient)
+      }
+    })
+  },
+  beforeDestroy () {
+    this.$root.$off('show-edit')
+  }
+}
 </script>

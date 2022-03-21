@@ -22,45 +22,43 @@
 </template>
 
 <script>
-    import ViewLayout from "../../components/layouts/ViewLayout";
-    import NewCollectorsNode from "../../components/config/collectors_nodes/NewCollectorsNode"
-    import ToolbarFilter from "../../components/common/ToolbarFilter"
-    import ContentData from "../../components/common/content/ContentData"
-    import {deleteCollectorsNode} from "@/api/config";
+import ViewLayout from '../../components/layouts/ViewLayout'
+import NewCollectorsNode from '../../components/config/collectors_nodes/NewCollectorsNode'
+import ToolbarFilter from '../../components/common/ToolbarFilter'
+import ContentData from '../../components/common/content/ContentData'
+import { deleteCollectorsNode } from '@/api/config'
 
-    export default {
-        name: "CollectorsNodes",
-        components: {
-            ViewLayout,
-            ToolbarFilter,
-            ContentData,
-            NewCollectorsNode
-        },
-        data: () => ({}),
-        mounted() {
-            this.$root.$on('delete-item', (item) => {
-                deleteCollectorsNode(item).then(() => {
-
-                    this.$root.$emit('notification',
-                        {
-                            type: 'success',
-                            loc: 'collectors_node.removed'
-                        }
-                    )
-                }).catch(() => {
-
-                    this.$root.$emit('notification',
-                        {
-                            type: 'error',
-                            loc: 'collectors_node.removed_error'
-                        }
-                    )
-                })
-            });
-        },
-        beforeDestroy() {
-            this.$root.$off('delete-item')
-        }
-    };
+export default {
+  name: 'CollectorsNodes',
+  components: {
+    ViewLayout,
+    ToolbarFilter,
+    ContentData,
+    NewCollectorsNode
+  },
+  data: () => ({}),
+  mounted () {
+    this.$root.$on('delete-item', (item) => {
+      deleteCollectorsNode(item).then(() => {
+        this.$root.$emit('notification',
+          {
+            type: 'success',
+            loc: 'collectors_node.removed'
+          }
+        )
+      }).catch(() => {
+        this.$root.$emit('notification',
+          {
+            type: 'error',
+            loc: 'collectors_node.removed_error'
+          }
+        )
+      })
+    })
+  },
+  beforeDestroy () {
+    this.$root.$off('delete-item')
+  }
+}
 
 </script>

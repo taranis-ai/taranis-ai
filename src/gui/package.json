@@ -5,25 +5,7 @@
   "scripts": {
     "serve": "vue-cli-service serve",
     "build": "vue-cli-service build",
-    "lint": "vue-cli-service lint",
-    "addrouter": "vue add router",
-    "addvuetify": "vue add vuetify",
-    "installvuetify": "npm -S install vuetify",
-    "installaxios": "npm install axios",
-    "installvuex": "npm install vuex",
-    "installmdiicons": "npm install @mdi/font -D",
-    "installmaterialicons": "npm install material-design-icons-iconfont -D",
-    "installveevalidate": "npm install vee-validate",
-    "installvuei18n": "npm install vue-i18n",
-    "installckeditor": "npm install --save @ckeditor/ckeditor5-build-classic @ckeditor/ckeditor5-vue vue-keypress ",
-    "installcookie": "npm install vue-cookies --save",
-    "installchat": "npm install --save vue-quick-chat vue-quick-chat/dist/vue-quick-chat.css vue-wordcloud",
-    "installvuesse": "npm install --save vue-sse",
-    "installvuecsvimport": "npm install --save vue-csv-import",
-    "installvuedatetime": "npm install --save vuetify-datetime-picker",
-    "installdatepicker": "npm install --save vuetify-datetime-picker vue2-datepicker",
-    "installeditor": "npm install --save vue2-editor",
-    "installdropzone": "npm install --save vue2-dropzone"
+    "lint": "vue-cli-service lint"
   },
   "dependencies": {
     "@ckeditor/ckeditor5-build-classic": "^16.0.0",
@@ -64,12 +46,18 @@
     "@ckeditor/ckeditor5-alignment": "^20.0.0",
     "@mdi/font": "^6.4.95",
     "@vue/cli-plugin-babel": "^3.3.0",
-    "@vue/cli-plugin-eslint": "^3.12.1",
+    "@vue/cli-plugin-eslint": "~4.5.12",
     "@vue/cli-service": "^3.12.1",
+    "@vue/eslint-config-standard": "^5.1.2",
     "babel-eslint": "^10.1.0",
     "cache-loader": "^4.1.0",
-    "eslint": "^5.16.0",
-    "eslint-plugin-vue": "^5.0.0",
+    "eslint": "^6.7.2",
+    "eslint-plugin-import": "^2.20.2",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-promise": "^4.2.1",
+    "eslint-plugin-standard": "^4.0.0",
+    "eslint-plugin-vue": "^6.2.2",
+    "lint-staged": "^9.5.0",
     "material-design-icons-iconfont": "^6.1.1",
     "sass": "^1.45.1",
     "vue-cli-plugin-vuetify": "^0.6.3",
@@ -84,7 +72,8 @@
     },
     "extends": [
       "plugin:vue/essential",
-      "eslint:recommended"
+      "eslint:recommended",
+      "@vue/standard"
     ],
     "rules": {},
     "parserOptions": {
@@ -99,5 +88,14 @@
   "browserslist": [
     "> 1%",
     "last 2 versions"
-  ]
+  ],
+  "gitHooks": {
+    "pre-commit": "lint-staged"
+  },
+  "lint-staged": {
+    "*.{js,jsx,vue}": [
+      "vue-cli-service lint",
+      "git add"
+    ]
+  }
 }

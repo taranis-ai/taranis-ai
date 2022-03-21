@@ -49,42 +49,40 @@
 
 <script>
 
-    import AuthMixin from "@/services/auth/auth_mixin";
+import AuthMixin from '@/services/auth/auth_mixin'
 
-    export default {
-        name: 'Login',
-        data: () => ({
-            username: '',
-            password: '',
-            show_login_error: false
-        }),
-        mixins: [AuthMixin],
-        methods: {
-            authenticate() {
-                this.$validator.validateAll().then(() => {
-
-                    if (!this.$validator.errors.any()) {
-                        this.$store.dispatch('login', {username: this.username, password: this.password})
-                            .then(() => {
-                                if (this.isAuthenticated()) {
-                                    this.show_login_error = false;
-                                    this.$router.push('/')
-                                    this.$store.dispatch('getUserProfile').then(() => {
-                                        this.$vuetify.theme.dark = this.$store.getters.getProfileDarkTheme
-                                    });
-                                    this.$root.$emit('logged-in')
-                                } else {
-                                    this.show_login_error = true;
-                                    this.$refs.form.reset();
-                                    this.$validator.reset()
-                                }
-                            })
-                    } else {
-
-                        this.show_login_error = false;
-                    }
+export default {
+  name: 'Login',
+  data: () => ({
+    username: '',
+    password: '',
+    show_login_error: false
+  }),
+  mixins: [AuthMixin],
+  methods: {
+    authenticate () {
+      this.$validator.validateAll().then(() => {
+        if (!this.$validator.errors.any()) {
+          this.$store.dispatch('login', { username: this.username, password: this.password })
+            .then(() => {
+              if (this.isAuthenticated()) {
+                this.show_login_error = false
+                this.$router.push('/')
+                this.$store.dispatch('getUserProfile').then(() => {
+                  this.$vuetify.theme.dark = this.$store.getters.getProfileDarkTheme
                 })
-            }
+                this.$root.$emit('logged-in')
+              } else {
+                this.show_login_error = true
+                this.$refs.form.reset()
+                this.$validator.reset()
+              }
+            })
+        } else {
+          this.show_login_error = false
         }
+      })
     }
+  }
+}
 </script>

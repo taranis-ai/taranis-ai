@@ -22,46 +22,44 @@
 </template>
 
 <script>
-    import ViewLayout from "../../components/layouts/ViewLayout";
-    import NewPublisherPreset from "@/components/config/publisher_presets/NewPublisherPreset";
-    import ToolbarFilter from "../../components/common/ToolbarFilter";
-    import ContentData from "../../components/common/content/ContentData"
-    import {deletePublisherPreset} from "@/api/config";
+import ViewLayout from '../../components/layouts/ViewLayout'
+import NewPublisherPreset from '@/components/config/publisher_presets/NewPublisherPreset'
+import ToolbarFilter from '../../components/common/ToolbarFilter'
+import ContentData from '../../components/common/content/ContentData'
+import { deletePublisherPreset } from '@/api/config'
 
-    export default {
-        name: "PublisherPresets",
-        components: {
-            ViewLayout,
-            ToolbarFilter,
-            ContentData,
-            NewPublisherPreset
-        },
-        data: () => ({
-        }),
-        mounted() {
-            this.$root.$on('delete-item', (item) => {
-                deletePublisherPreset(item).then(() => {
-
-                    this.$root.$emit('notification',
-                        {
-                            type: 'success',
-                            loc: 'publisher_preset.removed'
-                        }
-                    )
-                }).catch(() => {
-
-                    this.$root.$emit('notification',
-                        {
-                            type: 'error',
-                            loc: 'publisher_preset.removed_error'
-                        }
-                    )
-                })
-            });
-        },
-        beforeDestroy() {
-            this.$root.$off('delete-item')
-        }
-    };
+export default {
+  name: 'PublisherPresets',
+  components: {
+    ViewLayout,
+    ToolbarFilter,
+    ContentData,
+    NewPublisherPreset
+  },
+  data: () => ({
+  }),
+  mounted () {
+    this.$root.$on('delete-item', (item) => {
+      deletePublisherPreset(item).then(() => {
+        this.$root.$emit('notification',
+          {
+            type: 'success',
+            loc: 'publisher_preset.removed'
+          }
+        )
+      }).catch(() => {
+        this.$root.$emit('notification',
+          {
+            type: 'error',
+            loc: 'publisher_preset.removed_error'
+          }
+        )
+      })
+    })
+  },
+  beforeDestroy () {
+    this.$root.$off('delete-item')
+  }
+}
 
 </script>

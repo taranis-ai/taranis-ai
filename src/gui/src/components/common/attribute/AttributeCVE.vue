@@ -40,39 +40,39 @@
 </template>
 
 <script>
-    import AttributesMixin from "@/components/common/attribute/attributes_mixin";
-    import EnumSelector from "@/components/common/EnumSelector";
+import AttributesMixin from '@/components/common/attribute/attributes_mixin'
+import EnumSelector from '@/components/common/EnumSelector'
 
-    import AttributeItemLayout from "../../layouts/AttributeItemLayout";
-    import AttributeValueLayout from "../../layouts/AttributeValueLayout";
+import AttributeItemLayout from '../../layouts/AttributeItemLayout'
+import AttributeValueLayout from '../../layouts/AttributeValueLayout'
 
-    export default {
-        name: "AttributeCVE",
-        props: {
-            attribute_group: Object
-        },
-        data: () => ({
-            tooltip: ''
-        }),
-        mixins: [AttributesMixin],
-        components: {
-            EnumSelector,
-            AttributeItemLayout,
-            AttributeValueLayout
-        },
-        computed: {
-            hideTooltip() {
-                return !this.values === '' ? "hide-tooltip" : "";
-            }
-        },
-        methods: {
-            firstOne(index) {
-                if(this.values[index].value === '') {
-                    this.tooltip = "hide-tooltip"
-                } else {
-                    this.tooltip = '';
-                }
-            }
-        }
+export default {
+  name: 'AttributeCVE',
+  props: {
+    attribute_group: Object
+  },
+  data: () => ({
+    tooltip: ''
+  }),
+  mixins: [AttributesMixin],
+  components: {
+    EnumSelector,
+    AttributeItemLayout,
+    AttributeValueLayout
+  },
+  computed: {
+    hideTooltip () {
+      return !this.values === '' ? 'hide-tooltip' : ''
     }
+  },
+  methods: {
+    firstOne (index) {
+      if (this.values[index].value === '') {
+        this.tooltip = 'hide-tooltip'
+      } else {
+        this.tooltip = ''
+      }
+    }
+  }
+}
 </script>

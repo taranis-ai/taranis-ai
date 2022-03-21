@@ -4,10 +4,9 @@
     </v-container>
 </template>
 
-
 <script>
 
-    export default {
-        name: "Config"
-    }
+export default {
+  name: 'Config'
+}
 </script>

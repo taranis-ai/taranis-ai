@@ -25,49 +25,49 @@
 </template>
 
 <script>
-    import AuthMixin from "@/services/auth/auth_mixin";
+import AuthMixin from '@/services/auth/auth_mixin'
 
-    export default {
-        name: "Navigation",
-        props: {
-            titles: Array,
-            links: Array,
-            links2: Array,
-            icon: String,
-            filter: Boolean
-        },
-        mixins: [AuthMixin],
-        data: () => ({}),
-        computed: {
-            filteredLinks() {
-                if (this.filter === true) {
-                    let filteredLinks = []
-                    for (let i = 0; i < this.links.length; i++) {
-                        if (this.links[i].permission === undefined || this.checkPermission(this.links[i].permission)) {
-                            if (this.links[i].separator === undefined || (filteredLinks.length > 0 && filteredLinks[filteredLinks.length - 1].separator === undefined)) {
-                                filteredLinks.push(this.links[i])
-                            }
-                        }
-                    }
-
-                    if (filteredLinks[0].separator !== undefined) {
-                        filteredLinks.splice(0, 1)
-                    }
-
-                    if (filteredLinks[filteredLinks.length - 1].separator !== undefined) {
-                        filteredLinks.splice(filteredLinks.length - 1, 1)
-                    }
-
-                    return filteredLinks
-                } else {
-                    return this.links
-                }
+export default {
+  name: 'Navigation',
+  props: {
+    titles: Array,
+    links: Array,
+    links2: Array,
+    icon: String,
+    filter: Boolean
+  },
+  mixins: [AuthMixin],
+  data: () => ({}),
+  computed: {
+    filteredLinks () {
+      if (this.filter === true) {
+        const filteredLinks = []
+        for (let i = 0; i < this.links.length; i++) {
+          if (this.links[i].permission === undefined || this.checkPermission(this.links[i].permission)) {
+            if (this.links[i].separator === undefined || (filteredLinks.length > 0 && filteredLinks[filteredLinks.length - 1].separator === undefined)) {
+              filteredLinks.push(this.links[i])
             }
-        },
-        methods: {
-            hasPermission(link) {
-                return this.checkPermission(link.permission)
-            }
+          }
         }
+
+        if (filteredLinks[0].separator !== undefined) {
+          filteredLinks.splice(0, 1)
+        }
+
+        if (filteredLinks[filteredLinks.length - 1].separator !== undefined) {
+          filteredLinks.splice(filteredLinks.length - 1, 1)
+        }
+
+        return filteredLinks
+      } else {
+        return this.links
+      }
     }
+  },
+  methods: {
+    hasPermission (link) {
+      return this.checkPermission(link.permission)
+    }
+  }
+}
 </script>

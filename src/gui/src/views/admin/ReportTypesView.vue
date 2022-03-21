@@ -21,44 +21,42 @@
 </template>
 
 <script>
-    import ViewLayout from "../../components/layouts/ViewLayout";
-    import ToolbarFilter from "../../components/common/ToolbarFilter";
-    import ContentData from "../../components/common/content/ContentData";
-    import NewReportType from "../../components/config/report_types/NewReportType";
-    import {deleteReportItemType} from "@/api/config";
+import ViewLayout from '../../components/layouts/ViewLayout'
+import ToolbarFilter from '../../components/common/ToolbarFilter'
+import ContentData from '../../components/common/content/ContentData'
+import NewReportType from '../../components/config/report_types/NewReportType'
+import { deleteReportItemType } from '@/api/config'
 
-    export default {
-        name: "ReportTypes",
-        components: {
-            ViewLayout,
-            ToolbarFilter,
-            ContentData,
-            NewReportType
-        },
-        data: () => ({}),
-        mounted() {
-            this.$root.$on('delete-item', (item) => {
-                deleteReportItemType(item).then(() => {
-
-                    this.$root.$emit('notification',
-                        {
-                            type: 'success',
-                            loc: 'report_type.removed'
-                        }
-                    )
-                }).catch(() => {
-
-                    this.$root.$emit('notification',
-                        {
-                            type: 'error',
-                            loc: 'report_type.removed_error'
-                        }
-                    )
-                })
-            });
-        },
-        beforeDestroy() {
-            this.$root.$off('delete-item')
-        }
-    };
+export default {
+  name: 'ReportTypes',
+  components: {
+    ViewLayout,
+    ToolbarFilter,
+    ContentData,
+    NewReportType
+  },
+  data: () => ({}),
+  mounted () {
+    this.$root.$on('delete-item', (item) => {
+      deleteReportItemType(item).then(() => {
+        this.$root.$emit('notification',
+          {
+            type: 'success',
+            loc: 'report_type.removed'
+          }
+        )
+      }).catch(() => {
+        this.$root.$emit('notification',
+          {
+            type: 'error',
+            loc: 'report_type.removed_error'
+          }
+        )
+      })
+    })
+  },
+  beforeDestroy () {
+    this.$root.$off('delete-item')
+  }
+}
 </script>

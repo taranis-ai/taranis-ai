@@ -22,45 +22,43 @@
 </template>
 
 <script>
-    import ViewLayout from "../../components/layouts/ViewLayout";
-    import NewNotificationTemplate from "@/components/config/assets/NewNotificationTemplate";
-    import ToolbarFilter from "../../components/common/ToolbarFilter";
-    import ContentData from "../../components/common/content/ContentData"
-    import {deleteNotificationTemplate} from "@/api/assets";
+import ViewLayout from '../../components/layouts/ViewLayout'
+import NewNotificationTemplate from '@/components/config/assets/NewNotificationTemplate'
+import ToolbarFilter from '../../components/common/ToolbarFilter'
+import ContentData from '../../components/common/content/ContentData'
+import { deleteNotificationTemplate } from '@/api/assets'
 
-    export default {
-        name: "NotificationTemplates",
-        components: {
-            ViewLayout,
-            ToolbarFilter,
-            ContentData,
-            NewNotificationTemplate
-        },
-        data: () => ({}),
-        mounted() {
-            this.$root.$on('delete-item', (item) => {
-                deleteNotificationTemplate(item).then(() => {
-
-                    this.$root.$emit('notification',
-                        {
-                            type: 'success',
-                            loc: 'notification_template.removed'
-                        }
-                    )
-                }).catch(() => {
-
-                    this.$root.$emit('notification',
-                        {
-                            type: 'error',
-                            loc: 'notification_template.removed_error'
-                        }
-                    )
-                })
-            });
-        },
-        beforeDestroy() {
-            this.$root.$off('delete-item')
-        }
-    };
+export default {
+  name: 'NotificationTemplates',
+  components: {
+    ViewLayout,
+    ToolbarFilter,
+    ContentData,
+    NewNotificationTemplate
+  },
+  data: () => ({}),
+  mounted () {
+    this.$root.$on('delete-item', (item) => {
+      deleteNotificationTemplate(item).then(() => {
+        this.$root.$emit('notification',
+          {
+            type: 'success',
+            loc: 'notification_template.removed'
+          }
+        )
+      }).catch(() => {
+        this.$root.$emit('notification',
+          {
+            type: 'error',
+            loc: 'notification_template.removed_error'
+          }
+        )
+      })
+    })
+  },
+  beforeDestroy () {
+    this.$root.$off('delete-item')
+  }
+}
 
 </script>

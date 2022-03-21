@@ -22,45 +22,43 @@
 </template>
 
 <script>
-    import ViewLayout from "../../components/layouts/ViewLayout";
-    import NewBotsNode from "@/components/config/bots_nodes/NewBotsNode";
-    import ToolbarFilter from "../../components/common/ToolbarFilter"
-    import ContentData from "../../components/common/content/ContentData"
-    import {deleteBotsNode} from "@/api/config";
+import ViewLayout from '../../components/layouts/ViewLayout'
+import NewBotsNode from '@/components/config/bots_nodes/NewBotsNode'
+import ToolbarFilter from '../../components/common/ToolbarFilter'
+import ContentData from '../../components/common/content/ContentData'
+import { deleteBotsNode } from '@/api/config'
 
-    export default {
-        name: "BotsNodes",
-        components: {
-            ViewLayout,
-            ToolbarFilter,
-            ContentData,
-            NewBotsNode
-        },
-        data: () => ({}),
-        mounted() {
-            this.$root.$on('delete-item', (item) => {
-                deleteBotsNode(item).then(() => {
-
-                    this.$root.$emit('notification',
-                        {
-                            type: 'success',
-                            loc: 'bots_node.removed'
-                        }
-                    )
-                }).catch(() => {
-
-                    this.$root.$emit('notification',
-                        {
-                            type: 'error',
-                            loc: 'bots_node.removed_error'
-                        }
-                    )
-                })
-            });
-        },
-        beforeDestroy() {
-            this.$root.$off('delete-item')
-        }
-    };
+export default {
+  name: 'BotsNodes',
+  components: {
+    ViewLayout,
+    ToolbarFilter,
+    ContentData,
+    NewBotsNode
+  },
+  data: () => ({}),
+  mounted () {
+    this.$root.$on('delete-item', (item) => {
+      deleteBotsNode(item).then(() => {
+        this.$root.$emit('notification',
+          {
+            type: 'success',
+            loc: 'bots_node.removed'
+          }
+        )
+      }).catch(() => {
+        this.$root.$emit('notification',
+          {
+            type: 'error',
+            loc: 'bots_node.removed_error'
+          }
+        )
+      })
+    })
+  },
+  beforeDestroy () {
+    this.$root.$off('delete-item')
+  }
+}
 
 </script>

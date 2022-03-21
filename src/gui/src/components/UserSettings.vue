@@ -126,98 +126,98 @@
 </template>
 
 <script>
-    import Permissions from "@/services/auth/permissions";
-    import AuthMixin from "@/services/auth/auth_mixin";
+import Permissions from '@/services/auth/permissions'
+import AuthMixin from '@/services/auth/auth_mixin'
 
-    export default {
-        name: "UserSettings",
-        components: {
-        },
-        mixins: [AuthMixin],
-        data: () => ({
-            visible: false,
-            dark_theme: false,
-            spellcheck: null,
-            pressKeyVisible: false,
-            shortcuts: [],
-            hotkeyAlias: String,
-            headers: [
-                {
-                    text: 'Name',
-                    align: 'start',
-                    value: 'name',
-                },
-                {text: 'Description', value: 'description'},
-            ],
-            word_lists: [],
-            selected_word_lists: []
-        }),
-        methods: {
-            close() {
-                this.visible = false;
-                this.$vuetify.theme.dark = this.$store.getters.getDarkTheme
-            },
+export default {
+  name: 'UserSettings',
+  components: {
+  },
+  mixins: [AuthMixin],
+  data: () => ({
+    visible: false,
+    dark_theme: false,
+    spellcheck: null,
+    pressKeyVisible: false,
+    shortcuts: [],
+    hotkeyAlias: String,
+    headers: [
+      {
+        text: 'Name',
+        align: 'start',
+        value: 'name'
+      },
+      { text: 'Description', value: 'description' }
+    ],
+    word_lists: [],
+    selected_word_lists: []
+  }),
+  methods: {
+    close () {
+      this.visible = false
+      this.$vuetify.theme.dark = this.$store.getters.getDarkTheme
+    },
 
-            save() {
-                this.$store.dispatch('saveUserProfile', {
-                    spellcheck: this.spellcheck,
-                    dark_theme: this.dark_theme,
-                    hotkeys: this.shortcuts,
-                    word_lists: this.selected_word_lists,
-                }).then(() => {
-                    this.visible = false;
-                });
-            },
+    save () {
+      this.$store.dispatch('saveUserProfile', {
+        spellcheck: this.spellcheck,
+        dark_theme: this.dark_theme,
+        hotkeys: this.shortcuts,
+        word_lists: this.selected_word_lists
+      }).then(() => {
+        this.visible = false
+      })
+    },
 
-            darkToggle() {
-                this.$vuetify.theme.dark = this.dark_theme
-            },
+    darkToggle () {
+      this.$vuetify.theme.dark = this.dark_theme
+    },
 
-            pressKeyDialog(event) {
-                window.addEventListener("keydown", this.pressKey, false);
+    pressKeyDialog (event) {
+      window.addEventListener('keydown', this.pressKey, false)
 
-                this.pressKeyVisible = true;
-                this.hotkeyAlias = event;
-            },
+      this.pressKeyVisible = true
+      this.hotkeyAlias = event
+    },
 
-            pressKey(event) {
-                let key = event;
-                let hotkeyIndex = this.shortcuts.map(function(e){ return e.alias; }).indexOf(this.hotkeyAlias);
+    pressKey (event) {
+      const key = event
+      const hotkeyIndex = this.shortcuts.map(function (e) { return e.alias }).indexOf(this.hotkeyAlias)
 
-                window.removeEventListener("keydown", this.pressKey);
+      window.removeEventListener('keydown', this.pressKey)
 
-                this.pressKeyVisible = false;
+      this.pressKeyVisible = false
 
-                // check doubles and clear
-                this.shortcuts.forEach(
-                    (doubleKey, i) => {
-                        if( doubleKey.key_code == key.keyCode && i != hotkeyIndex ) {
-                            this.shortcuts[i].key_code = 0;
-                            this.shortcuts[i].key = 'undefined';
-                        }
-                    }
-                );
-
-                // assigned new key
-                this.shortcuts[hotkeyIndex].key_code = key.keyCode;
-                this.shortcuts[hotkeyIndex].key = key.code;
-            },
-        },
-        mounted() {
-            this.$root.$on('show-user-settings', () => {
-                this.visible = true;
-                this.spellcheck = this.$store.getters.getProfileSpellcheck
-                this.dark_theme = this.$store.getters.getProfileDarkTheme
-                this.selected_word_lists = this.$store.getters.getProfileWordLists
-                this.shortcuts = this.$store.getters.getProfileHotkeys
-            });
-
-            if (this.checkPermission(Permissions.ASSESS_ACCESS)) {
-                this.$store.dispatch('getAllUserWordLists', {search: ''})
-                    .then(() => {
-                        this.word_lists = this.$store.getters.getWordLists.items
-                    });
-            }
+      // check doubles and clear
+      this.shortcuts.forEach(
+        (doubleKey, i) => {
+          if (doubleKey.key_code == key.keyCode && i != hotkeyIndex) {
+            this.shortcuts[i].key_code = 0
+            this.shortcuts[i].key = 'undefined'
+          }
         }
+      )
+
+      // assigned new key
+      this.shortcuts[hotkeyIndex].key_code = key.keyCode
+      this.shortcuts[hotkeyIndex].key = key.code
     }
+  },
+  mounted () {
+    this.$root.$on('show-user-settings', () => {
+      this.visible = true
+      this.spellcheck = this.$store.getters.getProfileSpellcheck
+      this.dark_theme = this.$store.getters.getProfileDarkTheme
+      this.selected_word_lists = this.$store.getters.getProfileWordLists
+      this.shortcuts = this.$store.getters.getProfileHotkeys
+    })
+
+    if (this.checkPermission(Permissions.ASSESS_ACCESS)) {
+      this.$store.dispatch('getAllUserWordLists', { search: '' })
+        .then(() => {
+          this.word_lists = this.$store.getters.getWordLists.items
+        })
+    }
+  }
+}
 </script>

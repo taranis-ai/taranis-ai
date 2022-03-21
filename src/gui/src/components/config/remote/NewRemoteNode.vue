@@ -140,225 +140,204 @@
 </template>
 
 <script>
-    import AuthMixin from "../../../services/auth/auth_mixin";
-    import {createNewRemoteNode} from "@/api/config";
-    import {updateRemoteNode} from "@/api/config";
-    import {connectRemoteNode} from "@/api/config";
-    import Permissions from "@/services/auth/permissions";
+import AuthMixin from '../../../services/auth/auth_mixin'
+import { createNewRemoteNode, updateRemoteNode, connectRemoteNode } from '@/api/config'
 
-    export default {
-        name: "NewRemoteNode",
-        components: {},
-        props: {add_button: Boolean},
-        data: () => ({
-            visible: false,
-            show_validation_error: false,
-            edit: false,
-            show_error: false,
-            osint_source_groups: [],
-            selected_osint_source_group: null,
-            connected: false,
-            show_connect_error: false,
-            show_connect_info: false,
-            remote_node: {
-                id: -1,
-                name: "",
-                description: "",
-                remote_url: "",
-                events_url: "",
-                access_key: "",
-                enabled: false,
-                sync_news_items: false,
-                sync_report_items: false,
-                osint_source_group_id: null
-            }
-        }),
-        computed: {
-            canCreate() {
-                return this.checkPermission(Permissions.CONFIG_REMOTE_NODE_CREATE)
-            },
-            canUpdate() {
-                return this.checkPermission(Permissions.CONFIG_REMOTE_NODE_UPDATE) || !this.edit
-            },
-            canConnect() {
-                return ((this.checkPermission(Permissions.CONFIG_REMOTE_NODE_UPDATE) || !this.edit) && this.connected === false)
-                    && this.remote_node.enabled === true
-            },
-        },
-        methods: {
-            addRemoteNode() {
-                this.visible = true;
-                this.edit = false;
-                this.show_error = false;
-                this.connected = false
-                this.show_connect_error = false
-                this.show_connect_info = false
-                this.remote_node.id = -1
-                this.remote_node.name = ""
-                this.remote_node.description = ""
-                this.remote_node.remote_url = ""
-                this.remote_node.events_url = ""
-                this.remote_node.enabled = false
-                this.remote_node.sync_news_items = false
-                this.remote_node.sync_report_items = false
-                this.remote_node.osint_source_group_id = null
-                this.selected_osint_source_group = null
-                this.$validator.reset();
-            },
+import Permissions from '@/services/auth/permissions'
 
-            cancel() {
-                this.$validator.reset();
-                this.visible = false
-                this.$root.$emit('update-data')
-            },
-
-            connect() {
-                this.$validator.validateAll().then(() => {
-
-                    if (!this.$validator.errors.any()) {
-
-                        this.show_validation_error = false;
-                        this.show_error = false;
-
-                        if (this.selected_osint_source_group !== null) {
-                            this.remote_node.osint_source_group_id = this.selected_osint_source_group.id
-                        }
-
-                        if (this.edit) {
-                            updateRemoteNode(this.remote_node).then(() => {
-
-                                this.$validator.reset();
-                                this.makeConnection();
-
-                            }).catch(() => {
-
-                                this.show_error = true;
-                            })
-                        } else {
-                            createNewRemoteNode(this.remote_node).then(() => {
-
-                                this.$validator.reset();
-                                this.makeConnection();
-
-                            }).catch(() => {
-
-                                this.show_error = true;
-                            })
-                        }
-
-                    } else {
-
-                        this.show_validation_error = true;
-                    }
-                })
-            },
-
-            makeConnection() {
-                connectRemoteNode(this.remote_node).then(() => {
-                    this.show_connect_info = true
-                    this.show_connect_error = false
-                    this.connected = true
-                }).catch(() => {
-                    this.show_connect_error = true
-                    this.show_connect_info = false
-                    this.connected = false
-                })
-            },
-
-            add() {
-                this.$validator.validateAll().then(() => {
-
-                    if (!this.$validator.errors.any()) {
-
-                        this.show_validation_error = false;
-                        this.show_error = false;
-
-                        if (this.selected_osint_source_group !== null) {
-                            this.remote_node.osint_source_group_id = this.selected_osint_source_group.id
-                        }
-
-                        if (this.edit) {
-                            updateRemoteNode(this.remote_node).then(() => {
-
-                                this.$validator.reset();
-                                this.visible = false;
-
-                                this.$root.$emit('notification',
-                                    {
-                                        type: 'success',
-                                        loc: 'remote_node.successful_edit'
-                                    }
-                                )
-
-                            }).catch(() => {
-
-                                this.show_error = true;
-                            })
-                        } else {
-                            createNewRemoteNode(this.remote_node).then(() => {
-
-                                this.$validator.reset();
-                                this.visible = false;
-
-                                this.$root.$emit('notification',
-                                    {
-                                        type: 'success',
-                                        loc: 'remote_node.successful'
-                                    }
-                                )
-
-                            }).catch(() => {
-
-                                this.show_error = true;
-                            })
-                        }
-
-                    } else {
-
-                        this.show_validation_error = true;
-                    }
-                })
-            }
-        },
-        mixins: [AuthMixin],
-        mounted() {
-            this.$store.dispatch('getAllOSINTSourceGroups', {search: ''})
-                .then(() => {
-                    this.osint_source_groups = this.$store.getters.getOSINTSourceGroups.items
-                });
-
-            this.$root.$on('show-edit', (data) => {
-                this.visible = true;
-                this.edit = true;
-                this.show_error = false;
-                this.connected = data.event_id !== null && data.enabled === true
-                this.show_connect_error = false
-                this.show_connect_info = false
-
-                for (let i = 0; i < this.osint_source_groups.length; i++) {
-                    if (this.osint_source_groups[i].id === data.osint_source_group_id) {
-                        this.selected_osint_source_group = this.osint_source_groups[i]
-                        break
-                    }
-                }
-
-                this.remote_node.id = data.id;
-                this.remote_node.name = data.name;
-                this.remote_node.description = data.description;
-                this.remote_node.remote_url = data.remote_url;
-                this.remote_node.events_url = data.events_url;
-                this.remote_node.access_key = data.access_key;
-                this.remote_node.enabled = data.enabled;
-                this.remote_node.sync_news_items = data.sync_news_items;
-                this.remote_node.sync_report_items = data.sync_report_items;
-
-                if (this.connected === true) {
-                    this.connect()
-                }
-            });
-        },
-        beforeDestroy() {
-            this.$root.$off('show-edit')
-        }
+export default {
+  name: 'NewRemoteNode',
+  components: {},
+  props: { add_button: Boolean },
+  data: () => ({
+    visible: false,
+    show_validation_error: false,
+    edit: false,
+    show_error: false,
+    osint_source_groups: [],
+    selected_osint_source_group: null,
+    connected: false,
+    show_connect_error: false,
+    show_connect_info: false,
+    remote_node: {
+      id: -1,
+      name: '',
+      description: '',
+      remote_url: '',
+      events_url: '',
+      access_key: '',
+      enabled: false,
+      sync_news_items: false,
+      sync_report_items: false,
+      osint_source_group_id: null
     }
+  }),
+  computed: {
+    canCreate () {
+      return this.checkPermission(Permissions.CONFIG_REMOTE_NODE_CREATE)
+    },
+    canUpdate () {
+      return this.checkPermission(Permissions.CONFIG_REMOTE_NODE_UPDATE) || !this.edit
+    },
+    canConnect () {
+      return ((this.checkPermission(Permissions.CONFIG_REMOTE_NODE_UPDATE) || !this.edit) && this.connected === false) &&
+                    this.remote_node.enabled === true
+    }
+  },
+  methods: {
+    addRemoteNode () {
+      this.visible = true
+      this.edit = false
+      this.show_error = false
+      this.connected = false
+      this.show_connect_error = false
+      this.show_connect_info = false
+      this.remote_node.id = -1
+      this.remote_node.name = ''
+      this.remote_node.description = ''
+      this.remote_node.remote_url = ''
+      this.remote_node.events_url = ''
+      this.remote_node.enabled = false
+      this.remote_node.sync_news_items = false
+      this.remote_node.sync_report_items = false
+      this.remote_node.osint_source_group_id = null
+      this.selected_osint_source_group = null
+      this.$validator.reset()
+    },
+
+    cancel () {
+      this.$validator.reset()
+      this.visible = false
+      this.$root.$emit('update-data')
+    },
+
+    connect () {
+      this.$validator.validateAll().then(() => {
+        if (!this.$validator.errors.any()) {
+          this.show_validation_error = false
+          this.show_error = false
+
+          if (this.selected_osint_source_group !== null) {
+            this.remote_node.osint_source_group_id = this.selected_osint_source_group.id
+          }
+
+          if (this.edit) {
+            updateRemoteNode(this.remote_node).then(() => {
+              this.$validator.reset()
+              this.makeConnection()
+            }).catch(() => {
+              this.show_error = true
+            })
+          } else {
+            createNewRemoteNode(this.remote_node).then(() => {
+              this.$validator.reset()
+              this.makeConnection()
+            }).catch(() => {
+              this.show_error = true
+            })
+          }
+        } else {
+          this.show_validation_error = true
+        }
+      })
+    },
+
+    makeConnection () {
+      connectRemoteNode(this.remote_node).then(() => {
+        this.show_connect_info = true
+        this.show_connect_error = false
+        this.connected = true
+      }).catch(() => {
+        this.show_connect_error = true
+        this.show_connect_info = false
+        this.connected = false
+      })
+    },
+
+    add () {
+      this.$validator.validateAll().then(() => {
+        if (!this.$validator.errors.any()) {
+          this.show_validation_error = false
+          this.show_error = false
+
+          if (this.selected_osint_source_group !== null) {
+            this.remote_node.osint_source_group_id = this.selected_osint_source_group.id
+          }
+
+          if (this.edit) {
+            updateRemoteNode(this.remote_node).then(() => {
+              this.$validator.reset()
+              this.visible = false
+
+              this.$root.$emit('notification',
+                {
+                  type: 'success',
+                  loc: 'remote_node.successful_edit'
+                }
+              )
+            }).catch(() => {
+              this.show_error = true
+            })
+          } else {
+            createNewRemoteNode(this.remote_node).then(() => {
+              this.$validator.reset()
+              this.visible = false
+
+              this.$root.$emit('notification',
+                {
+                  type: 'success',
+                  loc: 'remote_node.successful'
+                }
+              )
+            }).catch(() => {
+              this.show_error = true
+            })
+          }
+        } else {
+          this.show_validation_error = true
+        }
+      })
+    }
+  },
+  mixins: [AuthMixin],
+  mounted () {
+    this.$store.dispatch('getAllOSINTSourceGroups', { search: '' })
+      .then(() => {
+        this.osint_source_groups = this.$store.getters.getOSINTSourceGroups.items
+      })
+
+    this.$root.$on('show-edit', (data) => {
+      this.visible = true
+      this.edit = true
+      this.show_error = false
+      this.connected = data.event_id !== null && data.enabled === true
+      this.show_connect_error = false
+      this.show_connect_info = false
+
+      for (let i = 0; i < this.osint_source_groups.length; i++) {
+        if (this.osint_source_groups[i].id === data.osint_source_group_id) {
+          this.selected_osint_source_group = this.osint_source_groups[i]
+          break
+        }
+      }
+
+      this.remote_node.id = data.id
+      this.remote_node.name = data.name
+      this.remote_node.description = data.description
+      this.remote_node.remote_url = data.remote_url
+      this.remote_node.events_url = data.events_url
+      this.remote_node.access_key = data.access_key
+      this.remote_node.enabled = data.enabled
+      this.remote_node.sync_news_items = data.sync_news_items
+      this.remote_node.sync_report_items = data.sync_report_items
+
+      if (this.connected === true) {
+        this.connect()
+      }
+    })
+  },
+  beforeDestroy () {
+    this.$root.$off('show-edit')
+  }
+}
 </script>

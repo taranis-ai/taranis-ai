@@ -23,11 +23,11 @@
 </template>
 
 <script>
-    export default {
-        name: "DateInput",
-        props: {caption:String, date:Object},
-        data: () => ({
-            menu: false,
-        }),
-    }
+export default {
+  name: 'DateInput',
+  props: { caption: String, date: Object },
+  data: () => ({
+    menu: false
+  })
+}
 </script>

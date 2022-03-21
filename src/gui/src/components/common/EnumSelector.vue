@@ -59,92 +59,92 @@
 </template>
 
 <script>
-    import {getAttributeEnums} from "@/api/analyze";
-    import {getCPEAttributeEnums} from "@/api/assets";
+import { getAttributeEnums } from '@/api/analyze'
+import { getCPEAttributeEnums } from '@/api/assets'
 
-    export default {
-        name: "EnumSelector",
-        props: {
-            attribute_id: Number,
-            value_index: Number,
-            cpe_only: Boolean
-        },
-        data: () => ({
-            visible: false,
-            search: "",
-            headers: [
-                {
-                    text: 'Value',
-                    align: 'left',
-                    sortable: false,
-                    value: 'value',
-                },
-                {text: 'Description', value: 'description', sortable: false},
-            ],
-            current_page: 1,
-            current_page_size: 25,
-            attribute_enums: [],
-            attribute_enums_total_count: 0
-        }),
-        methods: {
-            show() {
-                this.updateAttributeEnums()
-                this.visible = true;
-            },
+export default {
+  name: 'EnumSelector',
+  props: {
+    attribute_id: Number,
+    value_index: Number,
+    cpe_only: Boolean
+  },
+  data: () => ({
+    visible: false,
+    search: '',
+    headers: [
+      {
+        text: 'Value',
+        align: 'left',
+        sortable: false,
+        value: 'value'
+      },
+      { text: 'Description', value: 'description', sortable: false }
+    ],
+    current_page: 1,
+    current_page_size: 25,
+    attribute_enums: [],
+    attribute_enums_total_count: 0
+  }),
+  methods: {
+    show () {
+      this.updateAttributeEnums()
+      this.visible = true
+    },
 
-            cancel() {
-                this.visible = false
-            },
+    cancel () {
+      this.visible = false
+    },
 
-            filterSearch() {
-                clearTimeout(this.timeout);
+    filterSearch () {
+      clearTimeout(this.timeout)
 
-                let self = this
-                this.timeout = setTimeout(function () {
-                    self.current_page = 1
-                    self.updateAttributeEnums()
-                }, 300);
-            },
+      const self = this
+      this.timeout = setTimeout(function () {
+        self.current_page = 1
+        self.updateAttributeEnums()
+      }, 300)
+    },
 
-            clickRow(event, row) {
-                this.$emit('enum-selected', {index: this.value_index, value: row.item.value})
-                this.visible = false
-            },
+    clickRow (event, row) {
+      this.$emit('enum-selected', { index: this.value_index, value: row.item.value })
+      this.visible = false
+    },
 
-            updateAttributeEnums() {
-                if (this.cpe_only === true) {
-                    getCPEAttributeEnums({
-                        search: this.search,
-                        offset: (this.current_page - 1) * this.current_page_size,
-                        limit: this.current_page_size
-                    }).then((response) => {
-                        this.processResponse(response)
-                    })
-                } else {
-                    getAttributeEnums({
-                        attribute_id: this.attribute_id,
-                        search: this.search,
-                        offset: (this.current_page - 1) * this.current_page_size,
-                        limit: this.current_page_size
-                    }).then((response) => {
-                        this.processResponse(response)
-                    })
-                }
-            },
+    updateAttributeEnums () {
+      if (this.cpe_only === true) {
+        getCPEAttributeEnums({
+          search: this.search,
+          offset: (this.current_page - 1) * this.current_page_size,
+          limit: this.current_page_size
+        }).then((response) => {
+          this.processResponse(response)
+        })
+      } else {
+        getAttributeEnums({
+          attribute_id: this.attribute_id,
+          search: this.search,
+          offset: (this.current_page - 1) * this.current_page_size,
+          limit: this.current_page_size
+        }).then((response) => {
+          this.processResponse(response)
+        })
+      }
+    },
 
-            processResponse(response) {
-                this.attribute_enums = []
-                this.attribute_enums_total_count = response.data.total_count
-                for (let i = 0; i < response.data.items.length; i++) {
-                    this.attribute_enums.push(response.data.items[i])
-                }
-            },
+    processResponse (response) {
+      this.attribute_enums = []
+      this.attribute_enums_total_count = response.data.total_count
+      for (let i = 0; i < response.data.items.length; i++) {
+        this.attribute_enums.push(response.data.items[i])
+      }
+    },
 
-            updateOptions(options) {
-                this.current_page = options.page
-                this.current_page_size = options.itemsPerPage
-                this.updateAttributeEnums()
-            }
-        }
+    updateOptions (options) {
+      this.current_page = options.page
+      this.current_page_size = options.itemsPerPage
+      this.updateAttributeEnums()
     }
+  }
+}
 </script>

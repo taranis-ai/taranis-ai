@@ -41,22 +41,22 @@
 </template>
 
 <script>
-    import AttributesMixin from "@/components/common/attribute/attributes_mixin";
-    import EnumSelector from "@/components/common/EnumSelector";
+import AttributesMixin from '@/components/common/attribute/attributes_mixin'
+import EnumSelector from '@/components/common/EnumSelector'
 
-    import AttributeItemLayout from "../../layouts/AttributeItemLayout";
-    import AttributeValueLayout from "../../layouts/AttributeValueLayout";
+import AttributeItemLayout from '../../layouts/AttributeItemLayout'
+import AttributeValueLayout from '../../layouts/AttributeValueLayout'
 
-    export default {
-        name: "AttributeCPE",
-        props: {
-            attribute_group: Object
-        },
-        components: {
-            EnumSelector,
-            AttributeItemLayout,
-            AttributeValueLayout
-        },
-        mixins: [AttributesMixin]
-    }
+export default {
+  name: 'AttributeCPE',
+  props: {
+    attribute_group: Object
+  },
+  components: {
+    EnumSelector,
+    AttributeItemLayout,
+    AttributeValueLayout
+  },
+  mixins: [AttributesMixin]
+}
 </script>

@@ -41,63 +41,62 @@
 </template>
 
 <script>
-    import {getReportItem} from "@/api/analyze";
-    import RemoteAttributeContainer from "../common/attribute/RemoteAttributeContainer";
+import { getReportItem } from '@/api/analyze'
+import RemoteAttributeContainer from '../common/attribute/RemoteAttributeContainer'
 
-    export default {
-        name: "RemoteReportItem",
-        components: {RemoteAttributeContainer},
-        data: () => ({
-            visible: false,
-            report_item: {
-                uuid: null,
-                title: "",
-                title_prefix: "",
-                completed: false,
-                attributes: []
-            }
-        }),
-        methods: {
-            cancel() {
-                this.visible = false;
-            },
-            showDetail(report_item) {
-                getReportItem(report_item.id).then((response) => {
-
-                    let data = response.data
-
-                    this.visible = true;
-
-                    this.report_item.uuid = data.uuid;
-                    this.report_item.title = data.title;
-                    this.report_item.title_prefix = data.title_prefix;
-                    this.report_item.completed = data.completed;
-
-                    this.report_item.attributes = []
-                    for (let i = 0; i < data.attributes.length; i++) {
-                        let exists = false
-                        for (let k = 0; k < this.report_item.attributes.length; k++) {
-                            if (this.report_item.attributes[k].title === data.attributes[i].attribute_group_item_title) {
-                                exists = true
-                                this.report_item.attributes[k].values.push({
-                                    value: data.attributes[i].value,
-                                    index: this.report_item.attributes[k].values.length
-                                })
-                                break
-                            }
-                        }
-
-                        if (exists === false) {
-                            let attribute = {title: data.attributes[i].attribute_group_item_title, values: []}
-                            attribute.values.push({
-                                value: data.attributes[i].value,
-                                index: 0
-                            })
-                            this.report_item.attributes.push(attribute)
-                        }
-                    }
-                });
-            }
-        }
+export default {
+  name: 'RemoteReportItem',
+  components: { RemoteAttributeContainer },
+  data: () => ({
+    visible: false,
+    report_item: {
+      uuid: null,
+      title: '',
+      title_prefix: '',
+      completed: false,
+      attributes: []
     }
+  }),
+  methods: {
+    cancel () {
+      this.visible = false
+    },
+    showDetail (report_item) {
+      getReportItem(report_item.id).then((response) => {
+        const data = response.data
+
+        this.visible = true
+
+        this.report_item.uuid = data.uuid
+        this.report_item.title = data.title
+        this.report_item.title_prefix = data.title_prefix
+        this.report_item.completed = data.completed
+
+        this.report_item.attributes = []
+        for (let i = 0; i < data.attributes.length; i++) {
+          let exists = false
+          for (let k = 0; k < this.report_item.attributes.length; k++) {
+            if (this.report_item.attributes[k].title === data.attributes[i].attribute_group_item_title) {
+              exists = true
+              this.report_item.attributes[k].values.push({
+                value: data.attributes[i].value,
+                index: this.report_item.attributes[k].values.length
+              })
+              break
+            }
+          }
+
+          if (exists === false) {
+            const attribute = { title: data.attributes[i].attribute_group_item_title, values: [] }
+            attribute.values.push({
+              value: data.attributes[i].value,
+              index: 0
+            })
+            this.report_item.attributes.push(attribute)
+          }
+        }
+      })
+    }
+  }
+}
 </script>

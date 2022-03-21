@@ -23,69 +23,68 @@
 </template>
 
 <script>
-    import ViewLayout from "../../components/layouts/ViewLayout";
-    import ToolbarFilterAnalyze from "@/components/analyze/ToolbarFilterAnalyze";
-    import NewReportItem from "@/components/analyze/NewReportItem";
-    import NewProduct from "@/components/publish/NewProduct";
-    import ContentDataAnalyze from "../../components/analyze/ContentDataAnalyze";
-    import {deleteReportItem} from "@/api/analyze";
-    import RemoteReportItem from "@/components/analyze/RemoteReportItem";
+import ViewLayout from '../../components/layouts/ViewLayout'
+import ToolbarFilterAnalyze from '@/components/analyze/ToolbarFilterAnalyze'
+import NewReportItem from '@/components/analyze/NewReportItem'
+import NewProduct from '@/components/publish/NewProduct'
+import ContentDataAnalyze from '../../components/analyze/ContentDataAnalyze'
+import { deleteReportItem } from '@/api/analyze'
+import RemoteReportItem from '@/components/analyze/RemoteReportItem'
 
-    export default {
-        name: "Analyze",
-        components: {
-            ViewLayout,
-            ToolbarFilterAnalyze,
-            ContentDataAnalyze,
-            NewProduct,
-            NewReportItem,
-            RemoteReportItem
-        },
-        methods: {
-            newDataLoaded(count) {
-                this.$refs.toolbarFilter.updateDataCount(count)
-            },
-            updateFilter(filter) {
-                this.$refs.contentData.updateFilter(filter)
-            },
-            showReportItemDetail(report_item) {
-                this.$refs.reportItemDialog.showDetail(report_item)
-            },
-            showRemoteReportItemDetail(report_item) {
-                this.$refs.remoteReportItemDialog.showDetail(report_item)
-            },
-        },
-        computed: {},
-        watch: {
-            $route() {
-                this.$refs.contentData.updateData(false, false);
-            }
-        },
-        beforeCreate() {
-            this.$root.$on('delete-report-item', (item) => {
-                deleteReportItem(item).then(() => {
-
-                    this.$root.$emit('notification',
-                        {
-                            type: 'success',
-                            loc: 'report_item.removed'
-                        }
-                    )
-                }).catch(() => {
-                    this.$root.$emit('notification',
-                        {
-                            type: 'error',
-                            loc: 'report_item.removed_error'
-                        }
-                    )
-                })
-            });
-        },
-        mounted() {
-            this.analyze_selector = true
-        },
-        beforeDestroy() {
-            this.$root.$off('delete-report-item');
-        }
-    };
+export default {
+  name: 'Analyze',
+  components: {
+    ViewLayout,
+    ToolbarFilterAnalyze,
+    ContentDataAnalyze,
+    NewProduct,
+    NewReportItem,
+    RemoteReportItem
+  },
+  methods: {
+    newDataLoaded (count) {
+      this.$refs.toolbarFilter.updateDataCount(count)
+    },
+    updateFilter (filter) {
+      this.$refs.contentData.updateFilter(filter)
+    },
+    showReportItemDetail (report_item) {
+      this.$refs.reportItemDialog.showDetail(report_item)
+    },
+    showRemoteReportItemDetail (report_item) {
+      this.$refs.remoteReportItemDialog.showDetail(report_item)
+    }
+  },
+  computed: {},
+  watch: {
+    $route () {
+      this.$refs.contentData.updateData(false, false)
+    }
+  },
+  beforeCreate () {
+    this.$root.$on('delete-report-item', (item) => {
+      deleteReportItem(item).then(() => {
+        this.$root.$emit('notification',
+          {
+            type: 'success',
+            loc: 'report_item.removed'
+          }
+        )
+      }).catch(() => {
+        this.$root.$emit('notification',
+          {
+            type: 'error',
+            loc: 'report_item.removed_error'
+          }
+        )
+      })
+    })
+  },
+  mounted () {
+    this.analyze_selector = true
+  },
+  beforeDestroy () {
+    this.$root.$off('delete-report-item')
+  }
+}
 </script>

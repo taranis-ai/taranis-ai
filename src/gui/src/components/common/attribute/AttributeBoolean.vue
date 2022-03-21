@@ -66,17 +66,17 @@
 </template>
 
 <script>
-    import AttributesMixin from "@/components/common/attribute/attributes_mixin";
-    import AttributeItemLayout from "../../layouts/AttributeItemLayout";
-    import AttributeValueLayout from "../../layouts/AttributeValueLayout";
+import AttributesMixin from '@/components/common/attribute/attributes_mixin'
+import AttributeItemLayout from '../../layouts/AttributeItemLayout'
+import AttributeValueLayout from '../../layouts/AttributeValueLayout'
 
-    export default {
-        name: "AttributeBoolean",
-        components: {
-            AttributeItemLayout,
-            AttributeValueLayout
-        },
-        mixins: [AttributesMixin]
-    }
+export default {
+  name: 'AttributeBoolean',
+  components: {
+    AttributeItemLayout,
+    AttributeValueLayout
+  },
+  mixins: [AttributesMixin]
+}
 
 </script>

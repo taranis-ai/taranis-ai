@@ -64,184 +64,182 @@
 </template>
 
 <script>
-    import ContentDataAnalyze from "@/components/analyze/ContentDataAnalyze";
-    import ToolbarFilter from "@/components/common/ToolbarFilter";
-    import CardAnalyze from "../analyze/CardAnalyze";
-    import ToolbarFilterAnalyze from "@/components/analyze/ToolbarFilterAnalyze";
-    import RemoteReportItem from "@/components/analyze/RemoteReportItem";
-    import Permissions from "@/services/auth/permissions";
-    import {getReportItemData, updateReportItem} from "@/api/analyze";
+import ContentDataAnalyze from '@/components/analyze/ContentDataAnalyze'
+import ToolbarFilter from '@/components/common/ToolbarFilter'
+import CardAnalyze from '../analyze/CardAnalyze'
+import ToolbarFilterAnalyze from '@/components/analyze/ToolbarFilterAnalyze'
+import RemoteReportItem from '@/components/analyze/RemoteReportItem'
+import Permissions from '@/services/auth/permissions'
+import { getReportItemData, updateReportItem } from '@/api/analyze'
 
-    export default {
-        name: "RemoteReportItemSelector",
-        components: {
-            ToolbarFilterAnalyze,
-            ContentDataAnalyze,
-            ToolbarFilter,
-            CardAnalyze,
-            RemoteReportItem
-        },
-        props: {
-            values: Array,
-            modify: Boolean,
-            edit: Boolean,
-            report_item_id: Number,
-        },
-        data: () => ({
-            dialog: false,
-            value: "",
-            groups: [],
-            links: [],
-            selected_group_id: ""
-        }),
-        computed: {
-            canModify() {
-                return this.edit === false || (this.checkPermission(Permissions.ANALYZE_UPDATE) && this.modify === true)
-            }
-        },
-        methods: {
-            newDataLoaded(count) {
-                this.$refs.toolbarFilter.updateDataCount(count)
-            },
-
-            changeGroup(e, group_id) {
-                this.selected_group_id = group_id
-                this.$store.dispatch("changeCurrentReportItemGroup", group_id);
-                this.$refs.contentData.updateData(false, false);
-            },
-
-            updateFilter(filter) {
-                this.$refs.contentData.updateFilter(filter)
-            },
-
-            showReportItemDetail(report_item) {
-                this.$refs.remoteReportItemDialog.showDetail(report_item)
-            },
-
-            removeReportItemFromSelector(report_item) {
-
-                let data = {}
-                data.delete = true
-                data.remote_report_item_id = report_item.id
-
-                if (this.edit === true) {
-                    updateReportItem(this.report_item_id, data).then(() => {
-                        const i = this.values.indexOf(report_item)
-                        this.values.splice(i, 1)
-                    })
-                } else {
-                    const i = this.values.indexOf(report_item)
-                    this.values.splice(i, 1)
-                }
-
-                this.$emit('remote-report-items-changed', null);
-            },
-
-            cardLayout: function () {
-                return "CardAnalyze";
-            },
-
-            openSelector() {
-                this.$store.dispatch("multiSelectReport", true)
-                this.dialog = true;
-                this.$refs.contentData.updateData(false, false);
-            },
-
-            add() {
-                let selection = this.$store.getters.getSelectionReport
-                let added_values = []
-                let data = {}
-                data.add = true
-                data.report_item_id = this.report_item_id
-                data.remote_report_item_ids = []
-                for (let i = 0; i < selection.length; i++) {
-
-                    let found = false
-                    for (let j = 0; j < this.values.length; j++) {
-                        if (this.values[j].id === selection[i].item.id) {
-                            found = true
-                            break
-                        }
-                    }
-
-                    if (found === false) {
-                        added_values.push(selection[i].item)
-                        data.remote_report_item_ids.push(selection[i].item.id)
-                    }
-                }
-
-                if (this.edit === true) {
-                    updateReportItem(this.report_item_id, data).then(() => {
-                        for (let i = 0; i < added_values.length; i++) {
-                            this.values.push(added_values[i])
-                        }
-                    })
-                } else {
-                    for (let i = 0; i < added_values.length; i++) {
-                        this.values.push(added_values[i])
-                    }
-                }
-
-                this.$emit('remote-report-items-changed', null);
-
-                this.close()
-            },
-
-            close() {
-                this.$store.dispatch("multiSelectReport", false)
-                this.dialog = false;
-            },
-
-            report_item_updated(data_info) {
-                if (this.edit === true && this.report_item_id === data_info.report_item_id) {
-                    if (data_info.user_id !== this.$store.getters.getUserId) {
-                        if (data_info.add !== undefined) {
-                            getReportItemData(this.report_item_id, data_info).then((response) => {
-                                let data = response.data
-                                for (let i = 0; i < data.remote_report_items.length; i++) {
-                                    this.values.push(data.remote_report_items[i])
-                                }
-                            })
-                        } else if (data_info.delete !== undefined) {
-                            for (let i = 0; i < this.values.length; i++) {
-                                if (this.values[i].id === data_info.remote_report_item_id) {
-                                    this.values.splice(i, 1)
-                                    break
-                                }
-                            }
-                        }
-
-                        this.$emit('remote-report-items-changed', null);
-                    }
-                }
-            }
-        },
-        mounted() {
-            this.$store.dispatch('getAllReportItemGroups', {search: ''})
-                .then(() => {
-                    this.groups = this.$store.getters.getReportItemGroups;
-
-                    for (let i = 0; i < this.groups.length; i++) {
-                        this.links.push({
-                            icon: 'mdi-arrow-down-bold-circle-outline',
-                            title: this.groups[i],
-                            id: this.groups[i],
-                        })
-                    }
-
-                    if (this.$store.getters.getCurrentReportItemGroup === null && this.links.length > 0) {
-                        this.selected_group_id = this.links[0].id
-                        this.$store.dispatch("changeCurrentReportItemGroup", this.links[0].id);
-                    } else {
-                        this.selected_group_id = this.links[0].id = this.$store.getters.getCurrentReportItemGroup
-                    }
-                });
-
-            this.$root.$on('report-item-updated', this.report_item_updated)
-        },
-
-        beforeDestroy() {
-            this.$root.$off('report-item-updated', this.report_item_updated)
-        }
+export default {
+  name: 'RemoteReportItemSelector',
+  components: {
+    ToolbarFilterAnalyze,
+    ContentDataAnalyze,
+    ToolbarFilter,
+    CardAnalyze,
+    RemoteReportItem
+  },
+  props: {
+    values: Array,
+    modify: Boolean,
+    edit: Boolean,
+    report_item_id: Number
+  },
+  data: () => ({
+    dialog: false,
+    value: '',
+    groups: [],
+    links: [],
+    selected_group_id: ''
+  }),
+  computed: {
+    canModify () {
+      return this.edit === false || (this.checkPermission(Permissions.ANALYZE_UPDATE) && this.modify === true)
     }
+  },
+  methods: {
+    newDataLoaded (count) {
+      this.$refs.toolbarFilter.updateDataCount(count)
+    },
+
+    changeGroup (e, group_id) {
+      this.selected_group_id = group_id
+      this.$store.dispatch('changeCurrentReportItemGroup', group_id)
+      this.$refs.contentData.updateData(false, false)
+    },
+
+    updateFilter (filter) {
+      this.$refs.contentData.updateFilter(filter)
+    },
+
+    showReportItemDetail (report_item) {
+      this.$refs.remoteReportItemDialog.showDetail(report_item)
+    },
+
+    removeReportItemFromSelector (report_item) {
+      const data = {}
+      data.delete = true
+      data.remote_report_item_id = report_item.id
+
+      if (this.edit === true) {
+        updateReportItem(this.report_item_id, data).then(() => {
+          const i = this.values.indexOf(report_item)
+          this.values.splice(i, 1)
+        })
+      } else {
+        const i = this.values.indexOf(report_item)
+        this.values.splice(i, 1)
+      }
+
+      this.$emit('remote-report-items-changed', null)
+    },
+
+    cardLayout: function () {
+      return 'CardAnalyze'
+    },
+
+    openSelector () {
+      this.$store.dispatch('multiSelectReport', true)
+      this.dialog = true
+      this.$refs.contentData.updateData(false, false)
+    },
+
+    add () {
+      const selection = this.$store.getters.getSelectionReport
+      const added_values = []
+      const data = {}
+      data.add = true
+      data.report_item_id = this.report_item_id
+      data.remote_report_item_ids = []
+      for (let i = 0; i < selection.length; i++) {
+        let found = false
+        for (let j = 0; j < this.values.length; j++) {
+          if (this.values[j].id === selection[i].item.id) {
+            found = true
+            break
+          }
+        }
+
+        if (found === false) {
+          added_values.push(selection[i].item)
+          data.remote_report_item_ids.push(selection[i].item.id)
+        }
+      }
+
+      if (this.edit === true) {
+        updateReportItem(this.report_item_id, data).then(() => {
+          for (let i = 0; i < added_values.length; i++) {
+            this.values.push(added_values[i])
+          }
+        })
+      } else {
+        for (let i = 0; i < added_values.length; i++) {
+          this.values.push(added_values[i])
+        }
+      }
+
+      this.$emit('remote-report-items-changed', null)
+
+      this.close()
+    },
+
+    close () {
+      this.$store.dispatch('multiSelectReport', false)
+      this.dialog = false
+    },
+
+    report_item_updated (data_info) {
+      if (this.edit === true && this.report_item_id === data_info.report_item_id) {
+        if (data_info.user_id !== this.$store.getters.getUserId) {
+          if (data_info.add !== undefined) {
+            getReportItemData(this.report_item_id, data_info).then((response) => {
+              const data = response.data
+              for (let i = 0; i < data.remote_report_items.length; i++) {
+                this.values.push(data.remote_report_items[i])
+              }
+            })
+          } else if (data_info.delete !== undefined) {
+            for (let i = 0; i < this.values.length; i++) {
+              if (this.values[i].id === data_info.remote_report_item_id) {
+                this.values.splice(i, 1)
+                break
+              }
+            }
+          }
+
+          this.$emit('remote-report-items-changed', null)
+        }
+      }
+    }
+  },
+  mounted () {
+    this.$store.dispatch('getAllReportItemGroups', { search: '' })
+      .then(() => {
+        this.groups = this.$store.getters.getReportItemGroups
+
+        for (let i = 0; i < this.groups.length; i++) {
+          this.links.push({
+            icon: 'mdi-arrow-down-bold-circle-outline',
+            title: this.groups[i],
+            id: this.groups[i]
+          })
+        }
+
+        if (this.$store.getters.getCurrentReportItemGroup === null && this.links.length > 0) {
+          this.selected_group_id = this.links[0].id
+          this.$store.dispatch('changeCurrentReportItemGroup', this.links[0].id)
+        } else {
+          this.selected_group_id = this.links[0].id = this.$store.getters.getCurrentReportItemGroup
+        }
+      })
+
+    this.$root.$on('report-item-updated', this.report_item_updated)
+  },
+
+  beforeDestroy () {
+    this.$root.$off('report-item-updated', this.report_item_updated)
+  }
+}
 </script>

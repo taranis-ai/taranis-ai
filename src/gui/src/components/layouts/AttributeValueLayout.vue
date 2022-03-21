@@ -22,30 +22,30 @@
 
 <script>
 export default {
-    name: "AttributeValueLayout",
-    props: {
-        del_button: null,
-        val_index: null,
-        occurrence: null,
-        values: null
+  name: 'AttributeValueLayout',
+  props: {
+    del_button: null,
+    val_index: null,
+    occurrence: null,
+    values: null
+  },
+  data: () => ({
+    itemHover: false
+  }),
+  computed: {
+    delButtonVisible () {
+      return this.itemHover && !(this.occurrence >= this.values.length)
     },
-    data: () => ({
-        itemHover: false
-    }),
-    computed: {
-        delButtonVisible() {
-            return this.itemHover && !(this.occurrence >= this.values.length);
-        },
 
-        modifiedTooltip() {
-            return this.values[this.val_index].user !== null ? this.values[this.val_index].last_updated + " " + this.values[this.val_index].user.name : ""
-        }
-
-    },
-    methods: {
-        del() {
-            this.$emit('del-value');
-        }
+    modifiedTooltip () {
+      return this.values[this.val_index].user !== null ? this.values[this.val_index].last_updated + ' ' + this.values[this.val_index].user.name : ''
     }
+
+  },
+  methods: {
+    del () {
+      this.$emit('del-value')
+    }
+  }
 }
 </script>

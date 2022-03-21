@@ -12,27 +12,27 @@
 </template>
 
 <script>
-    export default {
-        name: "CSButton",
-        props: {
-            label: String,
-            tooltip: String,
-            show: Boolean,
-            icon_left: String,
-            icon_right: String
-        },
-        data: () => ({
-        }),
-        computed: {
-            hideTooltip() {
-                return !this.show ? "hide-tooltip" : "";
-            },
-            showIconLeft() {
-                return this.icon_left;
-            },
-            showIconRight() {
-                return this.icon_right;
-            }
-        }
+export default {
+  name: 'CSButton',
+  props: {
+    label: String,
+    tooltip: String,
+    show: Boolean,
+    icon_left: String,
+    icon_right: String
+  },
+  data: () => ({
+  }),
+  computed: {
+    hideTooltip () {
+      return !this.show ? 'hide-tooltip' : ''
+    },
+    showIconLeft () {
+      return this.icon_left
+    },
+    showIconRight () {
+      return this.icon_right
     }
+  }
+}
 </script>

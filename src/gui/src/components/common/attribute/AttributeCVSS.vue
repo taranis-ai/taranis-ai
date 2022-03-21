@@ -99,71 +99,71 @@
 </template>
 
 <script>
-    import AttributesMixin from "@/components/common/attribute/attributes_mixin";
-    import CalculatorCVSS from "@/components/common/CalculatorCVSS";
-    import Cvss31Mixin from "@/assets/cvss31_mixin";
+import AttributesMixin from '@/components/common/attribute/attributes_mixin'
+import CalculatorCVSS from '@/components/common/CalculatorCVSS'
+import Cvss31Mixin from '@/assets/cvss31_mixin'
 
-    import AttributeItemLayout from "../../layouts/AttributeItemLayout";
-    import AttributeValueLayout from "../../layouts/AttributeValueLayout";
+import AttributeItemLayout from '../../layouts/AttributeItemLayout'
+import AttributeValueLayout from '../../layouts/AttributeValueLayout'
 
-    export default {
-        name: "AttributeCVSS",
-        props: {
-            attribute_group: Object
-        },
-        data: () =>({
-            score: "score status",
-            calcValue: "",
-            status: "",
-            rules: {
-                vector: value => {
-                    const pattern = /^CVSS:3\.1\/((AV:[NALP]|AC:[LH]|PR:[UNLH]|UI:[NR]|S:[UC]|[CIA]:[NLH]|E:[XUPFH]|RL:[XOTWU]|RC:[XURC]|[CIA]R:[XLMH]|MAV:[XNALP]|MAC:[XLH]|MPR:[XUNLH]|MUI:[XNR]|MS:[XUC]|M[CIA]:[XNLH])\/)*(AV:[NALP]|AC:[LH]|PR:[UNLH]|UI:[NR]|S:[UC]|[CIA]:[NLH]|E:[XUPFH]|RL:[XOTWU]|RC:[XURC]|[CIA]R:[XLMH]|MAV:[XNALP]|MAC:[XLH]|MPR:[XUNLH]|MUI:[XNR]|MS:[XUC]|M[CIA]:[XNLH])$/
-                    return value == '' || pattern.test(value) || 'Invalid or Incomplete Vector String'
-                }
-            }
-        }),
-        mixins: [AttributesMixin,Cvss31Mixin],
-        components: {
-            CalculatorCVSS,
-            AttributeItemLayout,
-            AttributeValueLayout
-        },
-        computed: {
-            /*putValue() {
-                return this.values[0].value;
-            }*/
-        },
-        methods: {
-            updateValue(e) {
-                this.calcValue = e;
-                this.score = this.clc.calculateCVSSFromVector(this.calcValue);
-                setTimeout(()=>{
-                    this.values[0].value = e;
-                    this.onEdit(0);
-                },200);
-            },
-            report(e) {
-                this.status = e;
-            },
-            directValueChange() {
-                let vsReport = this.clc.calculateCVSSFromVector(this.calcValue);
-
-                if(vsReport.success) {
-                    this.score = vsReport;
-
-                    this.values[0].value = this.calcValue;
-                    this.onKeyUp(0);
-                }
-            }
-
-        },
-        mounted(){
-            if( this.values[0].value !== "" ) {
-                this.calcValue = this.values[0].value;
-                this.score = this.clc.calculateCVSSFromVector(this.calcValue);
-            } else {
-                this.calcValue = 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N';
-            }
-        }
+export default {
+  name: 'AttributeCVSS',
+  props: {
+    attribute_group: Object
+  },
+  data: () => ({
+    score: 'score status',
+    calcValue: '',
+    status: '',
+    rules: {
+      vector: value => {
+        const pattern = /^CVSS:3\.1\/((AV:[NALP]|AC:[LH]|PR:[UNLH]|UI:[NR]|S:[UC]|[CIA]:[NLH]|E:[XUPFH]|RL:[XOTWU]|RC:[XURC]|[CIA]R:[XLMH]|MAV:[XNALP]|MAC:[XLH]|MPR:[XUNLH]|MUI:[XNR]|MS:[XUC]|M[CIA]:[XNLH])\/)*(AV:[NALP]|AC:[LH]|PR:[UNLH]|UI:[NR]|S:[UC]|[CIA]:[NLH]|E:[XUPFH]|RL:[XOTWU]|RC:[XURC]|[CIA]R:[XLMH]|MAV:[XNALP]|MAC:[XLH]|MPR:[XUNLH]|MUI:[XNR]|MS:[XUC]|M[CIA]:[XNLH])$/
+        return value == '' || pattern.test(value) || 'Invalid or Incomplete Vector String'
+      }
     }
+  }),
+  mixins: [AttributesMixin, Cvss31Mixin],
+  components: {
+    CalculatorCVSS,
+    AttributeItemLayout,
+    AttributeValueLayout
+  },
+  computed: {
+    /* putValue() {
+                return this.values[0].value;
+            } */
+  },
+  methods: {
+    updateValue (e) {
+      this.calcValue = e
+      this.score = this.clc.calculateCVSSFromVector(this.calcValue)
+      setTimeout(() => {
+        this.values[0].value = e
+        this.onEdit(0)
+      }, 200)
+    },
+    report (e) {
+      this.status = e
+    },
+    directValueChange () {
+      const vsReport = this.clc.calculateCVSSFromVector(this.calcValue)
+
+      if (vsReport.success) {
+        this.score = vsReport
+
+        this.values[0].value = this.calcValue
+        this.onKeyUp(0)
+      }
+    }
+
+  },
+  mounted () {
+    if (this.values[0].value !== '') {
+      this.calcValue = this.values[0].value
+      this.score = this.clc.calculateCVSSFromVector(this.calcValue)
+    } else {
+      this.calcValue = 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N'
+    }
+  }
+}
 </script>

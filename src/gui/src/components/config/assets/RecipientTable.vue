@@ -66,82 +66,82 @@
 </template>
 
 <script>
-    export default {
-        name: "RecipientTable",
-        props: {
-            recipients: Array,
-        },
-        data: () => ({
-            headers: [
-                {text: 'Email', value: 'email', align: 'left', sortable: true},
-                {text: 'Name', value: 'name', sortable: false},
-                {text: 'Actions', value: 'action', align: 'right', sortable: false},
-            ],
-            dialog: false,
-            selected_recipient: null,
-            edited_index: -1,
-            edited_recipient: {
-                email: "",
-                name: "",
-            },
-            default_recipient: {
-                email: "",
-                name: "",
-            },
-        }),
-        computed: {
-            formTitle() {
-                return this.edited_index === -1 ? 'Add Recipient' : 'Edit Recipient'
-            }
-        },
-        watch: {
-            dialog(val) {
-                val || this.close()
-            },
-        },
-        methods: {
-            close() {
-                this.dialog = false;
-                setTimeout(() => {
-                    this.edited_recipient = Object.assign({}, this.default_recipient);
-                    this.edited_index = -1
-                }, 300)
-            },
-
-            save() {
-                if (this.edited_index > -1) {
-                    Object.assign(this.recipients[this.edited_index], this.edited_recipient)
-                } else {
-                    this.recipients.push(this.edited_recipient)
-                }
-                this.selected_recipient = null;
-                this.close()
-            },
-
-            editItem(item) {
-                this.edited_index = this.recipients.indexOf(item);
-                this.edited_recipient = Object.assign({}, item);
-                this.dialog = true;
-            },
-
-            moveItemUp(item) {
-                const index = this.recipients.indexOf(item);
-                if (index > 0) {
-                    this.recipients.splice(index-1, 0, this.recipients.splice(index, 1)[0]);
-                }
-            },
-
-            moveItemDown(item) {
-                const index = this.recipients.indexOf(item);
-                if (index < this.recipients.length-1) {
-                    this.recipients.splice(index+1, 0, this.recipients.splice(index, 1)[0]);
-                }
-            },
-
-            deleteItem(item) {
-                const index = this.recipients.indexOf(item);
-                this.recipients.splice(index, 1)
-            },
-        }
+export default {
+  name: 'RecipientTable',
+  props: {
+    recipients: Array
+  },
+  data: () => ({
+    headers: [
+      { text: 'Email', value: 'email', align: 'left', sortable: true },
+      { text: 'Name', value: 'name', sortable: false },
+      { text: 'Actions', value: 'action', align: 'right', sortable: false }
+    ],
+    dialog: false,
+    selected_recipient: null,
+    edited_index: -1,
+    edited_recipient: {
+      email: '',
+      name: ''
+    },
+    default_recipient: {
+      email: '',
+      name: ''
     }
+  }),
+  computed: {
+    formTitle () {
+      return this.edited_index === -1 ? 'Add Recipient' : 'Edit Recipient'
+    }
+  },
+  watch: {
+    dialog (val) {
+      val || this.close()
+    }
+  },
+  methods: {
+    close () {
+      this.dialog = false
+      setTimeout(() => {
+        this.edited_recipient = Object.assign({}, this.default_recipient)
+        this.edited_index = -1
+      }, 300)
+    },
+
+    save () {
+      if (this.edited_index > -1) {
+        Object.assign(this.recipients[this.edited_index], this.edited_recipient)
+      } else {
+        this.recipients.push(this.edited_recipient)
+      }
+      this.selected_recipient = null
+      this.close()
+    },
+
+    editItem (item) {
+      this.edited_index = this.recipients.indexOf(item)
+      this.edited_recipient = Object.assign({}, item)
+      this.dialog = true
+    },
+
+    moveItemUp (item) {
+      const index = this.recipients.indexOf(item)
+      if (index > 0) {
+        this.recipients.splice(index - 1, 0, this.recipients.splice(index, 1)[0])
+      }
+    },
+
+    moveItemDown (item) {
+      const index = this.recipients.indexOf(item)
+      if (index < this.recipients.length - 1) {
+        this.recipients.splice(index + 1, 0, this.recipients.splice(index, 1)[0])
+      }
+    },
+
+    deleteItem (item) {
+      const index = this.recipients.indexOf(item)
+      this.recipients.splice(index, 1)
+    }
+  }
+}
 </script>

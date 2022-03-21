@@ -88,153 +88,152 @@
 </template>
 
 <script>
-    import AuthMixin from "../../services/auth/auth_mixin";
-    import ToolbarGroupAssess from "@/components/assess/ToolbarGroupAssess";
+import AuthMixin from '../../services/auth/auth_mixin'
+import ToolbarGroupAssess from '@/components/assess/ToolbarGroupAssess'
 
-    export default {
-        name: "ToolbarFilterAssess",
-        components: {
-            ToolbarGroupAssess
-        },
-        props: {
-            title: String,
-            dialog: String,
-            analyze_selector: Boolean,
-            total_count_title: String,
-        },
-        computed: {
-            totalCount() {
-                return this.data_count
-            }
-        },
-        data: () => ({
-            status: [],
-            days: [
-                {title: 'toolbar_filter.all', icon: 'mdi-information-outline', type: 'info', filter: 'ALL'},
-                {title: 'toolbar_filter.today', icon: 'mdi-calendar-today', type: 'info', filter: 'TODAY'},
-                {title: 'toolbar_filter.this_week', icon: 'mdi-calendar-range', type: 'info', filter: 'WEEK'},
-                {title: 'toolbar_filter.this_month', icon: 'mdi-calendar-month', type: 'info', filter: 'MONTH'}
-            ],
-            data_count: 0,
-            filter: {
-                search: "",
-                range: "ALL",
-                read: false,
-                important: false,
-                relevant: false,
-                in_analyze: false,
-                sort: "DATE_DESC"
-            },
-            timeout: null,
-            word_list_toggle: false
-        }),
-        mixins: [AuthMixin],
-        methods: {
-            updateDataCount(count) {
-                this.data_count = count
-            },
-
-            filterRead() {
-                this.filter.read = !this.filter.read;
-                this.$emit('update-news-items-filter', this.filter);
-                if (this.analyze_selector === false) {
-                    this.$refs.toolbarGroupAssess.disableMultiSelect()
-                }
-            },
-
-            filterImportant() {
-                this.filter.important = !this.filter.important;
-                this.$emit('update-news-items-filter', this.filter);
-                if (this.analyze_selector === false) {
-                    this.$refs.toolbarGroupAssess.disableMultiSelect()
-                }
-            },
-
-            filterRelevant() {
-                this.filter.relevant = !this.filter.relevant;
-                this.$emit('update-news-items-filter', this.filter);
-                if (this.analyze_selector === false) {
-                    this.$refs.toolbarGroupAssess.disableMultiSelect()
-                }
-            },
-
-            filterInAnalyze() {
-                this.filter.in_analyze = !this.filter.in_analyze;
-                this.$emit('update-news-items-filter', this.filter);
-                this.$refs.toolbarGroupAssess.disableMultiSelect()
-            },
-
-            filterSort(sort) {
-                this.filter.sort = sort;
-                this.$emit('update-news-items-filter', this.filter);
-                if (this.analyze_selector === false) {
-                    this.$refs.toolbarGroupAssess.disableMultiSelect()
-                }
-            },
-
-            filterRange(range) {
-                this.filter.range = range;
-                this.$emit('update-news-items-filter', this.filter);
-                if (this.analyze_selector === false) {
-                    this.$refs.toolbarGroupAssess.disableMultiSelect()
-                }
-            },
-
-            filterSearch: function () {
-                clearTimeout(this.timeout);
-
-                let self = this;
-                this.timeout = setTimeout(function () {
-                    self.$emit('update-news-items-filter', self.filter)
-                    if (self.analyze_selector === false) {
-                        self.$refs.toolbarGroupAssess.disableMultiSelect()
-                    }
-                }, 300);
-            },
-
-            changeTheme() {
-                this.$vuetify.theme.themes.light.primary = "#f0f";
-                this.$vuetify.theme.themes.light.secondary = '#f00';
-                this.$vuetify.theme.themes.light.bg = '#0f0';
-                this.$vuetify.theme.themes.light.base = '#00f';
-            },
-            remove(item) {
-                this.chips.splice(this.chips.indexOf(item), 1);
-                this.chips = [...this.chips]
-            },
-            /*callDialog: function (e) {
-                this.$root.$emit('callDialog', e);
-            },*/
-            cancel() {
-            },
-            add() {
-            },
-
-            hideWordlist() {
-                this.word_list_toggle = !this.word_list_toggle;
-
-                if(this.word_list_toggle) {
-                    document.getElementById("app").classList.add("hide-wordlist");
-                } else {
-                    document.getElementById("app").classList.remove("hide-wordlist");
-                }
-                localStorage.setItem('word-list-hide', this.word_list_toggle);
-
-            }
-
-        },
-        mounted(){
-            if( !localStorage.getItem('word-list-hide')) {
-                localStorage.setItem('word-list-hide', false);
-            } else {
-                if( localStorage.getItem('word-list-hide') === "true") {
-                    this.word_list_toggle = true;
-                    document.getElementById("app").classList.add("hide-wordlist");
-                } else {
-                    this.word_list_toggle = false;
-                    document.getElementById("app").classList.remove("hide-wordlist");
-                }
-            }
-        }
+export default {
+  name: 'ToolbarFilterAssess',
+  components: {
+    ToolbarGroupAssess
+  },
+  props: {
+    title: String,
+    dialog: String,
+    analyze_selector: Boolean,
+    total_count_title: String
+  },
+  computed: {
+    totalCount () {
+      return this.data_count
     }
+  },
+  data: () => ({
+    status: [],
+    days: [
+      { title: 'toolbar_filter.all', icon: 'mdi-information-outline', type: 'info', filter: 'ALL' },
+      { title: 'toolbar_filter.today', icon: 'mdi-calendar-today', type: 'info', filter: 'TODAY' },
+      { title: 'toolbar_filter.this_week', icon: 'mdi-calendar-range', type: 'info', filter: 'WEEK' },
+      { title: 'toolbar_filter.this_month', icon: 'mdi-calendar-month', type: 'info', filter: 'MONTH' }
+    ],
+    data_count: 0,
+    filter: {
+      search: '',
+      range: 'ALL',
+      read: false,
+      important: false,
+      relevant: false,
+      in_analyze: false,
+      sort: 'DATE_DESC'
+    },
+    timeout: null,
+    word_list_toggle: false
+  }),
+  mixins: [AuthMixin],
+  methods: {
+    updateDataCount (count) {
+      this.data_count = count
+    },
+
+    filterRead () {
+      this.filter.read = !this.filter.read
+      this.$emit('update-news-items-filter', this.filter)
+      if (this.analyze_selector === false) {
+        this.$refs.toolbarGroupAssess.disableMultiSelect()
+      }
+    },
+
+    filterImportant () {
+      this.filter.important = !this.filter.important
+      this.$emit('update-news-items-filter', this.filter)
+      if (this.analyze_selector === false) {
+        this.$refs.toolbarGroupAssess.disableMultiSelect()
+      }
+    },
+
+    filterRelevant () {
+      this.filter.relevant = !this.filter.relevant
+      this.$emit('update-news-items-filter', this.filter)
+      if (this.analyze_selector === false) {
+        this.$refs.toolbarGroupAssess.disableMultiSelect()
+      }
+    },
+
+    filterInAnalyze () {
+      this.filter.in_analyze = !this.filter.in_analyze
+      this.$emit('update-news-items-filter', this.filter)
+      this.$refs.toolbarGroupAssess.disableMultiSelect()
+    },
+
+    filterSort (sort) {
+      this.filter.sort = sort
+      this.$emit('update-news-items-filter', this.filter)
+      if (this.analyze_selector === false) {
+        this.$refs.toolbarGroupAssess.disableMultiSelect()
+      }
+    },
+
+    filterRange (range) {
+      this.filter.range = range
+      this.$emit('update-news-items-filter', this.filter)
+      if (this.analyze_selector === false) {
+        this.$refs.toolbarGroupAssess.disableMultiSelect()
+      }
+    },
+
+    filterSearch: function () {
+      clearTimeout(this.timeout)
+
+      const self = this
+      this.timeout = setTimeout(function () {
+        self.$emit('update-news-items-filter', self.filter)
+        if (self.analyze_selector === false) {
+          self.$refs.toolbarGroupAssess.disableMultiSelect()
+        }
+      }, 300)
+    },
+
+    changeTheme () {
+      this.$vuetify.theme.themes.light.primary = '#f0f'
+      this.$vuetify.theme.themes.light.secondary = '#f00'
+      this.$vuetify.theme.themes.light.bg = '#0f0'
+      this.$vuetify.theme.themes.light.base = '#00f'
+    },
+    remove (item) {
+      this.chips.splice(this.chips.indexOf(item), 1)
+      this.chips = [...this.chips]
+    },
+    /* callDialog: function (e) {
+                this.$root.$emit('callDialog', e);
+            }, */
+    cancel () {
+    },
+    add () {
+    },
+
+    hideWordlist () {
+      this.word_list_toggle = !this.word_list_toggle
+
+      if (this.word_list_toggle) {
+        document.getElementById('app').classList.add('hide-wordlist')
+      } else {
+        document.getElementById('app').classList.remove('hide-wordlist')
+      }
+      localStorage.setItem('word-list-hide', this.word_list_toggle)
+    }
+
+  },
+  mounted () {
+    if (!localStorage.getItem('word-list-hide')) {
+      localStorage.setItem('word-list-hide', false)
+    } else {
+      if (localStorage.getItem('word-list-hide') === 'true') {
+        this.word_list_toggle = true
+        document.getElementById('app').classList.add('hide-wordlist')
+      } else {
+        this.word_list_toggle = false
+        document.getElementById('app').classList.remove('hide-wordlist')
+      }
+    }
+  }
+}
 </script>

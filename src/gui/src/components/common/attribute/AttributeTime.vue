@@ -101,23 +101,23 @@
 </template>
 
 <script>
-    import AttributesMixin from "@/components/common/attribute/attributes_mixin";
-    import AttributeItemLayout from "../../layouts/AttributeItemLayout";
-    import AttributeValueLayout from "../../layouts/AttributeValueLayout";
+import AttributesMixin from '@/components/common/attribute/attributes_mixin'
+import AttributeItemLayout from '../../layouts/AttributeItemLayout'
+import AttributeValueLayout from '../../layouts/AttributeValueLayout'
 
-    import DatePicker from 'vue2-datepicker';
-    import 'vue2-datepicker/index.css';
+import DatePicker from 'vue2-datepicker'
+import 'vue2-datepicker/index.css'
 
-    export default {
-        name: "AttributeTime",
-        props: {
-            attribute_group: Object
-        },
-        components: {
-            AttributeItemLayout,
-            AttributeValueLayout,
-            DatePicker
-        },
-        mixins: [AttributesMixin]
-    }
+export default {
+  name: 'AttributeTime',
+  props: {
+    attribute_group: Object
+  },
+  components: {
+    AttributeItemLayout,
+    AttributeValueLayout,
+    DatePicker
+  },
+  mixins: [AttributesMixin]
+}
 </script>

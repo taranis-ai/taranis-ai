@@ -86,156 +86,146 @@
 </template>
 
 <script>
-import AuthMixin from "../../../services/auth/auth_mixin";
-import {createNewOSINTSourceGroup, updateOSINTSourceGroup} from "@/api/config";
-import Permissions from "@/services/auth/permissions";
+import AuthMixin from '../../../services/auth/auth_mixin'
+import { createNewOSINTSourceGroup, updateOSINTSourceGroup } from '@/api/config'
+import Permissions from '@/services/auth/permissions'
 
 export default {
-    name: "NewOSINTSourceGroup",
-    components: {},
-    props: {add_button: Boolean},
-    data: () => ({
+  name: 'NewOSINTSourceGroup',
+  components: {},
+  props: { add_button: Boolean },
+  data: () => ({
 
-        headers: [
-            {
-                text: 'Name',
-                align: 'start',
-                value: 'name',
-            },
-            {text: 'Description', value: 'description'},
-        ],
+    headers: [
+      {
+        text: 'Name',
+        align: 'start',
+        value: 'name'
+      },
+      { text: 'Description', value: 'description' }
+    ],
 
-        visible: false,
-        show_validation_error: false,
-        edit: false,
-        show_error: false,
-        selected_osint_sources: [],
-        osint_sources: [],
-        group: {
-            id: "",
-            name: "",
-            default: false,
-            description: "",
-            osint_sources: [],
-        }
-    }),
-    computed: {
-        canCreate() {
-            return this.checkPermission(Permissions.CONFIG_OSINT_SOURCE_GROUP_CREATE)
-        },
-        canUpdate() {
-            return !this.group.default && (this.checkPermission(Permissions.CONFIG_OSINT_SOURCE_GROUP_UPDATE) || !this.edit)
-        },
-        getOSINTSources() {
-            if (this.canUpdate) {
-                return this.osint_sources
-            } else {
-                return this.selected_osint_sources
-            }
-        }
-    },
-    methods: {
-        addGroup() {
-            this.visible = true;
-            this.edit = false;
-            this.show_error = false;
-            this.group.name = ""
-            this.group.description = ""
-            this.group.default = false
-            this.group.osint_sources = []
-            this.selected_osint_sources = []
-            this.$validator.reset();
-        },
-
-        cancel() {
-            this.$validator.reset();
-            this.visible = false
-        },
-
-        add() {
-            this.$validator.validateAll().then(() => {
-
-                if (!this.$validator.errors.any()) {
-
-                    this.show_validation_error = false;
-                    this.show_error = false;
-
-                    this.group.osint_sources = [];
-                    for (let i = 0; i < this.selected_osint_sources.length; i++) {
-                        this.group.osint_sources.push(
-                            {
-                                id: this.selected_osint_sources[i].id
-                            }
-                        )
-                    }
-
-                    if (this.edit) {
-                        updateOSINTSourceGroup(this.group).then(() => {
-
-                            this.$validator.reset();
-                            this.visible = false;
-
-                            this.$root.$emit('notification',
-                                {
-                                    type: 'success',
-                                    loc: 'osint_source_group.successful_edit'
-                                }
-                            )
-
-                        }).catch(() => {
-
-                            this.show_error = true;
-                        })
-                    } else {
-                        createNewOSINTSourceGroup(this.group).then(() => {
-
-                            this.$validator.reset();
-                            this.visible = false;
-
-                            this.$root.$emit('notification',
-                                {
-                                    type: 'success',
-                                    loc: 'osint_source_group.successful'
-                                }
-                            )
-
-                            this.$root.$emit('osint-source-group-added')
-
-                        }).catch(() => {
-
-                            this.show_error = true;
-                        })
-                    }
-
-                } else {
-
-                    this.show_validation_error = true;
-                }
-            })
-        }
-    },
-    mixins: [AuthMixin],
-    mounted() {
-        this.$store.dispatch('getAllOSINTSources', {search: ''})
-            .then(() => {
-                this.osint_sources = this.$store.getters.getOSINTSources.items
-            });
-
-        this.$root.$on('show-edit', (data) => {
-            this.visible = true;
-            this.edit = true;
-            this.show_error = false;
-
-            this.selected_osint_sources = data.osint_sources;
-
-            this.group.id = data.id;
-            this.group.name = data.name;
-            this.group.description = data.description;
-            this.group.default = data.default
-        });
-    },
-    beforeDestroy() {
-        this.$root.$off('show-edit')
+    visible: false,
+    show_validation_error: false,
+    edit: false,
+    show_error: false,
+    selected_osint_sources: [],
+    osint_sources: [],
+    group: {
+      id: '',
+      name: '',
+      default: false,
+      description: '',
+      osint_sources: []
     }
+  }),
+  computed: {
+    canCreate () {
+      return this.checkPermission(Permissions.CONFIG_OSINT_SOURCE_GROUP_CREATE)
+    },
+    canUpdate () {
+      return !this.group.default && (this.checkPermission(Permissions.CONFIG_OSINT_SOURCE_GROUP_UPDATE) || !this.edit)
+    },
+    getOSINTSources () {
+      if (this.canUpdate) {
+        return this.osint_sources
+      } else {
+        return this.selected_osint_sources
+      }
+    }
+  },
+  methods: {
+    addGroup () {
+      this.visible = true
+      this.edit = false
+      this.show_error = false
+      this.group.name = ''
+      this.group.description = ''
+      this.group.default = false
+      this.group.osint_sources = []
+      this.selected_osint_sources = []
+      this.$validator.reset()
+    },
+
+    cancel () {
+      this.$validator.reset()
+      this.visible = false
+    },
+
+    add () {
+      this.$validator.validateAll().then(() => {
+        if (!this.$validator.errors.any()) {
+          this.show_validation_error = false
+          this.show_error = false
+
+          this.group.osint_sources = []
+          for (let i = 0; i < this.selected_osint_sources.length; i++) {
+            this.group.osint_sources.push(
+              {
+                id: this.selected_osint_sources[i].id
+              }
+            )
+          }
+
+          if (this.edit) {
+            updateOSINTSourceGroup(this.group).then(() => {
+              this.$validator.reset()
+              this.visible = false
+
+              this.$root.$emit('notification',
+                {
+                  type: 'success',
+                  loc: 'osint_source_group.successful_edit'
+                }
+              )
+            }).catch(() => {
+              this.show_error = true
+            })
+          } else {
+            createNewOSINTSourceGroup(this.group).then(() => {
+              this.$validator.reset()
+              this.visible = false
+
+              this.$root.$emit('notification',
+                {
+                  type: 'success',
+                  loc: 'osint_source_group.successful'
+                }
+              )
+
+              this.$root.$emit('osint-source-group-added')
+            }).catch(() => {
+              this.show_error = true
+            })
+          }
+        } else {
+          this.show_validation_error = true
+        }
+      })
+    }
+  },
+  mixins: [AuthMixin],
+  mounted () {
+    this.$store.dispatch('getAllOSINTSources', { search: '' })
+      .then(() => {
+        this.osint_sources = this.$store.getters.getOSINTSources.items
+      })
+
+    this.$root.$on('show-edit', (data) => {
+      this.visible = true
+      this.edit = true
+      this.show_error = false
+
+      this.selected_osint_sources = data.osint_sources
+
+      this.group.id = data.id
+      this.group.name = data.name
+      this.group.description = data.description
+      this.group.default = data.default
+    })
+  },
+  beforeDestroy () {
+    this.$root.$off('show-edit')
+  }
 }
 </script>

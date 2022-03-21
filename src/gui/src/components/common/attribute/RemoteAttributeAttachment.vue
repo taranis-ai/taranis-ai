@@ -57,10 +57,10 @@
 </template>
 
 <script>
-import vue2Dropzone from 'vue2-dropzone';
-import 'vue2-dropzone/dist/vue2Dropzone.min.css';
-import {vm} from "@/main.js";
-import AttributesMixin from "@/components/common/attribute/attributes_mixin";
+import vue2Dropzone from 'vue2-dropzone'
+import 'vue2-dropzone/dist/vue2Dropzone.min.css'
+import { vm } from '@/main.js'
+import AttributesMixin from '@/components/common/attribute/attributes_mixin'
 
 const getTemplate = () => `
          <div cs class="dz-preview dz-file-preview">
@@ -78,118 +78,116 @@ const getTemplate = () => `
             <div class="dz-error-mark"><i class="fa fa-close"></i></div>
             </div>
         </div>
-    `;
+    `
 
 export default {
-    name: "RemoteAttributeAttachment",
-    components: {
-        vueDropzone: vue2Dropzone
+  name: 'RemoteAttributeAttachment',
+  components: {
+    vueDropzone: vue2Dropzone
+  },
+  mixins: [AttributesMixin],
+  data: () => ({
+    detailDialog: false,
+    description: '',
+    last_updated: '',
+    files: [],
+    download_link: '',
+    selected_attachment: {
+      id: '',
+      file_name: '',
+      size: -1,
+      mime_type: '',
+      user_name: '',
+      last_updated: '',
+      description: ''
     },
-    mixins: [AttributesMixin],
-    data: () => ({
-        detailDialog: false,
-        description: "",
-        last_updated: "",
-        files: [],
-        download_link: "",
-        selected_attachment: {
-            id: "",
-            file_name: "",
-            size: -1,
-            mime_type: "",
-            user_name: "",
-            last_updated: "",
-            description: ""
-        },
 
-        dropzoneOptions: {
-            url: ((typeof (process.env.VUE_APP_TARANIS_NG_CORE_API) == "undefined")
-                    ? "$VUE_APP_TARANIS_NG_CORE_API"
-                    : process.env.VUE_APP_TARANIS_NG_CORE_API)
-                    + '/analyze/attribute/addattachment/',
-            thumbnailWidth: 64,
-            thumbnailHeight: 96,
-            previewTemplate: getTemplate(),
-            addRemoveLinks: false,
-            autoProcessQueue: false,
-            clickable: false
-        }
-    }),
-    methods: {
-        fileAdded(file) {
-            let previewHTML = file.previewTemplate.innerHTML;
-            previewHTML = previewHTML.replace('FILE_ID', file.id);
-            file.previewTemplate.innerHTML = previewHTML;
-            this.files.push(file);
-        },
-        closeDetail() {
-            this.detailDialog = false;
-        },
-        initDropzone() {
-            this.$refs.myVueDropzone.removeAllFiles();
-            this.files = [];
-            for (let i = 0; i < this.values.length; i++) {
-                let file = {
-                    id: this.values[i].id,
-                    size: this.values[i].binary_size,
-                    name: this.values[i].value,
-                    type: this.values[i].binary_mime_type,
-                    description: this.values[i].binary_description,
-                    last_updated: this.values[i].last_updated + " " + this.values[i].user.name,
-                };
-                let url = ((typeof (process.env.VUE_APP_TARANIS_NG_CORE_API) == "undefined")
-                        ? "$VUE_APP_TARANIS_NG_CORE_API"
-                        : process.env.VUE_APP_TARANIS_NG_CORE_API)
-                        + '/analyze/attribute/download/'
-                        + this.values[i].id + "?jwt=" + this.$store.getters.getJWT;
-                this.$refs.myVueDropzone.manuallyAddFile(file, url);
-            }
-        }
-    },
-    mounted() {
-        this.$root.$on('attachment-clicked', (data) => {
-            for (let i = 0; i < this.files.length; i++) {
-                if (this.files[i].id.toString() === data.attachment_id) {
-                    this.selected_attachment = {
-                        id: this.files[i].id,
-                        file_name: this.files[i].name,
-                        mime_type: this.files[i].type,
-                        file_size: this.files[i].size,
-                        description: this.files[i].description,
-                        last_updated: this.files[i].last_updated,
-                        file: this.files[i]
-                    };
-                    this.download_link = ((typeof (process.env.VUE_APP_TARANIS_NG_CORE_API) == "undefined")
-                            ? "$VUE_APP_TARANIS_NG_CORE_API"
-                            : process.env.VUE_APP_TARANIS_NG_CORE_API)
-                            + '/analyze/attribute/download/'
-                            + this.selected_attachment.id + "?jwt=" + this.$store.getters.getJWT;
-                    this.detailDialog = true;
-                    break;
-                }
-            }
-        });
-
-        if (this.report_item_id !== null) {
-            this.$refs.myVueDropzone.setOption('url', ((typeof (process.env.VUE_APP_TARANIS_NG_CORE_API) == "undefined")
-                    ? "$VUE_APP_TARANIS_NG_CORE_API"
-                    : process.env.VUE_APP_TARANIS_NG_CORE_API)
-                    + '/analyze/attribute/addattachment/' + this.report_item_id)
-        }
-
-        this.initDropzone()
-    },
-    created() {
-        window.addEventListener('attachment-click', function (e) {
-
-            vm.$emit("attachment-clicked", {
-                attachment_id: e.detail,
-            })
-
-        }, false);
-    },
-    beforeDestroy() {
-        this.$root.$off('attachment-clicked')
+    dropzoneOptions: {
+      url: ((typeof (process.env.VUE_APP_TARANIS_NG_CORE_API) === 'undefined')
+        ? '$VUE_APP_TARANIS_NG_CORE_API'
+        : process.env.VUE_APP_TARANIS_NG_CORE_API) +
+                    '/analyze/attribute/addattachment/',
+      thumbnailWidth: 64,
+      thumbnailHeight: 96,
+      previewTemplate: getTemplate(),
+      addRemoveLinks: false,
+      autoProcessQueue: false,
+      clickable: false
     }
+  }),
+  methods: {
+    fileAdded (file) {
+      let previewHTML = file.previewTemplate.innerHTML
+      previewHTML = previewHTML.replace('FILE_ID', file.id)
+      file.previewTemplate.innerHTML = previewHTML
+      this.files.push(file)
+    },
+    closeDetail () {
+      this.detailDialog = false
+    },
+    initDropzone () {
+      this.$refs.myVueDropzone.removeAllFiles()
+      this.files = []
+      for (let i = 0; i < this.values.length; i++) {
+        const file = {
+          id: this.values[i].id,
+          size: this.values[i].binary_size,
+          name: this.values[i].value,
+          type: this.values[i].binary_mime_type,
+          description: this.values[i].binary_description,
+          last_updated: this.values[i].last_updated + ' ' + this.values[i].user.name
+        }
+        const url = ((typeof (process.env.VUE_APP_TARANIS_NG_CORE_API) === 'undefined')
+          ? '$VUE_APP_TARANIS_NG_CORE_API'
+          : process.env.VUE_APP_TARANIS_NG_CORE_API) +
+                        '/analyze/attribute/download/' +
+                        this.values[i].id + '?jwt=' + this.$store.getters.getJWT
+        this.$refs.myVueDropzone.manuallyAddFile(file, url)
+      }
+    }
+  },
+  mounted () {
+    this.$root.$on('attachment-clicked', (data) => {
+      for (let i = 0; i < this.files.length; i++) {
+        if (this.files[i].id.toString() === data.attachment_id) {
+          this.selected_attachment = {
+            id: this.files[i].id,
+            file_name: this.files[i].name,
+            mime_type: this.files[i].type,
+            file_size: this.files[i].size,
+            description: this.files[i].description,
+            last_updated: this.files[i].last_updated,
+            file: this.files[i]
+          }
+          this.download_link = ((typeof (process.env.VUE_APP_TARANIS_NG_CORE_API) === 'undefined')
+            ? '$VUE_APP_TARANIS_NG_CORE_API'
+            : process.env.VUE_APP_TARANIS_NG_CORE_API) +
+                            '/analyze/attribute/download/' +
+                            this.selected_attachment.id + '?jwt=' + this.$store.getters.getJWT
+          this.detailDialog = true
+          break
+        }
+      }
+    })
+
+    if (this.report_item_id !== null) {
+      this.$refs.myVueDropzone.setOption('url', ((typeof (process.env.VUE_APP_TARANIS_NG_CORE_API) === 'undefined')
+        ? '$VUE_APP_TARANIS_NG_CORE_API'
+        : process.env.VUE_APP_TARANIS_NG_CORE_API) +
+                    '/analyze/attribute/addattachment/' + this.report_item_id)
+    }
+
+    this.initDropzone()
+  },
+  created () {
+    window.addEventListener('attachment-click', function (e) {
+      vm.$emit('attachment-clicked', {
+        attachment_id: e.detail
+      })
+    }, false)
+  },
+  beforeDestroy () {
+    this.$root.$off('attachment-clicked')
+  }
 }
 </script>

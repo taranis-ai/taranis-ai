@@ -35,27 +35,27 @@
 </template>
 
 <script>
-    import AttributesMixin from "@/components/common/attribute/attributes_mixin";
-    import AttributeItemLayout from "../../layouts/AttributeItemLayout";
-    import AttributeValueLayout from "../../layouts/AttributeValueLayout";
+import AttributesMixin from '@/components/common/attribute/attributes_mixin'
+import AttributeItemLayout from '../../layouts/AttributeItemLayout'
+import AttributeValueLayout from '../../layouts/AttributeValueLayout'
 
-    export default {
-        name: "AttributeEnum",
-        props: {
-            attribute_group: Object
-        },
-        components: {
-            AttributeItemLayout,
-            AttributeValueLayout
-        },
-        data: () => ({
-            stringEnums: []
-        }),
-        mixins: [AttributesMixin],
-        mounted() {
-            for (let i = 0; i < this.attribute_group.attribute.attribute_enums.length; i++) {
-                this.stringEnums.push(this.attribute_group.attribute.attribute_enums[i].value)
-            }
-        }
+export default {
+  name: 'AttributeEnum',
+  props: {
+    attribute_group: Object
+  },
+  components: {
+    AttributeItemLayout,
+    AttributeValueLayout
+  },
+  data: () => ({
+    stringEnums: []
+  }),
+  mixins: [AttributesMixin],
+  mounted () {
+    for (let i = 0; i < this.attribute_group.attribute.attribute_enums.length; i++) {
+      this.stringEnums.push(this.attribute_group.attribute.attribute_enums[i].value)
     }
+  }
+}
 </script>

@@ -22,7 +22,6 @@
                 <v-card-text>
                     <v-form @submit.prevent="add" id="form" ref="form">
 
-
                         <v-text-field :disabled="!canUpdate"
                                       :label="$t('collectors_node.name')"
                                       name="name"
@@ -72,113 +71,104 @@
 </template>
 
 <script>
-    import {createNewCollectorsNode} from "@/api/config";
-    import {updateCollectorsNode} from "@/api/config";
-    import AuthMixin from "@/services/auth/auth_mixin";
-    import Permissions from "@/services/auth/permissions";
+import { createNewCollectorsNode, updateCollectorsNode } from '@/api/config'
 
-    export default {
-        name: "NewCollectorsNode",
-        data: () => ({
-            visible: false,
-            edit: false,
-            show_validation_error: false,
-            show_error: false,
-            node: {
-                name: "",
-                description: "",
-                api_url: "",
-                api_key: ""
-            }
-        }),
-        mixins: [AuthMixin],
-        computed: {
-            canCreate() {
-                return this.checkPermission(Permissions.CONFIG_COLLECTORS_NODE_CREATE)
-            },
-            canUpdate() {
-                return this.checkPermission(Permissions.CONFIG_COLLECTORS_NODE_UPDATE) || !this.edit
-            },
-        },
-        methods: {
-            addNode() {
-                this.visible = true
-                this.edit = false
-                this.show_error = false;
-                this.node.name = ""
-                this.node.description = ""
-                this.node.api_url = ""
-                this.node.api_key = ""
-                this.$validator.reset();
-            },
+import AuthMixin from '@/services/auth/auth_mixin'
+import Permissions from '@/services/auth/permissions'
 
-            cancel() {
-                this.$validator.reset();
-                this.visible = false
-            },
-
-            add() {
-                this.$validator.validateAll().then(() => {
-
-                    if (!this.$validator.errors.any()) {
-
-                        this.show_validation_error = false;
-                        this.show_error = false;
-
-                        if (this.edit) {
-                            updateCollectorsNode(this.node).then(() => {
-
-                                this.$validator.reset();
-                                this.visible = false;
-                                this.$root.$emit('notification',
-                                    {
-                                        type: 'success',
-                                        loc: 'collectors_node.successful_edit'
-                                    }
-                                )
-                            }).catch(() => {
-
-                                this.show_error = true;
-                            })
-                        } else {
-                            createNewCollectorsNode(this.node).then(() => {
-
-                                this.$validator.reset();
-                                this.visible = false;
-                                this.$root.$emit('notification',
-                                    {
-                                        type: 'success',
-                                        loc: 'collectors_node.successful'
-                                    }
-                                )
-                            }).catch(() => {
-
-                                this.show_error = true;
-                            })
-                        }
-
-
-                    } else {
-
-                        this.show_validation_error = true;
-                    }
-                })
-            }
-        },
-        mounted() {
-            this.$root.$on('show-edit', (data) => {
-                this.visible = true;
-                this.edit = true;
-                this.show_error = false;
-                this.node.id = data.id;
-                this.node.name = data.name;
-                this.node.description = data.description;
-                this.node.api_url = data.api_url;
-                this.node.api_key = data.api_key;
-            });
-        },
-        beforeDestroy() {
-            this.$root.$off('show-edit')
-        }
+export default {
+  name: 'NewCollectorsNode',
+  data: () => ({
+    visible: false,
+    edit: false,
+    show_validation_error: false,
+    show_error: false,
+    node: {
+      name: '',
+      description: '',
+      api_url: '',
+      api_key: ''
     }
+  }),
+  mixins: [AuthMixin],
+  computed: {
+    canCreate () {
+      return this.checkPermission(Permissions.CONFIG_COLLECTORS_NODE_CREATE)
+    },
+    canUpdate () {
+      return this.checkPermission(Permissions.CONFIG_COLLECTORS_NODE_UPDATE) || !this.edit
+    }
+  },
+  methods: {
+    addNode () {
+      this.visible = true
+      this.edit = false
+      this.show_error = false
+      this.node.name = ''
+      this.node.description = ''
+      this.node.api_url = ''
+      this.node.api_key = ''
+      this.$validator.reset()
+    },
+
+    cancel () {
+      this.$validator.reset()
+      this.visible = false
+    },
+
+    add () {
+      this.$validator.validateAll().then(() => {
+        if (!this.$validator.errors.any()) {
+          this.show_validation_error = false
+          this.show_error = false
+
+          if (this.edit) {
+            updateCollectorsNode(this.node).then(() => {
+              this.$validator.reset()
+              this.visible = false
+              this.$root.$emit('notification',
+                {
+                  type: 'success',
+                  loc: 'collectors_node.successful_edit'
+                }
+              )
+            }).catch(() => {
+              this.show_error = true
+            })
+          } else {
+            createNewCollectorsNode(this.node).then(() => {
+              this.$validator.reset()
+              this.visible = false
+              this.$root.$emit('notification',
+                {
+                  type: 'success',
+                  loc: 'collectors_node.successful'
+                }
+              )
+            }).catch(() => {
+              this.show_error = true
+            })
+          }
+        } else {
+          this.show_validation_error = true
+        }
+      })
+    }
+  },
+  mounted () {
+    this.$root.$on('show-edit', (data) => {
+      this.visible = true
+      this.edit = true
+      this.show_error = false
+      this.node.id = data.id
+      this.node.name = data.name
+      this.node.description = data.description
+      this.node.api_url = data.api_url
+      this.node.api_key = data.api_key
+    })
+  },
+  beforeDestroy () {
+    this.$root.$off('show-edit')
+  }
+}
 </script>

@@ -22,46 +22,44 @@
 </template>
 
 <script>
-    import ViewLayout from "../../components/layouts/ViewLayout";
-    import NewOSINTSource from "../../components/config/osint_sources/NewOSINTSource";
-    import ToolbarFilter from "../../components/common/ToolbarFilterOSINTSource";
-    import ContentData from "../../components/common/content/ContentData"
-    import {deleteOSINTSource} from "@/api/config";
+import ViewLayout from '../../components/layouts/ViewLayout'
+import NewOSINTSource from '../../components/config/osint_sources/NewOSINTSource'
+import ToolbarFilter from '../../components/common/ToolbarFilterOSINTSource'
+import ContentData from '../../components/common/content/ContentData'
+import { deleteOSINTSource } from '@/api/config'
 
-    export default {
-        name: "OSINTSources",
-        components: {
-            ViewLayout,
-            ToolbarFilter,
-            ContentData,
-            NewOSINTSource
-        },
-        data: () => ({
-        }),
-        mounted() {
-            this.$root.$on('delete-item', (item) => {
-                deleteOSINTSource(item).then(() => {
-
-                    this.$root.$emit('notification',
-                        {
-                            type: 'success',
-                            loc: 'osint_source.removed'
-                        }
-                    )
-                }).catch(() => {
-
-                    this.$root.$emit('notification',
-                        {
-                            type: 'error',
-                            loc: 'osint_source.removed_error'
-                        }
-                    )
-                })
-            });
-        },
-        beforeDestroy() {
-            this.$root.$off('delete-item')
-        }
-    };
+export default {
+  name: 'OSINTSources',
+  components: {
+    ViewLayout,
+    ToolbarFilter,
+    ContentData,
+    NewOSINTSource
+  },
+  data: () => ({
+  }),
+  mounted () {
+    this.$root.$on('delete-item', (item) => {
+      deleteOSINTSource(item).then(() => {
+        this.$root.$emit('notification',
+          {
+            type: 'success',
+            loc: 'osint_source.removed'
+          }
+        )
+      }).catch(() => {
+        this.$root.$emit('notification',
+          {
+            type: 'error',
+            loc: 'osint_source.removed_error'
+          }
+        )
+      })
+    })
+  },
+  beforeDestroy () {
+    this.$root.$off('delete-item')
+  }
+}
 
 </script>

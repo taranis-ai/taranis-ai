@@ -27,7 +27,7 @@
 </template>
 
 <script>
-    export default {
-        name: "DialogLayout"
-    }
+export default {
+  name: 'DialogLayout'
+}
 </script>

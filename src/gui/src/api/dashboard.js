@@ -1,5 +1,5 @@
-import ApiService from "@/services/api_service";
+import ApiService from '@/services/api_service'
 
-export function getDashboardData() {
-    return ApiService.get('/dashboard-data')
+export function getDashboardData () {
+  return ApiService.get('/dashboard-data')
 }

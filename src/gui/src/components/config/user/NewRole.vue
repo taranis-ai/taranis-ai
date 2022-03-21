@@ -85,151 +85,136 @@
 </template>
 
 <script>
-    import AuthMixin from "../../../services/auth/auth_mixin";
-    import {createNewRole} from "@/api/config";
-    import {updateRole} from "@/api/config";
-    import Permissions from "@/services/auth/permissions";
+import AuthMixin from '../../../services/auth/auth_mixin'
+import { createNewRole, updateRole } from '@/api/config'
 
-    export default {
-        name: "NewRole",
-        components: {},
-        props: {add_button: Boolean},
-        data: () => ({
+import Permissions from '@/services/auth/permissions'
 
-            headers: [
-                {
-                    text: 'Name',
-                    align: 'start',
-                    value: 'name',
-                },
-                {text: 'Description', value: 'description'},
-            ],
+export default {
+  name: 'NewRole',
+  components: {},
+  props: { add_button: Boolean },
+  data: () => ({
 
-            visible: false,
-            show_validation_error: false,
-            edit: false,
-            show_error: false,
-            selected_permissions: [],
-            permissions: [],
-            role: {
-                id: -1,
-                name: "",
-                description: "",
-                permissions: [],
-            }
-        }),
-        computed: {
-            canCreate() {
-                return this.checkPermission(Permissions.CONFIG_ROLE_CREATE)
-            },
-            canUpdate() {
-                return this.checkPermission(Permissions.CONFIG_ROLE_UPDATE) || !this.edit
-            },
-        },
-        methods: {
-            addRole() {
-                this.visible = true;
-                this.edit = false;
-                this.show_error = false;
-                this.role.id = ""
-                this.role.name = ""
-                this.role.description = ""
-                this.role.permissions = []
-                this.selected_permissions = []
-                this.$validator.reset();
-            },
+    headers: [
+      {
+        text: 'Name',
+        align: 'start',
+        value: 'name'
+      },
+      { text: 'Description', value: 'description' }
+    ],
 
-            cancel() {
-                this.$validator.reset();
-                this.visible = false;
-            },
-
-            add() {
-                this.$validator.validateAll().then(() => {
-
-                    if (!this.$validator.errors.any()) {
-
-                        this.show_validation_error = false;
-                        this.show_error = false;
-
-                        this.role.permissions = [];
-                        for (let i = 0; i < this.selected_permissions.length; i++) {
-                            this.role.permissions.push(
-                                {
-                                    id: this.selected_permissions[i].id
-                                }
-                            )
-                        }
-
-                        if (this.edit) {
-
-                            updateRole(this.role).then(() => {
-
-                                this.$validator.reset();
-                                this.visible = false;
-
-
-                                this.$root.$emit('notification',
-                                    {
-                                        type: 'success',
-                                        loc: 'role.successful_edit'
-                                    }
-                                )
-
-                            }).catch(() => {
-
-                                this.show_error = true;
-                            })
-
-                        } else {
-
-                            createNewRole(this.role).then(() => {
-
-                                this.$validator.reset();
-                                this.visible = false;
-
-                                this.$root.$emit('notification',
-                                    {
-                                        type: 'success',
-                                        loc: 'role.successful'
-                                    }
-                                )
-
-                            }).catch(() => {
-
-                                this.show_error = true;
-                            })
-                        }
-
-
-                    } else {
-
-                        this.show_validation_error = true;
-                    }
-                })
-            }
-        },
-        mixins: [AuthMixin],
-        mounted() {
-            this.$store.dispatch('getAllPermissions', {search: ''})
-                .then(() => {
-                    this.permissions = this.$store.getters.getAllPermissions.items
-                });
-
-            this.$root.$on('show-edit', (data) => {
-                this.visible = true;
-                this.edit = true;
-                this.show_error = false;
-
-                this.selected_permissions = data.permissions;
-
-                this.role.id = data.id;
-                this.role.name = data.name;
-                this.role.description = data.description;
-            });
-        },
-        beforeDestroy() {
-            this.$root.$off('show-edit')
-        }
+    visible: false,
+    show_validation_error: false,
+    edit: false,
+    show_error: false,
+    selected_permissions: [],
+    permissions: [],
+    role: {
+      id: -1,
+      name: '',
+      description: '',
+      permissions: []
     }
+  }),
+  computed: {
+    canCreate () {
+      return this.checkPermission(Permissions.CONFIG_ROLE_CREATE)
+    },
+    canUpdate () {
+      return this.checkPermission(Permissions.CONFIG_ROLE_UPDATE) || !this.edit
+    }
+  },
+  methods: {
+    addRole () {
+      this.visible = true
+      this.edit = false
+      this.show_error = false
+      this.role.id = ''
+      this.role.name = ''
+      this.role.description = ''
+      this.role.permissions = []
+      this.selected_permissions = []
+      this.$validator.reset()
+    },
+
+    cancel () {
+      this.$validator.reset()
+      this.visible = false
+    },
+
+    add () {
+      this.$validator.validateAll().then(() => {
+        if (!this.$validator.errors.any()) {
+          this.show_validation_error = false
+          this.show_error = false
+
+          this.role.permissions = []
+          for (let i = 0; i < this.selected_permissions.length; i++) {
+            this.role.permissions.push(
+              {
+                id: this.selected_permissions[i].id
+              }
+            )
+          }
+
+          if (this.edit) {
+            updateRole(this.role).then(() => {
+              this.$validator.reset()
+              this.visible = false
+
+              this.$root.$emit('notification',
+                {
+                  type: 'success',
+                  loc: 'role.successful_edit'
+                }
+              )
+            }).catch(() => {
+              this.show_error = true
+            })
+          } else {
+            createNewRole(this.role).then(() => {
+              this.$validator.reset()
+              this.visible = false
+
+              this.$root.$emit('notification',
+                {
+                  type: 'success',
+                  loc: 'role.successful'
+                }
+              )
+            }).catch(() => {
+              this.show_error = true
+            })
+          }
+        } else {
+          this.show_validation_error = true
+        }
+      })
+    }
+  },
+  mixins: [AuthMixin],
+  mounted () {
+    this.$store.dispatch('getAllPermissions', { search: '' })
+      .then(() => {
+        this.permissions = this.$store.getters.getAllPermissions.items
+      })
+
+    this.$root.$on('show-edit', (data) => {
+      this.visible = true
+      this.edit = true
+      this.show_error = false
+
+      this.selected_permissions = data.permissions
+
+      this.role.id = data.id
+      this.role.name = data.name
+      this.role.description = data.description
+    })
+  },
+  beforeDestroy () {
+    this.$root.$off('show-edit')
+  }
+}
 </script>

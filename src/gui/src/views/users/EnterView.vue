@@ -62,112 +62,105 @@
 </template>
 
 <script>
-    import ViewLayout from "../../components/layouts/ViewLayout";
-    import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
-    import {addNewsItem} from "@/api/assess";
+import ViewLayout from '../../components/layouts/ViewLayout'
+import ClassicEditor from '@ckeditor/ckeditor5-build-classic'
+import { addNewsItem } from '@/api/assess'
 
-    export default {
-        name: "Enter",
-        components: {
-            ViewLayout,
+export default {
+  name: 'Enter',
+  components: {
+    ViewLayout
 
-        },
-        data: () => ({
+  },
+  data: () => ({
 
-            show_error: false,
-            show_validation_error: false,
+    show_error: false,
+    show_validation_error: false,
 
-            editor: ClassicEditor,
-            editorData: '<p></p>',
-            editorConfig: {
-                // The configuration of the editor.
-            },
+    editor: ClassicEditor,
+    editorData: '<p></p>',
+    editorConfig: {
+      // The configuration of the editor.
+    },
 
-            news_item: {
-                id: "",
-                title: "",
-                review: "",
-                content: "",
-                link: "",
-                source: "",
-                author: "",
-                language: "",
-                hash: "",
-                osint_source_id: "",
-                published: "",
-                collected: "",
-                attributes: []
-            }
-        }),
-        methods: {
+    news_item: {
+      id: '',
+      title: '',
+      review: '',
+      content: '',
+      link: '',
+      source: '',
+      author: '',
+      language: '',
+      hash: '',
+      osint_source_id: '',
+      published: '',
+      collected: '',
+      attributes: []
+    }
+  }),
+  methods: {
 
-            add() {
-                this.$validator.validateAll().then(() => {
+    add () {
+      this.$validator.validateAll().then(() => {
+        if (!this.$validator.errors.any()) {
+          this.news_item.content = this.editorData
 
-                    if (!this.$validator.errors.any()) {
+          const i = window.location.pathname.indexOf('/source/')
+          const len = window.location.pathname.length
+          this.news_item.osint_source_id = window.location.pathname.substring(i + 8, len)
 
-                        this.news_item.content = this.editorData;
+          this.news_item.author = this.$store.getters.getUserName
+          this.news_item.language = ((typeof (process.env.VUE_APP_TARANIS_NG_LOCALE) === 'undefined') ? '$VUE_APP_TARANIS_NG_LOCALE' : process.env.VUE_APP_TARANIS_NG_LOCALE)
 
-                        let i = window.location.pathname.indexOf("/source/");
-                        let len = window.location.pathname.length;
-                        this.news_item.osint_source_id = window.location.pathname.substring(i + 8, len);
+          const d = new Date()
+          this.news_item.collected = this.appendLeadingZeroes(d.getDate()) + '.' + this.appendLeadingZeroes(d.getMonth() + 1) + '.' + d.getFullYear() +
+                            ' - ' + this.appendLeadingZeroes(d.getHours()) + ':' + this.appendLeadingZeroes(d.getMinutes())
+          this.news_item.published = this.news_item.collected
 
-                        this.news_item.author = this.$store.getters.getUserName;
-                        this.news_item.language = ((typeof(process.env.VUE_APP_TARANIS_NG_LOCALE) == "undefined") ? "$VUE_APP_TARANIS_NG_LOCALE" : process.env.VUE_APP_TARANIS_NG_LOCALE);
+          addNewsItem(this.news_item).then(() => {
+            this.news_item.id = ''
+            this.news_item.title = ''
+            this.news_item.review = ''
+            this.news_item.content = ''
+            this.news_item.link = ''
+            this.news_item.source = ''
+            this.news_item.author = ''
+            this.news_item.language = ''
+            this.news_item.hash = ''
+            this.news_item.osint_source_id = ''
+            this.news_item.published = ''
+            this.news_item.collected = ''
+            this.news_item.attributes = []
 
-                        let d = new Date();
-                        this.news_item.collected = this.appendLeadingZeroes(d.getDate()) + "." + this.appendLeadingZeroes(d.getMonth() + 1) + "." + d.getFullYear() +
-                            " - " + this.appendLeadingZeroes(d.getHours()) + ":" + this.appendLeadingZeroes(d.getMinutes());
-                        this.news_item.published = this.news_item.collected;
+            this.$validator.reset()
 
-                        addNewsItem(this.news_item).then(() => {
+            this.editorData = '<p></p>'
 
-                            this.news_item.id = ""
-                            this.news_item.title = ""
-                            this.news_item.review = ""
-                            this.news_item.content = ""
-                            this.news_item.link = ""
-                            this.news_item.source = ""
-                            this.news_item.author = ""
-                            this.news_item.language = ""
-                            this.news_item.hash = ""
-                            this.news_item.osint_source_id = ""
-                            this.news_item.published = ""
-                            this.news_item.collected = ""
-                            this.news_item.attributes = []
-
-                            this.$validator.reset();
-
-                            this.editorData = '<p></p>';
-
-                            this.$root.$emit('notification',
-                                {
-                                    type: 'success',
-                                    loc: 'enter.successful'
-                                }
-                            )
-
-                        }).catch(() => {
-
-                            this.show_error = true;
-                        })
-
-                    } else {
-
-                        this.show_validation_error = true;
-                    }
-                })
-            },
-
-            appendLeadingZeroes(n) {
-                if (n <= 9) {
-                    return "0" + n;
-                }
-                return n
-            }
-        },
-
-        created() {
+            this.$root.$emit('notification',
+              {
+                type: 'success',
+                loc: 'enter.successful'
+              }
+            )
+          }).catch(() => {
+            this.show_error = true
+          })
+        } else {
+          this.show_validation_error = true
         }
-    };
+      })
+    },
+
+    appendLeadingZeroes (n) {
+      if (n <= 9) {
+        return '0' + n
+      }
+      return n
+    }
+  },
+
+  created () {
+  }
+}
 </script>

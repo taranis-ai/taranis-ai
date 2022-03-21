@@ -14,11 +14,11 @@
 </template>
 
 <script>
-    export default {
-        name: "Parameter",
-        props: ['parameter'],
-        data: () => ({
-            value: ""
-        }),
-    }
+export default {
+  name: 'Parameter',
+  props: ['parameter'],
+  data: () => ({
+    value: ''
+  })
+}
 </script>

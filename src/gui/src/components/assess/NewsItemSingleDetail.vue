@@ -116,7 +116,6 @@
                                 </v-row>
                             </v-container>
 
-
                         </v-row>
 
                     </v-tab-item>
@@ -142,186 +141,184 @@
 </template>
 
 <script>
-import {deleteNewsItemAggregate, getNewsItem, voteNewsItem} from "@/api/assess";
-import {readNewsItem} from "@/api/assess";
-import {importantNewsItem} from "@/api/assess";
-import {saveNewsItemAggregate} from "@/api/assess";
-import NewsItemAttribute from "@/components/assess/NewsItemAttribute";
-import AuthMixin from "@/services/auth/auth_mixin";
-import Permissions from "@/services/auth/permissions";
+import { deleteNewsItemAggregate, getNewsItem, voteNewsItem, readNewsItem, importantNewsItem, saveNewsItemAggregate } from '@/api/assess'
 
-import {VueEditor} from 'vue2-editor';
+import NewsItemAttribute from '@/components/assess/NewsItemAttribute'
+import AuthMixin from '@/services/auth/auth_mixin'
+import Permissions from '@/services/auth/permissions'
+
+import { VueEditor } from 'vue2-editor'
 
 const toolbarOptions = [
-    ['bold', 'italic', 'underline', 'strike'],        // toggled buttons
-    ['blockquote', 'code-block'],
+  ['bold', 'italic', 'underline', 'strike'], // toggled buttons
+  ['blockquote', 'code-block'],
 
-    [{'header': 1}, {'header': 2}],               // custom button values
-    [{'list': 'ordered'}, {'list': 'bullet'}],
-    [{'script': 'sub'}, {'script': 'super'}],      // superscript/subscript
-    [{'indent': '-1'}, {'indent': '+1'}],          // outdent/indent
-    [{'direction': 'rtl'}],                         // text direction
+  [{ header: 1 }, { header: 2 }], // custom button values
+  [{ list: 'ordered' }, { list: 'bullet' }],
+  [{ script: 'sub' }, { script: 'super' }], // superscript/subscript
+  [{ indent: '-1' }, { indent: '+1' }], // outdent/indent
+  [{ direction: 'rtl' }], // text direction
 
-    [{'size': ['small', false, 'large', 'huge']}],  // custom dropdown
-    [{'header': [1, 2, 3, 4, 5, 6, false]}],
+  [{ size: ['small', false, 'large', 'huge'] }], // custom dropdown
+  [{ header: [1, 2, 3, 4, 5, 6, false] }],
 
-    [{'color': []}, {'background': []}],          // dropdown with defaults from theme
-    [{'font': []}],
-    [{'align': []}],
+  [{ color: [] }, { background: [] }], // dropdown with defaults from theme
+  [{ font: [] }],
+  [{ align: [] }],
 
-    ['clean'],                                         // remove formatting button
-    ['link', 'image', 'video']
-];
+  ['clean'], // remove formatting button
+  ['link', 'image', 'video']
+]
 
 export default {
-    name: "NewsItemSingleDetail",
-    components: {NewsItemAttribute, VueEditor},
-    mixins: [AuthMixin],
-    props: {
-        analyze_selector: Boolean
+  name: 'NewsItemSingleDetail',
+  components: { NewsItemAttribute, VueEditor },
+  mixins: [AuthMixin],
+  props: {
+    analyze_selector: Boolean
+  },
+  computed: {
+    canAccess () {
+      return this.checkPermission(Permissions.ASSESS_ACCESS) && this.access === true
     },
-    computed: {
-        canAccess() {
-            return this.checkPermission(Permissions.ASSESS_ACCESS) && this.access === true
-        },
 
-        canModify() {
-            return this.checkPermission(Permissions.ASSESS_UPDATE) && this.modify === true
-        },
-
-        canDelete() {
-            return this.checkPermission(Permissions.ASSESS_DELETE) && this.modify === true
-        },
-
-        canCreateReport() {
-            return this.checkPermission(Permissions.ANALYZE_CREATE)
-        },
-
-        multiSelectActive() {
-            return this.$store.getters.getMultiSelect
-        },
+    canModify () {
+      return this.checkPermission(Permissions.ASSESS_UPDATE) && this.modify === true
     },
-    data: () => ({
-        content: null,
-        editorOptionVue2: {
-            theme: 'snow',
-            placeholder: "insert text here ...",
-            modules: {
-                toolbar: toolbarOptions
-            }
-        },
-        visible: false,
-        access: false,
-        modify: false,
-        news_item: {news_items: [{news_item_data: {}}]},
-        toolbar: false
-    }),
-    methods: {
-        open(news_item) {
-            this.access = news_item.news_items[0].access
-            this.modify = news_item.news_items[0].modify
-            if (news_item.news_items[0].access === true) {
-                getNewsItem(news_item.news_items[0].id).then((response) => {
-                    this.visible = true
-                    this.news_item = news_item;
-                    this.news_item.news_items[0] = response.data;
-                    this.title = news_item.title;
-                    this.description = news_item.description;
-                    this.editorData = this.news_item.comments
-                });
-            } else {
-                this.visible = true
-                this.news_item = news_item;
-                this.title = news_item.title;
-                this.description = news_item.description;
-                this.editorData = this.news_item.comments
-            }
 
-            this.$root.$emit('first-dialog', 'push');
-        },
-        close() {
-            this.visible = false;
-            if (this.canModify) {
-                saveNewsItemAggregate(this.getGroupId(), this.news_item.id, this.news_item.title, this.news_item.description, this.editorData).then(() => {
-                    this.news_item.comments = this.editorData
-                });
-            }
-            this.$root.$emit('change-state', 'DEFAULT');
-            this.$root.$emit('first-dialog', '');
-        },
-        openUrlToNewTab: function (url) {
-            window.open(url, "_blank");
-        },
-        getGroupId() {
-            if (window.location.pathname.includes("/group/")) {
-                let i = window.location.pathname.indexOf("/group/");
-                let len = window.location.pathname.length;
-                return window.location.pathname.substring(i + 7, len);
-            } else {
-                return null;
-            }
-        },
-        cardItemToolbar(action) {
-            switch (action) {
-                case "like":
-                    voteNewsItem(this.getGroupId(), this.news_item.id, 1).then(() => {
-                        if (this.news_item.me_like === false) {
-                            this.news_item.me_like = true;
-                            this.news_item.me_dislike = false;
-                        }
-                    });
-                    break;
+    canDelete () {
+      return this.checkPermission(Permissions.ASSESS_DELETE) && this.modify === true
+    },
 
-                case "unlike":
-                    voteNewsItem(this.getGroupId(), this.news_item.id, -1).then(() => {
-                        if (this.news_item.me_dislike === false) {
-                            this.news_item.me_like = false;
-                            this.news_item.me_dislike = true;
-                        }
-                    });
-                    break;
+    canCreateReport () {
+      return this.checkPermission(Permissions.ANALYZE_CREATE)
+    },
 
-                case "detail":
-                    this.toolbar = false;
-                    this.itemClicked(this.card);
-                    break;
-
-                case "new":
-                    this.$root.$emit('new-report', [this.news_item]);
-                    break;
-
-                case "important":
-                    importantNewsItem(this.getGroupId(), this.news_item.id).then(() => {
-                        this.news_item.important = this.news_item.important === false;
-                    });
-                    break;
-
-                case "read":
-                    readNewsItem(this.getGroupId(), this.news_item.id).then(() => {
-                        this.news_item.read = this.news_item.read === false;
-                    });
-                    break;
-
-                case "delete":
-                    deleteNewsItemAggregate(this.getGroupId(), this.news_item.id).then(() => {
-                        this.visible = false;
-                    });
-                    break;
-
-                default:
-                    this.toolbar = false;
-                    //this.itemClicked(this.card);
-                    break;
-            }
-        },
-
-        buttonStatus: function (active) {
-            if (active) {
-                return "primary:lighten"
-            } else {
-                return "accent"
-            }
-        }
+    multiSelectActive () {
+      return this.$store.getters.getMultiSelect
     }
+  },
+  data: () => ({
+    content: null,
+    editorOptionVue2: {
+      theme: 'snow',
+      placeholder: 'insert text here ...',
+      modules: {
+        toolbar: toolbarOptions
+      }
+    },
+    visible: false,
+    access: false,
+    modify: false,
+    news_item: { news_items: [{ news_item_data: {} }] },
+    toolbar: false
+  }),
+  methods: {
+    open (news_item) {
+      this.access = news_item.news_items[0].access
+      this.modify = news_item.news_items[0].modify
+      if (news_item.news_items[0].access === true) {
+        getNewsItem(news_item.news_items[0].id).then((response) => {
+          this.visible = true
+          this.news_item = news_item
+          this.news_item.news_items[0] = response.data
+          this.title = news_item.title
+          this.description = news_item.description
+          this.editorData = this.news_item.comments
+        })
+      } else {
+        this.visible = true
+        this.news_item = news_item
+        this.title = news_item.title
+        this.description = news_item.description
+        this.editorData = this.news_item.comments
+      }
+
+      this.$root.$emit('first-dialog', 'push')
+    },
+    close () {
+      this.visible = false
+      if (this.canModify) {
+        saveNewsItemAggregate(this.getGroupId(), this.news_item.id, this.news_item.title, this.news_item.description, this.editorData).then(() => {
+          this.news_item.comments = this.editorData
+        })
+      }
+      this.$root.$emit('change-state', 'DEFAULT')
+      this.$root.$emit('first-dialog', '')
+    },
+    openUrlToNewTab: function (url) {
+      window.open(url, '_blank')
+    },
+    getGroupId () {
+      if (window.location.pathname.includes('/group/')) {
+        const i = window.location.pathname.indexOf('/group/')
+        const len = window.location.pathname.length
+        return window.location.pathname.substring(i + 7, len)
+      } else {
+        return null
+      }
+    },
+    cardItemToolbar (action) {
+      switch (action) {
+        case 'like':
+          voteNewsItem(this.getGroupId(), this.news_item.id, 1).then(() => {
+            if (this.news_item.me_like === false) {
+              this.news_item.me_like = true
+              this.news_item.me_dislike = false
+            }
+          })
+          break
+
+        case 'unlike':
+          voteNewsItem(this.getGroupId(), this.news_item.id, -1).then(() => {
+            if (this.news_item.me_dislike === false) {
+              this.news_item.me_like = false
+              this.news_item.me_dislike = true
+            }
+          })
+          break
+
+        case 'detail':
+          this.toolbar = false
+          this.itemClicked(this.card)
+          break
+
+        case 'new':
+          this.$root.$emit('new-report', [this.news_item])
+          break
+
+        case 'important':
+          importantNewsItem(this.getGroupId(), this.news_item.id).then(() => {
+            this.news_item.important = this.news_item.important === false
+          })
+          break
+
+        case 'read':
+          readNewsItem(this.getGroupId(), this.news_item.id).then(() => {
+            this.news_item.read = this.news_item.read === false
+          })
+          break
+
+        case 'delete':
+          deleteNewsItemAggregate(this.getGroupId(), this.news_item.id).then(() => {
+            this.visible = false
+          })
+          break
+
+        default:
+          this.toolbar = false
+          // this.itemClicked(this.card);
+          break
+      }
+    },
+
+    buttonStatus: function (active) {
+      if (active) {
+        return 'primary:lighten'
+      } else {
+        return 'accent'
+      }
+    }
+  }
 }
 </script>

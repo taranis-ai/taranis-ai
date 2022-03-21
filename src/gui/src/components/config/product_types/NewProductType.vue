@@ -257,204 +257,195 @@
 </template>
 
 <script>
-import {createNewProductType, updateProductType} from "@/api/config";
-import FormParameters from "../../common/FormParameters";
-import AuthMixin from "@/services/auth/auth_mixin";
-import Permissions from "@/services/auth/permissions";
+import { createNewProductType, updateProductType } from '@/api/config'
+import FormParameters from '../../common/FormParameters'
+import AuthMixin from '@/services/auth/auth_mixin'
+import Permissions from '@/services/auth/permissions'
 
 export default {
-    name: "NewProductType",
-    components: {
-        FormParameters
-    },
-    data: () => ({
-        visible: false,
-        edit: false,
-        help_dialog: false,
-        selected_type: null,
-        show_validation_error: false,
-        show_error: false,
-        selected_node: null,
-        selected_presenter: null,
-        nodes: [],
-        report_types: [],
-        values: [],
-        product: {
-            id: -1,
-            title: "",
-            description: "",
-            presenter_id: "",
-            parameter_values: []
-        }
-    }),
-    mixins: [AuthMixin],
-    computed: {
-        canCreate() {
-            return this.checkPermission(Permissions.CONFIG_PRODUCT_TYPE_CREATE)
-        },
-        canUpdate() {
-            return this.checkPermission(Permissions.CONFIG_PRODUCT_TYPE_UPDATE) || !this.edit
-        }
-    },
-
-    methods: {
-        closeHelpDialog() {
-            this.help_dialog = false;
-            this.selected_type = null;
-        },
-
-        attributeUsage(attribute_item) {
-            let variable = attribute_item.title.toLowerCase().replaceAll(" ", "_")
-            if (attribute_item.max_occurrence > 1) {
-                return "{% <span style=\"color: #be6d7c\">for</span> entry <span style=\"color: #be6d7c\">in</span> <span style=\"color: #6d9abe\">report_item.attrs." + variable + "</span> %}{{ entry | e }}{% <span style=\"color: #be6d7c\">endfor</span> %}"
-            } else {
-                return "{{ <span style=\"color: #6d9abe\">report_item.attrs." + variable + " | e</span> }}"
-            }
-        },
-
-        variableUsage(variable) {
-            return "{{ <span style=\"color: #6d9abe\">report_item." + variable + " | e</span> }}"
-        },
-
-        variableUsageNewsItems(variable) {
-            return "{{ <span style=\"color: #6d9abe\">news_item." + variable + " | e</span> }}"
-        },
-
-        addProduct() {
-            this.visible = true
-            this.edit = false
-            this.show_error = false;
-            this.selected_node = null
-            this.selected_presenter = null
-            this.product.id = -1
-            this.product.title = ""
-            this.product.description = ""
-            this.product.presenter_id = ""
-            this.values = []
-            this.product.parameter_values = []
-            this.$validator.reset();
-        },
-
-        cancel() {
-            this.$validator.reset();
-            this.visible = false
-        },
-
-        add() {
-            this.$validator.validateAll().then(() => {
-
-                if (!this.$validator.errors.any()) {
-
-                    this.show_validation_error = false;
-                    this.show_error = false;
-
-                    this.product.presenter_id = this.selected_presenter.id;
-
-                    for (let i = 0; i < this.selected_presenter.parameters.length; i++) {
-                        this.product.parameter_values[i] = {
-                            value: this.values[i],
-                            parameter: this.selected_presenter.parameters[i]
-                        }
-                    }
-
-                    if (this.edit) {
-                        updateProductType(this.product).then(() => {
-
-                            this.$validator.reset();
-                            this.visible = false;
-                            this.$root.$emit('notification',
-                                {
-                                    type: 'success',
-                                    loc: 'product_type.successful_edit'
-                                }
-                            )
-                        }).catch(() => {
-
-                            this.show_error = true;
-                        })
-                    } else {
-                        createNewProductType(this.product).then(() => {
-
-                            this.$validator.reset();
-                            this.visible = false;
-                            this.$root.$emit('notification',
-                                {
-                                    type: 'success',
-                                    loc: 'product_type.successful'
-                                }
-                            )
-                        }).catch(() => {
-
-                            this.show_error = true;
-                        })
-                    }
-
-                } else {
-
-                    this.show_validation_error = true;
-                }
-            })
-        }
-    },
-    mounted() {
-        this.$store.dispatch('getAllPresentersNodes', {search: ''})
-            .then(() => {
-                this.nodes = this.$store.getters.getPresentersNodes.items
-            });
-
-        this.$store.dispatch('getAllReportItemTypesConfig', {search: ''})
-            .then(() => {
-                this.report_types = this.$store.getters.getReportItemTypesConfig.items
-            });
-
-        this.$root.$on('show-edit', (data) => {
-
-            this.visible = true;
-            this.edit = true
-            this.show_error = false;
-
-            this.product.id = data.id
-            this.product.title = data.title
-            this.product.description = data.description
-            this.product.presenter_id = data.presenter_id
-
-            this.product.parameter_values = []
-            for (let i = 0; i < data.parameter_values.length; i++) {
-                this.product.parameter_values.push({
-                    value: data.parameter_values[i].value,
-                    parameter: data.parameter_values[i].parameter
-                })
-            }
-
-            let found = false
-            for (let i = 0; i < this.nodes.length; i++) {
-                for (let j = 0; j < this.nodes[i].presenters.length; j++) {
-                    if (this.nodes[i].presenters[j].id === this.product.presenter_id) {
-                        this.selected_node = this.nodes[i]
-                        this.selected_presenter = this.nodes[i].presenters[j]
-                        found = true
-                        break;
-                    }
-                }
-
-                if (found) {
-                    break
-                }
-            }
-
-            this.values = []
-            for (let i = 0; i < this.selected_presenter.parameters.length; i++) {
-                for (let j = 0; j < this.product.parameter_values.length; j++) {
-                    if (this.selected_presenter.parameters[i].id === this.product.parameter_values[j].parameter.id) {
-                        this.values.push(this.product.parameter_values[j].value)
-                        break
-                    }
-                }
-            }
-        });
-    },
-    beforeDestroy() {
-        this.$root.$off('show-edit')
+  name: 'NewProductType',
+  components: {
+    FormParameters
+  },
+  data: () => ({
+    visible: false,
+    edit: false,
+    help_dialog: false,
+    selected_type: null,
+    show_validation_error: false,
+    show_error: false,
+    selected_node: null,
+    selected_presenter: null,
+    nodes: [],
+    report_types: [],
+    values: [],
+    product: {
+      id: -1,
+      title: '',
+      description: '',
+      presenter_id: '',
+      parameter_values: []
     }
+  }),
+  mixins: [AuthMixin],
+  computed: {
+    canCreate () {
+      return this.checkPermission(Permissions.CONFIG_PRODUCT_TYPE_CREATE)
+    },
+    canUpdate () {
+      return this.checkPermission(Permissions.CONFIG_PRODUCT_TYPE_UPDATE) || !this.edit
+    }
+  },
+
+  methods: {
+    closeHelpDialog () {
+      this.help_dialog = false
+      this.selected_type = null
+    },
+
+    attributeUsage (attribute_item) {
+      const variable = attribute_item.title.toLowerCase().replaceAll(' ', '_')
+      if (attribute_item.max_occurrence > 1) {
+        return '{% <span style="color: #be6d7c">for</span> entry <span style="color: #be6d7c">in</span> <span style="color: #6d9abe">report_item.attrs.' + variable + '</span> %}{{ entry | e }}{% <span style="color: #be6d7c">endfor</span> %}'
+      } else {
+        return '{{ <span style="color: #6d9abe">report_item.attrs.' + variable + ' | e</span> }}'
+      }
+    },
+
+    variableUsage (variable) {
+      return '{{ <span style="color: #6d9abe">report_item.' + variable + ' | e</span> }}'
+    },
+
+    variableUsageNewsItems (variable) {
+      return '{{ <span style="color: #6d9abe">news_item.' + variable + ' | e</span> }}'
+    },
+
+    addProduct () {
+      this.visible = true
+      this.edit = false
+      this.show_error = false
+      this.selected_node = null
+      this.selected_presenter = null
+      this.product.id = -1
+      this.product.title = ''
+      this.product.description = ''
+      this.product.presenter_id = ''
+      this.values = []
+      this.product.parameter_values = []
+      this.$validator.reset()
+    },
+
+    cancel () {
+      this.$validator.reset()
+      this.visible = false
+    },
+
+    add () {
+      this.$validator.validateAll().then(() => {
+        if (!this.$validator.errors.any()) {
+          this.show_validation_error = false
+          this.show_error = false
+
+          this.product.presenter_id = this.selected_presenter.id
+
+          for (let i = 0; i < this.selected_presenter.parameters.length; i++) {
+            this.product.parameter_values[i] = {
+              value: this.values[i],
+              parameter: this.selected_presenter.parameters[i]
+            }
+          }
+
+          if (this.edit) {
+            updateProductType(this.product).then(() => {
+              this.$validator.reset()
+              this.visible = false
+              this.$root.$emit('notification',
+                {
+                  type: 'success',
+                  loc: 'product_type.successful_edit'
+                }
+              )
+            }).catch(() => {
+              this.show_error = true
+            })
+          } else {
+            createNewProductType(this.product).then(() => {
+              this.$validator.reset()
+              this.visible = false
+              this.$root.$emit('notification',
+                {
+                  type: 'success',
+                  loc: 'product_type.successful'
+                }
+              )
+            }).catch(() => {
+              this.show_error = true
+            })
+          }
+        } else {
+          this.show_validation_error = true
+        }
+      })
+    }
+  },
+  mounted () {
+    this.$store.dispatch('getAllPresentersNodes', { search: '' })
+      .then(() => {
+        this.nodes = this.$store.getters.getPresentersNodes.items
+      })
+
+    this.$store.dispatch('getAllReportItemTypesConfig', { search: '' })
+      .then(() => {
+        this.report_types = this.$store.getters.getReportItemTypesConfig.items
+      })
+
+    this.$root.$on('show-edit', (data) => {
+      this.visible = true
+      this.edit = true
+      this.show_error = false
+
+      this.product.id = data.id
+      this.product.title = data.title
+      this.product.description = data.description
+      this.product.presenter_id = data.presenter_id
+
+      this.product.parameter_values = []
+      for (let i = 0; i < data.parameter_values.length; i++) {
+        this.product.parameter_values.push({
+          value: data.parameter_values[i].value,
+          parameter: data.parameter_values[i].parameter
+        })
+      }
+
+      let found = false
+      for (let i = 0; i < this.nodes.length; i++) {
+        for (let j = 0; j < this.nodes[i].presenters.length; j++) {
+          if (this.nodes[i].presenters[j].id === this.product.presenter_id) {
+            this.selected_node = this.nodes[i]
+            this.selected_presenter = this.nodes[i].presenters[j]
+            found = true
+            break
+          }
+        }
+
+        if (found) {
+          break
+        }
+      }
+
+      this.values = []
+      for (let i = 0; i < this.selected_presenter.parameters.length; i++) {
+        for (let j = 0; j < this.product.parameter_values.length; j++) {
+          if (this.selected_presenter.parameters[i].id === this.product.parameter_values[j].parameter.id) {
+            this.values.push(this.product.parameter_values[j].value)
+            break
+          }
+        }
+      }
+    })
+  },
+  beforeDestroy () {
+    this.$root.$off('show-edit')
+  }
 }
 </script>

@@ -88,41 +88,41 @@
 </template>
 
 <script>
-    import AttributesMixin from "@/components/common/attribute/attributes_mixin";
-    import AttributeItemLayout from "../../layouts/AttributeItemLayout";
-    import AttributeValueLayout from "../../layouts/AttributeValueLayout";
+import AttributesMixin from '@/components/common/attribute/attributes_mixin'
+import AttributeItemLayout from '../../layouts/AttributeItemLayout'
+import AttributeValueLayout from '../../layouts/AttributeValueLayout'
 
-    import DatePicker from 'vue2-datepicker';
-    import 'vue2-datepicker/index.css';
+import DatePicker from 'vue2-datepicker'
+import 'vue2-datepicker/index.css'
 
-    export default {
-        name: "AttributeDateTime",
-        props: {
-            attribute_group: Object
-        },
-        components: {
-            AttributeItemLayout,
-            AttributeValueLayout,
-            DatePicker
-        },
-        data: () => ({
-            showTimePanel: false,
-            showTimeRangePanel: false
-        }),
-        mixins: [AttributesMixin],
-        methods: {
-            toggleTimePanel() {
-                this.showTimePanel = !this.showTimePanel;
-            },
-            toggleTimeRangePanel() {
-                this.showTimeRangePanel = !this.showTimeRangePanel;
-            },
-            handleOpenChange() {
-                this.showTimePanel = false;
-            },
-            handleRangeClose() {
-                this.showTimeRangePanel = false;
-            }
-        }
+export default {
+  name: 'AttributeDateTime',
+  props: {
+    attribute_group: Object
+  },
+  components: {
+    AttributeItemLayout,
+    AttributeValueLayout,
+    DatePicker
+  },
+  data: () => ({
+    showTimePanel: false,
+    showTimeRangePanel: false
+  }),
+  mixins: [AttributesMixin],
+  methods: {
+    toggleTimePanel () {
+      this.showTimePanel = !this.showTimePanel
+    },
+    toggleTimeRangePanel () {
+      this.showTimeRangePanel = !this.showTimeRangePanel
+    },
+    handleOpenChange () {
+      this.showTimePanel = false
+    },
+    handleRangeClose () {
+      this.showTimeRangePanel = false
     }
+  }
+}
 </script>

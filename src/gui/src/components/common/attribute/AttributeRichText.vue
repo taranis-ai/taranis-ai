@@ -6,7 +6,6 @@
     >
         <template v-slot:header>
 
-
         </template>
         <template v-slot:content>
             <v-row v-for="(value, index) in values" :key="value.index"
@@ -91,139 +90,137 @@
 </template>
 
 <script>
-    import AttributesMixin from "@/components/common/attribute/attributes_mixin";
-    import AttributeItemLayout from "../../layouts/AttributeItemLayout";
-    import AttributeValueLayout from "../../layouts/AttributeValueLayout";
+import AttributesMixin from '@/components/common/attribute/attributes_mixin'
+import AttributeItemLayout from '../../layouts/AttributeItemLayout'
+import AttributeValueLayout from '../../layouts/AttributeValueLayout'
 
-    import { VueEditor, Quill } from 'vue2-editor';
+import { VueEditor, Quill } from 'vue2-editor'
 
-    const toolbarOptions = [
-        ['bold', 'italic', 'underline', 'strike'],        // toggled buttons
-        ['blockquote', 'code-block'],
+const toolbarOptions = [
+  ['bold', 'italic', 'underline', 'strike'], // toggled buttons
+  ['blockquote', 'code-block'],
 
-        [{ 'header': 1 }, { 'header': 2 }],               // custom button values
-        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-        [{ 'script':'sub'}, { 'script': 'super' }],      // superscript/subscript
-        [{ 'indent': '-1'}, { 'indent': '+1' }],          // outdent/indent
-        [{ 'direction': 'rtl' }],                         // text direction
+  [{ header: 1 }, { header: 2 }], // custom button values
+  [{ list: 'ordered' }, { list: 'bullet' }],
+  [{ script: 'sub' }, { script: 'super' }], // superscript/subscript
+  [{ indent: '-1' }, { indent: '+1' }], // outdent/indent
+  [{ direction: 'rtl' }], // text direction
 
-        [{ 'size': ['small', false, 'large', 'huge'] }],  // custom dropdown
-        [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+  [{ size: ['small', false, 'large', 'huge'] }], // custom dropdown
+  [{ header: [1, 2, 3, 4, 5, 6, false] }],
 
-        [{ 'color': [] }, { 'background': [] }],          // dropdown with defaults from theme
-        [{ 'font': [] }],
-        [{ 'align': [] }],
+  [{ color: [] }, { background: [] }], // dropdown with defaults from theme
+  [{ font: [] }],
+  [{ align: [] }],
 
-        ['clean'],                                         // remove formatting button
-        ['link', 'image', 'video'],
-        ['publish']
-    ];
+  ['clean'], // remove formatting button
+  ['link', 'image', 'video'],
+  ['publish']
+]
 
-    let Inline = Quill.import('blots/inline');
+const Inline = Quill.import('blots/inline')
 
-    class Publish extends Inline {
+class Publish extends Inline {
+  static create () {
+    const node = super.create()
+    // node.setAttribute('class','spanblock');
+    return node
+  }
+}
 
-        static create(){
-            let node = super.create();
-            //node.setAttribute('class','spanblock');
-            return node;
-        }
+Publish.blotName = 'publish'
+Publish.tagName = 'publish'
+Quill.register(Publish)
+
+export default {
+  name: 'AttributeRichText',
+  props: {
+    attribute_group: Object
+  },
+  components: {
+    AttributeItemLayout,
+    AttributeValueLayout,
+    VueEditor
+  },
+  data: () => ({
+    multi: null,
+    content: null,
+    selection: null,
+    selectionRange: null,
+    editorOptionVue2: {
+      theme: 'snow',
+      placeholder: 'insert text here ...',
+      modules: {
+        toolbar: toolbarOptions
+      }
+    },
+    select: null,
+    templates: [
+      { name: 'Placeholder Text', template: 'Official website of the Department of Homeland Security All information products included in https://us-cert.gov/ics are provided "as is" for informational purposes only. The Department of Homeland Security (DHS) does not provide any warranties of any kind regarding any information contained within. DHS does not endorse any commercial product or service, referenced in this product or otherwise. ' },
+      { name: 'Placeholder Text 2', template: 'The impact and exploitability of the identified problem is dependent on the implementation and controls. Successful exploitation of this vulnerability in automation task programs or abuse of such powerful programming features may allow an attacker with network access and extensive knowledge of industrial robotics to exfiltrate data from, partially control the movements of, or disrupt the availability of arbitrary functions of the targeted device. ' },
+      { name: 'Placeholder Text 3', template: 'Template Data' }
+    ]
+  }),
+  mixins: [AttributesMixin],
+  computed: {
+    editor () {
+      return this.$refs.myTextEditor[0].quill
     }
+  },
+  mounted () {
+    this.content = this.values.value
+  },
+  methods: {
+    onSelectionChange (range) {
+      try {
+        this.selection = range
+        this.update()
+      } catch (err) {
+        // pass
+      }
+    },
+    insertTemplate () {
+      if (this.select) {
+        // let deltaTemplate = this.editor.clipboard.convert(this.select.template);
 
-    Publish.blotName = 'publish';
-    Publish.tagName = 'publish';
-    Quill.register(Publish);
+        // let deltaContent = this.editor.getContents();
+        // window.console.debug("DC", deltaContent);
+        // let preDelta = deltaContent.retain(this.editor.getSelection().index).insert(deltaTemplate)
 
-    export default {
-        name: "AttributeRichText",
-        props: {
-            attribute_group: Object,
-        },
-        components: {
-            AttributeItemLayout,
-            AttributeValueLayout,
-            VueEditor
-        },
-        data: () => ({
-                multi: null,
-                content: null,
-                selection: null,
-                selectionRange: null,
-                editorOptionVue2: {
-                    theme: 'snow',
-                    placeholder: "insert text here ...",
-                    modules: {
-                        toolbar: toolbarOptions
-                    }
-                },
-                select: null,
-                templates: [
-                    {name:'Placeholder Text', template: "Official website of the Department of Homeland Security All information products included in https://us-cert.gov/ics are provided \"as is\" for informational purposes only. The Department of Homeland Security (DHS) does not provide any warranties of any kind regarding any information contained within. DHS does not endorse any commercial product or service, referenced in this product or otherwise. "},
-                    {name:'Placeholder Text 2', template: "The impact and exploitability of the identified problem is dependent on the implementation and controls. Successful exploitation of this vulnerability in automation task programs or abuse of such powerful programming features may allow an attacker with network access and extensive knowledge of industrial robotics to exfiltrate data from, partially control the movements of, or disrupt the availability of arbitrary functions of the targeted device. "},
-                    {name:'Placeholder Text 3', template: "Template Data"}
-                ]
-        }),
-        mixins: [AttributesMixin],
-        computed: {
-            editor() {
-                return this.$refs.myTextEditor[0].quill;
-            }
-        },
-        mounted() {
-            this.content = this.values.value;
-        },
-        methods: {
-            onSelectionChange(range) {
+        // let delta = this.editor.clipboard.convert(preDelta)
+        // window.console.debug("DELTA", delta);
+        try {
+          this.editor.insertText(this.editor.selection.lastRange, this.select.template)
+          this.update()
+        } catch (err) {
+          // pass
+        }
 
-                try {
-                    this.selection = range;
-                    this.update();
-                } catch(err) {
-                    //pass
-                }
-            },
-            insertTemplate() {
-                if(this.select) {
-                    //let deltaTemplate = this.editor.clipboard.convert(this.select.template);
+        // let preContent = this.content;
 
-                    //let deltaContent = this.editor.getContents();
-                    //window.console.debug("DC", deltaContent);
-                    //let preDelta = deltaContent.retain(this.editor.getSelection().index).insert(deltaTemplate)
+        // this.editor.setContents(delta, 'silent');
 
-                    //let delta = this.editor.clipboard.convert(preDelta)
-                    //window.console.debug("DELTA", delta);
-                    try {
-                        this.editor.insertText(this.editor.selection.lastRange, this.select.template);
-                        this.update();
-                    } catch(err) {
-                        // pass
-                    }
+        // let upd = this.editor.updateContents(delta);
+        // window.console.debug(upd);
 
-                    //let preContent = this.content;
-
-                    //this.editor.setContents(delta, 'silent');
-
-                    //let upd = this.editor.updateContents(delta);
-                    //window.console.debug(upd);
-
-                    /*this.editor.updateContents(
+        /* this.editor.updateContents(
                         new Delta().retain(19).insert(deltaTemplate)
-                    );*/
+                    ); */
 
-                    /*this.editor.updateContents(
+        /* this.editor.updateContents(
                         delta.retain(this.editor.getSelection().index).insert(deltaTemplate)
-                    );*/
+                    ); */
 
-                    //window.console.debug(deltaContent.retain(this.editor.getSelection().index).insert(deltaTemplate));
-                }
-            },
-            update() {
-                //this.values.value = this.content;
-                setTimeout(()=>{
-                    this.values.value = this.content;
-                    this.onEdit(0);
-                },200);
-            }
-        }
+        // window.console.debug(deltaContent.retain(this.editor.getSelection().index).insert(deltaTemplate));
+      }
+    },
+    update () {
+      // this.values.value = this.content;
+      setTimeout(() => {
+        this.values.value = this.content
+        this.onEdit(0)
+      }, 200)
     }
+  }
+}
 </script>

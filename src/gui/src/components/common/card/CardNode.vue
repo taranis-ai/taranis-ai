@@ -45,44 +45,44 @@
 
 <script>
 
-    import AuthMixin from "@/services/auth/auth_mixin";
+import AuthMixin from '@/services/auth/auth_mixin'
 
-    export default {
-        name: "CardNode",
-        props: ['card', 'deletePermission'],
-        mixins: [AuthMixin],
-        data:() => ({
-            toolbar: false
-        }),
-        computed: {
-            cardStatus() {
-                if (this.card.status === undefined) {
-                    return "status-green"
-                } else {
-                    return "status-" + this.card.status
-                }
-            }
-        },
-        methods: {
-            itemClicked(data) {
-                this.$root.$emit('show-edit', data)
-            },
-            deleteClicked(data) {
-                this.$root.$emit('delete-item', data)
-            },
-            cardItemToolbar(action) {
-                switch (action) {
-                    case "delete":
-                        this.deleteClicked(this.card)
-                        break;
-
-                    default:
-                        this.toolbar = false;
-                        this.itemClicked(this.card);
-                        break;
-                }
-            },
-
-        }
+export default {
+  name: 'CardNode',
+  props: ['card', 'deletePermission'],
+  mixins: [AuthMixin],
+  data: () => ({
+    toolbar: false
+  }),
+  computed: {
+    cardStatus () {
+      if (this.card.status === undefined) {
+        return 'status-green'
+      } else {
+        return 'status-' + this.card.status
+      }
     }
+  },
+  methods: {
+    itemClicked (data) {
+      this.$root.$emit('show-edit', data)
+    },
+    deleteClicked (data) {
+      this.$root.$emit('delete-item', data)
+    },
+    cardItemToolbar (action) {
+      switch (action) {
+        case 'delete':
+          this.deleteClicked(this.card)
+          break
+
+        default:
+          this.toolbar = false
+          this.itemClicked(this.card)
+          break
+      }
+    }
+
+  }
+}
 </script>

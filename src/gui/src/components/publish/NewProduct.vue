@@ -111,273 +111,251 @@
 </template>
 
 <script>
-import AuthMixin from "../../services/auth/auth_mixin";
-import {createProduct, publishProduct, updateProduct} from "@/api/publish";
-import ReportItemSelector from "@/components/publish/ReportItemSelector";
-import Permissions from "@/services/auth/permissions";
+import AuthMixin from '../../services/auth/auth_mixin'
+import { createProduct, publishProduct, updateProduct } from '@/api/publish'
+import ReportItemSelector from '@/components/publish/ReportItemSelector'
+import Permissions from '@/services/auth/permissions'
 
 export default {
-    name: "NewProduct",
-    components: {ReportItemSelector},
-    props: {add_button: Boolean},
-    data: () => ({
-        visible: false,
-        show_validation_error: false,
-        edit: false,
-        show_error: false,
-        modify: false,
-        access: false,
-        product_types: [],
-        publisher_presets: [],
-        selected_type: null,
-        report_items: [],
-        preview_link: "",
-        product: {
-            id: -1,
-            title: "",
-            description: "",
-            product_type_id: null,
-            report_items: [],
-        }
-    }),
-    mixins: [AuthMixin],
-    computed: {
-        canCreate() {
-            return this.checkPermission(Permissions.PUBLISH_CREATE)
-        },
-
-        canModify() {
-            return this.edit === false || (this.checkPermission(Permissions.PUBLISH_UPDATE) && this.modify === true)
-        },
-
-        canPublish() {
-            return this.publisher_presets.length > 0 && (this.edit === false || (this.checkPermission(Permissions.PUBLISH_PRODUCT) && this.access === true))
-        }
+  name: 'NewProduct',
+  components: { ReportItemSelector },
+  props: { add_button: Boolean },
+  data: () => ({
+    visible: false,
+    show_validation_error: false,
+    edit: false,
+    show_error: false,
+    modify: false,
+    access: false,
+    product_types: [],
+    publisher_presets: [],
+    selected_type: null,
+    report_items: [],
+    preview_link: '',
+    product: {
+      id: -1,
+      title: '',
+      description: '',
+      product_type_id: null,
+      report_items: []
+    }
+  }),
+  mixins: [AuthMixin],
+  computed: {
+    canCreate () {
+      return this.checkPermission(Permissions.PUBLISH_CREATE)
     },
-    methods: {
-        addProduct() {
-            this.visible = true;
-            this.edit = false
-            this.show_error = false;
-            this.modify = false
-            this.access = false
-            this.selected_type = null;
-            this.report_items = []
-            this.product.id = -1
-            this.product.title = ""
-            this.product.description = ""
-            this.product.product_type_id = null
-            this.product.report_items = []
-            this.$validator.reset();
-        },
 
-        publishProduct() {
+    canModify () {
+      return this.edit === false || (this.checkPermission(Permissions.PUBLISH_UPDATE) && this.modify === true)
+    },
 
-            for (let i = 0; i < this.publisher_presets.length; i++) {
-                if (this.publisher_presets[i].selected) {
-                    this.$validator.validateAll().then(() => {
+    canPublish () {
+      return this.publisher_presets.length > 0 && (this.edit === false || (this.checkPermission(Permissions.PUBLISH_PRODUCT) && this.access === true))
+    }
+  },
+  methods: {
+    addProduct () {
+      this.visible = true
+      this.edit = false
+      this.show_error = false
+      this.modify = false
+      this.access = false
+      this.selected_type = null
+      this.report_items = []
+      this.product.id = -1
+      this.product.title = ''
+      this.product.description = ''
+      this.product.product_type_id = null
+      this.product.report_items = []
+      this.$validator.reset()
+    },
 
-                        if (!this.$validator.errors.any()) {
+    publishProduct () {
+      for (let i = 0; i < this.publisher_presets.length; i++) {
+        if (this.publisher_presets[i].selected) {
+          this.$validator.validateAll().then(() => {
+            if (!this.$validator.errors.any()) {
+              this.show_validation_error = false
+              this.show_error = false
 
-                            this.show_validation_error = false;
-                            this.show_error = false;
+              this.product.product_type_id = this.selected_type.id
 
-                            this.product.product_type_id = this.selected_type.id;
+              this.product.report_items = []
+              for (let i = 0; i < this.report_items.length; i++) {
+                this.product.report_items.push(
+                  {
+                    id: this.report_items[i].id
+                  }
+                )
+              }
 
-                            this.product.report_items = [];
-                            for (let i = 0; i < this.report_items.length; i++) {
-                                this.product.report_items.push(
-                                    {
-                                        id: this.report_items[i].id
-                                    }
-                                )
-                            }
-
-                            if (this.product.id !== -1) {
-                                updateProduct(this.product).then(() => {
-
-                                    this.$validator.reset();
-                                    publishProduct(this.product.id, this.publisher_presets[i].id)
-                                })
-                            } else {
-                                createProduct(this.product).then((response) => {
-
-                                    this.$validator.reset();
-                                    this.product.id = response.data
-                                    publishProduct(this.product.id, this.publisher_presets[i].id)
-                                })
-                            }
-
-                        } else {
-
-                            this.show_validation_error = true;
-                        }
-                    })
-                }
+              if (this.product.id !== -1) {
+                updateProduct(this.product).then(() => {
+                  this.$validator.reset()
+                  publishProduct(this.product.id, this.publisher_presets[i].id)
+                })
+              } else {
+                createProduct(this.product).then((response) => {
+                  this.$validator.reset()
+                  this.product.id = response.data
+                  publishProduct(this.product.id, this.publisher_presets[i].id)
+                })
+              }
+            } else {
+              this.show_validation_error = true
             }
-        },
-
-        productSelected() {
-
-        },
-
-        cancel() {
-            this.$validator.reset();
-            this.visible = false
-        },
-
-        previewProduct() {
-            this.$validator.validateAll().then(() => {
-
-                if (!this.$validator.errors.any()) {
-
-                    this.show_validation_error = false;
-                    this.show_error = false;
-
-                    this.product.product_type_id = this.selected_type.id;
-
-                    this.product.report_items = [];
-                    for (let i = 0; i < this.report_items.length; i++) {
-                        this.product.report_items.push(
-                            {
-                                id: this.report_items[i].id
-                            }
-                        )
-                    }
-
-                    if (this.product.id !== -1) {
-                        updateProduct(this.product).then(() => {
-
-                            this.$validator.reset();
-                            this.preview_link = ((typeof (process.env.VUE_APP_TARANIS_NG_CORE_API) == "undefined") ? "$VUE_APP_TARANIS_NG_CORE_API" : process.env.VUE_APP_TARANIS_NG_CORE_API) + "/publish/products/" + this.product.id + "/overview?jwt=" + this.$store.getters.getJWT
-                            this.$refs.previewBtn.$el.click()
-                        })
-                    } else {
-                        createProduct(this.product).then((response) => {
-
-                            this.product.id = response.data
-                            this.$validator.reset();
-                            this.preview_link = ((typeof (process.env.VUE_APP_TARANIS_NG_CORE_API) == "undefined") ? "$VUE_APP_TARANIS_NG_CORE_API" : process.env.VUE_APP_TARANIS_NG_CORE_API) + "/publish/products/" + response.data + "/overview?jwt=" + this.$store.getters.getJWT
-                            this.$refs.previewBtn.$el.click()
-                        })
-                    }
-
-                } else {
-
-                    this.show_validation_error = true;
-                }
-            })
-        },
-
-        add() {
-            this.$validator.validateAll().then(() => {
-
-                if (!this.$validator.errors.any()) {
-
-                    this.show_validation_error = false;
-                    this.show_error = false;
-
-                    this.product.product_type_id = this.selected_type.id;
-
-                    this.product.report_items = [];
-                    for (let i = 0; i < this.report_items.length; i++) {
-                        this.product.report_items.push(
-                            {
-                                id: this.report_items[i].id
-                            }
-                        )
-                    }
-
-                    if (this.product.id !== -1) {
-                        updateProduct(this.product).then(() => {
-
-                            this.$validator.reset();
-                            this.visible = false;
-
-                            this.$root.$emit('notification',
-                                {
-                                    type: 'success',
-                                    loc: 'product.successful_edit'
-                                }
-                            )
-                        }).catch(() => {
-
-                            this.show_error = true;
-                        })
-                    } else {
-                        createProduct(this.product).then(() => {
-
-                            this.$validator.reset();
-                            this.visible = false;
-
-                            this.$root.$emit('notification',
-                                {
-                                    type: 'success',
-                                    loc: 'product.successful'
-                                }
-                            )
-
-                        }).catch(() => {
-
-                            this.show_error = true;
-                        })
-                    }
-                } else {
-
-                    this.show_validation_error = true;
-                }
-            })
+          })
         }
+      }
     },
-    mounted() {
 
-        this.$root.$on('new-product', (data) => {
-            this.visible = true;
-            this.selected_type = null;
-            this.report_items = data
-        });
+    productSelected () {
 
-        this.$store.dispatch('getAllUserProductTypes', {search: ''})
-            .then(() => {
-                this.product_types = this.$store.getters.getProductTypes.items
-            });
+    },
 
-        this.$store.dispatch('getAllUserPublishersPresets', {search: ''})
-            .then(() => {
-                this.publisher_presets = this.$store.getters.getProductsPublisherPresets.items;
-                for (let i = 0; i < this.publisher_presets.length; i++) {
-                    this.publisher_presets.selected = false
+    cancel () {
+      this.$validator.reset()
+      this.visible = false
+    },
+
+    previewProduct () {
+      this.$validator.validateAll().then(() => {
+        if (!this.$validator.errors.any()) {
+          this.show_validation_error = false
+          this.show_error = false
+
+          this.product.product_type_id = this.selected_type.id
+
+          this.product.report_items = []
+          for (let i = 0; i < this.report_items.length; i++) {
+            this.product.report_items.push(
+              {
+                id: this.report_items[i].id
+              }
+            )
+          }
+
+          if (this.product.id !== -1) {
+            updateProduct(this.product).then(() => {
+              this.$validator.reset()
+              this.preview_link = ((typeof (process.env.VUE_APP_TARANIS_NG_CORE_API) === 'undefined') ? '$VUE_APP_TARANIS_NG_CORE_API' : process.env.VUE_APP_TARANIS_NG_CORE_API) + '/publish/products/' + this.product.id + '/overview?jwt=' + this.$store.getters.getJWT
+              this.$refs.previewBtn.$el.click()
+            })
+          } else {
+            createProduct(this.product).then((response) => {
+              this.product.id = response.data
+              this.$validator.reset()
+              this.preview_link = ((typeof (process.env.VUE_APP_TARANIS_NG_CORE_API) === 'undefined') ? '$VUE_APP_TARANIS_NG_CORE_API' : process.env.VUE_APP_TARANIS_NG_CORE_API) + '/publish/products/' + response.data + '/overview?jwt=' + this.$store.getters.getJWT
+              this.$refs.previewBtn.$el.click()
+            })
+          }
+        } else {
+          this.show_validation_error = true
+        }
+      })
+    },
+
+    add () {
+      this.$validator.validateAll().then(() => {
+        if (!this.$validator.errors.any()) {
+          this.show_validation_error = false
+          this.show_error = false
+
+          this.product.product_type_id = this.selected_type.id
+
+          this.product.report_items = []
+          for (let i = 0; i < this.report_items.length; i++) {
+            this.product.report_items.push(
+              {
+                id: this.report_items[i].id
+              }
+            )
+          }
+
+          if (this.product.id !== -1) {
+            updateProduct(this.product).then(() => {
+              this.$validator.reset()
+              this.visible = false
+
+              this.$root.$emit('notification',
+                {
+                  type: 'success',
+                  loc: 'product.successful_edit'
                 }
-            });
+              )
+            }).catch(() => {
+              this.show_error = true
+            })
+          } else {
+            createProduct(this.product).then(() => {
+              this.$validator.reset()
+              this.visible = false
 
-        this.$root.$on('show-product-edit', (data) => {
-            this.visible = true;
-            this.edit = true;
-            this.modify = data.modify
-            this.access = data.access
-            this.show_error = false;
-
-            this.selected_type = null;
-            this.report_items = data.report_items;
-
-            this.product.id = data.id;
-            this.product.title = data.title;
-            this.product.description = data.description;
-            this.product.product_type_id = data.product_type_id;
-
-            for (let i = 0; i < this.product_types.length; i++) {
-                if (this.product_types[i].id === this.product.product_type_id) {
-                    this.selected_type = this.product_types[i];
-                    break;
+              this.$root.$emit('notification',
+                {
+                  type: 'success',
+                  loc: 'product.successful'
                 }
-            }
+              )
+            }).catch(() => {
+              this.show_error = true
+            })
+          }
+        } else {
+          this.show_validation_error = true
+        }
+      })
+    }
+  },
+  mounted () {
+    this.$root.$on('new-product', (data) => {
+      this.visible = true
+      this.selected_type = null
+      this.report_items = data
+    })
 
-            this.preview_link = ((typeof (process.env.VUE_APP_TARANIS_NG_CORE_API) == "undefined") ? "$VUE_APP_TARANIS_NG_CORE_API" : process.env.VUE_APP_TARANIS_NG_CORE_API) + "/publish/products/" + data.id + "/overview?jwt=" + this.$store.getters.getJWT
-        });
-    },
-    beforeDestroy() {
-        this.$root.$off('new-product')
-        this.$root.$off('show-product-edit')
-    },
+    this.$store.dispatch('getAllUserProductTypes', { search: '' })
+      .then(() => {
+        this.product_types = this.$store.getters.getProductTypes.items
+      })
+
+    this.$store.dispatch('getAllUserPublishersPresets', { search: '' })
+      .then(() => {
+        this.publisher_presets = this.$store.getters.getProductsPublisherPresets.items
+        for (let i = 0; i < this.publisher_presets.length; i++) {
+          this.publisher_presets.selected = false
+        }
+      })
+
+    this.$root.$on('show-product-edit', (data) => {
+      this.visible = true
+      this.edit = true
+      this.modify = data.modify
+      this.access = data.access
+      this.show_error = false
+
+      this.selected_type = null
+      this.report_items = data.report_items
+
+      this.product.id = data.id
+      this.product.title = data.title
+      this.product.description = data.description
+      this.product.product_type_id = data.product_type_id
+
+      for (let i = 0; i < this.product_types.length; i++) {
+        if (this.product_types[i].id === this.product.product_type_id) {
+          this.selected_type = this.product_types[i]
+          break
+        }
+      }
+
+      this.preview_link = ((typeof (process.env.VUE_APP_TARANIS_NG_CORE_API) === 'undefined') ? '$VUE_APP_TARANIS_NG_CORE_API' : process.env.VUE_APP_TARANIS_NG_CORE_API) + '/publish/products/' + data.id + '/overview?jwt=' + this.$store.getters.getJWT
+    })
+  },
+  beforeDestroy () {
+    this.$root.$off('new-product')
+    this.$root.$off('show-product-edit')
+  }
 }
 </script>

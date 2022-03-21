@@ -192,181 +192,171 @@
 </template>
 
 <script>
-    import AuthMixin from "../../../services/auth/auth_mixin";
-    import {createNewRemoteAccess} from "@/api/config";
-    import {updateRemoteAccess} from "@/api/config";
-    import Permissions from "@/services/auth/permissions";
+import AuthMixin from '../../../services/auth/auth_mixin'
+import { createNewRemoteAccess, updateRemoteAccess } from '@/api/config'
 
-    export default {
-        name: "NewRemoteAccess",
-        components: {},
-        props: {add_button: Boolean},
-        data: () => ({
+import Permissions from '@/services/auth/permissions'
 
-            headers_sources: [
-                {
-                    text: 'Name',
-                    align: 'start',
-                    value: 'name',
-                },
-                {text: 'Description', value: 'description'},
-            ],
+export default {
+  name: 'NewRemoteAccess',
+  components: {},
+  props: { add_button: Boolean },
+  data: () => ({
 
-            headers_types: [
-                {
-                    text: 'Name',
-                    align: 'start',
-                    value: 'title',
-                },
-                {text: 'Description', value: 'description'},
-            ],
+    headers_sources: [
+      {
+        text: 'Name',
+        align: 'start',
+        value: 'name'
+      },
+      { text: 'Description', value: 'description' }
+    ],
 
-            visible: false,
-            show_validation_error: false,
-            edit: false,
-            show_error: false,
-            selected_osint_sources: [],
-            osint_sources: [],
-            report_item_types: [],
-            selected_report_item_types: [],
-            remote_access: {
-                id: -1,
-                name: "",
-                description: "",
-                access_key: "",
-                enabled: false,
-                osint_sources: [],
-                report_item_types: [],
-            }
-        }),
-        computed: {
-            canCreate() {
-                return this.checkPermission(Permissions.CONFIG_REMOTE_ACCESS_CREATE)
-            },
-            canUpdate() {
-                return this.checkPermission(Permissions.CONFIG_REMOTE_ACCESS_UPDATE) || !this.edit
-            },
-        },
-        methods: {
-            addRemoteAccess() {
-                this.visible = true;
-                this.edit = false;
-                this.show_error = false;
-                this.remote_access.id = -1
-                this.remote_access.name = ""
-                this.remote_access.description = ""
-                this.remote_access.access_key = ""
-                this.remote_access.enabled = false
-                this.remote_access.osint_sources = []
-                this.remote_access.report_item_types = []
-                this.selected_osint_sources = []
-                this.selected_report_item_types = []
-                this.$validator.reset();
-            },
+    headers_types: [
+      {
+        text: 'Name',
+        align: 'start',
+        value: 'title'
+      },
+      { text: 'Description', value: 'description' }
+    ],
 
-            cancel() {
-                this.$validator.reset();
-                this.visible = false
-            },
-
-            add() {
-                this.$validator.validateAll().then(() => {
-
-                    if (!this.$validator.errors.any()) {
-
-                        this.show_validation_error = false;
-                        this.show_error = false;
-
-                        this.remote_access.osint_sources = [];
-                        for (let i = 0; i < this.selected_osint_sources.length; i++) {
-                            this.remote_access.osint_sources.push(
-                                {
-                                    id: this.selected_osint_sources[i].id
-                                }
-                            )
-                        }
-
-                        this.remote_access.report_item_types = [];
-                        for (let i = 0; i < this.selected_report_item_types.length; i++) {
-                            this.remote_access.report_item_types.push(
-                                {
-                                    id: this.selected_report_item_types[i].id
-                                }
-                            )
-                        }
-
-                        if (this.edit) {
-                            updateRemoteAccess(this.remote_access).then(() => {
-
-                                this.$validator.reset();
-                                this.visible = false;
-
-                                this.$root.$emit('notification',
-                                    {
-                                        type: 'success',
-                                        loc: 'remote_access.successful_edit'
-                                    }
-                                )
-
-                            }).catch(() => {
-
-                                this.show_error = true;
-                            })
-                        } else {
-                            createNewRemoteAccess(this.remote_access).then(() => {
-
-                                this.$validator.reset();
-                                this.visible = false;
-
-                                this.$root.$emit('notification',
-                                    {
-                                        type: 'success',
-                                        loc: 'remote_access.successful'
-                                    }
-                                )
-
-                            }).catch(() => {
-
-                                this.show_error = true;
-                            })
-                        }
-
-                    } else {
-
-                        this.show_validation_error = true;
-                    }
-                })
-            }
-        },
-        mixins: [AuthMixin],
-        mounted() {
-            this.$store.dispatch('getAllOSINTSources', {search: ''})
-                .then(() => {
-                    this.osint_sources = this.$store.getters.getOSINTSources.items
-                });
-
-            this.$store.dispatch('getAllReportItemTypesConfig', {search: ''})
-                .then(() => {
-                    this.report_item_types = this.$store.getters.getReportItemTypesConfig.items
-                });
-
-            this.$root.$on('show-edit', (data) => {
-                this.visible = true;
-                this.edit = true;
-                this.show_error = false;
-
-                this.selected_osint_sources = data.osint_sources;
-                this.selected_report_item_types = data.report_item_types;
-
-                this.remote_access.id = data.id;
-                this.remote_access.name = data.name;
-                this.remote_access.description = data.description;
-                this.remote_access.access_key = data.access_key;
-                this.remote_access.enabled = data.enabled;
-            });
-        },
-        beforeDestroy() {
-            this.$root.$off('show-edit')
-        }
+    visible: false,
+    show_validation_error: false,
+    edit: false,
+    show_error: false,
+    selected_osint_sources: [],
+    osint_sources: [],
+    report_item_types: [],
+    selected_report_item_types: [],
+    remote_access: {
+      id: -1,
+      name: '',
+      description: '',
+      access_key: '',
+      enabled: false,
+      osint_sources: [],
+      report_item_types: []
     }
+  }),
+  computed: {
+    canCreate () {
+      return this.checkPermission(Permissions.CONFIG_REMOTE_ACCESS_CREATE)
+    },
+    canUpdate () {
+      return this.checkPermission(Permissions.CONFIG_REMOTE_ACCESS_UPDATE) || !this.edit
+    }
+  },
+  methods: {
+    addRemoteAccess () {
+      this.visible = true
+      this.edit = false
+      this.show_error = false
+      this.remote_access.id = -1
+      this.remote_access.name = ''
+      this.remote_access.description = ''
+      this.remote_access.access_key = ''
+      this.remote_access.enabled = false
+      this.remote_access.osint_sources = []
+      this.remote_access.report_item_types = []
+      this.selected_osint_sources = []
+      this.selected_report_item_types = []
+      this.$validator.reset()
+    },
+
+    cancel () {
+      this.$validator.reset()
+      this.visible = false
+    },
+
+    add () {
+      this.$validator.validateAll().then(() => {
+        if (!this.$validator.errors.any()) {
+          this.show_validation_error = false
+          this.show_error = false
+
+          this.remote_access.osint_sources = []
+          for (let i = 0; i < this.selected_osint_sources.length; i++) {
+            this.remote_access.osint_sources.push(
+              {
+                id: this.selected_osint_sources[i].id
+              }
+            )
+          }
+
+          this.remote_access.report_item_types = []
+          for (let i = 0; i < this.selected_report_item_types.length; i++) {
+            this.remote_access.report_item_types.push(
+              {
+                id: this.selected_report_item_types[i].id
+              }
+            )
+          }
+
+          if (this.edit) {
+            updateRemoteAccess(this.remote_access).then(() => {
+              this.$validator.reset()
+              this.visible = false
+
+              this.$root.$emit('notification',
+                {
+                  type: 'success',
+                  loc: 'remote_access.successful_edit'
+                }
+              )
+            }).catch(() => {
+              this.show_error = true
+            })
+          } else {
+            createNewRemoteAccess(this.remote_access).then(() => {
+              this.$validator.reset()
+              this.visible = false
+
+              this.$root.$emit('notification',
+                {
+                  type: 'success',
+                  loc: 'remote_access.successful'
+                }
+              )
+            }).catch(() => {
+              this.show_error = true
+            })
+          }
+        } else {
+          this.show_validation_error = true
+        }
+      })
+    }
+  },
+  mixins: [AuthMixin],
+  mounted () {
+    this.$store.dispatch('getAllOSINTSources', { search: '' })
+      .then(() => {
+        this.osint_sources = this.$store.getters.getOSINTSources.items
+      })
+
+    this.$store.dispatch('getAllReportItemTypesConfig', { search: '' })
+      .then(() => {
+        this.report_item_types = this.$store.getters.getReportItemTypesConfig.items
+      })
+
+    this.$root.$on('show-edit', (data) => {
+      this.visible = true
+      this.edit = true
+      this.show_error = false
+
+      this.selected_osint_sources = data.osint_sources
+      this.selected_report_item_types = data.report_item_types
+
+      this.remote_access.id = data.id
+      this.remote_access.name = data.name
+      this.remote_access.description = data.description
+      this.remote_access.access_key = data.access_key
+      this.remote_access.enabled = data.enabled
+    })
+  },
+  beforeDestroy () {
+    this.$root.$off('show-edit')
+  }
+}
 </script>

@@ -22,45 +22,43 @@
 </template>
 
 <script>
-    import ViewLayout from "../../components/layouts/ViewLayout";
-    import NewPublishersNode from "@/components/config/publishers_nodes/NewPublishersNode";
-    import ToolbarFilter from "../../components/common/ToolbarFilter"
-    import ContentData from "../../components/common/content/ContentData"
-    import {deletePublishersNode} from "@/api/config";
+import ViewLayout from '../../components/layouts/ViewLayout'
+import NewPublishersNode from '@/components/config/publishers_nodes/NewPublishersNode'
+import ToolbarFilter from '../../components/common/ToolbarFilter'
+import ContentData from '../../components/common/content/ContentData'
+import { deletePublishersNode } from '@/api/config'
 
-    export default {
-        name: "PublishersNodes",
-        components: {
-            ViewLayout,
-            ToolbarFilter,
-            ContentData,
-            NewPublishersNode
-        },
-        data: () => ({}),
-        mounted() {
-            this.$root.$on('delete-item', (item) => {
-                deletePublishersNode(item).then(() => {
-
-                    this.$root.$emit('notification',
-                        {
-                            type: 'success',
-                            loc: 'publisher_node.removed'
-                        }
-                    )
-                }).catch(() => {
-
-                    this.$root.$emit('notification',
-                        {
-                            type: 'error',
-                            loc: 'publisher_node.removed_error'
-                        }
-                    )
-                })
-            });
-        },
-        beforeDestroy() {
-            this.$root.$off('delete-item')
-        }
-    };
+export default {
+  name: 'PublishersNodes',
+  components: {
+    ViewLayout,
+    ToolbarFilter,
+    ContentData,
+    NewPublishersNode
+  },
+  data: () => ({}),
+  mounted () {
+    this.$root.$on('delete-item', (item) => {
+      deletePublishersNode(item).then(() => {
+        this.$root.$emit('notification',
+          {
+            type: 'success',
+            loc: 'publisher_node.removed'
+          }
+        )
+      }).catch(() => {
+        this.$root.$emit('notification',
+          {
+            type: 'error',
+            loc: 'publisher_node.removed_error'
+          }
+        )
+      })
+    })
+  },
+  beforeDestroy () {
+    this.$root.$off('delete-item')
+  }
+}
 
 </script>

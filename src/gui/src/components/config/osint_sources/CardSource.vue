@@ -51,70 +51,70 @@
 
 <script>
 
-    import AuthMixin from "@/services/auth/auth_mixin";
+import AuthMixin from '@/services/auth/auth_mixin'
 
-    export default {
-        name: "CardSource",
-        props: ['card', 'deletePermission'],
-        data:() => ({
-            toolbar: false,
-            selected: false
-        }),
-        mixins: [AuthMixin],
-        computed: {
-            cardStatus() {
-                if (this.card.status === undefined) {
-                    return "status-green"
-                } else {
-                    return "status-" + this.card.status
-                }
-            },
-            multiSelect() {
-                return this.$store.getters.getOSINTSourcesMultiSelect;
-            }
-        },
-        methods: {
-            selectionChanged() {
-                if(this.selected) {
-                    this.$store.dispatch('selectOSINTSource', this.card.id);
-                } else {
-                    this.$store.dispatch('deselectOSINTSource', this.card.id);
-                }
-            },
-
-            itemClicked(data) {
-                this.$root.$emit('show-edit', data)
-            },
-            deleteClicked(data) {
-                this.$root.$emit('delete-item', data)
-            },
-            cardItemToolbar(action) {
-                switch (action) {
-                    case "delete":
-                        this.deleteClicked(this.card)
-                        break;
-
-                    default:
-                        this.toolbar = false;
-                        this.itemClicked(this.card);
-                        break;
-                }
-            },
-
-        },
-        mounted() {
-            this.$root.$on('check-osint-source-card', () => {
-                this.selected = true;
-                this.$store.commit('addSelection', this.card.id);
-            });
-            this.$root.$on('uncheck-osint-source-card', () => {
-                this.selected = false;
-                this.$store.dispatch('deselect', this.card.id);
-            });
-        },
-        beforeDestroy() {
-            this.$root.$off('check-osint-source-card');
-            this.$root.$off('uncheck-osint-source-card');
-        }
+export default {
+  name: 'CardSource',
+  props: ['card', 'deletePermission'],
+  data: () => ({
+    toolbar: false,
+    selected: false
+  }),
+  mixins: [AuthMixin],
+  computed: {
+    cardStatus () {
+      if (this.card.status === undefined) {
+        return 'status-green'
+      } else {
+        return 'status-' + this.card.status
+      }
+    },
+    multiSelect () {
+      return this.$store.getters.getOSINTSourcesMultiSelect
     }
+  },
+  methods: {
+    selectionChanged () {
+      if (this.selected) {
+        this.$store.dispatch('selectOSINTSource', this.card.id)
+      } else {
+        this.$store.dispatch('deselectOSINTSource', this.card.id)
+      }
+    },
+
+    itemClicked (data) {
+      this.$root.$emit('show-edit', data)
+    },
+    deleteClicked (data) {
+      this.$root.$emit('delete-item', data)
+    },
+    cardItemToolbar (action) {
+      switch (action) {
+        case 'delete':
+          this.deleteClicked(this.card)
+          break
+
+        default:
+          this.toolbar = false
+          this.itemClicked(this.card)
+          break
+      }
+    }
+
+  },
+  mounted () {
+    this.$root.$on('check-osint-source-card', () => {
+      this.selected = true
+      this.$store.commit('addSelection', this.card.id)
+    })
+    this.$root.$on('uncheck-osint-source-card', () => {
+      this.selected = false
+      this.$store.dispatch('deselect', this.card.id)
+    })
+  },
+  beforeDestroy () {
+    this.$root.$off('check-osint-source-card')
+    this.$root.$off('uncheck-osint-source-card')
+  }
+}
 </script>

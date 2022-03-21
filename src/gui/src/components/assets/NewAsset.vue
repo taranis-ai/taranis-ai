@@ -93,148 +93,138 @@
 </template>
 
 <script>
-    import {createNewAsset} from "@/api/assets";
-    import {updateAsset} from "@/api/assets";
-    import CPETable from "@/components/assets/CPETable";
-    import CardVulnerability from "@/components/assets/CardVulnerability";
-    import AuthMixin from "@/services/auth/auth_mixin";
-    import Permissions from "@/services/auth/permissions";
+import { createNewAsset, updateAsset } from '@/api/assets'
 
-    export default {
-        name: "NewAsset",
-        mixins: [AuthMixin],
-        components: {
-            CPETable,
-            CardVulnerability
-        },
-        data: () => ({
-            visible: false,
-            edit: false,
-            show_validation_error: false,
-            show_error: false,
-            vulnerabilities: [],
-            asset: {
-                id: -1,
-                name: "",
-                serial: "",
-                description: "",
-                asset_cpes: [],
-                asset_group_id: ""
-            }
-        }),
-        methods: {
-            editAllowed() {
-                return this.checkPermission(Permissions.MY_ASSETS_CREATE)
-            },
-            cardLayout() {
-                return "CardVulnerability"
-            },
-            addAsset() {
-                this.visible = true;
-                this.edit = false
-                this.show_error = false;
-                this.asset.id = -1;
-                this.asset.name = "";
-                this.asset.serial = "";
-                this.asset.description = "";
-                this.asset.asset_cpes = [];
-                this.asset.asset_group_id = "";
-                this.$validator.reset();
-            },
+import CPETable from '@/components/assets/CPETable'
+import CardVulnerability from '@/components/assets/CardVulnerability'
+import AuthMixin from '@/services/auth/auth_mixin'
+import Permissions from '@/services/auth/permissions'
 
-            cancel() {
-                this.$validator.reset();
-                this.visible = false
-                this.$root.$emit('update-data')
-            },
-
-            add() {
-                this.$validator.validateAll().then(() => {
-
-                    if (!this.$validator.errors.any()) {
-
-                        this.show_validation_error = false;
-                        this.show_error = false;
-
-                        if (window.location.pathname.includes("/group/")) {
-
-                            let i = window.location.pathname.indexOf("/group/");
-                            let len = window.location.pathname.length;
-                            this.asset.asset_group_id = window.location.pathname.substring(i + 7, len);
-                        }
-
-                        for (let i = 0; i < this.asset.asset_cpes.length; i++) {
-                            this.asset.asset_cpes[i].value = this.asset.asset_cpes[i].value.replace("*", "%")
-                        }
-
-                        if (this.edit === true) {
-                            updateAsset(this.asset).then(() => {
-
-                                this.$validator.reset();
-                                this.visible = false;
-                                this.$root.$emit('notification',
-                                    {
-                                        type: 'success',
-                                        loc: 'asset.successful_edit'
-                                    }
-                                )
-                            }).catch(() => {
-
-                                this.show_error = true;
-                            })
-                        } else {
-                            createNewAsset(this.asset).then(() => {
-
-                                this.$validator.reset();
-                                this.visible = false;
-                                this.$root.$emit('notification',
-                                    {
-                                        type: 'success',
-                                        loc: 'asset.successful'
-                                    }
-                                )
-                            }).catch(() => {
-
-                                this.show_error = true;
-                            })
-                        }
-
-                    } else {
-
-                        this.show_validation_error = true;
-                    }
-                })
-            },
-
-            update(cpes) {
-                this.asset.asset_cpes = cpes;
-            }
-        },
-        mounted() {
-            this.$root.$on('show-edit', (data) => {
-
-                this.visible = true;
-                this.edit = true
-                this.show_error = false;
-
-                this.asset.id = data.id;
-                this.asset.name = data.name;
-                this.asset.serial = data.serial;
-                this.asset.description = data.description;
-                this.asset.asset_group_id = data.group_id
-
-                this.asset.asset_cpes = []
-                for (let i = 0; i < data.asset_cpes.length; i++) {
-                    this.asset.asset_cpes.push({
-                        value: data.asset_cpes[i].value.replace("%", "*"),
-                    })
-                }
-
-                this.vulnerabilities = data.vulnerabilities
-            });
-        },
-        beforeDestroy() {
-            this.$root.$off('show-edit')
-        }
+export default {
+  name: 'NewAsset',
+  mixins: [AuthMixin],
+  components: {
+    CPETable,
+    CardVulnerability
+  },
+  data: () => ({
+    visible: false,
+    edit: false,
+    show_validation_error: false,
+    show_error: false,
+    vulnerabilities: [],
+    asset: {
+      id: -1,
+      name: '',
+      serial: '',
+      description: '',
+      asset_cpes: [],
+      asset_group_id: ''
     }
+  }),
+  methods: {
+    editAllowed () {
+      return this.checkPermission(Permissions.MY_ASSETS_CREATE)
+    },
+    cardLayout () {
+      return 'CardVulnerability'
+    },
+    addAsset () {
+      this.visible = true
+      this.edit = false
+      this.show_error = false
+      this.asset.id = -1
+      this.asset.name = ''
+      this.asset.serial = ''
+      this.asset.description = ''
+      this.asset.asset_cpes = []
+      this.asset.asset_group_id = ''
+      this.$validator.reset()
+    },
+
+    cancel () {
+      this.$validator.reset()
+      this.visible = false
+      this.$root.$emit('update-data')
+    },
+
+    add () {
+      this.$validator.validateAll().then(() => {
+        if (!this.$validator.errors.any()) {
+          this.show_validation_error = false
+          this.show_error = false
+
+          if (window.location.pathname.includes('/group/')) {
+            const i = window.location.pathname.indexOf('/group/')
+            const len = window.location.pathname.length
+            this.asset.asset_group_id = window.location.pathname.substring(i + 7, len)
+          }
+
+          for (let i = 0; i < this.asset.asset_cpes.length; i++) {
+            this.asset.asset_cpes[i].value = this.asset.asset_cpes[i].value.replace('*', '%')
+          }
+
+          if (this.edit === true) {
+            updateAsset(this.asset).then(() => {
+              this.$validator.reset()
+              this.visible = false
+              this.$root.$emit('notification',
+                {
+                  type: 'success',
+                  loc: 'asset.successful_edit'
+                }
+              )
+            }).catch(() => {
+              this.show_error = true
+            })
+          } else {
+            createNewAsset(this.asset).then(() => {
+              this.$validator.reset()
+              this.visible = false
+              this.$root.$emit('notification',
+                {
+                  type: 'success',
+                  loc: 'asset.successful'
+                }
+              )
+            }).catch(() => {
+              this.show_error = true
+            })
+          }
+        } else {
+          this.show_validation_error = true
+        }
+      })
+    },
+
+    update (cpes) {
+      this.asset.asset_cpes = cpes
+    }
+  },
+  mounted () {
+    this.$root.$on('show-edit', (data) => {
+      this.visible = true
+      this.edit = true
+      this.show_error = false
+
+      this.asset.id = data.id
+      this.asset.name = data.name
+      this.asset.serial = data.serial
+      this.asset.description = data.description
+      this.asset.asset_group_id = data.group_id
+
+      this.asset.asset_cpes = []
+      for (let i = 0; i < data.asset_cpes.length; i++) {
+        this.asset.asset_cpes.push({
+          value: data.asset_cpes[i].value.replace('%', '*')
+        })
+      }
+
+      this.vulnerabilities = data.vulnerabilities
+    })
+  },
+  beforeDestroy () {
+    this.$root.$off('show-edit')
+  }
+}
 </script>

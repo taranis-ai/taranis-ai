@@ -24,47 +24,47 @@
 </template>
 
 <script>
-    import AuthMixin from "../../services/auth/auth_mixin";
+import AuthMixin from '../../services/auth/auth_mixin'
 
-    export default {
-        name: "ToolbarFilter",
-        props: {
-            title: String,
-            dialog: String,
-            total_count_title: String,
-            total_count_getter: String
-        },
-        computed: {
-            totalCount() {
-                return this.$store.getters[this.total_count_getter].total_count
-            }
-        },
-        data: () => ({
-            filter: {
-                search: "",
-            },
-            timeout: null
-        }),
-        mixins: [AuthMixin],
-        methods: {
-            filterSearch: function() {
-                clearTimeout(this.timeout);
-
-                let self = this;
-                this.timeout = setTimeout(function(){
-                    self.$root.$emit('update-items-filter', self.filter)
-                },800);
-            },
-            changeTheme() {
-                this.$vuetify.theme.themes.light.primary = "#f0f";
-                this.$vuetify.theme.themes.light.secondary = '#f00';
-                this.$vuetify.theme.themes.light.bg = '#0f0';
-                this.$vuetify.theme.themes.light.base = '#00f';
-            },
-            remove(item) {
-                this.chips.splice(this.chips.indexOf(item), 1);
-                this.chips = [...this.chips]
-            }
-        }
+export default {
+  name: 'ToolbarFilter',
+  props: {
+    title: String,
+    dialog: String,
+    total_count_title: String,
+    total_count_getter: String
+  },
+  computed: {
+    totalCount () {
+      return this.$store.getters[this.total_count_getter].total_count
     }
+  },
+  data: () => ({
+    filter: {
+      search: ''
+    },
+    timeout: null
+  }),
+  mixins: [AuthMixin],
+  methods: {
+    filterSearch: function () {
+      clearTimeout(this.timeout)
+
+      const self = this
+      this.timeout = setTimeout(function () {
+        self.$root.$emit('update-items-filter', self.filter)
+      }, 800)
+    },
+    changeTheme () {
+      this.$vuetify.theme.themes.light.primary = '#f0f'
+      this.$vuetify.theme.themes.light.secondary = '#f00'
+      this.$vuetify.theme.themes.light.bg = '#0f0'
+      this.$vuetify.theme.themes.light.base = '#00f'
+    },
+    remove (item) {
+      this.chips.splice(this.chips.indexOf(item), 1)
+      this.chips = [...this.chips]
+    }
+  }
+}
 </script>

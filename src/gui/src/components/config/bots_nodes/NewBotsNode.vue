@@ -70,113 +70,105 @@
 </template>
 
 <script>
-    import {createNewBotsNode} from "@/api/config";
-    import {updateBotsNode} from "@/api/config";
-    import AuthMixin from "@/services/auth/auth_mixin";
-    import Permissions from "@/services/auth/permissions";
+import { createNewBotsNode, updateBotsNode } from '@/api/config'
 
-    export default {
-        name: "NewBotsNode",
-        data: () => ({
-            visible: false,
-            edit: false,
-            show_validation_error: false,
-            show_error: false,
-            node: {
-                id: "",
-                name: "",
-                description: "",
-                api_url: "",
-                api_key: ""
-            }
-        }),
-        mixins: [AuthMixin],
-        computed: {
-            canCreate() {
-                return this.checkPermission(Permissions.CONFIG_BOTS_NODE_CREATE)
-            },
-            canUpdate() {
-                return this.checkPermission(Permissions.CONFIG_BOTS_NODE_UPDATE) || !this.edit
-            },
-        },
-        methods: {
-            addNode() {
-                this.visible = true
-                this.edit = false
-                this.show_error = false;
-                this.node.name = ""
-                this.node.description = ""
-                this.node.api_url = ""
-                this.node.api_key = ""
-                this.$validator.reset();
-            },
+import AuthMixin from '@/services/auth/auth_mixin'
+import Permissions from '@/services/auth/permissions'
 
-            cancel() {
-                this.$validator.reset();
-                this.visible = false
-            },
-
-            add() {
-                this.$validator.validateAll().then(() => {
-
-                    if (!this.$validator.errors.any()) {
-
-                        this.show_validation_error = false;
-                        this.show_error = false;
-
-                        if (this.edit) {
-                            updateBotsNode(this.node).then(() => {
-
-                                this.$validator.reset();
-                                this.visible = false;
-                                this.$root.$emit('notification',
-                                    {
-                                        type: 'success',
-                                        loc: 'bots_node.successful_edit'
-                                    }
-                                )
-                            }).catch(() => {
-
-                                this.show_error = true;
-                            })
-                        } else {
-                            createNewBotsNode(this.node).then(() => {
-
-                                this.$validator.reset();
-                                this.visible = false;
-                                this.$root.$emit('notification',
-                                    {
-                                        type: 'success',
-                                        loc: 'bots_node.successful'
-                                    }
-                                )
-                            }).catch(() => {
-
-                                this.show_error = true;
-                            })
-                        }
-
-                    } else {
-
-                        this.show_validation_error = true;
-                    }
-                })
-            }
-        },
-        mounted() {
-            this.$root.$on('show-edit', (data) => {
-                this.visible = true;
-                this.edit = true;
-                this.show_error = false;
-                this.node.id = data.id;
-                this.node.name = data.name;
-                this.node.description = data.description;
-                this.node.api_url = data.api_url;
-                this.node.api_key = data.api_key;
-            });
-        },
-        beforeDestroy() {
-            this.$root.$off('show-edit')
-        }
+export default {
+  name: 'NewBotsNode',
+  data: () => ({
+    visible: false,
+    edit: false,
+    show_validation_error: false,
+    show_error: false,
+    node: {
+      id: '',
+      name: '',
+      description: '',
+      api_url: '',
+      api_key: ''
     }
+  }),
+  mixins: [AuthMixin],
+  computed: {
+    canCreate () {
+      return this.checkPermission(Permissions.CONFIG_BOTS_NODE_CREATE)
+    },
+    canUpdate () {
+      return this.checkPermission(Permissions.CONFIG_BOTS_NODE_UPDATE) || !this.edit
+    }
+  },
+  methods: {
+    addNode () {
+      this.visible = true
+      this.edit = false
+      this.show_error = false
+      this.node.name = ''
+      this.node.description = ''
+      this.node.api_url = ''
+      this.node.api_key = ''
+      this.$validator.reset()
+    },
+
+    cancel () {
+      this.$validator.reset()
+      this.visible = false
+    },
+
+    add () {
+      this.$validator.validateAll().then(() => {
+        if (!this.$validator.errors.any()) {
+          this.show_validation_error = false
+          this.show_error = false
+
+          if (this.edit) {
+            updateBotsNode(this.node).then(() => {
+              this.$validator.reset()
+              this.visible = false
+              this.$root.$emit('notification',
+                {
+                  type: 'success',
+                  loc: 'bots_node.successful_edit'
+                }
+              )
+            }).catch(() => {
+              this.show_error = true
+            })
+          } else {
+            createNewBotsNode(this.node).then(() => {
+              this.$validator.reset()
+              this.visible = false
+              this.$root.$emit('notification',
+                {
+                  type: 'success',
+                  loc: 'bots_node.successful'
+                }
+              )
+            }).catch(() => {
+              this.show_error = true
+            })
+          }
+        } else {
+          this.show_validation_error = true
+        }
+      })
+    }
+  },
+  mounted () {
+    this.$root.$on('show-edit', (data) => {
+      this.visible = true
+      this.edit = true
+      this.show_error = false
+      this.node.id = data.id
+      this.node.name = data.name
+      this.node.description = data.description
+      this.node.api_url = data.api_url
+      this.node.api_key = data.api_key
+    })
+  },
+  beforeDestroy () {
+    this.$root.$off('show-edit')
+  }
+}
 </script>

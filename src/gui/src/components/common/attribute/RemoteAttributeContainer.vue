@@ -12,26 +12,26 @@
 </template>
 
 <script>
-import RemoteAttributeString from "@/components/common/attribute/RemoteAttributeString";
-import RemoteAttributeAttachment from "@/components/common/attribute/RemoteAttributeAttachment";
+import RemoteAttributeString from '@/components/common/attribute/RemoteAttributeString'
+import RemoteAttributeAttachment from '@/components/common/attribute/RemoteAttributeAttachment'
 
 export default {
-    name: "RemoteAttributeContainer",
-    components: {
-        RemoteAttributeString,
-        RemoteAttributeAttachment
-    },
-    props: {
-        attribute_item: Object,
-    },
-    methods: {
-        attributeType: function () {
-            if (this.attribute_item.attribute_group_item.attribute.type === 'ATTACHMENT') {
-                return "RemoteAttributeAttachment"
-            } else {
-                return "RemoteAttributeString"
-            }
-        }
+  name: 'RemoteAttributeContainer',
+  components: {
+    RemoteAttributeString,
+    RemoteAttributeAttachment
+  },
+  props: {
+    attribute_item: Object
+  },
+  methods: {
+    attributeType: function () {
+      if (this.attribute_item.attribute_group_item.attribute.type === 'ATTACHMENT') {
+        return 'RemoteAttributeAttachment'
+      } else {
+        return 'RemoteAttributeString'
+      }
     }
+  }
 }
 </script>

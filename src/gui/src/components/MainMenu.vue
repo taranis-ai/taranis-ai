@@ -40,91 +40,91 @@
 </template>
 
 <script>
-    import UserMenu from "../components/UserMenu";
-    import AuthMixin from "../services/auth/auth_mixin";
-    import Permissions from "@/services/auth/permissions";
+import UserMenu from '../components/UserMenu'
+import AuthMixin from '../services/auth/auth_mixin'
+import Permissions from '@/services/auth/permissions'
 
-    export default {
-        components: {UserMenu},
-        name: "MainMenu",
-        data: () => ({
-            buttons: [
-                {
-                    title: 'main_menu.dashboard',
-                    icon: 'mdi-chart-box',
-                    permission: 'ASSESS_ACCESS',
-                    route: '/dashboard',
-                    show: true
-                },
-                {
-                    title: 'main_menu.administration',
-                    icon: 'mdi-cog-outline',
-                    permission: 'CONFIG_ACCESS',
-                    route: '/config',
-                    show: true
-                },
-                {
-                    title: 'main_menu.enter',
-                    icon: 'mdi-location-enter',
-                    permission: 'ASSESS_CREATE',
-                    route: '/enter',
-                    show: false
-                },
-                {
-                    title: 'main_menu.assess',
-                    icon: 'mdi-google-circles-extended',
-                    permission: 'ASSESS_ACCESS',
-                    route: '/assess',
-                    show: true
-                },
-                {
-                    title: 'main_menu.analyze',
-                    icon: 'mdi-google-circles-communities',
-                    permission: 'ANALYZE_ACCESS',
-                    route: '/analyze/local',
-                    show: true
-                },
-                {
-                    title: 'main_menu.publish',
-                    icon: 'mdi-publish',
-                    permission: 'PUBLISH_ACCESS',
-                    route: '/publish',
-                    show: true
-                },
-                {
-                    title: 'main_menu.my_assets',
-                    icon: 'mdi-file-multiple-outline',
-                    permission: 'MY_ASSETS_ACCESS',
-                    route: '/myassets',
-                    show: true
-                },
-                {
-                    title: 'main_menu.config',
-                    icon: 'mdi-ballot-outline',
-                    permission: 'MY_ASSETS_CONFIG',
-                    route: '/config/external',
-                    show: true
-                }
-            ],
-            darkTheme: false
-        }),
-        mixins: [AuthMixin],
-        methods: {
-            navClicked() {
-                this.$root.$emit('nav-clicked')
-            },
+export default {
+  components: { UserMenu },
+  name: 'MainMenu',
+  data: () => ({
+    buttons: [
+      {
+        title: 'main_menu.dashboard',
+        icon: 'mdi-chart-box',
+        permission: 'ASSESS_ACCESS',
+        route: '/dashboard',
+        show: true
+      },
+      {
+        title: 'main_menu.administration',
+        icon: 'mdi-cog-outline',
+        permission: 'CONFIG_ACCESS',
+        route: '/config',
+        show: true
+      },
+      {
+        title: 'main_menu.enter',
+        icon: 'mdi-location-enter',
+        permission: 'ASSESS_CREATE',
+        route: '/enter',
+        show: false
+      },
+      {
+        title: 'main_menu.assess',
+        icon: 'mdi-google-circles-extended',
+        permission: 'ASSESS_ACCESS',
+        route: '/assess',
+        show: true
+      },
+      {
+        title: 'main_menu.analyze',
+        icon: 'mdi-google-circles-communities',
+        permission: 'ANALYZE_ACCESS',
+        route: '/analyze/local',
+        show: true
+      },
+      {
+        title: 'main_menu.publish',
+        icon: 'mdi-publish',
+        permission: 'PUBLISH_ACCESS',
+        route: '/publish',
+        show: true
+      },
+      {
+        title: 'main_menu.my_assets',
+        icon: 'mdi-file-multiple-outline',
+        permission: 'MY_ASSETS_ACCESS',
+        route: '/myassets',
+        show: true
+      },
+      {
+        title: 'main_menu.config',
+        icon: 'mdi-ballot-outline',
+        permission: 'MY_ASSETS_CONFIG',
+        route: '/config/external',
+        show: true
+      }
+    ],
+    darkTheme: false
+  }),
+  mixins: [AuthMixin],
+  methods: {
+    navClicked () {
+      this.$root.$emit('nav-clicked')
+    },
 
-            darkToggle() {
-                this.$vuetify.theme.dark = this.darkTheme
-            }
-        },
-        mounted() {
-            if (this.checkPermission(Permissions.ASSESS_CREATE)) {
-                this.$store.dispatch('getManualOSINTSources')
-                    .then(() => {
-                        this.buttons[2].show = this.$store.getters.getManualOSINTSources.length > 0
-                    });
-            }
-        }
+    darkToggle () {
+      this.$vuetify.theme.dark = this.darkTheme
     }
+  },
+  mounted () {
+    if (this.checkPermission(Permissions.ASSESS_CREATE)) {
+      this.$store.dispatch('getManualOSINTSources')
+        .then(() => {
+          this.buttons[2].show = this.$store.getters.getManualOSINTSources.length > 0
+        })
+    }
+  }
+}
 </script>

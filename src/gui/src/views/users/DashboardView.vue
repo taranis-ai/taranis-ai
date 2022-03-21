@@ -246,90 +246,89 @@
 
 <script>
 import wordcloud from 'vue-wordcloud'
-import ViewLayout from "../../components/layouts/ViewLayout";
-//import QuickChat from "../../components/common/QuickChat";
+import ViewLayout from '../../components/layouts/ViewLayout'
+// import QuickChat from "../../components/common/QuickChat";
 
 export default {
-    name: "DashboardView",
-    components: {
-        wordcloud,
-        ViewLayout,
-        //QuickChat
-    },
-    computed: {
-        getData() {
-            return this.$store.getters.getDashboardData
-        }
-    },
-    data: () => ({
-        myColors: ['#1f77b4', '#629fc9', '#94bedb', '#c9e0ef'],
-        myRotate: {"from": 0, "to": 0, "numOfOrientation": 0},
-        fontSize: [14, 40],
-        tag_cloud: [],
-        labels: [
-            '12am',
-            '3am',
-            '6am',
-            '9am',
-            '12pm',
-            '3pm',
-            '6pm',
-            '9pm',
-        ],
-        value: [
-            200,
-            675,
-            410,
-            390,
-            310,
-            460,
-            250,
-            240,
-        ],
-        topics: {
-          "Ukraine": {
-            tags: ["State", "Cyberwar", "Threat", "DDoS"],
-            last_activity: "15th March 2022",
-            summary: "Cyber conflicts are fought in the shadous. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam"
-          },
-          "Log4J": {
-            tags: ["Vulnerability", "Java", "CVE"],
-            last_activity: "10th Jannuary 2022",
-            summary: "Log4Shell (CVE-2021-44228) was a zer-day velnerability in Log4j. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam"
-          },
-          "Siemens SIMATIC": {
-            tags: ["OT/CPS", "Siemens", "Information Disclosure"],
-            last_activity: "1st December 2021",
-            summary: "The affected component stores the credentials of a local system account. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam"
-          }
-        }
-    }),
-    methods: {
-        wordClickHandler(name, value, vm) {
-            window.console.log('wordClickHandler', name, value, vm);
-        },
-
-        refreshTagCloud() {
-            this.$store.dispatch('getAllDashboardData')
-                .then(() => {
-                    this.tag_cloud = this.$store.getters.getDashboardData.tag_cloud
-                });
-        },
-        stringToColor(string) {
-          var hash = 0;
-          for (var i = 0; i < string.length; i++) {
-            hash += string.charCodeAt(i);
-          }
-          var color = '#'+Math.floor((parseFloat("0."+hash))*16777215).toString(16);
-          return color;
-        },
-    },
-    mounted() {
-        this.refreshTagCloud()
-
-        setInterval(function () {
-            this.refreshTagCloud()
-        }.bind(this), 600000);
+  name: 'DashboardView',
+  components: {
+    wordcloud,
+    ViewLayout
+    // QuickChat
+  },
+  computed: {
+    getData () {
+      return this.$store.getters.getDashboardData
     }
+  },
+  data: () => ({
+    myColors: ['#1f77b4', '#629fc9', '#94bedb', '#c9e0ef'],
+    myRotate: { from: 0, to: 0, numOfOrientation: 0 },
+    fontSize: [14, 40],
+    tag_cloud: [],
+    labels: [
+      '12am',
+      '3am',
+      '6am',
+      '9am',
+      '12pm',
+      '3pm',
+      '6pm',
+      '9pm'
+    ],
+    value: [
+      200,
+      675,
+      410,
+      390,
+      310,
+      460,
+      250,
+      240
+    ],
+    topics: {
+      Ukraine: {
+        tags: ['State', 'Cyberwar', 'Threat', 'DDoS'],
+        last_activity: '15th March 2022',
+        summary: 'Cyber conflicts are fought in the shadous. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam'
+      },
+      Log4J: {
+        tags: ['Vulnerability', 'Java', 'CVE'],
+        last_activity: '10th Jannuary 2022',
+        summary: 'Log4Shell (CVE-2021-44228) was a zer-day velnerability in Log4j. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam'
+      },
+      'Siemens SIMATIC': {
+        tags: ['OT/CPS', 'Siemens', 'Information Disclosure'],
+        last_activity: '1st December 2021',
+        summary: 'The affected component stores the credentials of a local system account. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam'
+      }
+    }
+  }),
+  methods: {
+    wordClickHandler (name, value, vm) {
+      window.console.log('wordClickHandler', name, value, vm)
+    },
+
+    refreshTagCloud () {
+      this.$store.dispatch('getAllDashboardData')
+        .then(() => {
+          this.tag_cloud = this.$store.getters.getDashboardData.tag_cloud
+        })
+    },
+    stringToColor (string) {
+      let hash = 0
+      for (let i = 0; i < string.length; i++) {
+        hash += string.charCodeAt(i)
+      }
+      return `#${Math.floor((parseFloat('0.' + hash)) * 16777215).toString(16)}`
+    }
+  },
+  mounted () {
+    this.refreshTagCloud()
+
+    setInterval(function () {
+      this.refreshTagCloud()
+    }.bind(this), 600000)
+  }
 }
 </script>

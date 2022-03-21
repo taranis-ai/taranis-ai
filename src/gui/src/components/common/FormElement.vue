@@ -31,25 +31,25 @@
 
 <script>
 
-    export default {
-        name: "FormElement",
+export default {
+  name: 'FormElement',
 
-        props: {
-            ui: null,
-            label: null,
-            items: Array,
-            error_message: null,
-            bind: null
-        },
+  props: {
+    ui: null,
+    label: null,
+    items: Array,
+    error_message: null,
+    bind: null
+  },
 
-        data: () => ({
-            dense: false,
-            outlined: false,
-            filled: false
-        }),
+  data: () => ({
+    dense: false,
+    outlined: false,
+    filled: false
+  }),
 
-        methods: {},
+  methods: {},
 
-        mounted() {}
-    }
+  mounted () {}
+}
 </script>

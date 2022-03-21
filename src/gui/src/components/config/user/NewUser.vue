@@ -142,210 +142,196 @@
 </template>
 
 <script>
-import AuthMixin from "../../../services/auth/auth_mixin";
-import {createNewUser, updateUser} from "@/api/config";
-import Permissions from "@/services/auth/permissions";
+import AuthMixin from '../../../services/auth/auth_mixin'
+import { createNewUser, updateUser } from '@/api/config'
+import Permissions from '@/services/auth/permissions'
 
 export default {
-    name: "NewUser",
-    components: {},
-    props: {add_button: Boolean},
-    data: () => ({
+  name: 'NewUser',
+  components: {},
+  props: { add_button: Boolean },
+  data: () => ({
 
-        headers: [
-            {
-                text: 'Name',
-                align: 'start',
-                value: 'name',
-            },
-            {text: 'Description', value: 'description'},
-        ],
+    headers: [
+      {
+        text: 'Name',
+        align: 'start',
+        value: 'name'
+      },
+      { text: 'Description', value: 'description' }
+    ],
 
-        visible: false,
-        show_validation_error: false,
-        edit: false,
-        show_error: false,
-        selected_roles: [],
-        selected_permissions: [],
-        selected_organizations: [],
-        roles: [],
-        permissions: [],
-        organizations: [],
-        pwd: "",
-        repwd: "",
-        pwdvld: true,
-        user: {
-            id: -1,
-            username: "",
-            name: "",
-            roles: [],
-            permissions: [],
-            organizations: [],
-        }
-    }),
-    computed: {
-        checkPassEdit() {
-            if (this.edit) {
-                return this.pwd !== "" || this.repwd !== "";
-
-            } else {
-                return true;
-            }
-        },
-        canCreate() {
-            return this.checkPermission(Permissions.CONFIG_USER_CREATE)
-        },
-        canUpdate() {
-            return this.checkPermission(Permissions.CONFIG_USER_UPDATE) || !this.edit
-        },
-    },
-    methods: {
-        addUser() {
-            this.visible = true;
-            this.edit = false
-            this.show_error = false;
-            this.user.username = "";
-            this.user.name = ""
-            this.user.roles = []
-            this.user.organizations = []
-            this.selected_roles = []
-            this.selected_permissions = []
-            this.selected_organizations = []
-            this.pwd = ""
-            this.repwd = ""
-            this.$validator.reset();
-        },
-
-        cancel() {
-            this.$validator.reset();
-            this.visible = false;
-            this.pwd = "";
-            this.repwd = "";
-        },
-
-        add() {
-            this.$validator.validateAll().then(() => {
-
-                if (!this.$validator.errors.any()) {
-
-                    this.show_validation_error = false;
-                    this.show_error = false;
-
-                    this.user.organizations = [];
-                    for (let i = 0; i < this.selected_organizations.length; i++) {
-                        this.user.organizations.push(
-                            {
-                                id: this.selected_organizations[i].id
-                            }
-                        )
-                    }
-
-                    this.user.roles = [];
-                    for (let i = 0; i < this.selected_roles.length; i++) {
-                        this.user.roles.push(
-                            {
-                                id: this.selected_roles[i].id
-                            }
-                        )
-                    }
-
-                    this.user.permissions = [];
-                    for (let i = 0; i < this.selected_permissions.length; i++) {
-                        this.user.permissions.push(
-                            {
-                                id: this.selected_permissions[i].id
-                            }
-                        )
-                    }
-
-                    if (this.edit === false || this.pwd !== "") {
-                        this.user.password = this.pwd
-                    }
-                    this.pwd = "";
-                    this.repwd = "";
-
-                    if (this.edit) {
-
-                        updateUser(this.user).then(() => {
-
-                            this.$validator.reset();
-                            this.visible = false;
-
-                            this.$root.$emit('notification',
-                                {
-                                    type: 'success',
-                                    loc: 'user.successful_edit'
-                                }
-                            )
-
-                        }).catch(() => {
-
-                            this.show_error = true;
-                        })
-
-                    } else {
-
-                        createNewUser(this.user).then(() => {
-
-                            this.$validator.reset();
-                            this.visible = false;
-
-                            this.$root.$emit('notification',
-                                {
-                                    type: 'success',
-                                    loc: 'user.successful'
-                                }
-                            )
-
-                        }).catch(() => {
-
-                            this.show_error = true;
-                        })
-                    }
-
-                } else {
-
-                    this.show_validation_error = true;
-                }
-            })
-        }
-    },
-    mixins: [AuthMixin],
-    mounted() {
-        this.$store.dispatch('getAllOrganizations', {search: ''})
-            .then(() => {
-                this.organizations = this.$store.getters.getOrganizations.items
-            });
-
-        this.$store.dispatch('getAllRoles', {search: ''})
-            .then(() => {
-                this.roles = this.$store.getters.getRoles.items
-            });
-
-        this.$store.dispatch('getAllPermissions', {search: ''})
-            .then(() => {
-                this.permissions = this.$store.getters.getAllPermissions.items
-            });
-
-        this.$root.$on('show-edit', (data) => {
-            this.visible = true;
-            this.edit = true;
-            this.show_error = false;
-
-            this.pwd = "";
-            this.repwd = "";
-
-            this.selected_roles = data.roles;
-            this.selected_permissions = data.permissions;
-            this.selected_organizations = data.organizations;
-
-            this.user.id = data.id;
-            this.user.username = data.username;
-            this.user.name = data.name;
-        });
-    },
-    beforeDestroy() {
-        this.$root.$off('show-edit')
+    visible: false,
+    show_validation_error: false,
+    edit: false,
+    show_error: false,
+    selected_roles: [],
+    selected_permissions: [],
+    selected_organizations: [],
+    roles: [],
+    permissions: [],
+    organizations: [],
+    pwd: '',
+    repwd: '',
+    pwdvld: true,
+    user: {
+      id: -1,
+      username: '',
+      name: '',
+      roles: [],
+      permissions: [],
+      organizations: []
     }
+  }),
+  computed: {
+    checkPassEdit () {
+      if (this.edit) {
+        return this.pwd !== '' || this.repwd !== ''
+      } else {
+        return true
+      }
+    },
+    canCreate () {
+      return this.checkPermission(Permissions.CONFIG_USER_CREATE)
+    },
+    canUpdate () {
+      return this.checkPermission(Permissions.CONFIG_USER_UPDATE) || !this.edit
+    }
+  },
+  methods: {
+    addUser () {
+      this.visible = true
+      this.edit = false
+      this.show_error = false
+      this.user.username = ''
+      this.user.name = ''
+      this.user.roles = []
+      this.user.organizations = []
+      this.selected_roles = []
+      this.selected_permissions = []
+      this.selected_organizations = []
+      this.pwd = ''
+      this.repwd = ''
+      this.$validator.reset()
+    },
+
+    cancel () {
+      this.$validator.reset()
+      this.visible = false
+      this.pwd = ''
+      this.repwd = ''
+    },
+
+    add () {
+      this.$validator.validateAll().then(() => {
+        if (!this.$validator.errors.any()) {
+          this.show_validation_error = false
+          this.show_error = false
+
+          this.user.organizations = []
+          for (let i = 0; i < this.selected_organizations.length; i++) {
+            this.user.organizations.push(
+              {
+                id: this.selected_organizations[i].id
+              }
+            )
+          }
+
+          this.user.roles = []
+          for (let i = 0; i < this.selected_roles.length; i++) {
+            this.user.roles.push(
+              {
+                id: this.selected_roles[i].id
+              }
+            )
+          }
+
+          this.user.permissions = []
+          for (let i = 0; i < this.selected_permissions.length; i++) {
+            this.user.permissions.push(
+              {
+                id: this.selected_permissions[i].id
+              }
+            )
+          }
+
+          if (this.edit === false || this.pwd !== '') {
+            this.user.password = this.pwd
+          }
+          this.pwd = ''
+          this.repwd = ''
+
+          if (this.edit) {
+            updateUser(this.user).then(() => {
+              this.$validator.reset()
+              this.visible = false
+
+              this.$root.$emit('notification',
+                {
+                  type: 'success',
+                  loc: 'user.successful_edit'
+                }
+              )
+            }).catch(() => {
+              this.show_error = true
+            })
+          } else {
+            createNewUser(this.user).then(() => {
+              this.$validator.reset()
+              this.visible = false
+
+              this.$root.$emit('notification',
+                {
+                  type: 'success',
+                  loc: 'user.successful'
+                }
+              )
+            }).catch(() => {
+              this.show_error = true
+            })
+          }
+        } else {
+          this.show_validation_error = true
+        }
+      })
+    }
+  },
+  mixins: [AuthMixin],
+  mounted () {
+    this.$store.dispatch('getAllOrganizations', { search: '' })
+      .then(() => {
+        this.organizations = this.$store.getters.getOrganizations.items
+      })
+
+    this.$store.dispatch('getAllRoles', { search: '' })
+      .then(() => {
+        this.roles = this.$store.getters.getRoles.items
+      })
+
+    this.$store.dispatch('getAllPermissions', { search: '' })
+      .then(() => {
+        this.permissions = this.$store.getters.getAllPermissions.items
+      })
+
+    this.$root.$on('show-edit', (data) => {
+      this.visible = true
+      this.edit = true
+      this.show_error = false
+
+      this.pwd = ''
+      this.repwd = ''
+
+      this.selected_roles = data.roles
+      this.selected_permissions = data.permissions
+      this.selected_organizations = data.organizations
+
+      this.user.id = data.id
+      this.user.username = data.username
+      this.user.name = data.name
+    })
+  },
+  beforeDestroy () {
+    this.$root.$off('show-edit')
+  }
 }
 </script>

@@ -77,190 +77,188 @@
 </template>
 
 <script>
-    import {deleteNewsItemAggregate, groupAction, voteNewsItem} from "@/api/assess";
-    import {readNewsItem} from "@/api/assess";
-    import {importantNewsItem} from "@/api/assess";
-    import {saveNewsItemAggregate} from "@/api/assess";
-    import AuthMixin from "@/services/auth/auth_mixin";
-    import Permissions from "@/services/auth/permissions";
+import { deleteNewsItemAggregate, groupAction, voteNewsItem, readNewsItem, importantNewsItem, saveNewsItemAggregate } from '@/api/assess'
 
-    import { VueEditor } from 'vue2-editor';
+import AuthMixin from '@/services/auth/auth_mixin'
+import Permissions from '@/services/auth/permissions'
 
-    const toolbarOptions = [
-        ['bold', 'italic', 'underline', 'strike'],        // toggled buttons
-        ['blockquote', 'code-block'],
+import { VueEditor } from 'vue2-editor'
 
-        [{ 'header': 1 }, { 'header': 2 }],               // custom button values
-        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-        [{ 'script':'sub'}, { 'script': 'super' }],      // superscript/subscript
-        [{ 'indent': '-1'}, { 'indent': '+1' }],          // outdent/indent
-        [{ 'direction': 'rtl' }],                         // text direction
+const toolbarOptions = [
+  ['bold', 'italic', 'underline', 'strike'], // toggled buttons
+  ['blockquote', 'code-block'],
 
-        [{ 'size': ['small', false, 'large', 'huge'] }],  // custom dropdown
-        [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+  [{ header: 1 }, { header: 2 }], // custom button values
+  [{ list: 'ordered' }, { list: 'bullet' }],
+  [{ script: 'sub' }, { script: 'super' }], // superscript/subscript
+  [{ indent: '-1' }, { indent: '+1' }], // outdent/indent
+  [{ direction: 'rtl' }], // text direction
 
-        [{ 'color': [] }, { 'background': [] }],          // dropdown with defaults from theme
-        [{ 'font': [] }],
-        [{ 'align': [] }],
+  [{ size: ['small', false, 'large', 'huge'] }], // custom dropdown
+  [{ header: [1, 2, 3, 4, 5, 6, false] }],
 
-        ['clean'],                                         // remove formatting button
-        ['link', 'image', 'video']
-    ];
+  [{ color: [] }, { background: [] }], // dropdown with defaults from theme
+  [{ font: [] }],
+  [{ align: [] }],
 
-    export default {
-        name: "NewsItemAggregateDetail",
-        props: {
-            analyze_selector: Boolean,
-        },
-        components: {VueEditor},
-        mixins: [AuthMixin],
-        computed: {
-            canAccess() {
-                return this.checkPermission(Permissions.ASSESS_ACCESS)
-            },
+  ['clean'], // remove formatting button
+  ['link', 'image', 'video']
+]
 
-            canModify() {
-                return this.checkPermission(Permissions.ASSESS_UPDATE)
-            },
+export default {
+  name: 'NewsItemAggregateDetail',
+  props: {
+    analyze_selector: Boolean
+  },
+  components: { VueEditor },
+  mixins: [AuthMixin],
+  computed: {
+    canAccess () {
+      return this.checkPermission(Permissions.ASSESS_ACCESS)
+    },
 
-            canDelete() {
-                return this.checkPermission(Permissions.ASSESS_DELETE)
-            },
+    canModify () {
+      return this.checkPermission(Permissions.ASSESS_UPDATE)
+    },
 
-            canCreateReport() {
-                return this.checkPermission(Permissions.ANALYZE_CREATE)
-            },
+    canDelete () {
+      return this.checkPermission(Permissions.ASSESS_DELETE)
+    },
 
-            multiSelectActive() {
-                return this.$store.getters.getMultiSelect
-            },
-        },
-        data: () => ({
-            content: null,
-            editorOptionVue2: {
-                theme: 'snow',
-                placeholder: "insert text here ...",
-                modules: {
-                    toolbar: toolbarOptions
-                }
-            },
-            visible: false,
-            news_item: Object,
-            title: "",
-            description: "",
-            toolbar: false
-        }),
-        methods: {
-            open(news_item) {
-                this.visible = true
-                this.news_item = news_item;
-                this.title = news_item.title;
-                this.description = news_item.description;
-                this.editorData = this.news_item.comments
+    canCreateReport () {
+      return this.checkPermission(Permissions.ANALYZE_CREATE)
+    },
 
-                this.$root.$emit('first-dialog', 'push');
-            },
-            close() {
-                this.visible = false;
-                if (this.canModify) {
-                    saveNewsItemAggregate(this.getGroupId(), this.news_item.id, this.title, this.description, this.editorData).then(() => {
-                        this.news_item.comments = this.editorData
-                        this.news_item.title = this.title
-                        this.news_item.description = this.description
-                    });
-                }
-                this.$root.$emit('change-state', 'DEFAULT');
-
-                this.$root.$emit('first-dialog','');
-            },
-
-            fillDetail: function () {
-
-            },
-            openUrlToNewTab: function (url) {
-                window.open(url, "_blank");
-            },
-            getGroupId() {
-                if (window.location.pathname.includes("/group/")) {
-                    let i = window.location.pathname.indexOf("/group/");
-                    let len = window.location.pathname.length;
-                    return window.location.pathname.substring(i + 7, len);
-                } else {
-                    return null;
-                }
-            },
-            cardItemToolbar(action) {
-                switch (action) {
-                    case "like":
-                        voteNewsItem(this.getGroupId(), this.news_item.id, 1).then(() => {
-                            if (this.news_item.me_like === false) {
-                                this.news_item.me_like = true;
-                                this.news_item.me_dislike = false;
-                            }
-                        });
-                        break;
-
-                    case "unlike":
-                        voteNewsItem(this.getGroupId(), this.news_item.id, -1).then(() => {
-                            if (this.news_item.me_dislike === false) {
-                                this.news_item.me_like = false;
-                                this.news_item.me_dislike = true;
-                            }
-                        });
-                        break;
-
-                    case "detail":
-                        this.toolbar = false;
-                        this.itemClicked(this.card);
-                        //this.$root.$emit('new-item-position', this.news_item);
-                        break;
-
-                    case "new":
-                        this.$root.$emit('new-report', [this.news_item]);
-                        break;
-
-                    case "important":
-                        importantNewsItem(this.getGroupId(), this.news_item.id).then(() => {
-                            this.news_item.important = this.news_item.important === false;
-                        });
-                        break;
-
-                    case "read":
-                        readNewsItem(this.getGroupId(), this.news_item.id).then(() => {
-                            this.news_item.read = this.news_item.read === false;
-                        });
-                        break;
-
-                    case "delete":
-                        deleteNewsItemAggregate(this.getGroupId(), this.news_item.id).then(() => {
-                            this.visible = false;
-                        });
-                        break;
-
-                    case "ungroup":
-                        groupAction({
-                            'group': this.getGroupId(),
-                            'action': 'UNGROUP',
-                            'items': [{'type': 'AGGREGATE', 'id': this.news_item.id}]
-                        }).then(() => {
-                            this.visible = false;
-                        });
-                        break;
-
-                    default:
-                        this.toolbar = false;
-                        //this.itemClicked(this.card);
-                        break;
-                }
-            },
-
-            buttonStatus: function (active) {
-                if (active) {
-                    return "primary:lighten"
-                } else {
-                    return "accent"
-                }
-            }
-        }
+    multiSelectActive () {
+      return this.$store.getters.getMultiSelect
     }
+  },
+  data: () => ({
+    content: null,
+    editorOptionVue2: {
+      theme: 'snow',
+      placeholder: 'insert text here ...',
+      modules: {
+        toolbar: toolbarOptions
+      }
+    },
+    visible: false,
+    news_item: Object,
+    title: '',
+    description: '',
+    toolbar: false
+  }),
+  methods: {
+    open (news_item) {
+      this.visible = true
+      this.news_item = news_item
+      this.title = news_item.title
+      this.description = news_item.description
+      this.editorData = this.news_item.comments
+
+      this.$root.$emit('first-dialog', 'push')
+    },
+    close () {
+      this.visible = false
+      if (this.canModify) {
+        saveNewsItemAggregate(this.getGroupId(), this.news_item.id, this.title, this.description, this.editorData).then(() => {
+          this.news_item.comments = this.editorData
+          this.news_item.title = this.title
+          this.news_item.description = this.description
+        })
+      }
+      this.$root.$emit('change-state', 'DEFAULT')
+
+      this.$root.$emit('first-dialog', '')
+    },
+
+    fillDetail: function () {
+
+    },
+    openUrlToNewTab: function (url) {
+      window.open(url, '_blank')
+    },
+    getGroupId () {
+      if (window.location.pathname.includes('/group/')) {
+        const i = window.location.pathname.indexOf('/group/')
+        const len = window.location.pathname.length
+        return window.location.pathname.substring(i + 7, len)
+      } else {
+        return null
+      }
+    },
+    cardItemToolbar (action) {
+      switch (action) {
+        case 'like':
+          voteNewsItem(this.getGroupId(), this.news_item.id, 1).then(() => {
+            if (this.news_item.me_like === false) {
+              this.news_item.me_like = true
+              this.news_item.me_dislike = false
+            }
+          })
+          break
+
+        case 'unlike':
+          voteNewsItem(this.getGroupId(), this.news_item.id, -1).then(() => {
+            if (this.news_item.me_dislike === false) {
+              this.news_item.me_like = false
+              this.news_item.me_dislike = true
+            }
+          })
+          break
+
+        case 'detail':
+          this.toolbar = false
+          this.itemClicked(this.card)
+          // this.$root.$emit('new-item-position', this.news_item);
+          break
+
+        case 'new':
+          this.$root.$emit('new-report', [this.news_item])
+          break
+
+        case 'important':
+          importantNewsItem(this.getGroupId(), this.news_item.id).then(() => {
+            this.news_item.important = this.news_item.important === false
+          })
+          break
+
+        case 'read':
+          readNewsItem(this.getGroupId(), this.news_item.id).then(() => {
+            this.news_item.read = this.news_item.read === false
+          })
+          break
+
+        case 'delete':
+          deleteNewsItemAggregate(this.getGroupId(), this.news_item.id).then(() => {
+            this.visible = false
+          })
+          break
+
+        case 'ungroup':
+          groupAction({
+            group: this.getGroupId(),
+            action: 'UNGROUP',
+            items: [{ type: 'AGGREGATE', id: this.news_item.id }]
+          }).then(() => {
+            this.visible = false
+          })
+          break
+
+        default:
+          this.toolbar = false
+          // this.itemClicked(this.card);
+          break
+      }
+    },
+
+    buttonStatus: function (active) {
+      if (active) {
+        return 'primary:lighten'
+      } else {
+        return 'accent'
+      }
+    }
+  }
+}
 </script>

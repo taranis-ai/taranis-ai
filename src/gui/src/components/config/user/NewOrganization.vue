@@ -77,123 +77,115 @@
 </template>
 
 <script>
-    import {createNewOrganization} from "@/api/config";
-    import {updateOrganization} from "@/api/config";
-    import AuthMixin from "@/services/auth/auth_mixin";
-    import Permissions from "@/services/auth/permissions";
+import { createNewOrganization, updateOrganization } from '@/api/config'
 
-    export default {
-        name: "NewOrganization",
-        data: () => ({
-            visible: false,
-            edit: false,
-            show_validation_error: false,
-            show_error: false,
-            organization: {
-                id: -1,
-                name: "",
-                description: "",
-                address: {
-                    street: "",
-                    city: "",
-                    zip: "",
-                    country: ""
-                },
-            }
-        }),
-        mixins: [AuthMixin],
-        computed: {
-            canCreate() {
-                return this.checkPermission(Permissions.CONFIG_ORGANIZATION_CREATE)
-            },
-            canUpdate() {
-                return this.checkPermission(Permissions.CONFIG_ORGANIZATION_UPDATE) || !this.edit
-            },
-        },
+import AuthMixin from '@/services/auth/auth_mixin'
+import Permissions from '@/services/auth/permissions'
 
-        methods: {
-            addOrganization() {
-                this.visible = true
-                this.edit = false
-                this.show_error = false;
-                this.organization.id = -1
-                this.organization.name = ""
-                this.organization.description = ""
-                this.organization.address.street = ""
-                this.organization.address.city = ""
-                this.organization.address.zip = ""
-                this.organization.address.country = ""
-                this.$validator.reset()
-            },
-
-            cancel() {
-                this.$validator.reset();
-                this.visible = false
-            },
-
-            add() {
-                this.$validator.validateAll().then(() => {
-
-                    if (!this.$validator.errors.any()) {
-
-                        this.show_validation_error = false;
-                        this.show_error = false;
-
-                        if (this.edit) {
-                            updateOrganization(this.organization).then(() => {
-
-                                this.$validator.reset();
-                                this.visible = false;
-                                this.$root.$emit('notification',
-                                    {
-                                        type: 'success',
-                                        loc: 'organization.successful_edit'
-                                    }
-                                )
-                            }).catch(() => {
-
-                                this.show_error = true;
-                            })
-                        } else {
-                            createNewOrganization(this.organization).then(() => {
-
-                                this.$validator.reset();
-                                this.visible = false;
-                                this.$root.$emit('notification',
-                                    {
-                                        type: 'success',
-                                        loc: 'organization.successful'
-                                    }
-                                )
-                            }).catch(() => {
-
-                                this.show_error = true;
-                            })
-                        }
-
-                    } else {
-
-                        this.show_validation_error = true;
-                    }
-                })
-            }
-        },
-        mounted() {
-            this.$root.$on('show-edit', (data) => {
-                this.visible = true;
-                this.edit = true;
-                this.show_error = false;
-                this.organization.id = data.id
-                this.organization.name = data.name
-                this.organization.description = data.description
-                this.organization.address.street = data.address.street
-                this.organization.address.city = data.address.city
-                this.organization.address.zip = data.address.zip
-                this.organization.address.country = data.address.country
-            });
-        },
-        beforeDestroy() {
-            this.$root.$off('show-edit')
-        }
+export default {
+  name: 'NewOrganization',
+  data: () => ({
+    visible: false,
+    edit: false,
+    show_validation_error: false,
+    show_error: false,
+    organization: {
+      id: -1,
+      name: '',
+      description: '',
+      address: {
+        street: '',
+        city: '',
+        zip: '',
+        country: ''
+      }
     }
+  }),
+  mixins: [AuthMixin],
+  computed: {
+    canCreate () {
+      return this.checkPermission(Permissions.CONFIG_ORGANIZATION_CREATE)
+    },
+    canUpdate () {
+      return this.checkPermission(Permissions.CONFIG_ORGANIZATION_UPDATE) || !this.edit
+    }
+  },
+
+  methods: {
+    addOrganization () {
+      this.visible = true
+      this.edit = false
+      this.show_error = false
+      this.organization.id = -1
+      this.organization.name = ''
+      this.organization.description = ''
+      this.organization.address.street = ''
+      this.organization.address.city = ''
+      this.organization.address.zip = ''
+      this.organization.address.country = ''
+      this.$validator.reset()
+    },
+
+    cancel () {
+      this.$validator.reset()
+      this.visible = false
+    },
+
+    add () {
+      this.$validator.validateAll().then(() => {
+        if (!this.$validator.errors.any()) {
+          this.show_validation_error = false
+          this.show_error = false
+
+          if (this.edit) {
+            updateOrganization(this.organization).then(() => {
+              this.$validator.reset()
+              this.visible = false
+              this.$root.$emit('notification',
+                {
+                  type: 'success',
+                  loc: 'organization.successful_edit'
+                }
+              )
+            }).catch(() => {
+              this.show_error = true
+            })
+          } else {
+            createNewOrganization(this.organization).then(() => {
+              this.$validator.reset()
+              this.visible = false
+              this.$root.$emit('notification',
+                {
+                  type: 'success',
+                  loc: 'organization.successful'
+                }
+              )
+            }).catch(() => {
+              this.show_error = true
+            })
+          }
+        } else {
+          this.show_validation_error = true
+        }
+      })
+    }
+  },
+  mounted () {
+    this.$root.$on('show-edit', (data) => {
+      this.visible = true
+      this.edit = true
+      this.show_error = false
+      this.organization.id = data.id
+      this.organization.name = data.name
+      this.organization.description = data.description
+      this.organization.address.street = data.address.street
+      this.organization.address.city = data.address.city
+      this.organization.address.zip = data.address.zip
+      this.organization.address.country = data.address.country
+    })
+  },
+  beforeDestroy () {
+    this.$root.$off('show-edit')
+  }
+}
 </script>

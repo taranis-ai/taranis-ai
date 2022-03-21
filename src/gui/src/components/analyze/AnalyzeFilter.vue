@@ -31,15 +31,15 @@
 </template>
 
 <script>
-    import DateInput from "../../components/common/DateInput";
+import DateInput from '../../components/common/DateInput'
 
-    export default {
-        name: "AnalyzeFilter",
-        components: {DateInput},
-        data: () => ({
-            sort: ['Latest', 'Oldest', 'Most relevant'],
-            dateFrom: null,
-            menuFrom: false,
-        }),
-    }
+export default {
+  name: 'AnalyzeFilter',
+  components: { DateInput },
+  data: () => ({
+    sort: ['Latest', 'Oldest', 'Most relevant'],
+    dateFrom: null,
+    menuFrom: false
+  })
+}
 </script>

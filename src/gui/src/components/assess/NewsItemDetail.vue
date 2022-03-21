@@ -87,7 +87,6 @@
                                 </v-row>
                             </v-container>
 
-
                         </v-row>
 
                     </v-tab-item>
@@ -103,142 +102,140 @@
 </template>
 
 <script>
-    import {deleteNewsItem, groupAction, voteNewsItem} from "@/api/assess";
-    import {readNewsItem} from "@/api/assess";
-    import {importantNewsItem} from "@/api/assess";
-    import {getNewsItem} from "@/api/assess";
-    import NewsItemAttribute from "@/components/assess/NewsItemAttribute";
-    import AuthMixin from "@/services/auth/auth_mixin";
-    import Permissions from "@/services/auth/permissions";
+import { deleteNewsItem, groupAction, voteNewsItem, readNewsItem, importantNewsItem, getNewsItem } from '@/api/assess'
 
-    export default {
-        name: "NewsItemDetail",
-        components: {NewsItemAttribute},
-        mixins: [AuthMixin],
-        props: {
-            analyze_selector: Boolean,
-        },
-        data: () => ({
-            visible: false,
-            news_item: {news_item_data:{}},
-            toolbar: false
-        }),
-        computed: {
-            canAccess() {
-                return this.checkPermission(Permissions.ASSESS_ACCESS) && this.news_item.access === true
-            },
+import NewsItemAttribute from '@/components/assess/NewsItemAttribute'
+import AuthMixin from '@/services/auth/auth_mixin'
+import Permissions from '@/services/auth/permissions'
 
-            canModify() {
-                return this.checkPermission(Permissions.ASSESS_UPDATE) && this.news_item.modify === true
-            },
+export default {
+  name: 'NewsItemDetail',
+  components: { NewsItemAttribute },
+  mixins: [AuthMixin],
+  props: {
+    analyze_selector: Boolean
+  },
+  data: () => ({
+    visible: false,
+    news_item: { news_item_data: {} },
+    toolbar: false
+  }),
+  computed: {
+    canAccess () {
+      return this.checkPermission(Permissions.ASSESS_ACCESS) && this.news_item.access === true
+    },
 
-            canDelete() {
-                return this.checkPermission(Permissions.ASSESS_DELETE) && this.news_item.modify === true
-            },
+    canModify () {
+      return this.checkPermission(Permissions.ASSESS_UPDATE) && this.news_item.modify === true
+    },
 
-            canCreateReport() {
-                return this.checkPermission(Permissions.ANALYZE_CREATE)
-            },
+    canDelete () {
+      return this.checkPermission(Permissions.ASSESS_DELETE) && this.news_item.modify === true
+    },
 
-            multiSelectActive() {
-                return this.$store.getters.getMultiSelect
-            },
-        },
-        methods: {
-            open(news_item) {
-                getNewsItem(news_item.id).then((response) => {
-                    this.news_item = response.data;
-                    this.news_item.access = news_item.access
-                    this.news_item.modify = news_item.modify
-                    this.visible = true;
-                });
+    canCreateReport () {
+      return this.checkPermission(Permissions.ANALYZE_CREATE)
+    },
 
-                this.$root.$emit('first-dialog', 'push');
-            },
-            close() {
-                this.visible = false;
-                this.$root.$emit('change-state', 'DEFAULT');
-                this.$root.$emit('first-dialog', '');
-            },
-            openUrlToNewTab: function (url) {
-                window.open(url, "_blank");
-            },
-            getGroupId() {
-                if (window.location.pathname.includes("/group/")) {
-                    let i = window.location.pathname.indexOf("/group/");
-                    let len = window.location.pathname.length;
-                    return window.location.pathname.substring(i + 7, len);
-                } else {
-                    return null;
-                }
-            },
-            cardItemToolbar(action) {
-                switch (action) {
-                    case "like":
-                        voteNewsItem(this.getGroupId(), this.news_item.id, 1).then(() => {
-                            if (this.news_item.me_like === false) {
-                                this.news_item.me_like = true;
-                                this.news_item.me_dislike = false;
-                            }
-                        });
-                        break;
-
-                    case "unlike":
-                        voteNewsItem(this.getGroupId(), this.news_item.id, -1).then(() => {
-                            if (this.news_item.me_dislike === false) {
-                                this.news_item.me_like = false;
-                                this.news_item.me_dislike = true;
-                            }
-                        });
-                        break;
-
-                    case "detail":
-                        this.toolbar = false;
-                        this.itemClicked(this.card);
-                        break;
-
-                    case "important":
-                        importantNewsItem(this.getGroupId(), this.news_item.id).then(() => {
-                            this.news_item.important = this.news_item.important === false;
-                        });
-                        break;
-
-                    case "read":
-                        readNewsItem(this.getGroupId(), this.news_item.id).then(() => {
-                            this.news_item.read = this.news_item.read === false;
-                        });
-                        break;
-
-                    case "delete":
-                        deleteNewsItem(this.getGroupId(), this.news_item.id).then(() => {
-                            this.visible = false;
-                        });
-                        break;
-
-                    case "ungroup":
-                        groupAction({
-                            'group': this.getGroupId(),
-                            'action': 'UNGROUP',
-                            'items': [{'type': 'ITEM', 'id': this.news_item.id}]
-                        }).then(() => {
-                            this.visible = false;
-                        });
-                        break;
-
-                    default:
-                        this.toolbar = false;
-                        //this.itemClicked(this.card);
-                        break;
-                }
-            },
-
-            buttonStatus: function (active) {
-                if (active) {
-                    return "primary:lighten"
-                } else {
-                    return "accent"
-                }
-            }
-        }
+    multiSelectActive () {
+      return this.$store.getters.getMultiSelect
     }
+  },
+  methods: {
+    open (news_item) {
+      getNewsItem(news_item.id).then((response) => {
+        this.news_item = response.data
+        this.news_item.access = news_item.access
+        this.news_item.modify = news_item.modify
+        this.visible = true
+      })
+
+      this.$root.$emit('first-dialog', 'push')
+    },
+    close () {
+      this.visible = false
+      this.$root.$emit('change-state', 'DEFAULT')
+      this.$root.$emit('first-dialog', '')
+    },
+    openUrlToNewTab: function (url) {
+      window.open(url, '_blank')
+    },
+    getGroupId () {
+      if (window.location.pathname.includes('/group/')) {
+        const i = window.location.pathname.indexOf('/group/')
+        const len = window.location.pathname.length
+        return window.location.pathname.substring(i + 7, len)
+      } else {
+        return null
+      }
+    },
+    cardItemToolbar (action) {
+      switch (action) {
+        case 'like':
+          voteNewsItem(this.getGroupId(), this.news_item.id, 1).then(() => {
+            if (this.news_item.me_like === false) {
+              this.news_item.me_like = true
+              this.news_item.me_dislike = false
+            }
+          })
+          break
+
+        case 'unlike':
+          voteNewsItem(this.getGroupId(), this.news_item.id, -1).then(() => {
+            if (this.news_item.me_dislike === false) {
+              this.news_item.me_like = false
+              this.news_item.me_dislike = true
+            }
+          })
+          break
+
+        case 'detail':
+          this.toolbar = false
+          this.itemClicked(this.card)
+          break
+
+        case 'important':
+          importantNewsItem(this.getGroupId(), this.news_item.id).then(() => {
+            this.news_item.important = this.news_item.important === false
+          })
+          break
+
+        case 'read':
+          readNewsItem(this.getGroupId(), this.news_item.id).then(() => {
+            this.news_item.read = this.news_item.read === false
+          })
+          break
+
+        case 'delete':
+          deleteNewsItem(this.getGroupId(), this.news_item.id).then(() => {
+            this.visible = false
+          })
+          break
+
+        case 'ungroup':
+          groupAction({
+            group: this.getGroupId(),
+            action: 'UNGROUP',
+            items: [{ type: 'ITEM', id: this.news_item.id }]
+          }).then(() => {
+            this.visible = false
+          })
+          break
+
+        default:
+          this.toolbar = false
+          // this.itemClicked(this.card);
+          break
+      }
+    },
+
+    buttonStatus: function (active) {
+      if (active) {
+        return 'primary:lighten'
+      } else {
+        return 'accent'
+      }
+    }
+  }
+}
 </script>

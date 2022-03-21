@@ -21,44 +21,42 @@
 </template>
 
 <script>
-    import ViewLayout from "../../components/layouts/ViewLayout";
-    import ToolbarFilter from "../../components/common/ToolbarFilter";
-    import ContentData from "../../components/common/content/ContentData";
-    import NewWordList from "../../components/config/word_lists/NewWordList";
-    import {deleteWordList} from "@/api/config";
+import ViewLayout from '../../components/layouts/ViewLayout'
+import ToolbarFilter from '../../components/common/ToolbarFilter'
+import ContentData from '../../components/common/content/ContentData'
+import NewWordList from '../../components/config/word_lists/NewWordList'
+import { deleteWordList } from '@/api/config'
 
-    export default {
-        name: "WordLists",
-        components: {
-            ViewLayout,
-            ToolbarFilter,
-            ContentData,
-            NewWordList
-        },
-        data: () => ({}),
-        mounted() {
-            this.$root.$on('delete-item', (item) => {
-                deleteWordList(item).then(() => {
-
-                    this.$root.$emit('notification',
-                        {
-                            type: 'success',
-                            loc: 'word_list.removed'
-                        }
-                    )
-                }).catch(() => {
-
-                    this.$root.$emit('notification',
-                        {
-                            type: 'error',
-                            loc: 'word_list.removed_error'
-                        }
-                    )
-                })
-            });
-        },
-        beforeDestroy() {
-            this.$root.$off('delete-item')
-        }
-    };
+export default {
+  name: 'WordLists',
+  components: {
+    ViewLayout,
+    ToolbarFilter,
+    ContentData,
+    NewWordList
+  },
+  data: () => ({}),
+  mounted () {
+    this.$root.$on('delete-item', (item) => {
+      deleteWordList(item).then(() => {
+        this.$root.$emit('notification',
+          {
+            type: 'success',
+            loc: 'word_list.removed'
+          }
+        )
+      }).catch(() => {
+        this.$root.$emit('notification',
+          {
+            type: 'error',
+            loc: 'word_list.removed_error'
+          }
+        )
+      })
+    })
+  },
+  beforeDestroy () {
+    this.$root.$off('delete-item')
+  }
+}
 </script>

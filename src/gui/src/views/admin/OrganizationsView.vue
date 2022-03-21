@@ -22,46 +22,44 @@
 </template>
 
 <script>
-    import ViewLayout from "../../components/layouts/ViewLayout";
-    import NewOrganization from "@/components/config/user/NewOrganization";
-    import ToolbarFilter from "../../components/common/ToolbarFilter";
-    import ContentData from "../../components/common/content/ContentData"
-    import {deleteOrganization} from "@/api/config";
+import ViewLayout from '../../components/layouts/ViewLayout'
+import NewOrganization from '@/components/config/user/NewOrganization'
+import ToolbarFilter from '../../components/common/ToolbarFilter'
+import ContentData from '../../components/common/content/ContentData'
+import { deleteOrganization } from '@/api/config'
 
-    export default {
-        name: "OrganizationsView",
-        components: {
-            ViewLayout,
-            ToolbarFilter,
-            ContentData,
-            NewOrganization
-        },
-        data: () => ({
-        }),
-        mounted() {
-            this.$root.$on('delete-item', (item) => {
-                deleteOrganization(item).then(() => {
-
-                    this.$root.$emit('notification',
-                        {
-                            type: 'success',
-                            loc: 'organization.removed'
-                        }
-                    )
-                }).catch(() => {
-
-                    this.$root.$emit('notification',
-                        {
-                            type: 'error',
-                            loc: 'organization.removed_error'
-                        }
-                    )
-                })
-            });
-        },
-        beforeDestroy() {
-            this.$root.$off('delete-item')
-        }
-    };
+export default {
+  name: 'OrganizationsView',
+  components: {
+    ViewLayout,
+    ToolbarFilter,
+    ContentData,
+    NewOrganization
+  },
+  data: () => ({
+  }),
+  mounted () {
+    this.$root.$on('delete-item', (item) => {
+      deleteOrganization(item).then(() => {
+        this.$root.$emit('notification',
+          {
+            type: 'success',
+            loc: 'organization.removed'
+          }
+        )
+      }).catch(() => {
+        this.$root.$emit('notification',
+          {
+            type: 'error',
+            loc: 'organization.removed_error'
+          }
+        )
+      })
+    })
+  },
+  beforeDestroy () {
+    this.$root.$off('delete-item')
+  }
+}
 
 </script>

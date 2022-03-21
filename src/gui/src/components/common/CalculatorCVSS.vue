@@ -170,293 +170,357 @@
 </template>
 
 <script>
-    import Cvss31Mixin from '@/assets/cvss31_mixin';
+import Cvss31Mixin from '@/assets/cvss31_mixin'
 
-    export default {
-        name: "CalculatorCVSS",
-        props: {
-            value: String
+export default {
+  name: 'CalculatorCVSS',
+  props: {
+    value: String
+  },
+  data: () => ({
+    visible: false,
+    tooltip: false,
+    decode_string: '',
+    switches: '...',
+    cvss: {
+      base: {
+        av: {
+          state: 0,
+          model: 'AV',
+          title: 'attack_vector',
+          props: [
+            { value: 'N', label: 'network' },
+            { value: 'A', label: 'adjacent' },
+            { value: 'L', label: 'local' },
+            { value: 'P', label: 'physical' }
+          ]
         },
-        data: () => ({
-            visible: false,
-            tooltip: false,
-            decode_string: "",
-            switches: "...",
-            cvss: {
-                base: {
-                    av:{'state':0, 'model':'AV','title':'attack_vector',
-                        'props':[
-                            {'value':'N','label':'network'},
-                            {'value':'A','label':'adjacent'},
-                            {'value':'L','label':'local'},
-                            {'value':'P','label':'physical'}
-                        ]
-                    },
-                    ac:{'state':0, 'model':'AC','title':'attack_complexity',
-                        'props':[
-                            {'value':'L','label':'low'},
-                            {'value':'H','label':'high'}
-                        ]
-                    },
-                    pr:{'state':0, 'model':'PR', 'title':'privileges_required',
-                        'props':[
-                            {'value':'N','label':'none'},
-                            {'value':'L','label':'low'},
-                            {'value':'H','label':'high'},
-                        ]
-                    },
-                    ui:{'state':0, 'model':'UI', 'title':'user_interaction',
-                        'props':[
-                            {'value':'N','label':'none'},
-                            {'value':'R','label':'required'}
-                        ]
-                    },
-                    s:{'state':0, 'model':'S', 'title':'scope',
-                        'props':[
-                            {'value':'U','label':'unchanged'},
-                            {'value':'C','label':'changed'}
-                        ]
-                    },
-                    c:{'state':0, 'model':'C', 'title':'confidentiality',
-                        'props':[
-                            {'value':'N', 'label':'none'},
-                            {'value':'L', 'label':'low'},
-                            {'value':'H', 'label':'high'}
-                        ]
-                    },
-                    i:{'state':0, 'model':'I', 'title':'integrity',
-                        'props':[
-                            {'value':'N', 'label':'none'},
-                            {'value':'L', 'label':'low'},
-                            {'value':'H', 'label':'high'}
-                        ]
-                    },
-                    a:{'state':0, 'model':'A', 'title':'availability',
-                        'props':[
-                            {'value':'N', 'label':'none'},
-                            {'value':'L', 'label':'low'},
-                            {'value':'H', 'label':'high'}
-                        ]
-                    }
-                },
-                temporal: {
-                    e:{'state':0, 'model':'E', 'title':'exploitability_code_maturity',
-                        'props':[
-                            {'value':'X', 'label':'not_defined'},
-                            {'value':'U', 'label':'unproven'},
-                            {'value':'P', 'label':'proof_of_concept'},
-                            {'value':'F', 'label':'functional'},
-                            {'value':'H', 'label':'high'}
-                        ]
-                    },
-                    rl:{'state':0, 'model':'RL', 'title':'remediation_level',
-                        'props':[
-                            {'value':'X', 'label':'not_defined'},
-                            {'value':'O', 'label':'official_fix'},
-                            {'value':'T', 'label':'temporary_fix'},
-                            {'value':'W', 'label':'workaround'},
-                            {'value':'U', 'label':'unavailable'}
-                        ]
-                    },
-                    rc:{'state':0, 'model':'RC', 'title':'report_confidence',
-                        'props':[
-                            {'value':'X', 'label':'not_defined','tooltip':''},
-                            {'value':'U', 'label':'unknown','tooltip':''},
-                            {'value':'R', 'label':'reasonable','tooltip':''},
-                            {'value':'C', 'label':'confirmed','tooltip':''}
-                        ]
-                    }
-                },
-                environmental: {
-                    cr:{'state':0, 'model':'CR', 'title':'confidentiality_requirement',
-                        'props':[
-                            {'value':'X', 'label':'not_defined'},
-                            {'value':'L', 'label':'low'},
-                            {'value':'M', 'label':'medium'},
-                            {'value':'H', 'label':'high'}
-                        ]
-                    },
-                    ir:{'state':0, 'model':'IR', 'title':'integrity_requirement',
-                        'props':[
-                            {'value':'X', 'label':'not_defined'},
-                            {'value':'L', 'label':'low'},
-                            {'value':'M', 'label':'medium'},
-                            {'value':'H', 'label':'high'}
-                        ]
-                    },
-                    ar:{'state':0, 'model':'AR', 'title':'availability_requirement',
-                        'props':[
-                            {'value':'X', 'label':'not_defined'},
-                            {'value':'L', 'label':'low'},
-                            {'value':'M', 'label':'medium'},
-                            {'value':'H', 'label':'high'}
-                        ]
-                    },
-                    mav:{'state':0, 'model':'MAV', 'title':'modified_attack_vector',
-                        'props':[
-                            {'value':'X', 'label':'not_defined'},
-                            {'value':'N', 'label':'network'},
-                            {'value':'A', 'label':'adjacent_network'},
-                            {'value':'L', 'label':'local'},
-                            {'value':'P', 'label':'physical'}
-                        ]
-                    },
-                    mac:{'state':0, 'model':'MAC', 'title':'modified_attack_complexity',
-                        'props':[
-                            {'value':'X', 'label':'not_defined'},
-                            {'value':'L', 'label':'low'},
-                            {'value':'H', 'label':'high'}
-                        ]
-                    },
-                    mpr:{'state':0, 'model':'MPR', 'title':'modified_privileges_required',
-                        'props':[
-                            {'value':'X', 'label':'not_defined'},
-                            {'value':'N', 'label':'none'},
-                            {'value':'L', 'label':'low'},
-                            {'value':'H', 'label':'high'}
-                        ]
-                    },
-                    mui:{'state':0, 'model':'MUI', 'title':'modified_user_interaction',
-                        'props':[
-                            {'value':'X', 'label':'not_defined'},
-                            {'value':'N', 'label':'none'},
-                            {'value':'R', 'label':'required'}
-                        ]
-                    },
-                    ms:{'state':0, 'model':'MS', 'title':'modified_scope',
-                        'props':[
-                            {'value':'X', 'label':'not_defined'},
-                            {'value':'U', 'label':'unchanged'},
-                            {'value':'C', 'label':'changed'}
-                        ]
-                    },
-                    mc:{'state':0, 'model':'MC', 'title':'modified_confidentiality',
-                        'props':[
-                            {'value':'X', 'label':'not_defined'},
-                            {'value':'N', 'label':'none'},
-                            {'value':'L', 'label':'low'},
-                            {'value':'H', 'label':'high'}
-                        ]
-                    },
-                    mi:{'state':0, 'model':'MI', 'title':'modified_integrity',
-                        'props':[
-                            {'value':'X', 'label':'not_defined'},
-                            {'value':'N', 'label':'none'},
-                            {'value':'L', 'label':'low'},
-                            {'value':'H', 'label':'high'}
-                        ]
-                    },
-                    ma:{'state':0, 'model':'MA', 'title':'modified_availability',
-                        'props':[
-                            {'value':'X', 'label':'not_defined'},
-                            {'value':'N', 'label':'none'},
-                            {'value':'L', 'label':'low'},
-                            {'value':'H', 'label':'high'}
-                        ]
-                    }
-                }
-            },
-            vector_string: "",
-            calc: {}
-        }),
-        mixins: [Cvss31Mixin],
-        computed: {
-            baseString2: function() {
-                let group = Object.values(this.cvss);
-                let vector = [];
-                let states = [];
-
-                vector.push('CVSS:3.1');
-
-                for( let i=0; i<group.length; i++ ) {
-                    let keys = Object.values(group[i]);
-
-                    for( let j=0; j<keys.length; j++ ) {
-                        let state = keys[j].state;
-
-                        if( keys[j].props[state].value !== 'X') {
-                            vector.push('/' + keys[j].model + ':' + keys[j].props[state].value);
-                        }
-                        states.push(keys[j].props[state].value);
-                    }
-                }
-
-                return this.clc.calculateCVSSFromVector(vector.join(''));
-            },
-
-            hideTooltip() {
-                return !this.tooltip ? "hide-tooltip" : "";
-            }
+        ac: {
+          state: 0,
+          model: 'AC',
+          title: 'attack_complexity',
+          props: [
+            { value: 'L', label: 'low' },
+            { value: 'H', label: 'high' }
+          ]
         },
-        mounted() {
-
+        pr: {
+          state: 0,
+          model: 'PR',
+          title: 'privileges_required',
+          props: [
+            { value: 'N', label: 'none' },
+            { value: 'L', label: 'low' },
+            { value: 'H', label: 'high' }
+          ]
         },
-        methods: {
-            show() {
-                let status = this.clc.calculateCVSSFromVector(this.value).success;
-
-                if( status || this.value === '') {
-
-                    if(this.value !== '') {
-                        this.remapButton();
-                    }
-
-                    this.update();
-                    this.visible = true;
-                    this.$emit('success', status );
-                } else {
-                    this.$emit('success', status );
-                }
-
-            },
-            cancel() {
-                this.$emit('update-value', this.calc.vectorString);
-                this.visible = false;
-            },
-            update() {
-                let group = Object.values(this.cvss);
-                let vector = [];
-                let states = [];
-
-                vector.push('CVSS:3.1');
-                for( let i=0; i<group.length; i++ ) {
-                    let keys = Object.values(group[i]);
-
-                    for( let j=0; j<keys.length; j++ ) {
-                        let state = keys[j].state;
-
-                        if( keys[j].props[state].value !== 'X') {
-                            vector.push('/' + keys[j].model + ':' + keys[j].props[state].value);
-                        }
-                        //states.push(keys[j].props[state].value);
-                        states.push(keys[j].state);
-                    }
-                }
-                this.calc = this.clc.calculateCVSSFromVector(vector.join(''));
-            },
-
-            remapButton(){
-                let values = this.clc.calculateCVSSFromVector(this.value).vectorValues;
-                let group = Object.values(this.cvss);
-                let count = 0;
-
-                for( let i=0; i<group.length; i++ ) {
-                    let keys = Object.values(group[i]);
-
-                    for( let j=0; j<keys.length; j++) {
-                        keys[j].state = this.readInputVector(Object.values(keys[j].props), values[count++]);
-                    }
-                }
-            },
-
-            readInputVector(props, value) {
-                for( let i=0; i<props.length; i++) {
-                    if( props[i].value === value ) {
-                        return i;
-                    }
-                }
-            },
-
+        ui: {
+          state: 0,
+          model: 'UI',
+          title: 'user_interaction',
+          props: [
+            { value: 'N', label: 'none' },
+            { value: 'R', label: 'required' }
+          ]
+        },
+        s: {
+          state: 0,
+          model: 'S',
+          title: 'scope',
+          props: [
+            { value: 'U', label: 'unchanged' },
+            { value: 'C', label: 'changed' }
+          ]
+        },
+        c: {
+          state: 0,
+          model: 'C',
+          title: 'confidentiality',
+          props: [
+            { value: 'N', label: 'none' },
+            { value: 'L', label: 'low' },
+            { value: 'H', label: 'high' }
+          ]
+        },
+        i: {
+          state: 0,
+          model: 'I',
+          title: 'integrity',
+          props: [
+            { value: 'N', label: 'none' },
+            { value: 'L', label: 'low' },
+            { value: 'H', label: 'high' }
+          ]
+        },
+        a: {
+          state: 0,
+          model: 'A',
+          title: 'availability',
+          props: [
+            { value: 'N', label: 'none' },
+            { value: 'L', label: 'low' },
+            { value: 'H', label: 'high' }
+          ]
         }
+      },
+      temporal: {
+        e: {
+          state: 0,
+          model: 'E',
+          title: 'exploitability_code_maturity',
+          props: [
+            { value: 'X', label: 'not_defined' },
+            { value: 'U', label: 'unproven' },
+            { value: 'P', label: 'proof_of_concept' },
+            { value: 'F', label: 'functional' },
+            { value: 'H', label: 'high' }
+          ]
+        },
+        rl: {
+          state: 0,
+          model: 'RL',
+          title: 'remediation_level',
+          props: [
+            { value: 'X', label: 'not_defined' },
+            { value: 'O', label: 'official_fix' },
+            { value: 'T', label: 'temporary_fix' },
+            { value: 'W', label: 'workaround' },
+            { value: 'U', label: 'unavailable' }
+          ]
+        },
+        rc: {
+          state: 0,
+          model: 'RC',
+          title: 'report_confidence',
+          props: [
+            { value: 'X', label: 'not_defined', tooltip: '' },
+            { value: 'U', label: 'unknown', tooltip: '' },
+            { value: 'R', label: 'reasonable', tooltip: '' },
+            { value: 'C', label: 'confirmed', tooltip: '' }
+          ]
+        }
+      },
+      environmental: {
+        cr: {
+          state: 0,
+          model: 'CR',
+          title: 'confidentiality_requirement',
+          props: [
+            { value: 'X', label: 'not_defined' },
+            { value: 'L', label: 'low' },
+            { value: 'M', label: 'medium' },
+            { value: 'H', label: 'high' }
+          ]
+        },
+        ir: {
+          state: 0,
+          model: 'IR',
+          title: 'integrity_requirement',
+          props: [
+            { value: 'X', label: 'not_defined' },
+            { value: 'L', label: 'low' },
+            { value: 'M', label: 'medium' },
+            { value: 'H', label: 'high' }
+          ]
+        },
+        ar: {
+          state: 0,
+          model: 'AR',
+          title: 'availability_requirement',
+          props: [
+            { value: 'X', label: 'not_defined' },
+            { value: 'L', label: 'low' },
+            { value: 'M', label: 'medium' },
+            { value: 'H', label: 'high' }
+          ]
+        },
+        mav: {
+          state: 0,
+          model: 'MAV',
+          title: 'modified_attack_vector',
+          props: [
+            { value: 'X', label: 'not_defined' },
+            { value: 'N', label: 'network' },
+            { value: 'A', label: 'adjacent_network' },
+            { value: 'L', label: 'local' },
+            { value: 'P', label: 'physical' }
+          ]
+        },
+        mac: {
+          state: 0,
+          model: 'MAC',
+          title: 'modified_attack_complexity',
+          props: [
+            { value: 'X', label: 'not_defined' },
+            { value: 'L', label: 'low' },
+            { value: 'H', label: 'high' }
+          ]
+        },
+        mpr: {
+          state: 0,
+          model: 'MPR',
+          title: 'modified_privileges_required',
+          props: [
+            { value: 'X', label: 'not_defined' },
+            { value: 'N', label: 'none' },
+            { value: 'L', label: 'low' },
+            { value: 'H', label: 'high' }
+          ]
+        },
+        mui: {
+          state: 0,
+          model: 'MUI',
+          title: 'modified_user_interaction',
+          props: [
+            { value: 'X', label: 'not_defined' },
+            { value: 'N', label: 'none' },
+            { value: 'R', label: 'required' }
+          ]
+        },
+        ms: {
+          state: 0,
+          model: 'MS',
+          title: 'modified_scope',
+          props: [
+            { value: 'X', label: 'not_defined' },
+            { value: 'U', label: 'unchanged' },
+            { value: 'C', label: 'changed' }
+          ]
+        },
+        mc: {
+          state: 0,
+          model: 'MC',
+          title: 'modified_confidentiality',
+          props: [
+            { value: 'X', label: 'not_defined' },
+            { value: 'N', label: 'none' },
+            { value: 'L', label: 'low' },
+            { value: 'H', label: 'high' }
+          ]
+        },
+        mi: {
+          state: 0,
+          model: 'MI',
+          title: 'modified_integrity',
+          props: [
+            { value: 'X', label: 'not_defined' },
+            { value: 'N', label: 'none' },
+            { value: 'L', label: 'low' },
+            { value: 'H', label: 'high' }
+          ]
+        },
+        ma: {
+          state: 0,
+          model: 'MA',
+          title: 'modified_availability',
+          props: [
+            { value: 'X', label: 'not_defined' },
+            { value: 'N', label: 'none' },
+            { value: 'L', label: 'low' },
+            { value: 'H', label: 'high' }
+          ]
+        }
+      }
+    },
+    vector_string: '',
+    calc: {}
+  }),
+  mixins: [Cvss31Mixin],
+  computed: {
+    baseString2: function () {
+      const group = Object.values(this.cvss)
+      const vector = []
+      const states = []
+
+      vector.push('CVSS:3.1')
+
+      for (let i = 0; i < group.length; i++) {
+        const keys = Object.values(group[i])
+
+        for (let j = 0; j < keys.length; j++) {
+          const state = keys[j].state
+
+          if (keys[j].props[state].value !== 'X') {
+            vector.push('/' + keys[j].model + ':' + keys[j].props[state].value)
+          }
+          states.push(keys[j].props[state].value)
+        }
+      }
+
+      return this.clc.calculateCVSSFromVector(vector.join(''))
+    },
+
+    hideTooltip () {
+      return !this.tooltip ? 'hide-tooltip' : ''
     }
+  },
+  mounted () {
+
+  },
+  methods: {
+    show () {
+      const status = this.clc.calculateCVSSFromVector(this.value).success
+
+      if (status || this.value === '') {
+        if (this.value !== '') {
+          this.remapButton()
+        }
+
+        this.update()
+        this.visible = true
+        this.$emit('success', status)
+      } else {
+        this.$emit('success', status)
+      }
+    },
+    cancel () {
+      this.$emit('update-value', this.calc.vectorString)
+      this.visible = false
+    },
+    update () {
+      const group = Object.values(this.cvss)
+      const vector = []
+      const states = []
+
+      vector.push('CVSS:3.1')
+      for (let i = 0; i < group.length; i++) {
+        const keys = Object.values(group[i])
+
+        for (let j = 0; j < keys.length; j++) {
+          const state = keys[j].state
+
+          if (keys[j].props[state].value !== 'X') {
+            vector.push('/' + keys[j].model + ':' + keys[j].props[state].value)
+          }
+          // states.push(keys[j].props[state].value);
+          states.push(keys[j].state)
+        }
+      }
+      this.calc = this.clc.calculateCVSSFromVector(vector.join(''))
+    },
+
+    remapButton () {
+      const values = this.clc.calculateCVSSFromVector(this.value).vectorValues
+      const group = Object.values(this.cvss)
+      let count = 0
+
+      for (let i = 0; i < group.length; i++) {
+        const keys = Object.values(group[i])
+
+        for (let j = 0; j < keys.length; j++) {
+          keys[j].state = this.readInputVector(Object.values(keys[j].props), values[count++])
+        }
+      }
+    },
+
+    readInputVector (props, value) {
+      for (let i = 0; i < props.length; i++) {
+        if (props[i].value === value) {
+          return i
+        }
+      }
+    }
+
+  }
+}
 </script>

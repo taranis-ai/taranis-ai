@@ -48,37 +48,37 @@
 </template>
 
 <script>
-import UserSettings from "./UserSettings";
+import UserSettings from './UserSettings'
 
 export default {
-    name: "UserMenu",
-    components: {
-        UserSettings
+  name: 'UserMenu',
+  components: {
+    UserSettings
+  },
+  data: () => ({
+    darkTheme: false
+  }),
+  computed: {
+    username () {
+      return this.$store.getters.getUserName
     },
-    data: () => ({
-        darkTheme: false
-    }),
-    computed: {
-        username() {
-            return this.$store.getters.getUserName
-        },
-        organizationName() {
-            return this.$store.getters.getOrganizationName
-        }
-    },
-    methods: {
-        logout() {
-            this.$store.dispatch('logout')
-                .then(() => {
-                    window.location.reload()
-                })
-        },
-        settings() {
-            this.$root.$emit('show-user-settings');
-        },
-        darkToggle() {
-            this.$vuetify.theme.dark = this.darkTheme
-        }
+    organizationName () {
+      return this.$store.getters.getOrganizationName
     }
+  },
+  methods: {
+    logout () {
+      this.$store.dispatch('logout')
+        .then(() => {
+          window.location.reload()
+        })
+    },
+    settings () {
+      this.$root.$emit('show-user-settings')
+    },
+    darkToggle () {
+      this.$vuetify.theme.dark = this.darkTheme
+    }
+  }
 }
 </script>

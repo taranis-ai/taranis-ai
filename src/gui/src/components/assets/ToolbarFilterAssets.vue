@@ -47,58 +47,58 @@
 </template>
 
 <script>
-    import AuthMixin from "../../services/auth/auth_mixin";
+import AuthMixin from '../../services/auth/auth_mixin'
 
-    export default {
-        name: "ToolbarFilterAssets",
-        props: {
-            title: String,
-            dialog: String,
-            total_count_title: String,
-        },
-        components: {},
-        computed: {
-            totalCount() {
-                return this.$store.getters.getAssets.total_count;
-            }
-        },
-        data: () => ({
-            filter: {
-                search: "",
-                vulnerable: false,
-                sort: "ALPHABETICAL"
-            }
-        }),
-        mixins: [AuthMixin],
-        methods: {
-            filterVulnerable() {
-                this.filter.vulnerable = !this.filter.vulnerable;
-                this.$root.$emit('update-assets-filter', this.filter);
-            },
-            filterSort(sort) {
-                this.filter.sort = sort;
-                this.$root.$emit('update-assets-filter', this.filter);
-            },
-            filterSearch() {
-                clearTimeout(this.timeout);
-
-                this.timeout = setTimeout(function () {
-                    this.$root.$emit('update-assets-filter', this.filter);
-                }, 300);
-            },
-            changeTheme() {
-                this.$vuetify.theme.themes.light.primary = "#f0f";
-                this.$vuetify.theme.themes.light.secondary = '#f00';
-                this.$vuetify.theme.themes.light.bg = '#0f0';
-                this.$vuetify.theme.themes.light.base = '#00f';
-            },
-            remove(item) {
-                this.chips.splice(this.chips.indexOf(item), 1);
-                this.chips = [...this.chips]
-            },
-            callDialog: function (e) {
-                this.$root.$emit('callDialog', e);
-            },
-        }
+export default {
+  name: 'ToolbarFilterAssets',
+  props: {
+    title: String,
+    dialog: String,
+    total_count_title: String
+  },
+  components: {},
+  computed: {
+    totalCount () {
+      return this.$store.getters.getAssets.total_count
     }
+  },
+  data: () => ({
+    filter: {
+      search: '',
+      vulnerable: false,
+      sort: 'ALPHABETICAL'
+    }
+  }),
+  mixins: [AuthMixin],
+  methods: {
+    filterVulnerable () {
+      this.filter.vulnerable = !this.filter.vulnerable
+      this.$root.$emit('update-assets-filter', this.filter)
+    },
+    filterSort (sort) {
+      this.filter.sort = sort
+      this.$root.$emit('update-assets-filter', this.filter)
+    },
+    filterSearch () {
+      clearTimeout(this.timeout)
+
+      this.timeout = setTimeout(function () {
+        this.$root.$emit('update-assets-filter', this.filter)
+      }, 300)
+    },
+    changeTheme () {
+      this.$vuetify.theme.themes.light.primary = '#f0f'
+      this.$vuetify.theme.themes.light.secondary = '#f00'
+      this.$vuetify.theme.themes.light.bg = '#0f0'
+      this.$vuetify.theme.themes.light.base = '#00f'
+    },
+    remove (item) {
+      this.chips.splice(this.chips.indexOf(item), 1)
+      this.chips = [...this.chips]
+    },
+    callDialog: function (e) {
+      this.$root.$emit('callDialog', e)
+    }
+  }
+}
 </script>

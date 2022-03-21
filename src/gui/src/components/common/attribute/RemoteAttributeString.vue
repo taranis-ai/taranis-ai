@@ -11,10 +11,10 @@
 </template>
 
 <script>
-    export default {
-        name: "RemoteAttributeString",
-        props: {
-            values: Array,
-        },
-    }
+export default {
+  name: 'RemoteAttributeString',
+  props: {
+    values: Array
+  }
+}
 </script>

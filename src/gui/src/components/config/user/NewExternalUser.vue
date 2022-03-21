@@ -83,144 +83,130 @@
 </template>
 
 <script>
-    import AuthMixin from "../../../services/auth/auth_mixin";
-    import {createNewExternalUser} from "@/api/config";
-    import {updateExternalUser} from "@/api/config";
+import AuthMixin from '../../../services/auth/auth_mixin'
+import { createNewExternalUser, updateExternalUser } from '@/api/config'
 
-    export default {
-        name: "NewExternalUser",
-        components: {},
-        props: {add_button: Boolean},
-        data: () => ({
+export default {
+  name: 'NewExternalUser',
+  components: {},
+  props: { add_button: Boolean },
+  data: () => ({
 
-            headers: [
-                {
-                    text: 'Name',
-                    align: 'start',
-                    value: 'name',
-                },
-                {text: 'Description', value: 'description'},
-            ],
+    headers: [
+      {
+        text: 'Name',
+        align: 'start',
+        value: 'name'
+      },
+      { text: 'Description', value: 'description' }
+    ],
 
-            visible: false,
-            show_validation_error: false,
-            edit: false,
-            show_error: false,
-            selected_permissions: [],
-            permissions: [],
-            user: {
-                id: -1,
-                username: "",
-                name: "",
-                roles: [],
-                permissions: [],
-                organizations: [],
-            }
-        }),
-        methods: {
-            addUser() {
-                this.visible = true;
-                this.edit = false
-                this.show_error = false;
-                this.user.username = "";
-                this.user.name = ""
-                this.user.roles = []
-                this.user.organizations = []
-                this.selected_permissions = []
-                this.$validator.reset();
-            },
-
-            cancel() {
-                this.$validator.reset();
-                this.visible = false;
-            },
-
-            add() {
-                this.$validator.validateAll().then(() => {
-
-                    if (!this.$validator.errors.any()) {
-
-                        this.show_validation_error = false;
-                        this.show_error = false;
-
-                        this.user.permissions = [];
-                        for (let i = 0; i < this.selected_permissions.length; i++) {
-                            this.user.permissions.push(
-                                {
-                                    id: this.selected_permissions[i].id
-                                }
-                            )
-                        }
-
-                        if (this.edit) {
-
-                            updateExternalUser(this.user).then(() => {
-
-                                this.$validator.reset();
-                                this.visible = false;
-
-                                this.$root.$emit('notification',
-                                    {
-                                        type: 'success',
-                                        loc: 'user.successful_edit'
-                                    }
-                                )
-
-                            }).catch(() => {
-
-                                this.show_error = true;
-                            })
-
-                        } else {
-
-                            createNewExternalUser(this.user).then(() => {
-
-                                this.$validator.reset();
-                                this.visible = false;
-
-                                this.$root.$emit('notification',
-                                    {
-                                        type: 'success',
-                                        loc: 'user.successful'
-                                    }
-                                )
-
-                            }).catch(() => {
-
-                                this.show_error = true;
-                            })
-                        }
-
-                    } else {
-
-                        this.show_validation_error = true;
-                    }
-                })
-            }
-        },
-        mixins: [AuthMixin],
-        mounted() {
-            this.$store.dispatch('getAllExternalPermissions', {search: ''})
-                .then(() => {
-                    this.permissions = this.$store.getters.getAllPermissions.items
-                });
-
-            this.$root.$on('show-edit', (data) => {
-                this.visible = true;
-                this.edit = true;
-                this.show_error = false;
-
-                this.selected_roles = data.roles;
-                this.selected_permissions = data.permissions;
-                this.selected_organizations = data.organizations;
-
-                this.user.id = data.id;
-                this.user.username = data.username;
-                this.user.name = data.name;
-            });
-        },
-        beforeDestroy() {
-            this.$root.$off('show-edit')
-        }
+    visible: false,
+    show_validation_error: false,
+    edit: false,
+    show_error: false,
+    selected_permissions: [],
+    permissions: [],
+    user: {
+      id: -1,
+      username: '',
+      name: '',
+      roles: [],
+      permissions: [],
+      organizations: []
     }
+  }),
+  methods: {
+    addUser () {
+      this.visible = true
+      this.edit = false
+      this.show_error = false
+      this.user.username = ''
+      this.user.name = ''
+      this.user.roles = []
+      this.user.organizations = []
+      this.selected_permissions = []
+      this.$validator.reset()
+    },
+
+    cancel () {
+      this.$validator.reset()
+      this.visible = false
+    },
+
+    add () {
+      this.$validator.validateAll().then(() => {
+        if (!this.$validator.errors.any()) {
+          this.show_validation_error = false
+          this.show_error = false
+
+          this.user.permissions = []
+          for (let i = 0; i < this.selected_permissions.length; i++) {
+            this.user.permissions.push(
+              {
+                id: this.selected_permissions[i].id
+              }
+            )
+          }
+
+          if (this.edit) {
+            updateExternalUser(this.user).then(() => {
+              this.$validator.reset()
+              this.visible = false
+
+              this.$root.$emit('notification',
+                {
+                  type: 'success',
+                  loc: 'user.successful_edit'
+                }
+              )
+            }).catch(() => {
+              this.show_error = true
+            })
+          } else {
+            createNewExternalUser(this.user).then(() => {
+              this.$validator.reset()
+              this.visible = false
+
+              this.$root.$emit('notification',
+                {
+                  type: 'success',
+                  loc: 'user.successful'
+                }
+              )
+            }).catch(() => {
+              this.show_error = true
+            })
+          }
+        } else {
+          this.show_validation_error = true
+        }
+      })
+    }
+  },
+  mixins: [AuthMixin],
+  mounted () {
+    this.$store.dispatch('getAllExternalPermissions', { search: '' })
+      .then(() => {
+        this.permissions = this.$store.getters.getAllPermissions.items
+      })
+
+    this.$root.$on('show-edit', (data) => {
+      this.visible = true
+      this.edit = true
+      this.show_error = false
+
+      this.selected_roles = data.roles
+      this.selected_permissions = data.permissions
+      this.selected_organizations = data.organizations
+
+      this.user.id = data.id
+      this.user.username = data.username
+      this.user.name = data.name
+    })
+  },
+  beforeDestroy () {
+    this.$root.$off('show-edit')
+  }
+}
 </script>

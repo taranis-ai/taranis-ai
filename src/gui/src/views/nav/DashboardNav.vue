@@ -4,14 +4,14 @@
 
 <script>
 
-    export default {
-        name: "DashboardNav",
-        components: {
+export default {
+  name: 'DashboardNav',
+  components: {
 
-        },
-        data: () => ({
-            links: [
-            ]
-        })
-    }
+  },
+  data: () => ({
+    links: [
+    ]
+  })
+}
 </script>

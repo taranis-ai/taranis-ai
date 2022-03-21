@@ -97,158 +97,153 @@
 </template>
 
 <script>
-import AuthMixin from "../../services/auth/auth_mixin";
-import ToolbarGroupOSINTSource from "./ToolbarGroupOSINTSource";
-import {exportOSINTSources, importOSINTSources} from "@/api/config";
+import AuthMixin from '../../services/auth/auth_mixin'
+import ToolbarGroupOSINTSource from './ToolbarGroupOSINTSource'
+import { exportOSINTSources, importOSINTSources } from '@/api/config'
 
 export default {
-    name: "ToolbarFilterOSINTSource",
-    components: {
-        ToolbarGroupOSINTSource
+  name: 'ToolbarFilterOSINTSource',
+  components: {
+    ToolbarGroupOSINTSource
+  },
+  props: {
+    title: String,
+    dialog: String,
+    total_count_title: String,
+    total_count_getter: String
+  },
+  data: () => ({
+    filter: {
+      search: ''
     },
-    props: {
-        title: String,
-        dialog: String,
-        total_count_title: String,
-        total_count_getter: String
+    selected_node: null,
+    timeout: null,
+    dialog_import: false,
+    import_file: null,
+    nodes: [],
+    show_validation_error: false,
+    show_error: false,
+    overlay: false,
+    is_file: false,
+    file_needed: false,
+    rules: [
+      v => !!v || 'File is required'
+    ]
+  }),
+  computed: {
+    totalCount () {
+      return this.$store.getters[this.total_count_getter].total_count
     },
-    data: () => ({
-        filter: {
-            search: "",
-        },
-        selected_node: null,
-        timeout: null,
-        dialog_import: false,
-        import_file: null,
-        nodes: [],
-        show_validation_error: false,
-        show_error: false,
-        overlay: false,
-        is_file: false,
-        file_needed: false,
-        rules: [
-            v => !!v || 'File is required'
-        ]
-    }),
-    computed: {
-        totalCount() {
-            return this.$store.getters[this.total_count_getter].total_count
-        },
-        multiSelectActive() {
-            return this.$store.getters.getOSINTSourcesMultiSelect;
-        },
-        selected() {
-            if( !this.$store.getters.getOSINTSourcesSelection.length ) {
-                return {};
-            } else {
-                return { selection: this.$store.getters.getOSINTSourcesSelection };
-            }
-        },
-        isFile() {
-            return Object.entries(this.import_file).length !== 0;
-        }
+    multiSelectActive () {
+      return this.$store.getters.getOSINTSourcesMultiSelect
     },
-    watch: {
-        import_file(val) {
-            if( val ) {
-                this.is_file = true;
-                this.file_needed = false;
-            } else {
-                this.is_file = false;
-            }
-        }
+    selected () {
+      if (!this.$store.getters.getOSINTSourcesSelection.length) {
+        return {}
+      } else {
+        return { selection: this.$store.getters.getOSINTSourcesSelection }
+      }
     },
-    mixins: [AuthMixin],
-    methods: {
-        importSources() {
-            this.$validator.validateAll().then(() => {
-
-                if (!this.$validator.errors.any() && this.is_file) {
-
-                    //this.show_validation_error = false;
-                    //this.show_error = false;
-
-                    let formData = new FormData();
-                    formData.append("file", this.import_file)
-                    formData.append("collectors_node_id", this.selected_node.id)
-                    this.overlay = true;
-                    importOSINTSources(formData).then(() => {
-
-                        this.overlay = false;
-                        this.dialog_import = false;
-                        this.$root.$emit('notification',
-                            {
-                                type: 'success',
-                                loc: 'osint_source.notification.success'
-                            });
-
-                    }).catch(() => {
-                        //this.show_error = true;
-                        this.overlay = false;
-                        this.$root.$emit('notification',
-                            {
-                                type: 'error',
-                                loc: 'error.server_error'
-                            });
-                    })
-                } else {
-                    //this.show_validation_error = true;
-                    this.file_needed = true;
-                    this.$root.$emit('notification',
-                        {
-                            type: 'error',
-                            loc: 'validations.messages._default'
-                        });
-                }
-            })
-        },
-        cancel() {
-            this.$validator.reset();
-            this.dialog_import = false;
-        },
-
-        exportSources() {
-            exportOSINTSources( this.selected );
-        },
-        filterSearch: function () {
-            clearTimeout(this.timeout);
-
-            let self = this;
-            this.timeout = setTimeout(function () {
-                self.$root.$emit('update-items-filter', self.filter)
-            }, 800);
-        },
-        changeTheme() {
-            this.$vuetify.theme.themes.light.primary = "#f0f";
-            this.$vuetify.theme.themes.light.secondary = '#f00';
-            this.$vuetify.theme.themes.light.bg = '#0f0';
-            this.$vuetify.theme.themes.light.base = '#00f';
-        },
-        remove(item) {
-            this.chips.splice(this.chips.indexOf(item), 1);
-            this.chips = [...this.chips]
-        },
-        openImportDialog() {
-            this.dialog_import = true;
-            this.$refs.form.reset();
-            //this.$refs.form.resetValidation();
-            this.$validator.reset();
-        }
-    },
-    mounted() {
-        this.$store.dispatch('getAllCollectorsNodes', {search: ''})
-            .then(() => {
-                this.nodes = this.$store.getters.getCollectorsNodes.items
-                for (let i = 0; i < this.nodes.length; i++) {
-                    for (let j = 0; j < this.nodes[i].collectors.length; j++) {
-                        this.nodes[i].collectors[j].name_with_id = this.nodes[i].collectors[j].name + " (ID: " + this.nodes[i].collectors[j].id + ")"
-                    }
-                }
-            });
-
-    },
-    beforeDestroy() {
-        this.$store.commit("setMultiSelect", false);
+    isFile () {
+      return Object.entries(this.import_file).length !== 0
     }
+  },
+  watch: {
+    import_file (val) {
+      if (val) {
+        this.is_file = true
+        this.file_needed = false
+      } else {
+        this.is_file = false
+      }
+    }
+  },
+  mixins: [AuthMixin],
+  methods: {
+    importSources () {
+      this.$validator.validateAll().then(() => {
+        if (!this.$validator.errors.any() && this.is_file) {
+          // this.show_validation_error = false;
+          // this.show_error = false;
+
+          const formData = new FormData()
+          formData.append('file', this.import_file)
+          formData.append('collectors_node_id', this.selected_node.id)
+          this.overlay = true
+          importOSINTSources(formData).then(() => {
+            this.overlay = false
+            this.dialog_import = false
+            this.$root.$emit('notification',
+              {
+                type: 'success',
+                loc: 'osint_source.notification.success'
+              })
+          }).catch(() => {
+            // this.show_error = true;
+            this.overlay = false
+            this.$root.$emit('notification',
+              {
+                type: 'error',
+                loc: 'error.server_error'
+              })
+          })
+        } else {
+          // this.show_validation_error = true;
+          this.file_needed = true
+          this.$root.$emit('notification',
+            {
+              type: 'error',
+              loc: 'validations.messages._default'
+            })
+        }
+      })
+    },
+    cancel () {
+      this.$validator.reset()
+      this.dialog_import = false
+    },
+
+    exportSources () {
+      exportOSINTSources(this.selected)
+    },
+    filterSearch: function () {
+      clearTimeout(this.timeout)
+
+      const self = this
+      this.timeout = setTimeout(function () {
+        self.$root.$emit('update-items-filter', self.filter)
+      }, 800)
+    },
+    changeTheme () {
+      this.$vuetify.theme.themes.light.primary = '#f0f'
+      this.$vuetify.theme.themes.light.secondary = '#f00'
+      this.$vuetify.theme.themes.light.bg = '#0f0'
+      this.$vuetify.theme.themes.light.base = '#00f'
+    },
+    remove (item) {
+      this.chips.splice(this.chips.indexOf(item), 1)
+      this.chips = [...this.chips]
+    },
+    openImportDialog () {
+      this.dialog_import = true
+      this.$refs.form.reset()
+      // this.$refs.form.resetValidation();
+      this.$validator.reset()
+    }
+  },
+  mounted () {
+    this.$store.dispatch('getAllCollectorsNodes', { search: '' })
+      .then(() => {
+        this.nodes = this.$store.getters.getCollectorsNodes.items
+        for (let i = 0; i < this.nodes.length; i++) {
+          for (let j = 0; j < this.nodes[i].collectors.length; j++) {
+            this.nodes[i].collectors[j].name_with_id = this.nodes[i].collectors[j].name + ' (ID: ' + this.nodes[i].collectors[j].id + ')'
+          }
+        }
+      })
+  },
+  beforeDestroy () {
+    this.$store.commit('setMultiSelect', false)
+  }
 }
 </script>

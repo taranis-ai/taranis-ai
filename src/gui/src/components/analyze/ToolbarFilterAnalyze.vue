@@ -66,123 +66,123 @@
 </template>
 
 <script>
-import AuthMixin from "../../services/auth/auth_mixin";
-import ToolbarGroupAnalyze from "@/components/analyze/ToolbarGroupAnalyze";
+import AuthMixin from '../../services/auth/auth_mixin'
+import ToolbarGroupAnalyze from '@/components/analyze/ToolbarGroupAnalyze'
 
 export default {
-    name: "ToolbarFilterAnalyze",
-    props: {
-        title: String,
-        dialog: String,
-        total_count_title: String,
-        publish_selector: Boolean,
+  name: 'ToolbarFilterAnalyze',
+  props: {
+    title: String,
+    dialog: String,
+    total_count_title: String,
+    publish_selector: Boolean
+  },
+  components: {
+    ToolbarGroupAnalyze
+  },
+  computed: {
+    totalCount () {
+      return this.data_count
     },
-    components: {
-        ToolbarGroupAnalyze
-    },
-    computed: {
-        totalCount() {
-            return this.data_count
-        },
 
-        showGroupToolbar() {
-            return !this.publish_selector && this.local_reports
-        }
-    },
-    data: () => ({
-        local_reports: true,
-        status: [],
-        days: [
-            {title: 'toolbar_filter.all', icon: 'mdi-information-outline', type: 'info', filter: 'ALL'},
-            {title: 'toolbar_filter.today', icon: 'mdi-calendar-today', type: 'info', filter: 'TODAY'},
-            {title: 'toolbar_filter.this_week', icon: 'mdi-calendar-range', type: 'info', filter: 'WEEK'},
-            {title: 'toolbar_filter.this_month', icon: 'mdi-calendar-month', type: 'info', filter: 'MONTH'}
-        ],
-        data_count: 0,
-        filter: {
-            search: "",
-            range: "ALL",
-            completed: false,
-            incompleted: false,
-            sort: "DATE_DESC"
-        },
-        timeout: null
-    }),
-    mixins: [AuthMixin],
-    methods: {
-        updateDataCount(count) {
-            this.data_count = count
-        },
-
-        filterCompleted() {
-            this.filter.completed = !this.filter.completed;
-            this.filter.incompleted = false;
-            this.$emit('update-report-items-filter', this.filter);
-            if (this.publish_selector === false) {
-                this.$refs.toolbarGroupAnalyze.disableMultiSelect()
-            }
-        },
-
-        filterIncompleted() {
-            this.filter.incompleted = !this.filter.incompleted;
-            this.filter.completed = false;
-            this.$emit('update-report-items-filter', this.filter);
-            if (this.publish_selector === false) {
-                this.$refs.toolbarGroupAnalyze.disableMultiSelect()
-            }
-        },
-
-        filterSort(sort) {
-            this.filter.sort = sort;
-            this.$emit('update-report-items-filter', this.filter);
-            if (this.publish_selector === false) {
-                this.$refs.toolbarGroupAnalyze.disableMultiSelect()
-            }
-        },
-
-        filterRange(range) {
-            this.filter.range = range;
-            this.$emit('update-report-items-filter', this.filter);
-            if (this.publish_selector === false) {
-                this.$refs.toolbarGroupAnalyze.disableMultiSelect()
-            }
-        },
-
-        filterSearch: function () {
-            clearTimeout(this.timeout);
-
-            let self = this;
-            this.timeout = setTimeout(function () {
-                self.$emit('update-report-items-filter', self.filter)
-                if (this.publish_selector === false) {
-                    this.$refs.toolbarGroupAnalyze.disableMultiSelect()
-                }
-            }, 300);
-        },
-
-        changeTheme() {
-            this.$vuetify.theme.themes.light.primary = "#f0f";
-            this.$vuetify.theme.themes.light.secondary = '#f00';
-            this.$vuetify.theme.themes.light.bg = '#0f0';
-            this.$vuetify.theme.themes.light.base = '#00f';
-        },
-        remove(item) {
-            this.chips.splice(this.chips.indexOf(item), 1);
-            this.chips = [...this.chips]
-        },
-        cancel() {
-        },
-        add() {
-        }
-
-    },
-    mounted() {
-        this.local_reports = !window.location.pathname.includes('/group/');
-    },
-    watch: {
-        $route() {
-            this.local_reports = !window.location.pathname.includes('/group/');
-        }
+    showGroupToolbar () {
+      return !this.publish_selector && this.local_reports
     }
+  },
+  data: () => ({
+    local_reports: true,
+    status: [],
+    days: [
+      { title: 'toolbar_filter.all', icon: 'mdi-information-outline', type: 'info', filter: 'ALL' },
+      { title: 'toolbar_filter.today', icon: 'mdi-calendar-today', type: 'info', filter: 'TODAY' },
+      { title: 'toolbar_filter.this_week', icon: 'mdi-calendar-range', type: 'info', filter: 'WEEK' },
+      { title: 'toolbar_filter.this_month', icon: 'mdi-calendar-month', type: 'info', filter: 'MONTH' }
+    ],
+    data_count: 0,
+    filter: {
+      search: '',
+      range: 'ALL',
+      completed: false,
+      incompleted: false,
+      sort: 'DATE_DESC'
+    },
+    timeout: null
+  }),
+  mixins: [AuthMixin],
+  methods: {
+    updateDataCount (count) {
+      this.data_count = count
+    },
+
+    filterCompleted () {
+      this.filter.completed = !this.filter.completed
+      this.filter.incompleted = false
+      this.$emit('update-report-items-filter', this.filter)
+      if (this.publish_selector === false) {
+        this.$refs.toolbarGroupAnalyze.disableMultiSelect()
+      }
+    },
+
+    filterIncompleted () {
+      this.filter.incompleted = !this.filter.incompleted
+      this.filter.completed = false
+      this.$emit('update-report-items-filter', this.filter)
+      if (this.publish_selector === false) {
+        this.$refs.toolbarGroupAnalyze.disableMultiSelect()
+      }
+    },
+
+    filterSort (sort) {
+      this.filter.sort = sort
+      this.$emit('update-report-items-filter', this.filter)
+      if (this.publish_selector === false) {
+        this.$refs.toolbarGroupAnalyze.disableMultiSelect()
+      }
+    },
+
+    filterRange (range) {
+      this.filter.range = range
+      this.$emit('update-report-items-filter', this.filter)
+      if (this.publish_selector === false) {
+        this.$refs.toolbarGroupAnalyze.disableMultiSelect()
+      }
+    },
+
+    filterSearch: function () {
+      clearTimeout(this.timeout)
+
+      const self = this
+      this.timeout = setTimeout(function () {
+        self.$emit('update-report-items-filter', self.filter)
+        if (this.publish_selector === false) {
+          this.$refs.toolbarGroupAnalyze.disableMultiSelect()
+        }
+      }, 300)
+    },
+
+    changeTheme () {
+      this.$vuetify.theme.themes.light.primary = '#f0f'
+      this.$vuetify.theme.themes.light.secondary = '#f00'
+      this.$vuetify.theme.themes.light.bg = '#0f0'
+      this.$vuetify.theme.themes.light.base = '#00f'
+    },
+    remove (item) {
+      this.chips.splice(this.chips.indexOf(item), 1)
+      this.chips = [...this.chips]
+    },
+    cancel () {
+    },
+    add () {
+    }
+
+  },
+  mounted () {
+    this.local_reports = !window.location.pathname.includes('/group/')
+  },
+  watch: {
+    $route () {
+      this.local_reports = !window.location.pathname.includes('/group/')
+    }
+  }
 }
 </script>
