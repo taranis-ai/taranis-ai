@@ -41,8 +41,7 @@ COPY ./docker/gunicorn_conf.py /gunicorn_conf.py
 
 COPY ./src/core/. /app/
 
-RUN chmod +x /app/manage.py && \
-    chmod +x /app/db_migration.py
+RUN chmod +x /app/manage.py
 
 EXPOSE 80
 

@@ -3,7 +3,7 @@
 echo "Running inside /app/prestart.sh..."
 
 echo "Running migrations..."
-/app/db_migration.py db upgrade head
+flask db migrate
 echo "Done."
 
 if [[ -n "$TARANIS_NG_SAMPLE_DATA" ]]; then
