@@ -57,6 +57,7 @@ def get_required_credentials():
 
 
 def authenticate(credentials):
+    log_manager.log_debug(f"credentials: {credentials}")
     return current_authenticator.authenticate(credentials)
 
 
@@ -256,7 +257,7 @@ def jwt_required(fn):
 
         user = User.find(identity)
         if user is None:
-            log_manager.store_auth_error_activity("Unknown identity: ".format(identity))
+            log_manager.store_auth_error_activity("Unknown identity: {}".format(identity))
             return {'error': 'authorization failed'}, 401
 
         log_manager.store_user_activity(user, "API_ACCESS", "Access permitted")

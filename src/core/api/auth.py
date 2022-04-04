@@ -3,7 +3,7 @@ from flask import redirect, make_response
 from flask_restful import Resource, reqparse, request, ResponseBase
 
 from config import Config
-from managers import auth_manager
+from managers import auth_manager, log_manager
 from managers.auth_manager import no_auth, jwt_required
 
 
@@ -23,6 +23,7 @@ class Login(Resource):
 
     def post(self):
         parser = reqparse.RequestParser()
+        log_manager.log_debug(auth_manager.get_required_credentials())
         for credential in auth_manager.get_required_credentials():
             parser.add_argument(credential)
         credentials = parser.parse_args()
