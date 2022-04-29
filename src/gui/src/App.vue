@@ -29,7 +29,6 @@ export default {
   },
   data: () => ({
     visible: null,
-    // isDark: true
   }),
   mixins: [AuthMixin],
   methods: {

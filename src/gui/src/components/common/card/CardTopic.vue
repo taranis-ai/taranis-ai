@@ -1,7 +1,7 @@
 <template>
     <v-card tile elevation="4" outlined height="100%" :class="[
     'pa-5',
-    'pl-1', 
+    'pl-1',
     'align-self-stretch',
     'topic',
     {
@@ -29,7 +29,7 @@
                     </v-row>
 
                     <!-- Title -->
-            
+
                     <v-row class="flex-grow-0 mt-1">
                         <v-col>
                             <h2 class="font-weight-bold headline main-text-color--text">
@@ -47,9 +47,9 @@
                     <!-- spacer -->
 
                     <v-spacer></v-spacer>
-                    
+
                     <!-- Excerpt -->
-            
+
                     <v-row class="flex-grow-0 mt-2">
                         <v-col>
                             <p class="font-weight-light main-text-color--text topic-excerpt">
@@ -66,21 +66,21 @@
                                 <v-row class="mx-0">
                                     <v-col cols="6" class="pa-0 pt-0 pr-1">
                                         <v-icon left small>mdi-file-outline</v-icon>
-                                        <span class="text-caption font-weight-light main-text-color--text">{{ topic.items.total }} /</span> 
-                                        <span class="text-caption font-weight-bold main-text-color--text">{{ topic.items.new }}</span> 
+                                        <span class="text-caption font-weight-light main-text-color--text">{{ topic.items.total }} /</span>
+                                        <span class="text-caption font-weight-bold main-text-color--text">{{ topic.items.new }}</span>
                                     </v-col>
                                     <v-col cols="6" class="pa-0 pt-0 pr-1">
                                         <v-icon left small color="awake-green-color">mdi-arrow-up-circle-outline</v-icon>
-                                        <span class="text-caption font-weight-light main-text-color--text">{{ topic.votes.up }}</span> 
+                                        <span class="text-caption font-weight-light main-text-color--text">{{ topic.votes.up }}</span>
                                     </v-col>
                                     <v-col cols="6" class="pa-0 pt-0 pr-1">
                                         <v-icon left small>mdi-message-outline</v-icon>
-                                        <span class="text-caption font-weight-light main-text-color--text">{{ topic.comments.total }} /</span> 
-                                        <span class="text-caption font-weight-bold main-text-color--text">{{ topic.comments.new }}</span> 
+                                        <span class="text-caption font-weight-light main-text-color--text">{{ topic.comments.total }} /</span>
+                                        <span class="text-caption font-weight-bold main-text-color--text">{{ topic.comments.new }}</span>
                                     </v-col>
                                     <v-col cols="6" class="pa-0 pt-0 pr-1">
                                         <v-icon left small color="awake-red-color">mdi-arrow-down-circle-outline</v-icon>
-                                        <span class="text-caption font-weight-light main-text-color--text">{{ topic.votes.down }}</span> 
+                                        <span class="text-caption font-weight-light main-text-color--text">{{ topic.votes.down }}</span>
                                     </v-col>
                                 </v-row>
                             </v-container>
@@ -92,7 +92,6 @@
                             </v-btn>
                         </v-col>
                     </v-row>
-
 
                 </v-col>
             </v-row>
@@ -108,7 +107,7 @@ export default {
   name: 'CardTopic',
   components: {
     TagMini,
-    TagTopic,
+    TagTopic
   },
   props: {
     topic: {}
