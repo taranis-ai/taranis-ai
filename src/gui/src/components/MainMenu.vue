@@ -1,11 +1,11 @@
 <template>
   <v-app-bar
-    app
     dense
-    clipped-left
     flat
     color="cx-app-header"
     class="main-menu-bar pr-0 pl-0"
+    app
+    clipped-left
   >
     <v-btn
       depressed
@@ -18,7 +18,7 @@
       <v-icon
         :class="[
           'menu-icon',
-          { closed: !opened || this.$vuetify.breakpoint.mdAndDown },
+          { closed: !opened || this.$vuetify.breakpoint.mdAndDown }
         ]"
         >mdi-menu-open</v-icon
       >
@@ -58,6 +58,15 @@
       </div>
     </v-toolbar-title>
 
+    <div class="item-count">
+      <span
+        >total items: <strong>{{ itemCount.total }}</strong> /
+      </span>
+      <span
+        >displayed items: <strong>{{ itemCount.filtered }}</strong></span
+      >
+    </div>
+
     <v-spacer></v-spacer>
 
     <!-- Menu -->
@@ -69,16 +78,15 @@
       color="transparent"
       class="justify-end"
     >
-      <div v-for="button in buttons" :key="button.route">
+      <div v-for="button in getButtonList(permissions)" :key="button.route">
         <v-btn
           text
           plain
           tile
           route
-          color="main-text-color"
+          color="dark-grey"
           :ripple="false"
           :to="button.route"
-          v-if="checkPermission(permissions[button.permission]) && button.show"
         >
           <span class="main-menu-item text-lowercase">{{
             $t(button.title)
@@ -106,18 +114,18 @@
         </v-btn>
       </template>
       <v-list>
-        <v-list-item v-for="button in buttons" :key="button.route">
+        <v-list-item
+          v-for="button in getButtonList(permissions)"
+          :key="button.route"
+        >
           <v-btn
             text
             plain
             tile
             route
-            color="main-text-color"
+            color="dark-grey"
             :ripple="false"
             :to="button.route"
-            v-if="
-              checkPermission(permissions[button.permission]) && button.show
-            "
           >
             <span class="main-menu-item text-lowercase">{{
               $t(button.title)
@@ -135,6 +143,8 @@
 import UserMenu from '../components/UserMenu'
 import AuthMixin from '../services/auth/auth_mixin'
 import Permissions from '@/services/auth/permissions'
+
+import { mapGetters, mapState, mapActions } from 'vuex'
 
 export default {
   components: { UserMenu },
@@ -202,10 +212,9 @@ export default {
     darkTheme: false
   }),
   mixins: [AuthMixin],
-  props: {
-    visible: Boolean
-  },
   methods: {
+    ...mapActions('assess', ['getManualOSINTSources']),
+
     navClicked () {
       this.opened = !this.opened
       this.$root.$emit('nav-clicked')
@@ -213,13 +222,22 @@ export default {
 
     darkToggle () {
       this.$vuetify.theme.dark = this.darkTheme
+    },
+
+    getButtonList (permissions) {
+      return this.buttons.filter(
+        (button) =>
+          this.checkPermission(permissions[button.permission]) && button.show
+      )
     }
+  },
+  computed: {
+    ...mapState(['itemCount'])
   },
   mounted () {
     if (this.checkPermission(Permissions.ASSESS_CREATE)) {
-      this.$store.dispatch('getManualOSINTSources').then(() => {
-        this.buttons[2].show =
-          this.$store.getters.getManualOSINTSources.length > 0
+      this.getManualOSINTSources().then(() => {
+        this.buttons[2].show = this.getManualOSINTSources().length > 0
       })
     }
   }

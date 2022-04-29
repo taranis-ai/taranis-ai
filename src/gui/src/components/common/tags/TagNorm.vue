@@ -1,5 +1,5 @@
 <template>
-    <v-chip 
+    <v-chip
       label
       class="mr-1 mb-1 topic-label"
       dark
@@ -12,14 +12,14 @@
 
 <script>
 export default {
-  name: 'TagTopic',
+  name: 'TagNorm',
   props: {
     tag: {}
   },
   data: () => ({
   }),
   methods: {
-    labelcolor: function(i) {
+    labelcolor: function (i) {
       var colorList = [
         '#DCE868',
         '#DDBC42',
@@ -29,8 +29,8 @@ export default {
         '#A0062F',
         '#8F1616',
         '#B0309A',
-        '#9752CB',
-      ];
+        '#9752CB'
+      ]
       return colorList[i % colorList.length]
     }
   }

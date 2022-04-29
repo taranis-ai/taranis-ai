@@ -270,7 +270,7 @@ const Cvss31Mixin = ({
       const metricWeightMA = CVSS31.Weight.CIA[MA !== 'X' ? MA : A]
       let baseScore
       const iss = (1 - ((1 - metricWeightC) * (1 - metricWeightI) * (1 - metricWeightA)))
-      const impact = S === 'U' ? metricWeightS * iss : metricWeightS * (iss - 0.029) - 3.25 * Math.pow(iss - 0.02, 15);
+      const impact = S === 'U' ? metricWeightS * iss : metricWeightS * (iss - 0.029) - 3.25 * Math.pow(iss - 0.02, 15)
 
       const exploitability = CVSS31.exploitabilityCoefficient * metricWeightAV * metricWeightAC * metricWeightPR * metricWeightUI
       if (impact <= 0) {
@@ -405,7 +405,7 @@ const Cvss31Mixin = ({
         MI: undefined,
         MA: undefined
       }
-      const badMetrics = [];
+      const badMetrics = []
       if (!CVSS31.vectorStringRegex_31.test(vectorString)) {
         return {
           success: false,
@@ -438,8 +438,8 @@ const Cvss31Mixin = ({
       return int_input % 10000 === 0 ? int_input / 100000 : (Math.floor(int_input / 10000) + 1) / 10
     }
     CVSS31.severityRating = function (score) {
-      const severityRatingLength = CVSS31.severityRatings.length;
-      const validatedScore = Number(score);
+      const severityRatingLength = CVSS31.severityRatings.length
+      const validatedScore = Number(score)
       if (isNaN(validatedScore)) {
         return validatedScore
       }

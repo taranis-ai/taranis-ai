@@ -74,7 +74,6 @@ export const router = new Router({
       components: {
         default: () => import('./views/users/DashboardView.vue'),
         nav: () => import('./views/nav/DashboardNav.vue')
-
       },
       meta: { requiresAuth: true, requiresPerm: [Permissions.ASSESS_ACCESS] }
     },

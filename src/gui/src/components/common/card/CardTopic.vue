@@ -1,120 +1,254 @@
 <template>
-    <v-card tile elevation="4" outlined height="100%" :class="[
-    'pa-5',
-    'pl-1',
-    'align-self-stretch',
-    'topic',
-    {
+  <v-card
+    tile
+    elevation="4"
+    outlined
+    height="100%"
+    :class="[
+      'px-5',
+      'py-4',
+      'align-self-stretch',
+      'topic',
+      'primary--text',
+      {
+        selected: topic.selected,
+        'pinned-topic': topic.pinned,
         'hot-topic': topic.hot,
-    }]">
-        <v-container column style="height: 100%">
+        'corner-tag-ai': topic.ai,
+        'corner-tag-shared': topic.isSharingSet,
+        'sharing-set-topic': topic.isSharingSet,
+        'sharing-set-topic-shared': topic.sharingState === 'shared',
+      },
+    ]"
+    @click="toggleSelection"
+  >
+    <!-- Corner Tags -->
+    <div v-if="topic.ai && !topic.isSharingSet" class="topic-corner-tag">
+      AI
+    </div>
+    <div
+      v-if="topic.isSharingSet && topic.sharingDirection === 'outgoing'"
+      class="topic-corner-tag"
+    >
+      <v-icon x-small left v-if="topic.sharingState === 'shared'"
+        >$awakeShare</v-icon
+      >
+      <v-icon x-small left v-else>$awakeShareOutline</v-icon>
+    </div>
+    <div
+      v-if="topic.isSharingSet && topic.sharingDirection === 'incoming'"
+      class="topic-corner-tag"
+    >
+      <v-icon
+        x-small
+        left
+        class="flipped-icon"
+        v-if="topic.sharingState === 'shared'"
+        >$awakeShare</v-icon
+      >
+      <v-icon x-small left class="flipped-icon" v-else
+        >$awakeShareOutline</v-icon
+      >
+    </div>
 
-            <v-row no-gutters style="height: 100%">
-                <v-col class="d-flex flex-column" align-self="start" style="height: 100%">
+    <v-container column style="height: 100%">
+      <v-row no-gutters style="height: 100%">
+        <v-col
+          class="d-flex flex-column"
+          align-self="start"
+          style="height: 100%"
+        >
+          <!-- Header -->
 
-                    <!-- Header -->
+          <v-row class="flex-grow-0">
+            <v-col cols="10" class="mr-auto mt-1 activity-row">
+              <div v-if="topic.isSharingSet">
+                <span class="last-activity font-weight-light">Shared on: </span>
+                <span class="last-activity font-weight-bold">
+                  {{ lastActivity }} </span
+                ><br />
+                <span class="last-activity font-weight-light">Shared by: </span>
+                <span class="last-activity font-weight-bold">
+                  {{ topic.originator }}
+                </span>
+              </div>
 
-                    <v-row class="flex-grow-0">
-                        <v-col cols="auto" class="mr-auto mt-1">
-                            <tag-mini label="AI" v-show="topic.ai" />
-                            <span class="last-activity font-weight-light main-text-color--text">Last activity: </span>
-                            <span class="last-activity font-weight-bold main-text-color--text">March, 15, 2022</span>
-                        </v-col>
+              <div v-else>
+                <span class="last-activity font-weight-light"
+                  >Last activity:
+                </span>
+                <span class="last-activity font-weight-bold">
+                  {{ lastActivity }}
+                </span>
+              </div>
+            </v-col>
 
-                        <v-col cols="auto">
-                            <v-btn fab depressed outlined x-small color="grey" :class="['fab-pin', {'pinned': topic.pinned,}]" @click="topic.pinned = !topic.pinned">
-                                <v-icon>$awakePin</v-icon>
-                            </v-btn>
-                        </v-col>
-                    </v-row>
+            <v-col cols="2" class="text-right">
+              <pin :value="topic.pinned" @input="pinTopic(topic.id)" />
+            </v-col>
+          </v-row>
 
-                    <!-- Title -->
+          <!-- Title -->
 
-                    <v-row class="flex-grow-0 mt-1">
-                        <v-col>
-                            <h2 class="font-weight-bold headline main-text-color--text">
-                                {{ topic.title }}
-                            </h2>
-                        </v-col>
-                    </v-row>
+          <v-row class="flex-grow-0 mt-0">
+            <v-col class="py-3">
+              <h2
+                class="
+                  font-weight-bold
+                  headline
+                  topic-title
+                  dark-grey--text
+                  text-capitalize
+                "
+              >
+                {{ topic.title }}
+              </h2>
+            </v-col>
+          </v-row>
 
-                    <v-row class="flex-grow-0 mt-1">
-                        <v-col>
-                            <tag-topic v-for="tag in topic.tags" :key="tag.label" :tag="tag" />
-                        </v-col>
-                    </v-row>
+          <v-row class="flex-grow-0 mt-0">
+            <v-col>
+              <tag-norm v-for="tag in topic.tags" :key="tag.label" :tag="tag" />
+            </v-col>
+          </v-row>
 
-                    <!-- spacer -->
+          <!-- spacer -->
 
-                    <v-spacer></v-spacer>
+          <v-spacer></v-spacer>
 
-                    <!-- Excerpt -->
+          <!-- summary -->
 
-                    <v-row class="flex-grow-0 mt-2">
-                        <v-col>
-                            <p class="font-weight-light main-text-color--text topic-excerpt">
-                                {{ topic.summary }}
-                            </p>
-                        </v-col>
-                    </v-row>
+          <v-row class="flex-grow-0 mt-0 mb-0">
+            <v-col>
+              <p class="font-weight-light dark-grey--text topic-summary mb-0">
+                {{ topic.summary }}
+              </p>
+            </v-col>
+          </v-row>
 
-                    <!-- Footer -->
+          <!-- Footer -->
 
-                    <v-row no-gutter wrap align="center" justify="end" class="flex-grow-0 mt-0">
-                        <v-col cols="12" md="8" class="mx-0 d-flex justify-start">
-                            <v-container class="mx-0 pa-0">
-                                <v-row class="mx-0">
-                                    <v-col cols="6" class="pa-0 pt-0 pr-1">
-                                        <v-icon left small>mdi-file-outline</v-icon>
-                                        <span class="text-caption font-weight-light main-text-color--text">{{ topic.items.total }} /</span>
-                                        <span class="text-caption font-weight-bold main-text-color--text">{{ topic.items.new }}</span>
-                                    </v-col>
-                                    <v-col cols="6" class="pa-0 pt-0 pr-1">
-                                        <v-icon left small color="awake-green-color">mdi-arrow-up-circle-outline</v-icon>
-                                        <span class="text-caption font-weight-light main-text-color--text">{{ topic.votes.up }}</span>
-                                    </v-col>
-                                    <v-col cols="6" class="pa-0 pt-0 pr-1">
-                                        <v-icon left small>mdi-message-outline</v-icon>
-                                        <span class="text-caption font-weight-light main-text-color--text">{{ topic.comments.total }} /</span>
-                                        <span class="text-caption font-weight-bold main-text-color--text">{{ topic.comments.new }}</span>
-                                    </v-col>
-                                    <v-col cols="6" class="pa-0 pt-0 pr-1">
-                                        <v-icon left small color="awake-red-color">mdi-arrow-down-circle-outline</v-icon>
-                                        <span class="text-caption font-weight-light main-text-color--text">{{ topic.votes.down }}</span>
-                                    </v-col>
-                                </v-row>
-                            </v-container>
-                        </v-col>
-                        <v-col cols="12" md="4" class="mx-0 d-flex justify-end">
-                            <v-btn outlined class="text-lowercase btn-view-topic mt-1">
-                                <v-icon left>mdi-eye-outline</v-icon>
-                                view topic
-                            </v-btn>
-                        </v-col>
-                    </v-row>
-
-                </v-col>
-            </v-row>
-        </v-container>
-    </v-card>
+          <v-row
+            no-gutter
+            wrap
+            align="center"
+            justify="end"
+            class="flex-grow-0 mt-0"
+          >
+            <v-col cols="12" md="8" class="mx-0 d-flex justify-start">
+              <v-container class="mx-0 pa-0">
+                <v-row class="mx-0">
+                  <v-col cols="6" class="pa-0 pt-0 pr-1">
+                    <v-icon left small>mdi-file-outline</v-icon>
+                    <span class="text-caption font-weight-light dark-grey--text"
+                      >{{ topic.items.total }}/</span
+                    >
+                    <span
+                      class="text-caption font-weight-bold dark-grey--text"
+                      >{{ topic.items.new }}</span
+                    >
+                  </v-col>
+                  <v-col cols="6" class="pa-0 pt-0 pr-1">
+                    <v-icon
+                      @click.native.capture="upvote($event)"
+                      left
+                      small
+                      color="awake-green-color"
+                      >mdi-arrow-up-circle-outline</v-icon
+                    >
+                    <span
+                      class="text-caption font-weight-light dark-grey--text"
+                      >{{ topic.votes.up }}</span
+                    >
+                  </v-col>
+                  <v-col cols="6" class="pa-0 pt-0 pr-1">
+                    <v-icon left small>mdi-message-outline</v-icon>
+                    <span class="text-caption font-weight-light dark-grey--text"
+                      >{{ topic.comments.total }}/</span
+                    >
+                    <span
+                      class="text-caption font-weight-bold dark-grey--text"
+                      >{{ topic.comments.new }}</span
+                    >
+                  </v-col>
+                  <v-col cols="6" class="pa-0 pt-0 pr-1">
+                    <v-icon
+                      @click.native.capture="downvote($event)"
+                      left
+                      small
+                      color="awake-red-color"
+                      >mdi-arrow-down-circle-outline</v-icon
+                    >
+                    <span
+                      class="text-caption font-weight-light dark-grey--text"
+                      >{{ topic.votes.down }}</span
+                    >
+                  </v-col>
+                </v-row>
+              </v-container>
+            </v-col>
+            <v-col cols="12" md="4" class="mx-0 d-flex justify-end">
+              <v-btn
+                outlined
+                class="text-lowercase btn-view-topic mt-1"
+                @click.native.capture="viewTopic($event)"
+              >
+                <v-icon left>$awakeEye</v-icon>
+                view topic
+              </v-btn>
+            </v-col>
+          </v-row>
+        </v-col>
+      </v-row>
+    </v-container>
+  </v-card>
 </template>
 
 <script>
-import TagMini from '@/components/common/tags/TagMini'
-import TagTopic from '@/components/common/tags/TagTopic'
+import TagNorm from '@/components/common/tags/TagNorm'
+import pin from '@/components/inputs/pin'
+import moment from 'moment'
+
+import { mapActions } from 'vuex'
 
 export default {
   name: 'CardTopic',
   components: {
-    TagMini,
-    TagTopic
+    TagNorm,
+    pin
   },
   props: {
     topic: {}
   },
-  data: () => ({
-  }),
+  computed: {
+    lastActivity () {
+      return moment(this.topic.lastActivity).format('DD/MM/YYYY hh:mm:ss')
+    }
+  },
   methods: {
+    ...mapActions('dashboard', [
+      'pinTopic',
+      'upvoteTopic',
+      'downvoteTopic',
+      'selectTopic'
+    ]),
+
+    toggleSelection () {
+      this.topic.selected = !this.topic.selected
+      this.selectTopic(this.topic.id)
+    },
+    upvote (event) {
+      event.stopPropagation()
+      this.upvoteTopic(this.topic.id)
+    },
+    downvote (event) {
+      event.stopPropagation()
+      this.downvoteTopic(this.topic.id)
+    },
+    viewTopic (event) {
+      event.stopPropagation()
+      this.$router.push({ path: '/assess', query: { topic: this.topic.id } })
+    }
   }
 }
 </script>

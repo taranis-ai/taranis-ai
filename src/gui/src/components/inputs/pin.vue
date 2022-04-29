@@ -1,0 +1,28 @@
+<template>
+  <v-btn
+    fab
+    depressed
+    outlined
+    x-small
+    color="grey"
+    :class="['fab-pin', { pinned: value }]"
+    @click.native.capture="toggleValue($event)"
+  >
+    <v-icon>$awakePin</v-icon>
+  </v-btn>
+</template>
+
+<script>
+export default {
+  name: 'pin',
+  props: {
+    value: Boolean
+  },
+  methods: {
+    toggleValue (event) {
+      this.$emit('input', !this.value)
+      event.stopPropagation()
+    }
+  }
+}
+</script>
