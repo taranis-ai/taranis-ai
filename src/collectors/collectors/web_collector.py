@@ -350,11 +350,18 @@ class WebCollector(BaseCollector):
 
     def __get_headless_driver_chrome(self):
         """Initializes and returns Chrome driver"""
+        log_manager.log_debug('Initializing Chrome driver...')
 
-        chrome_driver_executable = os.environ.get('SELENIUM_CHROME_DRIVER_PATH', '/usr/local/bin/chromedriver')
+        chrome_driver_executable = os.environ.get('SELENIUM_CHROME_DRIVER_PATH', '/usr/bin/chromedriver')
 
         chrome_options = ChromeOptions()
         chrome_options.page_load_strategy = 'normal' # .get() returns on document ready
+        chrome_options.add_argument("start-maximized")
+        chrome_options.add_argument("disable-infobars")
+        chrome_options.add_argument("--disable-extensions")
+        chrome_options.add_argument("--disable-gpu")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+        chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--headless")
         chrome_options.add_argument('--ignore-certificate-errors')
         chrome_options.add_argument('--incognito')
@@ -374,10 +381,13 @@ class WebCollector(BaseCollector):
             driver = webdriver.Chrome(executable_path=chrome_driver_executable, options=chrome_options)
         else:
             driver = webdriver.Chrome(executable_path=chrome_driver_executable, options=chrome_options)
+
+        log_manager.log_debug('Chrome driver initialized.')
         return driver
 
     def __get_headless_driver_firefox(self):
         """Initializes and returns Firefox driver"""
+        log_manager.log_debug('Initializing Firefox driver...')
 
         firefox_driver_executable = os.environ.get('SELENIUM_FIREFOX_DRIVER_PATH', '/usr/local/bin/geckodriver')
         
@@ -418,6 +428,7 @@ class WebCollector(BaseCollector):
         profile.update_preferences()
         driver = webdriver.Firefox(profile, executable_path=firefox_driver_executable, options=firefox_options, capabilities=firefox_capabilities)
 
+        log_manager.log_debug('Firefox driver initialized.')
         return driver
 
     def __get_headless_driver(self):
@@ -431,6 +442,7 @@ class WebCollector(BaseCollector):
             browser.implicitly_wait(15) # how long to wait for elements when selector doesn't match
             return browser
         except Exception:
+            log_manager.log_debug(traceback.format_exc())
             return None
 
     def __dispose_of_headless_driver(self, driver):
@@ -493,6 +505,7 @@ class WebCollector(BaseCollector):
         except Exception:
             log_manager.log_collector_activity('web', self.source.id, 'Error obtaining title page')
             self.__dispose_of_headless_driver(browser)
+            log_manager.log_debug(traceback.format_exc())
             return False, 'Error obtaining title page', 0, 0
 
         # if there is a popup selector, click on it!

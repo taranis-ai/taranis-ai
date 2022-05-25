@@ -12,10 +12,13 @@ RUN \
     unzip \
     libexif \
     udev \
+    harfbuzz \
     chromium \
     chromium-chromedriver \
     xvfb \
     dbus-x11 \
+    font-noto-emoji \
+    freetype \
     ttf-freefont && \
     apk add --no-cache --virtual .build-deps \
     wget \
