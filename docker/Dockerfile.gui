@@ -1,5 +1,8 @@
 # build stage
 FROM node:lts-alpine as build-stage
+
+RUN npm install -g @vue/cli-service
+
 WORKDIR /app
 COPY ./src/gui/package*.json ./
 RUN npm install
