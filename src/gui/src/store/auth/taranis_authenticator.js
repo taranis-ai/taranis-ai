@@ -60,17 +60,52 @@ const getters = {
     return data.sub
   },
 
-  hasExternalLoginUrl () {
-    if (typeof (process.env) === 'undefined') { return (('$VUE_APP_TARANIS_NG_LOGIN_URL' !== '') && ('$VUE_APP_TARANIS_NG_LOGIN_URL'[0] != '$')) }
+    hasExternalLoginUrl() {
+        if (("$VUE_APP_TARANIS_NG_LOGIN_URL" !== "") && ("$VUE_APP_TARANIS_NG_LOGIN_URL"[0] !== "$"))
+            return true;
+        if (typeof(process) !== "undefined" && typeof(process.env) != "undefined")
+            return process.env.VUE_APP_TARANIS_NG_LOGIN_URL != null;
+        return false;
+    },
 
-    return process.env.VUE_APP_TARANIS_NG_LOGIN_URL != null
-  },
+    getLoginURL() {
+        const own_base_uri = document.URL.replace(/^([^:]*:\/*[^\/]*)\/.*/, '$1'); //eslint-disable-line
+        let login_uri = '/login';
 
-  getLoginURL () {
-    if (typeof (process.env) === 'undefined') {
-      if (('$VUE_APP_TARANIS_NG_LOGIN_URL' !== '') && ('$VUE_APP_TARANIS_NG_LOGIN_URL'[0] != '$')) { return '$VUE_APP_TARANIS_NG_LOGIN_URL' }
-    } else {
-      if (process.env.VUE_APP_TARANIS_NG_LOGIN_URL != null) { return process.env.VUE_APP_TARANIS_NG_LOGIN_URL }
+        if (("$VUE_APP_TARANIS_NG_LOGIN_URL" !== "") && ("$VUE_APP_TARANIS_NG_LOGIN_URL"[0] !== "$")) {
+            login_uri = "$VUE_APP_TARANIS_NG_LOGIN_URL";
+        } else if (typeof(process) !== "undefined" && typeof(process.env) !== "undefined" && process.env.VUE_APP_TARANIS_NG_LOGIN_URL != null) {
+            login_uri = process.env.VUE_APP_TARANIS_NG_LOGIN_URL;
+        }
+
+        login_uri = login_uri.replace('TARANIS_GUI_URI', encodeURIComponent(own_base_uri + '/login'));
+        return login_uri;
+    },
+
+    hasExternalLogoutUrl() {
+        if (("$VUE_APP_TARANIS_NG_LOGOUT_URL" !== "") && ("$VUE_APP_TARANIS_NG_LOGOUT_URL"[0] !== "$"))
+            return true;
+        if (typeof(process) !== "undefined" && typeof(process.env) != "undefined")
+            return process.env.VUE_APP_TARANIS_NG_LOGOUT_URL != null;
+        return false;
+    },
+
+    getLogoutURL() {
+        const own_base_uri = document.URL.replace(/^([^:]*:\/*[^\/]*)\/.*/, '$1'); //eslint-disable-line
+        let logout_uri = '/logout';
+
+        if (("$VUE_APP_TARANIS_NG_LOGOUT_URL" !== "") && ("$VUE_APP_TARANIS_NG_LOGOUT_URL"[0] !== "$")) {
+            logout_uri = "$VUE_APP_TARANIS_NG_LOGOUT_URL";
+        } else if (typeof(process) !== "undefined" && typeof(process.env) !== "undefined" && process.env.VUE_APP_TARANIS_NG_LOGOUT_URL != null) {
+            logout_uri = process.env.VUE_APP_TARANIS_NG_LOGOUT_URL;
+        }
+
+        logout_uri = logout_uri.replace('TARANIS_GUI_URI', encodeURIComponent(own_base_uri + '/login'));
+        return logout_uri;
+    },
+
+    getJWT() {
+        return state.jwt
     }
     return '/login'
   },

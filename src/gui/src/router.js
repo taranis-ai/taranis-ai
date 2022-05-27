@@ -317,26 +317,42 @@ export const router = new Router({
 })
 
 router.beforeEach((to, from, next) => {
-  if (to.matched.some(record => record.meta.requiresAuth)) {
-    if (!AuthService.isAuthenticated()) {
-      if (!store.getters.hasExternalLoginUrl) {
-        next({
-          path: store.getters.getLoginURL,
-          query: { redirect: to.path }
-        })
-      } else {
-        window.location = encodeURI(store.getters.getLoginURL + '?gotoUrl=' + encodeURIComponent(((typeof (process.env.VUE_APP_TARANIS_NG_URL) === 'undefined') ? '$VUE_APP_TARANIS_NG_URL' : process.env.VUE_APP_TARANIS_NG_URL) + to.path))
-      }
-    } else if (to.path === '/') {
-      if (AuthService.hasPermission(Permissions.ASSESS_ACCESS)) {
-        next({ path: '/dashboard' })
-      } else if (AuthService.hasPermission(Permissions.CONFIG_ACCESS)) {
-        next({ path: '/config' })
-      } else if (AuthService.hasPermission(Permissions.MY_ASSETS_ACCESS)) {
-        next({ path: '/myassets' })
-      } else if (AuthService.hasPermission(Permissions.MY_ASSETS_CONFIG)) {
-        next({ path: '/config/external' })
-      }
+
+    if (to.matched.some(record => record.meta.requiresAuth)) {
+
+        if (!AuthService.isAuthenticated()) {
+
+            if (!store.getters.hasExternalLoginUrl) {
+
+                next({
+                    path: store.getters.getLoginURL,
+                    query: {redirect: to.path}
+                })
+            } else {
+
+                window.location = store.getters.getLoginURL;
+            }
+        } else if (to.path === "/") {
+            if (AuthService.hasPermission(Permissions.ASSESS_ACCESS)) {
+                next({path: "/dashboard"})
+            } else if (AuthService.hasPermission(Permissions.CONFIG_ACCESS)) {
+                next({path: "/config"})
+            } else if (AuthService.hasPermission(Permissions.MY_ASSETS_ACCESS)) {
+                next({path: "/myassets"})
+            } else if (AuthService.hasPermission(Permissions.MY_ASSETS_CONFIG)) {
+                next({path: "/config/external"})
+            }
+        } else {
+            if (to.meta.requiresPerm.length > 0) {
+                if (AuthService.hasAnyPermission(to.meta.requiresPerm)) {
+                    next()
+                } else {
+                    next({path: "/"})
+                }
+            } else {
+                next()
+            }
+        }
     } else {
       if (to.meta.requiresPerm.length > 0) {
         if (AuthService.hasAnyPermission(to.meta.requiresPerm)) {
