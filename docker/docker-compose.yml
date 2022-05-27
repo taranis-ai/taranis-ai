@@ -4,6 +4,8 @@ services:
   redis:
     image: "redis:${REDIS_TAG}"
     restart: unless-stopped
+    environment:
+      TZ: "${TZ}"
     volumes:
       - "redis_conf:/usr/local/etc/redis"
     logging:
@@ -19,6 +21,7 @@ services:
       POSTGRES_DB: "taranis-ng"
       POSTGRES_USER: "taranis-ng"
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      TZ: "${TZ}"
     command: ["postgres", "-c", "shared_buffers=${DB_SHARED_BUFFERS}", "-c", "max_connections=${DB_MAX_CONNECTIONS}"]
     volumes:
       - "database_data:/var/lib/postgresql/data"
@@ -47,7 +50,7 @@ services:
       DB_PASSWORD: "${POSTGRES_PASSWORD}"
       DB_POOL_SIZE: 100
       DB_POOL_RECYCLE: 300
-      DB_POOL_TIMEOUT: 5
+      DB_POOL_TIMEOUT: 30
 
       JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
       OPENID_LOGOUT_URL: ""
@@ -57,6 +60,7 @@ services:
       CVE_UPDATE_FILE: "${CVE_UPDATE_FILE}"
       CPE_UPDATE_FILE: "${CPE_UPDATE_FILE}"
 
+      TZ: "${TZ}"
       DEBUG: "true"
     labels:
       traefik.enable: "true"
@@ -95,6 +99,7 @@ services:
       TARANIS_NG_CORE_URL: "http://core/api/v1"
       TARANIS_NG_CORE_SSE: "http://core/sse"
       WORKERS_PER_CORE: "1"
+      TZ: "${TZ}"
     logging:
       driver: "json-file"
       options:
@@ -115,6 +120,7 @@ services:
       API_KEY: "${COLLECTOR_PRESENTER_PUBLISHER_API_KEY}"
       WORKERS_PER_CORE: "1"
       DEBUG: "true"
+      TZ: "${TZ}"
     ports:
       - "5001:80"
     volumes:
@@ -138,6 +144,7 @@ services:
       TARANIS_NG_CORE_URL: "http://core"
       API_KEY: "${COLLECTOR_PRESENTER_PUBLISHER_API_KEY}"
       WORKERS_PER_CORE: "1"
+      TZ: "${TZ}"
     ports:
       - "5002:80"
     volumes:
@@ -161,6 +168,7 @@ services:
       TARANIS_NG_CORE_URL: "http://core"
       API_KEY: "${COLLECTOR_PRESENTER_PUBLISHER_API_KEY}"
       WORKERS_PER_CORE: "1"
+      TZ: "${TZ}"
     ports:
       - "5003:80"
     logging:
@@ -186,6 +194,7 @@ services:
       VUE_APP_TARANIS_NG_CORE_API: "${TARANIS_NG_HTTPS_URI}/api/v1"
       VUE_APP_TARANIS_NG_CORE_SSE: "${TARANIS_NG_HTTPS_URI}/sse"
       VUE_APP_TARANIS_NG_LOCALE: en
+      TZ: "${TZ}"
     labels:
       traefik.enable: "true"
       traefik.http.services.taranis-gui.loadbalancer.server.port: "80"
@@ -215,6 +224,8 @@ services:
       - "core"
     restart: unless-stopped
     image: "traefik:latest"
+    environment:
+      TZ: "${TZ}"
     ports: 
       - "${TARANIS_NG_HTTP_PORT}:80"
       - "${TARANIS_NG_HTTPS_PORT}:443"
