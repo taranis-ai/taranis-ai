@@ -23,7 +23,7 @@ class Config(object):
         SQLALCHEMY_ENGINE_OPTIONS = {
             'pool_size': int(DB_POOL_SIZE),
             'pool_recycle': int(DB_POOL_RECYCLE),
-            'pool_pre_ping': False,
+            'pool_pre_ping': True,
             'pool_timeout': int(DB_POOL_TIMEOUT)
         }
 
