@@ -4,6 +4,14 @@ export function getAllOSINTSourceGroupsAssess () {
   return ApiService.get('/assess/osint-source-groups')
 }
 
+export function getOSINTSourceGroupsList () {
+  return ApiService.get('/assess/osint-source-group-list')
+}
+
+export function getOSINTSourcesList () {
+  return ApiService.get('/assess/osint-sources-list')
+}
+
 export function getManualOSINTSources () {
   return ApiService.get('/assess/manual-osint-sources')
 }
@@ -24,6 +32,10 @@ export function getNewsItemsByGroup (group_id, filter_data) {
 
 export function addNewsItem (data) {
   return ApiService.post('/assess/news-items', data)
+}
+
+export function getNewsItemAggregate (group_id, aggregate_id) {
+  return ApiService.get(`/assess/news-item-aggregates/${aggregate_id}`)
 }
 
 export function voteNewsItemAggregate (group_id, aggregate_id, vote) {

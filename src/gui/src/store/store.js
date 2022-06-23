@@ -11,24 +11,19 @@ import { assets } from '@/store/assets'
 import { dashboard } from '@/store/dashboard'
 import { users } from '@/store/users'
 import { osint_source } from '@/store/osint_source'
-import { newsItemsFilter } from '@/store/newsItemsFilter'
-import { topicsFilter } from '@/store/topicsFilter'
-import { dummyData } from '@/store/dummyData'
+import { filter } from '@/store/filter'
 
 Vue.use(Vuex)
 
 const state = {
-  user: {
-    id: '',
-    name: '',
-    organization_name: '',
-    permissions: []
-  },
-  itemCount: {
-    total: 0,
-    filtered: 0
-  }
-}
+    user: {
+        id: '',
+        name: '',
+        organization_name: '',
+        permissions: []
+    },
+    vertical_view: false,
+};
 
 const actions = {
 
@@ -36,25 +31,26 @@ const actions = {
     context.commit('setUser', userData)
   },
 
-  updateItemCount(context, itemCount) {
-    context.commit('updateItemCount', itemCount)
-  },
+    logout(context) {
+        context.commit('clearJwtToken')
+    },
 
-  logout(context) {
-    context.commit('clearJwtToken')
-  }
-}
+    setVerticalView(context, data) {
+        context.commit('setVerticalView', data)
+    },
+};
 
 const mutations = {
 
-  setUser(state, userData) {
-    state.user = userData
-  },
+    setUser(state, userData) {
+        state.user = userData
+    },
 
-  updateItemCount(state, itemCount) {
-    state.itemCount = itemCount
-  },
-}
+    setVerticalView(state, data) {
+        state.vertical_view = data
+        localStorage.setItem('TNGVericalView', data)
+    },
+};
 
 const getters = {
 
@@ -70,9 +66,9 @@ const getters = {
     return state.user.organization_name
   },
 
-  getPermissions(state) {
-    return state.user.permissions
-  },
+    getPermissions(state) {
+        return state.user.permissions;
+    },
 
   getSelection(state) {
     return state.selection
@@ -80,6 +76,10 @@ const getters = {
 
   getLoadingState(state) {
     return state.loading
+  },
+
+  getVerticalView() {
+    return state.vertical_view
   }
 }
 
@@ -99,8 +99,6 @@ export const store = new Vuex.Store({
     dashboard,
     users,
     osint_source,
-    newsItemsFilter,
-    topicsFilter,
-    dummyData
+    filter
   }
 })

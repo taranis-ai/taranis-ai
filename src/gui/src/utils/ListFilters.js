@@ -1,5 +1,4 @@
-export function filterSearch(fields, searchString) {
-
+export function filterSearch (fields, searchString) {
   let match = false
 
   const regexStr = searchString
@@ -43,9 +42,9 @@ export function filterDateRange(publishedDate, selectedType, dateRange) {
       range = [today.setHours(0, 0, 0, 0), today.setHours(23, 59, 59, 999)]
       break
     case 'week': {
-      let currentDate = new Date()
-      let timediff = today.getDate() - 7;
-      let oneWeekAgo = currentDate.setDate(timediff);
+      const currentDate = new Date()
+      const timediff = today.getDate() - 7
+      const oneWeekAgo = currentDate.setDate(timediff)
       range = [new Date(oneWeekAgo), new Date(today.setHours(23, 59, 59, 999))]
       break
     }
@@ -60,8 +59,7 @@ export function filterDateRange(publishedDate, selectedType, dateRange) {
   return publishedDate >= range[0] && publishedDate <= range[1]
 }
 
-export function filterTags(itemTags, selectedTags, andOperator) {
-
+export function filterTags (itemTags, selectedTags, andOperator) {
   if (!selectedTags.length) return true
 
   const selectedTagExists = (selectedTag) =>

@@ -44,16 +44,9 @@ export default {
   methods: {
     ...mapActions('dashboard', ['updateTopics']),
     ...mapActions('users', ['updateUsers']),
-    ...mapActions('assess', ['updateNewsItems']),
-    ...mapActions('dummyData', ['init']),
-    ...mapGetters('dummyData', [
-      'getDummyTopics',
-      'getDummySharingSets',
-      'getDummyNewsItems',
-      'getDummyUsers'
-    ]),
+    ...mapActions('assess', ['updateNewsItems',]),
 
-    connectSSE () {
+    connectSSE () { // TODO: unsubscribe
       this.$sse(
         (typeof process.env.VUE_APP_TARANIS_NG_CORE_SSE === 'undefined'
           ? '$VUE_APP_TARANIS_NG_CORE_SSE'
@@ -90,6 +83,7 @@ export default {
   },
   updated () {
     this.$root.$emit('app-updated')
+
   },
   mounted () {
     if (this.$cookies.isKey('jwt')) {
@@ -132,20 +126,9 @@ export default {
     this.$root.$on('nav-clicked', () => {
       this.visible = !this.visible
     })
-
-    this.$root.$on('logged-in', () => {
-      this.connectSSE()
-    })
   },
   created () {
-    // Generate Dummy Data
-    this.init()
-    const users = this.getDummyUsers()
-    const topics = this.getDummyTopics()
-    const sharingSets = this.getDummySharingSets()
-    this.updateUsers(users)
-    this.updateTopics(topics.concat(sharingSets))
-    this.updateNewsItems(this.getDummyNewsItems())
+
   }
 }
 </script>

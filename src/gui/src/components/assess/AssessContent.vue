@@ -1,11 +1,12 @@
 <template>
   <v-col class="overflow-hidden">
-    <v-container fluid>
+    <v-container fluid style="min-height: 100vh">
+
       <transition name="empty-list-transition" mode="out-in">
-        <v-row v-if="!filteredNewsItems.length">
+        <v-row v-if="!filteredItems">
           <v-col cols="12" class="empty-list-notification">
             <v-icon x-large> mdi-circle-off-outline </v-icon>
-            <span v-if="getNewsItems().length">
+            <span v-if="items.total_count">
               The currently selected filters do not yield any results. Try
               changing the filters.
             </span>
@@ -21,15 +22,33 @@
           appear
         >
           <card-news-item
-            v-for="(newsItem, index) in filteredNewsItems"
+            v-for="(newsItem, index) in filteredItems"
             :key="newsItem.id"
             :newsItem="newsItem"
             :position="index"
-            @deleteItem="deleteItem"
+            :topicsList="getTopicSelectionList()"
+            :selected="getNewsItemsSelection().includes(newsItem.id)"
+            :topicView="topicView"
+            :sharingSetView="sharingSetView"
+            @deleteItem="removeAndDeleteNewsItem(newsItem.id)"
+            @removeFromTopic="removeFromTopic(newsItem.id)"
+            @selectItem="selectNewsItem(newsItem.id)"
+            @upvoteItem="upvoteNewsItem(newsItem.id)"
+            @downvoteItem="downvoteNewsItem(newsItem.id)"
+            @init="itemsLoaded.push(newsItem.id)"
           ></card-news-item>
         </transition-group>
       </transition>
     </v-container>
+
+    <!-- TODO: Loader not working -->
+    <div
+      class="text-subtitle-1 text-center dark-grey--text text--lighten-2 mt-3"
+    >
+      <v-icon left color="primary">mdi-checkbox-marked-circle-outline</v-icon>
+      All items loaded.
+    </div>
+    <div v-intersect.quiet="infiniteScrolling"></div>
 
     <v-expand-transition>
       <assess-selection-toolbar
@@ -43,6 +62,7 @@
 
 <script>
 import CardNewsItem from '@/components/common/card/CardNewsItem'
+import Loader from '@/components/common/Loader'
 import AssessSelectionToolbar from '@/components/assess/AssessSelectionToolbar'
 
 import { mapState, mapGetters, mapActions } from 'vuex'
@@ -53,145 +73,86 @@ export default {
   name: 'AssessContent',
   components: {
     CardNewsItem,
+    Loader,
     AssessSelectionToolbar
   },
   props: {
-    // topic: {}
-    // analyze_selector: Boolean,
-    // selection: Array,
-    // selfID: String,
-    // data_set: String
+    topicView: Boolean,
+    sharingSetView: Boolean,
+    itemsToLoad: Number
   },
   data: () => ({
-    newsItems_loaded: false
+    itemsLoaded: [],
+    reloading: false,
+    items: []
   }),
   methods: {
-    ...mapActions('assess', ['deleteNewsItem']),
+    ...mapActions('assess', [
+      'deleteNewsItem',
+      'selectNewsItem',
+      'upvoteNewsItem',
+      'downvoteNewsItem',
+      'removeTopicFromNewsItem'
+    ]),
     ...mapGetters('assess', [
+      'getFakeItems',
       'getNewsItems',
+      'getNewsItemList',
+      'getNewsItemById',
       'getNewsItemsSelection',
       'getNewsItemsByTopicId',
       'getNewsItemsByTopicList'
     ]),
+    ...mapGetters('dashboard', ['getTopicSelectionList', 'getNewsItemIds']),
 
-    // infiniteScrolling (entries, observer, isIntersecting) {
-    //   if (this.newsItems_loaded && isIntersecting) {
-    //     this.updateData(true, false)
-    //   }
-    // }
-
-    // showItemDetail (news_item) {
-    //   this.$root.$emit('change-state', 'SHOW_ITEM')
-    //   this.$refs.newsItemDetail.open(news_item)
-    // },
-
-    // updateData (append, reload_all) {
-    //   this.newsItems_loaded = false
-
-    //   if (append === false) {
-    //     this.newsItems = []
-    //   }
-
-    //   let offset = this.newsItems.length
-    //   let limit = 20
-    //   if (reload_all) {
-    //     offset = 0
-    //     if (this.newsItems.length > limit) {
-    //       limit = this.newsItems.length
-    //     }
-    //     this.newsItems = []
-    //   }
-
-    //   let group = ''
-
-    //   if (this.analyze_selector) {
-    //     group = this.$store.getters.getCurrentGroup
-    //   } else {
-    //     if (window.location.pathname.includes('/group/')) {
-    //       const i = window.location.pathname.indexOf('/group/')
-    //       const len = window.location.pathname.length
-    //       group = window.location.pathname.substring(i + 7, len)
-    //       this.$store.dispatch('changeCurrentGroup', group)
-    //     }
-    //   }
-
-    //   this.$store
-    //     .dispatch('getNewsItemsByGroup', {
-    //       group_id: group,
-    //       data: {
-    //         filter: this.news_items_filter,
-    //         offset: offset,
-    //         limit: limit
-    //       }
-    //     })
-    //     .then(() => {
-    //       this.newsItems = this.newsItems.concat(
-    //         this.$store.getters.getNewsItems.items
-    //       )
-    //       this.$emit(
-    //         'new-data-loaded',
-    //         this.$store.getters.getNewsItems.total_count
-    //       )
-    //       setTimeout(() => {
-    //         this.$emit('card-items-reindex')
-    //       }, 200)
-    //       setTimeout(() => {
-    //         this.newsItems_loaded = true
-    //       }, 1000)
-    //     })
-    // },
-
-    // checkFocus (pos) {
-    //   this.$root.$emit('check-focus', pos)
-    // },
-
-    // news_items_updated () {
-    //   // only update items when not in selection mode
-    //   if (!this.activeSelection) {
-    //     this.updateData(false, true)
-    //   }
-    // },
-
-    deleteItem (id) {
+    removeAndDeleteNewsItem (id) {
+      this.items = this.items.filter((x) => x.id !== id)
       this.deleteNewsItem(id)
-    }
+    },
+
+    removeFromTopic (newsItemId) {
+      if (this.topicView || this.sharingSetView) {
+        const topic = this.scope.topics
+        const sharingSet = this.scope.sharingSets
+        const topicId = topic ? topic[0].id : sharingSet[0].id
+        this.removeTopicFromNewsItem({ newsItemId, topicId })
+        this.items = this.items.filter((x) => x.id !== newsItemId)
+      }
+    },
+
+    infiniteScrolling (entries, observer, isIntersecting) {
+      if (
+        this.itemsLoaded.length >= this.items.length &&
+        isIntersecting &&
+        this.itemsToLoad > this.itemsLoaded.length
+      ) {
+        this.reloading = true
+        // TODO: Make it async
+        this.getNewsItemsFromStore()
+        this.reloading = false
+      }
+    },
+
+    // TODO: Call API via Store
+    // + pass filter parameter for presorting
+    getNewsItemsFromStore () {
+      this.items = this.getNewsItems().items
+      console.log("number of newsitems: " + this.getNewsItems().total_count)
+    },
+
   },
 
   computed: {
-    ...mapState('newsItemsFilter', ['filter', 'order']),
-    ...mapState('assess', ['newsItems']),
+    ...mapState('filter', {
+      scope: (state) => state.newsItemsFilter.scope,
+      filter: (state) => state.newsItemsFilter.filter,
+      order: (state) => state.newsItemsFilter.order
+    }),
 
-    filteredNewsItems () {
-      let filteredData = []
-      if (
-        this.filter.scope.topics.length &&
-        this.filter.scope.sharingSets.length
-      ) {
-        const scopedData = this.getNewsItemsByTopicList()(
-          this.filter.scope.topics
-        )
+    filteredItems () {
+      let filteredData = [...this.items]
 
-        const sharingSetList = this.filter.scope.sharingSets
-
-        filteredData = scopedData.filter((newsItem) => {
-          return newsItem.sharingSets.some(
-            (itemSharingSet) =>
-              sharingSetList
-                .map((sharingSet) => sharingSet.id)
-                .indexOf(itemSharingSet) >= 0
-          )
-        })
-      } else if (this.filter.scope.topics.length) {
-        filteredData = this.getNewsItemsByTopicList()(this.filter.scope.topics)
-      } else if (this.filter.scope.sharingSets.length) {
-        filteredData = this.getNewsItemsByTopicList()(
-          this.filter.scope.sharingSets
-        )
-      } else {
-        filteredData = this.getNewsItems()
-      }
-
-      // ---------------------------------------------------------------------------------------
+      // TODO: Filtering should be done via API - only keep sorting on client
 
       filteredData = filteredData.filter((item) => {
         // Only show
@@ -235,56 +196,6 @@ export default {
         return true
       })
 
-      // ---------------------------------------------------------------------------------------
-
-      // // SEARCH
-      // filteredData = filteredData.filter((item) => {
-      //   return (
-      //     !this.filter.search ||
-      //     filterSearch([item.title, item.summary], this.filter.search)
-      //   )
-      // })
-
-      // // DATE
-      // filteredData = filteredData.filter((item) => {
-      //   return (
-      //     this.filter.date.selected === 'all' ||
-      //     filterDateRange(
-      //       item.published,
-      //       this.filter.date.selected,
-      //       this.filter.date.range
-      //     )
-      //   )
-      // })
-
-      // // TAGS
-      // filteredData = filteredData.filter((item) => {
-      //   return (
-      //     this.filter.tags.selected.includes('all') ||
-      //     filterTags(
-      //       item.tags,
-      //       this.filter.tags.selected,
-      //       this.filter.tags.andOperator
-      //     )
-      //   )
-      // })
-
-      // ONLY SHOW
-      // this.filter.attributes.selected.forEach((type) => {
-      //   filteredData = filteredData.filter((item) => {
-      //     switch (type) {
-      //       case 'unread':
-      //         return !item.read
-      //       case 'important':
-      //         return item.important
-      //       case 'shared':
-      //         return item.shared
-      //       case 'selected':
-      //         return item.selected
-      //     }
-      //   })
-      // })
-
       // SORTING
       filteredData.sort((x, y) => {
         const directionModifier =
@@ -307,7 +218,7 @@ export default {
       })
 
       this.$store.dispatch('updateItemCount', {
-        total: this.newsItems.length,
+        total: this.items.total_count,
         filtered: filteredData.length
       })
 
@@ -319,13 +230,30 @@ export default {
     }
   },
 
-  mounted () {
-    // this.$root.$on('news-items-updated', this.news_items_updated)
-    // this.$root.$on('force-reindex', this.forceReindex)
-  }
+  created () {
+    this.unsubscribe = this.$store.subscribe((mutation, state) => {
+      if (mutation.type === 'assess/UPDATE_NEWSITEMS') {
+        this.getNewsItemsFromStore()
+      }
+    });
+  },
 
-  // beforeDestroy () {
-  //   this.$root.$off('news-items-updated', this.news_items_updated)
-  // }
+  beforeDestroy() {
+    this.unsubscribe();
+  },
+
+  updated () {
+    console.log('component re-rendered!')
+  },
+
+  watch: {
+    scope: {
+      handler () {
+        // Update news items based on the selected scope
+        this.getNewsItemsFromStore()
+      },
+      deep: true
+    }
+  }
 }
 </script>

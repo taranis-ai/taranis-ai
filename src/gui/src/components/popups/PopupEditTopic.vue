@@ -4,17 +4,7 @@
       <v-container>
         <v-row>
           <v-col cols="12">
-            <h2
-              class="
-                font-weight-bold
-                headline
-                dark-grey--text
-                text-capitalize
-                pt-3
-              "
-            >
-              Edit Topic
-            </h2>
+            <h2 class="popup-title">Edit Topic</h2>
           </v-col>
         </v-row>
         <v-row>
@@ -47,41 +37,40 @@
 
       <v-card-actions class="mt-3">
         <v-spacer></v-spacer>
-        <v-btn
-          color="awake-red-color darken-1"
-          outlined
-          @click="$emit('input', false)"
-          class="text-lowercase pr-4"
-        >
-          <v-icon left class="red-icon">$awakeClose</v-icon>
-          abort
-        </v-btn>
-        <v-btn
+        <button-outlined
+          label="cancel"
+          icon="$awakeClose"
+          color="awake-red-color"
+          extraClass="mr-2"
+          @click="$emit('close')"
+        />
+
+        <button-solid
+          label="apply"
+          icon="mdi-check"
           color="primary"
-          dark
-          depressed
           @click="submit()"
-          class="text-lowercase selection-toolbar-btn pr-4"
-        >
-          <v-icon left>mdi-check</v-icon>
-          apply
-        </v-btn>
+        />
       </v-card-actions>
     </v-form>
   </v-card>
 </template>
 
 <script>
-import { mapActions, mapGetters } from 'vuex'
-import textField from '@/components/inputs/textField'
+import { mapActions } from 'vuex'
+import textField from '@/components/_subcomponents/textField'
+import buttonSolid from '@/components/_subcomponents/buttonSolid'
+import buttonOutlined from '@/components/_subcomponents/buttonOutlined'
 
 export default {
   name: 'PopupEditTopic',
   components: {
-    textField
+    textField,
+    buttonSolid,
+    buttonOutlined
   },
   props: {
-    value: Boolean,
+    dialog: Boolean,
     topic: {}
   },
   data: () => ({
@@ -100,7 +89,7 @@ export default {
       this.updateTopic(updatedTopic)
 
       // Close Popup
-      this.$emit('input', false)
+      this.$emit('close')
     }
   },
   mounted () {

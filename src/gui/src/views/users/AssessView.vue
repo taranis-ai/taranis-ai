@@ -4,17 +4,28 @@
       <template v-slot:panel>
         <!-- Display Topic Header -->
         <v-expand-transition style="width: 100%">
-          <topic-header-assess v-if="showTopicHeader" />
+          <topic-header-assess
+            v-if="topicView"
+            :topic="getTopicById()(scope.topics[0].id)"
+          />
         </v-expand-transition>
 
         <!-- Display Sharing Set Header Header -->
         <v-expand-transition style="width: 100%">
-          <sharing-set-header-assess v-if="showSharingSetHeader" />
+          <sharing-set-header-assess
+            v-if="sharingSetView"
+            :topic="getTopicById()(scope.sharingSets[0].id)"
+          />
         </v-expand-transition>
       </template>
       <template v-slot:content>
         <!-- Load News Items -->
-        <AssessContent />
+        <AssessContent
+          :topicView="topicView"
+          :sharingSetView="sharingSetView"
+          :itemsToLoad="itemsToLoad"
+          ref="contentData"
+        />
       </template>
     </ViewLayout>
   </div>
@@ -39,82 +50,38 @@ export default {
     SharingSetHeaderAssess
   },
   mixins: [KeyboardMixin('assess')],
+  data: () => ({
+    itemsToLoad: 0
+  }),
   computed: {
-    ...mapState('newsItemsFilter', ['filter']),
+    ...mapState('filter', {
+      scope: (state) => state.newsItemsFilter.scope,
+      filter: (state) => state.newsItemsFilter.filter,
+      order: (state) => state.newsItemsFilter.order
+    }),
 
-    showTopicHeader () {
-      return this.filter.scope.topics.length === 1
+    topicView () {
+      return this.scope.topics.length === 1
     },
-    showSharingSetHeader () {
+
+    sharingSetView () {
       return (
-        this.filter.scope.topics.length !== 1 &&
-        this.filter.scope.sharingSets.length === 1
+        this.scope.topics.length === 0 && this.scope.sharingSets.length === 1
       )
-    },
-
-    multiSelectActive () {
-      return this.$store.getters.getMultiSelect
     }
   },
   methods: {
-    ...mapActions('newsItemsFilter', ['resetNewsItemsFilter']),
-    ...mapGetters('dashboard', ['getTopicById'])
-
-    // newDataLoaded (count) {
-    //   this.$refs.toolbarFilter.updateDataCount(count)
-    // },
-
-    // updateFilter (filter) {
-    //   this.$refs.contentData.updateFilter(filter)
-    //   this.$store.dispatch('filter', filter)
-    //   this.filter = filter
-    // },
-
-    // cardReindex () {
-    //   this.keyRemaper()
-
-    //   // this scrolls the page all the way up... it should only scroll to the top of the newly-loaded items
-    //   // setTimeout( ()=>{
-    //   //     this.scrollPos();
-    //   // },1 )
-
-    //   if (this.focus) {
-    //     this.$refs.contentData.checkFocus(this.pos)
-    //   }
-    // },
-
-    // firstDialog (action) {
-    //   if (action === 'push') {
-    //     this.dialog_stack++
-    //   } else {
-    //     this.dialog_stack--
-    //   }
-    //   if (this.dialog_stack <= 0) {
-    //     this.isItemOpen = false
-    //     this.dialog_stack = 0
-    //   } else {
-    //     this.isItemOpen = true
-    //   }
-    // }
+    ...mapActions('filter', ['resetNewsItemsFilter']),
+    ...mapGetters('dashboard', ['getTopicById']),
+    ...mapActions('assess', ['updateNewsItems',
+      'updateOSINTSourceGroupsList',
+      'updateOSINTSources'
+    ])
   },
-  watch: {
-    // $route () {
-    //   this.$refs.contentData.updateData(false, false)
-    // }
-  },
-  mounted () {
-    // if (window.location.pathname.includes('/group/')) {
-    //   this.$refs.contentData.updateData(false, false)
-    // }
-
-    // this.$root.$on('first-dialog', (action) => {
-    //   this.firstDialog(action)
-    // })
-
-    // this.$root.$on('clear-cards', () => {
-    //   const cards = document.querySelectorAll('.card-item')
-    //   cards.forEach((card) => card.remove())
-    // })
+  created () {
+    console.log('update SourceLise')
+    this.updateOSINTSourceGroupsList()
+    this.updateOSINTSources()
 
     // Clear all news items filter
     this.resetNewsItemsFilter()
@@ -123,13 +90,14 @@ export default {
     const topicId = parseInt(this.$route.query.topic)
     if (topicId) {
       const topic = this.getTopicById()(topicId)
+      this.itemsToLoad = topic.items.total
       if (topic) {
         if (topic.isSharingSet) {
-          this.filter.scope.sharingSets = [{ id: topicId, title: topic.title }]
-          this.filter.scope.topics = []
+          this.scope.sharingSets = [{ id: topicId, title: topic.title }]
+          this.scope.topics = []
         } else {
-          this.filter.scope.sharingSets = []
-          this.filter.scope.topics = [{ id: topicId, title: topic.title }]
+          this.scope.sharingSets = []
+          this.scope.topics = [{ id: topicId, title: topic.title }]
         }
       }
     }

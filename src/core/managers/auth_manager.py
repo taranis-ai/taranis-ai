@@ -28,7 +28,7 @@ api_key = os.getenv('API_KEY')
 
 def cleanup_token_blacklist(app):
     with app.app_context():
-        TokenBlacklist.delete_older(datetime.today() - timedelta(days=1))
+        TokenBlacklist.delete_older(datetime.now() - timedelta(days=1))
 
 
 def initialize(app):

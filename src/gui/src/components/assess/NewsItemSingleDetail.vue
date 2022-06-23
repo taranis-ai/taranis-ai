@@ -1,6 +1,6 @@
 <template>
     <v-row v-bind="UI.DIALOG.ROW.WINDOW">
-        <v-dialog v-bind="UI.DIALOG.FULLSCREEN" v-model="visible" @keydown.esc="close">
+        <v-dialog v-bind="UI.DIALOG.FULLSCREEN" v-model="visible" @keydown.esc="close" :attach="attach">
             <v-card>
                 <v-toolbar v-bind="UI.DIALOG.TOOLBAR" data-dialog="single-detail">
                     <v-btn icon dark @click="close()" data-btn="close">
@@ -171,15 +171,12 @@ const toolbarOptions = [
 ]
 
 export default {
-  name: 'NewsItemSingleDetail',
-  components: { NewsItemAttribute, VueEditor },
-  mixins: [AuthMixin],
-  props: {
-    analyze_selector: Boolean
-  },
-  computed: {
-    canAccess () {
-      return this.checkPermission(Permissions.ASSESS_ACCESS) && this.access === true
+    name: "NewsItemSingleDetail",
+    components: {NewsItemAttribute, VueEditor},
+    mixins: [AuthMixin],
+    props: {
+        analyze_selector: Boolean,
+        attach: undefined
     },
 
     canModify () {

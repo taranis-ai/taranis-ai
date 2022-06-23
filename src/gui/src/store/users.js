@@ -1,6 +1,4 @@
-import { getDashboardData } from '@/api/dashboard'
 import { getField, updateField } from 'vuex-map-fields'
-import { xorConcat } from '@/utils/helpers'
 
 const state = {
   users: []
@@ -19,7 +17,7 @@ const mutations = {
 
   UPDATE_USERS(state, users) {
     state.users = users
-  },
+  }
 }
 
 const getters = {

@@ -251,7 +251,7 @@ export default {
   }),
   methods: {
     ...mapActions('dashboard', ['createNewTopic', 'updateTopic']),
-    ...mapActions('newsItemsFilter', ['resetNewsItemsFilter']),
+    ...mapActions('filter', ['resetNewsItemsFilter']),
     ...mapActions('assess', [
       'deselectNewsItem',
       'deselectAllNewsItems',
@@ -303,8 +303,8 @@ export default {
       this.resetNewsItemsFilter()
 
       const topic = this.getTopicById()(id)
-      this.filter.scope.sharingSets = [{ id: topic.id, title: topic.title }]
-      this.filter.scope.topics = []
+      this.scope.sharingSets = [{ id: topic.id, title: topic.title }]
+      this.scope.topics = []
 
       this.$router.push({
         path: '/assess',
@@ -315,7 +315,10 @@ export default {
     }
   },
   computed: {
-    ...mapState('newsItemsFilter', ['filter']),
+    ...mapState('filter', {
+      scope: (state) => state.newsItemsFilter.scope
+    }),
+
     validAppendSettings () {
       return this.existingSharingSet !== null
     },

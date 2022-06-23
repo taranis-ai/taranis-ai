@@ -15,6 +15,7 @@ class WordListEntrySchema(Schema):
 class WordListCategorySchema(Schema):
     name = fields.Str()
     description = fields.Str()
+    link = fields.Str(allow_none=True)
     entries = fields.Nested(WordListEntrySchema, many=True)
 
     @post_load
@@ -53,9 +54,10 @@ class WordList:
 
 class WordListCategory:
 
-    def __init__(self, name, description, entries):
+    def __init__(self, name, description, link, entries):
         self.name = name
         self.description = description
+        self.link = link
         self.entries = entries
 
 

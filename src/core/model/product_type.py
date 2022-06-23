@@ -5,6 +5,7 @@ import sqlalchemy
 from sqlalchemy.sql.expression import cast
 
 from managers.db_manager import db
+from model.product import Product
 from model.parameter_value import NewParameterValueSchema
 from model.acl_entry import ACLEntry
 from schema.acl_entry import ItemType
@@ -50,10 +51,13 @@ class ProductType(db.Model):
         return cls.query.order_by(db.asc(ProductType.title)).all()
 
     @classmethod
-    def allowed_with_acl(cls, product_type_id, user, see, access, modify):
+    def allowed_with_acl(cls, product_id, user, see, access, modify):
+        product = db.session.query(Product).filter_by(id=product_id).first()
+        if not product:
+            return False
 
         query = db.session.query(ProductType.id).distinct().group_by(ProductType.id).filter(
-            ProductType.id == product_type_id)
+            ProductType.id == product.product_type_id)
 
         query = query.outerjoin(ACLEntry, and_(cast(ProductType.id, sqlalchemy.String) == ACLEntry.item_id,
                                                ACLEntry.item_type == ItemType.PRODUCT_TYPE))

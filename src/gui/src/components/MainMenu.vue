@@ -235,11 +235,7 @@ export default {
     ...mapState(['itemCount'])
   },
   mounted () {
-    if (this.checkPermission(Permissions.ASSESS_CREATE)) {
-      this.getManualOSINTSources().then(() => {
-        this.buttons[2].show = this.getManualOSINTSources().length > 0
-      })
-    }
+
   }
 }
 </script>

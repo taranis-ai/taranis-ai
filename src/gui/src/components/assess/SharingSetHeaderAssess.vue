@@ -95,8 +95,9 @@
                       </template>
 
                       <popup-edit-topic
-                        v-model:dialog="editDialog"
+                        :dialog="editDialog"
                         :topic="topic"
+                        @close="editDialog = false"
                         v-on:update:title="topic.title = $event"
                       />
                     </v-dialog>
@@ -277,7 +278,7 @@ import moment from 'moment'
 import TagMini from '@/components/common/tags/TagMini'
 import TagNorm from '@/components/common/tags/TagNorm'
 import { CalendarHeatmap } from 'vue-calendar-heatmap'
-import { mapActions, mapGetters, mapState } from 'vuex'
+import { mapGetters } from 'vuex'
 import PopupEditTopic from '@/components/popups/PopupEditTopic'
 import PopupShareSharingSet from '@/components/popups/PopupShareSharingSet'
 
@@ -296,6 +297,9 @@ export default {
     editDialog: false,
     shareDialog: false
   }),
+  props: {
+    topic: {}
+  },
   methods: {
     ...mapGetters('dashboard', ['getTopicById', 'getTopicTitleById']),
     ...mapGetters('assess', ['getNewsItemsByTopicId']),
@@ -354,13 +358,6 @@ export default {
     },
     getHeatmapEndDate () {
       return moment(new Date()).format('YYYY/MM/DD')
-    }
-  },
-  computed: {
-    ...mapState('newsItemsFilter', ['filter']),
-
-    topic () {
-      return this.getTopicById()(parseInt(this.filter.scope.sharingSets[0].id))
     }
   }
 }

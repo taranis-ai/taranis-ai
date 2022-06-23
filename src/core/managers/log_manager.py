@@ -7,7 +7,6 @@ import traceback
 from flask import request
 
 from managers.db_manager import db
-from model.log_record import LogRecord
 
 # setup Flask logger
 gunicorn_logger = getLogger('gunicorn.error')
@@ -114,16 +113,6 @@ def generate_escaped_data():
     return re.escape(data)[:4096]
 
 
-def store_activity(activity_type, activity_detail):
-    LogRecord.store(resolve_ip_address(), None, None, None, None, module_id, activity_type, resolve_resource(),
-                    activity_detail, resolve_method(), resolve_data())
-
-
-def store_user_activity(user, activity_type, activity_detail):
-    LogRecord.store(resolve_ip_address(), user.id, user.name, None, None, module_id, activity_type, resolve_resource(),
-                    activity_detail, resolve_method(), resolve_data())
-
-
 def store_access_error_activity(user, activity_detail):
     ip = resolve_ip_address()
     log_text = "TARANIS NG Access Error (IP: {}, User ID: {}, User Name: {}, Method: {}, Resource: {}, Activity Detail: {}, Activity Data: {})".format(
@@ -138,13 +127,10 @@ def store_access_error_activity(user, activity_detail):
     if sys_logger is not None:
         try:
             sys_logger.critical(log_text)
-        except Exception(ex):
-            log_debug(ex)
+        except Exception():
+            log_debug_trace()
 
-    print(log_text)
     db.session.rollback()
-    LogRecord.store(ip, user.id, user.name, None, None, module_id, "ACCESS_ERROR", resolve_resource(),
-                    activity_detail, resolve_method(), resolve_data())
 
 
 def store_data_error_activity(user, activity_detail):
@@ -162,12 +148,8 @@ def store_data_error_activity(user, activity_detail):
     if sys_logger is not None:
         try:
             sys_logger.critical(log_text)
-        except Exception(ex):
-            log_debug(ex)
-
-    print(log_text)
-    LogRecord.store(ip, user.id, user.name, None, None, module_id, "DATA_ERROR", resolve_resource(),
-                    activity_detail, resolve_method(), resolve_data())
+        except Exception():
+            log_debug_trace()
 
 
 def store_data_error_activity_no_user(activity_detail):
@@ -183,12 +165,8 @@ def store_data_error_activity_no_user(activity_detail):
     if sys_logger is not None:
         try:
             sys_logger.critical(log_text)
-        except Exception(ex):
-            log_debug(ex)
-
-    print(log_text)
-    LogRecord.store(ip, None, None, None, None, module_id, "PUBLIC_ACCESS_DATA_ERROR", resolve_resource(),
-                    activity_detail, resolve_method(), resolve_data())
+        except Exception():
+            log_debug_trace()
 
 
 def store_auth_error_activity(activity_detail):
@@ -202,12 +180,8 @@ def store_auth_error_activity(activity_detail):
     if sys_logger is not None:
         try:
             sys_logger.error(log_text)
-        except Exception(ex):
-            log_debug(ex)
-
-    print(log_text)
-    LogRecord.store(resolve_ip_address(), None, None, None, None, module_id, "AUTH_ERROR", resolve_resource(),
-                    activity_detail, resolve_method(), resolve_data())
+        except Exception():
+            log_debug_trace()
 
 
 def store_user_auth_error_activity(user, activity_detail):
@@ -223,17 +197,20 @@ def store_user_auth_error_activity(user, activity_detail):
     if sys_logger is not None:
         try:
             sys_logger.error(log_text)
-        except Exception(ex):
-            log_debug(ex)
-
-    print(log_text)
-    LogRecord.store(ip, user.id, user.name, None, None, module_id, "AUTH_ERROR", resolve_resource(),
-                    activity_detail, resolve_method(), resolve_data())
+        except Exception():
+            log_debug_trace()
 
 
 def store_system_activity(system_id, system_name, activity_type, activity_detail):
-    LogRecord.store(resolve_ip_address(), None, None, system_id, system_name, module_id, activity_type,
-                    resolve_resource(), activity_detail, resolve_method(), resolve_data())
+    pass
+
+
+def store_activity(activity_type, activity_detail):
+    pass
+
+
+def store_user_activity(user, activity_type, activity_detail):
+    pass
 
 
 def store_system_error_activity(system_id, system_name, activity_type, activity_detail):
@@ -251,9 +228,5 @@ def store_system_error_activity(system_id, system_name, activity_type, activity_
     if sys_logger is not None:
         try:
             sys_logger.critical(log_text)
-        except Exception(ex):
-            log_debug(ex)
-
-    print(log_text)
-    LogRecord.store(resolve_ip_address(), None, None, system_id, system_name, module_id, activity_type,
-                    resolve_resource(), activity_detail, resolve_method(), resolve_data())
+        except Exception():
+            log_debug_trace()

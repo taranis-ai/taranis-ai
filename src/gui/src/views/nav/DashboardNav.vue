@@ -87,13 +87,13 @@
 
 <script>
 import { mapState } from 'vuex'
-import searchField from '@/components/inputs/searchField'
-import dateChips from '@/components/inputs/dateChips'
-import dateRange from '@/components/inputs/dateRange'
-import tagFilter from '@/components/inputs/tagFilter'
-import logicalAnd from '@/components/inputs/logicalAnd'
-import filterSelectList from '@/components/inputs/filterSelectList'
-import filterSortList from '@/components/inputs/filterSortList'
+import searchField from '@/components/_subcomponents/searchField'
+import dateChips from '@/components/_subcomponents/dateChips'
+import dateRange from '@/components/_subcomponents/dateRange'
+import tagFilter from '@/components/_subcomponents/tagFilter'
+import logicalAnd from '@/components/_subcomponents/logicalAnd'
+import filterSelectList from '@/components/_subcomponents/filterSelectList'
+import filterSortList from '@/components/_subcomponents/filterSortList'
 
 export default {
   name: 'DashboardNav',
@@ -171,10 +171,10 @@ export default {
     ]
   }),
   computed: {
-    ...mapState('topicsFilter', ['filter', 'order'])
-    // getData () {
-    //   return this.$store.getters.getDashboardData
-    // }
+    ...mapState('filter', {
+      filter: (state) => state.topicsFilter.filter,
+      order: (state) => state.topicsFilter.order
+    })
   }
 }
 </script>

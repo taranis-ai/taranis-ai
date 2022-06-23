@@ -55,7 +55,6 @@ services:
       JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
       OPENID_LOGOUT_URL: ""
       WORKERS_PER_CORE: "1"
-      TARANIS_NG_SAMPLE_DATA: "true"
 
       CVE_UPDATE_FILE: "${CVE_UPDATE_FILE}"
       CPE_UPDATE_FILE: "${CPE_UPDATE_FILE}"
@@ -199,26 +198,32 @@ services:
         max-size: "200k"
         max-file: "10"
 
-#   gui:
-#     depends_on:
-#       - "core"
-#     restart: unless-stopped
-#     image: "skcert/taranis-ng-gui:${TARANIS_NG_TAG}"
-#     build:
-#       context: ..
-#       dockerfile: ./docker/Dockerfile.gui
-# #    ports: 
-# #      - "8080:80"
-#     environment:
-#       NGINX_WORKERS: "4"
-#       NGINX_CONNECTIONS: "16"
-#       VUE_APP_TARANIS_NG_URL: "${TARANIS_NG_HTTPS_URI}"
-#       VUE_APP_TARANIS_NG_CORE_API: "${TARANIS_NG_HTTPS_URI}/api/v1"
-#       VUE_APP_TARANIS_NG_CORE_SSE: "${TARANIS_NG_HTTPS_URI}/sse"
-#       VUE_APP_TARANIS_NG_LOCALE: en
-#     labels:
-#       traefik.enable: "true"
-#       traefik.http.services.taranis-gui.loadbalancer.server.port: "80"
+  gui:
+    depends_on:
+      - "core"
+    restart: unless-stopped
+    image: "skcert/taranis-ng-gui:${TARANIS_NG_TAG}"
+    build:
+      context: ..
+      dockerfile: ./docker/Dockerfile.gui
+      args:
+        HTTP_PROXY: "${HTTP_PROXY}"
+        HTTPS_PROXY: "${HTTPS_PROXY}"
+        http_proxy: "${HTTP_PROXY}"
+        https_proxy: "${HTTPS_PROXY}"
+#    ports: 
+#      - "8080:80"
+    environment:
+      NGINX_WORKERS: "4"
+      NGINX_CONNECTIONS: "16"
+      VUE_APP_TARANIS_NG_URL: "${TARANIS_NG_HTTPS_URI}"
+      VUE_APP_TARANIS_NG_CORE_API: "${TARANIS_NG_HTTPS_URI}/api/v1"
+      VUE_APP_TARANIS_NG_CORE_SSE: "${TARANIS_NG_HTTPS_URI}/sse"
+      VUE_APP_TARANIS_NG_LOCALE: en
+      TZ: "${TZ}"
+    labels:
+      traefik.enable: "true"
+      traefik.http.services.taranis-gui.loadbalancer.server.port: "80"
 
 #       traefik.http.middlewares.redirect-to-443.redirectscheme.scheme: "https"
 #       traefik.http.middlewares.redirect-to-443.redirectscheme.port: "${TARANIS_NG_HTTPS_PORT}"

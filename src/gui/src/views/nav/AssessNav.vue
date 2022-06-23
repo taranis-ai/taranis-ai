@@ -9,7 +9,7 @@
 
         <v-col cols="12">
           <dropdown-selection
-            v-model="filter.scope.topics"
+            v-model="scope.topics"
             :items="getTopicSelectionList()"
             label="Topics"
             placeholder="all Topics"
@@ -19,7 +19,7 @@
 
         <v-col cols="12" class="pt-0">
           <dropdown-selection
-            v-model="filter.scope.sharingSets"
+            v-model="scope.sharingSets"
             :items="getSharingSetSelectionList()"
             label="Sharing Sets"
             placeholder="all Sharing Sets"
@@ -29,11 +29,11 @@
 
         <v-col cols="12" class="pt-0">
           <dropdown-selection
-            v-model="filter.scope.sources"
+            v-model="scope.sources"
             :items="sourcesList"
             label="Sources"
             placeholder="all Sources"
-            @input="updateQuery()"
+            @input="updateScope()"
           />
         </v-col>
       </v-row>
@@ -47,7 +47,7 @@
         </v-col>
 
         <v-col cols="12">
-          <search-field v-model="filter.search" />
+          <search-field v-model="searchQuery" />
         </v-col>
       </v-row>
 
@@ -112,15 +112,15 @@
 </template>
 
 <script>
-import { mapState, mapGetters } from 'vuex'
-import searchField from '@/components/inputs/searchField'
-import dateChips from '@/components/inputs/dateChips'
-import dateRange from '@/components/inputs/dateRange'
-import tagFilter from '@/components/inputs/tagFilter'
-import logicalAnd from '@/components/inputs/logicalAnd'
-import filterSelectList from '@/components/inputs/filterSelectList'
-import filterSortList from '@/components/inputs/filterSortList'
-import dropdownSelection from '@/components/inputs/dropdownSelection'
+import { mapState, mapGetters, mapActions } from 'vuex'
+import searchField from '@/components/_subcomponents/searchField'
+import dateChips from '@/components/_subcomponents/dateChips'
+import dateRange from '@/components/_subcomponents/dateRange'
+import tagFilter from '@/components/_subcomponents/tagFilter'
+import logicalAnd from '@/components/_subcomponents/logicalAnd'
+import filterSelectList from '@/components/_subcomponents/filterSelectList'
+import filterSortList from '@/components/_subcomponents/filterSortList'
+import dropdownSelection from '@/components/_subcomponents/dropdownSelection'
 
 export default {
   name: 'AssessNav',
@@ -135,6 +135,8 @@ export default {
     dropdownSelection
   },
   data: () => ({
+    searchQuery: '',
+    awaitingSearch: false,
     filterAttributeOptions: [
       { type: 'unread', label: 'unread', icon: '$awakeUnread' },
       {
@@ -182,15 +184,16 @@ export default {
       'APT',
       'MitM'
     ],
-    sourcesList: [
-      { id: 1, title: 'Source 1' },
-      { id: 2, title: 'Source 2' },
-      { id: 3, title: 'Source 3' },
-      { id: 4, title: 'Source 4' }
-    ]
+    sourcesList: []
+
   }),
   computed: {
-    ...mapState('newsItemsFilter', ['filter', 'order'])
+    ...mapState('filter', {
+      scope: (state) => state.newsItemsFilter.scope,
+      filter: (state) => state.newsItemsFilter.filter,
+      order: (state) => state.newsItemsFilter.order
+    }),
+    // ...mapState('filter', ['newsItemsFilter'])
     // getData () {
     //   return this.$store.getters.getDashboardData
     // }
@@ -200,17 +203,73 @@ export default {
       'getTopicSelectionList',
       'getSharingSetSelectionList'
     ]),
+    ...mapGetters('assess', [
+      'getOSINTSourceGroupList'
+    ]),
+    ...mapActions('assess', [
+      'updateNewsItemsByGroup'
+    ]),
+
+    updateSourcesList () {
+      this.sourcesList = this.getSourceNames(this.getOSINTSourceGroupList())
+      console.log(this.sourcesList)
+    },
+    updateScope () {
+      var filter
+      this.scope.sources.forEach(function(source) {
+        filter = { 'group_id': source.id, 
+          'data': { 'offset': 10, 'limit': 15, 'filter': { 
+          'search': '',
+          'sort': '',
+          'range': '',
+          'in_analyze': false,
+          'relevant': false,
+          'important': false
+        }}}
+      })
+      if (filter) {
+        this.updateNewsItemsByGroup(filter)
+      }
+    },
 
     updateQuery () {
-      if (this.filter.scope.topics.length === 1) {
-        this.$router.push({ query: { topic: this.filter.scope.topics[0].id } })
-      } else if (this.filter.scope.sharingSets.length === 1) {
+      if (this.scope.topics.length === 1) {
+        this.$router.push({ query: { topic: this.scope.topics[0].id } })
+      } else if (this.scope.sharingSets.length === 1) {
         this.$router.push({
-          query: { topic: this.filter.scope.sharingSets[0].id }
+          query: { topic: this.scope.sharingSets[0].id }
         })
-      } else {
-        this.$router.push({ query: '' })
       }
+    },
+    getSourceNames (data) {
+      if (!data.items) {
+        return []
+      }
+      return data.items.map(value => ({ id: value.id, title: value.name }))
+    }
+  },
+  created () {
+  this.updateSourcesList()
+  this.unsubscribe = this.$store.subscribe((mutation, state) => {
+    if (mutation.type === 'assess/setOSINTSourceGroups') {
+      this.updateSourcesList()
+    }
+  });
+  },
+
+  beforeDestroy () {
+    this.unsubscribe();
+  },
+  watch: {
+    searchQuery: function () {
+      if (!this.awaitingSearch) {
+        setTimeout(() => {
+          this.filter.search = this.searchQuery
+          this.awaitingSearch = false
+        }, 500)
+      }
+
+      this.awaitingSearch = true
     }
   }
 }

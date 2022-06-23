@@ -29,7 +29,7 @@ export default {
   methods: {
     execute (event) {
       event.stopPropagation()
-      this.$emit('input', event)
+      this.$emit('click', event)
     }
   }
 }

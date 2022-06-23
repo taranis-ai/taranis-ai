@@ -1,6 +1,6 @@
 <template>
     <v-row v-bind="UI.DIALOG.ROW.WINDOW">
-        <v-dialog v-bind="UI.DIALOG.FULLSCREEN" v-model="visible" @keydown.esc="close">
+        <v-dialog v-bind="UI.DIALOG.FULLSCREEN" v-model="visible" @keydown.esc="close" :attach="attach">
             <v-card>
                 <v-toolbar v-bind="UI.DIALOG.TOOLBAR" data-dialog="item-detail">
                     <v-btn icon dark @click="close()" data-btn="close">
@@ -104,9 +104,23 @@
 <script>
 import { deleteNewsItem, groupAction, voteNewsItem, readNewsItem, importantNewsItem, getNewsItem } from '@/api/assess'
 
-import NewsItemAttribute from '@/components/assess/NewsItemAttribute'
-import AuthMixin from '@/services/auth/auth_mixin'
-import Permissions from '@/services/auth/permissions'
+    export default {
+        name: "NewsItemDetail",
+        components: {NewsItemAttribute},
+        mixins: [AuthMixin],
+        props: {
+            analyze_selector: Boolean,
+            attach: undefined
+        },
+        data: () => ({
+            visible: false,
+            news_item: {news_item_data:{}},
+            toolbar: false
+        }),
+        computed: {
+            canAccess() {
+                return this.checkPermission(Permissions.ASSESS_ACCESS) && this.news_item.access === true
+            },
 
 export default {
   name: 'NewsItemDetail',

@@ -77,10 +77,7 @@ class NewsItemData(db.Model):
         attributes,
         tags,
     ):
-        if id is None:
-            self.id = str(uuid.uuid4())
-        else:
-            self.id = id
+        self.id = str(uuid.uuid4()) if id is None else id
         self.hash = hash
         self.title = title
         self.review = review
@@ -100,35 +97,34 @@ class NewsItemData(db.Model):
         news_item_data = cls.query.get(news_item_data_id)
         if news_item_data.remote_source is not None:
             return True
-        else:
-            query = (
-                db.session.query(NewsItemData.id)
-                .distinct()
-                .group_by(NewsItemData.id)
-                .filter(NewsItemData.id == news_item_data_id)
-            )
+        query = (
+            db.session.query(NewsItemData.id)
+            .distinct()
+            .group_by(NewsItemData.id)
+            .filter(NewsItemData.id == news_item_data_id)
+        )
 
-            query = query.join(
-                OSINTSource, NewsItemData.osint_source_id == OSINTSource.id
-            )
+        query = query.join(
+            OSINTSource, NewsItemData.osint_source_id == OSINTSource.id
+        )
 
-            query = query.outerjoin(
-                ACLEntry,
-                or_(
-                    and_(
-                        NewsItemData.osint_source_id == ACLEntry.item_id,
-                        ACLEntry.item_type == ItemType.OSINT_SOURCE,
-                    ),
-                    and_(
-                        OSINTSource.collector_id == ACLEntry.item_id,
-                        ACLEntry.item_type == ItemType.COLLECTOR,
-                    ),
+        query = query.outerjoin(
+            ACLEntry,
+            or_(
+                and_(
+                    NewsItemData.osint_source_id == ACLEntry.item_id,
+                    ACLEntry.item_type == ItemType.OSINT_SOURCE,
                 ),
-            )
+                and_(
+                    OSINTSource.collector_id == ACLEntry.item_id,
+                    ACLEntry.item_type == ItemType.COLLECTOR,
+                ),
+            ),
+        )
 
-            query = ACLEntry.apply_query(query, user, see, access, modify)
+        query = ACLEntry.apply_query(query, user, see, access, modify)
 
-            return query.scalar() is not None
+        return query.scalar() is not None
 
     @classmethod
     def identical(cls, hash):
@@ -195,9 +191,7 @@ class NewsItemData(db.Model):
     def update_news_item_tags(cls, news_item_id, tags):
         try:
             n_i_d = NewsItemData.get_news_item_data(news_item_id).first()
-            # log_manager.log_debug(f"NID: {n_i_d.id}, title: {n_i_d.title}, tags: {n_i_d.tags}")
             n_i_d.tags = tags
-            log_manager.log_debug(f"NID: {n_i_d.id}, title: {n_i_d.title}, tags: {n_i_d.tags}")
             db.session.commit()
         except Exception as e:
             log_manager.log_debug_trace(e)
@@ -297,38 +291,37 @@ class NewsItem(db.Model):
         news_item = cls.query.get(news_item_id)
         if news_item.news_item_data.remote_source is not None:
             return True
-        else:
-            query = (
-                db.session.query(NewsItem.id)
-                .distinct()
-                .group_by(NewsItem.id)
-                .filter(NewsItem.id == news_item_id)
-            )
+        query = (
+            db.session.query(NewsItem.id)
+            .distinct()
+            .group_by(NewsItem.id)
+            .filter(NewsItem.id == news_item_id)
+        )
 
-            query = query.join(
-                NewsItemData, NewsItem.news_item_data_id == NewsItemData.id
-            )
-            query = query.join(
-                OSINTSource, NewsItemData.osint_source_id == OSINTSource.id
-            )
+        query = query.join(
+            NewsItemData, NewsItem.news_item_data_id == NewsItemData.id
+        )
+        query = query.join(
+            OSINTSource, NewsItemData.osint_source_id == OSINTSource.id
+        )
 
-            query = query.outerjoin(
-                ACLEntry,
-                or_(
-                    and_(
-                        NewsItemData.osint_source_id == ACLEntry.item_id,
-                        ACLEntry.item_type == ItemType.OSINT_SOURCE,
-                    ),
-                    and_(
-                        OSINTSource.collector_id == ACLEntry.item_id,
-                        ACLEntry.item_type == ItemType.COLLECTOR,
-                    ),
+        query = query.outerjoin(
+            ACLEntry,
+            or_(
+                and_(
+                    NewsItemData.osint_source_id == ACLEntry.item_id,
+                    ACLEntry.item_type == ItemType.OSINT_SOURCE,
                 ),
-            )
+                and_(
+                    OSINTSource.collector_id == ACLEntry.item_id,
+                    ACLEntry.item_type == ItemType.COLLECTOR,
+                ),
+            ),
+        )
 
-            query = ACLEntry.apply_query(query, user, see, access, modify)
+        query = ACLEntry.apply_query(query, user, see, access, modify)
 
-            return query.scalar() is not None
+        return query.scalar() is not None
 
     @classmethod
     def get_acl_status(cls, news_item_id, user):
@@ -336,84 +329,84 @@ class NewsItem(db.Model):
         news_item = cls.query.get(news_item_id)
         if news_item.news_item_data.remote_source is not None:
             return True, True, True
-        else:
-            query = (
-                db.session.query(
-                    NewsItem.id,
-                    func.count().filter(ACLEntry.id > 0).label("acls"),
-                    func.count().filter(ACLEntry.see).label("see"),
-                    func.count().filter(ACLEntry.access).label("access"),
-                    func.count().filter(ACLEntry.modify).label("modify"),
-                )
-                .distinct()
-                .group_by(NewsItem.id)
-                .filter(NewsItem.id == news_item_id)
+        query = (
+            db.session.query(
+                NewsItem.id,
+                func.count().filter(ACLEntry.id > 0).label("acls"),
+                func.count().filter(ACLEntry.see).label("see"),
+                func.count().filter(ACLEntry.access).label("access"),
+                func.count().filter(ACLEntry.modify).label("modify"),
             )
+            .distinct()
+            .group_by(NewsItem.id)
+            .filter(NewsItem.id == news_item_id)
+        )
 
-            query = query.join(
-                NewsItemData, NewsItem.news_item_data_id == NewsItemData.id
-            )
-            query = query.outerjoin(
-                OSINTSource, NewsItemData.osint_source_id == OSINTSource.id
-            )
+        query = query.join(
+            NewsItemData, NewsItem.news_item_data_id == NewsItemData.id
+        )
+        query = query.outerjoin(
+            OSINTSource, NewsItemData.osint_source_id == OSINTSource.id
+        )
 
-            query = query.outerjoin(
-                ACLEntry,
-                or_(
-                    and_(
-                        NewsItemData.osint_source_id == ACLEntry.item_id,
-                        ACLEntry.item_type == ItemType.OSINT_SOURCE,
-                    ),
-                    and_(
-                        OSINTSource.collector_id == ACLEntry.item_id,
-                        ACLEntry.item_type == ItemType.COLLECTOR,
-                    ),
+        query = query.outerjoin(
+            ACLEntry,
+            or_(
+                and_(
+                    NewsItemData.osint_source_id == ACLEntry.item_id,
+                    ACLEntry.item_type == ItemType.OSINT_SOURCE,
                 ),
-            )
+                and_(
+                    OSINTSource.collector_id == ACLEntry.item_id,
+                    ACLEntry.item_type == ItemType.COLLECTOR,
+                ),
+            ),
+        )
 
-            query = ACLEntry.apply_query(query, user, False, False, False)
+        query = ACLEntry.apply_query(query, user, False, False, False)
 
-            result = query.all()
-            see = result[0].see > 0 or result[0].acls == 0
-            access = result[0].access > 0 or result[0].acls == 0
-            modify = result[0].modify > 0 or result[0].acls == 0
+        result = query.all()
+        see = result[0].see > 0 or result[0].acls == 0
+        access = result[0].access > 0 or result[0].acls == 0
+        modify = result[0].modify > 0 or result[0].acls == 0
 
         return see, access, modify
 
     def vote(self, data, user_id):
-        if "vote" in data:
-            self.news_item_data.updated = datetime.now()
-            vote = NewsItemVote.find(self.id, user_id)
-            if vote is None:
-                vote = NewsItemVote(self.id, user_id)
-                db.session.add(vote)
+        if "vote" not in data:
+            return
+        self.news_item_data.updated = datetime.now()
+        vote = NewsItemVote.find(self.id, user_id)
+        if vote is None:
+            vote = NewsItemVote(self.id, user_id)
+            db.session.add(vote)
 
-            if data["vote"] > 0:
-                if vote.like is True:
-                    self.likes -= 1
-                    self.relevance -= 1
-                    vote.like = False
-                else:
-                    self.likes += 1
-                    self.relevance += 1
-                    vote.like = True
-                    if vote.dislike is True:
-                        self.dislikes -= 1
-                        self.relevance += 1
-                        vote.dislike = False
+        if data["vote"] > 0:
+            if vote.like is True:
+                self.likes -= 1
+                self.relevance -= 1
+                vote.like = False
             else:
+                self.likes += 1
+                self.relevance += 1
+                vote.like = True
                 if vote.dislike is True:
                     self.dislikes -= 1
                     self.relevance += 1
                     vote.dislike = False
-                else:
-                    self.dislikes += 1
+        else:
+            if vote.dislike is True:
+                self.dislikes -= 1
+                self.relevance += 1
+                vote.dislike = False
+            else:
+                self.dislikes += 1
+                self.relevance -= 1
+                vote.dislike = True
+                if vote.like is True:
+                    self.likes -= 1
                     self.relevance -= 1
-                    vote.dislike = True
-                    if vote.like is True:
-                        self.likes -= 1
-                        self.relevance -= 1
-                        vote.like = False
+                    vote.like = False
 
     @classmethod
     def update(cls, id, data, user_id):

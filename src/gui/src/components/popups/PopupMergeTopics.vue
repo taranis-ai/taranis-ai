@@ -4,17 +4,7 @@
       <v-container>
         <v-row>
           <v-col cols="12">
-            <h2
-              class="
-                font-weight-bold
-                headline
-                dark-grey--text
-                text-capitalize
-                pt-3
-              "
-            >
-              Merge Topics
-            </h2>
+            <h2 class="popup-title pb-2">Merge Topics</h2>
             The following topics were selected for merging:
           </v-col>
         </v-row>
@@ -32,23 +22,11 @@
                     elevation="0"
                     tile
                     height="100%"
-                    class="
-                      align-self-stretch
-                      d-flex
-                      flex-column
-                      merge-topic-details
-                    "
+                    class="merge-topic-details"
                   >
                     <v-row justify="start" no-gutters class="flex-grow-0">
                       <v-col>
-                        <h4
-                          class="
-                            font-weight-bold
-                            merge-topics-details-title
-                            text-capitalize
-                            my-2
-                          "
-                        >
+                        <h4 class="merge-topics-details-title my-2">
                           {{ getTopicDetails(topicId).title }}
                         </h4>
                       </v-col>
@@ -99,17 +77,7 @@
       <v-container class="pb-5 mb-5">
         <v-row>
           <v-col class="py-1">
-            <h4
-              class="
-                font-weight-bold
-                merge-topics-details-title
-                dark-grey--text
-                text-capitalize
-                my-0
-              "
-            >
-              Merge Options
-            </h4>
+            <h4 class="merge-topics-details-title">Merge Options</h4>
           </v-col>
         </v-row>
         <v-row>
@@ -118,14 +86,7 @@
           <!----------->
 
           <v-col class="py-2">
-            <v-text-field
-              hide-details
-              dense
-              label="Topic Title"
-              outlined
-              required
-              v-model="mergeTitle"
-            ></v-text-field>
+            <text-field v-model="mergeTitle" label="Topic Title" />
           </v-col>
         </v-row>
         <v-row class="mt-2">
@@ -134,14 +95,10 @@
           <!------------->
 
           <v-col cols="12" class="py-0">
-            <v-switch
+            <switch-field
               v-model="generateSummary"
-              inset
-              dense
               label="auto-generate summary"
-              color="success"
-              hide-details
-            ></v-switch>
+            />
           </v-col>
           <v-expand-transition appear v-if="!generateSummary">
             <v-col cols="12" class="py-0 pt-2">
@@ -159,14 +116,7 @@
           <!--------------------->
 
           <v-col cols="8" class="py-0">
-            <v-switch
-              v-model="mergeDiscussion"
-              inset
-              dense
-              label="keep discussion"
-              color="success"
-              hide-details
-            ></v-switch>
+            <switch-field v-model="mergeDiscussion" label="keep discussion" />
           </v-col>
           <v-col
             cols="4"
@@ -186,14 +136,7 @@
           <!----------------->
 
           <v-col cols="8" class="py-0">
-            <v-switch
-              v-model="mergeVotes"
-              inset
-              dense
-              label="merge up-/downvotes"
-              color="success"
-              hide-details
-            ></v-switch>
+            <switch-field v-model="mergeVotes" label="merge up-/downvotes" />
           </v-col>
           <v-col cols="4" class="py-0 merge-topics-details-meta">
             <div class="mt-5 mr-2 text-right grey--text text--darken-2">
@@ -213,14 +156,7 @@
           <!--------------------->
 
           <v-col cols="12" class="py-0">
-            <v-switch
-              v-model="deleteOld"
-              inset
-              dense
-              label="delete selected topics"
-              color="success"
-              hide-details
-            ></v-switch>
+            <switch-field v-model="deleteOld" label="delete selected topics" />
           </v-col>
         </v-row>
       </v-container>
@@ -229,25 +165,21 @@
 
       <v-card-actions class="mt-3">
         <v-spacer></v-spacer>
-        <v-btn
-          color="awake-red-color darken-1"
-          outlined
-          @click="$emit('input', false)"
-          class="text-lowercase pr-4"
-        >
-          <v-icon left class="red-icon">$awakeClose</v-icon>
-          abort
-        </v-btn>
-        <v-btn
+
+        <button-outlined
+          label="cancel"
+          icon="$awakeClose"
+          color="awake-red-color"
+          extraClass="mr-2"
+          @click="$emit('close')"
+        />
+
+        <button-solid
+          label="merge topics"
+          icon="$awakeMerge"
           color="primary"
-          dark
-          depressed
           @click="mergeSelectedTopics()"
-          class="text-lowercase selection-toolbar-btn pr-4"
-        >
-          <v-icon left>$awakeMerge</v-icon>
-          merge topics
-        </v-btn>
+        />
       </v-card-actions>
     </v-form>
   </v-card>
@@ -258,9 +190,19 @@ import { mapActions, mapGetters } from 'vuex'
 import { xorConcat } from '@/utils/helpers'
 import { faker } from '@faker-js/faker'
 
+import buttonSolid from '@/components/_subcomponents/buttonSolid'
+import buttonOutlined from '@/components/_subcomponents/buttonOutlined'
+import textField from '@/components/_subcomponents/textField'
+import switchField from '@/components/_subcomponents/switchField'
+
 export default {
   name: 'PopupMergeTopics',
-  components: {},
+  components: {
+    buttonSolid,
+    buttonOutlined,
+    textField,
+    switchField
+  },
   props: {
     dialog: Boolean,
     selection: []
@@ -316,7 +258,8 @@ export default {
       this.createNewTopic(mergedTopic)
       this.changeMergeAttr({ src: oldTopics, dest: mergedTopic.id })
 
-      this.$emit('input', false)
+      // Close Popup
+      this.$emit('close')
     }
   },
   computed: {

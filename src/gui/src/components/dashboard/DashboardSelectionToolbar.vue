@@ -36,8 +36,9 @@
             </template>
 
             <popup-merge-topics
-              v-model:dialog="mergeDialog"
+              :dialog="mergeDialog"
               :selection="selection"
+              @close="mergeDialog = false"
             />
           </v-dialog>
 
@@ -62,7 +63,12 @@
             <v-card>
               <v-card-title>
                 <h2
-                  class="font-weight-bold headline dark-grey--text text-capitalize"
+                  class="
+                    font-weight-bold
+                    headline
+                    dark-grey--text
+                    text-capitalize
+                  "
                 >
                   Create Sharing-Set
                 </h2>

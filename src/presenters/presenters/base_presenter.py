@@ -1,5 +1,6 @@
 from schema.presenter import PresenterSchema
 from managers import log_manager
+import json, datetime
 
 class BasePresenter:
     type = "BASE_PRESENTER"
@@ -18,6 +19,14 @@ class BasePresenter:
     @staticmethod
     def generate_input_data(presenter_input):
         class InputDataObject:
+            def json_default(value):
+                if isinstance(value, datetime.date):
+                    return dict(year=value.year, month=value.month, day=value.day)
+                else:
+                    return value.__dict__
+            def toJSON(self):
+                return json.dumps(self, default=InputDataObject.json_default, sort_keys=True, indent=4)
+
             def __init__(self):
                 attribute_map = dict()
                 for attribute_group in presenter_input.report_type.attribute_groups:
@@ -27,6 +36,8 @@ class BasePresenter:
                 self.report_items = list()
                 for report in presenter_input.reports:
                     class ReportItemObject:
+                        def toJSON(self):
+                            return json.dumps(self, default=InputDataObject.json_default, sort_keys=True, indent=4)
                         def __init__(self, report_item):
                             self.name = report_item.title
                             self.name_prefix = report_item.title_prefix
@@ -38,7 +49,8 @@ class BasePresenter:
                                     self.news_items.append(news_item['news_item_data'])
 
                             class AttributesObject:
-                                pass
+                                def toJSON(self):
+                                    return json.dumps(self, default=InputDataObject.json_default, sort_keys=True, indent=4)
 
                             self.attrs = AttributesObject()
 
@@ -58,7 +70,11 @@ class BasePresenter:
 
                     self.report_items.append(ReportItemObject(report))
 
-        return InputDataObject()
+        data = InputDataObject()
+        data_json = data.toJSON()
+        log_manager.log_info("=== TEMPLATING FROM THE FOLLOWING INPUT ===\n" + data_json)
+        data_obj = json.loads(data_json)
+        return data_obj
 
     def generate(self, presenter_input):
         pass

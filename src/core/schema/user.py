@@ -1,4 +1,4 @@
-from marshmallow import Schema, fields, missing, post_load, EXCLUDE
+from marshmallow import Schema, fields, post_load, EXCLUDE
 
 from schema.role import RoleSchema, PermissionSchema
 from schema.organization import OrganizationSchema

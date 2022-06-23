@@ -6,13 +6,14 @@ module.exports = {
       },
       sass: {
         additionalData: '@import "@/styles/variables.scss"'
-      }
+      },
     }
   },
   configureWebpack: {
     devtool: 'inline-source-map'
   },
   devServer: {
-    disableHostCheck: true
+    disableHostCheck: true,
+    public: 'taranis'
   }
 }

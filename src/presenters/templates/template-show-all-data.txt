@@ -1,13 +1,1 @@
-{
-    'report_items': [
-        {% for report_item in data.report_items %}{
-            'name': '{{report_item.name}}',
-            'name_prefix': '{{report_item.name_prefix}}',
-            'type': '{{report_item.type}}',
-            'news_items': [{% for news_item in report_item.news_items %}
-                {{vars(news_item)}}{% if report_item.news_items|length < loop.index %},{% endif %}
-                {% endfor %}],
-            'attrs': {{vars(report_item.attrs)}}
-        }{% if data.report_items|length < loop.index %},{% endif %}{% endfor %}
-    ]
-}
+{{ data }}

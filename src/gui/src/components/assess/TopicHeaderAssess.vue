@@ -49,8 +49,8 @@
                   >
                     <calendar-heatmap
                       class="calendar-heatmap"
-                      :values="metaData.heatmapData"
-                      :endDate="heatmapEndDate"
+                      :values="getMetaData().heatmapData"
+                      :endDate="getHeatmapEndDate()"
                       tooltip-unit="published items"
                       :range-color="[
                         '#d6d29d',
@@ -94,8 +94,9 @@
                       </template>
 
                       <popup-edit-topic
-                        v-model="editDialog"
+                        :dialog="editDialog"
                         :topic="topic"
+                        @close="editDialog = false"
                         v-on:update:title="topic.title = $event"
                       />
                     </v-dialog>
@@ -130,7 +131,7 @@
               <v-col class="topic-header-meta-infos-label">
                 <strong>Last activity:</strong>
               </v-col>
-              <v-col> {{ lastActivity }} </v-col>
+              <v-col> {{ getLastActivity() }} </v-col>
             </v-row>
             <v-row class="topic-header-meta-infos">
               <v-col class="topic-header-meta-infos-label">
@@ -190,7 +191,9 @@
                 <strong>Sharing Sets:</strong>
               </v-col>
               <v-col>
-                <span class="text-capitalize">{{ metaData.sharingSets }}</span>
+                <span class="text-capitalize">{{
+                  getMetaData().sharingSets
+                }}</span>
               </v-col>
             </v-row>
             <v-row class="topic-header-meta-infos">
@@ -201,7 +204,7 @@
                 <v-icon left small class="icon-color-grey"
                   >$awakeShareOutline</v-icon
                 >
-                <span>{{ metaData.numberSharedItems }}</span>
+                <span>{{ getMetaData().numberSharedItems }}</span>
               </v-col>
             </v-row>
             <v-row class="topic-header-meta-infos">
@@ -210,7 +213,7 @@
               </v-col>
               <v-col>
                 <v-icon left small>mdi-lock-outline</v-icon>
-                <span>{{ metaData.numberRestrictedItems }}</span>
+                <span>{{ getMetaData().numberRestrictedItems }}</span>
               </v-col>
             </v-row>
             <v-row class="topic-header-meta-infos">
@@ -218,7 +221,7 @@
                 <strong>Keywords:</strong>
               </v-col>
               <v-col>
-                <span class="text-capitalize">{{ keywords }}</span>
+                <span class="text-capitalize">{{ getKeywords() }}</span>
               </v-col>
             </v-row>
             <v-row class="topic-header-meta-infos">
@@ -227,7 +230,7 @@
               </v-col>
               <v-col>
                 <span class="text-capitalize">{{
-                  metaData.relatedTopics
+                  getMetaData().relatedTopics
                 }}</span>
               </v-col>
             </v-row>
@@ -253,11 +256,10 @@
 
 <script>
 import moment from 'moment'
-
 import TagMini from '@/components/common/tags/TagMini'
 import TagNorm from '@/components/common/tags/TagNorm'
 import { CalendarHeatmap } from 'vue-calendar-heatmap'
-import { mapActions, mapGetters, mapState } from 'vuex'
+import { mapGetters } from 'vuex'
 import PopupEditTopic from '@/components/popups/PopupEditTopic'
 
 // import { mapState } from 'vuex'
@@ -273,26 +275,20 @@ export default {
   data: () => ({
     editDialog: false
   }),
-  methods: {
-    ...mapGetters('dashboard', ['getTopicById', 'getTopicTitleById']),
-    ...mapGetters('assess', ['getNewsItemsByTopicId'])
+  props: {
+    topic: {}
   },
-  computed: {
-    ...mapState('newsItemsFilter', ['filter']),
+  methods: {
+    ...mapGetters('dashboard', ['getTopicTitleById']),
+    ...mapGetters('assess', ['getNewsItemsByTopicId']),
 
-    topic () {
-      return this.getTopicById()(parseInt(this.filter.scope.topics[0].id))
-    },
-    lastActivity () {
+    getLastActivity () {
       return moment(this.topic.lastActivity).format('DD/MM/YYYY hh:mm:ss')
     },
-    relatedTopics () {
-      return this.topic.relatedTopics.join(', ')
-    },
-    keywords () {
+    getKeywords () {
       return this.topic.keywords.join(', ')
     },
-    metaData () {
+    getMetaData () {
       const heatmapCounter = {}
       let numberSharedItems = 0
       let numberRestrictedItems = 0
@@ -341,7 +337,7 @@ export default {
           : '-'
       }
     },
-    heatmapEndDate () {
+    getHeatmapEndDate () {
       return moment(new Date()).format('YYYY/MM/DD')
     }
   }

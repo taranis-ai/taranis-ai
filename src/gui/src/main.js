@@ -62,9 +62,14 @@ Vue.component('cs-button', CSButton)
 Vue.use(SmoothScrollbar)
 
 export const vm = new Vue({
-  router,
-  store,
-  vuetify,
-  i18n,
-  render: h => h(App)
-}).$mount('#app')
+    i18n,
+    vuetify,
+    store,
+    router,
+    render: h => h(App),
+    beforeCreate() {
+        const val = localStorage.getItem('TNGVericalView') == 'true';
+        this.$store.commit('setVerticalView', val);
+    }
+
+}).$mount('#app');

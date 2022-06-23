@@ -15,7 +15,6 @@ class NewsItemAttributeSchema(NewsItemAttributeBaseSchema):
 
 
 class NewsItemAttribute:
-
     def __init__(self, key, value, binary_mime_type, binary_value):
         # self.id = id
         self.key = key
@@ -39,7 +38,6 @@ class NewsItemDataBaseSchema(Schema):
     collected = fields.DateTime('%d.%m.%Y - %H:%M')
     osint_source_id = fields.Str(missing=None)
     tags = fields.List(fields.String(), required=False)
-
 
 
 class NewsItemDataSchema(NewsItemDataBaseSchema):
@@ -122,6 +120,7 @@ class NewsItemAggregateSchema(Schema):
     me_like = fields.Bool()
     me_dislike = fields.Bool()
     in_reports_count = fields.Int()
+    tags = fields.List(fields.String(), required=False)
     news_items = fields.Nested(NewsItemPresentationSchema, many=True)
 
 

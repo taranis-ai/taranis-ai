@@ -8,7 +8,6 @@ from model.organization import Organization
 from schema.user import UserSchemaBase, UserProfileSchema, HotkeySchema, UserPresentationSchema
 from schema.role import RoleIdSchema, PermissionIdSchema
 from schema.organization import OrganizationIdSchema
-from schema.word_list import WordListIdSchema
 
 
 class NewUserSchema(UserSchemaBase):
@@ -50,7 +49,7 @@ class User(db.Model):
         for permission in permissions:
             self.permissions.append(Permission.find(permission.id))
 
-        self.profile = UserProfile(True, False, [], [])
+        self.profile = UserProfile(True, False, [])
         self.title = ""
         self.subtitle = ""
         self.tag = ""
@@ -196,12 +195,6 @@ class User(db.Model):
         user.profile.spellcheck = updated_profile.spellcheck
         user.profile.dark_theme = updated_profile.dark_theme
 
-        user.profile.word_lists = []
-        from model.word_list import WordList
-        for word_list in updated_profile.word_lists:
-            if WordList.allowed_with_acl(word_list.id, user, True, False, False):
-                user.profile.word_lists.append(word_list)
-
         user.profile.hotkeys = updated_profile.hotkeys
 
         db.session.commit()
@@ -232,7 +225,6 @@ class NewHotkeySchema(HotkeySchema):
 
 
 class NewUserProfileSchema(UserProfileSchema):
-    word_lists = fields.List(fields.Nested(WordListIdSchema))
     hotkeys = fields.List(fields.Nested(NewHotkeySchema))
 
     @post_load
@@ -247,23 +239,16 @@ class UserProfile(db.Model):
     dark_theme = db.Column(db.Boolean, default=False)
 
     hotkeys = db.relationship("Hotkey", cascade="all, delete-orphan")
-    word_lists = db.relationship('WordList', secondary='user_profile_word_list')
 
-    def __init__(self, spellcheck, dark_theme, hotkeys, word_lists):
+    def __init__(self, spellcheck, dark_theme, hotkeys):
         self.id = None
         self.spellcheck = spellcheck
         self.dark_theme = dark_theme
         self.hotkeys = hotkeys
 
-        self.word_lists = []
-        from model.word_list import WordList
-        for word_list in word_lists:
-            self.word_lists.append(WordList.find(word_list.id))
-
 
 class UserProfileWordList(db.Model):
     user_profile_id = db.Column(db.Integer, db.ForeignKey('user_profile.id'), primary_key=True)
-    word_list_id = db.Column(db.Integer, db.ForeignKey('word_list.id'), primary_key=True)
 
 
 class Hotkey(db.Model):

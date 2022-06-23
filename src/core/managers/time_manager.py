@@ -53,6 +53,3 @@ def run_scheduler():
     scheduler_thread.start()
 
     return scheduler_event
-
-
-scheduler_stop_handler = run_scheduler()

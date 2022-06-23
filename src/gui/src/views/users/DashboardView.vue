@@ -10,7 +10,7 @@
 <script>
 import ViewLayout from '@/components/layouts/ViewLayout'
 import DashboardContent from '@/components/dashboard/DashboardContent'
-import { mapState, mapGetters, mapActions } from 'vuex'
+import { mapActions } from 'vuex'
 
 export default {
   name: 'DashboardView',
@@ -21,10 +21,8 @@ export default {
   methods: {
     ...mapActions('dashboard', ['unselectAllTopics']),
     ...mapActions('assess', ['deselectAllNewsItems']),
-    ...mapActions('newsItemsFilter', ['resetNewsItemsFilter']),
-    ...mapActions('topicsFilter', ['resetTopicsFilter'])
+    ...mapActions('filter', ['resetNewsItemsFilter', 'resetTopicsFilter']),
   },
-  computed: {},
   mounted () {
     this.unselectAllTopics()
     this.resetTopicsFilter()

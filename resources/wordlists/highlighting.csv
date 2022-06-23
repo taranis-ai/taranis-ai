@@ -1,0 +1,77 @@
+value;description
+2fa;Two-factor Authentication
+adversary;Attacker/hacker
+adware;Ads and pop-up windows
+ai;Artificial Intelligence
+apt;Advanced Persistent Threat
+atp;Advanced Threat Protection
+attack;
+authentication;
+av;Anti-virus
+backdoor;
+botnet;A collection of compromised computers running malicious programs
+breach;
+brute-force;
+bug;
+c&c;Command and Control
+clickjacking;
+cloud;
+cryptojacking;
+cyberattack;
+cyberbullying;
+cybersecurity;
+ddos;Distributed Denial of Service
+dlp;Data Loss Prevention
+dns;Domain Name System
+dos;Denial of Service
+drive-by;
+edr;Endpoint Detection and Response
+encrypt;
+exploit;
+firewall;
+hack-for-hire;
+hacker;
+hacktivist;
+honeypot;
+iam;Identity and Access Management
+identity;
+incident;
+info-stealing;
+integrity;
+ioc;Indicators of Compromise
+iot;Internet of Things
+ips;Intrusion Prevention System
+keylogger;Spyware software that records every keystroke made on a computer’s keyboard
+malvertising;
+malware;
+man-in-the-middle;
+mfa;Multi-factor Authentication
+mitm;Man-in-the-middle attack
+mitre;MITRE ATT&CK framework
+patch;
+penetration;
+pentest;
+pentesting;
+phishing;
+pii;Personal Identifiable Information
+ransomware;
+rdp;Remote Desktop Protocol
+rootkit;
+sandbox;
+siem;Security Information and Event Management
+sniffing;
+soar;Security Orchestration, Automation and Response
+soc;Security Operations Center
+spam;
+spoofing;
+spyware;
+threat;
+trojan;
+virus;
+vpn;Virtual Private Network
+vulnerabilities;
+vulnerability;
+waf;Web Application Firewall
+worm;
+zero-day;
+zombie;

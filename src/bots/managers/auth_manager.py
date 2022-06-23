@@ -17,10 +17,8 @@ if os.getenv('SSL_VERIFICATION') == "False":
 def api_key_required(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
-
-        if not request.headers.has_key('Authorization') or request.headers['Authorization'] != ('Bearer ' + api_key):
+        if 'Authorization' not in request.headers or request.headers['Authorization'] != f'Bearer {api_key}':
             return {'error': 'not authorized'}, 401
-        else:
-            return fn(*args, **kwargs)
+        return fn(*args, **kwargs)
 
     return wrapper

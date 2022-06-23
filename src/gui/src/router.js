@@ -323,13 +323,8 @@ router.beforeEach((to, from, next) => {
         if (!AuthService.isAuthenticated()) {
 
             if (!store.getters.hasExternalLoginUrl) {
-
-                next({
-                    path: store.getters.getLoginURL,
-                    query: {redirect: to.path}
-                })
+                next({path: store.getters.getLoginURL})
             } else {
-
                 window.location = store.getters.getLoginURL;
             }
         } else if (to.path === "/") {

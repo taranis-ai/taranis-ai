@@ -20,7 +20,7 @@ export default {
   },
   methods: {
     toggleValue (event) {
-      this.$emit('input', !this.value)
+      this.$emit('click', !this.value)
       event.stopPropagation()
     }
   }

@@ -85,6 +85,7 @@
     ],
     "rules": {
       "camelcase": "off",
+      "space-before-function-paren": 0,
       "quotes": [
         2,
         "single",

@@ -81,20 +81,6 @@ Your Taranis NG instance now needs to be configured.  Continue
 
 **The default credentials are `user` / `user` and `admin` / `admin`.**
 
-<hr />
-
-To import the
-[sample data](https://github.com/SK-CERT/Taranis-NG/blob/main/src/core/scripts/sample_data.py)
-and create basic user accounts, set the environment variable
-`TARANIS_NG_SAMPLE_DATA` for the core container to `true`, or import sample
-data using the [management script](#management-script-how-to) (from another
-terminal):
-
-```bash
-docker exec -it taranis-ng_core_1 python manage.py sample-data
-```
-
-*<u>Note:</u> the container name `taranis-ng_core_1` was automatically generated when running the example [docker-compose.yml](docker-compose.yml) file without any changes. To get the exact container name for the core component of your instance, use `docker ps`.*
 
 ## Advanced build methods
 
@@ -152,9 +138,6 @@ Any configuration options are available at [https://hub.docker.com/_/postgres](h
 | `JWT_SECRET_KEY`            | JWT token secret key. | `J6flTliJ076zWg` |
 | `OPENID_LOGOUT_URL`         | Keycloak logout URL. | `https://example.com/auth/realms/master/protocol/openid-connect/logout` |
 | `WORKERS_PER_CORE`          | Number of gunicorn worker threads to spawn per CPU core. | `4` |
-| `TARANIS_NG_SAMPLE_DATA`    | To install sample data, set to `"true"`.<br /> When this option is enabled, the user account specified in the variables below won't be automatically created. | `false` |
-| `TARANIS_NG_ADMIN_USERNAME`     | To automatically create a full-priviledge role and an administrator account, set to some username, like `"admin"`. | `john.doe` |
-| `TARANIS_NG_ADMIN_PASSWORD` | Set a password for the automatically created user account. If no password is specified, one will be generated. | `password1` |
 
 Taranis NG can use [connection pooling](https://docs.sqlalchemy.org/en/14/core/pooling.html) to maintain multiple active connections to the database server. Connection pooling is required when your deployment serves hundreds of customers from one instance. To enable connection pooling, set the `DB_POOL_SIZE`, `DB_POOL_RECYCLE`, and `DB_POOL_TIMEOUT` environment variables.
 
@@ -191,7 +174,6 @@ Currently, you may manage the following:
 
 | Command     | Description | Parameters |
 |-------------|-------------|------------|
-| `sample-data` | Install sample data with basic configuration.<br />*This is for show-case and testing purposes only.* | N/A |
 | `account`     | (WIP) List, create, edit and delete user accounts. | `--list`, `-l` : list all user accounts<br /> `--create`, `-c` : create a new user account<br /> `--edit`, `-e` : edit an existing user account<br /> `--delete`, `-d` : delete a user account<br /> `--username` : specify the username<br /> `--name` : specify the user's name<br /> `--password` : specify the user's password<br /> `--roles` : specify a list of roles, divided by a comma (`,`), that the user belongs to |
 | `role`     | (WIP) List, create, edit and delete user roles. | `--list`, `-l` : list all roles<br /> `--filter`, `-f` : filter roles by their name or description<br /> `--create`, `-c` : create a new role<br /> `--edit`, `-e` : edit an existing role<br /> `--delete`, `-d` : delete a role<br /> `--id` : specify the role id (in combination with `--edit` or `--delete`)<br /> `--name` : specify the role name<br /> `--description` : specify the role description (default is `""`)<br /> `--permissions` : specify a list of permissions, divided with a comma (`,`), that the role would allow |
 | `collector`     | (WIP) List, create, edit, delete and update collector nodes. | `--list`, `-l` : list all collector nodes<br /> `--create`, `-c` : create a new node<br /> `--edit`, `-e` : edit an existing node<br /> `--delete`, `-d` : delete a node<br /> `--update`, `-u` : re-initialize collector node<br /> `--all`, `-a` : update all collector nodes (in combination with `--update`)<br /> `--show-api-key` : show API key in plaintext (in combination with `--list`)<br /> `--id` : specify the node id (in combination with `--edit`, `--delete` or `--update`)<br /> `--name` : specify the node name<br /> `--description` : specify the collector description (default is `""`)<br /> `--api-url` : specify the collector node API url<br /> `--api-key` : specify the collector node API key |
@@ -199,20 +181,6 @@ Currently, you may manage the following:
 
 
 #### Example usage
-
-##### Install sample data
-
-```bash
-manage.py sample-data
-```
-
-Command output:
-
-```
-Installing sample data...
-Tables created.
-Sample data installed.
-```
 
 ##### Create a new role with a set of permissions
 
@@ -303,7 +271,7 @@ User 'test_user' created.
 ##### Upload a CPE dictionary
 
 ```bash
-gzcat official-cpe-dictionary_v2.3.xml.gz | manage.py dictionary --upload-cpe
+zcat official-cpe-dictionary_v2.3.xml.gz | manage.py dictionary --upload-cpe
 ```
 
 Command output:

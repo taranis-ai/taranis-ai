@@ -47,12 +47,9 @@ def run_scheduler():
         def run(cls):
             while not scheduler_event.is_set():
                 schedule.run_pending()
-                time.sleep(1)
+                time.sleep(0.1)
 
     scheduler_thread = ScheduleThread()
     scheduler_thread.start()
 
     return scheduler_event
-
-
-scheduler_stop_handler = run_scheduler()

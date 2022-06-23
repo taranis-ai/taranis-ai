@@ -26,32 +26,29 @@ def main(db):
     user_role.permissions.append(Permission.find("PUBLISH_PRODUCT"))
     db.session.add(user_role)
 
-    address = Address("Budatinska 30", "Bratislava", "851 06", "Slovakia")
-    organization = Organization(None, "SK-CERT", "", address)
-    db.session.add(organization)
+    # address = Address("Budatinska 30", "Bratislava", "851 06", "Slovakia")
+    # organization = Organization(None, "SK-CERT", "", address)
+    # db.session.add(organization)
+
+    organization = Organization.find(4)
 
     role = Role.find_by_name('User')
 
-    user = User(None, 'user', 'Test User', [], [], [])
+    user = User(id=None, username='user', name='Test User', organizations=[], roles=[], permissions=[])
+    print(user)
     user.roles.append(role)
     user.organizations.append(organization)
 
     db.session.add(user)
-    db.session.commit()
 
     role = Role.find_by_name('Admin')
 
-    user = User(None, 'admin', 'Test Administrator', [], [], [])
+    user = User(id=None, username='admin', name='Test Administrator', organizations=[], roles=[], permissions=[])
+    print(user)
     user.roles.append(role)
     user.organizations.append(organization)
     db.session.add(user)
-
-    user = User(None, 'customer', 'Test Customer', [], [], [])
-    user.permissions.append(Permission.find("MY_ASSETS_ACCESS"))
-    user.permissions.append(Permission.find("MY_ASSETS_CREATE"))
-    user.permissions.append(Permission.find("MY_ASSETS_CONFIG"))
-    user.organizations.append(organization)
-    db.session.add(user)
+    db.session.commit()
 
 
 def run(db):

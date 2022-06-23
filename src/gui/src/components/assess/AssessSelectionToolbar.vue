@@ -82,7 +82,7 @@
             </template>
 
             <popup-share-items
-              v-model:dialog="shareDialog"
+              v-model="shareDialog"
               :selection="selection"
             />
           </v-dialog>
@@ -146,7 +146,10 @@ export default {
     appendToTopicDialog: false,
     createTopicDialog: false
   }),
-  methods: {},
+  methods: {
+
+    
+  },
   computed: {},
   mounted () {}
 }

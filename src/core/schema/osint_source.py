@@ -61,6 +61,13 @@ class OSINTSourceSchema(OSINTSourceSchemaBase):
     collector_id = fields.Str()
 
 
+class OSINTSourceCollectorSchema(Schema):
+    id = fields.Str()
+    name = fields.Str()
+    description = fields.Str()
+    collector_type = fields.Str()
+
+
 class OSINTSourcePresentationSchema(OSINTSourceSchema, PresentationSchema):
     collector = fields.Nested(CollectorSchema)
     osint_source_groups = fields.Nested(OSINTSourceSchemaBase, many=True, allow_none=True)

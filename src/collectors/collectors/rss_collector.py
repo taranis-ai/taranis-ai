@@ -42,7 +42,7 @@ class RSSCollector(BaseCollector):
             feedparser.USER_AGENT = user_agent
             user_agent_headers = {'User-Agent': user_agent}
         else:
-            user_agent_headers = { }
+            user_agent_headers = {}
 
         # use system proxy
         proxy_handler = None
@@ -78,7 +78,7 @@ class RSSCollector(BaseCollector):
 
         try:
             if proxy_handler:
-                feed = feedparser.parse(feed_url, handlers = [proxy_handler])
+                feed = feedparser.parse(feed_url, handlers=[proxy_handler])
             else:
                 feed = feedparser.parse(feed_url)
 
@@ -105,7 +105,7 @@ class RSSCollector(BaseCollector):
                 request.add_header('User-Agent', user_agent)
 
                 with opener(request) as response:
-                   html_content = response.read()
+                  html_content = response.read()
 
                 soup = BeautifulSoup(html_content, features='html.parser')
 

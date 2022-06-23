@@ -2,7 +2,7 @@ from flask import Flask
 from flask_cors import CORS
 from dotenv import load_dotenv
 
-from managers import *
+import managers
 
 
 def create_app():
@@ -12,8 +12,8 @@ def create_app():
     with app.app_context():
         CORS(app)
 
-        api_manager.initialize(app)
-        bots_manager.initialize()
-        sse_manager.initialize()
+        managers.api_manager.initialize(app)
+        managers.bots_manager.initialize()
+        managers.sse_manager.initialize()
 
     return app

@@ -144,18 +144,20 @@ class WordListCategory(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(), nullable=False)
     description = db.Column(db.String(), nullable=False)
+    link = db.Column(db.String(), nullable=True, default=None)
 
     word_list_id = db.Column(db.Integer, db.ForeignKey('word_list.id'))
 
     entries = db.relationship("WordListEntry", cascade="all, delete-orphan")
 
-    def __init__(self, name, description, entries):
+    def __init__(self, name, description, link, entries):
         self.id = None
         self.name = name
         if description is None:
             self.description = ''
         else:
             self.description = description
+        self.link = link
         self.entries = entries
 
     @staticmethod

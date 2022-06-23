@@ -171,8 +171,8 @@ def upgrade():
     bind = op.get_bind()
     session = orm.Session(bind=bind)
 
-    # if no roles exist, add the default Admin role
-    if not session.query(RoleREVe46b55f712f9).all():
+    # add the default Admin role
+    if not session.query(RoleREVe46b55f712f9).filter_by(name="Admin").first():
         print('Adding default Admin role.', flush=True)
         admin_role = RoleREVe46b55f712f9('Admin', 'Administrator role', session.query(PermissionREVe46b55f712f9).all())
         session.add(admin_role)

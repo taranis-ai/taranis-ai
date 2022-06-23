@@ -77,8 +77,7 @@ class ProductsOverview(Resource):
             if user is not None:
                 permissions = user.get_permissions()
                 if 'PUBLISH_ACCESS' in permissions:
-                    prod = product.Product.find(product_id)
-                    if product_type.ProductType.allowed_with_acl(prod.product_type_id, user, False, True, False):
+                    if product_type.ProductType.allowed_with_acl(product_id, user, False, True, False):
                         product_data, status_code = presenters_manager.generate_product(product_id)
                         if status_code == 200:
                             return Response(base64.b64decode(product_data['data']), mimetype=product_data['mime_type'])

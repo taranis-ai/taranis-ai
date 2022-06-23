@@ -74,8 +74,10 @@ elif "SYSLOG_ADDRESS" in os.environ:
         log_debug("Unable to connect to syslog server!")
         log_debug(ex)
 
+
 def log_system_activity(module, message):
     log_info("[{}] {}".format(module, message))
+
 
 def log_collector_activity(collector_type, collector, message):
     log_text = "COLLECTOR {}/{}: {}".format(
