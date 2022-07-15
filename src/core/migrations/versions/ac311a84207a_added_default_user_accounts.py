@@ -79,7 +79,8 @@ class PermissionREVac311a84207a(Base):
         self.name = name
         self.description = description
 
-    def add(self, session, id, name, description):
+    @staticmethod
+    def add(session, id, name, description):
         result = session.query(PermissionREVac311a84207a).filter_by(id=id).first()
         if not result:
             session.add(PermissionREVac311a84207a(session, id, name, description))
@@ -92,7 +93,9 @@ class RoleREVac311a84207a(Base):
     description = sa.Column(sa.String())
     permissions = orm.relationship(PermissionREVac311a84207a, secondary='role_permission')
 
-    def __init__(self, name, description, permissions):
+    def __init__(self, name, description, permissions=None):
+        if not permissions:
+            permissions = []
         self.id = None
         self.name = name
         self.description = description
