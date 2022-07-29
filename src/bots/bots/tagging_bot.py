@@ -1,7 +1,7 @@
 from .base_bot import BaseBot
 from schema.parameter import Parameter, ParameterType
 from remote.core_api import CoreApi
-from managers import log_manager
+from managers.log_manager import logger
 import datetime
 
 
@@ -36,8 +36,8 @@ class TaggingBot(BaseBot):
 
             limit = BaseBot.history(interval)
             limit = datetime.datetime.now() - datetime.timedelta(weeks=12)
-            log_manager.log_debug(f"LIMIT: {limit}")
-            log_manager.log_debug(f"KEYWORDKS: {keywords}")
+            logger.log_debug(f"LIMIT: {limit}")
+            logger.log_debug(f"KEYWORDKS: {keywords}")
 
             data, status = CoreApi.get_news_items_aggregate(source_group, limit)
             if status != 200:
@@ -48,7 +48,11 @@ class TaggingBot(BaseBot):
                     findings = {}
                     for news_item in aggregate["news_items"]:
                         content = news_item["news_item_data"]["content"]
-                        existing_tags = news_item["news_item_data"]["tags"] if news_item["news_item_data"]["tags"] is not None else []
+                        existing_tags = (
+                            news_item["news_item_data"]["tags"]
+                            if news_item["news_item_data"]["tags"] is not None
+                            else []
+                        )
 
                         for keyword in keywords:
                             if keyword in content and keyword not in existing_tags:
@@ -59,7 +63,7 @@ class TaggingBot(BaseBot):
                                 else:
                                     findings[news_item["id"]] = {keyword}
                     for news_id, keyword in findings.items():
-                        log_manager.log_debug(f"news_id: {news_id}, keyword: {keyword}")
+                        logger.log_debug(f"news_id: {news_id}, keyword: {keyword}")
                         if keyword is None:
                             continue
                         CoreApi.update_news_item_tags(news_id, list(keyword))

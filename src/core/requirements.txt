@@ -15,8 +15,8 @@ Flask-JWT-Extended==3.24.1
 Flask-Migrate==3.1.0
 Flask-RESTful==0.3.9
 Flask-Script==2.0.6
-Flask-SSE==0.2.1
 Flask-SQLAlchemy==2.5.1
+Flask-SSE==0.2.1
 gevent==21.8.0
 greenlet==1.1.1
 gunicorn==20.0.4

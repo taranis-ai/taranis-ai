@@ -6,11 +6,15 @@ from sqlalchemy.sql.expression import cast
 from managers.db_manager import db
 from model.acl_entry import ACLEntry
 from schema.acl_entry import ItemType
-from schema.word_list import WordListCategorySchema, WordListEntrySchema, WordListSchema, WordListPresentationSchema
+from schema.word_list import (
+    WordListCategorySchema,
+    WordListEntrySchema,
+    WordListSchema,
+    WordListPresentationSchema,
+)
 
 
 class NewWordListEntrySchema(WordListEntrySchema):
-
     @post_load
     def make(self, data, **kwargs):
         return WordListEntry(**data)
@@ -43,10 +47,7 @@ class WordList(db.Model):
     def __init__(self, id, name, description, categories, use_for_stop_words):
         self.id = None
         self.name = name
-        if description is None:
-            self.description = ''
-        else:
-            self.description = description
+        self.description = "" if description is None else description
         self.categories = categories
         self.use_for_stop_words = use_for_stop_words
         self.title = ""
@@ -68,11 +69,20 @@ class WordList(db.Model):
     @classmethod
     def allowed_with_acl(cls, word_list_id, user, see, access, modify):
 
-        query = db.session.query(WordList.id).distinct().group_by(WordList.id).filter(
-            WordList.id == word_list_id)
+        query = (
+            db.session.query(WordList.id)
+            .distinct()
+            .group_by(WordList.id)
+            .filter(WordList.id == word_list_id)
+        )
 
-        query = query.outerjoin(ACLEntry, and_(cast(WordList.id, sqlalchemy.String) == ACLEntry.item_id,
-                                               ACLEntry.item_type == ItemType.WORD_LIST))
+        query = query.outerjoin(
+            ACLEntry,
+            and_(
+                cast(WordList.id, sqlalchemy.String) == ACLEntry.item_id,
+                ACLEntry.item_type == ItemType.WORD_LIST,
+            ),
+        )
 
         query = ACLEntry.apply_query(query, user, see, access, modify)
 
@@ -87,15 +97,23 @@ class WordList(db.Model):
         query = cls.query.distinct().group_by(WordList.id)
 
         if acl_check is True:
-            query = query.outerjoin(ACLEntry, and_(cast(WordList.id, sqlalchemy.String) == ACLEntry.item_id,
-                                                   ACLEntry.item_type == ItemType.WORD_LIST))
+            query = query.outerjoin(
+                ACLEntry,
+                and_(
+                    cast(WordList.id, sqlalchemy.String) == ACLEntry.item_id,
+                    ACLEntry.item_type == ItemType.WORD_LIST,
+                ),
+            )
             query = ACLEntry.apply_query(query, user, True, False, False)
 
         if search is not None:
-            search_string = '%' + search.lower() + '%'
-            query = query.filter(or_(
-                func.lower(WordList.name).like(search_string),
-                func.lower(WordList.description).like(search_string)))
+            search_string = f"%{search.lower()}%"
+            query = query.filter(
+                or_(
+                    func.lower(WordList.name).like(search_string),
+                    func.lower(WordList.description).like(search_string),
+                )
+            )
 
         return query.order_by(db.asc(WordList.name)).all(), query.count()
 
@@ -103,7 +121,7 @@ class WordList(db.Model):
     def get_all_json(cls, search, user, acl_check):
         word_lists, count = cls.get(search, user, acl_check)
         schema = WordListPresentationSchema(many=True)
-        return {'total_count': count, 'items': schema.dump(word_lists)}
+        return {"total_count": count, "items": schema.dump(word_lists)}
 
     @classmethod
     def add_new(cls, data):
@@ -146,17 +164,14 @@ class WordListCategory(db.Model):
     description = db.Column(db.String(), nullable=False)
     link = db.Column(db.String(), nullable=True, default=None)
 
-    word_list_id = db.Column(db.Integer, db.ForeignKey('word_list.id'))
+    word_list_id = db.Column(db.Integer, db.ForeignKey("word_list.id"))
 
     entries = db.relationship("WordListEntry", cascade="all, delete-orphan")
 
     def __init__(self, name, description, link, entries):
         self.id = None
         self.name = name
-        if description is None:
-            self.description = ''
-        else:
-            self.description = description
+        self.description = "" if description is None else description
         self.link = link
         self.entries = entries
 
@@ -180,20 +195,22 @@ class WordListEntry(db.Model):
     value = db.Column(db.String(), nullable=False)
     description = db.Column(db.String(), nullable=False)
 
-    word_list_category_id = db.Column(db.Integer, db.ForeignKey('word_list_category.id'))
+    word_list_category_id = db.Column(
+        db.Integer, db.ForeignKey("word_list_category.id")
+    )
 
     def __init__(self, value, description):
         self.id = None
         self.value = value
-        if description is None:
-            self.description = ''
-        else:
-            self.description = description
+        self.description = "" if description is None else description
 
     @classmethod
     def identical(cls, value, word_list_category_id):
-        return db.session.query(db.exists().where(WordListEntry.value == value).
-                                where(WordListEntry.word_list_category_id == word_list_category_id)).scalar()
+        return db.session.query(
+            db.exists()
+            .where(WordListEntry.value == value)
+            .where(WordListEntry.word_list_category_id == word_list_category_id)
+        ).scalar()
 
     @classmethod
     def delete_entries(cls, id, name):
@@ -215,9 +232,15 @@ class WordListEntry(db.Model):
 
     @classmethod
     def stopwords_subquery(cls):
-        return db.session.query(func.lower(WordListEntry.value)).distinct().group_by(WordListEntry.value).join(
-            WordListCategory,
-            WordListCategory.id == WordListEntry.word_list_category_id).join(
-            WordList, WordList.id == WordListCategory.word_list_id).filter(
-            WordList.use_for_stop_words == True).subquery()
-
+        return (
+            db.session.query(func.lower(WordListEntry.value))
+            .distinct()
+            .group_by(WordListEntry.value)
+            .join(
+                WordListCategory,
+                WordListCategory.id == WordListEntry.word_list_category_id,
+            )
+            .join(WordList, WordList.id == WordListCategory.word_list_id)
+            .filter(WordList.use_for_stop_words is True)
+            .subquery()
+        )

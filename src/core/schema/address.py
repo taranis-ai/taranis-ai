@@ -1,4 +1,4 @@
-from marshmallow import Schema, fields, EXCLUDE
+from marshmallow import Schema, fields
 
 
 class AddressSchema(Schema):

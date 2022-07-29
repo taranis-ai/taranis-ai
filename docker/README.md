@@ -167,7 +167,7 @@ Taranis NG core container comes with a simple management script that may be used
 To run the management script, launch a shell inside of the docker container for the core component with this command:
 
 ```bash
-docker exec -it [CONTAINER] manage.py [COMMAND] [PARAMETERS]
+docker exec -it [CONTAINER] python manage.py [COMMAND] [PARAMETERS]
 ```
 
 Currently, you may manage the following:

@@ -3,13 +3,18 @@ from xml.etree.ElementTree import iterparse
 from marshmallow import fields, post_load
 from sqlalchemy import orm, func, or_
 
-from managers import log_manager
+from managers.log_manager import logger
 from managers.db_manager import db
-from schema.attribute import AttributeBaseSchema, AttributeEnumSchema, AttributeType, AttributeValidator, AttributePresentationSchema
+from schema.attribute import (
+    AttributeBaseSchema,
+    AttributeEnumSchema,
+    AttributeType,
+    AttributeValidator,
+    AttributePresentationSchema,
+)
 
 
 class NewAttributeEnumSchema(AttributeEnumSchema):
-
     @post_load
     def make_attribute_enum(self, data, **kwargs):
         return AttributeEnum(**data)
@@ -22,8 +27,8 @@ class AttributeEnum(db.Model):
     description = db.Column(db.String())
     imported = db.Column(db.Boolean, default=False)
 
-    attribute_id = db.Column(db.Integer, db.ForeignKey('attribute.id'))
-    attribute = db.relationship('Attribute')
+    attribute_id = db.Column(db.Integer, db.ForeignKey("attribute.id"))
+    attribute = db.relationship("Attribute")
 
     def __init__(self, id, index, value, description):
         if id is not None and id != -1:
@@ -41,15 +46,23 @@ class AttributeEnum(db.Model):
 
     @classmethod
     def get_all_for_attribute(cls, attribute_id):
-        return cls.query.filter_by(attribute_id=attribute_id).order_by(db.asc(AttributeEnum.index)).all()
+        return (
+            cls.query.filter_by(attribute_id=attribute_id)
+            .order_by(db.asc(AttributeEnum.index))
+            .all()
+        )
 
     @classmethod
     def get_for_attribute(cls, attribute_id, search, offset, limit):
         query = cls.query.filter_by(attribute_id=attribute_id)
         if search:
-            search_string = '%' + search + '%'
-            query = query.filter(or_(AttributeEnum.value.like(search_string),
-                                     AttributeEnum.description.like(search_string)))
+            search_string = "%" + search + "%"
+            query = query.filter(
+                or_(
+                    AttributeEnum.value.like(search_string),
+                    AttributeEnum.description.like(search_string),
+                )
+            )
 
         query = query.order_by(db.asc(AttributeEnum.index))
 
@@ -57,14 +70,22 @@ class AttributeEnum(db.Model):
 
     @classmethod
     def find_by_value(cls, attribute_id, value):
-        return cls.query.filter_by(attribute_id=attribute_id).filter(
-            func.lower(AttributeEnum.value) == value.lower()).first()
+        return (
+            cls.query.filter_by(attribute_id=attribute_id)
+            .filter(func.lower(AttributeEnum.value) == value.lower())
+            .first()
+        )
 
     @classmethod
     def get_for_attribute_json(cls, attribute_id, search, offset, limit):
-        attribute_enums, total_count = cls.get_for_attribute(attribute_id, search, offset, limit)
+        attribute_enums, total_count = cls.get_for_attribute(
+            attribute_id, search, offset, limit
+        )
         attribute_enums_schema = AttributeEnumSchema(many=True)
-        return {'total_count': total_count, 'items': attribute_enums_schema.dump(attribute_enums)}
+        return {
+            "total_count": total_count,
+            "items": attribute_enums_schema.dump(attribute_enums),
+        }
 
     @classmethod
     def delete_for_attribute(cls, attribute_id):
@@ -80,16 +101,18 @@ class AttributeEnum(db.Model):
     def add(cls, attribute_id, data):
 
         count = 0
-        if data['delete_existing'] is True:
+        if data["delete_existing"] is True:
             cls.delete_for_attribute(attribute_id)
         else:
             count = cls.count_for_attribute(attribute_id)
 
         attribute_enums_schema = NewAttributeEnumSchema(many=True)
-        attribute_enums = attribute_enums_schema.load(data['items'])
+        attribute_enums = attribute_enums_schema.load(data["items"])
 
         for attribute_enum in attribute_enums:
-            original_attribute_enum = cls.find_by_value(attribute_id, attribute_enum.value)
+            original_attribute_enum = cls.find_by_value(
+                attribute_id, attribute_enum.value
+            )
             if original_attribute_enum is None:
                 attribute_enum.attribute_id = attribute_id
                 attribute_enum.index = count
@@ -137,7 +160,17 @@ class Attribute(db.Model):
     validator = db.Column(db.Enum(AttributeValidator))
     validator_parameter = db.Column(db.String())
 
-    def __init__(self, id, name, description, type, default_value, validator, validator_parameter, attribute_enums):
+    def __init__(
+        self,
+        id,
+        name,
+        description,
+        type,
+        default_value,
+        validator,
+        validator_parameter,
+        attribute_enums,
+    ):
         self.id = None
         self.name = name
         self.description = description
@@ -188,10 +221,13 @@ class Attribute(db.Model):
         query = cls.query
 
         if search is not None:
-            search_string = '%' + search.lower() + '%'
-            query = query.filter(or_(
-                func.lower(Attribute.name).like(search_string),
-                func.lower(Attribute.description).like(search_string)))
+            search_string = "%" + search.lower() + "%"
+            query = query.filter(
+                or_(
+                    func.lower(Attribute.name).like(search_string),
+                    func.lower(Attribute.description).like(search_string),
+                )
+            )
 
         return query.order_by(db.asc(Attribute.name)).all(), query.count()
 
@@ -199,17 +235,25 @@ class Attribute(db.Model):
     def get_all_json(cls, search):
         attributes, total_count = cls.get(search)
         for attribute in attributes:
-            if attribute.type == AttributeType.CPE or attribute.type == AttributeType.CVE:
+            if (
+                attribute.type == AttributeType.CPE
+                or attribute.type == AttributeType.CVE
+            ):
                 attribute.attribute_enums = []
             else:
-                attribute.attribute_enums = AttributeEnum.get_all_for_attribute(attribute.id)
+                attribute.attribute_enums = AttributeEnum.get_all_for_attribute(
+                    attribute.id
+                )
 
         attribute_schema = AttributePresentationSchema(many=True)
-        return {'total_count': total_count, 'items': attribute_schema.dump(attributes)}
+        return {"total_count": total_count, "items": attribute_schema.dump(attributes)}
 
     @classmethod
     def get_enums(cls, attribute):
-        if attribute.type == AttributeType.RADIO or attribute.type == AttributeType.ENUM:
+        if (
+            attribute.type == AttributeType.RADIO
+            or attribute.type == AttributeType.ENUM
+        ):
             return AttributeEnum.get_all_for_attribute(attribute.id)
         else:
             return []
@@ -274,12 +318,14 @@ class Attribute(db.Model):
         item_count = 0
         block_item_count = 0
         desc = ""
-        for event, element in iterparse(file_path, events=('start', 'end')):
-            if event == 'end':
+        for event, element in iterparse(file_path, events=("start", "end")):
+            if event == "end":
                 if element.tag == "{http://cve.mitre.org/cve/downloads/1.0}desc":
                     desc = element.text
                 elif element.tag == "{http://cve.mitre.org/cve/downloads/1.0}item":
-                    attribute_enum = AttributeEnum(None, item_count, element.attrib['name'], desc)
+                    attribute_enum = AttributeEnum(
+                        None, item_count, element.attrib["name"], desc
+                    )
                     attribute_enum.attribute_id = attribute.id
                     attribute_enum.imported = True
                     db.session.add(attribute_enum)
@@ -288,11 +334,11 @@ class Attribute(db.Model):
                     element.clear()
                     desc = ""
                     if block_item_count == 1000:
-                        log_manager.log_debug("Processed CVE items: " + str(item_count))
+                        logger.log_debug("Processed CVE items: " + str(item_count))
                         block_item_count = 0
                         db.session.commit()
 
-        log_manager.log_debug("Processed CVE items: " + str(item_count))
+        logger.log_debug("Processed CVE items: " + str(item_count))
         db.session.commit()
 
     @classmethod
@@ -304,13 +350,15 @@ class Attribute(db.Model):
         item_count = 0
         block_item_count = 0
         desc = ""
-        for event, element in iterparse(file_path, events=('start', 'end')):
-            if event == 'end':
-                log_manager.log_debug("Element: {}".format(element))
+        for event, element in iterparse(file_path, events=("start", "end")):
+            if event == "end":
+                logger.log_debug("Element: {}".format(element))
                 if element.tag == "{http://cpe.mitre.org/dictionary/2.0}title":
                     desc = element.text
                 elif element.tag == "{http://cpe.mitre.org/dictionary/2.0}cpe-item":
-                    attribute_enum = AttributeEnum(None, item_count, element.attrib['name'], desc)
+                    attribute_enum = AttributeEnum(
+                        None, item_count, element.attrib["name"], desc
+                    )
                     attribute_enum.attribute_id = attribute.id
                     attribute_enum.imported = True
                     db.session.add(attribute_enum)
@@ -319,21 +367,21 @@ class Attribute(db.Model):
                     element.clear()
                     desc = ""
                     if block_item_count == 1000:
-                        log_manager.log_debug("Processed CPE items: " + str(item_count))
+                        logger.log_debug("Processed CPE items: " + str(item_count))
                         block_item_count = 0
                         db.session.commit()
 
-        log_manager.log_debug("Processed CPE items: " + str(item_count))
+        logger.log_debug("Processed CPE items: " + str(item_count))
         db.session.commit()
 
     @classmethod
     def load_dictionaries(cls, dict_type):
-        if dict_type == 'cve':
+        if dict_type == "cve":
             cve_update_file = os.getenv("CVE_UPDATE_FILE")
             if cve_update_file is not None and os.path.exists(cve_update_file):
                 Attribute.load_cve_from_file(cve_update_file)
 
-        if dict_type == 'cpe':
+        if dict_type == "cpe":
             cpe_update_file = os.getenv("CPE_UPDATE_FILE")
             if cpe_update_file is not None and os.path.exists(cpe_update_file):
                 Attribute.load_cpe_from_file(cpe_update_file)

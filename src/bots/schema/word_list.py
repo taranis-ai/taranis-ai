@@ -43,7 +43,6 @@ class WordListPresentationSchema(WordListSchema, PresentationSchema):
 
 
 class WordList:
-
     def __init__(self, id, name, description, use_for_stop_words, categories):
         self.id = id
         self.name = name
@@ -53,7 +52,6 @@ class WordList:
 
 
 class WordListCategory:
-
     def __init__(self, name, description, link, entries):
         self.name = name
         self.description = description
@@ -62,8 +60,7 @@ class WordListCategory:
 
 
 class WordListEntry:
-
-    def __init__(self, value = '', description = ''):
+    def __init__(self, value="", description=""):
         self.value = value
         self.description = description
 
@@ -80,6 +77,5 @@ class WordListIdSchema(Schema):
 
 
 class WordListId:
-
     def __init__(self, id):
         self.id = id

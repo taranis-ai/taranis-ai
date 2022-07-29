@@ -1,9 +1,11 @@
 import datetime
 
-from managers import time_manager, log_manager
+from managers import time_manager
+from managers.log_manager import logger
 from schema import bot, bot_preset
 from schema.parameter import Parameter, ParameterType
 from remote.core_api import CoreApi
+
 
 class BaseBot:
     type = "BASE_BOT"
@@ -11,8 +13,13 @@ class BaseBot:
     description = "Base abstract type for all bots"
 
     parameters = [
-        Parameter(0, "REFRESH_INTERVAL", "Refresh Interval", "How often is this bot doing its job",
-                  ParameterType.NUMBER)
+        Parameter(
+            0,
+            "REFRESH_INTERVAL",
+            "Refresh Interval",
+            "How often is this bot doing its job",
+            ParameterType.NUMBER,
+        )
     ]
 
     def __init__(self):
@@ -34,12 +41,12 @@ class BaseBot:
 
     @staticmethod
     def print_exception(preset, error):
-        log_manager.log_debug(f'Bot Preset ID: {preset.id}\tName: {preset.name}')
-        log_manager.log_debug_trace(error)
+        logger.log_debug(f"Bot Preset ID: {preset.id}\tName: {preset.name}")
+        logger.log_debug_trace(error)
 
     @staticmethod
     def history(interval):
-        if interval[0].isdigit() and ':' in interval:
+        if interval[0].isdigit() and ":" in interval:
             limit = datetime.datetime.now() - datetime.timedelta(days=1)
             limit = limit.strftime("%d.%m.%Y - %H:%M")
         elif interval[0].isalpha():
@@ -49,10 +56,14 @@ class BaseBot:
             if int(interval) > 60:
                 hours = int(interval) // 60
                 minutes = int(interval) - hours * 60
-                limit = datetime.datetime.now() - datetime.timedelta(days=0, hours=hours, minutes=minutes)
+                limit = datetime.datetime.now() - datetime.timedelta(
+                    days=0, hours=hours, minutes=minutes
+                )
                 limit = limit.strftime("%d.%m.%Y - %H:%M")
             else:
-                limit = datetime.datetime.now() - datetime.timedelta(days=0, hours=0, minutes=int(interval))
+                limit = datetime.datetime.now() - datetime.timedelta(
+                    days=0, hours=0, minutes=int(interval)
+                )
                 limit = limit.strftime("%d.%m.%Y - %H:%M")
 
         return limit
@@ -68,26 +79,46 @@ class BaseBot:
                 interval = preset.parameter_values["REFRESH_INTERVAL"]
 
                 if interval:
-                    if interval[0].isdigit() and ':' in interval:
-                        time_manager.schedule_job_every_day(interval, self.execute, preset)
+                    if interval[0].isdigit() and ":" in interval:
+                        time_manager.schedule_job_every_day(
+                            interval, self.execute, preset
+                        )
                     elif interval[0].isalpha():
-                        interval = interval.split(',')
+                        interval = interval.split(",")
                         day = interval[0].strip()
                         at = interval[1].strip()
-                        if day == 'Monday':
-                            time_manager.schedule_job_on_monday(at, self.execute, preset)
-                        elif day == 'Tuesday':
-                            time_manager.schedule_job_on_tuesday(at, self.execute, preset)
-                        elif day == 'Wednesday':
-                            time_manager.schedule_job_on_wednesday(at, self.execute, preset)
-                        elif day == 'Thursday':
-                            time_manager.schedule_job_on_thursday(at, self.execute, preset)
-                        elif day == 'Friday':
-                            time_manager.schedule_job_on_friday(at, self.execute, preset)
-                        elif day == 'Saturday':
-                            time_manager.schedule_job_on_saturday(at, self.execute, preset)
+                        if day == "Monday":
+                            time_manager.schedule_job_on_monday(
+                                at, self.execute, preset
+                            )
+                        elif day == "Tuesday":
+                            time_manager.schedule_job_on_tuesday(
+                                at, self.execute, preset
+                            )
+                        elif day == "Wednesday":
+                            time_manager.schedule_job_on_wednesday(
+                                at, self.execute, preset
+                            )
+                        elif day == "Thursday":
+                            time_manager.schedule_job_on_thursday(
+                                at, self.execute, preset
+                            )
+                        elif day == "Friday":
+                            time_manager.schedule_job_on_friday(
+                                at, self.execute, preset
+                            )
+                        elif day == "Saturday":
+                            time_manager.schedule_job_on_saturday(
+                                at, self.execute, preset
+                            )
                         else:
-                            time_manager.schedule_job_on_sunday(at, self.execute, preset)
+                            time_manager.schedule_job_on_sunday(
+                                at, self.execute, preset
+                            )
                     else:
-                        log_manager.log_debug(f"SETTING INTERVAL: {interval} FOR: {self.name}")
-                        time_manager.schedule_job_minutes(int(interval), self.execute, preset)
+                        logger.log_debug(
+                            f"SETTING INTERVAL: {interval} FOR: {self.name}"
+                        )
+                        time_manager.schedule_job_minutes(
+                            int(interval), self.execute, preset
+                        )

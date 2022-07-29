@@ -137,5 +137,6 @@ export default {
 <style src="./assets/centralize.css"></style>
 
 <style lang="scss">
+@import '@/styles/variables.scss';
 @import '@/styles/awake.scss';
 </style>

@@ -1,0 +1,20 @@
+name: linting
+
+on:
+  pull_request:
+
+# TODO USE SECRET Environment variable to setup CICD pipeline
+
+jobs:
+  lint:
+    name: lint & check formatting
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.7', '3.8']
+    steps:
+      - uses: actions/checkout@v2
+      - name: Lint with flake8
+        run: |
+          bash -c 'git diff --staged -- "$@" | flake8 --diff --count --max-complexity=10 --max-line-length=142 --statistics' --
+

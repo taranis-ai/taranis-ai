@@ -1,7 +1,7 @@
 from .base_bot import BaseBot
 from schema.parameter import Parameter, ParameterType
 from remote.core_api import CoreApi
-from managers import log_manager
+from managers.log_manager import logger
 import datetime
 from keybert import KeyBERT
 from nltk.corpus import stopwords
@@ -36,22 +36,22 @@ class NLPBot(BaseBot):
             interval = preset.parameter_values["REFRESH_INTERVAL"]
             language = preset.parameter_values["LANGUAGE"].lower()
 
-            if language == 'en':
+            if language == "en":
                 kw_model = KeyBERT("all-MiniLM-L6-v2")
-            elif language == 'de':
+            elif language == "de":
                 kw_model = KeyBERT("paraphrase-mpnet-base-v2")
 
             limit = BaseBot.history(interval)
             limit = datetime.datetime.now() - datetime.timedelta(weeks=12)
-            log_manager.log_debug(f"LIMIT: {limit}")
+            logger.log_debug(f"LIMIT: {limit}")
 
             data, status = CoreApi.get_news_items_aggregate(source_group, limit)
             if status != 200:
-                log_manager.log_error(f"Error getting news items: {status}")
+                logger.log_error(f"Error getting news items: {status}")
                 return
 
             if not data:
-                log_manager.log_info("No news items returend")
+                logger.log_info("No news items returend")
                 return
 
             for aggregate in data:
@@ -59,11 +59,13 @@ class NLPBot(BaseBot):
                 for news_item in aggregate["news_items"]:
                     content = news_item["news_item_data"]["content"]
 
-                    findings[news_item["id"]] = self.generateKeywords(language, kw_model, content)
+                    findings[news_item["id"]] = self.generateKeywords(
+                        language, kw_model, content
+                    )
 
                 for news_id, keywords in findings.items():
                     keyword = [i[0] for i in keywords]
-                    log_manager.log_debug(f"news_id: {news_id}, keyword: {keyword}")
+                    logger.log_debug(f"news_id: {news_id}, keyword: {keyword}")
                     CoreApi.update_news_item_tags(news_id, keyword)
 
         except Exception as error:
@@ -78,12 +80,24 @@ class NLPBot(BaseBot):
             BaseBot.print_exception(preset, error)
 
     def generateKeywords(self, language, kw_model, text):
-        if language == 'en':
-            keywords = kw_model.extract_keywords(text, keyphrase_ngram_range=(1, 2), stop_words='english', use_mmr=True,
-                                                 diversity=0.8, top_n=15)
-        elif language == 'de':
-            german_stop_words = stopwords.words('german')
-            keywords = kw_model.extract_keywords(text, keyphrase_ngram_range=(1, 2), stop_words=german_stop_words, use_mmr=True,
-                                                 diversity=0.8, top_n=15)
+        if language == "en":
+            keywords = kw_model.extract_keywords(
+                text,
+                keyphrase_ngram_range=(1, 2),
+                stop_words="english",
+                use_mmr=True,
+                diversity=0.8,
+                top_n=15,
+            )
+        elif language == "de":
+            german_stop_words = stopwords.words("german")
+            keywords = kw_model.extract_keywords(
+                text,
+                keyphrase_ngram_range=(1, 2),
+                stop_words=german_stop_words,
+                use_mmr=True,
+                diversity=0.8,
+                top_n=15,
+            )
 
         return keywords

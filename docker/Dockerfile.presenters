@@ -1,97 +1,31 @@
-FROM python:3.7-alpine3.14
+FROM python:3-slim
 
 WORKDIR /app/
 
 # upgrade pip
-RUN python -m pip install --upgrade pip
+RUN python -m pip install --upgrade pip wheel
 
 # install common packages
-RUN \
-    apk add --no-cache \
-    libpng \
-    libjpeg \
-    wkhtmltopdf
-
-# install fonts
-RUN \
-    apk add --no-cache \
-    msttcorefonts-installer \
+RUN apt-get update && apt-get upgrade -y && apt-get install --no-install-recommends -y \
+    libpng16-16 \
+    libjpeg-tools \
+    wkhtmltopdf \
     fontconfig \
-    font-noto \
-    font-noto-adlam \
-    font-noto-adlamunjoined \
-    font-noto-arabic \
-    font-noto-armenian \
-    font-noto-avestan \
-    font-noto-bamum \
-    font-noto-bengali \
-    font-noto-buhid \
-    font-noto-carian \
-    font-noto-chakma \
-    font-noto-cherokee \
-    font-noto-cypriot \
-    font-noto-deseret \
-    font-noto-devanagari \
-    font-noto-ethiopic \
-    font-noto-extra \
-    font-noto-georgian \
-    font-noto-glagolitic \
-    font-noto-gothic \
-    font-noto-gujarati \
-    font-noto-gurmukhi \
-    font-noto-hebrew \
-    font-noto-kannada \
-    font-noto-kayahli \
-    font-noto-khmer \
-    font-noto-lao \
-    font-noto-lisu \
-    font-noto-malayalam \
-    font-noto-mandaic \
-    font-noto-myanmar \
-    font-noto-nko \
-    font-noto-olchiki \
-    font-noto-oldturkic \
-    font-noto-oriya \
-    font-noto-osage \
-    font-noto-osmanya \
-    font-noto-shavian \
-    font-noto-sinhala \
-    font-noto-tamil \
-    font-noto-telugu \
-    font-noto-thaana \
-    font-noto-thai \
-    font-noto-tibetan \
-    font-noto-tifinagh \
-    font-noto-vai \
-    terminus-font \
-    ttf-opensans \
-    font-bakoma \
-    font-misc-misc \
-    font-croscore \
-    freetype && \
-    fc-cache -f && \
-    update-ms-fonts && \
-    rm -rf /var/cache/*
+    fonts-noto \
+    fonts-terminus\
+    fonts-croscore \
+    libfreetype6 && \
+    fc-cache -f
 
 COPY ./src/presenters/requirements.txt /app/requirements.txt
 
-# install dependencies
-RUN \
-    apk add --no-cache --virtual .build-deps \
-    gcc \
-    g++ \
-    make \
-    musl-dev \
-    python3-dev \
-    libffi-dev && \
+RUN apt-get install --no-install-recommends -y \
+      build-essential \
+      python3-dev && \
     pip install --no-cache-dir -r /app/requirements.txt && \
-    apk --purge del .build-deps
-
-COPY ./docker/start.sh /start.sh
-RUN chmod +x /start.sh
-
-COPY ./docker/prestart.sh /app/prestart.sh
-RUN chmod +x /app/prestart.sh
+    apt-get purge -y build-essential python3-dev && \
+    apt-get autoremove -y --purge &&\
+    apt-get clean
 
 COPY ./docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
@@ -112,4 +46,3 @@ ENV WORKERS_PER_CORE 8
 VOLUME ["/app/templates"]
 
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["/start.sh"]

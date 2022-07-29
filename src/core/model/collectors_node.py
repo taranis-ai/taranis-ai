@@ -5,16 +5,22 @@ from marshmallow import post_load
 from sqlalchemy import orm, or_, func
 
 from managers.db_manager import db
-from managers.log_manager import log_debug_trace
-from schema.collectors_node import CollectorsNodeSchema, CollectorsNodePresentationSchema
+from managers.log_manager import logger
+from schema.collectors_node import (
+    CollectorsNodeSchema,
+    CollectorsNodePresentationSchema,
+)
 
 
 class NewCollectorsNodeSchema(CollectorsNodeSchema):
-
     @post_load
     def make_collectors_node(self, data, **kwargs):
-        return CollectorsNode(name=data['name'], description=data['description'], api_url=data['api_url'],
-                              api_key=data['api_key'])
+        return CollectorsNode(
+            name=data["name"],
+            description=data["description"],
+            api_url=data["api_url"],
+            api_key=data["api_key"],
+        )
 
 
 class CollectorsNode(db.Model):
@@ -28,7 +34,7 @@ class CollectorsNode(db.Model):
     created = db.Column(db.DateTime, default=datetime.now)
     last_seen = db.Column(db.DateTime, default=datetime.now)
 
-    collectors = db.relationship('Collector', back_populates="node", cascade="all")
+    collectors = db.relationship("Collector", back_populates="node", cascade="all")
 
     def __init__(self, name, description, api_url, api_key):
         self.id = str(uuid.uuid4())
@@ -44,7 +50,9 @@ class CollectorsNode(db.Model):
 
     @classmethod
     def exists_by_api_key(cls, api_key):
-        return db.session.query(db.exists().where(CollectorsNode.api_key == api_key)).scalar()
+        return db.session.query(
+            db.exists().where(CollectorsNode.api_key == api_key)
+        ).scalar()
 
     @classmethod
     def get_by_api_key(cls, api_key):
@@ -59,10 +67,13 @@ class CollectorsNode(db.Model):
         query = cls.query
 
         if search is not None:
-            search_string = '%' + search.lower() + '%'
-            query = query.filter(or_(
-                func.lower(CollectorsNode.name).like(search_string),
-                func.lower(CollectorsNode.description).like(search_string)))
+            search_string = "%" + search.lower() + "%"
+            query = query.filter(
+                or_(
+                    func.lower(CollectorsNode.name).like(search_string),
+                    func.lower(CollectorsNode.description).like(search_string),
+                )
+            )
 
         return query.order_by(db.asc(CollectorsNode.name)).all(), query.count()
 
@@ -89,15 +100,22 @@ class CollectorsNode(db.Model):
             #   orange (last ping late) < 300s
             #   red (no ping in a long time) > 300s
             try:
-                time_inactive = (datetime.now() - max(nodes[i].created, nodes[i].last_seen))
-                items[i][
-                    "status"] = "green" if time_inactive.seconds < 60 else "orange" if time_inactive.seconds < 300 else "red"
-            except Exception as ex:
-                log_debug_trace("Cannot update collector status.")
+                time_inactive = datetime.now() - max(
+                    nodes[i].created, nodes[i].last_seen
+                )
+                items[i]["status"] = (
+                    "green"
+                    if time_inactive.seconds < 60
+                    else "orange"
+                    if time_inactive.seconds < 300
+                    else "red"
+                )
+            except Exception:
+                logger.log_debug_trace("Cannot update collector status.")
                 # if never collected before
                 items[i]["status"] = "red"
 
-        return {'total_count': count, 'items': items}
+        return {"total_count": count, "items": items}
 
     @classmethod
     def add_new(cls, node_data, collectors):

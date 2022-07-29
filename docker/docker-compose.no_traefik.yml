@@ -1,0 +1,187 @@
+version: "3.9"
+
+services:
+  redis:
+    image: "redis:${REDIS_TAG}"
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+    volumes:
+      - "redis_conf:/usr/local/etc/redis"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
+  database:
+    image: "postgres:${POSTGRES_TAG}"
+    # ports:
+    # - 6543:5432
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+    environment:
+      POSTGRES_DB: "${DB_DATABASE}"
+      POSTGRES_USER: "${DB_USER}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+    command: ["postgres", "-c", "shared_buffers=${DB_SHARED_BUFFERS}", "-c", "max_connections=${DB_MAX_CONNECTIONS}"]
+    volumes:
+      - "database_data:/var/lib/postgresql/data"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
+  core:
+    depends_on:
+      - "redis"
+      - "database"
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-core:${TARANIS_NG_TAG}"
+    ports:
+      - "6001:80"
+    environment:
+      REDIS_URL: "redis://redis"
+      DB_URL: "${DB_URL}"
+      DB_DATABASE: "${DB_DATABASE}"
+      DB_USER: "${DB_USER}"
+      DB_PASSWORD: "${POSTGRES_PASSWORD}"
+      DB_POOL_SIZE: 100
+      DB_POOL_RECYCLE: 300
+      DB_POOL_TIMEOUT: 5
+
+      JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
+      OPENID_LOGOUT_URL: ""
+      WORKERS_PER_CORE: "1"
+      TARANIS_NG_SAMPLE_DATA: "true"
+
+      CVE_UPDATE_FILE: "${CVE_UPDATE_FILE}"
+      CPE_UPDATE_FILE: "${CPE_UPDATE_FILE}"
+
+      DEBUG: "${DEBUG}"
+    volumes:
+      - "core_data:/data"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
+  bots:
+    depends_on:
+      core:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-bots:${TARANIS_NG_TAG}"
+    environment:
+      API_KEY: "${COLLECTOR_PRESENTER_PUBLISHER_API_KEY}"
+      TARANIS_NG_CORE_URL: "http://core/api/v1"
+      TARANIS_NG_CORE_SSE: "http://core/sse"
+      WORKERS_PER_CORE: "1"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
+  collectors:
+    depends_on:
+      core:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-collectors:${TARANIS_NG_TAG}"
+    environment:
+      TARANIS_NG_CORE_URL: "http://core"
+      API_KEY: "${COLLECTOR_PRESENTER_PUBLISHER_API_KEY}"
+      WORKERS_PER_CORE: "1"
+      DEBUG: "${DEBUG}"
+    volumes:
+      - "collector_storage:/app/storage"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
+  presenters:
+    depends_on:
+      core:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-presenters:${TARANIS_NG_TAG}"
+    environment:
+      TARANIS_NG_CORE_URL: "http://core"
+      API_KEY: "${COLLECTOR_PRESENTER_PUBLISHER_API_KEY}"
+      WORKERS_PER_CORE: "1"
+    volumes:
+      - "presenters_templates:/app/templates"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
+  publishers:
+    depends_on:
+      core:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-publishers:${TARANIS_NG_TAG}"
+    environment:
+      TARANIS_NG_CORE_URL: "http://core"
+      API_KEY: "${COLLECTOR_PRESENTER_PUBLISHER_API_KEY}"
+      WORKERS_PER_CORE: "1"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
+  gui:
+    depends_on:
+      - "core"
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-gui:${TARANIS_NG_TAG}"
+    ports:
+      - "6000:80"
+    environment:
+      NGINX_WORKERS: "4"
+      NGINX_CONNECTIONS: "16"
+      VUE_APP_TARANIS_NG_URL: "${TARANIS_NG_HTTPS_URI}"
+      VUE_APP_TARANIS_NG_CORE_API: "${TARANIS_NG_HTTPS_URI}/api/v1"
+      VUE_APP_TARANIS_NG_CORE_SSE: "${TARANIS_NG_HTTPS_URI}/sse"
+      VUE_APP_TARANIS_NG_LOCALE: en
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
+volumes:
+  redis_conf:
+  database_data:
+  core_data:
+  presenters_templates:
+  collector_storage:

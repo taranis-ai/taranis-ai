@@ -6,6 +6,10 @@ __pycache__/
 node_modules/
 dist/
 build/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
 
 # temporary files of editors
 .DS_Store

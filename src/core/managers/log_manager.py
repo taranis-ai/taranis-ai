@@ -1,232 +1,230 @@
 import logging.handlers
 import os
 import re
+import sys
 import socket
-from logging import getLogger
+import logging
 import traceback
 from flask import request
 
-from managers.db_manager import db
 
-# setup Flask logger
-gunicorn_logger = getLogger('gunicorn.error')
-gunicorn_logger.setLevel(logging.INFO)
+class Logger:
+    module_id = os.environ.get("MODULE_ID", None)
 
-# setup syslog logger
-sys_logger = logging.getLogger('SysLogger')
-sys_logger.setLevel(logging.INFO)
+    def __init__(self):
+        stream_handler = logging.StreamHandler(stream=sys.stdout)
+        sys_log_handler = None
+        if "SYSLOG_ADDRESS" in os.environ:
+            try:
+                syslog_address = os.getenv("SYSLOG_ADDRESS")
+                syslog_port = int(os.getenv("SYSLOG_PORT"), 514)
+                sys_log_handler = logging.handlers.SysLogHandler(
+                    address=(syslog_address, syslog_port), socktype=socket.SOCK_STREAM
+                )
+            except Exception as ex:
+                self.log_debug("Unable to connect to syslog server!")
+                self.log_debug(ex)
 
-if "MODULE_ID" in os.environ:
-    module_id = os.environ.get("MODULE_ID")
-else:
-    module_id = None
+        lloggers = [logging.getLogger()]
 
-# increase logging level
-if "DEBUG" in os.environ and os.environ.get("DEBUG").lower() == "true":
-    gunicorn_logger.setLevel(logging.DEBUG)
-    sys_logger.setLevel(logging.DEBUG)
+        if "gunicorn" in os.environ.get("SERVER_SOFTWARE", ""):
+            lloggers = [logging.getLogger("gunicorn.error")]
 
+        if os.environ.get("LOG_SQLALCHEMY", False):
+            lloggers.append(logging.getLogger("sqlalchemy"))
 
-# send a debug message
-def log_debug(message):
-    formatted_message = "[{}] {}".format(module_id,message)
-    gunicorn_logger.debug(formatted_message)
-    if sys_logger:
-        sys_logger.debug(formatted_message)
+        for llogger in lloggers:
+            llogger.setLevel(logging.INFO)
 
-# send a debug message
-def log_debug_trace(message = None):
-    formatted_message1 = "[{}] {}".format(module_id,message)
-    formatted_message2 = "[{}] {}".format(module_id,traceback.format_exc())
+            if os.environ.get("DEBUG", "false").lower() == "true":
+                llogger.setLevel(logging.DEBUG)
 
-    if message:
-        gunicorn_logger.debug(formatted_message1)
-    gunicorn_logger.debug(formatted_message2)
-    if sys_logger:
+            if sys_log_handler:
+                llogger.addHandler(sys_log_handler)
+
+            llogger.addHandler(stream_handler)
+
+        self.logger = lloggers[0]
+
+    def log_debug(self, message):
+        formatted_message = f"[{self.module_id}] {message}"
+        self.logger.debug(formatted_message)
+
+    def log_debug_trace(self, message=None):
+        formatted_message = f"[{self.module_id}] {message}"
+        formatted_message_exc = f"[{self.module_id}] {traceback.format_exc()}"
+
         if message:
-            sys_logger.debug(formatted_message1)
-        sys_logger.debug(formatted_message2)
+            self.logger.debug(formatted_message)
+        self.logger.debug(formatted_message_exc)
 
-# send an info message
-def log_info(message):
-    formatted_message = "[{}] {}".format(module_id,message)
-    gunicorn_logger.info(formatted_message)
-    if sys_logger:
-        sys_logger.info(formatted_message)
+    def log_info(self, message):
+        formatted_message = f"[{self.module_id}] {message}"
+        self.logger.info(formatted_message)
 
-# send a critical message
-def log_critical(message):
-    formatted_message = "[{}] {}".format(module_id,message)
-    gunicorn_logger.critical(formatted_message)
-    if sys_logger:
-        sys_logger.critical(formatted_message)
+    def log_critical(self, message):
+        formatted_message = f"[{self.module_id}] {message}"
+        self.logger.critical(formatted_message)
 
-# try to connect syslog logger
-if "SYSLOG_URL" in os.environ and "SYSLOG_PORT" in os.environ:
-    try:
-        sys_log_handler = logging.handlers.SysLogHandler(
-            address=(os.environ["SYSLOG_URL"], int(os.environ["SYSLOG_PORT"])),
-            socktype=socket.SOCK_STREAM)
-        sys_logger.addHandler(sys_log_handler)
-    except Exception as ex:
-        sys_logger = None
-        log_debug("Unable to connect to syslog server!")
-        log_debug(ex)
-elif "SYSLOG_ADDRESS" in os.environ:
-    try:
-        sys_log_handler = logging.handlers.SysLogHandler(address=os.environ["SYSLOG_ADDRESS"])
-        sys_logger.addHandler(sys_log_handler)
-    except Exception as ex:
-        sys_logger = None
-        log_debug("Unable to connect to syslog server!")
-        log_debug(ex)
+    def resolve_ip_address(self):
+        headers_list = request.headers.getlist("X-Forwarded-For")
+        return headers_list[0] if headers_list else request.remote_addr
+
+    def resolve_method(self):
+        return request.method
+
+    def resolve_resource(self):
+        fp_len = len(request.full_path)
+        if request.full_path[fp_len - 1] == "?":
+            return request.full_path[: fp_len - 1]
+        else:
+            return request.full_path
+
+    def resolve_data(self):
+        if "application/json" not in request.headers.get("Content-Type", ""):
+            return ""
+        if request.data is None:
+            return ""
+
+        return (
+            str(request.data)[:4096]
+            .replace("\\r", "")
+            .replace("\\n", "")
+            .replace(" ", "")[2:-1]
+        )
+
+    def generate_escaped_data(self):
+        data = self.resolve_data()
+        return re.escape(data)[:4096]
+
+    def rollback_and_store_to_db(self, log_data):
+        from managers.db_manager import db
+
+        db.session.rollback()
+
+        # from model.log_record import LogRecord
+        # LogRecord.store(log_data)
+
+    def store_access_error_activity(self, user, activity_detail):
+        log_data = {
+            "ip_address": self.resolve_ip_address(),
+            "user_id": user.id,
+            "user_name": user.name,
+            "system_id": None,
+            "system_name": None,
+            "module_id": self.module_id,
+            "activity_type": None,
+            "activity_resource": self.resolve_resource(),
+            "activity_detail": activity_detail,
+            "activity_method": self.resolve_method(),
+            "activity_data": self.resolve_data(),
+        }
+
+        self.rollback_and_store_to_db(log_data)
+        self.logger.critical("TARANIS NG Access Error: (%s)", log_data)
+
+    def store_data_error_activity(self, user, activity_detail):
+        log_data = {
+            "ip_address": self.resolve_ip_address(),
+            "user_id": user.id,
+            "user_name": user.name,
+            "system_id": None,
+            "system_name": None,
+            "module_id": self.module_id,
+            "activity_type": None,
+            "activity_resource": self.resolve_resource(),
+            "activity_detail": activity_detail,
+            "activity_method": self.resolve_method(),
+            "activity_data": self.resolve_data(),
+        }
+
+        self.rollback_and_store_to_db(log_data)
+        self.logger.critical("TARANIS NG Data Error: (%s)", log_data)
+
+    def store_data_error_activity_no_user(self, activity_detail):
+        log_data = {
+            "ip_address": self.resolve_ip_address(),
+            "user_id": None,
+            "user_name": None,
+            "system_id": None,
+            "system_name": None,
+            "module_id": self.module_id,
+            "activity_type": None,
+            "activity_resource": self.resolve_resource(),
+            "activity_detail": activity_detail,
+            "activity_method": self.resolve_method(),
+            "activity_data": self.resolve_data(),
+        }
+
+        self.rollback_and_store_to_db(log_data)
+        self.logger.critical("TARANIS NG Public Access Data Error: (%s)", log_data)
+
+    def store_auth_error_activity(self, activity_detail):
+        log_data = {
+            "ip_address": self.resolve_ip_address(),
+            "user_id": None,
+            "user_name": None,
+            "system_id": None,
+            "system_name": None,
+            "module_id": self.module_id,
+            "activity_type": None,
+            "activity_resource": self.resolve_resource(),
+            "activity_detail": activity_detail,
+            "activity_method": self.resolve_method(),
+            "activity_data": self.resolve_data(),
+        }
+
+        self.rollback_and_store_to_db(log_data)
+        self.logger.critical("TARANIS NG Auth Error: (%s)", log_data)
+
+    def store_user_auth_error_activity(self, user, activity_detail):
+        log_data = {
+            "ip_address": self.resolve_ip_address(),
+            "user_id": user.id,
+            "user_name": user.name,
+            "system_id": None,
+            "system_name": None,
+            "module_id": self.module_id,
+            "activity_type": None,
+            "activity_resource": self.resolve_resource(),
+            "activity_detail": activity_detail,
+            "activity_method": self.resolve_method(),
+            "activity_data": self.resolve_data(),
+        }
+
+        self.rollback_and_store_to_db(log_data)
+        self.logger.critical("TARANIS NG Auth Critical: (%s)", log_data)
+
+    def store_system_error_activity(
+        self, system_id, system_name, activity_type, activity_detail
+    ):
+        log_data = {
+            "ip_address": self.resolve_ip_address(),
+            "user_id": None,
+            "user_name": None,
+            "system_id": system_id,
+            "system_name": system_name,
+            "module_id": self.module_id,
+            "activity_type": activity_type,
+            "activity_resource": self.resolve_resource(),
+            "activity_detail": activity_detail,
+            "activity_method": self.resolve_method(),
+            "activity_data": self.resolve_data(),
+        }
+
+        self.rollback_and_store_to_db(log_data)
+        self.logger.critical("TARANIS NG System Critical: (%s)", log_data)
+
+    def store_system_activity(
+        self, system_id, system_name, activity_type, activity_detail
+    ):
+        pass
+
+    def store_activity(self, activity_type, activity_detail):
+        pass
+
+    def store_user_activity(self, user, activity_type, activity_detail):
+        pass
 
 
-def resolve_ip_address():
-    headers_list = request.headers.getlist("X-Forwarded-For")
-    ip_address = headers_list[0] if headers_list else request.remote_addr
-    return ip_address
-
-
-def resolve_method():
-    return request.method
-
-
-def resolve_resource():
-    fp_len = len(request.full_path)
-    if request.full_path[fp_len - 1] == '?':
-        return request.full_path[:fp_len - 1]
-    else:
-        return request.full_path
-
-
-def resolve_data():
-    if "Content-Type" in request.headers and "application/json" in request.headers["Content-Type"]:
-        if request.data is not None:
-            return str(request.data)[:4096].replace("\\r", "").replace("\\n", "").replace(" ", "")[2:-1]
-
-    return ""
-
-
-def generate_escaped_data():
-    data = resolve_data()
-    return re.escape(data)[:4096]
-
-
-def store_access_error_activity(user, activity_detail):
-    ip = resolve_ip_address()
-    log_text = "TARANIS NG Access Error (IP: {}, User ID: {}, User Name: {}, Method: {}, Resource: {}, Activity Detail: {}, Activity Data: {})".format(
-        ip,
-        user.id,
-        user.name,
-        resolve_method(),
-        resolve_resource(),
-        activity_detail,
-        generate_escaped_data())
-
-    if sys_logger is not None:
-        try:
-            sys_logger.critical(log_text)
-        except Exception():
-            log_debug_trace()
-
-    db.session.rollback()
-
-
-def store_data_error_activity(user, activity_detail):
-    db.session.rollback()
-    ip = resolve_ip_address()
-    log_text = "TARANIS NG Data Error (IP: {}, User ID: {}, User Name: {}, Method: {}, Resource: {}, Activity Detail: {}, Activity Data: {})".format(
-        ip,
-        user.id,
-        user.name,
-        resolve_method(),
-        resolve_resource(),
-        activity_detail,
-        generate_escaped_data())
-
-    if sys_logger is not None:
-        try:
-            sys_logger.critical(log_text)
-        except Exception():
-            log_debug_trace()
-
-
-def store_data_error_activity_no_user(activity_detail):
-    db.session.rollback()
-    ip = resolve_ip_address()
-    log_text = "TARANIS NG Public Access Data Error (IP: {}, Method: {}, Resource: {}, Activity Detail: {}, Activity Data: {})".format(
-        ip,
-        resolve_method(),
-        resolve_resource(),
-        activity_detail,
-        generate_escaped_data())
-
-    if sys_logger is not None:
-        try:
-            sys_logger.critical(log_text)
-        except Exception():
-            log_debug_trace()
-
-
-def store_auth_error_activity(activity_detail):
-    db.session.rollback()
-    log_text = "TARANIS NG Auth Error (Method: {}, Resource: {}, Activity Detail: {}, Activity Data: {})".format(
-        resolve_method(),
-        resolve_resource(),
-        activity_detail,
-        generate_escaped_data())
-
-    if sys_logger is not None:
-        try:
-            sys_logger.error(log_text)
-        except Exception():
-            log_debug_trace()
-
-
-def store_user_auth_error_activity(user, activity_detail):
-    db.session.rollback()
-    ip = resolve_ip_address()
-    log_text = "TARANIS NG Auth Critical (IP: {}, User ID: {}, User Name: {}, Method: {}, Resource: {}, Activity Detail: {}, Activity Data: {})".format(
-        ip,
-        user.id,
-        user.name,
-        resolve_method(),
-        resolve_resource(),
-        activity_detail, generate_escaped_data())
-    if sys_logger is not None:
-        try:
-            sys_logger.error(log_text)
-        except Exception():
-            log_debug_trace()
-
-
-def store_system_activity(system_id, system_name, activity_type, activity_detail):
-    pass
-
-
-def store_activity(activity_type, activity_detail):
-    pass
-
-
-def store_user_activity(user, activity_type, activity_detail):
-    pass
-
-
-def store_system_error_activity(system_id, system_name, activity_type, activity_detail):
-    db.session.rollback()
-    ip = resolve_ip_address()
-    log_text = "TARANIS NG System Critical (System ID: {}, System Name: {}, Activity Type: {}, Method: {}, Resource: {}, Activity Detail: {}, Activity Data: {})".format(
-        ip,
-        system_id,
-        system_name,
-        resolve_method(),
-        resolve_resource(),
-        activity_detail,
-        generate_escaped_data())
-
-    if sys_logger is not None:
-        try:
-            sys_logger.critical(log_text)
-        except Exception():
-            log_debug_trace()
+logger = Logger()

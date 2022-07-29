@@ -1,0 +1,36 @@
+name: CI/CD
+
+on:
+  push:
+    paths:
+    - 'src/bots/**'
+    - 'docker/**'
+    branches:
+    - master
+    - awake
+
+permissions:
+  packages: write
+
+jobs:
+  build:
+    name: build docker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: get ghcr owner repository
+        run: |
+          echo "GHCR_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >>${GITHUB_ENV}
+      - name: Build and push bots
+        uses: docker/build-push-action@v3
+        with:
+          file: docker/Dockerfile.bots
+          push: true
+          tags: |
+            ghcr.io/${{ env.GHCR_OWNER }}/taranis-ng-bots:latest
+            ghcr.io/${{ env.GHCR_OWNER }}/taranis-ng-bots:${{ github.ref_name }}

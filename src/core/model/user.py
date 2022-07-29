@@ -5,7 +5,12 @@ from managers.db_manager import db
 from model.role import Role
 from model.permission import Permission
 from model.organization import Organization
-from schema.user import UserSchemaBase, UserProfileSchema, HotkeySchema, UserPresentationSchema
+from schema.user import (
+    UserSchemaBase,
+    UserProfileSchema,
+    HotkeySchema,
+    UserPresentationSchema,
+)
 from schema.role import RoleIdSchema, PermissionIdSchema
 from schema.organization import OrganizationIdSchema
 
@@ -27,10 +32,10 @@ class User(db.Model):
 
     organizations = db.relationship("Organization", secondary="user_organization")
 
-    roles = db.relationship(Role, secondary='user_role')
-    permissions = db.relationship(Permission, secondary='user_permission')
+    roles = db.relationship(Role, secondary="user_role")
+    permissions = db.relationship(Permission, secondary="user_permission")
 
-    profile_id = db.Column(db.Integer, db.ForeignKey('user_profile.id'))
+    profile_id = db.Column(db.Integer, db.ForeignKey("user_profile.id"))
     profile = db.relationship("UserProfile", cascade="all")
 
     def __init__(self, id, username, name, organizations, roles, permissions):
@@ -62,13 +67,11 @@ class User(db.Model):
 
     @classmethod
     def find(cls, username):
-        user = cls.query.filter_by(username=username).first()
-        return user
+        return cls.query.filter_by(username=username).first()
 
     @classmethod
     def find_by_id(cls, user_id):
-        user = cls.query.get(user_id)
-        return user
+        return cls.query.get(user_id)
 
     @classmethod
     def get_all(cls):
@@ -82,10 +85,13 @@ class User(db.Model):
             query = query.join(UserOrganization, User.id == UserOrganization.user_id)
 
         if search is not None:
-            search_string = '%' + search.lower() + '%'
-            query = query.filter(or_(
-                func.lower(User.name).like(search_string),
-                func.lower(User.username).like(search_string)))
+            search_string = f"%{search.lower()}%"
+            query = query.filter(
+                or_(
+                    func.lower(User.name).like(search_string),
+                    func.lower(User.username).like(search_string),
+                )
+            )
 
         return query.order_by(db.asc(User.name)).all(), query.count()
 
@@ -93,13 +99,13 @@ class User(db.Model):
     def get_all_json(cls, search):
         users, count = cls.get(search, None)
         user_schema = UserPresentationSchema(many=True)
-        return {'total_count': count, 'items': user_schema.dump(users)}
+        return {"total_count": count, "items": user_schema.dump(users)}
 
     @classmethod
     def get_all_external_json(cls, user, search):
         users, count = cls.get(search, user.organizations[0])
         user_schema = UserPresentationSchema(many=True)
-        return {'total_count': count, 'items': user_schema.dump(users)}
+        return {"total_count": count, "items": user_schema.dump(users)}
 
     @classmethod
     def add_new(cls, data):
@@ -177,10 +183,7 @@ class User(db.Model):
         return list(all_permissions)
 
     def get_current_organization_name(self):
-        if len(self.organizations) > 0:
-            return self.organizations[0].name
-        else:
-            return ""
+        return self.organizations[0].name if len(self.organizations) > 0 else ""
 
     @classmethod
     def get_profile_json(cls, user):
@@ -201,24 +204,50 @@ class User(db.Model):
 
         return cls.get_profile_json(user)
 
+    @classmethod
+    def first_user_setup(cls):
+        role = Role.filter_by(name="Admin").first()
+        if not role:
+            role = Role.add_new(
+                {
+                    "name": "Admin",
+                    "description": "Administrator role",
+                    "persimssions": Permission.get_all(),
+                }
+            )
+        cls.add_new(
+            {
+                "id": -1,
+                "username": "admin",
+                "name": "Administrator",
+                "roles": [role],
+                "permissions": [],
+                "organizations": [],
+                "password": "admin",
+            }
+        )
+
 
 class UserOrganization(db.Model):
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
-    organization_id = db.Column(db.Integer, db.ForeignKey('organization.id'), primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), primary_key=True)
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey("organization.id"), primary_key=True
+    )
 
 
 class UserRole(db.Model):
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
-    role_id = db.Column(db.Integer, db.ForeignKey('role.id'), primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), primary_key=True)
+    role_id = db.Column(db.Integer, db.ForeignKey("role.id"), primary_key=True)
 
 
 class UserPermission(db.Model):
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
-    permission_id = db.Column(db.String, db.ForeignKey('permission.id'), primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), primary_key=True)
+    permission_id = db.Column(
+        db.String, db.ForeignKey("permission.id"), primary_key=True
+    )
 
 
 class NewHotkeySchema(HotkeySchema):
-
     @post_load
     def make(self, data, **kwargs):
         return Hotkey(**data)
@@ -248,7 +277,9 @@ class UserProfile(db.Model):
 
 
 class UserProfileWordList(db.Model):
-    user_profile_id = db.Column(db.Integer, db.ForeignKey('user_profile.id'), primary_key=True)
+    user_profile_id = db.Column(
+        db.Integer, db.ForeignKey("user_profile.id"), primary_key=True
+    )
 
 
 class Hotkey(db.Model):
@@ -257,7 +288,7 @@ class Hotkey(db.Model):
     key = db.Column(db.String)
     alias = db.Column(db.String)
 
-    user_profile_id = db.Column(db.Integer, db.ForeignKey('user_profile.id'))
+    user_profile_id = db.Column(db.Integer, db.ForeignKey("user_profile.id"))
 
     def __init__(self, key_code, key, alias):
         self.id = None

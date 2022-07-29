@@ -7,7 +7,12 @@ from managers.db_manager import db
 from model.acl_entry import ACLEntry
 from model.attribute import Attribute
 from schema.acl_entry import ItemType
-from schema.report_item_type import AttributeGroupItemSchema, AttributeGroupBaseSchema, ReportItemTypeBaseSchema, ReportItemTypePresentationSchema
+from schema.report_item_type import (
+    AttributeGroupItemSchema,
+    AttributeGroupBaseSchema,
+    ReportItemTypeBaseSchema,
+    ReportItemTypePresentationSchema,
+)
 
 
 class NewAttributeGroupItemSchema(AttributeGroupItemSchema):
@@ -27,18 +32,23 @@ class AttributeGroupItem(db.Model):
     min_occurrence = db.Column(db.Integer)
     max_occurrence = db.Column(db.Integer)
 
-    attribute_group_id = db.Column(db.Integer, db.ForeignKey('attribute_group.id'))
+    attribute_group_id = db.Column(db.Integer, db.ForeignKey("attribute_group.id"))
     attribute_group = db.relationship("AttributeGroup")
 
-    attribute_id = db.Column(db.Integer, db.ForeignKey('attribute.id'))
+    attribute_id = db.Column(db.Integer, db.ForeignKey("attribute.id"))
     attribute = db.relationship("Attribute")
 
-    def __init__(self, id, title, description, index, min_occurrence, max_occurrence, attribute_id):
-        if id is not None and id != -1:
-            self.id = id
-        else:
-            self.id = None
-
+    def __init__(
+        self,
+        id,
+        title,
+        description,
+        index,
+        min_occurrence,
+        max_occurrence,
+        attribute_id,
+    ):
+        self.id = id if id is not None and id != -1 else None
         self.title = title
         self.description = description
         self.index = index
@@ -56,7 +66,7 @@ class AttributeGroupItem(db.Model):
 
 
 class NewAttributeGroupSchema(AttributeGroupBaseSchema):
-    attribute_group_items = fields.Nested('NewAttributeGroupItemSchema', many=True)
+    attribute_group_items = fields.Nested("NewAttributeGroupItemSchema", many=True)
 
     @post_load
     def make_attribute_group(self, data, **kwargs):
@@ -72,13 +82,25 @@ class AttributeGroup(db.Model):
     section_title = db.Column(db.String())
     index = db.Column(db.Integer)
 
-    report_item_type_id = db.Column(db.Integer, db.ForeignKey('report_item_type.id'))
+    report_item_type_id = db.Column(db.Integer, db.ForeignKey("report_item_type.id"))
     report_item_type = db.relationship("ReportItemType")
 
-    attribute_group_items = db.relationship('AttributeGroupItem', back_populates="attribute_group",
-                                            cascade="all, delete-orphan")
+    attribute_group_items = db.relationship(
+        "AttributeGroupItem",
+        back_populates="attribute_group",
+        cascade="all, delete-orphan",
+    )
 
-    def __init__(self, id, title, description, section, section_title, index, attribute_group_items):
+    def __init__(
+        self,
+        id,
+        title,
+        description,
+        section,
+        section_title,
+        index,
+        attribute_group_items,
+    ):
         if id is not None and id != -1:
             self.id = id
         else:
@@ -106,16 +128,26 @@ class AttributeGroup(db.Model):
         self.section_title = updated_attribute_group.section_title
         self.index = updated_attribute_group.index
 
-        for updated_attribute_group_item in updated_attribute_group.attribute_group_items:
+        for (
+            updated_attribute_group_item
+        ) in updated_attribute_group.attribute_group_items:
             found = False
             for attribute_group_item in self.attribute_group_items:
                 if updated_attribute_group_item.id == attribute_group_item.id:
                     attribute_group_item.title = updated_attribute_group_item.title
-                    attribute_group_item.description = updated_attribute_group_item.description
+                    attribute_group_item.description = (
+                        updated_attribute_group_item.description
+                    )
                     attribute_group_item.index = updated_attribute_group_item.index
-                    attribute_group_item.min_occurrence = updated_attribute_group_item.min_occurrence
-                    attribute_group_item.max_occurrence = updated_attribute_group_item.max_occurrence
-                    attribute_group_item.attribute_id = updated_attribute_group_item.attribute_id
+                    attribute_group_item.min_occurrence = (
+                        updated_attribute_group_item.min_occurrence
+                    )
+                    attribute_group_item.max_occurrence = (
+                        updated_attribute_group_item.max_occurrence
+                    )
+                    attribute_group_item.attribute_id = (
+                        updated_attribute_group_item.attribute_id
+                    )
                     found = True
                     break
 
@@ -125,7 +157,9 @@ class AttributeGroup(db.Model):
 
         for attribute_group_item in self.attribute_group_items[:]:
             found = False
-            for updated_attribute_group_item in updated_attribute_group.attribute_group_items:
+            for (
+                updated_attribute_group_item
+            ) in updated_attribute_group.attribute_group_items:
                 if updated_attribute_group_item.id == attribute_group_item.id:
                     found = True
                     break
@@ -135,7 +169,7 @@ class AttributeGroup(db.Model):
 
 
 class NewReportItemTypeSchema(ReportItemTypeBaseSchema):
-    attribute_groups = fields.Nested('NewAttributeGroupSchema', many=True)
+    attribute_groups = fields.Nested("NewAttributeGroupSchema", many=True)
 
     @post_load
     def make_report_item_type(self, data, **kwargs):
@@ -147,8 +181,11 @@ class ReportItemType(db.Model):
     title = db.Column(db.String())
     description = db.Column(db.String())
 
-    attribute_groups = db.relationship('AttributeGroup', back_populates="report_item_type",
-                                       cascade="all, delete-orphan")
+    attribute_groups = db.relationship(
+        "AttributeGroup",
+        back_populates="report_item_type",
+        cascade="all, delete-orphan",
+    )
 
     def __init__(self, id, title, description, attribute_groups):
         self.id = None
@@ -175,11 +212,20 @@ class ReportItemType(db.Model):
     @classmethod
     def allowed_with_acl(cls, report_item_type_id, user, see, access, modify):
 
-        query = db.session.query(ReportItemType.id).distinct().group_by(ReportItemType.id).filter(
-            ReportItemType.id == report_item_type_id)
+        query = (
+            db.session.query(ReportItemType.id)
+            .distinct()
+            .group_by(ReportItemType.id)
+            .filter(ReportItemType.id == report_item_type_id)
+        )
 
-        query = query.outerjoin(ACLEntry, and_(cast(ReportItemType.id, sqlalchemy.String) == ACLEntry.item_id,
-                                               ACLEntry.item_type == ItemType.REPORT_ITEM_TYPE))
+        query = query.outerjoin(
+            ACLEntry,
+            and_(
+                cast(ReportItemType.id, sqlalchemy.String) == ACLEntry.item_id,
+                ACLEntry.item_type == ItemType.REPORT_ITEM_TYPE,
+            ),
+        )
 
         query = ACLEntry.apply_query(query, user, see, access, modify)
 
@@ -190,15 +236,23 @@ class ReportItemType(db.Model):
         query = cls.query.distinct().group_by(ReportItemType.id)
 
         if acl_check is True:
-            query = query.outerjoin(ACLEntry, and_(cast(ReportItemType.id, sqlalchemy.String) == ACLEntry.item_id,
-                                                   ACLEntry.item_type == ItemType.REPORT_ITEM_TYPE))
+            query = query.outerjoin(
+                ACLEntry,
+                and_(
+                    cast(ReportItemType.id, sqlalchemy.String) == ACLEntry.item_id,
+                    ACLEntry.item_type == ItemType.REPORT_ITEM_TYPE,
+                ),
+            )
             query = ACLEntry.apply_query(query, user, True, False, False)
 
         if search is not None:
-            search_string = '%' + search.lower() + '%'
-            query = query.filter(or_(
-                func.lower(ReportItemType.title).like(search_string),
-                func.lower(ReportItemType.description).like(search_string)))
+            search_string = "%" + search.lower() + "%"
+            query = query.filter(
+                or_(
+                    func.lower(ReportItemType.title).like(search_string),
+                    func.lower(ReportItemType.description).like(search_string),
+                )
+            )
 
         return query.order_by(db.asc(ReportItemType.title)).all(), query.count()
 
@@ -208,11 +262,15 @@ class ReportItemType(db.Model):
         for report_item_type in report_item_types:
             for attribute_group in report_item_type.attribute_groups:
                 for attribute_group_item in attribute_group.attribute_group_items:
-                    attribute_group_item.attribute.attribute_enums = Attribute.get_enums(
-                        attribute_group_item.attribute)
+                    attribute_group_item.attribute.attribute_enums = (
+                        Attribute.get_enums(attribute_group_item.attribute)
+                    )
 
         report_item_type_schema = ReportItemTypePresentationSchema(many=True)
-        return {'total_count': count, 'items': report_item_type_schema.dump(report_item_types)}
+        return {
+            "total_count": count,
+            "items": report_item_type_schema.dump(report_item_types),
+        }
 
     @classmethod
     def add_report_item_type(cls, report_item_type_data):
@@ -232,7 +290,10 @@ class ReportItemType(db.Model):
         for updated_attribute_group in updated_report_type.attribute_groups:
             found = False
             for attribute_group in report_type.attribute_groups:
-                if updated_attribute_group.id is not None and updated_attribute_group.id == attribute_group.id:
+                if (
+                    updated_attribute_group.id is not None
+                    and updated_attribute_group.id == attribute_group.id
+                ):
                     attribute_group.update(updated_attribute_group)
                     found = True
                     break

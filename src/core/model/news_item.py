@@ -6,7 +6,7 @@ from marshmallow import post_load, fields
 from sqlalchemy import orm, and_, or_, func
 
 from managers.db_manager import db
-from managers import log_manager
+from managers.log_manager import logger
 from model.acl_entry import ACLEntry
 from model.osint_source import OSINTSourceGroup, OSINTSource
 from model.tag_cloud import TagCloud
@@ -46,7 +46,6 @@ class NewsItemData(db.Model):
     language = db.Column(db.String())
     content = db.Column(db.String())
     tags = db.Column(db.ARRAY(db.String()))
-
     collected = db.Column(db.DateTime)
     published = db.Column(db.String())
     updated = db.Column(db.DateTime, default=datetime.now())
@@ -104,9 +103,7 @@ class NewsItemData(db.Model):
             .filter(NewsItemData.id == news_item_data_id)
         )
 
-        query = query.join(
-            OSINTSource, NewsItemData.osint_source_id == OSINTSource.id
-        )
+        query = query.join(OSINTSource, NewsItemData.osint_source_id == OSINTSource.id)
 
         query = query.outerjoin(
             ACLEntry,
@@ -181,9 +178,7 @@ class NewsItemData(db.Model):
 
     @classmethod
     def get_news_item_data(cls, news_item_id):
-        query = cls.query.join(
-            NewsItem, NewsItemData.id == NewsItem.news_item_data_id
-        )
+        query = cls.query.join(NewsItem, NewsItemData.id == NewsItem.news_item_data_id)
         query = query.filter(NewsItem.id == news_item_id)
         return query
 
@@ -193,8 +188,8 @@ class NewsItemData(db.Model):
             n_i_d = NewsItemData.get_news_item_data(news_item_id).first()
             n_i_d.tags = tags
             db.session.commit()
-        except Exception as e:
-            log_manager.log_debug_trace(e)
+        except Exception:
+            logger.log_debug_trace("Update News Item Tags Failed")
 
     @classmethod
     def get_for_sync(cls, last_synced, osint_sources):
@@ -245,8 +240,7 @@ class NewsItem(db.Model):
 
     @classmethod
     def find(cls, news_item_id):
-        news_item = cls.query.get(news_item_id)
-        return news_item
+        return cls.query.get(news_item_id)
 
     @classmethod
     def get_all_with_data(cls, news_item_data_id):
@@ -298,12 +292,8 @@ class NewsItem(db.Model):
             .filter(NewsItem.id == news_item_id)
         )
 
-        query = query.join(
-            NewsItemData, NewsItem.news_item_data_id == NewsItemData.id
-        )
-        query = query.join(
-            OSINTSource, NewsItemData.osint_source_id == OSINTSource.id
-        )
+        query = query.join(NewsItemData, NewsItem.news_item_data_id == NewsItemData.id)
+        query = query.join(OSINTSource, NewsItemData.osint_source_id == OSINTSource.id)
 
         query = query.outerjoin(
             ACLEntry,
@@ -342,9 +332,7 @@ class NewsItem(db.Model):
             .filter(NewsItem.id == news_item_id)
         )
 
-        query = query.join(
-            NewsItemData, NewsItem.news_item_data_id == NewsItemData.id
-        )
+        query = query.join(NewsItemData, NewsItem.news_item_data_id == NewsItemData.id)
         query = query.outerjoin(
             OSINTSource, NewsItemData.osint_source_id == OSINTSource.id
         )
@@ -394,19 +382,18 @@ class NewsItem(db.Model):
                     self.dislikes -= 1
                     self.relevance += 1
                     vote.dislike = False
+        elif vote.dislike is True:
+            self.dislikes -= 1
+            self.relevance += 1
+            vote.dislike = False
         else:
-            if vote.dislike is True:
-                self.dislikes -= 1
-                self.relevance += 1
-                vote.dislike = False
-            else:
-                self.dislikes += 1
+            self.dislikes += 1
+            self.relevance -= 1
+            vote.dislike = True
+            if vote.like is True:
+                self.likes -= 1
                 self.relevance -= 1
-                vote.dislike = True
-                if vote.like is True:
-                    self.likes -= 1
-                    self.relevance -= 1
-                    vote.like = False
+                vote.like = False
 
     @classmethod
     def update(cls, id, data, user_id):
@@ -491,14 +478,10 @@ class NewsItemVote(db.Model):
         vote = cls.query.filter_by(
             news_item_id=news_item_id, remote_node_id=remote_node_id
         ).first()
-        if vote is not None:
-            db.session.delete(vote)
-            if vote.like is True:
-                return 1
-            else:
-                return -1
-        else:
+        if vote is None:
             return 0
+        db.session.delete(vote)
+        return 1 if vote.like else -1
 
 
 class NewsItemAggregate(db.Model):
@@ -527,8 +510,7 @@ class NewsItemAggregate(db.Model):
 
     @classmethod
     def find(cls, news_item_aggregate_id):
-        news_item_aggregate = cls.query.get(news_item_aggregate_id)
-        return news_item_aggregate
+        return cls.query.get(news_item_aggregate_id)
 
     @classmethod
     def get_by_group(cls, group_id, filter, offset, limit, user):
@@ -584,13 +566,15 @@ class NewsItemAggregate(db.Model):
                 == ReportItemNewsItemAggregate.news_item_aggregate_id,
             )
 
-        if 'range' in filter and filter['range'] != 'ALL':
-            date_limit = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        if "range" in filter and filter["range"] != "ALL":
+            date_limit = datetime.now().replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
 
-            if filter['range'] == 'WEEK':
+            if filter["range"] == "WEEK":
                 date_limit -= timedelta(days=date_limit.weekday())
 
-            elif filter['range'] == 'MONTH':
+            elif filter["range"] == "MONTH":
                 date_limit = date_limit.replace(day=1)
 
             query = query.filter(NewsItemAggregate.created >= date_limit)
@@ -1148,8 +1132,8 @@ class NewsItemAggregateSearchIndex(db.Model):
             db.session.add(search_index)
 
         data = aggregate.title
-        data += " " + aggregate.description
-        data += " " + aggregate.comments
+        data += f" {aggregate.description}"
+        data += f" {aggregate.comments}"
 
         for news_item in aggregate.news_items:
             data += " " + news_item.news_item_data.title
@@ -1160,10 +1144,10 @@ class NewsItemAggregateSearchIndex(db.Model):
 
             if news_item.news_item_data.tags is not None:
                 for tag in news_item.news_item_data.tags:
-                    data += " " + tag
+                    data += f" {tag}"
 
             for attribute in news_item.news_item_data.attributes:
-                data += " " + attribute.value
+                data += f" {attribute.value}"
 
         search_index.data = data.lower()
         db.session.commit()
@@ -1194,8 +1178,7 @@ class NewsItemAttribute(db.Model):
 
     @classmethod
     def find(cls, attribute_id):
-        news_item_attribute = cls.query.get(attribute_id)
-        return news_item_attribute
+        return cls.query.get(attribute_id)
 
 
 class NewsItemDataNewsItemAttribute(db.Model):
