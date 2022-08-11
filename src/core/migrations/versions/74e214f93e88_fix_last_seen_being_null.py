@@ -34,20 +34,14 @@ def upgrade():
     bind = op.get_bind()
     session = orm.Session(bind=bind)
 
-    to_update = (
-        session.query(CollectorsNodeRev74e214f93e88).filter_by(last_seen=None).all()
-    )
+    to_update = session.query(CollectorsNodeRev74e214f93e88).filter_by(last_seen=None).all()
     for node in to_update:
         node.last_seen = node.created
         session.add(node)
     session.commit()
 
-    op.alter_column(
-        "collectors_node", "created", server_default=sa.func.current_timestamp()
-    )
-    op.alter_column(
-        "collectors_node", "last_seen", server_default=sa.func.current_timestamp()
-    )
+    op.alter_column("collectors_node", "created", server_default=sa.func.current_timestamp())
+    op.alter_column("collectors_node", "last_seen", server_default=sa.func.current_timestamp())
 
 
 def downgrade():

@@ -14,16 +14,12 @@ def test_is_not_authorized(client):
 
 
 def test_is_authorized(client):
-    response = client.get(
-        "/api/v1/presenters", headers={"Authorization": "Bearer test_key"}
-    )
+    response = client.get("/api/v1/presenters", headers={"Authorization": "Bearer test_key"})
     assert response.status_code == 200
 
 
 def test_get_presenters(client):
-    response = client.get(
-        "/api/v1/presenters", headers={"Authorization": "Bearer test_key"}
-    )
+    response = client.get("/api/v1/presenters", headers={"Authorization": "Bearer test_key"})
     # response_json = response.json
     # from presenters.managers.presenters_manager import presenters
     # for i, key in enumerate(presenters):

@@ -1,0 +1,8 @@
+flake8
+black
+watchdog
+pytest
+pre-commit
+build
+wheel
+setuptools

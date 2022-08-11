@@ -16,21 +16,21 @@ Base = declarative_base()
 
 
 class CollectorsNodeRev7607d7d98f71(Base):
-    __tablename__ = 'collectors_node'
+    __tablename__ = "collectors_node"
     id = sa.Column(sa.String(64), primary_key=True)
     created = sa.Column(sa.DateTime, default=datetime.now)
     last_seen = sa.Column(sa.DateTime, default=datetime.now)
 
 
 class OSINTSourceRev7607d7d98f71(Base):
-    __tablename__ = 'osint_source'
+    __tablename__ = "osint_source"
     id = sa.Column(sa.String(64), primary_key=True)
     modified = sa.Column(sa.DateTime, default=datetime.now)
 
 
 # revision identifiers, used by Alembic.
-revision = '7607d7d98f71'
-down_revision = '74e214f93e88'
+revision = "7607d7d98f71"
+down_revision = "74e214f93e88"
 branch_labels = None
 depends_on = None
 

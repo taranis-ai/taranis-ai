@@ -17,9 +17,8 @@ export function isValidUrl(urlString) {
   return !!urlPattern.test(urlString)
 }
 
-export function stripHtml(html)
-{
-   let tmp = document.createElement("DIV");
-   tmp.innerHTML = html;
-   return tmp.textContent || tmp.innerText || "";
+export function stripHtml(html) {
+  const tmp = document.createElement('DIV')
+  tmp.innerHTML = html
+  return tmp.textContent || tmp.innerText || ''
 }

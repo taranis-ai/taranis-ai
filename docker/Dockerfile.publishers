@@ -27,9 +27,8 @@ COPY ./src/publishers/. /app/
 
 # setup environment variables
 ENV PYTHONPATH=/app
-ENV MODULE_NAME run
-ENV VARIABLE_NAME app
+ENV APP_MODULE run:app
 ENV GUNICORN_CMD_ARGS --timeout 120
-ENV WORKERS_PER_CORE 8
+ENV WORKERS_PER_CORE 4
 
-ENTRYPOINT ["/entrypoint.sh"]
+CMD ["/entrypoint.sh"]

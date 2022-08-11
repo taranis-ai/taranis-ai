@@ -4,7 +4,7 @@
 3. In taranis-ng-common, taranis-ng-collectors and taranis-ng-core install and activate python virtual environment:
     `virtualenv -p python3.7 venv`
     `source venv/bin/activate`
-    `pip3 install -r requirements.txt`
+    `pip3 install -e .`
 4. Set environment variables for taranis-ng-core:
     DB_URL=127.0.0.1:5432;DB_DATABASE=taranisdb;DB_USER=<YOUR-DB-USER>;DB_PASSWORD=<YOUR-DB-USER-PASSWORD>;JWT_SECRET_KEY=F1AE885322F1C
 5. Before first run uncomment line with `import test.py` in app.py to create set of test data. After first run comment this line again.
@@ -33,7 +33,7 @@ Keycloak is not needed to run test version of TaranisNG at the moment. You can u
 6. Create first admin account and log in to Master Realm
 7. Choose **ADD REALM** to create realm with the name **taranisng**
 8. In taranis-ng realm choose **IMPORT** and import file _realm-export.json_ from **taranis-ng-core** root
-9. In CLIENTS choose taranis-ng and regenerate secret in CREDENTIALS -> REGENERATE SECRET and put secret it _into client_secrets.json_ inside **taranis-ng-core** root (_NOTE: this will be properly configurable inside admin interface in the future_) 
+9. In CLIENTS choose taranis-ng and regenerate secret in CREDENTIALS -> REGENERATE SECRET and put secret it _into client_secrets.json_ inside **taranis-ng-core** root (_NOTE: this will be properly configurable inside admin interface in the future_)
 10. Create 2 users **user** and **admin** in USERS -> ADD USER. These are test users in TaranisNG at the moment.
 11. Set `TARANIS_NG_AUTHENTICATOR=keycloak` environment variable for the core service.
 12. In **taranis-ng-core** add environment variable OPENID_LOGOUT_URL and set it according to your Keycloak installation e.g. http://127.0.0.1:8081/auth/realms/taranisng/protocol/openid-connect/logout?redirect_uri=<GOTO_URL>

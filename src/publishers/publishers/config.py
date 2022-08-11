@@ -1,9 +1,14 @@
-import os
+from pydantic import BaseSettings
 
 
-class Config:
-    EMAIL_USER = os.getenv("EMAIL_USER")
-    EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
-    EMAIL_SEND = os.getenv("EMAIL_SEND")
-    API_KEY = os.getenv("API_KEY")
-    SSL_VERIFICATION = os.getenv("SSL_VERIFICATION")
+class Settings(BaseSettings):
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+
+    API_KEY: str
+    SSL_VERIFICATION: bool = False
+    MODULE_ID: str = "Publishers"
+
+
+Config = Settings()

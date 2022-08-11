@@ -66,6 +66,8 @@ services:
       CPE_UPDATE_FILE: "${CPE_UPDATE_FILE}"
 
       DEBUG: "${DEBUG}"
+      SECRET_KEY: "${COLLECTOR_PRESENTER_PUBLISHER_API_KEY}"
+      API_KEY: "${COLLECTOR_PRESENTER_PUBLISHER_API_KEY}"
     volumes:
       - "core_data:/data"
     logging:
@@ -85,8 +87,8 @@ services:
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-bots:${TARANIS_NG_TAG}"
     environment:
       API_KEY: "${COLLECTOR_PRESENTER_PUBLISHER_API_KEY}"
-      TARANIS_NG_CORE_URL: "http://core/api/v1"
-      TARANIS_NG_CORE_SSE: "http://core/sse"
+      TARANIS_NG_CORE_URL: "http://localhost:6001/api/v1"
+      TARANIS_NG_CORE_SSE: "http://localhost:6001/sse"
       WORKERS_PER_CORE: "1"
     logging:
       driver: "json-file"
@@ -104,7 +106,7 @@ services:
         max_attempts: 3
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-collectors:${TARANIS_NG_TAG}"
     environment:
-      TARANIS_NG_CORE_URL: "http://core"
+      TARANIS_NG_CORE_URL: "http://localhost:6001"
       API_KEY: "${COLLECTOR_PRESENTER_PUBLISHER_API_KEY}"
       WORKERS_PER_CORE: "1"
       DEBUG: "${DEBUG}"
@@ -126,7 +128,7 @@ services:
         max_attempts: 3
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-presenters:${TARANIS_NG_TAG}"
     environment:
-      TARANIS_NG_CORE_URL: "http://core"
+      TARANIS_NG_CORE_URL: "http://localhost:6001"
       API_KEY: "${COLLECTOR_PRESENTER_PUBLISHER_API_KEY}"
       WORKERS_PER_CORE: "1"
     volumes:
@@ -147,7 +149,7 @@ services:
         max_attempts: 3
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-publishers:${TARANIS_NG_TAG}"
     environment:
-      TARANIS_NG_CORE_URL: "http://core"
+      TARANIS_NG_CORE_URL: "http://localhost:6001"
       API_KEY: "${COLLECTOR_PRESENTER_PUBLISHER_API_KEY}"
       WORKERS_PER_CORE: "1"
     logging:

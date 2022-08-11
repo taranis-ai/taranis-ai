@@ -2,7 +2,7 @@ from base64 import b64decode
 import tweepy
 
 from .base_publisher import BasePublisher
-from publishers.schema.parameter import Parameter, ParameterType
+from shared.schema.parameter import Parameter, ParameterType
 
 
 class TWITTERPublisher(BasePublisher):
@@ -12,12 +12,15 @@ class TWITTERPublisher(BasePublisher):
 
     parameters = [
         Parameter(0, "TWITTER_API_KEY", "Twitter API key", "API key of Twitter account", ParameterType.STRING),
-        Parameter(0, "TWITTER_API_KEY_SECRET", "Twitter API key secret", "API key secret of Twitter account",
-                  ParameterType.STRING),
-        Parameter(0, "TWITTER_ACCESS_TOKEN", "Twitter access token", "Twitter access token of Twitter account",
-                  ParameterType.STRING),
-        Parameter(0, "TWITTER_ACCESS_TOKEN_SECRET", "Twitter access token secret",
-                  "Twitter access token secret of Twitter account", ParameterType.STRING)
+        Parameter(0, "TWITTER_API_KEY_SECRET", "Twitter API key secret", "API key secret of Twitter account", ParameterType.STRING),
+        Parameter(0, "TWITTER_ACCESS_TOKEN", "Twitter access token", "Twitter access token of Twitter account", ParameterType.STRING),
+        Parameter(
+            0,
+            "TWITTER_ACCESS_TOKEN_SECRET",
+            "Twitter access token secret",
+            "Twitter access token secret of Twitter account",
+            ParameterType.STRING,
+        ),
     ]
 
     parameters.extend(BasePublisher.parameters)
@@ -25,10 +28,10 @@ class TWITTERPublisher(BasePublisher):
     def publish(self, publisher_input):
 
         try:
-            api_key = publisher_input.parameter_values_map['TWITTER_API_KEY']
-            api_key_secret = publisher_input.parameter_values_map['TWITTER_API_KEY_SECRET']
-            access_token = publisher_input.parameter_values_map['TWITTER_ACCESS_TOKEN']
-            access_token_secret = publisher_input.parameter_values_map['TWITTER_ACCESS_TOKEN_SECRET']
+            api_key = publisher_input.parameter_values_map["TWITTER_API_KEY"]
+            api_key_secret = publisher_input.parameter_values_map["TWITTER_API_KEY_SECRET"]
+            access_token = publisher_input.parameter_values_map["TWITTER_ACCESS_TOKEN"]
+            access_token_secret = publisher_input.parameter_values_map["TWITTER_ACCESS_TOKEN_SECRET"]
 
             auth = tweepy.OAuthHandler(api_key, api_key_secret)
             auth.set_access_token(access_token, access_token_secret)

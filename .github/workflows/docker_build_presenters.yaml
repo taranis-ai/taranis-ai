@@ -1,4 +1,4 @@
-name: CI/CD
+name: CI_Presenters
 
 on:
   push:

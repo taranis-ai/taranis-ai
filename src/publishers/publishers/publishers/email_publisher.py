@@ -7,7 +7,7 @@ from email.mime.text import MIMEText
 import gnupg
 
 from .base_publisher import BasePublisher
-from publishers.schema.parameter import Parameter, ParameterType
+from shared.schema.parameter import Parameter, ParameterType
 
 
 class EMAILPublisher(BasePublisher):
@@ -17,31 +17,29 @@ class EMAILPublisher(BasePublisher):
 
     parameters = [
         Parameter(0, "SMTP_SERVER", "SMTP server", "SMTP server for sending emails", ParameterType.STRING),
-        Parameter(0, "SMTP_SERVER_PORT", "SMTP server port", "SMTP server port for sending emails",
-                  ParameterType.STRING),
+        Parameter(0, "SMTP_SERVER_PORT", "SMTP server port", "SMTP server port for sending emails", ParameterType.STRING),
         Parameter(0, "EMAIL_USERNAME", "Email username", "Username for email account", ParameterType.STRING),
         Parameter(0, "EMAIL_PASSWORD", "Email password", "Password for email account", ParameterType.STRING),
         Parameter(0, "EMAIL_RECIPIENT", "Email recipient", "Email address of recipient", ParameterType.STRING),
         Parameter(0, "EMAIL_SUBJECT", "Email subject", "Text of email subject", ParameterType.STRING),
         Parameter(0, "EMAIL_MESSAGE", "Email message", "Text of email message", ParameterType.STRING),
-        Parameter(0, "EMAIL_ENCRYPTION", "Do you want use email encrypt (yes/no)", "Turn ON/OFF email encryption",
-                  ParameterType.STRING)
+        Parameter(0, "EMAIL_ENCRYPTION", "Do you want use email encrypt (yes/no)", "Turn ON/OFF email encryption", ParameterType.STRING),
     ]
 
     parameters.extend(BasePublisher.parameters)
 
     def publish(self, publisher_input):
 
-        smtp_server = publisher_input.parameter_values_map['SMTP_SERVER']
-        smtp_server_port = publisher_input.parameter_values_map['SMTP_SERVER_PORT']
-        email_user = publisher_input.parameter_values_map['EMAIL_USERNAME']
-        email_password = publisher_input.parameter_values_map['EMAIL_PASSWORD']
-        email_recipients = publisher_input.parameter_values_map['EMAIL_RECIPIENT']
-        email_subject = publisher_input.parameter_values_map['EMAIL_SUBJECT']
-        email_message = publisher_input.parameter_values_map['EMAIL_MESSAGE']
-        email_encryption = publisher_input.parameter_values_map['EMAIL_ENCRYPTION']
+        smtp_server = publisher_input.parameter_values_map["SMTP_SERVER"]
+        smtp_server_port = publisher_input.parameter_values_map["SMTP_SERVER_PORT"]
+        email_user = publisher_input.parameter_values_map["EMAIL_USERNAME"]
+        email_password = publisher_input.parameter_values_map["EMAIL_PASSWORD"]
+        email_recipients = publisher_input.parameter_values_map["EMAIL_RECIPIENT"]
+        email_subject = publisher_input.parameter_values_map["EMAIL_SUBJECT"]
+        email_message = publisher_input.parameter_values_map["EMAIL_MESSAGE"]
+        email_encryption = publisher_input.parameter_values_map["EMAIL_ENCRYPTION"]
 
-        file = 'file_' + datetime.datetime.now().strftime("%d-%m-%Y_%H:%M") + '.pdf'
+        file = "file_" + datetime.datetime.now().strftime("%d-%m-%Y_%H:%M") + ".pdf"
 
         if publisher_input.data is not None:
             data = publisher_input.data[:]
@@ -50,7 +48,7 @@ class EMAILPublisher(BasePublisher):
 
         def get_attachment(file_name):
             msg_attachment = Message()
-            msg_attachment.add_header(_name="Content-Type", _value='application/pdf', name=file_name)
+            msg_attachment.add_header(_name="Content-Type", _value="application/pdf", name=file_name)
             msg_attachment.add_header(_name="Content-Transfer-Encoding", _value="base64")
             msg_attachment.add_header(_name="Content-Disposition", _value="attachment", filename=file_name)
             msg_attachment.set_payload(data)
@@ -73,7 +71,7 @@ class EMAILPublisher(BasePublisher):
             msg.add_header(_name="Content-Type", _value="multipart/mixed")
             msg["From"] = email_user
             msg["To"] = email_address_recipient
-            msg['Subject'] = email_subject
+            msg["Subject"] = email_subject
 
             msg_text = Message()
             msg_text.add_header(_name="Content-Type", _value="multipart/mixed")
@@ -89,7 +87,7 @@ class EMAILPublisher(BasePublisher):
             pgp_msg = MIMEBase(_maintype="multipart", _subtype="encrypted", protocol="application/pgp-encrypted")
             pgp_msg["From"] = email_user
             pgp_msg["To"] = email_address_recipient
-            pgp_msg['Subject'] = email_subject
+            pgp_msg["Subject"] = email_subject
 
             pgp_msg_part1 = Message()
             pgp_msg_part1.add_header(_name="Content-Type", _value="application/pgp-encrypted")
@@ -116,29 +114,29 @@ class EMAILPublisher(BasePublisher):
             if publisher_input.recipients is not None:
                 recipients = publisher_input.recipients
             else:
-                recipients = email_recipients.split(',')
+                recipients = email_recipients.split(",")
 
-            if email_encryption.lower() == 'yes':
+            if email_encryption.lower() == "yes":
                 for recipient in recipients:
                     email_msg = email_message
                     email_msg = get_encrypted_email_string(recipient, file, email_msg)
                     server.sendmail(email_user, recipient, email_msg)
             else:
                 email_msg = MIMEMultipart()
-                email_msg['From'] = email_user
-                email_msg['To'] = email_recipients
+                email_msg["From"] = email_user
+                email_msg["To"] = email_recipients
 
                 if publisher_input.message_title is not None:
-                    email_msg['Subject'] = publisher_input.message_title
+                    email_msg["Subject"] = publisher_input.message_title
                 else:
-                    email_msg['Subject'] = email_subject
+                    email_msg["Subject"] = email_subject
 
                 if publisher_input.message_body is not None:
                     body = publisher_input.message_body
                 else:
                     body = email_message
 
-                email_msg.attach(MIMEText(body + 2 * "\n", 'plain'))
+                email_msg.attach(MIMEText(body + 2 * "\n", "plain"))
 
                 if data is not None:
                     attachment = get_attachment(file)

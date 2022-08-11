@@ -1,1 +1,1 @@
-__all__ = ['isalive', 'publishers']
+__all__ = ["isalive", "publishers"]

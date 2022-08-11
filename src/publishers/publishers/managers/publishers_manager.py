@@ -3,7 +3,7 @@ from publishers.publishers.email_publisher import EMAILPublisher
 from publishers.publishers.twitter_publisher import TWITTERPublisher
 from publishers.publishers.wordpress_publisher import WORDPRESSPublisher
 from publishers.publishers.misp_publisher import MISPPublisher
-from publishers.schema.publisher import PublisherInputSchema
+from shared.schema.publisher import PublisherInputSchema
 
 publishers = {}
 

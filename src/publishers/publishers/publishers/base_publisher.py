@@ -1,4 +1,4 @@
-from publishers.schema.publisher import PublisherSchema
+from shared.schema.publisher import PublisherSchema
 from publishers.managers.log_manager import logger
 
 

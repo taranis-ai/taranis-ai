@@ -1,10 +1,14 @@
 import pytest
-from publishers.__init__ import create_app
+from dotenv import load_dotenv
+
+load_dotenv(dotenv_path="tests/.env", override=True)
 
 
 @pytest.fixture()
 def app():
-    yield create_app("tests/.env")
+    from publishers.__init__ import create_app
+
+    yield create_app()
 
 
 @pytest.fixture

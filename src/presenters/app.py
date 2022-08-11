@@ -1,5 +1,1 @@
-from publishers.__init__ import app
-
-
-def create_app():
-    return app
+from presenters.__init__ import create_app  # noqa

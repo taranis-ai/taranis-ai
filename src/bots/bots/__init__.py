@@ -1,10 +1,15 @@
-__all__ = ['base_bot', 'grouping_bot', 'wordlist_updater_bot', 'analyst_bot', 'tagging_bot', 'nlp_bot']
-from . import grouping_bot, wordlist_updater_bot, analyst_bot, tagging_bot, nlp_bot
+from flask import Flask
+from flask_cors import CORS
+import bots.managers as managers
 
-bot_list = [
-    analyst_bot.AnalystBot(),
-    grouping_bot.GroupingBot(),
-    wordlist_updater_bot.WordlistUpdaterBot(),
-    tagging_bot.TaggingBot(),
-    nlp_bot.NLPBot()
-  ]
+
+def create_app():
+    app = Flask(__name__)
+    app.config.from_object("bots.config.Config")
+
+    with app.app_context():
+        CORS(app)
+
+        managers.api_manager.initialize(app)
+        managers.bots_manager.initialize()
+    return app

@@ -1,4 +1,4 @@
-import { getManualOSINTSources, getNewsItemsByGroup, getOSINTSourceGroupsList, getNewsItemAggregate, getOSINTSourcesList } from '@/api/assess'
+import { getNewsItemsByGroup, getOSINTSourceGroupsList, getNewsItemAggregate, getOSINTSourcesList } from '@/api/assess'
 import { getField, updateField } from 'vuex-map-fields'
 import { xor } from 'lodash'
 
@@ -24,10 +24,10 @@ const actions = {
 
   updateNewsItemsByGroup(context, data) {
     if (data.group_id) {
-    return getNewsItemsByGroup(data.group_id, data.data)
-      .then(response => {
-        context.commit('UPDATE_NEWSITEMS', response.data)
-      })
+      return getNewsItemsByGroup(data.group_id, data.data)
+        .then(response => {
+          context.commit('UPDATE_NEWSITEMS', response.data)
+        })
     }
   },
 

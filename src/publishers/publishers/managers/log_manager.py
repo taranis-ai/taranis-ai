@@ -16,9 +16,7 @@ class Logger:
             try:
                 syslog_address = os.getenv("SYSLOG_ADDRESS")
                 syslog_port = int(os.getenv("SYSLOG_PORT"), 514)
-                sys_log_handler = logging.handlers.SysLogHandler(
-                    address=(syslog_address, syslog_port), socktype=socket.SOCK_STREAM
-                )
+                sys_log_handler = logging.handlers.SysLogHandler(address=(syslog_address, syslog_port), socktype=socket.SOCK_STREAM)
             except Exception as ex:
                 self.log_debug("Unable to connect to syslog server!")
                 self.log_debug(ex)

@@ -6,7 +6,7 @@ import jinja2
 import pdfkit
 
 from .base_presenter import BasePresenter
-from presenters.schema.parameter import Parameter, ParameterType
+from shared.schema.parameter import Parameter, ParameterType
 
 
 class PDFPresenter(BasePresenter):
@@ -45,20 +45,11 @@ class PDFPresenter(BasePresenter):
         try:
             temporary_directory = f"{tempfile.gettempdir()}/"
             output_body_html = f"{temporary_directory}pdf_body.html"
-            output_pdf = (
-                f"{temporary_directory}pdf_report__"
-                + datetime.datetime.now().strftime("%d-%m-%Y_%H:%M")
-            ) + ".pdf"
+            output_pdf = (f"{temporary_directory}pdf_report__" + datetime.datetime.now().strftime("%d-%m-%Y_%H:%M")) + ".pdf"
 
-            pdf_header_template = presenter_input.parameter_values_map[
-                "HEADER_TEMPLATE_PATH"
-            ]
-            pdf_footer_template = presenter_input.parameter_values_map[
-                "FOOTER_TEMPLATE_PATH"
-            ]
-            head, tail = os.path.split(
-                presenter_input.parameter_values_map["BODY_TEMPLATE_PATH"]
-            )
+            pdf_header_template = presenter_input.parameter_values_map["HEADER_TEMPLATE_PATH"]
+            pdf_footer_template = presenter_input.parameter_values_map["FOOTER_TEMPLATE_PATH"]
+            head, tail = os.path.split(presenter_input.parameter_values_map["BODY_TEMPLATE_PATH"])
 
             input_data = BasePresenter.generate_input_data(presenter_input)
 
@@ -87,9 +78,7 @@ class PDFPresenter(BasePresenter):
                 "enable-local-file-access": None,
             }
 
-            pdfkit.from_file(
-                input=output_body_html, output_path=output_pdf, options=options
-            )
+            pdfkit.from_file(input=output_body_html, output_path=output_pdf, options=options)
 
             encoding = "UTF-8"
             file = output_pdf

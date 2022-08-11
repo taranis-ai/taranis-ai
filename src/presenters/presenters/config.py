@@ -1,6 +1,14 @@
-import os
+from pydantic import BaseSettings
 
 
-class Config:
-    API_KEY = os.getenv("API_KEY")
-    SSL_VERIFICATION = os.getenv("SSL_VERIFICATION")
+class Settings(BaseSettings):
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+
+    API_KEY: str
+    SSL_VERIFICATION: bool = False
+    MODULE_ID: str = "Presenters"
+
+
+Config = Settings()
