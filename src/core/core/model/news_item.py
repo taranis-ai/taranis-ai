@@ -85,7 +85,6 @@ class NewsItemData(db.Model):
         content,
         osint_source_id,
         attributes,
-        tags,
     ):
         self.id = str(uuid.uuid4()) if id is None else id
         self.hash = hash
@@ -98,7 +97,6 @@ class NewsItemData(db.Model):
         self.collected = collected
         self.content = content
         self.attributes = attributes
-        self.tags = tags
         self.osint_source_id = osint_source_id
 
     @classmethod
@@ -1047,6 +1045,17 @@ class NewsItemAggregate(db.Model):
 
         # TODO: Change condition in query to >
         news_item_aggregates = cls.query.filter(cls.osint_source_group_id == source_group).filter(cls.created > limit).all()
+        news_item_aggregate_schema = NewsItemAggregateSchema(many=True)
+        return news_item_aggregate_schema.dumps(news_item_aggregates)
+
+    @classmethod
+    def get_default_news_items_aggregate(cls, limit):
+
+        limit = limit or datetime.now() - timedelta(weeks=8)
+
+        source_group = OSINTSourceGroup.get_default()
+        logger.log_debug(source_group)
+        news_item_aggregates = cls.query.filter(cls.osint_source_group_id == source_group.id).filter(cls.created > limit).all()
         news_item_aggregate_schema = NewsItemAggregateSchema(many=True)
         return news_item_aggregate_schema.dumps(news_item_aggregates)
 

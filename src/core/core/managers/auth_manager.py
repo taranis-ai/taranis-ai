@@ -197,19 +197,20 @@ def api_key_required(fn):
         error = ({"error": "not authorized"}, 401)
 
         # do we have the authorization header?
-        if not request.headers.has_key("Authorization"):
+        auth_header = request.headers.get("Authorization", None)
+        if not auth_header:
             logger.store_auth_error_activity("Missing Authorization header for external access")
             return error
 
-        # is it properly encoded?
-        auth_header = request.headers["Authorization"]
         if not auth_header.startswith("Bearer"):
             logger.store_auth_error_activity("Missing Authorization Bearer for external access")
             return error
 
+        api_key = auth_header.replace("Bearer ", "")
+
         # does it match some of our collector's keys?
-        if not CollectorsNode.exists_by_api_key(auth_header.replace("Bearer ", "")):
-            logger.store_auth_error_activity("Incorrect api key: " + auth_header.replace("Bearer ", "") + " for external access")
+        if not CollectorsNode.exists_by_api_key(api_key) and Config.API_KEY != api_key:
+            logger.store_auth_error_activity(f"Incorrect api key: {api_key} for external access")
             return error
 
         # allow
@@ -223,13 +224,11 @@ def access_key_required(fn):
     def wrapper(*args, **kwargs):
         error = ({"error": "not authorized"}, 401)
 
-        # do we have the authorization header?
-        if not request.headers.has_key("Authorization"):
+        auth_header = request.headers.get("Authorization", None)
+        if not auth_header:
             logger.store_auth_error_activity("Missing Authorization header for remote access")
             return error
 
-        # is it properly encoded?
-        auth_header = request.headers["Authorization"]
         if not auth_header.startswith("Bearer"):
             logger.store_auth_error_activity("Missing Authorization Bearer for remote access")
             return error
@@ -243,32 +242,6 @@ def access_key_required(fn):
         return fn(*args, **kwargs)
 
     return wrapper
-
-
-# def jwt_required(fn):
-#     @wraps(fn)
-#     def wrapper(*args, **kwargs):
-
-#         try:
-#             verify_jwt_in_request()
-#         except JWTExtendedException:
-#             logger.store_auth_error_activity("Missing JWT")
-#             return {"error": "authorization required"}, 401
-
-#         identity = get_jwt_identity()
-#         if not identity:
-#             logger.store_auth_error_activity(f"Missing identity in JWT: {get_jwt()}")
-#             return {"error": "authorization failed"}, 401
-
-#         user = User.find(identity)
-#         if user is None:
-#             logger.store_auth_error_activity(f"Unknown identity: {identity}")
-#             return {"error": "authorization failed"}, 401
-
-#         logger.store_user_activity(user, "API_ACCESS", "Access permitted")
-#         return fn(*args, **kwargs)
-
-#     return wrapper
 
 
 def get_access_key():

@@ -1,4 +1,5 @@
 from flask import request
+import json
 from flask_restful import Resource, reqparse
 from datetime import datetime, timedelta
 
@@ -57,7 +58,6 @@ class UpdateNewsItemTags(Resource):
 class GetNewsItemsAggregate(Resource):
     @api_key_required
     def get(self, group_id):
-        import json
 
         resp_str = news_item.NewsItemAggregate.get_news_items_aggregate(group_id, request.json)
         return json.loads(resp_str)
@@ -66,9 +66,7 @@ class GetNewsItemsAggregate(Resource):
 class GetDefaultNewsItemsAggregate(Resource):
     @api_key_required
     def get(self):
-        import json
-
-        resp_str = news_item.NewsItemAggregate.get_news_items_aggregate("3c8ef48d-411a-42ce-a0d6-7fd971676ff3", request.json)
+        resp_str = news_item.NewsItemAggregate.get_default_news_items_aggregate(request.args.get("limit"))
         return json.loads(resp_str)
 
 

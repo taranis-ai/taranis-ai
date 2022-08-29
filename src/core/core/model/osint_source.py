@@ -304,7 +304,7 @@ class OSINTSourceGroup(db.Model):
         self.id = group_id or str(uuid.uuid4())
         self.name = name
         self.description = description
-        self.default = False
+        self.default = default
         self.tag = ""
         self.osint_sources = [OSINTSource.find(osint_source.id) for osint_source in osint_sources]
 
