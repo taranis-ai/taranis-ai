@@ -3,7 +3,7 @@ from sqlalchemy import func, or_, orm
 import uuid
 
 from core.managers.db_manager import db
-from core.schema.bots_node import BotsNodeSchema, BotsNodePresentationSchema
+from shared.schema.bots_node import BotsNodeSchema, BotsNodePresentationSchema
 
 
 class NewBotsNodeSchema(BotsNodeSchema):

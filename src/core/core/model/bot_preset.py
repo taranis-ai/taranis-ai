@@ -5,7 +5,7 @@ from sqlalchemy import func, or_, orm
 from core.managers.db_manager import db
 from core.model.bots_node import BotsNode
 from core.model.parameter_value import NewParameterValueSchema
-from core.schema.bot_preset import BotPresetSchema, BotPresetPresentationSchema
+from shared.schema.bot_preset import BotPresetSchema, BotPresetPresentationSchema
 
 
 class NewBotPresetSchema(BotPresetSchema):

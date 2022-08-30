@@ -2,7 +2,7 @@ from core.model.bots_node import BotsNode
 from core.model.bot import Bot
 from core.model.bot_preset import BotPreset
 from core.remote.bots_api import BotsApi
-from core.schema.bots_node import BotsNode as BotsNodeSchema
+from shared.schema.bots_node import BotsNode as BotsNodeSchema
 from core.managers.log_manager import logger
 
 

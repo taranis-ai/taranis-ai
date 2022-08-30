@@ -3,7 +3,7 @@ import uuid
 
 from core.managers.db_manager import db
 from core.model.parameter import NewParameterSchema
-from core.schema.bot import BotSchema
+from shared.schema.bot import BotSchema
 
 
 class NewBotSchema(BotSchema):

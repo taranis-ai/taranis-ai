@@ -5,8 +5,8 @@ from sqlalchemy.sql.expression import cast
 
 from core.managers.db_manager import db
 from core.model.acl_entry import ACLEntry
-from core.schema.acl_entry import ItemType
-from core.schema.word_list import (
+from shared.schema.acl_entry import ItemType
+from shared.schema.word_list import (
     WordListCategorySchema,
     WordListEntrySchema,
     WordListSchema,

@@ -6,15 +6,15 @@ from core.managers.db_manager import db
 from core.model.report_item import ReportItem
 from core.model.user import User
 from core.model.notification_template import NotificationTemplate
-from core.schema.asset import (
+from shared.schema.asset import (
     AssetCpeSchema,
     AssetSchema,
     AssetPresentationSchema,
     AssetGroupSchema,
     AssetGroupPresentationSchema,
 )
-from core.schema.user import UserIdSchema
-from core.schema.notification_template import NotificationTemplateIdSchema
+from shared.schema.user import UserIdSchema
+from shared.schema.notification_template import NotificationTemplateIdSchema
 
 
 class NewAssetCpeSchema(AssetCpeSchema):

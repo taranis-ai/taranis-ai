@@ -1,7 +1,7 @@
 from marshmallow import post_load
 
 from core.managers.db_manager import db
-from core.schema.address import AddressSchema
+from shared.schema.address import AddressSchema
 
 
 class NewAddressSchema(AddressSchema):

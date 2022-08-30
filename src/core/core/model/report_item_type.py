@@ -6,8 +6,8 @@ from sqlalchemy.sql.expression import cast
 from core.managers.db_manager import db
 from core.model.acl_entry import ACLEntry
 from core.model.attribute import Attribute
-from core.schema.acl_entry import ItemType
-from core.schema.report_item_type import (
+from shared.schema.acl_entry import ItemType
+from shared.schema.report_item_type import (
     AttributeGroupItemSchema,
     AttributeGroupBaseSchema,
     ReportItemTypeBaseSchema,

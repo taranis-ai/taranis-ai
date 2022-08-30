@@ -3,7 +3,7 @@ import uuid
 
 from core.managers.db_manager import db
 from core.model.parameter import NewParameterSchema
-from core.schema.presenter import PresenterSchema
+from shared.schema.presenter import PresenterSchema
 
 
 class NewPresenterSchema(PresenterSchema):

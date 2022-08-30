@@ -5,7 +5,7 @@ from core.managers import sse_manager
 from core.managers.auth_manager import api_key_required
 from core.managers.log_manager import logger
 from core.model import osint_source, collectors_node, news_item
-from core.schema.osint_source import OSINTSourceUpdateStatusSchema
+from shared.schema.osint_source import OSINTSourceUpdateStatusSchema
 
 
 class OSINTSourcesForCollectors(Resource):

@@ -10,8 +10,8 @@ from core.model.acl_entry import ACLEntry
 from core.model.collector import Collector
 from core.model.parameter_value import NewParameterValueSchema, ParameterValue
 from core.model.word_list import WordList
-from core.schema.acl_entry import ItemType
-from core.schema.osint_source import (
+from shared.schema.acl_entry import ItemType
+from shared.schema.osint_source import (
     OSINTSourceSchema,
     OSINTSourceGroupSchema,
     OSINTSourceIdSchema,
@@ -21,7 +21,7 @@ from core.schema.osint_source import (
     OSINTSourceGroupSchemaBase,
     OSINTSourceCollectorSchema,
 )
-from core.schema.word_list import WordListIdSchema
+from shared.schema.word_list import WordListIdSchema
 
 
 class NewOSINTSourceSchema(OSINTSourceSchema):

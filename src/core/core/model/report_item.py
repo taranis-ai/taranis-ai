@@ -10,16 +10,16 @@ from core.model.news_item import NewsItemAggregate
 from core.model.report_item_type import AttributeGroupItem
 from core.model.report_item_type import ReportItemType
 from core.model.acl_entry import ACLEntry
-from core.schema.acl_entry import ItemType
-from core.schema.attribute import AttributeType
-from core.schema.news_item import NewsItemAggregateIdSchema, NewsItemAggregateSchema
-from core.schema.report_item import (
+from shared.schema.acl_entry import ItemType
+from shared.schema.attribute import AttributeType
+from shared.schema.news_item import NewsItemAggregateIdSchema, NewsItemAggregateSchema
+from shared.schema.report_item import (
     ReportItemAttributeBaseSchema,
     ReportItemBaseSchema,
     ReportItemIdSchema,
     RemoteReportItemSchema,
 )
-from core.schema.report_item import (
+from shared.schema.report_item import (
     ReportItemRemoteSchema,
     ReportItemSchema,
     ReportItemPresentationSchema,

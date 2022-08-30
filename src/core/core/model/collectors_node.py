@@ -6,7 +6,7 @@ from sqlalchemy import orm, or_, func
 
 from core.managers.db_manager import db
 from core.managers.log_manager import logger
-from core.schema.collectors_node import (
+from shared.schema.collectors_node import (
     CollectorsNodeSchema,
 )
 

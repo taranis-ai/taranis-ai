@@ -10,8 +10,8 @@ from core.managers.log_manager import logger
 from core.model.acl_entry import ACLEntry
 from core.model.osint_source import OSINTSourceGroup, OSINTSource
 from core.model.tag_cloud import TagCloud
-from core.schema.acl_entry import ItemType
-from core.schema.news_item import (
+from shared.schema.acl_entry import ItemType
+from shared.schema.news_item import (
     NewsItemDataSchema,
     NewsItemAggregateSchema,
     NewsItemAttributeSchema,

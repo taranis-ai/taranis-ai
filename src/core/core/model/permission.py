@@ -1,7 +1,7 @@
 from sqlalchemy import func, or_
 
 from core.managers.db_manager import db
-from core.schema.role import PermissionSchema
+from shared.schema.role import PermissionSchema
 
 
 class Permission(db.Model):

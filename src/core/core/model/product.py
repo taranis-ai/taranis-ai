@@ -8,9 +8,9 @@ from sqlalchemy.sql.expression import cast
 from core.managers.db_manager import db
 from core.model.acl_entry import ACLEntry
 from core.model.report_item import ReportItem
-from core.schema.acl_entry import ItemType
-from core.schema.product import ProductPresentationSchema, ProductSchemaBase
-from core.schema.report_item import ReportItemIdSchema
+from shared.schema.acl_entry import ItemType
+from shared.schema.product import ProductPresentationSchema, ProductSchemaBase
+from shared.schema.report_item import ReportItemIdSchema
 
 
 class NewProductSchema(ProductSchemaBase):

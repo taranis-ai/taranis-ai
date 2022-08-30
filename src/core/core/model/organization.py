@@ -3,7 +3,7 @@ from sqlalchemy import func, or_, orm
 
 from core.managers.db_manager import db
 from core.model.address import NewAddressSchema
-from core.schema.organization import OrganizationSchema, OrganizationPresentationSchema
+from shared.schema.organization import OrganizationSchema, OrganizationPresentationSchema
 
 
 class NewOrganizationSchema(OrganizationSchema):

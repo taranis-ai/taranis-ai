@@ -35,7 +35,7 @@ from core.model import (
 )
 from core.model.news_item import NewsItemAggregate
 from core.model.permission import Permission
-from core.schema.role import PermissionSchema
+from shared.schema.role import PermissionSchema
 
 
 class DictionariesReload(Resource):

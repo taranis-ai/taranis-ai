@@ -3,7 +3,7 @@ from sqlalchemy import func, or_, orm
 import uuid
 
 from core.managers.db_manager import db
-from core.schema.publishers_node import (
+from shared.schema.publishers_node import (
     PublishersNodeSchema,
     PublishersNodePresentationSchema,
 )

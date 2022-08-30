@@ -2,8 +2,8 @@ from core.model.presenters_node import PresentersNode
 from core.model.presenter import Presenter
 from core.model.product import Product
 from core.remote.presenters_api import PresentersApi
-from core.schema.presenters_node import PresentersNode as PresentersNodeSchema
-from core.schema.presenter import PresenterInput, PresenterInputSchema
+from shared.schema.presenters_node import PresentersNode as PresentersNodeSchema
+from shared.schema.presenter import PresenterInput, PresenterInputSchema
 
 
 def add_presenters_node(data):

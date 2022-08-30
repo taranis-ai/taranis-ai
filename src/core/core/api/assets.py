@@ -4,7 +4,7 @@ from flask_restful import Resource
 from core.managers import auth_manager
 from core.managers.auth_manager import auth_required
 from core.model import asset, notification_template, attribute
-from core.schema.attribute import AttributeType
+from shared.schema.attribute import AttributeType
 
 
 class AssetGroups(Resource):

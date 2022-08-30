@@ -4,9 +4,9 @@ from marshmallow import fields, post_load
 from core.managers.db_manager import db
 from core.model.role import Role
 from core.model.user import User
-from core.schema.role import RoleIdSchema
-from core.schema.user import UserIdSchema
-from core.schema.acl_entry import ACLEntrySchema, ACLEntryPresentationSchema, ItemType
+from shared.schema.role import RoleIdSchema
+from shared.schema.user import UserIdSchema
+from shared.schema.acl_entry import ACLEntrySchema, ACLEntryPresentationSchema, ItemType
 
 
 class NewACLEntrySchema(ACLEntrySchema):

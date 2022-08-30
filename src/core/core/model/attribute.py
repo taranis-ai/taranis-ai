@@ -5,7 +5,7 @@ from sqlalchemy import orm, func, or_
 
 from core.managers.log_manager import logger
 from core.managers.db_manager import db
-from core.schema.attribute import (
+from shared.schema.attribute import (
     AttributeBaseSchema,
     AttributeEnumSchema,
     AttributeType,

@@ -6,14 +6,14 @@ from sqlalchemy import orm, func, or_, and_
 from core.managers.db_manager import db
 from core.model.osint_source import OSINTSource
 from core.model.report_item_type import ReportItemType
-from core.schema.osint_source import OSINTSourceIdSchema
-from core.schema.remote import (
+from shared.schema.osint_source import OSINTSourceIdSchema
+from shared.schema.remote import (
     RemoteAccessSchema,
     RemoteAccessPresentationSchema,
     RemoteNodeSchema,
     RemoteNodePresentationSchema,
 )
-from core.schema.report_item_type import ReportItemTypeIdSchema
+from shared.schema.report_item_type import ReportItemTypeIdSchema
 
 
 class NewRemoteAccessSchema(RemoteAccessSchema):

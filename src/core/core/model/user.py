@@ -5,14 +5,14 @@ from core.managers.db_manager import db
 from core.model.role import Role
 from core.model.permission import Permission
 from core.model.organization import Organization
-from core.schema.user import (
+from shared.schema.user import (
     UserSchemaBase,
     UserProfileSchema,
     HotkeySchema,
     UserPresentationSchema,
 )
-from core.schema.role import RoleIdSchema, PermissionIdSchema
-from core.schema.organization import OrganizationIdSchema
+from shared.schema.role import RoleIdSchema, PermissionIdSchema
+from shared.schema.organization import OrganizationIdSchema
 
 
 class NewUserSchema(UserSchemaBase):
