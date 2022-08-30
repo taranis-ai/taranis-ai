@@ -1248,68 +1248,61 @@ def pre_seed_report_items():
 
 
 def pre_seed_wordlists():
-    from core.model.word_list import WordList, WordListCategory
+    from core.model.word_list import WordList
 
-    en_wordlist_category = WordListCategory(
-        name="Default EN stop list",
-        description="Source: https://www.maxqda.de/hilfe-mx20-dictio/stopp-listen",
-        entries=[],
-        link="https://raw.githubusercontent.com/SK-CERT/Taranis-NG/main/resources/wordlists/en_complete.csv",
-    )
-    db.session.add(en_wordlist_category)
-    db.session.commit()
+    if not db.session.query(WordList).filter_by(name="Default EN stop list").first():
+        WordList.add_new(
+            {
+                "id": -1,
+                "name": "Default EN stop list",
+                "description": "English stop-word list packed with the standard Taranis NG installation.",
+                "categories": [
+                    {
+                        "name": "Default EN stop list",
+                        "description": "Source: https://www.maxqda.de/hilfe-mx20-dictio/stopp-listen",
+                        "entries": [],
+                        "link": "https://raw.githubusercontent.com/SK-CERT/Taranis-NG/main/resources/wordlists/en_complete.csv",
+                    }
+                ],
+                "use_for_stop_words": True,
+            }
+        )
 
-    en_wordlist = WordList(
-        None,
-        "Default EN stop list",
-        "English stop-word list packed with the standard Taranis NG installation.",
-        [en_wordlist_category],
-        True,
-    )
-    db.session.add(en_wordlist)
-    db.session.commit()
+    if not db.session.query(WordList).filter_by(name="Default SK stop list").first():
+        WordList.add_new(
+            {
+                "id": -1,
+                "name": "Default SK stop list",
+                "description": "Slovak stop-word list packed with the standard Taranis NG installation.",
+                "categories": [
+                    {
+                        "name": "Default SK stop list",
+                        "description": "Source: https://github.com/stopwords-iso/stopwords-sk/blob/master/stopwords-sk.txt",
+                        "entries": [],
+                        "link": "https://raw.githubusercontent.com/SK-CERT/Taranis-NG/main/resources/wordlists/sk_complete.csv",
+                    }
+                ],
+                "use_for_stop_words": True,
+            }
+        )
 
-    # Slovak
-
-    sk_wordlist_category = WordListCategory(
-        name="Default SK stop list",
-        description="Source: https://github.com/stopwords-iso/stopwords-sk/blob/master/stopwords-sk.txt",
-        entries=[],
-        link="https://raw.githubusercontent.com/SK-CERT/Taranis-NG/main/resources/wordlists/sk_complete.csv",
-    )
-    db.session.add(sk_wordlist_category)
-    db.session.commit()
-
-    sk_wordlist = WordList(
-        None,
-        "Default SK stop list",
-        "Slovak stop-word list packed with the standard Taranis NG installation.",
-        [sk_wordlist_category],
-        True,
-    )
-    db.session.add(sk_wordlist)
-    db.session.commit()
-
-    # Highlighting
-
-    highlighting_wordlist_category = WordListCategory(
-        name="Default highlighting wordlist",
-        description="Sources: https://www.allot.com/100-plus-cybersecurity-terms-definitions/, https://content.teamascend.com/cybersecurity-glossary",  # noqa
-        entries=[],
-        link="https://raw.githubusercontent.com/SK-CERT/Taranis-NG/main/resources/wordlists/highlighting.csv",
-    )
-    db.session.add(highlighting_wordlist_category)
-    db.session.commit()
-
-    highlighting_wordlist = WordList(
-        None,
-        "Default highlighting wordlist",
-        "Default highlighting list packed with the standard Taranis NG installation.",
-        [highlighting_wordlist_category],
-        False,
-    )
-    db.session.add(highlighting_wordlist)
-    db.session.commit()
+    if not db.session.query(WordList).filter_by(name="Default highlighting wordlist").first():
+        WordList.add_new(
+            {
+                "id": -1,
+                "name": "Default highlighting wordlist",
+                "description": "Default highlighting list packed with the standard Taranis NG installation.",
+                "categories": [
+                    {
+                        "name": "Default highlighting wordlist",
+                        "description": "Source: https://www.allot.com/100-plus-cybersecurity-terms-definitions/",
+                        "entries": [],
+                        "link": "https://raw.githubusercontent.com/SK-CERT/Taranis-NG/main/resources/wordlists/highlighting.csv",
+                    }
+                ],
+                "use_for_stop_words": True,
+            }
+        )
 
 
 def pre_seed_default_user():

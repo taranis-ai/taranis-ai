@@ -118,7 +118,7 @@ export default {
     rules: {
       vector: value => {
         const pattern = /^CVSS:3\.1\/((AV:[NALP]|AC:[LH]|PR:[UNLH]|UI:[NR]|S:[UC]|[CIA]:[NLH]|E:[XUPFH]|RL:[XOTWU]|RC:[XURC]|[CIA]R:[XLMH]|MAV:[XNALP]|MAC:[XLH]|MPR:[XUNLH]|MUI:[XNR]|MS:[XUC]|M[CIA]:[XNLH])\/)*(AV:[NALP]|AC:[LH]|PR:[UNLH]|UI:[NR]|S:[UC]|[CIA]:[NLH]|E:[XUPFH]|RL:[XOTWU]|RC:[XURC]|[CIA]R:[XLMH]|MAV:[XNALP]|MAC:[XLH]|MPR:[XUNLH]|MUI:[XNR]|MS:[XUC]|M[CIA]:[XNLH])$/
-        return value == '' || pattern.test(value) || 'Invalid or Incomplete Vector String'
+        return value === '' || pattern.test(value) || 'Invalid or Incomplete Vector String'
       }
     }
   }),
@@ -127,11 +127,6 @@ export default {
     CalculatorCVSS,
     AttributeItemLayout,
     AttributeValueLayout
-  },
-  computed: {
-    /* putValue() {
-                return this.values[0].value;
-            } */
   },
   methods: {
     updateValue (e) {

@@ -192,7 +192,7 @@ export default {
       scope: (state) => state.newsItemsFilter.scope,
       filter: (state) => state.newsItemsFilter.filter,
       order: (state) => state.newsItemsFilter.order
-    }),
+    })
     // ...mapState('filter', ['newsItemsFilter'])
     // getData () {
     //   return this.$store.getters.getDashboardData
@@ -217,15 +217,21 @@ export default {
     updateScope () {
       var filter
       this.scope.sources.forEach(function(source) {
-        filter = { 'group_id': source.id, 
-          'data': { 'offset': 10, 'limit': 15, 'filter': { 
-          'search': '',
-          'sort': '',
-          'range': '',
-          'in_analyze': false,
-          'relevant': false,
-          'important': false
-        }}}
+        filter = {
+          group_id: source.id,
+          data: {
+            offset: 10,
+            limit: 15,
+            filter: {
+              search: '',
+              sort: '',
+              range: '',
+              in_analyze: false,
+              relevant: false,
+              important: false
+            }
+          }
+        }
       })
       if (filter) {
         this.updateNewsItemsByGroup(filter)
@@ -249,16 +255,17 @@ export default {
     }
   },
   created () {
-  this.updateSourcesList()
-  this.unsubscribe = this.$store.subscribe((mutation, state) => {
-    if (mutation.type === 'assess/setOSINTSourceGroups') {
-      this.updateSourcesList()
-    }
-  });
+    this.updateSourcesList()
+    this.unsubscribe = this.$store.subscribe((mutation, state) => {
+      console.log(state)
+      if (mutation.type === 'assess/setOSINTSourceGroups') {
+        this.updateSourcesList()
+      }
+    })
   },
 
   beforeDestroy () {
-    this.unsubscribe();
+    this.unsubscribe()
   },
   watch: {
     searchQuery: function () {

@@ -124,7 +124,7 @@
                       </template>
 
                       <popup-share-sharing-set
-                        v-model:dialog="shareDialog"
+                        v-model="shareDialog"
                         :sharingSet="topic"
                         :currentRecipientList="getSharedWith()"
                         :hasRestrictedItems="

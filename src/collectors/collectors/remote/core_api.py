@@ -8,7 +8,7 @@ class CoreApi:
     def __init__(self):
         self.api_url = Config.TARANIS_NG_CORE_URL
         self.api_key = Config.API_KEY
-        self.headers = {"Authorization": f"Bearer {self.api_key}"}
+        self.headers = {"Authorization": f"Bearer {self.api_key}", "Content-type": "application/json"}
         self.config_file = Config.COLLECTOR_CONFIG_FILE
         self.collector_id = self.get_collector_id()
 
@@ -26,9 +26,7 @@ class CoreApi:
                 self.api_url
                 + "/api/v1/collectors/"
                 + urllib.parse.quote(self.collector_id)
-                + "/osint-sources?api_key="
-                + urllib.parse.quote(self.api_key)
-                + "&collector_type="
+                + "/osint-sources?collector_type="
                 + urllib.parse.quote(collector_type),
                 headers=self.headers,
             )

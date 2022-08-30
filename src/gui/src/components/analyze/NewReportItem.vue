@@ -86,7 +86,6 @@
 
                 </v-toolbar>
 
-
                 <v-row>
                     <v-col :cols="verticalView ? 6 : 12" :style="verticalView ? 'height:calc(100vh - 3em); overflow-y: auto;' : ''">
                         <v-form @submit.prevent="add" id="form" ref="form" class="px-4">
@@ -1250,7 +1249,8 @@ export default {
     },
 
     expand_groups () {
-      return this.expand_panel_groups = Array.from(Array(this.attribute_groups.length).keys())
+      this.expand_panel_groups = Array.from(Array(this.attribute_groups.length).keys())
+      return this.expand_panel_groups
     },
 
     findAttributeType () {
@@ -1268,7 +1268,7 @@ export default {
     },
     importCSV () {
       const csv_lines = this.csv.length
-      const sorted_csv = new Array()
+      const sorted_csv = []
 
       for (let c = 0; c < this.csv_struct.length; c++) {
         sorted_csv.push([])

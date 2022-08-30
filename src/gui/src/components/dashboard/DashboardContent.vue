@@ -51,7 +51,7 @@
 </template>
 
 <script>
-import wordcloud from 'vue-wordcloud'
+// import wordcloud from 'vue-wordcloud'
 import DashboardSelectionToolbar from '@/components/dashboard/DashboardSelectionToolbar'
 import CardTopic from '@/components/common/card/CardTopic'
 import Loader from '@/components/common/Loader'
@@ -63,7 +63,7 @@ import moment from 'moment'
 export default {
   name: 'DashboardContent',
   components: {
-    wordcloud,
+    // wordcloud,
     CardTopic,
     DashboardSelectionToolbar,
     Loader
@@ -102,7 +102,6 @@ export default {
     }
   },
   computed: {
-    
     ...mapState('filter',
       {
         filter: state => state.topicsFilter.filter,
@@ -223,11 +222,10 @@ export default {
         // this.getTopicsData()
         // this.unselectAllTopics()
       }
-    });
+    })
   },
-
   beforeDestroy() {
-    this.unsubscribe();
+    this.unsubscribe()
   }
 }
 </script>

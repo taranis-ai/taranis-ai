@@ -232,7 +232,6 @@
 
 <script>
 import { mapActions, mapGetters, mapState } from 'vuex'
-import { faker } from '@faker-js/faker'
 
 export default {
   name: 'PopupShareItems',
@@ -286,7 +285,7 @@ export default {
       newSharingSet.title = this.sharingSetTitle
       newSharingSet.summary = this.sharingSetSummary
         ? this.sharingSetSummary
-        : 'this is an AI created summary ... ' + faker.lorem.paragraph(10) // should be replaced by NLP algorithm
+        : 'this is an AI created summary ... ' // should be replaced by NLP algorithm
       newSharingSet.id = Math.floor(Math.random() * (700 - 500 + 1)) + 500 // get ID from creation
 
       this.createNewTopic(newSharingSet)

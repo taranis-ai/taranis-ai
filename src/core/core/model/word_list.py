@@ -166,7 +166,7 @@ class WordListCategory(db.Model):
     def __init__(self, name, description, link, entries):
         self.id = None
         self.name = name
-        self.description = "" if description is None else description
+        self.description = description or ""
         self.link = link
         self.entries = entries
 
@@ -184,6 +184,13 @@ class WordListCategory(db.Model):
         word_list_categories_schema = NewWordListCategorySchema(many=True)
         return word_list_categories_schema.dump(categories)
 
+    @classmethod
+    def add_new(cls, data):
+        schema = NewWordListCategorySchema()
+        word_list_category = schema.load(data)
+        db.session.add(word_list_category)
+        db.session.commit()
+
 
 class WordListEntry(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -195,7 +202,7 @@ class WordListEntry(db.Model):
     def __init__(self, value, description):
         self.id = None
         self.value = value
-        self.description = "" if description is None else description
+        self.description = description or ""
 
     @classmethod
     def identical(cls, value, word_list_category_id):

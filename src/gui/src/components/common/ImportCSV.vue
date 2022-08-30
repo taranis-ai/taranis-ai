@@ -72,7 +72,7 @@
 import { drop, every, forEach, get, isArray, map, set } from 'lodash'
 import axios from 'axios'
 import Papa from 'papaparse'
-import mimeTypes from 'mime-types'
+// import mimeTypes from 'mime-types'
 
 export default {
   props: {
@@ -228,7 +228,7 @@ export default {
     },
     validFileMimeType () {
       const file = this.$refs.csv.files[0]
-      const mimeType = file.type === '' ? mimeTypes.lookup(file.name) : file.type
+      const mimeType = file.type
 
       if (file) {
         this.fileSelected = true
@@ -291,9 +291,9 @@ export default {
       handler: function (newVal) {
         if (!this.url) {
           const hasAllKeys = Array.isArray(this.mapFields) ? every(this.mapFields, function (item) {
-            return newVal.hasOwnProperty(item)
+            return Object.prototype.hasOwnProperty.call(newVal, item)
           }) : every(this.mapFields, function (item, key) {
-            return newVal.hasOwnProperty(key)
+            return Object.prototype.hasOwnProperty.call(newVal, key)
           })
 
           if (hasAllKeys) {

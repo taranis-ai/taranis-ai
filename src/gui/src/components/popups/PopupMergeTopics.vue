@@ -188,7 +188,6 @@
 <script>
 import { mapActions, mapGetters } from 'vuex'
 import { xorConcat } from '@/utils/helpers'
-import { faker } from '@faker-js/faker'
 
 import buttonSolid from '@/components/_subcomponents/buttonSolid'
 import buttonOutlined from '@/components/_subcomponents/buttonOutlined'
@@ -244,7 +243,7 @@ export default {
       mergedTopic.title = this.mergeTitle
       mergedTopic.summary = this.mergeSummary
         ? this.mergeSummary
-        : 'this is an AI created summary ... ' + faker.lorem.paragraph(10) // should be replaced by NLP algorithm
+        : 'this is an AI created summary ... ' // should be replaced by NLP algorithm
       mergedTopic.id = Math.floor(Math.random() * (1000 - 800 + 1)) + 800
 
       // reset selection

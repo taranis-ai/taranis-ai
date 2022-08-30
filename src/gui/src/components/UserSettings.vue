@@ -191,7 +191,7 @@ export default {
       // check doubles and clear
       this.shortcuts.forEach(
         (doubleKey, i) => {
-          if (doubleKey.key_code == key.keyCode && i != hotkeyIndex) {
+          if (doubleKey.key_code === key.keyCode && i !== hotkeyIndex) {
             this.shortcuts[i].key_code = 0
             this.shortcuts[i].key = 'undefined'
           }

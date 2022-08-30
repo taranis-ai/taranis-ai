@@ -84,7 +84,6 @@ class NewsItemData:
         content,
         osint_source_id,
         attributes,
-        tags,
     ):
         self.id = id
         self.hash = hash
@@ -98,7 +97,6 @@ class NewsItemData:
         self.content = content
         self.osint_source_id = osint_source_id
         self.attributes = attributes
-        self.tags = tags
 
 
 class NewsItemBaseSchema(Schema):
@@ -110,6 +108,19 @@ class NewsItemBaseSchema(Schema):
     me_like = fields.Bool()
     me_dislike = fields.Bool()
     news_item_data = fields.Nested(NewsItemDataSchema)
+
+
+class NewsItemTag:
+    def __init__(self, name, tag_type):
+        self.name = name
+        self.tag_type = tag_type
+
+
+class NewsItemTagSchema(Schema):
+    id = fields.Int()
+    name = fields.Str()
+    tag_type = fields.Str()
+    n_i_d = fields.Nested(NewsItemDataSchema, many=True)
 
 
 class NewsItemPresentationSchema(NewsItemBaseSchema, ACLEntryStatusSchema):

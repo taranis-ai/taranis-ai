@@ -148,7 +148,6 @@ export default {
   }),
   methods: {
 
-    
   },
   computed: {},
   mounted () {}

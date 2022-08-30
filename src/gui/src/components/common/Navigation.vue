@@ -1,7 +1,7 @@
 <template>
     <v-layout class="navigation" fill-height justify-center>
 
-        <v-list class="navigation-list pa-0" width="100">
+        <v-list class="navigation-list pa-0">
             <v-list-item class="section-icon" dense>
                 <v-list-item-title>
                     <v-icon class="" color="white">{{icon}}</v-icon>

@@ -80,8 +80,7 @@
 </template>
 
 <script>
-import { mapActions, mapGetters, mapState } from 'vuex'
-import { xorConcat } from '@/utils/helpers'
+import { mapActions, mapGetters } from 'vuex'
 import dropdownSelection from '@/components/_subcomponents/dropdownSelection'
 
 export default {

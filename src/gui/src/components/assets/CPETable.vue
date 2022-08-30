@@ -93,7 +93,7 @@
                 </v-dialog>
             </v-toolbar>
         </template>
-        <template v-if="editAllowed()" v-slot:item.action="{ item }">
+        <template v-if="editAllowed()" v-slot:[`item.action`]="{ item }">
             <v-icon
                     small
                     class="mr-2"

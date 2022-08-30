@@ -167,7 +167,7 @@
                 </v-dialog>
             </v-toolbar>
         </template>
-        <template v-slot:item.action="{ item }">
+        <template v-slot:[`item.action`]="{ item }">
             <v-icon v-if="!disabled"
                     small
                     class="mr-2"
@@ -186,170 +186,63 @@
 </template>
 
 <script>
-    import VueCsvImport from '@/components/common/ImportCSV';
-    import VueCsvDownload from '@/components/common/DownloadCSV';
-
+import VueCsvImport from '@/components/common/ImportCSV'
+import VueCsvDownload from '@/components/common/DownloadCSV'
 export default {
-
-        name: "WordTable",
-        components: {
-            VueCsvImport,
-            VueCsvDownload
-        },
-        props: {
-            link: String,
-            words: Array,
-            id: null,
-            word_templates: Array,
-            disabled: Boolean
-        },
-        data: () => ({
-            csv: null,
-            csv_delete_exist_list: false,
-            csv_preview: false,
-            headers: [
-                {text: 'Value', value: 'value', align: 'left', sortable: true},
-                {text: 'Description', value: 'description', sortable: false},
-                {text: 'Actions', value: 'action', align: 'right', sortable: false},
-            ],
-            dialog: false,
-            dialog_csv: false,
-            dialog_download: false,
-            selected_word: null,
-            edited_index: -1,
-            edited_word: {
-                value: "",
-                description: "",
-            },
-            default_word: {
-                value: "",
-                description: "",
-            },
-        }),
-        computed: {
-            formTitle() {
-                return this.edited_index === -1 ? 'Add Word' : 'Edit Word'
-            }
-        },
-        watch: {
-            dialog(val) {
-                val || this.close()
-            },
-        },
-        methods: {
-            close() {
-                this.dialog = false;
-                setTimeout(() => {
-                    this.edited_word = Object.assign({}, this.default_word);
-                    this.edited_index = -1
-                }, 300)
-            },
-
-            save() {
-                if (this.edited_index > -1) {
-                    Object.assign(this.words[this.edited_index], this.edited_word)
-                } else {
-                    this.words.push(this.edited_word)
-                }
-                this.selected_word = null;
-                this.close()
-            },
-
-            importCSV() {
-
-                if(this.csv_delete_exist_list) {
-                    this.$emit('update-categories', {'entries':this.csv, 'index':this.id} );
-                } else {
-
-                    let arrayWithDuplicates = this.words.concat(this.csv);
-
-                    let removeDuplicates = function(originalArray, prop) {
-                        let newArray = [];
-                        let lookupObject  = {};
-
-                        for(var i in originalArray) {
-                            lookupObject[originalArray[i][prop]] = originalArray[i];
-                        }
-
-                        for(i in lookupObject) {
-                            newArray.push(lookupObject[i]);
-                        }
-
-                        return newArray;
-                    }
-
-                    let uniqueArray = removeDuplicates(arrayWithDuplicates, "value");
-                    this.$emit('update-categories', {'entries':uniqueArray, 'index':this.id} );
-                }
-
-                this.dialog_csv = false;
-                this.dialog_download = false;
-                this.csv = null;
-                this.csv_delete_exist_list = false;
-                this.$root.$emit('reset-csv-dialog');
-            },
-
-            closeCSV() {
-                this.dialog_csv = false;
-                this.csv = null;
-                this.csv_delete_exist_list = false;
-                this.$root.$emit('reset-csv-dialog');
-            },
-
-            closeDownload() {
-                this.dialog_download = false;
-                this.csv = null;
-                this.csv_delete_exist_list = false;
-                this.$root.$emit('reset-csv-dialog');
-            },
-
-            editItem(item) {
-                this.edited_index = this.words.indexOf(item);
-                this.edited_word = Object.assign({}, item);
-                this.dialog = true;
-            },
-
-            moveItemUp(item) {
-                const index = this.words.indexOf(item);
-                if (index > 0) {
-                    this.words.splice(index-1, 0, this.words.splice(index, 1)[0]);
-                }
-            },
-
-            moveItemDown(item) {
-                const index = this.words.indexOf(item);
-                if (index < this.words.length-1) {
-                    this.words.splice(index+1, 0, this.words.splice(index, 1)[0]);
-                }
-            },
-
-            deleteItem(item) {
-                const index = this.words.indexOf(item);
-                this.words.splice(index, 1)
-            },
-        }
+  name: 'WordTable',
+  components: {
+    VueCsvImport,
+    VueCsvDownload
+  },
+  props: {
+    link: String,
+    words: Array,
+    id: null,
+    word_templates: Array,
+    disabled: Boolean
+  },
+  data: () => ({
+    csv: null,
+    csv_delete_exist_list: false,
+    csv_preview: false,
+    headers: [
+      { text: 'Value', value: 'value', align: 'left', sortable: true },
+      { text: 'Description', value: 'description', sortable: false },
+      { text: 'Actions', value: 'action', align: 'right', sortable: false }
+    ],
+    dialog: false,
+    dialog_csv: false,
+    dialog_download: false,
+    selected_word: null,
+    edited_index: -1,
+    edited_word: {
+      value: '',
+      description: ''
+    },
+    default_word: {
+      value: '',
+      description: ''
     }
   }),
   computed: {
-    formTitle () {
+    formTitle() {
       return this.edited_index === -1 ? 'Add Word' : 'Edit Word'
     }
   },
   watch: {
-    dialog (val) {
+    dialog(val) {
       val || this.close()
     }
   },
   methods: {
-    close () {
+    close() {
       this.dialog = false
       setTimeout(() => {
         this.edited_word = Object.assign({}, this.default_word)
         this.edited_index = -1
       }, 300)
     },
-
-    save () {
+    save() {
       if (this.edited_index > -1) {
         Object.assign(this.words[this.edited_index], this.edited_word)
       } else {
@@ -358,66 +251,61 @@ export default {
       this.selected_word = null
       this.close()
     },
-
-    importCSV () {
+    importCSV() {
       if (this.csv_delete_exist_list) {
         this.$emit('update-categories', { entries: this.csv, index: this.id })
       } else {
         const arrayWithDuplicates = this.words.concat(this.csv)
-
-        const removeDuplicates = function (originalArray, prop) {
+        const removeDuplicates = function(originalArray, prop) {
           const newArray = []
           const lookupObject = {}
-
-          for (const i in originalArray) {
+          for (var i in originalArray) {
             lookupObject[originalArray[i][prop]] = originalArray[i]
           }
-
-          for (const i in lookupObject) {
+          for (i in lookupObject) {
             newArray.push(lookupObject[i])
           }
-
           return newArray
         }
-
         const uniqueArray = removeDuplicates(arrayWithDuplicates, 'value')
         this.$emit('update-categories', { entries: uniqueArray, index: this.id })
       }
-
+      this.dialog_csv = false
+      this.dialog_download = false
+      this.csv = null
+      this.csv_delete_exist_list = false
+      this.$root.$emit('reset-csv-dialog')
+    },
+    closeCSV() {
       this.dialog_csv = false
       this.csv = null
       this.csv_delete_exist_list = false
       this.$root.$emit('reset-csv-dialog')
     },
-
-    closeCSV () {
-      this.dialog_csv = false
+    closeDownload() {
+      this.dialog_download = false
       this.csv = null
       this.csv_delete_exist_list = false
       this.$root.$emit('reset-csv-dialog')
     },
-
-    editItem (item) {
+    editItem(item) {
       this.edited_index = this.words.indexOf(item)
       this.edited_word = Object.assign({}, item)
       this.dialog = true
     },
-
-    moveItemUp (item) {
+    moveItemUp(item) {
       const index = this.words.indexOf(item)
       if (index > 0) {
         this.words.splice(index - 1, 0, this.words.splice(index, 1)[0])
       }
     },
-
-    moveItemDown (item) {
+    moveItemDown(item) {
       const index = this.words.indexOf(item)
       if (index < this.words.length - 1) {
         this.words.splice(index + 1, 0, this.words.splice(index, 1)[0])
       }
     },
-
-    deleteItem (item) {
+    deleteItem(item) {
       const index = this.words.indexOf(item)
       this.words.splice(index, 1)
     }

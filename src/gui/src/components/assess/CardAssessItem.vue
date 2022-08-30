@@ -183,7 +183,7 @@ export default {
       this.selected = false
     },
     setFocus (id) {
-      if (this.$el.dataset.id == id) {
+      if (this.$el.dataset.id === id) {
         this.toolbar = true
         this.$el.querySelector('.card .layout').classList.add('focus')
       } else {

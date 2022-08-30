@@ -142,9 +142,8 @@
 <script>
 import UserMenu from '../components/UserMenu'
 import AuthMixin from '../services/auth/auth_mixin'
-import Permissions from '@/services/auth/permissions'
 
-import { mapGetters, mapState, mapActions } from 'vuex'
+import { mapState, mapActions } from 'vuex'
 
 export default {
   components: { UserMenu },

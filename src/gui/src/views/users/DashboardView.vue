@@ -21,7 +21,7 @@ export default {
   methods: {
     ...mapActions('dashboard', ['unselectAllTopics']),
     ...mapActions('assess', ['deselectAllNewsItems']),
-    ...mapActions('filter', ['resetNewsItemsFilter', 'resetTopicsFilter']),
+    ...mapActions('filter', ['resetNewsItemsFilter', 'resetTopicsFilter'])
   },
   mounted () {
     this.unselectAllTopics()

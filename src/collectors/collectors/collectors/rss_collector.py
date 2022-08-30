@@ -11,7 +11,7 @@ from bs4 import BeautifulSoup
 import dateparser
 
 from .base_collector import BaseCollector
-from collectors.managers import log_manager
+from collectors.managers.log_manager import logger
 from shared.schema.news_item import NewsItemData
 from shared.schema.parameter import Parameter, ParameterType
 
@@ -35,14 +35,11 @@ class RSSCollector(BaseCollector):
         feed_url = source.parameter_values["FEED_URL"]
         interval = source.parameter_values["REFRESH_INTERVAL"]
 
-        log_manager.log_collector_activity("rss", source.id, "Starting collector for url: {}".format(feed_url))
+        logger.log_collector_activity("rss", source.id, "Starting collector for url: {}".format(feed_url))
 
         user_agent = source.parameter_values["USER_AGENT"]
         if user_agent:
             feedparser.USER_AGENT = user_agent
-            user_agent_headers = {"User-Agent": user_agent}
-        else:
-            user_agent_headers = {}
 
         # use system proxy
         proxy_handler = None
@@ -87,7 +84,7 @@ class RSSCollector(BaseCollector):
             else:
                 feed = feedparser.parse(feed_url)
 
-            log_manager.log_collector_activity(
+            logger.log_collector_activity(
                 "rss",
                 source.id,
                 "RSS returned feed with {} entries".format(len(feed["entries"])),
@@ -98,16 +95,16 @@ class RSSCollector(BaseCollector):
             for feed_entry in feed["entries"]:
 
                 for key in ["author", "published", "title", "description", "link"]:
-                    if not feed_entry.has_key(key):
+                    if key not in feed_entry:
                         feed_entry[key] = ""
 
-                limit = BaseCollector.history(interval)
+                # limit = BaseCollector.history(interval)
                 published = feed_entry["published"]
                 published = dateparser.parse(published, settings={"DATE_ORDER": "DMY"})
 
                 # if published > limit: TODO: uncomment after testing, we need some initial data now
                 link_for_article = feed_entry["link"]
-                log_manager.log_collector_activity("rss", source.id, "Processing entry [{}]".format(link_for_article))
+                logger.log_collector_activity("rss", source.id, "Processing entry [{}]".format(link_for_article))
 
                 html_content = ""
                 request = urllib.request.Request(link_for_article)
@@ -142,7 +139,6 @@ class RSSCollector(BaseCollector):
                     content,
                     source.id,
                     [],
-                    [],
                 )
 
                 news_items.append(news_item)
@@ -150,8 +146,8 @@ class RSSCollector(BaseCollector):
             self.publish(news_items, source)
 
         except Exception as error:
-            log_manager.log_collector_activity("rss", source.id, "RSS collection exceptionally failed")
+            logger.log_collector_activity("rss", source.id, "RSS collection exceptionally failed")
             BaseCollector.print_exception(source, error)
-            log_manager.log_debug(traceback.format_exc())
+            logger.log_debug(traceback.format_exc())
 
-        log_manager.log_debug("{} collection finished.".format(self.type))
+        logger.log_debug("{} collection finished.".format(self.type))

@@ -253,7 +253,7 @@
 
                                     </v-toolbar>
                                 </template>
-                                <template v-slot:item.action="{ item }">
+                                <template v-slot:[`item.action`]="{ item }">
                                     <v-icon v-if="canUpdate"
                                             small
                                             class="mr-2"

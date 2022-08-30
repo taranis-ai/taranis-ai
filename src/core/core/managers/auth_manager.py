@@ -254,7 +254,6 @@ def get_user_from_jwt():
     except JWTExtendedException:
         return None
     identity = get_jwt_identity()
-    logger.log_debug(identity)
 
     return User.find(identity) if identity else None
 

@@ -6,7 +6,7 @@ from publishers.managers import api_manager, publishers_manager, auth_manager
 
 def create_app():
     app = Flask(__name__)
-    app.config.from_object("presenters.config.Config")
+    app.config.from_object("publishers.config.Config")
 
     with app.app_context():
         CORS(app)

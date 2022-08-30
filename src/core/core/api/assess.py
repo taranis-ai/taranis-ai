@@ -17,7 +17,7 @@ class OSINTSourceGroupsAssess(Resource):
 class OSINTSourceGroupsList(Resource):
     @auth_required("ASSESS_ACCESS")
     def get(self):
-        return osint_source.OSINTSourceGroup.get_list_json(auth_manager.get_user_from_jwt(), True)
+        return osint_source.OSINTSourceGroup.get_list_json(auth_manager.get_user_from_jwt(), False)
 
 
 class OSINTSourcesList(Resource):
@@ -44,6 +44,43 @@ class NewsItemsByGroup(Resource):
     @auth_required("ASSESS_ACCESS", ACLCheck.OSINT_SOURCE_GROUP_ACCESS)
     def get(self, group_id):
         user = auth_manager.get_user_from_jwt()
+
+        try:
+            filter = {}
+            if "search" in request.args and request.args["search"]:
+                filter["search"] = request.args["search"]
+            if "read" in request.args and request.args["read"]:
+                filter["read"] = request.args["read"]
+            if "important" in request.args and request.args["important"]:
+                filter["important"] = request.args["important"]
+            if "relevant" in request.args and request.args["relevant"]:
+                filter["relevant"] = request.args["relevant"]
+            if "in_analyze" in request.args and request.args["in_analyze"]:
+                filter["in_analyze"] = request.args["in_analyze"]
+            if "range" in request.args and request.args["range"]:
+                filter["range"] = request.args["range"]
+            if "sort" in request.args and request.args["sort"]:
+                filter["sort"] = request.args["sort"]
+
+            offset = None
+            if "offset" in request.args and request.args["offset"]:
+                offset = int(request.args["offset"])
+
+            limit = 50
+            if "limit" in request.args and request.args["limit"]:
+                limit = min(int(request.args["limit"]), 200)
+        except Exception as ex:
+            logger.log_debug(ex)
+            return "", 400
+
+        return news_item.NewsItemAggregate.get_by_group_json(group_id, filter, offset, limit, user)
+
+
+class NewsItemAggregates(Resource):
+    @auth_required("ASSESS_ACCESS")
+    def get(self):
+        user = auth_manager.get_user_from_jwt()
+        group_id = osint_source.OSINTSourceGroup.get_default().id
 
         try:
             filter = {}
@@ -184,6 +221,10 @@ def initialize(api):
     api.add_resource(
         NewsItemsByGroup,
         "/api/v1/assess/news-item-aggregates-by-group/<string:group_id>",
+    )
+    api.add_resource(
+        NewsItemAggregates,
+        "/api/v1/assess/news-item-aggregates",
     )
     api.add_resource(NewsItem, "/api/v1/assess/news-items/<int:item_id>")
     api.add_resource(NewsItemAggregate, "/api/v1/assess/news-item-aggregates/<int:aggregate_id>")

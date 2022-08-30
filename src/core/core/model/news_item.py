@@ -9,7 +9,6 @@ from core.managers.db_manager import db
 from core.managers.log_manager import logger
 from core.model.acl_entry import ACLEntry
 from core.model.osint_source import OSINTSourceGroup, OSINTSource
-from core.model.tag_cloud import TagCloud
 from shared.schema.acl_entry import ItemType
 from shared.schema.news_item import (
     NewsItemDataSchema,
@@ -652,8 +651,6 @@ class NewsItemAggregate(db.Model):
                 cls.create_new_for_all_groups(news_item_data)
                 osint_source_ids.add(news_item_data.osint_source_id)
 
-                TagCloud.generate_tag_cloud_words(news_item_data)
-
         db.session.commit()
 
         return osint_source_ids
@@ -668,7 +665,6 @@ class NewsItemAggregate(db.Model):
             news_item_data.hash = news_item_data.id
         db.session.add(news_item_data)
         cls.create_new_for_all_groups(news_item_data)
-        TagCloud.generate_tag_cloud_words(news_item_data)
         db.session.commit()
 
         return {news_item_data.osint_source_id}

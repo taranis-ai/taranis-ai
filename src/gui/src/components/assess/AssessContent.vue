@@ -62,7 +62,6 @@
 
 <script>
 import CardNewsItem from '@/components/common/card/CardNewsItem'
-import Loader from '@/components/common/Loader'
 import AssessSelectionToolbar from '@/components/assess/AssessSelectionToolbar'
 
 import { mapState, mapGetters, mapActions } from 'vuex'
@@ -73,7 +72,6 @@ export default {
   name: 'AssessContent',
   components: {
     CardNewsItem,
-    Loader,
     AssessSelectionToolbar
   },
   props: {
@@ -137,8 +135,8 @@ export default {
     // + pass filter parameter for presorting
     getNewsItemsFromStore () {
       this.items = this.getNewsItems().items
-      console.log("number of newsitems: " + this.getNewsItems().total_count)
-    },
+      console.log('number of newsitems: ' + this.getNewsItems().total_count)
+    }
 
   },
 
@@ -235,11 +233,11 @@ export default {
       if (mutation.type === 'assess/UPDATE_NEWSITEMS') {
         this.getNewsItemsFromStore()
       }
-    });
+    })
   },
 
   beforeDestroy() {
-    this.unsubscribe();
+    this.unsubscribe()
   },
 
   updated () {

@@ -300,8 +300,8 @@ class OSINTSourceGroup(db.Model):
 
     osint_sources = db.relationship("OSINTSource", secondary="osint_source_group_osint_source")
 
-    def __init__(self, group_id, name, description, default, osint_sources):
-        self.id = group_id or str(uuid.uuid4())
+    def __init__(self, id, name, description, default, osint_sources):
+        self.id = id or str(uuid.uuid4())
         self.name = name
         self.description = description
         self.default = default

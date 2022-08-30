@@ -312,7 +312,7 @@ class CollectorsNodes(Resource):
 
     @auth_required("CONFIG_COLLECTORS_NODE_CREATE")
     def post(self):
-        return "", collectors_manager.add_collectors_node(request.json)
+        return collectors_manager.add_collectors_node(request.json)
 
 
 class CollectorsNode(Resource):

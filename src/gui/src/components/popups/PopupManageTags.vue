@@ -13,15 +13,9 @@
 </template>
 
 <script>
-import buttonSolid from '@/components/_subcomponents/buttonSolid'
-import buttonOutlined from '@/components/_subcomponents/buttonOutlined'
 
 export default {
   name: 'PopupManageTags',
-  components: {
-    buttonSolid,
-    buttonOutlined
-  },
   props: {
     newsItem: {}
   },
