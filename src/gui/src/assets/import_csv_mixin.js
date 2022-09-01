@@ -6,7 +6,7 @@ const ImportCSVMixin = {
       const objPattern = new RegExp(('(\\,|\\r?\\n|\\r|^)(?:"((?:\\\\.|""|[^\\\\"])*)"|([^\\,"\\r\\n]*))'), 'gi')
       const arrMatches = null; let arrData = [[]]
 
-      while (arrMatches == objPattern.exec(strData)) {
+      while (arrMatches === objPattern.exec(strData)) {
         if (arrMatches[1].length && arrMatches[1] !== ',') arrData.push([])
         arrData[arrData.length - 1].push(arrMatches[2]
           ? arrMatches[2].replace(new RegExp('[\\\\"](.)', 'g'), '$1')

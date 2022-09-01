@@ -1306,6 +1306,7 @@ def pre_seed_wordlists():
 
 
 def pre_seed_default_user():
+    from werkzeug.security import generate_password_hash
     from core.model.organization import Organization
     from core.model.user import User
 
@@ -1337,7 +1338,7 @@ def pre_seed_default_user():
                         "id": 1,
                     },
                 ],
-                "password": "admin",
+                "password": generate_password_hash("admin", method="sha256"),
             }
         )
 
@@ -1373,6 +1374,6 @@ def pre_seed_default_user():
                         "id": 2,
                     },
                 ],
-                "password": "user",
+                "password": generate_password_hash("user", method="sha256"),
             }
         )

@@ -1,5 +1,4 @@
 import threading
-import time
 import importlib
 
 from collectors.managers.log_manager import logger
@@ -11,16 +10,15 @@ collectors = {}
 status_report_thread = None
 
 
-def reportStatus():
-    while True:
-        try:
-            logger.log_debug(f"Sending status update to {Config.TARANIS_NG_CORE_URL}")
-            response, code = CoreApi().update_collector_status()
-            logger.log_debug(f"Core responded with: HTTP {code}, {response}")
-        except Exception:
-            logger.log_critical("Core update failed")
-
-        time.sleep(Config.CORE_STATUS_UPDATE_INTERVAL)
+def register_collector_node():
+    try:
+        logger.log_debug(f"Registering Collector Node at {Config.TARANIS_NG_CORE_URL}")
+        response, code = CoreApi().register_collector_node()
+        if code == 200:
+            logger.log_info(f"Successfully registered: {response}")
+        return response, code
+    except Exception:
+        logger.log_critical("Registration failed")
 
 
 def initialize():
@@ -37,6 +35,8 @@ def initialize():
         register_collector(class_())
 
     logger.log_system_activity(__name__, "Collector initialized.")
+
+    register_collector_node()
 
 
 def register_collector(collector):
@@ -55,12 +55,6 @@ def refresh_collector(collector_type):
     refresh_thread = RefreshThread()
     refresh_thread.start()
     return 200
-
-
-def update_collector_id(collector_id):
-    config_file = Config.COLLECTOR_CONFIG_FILE
-    with open(config_file, "w") as file:
-        file.write(collector_id)
 
 
 def get_registered_collectors_info():

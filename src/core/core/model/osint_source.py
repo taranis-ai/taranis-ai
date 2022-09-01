@@ -6,6 +6,7 @@ from sqlalchemy import orm, func, or_, and_
 from sqlalchemy.types import JSON
 
 from core.managers.db_manager import db
+from core.managers.log_manager import logger
 from core.model.acl_entry import ACLEntry
 from core.model.collector import Collector
 from core.model.parameter_value import NewParameterValueSchema, ParameterValue
@@ -335,7 +336,7 @@ class OSINTSourceGroup(db.Model):
         return cls.query.filter(OSINTSourceGroup.default).first()
 
     @classmethod
-    def allowed_with_acl(cls, group_id, user, see, access, modify):
+    def allowed_with_acl(cls, group_id, user, see: bool, access: bool, modify: bool) -> bool:
 
         query = db.session.query(OSINTSourceGroup.id).distinct().group_by(OSINTSourceGroup.id).filter(OSINTSourceGroup.id == group_id)
 
@@ -346,22 +347,19 @@ class OSINTSourceGroup(db.Model):
                 ACLEntry.item_type == ItemType.OSINT_SOURCE_GROUP,
             ),
         )
-
         query = ACLEntry.apply_query(query, user, see, access, modify)
+        acl_check_result = query.scalar() is not None
+        logger.log_debug(f"ACL Check for {group_id} results: {acl_check_result}")
 
-        return query.scalar() is not None
+        return acl_check_result
 
     @classmethod
     def get(cls, search, user, acl_check):
         query = cls.query.distinct().group_by(OSINTSourceGroup.id)
 
-        if acl_check is True:
+        if acl_check:
             query = query.outerjoin(
-                ACLEntry,
-                and_(
-                    OSINTSourceGroup.id == ACLEntry.item_id,
-                    ACLEntry.item_type == ItemType.OSINT_SOURCE_GROUP,
-                ),
+                ACLEntry, and_(OSINTSourceGroup.id == ACLEntry.item_id, ACLEntry.item_type == ItemType.OSINT_SOURCE_GROUP)
             )
             query = ACLEntry.apply_query(query, user, True, False, False)
 
@@ -375,7 +373,7 @@ class OSINTSourceGroup(db.Model):
             )
 
         return (
-            query.order_by(db.asc(OSINTSourceGroup.default), db.asc(OSINTSourceGroup.name)).all(),
+            query.all(),
             query.count(),
         )
 
@@ -457,5 +455,5 @@ class OSINTSourceGroup(db.Model):
 
 
 class OSINTSourceGroupOSINTSource(db.Model):
-    osint_source_group_id = db.Column(db.String, db.ForeignKey("osint_source_group.id"), primary_key=True)
-    osint_source_id = db.Column(db.String, db.ForeignKey("osint_source.id"), primary_key=True)
+    osint_source_group_id = db.Column(db.String, db.ForeignKey("osint_source_group.id", ondelete="CASCADE"), primary_key=True)
+    osint_source_id = db.Column(db.String, db.ForeignKey("osint_source.id", ondelete="CASCADE"), primary_key=True)

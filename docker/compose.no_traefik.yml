@@ -60,6 +60,7 @@ services:
       JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
       OPENID_LOGOUT_URL: ""
       WORKERS_PER_CORE: "1"
+      WEB_CONCURRENCY: 1
       TARANIS_NG_SAMPLE_DATA: "true"
 
       CVE_UPDATE_FILE: "${CVE_UPDATE_FILE}"

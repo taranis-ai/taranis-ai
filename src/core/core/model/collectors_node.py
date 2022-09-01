@@ -119,26 +119,23 @@ class CollectorsNode(db.Model):
     def update(cls, node_id, node_data, collectors):
         new_node_schema = NewCollectorsNodeSchema()
         updated_node = new_node_schema.load(node_data)
-        node = cls.query.get(node_id)
+        node = cls.query.get_by_id(node_id)
         node.name = updated_node.name
         node.description = updated_node.description
         node.api_url = updated_node.api_url
         node.api_key = updated_node.api_key
         for collector in collectors:
-            found = False
-            for existing_collector in node.collectors:
-                if collector.type == existing_collector.type:
-                    found = True
-                    break
+            found = any(collector.type == existing_collector.type for existing_collector in node.collectors)
 
-            if found is False:
+            if not found:
                 node.collectors.append(collector)
 
         db.session.commit()
+        return node
 
     @classmethod
     def delete(cls, node_id):
-        node = cls.query.get(node_id)
+        node = cls.query.get_by_id(node_id)
         for collector in node.collectors:
             if len(collector.sources) > 0:
                 raise Exception("Collectors has mapped sources")

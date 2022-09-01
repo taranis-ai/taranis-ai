@@ -13,6 +13,7 @@ class UserSchemaBase(Schema):
     id = fields.Int()
     username = fields.Str()
     name = fields.Str()
+    password = fields.Str()
 
 
 class UserSchema(UserSchemaBase):

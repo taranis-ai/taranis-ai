@@ -41,6 +41,6 @@ ENV WORKERS_PER_CORE 4
 
 VOLUME ["/data"]
 
-HEALTHCHECK --interval=10s --timeout=3s --retries=5 CMD curl --fail http://localhost/api/v1/isalive || exit 1
+HEALTHCHECK --interval=60s --timeout=3s --retries=5 CMD curl --fail http://localhost/api/v1/isalive || exit 1
 
 CMD ["/entrypoint.sh"]

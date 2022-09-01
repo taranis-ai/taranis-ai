@@ -10,8 +10,8 @@ class Settings(BaseSettings):
     API_KEY: str
     SSL_VERIFICATION: bool = False
     TARANIS_NG_CORE_URL: str = "http://taranis"
+    COLLECTOR_URL: str = "http://collectors"
     MODULE_ID: str = "Collectors"
-    COLLECTOR_CONFIG_FILE: str
     COLLECTOR_LOADABLE_COLLECTORS: List[str] = ["RSS", "Email", "Slack", "Twitter", "Web", "Atom", "Manual"]
 
 

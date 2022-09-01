@@ -24,7 +24,7 @@ class Login(Resource):
         parser = reqparse.RequestParser()
         logger.log_debug(auth_manager.get_required_credentials())
         for credential in auth_manager.get_required_credentials():
-            parser.add_argument(credential)
+            parser.add_argument(credential, location=["form", "values", "json"])
         credentials = parser.parse_args()
         return auth_manager.authenticate(credentials)
 

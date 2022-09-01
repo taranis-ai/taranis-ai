@@ -1,34 +1,58 @@
 import json
+from requests.exceptions import ConnectionError
 
 from core.model.collector import Collector
 from core.model.collectors_node import CollectorsNode
 from core.model.osint_source import OSINTSource
 from core.remote.collectors_api import CollectorsApi
+from core.managers.log_manager import logger
 from shared.schema.collectors_node import CollectorsNode as CollectorNodeSchema
 from shared.schema.osint_source import OSINTSourceExportRootSchema, OSINTSourceExportRoot
 
 
-def add_collectors_node(data):
+def get_collectors_info(node: CollectorNodeSchema):
+    try:
+        collectors_info, status_code = CollectorsApi(node.api_url, node.api_key).get_collectors_info()
+    except ConnectionError:
+        return f"Connection error: Could not reach {node.api_url}", 500
+    except Exception:
+        logger.log_debug_trace(f"Couldn't add Collector Node: {node.name}")
+        return f"Couldn't add Collector node: {node.name}", 500
+
+    if status_code != 200:
+        return None, status_code
+
+    return Collector.create_all(collectors_info), status_code
+
+
+def add_collectors_node(node_id, data):
     node = CollectorNodeSchema.create(data)
-    collectors_info, status_code = CollectorsApi(node.api_url, node.api_key).get_collectors_info("")
+    collectors, status_code = get_collectors_info(node)
+    if status_code != 200:
+        return collectors, status_code
 
-    if status_code == 200:
-        collectors = Collector.create_all(collectors_info)
-        node = CollectorsNode.add_new(data, collectors)
+    try:
+        CollectorsNode.add_new(data, collectors)
+    except Exception:
+        logger.log_debug_trace(f"Couldn't add Collector Node: {node.name}")
+        return f"Couldn't add Collector node: {node.name}", 500
 
-        collectors_info, status_code = CollectorsApi(node.api_url, node.api_key).get_collectors_info(node.id)
-
-    return status_code
+    return node_id, status_code
 
 
 def update_collectors_node(node_id, data):
     node = CollectorNodeSchema.create(data)
-    collectors_info, status_code = CollectorsApi(node.api_url, node.api_key).get_collectors_info(node.id)
-    if status_code == 200:
-        collectors = Collector.create_all(collectors_info)
-        CollectorsNode.update(node_id, data, collectors)
+    collectors, status_code = get_collectors_info(node)
+    if status_code != 200:
+        return collectors, status_code
 
-    return status_code
+    try:
+        CollectorsNode.update(node_id, data, collectors)
+    except Exception:
+        logger.log_debug_trace(f"Couldn't add Collector Node: {node.name}")
+        return f"Couldn't add Collector node: {node.name}", 500
+
+    return node.id, status_code
 
 
 def add_osint_source(data):

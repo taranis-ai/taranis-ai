@@ -29,6 +29,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), unique=True, nullable=False)
     name = db.Column(db.String(), nullable=False)
+    password = db.Column(db.String(), nullable=True)
 
     organizations = db.relationship("Organization", secondary="user_organization")
 
@@ -38,10 +39,11 @@ class User(db.Model):
     profile_id = db.Column(db.Integer, db.ForeignKey("user_profile.id"))
     profile = db.relationship("UserProfile", cascade="all")
 
-    def __init__(self, id, username, name, organizations, roles, permissions):
+    def __init__(self, id, username, name, password, organizations, roles, permissions):
         self.id = None
         self.username = username
         self.name = name
+        self.password = password
         self.organizations = []
         for organization in organizations:
             self.organizations.append(Organization.find(organization.id))

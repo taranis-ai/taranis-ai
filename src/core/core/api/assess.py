@@ -17,7 +17,7 @@ class OSINTSourceGroupsAssess(Resource):
 class OSINTSourceGroupsList(Resource):
     @auth_required("ASSESS_ACCESS")
     def get(self):
-        return osint_source.OSINTSourceGroup.get_list_json(auth_manager.get_user_from_jwt(), False)
+        return osint_source.OSINTSourceGroup.get_list_json(user=auth_manager.get_user_from_jwt(), acl_check=True)
 
 
 class OSINTSourcesList(Resource):

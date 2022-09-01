@@ -1,3 +1,4 @@
+import contextlib
 from functools import wraps
 from flask import request
 import ssl
@@ -5,13 +6,9 @@ from collectors.config import Config
 
 
 def initialize(app):
-    if Config.SSL_VERIFICATION == "False":
-        try:
-            _create_unverified_https_context = ssl._create_unverified_context
-        except AttributeError:
-            pass
-        else:
-            ssl._create_default_https_context = _create_unverified_https_context
+    if not Config.SSL_VERIFICATION:
+        with contextlib.suppress(AttributeError):
+            ssl._create_default_https_context = ssl._create_unverified_context
 
 
 def api_key_required(fn):

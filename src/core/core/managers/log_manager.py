@@ -8,6 +8,7 @@ import traceback
 from flask import request
 
 from core.config import Config
+from core.managers.log_formatter import CustomFormatter
 
 
 class Logger:
@@ -15,6 +16,10 @@ class Logger:
 
     def __init__(self):
         stream_handler = logging.StreamHandler(stream=sys.stdout)
+        if Config.COLORED_LOGS:
+            stream_handler.setFormatter(CustomFormatter())
+        else:
+            stream_handler.setFormatter(logging.Formatter("[%(levelname)s] - %(message)s"))
         sys_log_handler = None
         if "SYSLOG_ADDRESS" in os.environ:
             try:
@@ -34,6 +39,7 @@ class Logger:
             lloggers.append(logging.getLogger("sqlalchemy"))
 
         for llogger in lloggers:
+            llogger.handlers.clear()
             llogger.setLevel(logging.INFO)
 
             if os.environ.get("DEBUG", "false").lower() == "true":

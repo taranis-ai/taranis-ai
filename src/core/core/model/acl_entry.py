@@ -26,7 +26,7 @@ class ACLEntry(db.Model):
     item_type = db.Column(db.Enum(ItemType))
     item_id = db.Column(db.String(64))
 
-    everyone = db.Column(db.Boolean)
+    everyone = db.Column(db.Boolean, default=True)
     users = db.relationship("User", secondary="acl_entry_user")
     roles = db.relationship("Role", secondary="acl_entry_role")
 
@@ -34,20 +34,7 @@ class ACLEntry(db.Model):
     access = db.Column(db.Boolean)
     modify = db.Column(db.Boolean)
 
-    def __init__(
-        self,
-        id,
-        name,
-        description,
-        item_type,
-        item_id,
-        everyone,
-        users,
-        see,
-        access,
-        modify,
-        roles,
-    ):
+    def __init__(self, id, name, description, item_type, item_id, everyone, users, see, access, modify, roles):
         self.id = None
         self.name = name
         self.description = description
@@ -57,15 +44,8 @@ class ACLEntry(db.Model):
         self.see = see
         self.access = access
         self.modify = modify
-
-        self.users = []
-        for user in users:
-            self.users.append(User.find_by_id(user.id))
-
-        self.roles = []
-        for role in roles:
-            self.roles.append(Role.find(role.id))
-
+        self.users = [User.find_by_id(user.id) for user in users]
+        self.roles = [Role.find(role.id) for role in roles]
         self.title = ""
         self.subtitle = ""
         self.tag = ""
@@ -136,7 +116,7 @@ class ACLEntry(db.Model):
         db.session.commit()
 
     @classmethod
-    def apply_query(cls, query, user, see, access, modify):
+    def apply_query(cls, query, user: User, see: bool, access: bool, modify: bool):
         roles = [role.id for role in user.roles]
 
         query = query.outerjoin(
@@ -149,20 +129,21 @@ class ACLEntry(db.Model):
 
         query = query.outerjoin(ACLEntryRole, ACLEntryRole.acl_entry_id == ACLEntry.id)
 
-        if see is False and access is False and modify is False:
-            return query.filter(
+        if not see and not access and not modify:
+            query = query.filter(
                 or_(
-                    ACLEntry.id is None,
+                    ACLEntry.id is not None,
                     ACLEntry.everyone is True,
                     ACLEntryUser.user_id == user.id,
                     ACLEntryRole.role_id.in_(roles),
                 )
             )
+            return query
 
         if see:
             return query.filter(
                 or_(
-                    ACLEntry.id is None,
+                    ACLEntry.id is not None,
                     and_(
                         ACLEntry.see is True,
                         or_(
@@ -176,7 +157,7 @@ class ACLEntry(db.Model):
         if access:
             return query.filter(
                 or_(
-                    ACLEntry.id is None,
+                    ACLEntry.id is not None,
                     and_(
                         ACLEntry.access is True,
                         or_(
@@ -191,7 +172,7 @@ class ACLEntry(db.Model):
         if modify:
             return query.filter(
                 or_(
-                    ACLEntry.id is None,
+                    ACLEntry.id is not None,
                     and_(
                         ACLEntry.modify is True,
                         or_(

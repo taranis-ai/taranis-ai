@@ -220,7 +220,7 @@ export default {
         filter = {
           group_id: source.id,
           data: {
-            offset: 10,
+            offset: 0,
             limit: 15,
             filter: {
               search: '',
