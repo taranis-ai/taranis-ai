@@ -1,6 +1,7 @@
 import base64
 import uuid
 from datetime import datetime, timedelta
+import dateutil.parser as dateparser
 
 from marshmallow import post_load, fields
 from sqlalchemy import orm, and_, or_, func
@@ -1045,13 +1046,19 @@ class NewsItemAggregate(db.Model):
         return news_item_aggregate_schema.dumps(news_item_aggregates)
 
     @classmethod
-    def get_default_news_items_aggregate(cls, limit):
+    def get_filter_date(cls, limit: str) -> datetime:
+        if not limit:
+            return datetime.now() - timedelta(weeks=8)
+        try:
+            return dateparser.parse(limit)
+        except Exception:
+            return datetime.now() - timedelta(weeks=8)
 
-        limit = limit or datetime.now() - timedelta(weeks=8)
-
+    @classmethod
+    def get_default_news_items_aggregate(cls, limit: str):
+        filter_date = cls.get_filter_date(limit)
         source_group = OSINTSourceGroup.get_default()
-        logger.log_debug(source_group)
-        news_item_aggregates = cls.query.filter(cls.osint_source_group_id == source_group.id).filter(cls.created > limit).all()
+        news_item_aggregates = cls.query.filter(cls.osint_source_group_id == source_group.id).filter(cls.created > filter_date).all()
         news_item_aggregate_schema = NewsItemAggregateSchema(many=True)
         return news_item_aggregate_schema.dumps(news_item_aggregates)
 

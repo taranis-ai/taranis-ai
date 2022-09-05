@@ -38,18 +38,18 @@ class AddNewsItems(Resource):
         sse_manager.remote_access_news_items_updated(osint_source_ids)
 
 
-class Node(Resource):
+class CollectorsNode(Resource):
     @api_key_required
     def get(self, node_id):
-        return collectors_node.CollectorsNode.get_by_id(node_id)
+        return collectors_node.CollectorsNode.get_json_by_id(node_id)
 
     @api_key_required
     def put(self, node_id):
         return collectors_manager.update_collectors_node(node_id, request.json)
 
     @api_key_required
-    def post(self, node_id):
-        return collectors_manager.add_collectors_node(node_id, request.json)
+    def post(self):
+        return collectors_manager.add_collectors_node(request.json)
 
     @api_key_required
     def delete(self, node_id):
@@ -76,8 +76,8 @@ class OSINTSourceStatusUpdate(Resource):
 
 class CollectorStatusUpdate(Resource):
     @api_key_required
-    def get(self, collector_id):
-        collector = collectors_node.CollectorsNode.get_by_id(collector_id)
+    def get(self, node_id):
+        collector = collectors_node.CollectorsNode.get_by_id(node_id)
         if not collector:
             return "", 404
 
@@ -99,6 +99,6 @@ def initialize(api):
         OSINTSourceStatusUpdate,
         "/api/v1/collectors/osint-sources/<string:osint_source_id>",
     )
-    api.add_resource(CollectorStatusUpdate, "/api/v1/collectors/<string:collector_id>")
+    api.add_resource(CollectorStatusUpdate, "/api/v1/collectors/<string:node_id>")
     api.add_resource(AddNewsItems, "/api/v1/collectors/news-items")
-    api.add_resource(Node, "/api/v1/collectors/node/<string:node_id>")
+    api.add_resource(CollectorsNode, "/api/v1/collectors/node/<string:node_id>", "/api/v1/collectors/node")

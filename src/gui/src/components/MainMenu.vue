@@ -109,7 +109,7 @@
           class="main-menu-item text-lowercase mr-3 font-weight-regular"
           :ripple="false"
         >
-          <v-icon class="mr-3">mdi-menu</v-icon>
+          <v-icon class="mr-3">{{ button.icon }}</v-icon>
           Menu
         </v-btn>
       </template>
@@ -152,17 +152,17 @@ export default {
     opened: true,
     buttons: [
       {
-        title: 'main_menu.dashboard',
-        icon: 'mdi-chart-box',
-        permission: 'ASSESS_ACCESS',
-        route: '/dashboard',
-        show: true
-      },
-      {
         title: 'main_menu.administration',
         icon: 'mdi-cog-outline',
         permission: 'CONFIG_ACCESS',
         route: '/config',
+        show: true
+      },
+      {
+        title: 'main_menu.dashboard',
+        icon: 'mdi-chart-box',
+        permission: 'ASSESS_ACCESS',
+        route: '/dashboard',
         show: true
       },
       {
@@ -198,13 +198,6 @@ export default {
         icon: 'mdi-file-multiple-outline',
         permission: 'MY_ASSETS_ACCESS',
         route: '/myassets',
-        show: true
-      },
-      {
-        title: 'main_menu.config',
-        icon: 'mdi-ballot-outline',
-        permission: 'MY_ASSETS_CONFIG',
-        route: '/config/external',
         show: true
       }
     ],

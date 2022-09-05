@@ -72,9 +72,8 @@ export const router = new Router({
       path: '/dashboard',
       name: 'dashboard',
       components: {
-        default: () => import('./views/users/DashboardView.vue'),
+        default: () => import('./views/users/TopicsView.vue'),
         nav: () => import('./views/nav/DashboardNav.vue')
-
       },
       meta: { requiresAuth: true, requiresPerm: [Permissions.ASSESS_ACCESS] }
     },
@@ -167,6 +166,16 @@ export const router = new Router({
 
       },
       meta: { requiresAuth: true, requiresPerm: [Permissions.CONFIG_USER_ACCESS] }
+    },
+    {
+      path: '/config/nodes',
+      name: 'nodes',
+      components: {
+        default: () => import('./views/admin/NodesView.vue'),
+        nav: () => import('./views/nav/ConfigNav.vue')
+
+      },
+      meta: { requiresAuth: true, requiresPerm: [Permissions.CONFIG_NODE_ACCESS] }
     },
     {
       path: '/config/collectors/nodes',

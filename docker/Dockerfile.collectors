@@ -46,7 +46,6 @@ ENV PYTHONPATH=/app
 ENV APP_MODULE run:app
 ENV GUNICORN_CMD_ARGS --timeout 120
 ENV WORKERS_PER_CORE 4
-ENV COLLECTOR_CONFIG_FILE /app/storage/id.txt
 
 VOLUME ["/app/storage"]
 

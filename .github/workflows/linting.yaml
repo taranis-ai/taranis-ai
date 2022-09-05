@@ -8,13 +8,14 @@ on:
 jobs:
   lint:
     name: lint & check formatting
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
-        python-version: ['3.7', '3.8']
+        python-version: ['3.8', '3.10']
     steps:
-      - uses: actions/checkout@v2
-      - name: Lint with flake8
-        run: |
-          bash -c 'git diff --staged -- "$@" | flake8 --diff --count --max-complexity=10 --max-line-length=142 --statistics' --
-
+      - uses: actions/checkout@v3
+      - name: lint with black
+        uses: rickstaa/action-black@v1
+        with:
+          black_args: "src --check"
+          fail_on_error: false

@@ -93,7 +93,6 @@ export default {
       'removeTopicFromNewsItem'
     ]),
     ...mapGetters('assess', [
-      'getFakeItems',
       'getNewsItems',
       'getNewsItemList',
       'getNewsItemById',

@@ -47,6 +47,10 @@ class BotsNode(db.Model):
         return cls.query.filter_by(api_key=api_key).first()
 
     @classmethod
+    def get_by_id(cls, id):
+        return cls.query.filter_by(id=id).first()
+
+    @classmethod
     def get_all(cls):
         return cls.query.order_by(db.asc(BotsNode.name)).all()
 
@@ -55,7 +59,7 @@ class BotsNode(db.Model):
         query = cls.query
 
         if search is not None:
-            search_string = "%" + search.lower() + "%"
+            search_string = f"%{search.lower()}%"
             query = query.filter(
                 or_(
                     func.lower(BotsNode.name).like(search_string),
@@ -89,13 +93,8 @@ class BotsNode(db.Model):
         node.api_url = updated_node.api_url
         node.api_key = updated_node.api_key
         for bot in bots:
-            found = False
-            for existing_bot in node.bots:
-                if bot.type == existing_bot.type:
-                    found = True
-                    break
-
-            if found is False:
+            found = any(bot.type == existing_bot.type for existing_bot in node.bots)
+            if not found:
                 node.bots.append(bot)
 
         db.session.commit()

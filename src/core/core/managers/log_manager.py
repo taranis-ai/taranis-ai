@@ -1,77 +1,12 @@
-import logging.handlers
-import os
-import re
-import sys
-import socket
-import logging
-import traceback
 from flask import request
+import re
+import os
 
 from core.config import Config
-from core.managers.log_formatter import CustomFormatter
+from shared.log import TaranisLogger
 
 
-class Logger:
-    module_id = Config.MODULE_ID
-
-    def __init__(self):
-        stream_handler = logging.StreamHandler(stream=sys.stdout)
-        if Config.COLORED_LOGS:
-            stream_handler.setFormatter(CustomFormatter())
-        else:
-            stream_handler.setFormatter(logging.Formatter("[%(levelname)s] - %(message)s"))
-        sys_log_handler = None
-        if "SYSLOG_ADDRESS" in os.environ:
-            try:
-                syslog_address = os.getenv("SYSLOG_ADDRESS")
-                syslog_port = int(os.getenv("SYSLOG_PORT"), 514)
-                sys_log_handler = logging.handlers.SysLogHandler(address=(syslog_address, syslog_port), socktype=socket.SOCK_STREAM)
-            except Exception as ex:
-                self.log_debug("Unable to connect to syslog server!")
-                self.log_debug(ex)
-
-        lloggers = [logging.getLogger()]
-
-        if "gunicorn" in os.environ.get("SERVER_SOFTWARE", ""):
-            lloggers = [logging.getLogger("gunicorn.error")]
-
-        if os.environ.get("LOG_SQLALCHEMY", False):
-            lloggers.append(logging.getLogger("sqlalchemy"))
-
-        for llogger in lloggers:
-            llogger.handlers.clear()
-            llogger.setLevel(logging.INFO)
-
-            if os.environ.get("DEBUG", "false").lower() == "true":
-                llogger.setLevel(logging.DEBUG)
-
-            if sys_log_handler:
-                llogger.addHandler(sys_log_handler)
-
-            llogger.addHandler(stream_handler)
-
-        self.logger = lloggers[0]
-
-    def log_debug(self, message):
-        formatted_message = f"[{self.module_id}] {message}"
-        self.logger.debug(formatted_message)
-
-    def log_debug_trace(self, message=None):
-        formatted_message = f"[{self.module_id}] {message}"
-        formatted_message_exc = f"[{self.module_id}] {traceback.format_exc()}"
-
-        if message:
-            self.logger.debug(formatted_message)
-        self.logger.debug(formatted_message_exc)
-
-    def log_info(self, message):
-        formatted_message = f"[{self.module_id}] {message}"
-        self.logger.info(formatted_message)
-
-    def log_critical(self, message):
-        formatted_message = f"[{self.module_id}] {message}"
-        self.logger.critical(formatted_message)
-
+class Logger(TaranisLogger):
     def resolve_ip_address(self):
         headers_list = request.headers.getlist("X-Forwarded-For")
         return headers_list[0] if headers_list else request.remote_addr
@@ -113,7 +48,7 @@ class Logger:
             "user_name": user.name,
             "system_id": None,
             "system_name": None,
-            "module_id": self.module_id,
+            "module_id": self.module,
             "activity_type": None,
             "activity_resource": self.resolve_resource(),
             "activity_detail": activity_detail,
@@ -131,7 +66,7 @@ class Logger:
             "user_name": user.name,
             "system_id": None,
             "system_name": None,
-            "module_id": self.module_id,
+            "module_id": self.module,
             "activity_type": None,
             "activity_resource": self.resolve_resource(),
             "activity_detail": activity_detail,
@@ -149,7 +84,7 @@ class Logger:
             "user_name": None,
             "system_id": None,
             "system_name": None,
-            "module_id": self.module_id,
+            "module_id": self.module,
             "activity_type": None,
             "activity_resource": self.resolve_resource(),
             "activity_detail": activity_detail,
@@ -167,7 +102,7 @@ class Logger:
             "user_name": None,
             "system_id": None,
             "system_name": None,
-            "module_id": self.module_id,
+            "module_id": self.module,
             "activity_type": None,
             "activity_resource": self.resolve_resource(),
             "activity_detail": activity_detail,
@@ -185,7 +120,7 @@ class Logger:
             "user_name": user.name,
             "system_id": None,
             "system_name": None,
-            "module_id": self.module_id,
+            "module_id": self.module,
             "activity_type": None,
             "activity_resource": self.resolve_resource(),
             "activity_detail": activity_detail,
@@ -203,7 +138,7 @@ class Logger:
             "user_name": None,
             "system_id": system_id,
             "system_name": system_name,
-            "module_id": self.module_id,
+            "module_id": self.module,
             "activity_type": activity_type,
             "activity_resource": self.resolve_resource(),
             "activity_detail": activity_detail,
@@ -224,4 +159,5 @@ class Logger:
         self.logger.debug(f"User: {user.name} activity_type: {activity_type} activity_detail: {activity_detail}")
 
 
-logger = Logger()
+gunicorn = "gunicorn" in os.environ.get("SERVER_SOFTWARE", "")
+logger = Logger(module=Config.MODULE_ID, colored=Config.COLORED_LOGS, debug=Config.DEBUG, gunicorn=gunicorn, syslog_address=None)

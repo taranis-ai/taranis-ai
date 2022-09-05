@@ -13,7 +13,7 @@ status_report_thread = None
 def register_collector_node():
     try:
         logger.log_debug(f"Registering Collector Node at {Config.TARANIS_NG_CORE_URL}")
-        response, code = CoreApi().register_collector_node()
+        response, code = CoreApi().register_node(get_registered_collectors_info())
         if code == 200:
             logger.log_info(f"Successfully registered: {response}")
         return response, code
@@ -22,7 +22,7 @@ def register_collector_node():
 
 
 def initialize():
-    logger.log_system_activity(__name__, "Initializing collector...")
+    logger.log_info(f"Initializing collector node: {Config.NODE_NAME}...")
 
     # inform core that this collector node is alive
     # status_report_thread = threading.Thread(target=reportStatus)
@@ -34,9 +34,7 @@ def initialize():
         class_ = getattr(module_, f"{c}Collector")
         register_collector(class_())
 
-    logger.log_system_activity(__name__, "Collector initialized.")
-
-    register_collector_node()
+    logger.log_info("Collector Node initialized")
 
 
 def register_collector(collector):

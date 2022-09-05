@@ -19,16 +19,6 @@
 
         <v-col cols="12" class="pt-0">
           <dropdown-selection
-            v-model="scope.sharingSets"
-            :items="getSharingSetSelectionList()"
-            label="Sharing Sets"
-            placeholder="all Sharing Sets"
-            @input="updateQuery()"
-          />
-        </v-col>
-
-        <v-col cols="12" class="pt-0">
-          <dropdown-selection
             v-model="scope.sources"
             :items="sourcesList"
             label="Sources"
@@ -146,7 +136,7 @@ export default {
       },
       {
         type: 'shared',
-        label: 'items in sharing set',
+        label: 'items in reports',
         icon: '$awakeShareOutline'
       },
       {

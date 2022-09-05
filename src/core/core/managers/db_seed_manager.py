@@ -461,6 +461,11 @@ def pre_seed_permissions():
         "My Assets config",
         "Configuration of access and groups in My Assets module",
     )
+    Permission.add(
+        "CONFIG_NODE_ACCESS",
+        "Config nodes access",
+        "Access to all nodes from configuration",
+    )
 
 
 def pre_seed_roles():

@@ -9,6 +9,8 @@ class Settings(BaseSettings):
     API_KEY: str
     SSL_VERIFICATION: bool = False
     MODULE_ID: str = "Publishers"
+    COLORED_LOGS: bool = True
+    DEBUG: bool = False
 
 
 Config = Settings()

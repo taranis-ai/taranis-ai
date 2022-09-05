@@ -59,16 +59,16 @@ services:
 
       JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
       OPENID_LOGOUT_URL: ""
-      WORKERS_PER_CORE: "1"
-      WEB_CONCURRENCY: 1
+      WORKERS_PER_CORE: "${WORKERS_PER_CORE}"
+      WEB_CONCURRENCY: "${WEB_CONCURRENCY}"
       TARANIS_NG_SAMPLE_DATA: "true"
 
       CVE_UPDATE_FILE: "${CVE_UPDATE_FILE}"
       CPE_UPDATE_FILE: "${CPE_UPDATE_FILE}"
 
       DEBUG: "${DEBUG}"
-      SECRET_KEY: "${COLLECTOR_PRESENTER_PUBLISHER_API_KEY}"
-      API_KEY: "${COLLECTOR_PRESENTER_PUBLISHER_API_KEY}"
+      SECRET_KEY: "${API_KEY}"
+      API_KEY: "${API_KEY}"
     volumes:
       - "core_data:/data"
     logging:
@@ -87,10 +87,11 @@ services:
         max_attempts: 3
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-bots:${TARANIS_NG_TAG}"
     environment:
-      API_KEY: "${COLLECTOR_PRESENTER_PUBLISHER_API_KEY}"
-      TARANIS_NG_CORE_URL: "http://localhost:6001/api/v1"
-      TARANIS_NG_CORE_SSE: "http://localhost:6001/sse"
-      WORKERS_PER_CORE: "1"
+      API_KEY: "${API_KEY}"
+      TARANIS_NG_CORE_URL: "${TARANIS_NG_CORE_URL}"
+      TARANIS_NG_CORE_SSE: "${TARANIS_NG_CORE_URL}/sse"
+      WORKERS_PER_CORE: "${WORKERS_PER_CORE}"
+      WEB_CONCURRENCY: "${WEB_CONCURRENCY}"
     logging:
       driver: "json-file"
       options:
@@ -107,8 +108,8 @@ services:
         max_attempts: 3
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-collectors:${TARANIS_NG_TAG}"
     environment:
-      TARANIS_NG_CORE_URL: "http://localhost:6001"
-      API_KEY: "${COLLECTOR_PRESENTER_PUBLISHER_API_KEY}"
+      TARANIS_NG_CORE_URL: "${TARANIS_NG_CORE_URL}"
+      API_KEY: "${API_KEY}"
       WORKERS_PER_CORE: "1"
       DEBUG: "${DEBUG}"
     volumes:
@@ -129,9 +130,10 @@ services:
         max_attempts: 3
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-presenters:${TARANIS_NG_TAG}"
     environment:
-      TARANIS_NG_CORE_URL: "http://localhost:6001"
-      API_KEY: "${COLLECTOR_PRESENTER_PUBLISHER_API_KEY}"
-      WORKERS_PER_CORE: "1"
+      TARANIS_NG_CORE_URL: "${TARANIS_NG_CORE_URL}"
+      API_KEY: "${API_KEY}"
+      WORKERS_PER_CORE: "${WORKERS_PER_CORE}"
+      WEB_CONCURRENCY: "${WEB_CONCURRENCY}"
     volumes:
       - "presenters_templates:/app/templates"
     logging:
@@ -150,9 +152,10 @@ services:
         max_attempts: 3
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-publishers:${TARANIS_NG_TAG}"
     environment:
-      TARANIS_NG_CORE_URL: "http://localhost:6001"
-      API_KEY: "${COLLECTOR_PRESENTER_PUBLISHER_API_KEY}"
-      WORKERS_PER_CORE: "1"
+      TARANIS_NG_CORE_URL: "${TARANIS_NG_CORE_URL}"
+      API_KEY: "${API_KEY}"
+      WORKERS_PER_CORE: "${WORKERS_PER_CORE}"
+      WEB_CONCURRENCY: "${WEB_CONCURRENCY}"
     logging:
       driver: "json-file"
       options:

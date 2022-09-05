@@ -6,29 +6,54 @@ from shared.schema.bots_node import BotsNode as BotsNodeSchema
 from core.managers.log_manager import logger
 
 
-def add_bots_node(data):
-    node = BotsNodeSchema.create(data)
+def get_bots_info(node: BotsNodeSchema):
     try:
         bots_info, status_code = BotsApi(node.api_url, node.api_key).get_bots_info()
-        logger.info(bots_info)
-        if status_code == 200:
-            bots = Bot.create_all(bots_info)
-            BotsNode.add_new(data, bots)
-            return "Successfully added {bots_info.bot_type}", status_code
-
-        return "", status_code
+    except ConnectionError:
+        return f"Connection error: Could not reach {node.api_url}", 500
     except Exception:
-        return "Error Adding Bot", 500
+        logger.log_debug_trace(f"Couldn't add Bot Node: {node.name}")
+        return f"Couldn't add Bot node: {node.name}", 500
+
+    if status_code != 200:
+        return None, status_code
+
+    return Bot.create_all(bots_info), status_code
+
+
+def add_bots_node(data):
+    try:
+        logger.log_info(data)
+        bots_info = data.pop("bots_info")
+        node = BotsNodeSchema.create(data)
+    except Exception as e:
+        logger.log_debug_trace()
+        return str(e), 500
+
+    try:
+        bots = Bot.create_all(bots_info)
+        BotsNode.add_new(data, bots)
+    except Exception:
+        logger.log_debug_trace(f"Couldn't add Bot Node: {node.name}")
+        return f"Couldn't add Bot Node: {node.name}", 500
+
+    return node.id, 200
 
 
 def update_bots_node(node_id, data):
     node = BotsNodeSchema.create(data)
-    bots_info, status_code = BotsApi(node.api_url, node.api_key).get_bots_info()
-    if status_code == 200:
-        bots = Bot.create_all(bots_info)
-        BotsNode.update(node_id, data, bots)
+    bots, status_code = get_bots_info(node)
 
-    return status_code
+    if status_code != 200:
+        return bots, status_code
+
+    try:
+        BotsNode.update(node_id, data, bots)
+    except Exception:
+        logger.log_debug_trace(f"Couldn't add Bot Node: {node.name}")
+        return f"Couldn't add Bot node: {node.name}", 500
+
+    return node.id, status_code
 
 
 def verify_api_key(api_key):

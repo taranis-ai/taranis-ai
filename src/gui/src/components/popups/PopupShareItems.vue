@@ -79,7 +79,7 @@
         <v-row class="mt-4">
           <v-col cols="12" sm="6" @mouseover="appendMode = false" class="pr-5">
             <!---------------------------->
-            <!-- Create new sharing set -->
+            <!-- Create new report -->
             <!---------------------------->
             <h2
               class="
@@ -90,20 +90,18 @@
                 pt-0
               "
             >
-              Create new Sharing Set
+              Create new Report
             </h2>
 
-            Create a new sharing set based on the currently selected items.
-            Further items can be added afterwards. The set is not shared until
-            it is explicitly sent.
+            Create a new report based on the currently selected items.
 
             <v-text-field
               hide-details
               dense
-              label="Sharing Set Title"
+              label="Report title"
               outlined
               required
-              v-model="sharingSetTitle"
+              v-model="reportTitle"
               class="mb-2 mt-4"
             ></v-text-field>
 
@@ -118,7 +116,7 @@
             ></v-switch>
             <v-expand-transition appear v-if="!autogenerateSummary">
               <v-textarea
-                v-model="sharingSetSummary"
+                v-model="reportSummary"
                 label="Summary"
                 hide-details
                 outlined
@@ -138,10 +136,10 @@
                 sharing-sumbit-btn
                 mt-4
               "
-              @click="createSharingSet()"
+              @click="createReport()"
             >
               <v-icon left>$awakeShareOutline</v-icon>
-              create sharing set
+              create report
             </v-btn>
           </v-col>
 
@@ -149,7 +147,7 @@
 
           <v-col cols="12" sm="6" @mouseover="appendMode = true" class="pl-5">
             <!--------------------------->
-            <!-- Append to sharing set -->
+            <!-- Append to report -->
             <!--------------------------->
             <h2
               class="
@@ -168,7 +166,7 @@
             Also with this method, the sharing set must be explicitly sent.
 
             <v-combobox
-              v-model="existingSharingSet"
+              v-model="existingReport"
               :items="getSharingSetSelectionList()"
               label="Sharing Set"
               placeholder="select Sharing Sets"
@@ -202,11 +200,11 @@
                 pr-4
                 sharing-sumbit-btn
               "
-              @click="appendToSharingSet()"
+              @click="appendToReport()"
             >
               <!-- @click="mergeSelectedTopics()" -->
               <v-icon left>$awakeShareOutline</v-icon>
-              append to sharing set
+              append to report
             </v-btn>
           </v-col>
         </v-row>
@@ -243,10 +241,10 @@ export default {
   data: () => ({
     valid: true,
     appendMode: true,
-    existingSharingSet: null,
+    existingReport: null,
     autogenerateSummary: true,
-    sharingSetTitle: '',
-    sharingSetSummary: ''
+    reportTitle: '',
+    reportSummary: ''
   }),
   methods: {
     ...mapActions('dashboard', ['createNewTopic', 'updateTopic']),
@@ -254,7 +252,7 @@ export default {
     ...mapActions('assess', [
       'deselectNewsItem',
       'deselectAllNewsItems',
-      'assignSharingSet'
+      'assignReport'
     ]),
     ...mapGetters('assess', ['getNewsItemById']),
     ...mapGetters('dashboard', ['getTopicById', 'getSharingSetSelectionList']),
@@ -267,29 +265,29 @@ export default {
     //   this.deselectNewsItem(newsItemId)
     // },
 
-    appendToSharingSet () {
-      this.assignSharingSet({
+    appendToReport () {
+      this.assignReport({
         items: this.selection,
-        sharingSet: this.existingSharingSet.id
+        sharingSet: this.existingReport.id
       })
 
-      const sharingSet = this.getTopicById()(this.existingSharingSet.id)
+      const sharingSet = this.getTopicById()(this.existingReport.id)
       sharingSet.sharingState = 'pending'
       this.updateTopic(sharingSet)
 
-      this.leavePopup(this.existingSharingSet.id)
+      this.leavePopup(this.existingReport.id)
     },
 
-    createSharingSet () {
+    createReport () {
       const newSharingSet = this.topicPrototype
-      newSharingSet.title = this.sharingSetTitle
-      newSharingSet.summary = this.sharingSetSummary
-        ? this.sharingSetSummary
+      newSharingSet.title = this.reportTitle
+      newSharingSet.summary = this.reportSummary
+        ? this.reportSummary
         : 'this is an AI created summary ... ' // should be replaced by NLP algorithm
       newSharingSet.id = Math.floor(Math.random() * (700 - 500 + 1)) + 500 // get ID from creation
 
       this.createNewTopic(newSharingSet)
-      this.assignSharingSet({
+      this.assignReport({
         items: this.selection,
         sharingSet: newSharingSet.id
       })
@@ -319,12 +317,12 @@ export default {
     }),
 
     validAppendSettings () {
-      return this.existingSharingSet !== null
+      return this.existingReport !== null
     },
     validCreateSettings () {
       return (
-        this.sharingSetTitle !== '' &&
-        (this.sharingSetSummary !== '' || this.autogenerateSummary)
+        this.reportTitle !== '' &&
+        (this.reportSummary !== '' || this.autogenerateSummary)
       )
     },
     topicPrototype () {

@@ -1,6 +1,7 @@
 from flask import Flask
 from flask_cors import CORS
-import bots.managers as managers
+
+from bots.managers import api_manager, bots_manager, time_manager
 
 
 def create_app():
@@ -10,6 +11,8 @@ def create_app():
     with app.app_context():
         CORS(app)
 
-        managers.api_manager.initialize(app)
-        managers.bots_manager.initialize()
+        api_manager.initialize(app)
+        bots_manager.initialize()
+        bots_manager.register_bot_node()
+        time_manager.run_scheduler()
     return app

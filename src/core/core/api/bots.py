@@ -3,10 +3,10 @@ import json
 from flask_restful import Resource, reqparse
 from datetime import datetime, timedelta
 
-from core.managers import sse_manager
+from core.managers import sse_manager, bots_manager
 from core.managers.log_manager import logger
 from core.managers.auth_manager import api_key_required
-from core.model import bot_preset, news_item, word_list
+from core.model import bot_preset, news_item, word_list, bots_node
 
 
 class BotPresetsForBots(Resource):
@@ -41,6 +41,24 @@ class NewsItemData(Resource):
             return "", 400
 
         return news_item.NewsItemData.get_all_news_items_data(limit)
+
+
+class BotsNode(Resource):
+    @api_key_required
+    def get(self, node_id):
+        return bots_node.BotsNode.get_json_by_id(node_id)
+
+    @api_key_required
+    def put(self, node_id):
+        return bots_manager.update_bots_node(node_id, request.json)
+
+    @api_key_required
+    def post(self):
+        return bots_manager.add_bots_node(request.json)
+
+    @api_key_required
+    def delete(self, node_id):
+        bots_node.BotsNode.delete(node_id)
 
 
 class UpdateNewsItemAttributes(Resource):
@@ -90,6 +108,22 @@ class Entries(Resource):
         return word_list.WordListEntry.update_word_list_entries(category_id, entry_name, request.json)
 
 
+class BotsStatusUpdate(Resource):
+    @api_key_required
+    def get(self, node_id):
+        collector = bots_node.BotsNode.get_by_id(node_id)
+        if not collector:
+            return "", 404
+
+        try:
+            collector.updateLastSeen()
+        except Exception as ex:
+            logger.log_debug(ex)
+            return {}, 400
+
+        return {}, 200
+
+
 def initialize(api):
     api.add_resource(BotPresetsForBots, "/api/v1/bots/bots-presets")
     api.add_resource(NewsItemData, "/api/v1/bots/news-item-data")
@@ -112,3 +146,5 @@ def initialize(api):
         Entries,
         "/api/v1/bots/word-list-categories/<int:category_id>/entries/<string:entry_name>",
     )
+    api.add_resource(BotsNode, "/api/v1/bots/node/<string:node_id>", "/api/v1/bots/node")
+    api.add_resource(BotsStatusUpdate, "/api/v1/bots/<string:node_id>")

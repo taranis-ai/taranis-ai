@@ -4,7 +4,7 @@ from shared.schema.collector import CollectorSchema
 
 
 class CollectorsNodeSchema(Schema):
-    id = fields.Str(load_default=None)
+    id = fields.Str()
     name = fields.Str()
     description = fields.Str()
     api_url = fields.Str()

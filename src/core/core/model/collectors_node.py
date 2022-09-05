@@ -15,6 +15,7 @@ class NewCollectorsNodeSchema(CollectorsNodeSchema):
     @post_load
     def make_collectors_node(self, data, **kwargs):
         return CollectorsNode(
+            id=data["id"],
             name=data["name"],
             description=data["description"],
             api_url=data["api_url"],
@@ -23,7 +24,7 @@ class NewCollectorsNodeSchema(CollectorsNodeSchema):
 
 
 class CollectorsNode(db.Model):
-    id = db.Column(db.String(64), primary_key=True)
+    id = db.Column(db.String(), primary_key=True)
     name = db.Column(db.String(), unique=True, nullable=False)
     description = db.Column(db.String())
 
@@ -35,8 +36,8 @@ class CollectorsNode(db.Model):
 
     collectors = db.relationship("Collector", back_populates="node", cascade="all")
 
-    def __init__(self, name, description, api_url, api_key):
-        self.id = str(uuid.uuid4())
+    def __init__(self, id, name, description, api_url, api_key):
+        self.id = id if id != "" else str(uuid.uuid4())
         self.name = name
         self.description = description
         self.api_url = api_url
@@ -77,6 +78,10 @@ class CollectorsNode(db.Model):
     @classmethod
     def get_by_id(cls, id):
         return cls.query.filter_by(id=id).first()
+
+    @classmethod
+    def get_json_by_id(cls, id):
+        return CollectorsNodeSchema().dump(cls.get_by_id(id))
 
     def find_collector_by_type(self, collector_type):
         for collector in self.collectors:

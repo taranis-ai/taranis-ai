@@ -1,5 +1,6 @@
 import json
 import requests
+import base64
 from bots.managers.log_manager import logger
 from bots.config import Config
 
@@ -8,7 +9,56 @@ class CoreApi:
     def __init__(self):
         self.api_url = Config.TARANIS_NG_CORE_URL
         self.api_key = Config.API_KEY
-        self.headers = {"Authorization": f"Bearer {self.api_key}"}
+        self.headers = self.get_headers()
+        self.node_id = self.get_node_id()
+
+    def get_headers(self) -> dict:
+        return {"Authorization": f"Bearer {self.api_key}", "Content-type": "application/json"}
+
+    def get_node_id(self) -> str:
+        uid = self.api_url + self.api_key
+        return base64.urlsafe_b64encode(uid.encode("utf-8")).decode("utf-8")
+
+    def register_node(self, bots_info):
+        try:
+            response, status = self.get_bot_node_status()
+            if status == 200:
+                return response, status
+            node_info = {
+                "id": self.node_id,
+                "name": Config.NODE_NAME,
+                "description": Config.NODE_DESCRIPTION,
+                "api_url": Config.NODE_URL,
+                "api_key": Config.API_KEY,
+                "bots_info": bots_info,
+            }
+            response = requests.post(
+                f"{self.api_url}/api/v1/bots/node",
+                json=node_info,
+                headers=self.headers,
+            )
+
+            if response.status_code != 200:
+                logger.log_debug(f"Can't register Bot node: {response.text}")
+                return None, 400
+
+            return response.json(), response.status_code
+        except Exception as e:
+            logger.log_debug("Can't register Bot node")
+            logger.log_debug(str(e))
+            return None, 400
+
+    def get_bot_node_status(self):
+        try:
+            response = requests.get(
+                f"{self.api_url}/api/v1/bots/{self.node_id}",
+                headers=self.headers,
+            )
+
+            return response.json(), response.status_code
+        except Exception:
+            logger.log_debug_trace("Cannot update Bot status")
+            return None, 400
 
     def get_bots_presets(self, bot_type):
         try:

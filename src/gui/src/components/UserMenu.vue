@@ -31,6 +31,15 @@
                     </v-list-item-content>
                 </v-list-item>
 
+                <v-list-item @click="viewConfig">
+                    <v-list-item-icon>
+                        <v-icon>mdi-ballot-outline</v-icon>
+                    </v-list-item-icon>
+                    <v-list-item-content>
+                        <v-list-item-title> {{ $t('main_menu.config') }}</v-list-item-title>
+                    </v-list-item-content>
+                </v-list-item>
+
                 <v-list-item @click="logout">
                     <v-list-item-icon>
                         <v-icon>mdi-logout</v-icon>
@@ -39,6 +48,7 @@
                         <v-list-item-title> {{ $t('user_menu.logout') }}</v-list-item-title>
                     </v-list-item-content>
                 </v-list-item>
+
             </v-list>
         </v-menu>
 
@@ -78,6 +88,9 @@ export default {
     },
     darkToggle () {
       this.$vuetify.theme.dark = this.darkTheme
+    },
+    viewConfig () {
+      this.$router.push({ path: '/config/external' })
     }
   }
 }

@@ -314,8 +314,6 @@ class CollectorsNodes(Resource):
     def post(self):
         return collectors_manager.add_collectors_node(request.json)
 
-
-class CollectorsNode(Resource):
     @auth_required("CONFIG_COLLECTORS_NODE_UPDATE")
     def put(self, node_id):
         collectors_manager.update_collectors_node(node_id, request.json)
@@ -354,7 +352,7 @@ class OSINTSourcesExport(Resource):
         data = collectors_manager.export_osint_sources(request.json)
         return send_file(
             io.BytesIO(data),
-            attachment_filename="osint_sources_export.json",
+            download_name="osint_sources_export.json",
             mimetype="application/json",
             as_attachment=True,
         )
@@ -363,8 +361,7 @@ class OSINTSourcesExport(Resource):
 class OSINTSourcesImport(Resource):
     @auth_required("CONFIG_OSINT_SOURCE_CREATE")
     def post(self):
-        file = request.files.get("file")
-        if file:
+        if file := request.files.get("file"):
             collectors_node_id = request.form["collectors_node_id"]
             collectors_manager.import_osint_sources(collectors_node_id, file)
 
@@ -414,9 +411,9 @@ class RemoteAccess(Resource):
         if disconnect:
             sse_manager.remote_access_disconnect([event_id])
 
-        @auth_required("CONFIG_REMOTE_ACCESS_DELETE")
-        def delete(self, remote_access_id):
-            return remote.RemoteAccess.delete(remote_access_id)
+    @auth_required("CONFIG_REMOTE_ACCESS_DELETE")
+    def delete(self, remote_access_id):
+        return remote.RemoteAccess.delete(remote_access_id)
 
 
 class RemoteNodes(Resource):
@@ -458,8 +455,6 @@ class PresentersNodes(Resource):
     def post(self):
         return "", presenters_manager.add_presenters_node(request.json)
 
-
-class PresentersNode(Resource):
     @auth_required("CONFIG_PRESENTERS_NODE_UPDATE")
     def put(self, node_id):
         presenters_manager.update_presenters_node(node_id, request.json)
@@ -479,8 +474,6 @@ class PublisherNodes(Resource):
     def post(self):
         return "", publishers_manager.add_publishers_node(request.json)
 
-
-class PublishersNode(Resource):
     @auth_required("CONFIG_PUBLISHERS_NODE_UPDATE")
     def put(self, node_id):
         publishers_manager.update_publishers_node(node_id, request.json)
@@ -511,6 +504,21 @@ class PublisherPreset(Resource):
         return publisher_preset.PublisherPreset.delete(preset_id)
 
 
+class Nodes(Resource):
+    @auth_required("CONFIG_NODE_ACCESS")
+    def get(self):
+        search = request.args.get(key="search", default=None)
+        publishers_nodes = publishers_node.PublishersNode.get_all_json(search)
+        bots_nodes = bots_node.BotsNode.get_all_json(search)
+        collectors_nodes = collectors_node.CollectorsNode.get_all_json(search)
+        presenters_nodes = presenters_node.PresentersNode.get_all_json(search)
+        total_count = (
+            publishers_nodes["total_count"] + bots_nodes["total_count"] + collectors_nodes["total_count"] + presenters_nodes["total_count"]
+        )
+        items = publishers_nodes["items"] + bots_nodes["items"] + collectors_nodes["items"] + presenters_nodes["items"]
+        return {"total_count": total_count, "items": items}
+
+
 class BotNodes(Resource):
     @auth_required("CONFIG_BOTS_NODE_ACCESS")
     def get(self):
@@ -521,8 +529,6 @@ class BotNodes(Resource):
     def post(self):
         return bots_manager.add_bots_node(request.json)
 
-
-class BotsNode(Resource):
     @auth_required("CONFIG_BOTS_NODE_UPDATE")
     def put(self, node_id):
         bots_manager.update_bots_node(node_id, request.json)
@@ -591,8 +597,7 @@ def initialize(api):
     api.add_resource(WordLists, "/api/v1/config/word-lists")
     api.add_resource(WordList, "/api/v1/config/word-lists/<int:word_list_id>")
 
-    api.add_resource(CollectorsNodes, "/api/v1/config/collectors-nodes")
-    api.add_resource(CollectorsNode, "/api/v1/config/collectors-nodes/<string:node_id>")
+    api.add_resource(CollectorsNodes, "/api/v1/config/collectors-nodes", "/api/v1/config/collectors-nodes/<string:node_id>")
     api.add_resource(OSINTSources, "/api/v1/config/osint-sources")
     api.add_resource(OSINTSource, "/api/v1/config/osint-sources/<string:source_id>")
     api.add_resource(OSINTSourcesExport, "/api/v1/config/export-osint-sources")
@@ -607,17 +612,13 @@ def initialize(api):
     api.add_resource(RemoteNode, "/api/v1/config/remote-nodes/<int:remote_node_id>")
     api.add_resource(RemoteNodeConnect, "/api/v1/config/remote-nodes/<int:remote_node_id>/connect")
 
-    api.add_resource(PresentersNodes, "/api/v1/config/presenters-nodes")
-    api.add_resource(PresentersNode, "/api/v1/config/presenters-nodes/<string:node_id>")
-
-    api.add_resource(PublisherNodes, "/api/v1/config/publishers-nodes")
-    api.add_resource(PublishersNode, "/api/v1/config/publishers-nodes/<string:node_id>")
-
+    api.add_resource(PresentersNodes, "/api/v1/config/presenters-nodes", "/api/v1/config/presenters-nodes/<string:node_id>")
+    api.add_resource(PublisherNodes, "/api/v1/config/publishers-nodes", "/api/v1/config/publishers-nodes/<string:node_id>")
     api.add_resource(PublisherPresets, "/api/v1/config/publishers-presets")
     api.add_resource(PublisherPreset, "/api/v1/config/publishers-presets/<string:preset_id>")
 
-    api.add_resource(BotNodes, "/api/v1/config/bots-nodes")
-    api.add_resource(BotsNode, "/api/v1/config/bots-nodes/<string:node_id>")
-
+    api.add_resource(BotNodes, "/api/v1/config/bots-nodes", "/api/v1/config/bots-nodes/<string:node_id>")
     api.add_resource(BotPresets, "/api/v1/config/bots-presets")
     api.add_resource(BotPreset, "/api/v1/config/bots-presets/<string:preset_id>")
+
+    api.add_resource(Nodes, "/api/v1/config/nodes", "/api/v1/config/nodes/<string:node_id>")

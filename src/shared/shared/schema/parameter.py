@@ -7,6 +7,7 @@ class ParameterType(Enum):
     STRING = auto()
     NUMBER = auto()
     BOOLEAN = auto()
+    LIST = auto()
 
 
 class ParameterSchema(Schema):

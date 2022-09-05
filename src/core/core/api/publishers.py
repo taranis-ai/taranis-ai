@@ -6,18 +6,10 @@ from core.managers.auth_manager import auth_required, api_key_required
 from core.model import publishers_node, publisher_preset
 
 
-class AddPublishersNode(Resource):
-    @auth_required("CONFIG_PUBLISHERS_NODE_CREATE")
-    def post(self):
-        return "", publishers_manager.add_publishers_node(request.json)
-
-
 class PublisherPresets(Resource):
     @auth_required("CONFIG_PUBLISHER_PRESET_ACCESS")
     def get(self):
-        search = None
-        if "search" in request.args and request.args["search"]:
-            search = request.args["search"]
+        search = request.args.get(key="search", default=None)
         return publisher_preset.PublisherPreset.get_all_json(search)
 
     @api_key_required
@@ -29,13 +21,16 @@ class PublisherPresets(Resource):
         return publisher_preset.PublisherPreset.get_all_for_publisher_json(parameters)
 
 
-class AddPublisherPreset(Resource):
+class PublisherPreset(Resource):
+    @auth_required("CONFIG_PUBLISHER_PRESET_ACCESS")
+    def get(self):
+        search = request.args.get(key="search", default=None)
+        return publisher_preset.PublisherPreset.get_all_json(search)
+
     @auth_required("CONFIG_PUBLISHER_PRESET_CREATE")
     def post(self):
         publishers_manager.add_publisher_preset(request.json)
 
-
-class PublisherPreset(Resource):
     @auth_required("CONFIG_PUBLISHER_PRESET_UPDATE")
     def put(self, id):
         publisher_preset.PublisherPreset.update(id, request.json)
@@ -45,16 +40,16 @@ class PublisherPreset(Resource):
         return publisher_preset.PublisherPreset.delete(id)
 
 
-class PublisherNodes(Resource):
+class PublishersNode(Resource):
     @auth_required("CONFIG_PUBLISHERS_NODE_ACCESS")
     def get(self):
-        search = None
-        if "search" in request.args and request.args["search"]:
-            search = request.args["search"]
+        search = request.args.get(key="search", default=None)
         return publishers_node.PublishersNode.get_all_json(search)
 
+    @auth_required("CONFIG_PUBLISHERS_NODE_CREATE")
+    def post(self):
+        return "", publishers_manager.add_publishers_node(request.json)
 
-class PublishersNode(Resource):
     @auth_required("CONFIG_PUBLISHERS_NODE_UPDATE")
     def put(self, id):
         publishers_manager.update_publishers_node(id, request.json)
@@ -65,10 +60,7 @@ class PublishersNode(Resource):
 
 
 def initialize(api):
-    api.add_resource(PublisherNodes, "/api/publishers/nodes")
-    api.add_resource(AddPublishersNode, "/api/publishers/nodes/add")
-    api.add_resource(PublishersNode, "/api/publishers/node/<id>")
+    api.add_resource(PublishersNode, "/api/publishers/nodes", "/api/publishers/node", "/api/publishers/node/<id>")
 
     api.add_resource(PublisherPresets, "/api/publishers/presets")
-    api.add_resource(AddPublisherPreset, "/api/publishers/presets/add")
-    api.add_resource(PublisherPreset, "/api/publishers/preset/<id>")
+    api.add_resource(PublisherPreset, "/api/publishers/preset", "/api/publishers/preset/<id>")

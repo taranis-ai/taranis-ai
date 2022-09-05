@@ -25,19 +25,24 @@ def get_collectors_info(node: CollectorNodeSchema):
     return Collector.create_all(collectors_info), status_code
 
 
-def add_collectors_node(node_id, data):
-    node = CollectorNodeSchema.create(data)
-    collectors, status_code = get_collectors_info(node)
-    if status_code != 200:
-        return collectors, status_code
+def add_collectors_node(data):
+    try:
+        collectors_info = data.pop("collectors_info")
+        logger.log_debug(f"ADD COLLECTOR: {data}")
+        node = CollectorNodeSchema.create(data)
+
+    except Exception as e:
+        logger.log_debug_trace()
+        return str(e), 500
 
     try:
+        collectors = Collector.create_all(collectors_info)
         CollectorsNode.add_new(data, collectors)
     except Exception:
         logger.log_debug_trace(f"Couldn't add Collector Node: {node.name}")
         return f"Couldn't add Collector node: {node.name}", 500
 
-    return node_id, status_code
+    return node.id, 200
 
 
 def update_collectors_node(node_id, data):

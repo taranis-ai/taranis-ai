@@ -1,5 +1,5 @@
 <template>
-  <v-col cols="12" xl="6">
+  <v-col cols="12">
     <v-card
       tile
       elevation="4"
@@ -124,7 +124,7 @@
               <v-row class="flex-grow-0 mt-1">
                 <v-col
                   cols="12"
-                  class="mx-0 d-flex justify-start flex-wrap pt-1 pb-4"
+                  class="mx-0 d-flex justify-start flex-wrap pt-1 pb-8"
                 >
                   <button-outlined
                     label="view details"
@@ -263,6 +263,7 @@
         </v-row>
       </v-container>
     </v-card>
+    <NewsItemDetail ref="newsItemDetail" />
   </v-col>
 </template>
 
@@ -275,6 +276,8 @@ import PopupDeleteItem from '@/components/popups/PopupDeleteItem'
 import PopupManageTags from '@/components/popups/PopupManageTags'
 import buttonOutlined from '@/components/_subcomponents/buttonOutlined'
 import newsItemTitle from '@/components/_subcomponents/newsItemTitle'
+import NewsItemDetail from '@/components/assess/NewsItemDetail'
+
 import votes from '@/components/_subcomponents/votes'
 import { isValidUrl, stripHtml } from '@/utils/helpers'
 
@@ -290,6 +293,7 @@ export default {
     PopupManageTags,
     buttonOutlined,
     newsItemTitle,
+    NewsItemDetail,
     votes
   },
   props: {
@@ -329,6 +333,7 @@ export default {
 
     viewDetails(event) {
       console.log('not yet implemented')
+      this.$refs.newsItemDetail.open(this.newsItem)
     },
     createReport(event) {
       console.log('not yet implemented')
@@ -338,7 +343,7 @@ export default {
     },
 
     getDescription() {
-      return stripHtml(this.newsItem.description)
+      return stripHtml(this.newsItem.description + this.newsItem.news_items[0].news_item_data.content)
     },
 
     getTags() {

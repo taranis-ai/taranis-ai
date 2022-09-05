@@ -171,7 +171,7 @@ import { mapActions } from 'vuex'
 import PopupMergeTopics from '@/components/popups/PopupMergeTopics'
 
 export default {
-  name: 'DashboardSelectionToolbar',
+  name: 'TopicsSelectionToolbar',
   components: {
     PopupMergeTopics
   },

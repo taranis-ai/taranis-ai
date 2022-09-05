@@ -12,6 +12,25 @@ from core.model.tag_cloud import TagCloud
 class Dashboard(Resource):
     @jwt_required()
     def get(self):
+        total_news_items = NewsItemData.count_all()
+        total_products = Product.count_all()
+        report_items_completed = ReportItem.count_all(True)
+        report_items_in_progress = ReportItem.count_all(False)
+        total_database_items = total_news_items + total_products + report_items_completed + report_items_in_progress
+        latest_collected = NewsItemData.latest_collected()
+        return {
+            "total_news_items": total_news_items,
+            "total_products": total_products,
+            "report_items_completed": report_items_completed,
+            "report_items_in_progress": report_items_in_progress,
+            "total_database_items": total_database_items,
+            "latest_collected": latest_collected,
+        }
+
+
+class Tagcloud(Resource):
+    @jwt_required()
+    def get(self):
 
         try:
             tag_cloud_day = 0
@@ -21,23 +40,9 @@ class Dashboard(Resource):
             logger.log_debug(ex)
             return "", 400
 
-        total_news_items = NewsItemData.count_all()
-        total_products = Product.count_all()
-        report_items_completed = ReportItem.count_all(True)
-        report_items_in_progress = ReportItem.count_all(False)
-        total_database_items = total_news_items + total_products + report_items_completed + report_items_in_progress
-        latest_collected = NewsItemData.latest_collected()
-        grouped_words = TagCloud.get_grouped_words(tag_cloud_day)
-        return {
-            "total_news_items": total_news_items,
-            "total_products": total_products,
-            "report_items_completed": report_items_completed,
-            "report_items_in_progress": report_items_in_progress,
-            "total_database_items": total_database_items,
-            "latest_collected": latest_collected,
-            "tag_cloud": grouped_words,
-        }
+        return TagCloud.get_grouped_words(tag_cloud_day)
 
 
 def initialize(api):
     api.add_resource(Dashboard, "/api/v1/dashboard-data")
+    api.add_resource(Tagcloud, "/api/v1/tagcloud")

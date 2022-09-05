@@ -5,10 +5,10 @@ import traceback
 import re
 import socks
 import feedparser
-import urllib.request
+import requests
 from sockshandler import SocksiPyHandler
 from bs4 import BeautifulSoup
-import dateparser
+import dateutil.parser as dateparser
 
 from .base_collector import BaseCollector
 from collectors.managers.log_manager import logger
@@ -24,71 +24,77 @@ class RSSCollector(BaseCollector):
     parameters = [
         Parameter(0, "FEED_URL", "Feed URL", "Full url for RSS feed", ParameterType.STRING),
         Parameter(0, "USER_AGENT", "User agent", "Type of user agent", ParameterType.STRING),
+        Parameter(0, "CONTENT_LOCATION", "Content Location", "Location of the 'content' Field", ParameterType.STRING),
     ]
 
     parameters.extend(BaseCollector.parameters)
 
     news_items = []
 
+    def get_proxy_handler(self, proxy_server: str):
+        proxy = re.search(
+            r"^(http|https|socks4|socks5)://([a-zA-Z0-9\-\.\_]+):(\d+)/?$",
+            proxy_server,
+        )
+        if proxy:
+            from urllib.request import ProxyHandler
+
+            scheme, host, port = proxy.groups()
+            # classic HTTP/HTTPS proxy
+            if scheme in ["http", "https"]:
+                return ProxyHandler(
+                    {"http": f"{scheme}://{host}:{port}", "https": f"{scheme}://{host}:{port}", "ftp": f"{scheme}://{host}:{port}"}
+                )
+
+            elif scheme == "socks4":
+                return SocksiPyHandler(socks.SOCKS4, host, int(port))
+            elif scheme == "socks5":
+                return SocksiPyHandler(socks.SOCKS5, host, int(port))
+        return None
+
+    def get_article_content(self, link_for_article: str, headers: dict, proxies: dict) -> str:
+        try:
+            html_content, status = requests.get(link_for_article, headers=headers, proxies=proxies)
+        except Exception:
+            return ""
+
+        return "" if status != 200 else html_content
+
+    def parse_article_content(self, html_content: str, feed_entry: list, content_location: str = "p") -> str:
+        if "_" in content_location:
+            cl_list = content_location.split("_")
+            if cl_list[0] == "xml" and cl_list[1] in feed_entry:
+                return feed_entry[cl_list[1]]
+
+        soup = BeautifulSoup(html_content, features="html.parser")
+        if html_content:
+            content_text = [p.text.strip() for p in soup.findAll(content_location)]
+            if replaced_str := "\xa0":
+                content = [w.replace(replaced_str, " ") for w in content_text]
+                return " ".join(content)
+        return ""
+
     def collect(self, source):
-
         feed_url = source.parameter_values["FEED_URL"]
-        interval = source.parameter_values["REFRESH_INTERVAL"]
+        # interval = source.parameter_values["REFRESH_INTERVAL"]
 
-        logger.log_collector_activity("rss", source.id, "Starting collector for url: {}".format(feed_url))
+        logger.log_collector_activity("rss", source.id, f"Starting collector for url: {feed_url}")
 
         user_agent = source.parameter_values["USER_AGENT"]
         if user_agent:
             feedparser.USER_AGENT = user_agent
 
-        # use system proxy
-        proxy_handler = None
-        opener = urllib.request.urlopen
-
-        if "PROXY_SERVER" in source.parameter_values:
-            proxy_server = source.parameter_values["PROXY_SERVER"]
-
-            # disable proxy - do not use system proxy
-            if proxy_server == "none":
-                proxy_handler = urllib.request.ProxyHandler({})
-            else:
-                proxy = re.search(
-                    r"^(http|https|socks4|socks5)://([a-zA-Z0-9\-\.\_]+):(\d+)/?$",
-                    proxy_server,
-                )
-                if proxy:
-                    scheme, host, port = proxy.groups()
-                    # classic HTTP/HTTPS proxy
-                    if scheme in ["http", "https"]:
-                        proxy_handler = urllib.request.ProxyHandler(
-                            {
-                                "http": "{}://{}:{}".format(scheme, host, port),
-                                "https": "{}://{}:{}".format(scheme, host, port),
-                                "ftp": "{}://{}:{}".format(scheme, host, port),
-                            }
-                        )
-                    # socks4 proxy
-                    elif scheme == "socks4":
-                        proxy_handler = SocksiPyHandler(socks.SOCKS4, host, int(port))
-                    # socks5 proxy
-                    elif scheme == "socks5":
-                        proxy_handler = SocksiPyHandler(socks.SOCKS5, host, int(port))
-
-        # use proxy in urllib
-        if proxy_handler:
-            opener = urllib.request.build_opener(proxy_handler).open
+        proxy_handler = self.get_proxy_handler(source.parameter_values.get("PROXY_SERVER"))
 
         try:
             if proxy_handler:
                 feed = feedparser.parse(feed_url, handlers=[proxy_handler])
+                proxies = proxy_handler.proxies
             else:
                 feed = feedparser.parse(feed_url)
+                proxies = None
 
-            logger.log_collector_activity(
-                "rss",
-                source.id,
-                "RSS returned feed with {} entries".format(len(feed["entries"])),
-            )
+            logger.log_collector_activity("rss", source.id, f'RSS returned feed with {len(feed["entries"])} entries')
 
             news_items = []
 
@@ -100,29 +106,16 @@ class RSSCollector(BaseCollector):
 
                 # limit = BaseCollector.history(interval)
                 published = feed_entry["published"]
-                published = dateparser.parse(published, settings={"DATE_ORDER": "DMY"})
+                published = dateparser.parse(published)
 
                 # if published > limit: TODO: uncomment after testing, we need some initial data now
-                link_for_article = feed_entry["link"]
-                logger.log_collector_activity("rss", source.id, "Processing entry [{}]".format(link_for_article))
+                logger.log_collector_activity("rss", source.id, f"Processing entry [{feed_entry['link']}]")
 
-                html_content = ""
-                request = urllib.request.Request(link_for_article)
-                request.add_header("User-Agent", user_agent)
+                content = self.get_article_content(link_for_article=feed_entry["link"], headers={"User-Agent": user_agent}, proxies=proxies)
 
-                with opener(request) as response:
-                    html_content = response.read()
-
-                soup = BeautifulSoup(html_content, features="html.parser")
-
-                content = ""
-
-                if html_content:
-                    content_text = [p.text.strip() for p in soup.findAll("p")]
-                    replaced_str = "\xa0"
-                    if replaced_str:
-                        content = [w.replace(replaced_str, " ") for w in content_text]
-                        content = " ".join(content)
+                content = self.parse_article_content(
+                    html_content=content, feed_entry=feed_entry, content_location=source.parameter_values["CONTENT_LOCATION"]
+                )
 
                 for_hash = feed_entry["author"] + feed_entry["title"] + feed_entry["link"]
 
@@ -150,4 +143,4 @@ class RSSCollector(BaseCollector):
             BaseCollector.print_exception(source, error)
             logger.log_debug(traceback.format_exc())
 
-        logger.log_debug("{} collection finished.".format(self.type))
+        logger.log_debug(f"{self.type} collection finished.")

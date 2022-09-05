@@ -96,43 +96,35 @@ class BaseCollector:
         html = re.sub(r"(?i)<script[^>/]*>.*?</script[^>/]*>", "", html, re.DOTALL)
         html = re.sub(r"(?i)<style[^>/]*>.*?</style[^>/]*>", "", html, re.DOTALL)
 
-        clean = bleach.clean(html, tags=["p", "b", "i", "b", "u", "pre"], strip=True)
+        clean = bleach.clean(
+            html, tags=["a", "blockquote", "em", "code", "li", "ol", "ul", "strong", "p", "b", "i", "b", "u", "pre"], strip=True
+        )
+
         return clean
 
     @staticmethod
     def sanitize_news_items(news_items, source):
         for item in news_items:
-            if item.id is None:
-                item.id = uuid.uuid4()
-            if item.title is None:
-                item.title = ""
-            if item.review is None:
-                item.review = ""
-            if item.source is None:
-                item.source = ""
-            if item.link is None:
-                item.link = ""
-            if item.author is None:
-                item.author = ""
-            if item.content is None:
-                item.content = ""
-            if item.published is None:
-                item.published = datetime.datetime.now()
-            if item.collected is None:
-                item.collected = datetime.datetime.now()
+            item.id = item.id or uuid.uuid4()
+            item.title = item.title or ""
+            item.review = item.review or ""
+            item.source = item.source or ""
+            item.link = item.link or ""
+            item.author = item.author or ""
+            item.content = item.content or ""
+            item.published = item.published or datetime.datetime.now()
+            item.collected = item.collected or datetime.datetime.now()
             if item.hash is None:
                 for_hash = item.author + item.title + item.link
                 item.hash = hashlib.sha256(for_hash.encode()).hexdigest()
-            if item.osint_source_id is None:
-                item.osint_source_id = source.id
-            if item.attributes is None:
-                item.attributes = []
+            item.osint_source_id = item.osint_source_id or source.id
+            item.attributes = item.attributes or []
             item.title = BaseCollector.presanitize_html(item.title)
             item.review = BaseCollector.presanitize_html(item.review)
             item.content = BaseCollector.presanitize_html(item.content)
             item.author = BaseCollector.presanitize_html(item.author)
-            item.source = BaseCollector.presanitize_html(item.source)  # TODO: replace with link sanitizer
-            item.link = BaseCollector.presanitize_html(item.link)  # TODO: replace with link sanitizer
+            item.source = item.source  # TODO: replace with link sanitizer
+            item.link = item.link  # TODO: replace with link sanitizer
 
     def publish(self, news_items, source):
         BaseCollector.sanitize_news_items(news_items, source)
@@ -154,12 +146,12 @@ class BaseCollector:
         # get new node configuration
         response, code = self.core_api.get_osint_sources(self.type)
 
-        logger.log_debug(f"HTTP {code}: Got the following reply: {response}")
-
         if code != 200 or response is None:
+            logger.log_debug(f"HTTP {code}: Got the following reply: {response}")
             return
 
         try:
+            logger.log_debug(f"HTTP {code}: Got the following reply: {response}")
             source_schema = osint_source.OSINTSourceSchemaBase(many=True)
             self.osint_sources = source_schema.load(response)
 

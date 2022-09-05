@@ -40,11 +40,11 @@
     </v-container>
 
     <v-expand-transition>
-      <dashboard-selection-toolbar
+      <topics-selection-toolbar
         class="px-1 pt-2 pb-3"
         v-if="activeSelection"
         :selection="getTopicSelection()"
-      ></dashboard-selection-toolbar>
+      ></topics-selection-toolbar>
     </v-expand-transition>
 
   </v-col>
@@ -52,7 +52,7 @@
 
 <script>
 // import wordcloud from 'vue-wordcloud'
-import DashboardSelectionToolbar from '@/components/dashboard/DashboardSelectionToolbar'
+import TopicsSelectionToolbar from '@/components/topics/TopicsSelectionToolbar'
 import CardTopic from '@/components/common/card/CardTopic'
 import Loader from '@/components/common/Loader'
 
@@ -61,11 +61,11 @@ import { filterSearch, filterDateRange, filterTags } from '@/utils/ListFilters'
 import moment from 'moment'
 
 export default {
-  name: 'DashboardContent',
+  name: 'TopicsContent',
   components: {
     // wordcloud,
     CardTopic,
-    DashboardSelectionToolbar,
+    TopicsSelectionToolbar,
     Loader
   },
   data: () => ({

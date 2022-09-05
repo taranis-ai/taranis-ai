@@ -21,9 +21,9 @@ class Collector(db.Model):
 
     type = db.Column(db.String(), nullable=False)
 
-    parameters = db.relationship("Parameter", secondary="collector_parameter")
+    parameters = db.relationship("Parameter", secondary="collector_parameter", cascade="all")
 
-    node_id = db.Column(db.String, db.ForeignKey("collectors_node.id"))
+    node_id = db.Column(db.String, db.ForeignKey("collectors_node.id", ondelete="CASCADE"))
     node = db.relationship("CollectorsNode", back_populates="collectors")
 
     sources = db.relationship("OSINTSource", back_populates="collector")
@@ -42,5 +42,5 @@ class Collector(db.Model):
 
 
 class CollectorParameter(db.Model):
-    collector_id = db.Column(db.String, db.ForeignKey("collector.id"), primary_key=True)
-    parameter_id = db.Column(db.Integer, db.ForeignKey("parameter.id"), primary_key=True)
+    collector_id = db.Column(db.String, db.ForeignKey("collector.id", ondelete="CASCADE"), primary_key=True)
+    parameter_id = db.Column(db.Integer, db.ForeignKey("parameter.id", ondelete="CASCADE"), primary_key=True)
