@@ -163,8 +163,10 @@ class WordListCategory(db.Model):
 
     entries = db.relationship("WordListEntry", cascade="all, delete-orphan")
 
-    def __init__(self, name, description, link, entries):
+    def __init__(self, name = None, description = None, link = None, entries = None):
         self.id = None
+        if name in (None, ''):
+            raise Exception("Empty category name!")
         self.name = name
         self.description = description or ""
         self.link = link
