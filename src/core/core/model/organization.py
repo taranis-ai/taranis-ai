@@ -39,8 +39,7 @@ class Organization(db.Model):
 
     @classmethod
     def find(cls, organization_id):
-        organization = cls.query.get(organization_id)
-        return organization
+        return cls.query.get(organization_id)
 
     @classmethod
     def get_all(cls):
@@ -51,7 +50,7 @@ class Organization(db.Model):
         query = cls.query
 
         if search is not None:
-            search_string = "%" + search.lower() + "%"
+            search_string = f"%{search.lower()}%"
             query = query.filter(
                 or_(
                     func.lower(Organization.name).like(search_string),

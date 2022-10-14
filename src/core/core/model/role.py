@@ -40,13 +40,11 @@ class Role(db.Model):
 
     @classmethod
     def find(cls, role_id):
-        role = cls.query.get(role_id)
-        return role
+        return cls.query.get(role_id)
 
     @classmethod
     def find_by_name(cls, role_name):
-        role = cls.query.filter_by(name=role_name).first()
-        return role
+        return cls.query.filter_by(name=role_name).first()
 
     @classmethod
     def get_all(cls):

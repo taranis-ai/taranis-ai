@@ -67,6 +67,10 @@ class WordList(db.Model):
         return cls.query.get(id)
 
     @classmethod
+    def find_by_name(cls, name):
+        return cls.query.filter_by(name=name).first()
+
+    @classmethod
     def allowed_with_acl(cls, word_list_id, user, see, access, modify):
 
         query = db.session.query(WordList.id).distinct().group_by(WordList.id).filter(WordList.id == word_list_id)
@@ -163,9 +167,9 @@ class WordListCategory(db.Model):
 
     entries = db.relationship("WordListEntry", cascade="all, delete-orphan")
 
-    def __init__(self, name = None, description = None, link = None, entries = None):
+    def __init__(self, name=None, description=None, link=None, entries=None):
         self.id = None
-        if name in (None, ''):
+        if name in (None, ""):
             raise Exception("Empty category name!")
         self.name = name
         self.description = description or ""

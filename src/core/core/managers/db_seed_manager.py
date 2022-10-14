@@ -15,6 +15,9 @@ def pre_seed(app):
         pre_seed_roles()
         logger.log_debug("Roles seeded")
 
+        pre_seed_default_user()
+        logger.log_debug("Default users seeded")
+
         pre_seed_attributes()
         logger.log_debug("Attributes seeded")
 
@@ -24,8 +27,6 @@ def pre_seed(app):
         pre_seed_wordlists()
         logger.log_debug("Wordlists seeded")
 
-        pre_seed_default_user()
-        logger.log_debug("Default users seeded")
     except Exception:
         logger.log_debug_trace("Pre Seed failed")
 
@@ -474,8 +475,8 @@ def pre_seed_roles():
     from core.model.organization import Organization  # noqa
     from core.model.permission import Permission
 
-    if not db.session.query(Role).filter_by(name="Admin").first():
-        admin_permissions = [{"id": perm.id} for perm in Permission.get_all()]
+    admin_permissions = [{"id": perm.id} for perm in Permission.get_all()]
+    if not Role.find(1):
         Role.add_new(
             {
                 "id": "1",
@@ -484,7 +485,7 @@ def pre_seed_roles():
                 "permissions": admin_permissions,
             }
         )
-    if not db.session.query(Role).filter_by(name="User").first():
+    if not Role.find(2):
         default_user_permissions = [
             {"id": "ASSESS_ACCESS"},
             {"id": "ASSESS_CREATE"},
@@ -1255,7 +1256,7 @@ def pre_seed_report_items():
 def pre_seed_wordlists():
     from core.model.word_list import WordList
 
-    if not db.session.query(WordList).filter_by(name="Default EN stop list").first():
+    if not WordList.find_by_name(name="Default EN stop list"):
         WordList.add_new(
             {
                 "id": -1,
@@ -1273,7 +1274,7 @@ def pre_seed_wordlists():
             }
         )
 
-    if not db.session.query(WordList).filter_by(name="Default SK stop list").first():
+    if not WordList.find_by_name(name="Default SK stop list"):
         WordList.add_new(
             {
                 "id": -1,
@@ -1291,7 +1292,7 @@ def pre_seed_wordlists():
             }
         )
 
-    if not db.session.query(WordList).filter_by(name="Default highlighting wordlist").first():
+    if not WordList.find_by_name(name="Default highlighting wordlist"):
         WordList.add_new(
             {
                 "id": -1,
@@ -1315,7 +1316,7 @@ def pre_seed_default_user():
     from core.model.organization import Organization
     from core.model.user import User
 
-    admin_organization = db.session.query(Organization).filter_by(name="The Earth").first()
+    admin_organization = Organization.find(1)
     if not admin_organization:
         Organization.add_new(
             {
@@ -1326,7 +1327,7 @@ def pre_seed_default_user():
             }
         )
 
-    if not db.session.query(User).filter_by(username="admin").first():
+    if not User.find(username="admin"):
         User.add_new(
             {
                 "id": -1,
@@ -1347,7 +1348,7 @@ def pre_seed_default_user():
             }
         )
 
-    if not db.session.query(Organization).filter_by(name="The Clacks").first():
+    if not Organization.find(2):
         Organization.add_new(
             {
                 "id": 2,
@@ -1362,7 +1363,7 @@ def pre_seed_default_user():
             }
         )
 
-    if not db.session.query(User).filter_by(username="user").first():
+    if not User.find(username="user"):
         User.add_new(
             {
                 "id": -1,

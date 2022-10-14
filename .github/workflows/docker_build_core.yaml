@@ -26,8 +26,7 @@ jobs:
           python -m pip install --upgrade -r ../../dev_requirements.txt
           pip install -e .
           echo "Starting Pytest"
-          pytest || echo "failed"
-          sqlite3 /var/tmp/taranis_test.db 'select * from user;'
+          pytest
 
   build_wheel:
     name: build wheel
