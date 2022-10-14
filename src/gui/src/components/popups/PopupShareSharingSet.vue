@@ -98,7 +98,7 @@ export default {
     recipients: []
   }),
   methods: {
-    ...mapActions('dashboard', ['createNewTopic', 'updateTopic']),
+    ...mapActions('dashboard', ['createNewStory', 'updateStory']),
     ...mapActions('filter', ['resetNewsItemsFilter']),
     ...mapActions('assess', [
       'deselectNewsItem',
@@ -107,7 +107,7 @@ export default {
     ]),
     ...mapGetters('users', ['getUsersSelectionList']),
     ...mapGetters('assess', ['getNewsItemById']),
-    ...mapGetters('dashboard', ['getTopicById', 'getSharingSetSelectionList']),
+    ...mapGetters('dashboard', ['getStoryById', 'getSharingSetSelectionList']),
 
     recipientsSelectionList () {
       this.getUsersSelectionList()

@@ -8,42 +8,42 @@
       'px-5',
       'py-4',
       'align-self-stretch',
-      'topic',
+      'story',
       'primary--text',
       {
-        selected: topic.selected,
-        'pinned-topic': topic.pinned,
-        'hot-topic': topic.hot,
-        'corner-tag-ai': topic.ai,
-        'corner-tag-shared': topic.isSharingSet,
-        'sharing-set-topic': topic.isSharingSet,
-        'sharing-set-topic-shared': topic.sharingState === 'shared',
+        selected: story.selected,
+        'pinned-story': story.pinned,
+        'hot-story': story.hot,
+        'corner-tag-ai': story.ai,
+        'corner-tag-shared': story.isSharingSet,
+        'sharing-set-story': story.isSharingSet,
+        'sharing-set-story-shared': story.sharingState === 'shared',
       },
     ]"
     @click="toggleSelection"
   >
     <!-- Corner Tags -->
-    <div v-if="topic.ai && !topic.isSharingSet" class="topic-corner-tag">
+    <div v-if="story.ai && !story.isSharingSet" class="story-corner-tag">
       AI
     </div>
     <div
-      v-if="topic.isSharingSet && topic.sharingDirection === 'outgoing'"
-      class="topic-corner-tag"
+      v-if="story.isSharingSet && story.sharingDirection === 'outgoing'"
+      class="story-corner-tag"
     >
-      <v-icon x-small left v-if="topic.sharingState === 'shared'"
+      <v-icon x-small left v-if="story.sharingState === 'shared'"
         >$awakeShare</v-icon
       >
       <v-icon x-small left v-else>$awakeShareOutline</v-icon>
     </div>
     <div
-      v-if="topic.isSharingSet && topic.sharingDirection === 'incoming'"
-      class="topic-corner-tag"
+      v-if="story.isSharingSet && story.sharingDirection === 'incoming'"
+      class="story-corner-tag"
     >
       <v-icon
         x-small
         left
         class="flipped-icon"
-        v-if="topic.sharingState === 'shared'"
+        v-if="story.sharingState === 'shared'"
         >$awakeShare</v-icon
       >
       <v-icon x-small left class="flipped-icon" v-else
@@ -62,14 +62,14 @@
 
           <v-row class="flex-grow-0">
             <v-col cols="10" class="mr-auto mt-1 activity-row">
-              <div v-if="topic.isSharingSet">
+              <div v-if="story.isSharingSet">
                 <span class="last-activity font-weight-light">Shared on: </span>
                 <span class="last-activity font-weight-bold">
                   {{ getLastActivity() }} </span
                 ><br />
                 <span class="last-activity font-weight-light">Shared by: </span>
                 <span class="last-activity font-weight-bold">
-                  {{ topic.originator }}
+                  {{ story.originator }}
                 </span>
               </div>
 
@@ -84,7 +84,7 @@
             </v-col>
 
             <v-col cols="2" class="text-right">
-              <pin :value="topic.pinned" @click="pinTopic(topic.id)" />
+              <pin :value="story.pinned" @click="pinStory(story.id)" />
             </v-col>
           </v-row>
 
@@ -92,15 +92,15 @@
 
           <v-row class="flex-grow-0 mt-0">
             <v-col class="py-3">
-              <h2 class="topic-card-title">
-                {{ topic.title }}
+              <h2 class="story-card-title">
+                {{ story.title }}
               </h2>
             </v-col>
           </v-row>
 
           <v-row class="flex-grow-0 mt-0">
             <v-col>
-              <tag-norm v-for="tag in topic.tags" :key="tag.label" :tag="tag" />
+              <tag-norm v-for="tag in story.tags" :key="tag.label" :tag="tag" />
             </v-col>
           </v-row>
 
@@ -112,8 +112,8 @@
 
           <v-row class="flex-grow-0 mt-0 mb-0">
             <v-col>
-              <p class="topic-card-summary">
-                {{ topic.summary }}
+              <p class="story-card-summary">
+                {{ story.summary }}
               </p>
             </v-col>
           </v-row>
@@ -133,11 +133,11 @@
                   <v-col cols="6" class="pa-0 pt-0 pr-1">
                     <v-icon left small>mdi-file-outline</v-icon>
                     <span class="text-caption font-weight-light dark-grey--text"
-                      >{{ topic.items.total }}/</span
+                      >{{ story.items.total }}/</span
                     >
                     <span
                       class="text-caption font-weight-bold dark-grey--text"
-                      >{{ topic.items.new }}</span
+                      >{{ story.items.new }}</span
                     >
                   </v-col>
                   <v-col cols="6" class="pa-0 pt-0 pr-1">
@@ -150,17 +150,17 @@
                     >
                     <span
                       class="text-caption font-weight-light dark-grey--text"
-                      >{{ topic.votes.up }}</span
+                      >{{ story.votes.up }}</span
                     >
                   </v-col>
                   <v-col cols="6" class="pa-0 pt-0 pr-1">
                     <v-icon left small>mdi-message-outline</v-icon>
                     <span class="text-caption font-weight-light dark-grey--text"
-                      >{{ topic.comments.total }}/</span
+                      >{{ story.comments.total }}/</span
                     >
                     <span
                       class="text-caption font-weight-bold dark-grey--text"
-                      >{{ topic.comments.new }}</span
+                      >{{ story.comments.new }}</span
                     >
                   </v-col>
                   <v-col cols="6" class="pa-0 pt-0 pr-1">
@@ -173,7 +173,7 @@
                     >
                     <span
                       class="text-caption font-weight-light dark-grey--text"
-                      >{{ topic.votes.down }}</span
+                      >{{ story.votes.down }}</span
                     >
                   </v-col>
                 </v-row>
@@ -181,10 +181,10 @@
             </v-col>
             <v-col cols="12" md="4" class="mx-0 d-flex justify-end">
               <button-outlined
-                label="view topic"
+                label="view story"
                 icon="$awakeEye"
                 extraClass="mt-1"
-                @click="viewTopic($event)"
+                @click="viewStory($event)"
               />
             </v-col>
           </v-row>
@@ -203,42 +203,42 @@ import moment from 'moment'
 import { mapActions } from 'vuex'
 
 export default {
-  name: 'CardTopic',
+  name: 'CardStory',
   components: {
     TagNorm,
     buttonOutlined,
     pin
   },
   props: {
-    topic: {}
+    story: {}
   },
   methods: {
     ...mapActions('dashboard', [
-      'pinTopic',
-      'upvoteTopic',
-      'downvoteTopic',
-      'selectTopic'
+      'pinStory',
+      'upvoteStory',
+      'downvoteStory',
+      'selectStory'
     ]),
 
     getLastActivity () {
-      return moment(this.topic.lastActivity).format('DD/MM/YYYY hh:mm:ss')
+      return moment(this.story.lastActivity).format('DD/MM/YYYY hh:mm:ss')
     },
 
     toggleSelection () {
-      this.topic.selected = !this.topic.selected
-      this.selectTopic(this.topic.id)
+      this.story.selected = !this.story.selected
+      this.selectStory(this.story.id)
     },
     upvote (event) {
       event.stopPropagation()
-      this.upvoteTopic(this.topic.id)
+      this.upvoteStory(this.story.id)
     },
     downvote (event) {
       event.stopPropagation()
-      this.downvoteTopic(this.topic.id)
+      this.downvoteStory(this.story.id)
     },
-    viewTopic (event) {
+    viewStory (event) {
       event.stopPropagation()
-      this.$router.push({ path: '/assess', query: { topic: this.topic.id } })
+      this.$router.push({ path: '/assess', query: { story: this.story.id } })
     }
   },
   mounted () {

@@ -32,7 +32,6 @@ export default {
   props: {
     titles: Array,
     links: Array,
-    links2: Array,
     icon: String,
     filter: Boolean
   },

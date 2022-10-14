@@ -213,12 +213,12 @@ export default {
     }
   },
   mounted () {
-    this.$store.dispatch('getAllExternalUsers', { search: '' })
+    this.$store.dispatch('config/getAllExternalUsers', { search: '' })
       .then(() => {
         this.users = this.$store.getters.getUsers.items
       })
 
-    this.$store.dispatch('getAllNotificationTemplates', { search: '' })
+    this.$store.dispatch('config/getAllNotificationTemplates', { search: '' })
       .then(() => {
         this.templates = this.$store.getters.getNotificationTemplates.items
       })

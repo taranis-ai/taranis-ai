@@ -51,7 +51,9 @@ Vue.use(VeeValidate, {
   i18n
 })
 
-ApiService.init(((typeof (process.env.VUE_APP_TARANIS_NG_CORE_API) === 'undefined') ? '$VUE_APP_TARANIS_NG_CORE_API' : process.env.VUE_APP_TARANIS_NG_CORE_API))
+const coreAPIURL = ((typeof (process.env.VUE_APP_TARANIS_NG_CORE_API) === 'undefined') ? '$VUE_APP_TARANIS_NG_CORE_API' : process.env.VUE_APP_TARANIS_NG_CORE_API)
+
+ApiService.init(coreAPIURL)
 
 if (localStorage.ACCESS_TOKEN) {
   store.dispatch('setToken', (localStorage.ACCESS_TOKEN)).then()
@@ -66,10 +68,6 @@ export const vm = new Vue({
   vuetify,
   store,
   router,
-  render: h => h(App),
-  beforeCreate() {
-    const val = localStorage.getItem('TNGVericalView') === 'true'
-    this.$store.commit('setVerticalView', val)
-  }
+  render: h => h(App)
 
 }).$mount('#app')

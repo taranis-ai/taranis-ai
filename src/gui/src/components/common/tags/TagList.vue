@@ -4,7 +4,7 @@
         v-for="(tag, i) in tags.slice(0, limit)"
         :key="i"
         label
-        class="mr-1 mb-1 topic-label"
+        class="mr-1 mb-1 story-label"
         dark
         x-small
         :color="labelcolor(i)"

@@ -19,10 +19,10 @@ import {
   getAllReportItemTypes,
   getAllRoles,
   getAllUsers,
+  getAllNodes,
   getAllWordLists
 } from '@/api/config'
 import { getAllUserProductTypes, getAllUserWordLists } from '@/api/user'
-import { getAllOSINTSourceGroupsAssess } from '@/api/assess'
 
 const state = {
   attributes: { total_count: 0, items: [] },
@@ -36,6 +36,7 @@ const state = {
   word_lists: { total_count: 0, items: [] },
   remote_access: { total_count: 0, items: [] },
   remote_nodes: { total_count: 0, items: [] },
+  nodes: { total_count: 0, items: [] },
   collectors_nodes: { total_count: 0, items: [] },
   osint_sources: { total_count: 0, items: [] },
   osint_source_groups: { total_count: 0, items: [] },
@@ -55,21 +56,21 @@ const actions = {
       })
   },
 
-  getAllReportItemTypesConfig (context, data) {
+  loadReportItemTypesConfig (context, data) {
     return getAllReportItemTypes(data)
       .then(response => {
         context.commit('setReportItemTypesConfig', response.data)
       })
   },
 
-  getAllProductTypes (context, data) {
+  loadProductTypes (context, data) {
     return getAllProductTypes(data)
       .then(response => {
         context.commit('setProductTypes', response.data)
       })
   },
 
-  getAllUserProductTypes (context, data) {
+  loadUserProductTypes (context, data) {
     return getAllUserProductTypes(data)
       .then(response => {
         context.commit('setProductTypes', response.data)
@@ -160,28 +161,28 @@ const actions = {
       })
   },
 
-  getAllOSINTSources (context, data) {
+  getAllNodes (context, data) {
+    return getAllNodes(data)
+      .then(response => {
+        context.commit('setNodes', response.data)
+      })
+  },
+
+  loadOSINTSources (context, data) {
     return getAllOSINTSources(data)
       .then(response => {
         context.commit('setOSINTSources', response.data)
       })
   },
 
-  getAllOSINTSourceGroups (context, data) {
-    return getAllOSINTSourceGroups(data)
+  loadOSINTSourceGroups (context, filter) {
+    return getAllOSINTSourceGroups(filter)
       .then(response => {
         context.commit('setOSINTSourceGroups', response.data)
       })
   },
 
-  getAllOSINTSourceGroupsAssess (context, data) {
-    return getAllOSINTSourceGroupsAssess(data)
-      .then(response => {
-        context.commit('setOSINTSourceGroups', response.data)
-      })
-  },
-
-  getAllPresentersNodes (context, data) {
+  loadPresentersNodes (context, data) {
     return getAllPresentersNodes(data)
       .then(response => {
         context.commit('setPresentersNodes', response.data)
@@ -218,7 +219,6 @@ const actions = {
 }
 
 const mutations = {
-
   setAttributes (state, new_attributes) {
     state.attributes = new_attributes
   },
@@ -263,6 +263,10 @@ const mutations = {
     state.remote_nodes = new_remote_nodes
   },
 
+  setNodes (state, new_nodes) {
+    state.nodes = new_nodes
+  },
+
   setCollectorsNodes (state, new_collectors_nodes) {
     state.collectors_nodes = new_collectors_nodes
   },
@@ -297,7 +301,6 @@ const mutations = {
 }
 
 const getters = {
-
   getAttributes (state) {
     return state.attributes
   },
@@ -346,12 +349,16 @@ const getters = {
     return state.collectors_nodes
   },
 
+  getNodes (state) {
+    return state.nodes
+  },
+
   getOSINTSources (state) {
-    return state.osint_sources
+    return state.osint_sources.items
   },
 
   getOSINTSourceGroups (state) {
-    return state.osint_source_groups
+    return state.osint_source_groups.items
   },
 
   getPresentersNodes (state) {
@@ -376,6 +383,7 @@ const getters = {
 }
 
 export const config = {
+  namespaced: true,
   state,
   actions,
   mutations,

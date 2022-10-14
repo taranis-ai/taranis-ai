@@ -4,8 +4,8 @@
       <v-container>
         <v-row>
           <v-col cols="12">
-            <h2 class="popup-title pb-2">Merge Topics</h2>
-            The following topics were selected for merging:
+            <h2 class="popup-title pb-2">Merge Stories</h2>
+            The following stories were selected for merging:
           </v-col>
         </v-row>
         <v-row no-gutters>
@@ -13,8 +13,8 @@
             <v-container fluid style="padding: 18px 5px">
               <v-row>
                 <v-col
-                  v-for="topicId in selection"
-                  :key="topicId"
+                  v-for="storyId in selection"
+                  :key="storyId"
                   class="d-flex pa-1"
                   align-self="start"
                 >
@@ -22,12 +22,12 @@
                     elevation="0"
                     tile
                     height="100%"
-                    class="merge-topic-details"
+                    class="merge-story-details"
                   >
                     <v-row justify="start" no-gutters class="flex-grow-0">
                       <v-col>
-                        <h4 class="merge-topics-details-title my-2">
-                          {{ getTopicDetails(topicId).title }}
+                        <h4 class="merge-stories-details-title my-2">
+                          {{ getStoryDetails(storyId).title }}
                         </h4>
                       </v-col>
                     </v-row>
@@ -38,11 +38,11 @@
                     <v-row
                       justify="end"
                       no-gutters
-                      class="flex-grow-0 my-2 merge-topics-details-meta"
+                      class="flex-grow-0 my-2 merge-stories-details-meta"
                     >
                       <v-col
                         cols="12"
-                        v-if="getTopicDetails(topicId).isSharingSet"
+                        v-if="getStoryDetails(storyId).isSharingSet"
                       >
                         <v-icon left x-small class="mr-1 flipped-icon"
                           >$awakeShare</v-icon
@@ -53,16 +53,16 @@
                         <v-icon left x-small class="mr-1 flipped-icon"
                           >mdi-folder-outline</v-icon
                         >
-                        Local Topic
+                        Local Story
                       </v-col>
 
                       <v-col cols="12">
                         <v-icon left x-small class="mr-1"
                           >mdi-file-outline</v-icon
                         >
-                        {{ getTopicDetails(topicId).items.total }}/
+                        {{ getStoryDetails(storyId).items.total }}/
                         <strong>{{
-                          getTopicDetails(topicId).items.new
+                          getStoryDetails(storyId).items.new
                         }}</strong>
                       </v-col>
                     </v-row>
@@ -77,7 +77,7 @@
       <v-container class="pb-5 mb-5">
         <v-row>
           <v-col class="py-1">
-            <h4 class="merge-topics-details-title">Merge Options</h4>
+            <h4 class="merge-stories-details-title">Merge Options</h4>
           </v-col>
         </v-row>
         <v-row>
@@ -86,7 +86,7 @@
           <!----------->
 
           <v-col class="py-2">
-            <text-field v-model="mergeTitle" label="Topic Title" />
+            <text-field v-model="mergeTitle" label="Story Title" />
           </v-col>
         </v-row>
         <v-row class="mt-2">
@@ -120,14 +120,14 @@
           </v-col>
           <v-col
             cols="4"
-            class="py-0 merge-topics-details-meta grey--text text--darken-2"
+            class="py-0 merge-stories-details-meta grey--text text--darken-2"
           >
             <div class="mt-5 mr-2 text-right">
               <v-icon left x-small class="mr-1 grey--text text--darken-2"
                 >mdi-message-outline</v-icon
               >
-              {{ topicPrototype.comments.total }}/
-              <strong>{{ topicPrototype.comments.new }}</strong>
+              {{ storyPrototype.comments.total }}/
+              <strong>{{ storyPrototype.comments.new }}</strong>
             </div>
           </v-col>
 
@@ -138,16 +138,16 @@
           <v-col cols="8" class="py-0">
             <switch-field v-model="mergeVotes" label="merge up-/downvotes" />
           </v-col>
-          <v-col cols="4" class="py-0 merge-topics-details-meta">
+          <v-col cols="4" class="py-0 merge-stories-details-meta">
             <div class="mt-5 mr-2 text-right grey--text text--darken-2">
               <v-icon left x-small class="mr-1 grey--text text--darken-2"
                 >mdi-arrow-up-circle-outline</v-icon
               >
-              {{ topicPrototype.votes.up }}
+              {{ storyPrototype.votes.up }}
               <v-icon left x-small class="mr-1 ml-2 grey--text text--darken-2"
                 >mdi-arrow-down-circle-outline</v-icon
               >
-              {{ topicPrototype.votes.down }}
+              {{ storyPrototype.votes.down }}
             </div>
           </v-col>
 
@@ -156,7 +156,7 @@
           <!--------------------->
 
           <v-col cols="12" class="py-0">
-            <switch-field v-model="deleteOld" label="delete selected topics" />
+            <switch-field v-model="deleteOld" label="delete selected stories" />
           </v-col>
         </v-row>
       </v-container>
@@ -175,10 +175,10 @@
         />
 
         <button-solid
-          label="merge topics"
+          label="merge stories"
           icon="$awakeMerge"
           color="primary"
-          @click="mergeSelectedTopics()"
+          @click="mergeSelectedStories()"
         />
       </v-card-actions>
     </v-form>
@@ -195,7 +195,7 @@ import textField from '@/components/_subcomponents/textField'
 import switchField from '@/components/_subcomponents/switchField'
 
 export default {
-  name: 'PopupMergeTopics',
+  name: 'PopupMergeStories',
   components: {
     buttonSolid,
     buttonOutlined,
@@ -217,10 +217,10 @@ export default {
   }),
   methods: {
     ...mapActions('dashboard', [
-      'pinTopic',
-      'unselectAllTopics',
-      'removeTopicById',
-      'createNewTopic'
+      'pinStory',
+      'unselectAllStories',
+      'removeStoryById',
+      'createNewStory'
     ]),
     ...mapActions('assess', [
       'deselectNewsItem',
@@ -228,42 +228,42 @@ export default {
       'assignSharingSet',
       'changeMergeAttr'
     ]),
-    ...mapGetters('dashboard', ['getTopicById']),
+    ...mapGetters('dashboard', ['getStoryById']),
 
-    getTopicDetails (id) {
-      return this.getTopicById()(parseInt(id))
+    getStoryDetails (id) {
+      return this.getStoryById()(parseInt(id))
     },
 
-    mergeSelectedTopics () {
+    mergeSelectedStories () {
       // Add Form Validation
 
-      const oldTopics = [...this.selection]
+      const oldStories = [...this.selection]
 
-      const mergedTopic = this.topicPrototype
-      mergedTopic.title = this.mergeTitle
-      mergedTopic.summary = this.mergeSummary
+      const mergedStory = this.storyPrototype
+      mergedStory.title = this.mergeTitle
+      mergedStory.summary = this.mergeSummary
         ? this.mergeSummary
         : 'this is an AI created summary ... ' // should be replaced by NLP algorithm
-      mergedTopic.id = Math.floor(Math.random() * (1000 - 800 + 1)) + 800
+      mergedStory.id = Math.floor(Math.random() * (1000 - 800 + 1)) + 800
 
       // reset selection
-      this.unselectAllTopics()
+      this.unselectAllStories()
 
-      // remove old topics
+      // remove old stories
       if (this.deleteOld) {
-        this.selection.forEach((id) => this.removeTopicById(id))
+        this.selection.forEach((id) => this.removeStoryById(id))
       }
 
-      this.createNewTopic(mergedTopic)
-      this.changeMergeAttr({ src: oldTopics, dest: mergedTopic.id })
+      this.createNewStory(mergedStory)
+      this.changeMergeAttr({ src: oldStories, dest: mergedStory.id })
 
       // Close Popup
       this.$emit('close')
     }
   },
   computed: {
-    topicPrototype () {
-      const newTopic = {
+    storyPrototype () {
+      const newStory = {
         id: null,
         relevanceScore: 100,
         title: '',
@@ -290,29 +290,29 @@ export default {
         hasSharedItems: false,
         isSharingSet: false,
         sharingSets: [],
-        relatedTopics: [],
+        relatedStories: [],
         keywords: []
       }
 
       this.selection.forEach((id) => {
-        const selectedTopic = this.getTopicById()(id)
-        newTopic.items.total += selectedTopic.items.total
-        newTopic.items.new += selectedTopic.items.new
+        const selectedStory = this.getStoryById()(id)
+        newStory.items.total += selectedStory.items.total
+        newStory.items.new += selectedStory.items.new
 
-        newTopic.tags = xorConcat(newTopic.tags, selectedTopic.tags)
+        newStory.tags = xorConcat(newStory.tags, selectedStory.tags)
 
-        newTopic.comments.total += this.mergeDiscussion
-          ? selectedTopic.comments.total
+        newStory.comments.total += this.mergeDiscussion
+          ? selectedStory.comments.total
           : 0
-        newTopic.comments.new += this.mergeDiscussion
-          ? selectedTopic.comments.new
+        newStory.comments.new += this.mergeDiscussion
+          ? selectedStory.comments.new
           : 0
 
-        newTopic.votes.up += this.mergeVotes ? selectedTopic.votes.up : 0
-        newTopic.votes.down += this.mergeVotes ? selectedTopic.votes.down : 0
+        newStory.votes.up += this.mergeVotes ? selectedStory.votes.up : 0
+        newStory.votes.down += this.mergeVotes ? selectedStory.votes.down : 0
       })
 
-      return newTopic
+      return newStory
     }
   }
 }

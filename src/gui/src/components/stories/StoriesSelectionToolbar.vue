@@ -18,7 +18,7 @@
       <v-row>
         <v-col class="py-0">
           <!------------------>
-          <!-- Merge Topics -->
+          <!-- Merge Stories -->
           <!------------------>
 
           <v-dialog v-model="mergeDialog" width="1024">
@@ -31,11 +31,11 @@
                 v-on="on"
               >
                 <v-icon left>$awakeMerge</v-icon>
-                merge topics
+                merge stories
               </v-btn>
             </template>
 
-            <popup-merge-topics
+            <popup-merge-stories
               :dialog="mergeDialog"
               :selection="selection"
               @close="mergeDialog = false"
@@ -168,12 +168,12 @@
 
 <script>
 import { mapActions } from 'vuex'
-import PopupMergeTopics from '@/components/popups/PopupMergeTopics'
+import PopupMergeStories from '@/components/popups/PopupMergeStories'
 
 export default {
-  name: 'TopicsSelectionToolbar',
+  name: 'StoriesSelectionToolbar',
   components: {
-    PopupMergeTopics
+    PopupMergeStories
   },
   props: {
     selection: []
@@ -183,16 +183,16 @@ export default {
     shareDialog: false
   }),
   methods: {
-    ...mapActions('dashboard', ['pinTopic', 'unselectAllTopics']),
+    ...mapActions('dashboard', ['pinStory', 'unselectAllStories']),
 
     pinSelected: function () {
       this.selection.forEach((id) => {
-        this.pinTopic(id)
+        this.pinStory(id)
       })
     },
 
     unselectAll: function () {
-      this.unselectAllTopics()
+      this.unselectAllStories()
     }
   },
   computed: {},

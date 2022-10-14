@@ -12,8 +12,8 @@ const state = {
     latest_collected: '',
     tag_cloud: {}
   },
-  topics: [],
-  topicSelection: []
+  stories: [],
+  storySelection: []
 }
 
 const actions = {
@@ -25,40 +25,40 @@ const actions = {
       })
   },
 
-  updateTopics(context, topics) {
-    context.commit('UPDATE_TOPICS', topics)
+  updateStories(context, stories) {
+    context.commit('UPDATE_TOPICS', stories)
   },
 
-  updateTopic(context, topic) {
-    context.commit('UPDATE_TOPIC', topic)
+  updateStory(context, story) {
+    context.commit('UPDATE_TOPIC', story)
   },
 
-  pinTopic(context, id) {
+  pinStory(context, id) {
     context.commit('PIN_TOPIC', id)
   },
 
-  upvoteTopic(context, id) {
+  upvoteStory(context, id) {
     context.commit('UPVOTE_TOPIC', id)
   },
 
-  downvoteTopic(context, id) {
+  downvoteStory(context, id) {
     context.commit('DOWNVOTE_TOPIC', id)
   },
 
-  selectTopic(context, id) {
+  selectStory(context, id) {
     context.commit('SELECT_TOPIC', id)
   },
 
-  unselectAllTopics(context) {
+  unselectAllStories(context) {
     context.commit('UNSELECT_ALL_TOPICS')
   },
 
-  removeTopicById(context, id) {
+  removeStoryById(context, id) {
     context.commit('REMOVE_TOPIC', id)
   },
 
-  createNewTopic(context, mergedTopic) {
-    context.commit('CREATE_TOPIC', mergedTopic)
+  createNewStory(context, mergedStory) {
+    context.commit('CREATE_TOPIC', mergedStory)
   }
 
 }
@@ -67,60 +67,60 @@ const mutations = {
 
   updateField,
 
-  UPDATE_TOPICS(state, topics) {
-    state.topics = topics
+  UPDATE_TOPICS(state, stories) {
+    state.stories = stories
   },
 
-  UPDATE_TOPIC(state, topic) {
-    const index = state.topics.findIndex((x) => x.id === topic.id)
-    state.topics[index] = topic
+  UPDATE_TOPIC(state, story) {
+    const index = state.stories.findIndex((x) => x.id === story.id)
+    state.stories[index] = story
   },
 
   PIN_TOPIC(state, id) {
-    for (const topic of state.topics) {
-      if (topic.id === id) {
-        topic.pinned = !topic.pinned
+    for (const story of state.stories) {
+      if (story.id === id) {
+        story.pinned = !story.pinned
         break
       }
     }
   },
 
   UPVOTE_TOPIC(state, id) {
-    for (const topic of state.topics) {
-      if (topic.id === id) {
-        topic.votes.up += 1
+    for (const story of state.stories) {
+      if (story.id === id) {
+        story.votes.up += 1
         break
       }
     }
   },
 
   DOWNVOTE_TOPIC(state, id) {
-    for (const topic of state.topics) {
-      if (topic.id === id) {
-        topic.votes.down += 1
+    for (const story of state.stories) {
+      if (story.id === id) {
+        story.votes.down += 1
         break
       }
     }
   },
 
   SELECT_TOPIC(state, id) {
-    state.topicSelection = xorConcat(state.topicSelection, [id])
+    state.storySelection = xorConcat(state.storySelection, [id])
   },
 
   UNSELECT_ALL_TOPICS(state) {
-    state.topicSelection = []
-    state.topics.forEach(element => {
+    state.storySelection = []
+    state.stories.forEach(element => {
       element.selected = false
     })
   },
 
   REMOVE_TOPIC(state, id) {
-    state.topics = [...state.topics].filter((topic) => topic.id !== id)
+    state.stories = [...state.stories].filter((story) => story.id !== id)
   },
 
-  CREATE_TOPIC(state, newTopic) {
+  CREATE_TOPIC(state, newStory) {
     // Assign new ID
-    state.topics.push(newTopic)
+    state.stories.push(newStory)
   }
 
 }
@@ -129,22 +129,22 @@ const getters = {
 
   getField,
 
-  getTopics(state) {
-    return state.topics
+  getStories(state) {
+    return state.stories
   },
 
-  getTopicSelection(state) {
-    return state.topicSelection
+  getStorieSelection(state) {
+    return state.storySelection
   },
 
-  getTopicSelectionList(state) {
-    const filteredTopics = state.topics.filter((topic) => !topic.isSharingSet)
-    return filteredTopics.map(function (topic) { return { id: topic.id, title: topic.title } })
+  getStorieSelectionList(state) {
+    const filteredStories = state.stories.filter((story) => !story.isSharingSet)
+    return filteredStories.map(function (story) { return { id: story.id, title: story.title } })
   },
 
   getSharingSetSelectionList(state) {
-    const filteredTopics = state.topics.filter((topic) => topic.isSharingSet)
-    return filteredTopics.map(function (topic) { return { id: topic.id, title: topic.title } })
+    const filteredStories = state.stories.filter((story) => story.isSharingSet)
+    return filteredStories.map(function (story) { return { id: story.id, title: story.title } })
   },
 
   getDashboardData(state) {
@@ -152,15 +152,15 @@ const getters = {
   },
 
   getNewsItemIds: (state) => (id) => {
-    return state.topics.find(topic => topic.id === id).items.ids
+    return state.stories.find(story => story.id === id).items.ids
   },
 
-  getTopicById: (state) => (id) => {
-    return state.topics.find(topic => topic.id === id)
+  getStoryById: (state) => (id) => {
+    return state.stories.find(story => story.id === id)
   },
 
-  getTopicTitleById: (state) => (id) => {
-    return state.topics.find(topic => topic.id === id).title
+  getStoryTitleById: (state) => (id) => {
+    return state.stories.find(story => story.id === id).title
   }
 }
 

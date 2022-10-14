@@ -196,6 +196,7 @@ import AuthMixin from '../../../services/auth/auth_mixin'
 import { createNewRemoteAccess, updateRemoteAccess } from '@/api/config'
 
 import Permissions from '@/services/auth/permissions'
+import { mapGetters, mapActions } from 'vuex'
 
 export default {
   name: 'NewRemoteAccess',
@@ -248,6 +249,8 @@ export default {
     }
   },
   methods: {
+    ...mapGetters('config', ['getReportItemTypesConfig']),
+    ...mapActions('config', ['loadReportItemTypesConfig']),
     addRemoteAccess () {
       this.visible = true
       this.edit = false
@@ -335,9 +338,9 @@ export default {
         this.osint_sources = this.$store.getters.getOSINTSources.items
       })
 
-    this.$store.dispatch('getAllReportItemTypesConfig', { search: '' })
+    this.loadReportItemTypesConfig({ search: '' })
       .then(() => {
-        this.report_item_types = this.$store.getters.getReportItemTypesConfig.items
+        this.report_item_types = this.getReportItemTypesConfig().items
       })
 
     this.$root.$on('show-edit', (data) => {

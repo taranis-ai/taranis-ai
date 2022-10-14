@@ -25,6 +25,7 @@
 
 <script>
 import AuthMixin from '../../services/auth/auth_mixin'
+import { mapGetters } from 'vuex'
 
 export default {
   name: 'ToolbarFilter',
@@ -36,7 +37,7 @@ export default {
   },
   computed: {
     totalCount () {
-      return this.$store.getters[this.total_count_getter].total_count
+      return this.getNodes().total_count
     }
   },
   data: () => ({
@@ -47,6 +48,9 @@ export default {
   }),
   mixins: [AuthMixin],
   methods: {
+    ...mapGetters('config', [
+      'getNodes'
+    ]),
     filterSearch: function () {
       clearTimeout(this.timeout)
 

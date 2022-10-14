@@ -1,5 +1,4 @@
 <template>
-  <smooth-scrollbar>
     <v-container class="pa-0">
       <!-- scope -->
       <v-row class="my-3 mr-0 px-5">
@@ -7,24 +6,15 @@
           <h4>scope</h4>
         </v-col>
 
-        <v-col cols="12">
-          <dropdown-selection
-            v-model="scope.topics"
-            :items="getTopicSelectionList()"
-            label="Topics"
-            placeholder="all Topics"
-            @input="updateQuery()"
-          />
-        </v-col>
-
         <v-col cols="12" class="pt-0">
-          <dropdown-selection
-            v-model="scope.sources"
-            :items="sourcesList"
+          <v-select
+            v-model="scope"
+            :items="getScopeFilterList()"
+            item-text="title"
+            item-value="id"
             label="Sources"
-            placeholder="all Sources"
-            @input="updateScope()"
-          />
+            solo
+          ></v-select>
         </v-col>
       </v-row>
 
@@ -52,22 +42,19 @@
         <!-- time tags -->
         <v-col cols="12" class="pb-0">
           <date-chips
-            v-model="filter.date.selected"
-            @input="filter.date.range = []"
+            v-model="filter.range"
+            @input="filter.range = []"
           />
         </v-col>
 
-        <!-- date picker -->
+        <!-- date picker
         <v-col cols="12">
           <date-range v-model="filter.date" />
-        </v-col>
+        </v-col> -->
 
         <!-- tags -->
         <v-col cols="10" class="pr-0">
-          <tag-filter v-model="filter.tags.selected" :items="tagList" />
-        </v-col>
-        <v-col cols="2" class="pl-1 d-flex tags-logic-operator">
-          <logical-and v-model="filter.tags.andOperator" />
+          <tag-filter v-model="filter.tags" :items="tagList" />
         </v-col>
       </v-row>
 
@@ -80,7 +67,7 @@
 
         <v-col cols="12" class="pt-2">
           <filter-selectList
-            v-model="filter.attributes.selected"
+            v-model="filterAttributeSelections"
             :items="filterAttributeOptions"
           />
         </v-col>
@@ -98,40 +85,34 @@
         </v-col>
       </v-row>
     </v-container>
-  </smooth-scrollbar>
 </template>
 
 <script>
 import { mapState, mapGetters, mapActions } from 'vuex'
 import searchField from '@/components/_subcomponents/searchField'
 import dateChips from '@/components/_subcomponents/dateChips'
-import dateRange from '@/components/_subcomponents/dateRange'
 import tagFilter from '@/components/_subcomponents/tagFilter'
-import logicalAnd from '@/components/_subcomponents/logicalAnd'
 import filterSelectList from '@/components/_subcomponents/filterSelectList'
 import filterSortList from '@/components/_subcomponents/filterSortList'
-import dropdownSelection from '@/components/_subcomponents/dropdownSelection'
 
 export default {
   name: 'AssessNav',
   components: {
     searchField,
     dateChips,
-    dateRange,
     tagFilter,
-    logicalAnd,
     filterSelectList,
-    filterSortList,
-    dropdownSelection
+    filterSortList
   },
   data: () => ({
     searchQuery: '',
     awaitingSearch: false,
+    filterAttributeSelections: {},
     filterAttributeOptions: [
       { type: 'unread', label: 'unread', icon: '$awakeUnread' },
       {
         type: 'important',
-        label: 'tagged as important',
+        label: 'important',
         icon: '$awakeImportant'
       },
       {
@@ -173,16 +154,19 @@ export default {
       'Social',
       'APT',
       'MitM'
-    ],
-    sourcesList: []
-
+    ]
   }),
   computed: {
     ...mapState('filter', {
-      scope: (state) => state.newsItemsFilter.scope,
-      filter: (state) => state.newsItemsFilter.filter,
-      order: (state) => state.newsItemsFilter.order
-    })
+      scopeState: (state) => state.scope,
+      filter: (state) => state.newsItemsFilter,
+      order: (state) => state.newsItemsOrder
+    }),
+    scope: {
+      get () { return this.scopeState },
+      set (value) { this.updateScope(value) }
+    }
+
     // ...mapState('filter', ['newsItemsFilter'])
     // getData () {
     //   return this.$store.getters.getDashboardData
@@ -190,72 +174,25 @@ export default {
   },
   methods: {
     ...mapGetters('dashboard', [
-      'getTopicSelectionList',
+      'getStorieSelectionList',
       'getSharingSetSelectionList'
     ]),
     ...mapGetters('assess', [
-      'getOSINTSourceGroupList'
+      'getScopeFilterList'
     ]),
     ...mapActions('assess', [
-      'updateNewsItemsByGroup'
+      'updateNewsItems'
     ]),
-
-    updateSourcesList () {
-      this.sourcesList = this.getSourceNames(this.getOSINTSourceGroupList())
-      console.log(this.sourcesList)
-    },
-    updateScope () {
-      var filter
-      this.scope.sources.forEach(function(source) {
-        filter = {
-          group_id: source.id,
-          data: {
-            offset: 0,
-            limit: 15,
-            filter: {
-              search: '',
-              sort: '',
-              range: '',
-              in_analyze: false,
-              relevant: false,
-              important: false
-            }
-          }
-        }
-      })
-      if (filter) {
-        this.updateNewsItemsByGroup(filter)
-      }
-    },
-
-    updateQuery () {
-      if (this.scope.topics.length === 1) {
-        this.$router.push({ query: { topic: this.scope.topics[0].id } })
-      } else if (this.scope.sharingSets.length === 1) {
-        this.$router.push({
-          query: { topic: this.scope.sharingSets[0].id }
-        })
-      }
-    },
-    getSourceNames (data) {
-      if (!data.items) {
-        return []
-      }
-      return data.items.map(value => ({ id: value.id, title: value.name }))
+    ...mapActions('filter', ['setScope', 'setFilter', 'setOrder']),
+    ...mapGetters('filter', ['getNewsItemsFilter']),
+    updateScope (scope) {
+      this.setScope(scope)
+      this.updateNewsItems()
     }
   },
   created () {
-    this.updateSourcesList()
-    this.unsubscribe = this.$store.subscribe((mutation, state) => {
-      console.log(state)
-      if (mutation.type === 'assess/setOSINTSourceGroups') {
-        this.updateSourcesList()
-      }
-    })
   },
-
   beforeDestroy () {
-    this.unsubscribe()
   },
   watch: {
     searchQuery: function () {

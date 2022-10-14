@@ -13,8 +13,7 @@
         <template v-slot:content>
             <ContentDataAnalyze card-item="CardAnalyze" ref="contentData"
                                 @show-report-item-detail="showReportItemDetail"
-                                @show-remote-report-item-detail="showRemoteReportItemDetail"
-                                @new-data-loaded="newDataLoaded"/>
+                                @show-remote-report-item-detail="showRemoteReportItemDetail"/>
             <NewProduct class="np" add_button/>
             <RemoteReportItem ref="remoteReportItemDialog"/>
         </template>
@@ -42,9 +41,6 @@ export default {
     RemoteReportItem
   },
   methods: {
-    newDataLoaded (count) {
-      this.$refs.toolbarFilter.updateDataCount(count)
-    },
     updateFilter (filter) {
       this.$refs.contentData.updateFilter(filter)
     },

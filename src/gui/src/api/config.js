@@ -212,6 +212,10 @@ export function getAllCollectorsNodes (filter) {
   return ApiService.get(`/config/collectors-nodes?search=${filter.search}`)
 }
 
+export function getAllNodes (filter) {
+  return ApiService.get(`/config/nodes?search=${filter.search}`)
+}
+
 export function createNewCollectorsNode (node) {
   return ApiService.post('/config/collectors-nodes', node)
 }
@@ -249,7 +253,10 @@ export function exportOSINTSources (data) {
 }
 
 export function getAllOSINTSourceGroups (filter) {
-  return ApiService.get(`/config/osint-source-groups?search=${filter.search}`)
+  if (filter) {
+    return ApiService.get(`/config/osint-source-groups?search=${filter}`)
+  }
+  return ApiService.get('/config/osint-source-groups')
 }
 
 export function createNewOSINTSourceGroup (group) {

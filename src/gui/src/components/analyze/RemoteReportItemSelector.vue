@@ -71,6 +71,7 @@ import ToolbarFilterAnalyze from '@/components/analyze/ToolbarFilterAnalyze'
 import RemoteReportItem from '@/components/analyze/RemoteReportItem'
 import Permissions from '@/services/auth/permissions'
 import { getReportItemData, updateReportItem } from '@/api/analyze'
+import { mapActions, mapGetters } from 'vuex'
 
 export default {
   name: 'RemoteReportItemSelector',
@@ -100,6 +101,8 @@ export default {
     }
   },
   methods: {
+    ...mapActions('analyze', ['loadReportItemGroups', 'changeCurrentReportItemGroup']),
+    ...mapGetters('analyze', ['getReportItemGroups', 'getCurrentReportItemGroup']),
     newDataLoaded (count) {
       this.$refs.toolbarFilter.updateDataCount(count)
     },
@@ -215,9 +218,9 @@ export default {
     }
   },
   mounted () {
-    this.$store.dispatch('getAllReportItemGroups', { search: '' })
+    this.loadReportItemGroups()
       .then(() => {
-        this.groups = this.$store.getters.getReportItemGroups
+        this.groups = this.getReportItemGroups()
 
         for (let i = 0; i < this.groups.length; i++) {
           this.links.push({
@@ -227,11 +230,11 @@ export default {
           })
         }
 
-        if (this.$store.getters.getCurrentReportItemGroup === null && this.links.length > 0) {
+        if (this.getCurrentReportItemGroup() === null && this.links.length > 0) {
           this.selected_group_id = this.links[0].id
-          this.$store.dispatch('changeCurrentReportItemGroup', this.links[0].id)
+          this.changeCurrentReportItemGroup(this.links[0].id)
         } else {
-          this.selected_group_id = this.links[0].id = this.$store.getters.getCurrentReportItemGroup
+          this.selected_group_id = this.getCurrentReportItemGroup()
         }
       })
 

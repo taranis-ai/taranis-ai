@@ -18,9 +18,9 @@ export default {
     links: []
   }),
   mounted () {
-    this.$store.dispatch('getAllReportItemGroups', { search: '' })
+    this.$store.dispatch('analyze/loadReportItemGroups')
       .then(() => {
-        this.groups = this.$store.getters.getReportItemGroups
+        this.groups = this.$store.getters['analyze/getReportItemGroups']
 
         this.links.push({
           icon: 'mdi-home-circle-outline',

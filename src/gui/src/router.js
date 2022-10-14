@@ -72,47 +72,44 @@ export const router = new Router({
       path: '/dashboard',
       name: 'dashboard',
       components: {
-        default: () => import('./views/users/TopicsView.vue'),
-        nav: () => import('./views/nav/DashboardNav.vue')
+        default: () => import('./views/users/DashboardView.vue')
       },
       meta: { requiresAuth: true, requiresPerm: [Permissions.ASSESS_ACCESS] }
     },
     {
-      path: '/config/external',
-      name: 'config-external',
+      path: '/user',
+      name: 'user',
       components: {
-        default: () => import('./views/admin/ExternalConfigView.vue'),
-        nav: () => import('./views/nav/ExternalConfigNav.vue')
+        default: () => import('./views/users/UserView.vue'),
+        nav: () => import('./views/nav/UserNav.vue')
+      },
+      meta: { requiresAuth: true, requiresPerm: [Permissions.MY_ASSETS_CONFIG] }
+    },
+    {
+      path: '/user/settings',
+      name: 'user-settings',
+      components: {
+        default: () => import('./views/users/SettingsView.vue'),
+        nav: () => import('./views/nav/UserNav.vue')
+      },
+      meta: { requiresAuth: true, requiresPerm: [Permissions.MY_ASSETS_CONFIG] }
+    },
+    {
+      path: '/user/templates',
+      name: 'user-templates',
+      components: {
+        default: () => import('./views/users/NotificationTemplatesView.vue'),
+        nav: () => import('./views/nav/UserNav.vue')
 
       },
       meta: { requiresAuth: true, requiresPerm: [Permissions.MY_ASSETS_CONFIG] }
     },
     {
-      path: '/config/external/users',
-      name: 'users-external',
+      path: '/user/assets',
+      name: 'user-assets',
       components: {
-        default: () => import('./views/admin/ExternalUsersView.vue'),
-        nav: () => import('./views/nav/ExternalConfigNav.vue')
-
-      },
-      meta: { requiresAuth: true, requiresPerm: [Permissions.MY_ASSETS_CONFIG] }
-    },
-    {
-      path: '/config/external/groups',
-      name: 'groups-external',
-      components: {
-        default: () => import('./views/admin/AssetGroupsView.vue'),
-        nav: () => import('./views/nav/ExternalConfigNav.vue')
-
-      },
-      meta: { requiresAuth: true, requiresPerm: [Permissions.MY_ASSETS_CONFIG] }
-    },
-    {
-      path: '/config/external/templates',
-      name: 'templates-external',
-      components: {
-        default: () => import('./views/admin/NotificationTemplatesView.vue'),
-        nav: () => import('./views/nav/ExternalConfigNav.vue')
+        default: () => import('./views/users/AssetGroupsView.vue'),
+        nav: () => import('./views/nav/UserNav.vue')
 
       },
       meta: { requiresAuth: true, requiresPerm: [Permissions.MY_ASSETS_CONFIG] }
@@ -342,7 +339,7 @@ router.beforeEach((to, from, next) => {
       } else if (AuthService.hasPermission(Permissions.MY_ASSETS_ACCESS)) {
         next({ path: '/myassets' })
       } else if (AuthService.hasPermission(Permissions.MY_ASSETS_CONFIG)) {
-        next({ path: '/config/external' })
+        next({ path: '/user' })
       }
     } else {
       if (to.meta.requiresPerm.length > 0) {

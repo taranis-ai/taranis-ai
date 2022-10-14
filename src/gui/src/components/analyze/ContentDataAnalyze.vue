@@ -13,6 +13,7 @@
 
 <script>
 import CardAnalyze from './CardAnalyze'
+import { mapActions, mapGetters } from 'vuex'
 
 export default {
   name: 'ContentDataAnalyze',
@@ -28,14 +29,17 @@ export default {
     collections: [],
     data_loaded: false,
     filter: {
-      search: '',
+      search: undefined,
       range: 'ALL',
-      completed: false,
-      incompleted: false,
+      completed: undefined,
+      incompleted: undefined,
       sort: 'DATE_DESC'
     }
   }),
   methods: {
+    ...mapGetters('analyze', ['getCurrentReportItemGroup', 'getReportItems']),
+    ...mapActions('analyze', ['loadReportItems']),
+
     showReportItemDetail (report_item) {
       this.$emit('show-report-item-detail', report_item)
     },
@@ -85,20 +89,17 @@ export default {
 
       let group = ''
       if (this.publish_selector) {
-        group = this.$store.getters.getCurrentReportItemGroup
+        group = this.getCurrentReportItemGroup()
       } else if (window.location.pathname.includes('/group/')) {
         const i = window.location.pathname.indexOf('/group/')
         const len = window.location.pathname.length
         group = window.location.pathname.substring(i + 7, len).replaceAll('-', ' ')
       }
 
-      this.$store.dispatch('getAllReportItems', { group: group, filter: this.filter, offset: offset, limit: limit })
+      this.loadReportItems({ group: group, filter: this.filter, offset: offset, limit: limit })
         .then(() => {
-          this.collections = this.collections.concat(this.$store.getters.getReportItems.items)
-          this.$emit('new-data-loaded', this.collections.length)
-          setTimeout(() => {
-            this.data_loaded = true
-          }, 1000)
+          this.collections = this.collections.concat(this.getReportItems())
+          this.data_loaded = true
         })
     },
 

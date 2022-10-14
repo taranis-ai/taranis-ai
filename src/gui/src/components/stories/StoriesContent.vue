@@ -1,13 +1,13 @@
 <template>
   <v-col>
     <v-container fluid>
-      <loader v-if="topicsLoaded.length < topics.length" label="loading topics" />
+      <loader v-if="storiesLoaded.length < stories.length" label="loading stories" />
 
       <transition name="empty-list-transition" mode="out-in">
-        <v-row v-if="!filteredTopics.length">
+        <v-row v-if="!filteredStories.length">
           <v-col cols="12" class="empty-list-notification">
             <v-icon x-large> mdi-circle-off-outline </v-icon>
-            <span v-if="topics.length">
+            <span v-if="stories.length">
               The currently selected filters do not yield any results. Try
               changing the filters.
             </span>
@@ -16,9 +16,9 @@
         </v-row>
 
         <transition-group
-          name="topics-grid"
+          name="stories-grid"
           tag="div"
-          class="row d-flex align-stretch row--dense topics-grid-container"
+          class="row d-flex align-stretch row--dense stories-grid-container"
           v-else
           appear
         >
@@ -27,24 +27,24 @@
             sm="6"
             md="4"
             xl="3"
-            v-for="topic in filteredTopics"
-            :key="topic.id"
+            v-for="story in filteredStories"
+            :key="story.id"
           >
-            <card-topic
-            :topic="topic"
-            @init="topicsLoaded.push(topic.id)"
-            ></card-topic>
+            <card-story
+            :story="story"
+            @init="storiesLoaded.push(story.id)"
+            ></card-story>
           </v-col>
         </transition-group>
       </transition>
     </v-container>
 
     <v-expand-transition>
-      <topics-selection-toolbar
+      <stories-selection-toolbar
         class="px-1 pt-2 pb-3"
         v-if="activeSelection"
-        :selection="getTopicSelection()"
-      ></topics-selection-toolbar>
+        :selection="getStorieSelection()"
+      ></stories-selection-toolbar>
     </v-expand-transition>
 
   </v-col>
@@ -52,8 +52,8 @@
 
 <script>
 // import wordcloud from 'vue-wordcloud'
-import TopicsSelectionToolbar from '@/components/topics/TopicsSelectionToolbar'
-import CardTopic from '@/components/common/card/CardTopic'
+import StoriesSelectionToolbar from '@/components/stories/StoriesSelectionToolbar'
+import CardStory from '@/components/common/card/CardStory'
 import Loader from '@/components/common/Loader'
 
 import { mapState, mapGetters, mapActions } from 'vuex'
@@ -61,23 +61,23 @@ import { filterSearch, filterDateRange, filterTags } from '@/utils/ListFilters'
 import moment from 'moment'
 
 export default {
-  name: 'TopicsContent',
+  name: 'StoriesContent',
   components: {
     // wordcloud,
-    CardTopic,
-    TopicsSelectionToolbar,
+    CardStory,
+    StoriesSelectionToolbar,
     Loader
   },
   data: () => ({
-    topics: [],
-    topicsLoaded: []
+    stories: [],
+    storiesLoaded: []
   }),
   methods: {
-    ...mapActions('dashboard', ['updateTopics', 'unselectAllTopics']),
-    ...mapGetters('dashboard', ['getTopics', 'getTopicSelection']),
+    ...mapActions('dashboard', ['updateStories', 'unselectAllStories']),
+    ...mapGetters('dashboard', ['getStories', 'getStorieSelection']),
 
-    getTopicsData () {
-      this.topics = this.getTopics()
+    getStoriesData () {
+      this.stories = this.getStories()
     },
 
     // getData () {
@@ -104,15 +104,15 @@ export default {
   computed: {
     ...mapState('filter',
       {
-        filter: state => state.topicsFilter.filter,
-        order: state => state.topicsFilter.order
+        filter: state => state.storiesFilter.filter,
+        order: state => state.storiesFilter.order
       }
     ),
 
-    ...mapState('dashboard', ['topicSelection']),
+    ...mapState('dashboard', ['storySelection']),
 
-    filteredTopics () {
-      let filteredData = [...this.topics]
+    filteredStories () {
+      let filteredData = [...this.stories]
 
       // SEARCH
       if (this.filter.search.length > 2) {
@@ -203,24 +203,20 @@ export default {
             )
         }
       })
-
-      this.$store.dispatch('updateItemCount', {
-        total: this.topics.length,
-        filtered: filteredData.length
-      })
+      this.$store.dispatch('updateItemCountFiltered', filteredData.length)
 
       return filteredData
     },
 
     activeSelection () {
-      return this.topicSelection.length > 0
+      return this.storySelection.length > 0
     }
   },
   created () {
     this.unsubscribe = this.$store.subscribe((mutation, state) => {
       if (mutation.type === 'dashboard/UPDATE_TOPICS') {
-        // this.getTopicsData()
-        // this.unselectAllTopics()
+        // this.getStoriesData()
+        // this.unselectAllStories()
       }
     })
   },

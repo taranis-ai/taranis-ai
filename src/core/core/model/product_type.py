@@ -74,7 +74,7 @@ class ProductType(db.Model):
     def get(cls, search, user, acl_check):
         query = cls.query.distinct().group_by(ProductType.id)
 
-        if acl_check is True:
+        if acl_check:
             query = query.outerjoin(
                 ACLEntry,
                 and_(

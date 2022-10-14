@@ -67,11 +67,11 @@ export default {
           return '#c8c8c8'
         case 'dark-grey':
           return '#575757'
-        case 'topic-selected-bg':
+        case 'story-selected-bg':
           return '#f4f3fb'
-        case 'topic-hot':
+        case 'story-hot':
           return '#dbe868'
-        case 'topic-header-bg':
+        case 'story-header-bg':
           return '#edeac2'
         case 'awake-green-color':
           return '#77bb70'

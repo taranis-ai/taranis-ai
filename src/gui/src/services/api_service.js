@@ -15,6 +15,19 @@ const ApiService = {
     }
   },
 
+  getQueryStringFromObject (filterObject) {
+    return Object.entries(filterObject).filter(([key, val]) => val != null).map(([key, val]) => `${key}=${val}`).join('&')
+  },
+
+  getQueryStringFromNestedObject (filterObject) {
+    return Object.entries(filterObject).filter(([key, val]) => val != null).map(function ([key, val]) {
+      if (typeof val === 'object') {
+        return ApiService.getQueryStringFromObject(val)
+      }
+      return `${key}=${val}`
+    }).join('&')
+  },
+
   get (resource) {
     return axios.get(resource)
   },

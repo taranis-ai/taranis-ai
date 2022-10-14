@@ -42,7 +42,7 @@
         <v-icon x-small>mdi-lock-outline</v-icon>
       </div>
 
-      <!-- Topic Actions -->
+      <!-- Story Actions -->
 
       <div class="news-item-action-bar">
         <news-item-action-dialog
@@ -52,9 +52,7 @@
         >
           <popup-delete-item
             :newsItem="newsItem"
-            :topicView="topicView || sharingSetView"
             @deleteItem="deleteNewsItem()"
-            @removeFromTopic="removeFromTopic()"
             @close="$refs.deleteDialog.close()"
           />
         </news-item-action-dialog>
@@ -88,7 +86,6 @@
           <popup-manage-tags
             :newsItem="newsItem"
             @deleteItem="deleteNewsItem()"
-            @removeFromTopic="removeFromTopic()"
             @close="$refs.manageTagsDialog.close()"
           />
         </news-item-action-dialog>
@@ -238,11 +235,11 @@
               </v-row>
               <!-- <v-row class="news-item-meta-infos">
                 <v-col class="news-item-meta-infos-label">
-                  <strong>Topics:</strong>
+                  <strong>Stories:</strong>
                 </v-col>
                 <v-col>
-                  <span class="news-item-meta-topics-list text-capitalize">
-                    {{ metaData.topicsList }}
+                  <span class="news-item-meta-stories-list text-capitalize">
+                    {{ metaData.storiesList }}
                   </span>
                 </v-col>
               </v-row> -->
@@ -298,9 +295,7 @@ export default {
   },
   props: {
     newsItem: {},
-    topicsList: [],
-    topicView: Boolean,
-    sharingSetView: Boolean,
+    storiesList: [],
     selected: Boolean
   },
   methods: {
@@ -317,9 +312,6 @@ export default {
     },
     decorateSource() {
       this.newsItem.decorateSource = !this.newsItem.decorateSource
-    },
-    removeFromTopic() {
-      this.$emit('removeFromTopic', this.newsItem.id)
     },
     deleteNewsItem() {
       this.$emit('deleteItem', this.newsItem.id)
@@ -389,18 +381,18 @@ export default {
       }
     },
 
-    getTopicsList() {
-      const topicTitles = []
-      this.newsItem.topics.forEach((id) => {
-        const newTopicTitle = this.topicsList.find(
-          (topic) => topic.id === id
+    getStoriesList() {
+      const storyTitles = []
+      this.newsItem.stories.forEach((id) => {
+        const newStoryTitle = this.storiesList.find(
+          (story) => story.id === id
         ).title
-        if (topicTitles.indexOf(newTopicTitle) === -1) {
-          topicTitles.push(newTopicTitle)
+        if (storyTitles.indexOf(newStoryTitle) === -1) {
+          storyTitles.push(newStoryTitle)
         }
       })
 
-      return topicTitles.length ? topicTitles.join(', ') : '-'
+      return storyTitles.length ? storyTitles.join(', ') : '-'
     }
   },
   updated() {

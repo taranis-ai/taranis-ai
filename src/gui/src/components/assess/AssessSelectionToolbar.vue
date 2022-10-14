@@ -18,10 +18,10 @@
       <v-row>
         <v-col class="py-0">
           <!--------------------->
-          <!-- append to topic -->
+          <!-- append to story -->
           <!--------------------->
 
-          <v-dialog v-model="appendToTopicDialog" width="1024">
+          <v-dialog v-model="appendToStoryDialog" width="1024">
             <template v-slot:activator="{ on, attrs }">
               <v-btn
                 :ripple="false"
@@ -31,20 +31,20 @@
                 v-on="on"
               >
                 <v-icon left>mdi-folder-open-outline</v-icon>
-                append to topic
+                append to story
               </v-btn>
             </template>
 
             <v-card>
-              <h2>append to topic</h2>
+              <h2>append to story</h2>
             </v-card>
           </v-dialog>
 
           <!------------------>
-          <!-- create topic -->
+          <!-- create story -->
           <!------------------>
 
-          <v-dialog v-model="createTopicDialog" width="1024">
+          <v-dialog v-model="createStoryDialog" width="1024">
             <template v-slot:activator="{ on, attrs }">
               <v-btn
                 :ripple="false"
@@ -54,12 +54,12 @@
                 v-on="on"
               >
                 <v-icon left>mdi-folder-plus-outline</v-icon>
-                create topic
+                create story
               </v-btn>
             </template>
 
             <v-card>
-              <h2>create topic</h2>
+              <h2>create story</h2>
             </v-card>
           </v-dialog>
 
@@ -134,7 +134,7 @@ export default {
         icon: '$awakeReport'
       },
       {
-        label: 'remove from topic',
+        label: 'remove from story',
         icon: '$awakeClose'
       },
       {
@@ -143,8 +143,8 @@ export default {
       }
     ],
     shareDialog: false,
-    appendToTopicDialog: false,
-    createTopicDialog: false
+    appendToStoryDialog: false,
+    createStoryDialog: false
   }),
   methods: {
 

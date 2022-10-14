@@ -261,6 +261,7 @@ import { createNewProductType, updateProductType } from '@/api/config'
 import FormParameters from '../../common/FormParameters'
 import AuthMixin from '@/services/auth/auth_mixin'
 import Permissions from '@/services/auth/permissions'
+import { mapActions, mapGetters } from 'vuex'
 
 export default {
   name: 'NewProductType',
@@ -298,6 +299,8 @@ export default {
   },
 
   methods: {
+    ...mapActions('config', ['loadPresentersNodes']),
+    ...mapGetters('config', ['getReportItemTypesConfig']),
     closeHelpDialog () {
       this.help_dialog = false
       this.selected_type = null
@@ -389,14 +392,14 @@ export default {
     }
   },
   mounted () {
-    this.$store.dispatch('getAllPresentersNodes', { search: '' })
+    this.loadPresentersNodes({ search: '' })
       .then(() => {
-        this.nodes = this.$store.getters.getPresentersNodes.items
+        this.nodes = this.getPresentersNodes().items
       })
 
     this.$store.dispatch('getAllReportItemTypesConfig', { search: '' })
       .then(() => {
-        this.report_types = this.$store.getters.getReportItemTypesConfig.items
+        this.report_types = this.getReportItemTypesConfig().items
       })
 
     this.$root.$on('show-edit', (data) => {

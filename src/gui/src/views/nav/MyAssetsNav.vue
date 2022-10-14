@@ -1,7 +1,7 @@
 <template>
     <Navigation
-            :links  = "links"
-            :icon   = "'mdi-file-multiple-outline'"
+      :links  = "links"
+      :icon   = "'mdi-file-multiple-outline'"
     />
 </template>
 

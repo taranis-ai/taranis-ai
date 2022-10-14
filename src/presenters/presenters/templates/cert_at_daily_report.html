@@ -1,0 +1,46 @@
+<html lang="de">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <title>CERT.at  - Show</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://cert.at/css/app.css">
+  </head>
+<body>
+<div id="content-section">
+  <div class="row">
+    <div class="col-sm-12">
+      <h1>
+        Tageszusammenfassung - 10.10.2022
+      </h1>
+      <div class="block">
+        <h2>End-of-Day report</h2>
+        <h2>      News       </h2>
+        {% for report_item in data.report_items %}
+        {% if report_item.attrs.cert_report_group != 'Vulnerabilities' %}
+        <h3>HEADLINE</h3>
+
+        {{ report_item }}
+        <p />
+        <a href="url">https://url/</a>
+        <hr>
+        {% endif %}
+        {% endfor %}
+
+        <h2> Vulnerabilities </h2>
+        {% for report_item in data.report_items %}
+        {% if report_item.attrs.cert_report_group == 'Vulnerabilities' %}
+        <h3>HEADLINE</h3>
+
+        {{ report_item }}
+        <p />
+        <a href="url">https://url/</a>
+        <hr>
+        {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

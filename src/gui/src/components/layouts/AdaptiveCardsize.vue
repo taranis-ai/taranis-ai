@@ -1,20 +1,20 @@
 <template>
   <v-col xs="12" sm="6" md="4" :xl="promValue">
-    <card-topic :topic="topic"></card-topic>
+    <card-story :story="story"></card-story>
   </v-col>
 </template>
 
 <script>
-import CardTopic from '@/components/common/card/CardTopic'
+import CardStory from '@/components/common/card/CardStory'
 
 export default {
   name: 'AdaptiveCardsize',
   components: {
-    CardTopic
+    CardStory
   },
   props: {
     position: Number,
-    topic: {}
+    story: {}
   },
   computed: {
     promValue () {

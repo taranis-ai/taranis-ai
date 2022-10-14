@@ -2,7 +2,7 @@
     <ViewLayout>
         <template v-slot:panel>
             <ToolbarFilter title='nav_menu.collectors_nodes' total_count_title="collectors_node.total_count"
-                           total_count_getter="getCollectorsNodes">
+                           total_count_getter="config/getCollectorsNodes">
                 <template v-slot:addbutton>
                     <NewCollectorsNode/>
                 </template>
@@ -13,8 +13,8 @@
             <ContentData
                     name="CollectorsNodes"
                     cardItem="CardNode"
-                    action="getAllCollectorsNodes"
-                    getter="getCollectorsNodes"
+                    action="config/getAllCollectorsNodes"
+                    getter="config/getCollectorsNodes"
                     deletePermission="CONFIG_COLLECTORS_NODE_DELETE"
             />
         </template>

@@ -16,25 +16,25 @@ export function getManualOSINTSources () {
   return ApiService.get('/assess/manual-osint-sources')
 }
 
-export function getNewsItemsByGroup (group_id, filter_data) {
-  const filter = `?search=${encodeURIComponent(filter_data.filter.search)}` +
-    `&read=${encodeURIComponent(filter_data.filter.read)}` +
-    `&important=${encodeURIComponent(filter_data.filter.important)}` +
-    `&relevant=${encodeURIComponent(filter_data.filter.relevant)}` +
-    `&in_analyze=${encodeURIComponent(filter_data.filter.in_analyze)}` +
-    `&range=${encodeURIComponent(filter_data.filter.range)}` +
-    `&sort=${encodeURIComponent(filter_data.filter.sort)}` +
-    `&offset=${encodeURIComponent(filter_data.offset)}` +
-    `&limit=${encodeURIComponent(filter_data.limit)}`
+export function getNewsItemsAggregates (filter_data) {
+  const filter = ApiService.getQueryStringFromNestedObject(filter_data)
+  return ApiService.get(`/assess/news-item-aggregates?${filter}`)
+}
 
-  return ApiService.get(`/assess/news-item-aggregates-by-group/${group_id}${filter}`)
+export function getNewsItems (filter_data) {
+  const filter = ApiService.getQueryStringFromNestedObject(filter_data)
+  return ApiService.get(`/assess/news-items?${filter}`)
+}
+
+export function getTopStories () {
+  return ApiService.get('/assess/top-stories')
 }
 
 export function addNewsItem (data) {
   return ApiService.post('/assess/news-items', data)
 }
 
-export function getNewsItemAggregate (group_id, aggregate_id) {
+export function getNewsItemAggregate (aggregate_id) {
   return ApiService.get(`/assess/news-item-aggregates/${aggregate_id}`)
 }
 
@@ -46,7 +46,7 @@ export function readNewsItemAggregate (group_id, aggregate_id) {
   return ApiService.put(`/assess/news-item-aggregates/${aggregate_id}`, { group_id: group_id, read: true })
 }
 
-export function deleteNewsItemAggregate (group_id, aggregate_id) {
+export function deleteNewsItemAggregate (aggregate_id) {
   return ApiService.delete(`/assess/news-item-aggregates/${aggregate_id}`)
 }
 

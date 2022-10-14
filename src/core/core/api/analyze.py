@@ -25,29 +25,15 @@ class ReportItems(Resource):
     def get(self):
 
         try:
-            filter_args = {}
-            if "search" in request.args and request.args["search"]:
-                filter_args["search"] = request.args["search"]
-            if "completed" in request.args and request.args["completed"]:
-                filter_args["completed"] = request.args["completed"]
-            if "incompleted" in request.args and request.args["incompleted"]:
-                filter_args["incompleted"] = request.args["incompleted"]
-            if "range" in request.args and request.args["range"]:
-                filter_args["range"] = request.args["range"]
-            if "sort" in request.args and request.args["sort"]:
-                filter_args["sort"] = request.args["sort"]
+            filter_keys = ["search", "completed", "incompleted", "range", "sort"]
+            filter_args = {k: v for k, v in request.args.items() if k in filter_keys}
 
             group = None
             if "group" in request.args and request.args["group"]:
                 group = int(request.args["group"])
 
-            offset = None
-            if "offset" in request.args and request.args["offset"]:
-                offset = int(request.args["offset"])
-
-            limit = 50
-            if "limit" in request.args and request.args["limit"]:
-                limit = min(int(request.args["limit"]), 200)
+            offset = int(request.args.get("offset", 0))
+            limit = min(int(request.args.get("limit", 50)), 200)
         except Exception as ex:
             logger.log_debug(ex)
             return "", 400

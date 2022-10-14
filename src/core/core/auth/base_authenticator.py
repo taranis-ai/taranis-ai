@@ -36,7 +36,6 @@ class BaseAuthenticator:
 
     @staticmethod
     def generate_jwt(username):
-
         if user := User.find(username):
             logger.store_user_activity(user, "LOGIN", "Successful")
             access_token = create_access_token(
@@ -52,7 +51,6 @@ class BaseAuthenticator:
             )
 
             return {"access_token": access_token}, 200
-        else:
-            logger.store_auth_error_activity(f"User not exists after authentication: {username}")
 
-            return BaseAuthenticator.generate_error()
+        logger.store_auth_error_activity(f"User doesn't exists: {username}")
+        return BaseAuthenticator.generate_error()

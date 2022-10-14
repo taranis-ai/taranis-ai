@@ -10,7 +10,7 @@
                               v-on:keyup="filterSearch" />
             </v-col>
             <v-col v-bind="UI.TOOLBAR.COL.RIGHT">
-                <slot name="addbutton"></slot>
+              <slot name="addbutton"></slot>
             </v-col>
         </v-row>
         <v-divider></v-divider>
@@ -18,33 +18,24 @@
             <v-col class="py-0">
                 <!-- DAY-S -->
                 <v-chip-group v-bind="UI.TOOLBAR.GROUP.DAYS">
-                    <v-chip v-bind="UI.TOOLBAR.CHIP.GROUP"
-                            v-for="day in days" :key="day.filter" @click="filterRange(day.filter)">
-                        <div class="px-2" :title="$t('publish.tooltip.range.' + day.filter)">{{$t(day.title)}}</div>
-                    </v-chip>
+                  <v-chip v-bind="UI.TOOLBAR.CHIP.GROUP"
+                          v-for="day in days" :key="day.filter" @click="filterRange(day.filter)">
+                    <div class="px-2" :title="$t('publish.tooltip.range.' + day.filter)">{{$t(day.title)}}</div>
+                  </v-chip>
                 </v-chip-group>
-
-                <!--<v-icon v-bind="UI.TOOLBAR.ICON.CHIPS_SEPARATOR">{{ UI.ICON.SEPARATOR }}</v-icon>-->
 
                 <!-- SORT -->
                 <v-chip-group v-bind="UI.TOOLBAR.GROUP.SORT">
-                    <v-chip v-bind="UI.TOOLBAR.CHIP.GROUP" @click="filterSort('DATE_DESC')" :title="$t('publish.tooltip.sort.date.descending')">
-                        <v-icon v-bind="UI.TOOLBAR.ICON.SORT_CHIP_A">{{ UI.ICON.CLOCK }}</v-icon>
-                        <v-icon v-bind="UI.TOOLBAR.ICON.SORT_CHIP_B">{{ UI.ICON.DESC }}</v-icon>
-                    </v-chip>
-                    <v-chip v-bind="UI.TOOLBAR.CHIP.GROUP" @click="filterSort('DATE_ASC')" :title="$t('publish.tooltip.sort.date.ascending')">
-                        <v-icon v-bind="UI.TOOLBAR.ICON.SORT_CHIP_A">{{ UI.ICON.CLOCK }}</v-icon>
-                        <v-icon v-bind="UI.TOOLBAR.ICON.SORT_CHIP_B">{{ UI.ICON.ASC }}</v-icon>
-                    </v-chip>
+                  <v-chip v-bind="UI.TOOLBAR.CHIP.GROUP" @click="filterSort('DATE_DESC')" :title="$t('publish.tooltip.sort.date.descending')">
+                    <v-icon v-bind="UI.TOOLBAR.ICON.SORT_CHIP_A">{{ UI.ICON.CLOCK }}</v-icon>
+                    <v-icon v-bind="UI.TOOLBAR.ICON.SORT_CHIP_B">{{ UI.ICON.DESC }}</v-icon>
+                  </v-chip>
+                  <v-chip v-bind="UI.TOOLBAR.CHIP.GROUP" @click="filterSort('DATE_ASC')" :title="$t('publish.tooltip.sort.date.ascending')">
+                    <v-icon v-bind="UI.TOOLBAR.ICON.SORT_CHIP_A">{{ UI.ICON.CLOCK }}</v-icon>
+                    <v-icon v-bind="UI.TOOLBAR.ICON.SORT_CHIP_B">{{ UI.ICON.ASC }}</v-icon>
+                  </v-chip>
                 </v-chip-group>
             </v-col>
-        </v-row>
-        <v-divider></v-divider>
-        <v-row v-bind="UI.TOOLBAR.ROW">
-            <v-col v-bind="UI.TOOLBAR.COL.INFO">
-                <span>{{$t(total_count_title)}}<strong>{{totalCount}}</strong></span>
-            </v-col>
-            <v-col v-bind="UI.TOOLBAR.COL.RIGHT"></v-col>
         </v-row>
     </v-container>
 </template>
@@ -56,13 +47,9 @@ export default {
   name: 'ToolbarFilterPublish',
   props: {
     title: String,
-    dialog: String,
-    total_count_title: String
+    dialog: String
   },
   computed: {
-    totalCount () {
-      return this.$store.getters.getProducts.total_count
-    }
   },
   data: () => ({
     status: [],
@@ -110,9 +97,6 @@ export default {
       this.chips.splice(this.chips.indexOf(item), 1)
       this.chips = [...this.chips]
     },
-    /* callDialog: function (e) {
-            this.$root.$emit('callDialog', e);
-        }, */
     cancel () {
     },
     add () {

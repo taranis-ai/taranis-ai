@@ -261,6 +261,90 @@ class NewsItem(db.Model):
         return news_item_schema.dump(news_item)
 
     @classmethod
+    def get_by_group(cls, group_id, filter, offset, limit, user):
+        query = cls.query.distinct().group_by(NewsItem.id)
+        query = query.join(NewsItemData, NewsItem.news_item_data_id == NewsItemData.id)
+        query = query.outerjoin(OSINTSource, NewsItemData.osint_source_id == OSINTSource.id)
+        query = query.filter(OSINTSource.id == group_id)
+
+        query = query.outerjoin(
+            ACLEntry,
+            or_(
+                and_(
+                    NewsItemData.osint_source_id == ACLEntry.item_id,
+                    ACLEntry.item_type == ItemType.OSINT_SOURCE,
+                ),
+                and_(
+                    OSINTSource.collector_id == ACLEntry.item_id,
+                    ACLEntry.item_type == ItemType.COLLECTOR,
+                ),
+            ),
+        )
+
+        query = ACLEntry.apply_query(query, user, True, False, False)
+
+        if "search" in filter and filter["search"] != "":
+            search_string = f"%{filter['search'].lower()}%"
+            query = query.filter(NewsItemData.content.like(search_string))
+
+        if "read" in filter and filter["read"].lower() == "true":
+            query = query.filter(NewsItem.read is False)
+
+        if "important" in filter and filter["important"].lower() == "true":
+            query = query.filter(NewsItem.important is True)
+
+        if "relevant" in filter and filter["relevant"].lower() == "true":
+            query = query.filter(NewsItem.likes > 0)
+
+        if "range" in filter and filter["range"] != "ALL":
+            date_limit = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+
+            if filter["range"] == "WEEK":
+                date_limit -= timedelta(days=date_limit.weekday())
+
+            elif filter["range"] == "MONTH":
+                date_limit = date_limit.replace(day=1)
+
+            query = query.filter(NewsItemData.collected >= date_limit)
+
+        if "sort" in filter:
+            if filter["sort"] == "DATE_DESC":
+                query = query.order_by(db.desc(NewsItemData.collected), db.desc(NewsItemAggregate.id))
+
+            elif filter["sort"] == "DATE_ASC":
+                query = query.order_by(db.asc(NewsItemData.collected), db.asc(NewsItemAggregate.id))
+
+            elif filter["sort"] == "RELEVANCE_DESC":
+                query = query.order_by(db.desc(NewsItem.relevance), db.desc(NewsItem.id))
+
+            elif filter["sort"] == "RELEVANCE_ASC":
+                query = query.order_by(db.asc(NewsItem.relevance), db.asc(NewsItem.id))
+
+        return query.offset(offset).limit(limit).all(), query.count()
+
+    @classmethod
+    def get_by_group_json(cls, group_id, filter, offset, limit, user):
+        news_items, count = cls.get_by_group(group_id, filter, offset, limit, user)
+
+        for news_item in news_items:
+            see, access, modify = NewsItem.get_acl_status(news_item.id, user)
+            news_item.see = see
+            news_item.access = access
+            news_item.modify = modify
+            vote = NewsItemVote.find(news_item.id, user.id)
+            if vote is not None:
+                news_item.me_like = vote.like
+                news_item.me_dislike = vote.dislike
+            else:
+                news_item.me_like = False
+                news_item.me_dislike = False
+
+        news_item_schema = NewsItemSchema(many=True)
+        items = news_item_schema.dump(news_items)
+
+        return {"total_count": count, "items": items}
+
+    @classmethod
     def get_total_relevance(cls, news_item_data_id):
         query = db.session.query(NewsItem.relevance).filter(NewsItem.news_item_data_id == news_item_data_id)
         result = query.all()
@@ -826,7 +910,6 @@ class NewsItemAggregate(db.Model):
 
     @classmethod
     def group_action(cls, data, user):
-
         osint_source_ids = set()
 
         if data["action"] == "GROUP":

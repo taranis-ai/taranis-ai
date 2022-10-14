@@ -28,8 +28,8 @@ def test_access_token(access_token):
     assert access_token is not None
 
 
-# def test_user_profile(client, auth_header):
-#     response = client.get("/api/v1/users/my-profile", headers=auth_header)
-#     assert response.json
-#     assert response.data
-#     assert response.status_code == 200
+def test_user_profile(client, auth_header):
+    response = client.get("/api/v1/users/my-profile", headers=auth_header)
+    assert response.json
+    assert response.data
+    assert response.status_code == 200

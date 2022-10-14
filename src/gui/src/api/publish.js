@@ -1,13 +1,8 @@
 import ApiService from '@/services/api_service'
 
 export function getAllProducts (filter_data) {
-  const filter = `?search=${encodeURIComponent(filter_data.filter.search)}` +
-    `&range=${encodeURIComponent(filter_data.filter.range)}` +
-    `&sort=${encodeURIComponent(filter_data.filter.sort)}` +
-    `&offset=${encodeURIComponent(filter_data.offset)}` +
-    `&limit=${encodeURIComponent(filter_data.limit)}`
-
-  return ApiService.get(`/publish/products${filter}`)
+  const filter = ApiService.getQueryStringFromNestedObject(filter_data)
+  return ApiService.get(`/publish/products?${filter}`)
 }
 
 export function createProduct (data) {

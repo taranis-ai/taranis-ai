@@ -2,7 +2,7 @@
     <ViewLayout>
         <template v-slot:panel>
             <ToolbarFilter title='nav_menu.users' total_count_title="user.total_count"
-                           total_count_getter="getUsers">
+                           total_count_getter="config/getUsers">
                 <template v-slot:addbutton>
                     <NewExternalUser/>
                 </template>
@@ -13,8 +13,8 @@
             <ContentData
                     name = "ExternalUsers"
                     cardItem="CardUser"
-                    action="getAllExternalUsers"
-                    getter="getUsers"
+                    action="config/getAllExternalUsers"
+                    getter="config/getUsers"
                     deletePermission="MY_ASSETS_CONFIG"
             />
         </template>

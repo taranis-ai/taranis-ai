@@ -243,6 +243,7 @@ import NewsItemSelector from '@/components/analyze/NewsItemSelector'
 import RemoteReportItemSelector from '@/components/analyze/RemoteReportItemSelector'
 
 import VueCsvImport from '@/components/common/ImportCSV'
+import { mapActions, mapGetters } from 'vuex'
 
 export default {
   name: 'NewReportItem',
@@ -254,6 +255,7 @@ export default {
   },
   components: { NewsItemSelector, AttributeContainer, RemoteReportItemSelector, VueCsvImport },
   data: () => ({
+    verticalView: true,
     csv: null,
     csv_delete_exist_list: false,
     csv_preview: true,
@@ -873,6 +875,9 @@ export default {
     }
   },
   methods: {
+    ...mapGetters(['getUserId']),
+    ...mapGetters('analyze', ['getReportItemTypes']),
+    ...mapActions('analyze', ['loadReportItemTypes']),
     addReportItem () {
       this.visible = true
       this.modify = true
@@ -1057,21 +1062,21 @@ export default {
 
     report_item_locked (data) {
       if (this.edit === true && this.report_item.id === data.report_item_id) {
-        if (data.user_id !== this.$store.getters.getUserId) {
+        if (data.user_id !== this.getUserId()) {
           this.field_locks[data.field_id] = true
         }
       }
     },
     report_item_unlocked (data) {
       if (this.edit === true && this.report_item.id === data.report_item_id) {
-        if (data.user_id !== this.$store.getters.getUserId) {
+        if (data.user_id !== this.getUserId()) {
           this.field_locks[data.field_id] = false
         }
       }
     },
     report_item_updated (data_info) {
       if (this.edit === true && this.report_item.id === data_info.report_item_id) {
-        if (data_info.user_id !== this.$store.getters.getUserId) {
+        if (data_info.user_id !== this.getUserId()) {
           getReportItemData(this.report_item.id, data_info).then((response) => {
             const data = response.data
             if (data.title !== undefined) {
@@ -1322,9 +1327,9 @@ export default {
 
     this.local_reports = !window.location.pathname.includes('/group/')
 
-    this.$store.dispatch('getAllReportItemTypes', { search: '' })
+    this.loadReportItemTypes({ search: '' })
       .then(() => {
-        this.report_types = this.$store.getters.getReportItemTypes.items
+        this.report_types = this.getReportItemTypes().items
       })
 
     this.$root.$on('new-report', (data) => {

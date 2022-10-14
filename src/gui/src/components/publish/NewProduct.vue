@@ -115,6 +115,7 @@ import AuthMixin from '../../services/auth/auth_mixin'
 import { createProduct, publishProduct, updateProduct } from '@/api/publish'
 import ReportItemSelector from '@/components/publish/ReportItemSelector'
 import Permissions from '@/services/auth/permissions'
+import { mapActions, mapGetters } from 'vuex'
 
 export default {
   name: 'NewProduct',
@@ -155,6 +156,11 @@ export default {
     }
   },
   methods: {
+    ...mapGetters('config', ['getProductTypes']),
+    ...mapActions('config', ['loadUserProductTypes']),
+    ...mapGetters('publish', ['getProductsPublisherPresets']),
+    ...mapActions('publish', ['loadUserPublishersPresets']),
+
     addProduct () {
       this.visible = true
       this.edit = false
@@ -239,14 +245,14 @@ export default {
           if (this.product.id !== -1) {
             updateProduct(this.product).then(() => {
               this.$validator.reset()
-              this.preview_link = ((typeof (process.env.VUE_APP_TARANIS_NG_CORE_API) === 'undefined') ? '$VUE_APP_TARANIS_NG_CORE_API' : process.env.VUE_APP_TARANIS_NG_CORE_API) + '/publish/products/' + this.product.id + '/overview?jwt=' + this.$store.getters.getJWT
+              this.preview_link = this.$store.getters.getCoreAPIURL + '/publish/products/' + this.product.id + '/overview?jwt=' + this.$store.getters.getJWT
               this.$refs.previewBtn.$el.click()
             })
           } else {
             createProduct(this.product).then((response) => {
               this.product.id = response.data
               this.$validator.reset()
-              this.preview_link = ((typeof (process.env.VUE_APP_TARANIS_NG_CORE_API) === 'undefined') ? '$VUE_APP_TARANIS_NG_CORE_API' : process.env.VUE_APP_TARANIS_NG_CORE_API) + '/publish/products/' + response.data + '/overview?jwt=' + this.$store.getters.getJWT
+              this.preview_link = this.$store.getters.getCoreAPIURL + '/publish/products/' + response.data + '/overview?jwt=' + this.$store.getters.getJWT
               this.$refs.previewBtn.$el.click()
             })
           }
@@ -315,14 +321,14 @@ export default {
       this.report_items = data
     })
 
-    this.$store.dispatch('getAllUserProductTypes', { search: '' })
+    this.loadUserProductTypes({ search: '' })
       .then(() => {
-        this.product_types = this.$store.getters.getProductTypes.items
+        this.product_types = this.getProductTypes().items
       })
 
-    this.$store.dispatch('getAllUserPublishersPresets', { search: '' })
+    this.loadUserPublishersPresets({ search: '' })
       .then(() => {
-        this.publisher_presets = this.$store.getters.getProductsPublisherPresets.items
+        this.publisher_presets = this.getProductsPublisherPresets().items
         for (let i = 0; i < this.publisher_presets.length; i++) {
           this.publisher_presets.selected = false
         }

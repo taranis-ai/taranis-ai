@@ -1,5 +1,5 @@
-import { getNewsItemsByGroup, getOSINTSourceGroupsList, getNewsItemAggregate, getOSINTSourcesList } from '@/api/assess'
-import { getField, updateField } from 'vuex-map-fields'
+import { getNewsItemsAggregates, getOSINTSourceGroupsList, getTopStories, getNewsItemAggregate, getOSINTSourcesList } from '@/api/assess'
+import { filter } from '@/store/filter'
 import { xor } from 'lodash'
 
 const state = {
@@ -10,7 +10,8 @@ const state = {
   default_source_group_id: '',
   filter: {},
   newsItems: { total_count: 0, items: [] },
-  newsItemsSelection: []
+  newsItemsSelection: [],
+  top_stories: []
 }
 
 const actions = {
@@ -22,13 +23,18 @@ const actions = {
       })
   },
 
-  updateNewsItemsByGroup(context, data) {
-    if (data.group_id) {
-      return getNewsItemsByGroup(data.group_id, data.data)
-        .then(response => {
-          context.commit('UPDATE_NEWSITEMS', response.data)
-        })
-    }
+  updateNewsItemsByGroup(context, newsItemsFilter) {
+    return getNewsItemsAggregates(newsItemsFilter)
+      .then(response => {
+        context.commit('UPDATE_NEWSITEMS', response.data)
+      })
+  },
+
+  updateNewsItems(context) {
+    return getNewsItemsAggregates(filter.state.newsItemsFilter)
+      .then(response => {
+        context.commit('UPDATE_NEWSITEMS', response.data)
+      })
   },
 
   updateOSINTSources(context) {
@@ -46,7 +52,14 @@ const actions = {
       })
   },
 
-  updateNewsItems(context, newsItems) {
+  updateTopStories(context) {
+    return getTopStories()
+      .then(response => {
+        context.commit('setTopStories', response.data)
+      })
+  },
+
+  setNewsItems(context, newsItems) {
     context.commit('UPDATE_NEWSITEMS', newsItems)
   },
 
@@ -86,10 +99,6 @@ const actions = {
     context.commit('removeSelection', data)
   },
 
-  changeCurrentGroup(context, data) {
-    context.commit('setCurrentGroup', data)
-  },
-
   changeMergeAttr(context, { src, dest }) {
     context.commit('CHANGE_MERGE_ATTR', { src, dest })
   },
@@ -98,8 +107,8 @@ const actions = {
     context.commit('ASSIGN_SHARINGSET', { items, sharingSet })
   },
 
-  removeTopicFromNewsItem(context, { newsItemId, topicId }) {
-    context.commit('REMOVE_TOPIC_FROM_NEWSITEM', { newsItemId, topicId })
+  removeStoryFromNewsItem(context, { newsItemId, storyId }) {
+    context.commit('REMOVE_TOPIC_FROM_NEWSITEM', { newsItemId, storyId })
   },
 
   filter(context, data) {
@@ -108,9 +117,6 @@ const actions = {
 }
 
 const mutations = {
-
-  updateField,
-
   UPDATE_NEWSITEMS(state, newsItems) {
     state.newsItems = newsItems
   },
@@ -149,32 +155,25 @@ const mutations = {
     state.newsItemsSelection = []
   },
 
-  REMOVE_TOPIC_FROM_NEWSITEM(state, data) {
-    const newsItem = state.newsItems.find(({ id }) => id === data.newsItemId)
-    newsItem.topics = newsItem.topics.filter(
-      (topic) => topic !== data.topicId
-    )
-  },
-
   ASSIGN_SHARINGSET(state, data) {
     data.items.forEach((item) => {
       const index = state.newsItems.findIndex((x) => x.id === item)
       state.newsItems[index].shared = true
-      state.newsItems[index].topics.push(data.sharingSet)
+      state.newsItems[index].stories.push(data.sharingSet)
       state.newsItems[index].sharingSets.push(data.sharingSet)
     })
   },
 
   CHANGE_MERGE_ATTR(state, replacement) {
-    replacement.src.forEach(topicToReplace => {
-      state.newsItems = [...state.newsItems].map(({ topics, sharingSets, shared, ...rest }) => ({
-        topics: topics.map(element => {
-          if (topicToReplace === element) {
+    replacement.src.forEach(storyToReplace => {
+      state.newsItems = [...state.newsItems].map(({ stories, sharingSets, shared, ...rest }) => ({
+        stories: stories.map(element => {
+          if (storyToReplace === element) {
             return replacement.dest
           }
           return element
         }),
-        sharingSets: sharingSets.filter(element => topicToReplace !== element),
+        sharingSets: sharingSets.filter(element => storyToReplace !== element),
         shared: Boolean(sharingSets.length),
         ...rest
       }))
@@ -203,6 +202,10 @@ const mutations = {
     state.osint_source_groups = osint_source_groups
   },
 
+  setTopStories(state, top_stories) {
+    state.top_stories = top_stories
+  },
+
   setDefaultOSINTSourceGroup(state, osint_source_groups) {
     state.default_source_group_id = osint_source_groups.items.filter(value => value.default)[0].id
   },
@@ -213,24 +216,25 @@ const mutations = {
 }
 
 const getters = {
-
-  getField,
-
   getNewsItems(state) {
     return state.newsItems
+  },
+
+  getScopeFilterList(state) {
+    return Array.isArray(state.osint_source_groups.items) ? state.osint_source_groups.items.map(value => ({ id: value.id, title: value.name })) : []
   },
 
   getOSINTSourceGroupList(state) {
     return state.osint_source_groups
   },
 
-  getNewsItemsByTopicId: (state) => (id) => {
-    return state.newsItems.filter(newsItem => newsItem.topics.includes(id))
+  getNewsItemsByStoryId: (state) => (id) => {
+    return state.newsItems.filter(newsItem => newsItem.stories.includes(id))
   },
 
-  getNewsItemsByTopicList: (state) => (topicsList) => {
+  getNewsItemsByStoryList: (state) => (storiesList) => {
     return state.newsItems.filter(newsItem => {
-      return newsItem.topics.some((itemTopics) => topicsList.map((topic) => topic.id).indexOf(itemTopics) >= 0)
+      return newsItem.stories.some((itemStories) => storiesList.map((story) => story.id).indexOf(itemStories) >= 0)
     })
   },
 

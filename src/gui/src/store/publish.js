@@ -8,14 +8,14 @@ const state = {
 
 const actions = {
 
-  getAllProducts (context, data) {
+  loadProducts (context, data) {
     return getAllProducts(data)
       .then(response => {
         context.commit('setProducts', response.data)
       })
   },
 
-  getAllUserPublishersPresets (context, data) {
+  loadUserPublishersPresets (context, data) {
     return getAllUserPublishersPresets(data)
       .then(response => {
         context.commit('setProductsPublisherPresets', response.data)
@@ -37,15 +37,20 @@ const mutations = {
 const getters = {
 
   getProducts (state) {
-    return state.products
+    return state.products.items
   },
 
   getProductsPublisherPresets (state) {
     return state.products_publisher_presets
+  },
+
+  getPreviewLink (state, product) {
+    return this.$store.getters.getCoreAPIURL + '/publish/products/' + product + '/overview?jwt=' + this.$store.getters.getJWT
   }
 }
 
 export const publish = {
+  namespaced: true,
   state,
   actions,
   mutations,

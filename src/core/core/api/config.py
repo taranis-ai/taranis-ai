@@ -261,7 +261,7 @@ class User(Resource):
 
 
 class ExternalUsers(Resource):
-    @auth_required("MY_ASSETS_CONFIG")
+    @auth_required("CONFIG_USER_ACCESS")
     def get(self):
         search = request.args.get(key="search", default=None)
         return user.User.get_all_external_json(auth_manager.get_user_from_jwt(), search)
@@ -273,7 +273,7 @@ class ExternalUsers(Resource):
 
 
 class ExternalUser(Resource):
-    @auth_required("MY_ASSETS_CONFIG")
+    @auth_required("CONFIG_USER_ACCESS")
     def put(self, user_id):
         permissions = auth_manager.get_external_permissions_ids()
         user.User.update_external(auth_manager.get_user_from_jwt(), permissions, user_id, request.json)

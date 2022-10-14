@@ -6,7 +6,7 @@
           <h3 class="pl-3">Sharing Set</h3>
 
           <h1 class="pl-3 text-capitalize">
-            {{ topic.title }}
+            {{ story.title }}
           </h1>
         </v-col>
       </v-row>
@@ -20,8 +20,8 @@
                     cols="12"
                     class="mx-0 px-0 d-flex justify-start flex-wrap pt-1 pb-4"
                   >
-                    <p class="topic-summary">
-                      {{ topic.summary }}
+                    <p class="story-summary">
+                      {{ story.summary }}
                     </p>
                   </v-col>
                 </v-row>
@@ -78,14 +78,14 @@
                     class="mx-0 px-0 d-flex justify-start flex-wrap py-1"
                   >
                     <!------------------>
-                    <!-- Edit Topics -->
+                    <!-- Edit Stories -->
                     <!------------------>
 
                     <v-dialog v-model="editDialog" width="600">
                       <template v-slot:activator="{ on, attrs }">
                         <v-btn
                           depressed
-                          class="text-lowercase topic-header-btn mr-2 mt-1"
+                          class="text-lowercase story-header-btn mr-2 mt-1"
                           v-bind="attrs"
                           v-on="on"
                         >
@@ -94,17 +94,17 @@
                         </v-btn>
                       </template>
 
-                      <popup-edit-topic
+                      <popup-edit-story
                         :dialog="editDialog"
-                        :topic="topic"
+                        :story="story"
                         @close="editDialog = false"
-                        v-on:update:title="topic.title = $event"
+                        v-on:update:title="story.title = $event"
                       />
                     </v-dialog>
 
                     <v-btn
                       depressed
-                      class="text-lowercase topic-header-btn mr-2 mt-1"
+                      class="text-lowercase story-header-btn mr-2 mt-1"
                     >
                       <v-icon left>mdi-message-outline</v-icon>
                       comments
@@ -114,7 +114,7 @@
                       <template v-slot:activator="{ on, attrs }">
                         <v-btn
                           depressed
-                          class="text-lowercase topic-header-btn mr-2 mt-1"
+                          class="text-lowercase story-header-btn mr-2 mt-1"
                           v-bind="attrs"
                           v-on="on"
                         >
@@ -125,7 +125,7 @@
 
                       <popup-share-sharing-set
                         v-model="shareDialog"
-                        :sharingSet="topic"
+                        :sharingSet="story"
                         :currentRecipientList="getSharedWith()"
                         :hasRestrictedItems="
                           getMetaData().numberRestrictedItems > 0
@@ -151,8 +151,8 @@
           style="height: 100%"
         >
           <v-container column class="py-0" style="height: 100%">
-            <v-row class="topic-header-meta-infos">
-              <v-col class="topic-header-meta-infos-label">
+            <v-row class="story-header-meta-infos">
+              <v-col class="story-header-meta-infos-label">
                 <strong>Status:</strong>
               </v-col>
               <v-col>
@@ -162,12 +162,12 @@
                 />
               </v-col>
             </v-row>
-            <v-row class="topic-header-meta-infos">
-              <v-col class="topic-header-meta-infos-label">
+            <v-row class="story-header-meta-infos">
+              <v-col class="story-header-meta-infos-label">
                 <strong>Direction:</strong>
               </v-col>
               <v-col>
-                <span v-if="topic.sharingDirection === 'outgoing'">
+                <span v-if="story.sharingDirection === 'outgoing'">
                   <v-icon small left class="icon-color-grey"
                     >$awakeShareOutline</v-icon
                   >
@@ -182,50 +182,50 @@
                 </span>
               </v-col>
             </v-row>
-            <v-row class="topic-header-meta-infos">
-              <v-col class="topic-header-meta-infos-label">
+            <v-row class="story-header-meta-infos">
+              <v-col class="story-header-meta-infos-label">
                 <strong>Shared by:</strong>
               </v-col>
               <v-col>
-                {{ topic.sharedBy }}
+                {{ story.sharedBy }}
               </v-col>
             </v-row>
-            <v-row class="topic-header-meta-infos">
-              <v-col class="topic-header-meta-infos-label">
+            <v-row class="story-header-meta-infos">
+              <v-col class="story-header-meta-infos-label">
                 <strong>Shared with:</strong>
               </v-col>
               <v-col>
                 {{ getSharedWith() }}
               </v-col>
             </v-row>
-            <v-row class="topic-header-meta-infos">
-              <v-col class="topic-header-meta-infos-label">
+            <v-row class="story-header-meta-infos">
+              <v-col class="story-header-meta-infos-label">
                 <strong>Last activity:</strong>
               </v-col>
               <v-col> {{ getLastActivity() }} </v-col>
             </v-row>
-            <v-row class="topic-header-meta-infos">
-              <v-col class="topic-header-meta-infos-label">
+            <v-row class="story-header-meta-infos">
+              <v-col class="story-header-meta-infos-label">
                 <strong>Total/new items:</strong>
               </v-col>
               <v-col>
                 <v-icon left small>mdi-file-outline</v-icon>
-                {{ topic.items.total }} / <strong>{{ topic.items.new }}</strong>
+                {{ story.items.total }} / <strong>{{ story.items.new }}</strong>
               </v-col>
             </v-row>
-            <v-row class="topic-header-meta-infos">
-              <v-col class="topic-header-meta-infos-label">
+            <v-row class="story-header-meta-infos">
+              <v-col class="story-header-meta-infos-label">
                 <strong>Comments:</strong>
               </v-col>
               <v-col>
                 <v-icon left small>mdi-message-outline</v-icon>
-                {{ topic.comments.total }} /
-                <strong>{{ topic.comments.new }}</strong>
+                {{ story.comments.total }} /
+                <strong>{{ story.comments.new }}</strong>
               </v-col>
             </v-row>
 
-            <v-row class="topic-header-meta-infos">
-              <v-col class="topic-header-meta-infos-label">
+            <v-row class="story-header-meta-infos">
+              <v-col class="story-header-meta-infos-label">
                 <strong>Shared Items:</strong>
               </v-col>
               <v-col>
@@ -235,8 +235,8 @@
                 <span>{{ getMetaData().numberSharedItems }}</span>
               </v-col>
             </v-row>
-            <v-row class="topic-header-meta-infos">
-              <v-col class="topic-header-meta-infos-label">
+            <v-row class="story-header-meta-infos">
+              <v-col class="story-header-meta-infos-label">
                 <strong>Restricted Items:</strong>
               </v-col>
               <v-col>
@@ -244,8 +244,8 @@
                 <span>{{ getMetaData().numberRestrictedItems }}</span>
               </v-col>
             </v-row>
-            <v-row class="topic-header-meta-infos">
-              <v-col class="topic-header-meta-infos-label">
+            <v-row class="story-header-meta-infos">
+              <v-col class="story-header-meta-infos-label">
                 <strong>Keywords:</strong>
               </v-col>
               <v-col>
@@ -253,13 +253,13 @@
               </v-col>
             </v-row>
 
-            <v-row class="topic-header-meta-infos">
-              <v-col class="topic-header-meta-infos-label d-flex align-center">
+            <v-row class="story-header-meta-infos">
+              <v-col class="story-header-meta-infos-label d-flex align-center">
                 <strong>Tags:</strong>
               </v-col>
               <v-col>
                 <tag-norm
-                  v-for="tag in topic.tags"
+                  v-for="tag in story.tags"
                   :key="tag.label"
                   :tag="tag"
                 />
@@ -279,7 +279,7 @@ import TagMini from '@/components/common/tags/TagMini'
 import TagNorm from '@/components/common/tags/TagNorm'
 import { CalendarHeatmap } from 'vue-calendar-heatmap'
 import { mapGetters } from 'vuex'
-import PopupEditTopic from '@/components/popups/PopupEditTopic'
+import PopupEditStory from '@/components/popups/PopupEditStory'
 import PopupShareSharingSet from '@/components/popups/PopupShareSharingSet'
 
 // import { mapState } from 'vuex'
@@ -290,7 +290,7 @@ export default {
     TagMini,
     TagNorm,
     CalendarHeatmap,
-    PopupEditTopic,
+    PopupEditStory,
     PopupShareSharingSet
   },
   data: () => ({
@@ -298,15 +298,15 @@ export default {
     shareDialog: false
   }),
   props: {
-    topic: {}
+    story: {}
   },
   methods: {
-    ...mapGetters('dashboard', ['getTopicById', 'getTopicTitleById']),
-    ...mapGetters('assess', ['getNewsItemsByTopicId']),
+    ...mapGetters('dashboard', ['getStoryById', 'getStoryTitleById']),
+    ...mapGetters('assess', ['getNewsItemsByStoryId']),
     ...mapGetters('users', ['getUsernameById']),
 
     getSharingState () {
-      switch (this.topic.sharingState) {
+      switch (this.story.sharingState) {
         case 'shared':
           return { label: 'shared', color: 'awake-green-color' }
         case 'pending':
@@ -316,17 +316,17 @@ export default {
       }
     },
     getLastActivity () {
-      return moment(this.topic.lastActivity).format('DD/MM/YYYY hh:mm:ss')
+      return moment(this.story.lastActivity).format('DD/MM/YYYY hh:mm:ss')
     },
-    getRelatedTopics () {
-      return this.topic.relatedTopics.join(', ')
+    getRelatedStories () {
+      return this.story.relatedStories.join(', ')
     },
     getKeywords () {
-      return this.topic.keywords.join(', ')
+      return this.story.keywords.join(', ')
     },
     getSharedWith () {
-      return this.topic.sharedWith.length
-        ? this.topic.sharedWith
+      return this.story.sharedWith.length
+        ? this.story.sharedWith
           .map((recipientId) => this.getUsernameById()(recipientId.id))
           .join(', ')
         : '-'
@@ -335,7 +335,7 @@ export default {
       const heatmapCounter = {}
       let numberSharedItems = 0
       let numberRestrictedItems = 0
-      const newsItems = this.getNewsItemsByTopicId()(this.topic.id)
+      const newsItems = this.getNewsItemsByStoryId()(this.story.id)
 
       newsItems.forEach((element) => {
         const date = moment(element.published).format('YYYY/MM/DD')

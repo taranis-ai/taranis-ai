@@ -5,18 +5,8 @@ export function getAllReportItemGroups () {
 }
 
 export function getAllReportItems (filter_data) {
-  let filter = `?search=${encodeURIComponent(filter_data.filter.search)}` +
-    `&completed=${encodeURIComponent(filter_data.filter.completed)}` +
-    `&incompleted=${encodeURIComponent(filter_data.filter.incompleted)}` +
-    `&range=${encodeURIComponent(filter_data.filter.range)}` +
-    `&sort=${encodeURIComponent(filter_data.filter.sort)}` +
-    `&offset=${encodeURIComponent(filter_data.offset)}` +
-    `&limit=${encodeURIComponent(filter_data.limit)}`
-  if (filter_data.group !== null) {
-    filter += `&group=${encodeURIComponent(filter_data.group)}`
-  }
-
-  return ApiService.get(`/analyze/report-items${filter}`)
+  const filter = ApiService.getQueryStringFromNestedObject(filter_data)
+  return ApiService.get(`/analyze/report-items?${filter}`)
 }
 
 export function getReportItem (report_item_id) {

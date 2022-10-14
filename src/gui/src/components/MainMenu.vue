@@ -59,12 +59,9 @@
     </v-toolbar-title>
 
     <div class="item-count">
-      <span
-        >total items: <strong>{{ itemCount.total }}</strong> /
-      </span>
-      <span
-        >displayed items: <strong>{{ itemCount.filtered }}</strong></span
-      >
+      <span>total items: <strong>{{ itemCount().total }}</strong></span>
+
+      <span v-if="getItemCount().filtered != getItemCount().total"> / displayed items: <strong>{{ getItemCount().filtered }}</strong></span>
     </div>
 
     <v-spacer></v-spacer>
@@ -143,7 +140,7 @@
 import UserMenu from '../components/UserMenu'
 import AuthMixin from '../services/auth/auth_mixin'
 
-import { mapState, mapActions } from 'vuex'
+import { mapActions, mapGetters } from 'vuex'
 
 export default {
   components: { UserMenu },
@@ -205,15 +202,20 @@ export default {
   }),
   mixins: [AuthMixin],
   methods: {
-    ...mapActions('assess', ['getManualOSINTSources']),
+    ...mapActions(['toggleDrawer']),
+    ...mapGetters(['getItemCount']),
 
     navClicked () {
       this.opened = !this.opened
-      this.$root.$emit('nav-clicked')
+      this.toggleDrawer()
     },
 
     darkToggle () {
       this.$vuetify.theme.dark = this.darkTheme
+    },
+
+    itemCount () {
+      return this.getItemCount()
     },
 
     getButtonList (permissions) {
@@ -224,7 +226,6 @@ export default {
     }
   },
   computed: {
-    ...mapState(['itemCount'])
   },
   mounted () {
 

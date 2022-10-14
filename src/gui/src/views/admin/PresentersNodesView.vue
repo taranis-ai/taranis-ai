@@ -13,7 +13,7 @@
             <ContentData
                     name="PresentersNodes"
                     cardItem="CardNode"
-                    action="getAllPresentersNodes"
+                    action="config/loadPresentersNodes"
                     getter="getPresentersNodes"
                     deletePermission="CONFIG_PRESENTERS_NODE_DELETE"
             />

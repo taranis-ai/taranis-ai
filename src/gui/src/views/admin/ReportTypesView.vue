@@ -12,7 +12,7 @@
             <ContentData
                     name="ReportTypes"
                     cardItem="CardCompact"
-                    action="getAllReportItemTypesConfig"
+                    action="loadReportItemTypesConfig"
                     getter="getReportItemTypesConfig"
                     deletePermission="CONFIG_REPORT_TYPE_DELETE"
             />

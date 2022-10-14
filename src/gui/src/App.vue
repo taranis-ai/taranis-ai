@@ -6,7 +6,7 @@
 
     <v-navigation-drawer
       clipped
-      v-model="visible"
+      :value.sync="drawerVisible"
       app
       color="cx-drawer-bg"
       v-if="isAuthenticated()"
@@ -28,7 +28,7 @@
 import MainMenu from './components/MainMenu'
 import AuthMixin from './services/auth/auth_mixin'
 import Notification from './components/common/Notification'
-import { mapActions } from 'vuex'
+import { mapActions, mapState } from 'vuex'
 
 export default {
   name: 'App',
@@ -36,12 +36,12 @@ export default {
     MainMenu,
     Notification
   },
-  data: () => ({
-    visible: null
-  }),
+  computed: {
+    ...mapState(['drawerVisible'])
+  },
   mixins: [AuthMixin],
   methods: {
-    ...mapActions('dashboard', ['updateTopics']),
+    ...mapActions('dashboard', ['updateStories']),
     ...mapActions('users', ['updateUsers']),
     ...mapActions('assess', ['updateNewsItems']),
 
@@ -103,27 +103,22 @@ export default {
         }
       }
     }
-
-    setInterval(
-      function () {
-        if (this.isAuthenticated()) {
-          if (this.needTokenRefresh() === true) {
-            this.$store.dispatch('refresh').then(() => {
-              this.reconnectSSE()
-            })
-          }
-        } else {
-          if (this.$store.getters.getJWT) {
-            this.$store.dispatch('logout')
-          }
-        }
-      }.bind(this),
-      5000
-    )
-
-    this.$root.$on('nav-clicked', () => {
-      this.visible = !this.visible
-    })
+    // setInterval(
+    //   function () {
+    //     if (this.isAuthenticated()) {
+    //       if (this.needTokenRefresh() === true) {
+    //         this.$store.dispatch('refresh').then(() => {
+    //           this.reconnectSSE()
+    //         })
+    //       }
+    //     } else {
+    //       if (this.$store.getters.getJWT) {
+    //         this.$store.dispatch('logout')
+    //       }
+    //     }
+    //   }.bind(this),
+    //   5000
+    // )
   },
   created () {
 

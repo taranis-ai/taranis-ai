@@ -129,17 +129,6 @@ class ACLEntry(db.Model):
 
         query = query.outerjoin(ACLEntryRole, ACLEntryRole.acl_entry_id == ACLEntry.id)
 
-        if not see and not access and not modify:
-            query = query.filter(
-                or_(
-                    ACLEntry.id is not None,
-                    ACLEntry.everyone is True,
-                    ACLEntryUser.user_id == user.id,
-                    ACLEntryRole.role_id.in_(roles),
-                )
-            )
-            return query
-
         if see:
             return query.filter(
                 or_(
@@ -154,6 +143,7 @@ class ACLEntry(db.Model):
                     ),
                 )
             )
+
         if access:
             return query.filter(
                 or_(
@@ -183,6 +173,15 @@ class ACLEntry(db.Model):
                     ),
                 )
             )
+
+        return query.filter(
+            or_(
+                ACLEntry.id is not None,
+                ACLEntry.everyone is True,
+                ACLEntryUser.user_id == user.id,
+                ACLEntryRole.role_id.in_(roles),
+            )
+        )
 
 
 class ACLEntryUser(db.Model):

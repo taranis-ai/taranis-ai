@@ -41,7 +41,7 @@
                   <h4
                     class="
                       font-weight-bold
-                      merge-topics-details-title
+                      merge-stories-details-title
                       text-capitalize
                       my-1
                     "
@@ -202,7 +202,7 @@
               "
               @click="appendToReport()"
             >
-              <!-- @click="mergeSelectedTopics()" -->
+              <!-- @click="mergeSelectedStories()" -->
               <v-icon left>$awakeShareOutline</v-icon>
               append to report
             </v-btn>
@@ -247,7 +247,7 @@ export default {
     reportSummary: ''
   }),
   methods: {
-    ...mapActions('dashboard', ['createNewTopic', 'updateTopic']),
+    ...mapActions('dashboard', ['createNewStory', 'updateStory']),
     ...mapActions('filter', ['resetNewsItemsFilter']),
     ...mapActions('assess', [
       'deselectNewsItem',
@@ -255,7 +255,7 @@ export default {
       'assignReport'
     ]),
     ...mapGetters('assess', ['getNewsItemById']),
-    ...mapGetters('dashboard', ['getTopicById', 'getSharingSetSelectionList']),
+    ...mapGetters('dashboard', ['getStoryById', 'getSharingSetSelectionList']),
 
     getItemDetails (id) {
       return this.getNewsItemById()(parseInt(id))
@@ -271,22 +271,22 @@ export default {
         sharingSet: this.existingReport.id
       })
 
-      const sharingSet = this.getTopicById()(this.existingReport.id)
+      const sharingSet = this.getStoryById()(this.existingReport.id)
       sharingSet.sharingState = 'pending'
-      this.updateTopic(sharingSet)
+      this.updateStory(sharingSet)
 
       this.leavePopup(this.existingReport.id)
     },
 
     createReport () {
-      const newSharingSet = this.topicPrototype
+      const newSharingSet = this.storyPrototype
       newSharingSet.title = this.reportTitle
       newSharingSet.summary = this.reportSummary
         ? this.reportSummary
         : 'this is an AI created summary ... ' // should be replaced by NLP algorithm
       newSharingSet.id = Math.floor(Math.random() * (700 - 500 + 1)) + 500 // get ID from creation
 
-      this.createNewTopic(newSharingSet)
+      this.createNewStory(newSharingSet)
       this.assignReport({
         items: this.selection,
         sharingSet: newSharingSet.id
@@ -299,13 +299,13 @@ export default {
       this.deselectAllNewsItems()
       this.resetNewsItemsFilter()
 
-      const topic = this.getTopicById()(id)
-      this.scope.sharingSets = [{ id: topic.id, title: topic.title }]
-      this.scope.topics = []
+      const story = this.getStoryById()(id)
+      this.scope.sharingSets = [{ id: story.id, title: story.title }]
+      this.scope.stories = []
 
       this.$router.push({
         path: '/assess',
-        query: { topic: id }
+        query: { story: id }
       })
 
       this.$emit('input', false)
@@ -325,8 +325,8 @@ export default {
         (this.reportSummary !== '' || this.autogenerateSummary)
       )
     },
-    topicPrototype () {
-      const newTopic = {
+    storyPrototype () {
+      const newStory = {
         id: null,
         relevanceScore: 100,
         title: '',
@@ -357,31 +357,31 @@ export default {
         sharedBy: 'current user',
         sharedWith: [],
         sharingSets: [],
-        relatedTopics: [],
+        relatedStories: [],
         keywords: []
       }
 
       this.selection.forEach((id) => {
         const selectedNewsItem = this.getNewsItemById()(id)
-        newTopic.items.total++
-        newTopic.items.new += selectedNewsItem.read ? 0 : 1
+        newStory.items.total++
+        newStory.items.new += selectedNewsItem.read ? 0 : 1
 
-        // newTopic.comments.total += this.mergeDiscussion
-        //   ? this.getTopicById()(id).comments.total
+        // newStory.comments.total += this.mergeDiscussion
+        //   ? this.getStoryById()(id).comments.total
         //   : 0
-        // newTopic.comments.new += this.mergeDiscussion
-        //   ? this.getTopicById()(id).comments.new
+        // newStory.comments.new += this.mergeDiscussion
+        //   ? this.getStoryById()(id).comments.new
         //   : 0
 
-        // newTopic.votes.up += this.mergeVotes
-        //   ? this.getTopicById()(id).votes.up
+        // newStory.votes.up += this.mergeVotes
+        //   ? this.getStoryById()(id).votes.up
         //   : 0
-        // newTopic.votes.down += this.mergeVotes
-        //   ? this.getTopicById()(id).votes.down
+        // newStory.votes.down += this.mergeVotes
+        //   ? this.getStoryById()(id).votes.down
         //   : 0
       })
 
-      return newTopic
+      return newStory
     }
   },
   mounted () {}

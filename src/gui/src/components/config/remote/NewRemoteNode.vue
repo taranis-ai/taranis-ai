@@ -144,6 +144,7 @@ import AuthMixin from '../../../services/auth/auth_mixin'
 import { createNewRemoteNode, updateRemoteNode, connectRemoteNode } from '@/api/config'
 
 import Permissions from '@/services/auth/permissions'
+import { mapActions, mapGetters } from 'vuex'
 
 export default {
   name: 'NewRemoteNode',
@@ -185,6 +186,8 @@ export default {
     }
   },
   methods: {
+    ...mapGetters('config', ['getOSINTSourceGroups']),
+    ...mapActions('config', ['loadOSINTSourceGroups']),
     addRemoteNode () {
       this.visible = true
       this.edit = false
@@ -301,9 +304,9 @@ export default {
   },
   mixins: [AuthMixin],
   mounted () {
-    this.$store.dispatch('getAllOSINTSourceGroups', { search: '' })
+    this.loadOSINTSourceGroups()
       .then(() => {
-        this.osint_source_groups = this.$store.getters.getOSINTSourceGroups.items
+        this.osint_source_groups = this.getOSINTSourceGroups()
       })
 
     this.$root.$on('show-edit', (data) => {

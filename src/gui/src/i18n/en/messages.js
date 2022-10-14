@@ -62,6 +62,7 @@ const messages_en = {
     roles: 'Roles',
     acls: 'ACL',
     users: 'Users',
+    user: 'User',
     organizations: 'Organizations',
     word_lists: 'Word Lists',
     asset_groups: 'Asset Groups',
@@ -145,6 +146,25 @@ const messages_en = {
     total_count: 'Users count: ',
     password: 'Password',
     password_check: 'Retype Password'
+  },
+
+  nodes: {
+    add_new: 'Add new node',
+    edit: 'Edit node',
+    save: 'Save',
+    add_btn: 'Add New',
+    cancel: 'Cancel',
+    validation_error: 'Please fill in all required fields',
+    error: 'Could not connect to node',
+    name: 'Name',
+    description: 'Description',
+    url: 'URL',
+    key: 'Key',
+    successful: 'New node was successfully added',
+    successful_edit: 'Node was successfully updated',
+    removed: 'Node was successfully removed',
+    removed_error: 'Node is in use and could not be deleted',
+    total_count: 'Nodes count: '
   },
 
   collectors_node: {

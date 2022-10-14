@@ -1,7 +1,7 @@
 <template>
     <v-chip
       label
-      class="mr-1 mb-1 topic-label"
+      class="mr-1 mb-1 story-label"
       dark
       x-small
       :color="labelcolor(tag.color)"

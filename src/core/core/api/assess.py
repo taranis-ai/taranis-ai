@@ -40,77 +40,61 @@ class AddNewsItem(Resource):
         sse_manager.remote_access_news_items_updated(osint_source_ids)
 
 
-class NewsItemsByGroup(Resource):
-    @auth_required("ASSESS_ACCESS", ACLCheck.OSINT_SOURCE_GROUP_ACCESS)
-    def get(self, group_id):
+class NewsItems(Resource):
+    @auth_required("ASSESS_ACCESS")
+    def get(self):
         user = auth_manager.get_user_from_jwt()
 
         try:
-            filter = {}
-            if "search" in request.args and request.args["search"]:
-                filter["search"] = request.args["search"]
-            if "read" in request.args and request.args["read"]:
-                filter["read"] = request.args["read"]
-            if "important" in request.args and request.args["important"]:
-                filter["important"] = request.args["important"]
-            if "relevant" in request.args and request.args["relevant"]:
-                filter["relevant"] = request.args["relevant"]
-            if "in_analyze" in request.args and request.args["in_analyze"]:
-                filter["in_analyze"] = request.args["in_analyze"]
-            if "range" in request.args and request.args["range"]:
-                filter["range"] = request.args["range"]
-            if "sort" in request.args and request.args["sort"]:
-                filter["sort"] = request.args["sort"]
+            filter_keys = ["search", "read", "important", "relevant", "in_analyze", "range", "sort"]
+            filter_args = {k: v for k, v in request.args.items() if k in filter_keys}
 
-            offset = None
-            if "offset" in request.args and request.args["offset"]:
-                offset = int(request.args["offset"])
-
-            limit = 50
-            if "limit" in request.args and request.args["limit"]:
-                limit = min(int(request.args["limit"]), 200)
+            group_id = request.args.get("group", osint_source.OSINTSourceGroup.get_default().id)
+            offset = int(request.args.get("offset", 0))
+            limit = min(int(request.args.get("limit", 50)), 200)
         except Exception as ex:
             logger.log_debug(ex)
             return "", 400
 
-        return news_item.NewsItemAggregate.get_by_group_json(group_id, filter, offset, limit, user)
+        return news_item.NewsItem.get_by_group_json(group_id, filter_args, offset, limit, user)
 
 
 class NewsItemAggregates(Resource):
     @auth_required("ASSESS_ACCESS")
     def get(self):
         user = auth_manager.get_user_from_jwt()
-        group_id = osint_source.OSINTSourceGroup.get_default().id
 
         try:
-            filter = {}
-            if "search" in request.args and request.args["search"]:
-                filter["search"] = request.args["search"]
-            if "read" in request.args and request.args["read"]:
-                filter["read"] = request.args["read"]
-            if "important" in request.args and request.args["important"]:
-                filter["important"] = request.args["important"]
-            if "relevant" in request.args and request.args["relevant"]:
-                filter["relevant"] = request.args["relevant"]
-            if "in_analyze" in request.args and request.args["in_analyze"]:
-                filter["in_analyze"] = request.args["in_analyze"]
-            if "range" in request.args and request.args["range"]:
-                filter["range"] = request.args["range"]
-            if "sort" in request.args and request.args["sort"]:
-                filter["sort"] = request.args["sort"]
+            filter_keys = ["search", "read", "important", "relevant", "in_analyze", "range", "sort"]
+            filter_args = {k: v for k, v in request.args.items() if k in filter_keys}
 
-            offset = None
-            if "offset" in request.args and request.args["offset"]:
-                offset = int(request.args["offset"])
-
-            limit = 50
-            if "limit" in request.args and request.args["limit"]:
-                limit = min(int(request.args["limit"]), 200)
+            group_id = request.args.get("group", osint_source.OSINTSourceGroup.get_default().id)
+            offset = int(request.args.get("offset", 0))
+            limit = min(int(request.args.get("limit", 50)), 200)
         except Exception as ex:
             logger.log_debug(ex)
             return "", 400
 
-        return news_item.NewsItemAggregate.get_by_group_json(group_id, filter, offset, limit, user)
+        return news_item.NewsItemAggregate.get_by_group_json(group_id, filter_args, offset, limit, user)
+
+
+class NewsItemAggregatesByGroup(Resource):
+    # DEPRECATED IN FAVOR OF NewsItemAggregates
+    @auth_required("ASSESS_ACCESS")
+    def get(self, group_id):
+        user = auth_manager.get_user_from_jwt()
+
+        try:
+            filter_keys = ["search", "read", "important", "relevant", "in_analyze", "range", "sort"]
+            filter_args = {k: v for k, v in request.args.items() if k in filter_keys}
+
+            offset = int(request.args.get("offset", 0))
+            limit = min(int(request.args.get("limit", 50)), 200)
+        except Exception as ex:
+            logger.log_debug(ex)
+            return "", 400
+
+        return news_item.NewsItemAggregate.get_by_group_json(group_id, filter_args, offset, limit, user)
 
 
 class NewsItem(Resource):
@@ -219,12 +203,16 @@ def initialize(api):
     api.add_resource(ManualOSINTSources, "/api/v1/assess/manual-osint-sources")
     api.add_resource(AddNewsItem, "/api/v1/assess/news-items")
     api.add_resource(
-        NewsItemsByGroup,
+        NewsItemAggregatesByGroup,
         "/api/v1/assess/news-item-aggregates-by-group/<string:group_id>",
     )
     api.add_resource(
         NewsItemAggregates,
         "/api/v1/assess/news-item-aggregates",
+    )
+    api.add_resource(
+        NewsItems,
+        "/api/v1/assess/news-items",
     )
     api.add_resource(NewsItem, "/api/v1/assess/news-items/<int:item_id>")
     api.add_resource(NewsItemAggregate, "/api/v1/assess/news-item-aggregates/<int:aggregate_id>")

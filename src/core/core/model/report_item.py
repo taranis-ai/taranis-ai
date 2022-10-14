@@ -6,6 +6,7 @@ from sqlalchemy.sql.expression import cast
 import sqlalchemy
 
 from core.managers.db_manager import db
+from core.managers.log_manager import logger
 from core.model.news_item import NewsItemAggregate
 from core.model.report_item_type import AttributeGroupItem
 from core.model.report_item_type import ReportItemType
@@ -147,11 +148,7 @@ class ReportItem(db.Model):
 
         self.id = id
 
-        if uuid is None:
-            self.uuid = str(uuid_generator.uuid4())
-        else:
-            self.uuid = uuid
-
+        self.uuid = str(uuid_generator.uuid4()) if uuid is None else uuid
         self.title = title
         self.title_prefix = title_prefix
         self.report_item_type_id = report_item_type_id
@@ -161,13 +158,9 @@ class ReportItem(db.Model):
         self.subtitle = ""
         self.tag = ""
 
-        self.news_item_aggregates = []
-        for news_item_aggregate in news_item_aggregates:
-            self.news_item_aggregates.append(NewsItemAggregate.find(news_item_aggregate.id))
+        self.news_item_aggregates = [NewsItemAggregate.find(news_item_aggregate.id) for news_item_aggregate in news_item_aggregates]
 
-        self.remote_report_items = []
-        for remote_report_item in remote_report_items:
-            self.remote_report_items.append(ReportItem.find(remote_report_item.id))
+        self.remote_report_items = [ReportItem.find(remote_report_item.id) for remote_report_item in remote_report_items]
 
     @orm.reconstructor
     def reconstruct(self):
@@ -238,38 +231,21 @@ class ReportItem(db.Model):
         return items, last_sync_time
 
     @classmethod
-    def get(cls, group, filter, offset, limit, user):
+    def get(cls, group, filter: dict, offset: int, limit: int, user, acl_check: bool):
+        query = cls.query
 
-        if group:
-            query = cls.query.filter(ReportItem.remote_user == group)
-        else:
-            query = (
-                db.session.query(
-                    ReportItem,
-                    func.count().filter(ACLEntry.id > 0).label("acls"),
-                    func.count().filter(ACLEntry.access is True).label("access"),
-                    func.count().filter(ACLEntry.modify is True).label("modify"),
-                )
-                .distinct()
-                .group_by(ReportItem.id)
-            )
-
-            query = query.filter(ReportItem.remote_user is None)
-
+        if acl_check:
             query = query.outerjoin(
                 ACLEntry,
-                or_(
-                    and_(
-                        ReportItem.uuid == ACLEntry.item_id,
-                        ACLEntry.item_type == ItemType.REPORT_ITEM,
-                    ),
-                    and_(
-                        cast(ReportItem.report_item_type_id, sqlalchemy.String) == ACLEntry.item_id,
-                        ACLEntry.item_type == ItemType.REPORT_ITEM_TYPE,
-                    ),
+                and_(
+                    ReportItem.uuid == ACLEntry.item_id,
+                    ACLEntry.item_type == ItemType.REPORT_ITEM,
                 ),
             )
             query = ACLEntry.apply_query(query, user, True, False, False)
+
+        if group:
+            query = cls.query.filter(ReportItem.remote_user == group)
 
         if "search" in filter and filter["search"] != "":
             search_string = "%" + filter["search"].lower() + "%"
@@ -312,7 +288,7 @@ class ReportItem(db.Model):
 
             elif filter["sort"] == "DATE_ASC":
                 query = query.order_by(db.asc(ReportItem.created))
-
+        logger.log_debug(f"Query: {str(query)}")
         return query.offset(offset).limit(limit).all(), query.count()
 
     @classmethod
@@ -321,43 +297,34 @@ class ReportItem(db.Model):
 
     @classmethod
     def get_by_cpe(cls, cpes):
-
-        if len(cpes) > 0:
-            query_string = "SELECT DISTINCT report_item_id FROM report_item_cpe WHERE value LIKE ANY(:cpes) OR {}"
-            params = {"cpes": cpes}
-
-            inner_query = ""
-            for i in range(len(cpes)):
-                if i > 0:
-                    inner_query += " OR "
-                param = "cpe" + str(i)
-                inner_query += ":" + param + " LIKE value"
-                params[param] = cpes[i]
-
-            result = db.engine.execute(text(query_string.format(inner_query)), params)
-
-            return [row[0] for row in result]
-        else:
+        if len(cpes) <= 0:
             return []
+        query_string = "SELECT DISTINCT report_item_id FROM report_item_cpe WHERE value LIKE ANY(:cpes) OR {}"
+        params = {"cpes": cpes}
+
+        inner_query = ""
+        for i in range(len(cpes)):
+            if i > 0:
+                inner_query += " OR "
+            param = f"cpe{str(i)}"
+            inner_query += f":{param} LIKE value"
+            params[param] = cpes[i]
+
+        result = db.engine.execute(text(query_string.format(inner_query)), params)
+
+        return [row[0] for row in result]
 
     @classmethod
     def get_json(cls, group, filter, offset, limit, user):
-        results, count = cls.get(group, filter, offset, limit, user)
+        results, count = cls.get(group, filter, offset, limit, user, True)
+        logger.log_debug(f"ReportItem.get_json: {results}")
         report_items = []
-        if group:
-            for result in results:
-                report_item = result
-                report_item.see = True
-                report_item.access = True
-                report_item.modify = False
-                report_items.append(report_item)
-        else:
-            for result in results:
-                report_item = result.ReportItem
-                report_item.see = True
-                report_item.access = result.access > 0 or result.acls == 0
-                report_item.modify = result.modify > 0 or result.acls == 0
-                report_items.append(report_item)
+        aclcheck = {"see": True, "access": True, "modify": True}
+        for report_item in results:
+            report_item.see = True
+            report_item.access = group is None and aclcheck["access"]
+            report_item.modify = group is not None and aclcheck["modify"]
+            report_items.append(report_item)
 
         report_items_schema = ReportItemPresentationSchema(many=True)
         return {"total_count": count, "items": report_items_schema.dump(report_items)}
@@ -428,34 +395,30 @@ class ReportItem(db.Model):
         report_item = cls.query.get(id)
         if report_item is not None:
             if "update" in data:
-                if "title" in data:
-                    if report_item.title != data["title"]:
-                        modified = True
-                        report_item.title = data["title"]
-                        data["title"] = ""
+                if "title" in data and report_item.title != data["title"]:
+                    modified = True
+                    report_item.title = data["title"]
+                    data["title"] = ""
 
-                if "title_prefix" in data:
-                    if report_item.title_prefix != data["title_prefix"]:
-                        modified = True
-                        report_item.title_prefix = data["title_prefix"]
-                        data["title_prefix"] = ""
+                if "title_prefix" in data and report_item.title_prefix != data["title_prefix"]:
+                    modified = True
+                    report_item.title_prefix = data["title_prefix"]
+                    data["title_prefix"] = ""
 
-                if "completed" in data:
-                    if report_item.completed != data["completed"]:
-                        modified = True
-                        report_item.completed = data["completed"]
-                        data["completed"] = ""
+                if "completed" in data and report_item.completed != data["completed"]:
+                    modified = True
+                    report_item.completed = data["completed"]
+                    data["completed"] = ""
 
                 if "attribute_id" in data:
                     for attribute in report_item.attributes:
-                        if attribute.id == data["attribute_id"]:
-                            if attribute.value != data["attribute_value"]:
-                                modified = True
-                                attribute.value = data["attribute_value"]
-                                data["attribute_value"] = ""
-                                attribute.user = user
-                                attribute.last_updated = datetime.now()
-                                break
+                        if attribute.id == data["attribute_id"] and attribute.value != data["attribute_value"]:
+                            modified = True
+                            attribute.value = data["attribute_value"]
+                            data["attribute_value"] = ""
+                            attribute.user = user
+                            attribute.last_updated = datetime.now()
+                            break
 
             if "add" in data:
                 if "attribute_id" in data:

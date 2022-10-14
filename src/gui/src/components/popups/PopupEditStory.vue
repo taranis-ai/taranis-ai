@@ -4,7 +4,7 @@
       <v-container>
         <v-row>
           <v-col cols="12">
-            <h2 class="popup-title">Edit Topic</h2>
+            <h2 class="popup-title">Edit Story</h2>
           </v-col>
         </v-row>
         <v-row>
@@ -63,7 +63,7 @@ import buttonSolid from '@/components/_subcomponents/buttonSolid'
 import buttonOutlined from '@/components/_subcomponents/buttonOutlined'
 
 export default {
-  name: 'PopupEditTopic',
+  name: 'PopupEditStory',
   components: {
     textField,
     buttonSolid,
@@ -71,7 +71,7 @@ export default {
   },
   props: {
     dialog: Boolean,
-    topic: {}
+    story: {}
   },
   data: () => ({
     valid: true,
@@ -79,22 +79,22 @@ export default {
     newSummary: ''
   }),
   methods: {
-    ...mapActions('dashboard', ['updateTopic']),
+    ...mapActions('dashboard', ['updateStory']),
 
     submit () {
-      const updatedTopic = this.topic
-      updatedTopic.title = this.newTitle
-      updatedTopic.summary = this.newSummary
-      updatedTopic.sharingState = 'pending'
-      this.updateTopic(updatedTopic)
+      const updatedStory = this.story
+      updatedStory.title = this.newTitle
+      updatedStory.summary = this.newSummary
+      updatedStory.sharingState = 'pending'
+      this.updateStory(updatedStory)
 
       // Close Popup
       this.$emit('close')
     }
   },
   mounted () {
-    this.newTitle = this.topic.title
-    this.newSummary = this.topic.summary
+    this.newTitle = this.story.title
+    this.newSummary = this.story.summary
   }
 }
 </script>

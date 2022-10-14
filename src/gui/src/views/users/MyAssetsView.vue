@@ -1,23 +1,22 @@
 <template>
-    <ViewLayout>
-        <template v-slot:panel>
-            <ToolbarFilterAssets title='main_menu.my_assets' total_count_title="asset.total_count">
-                <template v-if="canAddAssets" v-slot:addbutton>
-                    <NewAsset/>
-                </template>
-                <template v-else v-slot:addbutton>
-                    <span class="caption orange white--text pa-1 px-3 rounded">
-                        {{$t('asset.add_group_info')}}
-                    </span>
-                </template>
-            </ToolbarFilterAssets>
+  <ViewLayout>
+    <template v-slot:panel>
+      <ToolbarFilterAssets title='main_menu.my_assets' total_count_title="asset.total_count">
+        <template v-if="canAddAssets" v-slot:addbutton>
+          <NewAsset/>
         </template>
-        <template v-slot:content>
-            <ContentDataAssets cardItem="CardAsset"/>
-            <VulnerabilityDetail/>
+        <template v-else v-slot:addbutton>
+          <span class="caption orange white--text pa-1 px-3 rounded">
+            {{$t('asset.add_group_info')}}
+          </span>
         </template>
-    </ViewLayout>
-
+      </ToolbarFilterAssets>
+    </template>
+    <template v-slot:content>
+      <ContentDataAssets cardItem="CardAsset"/>
+      <VulnerabilityDetail/>
+    </template>
+  </ViewLayout>
 </template>
 
 <script>
