@@ -1,9 +1,5 @@
 import ApiService from '@/services/api_service'
 
-export function getAllOSINTSourceGroupsAssess () {
-  return ApiService.get('/assess/osint-source-groups')
-}
-
 export function getOSINTSourceGroupsList () {
   return ApiService.get('/assess/osint-source-group-list')
 }

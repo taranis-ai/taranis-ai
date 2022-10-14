@@ -2,7 +2,7 @@
     <ViewLayout>
         <template v-slot:panel>
             <ToolbarFilter title="nav_menu.word_lists" total_count_title="word_list.total_count"
-                           total_count_getter="getWordLists">
+                           total_count_getter="config/getWordLists">
                 <template v-slot:addbutton>
                     <NewWordList/>
                 </template>
@@ -12,8 +12,8 @@
             <ContentData
                     name="WordLists"
                     cardItem="CardCompact"
-                    action="getAllWordLists"
-                    getter="getWordLists"
+                    action="config/loadWordLists"
+                    getter="config/getWordLists"
                     deletePermission="CONFIG_WORD_LIST_DELETE"
             />
         </template>

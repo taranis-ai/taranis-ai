@@ -43,15 +43,27 @@ class TaranisLogger:
     def log_debug(self, message):
         self.logger.debug(message)
 
+    def debug(self, message):
+        self.logger.debug(message)
+
     def log_debug_trace(self, message=None):
         if message:
             self.logger.debug(message)
         self.logger.debug(traceback.format_exc())
 
+    def exception(self, message=None):
+        self.log_debug_trace(message)
+
     def log_info(self, message):
         self.logger.info(message)
 
+    def info(self, message):
+        self.logger.info(message)
+
     def log_critical(self, message):
+        self.logger.critical(message)
+
+    def critical(self, message):
         self.logger.critical(message)
 
 

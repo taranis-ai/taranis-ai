@@ -1,104 +1,104 @@
 <template>
-    <v-row v-bind="UI.DIALOG.ROW.WINDOW">
-        <v-dialog v-bind="UI.DIALOG.FULLSCREEN" v-model="visible" @keydown.esc="close" :attach="attach">
-            <v-card>
-                <v-toolbar v-bind="UI.DIALOG.TOOLBAR" data-dialog="item-detail">
-                    <v-btn icon dark @click="close()" data-btn="close">
-                        <v-icon>mdi-close-circle</v-icon>
-                    </v-btn>
-                    <v-toolbar-title class="title-limit">{{news_item.news_item_data.title}}</v-toolbar-title>
-                    <v-spacer></v-spacer>
+  <v-row v-bind="UI.DIALOG.ROW.WINDOW">
+    <v-dialog v-bind="UI.DIALOG.FULLSCREEN" v-model="visible" @keydown.esc="close" :attach="attach">
+      <v-card>
+        <v-toolbar v-bind="UI.DIALOG.TOOLBAR" data-dialog="item-detail">
+          <v-btn icon dark @click="close()" data-btn="close">
+            <v-icon>mdi-close-circle</v-icon>
+          </v-btn>
+          <v-toolbar-title class="title-limit">{{news_item.news_item_data.title}}</v-toolbar-title>
+          <v-spacer></v-spacer>
 
-                    <div v-if="!multiSelectActive && !analyze_selector">
-                        <v-btn v-if="canModify" small icon @click.stop="cardItemToolbar('ungroup')" :title="$t('assess.tooltip.ungroup_item')">
-                            <v-icon small color="accent">mdi-ungroup</v-icon>
-                        </v-btn>
-                        <v-btn v-if="canDelete" small icon @click.stop="cardItemToolbar('delete')" :title="$t('assess.tooltip.delete_item')">
-                            <v-icon small color="accent">mdi-delete</v-icon>
-                        </v-btn>
-                        <a v-if="canAccess" :href="news_item.news_item_data.link" target="_blank" rel="noreferrer" :title="$t('assess.tooltip.open_source')">
-                            <v-btn small icon>
-                                <v-icon small color="accent">mdi-open-in-app</v-icon>
-                            </v-btn>
-                        </a>
-                        <v-btn v-if="canModify" small icon @click.stop="cardItemToolbar('read')" :title="$t('assess.tooltip.read_item')">
-                            <v-icon small :color="buttonStatus(news_item.read)">mdi-eye</v-icon>
-                        </v-btn>
-                        <v-btn v-if="canModify" small icon @click.stop="cardItemToolbar('important')" :title="$t('assess.tooltip.important_item')">
-                            <v-icon small :color="buttonStatus(news_item.important)">mdi-star</v-icon>
-                        </v-btn>
-                        <v-btn v-if="canModify" small icon @click.stop="cardItemToolbar('like')" :title="$t('assess.tooltip.like_item')">
-                            <v-icon small :color="buttonStatus(news_item.me_like)">mdi-thumb-up</v-icon>
-                        </v-btn>
-                        <v-btn v-if="canModify" small icon @click.stop="cardItemToolbar('unlike')" :title="$t('assess.tooltip.dislike_item')">
-                            <v-icon small :color="buttonStatus(news_item.me_dislike)">mdi-thumb-down</v-icon>
-                        </v-btn>
-                    </div>
+          <div v-if="!multiSelectActive && !analyze_selector">
+            <v-btn v-if="canModify" small icon @click.stop="cardItemToolbar('ungroup')" :title="$t('assess.tooltip.ungroup_item')">
+              <v-icon small color="accent">mdi-ungroup</v-icon>
+            </v-btn>
+            <v-btn v-if="canDelete" small icon @click.stop="cardItemToolbar('delete')" :title="$t('assess.tooltip.delete_item')">
+              <v-icon small color="accent">mdi-delete</v-icon>
+            </v-btn>
+            <a v-if="canAccess" :href="news_item.news_item_data.link" target="_blank" rel="noreferrer" :title="$t('assess.tooltip.open_source')">
+              <v-btn small icon>
+                <v-icon small color="accent">mdi-open-in-app</v-icon>
+              </v-btn>
+            </a>
+            <v-btn v-if="canModify" small icon @click.stop="cardItemToolbar('read')" :title="$t('assess.tooltip.read_item')">
+              <v-icon small :color="buttonStatus(news_item.read)">mdi-eye</v-icon>
+            </v-btn>
+            <v-btn v-if="canModify" small icon @click.stop="cardItemToolbar('important')" :title="$t('assess.tooltip.important_item')">
+              <v-icon small :color="buttonStatus(news_item.important)">mdi-star</v-icon>
+            </v-btn>
+            <v-btn v-if="canModify" small icon @click.stop="cardItemToolbar('like')" :title="$t('assess.tooltip.like_item')">
+              <v-icon small :color="buttonStatus(news_item.me_like)">mdi-thumb-up</v-icon>
+            </v-btn>
+            <v-btn v-if="canModify" small icon @click.stop="cardItemToolbar('unlike')" :title="$t('assess.tooltip.dislike_item')">
+              <v-icon small :color="buttonStatus(news_item.me_dislike)">mdi-thumb-down</v-icon>
+            </v-btn>
+          </div>
 
-                </v-toolbar>
-                <v-tabs dark centered grow>
-                    <!-- TABS -->
-                    <v-tab href="#tab-1">
-                        <span>{{$t('assess.source')}}</span>
-                    </v-tab>
-                    <v-tab href="#tab-2">
-                        <span>{{$t('assess.attributes')}}</span>
-                    </v-tab>
+        </v-toolbar>
+        <v-tabs dark centered grow>
+          <!-- TABS -->
+          <v-tab href="#tab-1">
+            <span>{{$t('assess.source')}}</span>
+          </v-tab>
+          <v-tab href="#tab-2">
+            <span>{{$t('assess.attributes')}}</span>
+          </v-tab>
 
-                    <!-- TABS CONTENT -->
-                    <v-tab-item value="tab-1" class="px-5">
-                        <v-row justify="center" class="px-8">
-                            <v-row justify="center" class="subtitle-2 info--text pt-0 ma-0">
-                                <v-flex>
-                                    <v-row class="text-center">
-                                        <v-col>
-                                            <span class="overline font-weight-bold">{{$t('assess.collected')}}</span><br>
-                                            <span class="caption">{{news_item.news_item_data.collected}}</span>
-                                        </v-col>
-                                        <v-col>
-                                            <span class="overline font-weight-bold">{{$t('assess.published')}}</span><br>
-                                            <span class="caption">{{news_item.news_item_data.published}}</span>
-                                        </v-col>
-                                        <v-col>
-                                            <span class="overline font-weight-bold">{{$t('assess.source')}}</span><br>
-                                            <span class="caption">{{news_item.news_item_data.source}}</span>
-                                        </v-col>
-                                        <v-col>
-                                            <span class="overline font-weight-bold">{{$t('assess.author')}}</span><br>
-                                            <span class="caption">{{news_item.news_item_data.author}}</span>
-                                        </v-col>
-                                    </v-row>
-                                </v-flex>
-                            </v-row>
-                            <hr style="width: calc(100%); border: 0px;">
-                            <v-row class="headline">
-                                <span class="display-1 font-weight-light py-4">{{news_item.news_item_data.title}}</span>
-                            </v-row>
-                            <v-row class="py-4">
-                                <span class="body-2 grey--text text--darken-1">{{news_item.news_item_data.content}}</span>
-                            </v-row>
+          <!-- TABS CONTENT -->
+          <v-tab-item value="tab-1" class="px-5">
+            <v-row justify="center" class="px-4 py-4">
+              <v-row justify="center" class="subtitle-2 info--text pt-4 ma-0">
+                <v-flex>
+                  <v-row class="text-center">
+                    <v-col>
+                      <span class="overline font-weight-bold">{{$t('assess.collected')}}</span><br>
+                      <span class="caption">{{news_item.news_item_data.collected}}</span>
+                    </v-col>
+                    <v-col>
+                      <span class="overline font-weight-bold">{{$t('assess.published')}}</span><br>
+                      <span class="caption">{{news_item.news_item_data.published}}</span>
+                    </v-col>
+                    <v-col>
+                      <span class="overline font-weight-bold">{{$t('assess.source')}}</span><br>
+                      <span class="caption">{{news_item.news_item_data.source}}</span>
+                    </v-col>
+                    <v-col>
+                      <span class="overline font-weight-bold">{{$t('assess.author')}}</span><br>
+                      <span class="caption">{{news_item.news_item_data.author}}</span>
+                    </v-col>
+                  </v-row>
+                </v-flex>
+              </v-row>
+              <hr style="width: calc(100%); border: 0px;">
+              <v-row class="headline">
+                <span class="display-1 font-weight-light py-4">{{news_item.news_item_data.title}}</span>
+              </v-row>
+              <v-row class="py-4">
+                <span class="body-2 grey--text text--darken-1">{{news_item.news_item_data.content}}</span>
+              </v-row>
 
-                            <!-- LINKS -->
-                            <v-container fluid>
-                                <v-row>
-                                    <a :href="news_item.news_item_data.link" target="_blank" rel="noreferrer">
-                                        <span>{{news_item.news_item_data.link}}</span>
-                                    </a>
-                                </v-row>
-                            </v-container>
+              <!-- LINKS -->
+              <v-container fluid>
+                <v-row>
+                  <a :href="news_item.news_item_data.link" target="_blank" rel="noreferrer">
+                    <span>{{news_item.news_item_data.link}}</span>
+                  </a>
+                </v-row>
+              </v-container>
 
-                        </v-row>
+            </v-row>
 
-                    </v-tab-item>
-                    <v-tab-item value="tab-2" class="pa-5">
-                        <NewsItemAttribute v-for="attribute in news_item.attributes" :key="attribute.id"
-                        :attribute="attribute" :news_item_data="this.news_item.news_item_data"/>
-                    </v-tab-item>
+          </v-tab-item>
+          <v-tab-item value="tab-2" class="pa-5">
+            <NewsItemAttribute v-for="attribute in news_item.attributes" :key="attribute.id"
+            :attribute="attribute" :news_item_data="this.news_item.news_item_data"/>
+          </v-tab-item>
 
-                </v-tabs>
-            </v-card>
-        </v-dialog>
-    </v-row>
+        </v-tabs>
+      </v-card>
+    </v-dialog>
+  </v-row>
 </template>
 
 <script>

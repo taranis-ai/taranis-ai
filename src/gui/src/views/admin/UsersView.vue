@@ -2,7 +2,7 @@
     <ViewLayout>
         <template v-slot:panel>
             <ToolbarFilter title='nav_menu.users' total_count_title="user.total_count"
-                           total_count_getter="getUsers">
+                           total_count_getter="config/getUsers">
                 <template v-slot:addbutton>
                     <NewUser/>
                 </template>
@@ -13,8 +13,8 @@
             <ContentData
                     name = "Users"
                     cardItem="CardUser"
-                    action="getAllUsers"
-                    getter="getUsers"
+                    action="config/loadUsers"
+                    getter="config/getUsers"
                     deletePermission="CONFIG_USER_DELETE"
             />
         </template>

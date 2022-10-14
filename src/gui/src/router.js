@@ -175,16 +175,6 @@ export const router = new Router({
       meta: { requiresAuth: true, requiresPerm: [Permissions.CONFIG_NODE_ACCESS] }
     },
     {
-      path: '/config/collectors/nodes',
-      name: 'collectors-nodes',
-      components: {
-        default: () => import('./views/admin/CollectorsNodesView.vue'),
-        nav: () => import('./views/nav/ConfigNav.vue')
-
-      },
-      meta: { requiresAuth: true, requiresPerm: [Permissions.CONFIG_COLLECTORS_NODE_ACCESS] }
-    },
-    {
       path: '/config/collectors/sources',
       name: 'osint_sources',
       components: {
@@ -203,26 +193,6 @@ export const router = new Router({
 
       },
       meta: { requiresAuth: true, requiresPerm: [Permissions.CONFIG_OSINT_SOURCE_GROUP_ACCESS] }
-    },
-    {
-      path: '/config/presenters/nodes',
-      name: 'presenters-nodes',
-      components: {
-        default: () => import('./views/admin/PresentersNodesView.vue'),
-        nav: () => import('./views/nav/ConfigNav.vue')
-
-      },
-      meta: { requiresAuth: true, requiresPerm: [Permissions.CONFIG_PRESENTERS_NODE_ACCESS] }
-    },
-    {
-      path: '/config/publishers/nodes',
-      name: 'publishers-nodes',
-      components: {
-        default: () => import('./views/admin/PublishersNodesView.vue'),
-        nav: () => import('./views/nav/ConfigNav.vue')
-
-      },
-      meta: { requiresAuth: true, requiresPerm: [Permissions.CONFIG_PUBLISHERS_NODE_ACCESS] }
     },
     {
       path: '/config/publishers/presets',
@@ -253,16 +223,6 @@ export const router = new Router({
 
       },
       meta: { requiresAuth: true, requiresPerm: [Permissions.CONFIG_REMOTE_NODE_ACCESS] }
-    },
-    {
-      path: '/config/bots/nodes',
-      name: 'bots-nodes',
-      components: {
-        default: () => import('./views/admin/BotsNodesView.vue'),
-        nav: () => import('./views/nav/ConfigNav.vue')
-
-      },
-      meta: { requiresAuth: true, requiresPerm: [Permissions.CONFIG_BOTS_NODE_ACCESS] }
     },
     {
       path: '/config/bots/presets',
@@ -331,26 +291,8 @@ router.beforeEach((to, from, next) => {
         const loginURL = (store.getters.getLoginURL) ? store.getters.getLoginURL : '/login'
         window.location = encodeURI(loginURL)
       }
-    } else if (to.path === '/') {
-      if (AuthService.hasPermission(Permissions.ASSESS_ACCESS)) {
-        next({ path: '/dashboard' })
-      } else if (AuthService.hasPermission(Permissions.CONFIG_ACCESS)) {
-        next({ path: '/config' })
-      } else if (AuthService.hasPermission(Permissions.MY_ASSETS_ACCESS)) {
-        next({ path: '/myassets' })
-      } else if (AuthService.hasPermission(Permissions.MY_ASSETS_CONFIG)) {
-        next({ path: '/user' })
-      }
     } else {
-      if (to.meta.requiresPerm.length > 0) {
-        if (AuthService.hasAnyPermission(to.meta.requiresPerm)) {
-          next()
-        } else {
-          next({ path: '/' })
-        }
-      } else {
-        next()
-      }
+      next()
     }
   } else {
     next()

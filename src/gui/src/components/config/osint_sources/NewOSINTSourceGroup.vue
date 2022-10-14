@@ -90,6 +90,8 @@ import AuthMixin from '../../../services/auth/auth_mixin'
 import { createNewOSINTSourceGroup, updateOSINTSourceGroup } from '@/api/config'
 import Permissions from '@/services/auth/permissions'
 
+import { mapGetters, mapActions } from 'vuex'
+
 export default {
   name: 'NewOSINTSourceGroup',
   components: {},
@@ -125,16 +127,11 @@ export default {
     },
     canUpdate () {
       return !this.group.default && (this.checkPermission(Permissions.CONFIG_OSINT_SOURCE_GROUP_UPDATE) || !this.edit)
-    },
-    getOSINTSources () {
-      if (this.canUpdate) {
-        return this.osint_sources
-      } else {
-        return this.selected_osint_sources
-      }
     }
   },
   methods: {
+    ...mapGetters('config', ['getOSINTSources']),
+    ...mapActions('config', ['loadOSINTSources']),
     addGroup () {
       this.visible = true
       this.edit = false
@@ -206,9 +203,9 @@ export default {
   },
   mixins: [AuthMixin],
   mounted () {
-    this.$store.dispatch('getAllOSINTSources', { search: '' })
+    this.loadOSINTSources({ search: '' })
       .then(() => {
-        this.osint_sources = this.$store.getters.getOSINTSources.items
+        this.osint_sources = this.getOSINTSources().items
       })
 
     this.$root.$on('show-edit', (data) => {

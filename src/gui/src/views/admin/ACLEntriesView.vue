@@ -1,29 +1,28 @@
 <template>
-    <ViewLayout>
-        <template v-slot:panel>
-            <ToolbarFilter title='acl.full_title' total_count_title="acl.total_count"
-                           total_count_getter="getACLEntries">
-                <template v-slot:addbutton>
-                    <NewACL/>
-                </template>
-            </ToolbarFilter>
+  <ViewLayout>
+    <template v-slot:panel>
+      <ToolbarFilter title='acl.full_title' total_count_title="acl.total_count"
+               total_count_getter="config/getACLEntries">
+        <template v-slot:addbutton>
+          <NewACL/>
+        </template>
+      </ToolbarFilter>
 
-        </template>
-        <template v-slot:content>
-            <ContentData
-                    name = "ACLEntries"
-                    cardItem="CardPreset"
-                    action="getAllACLEntries"
-                    getter="getACLEntries"
-                    deletePermission="CONFIG_ACL_DELETE"
-            />
-        </template>
-    </ViewLayout>
+    </template>
+    <template v-slot:content>
+      <ContentData
+        name = "ACLEntries"
+        cardItem="CardPreset"
+        action="config/loadACLEntries"
+        getter="config/getACLEntries"
+        deletePermission="CONFIG_ACL_DELETE"
+      />
+    </template>
+  </ViewLayout>
 </template>
 
 <script>
 import ViewLayout from '../../components/layouts/ViewLayout'
-import NewACL from '@/components/config/user/NewACL'
 import ToolbarFilter from '../../components/common/ToolbarFilter'
 import ContentData from '../../components/common/content/ContentData'
 import { deleteACLEntry } from '@/api/config'
@@ -33,8 +32,7 @@ export default {
   components: {
     ViewLayout,
     ToolbarFilter,
-    ContentData,
-    NewACL
+    ContentData
   },
   data: () => ({
   }),

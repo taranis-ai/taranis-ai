@@ -1,8 +1,9 @@
 <template>
-     <Navigation
-        :links = "links"
-        :icon   = "'mdi-google-circles-communities'"
-    />
+  <Navigation
+    v-if="links.length > 0"
+    :links = "links"
+    :icon   = "'mdi-google-circles-communities'"
+  />
 </template>
 
 <script>

@@ -1,4 +1,11 @@
 <template>
+  <v-navigation-drawer
+    clipped
+    app
+    color="cx-drawer-bg"
+    class="sidebar"
+    style="max-height: 100% !important; height: calc(100vh - 48px) !important"
+  >
     <v-container class="pa-0">
       <!-- scope -->
       <v-row class="my-3 mr-0 px-5">
@@ -85,6 +92,7 @@
         </v-col>
       </v-row>
     </v-container>
+  </v-navigation-drawer>
 </template>
 
 <script>

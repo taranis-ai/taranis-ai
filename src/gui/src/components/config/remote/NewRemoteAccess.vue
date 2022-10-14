@@ -333,7 +333,7 @@ export default {
   },
   mixins: [AuthMixin],
   mounted () {
-    this.$store.dispatch('getAllOSINTSources', { search: '' })
+    this.$store.dispatch('loadOSINTSources', { search: '' })
       .then(() => {
         this.osint_sources = this.$store.getters.getOSINTSources.items
       })

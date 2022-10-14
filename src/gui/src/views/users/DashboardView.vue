@@ -18,21 +18,12 @@ export default {
   methods: {
     ...mapActions('dashboard', ['unselectAllStories']),
     ...mapActions('assess', ['deselectAllNewsItems']),
-    ...mapActions('filter', ['resetNewsItemsFilter']),
-    ...mapActions(['setDrawer'])
+    ...mapActions('filter', ['resetNewsItemsFilter'])
   },
   mounted () {
     this.unselectAllStories()
     this.deselectAllNewsItems()
     this.resetNewsItemsFilter()
-  },
-  activated () {
-    console.log('activated DashboardView')
-    this.setDrawer(false)
-  },
-  deactivated () {
-    console.log('deactivated DashboardView')
-    this.setDrawer(true)
   }
 }
 </script>

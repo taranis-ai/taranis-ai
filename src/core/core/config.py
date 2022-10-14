@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     SQLALCHEMY_TRACK_MODIFICATIONS: bool = False
     SQLALCHEMY_DATABASE_URI: Optional[str]
     COLORED_LOGS: bool = True
+    OpenAPI: str = "static/"
 
     @validator("SQLALCHEMY_DATABASE_URI", pre=True, always=True)
     def set_sqlalchemy_uri(cls, value, values):

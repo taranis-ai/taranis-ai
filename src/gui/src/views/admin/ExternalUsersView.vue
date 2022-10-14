@@ -11,11 +11,11 @@
         </template>
         <template v-slot:content>
             <ContentData
-                    name = "ExternalUsers"
-                    cardItem="CardUser"
-                    action="config/getAllExternalUsers"
-                    getter="config/getUsers"
-                    deletePermission="MY_ASSETS_CONFIG"
+                name = "ExternalUsers"
+                cardItem="CardUser"
+                action="config/getAllExternalUsers"
+                getter="config/getUsers"
+                deletePermission="MY_ASSETS_CONFIG"
             />
         </template>
     </ViewLayout>

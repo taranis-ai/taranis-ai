@@ -46,7 +46,7 @@ class CollectorsNode(db.Model):
 
     @orm.reconstructor
     def reconstruct(self):
-        self.tag = "mdi-server-network"
+        self.tag = "mdi-animation-outline"
 
     @classmethod
     def exists_by_api_key(cls, api_key):
@@ -65,7 +65,7 @@ class CollectorsNode(db.Model):
         query = cls.query
 
         if search is not None:
-            search_string = "%" + search.lower() + "%"
+            search_string = f"%{search.lower()}%"
             query = query.filter(
                 or_(
                     func.lower(CollectorsNode.name).like(search_string),

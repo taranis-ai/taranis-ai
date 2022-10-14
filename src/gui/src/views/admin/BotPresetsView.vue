@@ -2,7 +2,7 @@
     <ViewLayout>
         <template v-slot:panel>
             <ToolbarFilter title='nav_menu.bot_presets' total_count_title="bot_preset.total_count"
-                           total_count_getter="getBotPresets">
+                           total_count_getter="config/getBotPresets">
                 <template v-slot:addbutton>
                     <NewBotPreset/>
                 </template>
@@ -13,8 +13,8 @@
             <ContentData
                     name = "BotPresets"
                     cardItem="CardPreset"
-                    action="getAllBotPresets"
-                    getter="getBotPresets"
+                    action="config/getAllBotPresets"
+                    getter="config/getBotPresets"
                     deletePermission="CONFIG_BOT_PRESET_DELETE"
             />
         </template>

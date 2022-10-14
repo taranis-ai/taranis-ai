@@ -1,0 +1,6348 @@
+openapi: 3.0.3
+info:
+  title: Taranis NG
+  description: |-
+    The Taranis NG API provides endpoints for TODO.
+  license:
+    name: GPL-3.0
+  version: 1.0.11
+externalDocs:
+  description: GitHub
+  url: https://github.com/ait-cs-IaaS/Taranis-NG/
+servers:
+  - url: https://dev.taranis.cyberrange.rocks/api/v1
+    description: AWAKE branch
+  - url: https://taranis.cyberrange.rocks/api/v1
+    description: main branch
+tags:
+  - name: auth
+    description: session-related functionality
+  - name: isalive
+    description: see whether the Taranis instance is alive
+  - name: users
+    description: read/update the profile, get wordlists, product types and publisher presets
+  - name: analyze
+    description: read/update report items, their types, groups and attributes
+  - name: assess
+    description: read/update/delete OSINT sources and news items
+  - name: my-assets
+    description: read/update/delete asset groups, notification templates and attributes
+  - name: bots
+    description: read/update/delete bots-related information
+  - name: collectors
+    description: read/update/delete collectors (OSINT sources)
+  - name: config
+    description: read/update/delete everything config-related
+  - name: dashboard-data
+    description: get dashboard data
+  - name: tagcloud
+    description: get the tagcloud (grouped words)
+  - name: presenters
+    description: get all presenters nodes
+  - name: publish
+    description: read/update/delete/publish products
+  - name: publishers
+    description: read/update/delete publisher nodes/presets
+  - name: remote
+    description: connect/disconnect and sync news/report items
+security:
+  - API_key: []
+paths:
+  /auth/login:
+    post:
+      tags:
+        - auth
+      summary: >-
+        authenticate with either 
+        username and password, 
+        via Keycloak or 
+        OpenID Connect
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/req.auth.username_password'
+                - $ref: '#/components/schemas/req.auth.keycloak'
+                - $ref: '#/components/schemas/req.auth.oidc'
+      responses:
+        '200':
+          description: successful authentication
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.JWT'
+        '400':
+          description: authentication error (Keycloak)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error.keycloak.missing_param'
+        '401':
+          description: authentication error (username + password)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+        '500':
+          description: internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error.keycloak'
+    get:
+      tags:
+        - auth
+      summary: get redirected to the URL requested before authentication
+      parameters:
+        - name: gotoUrl
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '302':
+          description: redirection to the URL requested before authentication
+  /auth/refresh:
+    get:
+      tags:
+        - auth
+      summary: refresh an API token
+      responses:
+        '200':
+          description: refreshed API token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.JWT'
+        '401':
+          description: authentication error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /auth/logout:
+    get:
+      tags:
+        - auth
+      summary: invalidate API token (i.e. logout)
+      parameters:
+        - name: jwt
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: gotoUrl
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '302':
+          description: redirection to the specified URL
+          
+  /isalive:
+    get:
+      tags:
+        - isalive
+      summary: see whether the Taranis instance is alive
+      security: []
+      responses:
+        '200':
+          description: server is alive
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  isalive:
+                    type: boolean
+                    example: True
+                    
+  /users/my-profile:
+    get:
+      tags: [users]
+      summary: get the user's profile
+      responses: 
+        '200':
+          description: the user profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/user_profile'
+        '401':
+          description: authentication error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    put:
+      tags: [users]
+      summary: update the user's profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/user_profile.new'
+      responses: 
+        '200':
+          description: the updated user profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/user_profile'
+        '401':
+          description: authentication error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /users/my-word-lists:
+    get:
+      tags: [users]
+      summary: get the user's wordlists
+      responses:
+        '200':
+          description: the user's wordlists
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/wordlist'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /users/my-product-types:
+    get:
+      tags: [users]
+      summary: get the user's product types
+      responses:
+        '200':
+          description: the user's product types
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/product_type'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /users/my-publisher-presets:
+    get:
+      tags: [users]
+      summary: get the user's publisher presets
+      responses:
+        '200':
+          description: the user's publisher presets
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/publisher_preset'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+                
+  /analyze/report-item-types:
+    get:
+      tags: [analyze]
+      summary: get the types of report items
+      responses:
+        '200':
+          description: the types of report items
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/report_item_type'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /analyze/report-item-groups:
+    get:
+      tags: [analyze]
+      summary: get the report item groups
+      responses:
+        '200':
+          description: the report item groups
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/report_item'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /analyze/report-items:
+    get:
+      tags: [analyze]
+      summary: get the report items
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: completed
+          in: query
+          schema:
+            type: string
+        - name: incompleted
+          in: query
+          schema:
+            type: string
+        - name: range
+          in: query
+          schema:
+            type: string
+        - name: sort
+          in: query
+          schema:
+            type: string
+        - name: group
+          in: query
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: the report items
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/report_item.presentation'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    post:
+      tags: [analyze]
+      summary: add report item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/report_item.new'
+      responses:
+        '200':
+          description: the ID of the newly created report item
+          content:
+            application/text:
+              schema:
+                type: integer
+                example: 42
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /analyze/report-items/{report_item_id}:
+    parameters:
+      - name: report_item_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      tags: [analyze]
+      summary: get a specific report item
+      responses:
+        '200':
+          description: the report item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/report_item'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    put:
+      # TODO: this is a very confusing endpoint
+      tags: [analyze]
+      summary: modify a specific report item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/modify_report_item'
+      responses:
+        '200':
+          description: the updated report item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/modify_report_item.response'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    delete:
+      tags: [analyze]
+      summary: delete a specific report item
+      responses:
+        '200':
+          description: the report item was deleted
+          content:
+            application/text:
+              schema:
+                type: string
+                example: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /analyze/report-items/{report_item_id}/data:
+    parameters:
+      - name: report_item_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      tags: [analyze]
+      summary: get suitable the report item data
+      parameters:
+        - name: update
+          in: query
+          schema:
+            type: string
+        - name: add
+          in: query
+          schema:
+            type: string
+        - name: title
+          in: query
+          schema:
+            type: string
+        - name: title_prefix
+          in: query
+          schema:
+            type: string
+        - name: completed
+          in: query
+          schema:
+            type: string
+        - name: attribute_id
+          in: query
+          schema:
+            type: integer
+        - name: aggregate_ids
+          in: query
+          schema:
+            type: string
+        - name: remote_report_item_ids
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: the suitable report item data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/report_item_data.response'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /analyze/report-items/{report_item_id}/field-locks:
+    parameters:
+      - name: report_item_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      tags: [analyze]
+      summary: get a report item's field locks
+      responses:
+        '200':
+          description: the report item's field locks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/report_item_lock'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /analyze/report-items/{report_item_id}/field-locks/{field_id}/lock:
+    parameters:
+      - name: report_item_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: field_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [analyze]
+      summary: lock the specified field
+      responses:
+        '200':
+          description: the locked field as a SSE
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/report_item_lock'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /analyze/report-items/{report_item_id}/field-locks/{field_id}/unlock:
+    parameters:
+      - name: report_item_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: field_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [analyze]
+      summary: unlock the specified field
+      responses:
+        '200':
+          description: the locked field as a SSE
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/report_item_lock'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /analyze/report-items/{report_item_id}/field-locks/{field_id}/hold:
+    parameters:
+      - name: report_item_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: field_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [analyze]
+      summary: hold a lock on the specified field
+      responses:
+        '200':
+          description: the locked field as a SSE
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/report_item_lock'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /analyze/report-item-attributes/{attribute_id}/enums:
+    parameters:
+      - name: attribute_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      tags: [analyze]
+      summary: get the report item attribute's enums 
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: offset
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: the attribute's enums
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/attribute_enum'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /analyze/report-items/{report_item_id}/file-attributes:
+    parameters:
+      - name: report_item_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    post:
+      tags: [analyze]
+      summary: attach a file to the report item
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                attribute_group_item_id:
+                  type: integer
+                description:
+                  type: string
+      responses:
+        '200':
+          description: the file has been attached
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  add:
+                    type: boolean
+                    example: true
+                  user_id:
+                    type: integer
+                  report_item_id:
+                    type: integer
+                  attribute_id:
+                    type: integer
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /analyze/report-items/{report_item_id}/file-attributes/{attribute_id}:
+    parameters:
+      - name: report_item_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: attribute_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    delete:
+      tags: [analyze]
+      summary: remove an attachment from the report item
+      responses:
+        '200':
+          description: the attachment has been removed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  delete:
+                    type: boolean
+                    example: true
+                  user_id:
+                    type: integer
+                  report_item_id:
+                    type: integer
+                  attribute_id:
+                    type: integer
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /analyze/report-items/{report_item_id}/file-attributes/{attribute_id}/file:
+    parameters:
+      - name: report_item_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: attribute_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      tags: [analyze]
+      summary: download a report item's specified attachment
+      responses:
+        '200':
+          description: the report item's attachment
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /assess/osint-source-groups:
+    get:
+      tags: [assess]
+      summary: get all OSINT source groups
+      responses:
+        '200':
+          description: all OSINT source groups
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/osint_source_group.presentation'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /assess/osint-source-group-list:
+    get:
+      tags: [assess]
+      summary: get all the user's OSINT source groups
+      responses:
+        '200':
+          description: all the user's OSINT source groups
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/osint_source_group.base'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /assess/osint-sources-list:
+    get:
+      tags: [assess]
+      summary: get manual OSINT sources
+      responses:
+        '200':
+          description: all manual OSINT sources
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/osint_source.presentation'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /assess/news-items:
+    post:
+      tags: [assess]
+      summary: add news item
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/news_item_data.new'
+      responses:
+        '200':
+          description: the OSINT source ID of the created news item as SSEs
+          content:
+            text/event-stream:
+              schema:
+                type: object
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /assess/news-item-aggregates-by-group/{group_id}:
+    parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [assess]
+      summary: get news items of a specific group
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: read
+          in: query
+          schema:
+            type: string
+        - name: important
+          in: query
+          schema:
+            type: string
+        - name: relevant
+          in: query
+          schema:
+            type: string
+        - name: in_analyze
+          in: query
+          schema:
+            type: string
+        - name: range
+          in: query
+          schema:
+            type: integer
+        - name: sort
+          in: query
+          schema:
+            type: string
+        - name: offset
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: the news items of the specified group
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/news_item_aggregate'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /assess/news-item-aggregates:
+    get:
+      tags: [assess]
+      summary: get news items of the default group
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: read
+          in: query
+          schema:
+            type: string
+        - name: important
+          in: query
+          schema:
+            type: string
+        - name: relevant
+          in: query
+          schema:
+            type: string
+        - name: in_analyze
+          in: query
+          schema:
+            type: string
+        - name: range
+          in: query
+          schema:
+            type: integer
+        - name: sort
+          in: query
+          schema:
+            type: string
+        - name: offset
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: the news items of the specified group
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/news_item_aggregate'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /assess/news-items/{item_id}:
+    parameters:
+      - name: item_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      tags: [assess]
+      summary: get the specified news item
+      responses:
+        '200':
+          description: the news item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/news_item'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    put:
+      tags: [assess]
+      summary: modify the specified news item
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                read:
+                  type: boolean
+                important:
+                  type: boolean
+                vote:
+                  type: boolean
+      responses:
+        '200':
+          description: the news item was modified
+          content:
+            application/json:
+              schema:
+                type: string
+                example: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    delete:
+      tags: [assess]
+      summary: delete the specified news item
+      responses:
+        '200':
+          description: the news item was deleted
+          content:
+            application/json:
+              schema:
+                type: string
+                example: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+        '500':
+          description: aggregate in use
+          content:
+            application/json:
+              schema:
+                type: string
+                example: aggregate_in_use
+  /assess/news-item-aggregates/{aggregate_id}:
+    parameters:
+      - name: aggregate_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      tags: [assess]
+      summary: get the specified news item aggregate
+      responses:
+        '200':
+          description: the news item aggregate
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/news_item_aggregate'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    put:
+      tags: [assess]
+      summary: modify the specified news item aggregate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                read:
+                  type: boolean
+                important:
+                  type: boolean
+                vote:
+                  type: boolean
+                title:
+                  type: string
+                description:
+                  type: string
+                comments:
+                  type: string
+      responses:
+        '200':
+          description: the OSINT source IDs of the modified news aggregate
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    delete:
+      tags: [assess]
+      summary: delete the specified news item aggregate
+      responses:
+        '200':
+          description: the news item aggregate was deleted
+          content:
+            application/json:
+              schema:
+                type: string
+                example: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+        '500':
+          description: aggregate in use
+          content:
+            application/json:
+              schema:
+                type: string
+                example: aggregate_in_use
+  /assess/news-item-aggregates-group-action:
+    put:
+      tags: [assess]
+      summary: modify a user's group action
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                action:
+                  type: string
+                  enum: [DELETE, GROUP, UNGROUP, LIKE, DISLIKE, IMPORTANT, READ]
+                items:
+                  type: object
+                  properties:
+                    type:
+                      type: string
+                      enum: [AGGREGATE]
+                    id:
+                      type: string
+      responses:
+        '200':
+          description: the OSINT source IDs of the modified group action
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /assess/news-item-data/{item_data_id}/attributes/{attribute_id}/file:
+    parameters:
+      - name: item_data_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: attribute_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      tags: [assess]
+      summary: download attachment
+      responses:
+        '200':
+          description: the specified attachment
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /my-assets/asset-groups:
+    get:
+      tags: [my-assets]
+      summary: get and add to the user's asset groups
+      responses:
+        '200':
+          description: the user's asset group
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/asset_group.presentation'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    post:
+      tags: [my-assets]
+      summary: add new asset to the user's asset groups
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/asset_group.group.new'
+      responses:
+        '200':
+          description: the group has been added
+          content:
+            application/json:
+              schema:
+                type: string
+                example: 
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /my-assets/asset-groups/{group_id}:
+    parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema:
+          type: string
+    put:
+      tags: [my-assets]
+      summary: update an asset group
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/asset_group.group.new'
+      responses:
+        '200':
+          description: the group has been updated
+          content:
+            application/json:
+              schema:
+                type: string
+                example: 
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    delete:
+      tags: [my-assets]
+      summary: delete an asset group
+      responses:
+        '200':
+          description: the group has been deleted
+          content:
+            application/json:
+              schema:
+                type: string
+                example: 
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /my-assets/asset-notification-templates:
+    get:
+      tags: [my-assets]
+      summary: get asset notification templates
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: DESCRIPTION
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/notification_template.presentation'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    post:
+      tags: [my-assets]
+      summary: add asset notification template
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/notification_template.new'
+      responses:
+        '200':
+          description: the template has been added
+          content:
+            application/json:
+              schema:
+                type: string
+                example: 
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /my-assets/asset-notification-templates/{template_id}:
+    parameters:
+      - name: template_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [my-assets]
+      summary: update notification template
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/notification_template.new'
+      responses:
+        '200':
+          description: the template has been updated
+          content:
+            application/json:
+              schema:
+                type: string
+                example: 
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    delete:
+      tags: [my-assets]
+      summary: delete the notification template
+      responses:
+        '200':
+          description: the template has been deleted
+          content:
+            application/json:
+              schema:
+                type: string
+                example: 
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /my-assets/asset-groups/{group_id}/assets:
+    parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [my-assets]
+      summary: get all the group's assets
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: sort
+          in: query
+          schema:
+            type: string
+        - name: vulnerable
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: DESCRIPTION
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/asset.presentation'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    post:
+      tags: [my-assets]
+      summary: add an assets to the group
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/asset.new'
+      responses:
+        '200':
+          description: the asset has been added
+          content:
+            application/json:
+              schema:
+                type: string
+                example: 
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /my-assets/asset-groups/{group_id}/assets/{asset_id}:
+    parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [my-assets]
+      summary: update asset
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/asset.new'
+      responses:
+        '200':
+          description: the asset has been updated
+          content:
+            application/json:
+              schema:
+                type: string
+                example: 
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    delete:
+      tags: [my-assets]
+      summary: delete the asset
+      responses:
+        '200':
+          description: the asset has been deleted
+          content:
+            application/json:
+              schema:
+                type: string
+                example: 
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /my-assets/asset-groups/{group_id}/assets/{asset_id}/vulnerabilities/{vulnerability_id}:
+    parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: vulnerability_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [my-assets]
+      summary: update the status of the vulnerability
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                solved:
+                  type: boolean
+      responses:
+        '200':
+          description: the status of the vulnerability has been updated
+          content:
+            application/json:
+              schema:
+                type: string
+                example: 
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /my-assets/attributes/cpe:
+    get:
+      tags: [my-assets]
+      summary: get CPE attribute
+      responses:
+        '200':
+          description: the attribute ID
+          content:
+            application/json:
+              schema:
+                type: string
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /my-assets/attributes/cpe/enums:
+    get:
+      tags: [my-assets]
+      summary: get CPE attribute enums
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: offset
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: the attribute enums
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/attribute_enum'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /bots/bots-presets:
+    post:
+      tags: [bots]
+      summary: get a specific bot preset
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                api_key:
+                  type: string
+                bot_type:
+                  type: string
+      responses:
+        '200':
+          description: the specific bot preset
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/bot_preset'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /bots/news-item-data:
+    get:
+      tags: [bots]
+      summary: get all news items
+      parameters:
+        - name: limit
+          in: query
+          type: string
+      responses:
+        '200':
+          description: the news items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/news_item_data'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /bots/news-item-data/{news_item_data_id}/tags:
+    parameters:
+      - name: news_item_data_id
+        in: path
+        required: true
+        schema:
+          type: string
+    put:
+      tags: [bots]
+      summary: update news item tags
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: string
+      responses:
+        '200':
+          description: tag has been updated
+          content:
+            application/json:
+              schema:
+                type: string
+                example:
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /bots/news-item-data/{news_item_data_id}/attributes:
+    parameters:
+      - name: news_item_data_id
+        in: path
+        required: true
+        schema:
+          type: string
+    put:
+      tags: [bots]
+      summary: update news item attributes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/news_item_attribute.new'
+      responses:
+        '200':
+          description: attribute has been updated
+          content:
+            application/json:
+              schema:
+                type: string
+                example:
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /bots/news-item-aggregates-group-action:
+    put:
+      tags: [bots]
+      summary: modify group action
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/modify_group_action'
+      responses:
+        '200':
+          description: the IDs of the OSINT sources
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /bots/news-item-aggregates-by-group/{group_id}:
+    parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [bots]
+      summary: get news items aggregate
+      requestBody:
+        # TODO: the `limit` parameter in the request's body should be moved to the query
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                limit:
+                  $ref: '#/components/schemas/date_time'
+      responses:
+        '200':
+          description: the IDs of the OSINT sources
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/news_item_aggregate'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /bots/news-item-aggregates:
+    get:
+      tags: [bots]
+      summary: get default news item aggregate
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: the default news item aggregate
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/news_item_aggregate'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /bots/word-list-categories/{category_id}:
+    parameters:
+      - name: category_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      tags: [bots]
+      summary: get categories
+      responses:
+        '200':
+          description: DESCRIPTION
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/wordlist_category.new'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    put:
+      tags: [bots]
+      summary: add wordlist category
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/wordlist_category.new'
+      responses:
+        '200':
+          description: successfully added category
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /bots/word-list-categories/{category_id}/entries/{entry_name}:
+    parameters:
+      - name: category_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: entry_name
+        in: path
+        required: true
+        schema:
+          type: string
+    delete:
+      tags: [bots]
+      summary: delete an entry
+      responses:
+        '200':
+          description: successfully deleted entry
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    put:
+      tags: [bots]
+      summary: update wordlist entries
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/wordlist_entry.new'
+      responses:
+        '200':
+          description: successfully updated entries
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /collectors/{collector_id}/osint-sources:
+    parameters:
+      - name: collector_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [collectors]
+      summary: get all OSINT sources of a specific collector
+      parameters:
+        - name: collector_type
+          in: query
+          schema:
+            type: string
+          required: true
+      responses:
+        '200':
+          description: OSINT sources of a specific collector
+          content:
+            application/json:
+              schema:
+                type: array
+                items: 
+                  $ref: '#/components/schemas/osint_source'
+
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+        '404':
+          description: resource not found
+          content:
+            application/json:
+              schema:
+                type: string
+                example:
+  /collectors/osint-sources/{osint_source_id}:
+    parameters:
+      - name: osint_source_id
+        in: path
+        required: true
+        schema:
+          type: string
+    put:
+      tags: [collectors]
+      summary: update source status
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/osint_source_update_status'
+      responses:
+        '200':
+          description: successfully updated
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+        '404':
+          description: resource not found
+          content:
+            application/json:
+              schema:
+                type: string
+                example:
+  /collectors/{collector_id}:
+    parameters:
+      - name: collector_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [collectors]
+      summary: update the last-seen date/time of a specific collector
+      # TODO: this should be an HTTP POST/PUT request
+      responses:
+        '200':
+          description: successfully updated
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+        '404':
+          description: resource not found
+          content:
+            application/json:
+              schema:
+                type: string
+                example:
+  /collectors/news-items:
+    post:
+      tags: [collectors]
+      summary: add news items
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/news_item_data'
+      responses:
+        '200':
+          description: news items updated (as an SSE)
+          content:
+            text/event-stream:
+              schema:
+                type: object
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /collectors/node:
+    post:
+      tags: [collectors]
+      summary: add collector node
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/collectors_node'
+      responses:
+        '200':
+          description: ID of the added collector node
+          content:
+            application/json:
+              schema:
+                type: integer
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /collectors/node/{collector_id}:
+    parameters:
+      - name: collector_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [collectors]
+      summary: get specific collectors node
+      responses:
+        '200':
+          description: specific collectors node
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/collectors_node'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    put:
+      tags: [collectors]
+      summary: update the collector node
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/collectors_node'
+      responses:
+        '200':
+          description: ID of the updated collector node
+          content:
+            application/json:
+              schema:
+                type: string
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    delete:
+      tags: [collectors]
+      summary: delete the collector node
+      responses:
+        '200':
+          description: DESCRIPTION
+          content:
+            application/json:
+              schema:
+                type: string
+                example:
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/reload-enum-dictionaries/{dictionary_type}:
+    parameters:
+      - name: dictionary_type
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [config]
+      summary: reload dictionaries
+      # TODO: this should be an HTTP POST/PUT request
+      responses:
+        '200':
+          description: successfully reloaded dictionaries
+          content:
+            application/json:
+              schema:
+                type: string
+                example: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/attributes:
+    get:
+      tags: [config]
+      summary: get attributes
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: attributes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/attribute.presentation'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    post:
+      tags: [config]
+      summary: add attribute
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/attribute.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/attributes/{attribute_id}:
+    parameters:
+      - name: attribute_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [config]
+      summary: update attribute
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/attribute.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    delete:
+      tags: [config]
+      summary: delete attribute
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/attributes/{attribute_id}/enums:
+    parameters:
+      - name: attribute_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      tags: [config]
+      summary: get attribute enum
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: offset
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    post:
+      tags: [config]
+      summary: add attribute enums
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                delete_existing:
+                  type: boolean
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/attribute_enum.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/attributes/{attribute_id}/enums/{enum_id}:
+    parameters:
+      - name: attribute_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: enum_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [config]
+      summary: update attribute enum
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/attribute_enum.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    delete:
+      tags: [config]
+      summary: delete attribute enum
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/report-item-types:
+    get:
+      tags: [config]
+      summary: get report item types
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/report_item_type.presentation'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    post:
+      tags: [config]
+      summary: add report item type
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/report_item_type.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/report-item-types/{type_id}:
+    parameters:
+      - name: type_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [config]
+      summary: update report item type
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/report_item_type.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    delete:
+      tags: [config]
+      summary: delete report item type
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/product-types:
+    get:
+      tags: [config]
+      summary: get all product types
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/product_type.presentation'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    post:
+      tags: [config]
+      summary: add product type
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/product_type.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/product-types/{type_id}:
+    parameters:
+      - name: type_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [config]
+      summary: update product type
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/product_type.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    delete:
+      tags: [config]
+      summary: delete product type
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/permissions:
+    get:
+      tags: [config]
+      summary: get all permissions
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/permission'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/external-permissions:
+    get:
+      tags: [config]
+      summary: get all external permissions
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/permission'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/roles:
+    get:
+      tags: [config]
+      summary: get all roles
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/role.presentation'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    post:
+      tags: [config]
+      summary: add role
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/role.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/roles/{role_id}:
+    parameters:
+      - name: role_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [config]
+      summary: update role
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/role.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    delete:
+      tags: [config]
+      summary: delete role
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/acls:
+    get:
+      tags: [config]
+      summary: get all ACL entries
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/acl_entry.presentation'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    post:
+      tags: [config]
+      summary: add ACL entry
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/acl_entry.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/acls/{acl_id}:
+    parameters:
+      - name: acl_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [config]
+      summary: update ACL entry
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/acl_entry.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    delete:
+      tags: [config]
+      summary: delete ACL entry
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/organizations:
+    get:
+      tags: [config]
+      summary: get all organizations
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/organization.presentation'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    post:
+      tags: [config]
+      summary: add organization
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/organization.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/organizations/{organization_id}:
+    parameters:
+      - name: organization_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [config]
+      summary: update organization
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/organization.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    delete:
+      tags: [config]
+      summary: delete organization
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+
+  /config/users:
+    get:
+      tags: [config]
+      summary: get all users
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/user.presentation'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    post:
+      tags: [config]
+      summary: add user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/user.new'
+      responses:
+        '200':
+          description: success
+        '400':
+          description: could not create user in external auth system
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/users/{user_id}:
+    parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [config]
+      summary: update user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/user.new'
+      responses:
+        '200':
+          description: success
+        '400':
+          description: could not update user in external auth system
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    delete:
+      tags: [config]
+      summary: delete user
+      responses:
+        '200':
+          description: success
+        '400':
+          description: could not delete user in external auth system
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/external-users:
+    get:
+      tags: [config]
+      summary: get all external users
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/user.presentation'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    post:
+      tags: [config]
+      summary: add external user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/user.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/external-users/{user_id}:
+    parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [config]
+      summary: update external user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/user.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    delete:
+      tags: [config]
+      summary: delete external user
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/word-lists:
+    get:
+      tags: [config]
+      summary: get all wordlists
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/wordlist.presentation'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    post:
+      tags: [config]
+      summary: add wordlist
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/wordlist.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/word-lists/{word_list_id}:
+    parameters:
+      - name: word_list_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [config]
+      summary: update wordlist
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/wordlist.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    delete:
+      tags: [config]
+      summary: delete wordlist
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/collectors-nodes:
+    get:
+      tags: [config]
+      summary: get all collectors nodes
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/collectors_node'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    post:
+      tags: [config]
+      summary: add collectors node
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/collectors_node.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/collectors-nodes/{node_id}:
+    parameters:
+      - name: node_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [config]
+      summary: update collectors node
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/collectors_node.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    delete:
+      tags: [config]
+      summary: delete collectors node
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/osint-sources:
+    get:
+      tags: [config]
+      summary: get all OSINT sources
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/osint_source.presentation'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    post:
+      tags: [config]
+      summary: add OSINT source
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/osint_source.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/osint-sources/{osint_source_id}:
+    parameters:
+      - name: osint_source_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [config]
+      summary: update OSINT source
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/osint_source.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    delete:
+      tags: [config]
+      summary: delete OSINT source
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/export-osint-sources:
+    post:
+      tags: [config]
+      summary: export OSINT sources
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                selection:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/osint_source.export.root'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/import-osint-sources:
+    post:
+      tags: [config]
+      summary: import OSINT sources
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: json
+                collectors_node_id:
+                  type: integer
+  /config/osint-source-groups:
+    get:
+      tags: [config]
+      summary: get all OSINT source groups
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/osint_source_group.presentation'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    post:
+      tags: [config]
+      summary: add OSINT source group
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/osint_source_group.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/osint-source-groups/{group_id}:
+    parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [config]
+      summary: update OSINT source group
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/osint_source_group.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    delete:
+      tags: [config]
+      summary: delete OSINT source group
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/remote-access:
+    get:
+      tags: [config]
+      summary: get all remote access resources
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/remote_access.presentation'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    post:
+      tags: [config]
+      summary: add remote access resource
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/remote_access.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/remote-access/{remote_access_id}:
+    parameters:
+      - name: remote_access_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [config]
+      summary: update remote access resource
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/remote_access.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    delete:
+      tags: [config]
+      summary: delete remote access resource
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/remote-nodes:
+    get:
+      tags: [config]
+      summary: get all remote nodes
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/remote_node.presentation'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    post:
+      tags: [config]
+      summary: add remote node
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/remote_node.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/remote-nodes/{remote_node_id}:
+    parameters:
+      - name: remote_node_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [config]
+      summary: update remote node
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/remote_node.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    delete:
+      tags: [config]
+      summary: delete remote node
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/remote-nodes/{remote_node_id}/connect:
+    get:
+      tags: [config]
+      summary: connect to a remote node
+      responses:
+        '200':
+          description: response from connecting to the remote node's URL
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/presenters-nodes:
+    get:
+      tags: [config]
+      summary: get all presenters nodes
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/presenters_node.presentation'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    post:
+      tags: [config]
+      summary: add presenters node
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/presenters_node.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/presenters-nodes/{node_id}:
+    parameters:
+      - name: node_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [config]
+      summary: update presenters node
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/presenters_node.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    delete:
+      tags: [config]
+      summary: delete presenters node
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/publishers-nodes:
+    get:
+      tags: [config]
+      summary: get all publishers nodes
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/publishers_node.presentation'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    post:
+      tags: [config]
+      summary: add publishers node
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/publishers_node.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/publishers-nodes/{node_id}:
+    parameters:
+      - name: node_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [config]
+      summary: update publishers node
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/publishers_node.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    delete:
+      tags: [config]
+      summary: delete publishers node
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/publisher-preset:
+    get:
+      tags: [config]
+      summary: get all publisher preset
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/publisher_preset.presentation'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    post:
+      tags: [config]
+      summary: add publisher preset
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/publisher_preset.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/publisher-preset/{preset_id}:
+    parameters:
+      - name: preset_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [config]
+      summary: update publisher preset
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/publisher_preset.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    delete:
+      tags: [config]
+      summary: delete publisher preset
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/bots-nodes:
+    get:
+      tags: [config]
+      summary: get all bots nodes
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/bots_node.presentation'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    post:
+      tags: [config]
+      summary: add bots node
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/bots_node.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/bots-nodes/{node_id}:
+    parameters:
+      - name: node_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [config]
+      summary: update bots node
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/bots_node.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    delete:
+      tags: [config]
+      summary: delete bots node
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/bots-presets:
+    get:
+      tags: [config]
+      summary: get all bot presets
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/bot_preset.presentation'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    post:
+      tags: [config]
+      summary: add bot preset
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/bot_preset.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/bots-presets/{preset_id}:
+    parameters:
+      - name: preset_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [config]
+      summary: update bot preset
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/bot_preset.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    delete:
+      tags: [config]
+      summary: delete bot preset
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/nodes:
+    get:
+      tags: [config]
+      summary: get all nodes
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items: 
+                      anyOf:
+                        - $ref: '#/components/schemas/publishers_node.presentation'
+                        - $ref: '#/components/schemas/bots_node.presentation'
+                        - $ref: '#/components/schemas/collectors_node.presentation'
+                        - $ref: '#/components/schemas/presenters_node.presentation'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /dashboard-data:
+    get:
+      tags: [dashboard-data]
+      summary: get dashboard data
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_news_items:
+                    type: integer
+                  total_products:
+                    type: integer
+                  report_items_completed:
+                    type: integer
+                  report_items_in_progress:
+                    type: integer
+                  total_database_items:
+                    type: integer
+                  latest_collected:
+                    $ref: '#/components/schemas/date_time'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /tagcloud:
+    get:
+      tags: [tagcloud]
+      summary: get tagcloud
+      parameters:
+        - name: tag_cloud_days
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/grouped_words'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /presenters/nodes:
+    get:
+      tags: [presenters]
+      summary: get all presenters nodes
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/presenters_node.presentation'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    post:
+      tags: [presenters]
+      summary: add presenters node
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/presenters_node.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /presenters/node/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [presenters]
+      summary: update presenters node
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/presenters_node.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    delete:
+      tags: [presenters]
+      summary: delete presenters node
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /publish/products:
+    get:
+      tags: [publish]
+      summary: get products
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: range
+          in: query
+          schema:
+            type: string
+        - name: sort
+          in: query
+          schema:
+            type: string
+        - name: offset
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/product.presentation'
+        '400':
+          description: resource not found
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    post:
+      tags: [publish]
+      summary: add product
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/product.new'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: string
+                example: ID of newly created product
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /publish/products/{product_id}:
+    parameters:
+      - name: product_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      tags: [publish]
+      summary: get product details
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/product.presentation'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    put:
+      tags: [publish]
+      summary: update product details
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/product.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    delete:
+      tags: [publish]
+      summary: delete product
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /publish/products/{product_id}/overview:
+    parameters:
+      - name: product_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      tags: [publish]
+      summary: download an overview of the specific product
+      responses:
+        '200':
+          description: the product data as a download
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /publish/products/{product_id}/publishers/{publisher_id}:
+    parameters:
+      - name: product_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: publisher_id
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      tags: [publish]
+      summary: generate a specific product at a specific publisher
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /publishers/nodes:
+    get:
+      tags: [publishers]
+      summary: get all publishers nodes
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/publishers_node.presentation'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    post:
+      tags: [publishers]
+      summary: add publishers node
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/publishers_node.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /publishers/node/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [publishers]
+      summary: update publisher node
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/publishers_node.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    delete:
+      tags: [publishers]
+      summary: delete publishers node
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /publishers/presets:
+    get:
+      tags: [publishers]
+      summary: get all publisher preset
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/publisher_preset.presentation'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    post:
+      tags: [publishers]
+      summary: add publisher preset
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/publisher_preset.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /publishers/preset/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [publishers]
+      summary: update publisher preset
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/publisher_preset.new'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    delete:
+      tags: [publishers]
+      summary: delete publisher preset
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /remote/connect:
+    get:
+      tags: [remote]
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  event_id:
+                    type: string
+                  last_synced_news_items:
+                    type: string
+                  last_synced_report_items:
+                    type: string
+                  news_items_provided:
+                    type: boolean
+                  report_items_provided:
+                    type: boolean
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /remote/disconnect:
+    get:
+      tags: [remote]
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /remote/sync-news-items:
+    get:
+      tags: [remote]
+      summary: get sync-news items
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  last_sync_time:
+                    type: string
+                  news_items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/news_item_remote'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    put:
+      tags: [remote]
+      summary: update news items sync
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                last_sync_time:
+                  $ref: '#/components/schemas/date_time_full'
+  /remote/sync-report-items:
+    get:
+      tags: [remote]
+      summary: get sync-report items
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  last_sync_time:
+                    type: string
+                  report_items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/report_item_remote'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    put:
+      tags: [remote]
+      summary: update report items sync
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                last_sync_time:
+                  $ref: '#/components/schemas/date_time_full'
+
+
+components:
+
+  schemas:
+    
+    #requests
+    
+    req.auth.username_password:
+      type: object
+      properties:
+        username:
+          type: string
+          example: 936@xkcd.com
+        password:
+          type: string
+          example: correct horse battery staple
+      required:
+        - username
+        - password
+    req.auth.keycloak:
+      type: object
+      properties:
+        code:
+          type: string
+        session_state:
+          type: string
+      required:
+        - code
+        - session_state
+    req.auth.oidc:
+      type: object
+      properties:
+        access_token:
+          type: string
+      required: 
+        - access_token
+            
+    #responses
+    
+    resp.auth.JWT:
+      type: object
+      properties:
+        access_token:
+          type: string
+    resp.auth.error:
+      type: object
+      properties:
+        error:
+          type: string
+    resp.auth.error.keycloak.missing_param:
+      type: object
+      properties:
+        error:
+          type: string
+          example: Missing `code` and/or `session_state` parameter
+    resp.auth.error.keycloak:
+      type: object
+      properties:
+        error:
+          type: string
+          example: Internal server error
+          
+    #general
+    
+    presentation:
+      type: object
+      properties:
+        title:
+          type: string
+        subtitle:
+          type: string
+        tag:
+          type: string
+
+    user.new:
+      allOf:
+        - $ref: '#/components/schemas/user.base'
+        - type: object
+          properties:
+            roles:
+              type: array
+              items:
+                $ref: '#/components/schemas/role.id'
+            permissions:
+              type: array
+              items:
+                $ref: '#/components/schemas/permission.id'
+            organizations:
+              type: array
+              items:
+                $ref: '#/components/schemas/organization.id'
+    hotkey.new:
+      allOf:
+        - $ref: '#/components/schemas/hotkey'
+    user_profile.new:
+      allOf:
+        - $ref: '#/components/schemas/user_profile'
+        - type: object
+          properties:
+            hotkeys:
+              type: array
+              items:
+                $ref: '#/components/schemas/hotkey'
+
+    user.base:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 42
+        username:
+          type: string
+          example: alice@example.com
+        name:
+          type: string
+          example: Alice
+        password:
+          type: string
+    user:
+      allOf:
+        - $ref: '#/components/schemas/user.base'
+        - type: object
+          properties:
+            roles:
+              type: array
+              items:
+                $ref: '#/components/schemas/role'
+            permissions:
+              type: array
+              items:
+                $ref: '#/components/schemas/permission'
+            organisations:
+              type: array
+              items:
+                $ref: '#/components/schemas/organization'
+    user.presentation:
+      allOf:
+        - $ref: '#/components/schemas/user'
+        - $ref: '#/components/schemas/presentation'
+    user.id:
+      type: object
+      properties:
+        id:
+          type: integer
+    hotkey:
+      type: object
+      properties:
+        key_code:
+          type: integer
+        key:
+          type: string
+        alias:
+          type: string
+    user_profile:
+      type: object
+      properties:
+        spellcheck:
+          type: boolean
+          example: True
+        dark_theme:
+          type: boolean
+          example: False
+        word_lists:
+          type: array
+          items: 
+            $ref: '#/components/schemas/wordlist'
+        hotkeys:
+          type: array
+          items: 
+            $ref: '#/components/schemas/hotkey'
+
+    permission:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+    permission.id:
+      type: object
+      properties:
+        id:
+          type: string
+    role.base:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+    role:
+      allOf:
+        - $ref: '#/components/schemas/role.base'
+        - type: object
+          properties:
+            permissions:
+              type: array
+              items:
+                $ref: '#/components/schemas/permission'
+    role.presentation:
+      allOf:
+        - $ref: '#/components/schemas/role'
+        - $ref: '#/components/schemas/presentation'
+    role.id:
+      type: object
+      properties:
+        id:
+          type: string
+    
+    organization.new:
+      allOf:
+        - $ref: '#/components/schemas/organization'
+        - type: object
+          properties:
+            address:
+              $ref: '#/components/schemas/address.new'
+
+    organization:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        address:
+          $ref: '#/components/schemas/address'
+    organization.presentation:
+      allOf:
+        - $ref: '#/components/schemas/organization'
+        - $ref: '#/components/schemas/presentation'
+    organization.id:
+      type: object
+      properties:
+        id:
+          type: integer
+
+    address.new:
+      allOf:
+        - $ref: '#/components/schemas/address'
+
+    address:
+      type: object
+      properties:
+        street:
+          type: string
+        city:
+          type: string
+        zip:
+          type: string
+        country:
+          type: string
+
+    wordlist_entry.new:
+      allOf:
+        - $ref: '#/components/schemas/wordlist_entry'
+    wordlist_category.new:
+      allOf:
+        - $ref: '#/components/schemas/wordlist_category'
+        - type: object
+          properties:
+            entries:
+              type: array
+              items:
+                $ref: '#/components/schemas/wordlist_entry.new'
+    wordlist.new:
+      allOf:
+        - $ref: '#/components/schemas/wordlist'
+        - type: object
+          properties:
+            categories:
+              type: array
+              items:
+                $ref: '#/components/schemas/wordlist_category.new'
+
+    wordlist_entry:
+      type: object
+      properties:
+        value:
+          type: string
+        description:
+          type: string
+    wordlist_category:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        link:
+          type: string
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/wordlist_entry'
+    wordlist:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        use_for_stop_words:
+          type: boolean
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/wordlist_category'
+    wordlist.presentation:
+      allOf:
+        - $ref: '#/components/schemas/wordlist'
+        - $ref: '#/components/schemas/presentation'
+    wordlist.id:
+      type: object
+      properties:
+        id:
+          type: integer
+
+    product_type.new:
+      allOf:
+        - $ref: '#/components/schemas/product_type'
+        - type: object
+          properties:
+            parameter_values:
+              $ref: '#/components/schemas/parameter_value.new'
+
+    product_type:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        presenter_id:
+          type: string
+        parameter_values:
+          type: array
+          items:
+            $ref: '#/components/schemas/parameter_value'
+    product_type.presentation:
+      allOf:
+        - $ref: '#/components/schemas/product_type'
+        - $ref: '#/components/schemas/presentation'
+
+    publisher_preset.new:
+      allOf:
+        - $ref: '#/components/schemas/publisher_preset'
+        - type: object
+          properties:
+            parameter_values:
+              type: array
+              items:
+                $ref: '#/components/schemas/parameter_value.new'
+
+    publisher_preset.base:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        parameter_values:
+          type: array
+          items:
+            $ref: '#/components/schemas/parameter_value'
+    publisher_preset:
+      allOf:
+        - $ref: '#/components/schemas/publisher_preset.base'
+        - type: object
+          properties:
+            description:
+              type: string
+            use_for_notifications:
+              type: boolean
+            publisher_id:
+              type: string
+    publisher_preset.presentation:
+      allOf:
+        - $ref: '#/components/schemas/publisher_preset'
+        - $ref: '#/components/schemas/presentation'
+
+    attribute_group_item.new:
+      allOf:
+        - $ref: '#/components/schemas/attribute_group_item'
+        - type: object
+          properties:
+            attribute_id:
+              type: integer
+    attribute_group.new:
+      allOf:
+        - $ref: '#/components/schemas/attribute_group.base'
+        - type: object
+          properties:
+            attribute_group_items:
+              type: array
+              items:
+                $ref: '#/components/schemas/attribute_group_item.new'
+    report_item_type.new:
+      allOf:
+        - $ref: '#/components/schemas/report_item_type.base'
+        - type: object
+          properties:
+            attribute_groups:
+              type: array
+              items:
+                $ref: '#/components/schemas/attribute_group.new'
+
+    attribute_group_item:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        index:
+          type: integer
+        min_occurrence:
+          type: integer
+        max_occurrence:
+          type: integer
+        attribute:
+          $ref: '#/components/schemas/attribute'
+    attribute_group.base:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        section:
+          type: integer
+        section_title:
+          type: string
+        index:
+          type: integer
+    attribute_group:
+      allOf:
+        - $ref: '#/components/schemas/attribute_group.base'
+        - type: object
+          properties:
+            attribute_group_items:
+              type: array
+              items:
+                $ref: '#/components/schemas/attribute_group_item'
+    report_item_type.base:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+    report_item_type:
+      allOf:
+        - $ref: '#/components/schemas/report_item_type.base'
+        - type: object
+          properties:
+            attribute_groups:
+              type: array
+              items:
+                $ref: '#/components/schemas/attribute_group'
+    report_item_type.presentation:
+      allOf:
+        - $ref: '#/components/schemas/report_item_type'
+        - $ref: '#/components/schemas/presentation'
+    report_item_type.id:
+      type: object
+      properties:
+        id:
+          type: integer
+
+    report_item_attribute.new:
+      allOf:
+        - $ref: '#/components/schemas/report_item_attribute.base'
+    report_item.new:
+      allOf:
+        - $ref: '#/components/schemas/report_item.base'
+        - type: object
+          properties:
+            news_item_aggregates:
+              type: array
+              items:
+                type: integer
+            remote_report_items:
+              type: array
+              items:
+                type: integer
+            attributes:
+              type: array
+              items:
+                $ref: '#/components/schemas/report_item_attribute'
+
+    report_item_attribute.base:
+      type: object
+      properties:
+        id:
+          type: integer
+        value:
+          type: string
+        binary_mime_type:
+          type: string
+        binary_size:
+          type: integer
+        binary_description:
+          type: string
+        attribute_group_item_title:
+          type: string
+        attribute_group_item_id:
+          type: integer
+    report_item_attribute:
+      allOf:
+        - $ref: '#/components/schemas/report_item_attribute.base'
+        - type: object
+          properties:
+            created:
+              $ref: '#/components/schemas/date_time'
+            last_updated:
+              $ref: '#/components/schemas/date_time'
+            version:
+              type: integer
+            current:
+              type: boolean
+            user:
+              $ref: '#/components/schemas/user.base'
+    report_item.base:
+      type: object
+      properties:
+        id:
+          type: integer
+        uuid:
+          type: string
+        title:
+          type: string
+        title_prefix:
+          type: string
+        created:
+          $ref: '#/components/schemas/date_time'
+        last_updated:
+          $ref: '#/components/schemas/date_time'
+        completed:
+          type: boolean
+        report_item_type_id:
+          type: integer
+    remote_report_item:
+      allOf:
+        - $ref: '#/components/schemas/report_item.base'
+        - $ref: '#/components/schemas/presentation'
+        - type: object
+          properties:
+            remote_user:
+              type: string
+            attributes:
+              type: array
+              items:
+                $ref: '#/components/schemas/report_item_attribute'
+    report_item:
+      allOf:
+        - $ref: '#/components/schemas/report_item.base'
+        - type: object
+          properties:
+            news_item_aggregates:
+              type: array
+              items:
+                $ref: '#/components/schemas/news_item_aggregate'
+            remote_report_items:
+              type: array
+              items:
+                $ref: '#/components/schemas/remote_report_item'
+            attributes:
+              type: array
+              items:
+                $ref: '#/components/schemas/report_item_attribute'
+            remote_user:
+              type: string
+    report_item_attribute_remote:
+      type: object
+      properties:
+        attribute_group_item_title:
+          type: string
+        value:
+          type: string
+    report_item_remote:
+      type: object
+      properties:
+        uuid:
+          type: string
+        title:
+          type: string
+        title_prefix:
+          type: string
+        completed:
+          type: boolean
+        attributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/report_item_attribute_remote'
+    report_item.presentation:
+      allOf:
+        - $ref: '#/components/schemas/report_item.base'
+        - $ref: '#/components/schemas/acl_entry_status'
+        - $ref: '#/components/schemas/presentation'
+        - type: object
+          properties:
+            remote_user:
+              type: string
+    report_item.id:
+      type: object
+      properties:
+        id:
+          type: integer
+
+    parameter_value.new:
+      allOf:
+        - $ref: '#/components/schemas/parameter_value'
+
+    parameter_value:
+      type: object
+      properties:
+        value:
+          type: string
+        parameter:
+          $ref: '#/components/schemas/parameter'
+    parameter_value.export:
+      type: object
+      properties:
+        value:
+          type: string
+        parameter:
+          $ref: '#/components/schemas/parameter.export'
+
+    parameter.new:
+      allOf:
+        - $ref: '#/components/schemas/parameter'
+
+    parameter_type:
+      type: string
+      enum: [STRING, NUMBER, BOOLEAN]
+    parameter:
+      type: object
+      properties:
+        id:
+          type: integer
+        key:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        type:
+          $ref: '#/components/schemas/parameter_type'
+    parameter.export:
+      type: object
+      properties:
+        key:
+          type: string
+
+    attribute_enum.new:
+      allOf:
+        - $ref: '#/components/schemas/attribute_enum'
+    attribute.new:
+      allOf:
+        - $ref: '#/components/schemas/attribute.base'
+        - type: object
+          properties:
+            attribute_enums:
+              type: array
+              items:
+                $ref: '#/components/schemas/attribute_enum.new'
+
+    attribute_type:
+      type: string
+      enum: [STRING, NUMBER, BOOLEAN, RADIO, ENUM, TEXT, RICH_TEXT, DATE, TIME, DATE_TIME, LINK, ATTACHMENT, TLP, CPE, CVE, CVSS]
+    attribute_validator:
+      type: string
+      enum: [NONE, EMAIL, NUMBER, RANGE, REGEXP]
+    attribute_enum:
+      type: object
+      properties:
+        id:
+          type: integer
+        index:
+          type: integer
+        value:
+          type: string
+        description:
+          type: string
+    attribute.base:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        type:
+          $ref: '#/components/schemas/attribute_type'
+        default_value:
+          type: string
+        validator:
+          $ref: '#/components/schemas/attribute_validator'
+        validator_parameter:
+          type: string
+    attribute:
+      allOf:
+        - $ref: '#/components/schemas/attribute.base'
+        - type: object
+          properties:
+            attribute_enums:
+              type: array
+              items:
+                $ref: '#/components/schemas/attribute_enum'
+    attribute.presentation:
+      allOf:
+        - $ref: '#/components/schemas/attribute'
+        - $ref: '#/components/schemas/presentation'
+        - type: object
+          properties:
+            attribute_enums_total_count:
+              type: integer
+
+    news_item_attribute.new:
+      allOf:
+        - $ref: '#/components/schemas/news_item_attribute'
+    news_item_data.new:
+      allOf:
+        - $ref: '#/components/schemas/news_item_data'
+        - type: object
+          properties:
+            attributes:
+              type: array
+              items:
+                $ref: '#/components/schemas/news_item_attribute'
+
+    news_item_attribute.base:
+      type: object
+      properties:
+        id:
+          type: integer
+        key:
+          type: string
+        value:
+          type: string
+        binary_mime_type:
+          type: string
+    news_item_attribute:
+      allOf:
+        - $ref: '#/components/schemas/news_item_attribute.base'
+        - type: object
+          properties:
+            binary_value:
+              type: string
+    news_item_data.base:
+      type: object
+      properties:
+        id:
+          type: string
+        hash:
+          type: string
+        title:
+          type: string
+        review:
+          type: string
+        source:
+          type: string
+        link:
+          type: string
+        published:
+          type: string
+        author:
+          type: string
+        collected:
+          $ref: '#/components/schemas/date_time'
+        osint_source_id:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+    news_item_data:
+      allOf:
+        - $ref: '#/components/schemas/news_item_data.base'
+        - type: object
+          properties:
+            content:
+              type: string
+            attributes:
+              type: array
+              items:
+                $ref: '#/components/schemas/news_item_attribute'
+    news_item_remote:
+      type: object
+      properties:
+        hash:
+          type: string
+        title:
+          type: string
+        review:
+          type: string
+        source:
+          type: string
+        link:
+          type: string
+        published:
+          type: string
+        author:
+          type: string
+        collected:
+          $ref: '#/components/schemas/date_time'
+        content:
+          type: string
+        attributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/news_item_attribute'
+        relevance:
+          type: integer
+    news_item_data.presentation:
+      allOf:
+        - $ref: '#/components/schemas/news_item_data.base'
+        - type: object
+          properties:
+            remote_source:
+              type: string
+            attributes:
+              $ref: '#/components/schemas/news_item_attribute.base'
+    news_item.base:
+      type: object
+      properties:
+        id:
+          type: integer
+        likes:
+          type: integer
+        dislikes:
+          type: integer
+        read:
+          type: boolean
+        important:
+          type: boolean
+        me_like:
+          type: boolean
+        me_dislike:
+          type: boolean
+        news_items_data:
+          $ref: '#/components/schemas/news_item_data'
+    news_item_tag:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        tag_type:
+          type: string
+        n_i_d:
+          type: array
+          items:
+            $ref: '#/components/schemas/news_item_data'
+    news_item.presentation:
+      allOf:
+        - $ref: '#/components/schemas/news_item.base'
+        - $ref: '#/components/schemas/acl_entry_status'
+    news_item:
+      allOf:
+        - $ref: '#/components/schemas/news_item.base'
+        - type: object
+          properties:
+            news_item_data:
+              $ref: '#/components/schemas/news_item_data.presentation'
+    news_item_aggregate:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        created:
+          $ref: '#/components/schemas/date_time'
+        comments:
+          type: string
+        likes:
+          type: integer
+        dislikes:
+          type: integer
+        read:
+          type: boolean
+        important:
+          type: boolean
+        me_like:
+          type: boolean
+        me_dislike:
+          type: boolean
+        in_reports_count:
+          type: integer
+        tags:
+          type: array
+          items:
+            type: string
+        news_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/news_item.presentation'
+    news_item_aggregate.id:
+      type: object
+      properties:
+        id:
+          type: integer
+
+    modify_report_item:
+      oneOf:
+        - type: object
+          properties:
+            update:
+              type: string
+            title:
+              type: string
+            title_prefix:
+              type: string
+            completed:
+              type: boolean
+            attribute_id:
+              type: integer
+            attribute_value:
+              type: string
+        - type: object
+          properties:
+            add:
+              type: string
+            attribute_id:
+              type: integer
+            attribute_group_item_id:
+              type: integer
+            aggregate_ids:
+              type: array
+              items:
+                type: integer
+            remote_report_ids:
+              type: array
+              items:
+                type: integer
+        - type: object
+          properties:
+            delete:
+              type: string
+            attribute_id:
+              type: integer
+            aggregate_id:
+              type: integer
+            remote_report_item_id:
+              type: integer
+    modify_report_item.response:
+      allOf:
+        - $ref: '#/components/schemas/modify_report_item'
+        - type: object
+          properties:
+            user_id:
+              type: integer
+            report_item_id:
+              type: integer
+    report_item_data.response:
+      oneOf:
+        - type: object
+          properties:
+            update:
+              type: string
+            title:
+              type: string
+            title_prefix:
+              type: string
+            completed:
+              type: boolean
+            attribute_id:
+              type: integer
+            attribute_value:
+              type: string
+            attribute_last_updated:
+              $ref: '#/components/schemas/date_time'
+            attribute_user:
+              type: string
+        - type: object
+          properties:
+            add:
+              type: string
+            news_item_aggregates:
+              type: array
+              items:
+                $ref: '#/components/schemas/news_item_aggregate'
+            remote_report_items:
+              type: array
+              items:
+                $ref: '#/components/schemas/report_item'
+            attribute_value:
+              type: string
+            binary_mime_type:
+              type: string
+            binary_size:
+              type: integer
+            binary_description:
+              type: string
+            attribute_last_updated:
+              $ref: '#/components/schemas/date_time'
+            attribute_user:
+              type: string
+
+    osint_source.new:
+      allOf:
+        - $ref: '#/components/schemas/osint_source'
+        - type: object
+          properties:
+            parameter_values:
+              type: array
+              items:
+                $ref: '#/components/schemas/parameter_value.new'
+            word_lists:
+              type: array
+              items:
+                $ref: '#/components/schemas/wordlist.id'
+            osint_source_groups:
+              type: array
+              items:
+                $ref: '#/components/schemas/osint_source_group.id'
+    osint_source_group.new:
+      allOf:
+        - $ref: '#/components/schemas/osint_source_group'
+        - type: object
+          properties:
+            osint_sources:
+              type: array
+              items:
+                $ref: '#/components/schemas/osint_source.id'
+
+    osint_source_group.base:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        default:
+          type: boolean
+    osint_source_group.id:
+      type: object
+      properties:
+        id:
+          type: string
+    osint_source.base:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        parameter_values:
+          type: array
+          items:
+            $ref: '#/components/schemas/parameter_value'
+        word_lists:
+          type: array
+          items:
+            $ref: '#/components/schemas/wordlist'
+    osint_source_update_status:
+      type: object
+      properties:
+        last_collected:
+          $ref: '#/components/schemas/date_time_seconds'
+        last_attempted:
+          $ref: '#/components/schemas/date_time_seconds'
+        last_error_message:
+          type: string
+        last_data:
+          type: string
+    osint_source:
+      allOf:
+        - $ref: '#/components/schemas/osint_source.base'
+        - type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            description:
+              type: string
+            collector_id:
+              type: string
+    osint_source_collector:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        collector_type:
+          type: string
+    osint_source.presentation:
+      allOf:
+        - $ref: '#/components/schemas/osint_source'
+        - $ref: '#/components/schemas/presentation'
+        - type: object
+          properties:
+            collector:
+              $ref: '#/components/schemas/collector'
+            osint_source_groups:
+              type: array
+              items:
+                $ref: '#/components/schemas/osint_source.base'
+    osint_source.id:
+      type: object
+      properties:
+        id:
+          type: string
+    osint_source_group:
+      allOf:
+        - $ref: '#/components/schemas/osint_source_group.base'
+        - type: object
+          properties:
+            osint_sources:
+              type: array
+              items:
+                $ref: '#/components/schemas/osint_source'
+    osint_source_group.presentation:
+      allOf:
+        - $ref: '#/components/schemas/osint_source_group'
+        - $ref: '#/components/schemas/presentation'
+    osint_source.export:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        collector:
+          $ref: '#/components/schemas/collector.export'
+        parameter_values:
+          type: array
+          items:
+            $ref: '#/components/schemas/parameter_value.export'
+    osint_source.export.root:
+      type: object
+      properties:
+        version:
+          type: integer
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/osint_source.export'
+
+    collector.new:
+      allOf:
+        - $ref: '#/components/schemas/collector'
+        - type: object
+          properties:
+            parameters:
+              type: array
+              items:
+                $ref: '#/components/schemas/parameter.new'
+
+    collector:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        parameters:
+          type: array
+          items:
+            $ref: '#/components/schemas/parameter'
+    collector.without_parameters:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+    collector.export:
+      type: object
+      properties:
+        type:
+          type: string
+
+    asset_cpe.new:
+      allOf:
+        - $ref: '#/components/schemas/asset_cpe'
+    asset.new:
+      allOf:
+        - $ref: '#/components/schemas/asset'
+        - type: object
+          properties:
+            asset_cpes:
+              type: array
+              items:
+                $ref: '#/components/schemas/asset_cpe.new'
+    asset_group.group.new:
+      allOf:
+        - $ref: '#/components/schemas/asset_group'
+        - type: object
+          properties:
+            users:
+              $ref: '#/components/schemas/user.id'
+            templates:
+              type: array
+              items:
+                $ref: '#/components/schemas/notification_template.id'
+
+    asset_cpe:
+      type: object
+      properties:
+        value:
+          type: string
+    asset:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        serial:
+          type: string
+        description:
+          type: string
+        asset_group_id:
+          type: string
+        asset_cpes:
+          type: array
+          items:
+            $ref: '#/components/schemas/asset_cpe'
+    report_item_vulnerability:
+      allOf:
+        - $ref: '#/components/schemas/report_item.base'
+        - $ref: '#/components/schemas/presentation'
+        - type: object
+          properties:
+            report_item_type:
+              $ref: '#/components/schemas/report_item_type'
+            attributes:
+              type: array
+              items:
+                $ref: '#/components/schemas/report_item_attribute'
+    asset_vulnerability:
+      type: object
+      properties:
+        report_item:
+          $ref: '#/components/schemas/report_item_vulnerability'
+        solved:
+          type: boolean
+    asset.presentation:
+      allOf:
+        - $ref: '#/components/schemas/asset'
+        - $ref: '#/components/schemas/presentation'
+        - type: object
+          properties:
+            vulnerabilities_count:
+              type: integer
+            vulnerabilities:
+              type: array
+              items:
+                $ref: '#/components/schemas/asset_vulnerability'
+    asset_group:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+    asset_group.presentation:
+      allOf:
+        - $ref: '#/components/schemas/asset_group'
+        - $ref: '#/components/schemas/presentation'
+        - type: object
+          properties:
+            users:
+              type: array
+              items:
+                $ref: '#/components/schemas/user.base'
+            templates:
+              type: array
+              items:
+                $ref: '#/components/schemas/notification_template'
+
+    email_recipient.new:
+      allOf:
+        - $ref: '#/components/schemas/email_recipient'
+    notification_template.new:
+      allOf:
+        - $ref: '#/components/schemas/notification_template'
+        - type: object
+          properties:
+            recipients:
+              type: array
+              items:
+                $ref: '#/components/schemas/email_recipient.new'
+
+    email_recipient:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        name:
+          type: string
+    notification_template:
+      type: object
+      properties:
+        id: 
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        message_title:
+          type: string
+        message_body:
+          type: string
+    notification_template.presentation:
+      allOf:
+        - $ref: '#/components/schemas/notification_template'
+        - $ref: '#/components/schemas/presentation'
+        - type: object
+          properties:
+            recipients:
+              type: array
+              items:
+                $ref: '#/components/schemas/email_recipient'
+    notification_template.id:
+      type: object
+      properties:
+        id:
+          type: integer
+
+    bot_preset.new:
+      allOf:
+        - $ref: '#/components/schemas/bot_preset'
+        - type: object
+          properties:
+            parameter_values:
+              type: array
+              items:
+                $ref: '#/components/schemas/parameter_value.new'
+
+    bot_preset.base:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        parameter_values:
+          type: array
+          items:
+            $ref: '#/components/schemas/parameter_value'
+    bot_preset:
+      allOf:
+        - $ref: '#/components/schemas/bot_preset.base'
+        - type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            description:
+              type: string
+            bot_id:
+              type: string
+            parameter_values:
+              type: array
+              items:
+                $ref: '#/components/schemas/parameter_value'
+    bot_preset.presentation:
+      allOf:
+        - $ref: '#/components/schemas/bot_preset'
+        - $ref: '#/components/schemas/presentation'
+
+    modify_group_action:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [GROUP, UNGROUP, LIKE, DISLIKE, IMPORTANT, READ]
+        items:
+          type: object
+          properties:
+            type:
+              type: string
+              enum: [AGGREGATE]
+            id:
+              type: string
+              
+    collectors_node.new:
+      allOf:
+        - $ref: '#/components/schemas/collectors_node'
+    collectors_node:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        api_url:
+          type: string
+        api_key:
+          type: string
+        collectors:
+          type: array
+          items:
+            $ref: '#/components/schemas/collector'
+        status:
+          type: string
+        created:
+          $ref: '#/components/schemas/date_time'
+        last_seen:
+          $ref: '#/components/schemas/date_time'
+
+    acl_entry.new:
+      allOf:
+        - $ref: '#/components/schemas/acl_entry'
+        - type: object
+          properties:
+            users:
+              type: array
+              items:
+                $ref: '#/components/schemas/user.id'
+            roles:
+              type: array
+              items:
+                $ref: '#/components/schemas/role.id'
+
+    item_type:
+      type: string
+      enum: [COLLECTOR, OSINT_SOURCE, OSINT_SOURCE_GROUP, WORD_LIST, REPORT_ITEM, REPORT_ITEM_TYPE, PRODUCT_TYPE, DELEGATION]
+    acl_entry_status:
+      type: object
+      properties:
+        see:
+          type: boolean
+        access:
+          type: boolean
+        modify:
+          type: boolean
+    acl_entry:
+      allOf:
+        - $ref: '#/components/schemas/acl_entry_status'
+        - type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+            description:
+              type: string
+            item_type:
+              $ref: '#/components/schemas/item_type'
+            item_id:
+              type: string
+            everyone:
+              type: boolean
+    acl_entry.presentation:
+      allOf:
+        - $ref: '#/components/schemas/acl_entry'
+        - $ref: '#/components/schemas/presentation'
+        - type: object
+          properties:
+            roles:
+              type: array
+              items:
+                $ref: '#/components/schemas/role'
+            users:
+              type: array
+              items:
+                $ref: '#/components/schemas/user.base'
+
+    remote_access.new:
+      allOf:
+        - $ref: '#/components/schemas/remote_access'
+        - type: object
+          properties:
+            osint_sources:
+              type: array
+              items:
+                $ref: '#/components/schemas/osint_source.id'
+            report_item_types:
+              type: array
+              items:
+                $ref: '#/components/schemas/report_item_type.id'
+    remote_node.new:
+      allOf:
+        - $ref: '#/components/schemas/remote_node'
+
+    remote_access:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        access_key:
+          type: string
+        enabled:
+          type: boolean
+        osint_sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/osint_source.presentation'
+        report_item_types:
+          type: array
+          items:
+            $ref: '#/components/schemas/report_item_type.presentation'
+    remote_access.presentation:
+      allOf:
+        - $ref: '#/components/schemas/remote_access'
+        - $ref: '#/components/schemas/presentation'
+        - type: object
+          properties:
+            last_synced:
+              $ref: '#/components/schemas/date_time_seconds'
+    remote_node:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        remote_url:
+          type: string
+        events_url:
+          type: string
+        access_key:
+          type: string
+        enabled:
+          type: boolean
+        sync_news_items:
+          type: boolean
+        sync_report_items:
+          type: boolean
+        osint_source_group_id:
+          type: string
+    remote_node.presentation:
+      allOf:
+        - $ref: '#/components/schemas/remote_node'
+        - $ref: '#/components/schemas/presentation'
+        - type: object
+          properties:
+            last_synced:
+              $ref: '#/components/schemas/date_time_seconds'
+            event_id:
+              type: string
+
+    presenters_node.new:
+      allOf:
+        - $ref: '#/components/schemas/presenters_node'
+
+    presenters_node:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        api_url:
+          type: string
+        api_key:
+          type: string
+        presenters:
+          type: array
+          items:
+            $ref: '#/components/schemas/presenter'
+    presenters_node.presentation:
+      allOf:
+       - $ref: '#/components/schemas/presenters_node'
+       - $ref: '#/components/schemas/presentation'
+
+    publishers_node.new:
+      allOf:
+        - $ref: '#/components/schemas/publishers_node'
+
+    publishers_node:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        api_url:
+          type: string
+        api_key:
+          type: string
+        publishers:
+          type: array
+          items:
+            $ref: '#/components/schemas/publisher'
+    publishers_node.presentation:
+      allOf:
+        - $ref: '#/components/schemas/publishers_node'
+        - $ref: '#/components/schemas/presentation'
+
+    bots_node.new:
+      allOf:
+        - $ref: '#/components/schemas/bots_node'
+
+    bots_node:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        api_url:
+          type: string
+        api_key:
+          type: string
+        bots:
+          type: array
+          items:
+            $ref: '#/components/schemas/bot'
+
+    publisher.new:
+      allOf:
+        - $ref: '#/components/schemas/publisher'
+
+    publisher:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        parameters:
+          type: array
+          items:
+            $ref: '#/components/schemas/parameter'
+    publisher_input:
+      type: object
+      properties:
+        type:
+          type: string
+        parameter_values:
+          type: array
+          items:
+            $ref: '#/components/schemas/parameter_value'
+        mime_type:
+          type: string
+        data:
+          type: string
+        message_title:
+          type: string
+        message_body:
+          type: string
+        recipients:
+          type: array
+          items:
+            type: string
+
+    tag_cloud.new:
+      allOf:
+        - $ref: '#/components/schemas/tag_cloud'
+
+    tag_cloud.base:
+      type: object
+      properties:
+        word:
+          type: string
+        word_quantity:
+          type: integer
+        collected:
+          $ref: '#/components/schemas/date'
+    tag_cloud:
+      allOf:
+        - $ref: '#/components/schemas/tag_cloud.base'
+    grouped_words:
+      allOf:
+        - $ref: '#/components/schemas/tag_cloud.base'
+
+    presenter.new:
+      allOf:
+        - $ref: '#/components/schemas/presenter'
+
+    presenter:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        parameters:
+          type: array
+          items:
+            $ref: '#/components/schemas/parameter'
+    presenter_input:
+      type: object
+      properties:
+        type:
+          type: string
+        parameter_values:
+          type: array
+          items:
+            $ref: '#/components/schemas/parameter_value'
+        reports:
+          type: array
+          items:
+            $ref: '#/components/schemas/report_item'
+        report_type:
+          $ref: '#/components/schemas/report_item_type'
+    presenter_output:
+      type: object
+      properties:
+        mime_type:
+          type: string
+        data:
+          type: string
+
+    product.new:
+      allOf:
+        - $ref: '#/components/schemas/product.base'
+        - type: object
+          properties:
+            report_items:
+              type: array
+              items:
+                $ref: '#/components/schemas/report_item.id'
+
+    product.base:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        product_type_id:
+          type: integer
+    product:
+      allOf:
+        - $ref: '#/components/schemas/product.base'
+        - type: object
+          properties:
+            report_items:
+              type: array
+              items:
+                $ref: '#/components/schemas/report_item.presentation'
+    product.presentation:
+      allOf:
+        - $ref: '#/components/schemas/product'
+        - $ref: '#/components/schemas/acl_entry_status'
+        - $ref: '#/components/schemas/presentation'
+
+    date:
+      type: string
+      example: '%d.%m.%Y'
+    date_time:
+      type: string
+      example: '%d.%m.%Y - %H:%M'
+    date_time_seconds:
+      type: string
+      example: '%d.%m.%Y - %H:%M:%s'
+    date_time_full:
+      type: string
+      example: '%Y-%m-%d %H:%M:%S.%f'
+    report_item_lock:
+      type: object
+      properties:
+        report_item_id:
+          type: integer
+        field_id:
+          type: integer
+        user_id:
+          type: integer
+
+  securitySchemes:
+    API_key:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

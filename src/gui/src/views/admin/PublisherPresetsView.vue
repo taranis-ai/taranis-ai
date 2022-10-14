@@ -2,7 +2,7 @@
     <ViewLayout>
         <template v-slot:panel>
             <ToolbarFilter title='nav_menu.publisher_presets' total_count_title="publisher_preset.total_count"
-                           total_count_getter="getPublisherPresets">
+                           total_count_getter="config/getPublisherPresets">
                 <template v-slot:addbutton>
                     <NewPublisherPreset/>
                 </template>
@@ -13,8 +13,8 @@
             <ContentData
                     name = "PublisherPresets"
                     cardItem="CardPreset"
-                    action="getAllPublisherPresets"
-                    getter="getPublisherPresets"
+                    action="config/getAllPublisherPresets"
+                    getter="config/getPublisherPresets"
                     deletePermission="CONFIG_PUBLISHER_PRESET_DELETE"
             />
         </template>

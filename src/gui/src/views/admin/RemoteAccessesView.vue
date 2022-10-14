@@ -2,7 +2,7 @@
     <ViewLayout>
         <template v-slot:panel>
             <ToolbarFilter title='nav_menu.remote_access' total_count_title="remote_access.total_count"
-                           total_count_getter="getRemoteAccesses">
+                           total_count_getter="config/getRemoteAccesses">
                 <template v-slot:addbutton>
                     <NewRemoteAccess/>
                 </template>
@@ -13,8 +13,8 @@
             <ContentData
                     name="RemoteAccesses"
                     cardItem="CardPreset"
-                    action="getAllRemoteAccesses"
-                    getter="getRemoteAccesses"
+                    action="config/getAllRemoteAccesses"
+                    getter="config/getRemoteAccesses"
                     deletePermission="CONFIG_REMOTE_ACCESS_DELETE"
             />
         </template>

@@ -1,97 +1,97 @@
 <template>
-    <v-container>
-      <v-card>
-        <v-toolbar dark dense color="primary">
-          <v-toolbar-title class="title-limit">{{$t('settings.user_settings')}}</v-toolbar-title>
-          <v-spacer></v-spacer>
-          <v-btn text @click="save()">
-            <v-icon left>mdi-content-save</v-icon>
-            <span>{{$t('settings.save')}}</span>
-          </v-btn>
+  <v-container>
+    <v-card>
+    <v-toolbar dark dense color="primary">
+      <v-toolbar-title class="title-limit">{{$t('settings.user_settings')}}</v-toolbar-title>
+      <v-spacer></v-spacer>
+      <v-btn text @click="save()">
+      <v-icon left>mdi-content-save</v-icon>
+      <span>{{$t('settings.save')}}</span>
+      </v-btn>
+    </v-toolbar>
+
+    <v-tabs dark centered grow height="32">
+      <!-- TABS -->
+      <v-tab href="#tab-1">
+      <span>{{$t('settings.tab_general')}}</span>
+      </v-tab>
+      <v-tab href="#tab-2" @click="loadWordList()">
+      <span>{{$t('settings.tab_wordlists')}}</span>
+      </v-tab>
+      <v-tab href="#tab-3">
+      <span>{{$t('settings.tab_hotkeys')}}</span>
+      </v-tab>
+
+      <!-- #tab-1 -->
+      <v-tab-item value="tab-1" class="pa-0">
+      <v-container fluid>
+        <v-row justify="center" align="center">
+        <v-col>
+          <v-switch
+          v-model="spellcheck"
+          :label="$t('settings.spellcheck')"
+          ></v-switch>
+        </v-col>
+        <v-col>
+          <v-switch
+          v-model="dark_theme" @change="darkToggle"
+          :label="$t('settings.dark_theme')"
+          ></v-switch>
+        </v-col>
+        </v-row>
+      </v-container>
+      </v-tab-item>
+
+      <!-- #tab-2 -->
+      <v-tab-item value="tab-2" class="pa-0">
+      <v-container fluid>
+        <v-data-table
+        v-model="selected_word_lists"
+        :headers="headers"
+        :items="word_lists"
+        item-key="id"
+        show-select
+        class="elevation-1"
+        >
+
+        <template v-slot:top>
+        <v-toolbar flat color="white">
+          <v-toolbar-title>{{$t('osint_source.word_lists')}}</v-toolbar-title>
         </v-toolbar>
+        </template>
 
-        <v-tabs dark centered grow height="32">
-          <!-- TABS -->
-          <v-tab href="#tab-1">
-            <span>{{$t('settings.tab_general')}}</span>
-          </v-tab>
-          <v-tab href="#tab-2" @click="loadWordList()">
-            <span>{{$t('settings.tab_wordlists')}}</span>
-          </v-tab>
-          <v-tab href="#tab-3">
-            <span>{{$t('settings.tab_hotkeys')}}</span>
-          </v-tab>
+        </v-data-table>
+      </v-container>
+      </v-tab-item>
 
-          <!-- #tab-1 -->
-          <v-tab-item value="tab-1" class="pa-0">
-            <v-container fluid>
-              <v-row justify="center" align="center">
-                <v-col>
-                  <v-switch
-                    v-model="spellcheck"
-                    :label="$t('settings.spellcheck')"
-                  ></v-switch>
-                </v-col>
-                <v-col>
-                  <v-switch
-                    v-model="dark_theme" @change="darkToggle"
-                    :label="$t('settings.dark_theme')"
-                  ></v-switch>
-                </v-col>
-              </v-row>
-            </v-container>
-          </v-tab-item>
+      <!-- #tab-3 -->
+      <v-tab-item value="tab-3" class="pa-0">
+      <v-container fluid class="">
+        <v-row no-gutters class="ma-0">
+        <v-tooltip top v-for="shortcut in shortcuts" :key="shortcut.alias">
+          <template v-slot:activator="{on}">
+          <v-btn  :id=shortcut.alias v-on="on"
+              class="blue lighten-5 ma-1" style="width: calc(100% / 3 - 8px);"
+              text
+              @click.stop="pressKeyDialog(shortcut.alias)"
+              @blur="pressKeyVisible = false"
+          >
+            <v-icon left>{{shortcut.icon}}</v-icon>
+            <span v-if="shortcut.key != 'undefined'" class="caption">{{shortcut.key}}</span>
+            <v-icon v-else color="error">mdi-alert</v-icon>
+          </v-btn>
+          </template>
+          <span>
+          {{ $t('settings.' + shortcut.alias) }}
+          </span>
+        </v-tooltip>
 
-          <!-- #tab-2 -->
-          <v-tab-item value="tab-2" class="pa-0">
-            <v-container fluid>
-              <v-data-table
-                v-model="selected_word_lists"
-                :headers="headers"
-                :items="word_lists"
-                item-key="id"
-                show-select
-                class="elevation-1"
-              >
-
-              <template v-slot:top>
-                <v-toolbar flat color="white">
-                  <v-toolbar-title>{{$t('osint_source.word_lists')}}</v-toolbar-title>
-                </v-toolbar>
-              </template>
-
-              </v-data-table>
-            </v-container>
-          </v-tab-item>
-
-          <!-- #tab-3 -->
-          <v-tab-item value="tab-3" class="pa-0">
-            <v-container fluid class="">
-              <v-row no-gutters class="ma-0">
-                <v-tooltip top v-for="shortcut in shortcuts" :key="shortcut.alias">
-                  <template v-slot:activator="{on}">
-                    <v-btn  :id=shortcut.alias v-on="on"
-                            class="blue lighten-5 ma-1" style="width: calc(100% / 3 - 8px);"
-                            text
-                            @click.stop="pressKeyDialog(shortcut.alias)"
-                            @blur="pressKeyVisible = false"
-                    >
-                        <v-icon left>{{shortcut.icon}}</v-icon>
-                        <span v-if="shortcut.key != 'undefined'" class="caption">{{shortcut.key}}</span>
-                        <v-icon v-else color="error">mdi-alert</v-icon>
-                    </v-btn>
-                  </template>
-                  <span>
-                    {{ $t('settings.' + shortcut.alias) }}
-                  </span>
-                </v-tooltip>
-
-              </v-row>
-            </v-container>
-          </v-tab-item>
-        </v-tabs>
-      </v-card>
-    </v-container>
+        </v-row>
+      </v-container>
+      </v-tab-item>
+    </v-tabs>
+    </v-card>
+  </v-container>
 </template>
 
 <script>

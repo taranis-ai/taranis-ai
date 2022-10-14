@@ -144,6 +144,8 @@ import AuthMixin from '@/services/auth/auth_mixin'
 import Permissions from '@/services/auth/permissions'
 import AddGroup from '@/components/config/osint_sources/NewOSINTSourceGroup'
 
+import { mapActions, mapGetters } from 'vuex'
+
 export default {
   name: 'NewOSINTSource',
   components: {
@@ -195,16 +197,12 @@ export default {
     },
     canUpdate () {
       return this.checkPermission(Permissions.CONFIG_OSINT_SOURCE_UPDATE) || !this.edit
-    },
-    getOSINTSourceGroups () {
-      if (this.canUpdate) {
-        return this.osint_source_groups
-      } else {
-        return this.selected_osint_source_groups
-      }
     }
   },
   methods: {
+    ...mapGetters('config', ['getOSINTSourceGroups', 'getCollectorsNodes', 'getWordLists']),
+    ...mapActions('config', ['loadOSINTSourceGroups', 'loadCollectorsNodes', 'loadWordLists']),
+
     addSource () {
       this.visible = true
       this.edit = false
@@ -330,22 +328,20 @@ export default {
     },
 
     loadAllOSINTSourceGroups () {
-      this.$store.dispatch('getAllOSINTSourceGroups', { search: '' })
+      this.loadOSINTSourceGroups({ search: '' })
         .then(() => {
-          this.osint_source_groups = []
-          for (let i = 0; i < this.$store.getters.getOSINTSourceGroups.items.length; i++) {
-            const item = this.$store.getters.getOSINTSourceGroups.items[i]
-            if (item.default !== true) {
-              this.osint_source_groups.push(item)
+          this.osint_source_groups = this.getOSINTSourceGroups().map(item => {
+            if (!item.default) {
+              return item
             }
-          }
+          })
         })
     }
   },
   mounted () {
-    this.$store.dispatch('getAllCollectorsNodes', { search: '' })
+    this.loadCollectorsNodes({ search: '' })
       .then(() => {
-        this.nodes = this.$store.getters.getCollectorsNodes.items
+        this.nodes = this.getCollectorsNodes().items
         for (let i = 0; i < this.nodes.length; i++) {
           for (let j = 0; j < this.nodes[i].collectors.length; j++) {
             this.nodes[i].collectors[j].name_with_id = this.nodes[i].collectors[j].name + ' (ID: ' + this.nodes[i].collectors[j].id + ')'
@@ -353,9 +349,9 @@ export default {
         }
       })
 
-    this.$store.dispatch('getAllWordLists', { search: '' })
+    this.loadWordLists({ search: '' })
       .then(() => {
-        this.word_lists = this.$store.getters.getWordLists.items
+        this.word_lists = this.getWordLists().items
       })
 
     this.loadAllOSINTSourceGroups()

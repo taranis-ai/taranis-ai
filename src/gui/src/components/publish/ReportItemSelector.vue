@@ -1,44 +1,44 @@
 <template>
-    <v-row v-bind="UI.DIALOG.ROW.WINDOW">
-        <v-dialog v-bind="UI.DIALOG.FULLSCREEN" v-model="dialog">
-            <v-card v-bind="UI.DIALOG.BASEMENT">
-                <v-toolbar v-bind="UI.DIALOG.TOOLBAR" :style="UI.STYLE.z10000">
-                    <v-btn v-bind="UI.BUTTON.CLOSE_ICON" @click="close">
-                        <v-icon>{{ UI.ICON.CLOSE }}</v-icon>
-                    </v-btn>
-                    <v-toolbar-title>{{$t('report_item.select')}}</v-toolbar-title>
-                    <v-spacer></v-spacer>
-                    <v-btn text dark @click="add">
-                        <v-icon left>mdi-plus-box</v-icon>
-                        <span>{{$t('report_item.add')}}</span>
-                    </v-btn>
-                </v-toolbar>
-                <v-container fluid class="pa-0 ma-0">
-                    <div :style="UI.STYLE.sticky_filter_toolbar">
-                        <ToolbarFilterAnalyze publish_selector
-                                              total_count_title="analyze.total_count"
-                                              @update-report-items-filter="updateFilter"
-                                              ref="toolbarFilter" />
-                    </div>
+  <v-row v-bind="UI.DIALOG.ROW.WINDOW">
+    <v-dialog v-bind="UI.DIALOG.FULLSCREEN" v-model="dialog">
+      <v-card v-bind="UI.DIALOG.BASEMENT">
+        <v-toolbar v-bind="UI.DIALOG.TOOLBAR" :style="UI.STYLE.z10000">
+          <v-btn v-bind="UI.BUTTON.CLOSE_ICON" @click="close">
+            <v-icon>{{ UI.ICON.CLOSE }}</v-icon>
+          </v-btn>
+          <v-toolbar-title>{{$t('report_item.select')}}</v-toolbar-title>
+          <v-spacer></v-spacer>
+          <v-btn text dark @click="add">
+            <v-icon left>mdi-plus-box</v-icon>
+            <span>{{$t('report_item.add')}}</span>
+          </v-btn>
+        </v-toolbar>
+        <v-container fluid class="pa-0 ma-0">
+          <div :style="UI.STYLE.sticky_filter_toolbar">
+            <ToolbarFilterAnalyze publish_selector
+                        total_count_title="analyze.total_count"
+                        @update-report-items-filter="updateFilter"
+                        ref="toolbarFilter" />
+          </div>
 
-                    <ContentDataAnalyze publish_selector :selection="values"
-                                        class="item-selector" card-item="CardAnalyze"
-                                        ref="contentData"
-                                        @show-report-item-detail="showReportItemDetail"
-                                        @new-data-loaded="newDataLoaded"/>
-                </v-container>
-            </v-card>
-        </v-dialog>
+          <ContentDataAnalyze publish_selector :selection="selector_values"
+                    class="item-selector" card-item="CardAnalyze"
+                    ref="contentData"
+                    @show-report-item-detail="showReportItemDetail"
+                    @new-data-loaded="newDataLoaded"/>
+        </v-container>
+      </v-card>
+    </v-dialog>
 
-        <v-spacer style="height:8px"></v-spacer>
+    <v-spacer style="height:8px"></v-spacer>
 
-        <NewReportItem ref="reportItemDialog"/>
+    <NewReportItem ref="reportItemDialog"/>
 
-        <component publish_selector class="item-selector" v-bind:is="cardLayout()" v-for="value in values" :card="value"
-                   :key="value.id"
-                   @show-report-item-detail="showReportItemDetail"
-                   @remove-report-item-from-selector="removeReportItemFromSelector" />
-    </v-row>
+    <component publish_selector class="item-selector" v-bind:is="cardLayout()" v-for="value in selector_values" :card="value"
+           :key="value.id"
+           @show-report-item-detail="showReportItemDetail"
+           @remove-report-item-from-selector="removeReportItemFromSelector" />
+  </v-row>
 </template>
 
 <script>
@@ -67,7 +67,8 @@ export default {
   },
   data: () => ({
     dialog: false,
-    value: ''
+    value: '',
+    selector_values: this.values
   }),
   computed: {
     canModify () {
@@ -88,8 +89,8 @@ export default {
     },
 
     removeReportItemFromSelector (report_item) {
-      const i = this.values.indexOf(report_item)
-      this.values.splice(i, 1)
+      const i = this.selector_values.indexOf(report_item)
+      this.selector_values.splice(i, 1)
     },
 
     cardLayout: function () {
@@ -105,15 +106,15 @@ export default {
       const selection = this.$store.getters.getSelectionReport
       for (let i = 0; i < selection.length; i++) {
         let found = false
-        for (let j = 0; j < this.values.length; j++) {
-          if (this.values[j].id === selection[i].item.id) {
+        for (let j = 0; j < this.selector_values.length; j++) {
+          if (this.selector_values[j].id === selection[i].item.id) {
             found = true
             break
           }
         }
 
         if (found === false) { selection[i].item.tag = 'mdi-file-table-outline' }
-        this.values.push(selection[i].item)
+        this.selector_values.push(selection[i].item)
       }
 
       this.close()

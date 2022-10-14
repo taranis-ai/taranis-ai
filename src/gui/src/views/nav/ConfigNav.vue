@@ -1,9 +1,9 @@
 <template>
-    <Navigation
-            :links  = "links"
-            :icon   = "'mdi-ballot-outline'"
-            filter
-    />
+  <Navigation
+    :links  = "links"
+    :icon   = "'mdi-ballot-outline'"
+    filter
+  />
 </template>
 
 <script>
@@ -22,14 +22,11 @@ export default {
       { icon: 'mdi-lock-check', title: 'nav_menu.acls', route: '/config/acls', permission: 'CONFIG_ACL_ACCESS' },
       { icon: 'mdi-server-network', title: 'nav_menu.nodes', route: '/config/nodes', permission: 'CONFIG_NODE_ACCESS' },
       { separator: '1' },
-      { icon: 'mdi-server-network', title: 'nav_menu.collectors_nodes', route: '/config/collectors/nodes', permission: 'CONFIG_COLLECTORS_NODE_ACCESS' },
       { icon: 'mdi-animation-outline', title: 'nav_menu.osint_sources', route: '/config/collectors/sources', permission: 'CONFIG_OSINT_SOURCE_ACCESS' },
       { icon: 'mdi-folder-multiple', title: 'nav_menu.osint_source_groups', route: '/config/collectors/groups', permission: 'CONFIG_OSINT_SOURCE_GROUP_ACCESS' },
       { separator: '1' },
-      { icon: 'mdi-server-network', title: 'nav_menu.presenters_nodes', route: '/config/presenters/nodes', permission: 'CONFIG_PRESENTERS_NODE_ACCESS' },
       { icon: 'mdi-file-document-outline', title: 'nav_menu.product_types', route: '/config/product/types', permission: 'CONFIG_PRODUCT_TYPE_ACCESS' },
       { separator: '1' },
-      { icon: 'mdi-server-network', title: 'nav_menu.publishers_nodes', route: '/config/publishers/nodes', permission: 'CONFIG_PUBLISHERS_NODE_ACCESS' },
       { icon: 'mdi-file-star-outline', title: 'nav_menu.publisher_presets', route: '/config/publishers/presets', permission: 'CONFIG_PUBLISHER_PRESET_ACCESS' },
       { separator: '1' },
       { icon: 'mdi-application-variable-outline', title: 'nav_menu.attributes', route: '/config/reportitems/attributes', permission: 'CONFIG_ATTRIBUTE_ACCESS' },
@@ -40,7 +37,6 @@ export default {
       { icon: 'mdi-remote-desktop', title: 'nav_menu.remote_access', route: '/config/remote/access', permission: 'CONFIG_REMOTE_ACCESS_ACCESS' },
       { icon: 'mdi-share-variant', title: 'nav_menu.remote_nodes', route: '/config/remote/nodes', permission: 'CONFIG_REMOTE_NODE_ACCESS' },
       { separator: '1' },
-      { icon: 'mdi-server-network', title: 'nav_menu.bots_nodes', route: '/config/bots/nodes', permission: 'CONFIG_BOTS_NODE_ACCESS' },
       { icon: 'mdi-robot', title: 'nav_menu.bot_presets', route: '/config/bots/presets', permission: 'CONFIG_BOT_PRESET_ACCESS' }
     ]
   })

@@ -324,7 +324,6 @@ export default {
     },
 
     viewDetails(event) {
-      console.log('not yet implemented')
       this.$refs.newsItemDetail.open(this.newsItem)
     },
     createReport(event) {

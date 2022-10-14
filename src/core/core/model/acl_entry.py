@@ -1,5 +1,6 @@
 from sqlalchemy import func, or_, orm, and_
 from marshmallow import fields, post_load
+from flask_sqlalchemy import BaseQuery
 
 from core.managers.db_manager import db
 from core.model.role import Role
@@ -69,7 +70,7 @@ class ACLEntry(db.Model):
         query = cls.query
 
         if search is not None:
-            search_string = "%" + search.lower() + "%"
+            search_string = f"%{search.lower()}%"
             query = query.filter(
                 or_(
                     func.lower(ACLEntry.name).like(search_string),
@@ -116,7 +117,7 @@ class ACLEntry(db.Model):
         db.session.commit()
 
     @classmethod
-    def apply_query(cls, query, user: User, see: bool, access: bool, modify: bool):
+    def apply_query(cls, query: BaseQuery, user: User, see: bool, access: bool, modify: bool) -> BaseQuery:
         roles = [role.id for role in user.roles]
 
         query = query.outerjoin(

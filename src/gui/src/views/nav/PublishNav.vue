@@ -1,7 +1,8 @@
 <template>
     <Navigation
-            :links  = "links"
-            :icon   = "'mdi-publish'"
+      v-if="links.length > 0"
+      :links  = "links"
+      :icon   = "'mdi-publish'"
     />
 </template>
 
@@ -9,7 +10,7 @@
 import Navigation from '../../components/common/Navigation'
 
 export default {
-  name: 'AnalyzeNav',
+  name: 'PublishNav',
   components: {
     Navigation
   },

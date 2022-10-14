@@ -303,7 +303,7 @@ export default {
         this.organizations = this.$store.getters.getOrganizations.items
       })
 
-    this.$store.dispatch('getAllRoles', { search: '' })
+    this.$store.dispatch('config/loadRoles', { search: '' })
       .then(() => {
         this.roles = this.$store.getters.getRoles.items
       })

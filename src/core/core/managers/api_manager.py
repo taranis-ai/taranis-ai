@@ -10,6 +10,7 @@ def initialize(app):
     core_api.auth.initialize(api)
     core_api.collectors.initialize(api)
     core_api.isalive.initialize(api)
+    core_api.openapi.initialize(api)
     core_api.config.initialize(api)
     core_api.analyze.initialize(api)
     core_api.publish.initialize(api)

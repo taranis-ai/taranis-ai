@@ -2,7 +2,7 @@
     <ViewLayout>
         <template v-slot:panel>
             <ToolbarFilter title="nav_menu.attributes" total_count_title="attribute.total_count"
-                           total_count_getter="getAttributes">
+                           total_count_getter="config/getAttributes">
                 <template v-slot:addbutton>
                     <NewAttribute/>
                 </template>
@@ -12,8 +12,8 @@
             <ContentData
                     name="Attributes"
                     cardItem="CardCompact"
-                    action="getAllAttributes"
-                    getter="getAttributes"
+                    action="config/getAllAttributes"
+                    getter="config/getAttributes"
                     deletePermission="CONFIG_ATTRIBUTE_DELETE"
             />
         </template>

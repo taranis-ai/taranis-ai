@@ -1,24 +1,24 @@
 <template>
-    <ViewLayout>
-        <template v-slot:panel>
-            <ToolbarFilter title='nav_menu.organizations' total_count_title="organization.total_count"
-                           total_count_getter="getOrganizations">
-                <template v-slot:addbutton>
-                    <NewOrganization/>
-                </template>
-            </ToolbarFilter>
+  <ViewLayout>
+    <template v-slot:panel>
+      <ToolbarFilter title='nav_menu.organizations' total_count_title="organization.total_count"
+                     total_count_getter="config/getOrganizations">
+        <template v-slot:addbutton>
+          <NewOrganization/>
+        </template>
+      </ToolbarFilter>
 
-        </template>
-        <template v-slot:content>
-            <ContentData
-                    name = "Organizations"
-                    cardItem="CardPreset"
-                    action="getAllOrganizations"
-                    getter="getOrganizations"
-                    deletePermission="CONFIG_ORGANIZATION_DELETE"
-            />
-        </template>
-    </ViewLayout>
+    </template>
+    <template v-slot:content>
+      <ContentData
+          name = "Organizations"
+          cardItem="CardPreset"
+          action="config/getAllOrganizations"
+          getter="config/getOrganizations"
+          deletePermission="CONFIG_ORGANIZATION_DELETE"
+      />
+    </template>
+  </ViewLayout>
 </template>
 
 <script>

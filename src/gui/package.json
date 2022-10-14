@@ -1,98 +1,99 @@
 {
-    "name": "taranis-ng-ui",
-    "version": "0.1.0",
-    "private": true,
-    "scripts": {
-        "serve": "vue-cli-service serve",
-        "build": "vue-cli-service build",
-        "lint": "vue-cli-service lint"
+  "name": "taranis-ng-ui",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "serve": "vue-cli-service serve",
+    "build": "vue-cli-service build",
+    "lint": "vue-cli-service lint"
+  },
+  "dependencies": {
+    "@ckeditor/ckeditor5-build-classic": "^34.2.0",
+    "@ckeditor/ckeditor5-vue2": "^3.0.1",
+    "@hapi/bourne": "^2.1.0",
+    "axios": "^0.27.2",
+    "js-base64": "^3.7.2",
+    "moment": "^2.29.4",
+    "papaparse": "^5.3.2",
+    "vee-validate": "^2.2.15",
+    "vue": "^2.7.13",
+    "vue-calendar-heatmap": "^0.8.4",
+    "vue-cookies": "^1.8.1",
+    "vue-csv-import": "^3.3.10",
+    "vue-cvss": "^1.1.2",
+    "vue-i18n": "^8.27.2",
+    "vue-keypress": "^1.4.0",
+    "vue-quick-chat": "^1.2.8",
+    "vue-router": "^3.6.4",
+    "vue-shortkey": "^3.1.7",
+    "vue-smooth-scrollbar": "^1.0.3",
+    "vue-sse": "^1.1.1",
+    "vue-wordcloud": "^1.1.1",
+    "vue2-datepicker": "^3.10.2",
+    "vue2-dropzone": "^3.6.0",
+    "vue2-editor": "^2.10.3",
+    "vuetify": "^2.6.9",
+    "vuetify-datetime-picker": "^2.1.1",
+    "vuex": "^3.6.2",
+    "vuex-map-fields": "^1.4.1"
+  },
+  "devDependencies": {
+    "@babel/helper-compilation-targets": "^7.16.3",
+    "@mdi/font": "^6.9.96",
+    "@vue/cli": "^4.5.19",
+    "@vue/cli-plugin-babel": "^4.5.19",
+    "@vue/cli-plugin-eslint": "^4.5.19",
+    "@vue/cli-service": "^4.5.19",
+    "@vue/eslint-config-standard": "^5.1.2",
+    "babel-eslint": "^10.1.0",
+    "cache-loader": "^4.1.0",
+    "eslint": "^6.7.2",
+    "eslint-plugin-import": "^2.20.2",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-promise": "^4.2.1",
+    "eslint-plugin-standard": "^4.0.0",
+    "eslint-plugin-vue": "^9.6.0",
+    "material-design-icons-iconfont": "^6.1.1",
+    "sass": "~1.32",
+    "sass-loader": "^10.2.1",
+    "vue-cli-plugin-vuetify": "^0.6.3",
+    "vue-template-compiler": "^2.6.14",
+    "vuetify-loader": "^1.4.3",
+    "webpack": "^4.46.0"
+  },
+  "eslintConfig": {
+    "root": true,
+    "env": {
+      "node": true
     },
-    "dependencies": {
-        "@ckeditor/ckeditor5-build-classic": "^34.2.0",
-        "@ckeditor/ckeditor5-vue2": "^3.0.1",
-        "@hapi/bourne": "^2.1.0",
-        "axios": "^0.27.2",
-        "js-base64": "^3.7.2",
-        "moment": "^2.29.4",
-        "papaparse": "^5.3.2",
-        "vee-validate": "^2.2.15",
-        "vue": "^2.7.10",
-        "vue-calendar-heatmap": "^0.8.4",
-        "vue-cookies": "^1.8.1",
-        "vue-csv-import": "^3.3.10",
-        "vue-cvss": "^1.1.2",
-        "vue-i18n": "^8.27.2",
-        "vue-keypress": "^1.4.0",
-        "vue-quick-chat": "^1.2.8",
-        "vue-router": "^3.6.4",
-        "vue-shortkey": "^3.1.7",
-        "vue-smooth-scrollbar": "^1.0.3",
-        "vue-sse": "^1.1.1",
-        "vue-wordcloud": "^1.1.1",
-        "vue2-datepicker": "^3.10.2",
-        "vue2-dropzone": "^3.6.0",
-        "vue2-editor": "^2.10.3",
-        "vuetify": "^2.6.9",
-        "vuetify-datetime-picker": "^2.1.1",
-        "vuex": "^3.6.2",
-        "vuex-map-fields": "^1.4.1"
-    },
-    "devDependencies": {
-        "@babel/helper-compilation-targets": "^7.16.3",
-        "@mdi/font": "^6.9.96",
-        "@vue/cli": "^4.5.19",
-        "@vue/cli-plugin-babel": "^4.5.19",
-        "@vue/cli-plugin-eslint": "^4.5.19",
-        "@vue/cli-service": "^4.5.19",
-        "@vue/eslint-config-standard": "^5.1.2",
-        "babel-eslint": "^10.1.0",
-        "cache-loader": "^4.1.0",
-        "eslint": "^6.7.2",
-        "eslint-plugin-import": "^2.20.2",
-        "eslint-plugin-node": "^11.1.0",
-        "eslint-plugin-promise": "^4.2.1",
-        "eslint-plugin-standard": "^4.0.0",
-        "eslint-plugin-vue": "^6.2.2",
-        "material-design-icons-iconfont": "^6.1.1",
-        "sass": "~1.32",
-        "sass-loader": "^10.2.1",
-        "vue-cli-plugin-vuetify": "^0.6.3",
-        "vue-template-compiler": "^2.6.14",
-        "vuetify-loader": "^1.4.3",
-        "webpack": "^4.46.0"
-    },
-    "eslintConfig": {
-        "root": true,
-        "env": {
-            "node": true
-        },
-        "extends": [
-            "plugin:vue/essential",
-            "eslint:recommended",
-            "@vue/standard"
-        ],
-        "rules": {
-            "camelcase": "off",
-            "space-before-function-paren": 0,
-            "quotes": [
-                2,
-                "single",
-                {
-                    "avoidEscape": true
-                }
-            ]
-        },
-        "parserOptions": {
-            "parser": "babel-eslint"
+    "extends": [
+      "plugin:vue/essential",
+      "eslint:recommended",
+      "@vue/standard"
+    ],
+    "rules": {
+      "camelcase": "off",
+      "vue/multi-word-component-names": "off",
+      "space-before-function-paren": 0,
+      "quotes": [
+        2,
+        "single",
+        {
+          "avoidEscape": true
         }
+      ]
     },
-    "postcss": {
-        "plugins": {
-            "autoprefixer": {}
-        }
-    },
-    "browserslist": [
-        "> 1%",
-        "last 2 versions"
-    ]
+    "parserOptions": {
+      "parser": "babel-eslint"
+    }
+  },
+  "postcss": {
+    "plugins": {
+      "autoprefixer": {}
+    }
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions"
+  ]
 }

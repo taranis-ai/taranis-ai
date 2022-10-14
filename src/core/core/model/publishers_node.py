@@ -39,7 +39,7 @@ class PublishersNode(db.Model):
     def reconstruct(self):
         self.title = self.name
         self.subtitle = self.description
-        self.tag = "mdi-server-network"
+        self.tag = "mdi-file-star-outline"
 
     @classmethod
     def exists_by_api_key(cls, api_key):

@@ -144,16 +144,16 @@ class GroupAction(Resource):
     @auth_required("ASSESS_UPDATE")
     def put(self):
         user = auth_manager.get_user_from_jwt()
-        if request.json["action"] == "DELETE":
-            response, code = news_item.NewsItemAggregate.group_action_delete(request.json, user)
-            sse_manager.news_items_updated()
-            return response, code
-        else:
-            response, osint_source_ids, code = news_item.NewsItemAggregate.group_action(request.json, user)
-            sse_manager.news_items_updated()
-            if len(osint_source_ids) > 0:
-                sse_manager.remote_access_news_items_updated(osint_source_ids)
-            return response, code
+        response, code = news_item.NewsItemAggregate.group_action(request.json, user)
+        sse_manager.news_items_updated()
+        return response, code
+
+    @auth_required("ASSESS_UPDATE")
+    def delete(self):
+        user = auth_manager.get_user_from_jwt()
+        response, code = news_item.NewsItemAggregate.group_action_delete(request.json, user)
+        sse_manager.news_items_updated()
+        return response, code
 
 
 class DownloadAttachment(Resource):
@@ -164,9 +164,7 @@ class DownloadAttachment(Resource):
                 permissions = user.get_permissions()
                 if "ASSESS_ACCESS" in permissions:
                     attribute_mapping = news_item.NewsItemDataNewsItemAttribute.find(attribute_id)
-                    need_check = False
-                    if attribute_mapping is not None:
-                        need_check = True
+                    need_check = attribute_mapping is not None
                     attribute = news_item.NewsItemAttribute.find(attribute_id)
                     if (
                         need_check

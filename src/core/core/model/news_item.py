@@ -348,11 +348,7 @@ class NewsItem(db.Model):
     def get_total_relevance(cls, news_item_data_id):
         query = db.session.query(NewsItem.relevance).filter(NewsItem.news_item_data_id == news_item_data_id)
         result = query.all()
-        total_relevance = 0
-        for row in result:
-            total_relevance += int(row[0])
-
-        return total_relevance
+        return sum(int(row[0]) for row in result)
 
     @classmethod
     def get_all_by_group_and_source_query(cls, group_id, source_id, time_limit):
@@ -840,10 +836,7 @@ class NewsItemAggregate(db.Model):
     def update(cls, id, data, user):
         aggregate = cls.find(id)
 
-        all_important = True
-        for news_item in aggregate.news_items:
-            if news_item.important is False:
-                all_important = False
+        all_important = all(news_item.important is not False for news_item in aggregate.news_items)
 
         osint_source_ids = set()
 
@@ -902,101 +895,44 @@ class NewsItemAggregate(db.Model):
                 news_item = NewsItem.find(item["id"])
                 aggregate_ids.add(news_item.news_item_aggregate_id)
 
-        for aggregate_id in aggregate_ids:
-            if ReportItemNewsItemAggregate.assigned(aggregate_id) is True:
-                return False
-
-        return True
+        return all(ReportItemNewsItemAggregate.assigned(aggregate_id) is not True for aggregate_id in aggregate_ids)
 
     @classmethod
     def group_action(cls, data, user):
-        osint_source_ids = set()
+        if not cls.action_allowed(data["items"]):
+            return "aggregate_in_use", 500
 
         if data["action"] == "GROUP":
-            if cls.action_allowed(data["items"]):
-                cls.group_aggregate(data["items"], user)
-            else:
-                return "aggregate_in_use", osint_source_ids, 500
+            cls.group_aggregate(data["items"], user)
         elif data["action"] == "UNGROUP":
-            if cls.action_allowed(data["items"]):
-                cls.ungroup_aggregate(data["items"], user)
-            else:
-                return "aggregate_in_use", osint_source_ids, 500
-        else:
-            news_items = set()
-            processed_aggregates = set()
-            for item in data["items"]:
-                if item["type"] == "AGGREGATE":
-                    aggregate = NewsItemAggregate.find(item["id"])
-                    news_items.update(aggregate.news_items)
-                    processed_aggregates.add(aggregate)
-                else:
-                    news_item = NewsItem.find(item["id"])
-                    aggregate = NewsItemAggregate.find(news_item.news_item_aggregate_id)
-                    news_items.add(news_item)
-                    processed_aggregates.add(aggregate)
-
-            news_items = list(news_items)
-            for news_item in news_items[:]:
-                if not NewsItem.allowed_with_acl(news_item.id, user, False, False, True):
-                    news_items.remove(news_item)
-
-            status_data = {}
-            if data["action"] == "LIKE":
-                status_data["vote"] = 1
-            elif data["action"] == "DISLIKE":
-                status_data["vote"] = -1
-
-            all_important = True
-            all_read = True
-            for news_item in news_items:
-                if news_item.important is False:
-                    all_important = False
-                if news_item.read is False:
-                    all_read = False
-
-            for news_item in news_items:
-                if "vote" in status_data:
-                    news_item.vote(status_data, user.id)
-                    osint_source_ids.add(news_item.news_item_data.osint_source_id)
-
-                if data["action"] == "IMPORTANT":
-                    news_item.important = not all_important
-
-                if data["action"] == "READ":
-                    news_item.read = not all_read
-
-            cls.update_aggregates(processed_aggregates)
-            db.session.commit()
-
-        return "success", osint_source_ids, 200
+            cls.ungroup_aggregate(data["items"], user)
+        return "success", 200
 
     @classmethod
     def group_action_delete(cls, data, user):
-        if cls.action_allowed(data["items"]):
-            processed_aggregates = set()
-            for item in data["items"]:
-                if item["type"] == "AGGREGATE":
-                    aggregate = NewsItemAggregate.find(item["id"])
-                    for news_item in aggregate.news_items:
-                        if NewsItem.allowed_with_acl(news_item.id, user, False, False, True):
-                            aggregate.news_items.remove(news_item)
-                            NewsItem.delete_only(news_item)
-
-                    processed_aggregates.add(aggregate)
-                else:
-                    news_item = NewsItem.find(item["id"])
+        if not cls.action_allowed(data["items"]):
+            return "aggregate_in_use", 500
+        processed_aggregates = set()
+        for item in data["items"]:
+            if item["type"] == "AGGREGATE":
+                aggregate = NewsItemAggregate.find(item["id"])
+                for news_item in aggregate.news_items:
                     if NewsItem.allowed_with_acl(news_item.id, user, False, False, True):
-                        aggregate = NewsItemAggregate.find(news_item.news_item_aggregate_id)
                         aggregate.news_items.remove(news_item)
                         NewsItem.delete_only(news_item)
-                        processed_aggregates.add(aggregate)
 
-            cls.update_aggregates(processed_aggregates)
-            db.session.commit()
-            return "", 200
-        else:
-            return "aggregate_in_use", 500
+                processed_aggregates.add(aggregate)
+            else:
+                news_item = NewsItem.find(item["id"])
+                if NewsItem.allowed_with_acl(news_item.id, user, False, False, True):
+                    aggregate = NewsItemAggregate.find(news_item.news_item_aggregate_id)
+                    aggregate.news_items.remove(news_item)
+                    NewsItem.delete_only(news_item)
+                    processed_aggregates.add(aggregate)
+
+        cls.update_aggregates(processed_aggregates)
+        db.session.commit()
+        return "", 200
 
     @classmethod
     def group_aggregate(cls, items, user):

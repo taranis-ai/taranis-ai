@@ -1,20 +1,8 @@
 <template>
   <v-app class="grey lighten-2">
-    <!-- class="taranis" -->
-
     <MainMenu v-if="isAuthenticated()" />
 
-    <v-navigation-drawer
-      clipped
-      :value.sync="drawerVisible"
-      app
-      color="cx-drawer-bg"
-      v-if="isAuthenticated()"
-      class="sidebar"
-      style="max-height: 100% !important; height: calc(100vh - 48px) !important"
-    >
-      <router-view name="nav"></router-view>
-    </v-navigation-drawer>
+    <router-view name="nav"></router-view>
 
     <v-main>
       <router-view />

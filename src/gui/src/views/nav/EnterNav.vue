@@ -1,8 +1,9 @@
 <template>
-    <Navigation
-            :links="links"
-            :icon="'mdi-location-enter'"
-    />
+  <Navigation
+    v-if="links.length > 0"
+    :links="links"
+    :icon="'mdi-location-enter'"
+  />
 </template>
 
 <script>

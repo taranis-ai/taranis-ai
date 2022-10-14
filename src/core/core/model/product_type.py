@@ -85,7 +85,7 @@ class ProductType(db.Model):
             query = ACLEntry.apply_query(query, user, True, False, False)
 
         if search is not None:
-            search_string = "%" + search.lower() + "%"
+            search_string = f"%{search.lower()}%"
             query = query.filter(
                 or_(
                     func.lower(ProductType.title).like(search_string),

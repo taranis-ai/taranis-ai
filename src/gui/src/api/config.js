@@ -216,6 +216,36 @@ export function getAllNodes (filter) {
   return ApiService.get(`/config/nodes?search=${filter.search}`)
 }
 
+export function updateNode (node) {
+  if (node.type === 'Collector') {
+    return ApiService.put(`/config/collectors-nodes/${node.id}`, node)
+  }
+  if (node.type === 'Bot') {
+    return ApiService.put(`/config/bots-nodes/${node.id}`, node)
+  }
+  if (node.type === 'Presenter') {
+    return ApiService.put(`/config/presenters-nodes/${node.id}`, node)
+  }
+  if (node.type === 'Publisher') {
+    return ApiService.put(`/config/publishers-nodes/${node.id}`, node)
+  }
+}
+
+export function createNode (node) {
+  if (node.type === 'Collector') {
+    return ApiService.post('/config/collectors-nodes', node)
+  }
+  if (node.type === 'Bot') {
+    return ApiService.post('/config/bots-nodes', node)
+  }
+  if (node.type === 'Presenter') {
+    return ApiService.post('/config/presenters-nodes', node)
+  }
+  if (node.type === 'Publisher') {
+    return ApiService.post('/config/publishers-nodes', node)
+  }
+}
+
 export function createNewCollectorsNode (node) {
   return ApiService.post('/config/collectors-nodes', node)
 }

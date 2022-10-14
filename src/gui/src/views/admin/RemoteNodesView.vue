@@ -2,7 +2,7 @@
     <ViewLayout>
         <template v-slot:panel>
             <ToolbarFilter title='nav_menu.remote_nodes' total_count_title="remote_node.total_count"
-                           total_count_getter="getRemoteNodes">
+                           total_count_getter="config/getRemoteNodes">
                 <template v-slot:addbutton>
                     <NewRemoteNode/>
                 </template>
@@ -13,8 +13,8 @@
             <ContentData
                     name="RemoteNodes"
                     cardItem="CardPreset"
-                    action="getAllRemoteNodes"
-                    getter="getRemoteNodes"
+                    action="config/getAllRemoteNodes"
+                    getter="config/getRemoteNodes"
                     deletePermission="CONFIG_REMOTE_NODE_DELETE"
             />
         </template>

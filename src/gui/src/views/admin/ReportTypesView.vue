@@ -2,7 +2,7 @@
     <ViewLayout>
         <template v-slot:panel>
             <ToolbarFilter title="nav_menu.report_types" total_count_title="report_type.total_count"
-                           total_count_getter="getReportItemTypesConfig">
+                           total_count_getter="config/getReportItemTypesConfig">
                 <template v-slot:addbutton>
                     <NewReportType/>
                 </template>
@@ -12,8 +12,8 @@
             <ContentData
                     name="ReportTypes"
                     cardItem="CardCompact"
-                    action="loadReportItemTypesConfig"
-                    getter="getReportItemTypesConfig"
+                    action="config/loadReportItemTypesConfig"
+                    getter="config/getReportItemTypesConfig"
                     deletePermission="CONFIG_REPORT_TYPE_DELETE"
             />
         </template>

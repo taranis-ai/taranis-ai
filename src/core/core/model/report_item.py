@@ -174,13 +174,11 @@ class ReportItem(db.Model):
 
     @classmethod
     def find(cls, report_item_id):
-        report_item = cls.query.get(report_item_id)
-        return report_item
+        return cls.query.get(report_item_id)
 
     @classmethod
     def find_by_uuid(cls, report_item_uuid):
-        report_item = cls.query.filter_by(uuid=report_item_uuid)
-        return report_item
+        return cls.query.filter_by(uuid=report_item_uuid)
 
     @classmethod
     def allowed_with_acl(cls, report_item_id, user, see, access, modify):
@@ -207,9 +205,7 @@ class ReportItem(db.Model):
 
     @classmethod
     def get_for_sync(cls, last_synced, report_item_types):
-        report_item_type_ids = set()
-        for report_item_type in report_item_types:
-            report_item_type_ids.add(report_item_type.id)
+        report_item_type_ids = {report_item_type.id for report_item_type in report_item_types}
 
         last_sync_time = datetime.now()
 
@@ -248,7 +244,7 @@ class ReportItem(db.Model):
             query = cls.query.filter(ReportItem.remote_user == group)
 
         if "search" in filter and filter["search"] != "":
-            search_string = "%" + filter["search"].lower() + "%"
+            search_string = f"%{filter['search'].lower()}%"
             query = query.join(ReportItemAttribute, ReportItem.id == ReportItemAttribute.report_item_id).filter(
                 or_(
                     func.lower(ReportItemAttribute.value).like(search_string),
@@ -288,7 +284,6 @@ class ReportItem(db.Model):
 
             elif filter["sort"] == "DATE_ASC":
                 query = query.order_by(db.asc(ReportItem.created))
-        logger.log_debug(f"Query: {str(query)}")
         return query.offset(offset).limit(limit).all(), query.count()
 
     @classmethod
@@ -317,17 +312,9 @@ class ReportItem(db.Model):
     @classmethod
     def get_json(cls, group, filter, offset, limit, user):
         results, count = cls.get(group, filter, offset, limit, user, True)
-        logger.log_debug(f"ReportItem.get_json: {results}")
-        report_items = []
-        aclcheck = {"see": True, "access": True, "modify": True}
-        for report_item in results:
-            report_item.see = True
-            report_item.access = group is None and aclcheck["access"]
-            report_item.modify = group is not None and aclcheck["modify"]
-            report_items.append(report_item)
-
+        logger.log_debug(f"Found {count} report items with filter {filter}")
         report_items_schema = ReportItemPresentationSchema(many=True)
-        return {"total_count": count, "items": report_items_schema.dump(report_items)}
+        return {"total_count": count, "items": report_items_schema.dump(results)}
 
     @classmethod
     def get_detail_json(cls, id):
@@ -344,10 +331,7 @@ class ReportItem(db.Model):
             .filter(ReportItem.remote_user is not None)
             .all()
         )
-        groups = set()
-        for row in result:
-            groups.add(row[0])
-
+        groups = {row[0] for row in result}
         return list(groups)
 
     @classmethod

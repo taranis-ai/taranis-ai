@@ -2,7 +2,7 @@
     <ViewLayout>
         <template v-slot:panel>
             <ToolbarFilter title='nav_menu.product_types' total_count_title="product_type.total_count"
-                           total_count_getter="getProductTypes">
+                           total_count_getter="config/getProductTypes">
                 <template v-slot:addbutton>
                     <NewProductType/>
                 </template>
@@ -13,8 +13,8 @@
             <ContentData
                     name = "ProductTypes"
                     cardItem="CardProductType"
-                    action="getAllProductTypes"
-                    getter="getProductTypes"
+                    action="config/getAllProductTypes"
+                    getter="config/getProductTypes"
                     deletePermission="CONFIG_PRODUCT_TYPE_DELETE"
             />
         </template>

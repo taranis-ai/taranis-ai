@@ -1,188 +1,188 @@
 <template>
-    <v-data-table
-            :headers="headers"
-            :items="words"
-            sort-by="value"
-            class="elevation-1"
-    >
-        <template v-slot:top>
-            <v-toolbar flat color="white">
-                <v-toolbar-title>{{$t('word_list.words')}}</v-toolbar-title>
-                <v-divider
-                        class="mx-4"
-                        inset
-                        vertical
-                ></v-divider>
-                <v-spacer></v-spacer>
-                <v-dialog v-if="!disabled" v-model="dialog" max-width="500px">
-                    <template v-slot:activator="{ on }">
-                        <v-btn color="primary" dark class="mb-2" v-on="on">
-                            <v-icon left>mdi-plus</v-icon>
-                            <span>{{$t('word_list.new_word')}}</span>
-                        </v-btn>
-                    </template>
-                    <v-card>
-                        <v-card-title>
-                            <span class="headline">{{ formTitle }}</span>
-                        </v-card-title>
+  <v-data-table
+      :headers="headers"
+      :items="words"
+      sort-by="value"
+      class="elevation-1"
+  >
+    <template v-slot:top>
+      <v-toolbar flat color="white">
+        <v-toolbar-title>{{$t('word_list.words')}}</v-toolbar-title>
+        <v-divider
+            class="mx-4"
+            inset
+            vertical
+        ></v-divider>
+        <v-spacer></v-spacer>
+        <v-dialog v-if="!disabled" v-model="dialog" max-width="500px">
+          <template v-slot:activator="{ on }">
+            <v-btn color="primary" dark class="mb-2" v-on="on">
+              <v-icon left>mdi-plus</v-icon>
+              <span>{{$t('word_list.new_word')}}</span>
+            </v-btn>
+          </template>
+          <v-card>
+            <v-card-title>
+              <span class="headline">{{ formTitle }}</span>
+            </v-card-title>
 
-                        <v-card-text>
+            <v-card-text>
 
-                            <v-text-field v-model="edited_word.value"
-                                          :label="$t('word_list.value')"
-                                          :spellcheck="$store.state.settings.spellcheck"></v-text-field>
+              <v-text-field v-model="edited_word.value"
+                      :label="$t('word_list.value')"
+                      :spellcheck="$store.state.settings.spellcheck"></v-text-field>
 
-                            <v-text-field v-model="edited_word.description"
-                                          :label="$t('word_list.description')"
-                                          :spellcheck="$store.state.settings.spellcheck"></v-text-field>
+              <v-text-field v-model="edited_word.description"
+                      :label="$t('word_list.description')"
+                      :spellcheck="$store.state.settings.spellcheck"></v-text-field>
 
-                        </v-card-text>
+            </v-card-text>
 
-                        <v-card-actions>
-                            <v-spacer></v-spacer>
-                            <v-btn color="primary" dark @click="save">{{$t('word_list.save')}}</v-btn>
-                            <v-btn color="primary" text @click="close">{{$t('word_list.cancel')}}</v-btn>
-                        </v-card-actions>
-                    </v-card>
-                </v-dialog>
+            <v-card-actions>
+              <v-spacer></v-spacer>
+              <v-btn color="primary" dark @click="save">{{$t('word_list.save')}}</v-btn>
+              <v-btn color="primary" text @click="close">{{$t('word_list.cancel')}}</v-btn>
+            </v-card-actions>
+          </v-card>
+        </v-dialog>
 
-                <v-dialog v-if="!disabled" v-model="dialog_csv" max-width="700px">
-                    <template v-slot:activator="{ on }">
-                        <v-btn color="primary" dark class="mb-2 ml-2" v-on="on">
-                            <v-icon left>mdi-upload</v-icon>
-                            <span>{{$t('word_list.import_from_csv')}}</span>
-                        </v-btn>
-                    </template>
-                    <v-card>
-                        <v-card-title>
-                            <span class="headline">{{$t('word_list.import_from_csv')}}</span>
-                        </v-card-title>
+        <v-dialog v-if="!disabled" v-model="dialog_csv" max-width="700px">
+          <template v-slot:activator="{ on }">
+            <v-btn color="primary" dark class="mb-2 ml-2" v-on="on">
+              <v-icon left>mdi-upload</v-icon>
+              <span>{{$t('word_list.import_from_csv')}}</span>
+            </v-btn>
+          </template>
+          <v-card>
+            <v-card-title>
+              <span class="headline">{{$t('word_list.import_from_csv')}}</span>
+            </v-card-title>
 
-                        <v-row class="ma-6">
-                            <VueCsvImport v-model="csv" :map-fields="['value', 'description']">
+            <v-row class="ma-6">
+              <VueCsvImport v-model="csv" :map-fields="['value', 'description']">
 
-                                <template slot="hasHeaders" slot-scope="{headers, toggle}">
-                                    <label>
-                                        <input type="checkbox" id="hasHeaders" :value="headers" @change="toggle">
-                                        {{$t('word_list.file_has_header')}}
-                                    </label>
-                                </template>
+                <template slot="hasHeaders" slot-scope="{headers, toggle}">
+                  <label>
+                    <input type="checkbox" id="hasHeaders" :value="headers" @change="toggle">
+                    {{$t('word_list.file_has_header')}}
+                  </label>
+                </template>
 
-                                <template slot="next" slot-scope="{load}">
-                                    <button class="load" @click.prevent="load">{{$t('word_list.load_csv_file')}}</button>
-                                </template>
+                <template slot="next" slot-scope="{load}">
+                  <button class="load" @click.prevent="load">{{$t('word_list.load_csv_file')}}</button>
+                </template>
 
-                            </VueCsvImport>
-                        </v-row>
+              </VueCsvImport>
+            </v-row>
 
-                        <div v-if="csv_preview" class="mt-2 px-4">
-                            <v-row class="pa-0 ma-0 grey white--text">
-                                <v-col class="pa-0 ma-0">
-                                    <span class="heading">Value</span>
-                                </v-col>
-                                <v-col class="pa-0 ma-0">
-                                    <span class="heading">Description</span>
-                                </v-col>
-                            </v-row>
+            <div v-if="csv_preview" class="mt-2 px-4">
+              <v-row class="pa-0 ma-0 grey white--text">
+                <v-col class="pa-0 ma-0">
+                  <span class="heading">Value</span>
+                </v-col>
+                <v-col class="pa-0 ma-0">
+                  <span class="heading">Description</span>
+                </v-col>
+              </v-row>
 
-                            <v-card-text class="ma-0 pa-0" v-for="parse in csv" :key="parse.value">
+              <v-card-text class="ma-0 pa-0" v-for="parse in csv" :key="parse.value">
 
-                                <v-row class="pa-0 ma-0">
-                                    <v-col class="pa-0 ma-0">
-                                        {{parse.value}}
-                                    </v-col>
-                                    <v-col class="pa-0 ma-0">
-                                        {{parse.description}}
-                                    </v-col>
-                                </v-row>
+                <v-row class="pa-0 ma-0">
+                  <v-col class="pa-0 ma-0">
+                    {{parse.value}}
+                  </v-col>
+                  <v-col class="pa-0 ma-0">
+                    {{parse.description}}
+                  </v-col>
+                </v-row>
 
-                            </v-card-text>
-                        </div>
+              </v-card-text>
+            </div>
 
-                        <v-card-actions>
-                            <v-spacer></v-spacer>
-                            <v-checkbox v-model="csv_delete_exist_list" label="Delete existing Attribute values"></v-checkbox>
-                            <v-spacer></v-spacer>
-                            <v-btn color="primary" dark @click="importCSV">
-                                {{$t('word_list.import')}}
-                            </v-btn>
-                            <v-btn color="primary" text @click="closeCSV">
-                                {{$t('word_list.cancel')}}
-                            </v-btn>
-                        </v-card-actions>
-                    </v-card>
-                </v-dialog>
+            <v-card-actions>
+              <v-spacer></v-spacer>
+              <v-checkbox v-model="csv_delete_exist_list" label="Delete existing Attribute values"></v-checkbox>
+              <v-spacer></v-spacer>
+              <v-btn color="primary" dark @click="importCSV">
+                {{$t('word_list.import')}}
+              </v-btn>
+              <v-btn color="primary" text @click="closeCSV">
+                {{$t('word_list.cancel')}}
+              </v-btn>
+            </v-card-actions>
+          </v-card>
+        </v-dialog>
 
-                <v-dialog v-if="!disabled && link" v-model="dialog_download" max-width="700px">
-                    <template v-slot:activator="{ on }">
-                        <v-btn color="primary" dark class="mb-2 ml-2" v-on="on">
-                            <v-icon left>mdi-download</v-icon>
-                            <span>{{$t('word_list.download_from_link')}}</span>
-                        </v-btn>
-                    </template>
-                    <v-card>
-                        <v-card-title>
-                            <span class="headline">{{$t('word_list.download_from_link')}}</span>
-                        </v-card-title>
+        <v-dialog v-if="!disabled && link" v-model="dialog_download" max-width="700px">
+          <template v-slot:activator="{ on }">
+            <v-btn color="primary" dark class="mb-2 ml-2" v-on="on">
+              <v-icon left>mdi-download</v-icon>
+              <span>{{$t('word_list.download_from_link')}}</span>
+            </v-btn>
+          </template>
+          <v-card>
+            <v-card-title>
+              <span class="headline">{{$t('word_list.download_from_link')}}</span>
+            </v-card-title>
 
-                        <v-row class="mr-5">
-                            <VueCsvDownload v-model="csv" :link="link" :map-fields="['value', 'description']"></VueCsvDownload>
-                        </v-row>
+            <v-row class="mr-5">
+              <VueCsvDownload v-model="csv" :link="link" :map-fields="['value', 'description']"></VueCsvDownload>
+            </v-row>
 
-                        <div v-if="csv_preview" class="mt-2 px-4">
-                            <v-row class="pa-0 ma-0 grey white--text">
-                                <v-col class="pa-0 ma-0">
-                                    <span class="heading">Value</span>
-                                </v-col>
-                                <v-col class="pa-0 ma-0">
-                                    <span class="heading">Description</span>
-                                </v-col>
-                            </v-row>
+            <div v-if="csv_preview" class="mt-2 px-4">
+              <v-row class="pa-0 ma-0 grey white--text">
+                <v-col class="pa-0 ma-0">
+                  <span class="heading">Value</span>
+                </v-col>
+                <v-col class="pa-0 ma-0">
+                  <span class="heading">Description</span>
+                </v-col>
+              </v-row>
 
-                            <v-card-text class="ma-0 pa-0" v-for="parse in csv" :key="parse.value">
+              <v-card-text class="ma-0 pa-0" v-for="parse in csv" :key="parse.value">
 
-                                <v-row class="pa-0 ma-0">
-                                    <v-col class="pa-0 ma-0">
-                                        {{parse.value}}
-                                    </v-col>
-                                    <v-col class="pa-0 ma-0">
-                                        {{parse.description}}
-                                    </v-col>
-                                </v-row>
+                <v-row class="pa-0 ma-0">
+                  <v-col class="pa-0 ma-0">
+                    {{parse.value}}
+                  </v-col>
+                  <v-col class="pa-0 ma-0">
+                    {{parse.description}}
+                  </v-col>
+                </v-row>
 
-                            </v-card-text>
-                        </div>
+              </v-card-text>
+            </div>
 
-                        <v-card-actions>
-                            <v-checkbox class="ml-2" v-model="csv_delete_exist_list" label="Delete existing words"></v-checkbox>
-                            <v-spacer></v-spacer>
-                            <v-btn color="primary" dark @click="importCSV">
-                                {{$t('word_list.import')}}
-                            </v-btn>
-                            <v-btn color="primary" text @click="closeDownload">
-                                {{$t('word_list.cancel')}}
-                            </v-btn>
-                        </v-card-actions>
-                    </v-card>
-                </v-dialog>
-            </v-toolbar>
-        </template>
-        <template v-slot:[`item.action`]="{ item }">
-            <v-icon v-if="!disabled"
-                    small
-                    class="mr-2"
-                    @click="editItem(item)"
-            >
-                edit
-            </v-icon>
-            <v-icon v-if="!disabled"
-                    small
-                    @click="deleteItem(item)"
-            >
-                delete
-            </v-icon>
-        </template>
-    </v-data-table>
+            <v-card-actions>
+              <v-checkbox class="ml-2" v-model="csv_delete_exist_list" label="Delete existing words"></v-checkbox>
+              <v-spacer></v-spacer>
+              <v-btn color="primary" dark @click="importCSV">
+                {{$t('word_list.import')}}
+              </v-btn>
+              <v-btn color="primary" text @click="closeDownload">
+                {{$t('word_list.cancel')}}
+              </v-btn>
+            </v-card-actions>
+          </v-card>
+        </v-dialog>
+      </v-toolbar>
+    </template>
+    <template v-slot:[`item.action`]="{ item }">
+      <v-icon v-if="!disabled"
+          small
+          class="mr-2"
+          @click="editItem(item)"
+      >
+        edit
+      </v-icon>
+      <v-icon v-if="!disabled"
+          small
+          @click="deleteItem(item)"
+      >
+        delete
+      </v-icon>
+    </template>
+  </v-data-table>
 </template>
 
 <script>

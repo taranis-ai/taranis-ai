@@ -91,14 +91,14 @@ const actions = {
       })
   },
 
-  getAllRoles (context, data) {
+  loadRoles (context, data) {
     return getAllRoles(data)
       .then(response => {
         context.commit('setRoles', response.data)
       })
   },
 
-  getAllACLEntries (context, data) {
+  loadACLEntries (context, data) {
     return getAllACLEntries(data)
       .then(response => {
         context.commit('setACLEntries', response.data)
@@ -112,7 +112,7 @@ const actions = {
       })
   },
 
-  getAllUsers (context, data) {
+  loadUsers (context, data) {
     return getAllUsers(data)
       .then(response => {
         context.commit('setUsers', response.data)
@@ -126,7 +126,7 @@ const actions = {
       })
   },
 
-  getAllWordLists (context, data) {
+  loadWordLists (context, data) {
     return getAllWordLists(data)
       .then(response => {
         context.commit('setWordLists', response.data)
@@ -154,7 +154,7 @@ const actions = {
       })
   },
 
-  getAllCollectorsNodes (context, data) {
+  loadCollectorsNodes (context, data) {
     return getAllCollectorsNodes(data)
       .then(response => {
         context.commit('setCollectorsNodes', response.data)
@@ -346,6 +346,10 @@ const getters = {
   },
 
   getCollectorsNodes (state) {
+    state.collectors_nodes.items.map(function (item) {
+      item.type = 'Collector'
+      return item
+    })
     return state.collectors_nodes
   },
 
@@ -362,10 +366,18 @@ const getters = {
   },
 
   getPresentersNodes (state) {
+    state.presenters_nodes.items.map(function (item) {
+      item.type = 'Presenter'
+      return item
+    })
     return state.presenters_nodes
   },
 
   getPublishersNodes (state) {
+    state.publishers_nodes.items.map(function (item) {
+      item.type = 'Publisher'
+      return item
+    })
     return state.publishers_nodes
   },
 
@@ -374,6 +386,10 @@ const getters = {
   },
 
   getBotsNodes (state) {
+    state.bots_nodes.items.map(function (item) {
+      item.type = 'Bot'
+      return item
+    })
     return state.bots_nodes
   },
 

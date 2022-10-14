@@ -2,7 +2,7 @@
     <ViewLayout>
         <template v-slot:panel>
             <ToolbarFilter title='nav_menu.roles' total_count_title="role.total_count"
-                           total_count_getter="getRoles">
+                           total_count_getter="config/getRoles">
                 <template v-slot:addbutton>
                     <NewRole/>
                 </template>
@@ -13,8 +13,8 @@
             <ContentData
                     name = "Roles"
                     cardItem="CardPreset"
-                    action="getAllRoles"
-                    getter="getRoles"
+                    action="config/loadRoles"
+                    getter="config/getRoles"
                     deletePermission="CONFIG_ROLE_DELETE"
             />
         </template>
