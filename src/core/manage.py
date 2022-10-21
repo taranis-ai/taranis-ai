@@ -45,12 +45,7 @@ def account_manager(opt_list, create, edit, delete, username, name, password, ro
 
     permissions.run(db_manager.db)
 
-    if opt_list:
-        users = user.User.get_all()
-        for us in users:
-            roles = [r.id for r in us.roles]
-            print(f"Id: {us.id}\n\tUsername: {us.username}\n\tName: {us.name}\n\tRoles: {roles}")
-        exit()
+    def run(self, opt_list, opt_create, opt_edit, opt_delete, opt_username, opt_name, opt_password, opt_roles):
 
     if create:
         if not username or not password or not roles:
@@ -137,13 +132,7 @@ def role_manager(opt_list, create, edit, delete, filter, id, name, description, 
 
     permissions.run(db_manager.db)
 
-    if opt_list:
-        roles = None
-        roles = role.Role.get(filter)[0] if filter else role.Role.get_all()
-        for ro in roles:
-            perms = [p.id for p in ro.permissions]
-            print(f"Id: {ro.id}\n\tName: {ro.name}\n\tDescription: {ro.description}\n\tPermissions: {perms}")
-        return
+    def run(self, opt_list, opt_create, opt_edit, opt_delete, opt_filter, opt_id, opt_name, opt_description, opt_permissions):
 
     if create:
         if not name or not permissions:
