@@ -9,7 +9,7 @@ class Permission(db.Model):
     name = db.Column(db.String(), unique=True, nullable=False)
     description = db.Column(db.String())
 
-    roles = db.relationship("Role", secondary="role_permission")
+    roles = db.relationship('Role', secondary='role_permission', back_populates="permissions")
 
     @classmethod
     def find(cls, permission_id):
