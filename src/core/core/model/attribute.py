@@ -3,15 +3,9 @@ from xml.etree.ElementTree import iterparse
 from marshmallow import fields, post_load
 from sqlalchemy import orm, func, or_
 
-from core.managers.log_manager import logger
-from core.managers.db_manager import db
-from shared.schema.attribute import (
-    AttributeBaseSchema,
-    AttributeEnumSchema,
-    AttributeType,
-    AttributeValidator,
-    AttributePresentationSchema,
-)
+from managers import log_manager
+from managers.db_manager import db
+from shared.schema.attribute import AttributeBaseSchema, AttributeEnumSchema, AttributeType, AttributeValidator, AttributePresentationSchema
 
 
 class NewAttributeEnumSchema(AttributeEnumSchema):

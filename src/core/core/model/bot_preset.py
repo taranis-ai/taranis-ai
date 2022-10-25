@@ -2,9 +2,9 @@ from marshmallow import post_load, fields
 import uuid
 from sqlalchemy import func, or_, orm
 
-from core.managers.db_manager import db
-from core.model.bots_node import BotsNode
-from core.model.parameter_value import NewParameterValueSchema
+from managers.db_manager import db
+from model.bots_node import BotsNode
+from model.parameter_value import NewParameterValueSchema
 from shared.schema.bot_preset import BotPresetSchema, BotPresetPresentationSchema
 
 

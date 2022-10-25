@@ -2,13 +2,10 @@ from marshmallow import post_load, fields
 from sqlalchemy import func, or_, orm
 import uuid
 
-from core.managers.db_manager import db
-from core.model.parameter_value import NewParameterValueSchema
-from core.model.publishers_node import PublishersNode
-from shared.schema.publisher_preset import (
-    PublisherPresetSchema,
-    PublisherPresetPresentationSchema,
-)
+from managers.db_manager import db
+from model.parameter_value import NewParameterValueSchema
+from model.publishers_node import PublishersNode
+from shared.schema.publisher_preset import PublisherPresetSchema, PublisherPresetPresentationSchema
 
 
 class NewPublisherPresetSchema(PublisherPresetSchema):

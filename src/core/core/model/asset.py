@@ -2,17 +2,11 @@ import uuid
 from marshmallow import fields, post_load
 from sqlalchemy import orm, func, or_, text
 
-from core.managers.db_manager import db
-from core.model.report_item import ReportItem
-from core.model.user import User
-from core.model.notification_template import NotificationTemplate
-from shared.schema.asset import (
-    AssetCpeSchema,
-    AssetSchema,
-    AssetPresentationSchema,
-    AssetGroupSchema,
-    AssetGroupPresentationSchema,
-)
+from managers.db_manager import db
+from model.report_item import ReportItem
+from model.user import User
+from model.notification_template import NotificationTemplate
+from shared.schema.asset import AssetCpeSchema, AssetSchema, AssetPresentationSchema, AssetGroupSchema, AssetGroupPresentationSchema
 from shared.schema.user import UserIdSchema
 from shared.schema.notification_template import NotificationTemplateIdSchema
 
@@ -26,9 +20,7 @@ class NewAssetCpeSchema(AssetCpeSchema):
 class AssetCpe(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     value = db.Column(db.String())
-
     asset_id = db.Column(db.Integer, db.ForeignKey('asset.id'))
-    asset = db.relationship("Asset", back_populates="asset_cpes")
 
     def __init__(self, value):
         self.id = None
@@ -51,10 +43,8 @@ class Asset(db.Model):
 
     asset_group_id = db.Column(db.String, db.ForeignKey("asset_group.id"))
     asset_group = db.relationship("AssetGroup")
-
-    asset_cpes = db.relationship("AssetCpe", back_populates="asset", cascade="all, delete-orphan")
-
-    vulnerabilities = db.relationship("AssetVulnerability", back_populates="asset", cascade="all, delete-orphan")
+    asset_cpes = db.relationship("AssetCpe", cascade="all, delete-orphan")
+    vulnerabilities = db.relationship("AssetVulnerability", cascade="all, delete-orphan")
     vulnerabilities_count = db.Column(db.Integer, default=0)
 
     def __init__(self, id, name, serial, description, asset_group_id, asset_cpes):
@@ -217,11 +207,8 @@ class Asset(db.Model):
 class AssetVulnerability(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     solved = db.Column(db.Boolean, default=False)
-
     asset_id = db.Column(db.Integer, db.ForeignKey('asset.id'))
-    asset = db.relationship("Asset", back_populates="vulnerabilities")
-
-    report_item_id = db.Column(db.Integer, db.ForeignKey("report_item.id"))
+    report_item_id = db.Column(db.Integer, db.ForeignKey('report_item.id'))
     report_item = db.relationship("ReportItem")
 
     def __init__(self, asset_id, report_item_id):

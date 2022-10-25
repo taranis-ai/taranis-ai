@@ -1,12 +1,8 @@
 from sqlalchemy import orm, func, or_
 from marshmallow import post_load, fields
 
-from core.managers.db_manager import db
-from shared.schema.notification_template import (
-    NotificationTemplatePresentationSchema,
-    NotificationTemplateSchema,
-    EmailRecipientSchema,
-)
+from managers.db_manager import db
+from shared.schema.notification_template import NotificationTemplatePresentationSchema, NotificationTemplateSchema, EmailRecipientSchema
 
 
 class NewEmailRecipientSchema(EmailRecipientSchema):

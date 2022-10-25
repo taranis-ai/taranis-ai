@@ -1,8 +1,8 @@
 from marshmallow import fields, post_load
 from sqlalchemy import func, or_, orm
 
-from core.managers.db_manager import db
-from core.model.permission import Permission
+from managers.db_manager import db
+from model.permission import Permission
 from shared.schema.role import RoleSchemaBase, PermissionIdSchema, RolePresentationSchema
 
 
@@ -19,7 +19,7 @@ class Role(db.Model):
     name = db.Column(db.String(64), unique=True, nullable=False)
     description = db.Column(db.String())
 
-    permissions = db.relationship(Permission, secondary='role_permission', back_populates="roles")
+    permissions = db.relationship(Permission, secondary='role_permission')
 
     def __init__(self, id, name, description, permissions):
         self.id = None

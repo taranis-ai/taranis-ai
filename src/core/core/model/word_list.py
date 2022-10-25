@@ -3,15 +3,10 @@ from marshmallow import post_load, fields
 from sqlalchemy import orm, func, or_, and_
 from sqlalchemy.sql.expression import cast
 
-from core.managers.db_manager import db
-from core.model.acl_entry import ACLEntry
+from managers.db_manager import db
+from model.acl_entry import ACLEntry
 from shared.schema.acl_entry import ItemType
-from shared.schema.word_list import (
-    WordListCategorySchema,
-    WordListEntrySchema,
-    WordListSchema,
-    WordListPresentationSchema,
-)
+from shared.schema.word_list import WordListCategorySchema, WordListEntrySchema, WordListSchema, WordListPresentationSchema
 
 
 class NewWordListEntrySchema(WordListEntrySchema):

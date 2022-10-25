@@ -5,26 +5,15 @@ from sqlalchemy import orm, or_, func, text, and_
 from sqlalchemy.sql.expression import cast
 import sqlalchemy
 
-from core.managers.db_manager import db
-from core.managers.log_manager import logger
-from core.model.news_item import NewsItemAggregate
-from core.model.report_item_type import AttributeGroupItem
-from core.model.report_item_type import ReportItemType
-from core.model.acl_entry import ACLEntry
+from managers.db_manager import db
+from model.news_item import NewsItemAggregate
+from model.report_item_type import AttributeGroupItem
+from model.report_item_type import ReportItemType
+from model.acl_entry import ACLEntry
 from shared.schema.acl_entry import ItemType
 from shared.schema.attribute import AttributeType
 from shared.schema.news_item import NewsItemAggregateIdSchema, NewsItemAggregateSchema
-from shared.schema.report_item import (
-    ReportItemAttributeBaseSchema,
-    ReportItemBaseSchema,
-    ReportItemIdSchema,
-    RemoteReportItemSchema,
-)
-from shared.schema.report_item import (
-    ReportItemRemoteSchema,
-    ReportItemSchema,
-    ReportItemPresentationSchema,
-)
+from shared.schema.report_item import ReportItemAttributeBaseSchema, ReportItemBaseSchema, ReportItemIdSchema, RemoteReportItemSchema, ReportItemRemoteSchema, ReportItemSchema, ReportItemPresentationSchema
 
 
 class NewReportItemAttributeSchema(ReportItemAttributeBaseSchema):
@@ -131,7 +120,7 @@ class ReportItem(db.Model):
         cascade="all, delete-orphan",
     )
 
-    report_item_cpes = db.relationship("ReportItemCpe", back_populates="report_item", cascade="all, delete-orphan")
+    report_item_cpes = db.relationship("ReportItemCpe", cascade="all, delete-orphan")
 
     def __init__(
         self,
@@ -593,9 +582,7 @@ class ReportItem(db.Model):
 class ReportItemCpe(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     value = db.Column(db.String())
-
     report_item_id = db.Column(db.Integer, db.ForeignKey('report_item.id'))
-    report_item = db.relationship("ReportItem", back_populates="report_item_cpes")
 
     def __init__(self, value):
         self.id = None

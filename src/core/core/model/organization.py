@@ -1,8 +1,8 @@
 from marshmallow import post_load, fields
 from sqlalchemy import func, or_, orm
 
-from core.managers.db_manager import db
-from core.model.address import NewAddressSchema
+from managers.db_manager import db
+from model.address import NewAddressSchema
 from shared.schema.organization import OrganizationSchema, OrganizationPresentationSchema
 
 

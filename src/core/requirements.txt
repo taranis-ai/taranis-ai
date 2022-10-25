@@ -26,7 +26,7 @@ idna==2.9
 Jinja2==2.11.3
 Mako==1.1.0
 MarkupSafe==1.1.0
-marshmallow==3.5.0
+marshmallow==3.18.0
 marshmallow-enum==1.5.1
 psycogreen==1.0.2
 psycopg2-binary==2.8.4

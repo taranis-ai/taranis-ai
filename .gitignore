@@ -23,6 +23,7 @@ build/
 .env.local
 docker/.env
 .env.*.local
+src/.env
 *.pem
 *.key
 *.log

@@ -4,11 +4,9 @@ from datetime import datetime
 from marshmallow import post_load
 from sqlalchemy import orm, or_, func
 
-from core.managers.db_manager import db
-from core.managers.log_manager import logger
-from shared.schema.collectors_node import (
-    CollectorsNodeSchema,
-)
+from managers.db_manager import db
+from managers.log_manager import log_debug_trace
+from shared.schema.collectors_node import CollectorsNodeSchema, CollectorsNodePresentationSchema
 
 
 class NewCollectorsNodeSchema(CollectorsNodeSchema):

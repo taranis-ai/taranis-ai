@@ -6,18 +6,13 @@ import dateutil.parser as dateparser
 from marshmallow import post_load, fields
 from sqlalchemy import orm, and_, or_, func
 
-from core.managers.db_manager import db
-from core.managers.log_manager import logger
-from core.model.acl_entry import ACLEntry
-from core.model.osint_source import OSINTSourceGroup, OSINTSource
+from managers.db_manager import db
+from model.acl_entry import ACLEntry
+from model.osint_source import OSINTSourceGroup, OSINTSource
+from model.tag_cloud import TagCloud
 from shared.schema.acl_entry import ItemType
-from shared.schema.news_item import (
-    NewsItemDataSchema,
-    NewsItemAggregateSchema,
-    NewsItemAttributeSchema,
-    NewsItemSchema,
-    NewsItemRemoteSchema,
-)
+from shared.schema.news_item import NewsItemDataSchema, NewsItemAggregateSchema, NewsItemAttributeSchema, NewsItemSchema, \
+    NewsItemRemoteSchema
 
 
 class NewNewsItemAttributeSchema(NewsItemAttributeSchema):

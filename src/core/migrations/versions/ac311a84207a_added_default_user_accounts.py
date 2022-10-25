@@ -83,7 +83,7 @@ class PermissionREVac311a84207a(Base):
     def add(session, id, name, description):
         result = session.query(PermissionREVac311a84207a).filter_by(id=id).first()
         if not result:
-            session.add(PermissionREVac311a84207a(session, id, name, description))
+            session.add(PermissionREVac311a84207a(id, name, description))
 
 
 class RoleREVac311a84207a(Base):

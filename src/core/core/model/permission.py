@@ -1,6 +1,6 @@
 from sqlalchemy import func, or_
 
-from core.managers.db_manager import db
+from managers.db_manager import db
 from shared.schema.role import PermissionSchema
 
 
@@ -8,8 +8,6 @@ class Permission(db.Model):
     id = db.Column(db.String, primary_key=True)
     name = db.Column(db.String(), unique=True, nullable=False)
     description = db.Column(db.String())
-
-    roles = db.relationship('Role', secondary='role_permission', back_populates="permissions")
 
     @classmethod
     def find(cls, permission_id):

@@ -5,23 +5,14 @@ from marshmallow import post_load, fields
 from sqlalchemy import orm, func, or_, and_
 from sqlalchemy.types import JSON
 
-from core.managers.db_manager import db
-from core.managers.log_manager import logger
-from core.model.acl_entry import ACLEntry
-from core.model.collector import Collector
-from core.model.parameter_value import NewParameterValueSchema, ParameterValue
-from core.model.word_list import WordList
+from managers.db_manager import db
+from model.acl_entry import ACLEntry
+from model.collector import Collector
+from model.parameter_value import NewParameterValueSchema, ParameterValue
+from model.word_list import WordList
 from shared.schema.acl_entry import ItemType
-from shared.schema.osint_source import (
-    OSINTSourceSchema,
-    OSINTSourceGroupSchema,
-    OSINTSourceIdSchema,
-    OSINTSourcePresentationSchema,
-    OSINTSourceGroupPresentationSchema,
-    OSINTSourceGroupIdSchema,
-    OSINTSourceGroupSchemaBase,
-    OSINTSourceCollectorSchema,
-)
+from shared.schema.osint_source import OSINTSourceSchema, OSINTSourceGroupSchema, OSINTSourceIdSchema, \
+    OSINTSourcePresentationSchema, OSINTSourceGroupPresentationSchema, OSINTSourceGroupIdSchema
 from shared.schema.word_list import WordListIdSchema
 
 

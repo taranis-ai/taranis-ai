@@ -1,8 +1,8 @@
 from marshmallow import fields, post_load
 import uuid
 
-from core.managers.db_manager import db
-from core.model.parameter import NewParameterSchema
+from managers.db_manager import db
+from model.parameter import NewParameterSchema
 from shared.schema.collector import CollectorSchema
 
 

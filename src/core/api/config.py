@@ -11,7 +11,7 @@ from model import acl_entry, remote, presenters_node, publisher_preset, publishe
     report_item_type, role, user, word_list
 from model.news_item import NewsItemAggregate
 from model.permission import Permission
-from schema.role import PermissionSchema
+from shared.schema.role import PermissionSchema
 
 
 class DictionariesReload(Resource):

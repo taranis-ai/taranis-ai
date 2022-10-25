@@ -4,10 +4,10 @@ from sqlalchemy import func, or_, orm, and_
 import sqlalchemy
 from sqlalchemy.sql.expression import cast
 
-from core.managers.db_manager import db
-from core.model.product import Product
-from core.model.parameter_value import NewParameterValueSchema
-from core.model.acl_entry import ACLEntry
+from managers.db_manager import db
+from model.product import Product
+from model.parameter_value import NewParameterValueSchema
+from model.acl_entry import ACLEntry
 from shared.schema.acl_entry import ItemType
 from shared.schema.product_type import ProductTypePresentationSchema, ProductTypeSchema
 

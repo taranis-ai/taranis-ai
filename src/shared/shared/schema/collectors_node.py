@@ -1,6 +1,7 @@
 from marshmallow import Schema, fields, post_load
 
 from shared.schema.collector import CollectorSchema
+from shared.schema.presentation import PresentationSchema
 
 
 class CollectorsNodeSchema(Schema):
@@ -17,6 +18,10 @@ class CollectorsNodeSchema(Schema):
     @post_load
     def make_collectors_node(self, data, **kwargs):
         return CollectorsNode(**data)
+
+
+class CollectorsNodePresentationSchema(CollectorsNodeSchema, PresentationSchema):
+    pass
 
 
 class CollectorsNode:
