@@ -100,35 +100,36 @@ class RSSCollector(BaseCollector):
                 link_for_article = feed_entry['link']
                 if not link_for_article:
                     log_manager.log_collector_activity("rss", source.id, "Skipping (empty link)")
-                else:
-                    log_manager.log_collector_activity('rss', source.id, 'Processing entry [{}]'.format(link_for_article))
+                    continue
 
-                    html_content = ''
-                    request = urllib.request.Request(link_for_article)
-                    request.add_header('User-Agent', user_agent)
+                log_manager.log_collector_activity('rss', source.id, 'Processing entry [{}]'.format(link_for_article))
 
-                    with opener(request) as response:
-                        html_content = response.read()
+                html_content = ''
+                request = urllib.request.Request(link_for_article)
+                request.add_header('User-Agent', user_agent)
 
-                    soup = BeautifulSoup(html_content, features='html.parser')
+                with opener(request) as response:
+                    html_content = response.read()
 
-                    content = ''
+                soup = BeautifulSoup(html_content, features='html.parser')
 
-                    if html_content:
-                        content_text = [p.text.strip() for p in soup.findAll('p')]
-                        replaced_str = '\xa0'
-                        if replaced_str:
-                            content = [w.replace(replaced_str, ' ') for w in content_text]
-                            content = ' '.join(content)
+                content = ''
 
-                    for_hash = feed_entry['author'] + feed_entry['title'] + feed_entry['link']
+                if html_content:
+                    content_text = [p.text.strip() for p in soup.findAll('p')]
+                    replaced_str = '\xa0'
+                    if replaced_str:
+                        content = [w.replace(replaced_str, ' ') for w in content_text]
+                        content = ' '.join(content)
 
-                    news_item = NewsItemData(uuid.uuid4(), hashlib.sha256(for_hash.encode()).hexdigest(),
-                                            feed_entry['title'], feed_entry['description'], feed_url, feed_entry['link'],
-                                            feed_entry['published'], feed_entry['author'], datetime.datetime.now(),
-                                            content, source.id, [])
+                for_hash = feed_entry['author'] + feed_entry['title'] + feed_entry['link']
 
-                    news_items.append(news_item)
+                news_item = NewsItemData(uuid.uuid4(), hashlib.sha256(for_hash.encode()).hexdigest(),
+                                        feed_entry['title'], feed_entry['description'], feed_url, feed_entry['link'],
+                                        feed_entry['published'], feed_entry['author'], datetime.datetime.now(),
+                                        content, source.id, [])
+
+                news_items.append(news_item)
 
             BaseCollector.publish(news_items, source)
 

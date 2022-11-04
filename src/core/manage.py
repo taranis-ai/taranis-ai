@@ -286,11 +286,72 @@ def collector_manager(
                 app.logger.critical("No collector nodes exist!")
                 abort()
 
-        for node in nodes:
-            # refresh collector node id
-            collectors_info, status_code = CollectorsApi(node.api_url, node.api_key).get_collectors_info(node.id)
-            if status_code == 200:
-                print("Collector node {} updated.".format(node.id))
+            data = {
+                'id': '',
+                'name': opt_name,
+                'description': opt_description if opt_description else '',
+                'api_url': opt_api_url,
+                'api_key': opt_api_key,
+                'collectors': [],
+                'status': '0'
+            }
+
+            print('Trying to contact a new collector node...')
+            retries, max_retries = 0, 30
+            while retries < max_retries:
+                try:
+                    collectors_info, status_code = CollectorsApi(opt_api_url, opt_api_key).get_collectors_info("")
+                    break;
+                except:
+                    collectors_info = 'Collector unavailable'
+                    status_code = 0
+                    time.sleep(1)
+                retries += 1
+                print('Retrying [{}/{}]...'.format(retries, max_retries))
+
+
+            if status_code != 200:
+                print('Cannot create a new collector node!')
+                print('Response from collector: {}'.format(collectors_info))
+                abort()
+
+            collectors = collector.Collector.create_all(collectors_info)
+            node = collectors_node.CollectorsNode.add_new(data, collectors)
+            collectors_info, status_code = CollectorsApi(opt_api_url, opt_api_key).get_collectors_info(node.id)
+
+            print('Collector node \'{}\' with id {} created.'.format(opt_name, node.id))
+
+
+        if (opt_edit):
+            if (not opt_id or not opt_name):
+                app.logger.critical("Collector node id or name not specified!")
+                abort()
+            if (not opt_name or not opt_description or not opt_api_url or not opt_api_key):
+                app.logger.critical("Please specify a new name, description, API url or key!")
+                abort()
+
+        if (opt_delete):
+            if (not opt_id or not opt_name):
+                app.logger.critical("Collector node id or name not specified!")
+                abort()
+
+        if (opt_update):
+            if (not opt_all and not opt_id and not opt_name):
+                app.logger.critical("Collector node id or name not specified!")
+                app.logger.critical("If you want to update all collectors, pass the --all parameter.")
+                abort()
+
+            nodes = None
+            if opt_id:
+                nodes = [ collectors_node.CollectorsNode.get_by_id(opt_id) ]
+                if not nodes:
+                    app.logger.critical("Collector node does not exit!")
+                    abort()
+            elif opt_name:
+                nodes, count = collectors_node.CollectorsNode.get(opt_name)
+                if not count:
+                    app.logger.critical("Collector node does not exit!")
+                    abort()
             else:
                 print("Unable to update collector node {}.\n\tResponse: [{}] {}.".format(node.id, status_code, collectors_info))
 

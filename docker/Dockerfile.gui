@@ -7,7 +7,11 @@ COPY ./src/gui/package*.json ./
 RUN npm install --include=dev
 COPY ./src/gui/public /app/public
 COPY ./src/gui/src /app/src
-COPY ./src/gui/babel.config.js ./src/gui/.eslintignore ./src/gui/vue.config.js ./
+COPY ./src/gui/babel.config.js .
+COPY ./src/gui/package.json .
+COPY ./src/gui/package-lock.json .
+
+ENV NODE_OPTIONS=--openssl-legacy-provider
 RUN npm run build
 
 FROM nginx:stable-alpine as production-stage
