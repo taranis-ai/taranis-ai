@@ -4,7 +4,8 @@ on:
   push:
     paths:
     - 'src/gui/**'
-    - 'docker/**'
+    - 'docker/Dockerfile.gui'
+    - 'VERSION.md'
     branches:
     - main
 
