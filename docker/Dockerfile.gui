@@ -8,13 +8,15 @@ RUN npm install --include=dev
 COPY ./src/gui/public /app/public
 COPY ./src/gui/src /app/src
 COPY ./src/gui/babel.config.js .
+COPY ./src/gui/vue.config.js .
+COPY ./src/gui/.eslintignore .
 COPY ./src/gui/package.json .
 COPY ./src/gui/package-lock.json .
 
 ENV NODE_OPTIONS=--openssl-legacy-provider
 RUN npm run build
 
-FROM nginx:stable-alpine as production-stage
+FROM nginx:stable-alpine
 
 COPY ./src/gui/extras/30-envsubst-on-javascript.sh /docker-entrypoint.d/
 COPY ./src/gui/extras/default.conf /etc/nginx/conf.d/default.conf

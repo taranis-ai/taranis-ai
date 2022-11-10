@@ -4,33 +4,29 @@
 
             <v-row>
                 <v-text-field v-if="ui === 'text'"
-
-                              :label="parameter.name"
-                              :name="'parameter' + index"
-                              type="text"
-                              v-model="values[index]"
-                              v-validate="'required'"
-                              :data-vv-name="'parameter' + index"
-                              :disabled="disabled"
-                              :error-messages="errors.collect('parameter' + index)"
+                  :label="parameter.name"
+                  :name="'parameter' + index"
+                  type="text"
+                  v-model="value[index]"
+                  v-validate="'required'"
+                  :data-vv-name="'parameter' + index"
+                  :disabled="disabled"
+                  :error-messages="errors.collect('parameter' + index)"
                 />
 
                 <v-combobox v-else-if="ui === 'combobox'"
-
-                            :label=$t(parameter.name)
-                            :items="[]"
-                            item-text="name"
+                  :label=$t(parameter.name)
+                  :items="[]"
+                  item-text="name"
                 />
 
                 <v-select v-else-if="ui === 'select'"
-
-                          :label=$t(parameter.name)
+                  :label=$t(parameter.name)
                 />
 
                 <v-textarea v-else-if="ui === 'textarea'"
-
-                            :label=$t(parameter.name)
-                            :name="parameter.name"
+                  :label=$t(parameter.name)
+                  :name="parameter.name"
                 />
 
                 <v-tooltip left>
@@ -61,6 +57,9 @@ export default {
     sources: Array,
     values: Array,
     disabled: Boolean
-  }
+  },
+  data: () => ({
+    value: this.values
+  })
 }
 </script>

@@ -25,9 +25,12 @@
 <script>
 export default {
   name: 'DateInput',
-  props: { caption: String, date: Object },
+  props: {
+    caption: String
+  },
   data: () => ({
-    menu: false
+    menu: false,
+    date: {}
   })
 }
 </script>

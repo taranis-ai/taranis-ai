@@ -7,7 +7,7 @@
         </v-row>
         <v-row class="mt-1">
             <v-col>
-                <v-text-field :disabled="true" :label="$t('word_list.link')" name="category_link" v-model="link"
+                <v-text-field :disabled="true" :label="$t('word_list.link')" name="category_link" v-model="linkmap"
                     hide-details></v-text-field>
             </v-col>
         </v-row>
@@ -98,6 +98,7 @@ export default {
   },
 
   data: () => ({
+    linkmap: this.link,
     form: {
       csv: null
     },

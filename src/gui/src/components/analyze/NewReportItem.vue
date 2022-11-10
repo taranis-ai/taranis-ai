@@ -144,7 +144,7 @@
                                     <NewsItemSelector v-if="!verticalView"
                                                       ref="new_item_selector" analyze_selector
                                                       :attach="false"
-                                                      :values="news_item_aggregates"
+                                                      :item_values="news_item_aggregates"
                                                       :modify="modify"
                                                       :collections="collections"
                                                       :report_item_id="this.report_item.id"
@@ -153,7 +153,7 @@
                             </v-row>
                             <v-row no-gutters>
                                 <v-col cols="12">
-                                    <RemoteReportItemSelector :values="remote_report_items" :modify="modify" :edit="edit"
+                                    <RemoteReportItemSelector :report_items="remote_report_items" :modify="modify" :edit="edit"
                                                               :report_item_id="this.report_item.id"
                                                               @remote-report-items-changed="updateRemoteAttributes"/>
                                 </v-col>
@@ -212,7 +212,7 @@
                     <v-col v-if="verticalView" :cols="verticalView ? 6 : 0"
                         style="height:calc(100vh - 3em); overflow-y: auto;" class="pa-5 taranis-ng-vertical-view">
                         <NewsItemSelector ref="new_item_selector" analyze_selector attach=".taranis-ng-vertical-view"
-                            :values="news_item_aggregates" :modify="modify" :collections="collections"
+                            :item_values="news_item_aggregates" :modify="modify" :collections="collections"
                             :report_item_id="this.report_item.id" :edit="edit" />
                     </v-col>
                 </v-row>

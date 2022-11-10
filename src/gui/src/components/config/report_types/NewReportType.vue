@@ -104,7 +104,7 @@
                                     ></v-text-field>
 
                                     <AttributeTable :disabled="!canUpdate"
-                                                    :attributes="report_type.attribute_groups[index].attribute_group_items"
+                                                    :attribute_items="report_type.attribute_groups[index].attribute_group_items"
                                                     :attribute_templates="attribute_templates"></AttributeTable>
 
                                 </v-card-text>

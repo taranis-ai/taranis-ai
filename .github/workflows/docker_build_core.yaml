@@ -1,4 +1,4 @@
-name: CI/CD
+name: Core Docker image
 
 on:
   push:

@@ -107,7 +107,7 @@
 export default {
   name: 'AttributeTable',
   props: {
-    attributes: Array,
+    attribute_items: Array,
     attribute_templates: Array,
     disabled: Boolean
   },
@@ -120,6 +120,7 @@ export default {
       { text: 'Max Occurence', value: 'max_occurrence', sortable: false },
       { text: 'Actions', value: 'action', align: 'right', sortable: false }
     ],
+    attributes: this.attribute_items,
     dialog: false,
     selected_attribute: null,
     edited_index: -1,

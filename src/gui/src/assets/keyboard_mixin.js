@@ -15,16 +15,16 @@ const keyboardMixin = targetId => ({
   }),
 
   computed: {
-    multiSelectActive () {
+    multiSelectActive() {
       return this.$store.getters.getMultiSelect
     },
-    state () {
+    state() {
       return this.keyboard_state
     }
   },
 
   watch: {
-    keyboard_state (val) {
+    keyboard_state(val) {
       this.keyboard_state = val
       // window.console.debug("state>", this.state);
     }
@@ -32,7 +32,7 @@ const keyboardMixin = targetId => ({
 
   methods: {
 
-    cardReindex () {
+    cardReindex() {
       this.keyRemaper()
 
       setTimeout(() => {
@@ -44,7 +44,7 @@ const keyboardMixin = targetId => ({
       }
     },
 
-    reindexCardItems () {
+    reindexCardItems() {
       const data = document.querySelectorAll('#selector_' + this.target + ' .card-item')
 
       data.forEach((add, i) => {
@@ -54,7 +54,7 @@ const keyboardMixin = targetId => ({
       this.card_items = data
     },
 
-    keyRemaper () {
+    keyRemaper() {
       let which
       let temp
       const card = new Object()
@@ -98,7 +98,7 @@ const keyboardMixin = targetId => ({
       this.card = card
     },
 
-    isSomeFocused () {
+    isSomeFocused() {
       const inputs = document.querySelectorAll("input[type='text']")
 
       for (let f = 0; f < inputs.length; f++) {
@@ -109,7 +109,7 @@ const keyboardMixin = targetId => ({
       return false
     },
 
-    setNewsItem (newPosition) {
+    setNewsItem(newPosition) {
       if (newPosition < 0) newPosition = 0
       if (newPosition !== undefined) this.pos = newPosition
       if (newPosition >= this.card_items.length) this.pos = this.card_items.length - 1
@@ -119,7 +119,7 @@ const keyboardMixin = targetId => ({
       }, 150)
     },
 
-    keyAction (press) {
+    keyAction(press) {
       // let dialog = document.querySelectorAll(".v-dialog--active").length ? true : false;
       // window.console.debug("keyAction", press);
       // define here, as it's not allowed in the case-switch
@@ -128,12 +128,12 @@ const keyboardMixin = targetId => ({
       let keyAlias = ''
       for (let i = 0; i < this.shortcuts.length; i++) {
         // ignore all presses with Ctrl or Alt key, they have a different meaning
-        if (!(press.ctrlKey || press.altKey) && (this.shortcuts[i].character == press.key || this.shortcuts[i].key_code == press.keyCode)) {
+        if (!(press.ctrlKey || press.altKey) && (this.shortcuts[i].character === press.key || this.shortcuts[i].key_code === press.keyCode)) {
           keyAlias = this.shortcuts[i].alias
           break
         }
       }
-      if (document.activeElement == search_field && (keyAlias !== 'close_item' || press.keyCode !== 27)) {
+      if (document.activeElement === search_field && (keyAlias !== 'close_item' || press.keyCode !== 27)) {
         // when search field is active, ignore all keypresses except Escape
         return
       }
@@ -146,7 +146,7 @@ const keyboardMixin = targetId => ({
           switch (keyAlias) {
             case 'collection_up':
               press.preventDefault()
-              if (this.pos == 0) {
+              if (this.pos === 0) {
                 // pass
               } else {
                 this.setNewsItem(this.pos - 1)
@@ -154,7 +154,7 @@ const keyboardMixin = targetId => ({
               break
             case 'collection_down':
               press.preventDefault()
-              if (this.pos == this.card_items.length - 1) {
+              if (this.pos === this.card_items.length - 1) {
                 // pass
               } else {
                 this.setNewsItem(this.pos + 1)
@@ -191,7 +191,7 @@ const keyboardMixin = targetId => ({
               const active_group_element = document.querySelector('.v-list-item--active')
               const active_group_id = active_group_element.pathname.split('/')[3]
               let index
-                            console.log(groups)// eslint-disable-line
+              console.log(groups)// eslint-disable-line
               for (index = 0; index < groups.length; index++) {
                 if (groups[index].id === active_group_id) {
                   break
@@ -208,7 +208,7 @@ const keyboardMixin = targetId => ({
               const active_group_element = document.querySelector('.v-list-item--active')
               const active_group_id = active_group_element.pathname.split('/')[3]
               let index
-                            console.log(groups)// eslint-disable-line
+              console.log(groups)// eslint-disable-line
               for (index = 0; index < groups.length; index++) {
                 if (groups[index].id === active_group_id) {
                   break
@@ -296,7 +296,7 @@ const keyboardMixin = targetId => ({
               break
 
             case 'open_item_source':
-                            console.log('this.card.link:', this.card.link) //eslint-disable-line
+              console.log('this.card.link:', this.card.link) //eslint-disable-line
               // opening all selected news items' sources is not yet supprted
               if (!this.multiSelectActive) {
                 this.card.link.click()
@@ -377,7 +377,7 @@ const keyboardMixin = targetId => ({
               break
 
             case 'open_item_source':
-                            console.log('this.card.link:', this.card.link) //eslint-disable-line
+              console.log('this.card.link:', this.card.link) //eslint-disable-line
               this.card.link.click()
               break
 
@@ -429,7 +429,7 @@ const keyboardMixin = targetId => ({
       } else {
         if (this.state === 'DEFAULT' && keyAlias === 'close_item') {
           // Pressing Esc in the search field removes the focus
-          if (document.activeElement == search_field) {
+          if (document.activeElement === search_field) {
             // clear the focus
             search_field.blur()
           }
@@ -439,11 +439,11 @@ const keyboardMixin = targetId => ({
       // window.console.debug(this.pos, this.isItemOpen, this.isSomeFocused(), this.focus);
     },
 
-    scrollPos () {
+    scrollPos() {
       window.scrollTo(0, document.querySelectorAll('#selector_assess .card-item')[this.pos].offsetTop - 350)
     },
 
-    newPosition (newPos, isFromDetail) {
+    newPosition(newPos, isFromDetail) {
       this.card_items[this.pos].querySelector(this.selector).classList.remove('focus')
 
       this.pos = newPos
@@ -453,13 +453,13 @@ const keyboardMixin = targetId => ({
     }
   },
 
-  mounted () {
+  mounted() {
     this.shortcuts = this.$store.getters.getProfileHotkeys
     this.pos = 0
     this.focus = null
   },
 
-  created () {
+  created() {
     this.target = targetId
     this.$root.$on('change-state', (_state) => {
       this.keyboard_state = _state
@@ -474,7 +474,7 @@ const keyboardMixin = targetId => ({
     })
   },
 
-  beforeDestroy () {
+  beforeDestroy() {
     this.$root.$off('change-state')
     this.$root.$off('key-remap')
     this.$root.$off('update-pos')

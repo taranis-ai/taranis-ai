@@ -114,8 +114,10 @@ export default {
     },
 
     share () {
-      this.sharingSet.sharingState = 'shared'
-      this.sharingSet.sharedWith = this.recipients
+      this.assignSharingSet({
+        sharingSetId: this.sharingSet.id,
+        recipients: this.recipients
+      })
       this.$emit('input', false)
     }
   },

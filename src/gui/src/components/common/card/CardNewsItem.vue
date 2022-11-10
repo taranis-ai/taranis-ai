@@ -12,10 +12,10 @@
         'dark-grey--text',
         {
           selected: selected,
-          'corner-tag-shared': newsItem.shared && !newsItem.restricted,
-          'corner-tag-restricted': newsItem.restricted,
-          'status-important': newsItem.important,
-          'status-unread': !newsItem.read,
+          'corner-tag-shared': item.shared && !item.restricted,
+          'corner-tag-restricted': item.restricted,
+          'status-important': item.important,
+          'status-unread': !item.read,
         },
       ]"
       @click="toggleSelection"
@@ -58,21 +58,21 @@
         </news-item-action-dialog>
 
         <news-item-action
-          :active="newsItem.read"
+          :active="item.read"
           icon="$newsItemActionRead"
           @click="markAsRead()"
           tooltip="mark as read/unread"
         />
 
         <news-item-action
-          :active="newsItem.important"
+          :active="item.important"
           icon="$newsItemActionImportant"
           @click="markAsImportant()"
           tooltip="mark as important"
         />
 
         <news-item-action
-          :active="newsItem.decorateSource"
+          :active="item.decorateSource"
           icon="$newsItemActionRibbon"
           @click="decorateSource()"
           tooltip="emphasise originator"
@@ -105,7 +105,7 @@
                 <v-col class="pb-1">
                   <news-item-title
                     :title="newsItem.title"
-                    :read="newsItem.read"
+                    :read="item.read"
                   />
                 </v-col>
               </v-row>
@@ -298,20 +298,23 @@ export default {
     storiesList: [],
     selected: Boolean
   },
+  data: () => ({
+    item: this.newsItem
+  }),
   methods: {
     ...mapGetters('users', ['getUsernameById']),
 
     toggleSelection() {
-      this.$emit('selectItem', this.newsItem.id)
+      this.$emit('selectItem', this.item.id)
     },
     markAsRead() {
-      this.newsItem.read = !this.newsItem.read
+      this.item.read = !this.item.read
     },
     markAsImportant() {
-      this.newsItem.important = !this.newsItem.important
+      this.item.important = !this.item.important
     },
     decorateSource() {
-      this.newsItem.decorateSource = !this.newsItem.decorateSource
+      this.item.decorateSource = !this.item.decorateSource
     },
     deleteNewsItem() {
       this.$emit('deleteItem', this.newsItem.id)

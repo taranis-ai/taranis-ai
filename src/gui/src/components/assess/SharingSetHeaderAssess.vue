@@ -98,7 +98,6 @@
                         :dialog="editDialog"
                         :story="story"
                         @close="editDialog = false"
-                        v-on:update:title="story.title = $event"
                       />
                     </v-dialog>
 

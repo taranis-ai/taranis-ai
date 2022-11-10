@@ -3,7 +3,7 @@ module.exports = {
     loaderOptions: {
       scss: {
         additionalData: '@import "@/styles/variables.scss";'
-      },
+      }
     }
   },
   configureWebpack: {

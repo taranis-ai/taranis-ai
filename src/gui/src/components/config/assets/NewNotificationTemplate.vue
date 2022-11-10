@@ -63,7 +63,7 @@
                     </v-row>
                     <v-row no-gutters class="pt-2">
                         <v-col cols="12" class="pa-1">
-                            <RecipientTable :recipients="template.recipients" />
+                            <RecipientTable :recipient="template.recipients" />
                         </v-col>
                     </v-row>
                     <v-row no-gutters>

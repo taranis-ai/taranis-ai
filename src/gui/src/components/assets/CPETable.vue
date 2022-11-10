@@ -125,10 +125,11 @@ export default {
     VueCsvImport, EnumSelector
   },
   props: {
-    cpes: Array
+    asset_cpes: Array
   },
   data: () => ({
     csv: null,
+    cpes: this.asset_cpes,
     csv_delete_exist_list: false,
     csv_preview: false,
     csv_data: null,

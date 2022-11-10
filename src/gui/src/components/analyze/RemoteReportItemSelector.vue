@@ -83,12 +83,13 @@ export default {
     RemoteReportItem
   },
   props: {
-    values: Array,
+    report_items: Array,
     modify: Boolean,
     edit: Boolean,
     report_item_id: Number
   },
   data: () => ({
+    values: this.report_items,
     dialog: false,
     value: '',
     groups: [],

@@ -1,4 +1,4 @@
-FROM python:3.7-alpine3.14 AS build_shared
+FROM python:3-slim AS build_shared
 
 WORKDIR /build_shared/
 
@@ -7,8 +7,7 @@ COPY ./src/shared/. .
 RUN python -m build
 
 
-
-FROM python:3.7-alpine3.14 AS production
+FROM python:3-slim
 
 WORKDIR /app/
 
@@ -31,33 +30,19 @@ RUN apt-get update && apt-get upgrade -y && apt-get install --no-install-recomme
     curl -fsSL https://github.com/mozilla/geckodriver/releases/download/v0.31.0/geckodriver-v0.31.0-linux64.tar.gz | \
     tar -xzC /usr/local/bin/
 
-# install "shared" package from build_shared stage
-# TODO: somehow squash the following two layers into one to conserve space
+COPY ./src/collectors/setup.cfg ./src/collectors/setup.py /app/
 
+# install dependencies
 COPY --from=build_shared /build_shared/dist/taranis_ng_shared-*.whl custom_packages/
 RUN pip install --no-cache-dir ./custom_packages/taranis_ng_shared-*.whl && rm -rf ./custom_packages/
 
-# install dependencies
-
-COPY ./src/collectors/requirements.txt /app/requirements.txt
-RUN \
-    apk add --no-cache --virtual .build-deps \
-    gcc \
-    g++ \
-    make \
-    musl-dev \
-    python3-dev \
-    libxslt-dev \
-    libxml2-dev \
-    libffi-dev && \
-    pip install --no-cache-dir -r /app/requirements.txt && \
-    apk --purge del .build-deps
-
-COPY ./docker/start.sh /start.sh
-RUN chmod +x /start.sh
-
-COPY ./docker/prestart.sh /app/prestart.sh
-RUN chmod +x /app/prestart.sh
+RUN apt-get install --no-install-recommends -y \
+      build-essential \
+      python3-dev && \
+    pip install -e /app/ && \
+    apt-get purge -y build-essential python3-dev && \
+    apt-get autoremove -y --purge &&\
+    apt-get clean
 
 COPY ./docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

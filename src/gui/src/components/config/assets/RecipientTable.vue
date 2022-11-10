@@ -69,7 +69,7 @@
 export default {
   name: 'RecipientTable',
   props: {
-    recipients: Array
+    recipient: Array
   },
   data: () => ({
     headers: [
@@ -77,6 +77,7 @@ export default {
       { text: 'Name', value: 'name', sortable: false },
       { text: 'Actions', value: 'action', align: 'right', sortable: false }
     ],
+    recipients: this.recipient,
     dialog: false,
     selected_recipient: null,
     edited_index: -1,

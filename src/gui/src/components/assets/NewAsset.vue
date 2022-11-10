@@ -57,7 +57,7 @@
                     </v-row>
                     <v-row no-gutters>
                         <v-col cols="12">
-                            <CPETable :cpes="asset.asset_cpes" @update-cpes="update" />
+                            <CPETable :asset_cpes="asset.asset_cpes" @update-cpes="update" />
                         </v-col>
                     </v-row>
                     <v-row no-gutters class="mt-4 px-3 grey lighten-4 rounded" v-if="edit">

@@ -11,7 +11,7 @@
       'story',
       'primary--text',
       {
-        selected: story.selected,
+        selected: selected,
         'pinned-story': story.pinned,
         'hot-story': story.hot,
         'corner-tag-ai': story.ai,
@@ -212,6 +212,9 @@ export default {
   props: {
     story: {}
   },
+  data: () => ({
+    selected: this.story.selected
+  }),
   methods: {
     ...mapActions('dashboard', [
       'pinStory',
@@ -225,7 +228,7 @@ export default {
     },
 
     toggleSelection () {
-      this.story.selected = !this.story.selected
+      this.selected = !this.selected
       this.selectStory(this.story.id)
     },
     upvote (event) {

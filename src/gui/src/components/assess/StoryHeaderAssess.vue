@@ -273,10 +273,11 @@ export default {
     PopupEditStory
   },
   data: () => ({
-    editDialog: false
+    editDialog: false,
+    story: this.storyprop
   }),
   props: {
-    story: {}
+    storyprop: {}
   },
   methods: {
     ...mapGetters('dashboard', ['getStoryTitleById']),

@@ -196,12 +196,13 @@ export default {
   },
   props: {
     link: String,
-    words: Array,
+    wordlist_entries: Array,
     id: null,
     word_templates: Array,
     disabled: Boolean
   },
   data: () => ({
+    words: this.wordlist_entries,
     csv: null,
     csv_delete_exist_list: false,
     csv_preview: false,

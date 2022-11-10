@@ -100,7 +100,7 @@
 
                                     <WordTable :disabled="!canUpdate"
                                                :link="word_list.categories[index].link"
-                                               :words="word_list.categories[index].entries"
+                                               :wordlist_entries="word_list.categories[index].entries"
                                                :id="index"
                                                @update-categories="update"
                                     ></WordTable>
