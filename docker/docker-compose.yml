@@ -67,8 +67,8 @@ services:
 
       TZ: "${TZ}"
       DEBUG: "true"
-      # to allow automatic initialisation of collectors/presenters/publishers
-      COLLECTOR_PRESENTER_PUBLISHER_API_KEY: "${COLLECTOR_PRESENTER_PUBLISHER_API_KEY}"
+      SECRET_KEY: "${API_KEY}"
+      API_KEY: "${API_KEY}"
     labels:
       traefik.enable: "true"
       traefik.http.services.taranis-api.loadbalancer.server.port: "80"

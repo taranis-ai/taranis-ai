@@ -1,15 +1,10 @@
 <template>
-  <ViewLayout>
-    <template v-slot:content>
-      <v-layout child-flex>
-      <ConfigTable :items="osint_source_groups" />
-    </v-layout>
-    </template>
-  </ViewLayout>
+  <div>
+    <ConfigTable :items="osint_source_groups" />
+  </div>
 </template>
 
 <script>
-import ViewLayout from '../../components/layouts/ViewLayout'
 import ConfigTable from '../../components/config/ConfigTable'
 
 import { deleteOSINTSourceGroup } from '@/api/config'
@@ -18,7 +13,6 @@ import { mapActions, mapGetters } from 'vuex'
 export default {
   name: 'OSINTSourceGroups',
   components: {
-    ViewLayout,
     ConfigTable
   },
   data: () => ({

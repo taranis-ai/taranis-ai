@@ -1,65 +1,63 @@
 <template>
-  <ViewLayout>
-    <template v-slot:panel>
-      <ToolbarFilter title='nav_menu.organizations' total_count_title="organization.total_count"
-                     total_count_getter="config/getOrganizations">
-        <template v-slot:addbutton>
-          <NewOrganization/>
-        </template>
-      </ToolbarFilter>
-
-    </template>
-    <template v-slot:content>
-      <ContentData
-          name = "Organizations"
-          cardItem="CardPreset"
-          action="config/getAllOrganizations"
-          getter="config/getOrganizations"
-          deletePermission="CONFIG_ORGANIZATION_DELETE"
-      />
-    </template>
-  </ViewLayout>
+  <div>
+    <ConfigTable
+      :addButton="true"
+      :items="organizations"
+      :headerFilter="['tag', 'id', 'name', 'description']"
+      sortByItem="id"
+      :actionColumn=true
+      @delete-item="deleteItem"
+      @edit-item="editItem"
+      @add-item="addItem"
+    />
+    <v-snackbar v-model="message" rounded="pill" color="success" centered>
+      {{ message }}
+    </v-snackbar>
+  </div>
 </template>
 
 <script>
-import ViewLayout from '../../components/layouts/ViewLayout'
-import NewOrganization from '@/components/config/user/NewOrganization'
-import ToolbarFilter from '../../components/common/ToolbarFilter'
-import ContentData from '../../components/common/content/ContentData'
-import { deleteOrganization } from '@/api/config'
+import ConfigTable from '../../components/config/ConfigTable'
+import { deleteOrganization, createNewOrganization, updateOrganization } from '@/api/config'
+import { mapActions, mapGetters } from 'vuex'
 
 export default {
-  name: 'OrganizationsView',
+  name: 'Organizations',
   components: {
-    ViewLayout,
-    ToolbarFilter,
-    ContentData,
-    NewOrganization
+    ConfigTable
   },
   data: () => ({
+    organizations: [],
+    dialog: false,
+    message: ''
   }),
+  methods: {
+    ...mapActions('config', ['loadOrganizations']),
+    ...mapGetters('config', ['getOrganizations']),
+    ...mapActions(['updateItemCount']),
+    deleteItem(item) {
+      if (!item.default) {
+        deleteOrganization(item)
+      }
+    },
+    addItem(item) {
+      createNewOrganization(item)
+      this.dialog = true
+    },
+    editItem(item) {
+      updateOrganization(item)
+      this.message = `Successfully updated ${item.name} - ${item.id}`
+    }
+  },
   mounted () {
-    this.$root.$on('delete-item', (item) => {
-      deleteOrganization(item).then(() => {
-        this.$root.$emit('notification',
-          {
-            type: 'success',
-            loc: 'organization.removed'
-          }
-        )
-      }).catch(() => {
-        this.$root.$emit('notification',
-          {
-            type: 'error',
-            loc: 'organization.removed_error'
-          }
-        )
-      })
+    this.loadOrganizations().then(() => {
+      const sources = this.getOrganizations()
+      this.organizations = sources.items
+      this.updateItemCount({ total: sources.total_count, filtered: sources.length })
     })
   },
   beforeDestroy () {
     this.$root.$off('delete-item')
   }
 }
-
 </script>

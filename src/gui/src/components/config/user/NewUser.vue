@@ -298,7 +298,7 @@ export default {
   },
   mixins: [AuthMixin],
   mounted () {
-    this.$store.dispatch('getAllOrganizations', { search: '' })
+    this.$store.dispatch('config/loadOrganizations', { search: '' })
       .then(() => {
         this.organizations = this.$store.getters.getOrganizations.items
       })

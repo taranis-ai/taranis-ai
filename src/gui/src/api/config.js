@@ -4,8 +4,9 @@ export function reloadDictionaries (type) {
   return ApiService.get(`/config/reload-enum-dictionaries/${type}`)
 }
 
-export function getAllAttributes (filter) {
-  return ApiService.get(`/config/attributes?search=${filter.search}`)
+export function getAllAttributes (filter_data) {
+  const filter = ApiService.getQueryStringFromNestedObject(filter_data)
+  return ApiService.get(`/config/attributes?${filter}`)
 }
 
 export function createNewAttribute (attribute) {
@@ -36,8 +37,9 @@ export function deleteAttributeEnum (attribute_id, attribute_enum_id) {
   return ApiService.delete(`/config/attributes/${attribute_id}/enums/${attribute_enum_id}`)
 }
 
-export function getAllReportItemTypes (filter) {
-  return ApiService.get(`/config/report-item-types?search=${filter.search}`)
+export function getAllReportItemTypes (filter_data) {
+  const filter = ApiService.getQueryStringFromNestedObject(filter_data)
+  return ApiService.get(`/config/report-item-types?${filter}`)
 }
 
 export function createNewReportItemType (report_item_type) {
@@ -52,8 +54,9 @@ export function updateReportItemType (report_item_type) {
   return ApiService.put(`/config/report-item-types/${report_item_type.id}`, report_item_type)
 }
 
-export function getAllProductTypes (filter) {
-  return ApiService.get(`/config/product-types?search=${filter.search}`)
+export function getAllProductTypes (filter_data) {
+  const filter = ApiService.getQueryStringFromNestedObject(filter_data)
+  return ApiService.get(`/config/product-types?${filter}`)
 }
 
 export function createNewProductType (product_type) {
@@ -68,16 +71,19 @@ export function updateProductType (product_type) {
   return ApiService.put(`/config/product-types/${product_type.id}`, product_type)
 }
 
-export function getAllPermissions (filter) {
-  return ApiService.get(`/config/permissions?search=${filter.search}`)
+export function getAllPermissions (filter_data) {
+  const filter = ApiService.getQueryStringFromNestedObject(filter_data)
+  return ApiService.get(`/config/permissions?${filter}`)
 }
 
-export function getAllExternalPermissions (filter) {
-  return ApiService.get(`/config/external-permissions?search=${filter.search}`)
+export function getAllExternalPermissions (filter_data) {
+  const filter = ApiService.getQueryStringFromNestedObject(filter_data)
+  return ApiService.get(`/config/external-permissions?${filter}`)
 }
 
-export function getAllRoles (filter) {
-  return ApiService.get(`/config/roles?search=${filter.search}`)
+export function getAllRoles (filter_data) {
+  const filter = ApiService.getQueryStringFromNestedObject(filter_data)
+  return ApiService.get(`/config/roles?${filter}`)
 }
 
 export function createNewRole (role) {
@@ -92,8 +98,9 @@ export function deleteRole (role) {
   return ApiService.delete(`/config/roles/${role.id}`)
 }
 
-export function getAllACLEntries (filter) {
-  return ApiService.get(`/config/acls?search=${filter.search}`)
+export function getAllACLEntries (filter_data) {
+  const filter = ApiService.getQueryStringFromNestedObject(filter_data)
+  return ApiService.get(`/config/acls?${filter}`)
 }
 
 export function createNewACLEntry (acl) {
@@ -108,8 +115,9 @@ export function deleteACLEntry (acl) {
   return ApiService.delete(`/config/acls/${acl.id}`)
 }
 
-export function getAllOrganizations (filter) {
-  return ApiService.get(`/config/organizations?search=${filter.search}`)
+export function getAllOrganizations (filter_data) {
+  const filter = ApiService.getQueryStringFromNestedObject(filter_data)
+  return ApiService.get(`/config/organizations?${filter}`)
 }
 
 export function createNewOrganization (organization) {
@@ -124,8 +132,9 @@ export function deleteOrganization (organization) {
   return ApiService.delete(`/config/organizations/${organization.id}`)
 }
 
-export function getAllUsers (filter) {
-  return ApiService.get(`/config/users?search=${filter.search}`)
+export function getAllUsers (filter_data) {
+  const filter = ApiService.getQueryStringFromNestedObject(filter_data)
+  return ApiService.get(`/config/users?${filter}`)
 }
 
 export function createNewUser (user) {
@@ -212,8 +221,9 @@ export function getAllCollectorsNodes (filter) {
   return ApiService.get(`/config/collectors-nodes?search=${filter.search}`)
 }
 
-export function getAllNodes (filter) {
-  return ApiService.get(`/config/nodes?search=${filter.search}`)
+export function getAllNodes (filter_data) {
+  const filter = ApiService.getQueryStringFromNestedObject(filter_data)
+  return ApiService.get(`/config/nodes?${filter}`)
 }
 
 export function updateNode (node) {
@@ -246,6 +256,21 @@ export function createNode (node) {
   }
 }
 
+export function deleteNode (node) {
+  if (node.type === 'Collector') {
+    return ApiService.delete(`/config/collectors-nodes/${node.id}`, node)
+  }
+  if (node.type === 'Bot') {
+    return ApiService.delete(`/config/bots-nodes/${node.id}`, node)
+  }
+  if (node.type === 'Presenter') {
+    return ApiService.delete(`/config/presenters-nodes/${node.id}`, node)
+  }
+  if (node.type === 'Publisher') {
+    return ApiService.delete(`/config/publishers-nodes/${node.id}`, node)
+  }
+}
+
 export function createNewCollectorsNode (node) {
   return ApiService.post('/config/collectors-nodes', node)
 }
@@ -258,8 +283,9 @@ export function deleteCollectorsNode (node) {
   return ApiService.delete(`/config/collectors-nodes/${node.id}`)
 }
 
-export function getAllOSINTSources (filter) {
-  return ApiService.get(`/config/osint-sources?search=${filter.search}`)
+export function getAllOSINTSources (filter_data) {
+  const filter = ApiService.getQueryStringFromNestedObject(filter_data)
+  return ApiService.get(`/config/osint-sources?${filter}`)
 }
 
 export function createNewOSINTSource (source) {
@@ -282,11 +308,9 @@ export function exportOSINTSources (data) {
   return ApiService.download('/config/export-osint-sources', data, 'osint_sources_export.json')
 }
 
-export function getAllOSINTSourceGroups (filter) {
-  if (filter) {
-    return ApiService.get(`/config/osint-source-groups?search=${filter}`)
-  }
-  return ApiService.get('/config/osint-source-groups')
+export function getAllOSINTSourceGroups (filter_data) {
+  const filter = ApiService.getQueryStringFromNestedObject(filter_data)
+  return ApiService.get(`/config/osint-source-groups?${filter}`)
 }
 
 export function createNewOSINTSourceGroup (group) {

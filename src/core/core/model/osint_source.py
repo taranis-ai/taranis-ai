@@ -17,9 +17,9 @@ from shared.schema.word_list import WordListIdSchema
 
 
 class NewOSINTSourceSchema(OSINTSourceSchema):
-    parameter_values = fields.List(fields.Nested(NewParameterValueSchema))
-    word_lists = fields.List(fields.Nested(WordListIdSchema))
-    osint_source_groups = fields.List(fields.Nested(OSINTSourceGroupIdSchema))
+    parameter_values = fields.List(fields.Nested(NewParameterValueSchema), load_default=[])
+    word_lists = fields.List(fields.Nested(WordListIdSchema), load_default=[])
+    osint_source_groups = fields.List(fields.Nested(OSINTSourceGroupIdSchema), load_default=[])
 
     @post_load
     def make_osint_source(self, data, **kwargs):
@@ -131,7 +131,7 @@ class OSINTSource(db.Model):
         sources, count = cls.get(search)
         for source in sources:
             source.osint_source_groups = OSINTSourceGroup.get_for_osint_source(source.id)
-        sources_schema = OSINTSourcePresentationSchema(many=True)
+        sources_schema = OSINTSourceSchema(many=True)
         return {"total_count": count, "items": sources_schema.dump(sources)}
 
     @classmethod

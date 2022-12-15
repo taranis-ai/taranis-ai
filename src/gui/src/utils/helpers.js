@@ -22,3 +22,20 @@ export function stripHtml(html) {
   tmp.innerHTML = html
   return tmp.textContent || tmp.innerText || ''
 }
+
+export function emptyValues(obj) {
+  const result = {}
+  for (const key of Object.keys(obj)) {
+    const value = obj[key]
+    if (typeof value === 'string') {
+      result[key] = ''
+    } else if (Array.isArray(value)) {
+      result[key] = []
+    } else if (typeof value === 'object') {
+      result[key] = emptyValues(value)
+    } else {
+      result[key] = undefined
+    }
+  }
+  return result
+}

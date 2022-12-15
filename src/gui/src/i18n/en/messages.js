@@ -53,6 +53,7 @@ const messages_en = {
 
   main_menu: {
     enter: "Enter",
+    administration: "Administration",
     assess: "Assess",
     analyze: "Analyze",
     publish: "Publish",
@@ -70,10 +71,6 @@ const messages_en = {
     popular: "Popular",
     favourites: "Favourites",
     configuration: "Configuration",
-    collectors_nodes: "Collectors Nodes",
-    presenters_nodes: "Presenters Nodes",
-    publishers_nodes: "Publishers Nodes",
-    bots_nodes: "Bots Nodes",
     osint_sources: "OSINT Sources",
     osint_source_groups: "OSINT Source Groups",
     publisher_presets: "Publisher Presets",
@@ -86,6 +83,8 @@ const messages_en = {
     roles: "Roles",
     acls: "ACL",
     users: "Users",
+    user: "User",
+    nodes: "Nodes",
     organizations: "Organizations",
     word_lists: "Word Lists",
     asset_groups: "Asset Groups",
@@ -93,6 +92,24 @@ const messages_en = {
     remote_access: "Remote Access",
     remote_nodes: "Remote Nodes",
     local: "Local"
+  },
+
+  nodes: {
+    add_new: "Add node",
+    edit: "Edit node",
+    save: "Save",
+    add_btn: "Add New",
+    cancel: "Cancel",
+    validation_error: "Please fill in all required fields",
+    error: "Could not connect to node",
+    name: "Name",
+    description: "Description",
+    url: "URL",
+    key: "Key",
+    successful: "node added",
+    successful_edit: "node updated",
+    removed: "node removed",
+    removed_error: "node is in use and could not be deleted"
   },
 
   notification: {
@@ -169,25 +186,6 @@ const messages_en = {
     total_count: "Users count: ",
     password: "Password",
     password_check: "Retype Password"
-  },
-
-  collectors_node: {
-    add_new: "Add new collectors node",
-    edit: "Edit collectors node",
-    save: "Save",
-    add_btn: "Add New",
-    cancel: "Cancel",
-    validation_error: "Please fill in all required fields",
-    error: "Could not connect to collectors node",
-    name: "Name",
-    description: "Description",
-    url: "URL",
-    key: "Key",
-    successful: "New collectors node was successfully added",
-    successful_edit: "Collectors node was successfully updated",
-    removed: "Collectors node was successfully removed",
-    removed_error: "Collectors node is in use and could not be deleted",
-    total_count: "Collectors nodes count: "
   },
 
   osint_source: {
@@ -357,66 +355,6 @@ const messages_en = {
       collected: "Collected Date",
       published: "Published Date"
     }
-  },
-
-  presenters_node: {
-    add_new: "Add new presenters node",
-    edit: "Edit new presenters node",
-    add: "Add",
-    save: "Save",
-    add_btn: "Add New",
-    cancel: "Cancel",
-    validation_error: "Please fill in all required fields",
-    error: "Could not connect to presenters node.",
-    name: "Name",
-    description: "Description",
-    url: "URL",
-    key: "Key",
-    successful: "New presenters node was successfully added",
-    successful_edit: "Presenters node was successfully updated",
-    removed: "Presenters node was successfully removed",
-    removed_error: "Presenters node is in use and could not be deleted",
-    total_count: "Presenters nodes count: "
-  },
-
-  publishers_node: {
-    add_new: "Add new publishers node",
-    edit: "Add new publishers node",
-    add: "Add",
-    save: "Save",
-    add_btn: "Add New",
-    cancel: "Cancel",
-    validation_error: "Please fill in all required fields",
-    error: "Could not connect to publishers node.",
-    name: "Name",
-    description: "Description",
-    url: "URL",
-    key: "Key",
-    successful: "New publishers node was successfully added",
-    successful_edit: "Publishers node was successfully updated",
-    removed: "Publishers node was successfully removed",
-    removed_error: "Publishers node is in use and could not be deleted",
-    total_count: "Publishers nodes count: "
-  },
-
-  bots_node: {
-    add_new: "Add new bots node",
-    edit: "Add new bots node",
-    add: "Add",
-    save: "Save",
-    add_btn: "Add New",
-    cancel: "Cancel",
-    validation_error: "Please fill in all required fields",
-    error: "Could not connect to bots node.",
-    name: "Name",
-    description: "Description",
-    url: "URL",
-    key: "Key",
-    successful: "New bots node was successfully added",
-    successful_edit: "Bots node was successfully updated",
-    removed: "Bots node was successfully removed",
-    removed_error: "Bots node is in use and could not be deleted",
-    total_count: "Bots nodes count: "
   },
 
   bot_preset: {

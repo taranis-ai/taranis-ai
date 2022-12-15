@@ -79,16 +79,20 @@ def delete_osint_source(osint_source_id):
 
 
 def refresh_collector(collector):
-    return CollectorsApi(collector.node.api_url, collector.node.api_key).refresh_collector(collector.type)
+    try:
+        CollectorsApi(collector.node.api_url, collector.node.api_key).refresh_collector(collector.type)
+    except ConnectionError:
+        logger.critical(f"Connection error: Could not reach {collector.node.api_url}")
 
 
 def export_osint_sources(input_data):
     osint_sources = OSINTSource.get_all()
     if input_data is not None and "selection" in input_data:
-        data = []
-        for osint_source in osint_sources[:]:
-            if osint_source.id in input_data["selection"]:
-                data.append(osint_source)
+        data = [
+            osint_source
+            for osint_source in osint_sources[:]
+            if osint_source.id in input_data["selection"]
+        ]
     else:
         data = osint_sources
 

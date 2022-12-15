@@ -37,7 +37,6 @@ const state = {
   remote_access: { total_count: 0, items: [] },
   remote_nodes: { total_count: 0, items: [] },
   nodes: { total_count: 0, items: [] },
-  collectors_nodes: { total_count: 0, items: [] },
   osint_sources: { total_count: 0, items: [] },
   osint_source_groups: { total_count: 0, items: [] },
   presenters_nodes: { total_count: 0, items: [] },
@@ -105,7 +104,7 @@ const actions = {
       })
   },
 
-  getAllOrganizations (context, data) {
+  loadOrganizations (context, data) {
     return getAllOrganizations(data)
       .then(response => {
         context.commit('setOrganizations', response.data)
@@ -161,7 +160,7 @@ const actions = {
       })
   },
 
-  getAllNodes (context, data) {
+  loadNodes (context, data) {
     return getAllNodes(data)
       .then(response => {
         context.commit('setNodes', response.data)
@@ -358,11 +357,11 @@ const getters = {
   },
 
   getOSINTSources (state) {
-    return state.osint_sources.items
+    return state.osint_sources
   },
 
   getOSINTSourceGroups (state) {
-    return state.osint_source_groups.items
+    return state.osint_source_groups
   },
 
   getPresentersNodes (state) {

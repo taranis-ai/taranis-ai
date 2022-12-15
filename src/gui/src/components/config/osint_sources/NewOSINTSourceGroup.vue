@@ -95,7 +95,6 @@ import { mapGetters, mapActions } from 'vuex'
 export default {
   name: 'NewOSINTSourceGroup',
   components: {},
-  props: { add_button: Boolean },
   data: () => ({
 
     headers: [

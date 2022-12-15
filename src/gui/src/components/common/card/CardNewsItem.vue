@@ -12,10 +12,10 @@
         'dark-grey--text',
         {
           selected: selected,
-          'corner-tag-shared': item.shared && !item.restricted,
-          'corner-tag-restricted': item.restricted,
-          'status-important': item.important,
-          'status-unread': !item.read,
+          //'corner-tag-shared': item.shared && !item.restricted,
+          //'corner-tag-restricted': item.restricted,
+          //'status-important': item.important,
+          //'status-unread': !item.read,
         },
       ]"
       @click="toggleSelection"
@@ -58,21 +58,21 @@
         </news-item-action-dialog>
 
         <news-item-action
-          :active="item.read"
+          :active="newsItem.read"
           icon="$newsItemActionRead"
           @click="markAsRead()"
           tooltip="mark as read/unread"
         />
 
         <news-item-action
-          :active="item.important"
+          :active="newsItem.important"
           icon="$newsItemActionImportant"
           @click="markAsImportant()"
           tooltip="mark as important"
         />
 
         <news-item-action
-          :active="item.decorateSource"
+          :active="newsItem.decorateSource"
           icon="$newsItemActionRibbon"
           @click="decorateSource()"
           tooltip="emphasise originator"
@@ -105,7 +105,7 @@
                 <v-col class="pb-1">
                   <news-item-title
                     :title="newsItem.title"
-                    :read="item.read"
+                    :read="newsItem.read"
                   />
                 </v-col>
               </v-row>
@@ -299,22 +299,35 @@ export default {
     selected: Boolean
   },
   data: () => ({
-    item: this.newsItem
   }),
+  computed: {
+    item_selected() {
+      return this.has('selected') ? this.get('selected') : false
+    },
+    item_read() {
+      return this.newsItem.has('read') ? this.newsItem.get('read') : false
+    },
+    item_important() {
+      return this.newsItem.has('important') ? this.newsItem.get('important') : false
+    },
+    item_decorateSource() {
+      return this.newsItem.has('decorateSource') ? this.newsItem.get('decorateSource') : false
+    }
+  },
   methods: {
     ...mapGetters('users', ['getUsernameById']),
 
     toggleSelection() {
-      this.$emit('selectItem', this.item.id)
+      this.$emit('selectItem', this.newsItem.id)
     },
     markAsRead() {
-      this.item.read = !this.item.read
+      this.item_read = !this.item_read
     },
     markAsImportant() {
-      this.item.important = !this.item.important
+      this.item_important = !this.item_important
     },
     decorateSource() {
-      this.item.decorateSource = !this.item.decorateSource
+      this.item_decorateSource = !this.item_decorateSource
     },
     deleteNewsItem() {
       this.$emit('deleteItem', this.newsItem.id)

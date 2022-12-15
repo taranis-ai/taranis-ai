@@ -1,65 +1,63 @@
 <template>
-    <ViewLayout>
-        <template v-slot:panel>
-            <ToolbarFilter title='nav_menu.osint_sources' total_count_title="osint_source.total_count"
-                           total_count_getter="config/getOSINTSources">
-                <template v-slot:addbutton>
-                    <NewOSINTSource/>
-                </template>
-            </ToolbarFilter>
-
-        </template>
-        <template v-slot:content>
-            <ContentData
-                    name = "OSINTSources"
-                    cardItem="CardSource"
-                    action="config/loadOSINTSources"
-                    getter="config/getOSINTSources"
-                    deletePermission="CONFIG_OSINT_SOURCE_DELETE"
-            />
-        </template>
-    </ViewLayout>
+  <div>
+    <ConfigTable
+      :addButton="true"
+      :items="osint_sources"
+      :headerFilter="['name', 'description', 'id']"
+      groupByItem="collector_type"
+      @delete-item="deleteItem"
+      @edit-item="editItem"
+      @add-item="addItem"
+    />
+    <v-snackbar v-model="message" rounded="pill" color="success" centered>
+      {{ message }}
+    </v-snackbar>
+  </div>
 </template>
 
 <script>
-import ViewLayout from '../../components/layouts/ViewLayout'
-import NewOSINTSource from '../../components/config/osint_sources/NewOSINTSource'
-import ToolbarFilter from '../../components/common/ToolbarFilter'
-import ContentData from '../../components/common/content/ContentData'
-import { deleteOSINTSource } from '@/api/config'
+import ConfigTable from '../../components/config/ConfigTable'
+import { deleteOSINTSource, createNewOSINTSource, updateOSINTSource } from '@/api/config'
+import { mapActions, mapGetters } from 'vuex'
 
 export default {
   name: 'OSINTSources',
   components: {
-    ViewLayout,
-    ToolbarFilter,
-    ContentData,
-    NewOSINTSource
+    ConfigTable
   },
   data: () => ({
+    osint_sources: [],
+    dialog: false,
+    message: ''
   }),
+  methods: {
+    ...mapActions('config', ['loadOSINTSources']),
+    ...mapGetters('config', ['getOSINTSources']),
+    // ...mapGetters('assess', ['getOSINTSources']),
+    ...mapActions(['updateItemCount']),
+    deleteItem(item) {
+      if (!item.default) {
+        deleteOSINTSource(item)
+      }
+    },
+    addItem(item) {
+      createNewOSINTSource(item)
+      this.dialog = true
+    },
+    editItem(item) {
+      updateOSINTSource(item)
+      this.message = `Successfully updated ${item.name} - ${item.id}`
+    }
+  },
   mounted () {
-    this.$root.$on('delete-item', (item) => {
-      deleteOSINTSource(item).then(() => {
-        this.$root.$emit('notification',
-          {
-            type: 'success',
-            loc: 'osint_source.removed'
-          }
-        )
-      }).catch(() => {
-        this.$root.$emit('notification',
-          {
-            type: 'error',
-            loc: 'osint_source.removed_error'
-          }
-        )
-      })
+    this.loadOSINTSources().then(() => {
+      const sources = this.getOSINTSources()
+      this.osint_sources = sources.items
+      this.updateItemCount({ total: sources.total_count, filtered: sources.length })
     })
   },
   beforeDestroy () {
     this.$root.$off('delete-item')
   }
 }
-
 </script>

@@ -10,7 +10,6 @@ import { settings } from '@/store/settings'
 import { assets } from '@/store/assets'
 import { dashboard } from '@/store/dashboard'
 import { users } from '@/store/users'
-import { osint_source } from '@/store/osint_source'
 import { filter } from '@/store/filter'
 
 Vue.use(Vuex)
@@ -159,7 +158,6 @@ export const store = new Vuex.Store({
     assets,
     dashboard,
     users,
-    osint_source,
     filter
   }
 })
