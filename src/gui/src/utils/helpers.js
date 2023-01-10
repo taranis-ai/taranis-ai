@@ -23,6 +23,22 @@ export function stripHtml(html) {
   return tmp.textContent || tmp.innerText || ''
 }
 
+export function notifySuccess(text) {
+  this.$root.$emit('notification',
+    {
+      type: 'success',
+      loc: text
+    })
+}
+
+export function notifyFailure(text) {
+  this.$root.$emit('notification',
+    {
+      type: 'red',
+      loc: text
+    })
+}
+
 export function emptyValues(obj) {
   const result = {}
   for (const key of Object.keys(obj)) {

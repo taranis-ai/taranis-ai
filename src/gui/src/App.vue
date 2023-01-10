@@ -34,12 +34,11 @@ export default {
     ...mapActions('assess', ['updateNewsItems']),
 
     connectSSE () { // TODO: unsubscribe
+      if (process.env.VUE_APP_TARANIS_NG_CORE_SSE === undefined) {
+        return
+      }
       this.$sse(
-        (typeof process.env.VUE_APP_TARANIS_NG_CORE_SSE === 'undefined'
-          ? '$VUE_APP_TARANIS_NG_CORE_SSE'
-          : process.env.VUE_APP_TARANIS_NG_CORE_SSE) +
-          '?jwt=' +
-          this.$store.getters.getJWT,
+        `${process.env.VUE_APP_TARANIS_NG_CORE_SSE}?jwt=${this.$store.getters.getJWT}`,
         { format: 'json' }
       ).then((sse) => {
         sse.subscribe('news-items-updated', (data) => {

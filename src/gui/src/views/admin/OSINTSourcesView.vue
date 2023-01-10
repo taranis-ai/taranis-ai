@@ -9,15 +9,18 @@
       @edit-item="editItem"
       @add-item="addItem"
     />
-    <v-snackbar v-model="message" rounded="pill" color="success" centered>
-      {{ message }}
-    </v-snackbar>
   </div>
 </template>
 
 <script>
 import ConfigTable from '../../components/config/ConfigTable'
-import { deleteOSINTSource, createNewOSINTSource, updateOSINTSource } from '@/api/config'
+import {
+  deleteOSINTSource,
+  createNewOSINTSource,
+  updateOSINTSource,
+  exportOSINTSources,
+  importOSINTSources
+} from '@/api/config'
 import { mapActions, mapGetters } from 'vuex'
 
 export default {
@@ -27,37 +30,69 @@ export default {
   },
   data: () => ({
     osint_sources: [],
-    dialog: false,
-    message: ''
+    selected: []
   }),
   methods: {
     ...mapActions('config', ['loadOSINTSources']),
     ...mapGetters('config', ['getOSINTSources']),
     // ...mapGetters('assess', ['getOSINTSources']),
     ...mapActions(['updateItemCount']),
+    updateData() {
+      this.loadOSINTSources().then(() => {
+        const sources = this.getOSINTSources()
+        this.osint_sources = sources.items
+        this.updateItemCount({
+          total: sources.total_count,
+          filtered: sources.length
+        })
+      })
+    },
+    importSources() {
+      importOSINTSources(this.selected).then(() => {
+        this.message = `Successfully imported ${this.selected.length} sources`
+        this.dialog = true
+        this.updateData()
+      })
+    },
+    exportSources() {
+      exportOSINTSources(this.selected)
+    },
     deleteItem(item) {
       if (!item.default) {
-        deleteOSINTSource(item)
+        deleteOSINTSource(item).then(() => {
+          this.message = `Successfully deleted ${item.name}`
+          this.dialog = true
+          this.$root.$emit('notification', {
+            type: 'success',
+            loc: `Successfully deleted ${item.name}`
+          })
+          this.updateData()
+        })
       }
     },
     addItem(item) {
-      createNewOSINTSource(item)
-      this.dialog = true
+      createNewOSINTSource(item).then(() => {
+        this.$root.$emit('notification', {
+          type: 'success',
+          loc: `Successfully created ${item.name}`
+        })
+        this.updateData()
+      })
     },
     editItem(item) {
-      updateOSINTSource(item)
-      this.message = `Successfully updated ${item.name} - ${item.id}`
+      updateOSINTSource(item).then(() => {
+        this.$root.$emit('notification', {
+          type: 'success',
+          loc: `Successfully updated ${item.name}`
+        })
+        this.updateData()
+      })
     }
   },
-  mounted () {
-    this.loadOSINTSources().then(() => {
-      const sources = this.getOSINTSources()
-      this.osint_sources = sources.items
-      this.updateItemCount({ total: sources.total_count, filtered: sources.length })
-    })
+  mounted() {
+    this.updateData()
   },
-  beforeDestroy () {
-    this.$root.$off('delete-item')
+  beforeDestroy() {
   }
 }
 </script>

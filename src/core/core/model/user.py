@@ -8,7 +8,7 @@ from model.organization import Organization
 from shared.schema.user import UserSchemaBase, UserProfileSchema, HotkeySchema, UserPresentationSchema
 from shared.schema.role import RoleIdSchema, PermissionIdSchema
 from shared.schema.organization import OrganizationIdSchema
-from shared.schema.word_list import WordListIdSchema
+from core.managers.log_manager import logger
 
 
 class NewUserSchema(UserSchemaBase):
@@ -40,18 +40,9 @@ class User(db.Model):
         self.username = username
         self.name = name
         self.password = password
-        self.organizations = []
-        for organization in organizations:
-            self.organizations.append(Organization.find(organization.id))
-
-        self.roles = []
-        for role in roles:
-            self.roles.append(Role.find(role.id))
-
-        self.permissions = []
-        for permission in permissions:
-            self.permissions.append(Permission.find(permission.id))
-
+        self.organizations = [Organization.find(organization.id) for organization in organizations]
+        self.roles = [Role.find(role.id) for role in roles]
+        self.permissions = [Permission.find(permission.id) for permission in permissions]
         self.profile = UserProfile(True, False, [])
         self.title = ""
         self.subtitle = ""

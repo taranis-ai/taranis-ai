@@ -120,7 +120,7 @@ export function getAllOrganizations (filter_data) {
   return ApiService.get(`/config/organizations?${filter}`)
 }
 
-export function createNewOrganization (organization) {
+export function createOrganization (organization) {
   return ApiService.post('/config/organizations', organization)
 }
 
@@ -137,7 +137,7 @@ export function getAllUsers (filter_data) {
   return ApiService.get(`/config/users?${filter}`)
 }
 
-export function createNewUser (user) {
+export function createUser (user) {
   return ApiService.post('/config/users', user)
 }
 

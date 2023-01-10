@@ -143,7 +143,7 @@
 
 <script>
 import AuthMixin from '../../../services/auth/auth_mixin'
-import { createNewUser, updateUser } from '@/api/config'
+import { createUser, updateUser } from '@/api/config'
 import Permissions from '@/services/auth/permissions'
 
 export default {
@@ -276,7 +276,7 @@ export default {
               this.show_error = true
             })
           } else {
-            createNewUser(this.user).then(() => {
+            createUser(this.user).then(() => {
               this.$validator.reset()
               this.visible = false
 

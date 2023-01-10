@@ -22,7 +22,7 @@ class Organization(db.Model):
     address_id = db.Column(db.Integer, db.ForeignKey("address.id"))
     address = db.relationship("Address", cascade="all")
 
-    def __init__(self, id, name, description, address):
+    def __init__(self, name, description, address):
         self.id = None
         self.name = name
         self.description = description
@@ -69,7 +69,7 @@ class Organization(db.Model):
     @classmethod
     def add_new(cls, data):
         new_organization_schema = NewOrganizationSchema()
-        organization = new_organization_schema.load(data)
+        organization = new_organization_schema.load(data, partial=True)
         db.session.add(organization.address)
         db.session.add(organization)
         db.session.commit()

@@ -4,6 +4,7 @@
     app
     color="cx-drawer-bg"
     class="sidebar"
+    :width="150"
     style="max-height: 100% !important; height: calc(100vh - 48px) !important"
   >
     <v-layout class="navigation" fill-height justify-center>

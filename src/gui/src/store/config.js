@@ -28,7 +28,7 @@ const state = {
   attributes: { total_count: 0, items: [] },
   report_item_types_config: { total_count: 0, items: [] },
   product_types: { total_count: 0, items: [] },
-  all_permissions: { total_count: 0, items: [] },
+  permissions: { total_count: 0, items: [] },
   roles: { total_count: 0, items: [] },
   acls: { total_count: 0, items: [] },
   organizations: { total_count: 0, items: [] },
@@ -76,7 +76,7 @@ const actions = {
       })
   },
 
-  getAllPermissions (context, data) {
+  loadPermissions (context, data) {
     return getAllPermissions(data)
       .then(response => {
         context.commit('setPermissions', response.data)
@@ -218,84 +218,84 @@ const actions = {
 }
 
 const mutations = {
-  setAttributes (state, new_attributes) {
-    state.attributes = new_attributes
+  setAttributes (state, attributes) {
+    state.attributes = attributes
   },
 
-  setReportItemTypesConfig (state, new_report_item_types_config) {
-    state.report_item_types_config = new_report_item_types_config
+  setReportItemTypesConfig (state, report_item_types_config) {
+    state.report_item_types_config = report_item_types_config
   },
 
-  setProductTypes (state, new_product_types) {
-    state.product_types = new_product_types
+  setProductTypes (state, product_types) {
+    state.product_types = product_types
   },
 
-  setPermissions (state, new_permissions) {
-    state.all_permissions = new_permissions
+  setPermissions (state, permissions) {
+    state.permissions = permissions
   },
 
-  setRoles (state, new_roles) {
-    state.roles = new_roles
+  setRoles (state, roles) {
+    state.roles = roles
   },
 
-  setACLEntries (state, new_acls) {
-    state.acls = new_acls
+  setACLEntries (state, acls) {
+    state.acls = acls
   },
 
-  setOrganizations (state, new_organizations) {
-    state.organizations = new_organizations
+  setOrganizations (state, organizations) {
+    state.organizations = organizations
   },
 
-  setUsers (state, new_users) {
-    state.users = new_users
+  setUsers (state, users) {
+    state.users = users
   },
 
-  setWordLists (state, new_word_lists) {
-    state.word_lists = new_word_lists
+  setWordLists (state, word_lists) {
+    state.word_lists = word_lists
   },
 
-  setRemoteAccesses (state, new_remote_access) {
-    state.remote_access = new_remote_access
+  setRemoteAccesses (state, remote_access) {
+    state.remote_access = remote_access
   },
 
-  setRemoteNodes (state, new_remote_nodes) {
-    state.remote_nodes = new_remote_nodes
+  setRemoteNodes (state, remote_nodes) {
+    state.remote_nodes = remote_nodes
   },
 
-  setNodes (state, new_nodes) {
-    state.nodes = new_nodes
+  setNodes (state, nodes) {
+    state.nodes = nodes
   },
 
-  setCollectorsNodes (state, new_collectors_nodes) {
-    state.collectors_nodes = new_collectors_nodes
+  setCollectorsNodes (state, collectors_nodes) {
+    state.collectors_nodes = collectors_nodes
   },
 
-  setOSINTSources (state, new_osint_sources) {
-    state.osint_sources = new_osint_sources
+  setOSINTSources (state, osint_sources) {
+    state.osint_sources = osint_sources
   },
 
-  setOSINTSourceGroups (state, new_osint_source_groups) {
-    state.osint_source_groups = new_osint_source_groups
+  setOSINTSourceGroups (state, osint_source_groups) {
+    state.osint_source_groups = osint_source_groups
   },
 
-  setPresentersNodes (state, new_presenters_nodes) {
-    state.presenters_nodes = new_presenters_nodes
+  setPresentersNodes (state, presenters_nodes) {
+    state.presenters_nodes = presenters_nodes
   },
 
-  setPublishersNodes (state, new_publishers_nodes) {
-    state.publishers_nodes = new_publishers_nodes
+  setPublishersNodes (state, publishers_nodes) {
+    state.publishers_nodes = publishers_nodes
   },
 
-  setPublisherPresets (state, new_publisher_presets) {
-    state.publisher_presets = new_publisher_presets
+  setPublisherPresets (state, publisher_presets) {
+    state.publisher_presets = publisher_presets
   },
 
-  setBotsNodes (state, new_bots_nodes) {
-    state.bots_nodes = new_bots_nodes
+  setBotsNodes (state, bots_nodes) {
+    state.bots_nodes = bots_nodes
   },
 
-  setBotPresets (state, new_bot_presets) {
-    state.bot_presets = new_bot_presets
+  setBotPresets (state, bot_presets) {
+    state.bot_presets = bot_presets
   }
 }
 
@@ -312,8 +312,8 @@ const getters = {
     return state.product_types
   },
 
-  getAllPermissions (state) {
-    return state.all_permissions
+  getPermissions (state) {
+    return state.permissions
   },
 
   getRoles (state) {
@@ -330,6 +330,15 @@ const getters = {
 
   getUsers (state) {
     return state.users
+  },
+
+  getUserByID: (state, getters) => (user_id) => {
+    for (const user of state.users.items) {
+      if (user.id === user_id) {
+        return user
+      }
+    }
+    return null
   },
 
   getWordLists (state) {

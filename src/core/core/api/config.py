@@ -18,6 +18,7 @@ from core.managers.auth_manager import auth_required, get_user_from_jwt
 from core.model import (
     acl_entry,
     remote,
+    presenter,
     presenters_node,
     publisher_preset,
     publishers_node,
@@ -445,6 +446,11 @@ class RemoteNodeConnect(Resource):
         return remote_manager.connect_to_node(remote_node_id)
 
 
+class Presenters(Resource):
+    def get(self):
+        return presenter.Presenter.to_dict()
+
+
 class PresentersNodes(Resource):
     @auth_required("CONFIG_PRESENTERS_NODE_ACCESS")
     def get(self):
@@ -612,6 +618,7 @@ def initialize(api):
     api.add_resource(RemoteNode, "/api/v1/config/remote-nodes/<int:remote_node_id>")
     api.add_resource(RemoteNodeConnect, "/api/v1/config/remote-nodes/<int:remote_node_id>/connect")
 
+    api.add_resource(Presenters, "/api/v1/config/presenters")
     api.add_resource(PresentersNodes, "/api/v1/config/presenters-nodes", "/api/v1/config/presenters-nodes/<string:node_id>")
     api.add_resource(PublisherNodes, "/api/v1/config/publishers-nodes", "/api/v1/config/publishers-nodes/<string:node_id>")
     api.add_resource(PublisherPresets, "/api/v1/config/publishers-presets")

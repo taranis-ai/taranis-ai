@@ -38,6 +38,9 @@
           </th>
         </template>
 
+        <template v-slot:[`header.tag`]="{}"></template>
+        <template v-slot:[`header.actions`]="{}"></template>
+
         <template v-slot:[`item.default`]="{ item }">
           <v-chip :color="getDefaultColor(item.default)" dark>
             {{ item.default }}
@@ -61,7 +64,6 @@
       </v-data-table>
       </v-card>
     </v-col>
-    <v-row>
       <v-col cols="12">
         <EditConfig
           v-if="formData && Object.keys(formData).length > 0"
@@ -69,18 +71,24 @@
           @submit="handleSubmit"
         ></EditConfig>
       </v-col>
-    </v-row>
+      <v-col cols="12">
+        <UserForm
+          :user_id=1
+        ></UserForm>
+      </v-col>
   </v-container>
 </template>
 
 <script>
 import { emptyValues } from '@/utils/helpers'
 import EditConfig from '../../components/config/EditConfig'
+import UserForm from '../../components/config/user/UserForm'
 
 export default {
   name: 'ConfigTable',
   components: {
-    EditConfig
+    EditConfig,
+    UserForm
   },
   emits: ['delete-item', 'edit-item', 'add-item'],
   props: {
@@ -119,18 +127,14 @@ export default {
       var actionHeader = {
         text: 'Actions',
         value: 'actions',
-        sortable: false
+        sortable: false,
+        width: '15px'
       }
       var headers = []
       if (this.headerFilter.length > 0) {
-        headers = this.headerFilter.map((item) => ({ text: item, value: item }))
+        headers = this.headerFilter.map((key) => this.headerTransform(key))
       } else if (this.items.length > 0) {
-        headers = Object.keys(this.items[0]).map((key) => {
-          return {
-            text: key,
-            value: key
-          }
-        })
+        headers = Object.keys(this.items[0]).map((key) => this.headerTransform(key))
       }
       if (this.actionColumn) {
         headers.push(actionHeader)
@@ -139,8 +143,18 @@ export default {
     }
   },
   methods: {
+    headerTransform(key) {
+      if (key === 'tag') {
+        return {
+          text: key,
+          value: key,
+          sortable: false,
+          width: '15px'
+        }
+      }
+      return { text: key, value: key }
+    },
     handleSubmit(submittedData) {
-      console.log(submittedData)
       if (this.edit) {
         this.$emit('edit-item', submittedData)
       } else {

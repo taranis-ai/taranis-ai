@@ -40,6 +40,11 @@ class Presenter(db.Model):
         new_presenter_schema = NewPresenterSchema(many=True)
         return new_presenter_schema.load(presenters_data)
 
+    @classmethod
+    def to_dict(cls):
+        presenter_schema = PresenterSchema()
+        return presenter_schema.dump(cls)
+
 
 class PresenterParameter(db.Model):
     presenter_id = db.Column(db.String, db.ForeignKey("presenter.id"), primary_key=True)

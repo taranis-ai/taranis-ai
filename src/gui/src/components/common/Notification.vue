@@ -21,6 +21,7 @@ export default {
 
   mounted () {
     this.$root.$on('notification', (message) => {
+      console.log(message)
       this.notification = true
       this.notify = message
     })

@@ -77,7 +77,7 @@
 </template>
 
 <script>
-import { createNewOrganization, updateOrganization } from '@/api/config'
+import { createOrganization, updateOrganization } from '@/api/config'
 
 import AuthMixin from '@/services/auth/auth_mixin'
 import Permissions from '@/services/auth/permissions'
@@ -151,7 +151,7 @@ export default {
               this.show_error = true
             })
           } else {
-            createNewOrganization(this.organization).then(() => {
+            createOrganization(this.organization).then(() => {
               this.$validator.reset()
               this.visible = false
               this.$root.$emit('notification',

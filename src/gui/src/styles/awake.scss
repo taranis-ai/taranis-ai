@@ -80,20 +80,6 @@ textarea {
   display: block;
 }
 
-// Sidebar
-
-.v-application .sidebar {
-  h4 {
-    font-weight: 500;
-    color: $dark-grey;
-    font-size: 1rem;
-  }
-
-  input {
-    color: $dark-grey !important;
-  }
-}
-
 .v-icon.v-icon.closed {
   transform: scaleX(-1);
 }

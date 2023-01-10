@@ -27,7 +27,9 @@ class UserSchema(UserSchemaBase):
 
 
 class UserPresentationSchema(UserSchema, PresentationSchema):
-    pass
+    class Meta:
+        unknown = EXCLUDE
+        exclude = ["password"]
 
 
 class User:
