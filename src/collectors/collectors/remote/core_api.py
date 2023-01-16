@@ -4,13 +4,13 @@ import base64
 from collectors.managers.log_manager import logger
 from collectors.config import Config
 
-
 class CoreApi:
     def __init__(self):
         self.api_url = Config.TARANIS_NG_CORE_URL
         self.api_key = Config.API_KEY
         self.headers = self.get_headers()
         self.node_id = self.get_node_id()
+        self.verify = Config.SSL_VERIFICATION
 
     def get_headers(self) -> dict:
         return {"Authorization": f"Bearer {self.api_key}", "Content-type": "application/json"}
@@ -24,6 +24,7 @@ class CoreApi:
             response = requests.get(
                 f"{self.api_url}/api/v1/collectors/{self.node_id}/osint-sources?collector_type={urllib.parse.quote(collector_type)}",
                 headers=self.headers,
+                verify=self.verify
             )
 
             return response.json(), response.status_code
@@ -44,10 +45,12 @@ class CoreApi:
                 "api_key": Config.API_KEY,
                 "collectors_info": collectors_info,
             }
+
             response = requests.post(
                 f"{self.api_url}/api/v1/collectors/node",
                 json=node_info,
                 headers=self.headers,
+                verify=self.verify,
             )
 
             if response.status_code != 200:
@@ -65,6 +68,7 @@ class CoreApi:
             response = requests.get(
                 f"{self.api_url}/api/v1/collectors/{self.node_id}",
                 headers=self.headers,
+                verify=self.verify
             )
 
             return response.json(), response.status_code
@@ -78,6 +82,7 @@ class CoreApi:
                 f"{self.api_url}/api/v1/collectors/news-items",
                 json=news_items,
                 headers=self.headers,
+                verify=self.verify
             )
 
             return response.status_code

@@ -1,7 +1,6 @@
 import datetime
 import hashlib
 import uuid
-import bleach
 import contextlib
 import re
 
@@ -10,6 +9,8 @@ from collectors.managers.log_manager import logger
 from collectors.remote.core_api import CoreApi
 from shared.schema import collector, osint_source, news_item
 from shared.schema.parameter import Parameter, ParameterType
+from bs4 import BeautifulSoup
+from urllib.parse import quote
 
 
 class BaseCollector:
@@ -90,17 +91,13 @@ class BaseCollector:
 
     @staticmethod
     def presanitize_html(html):
-        # these re.sub are not security sensitive ; bleach is supposed to fix the remaining stuff
         html = re.sub(r"(?i)(&nbsp;|\xa0)", " ", html, re.DOTALL)
-        html = re.sub(r"(?i)<head[^>/]*>.*?</head[^>/]*>", "", html, re.DOTALL)
-        html = re.sub(r"(?i)<script[^>/]*>.*?</script[^>/]*>", "", html, re.DOTALL)
-        html = re.sub(r"(?i)<style[^>/]*>.*?</style[^>/]*>", "", html, re.DOTALL)
-
-        clean = bleach.clean(
-            html, tags=["a", "blockquote", "em", "code", "li", "ol", "ul", "strong", "p", "b", "i", "b", "u", "pre"], strip=True
-        )
-
+        clean = BeautifulSoup(html, "lxml").text
         return clean
+
+    @staticmethod
+    def presanitize_url(url):
+        return quote(url, safe='/:?&')
 
     @staticmethod
     def sanitize_news_items(news_items, source):
@@ -114,17 +111,18 @@ class BaseCollector:
             item.content = item.content or ""
             item.published = item.published or datetime.datetime.now()
             item.collected = item.collected or datetime.datetime.now()
-            if item.hash is None:
-                for_hash = item.author + item.title + item.link
-                item.hash = hashlib.sha256(for_hash.encode()).hexdigest()
             item.osint_source_id = item.osint_source_id or source.id
             item.attributes = item.attributes or []
             item.title = BaseCollector.presanitize_html(item.title)
             item.review = BaseCollector.presanitize_html(item.review)
             item.content = BaseCollector.presanitize_html(item.content)
             item.author = BaseCollector.presanitize_html(item.author)
-            item.source = item.source  # TODO: replace with link sanitizer
-            item.link = item.link  # TODO: replace with link sanitizer
+            item.source = BaseCollector.presanitize_url(item.source)
+            item.link = BaseCollector.presanitize_url(item.link)
+            if item.hash is None:
+                for_hash = item.author + item.title + item.link
+                item.hash = hashlib.sha256(for_hash.encode()).hexdigest()
+
 
     def publish(self, news_items, source):
         BaseCollector.sanitize_news_items(news_items, source)
