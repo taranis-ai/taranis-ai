@@ -64,3 +64,12 @@
   -webkit-line-clamp: 5;
   -webkit-box-orient: vertical;
 }
+
+.product_type_help {
+  background-color: #efefef;
+  border-style: solid;
+  border-width: 1px;
+  font-style: italic;
+  font-size: 16px;
+  padding: 3px 3px 1px 1px;
+}

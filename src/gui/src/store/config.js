@@ -1,19 +1,16 @@
 import {
   getAllACLEntries,
   getAllAttributes,
-  getAllBotPresets,
-  getAllBotsNodes,
-  getAllCollectorsNodes,
+  getAllBots,
+  getAllCollectors,
   getAllExternalPermissions,
   getAllExternalUsers,
   getAllOrganizations,
   getAllOSINTSourceGroups,
   getAllOSINTSources,
   getAllPermissions,
-  getAllPresentersNodes,
   getAllProductTypes,
   getAllPublisherPresets,
-  getAllPublishersNodes,
   getAllRemoteAccesses,
   getAllRemoteNodes,
   getAllReportItemTypes,
@@ -37,18 +34,16 @@ const state = {
   remote_access: { total_count: 0, items: [] },
   remote_nodes: { total_count: 0, items: [] },
   nodes: { total_count: 0, items: [] },
+  collectors: { total_count: 0, items: [] },
+  bots: { total_count: 0, items: [] },
   osint_sources: { total_count: 0, items: [] },
   osint_source_groups: { total_count: 0, items: [] },
-  presenters_nodes: { total_count: 0, items: [] },
-  publishers_nodes: { total_count: 0, items: [] },
-  publisher_presets: { total_count: 0, items: [] },
-  bots_nodes: { total_count: 0, items: [] },
-  bot_presets: { total_count: 0, items: [] }
+  publisher_presets: { total_count: 0, items: [] }
 }
 
 const actions = {
 
-  getAllAttributes (context, data) {
+  loadAttributes (context, data) {
     return getAllAttributes(data)
       .then(response => {
         context.commit('setAttributes', response.data)
@@ -83,7 +78,7 @@ const actions = {
       })
   },
 
-  getAllExternalPermissions (context, data) {
+  loadExternalPermissions (context, data) {
     return getAllExternalPermissions(data)
       .then(response => {
         context.commit('setPermissions', response.data)
@@ -118,7 +113,7 @@ const actions = {
       })
   },
 
-  getAllExternalUsers (context, data) {
+  loadExternalUsers (context, data) {
     return getAllExternalUsers(data)
       .then(response => {
         context.commit('setUsers', response.data)
@@ -132,31 +127,24 @@ const actions = {
       })
   },
 
-  getAllUserWordLists (context, data) {
+  loadUserWordLists (context, data) {
     return getAllUserWordLists(data)
       .then(response => {
         context.commit('setWordLists', response.data)
       })
   },
 
-  getAllRemoteAccesses (context, data) {
+  loadRemoteAccesses (context, data) {
     return getAllRemoteAccesses(data)
       .then(response => {
         context.commit('setRemoteAccesses', response.data)
       })
   },
 
-  getAllRemoteNodes (context, data) {
+  loadRemoteNodes (context, data) {
     return getAllRemoteNodes(data)
       .then(response => {
         context.commit('setRemoteNodes', response.data)
-      })
-  },
-
-  loadCollectorsNodes (context, data) {
-    return getAllCollectorsNodes(data)
-      .then(response => {
-        context.commit('setCollectorsNodes', response.data)
       })
   },
 
@@ -174,6 +162,20 @@ const actions = {
       })
   },
 
+  loadCollectors (context, data) {
+    return getAllCollectors(data)
+      .then(response => {
+        context.commit('setCollectors', response.data)
+      })
+  },
+
+  loadBots (context, data) {
+    return getAllBots(data)
+      .then(response => {
+        context.commit('setBots', response.data)
+      })
+  },
+
   loadOSINTSourceGroups (context, filter) {
     return getAllOSINTSourceGroups(filter)
       .then(response => {
@@ -181,38 +183,10 @@ const actions = {
       })
   },
 
-  loadPresentersNodes (context, data) {
-    return getAllPresentersNodes(data)
-      .then(response => {
-        context.commit('setPresentersNodes', response.data)
-      })
-  },
-
-  getAllPublishersNodes (context, data) {
-    return getAllPublishersNodes(data)
-      .then(response => {
-        context.commit('setPublishersNodes', response.data)
-      })
-  },
-
-  getAllPublisherPresets (context, data) {
+  loadPublisherPresets (context, data) {
     return getAllPublisherPresets(data)
       .then(response => {
         context.commit('setPublisherPresets', response.data)
-      })
-  },
-
-  getAllBotsNodes (context, data) {
-    return getAllBotsNodes(data)
-      .then(response => {
-        context.commit('setBotsNodes', response.data)
-      })
-  },
-
-  getAllBotPresets (context, data) {
-    return getAllBotPresets(data)
-      .then(response => {
-        context.commit('setBotPresets', response.data)
       })
   }
 }
@@ -266,8 +240,12 @@ const mutations = {
     state.nodes = nodes
   },
 
-  setCollectorsNodes (state, collectors_nodes) {
-    state.collectors_nodes = collectors_nodes
+  setCollectors (state, collectors) {
+    state.collectors = collectors
+  },
+
+  setBots (state, bots) {
+    state.bots = bots
   },
 
   setOSINTSources (state, osint_sources) {
@@ -278,24 +256,8 @@ const mutations = {
     state.osint_source_groups = osint_source_groups
   },
 
-  setPresentersNodes (state, presenters_nodes) {
-    state.presenters_nodes = presenters_nodes
-  },
-
-  setPublishersNodes (state, publishers_nodes) {
-    state.publishers_nodes = publishers_nodes
-  },
-
   setPublisherPresets (state, publisher_presets) {
     state.publisher_presets = publisher_presets
-  },
-
-  setBotsNodes (state, bots_nodes) {
-    state.bots_nodes = bots_nodes
-  },
-
-  setBotPresets (state, bot_presets) {
-    state.bot_presets = bot_presets
   }
 }
 
@@ -354,15 +316,23 @@ const getters = {
   },
 
   getCollectorsNodes (state) {
-    state.collectors_nodes.items.map(function (item) {
-      item.type = 'Collector'
-      return item
+    return state.nodes.items.map(function (item) {
+      if (item.type === 'Collector') {
+        return item
+      }
     })
-    return state.collectors_nodes
   },
 
   getNodes (state) {
     return state.nodes
+  },
+
+  getCollectors (state) {
+    return state.collectors
+  },
+
+  getBots (state) {
+    return state.bots
   },
 
   getOSINTSources (state) {
@@ -374,36 +344,33 @@ const getters = {
   },
 
   getPresentersNodes (state) {
-    state.presenters_nodes.items.map(function (item) {
-      item.type = 'Presenter'
-      return item
+    return state.nodes.items.map(function (item) {
+      if (item.type === 'Presenter') {
+        return item
+      }
     })
-    return state.presenters_nodes
   },
 
   getPublishersNodes (state) {
-    state.publishers_nodes.items.map(function (item) {
-      item.type = 'Publisher'
-      return item
+    return state.nodes.items.map(function (item) {
+      if (item.type === 'Publisher') {
+        return item
+      }
     })
-    return state.publishers_nodes
+  },
+
+  getBotsNodes (state) {
+    return state.nodes.items.map(function (item) {
+      if (item.type === 'Bot') {
+        return item
+      }
+    })
   },
 
   getPublisherPresets (state) {
     return state.publisher_presets
-  },
-
-  getBotsNodes (state) {
-    state.bots_nodes.items.map(function (item) {
-      item.type = 'Bot'
-      return item
-    })
-    return state.bots_nodes
-  },
-
-  getBotPresets (state) {
-    return state.bot_presets
   }
+
 }
 
 export const config = {

@@ -1,65 +1,105 @@
 <template>
-    <ViewLayout>
-        <template v-slot:panel>
-            <ToolbarFilter title='nav_menu.publisher_presets' total_count_title="publisher_preset.total_count"
-                           total_count_getter="config/getPublisherPresets">
-                <template v-slot:addbutton>
-                    <NewPublisherPreset/>
-                </template>
-            </ToolbarFilter>
-
-        </template>
-        <template v-slot:content>
-            <ContentData
-                    name = "PublisherPresets"
-                    cardItem="CardPreset"
-                    action="config/getAllPublisherPresets"
-                    getter="config/getPublisherPresets"
-                    deletePermission="CONFIG_PUBLISHER_PRESET_DELETE"
-            />
-        </template>
-    </ViewLayout>
+  <div>
+    <ConfigTable
+      :addButton="true"
+      :items.sync="presets"
+      :headerFilter="['tag', 'id', 'name', 'description']"
+      sortByItem="id"
+      :actionColumn="true"
+      @delete-item="deleteItem"
+      @edit-item="editItem"
+      @add-item="addItem"
+    />
+    <EditConfig
+      v-if="formData && Object.keys(formData).length > 0"
+      :configData="formData"
+      @submit="handleSubmit"
+    ></EditConfig>
+  </div>
 </template>
 
 <script>
-import ViewLayout from '../../components/layouts/ViewLayout'
-import NewPublisherPreset from '@/components/config/publisher_presets/NewPublisherPreset'
-import ToolbarFilter from '../../components/common/ToolbarFilter'
-import ContentData from '../../components/common/content/ContentData'
-import { deletePublisherPreset } from '@/api/config'
+import ConfigTable from '../../components/config/ConfigTable'
+import EditConfig from '../../components/config/EditConfig'
+import {
+  deletePublisherPreset,
+  createPublisherPreset,
+  updatePublisherPreset
+} from '@/api/config'
+import { mapActions, mapGetters } from 'vuex'
+import { notifySuccess, emptyValues, notifyFailure } from '@/utils/helpers'
 
 export default {
-  name: 'PublisherPresets',
+  name: 'presets',
   components: {
-    ViewLayout,
-    ToolbarFilter,
-    ContentData,
-    NewPublisherPreset
+    ConfigTable,
+    EditConfig
   },
   data: () => ({
+    presets: [],
+    formData: {},
+    edit: false
   }),
-  mounted () {
-    this.$root.$on('delete-item', (item) => {
-      deletePublisherPreset(item).then(() => {
-        this.$root.$emit('notification',
-          {
-            type: 'success',
-            loc: 'publisher_preset.removed'
-          }
-        )
-      }).catch(() => {
-        this.$root.$emit('notification',
-          {
-            type: 'error',
-            loc: 'publisher_preset.removed_error'
-          }
-        )
+  methods: {
+    ...mapActions('config', ['loadPublisherPresets']),
+    ...mapGetters('config', ['getPublisherPresets']),
+    ...mapActions(['updateItemCount']),
+    updateData() {
+      this.loadPublisherPresets().then(() => {
+        const sources = this.getPublisherPresets()
+        this.presets = sources.items
+        this.updateItemCount({
+          total: sources.total_count,
+          filtered: sources.length
+        })
       })
-    })
+    },
+    addItem() {
+      this.formData = emptyValues(this.presets[0])
+      this.edit = false
+    },
+    editItem(item) {
+      this.formData = item
+      this.edit = true
+    },
+    handleSubmit(submittedData) {
+      console.log(submittedData)
+      if (this.edit) {
+        this.updateItem(submittedData)
+      } else {
+        this.createItem(submittedData)
+      }
+    },
+    deleteItem(item) {
+      if (!item.default) {
+        deletePublisherPreset(item).then(() => {
+          notifySuccess(`Successfully deleted ${item.name}`)
+          this.updateData()
+        }).catch(() => {
+          notifyFailure(`Failed to delete ${item.name}`)
+        })
+      }
+    },
+    createItem(item) {
+      createPublisherPreset(item).then(() => {
+        notifySuccess(`Successfully created ${item.name}`)
+        this.updateData()
+      }).catch(() => {
+        notifyFailure(`Failed to create ${item.name}`)
+      })
+    },
+    updateItem(item) {
+      updatePublisherPreset(item).then(() => {
+        notifySuccess(`Successfully updated ${item.name}`)
+        this.updateData()
+      }).catch(() => {
+        notifyFailure(`Failed to update ${item.name}`)
+      })
+    }
   },
-  beforeDestroy () {
-    this.$root.$off('delete-item')
-  }
+  mounted() {
+    this.updateData()
+  },
+  beforeDestroy() {}
 }
-
 </script>

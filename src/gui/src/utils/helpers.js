@@ -1,4 +1,5 @@
 import { xor } from 'lodash'
+import { vm } from '../main.js'
 
 export function xorConcat (arrayOne, arrayTwo) {
   return xor(arrayOne, arrayTwo)
@@ -24,7 +25,7 @@ export function stripHtml(html) {
 }
 
 export function notifySuccess(text) {
-  this.$root.$emit('notification',
+  vm.$emit('notification',
     {
       type: 'success',
       loc: text
@@ -32,7 +33,7 @@ export function notifySuccess(text) {
 }
 
 export function notifyFailure(text) {
-  this.$root.$emit('notification',
+  vm.$emit('notification',
     {
       type: 'red',
       loc: text
@@ -54,4 +55,23 @@ export function emptyValues(obj) {
     }
   }
   return result
+}
+
+export function objectFromFormat(format) {
+  var newObject = {}
+  format.map(function(item) {
+    if (item === undefined) {
+      return
+    }
+    if (item.type === 'checkbox') {
+      newObject[item.name] = false
+    } else if (item.type === 'text' || item.type === 'textarea' || item.type === 'select') {
+      newObject[item.name] = ''
+    } else if (item.type === 'number') {
+      newObject[item.name] = 0
+    } else if (item.type === 'table') {
+      newObject[item.name] = []
+    }
+  })
+  return newObject
 }

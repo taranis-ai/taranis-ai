@@ -25,12 +25,6 @@ class WordListREV610dfbea8075(Base):
     description = sa.Column(sa.String(), nullable=False)
 
 
-class WordListCategoryREV610dfbea8075(Base):
-    __tablename__ = "word_list_category"
-    id = sa.Column(sa.Integer, primary_key=True)
-    description = sa.Column(sa.String(), nullable=False)
-
-
 class WordListEntryREV610dfbea8075(Base):
     __tablename__ = "word_list_entry"
     id = sa.Column(sa.Integer, primary_key=True)
@@ -46,10 +40,6 @@ def upgrade():
         if word_list.description is None:
             word_list.description = ""
 
-    for word_list_category in session.query(WordListCategoryREV610dfbea8075):
-        if word_list_category.description is None:
-            word_list_category.description = ""
-
     for word_list_entry in session.query(WordListEntryREV610dfbea8075):
         if word_list_entry.description is None:
             word_list_entry.description = ""
@@ -57,8 +47,6 @@ def upgrade():
     session.commit()
 
     op.alter_column("word_list", "description", existing_type=sa.VARCHAR(), nullable=False)
-
-    op.alter_column("word_list_category", "description", existing_type=sa.VARCHAR(), nullable=False)
 
     op.alter_column("word_list_entry", "description", existing_type=sa.VARCHAR(), nullable=False)
 

@@ -1,63 +1,92 @@
 <template>
-  <ViewLayout>
-    <template v-slot:panel>
-      <ToolbarFilter title='acl.full_title' total_count_title="acl.total_count"
-               total_count_getter="config/getACLEntries">
-        <template v-slot:addbutton>
-          <NewACL/>
-        </template>
-      </ToolbarFilter>
-
-    </template>
-    <template v-slot:content>
-      <ContentData
-        name = "ACLEntries"
-        cardItem="CardPreset"
-        action="config/loadACLEntries"
-        getter="config/getACLEntries"
-        deletePermission="CONFIG_ACL_DELETE"
-      />
-    </template>
-  </ViewLayout>
+  <div>
+    <ConfigTable
+      :addButton="true"
+      :items.sync="acls"
+      :headerFilter="['tag', 'id', 'name', 'username']"
+      sortByItem="id"
+      :actionColumn="true"
+      @delete-item="deleteItem"
+      @edit-item="editItem"
+      @add-item="addItem"
+    />
+    <NewACL
+      v-if="showForm"
+      :user_id.sync="userID"
+    ></NewACL>
+  </div>
 </template>
 
 <script>
-import ViewLayout from '../../components/layouts/ViewLayout'
-import ToolbarFilter from '../../components/common/ToolbarFilter'
-import ContentData from '../../components/common/content/ContentData'
-import { deleteACLEntry } from '@/api/config'
+import ConfigTable from '../../components/config/ConfigTable'
+import NewACL from '../../components/config/user/NewACL'
+import { deleteACLEntry, createACLEntry, updateACLEntry } from '@/api/config'
+import { notifySuccess } from '@/utils/helpers'
+import { mapActions, mapGetters } from 'vuex'
 
 export default {
   name: 'ACLEntriesView',
   components: {
-    ViewLayout,
-    ToolbarFilter,
-    ContentData
+    ConfigTable,
+    NewACL
   },
   data: () => ({
+    acls: [],
+    showForm: false,
+    edit: false
   }),
-  mounted () {
-    this.$root.$on('delete-item', (item) => {
-      deleteACLEntry(item).then(() => {
-        this.$root.$emit('notification',
-          {
-            type: 'success',
-            loc: 'acl.removed'
-          }
-        )
-      }).catch(() => {
-        this.$root.$emit('notification',
-          {
-            type: 'error',
-            loc: 'acl.removed_error'
-          }
-        )
+  methods: {
+    ...mapActions('config', ['loadACLEntries']),
+    ...mapGetters('config', ['getACLEntries']),
+    ...mapActions(['updateItemCount']),
+    updateData() {
+      this.loadACLEntries().then(() => {
+        const sources = this.getUsers()
+        this.acls = sources.items
+        this.updateItemCount({
+          total: sources.total_count,
+          filtered: sources.length
+        })
       })
-    })
+    },
+    addItem() {
+      this.userID = null
+      this.showForm = true
+    },
+    editItem(item) {
+      this.userID = item.id
+      this.showForm = true
+    },
+    handleSubmit(submittedData) {
+      if (this.showForm) {
+        this.updateItem(submittedData)
+      } else {
+        this.createItem(submittedData)
+      }
+    },
+    deleteItem(item) {
+      deleteACLEntry(item).then(() => {
+        notifySuccess(`Successfully deleted ${item.name}`)
+        this.updateData()
+      })
+    },
+    createItem(item) {
+      createACLEntry(item).then(() => {
+        notifySuccess(`Successfully created ${item.name}`)
+        this.updateData()
+      })
+    },
+    updateItem(item) {
+      updateACLEntry(item).then(() => {
+        notifySuccess(`Successfully updated ${item.name}`)
+        this.updateData()
+      })
+    }
   },
-  beforeDestroy () {
-    this.$root.$off('delete-item')
-  }
+  mounted() {
+    this.updateData()
+  },
+  beforeDestroy() {}
 }
 
 </script>

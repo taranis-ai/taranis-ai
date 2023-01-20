@@ -220,7 +220,7 @@ export default {
       'pinStory',
       'unselectAllStories',
       'removeStoryById',
-      'createNewStory'
+      'createStory'
     ]),
     ...mapActions('assess', [
       'deselectNewsItem',
@@ -254,7 +254,7 @@ export default {
         this.selection.forEach((id) => this.removeStoryById(id))
       }
 
-      this.createNewStory(mergedStory)
+      this.createStory(mergedStory)
       this.changeMergeAttr({ src: oldStories, dest: mergedStory.id })
 
       // Close Popup

@@ -4,29 +4,17 @@ from flask_restful import Resource, reqparse
 from core.managers import sse_manager, collectors_manager
 from core.managers.auth_manager import api_key_required
 from core.managers.log_manager import logger
-from core.model import osint_source, collectors_node, news_item
+from core.model import osint_source, collector, news_item, collectors_node
 from shared.schema.osint_source import OSINTSourceUpdateStatusSchema
 
 
 class OSINTSourcesForCollectors(Resource):
     @api_key_required
-    def get(self, collector_id):
+    def get(self, collector_type):
         try:
-            parser = reqparse.RequestParser()
-            parser.add_argument("collector_type", location="args", required=True)
-            parameters = parser.parse_args()
-
-            logger.log_debug(f"Searching node: {parameters}")
-            node = collectors_node.CollectorsNode.get_by_id(collector_id)
-            logger.log_debug(f"Node found: {node}")
-            if not node:
-                return "", 404
-
-            node.updateLastSeen()
+            return osint_source.OSINTSource.get_all_by_type(collector_type)
         except Exception:
             logger.log_debug_trace()
-
-        return osint_source.OSINTSource.get_all_for_collector_json(node, parameters.collector_type)
 
 
 class AddNewsItems(Resource):
@@ -93,7 +81,7 @@ class CollectorStatusUpdate(Resource):
 def initialize(api):
     api.add_resource(
         OSINTSourcesForCollectors,
-        "/api/v1/collectors/<string:collector_id>/osint-sources",
+        "/api/v1/collectors/osint-sources/<string:collector_type>",
     )
     api.add_resource(
         OSINTSourceStatusUpdate,

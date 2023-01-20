@@ -5,6 +5,7 @@
     color="cx-drawer-bg"
     class="sidebar"
     style="max-height: 100% !important; height: calc(100vh - 48px) !important"
+    v-if="drawerVisible"
   >
     <v-container class="pa-0">
       <!-- scope -->
@@ -170,6 +171,7 @@ export default {
       filter: (state) => state.newsItemsFilter,
       order: (state) => state.newsItemsOrder
     }),
+    ...mapState(['drawerVisible']),
     scope: {
       get () { return this.scopeState },
       set (value) { this.updateScope(value) }

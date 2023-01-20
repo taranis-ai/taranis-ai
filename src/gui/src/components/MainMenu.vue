@@ -18,10 +18,9 @@
       <v-icon
         :class="[
           'menu-icon',
-          { closed: !opened || this.$vuetify.breakpoint.mdAndDown }
+          { closed: !drawerVisible || this.$vuetify.breakpoint.mdAndDown }
         ]"
-        >mdi-menu-open</v-icon
-      >
+        >mdi-menu-open</v-icon>
     </v-btn>
 
     <v-toolbar-title class="headline" style="width: 300px">
@@ -33,12 +32,6 @@
           version="1.1"
           height="30"
           viewBox="0 0 435 84"
-          style="
-            fill-rule: evenodd;
-            clip-rule: evenodd;
-            stroke-linejoin: round;
-            stroke-miterlimit: 2;
-          "
         >
           <g id="taranis-logo">
             <path
@@ -59,9 +52,12 @@
     </v-toolbar-title>
 
     <div class="item-count">
-      <span>total items: <strong>{{ itemCount().total }}</strong></span>
-
-      <span v-if="isFiltered()"> / displayed items: <strong>{{ itemCount().filtered }}</strong></span>
+      <span
+        >total items: <strong>{{ getItemCount.total }}</strong>
+      </span>
+      <span v-if="isFiltered">
+        / displayed items: <strong>{{ getItemCount.filtered }}</strong>
+      </span>
     </div>
 
     <v-spacer></v-spacer>
@@ -140,13 +136,12 @@
 import UserMenu from '../components/UserMenu'
 import AuthMixin from '../services/auth/auth_mixin'
 
-import { mapActions, mapGetters } from 'vuex'
+import { mapActions, mapGetters, mapState } from 'vuex'
 
 export default {
   components: { UserMenu },
   name: 'MainMenu',
   data: () => ({
-    opened: true,
     buttons: [
       {
         title: 'main_menu.administration',
@@ -203,26 +198,16 @@ export default {
   mixins: [AuthMixin],
   methods: {
     ...mapActions(['toggleDrawer']),
-    ...mapGetters(['getItemCount']),
 
-    navClicked () {
-      this.opened = !this.opened
+    navClicked() {
       this.toggleDrawer()
     },
 
-    darkToggle () {
+    darkToggle() {
       this.$vuetify.theme.dark = this.darkTheme
     },
 
-    isFiltered () {
-      return this.getItemCount().filtered === undefined ? false : this.getItemCount().filtered !== this.getItemCount().total
-    },
-
-    itemCount () {
-      return this.getItemCount()
-    },
-
-    getButtonList (permissions) {
+    getButtonList(permissions) {
       return this.buttons.filter(
         (button) =>
           this.checkPermission(permissions[button.permission]) && button.show
@@ -230,9 +215,14 @@ export default {
     }
   },
   computed: {
+    ...mapState(['drawerVisible']),
+    ...mapGetters(['getItemCount']),
+    isFiltered() {
+      return this.getItemCount.filtered === undefined
+        ? false
+        : this.getItemCount.filtered !== this.getItemCount.total
+    }
   },
-  mounted () {
-
-  }
+  mounted() {}
 }
 </script>

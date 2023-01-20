@@ -83,7 +83,7 @@
 </template>
 
 <script>
-import { createNewNotificationTemplate, updateNotificationTemplate } from '@/api/assets'
+import { createNotificationTemplate, updateNotificationTemplate } from '@/api/assets'
 
 import RecipientTable from '@/components/config/assets/RecipientTable'
 import ClassicEditor from '@ckeditor/ckeditor5-build-classic'
@@ -153,7 +153,7 @@ export default {
               this.show_error = true
             })
           } else {
-            createNewNotificationTemplate(this.template).then(() => {
+            createNotificationTemplate(this.template).then(() => {
               this.$validator.reset()
               this.visible = false
               this.$root.$emit('notification',

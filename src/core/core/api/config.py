@@ -19,11 +19,12 @@ from core.model import (
     acl_entry,
     remote,
     presenter,
+    collector,
+    bot,
     presenters_node,
     publisher_preset,
     publishers_node,
     bots_node,
-    bot_preset,
     attribute,
     collectors_node,
     organization,
@@ -305,6 +306,18 @@ class WordList(Resource):
         word_list.WordList.update(word_list_id, request.json)
 
 
+class Collectors(Resource):
+    def get(self):
+        search = request.args.get(key="search", default=None)
+        return collector.Collector.get_all_json(search)
+
+
+class Bots(Resource):
+    def get(self):
+        search = request.args.get(key="search", default=None)
+        return bot.Bot.get_all_json(search)
+
+
 class CollectorsNodes(Resource):
     @auth_required("CONFIG_COLLECTORS_NODE_ACCESS")
     def get(self):
@@ -336,6 +349,10 @@ class OSINTSources(Resource):
 
 
 class OSINTSource(Resource):
+    @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
+    def get(self, source_id):
+        return osint_source.OSINTSource.get_by_id(source_id)
+
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def put(self, source_id):
         updated_osint_source, default_group = collectors_manager.update_osint_source(source_id, request.json)
@@ -347,10 +364,20 @@ class OSINTSource(Resource):
         collectors_manager.delete_osint_source(source_id)
 
 
+class OSINTSourceRefresh(Resource):
+    @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
+    def put(self, source_id):
+        result = collectors_manager.refresh_osint_source(source_id)
+        return result
+
+
 class OSINTSourcesExport(Resource):
     @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
-    def post(self):
-        data = collectors_manager.export_osint_sources(request.json)
+    def get(self):
+        ids = request.args.getlist(key="ids")
+        data = collectors_manager.export_osint_sources(ids)
+        if data is None:
+            return "", 400
         return send_file(
             io.BytesIO(data),
             download_name="osint_sources_export.json",
@@ -363,8 +390,7 @@ class OSINTSourcesImport(Resource):
     @auth_required("CONFIG_OSINT_SOURCE_CREATE")
     def post(self):
         if file := request.files.get("file"):
-            collectors_node_id = request.form["collectors_node_id"]
-            collectors_manager.import_osint_sources(collectors_node_id, file)
+            collectors_manager.import_osint_sources(file)
 
 
 class OSINTSourceGroups(Resource):
@@ -544,27 +570,6 @@ class BotNodes(Resource):
         return bots_node.BotsNode.delete(node_id)
 
 
-class BotPresets(Resource):
-    @auth_required("CONFIG_BOT_PRESET_ACCESS")
-    def get(self):
-        search = request.args.get(key="search", default=None)
-        return bot_preset.BotPreset.get_all_json(search)
-
-    @auth_required("CONFIG_BOT_PRESET_CREATE")
-    def post(self):
-        bots_manager.add_bot_preset(request.json)
-
-
-class BotPreset(Resource):
-    @auth_required("CONFIG_BOT_PRESET_UPDATE")
-    def put(self, preset_id):
-        bot_preset.BotPreset.update(preset_id, request.json)
-
-    @auth_required("CONFIG_BOT_PRESET_DELETE")
-    def delete(self, preset_id):
-        return bot_preset.BotPreset.delete(preset_id)
-
-
 def initialize(api):
     api.add_resource(
         DictionariesReload,
@@ -604,8 +609,12 @@ def initialize(api):
     api.add_resource(WordList, "/api/v1/config/word-lists/<int:word_list_id>")
 
     api.add_resource(CollectorsNodes, "/api/v1/config/collectors-nodes", "/api/v1/config/collectors-nodes/<string:node_id>")
+    api.add_resource(Collectors, "/api/v1/config/collectors", "/api/v1/config/collectors/<string:collector_type>")
+    api.add_resource(Bots, "/api/v1/config/bots", "/api/v1/config/bots/<string:bot_type>")
+
     api.add_resource(OSINTSources, "/api/v1/config/osint-sources")
     api.add_resource(OSINTSource, "/api/v1/config/osint-sources/<string:source_id>")
+    api.add_resource(OSINTSourceRefresh, "/api/v1/config/osint-sources/<string:source_id>/refresh")
     api.add_resource(OSINTSourcesExport, "/api/v1/config/export-osint-sources")
     api.add_resource(OSINTSourcesImport, "/api/v1/config/import-osint-sources")
     api.add_resource(OSINTSourceGroups, "/api/v1/config/osint-source-groups")
@@ -625,7 +634,5 @@ def initialize(api):
     api.add_resource(PublisherPreset, "/api/v1/config/publishers-presets/<string:preset_id>")
 
     api.add_resource(BotNodes, "/api/v1/config/bots-nodes", "/api/v1/config/bots-nodes/<string:node_id>")
-    api.add_resource(BotPresets, "/api/v1/config/bots-presets")
-    api.add_resource(BotPreset, "/api/v1/config/bots-presets/<string:preset_id>")
 
     api.add_resource(Nodes, "/api/v1/config/nodes", "/api/v1/config/nodes/<string:node_id>")

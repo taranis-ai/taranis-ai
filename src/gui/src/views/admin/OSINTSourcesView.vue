@@ -2,97 +2,210 @@
   <div>
     <ConfigTable
       :addButton="true"
-      :items="osint_sources"
-      :headerFilter="['name', 'description', 'id']"
-      groupByItem="collector_type"
+      :items.sync="osint_sources"
+      :headerFilter="['tag', 'name', 'description', 'FEED_URL']"
+      sortByItem="id"
+      :actionColumn="true"
       @delete-item="deleteItem"
       @edit-item="editItem"
       @add-item="addItem"
-    />
+      @selection-change="selectionChange"
+    >
+    <template v-slot:titlebar>
+      <ImportExport
+        @import="importData"
+        @export="exportData"
+      ></ImportExport>
+    </template>
+    </ConfigTable>
+    <EditConfig
+      v-if="formData && Object.keys(formData).length > 0"
+      :configData.sync="formData"
+      :formFormat.sync="formFormat"
+      @submit="handleSubmit"
+    ></EditConfig>
   </div>
 </template>
 
 <script>
 import ConfigTable from '../../components/config/ConfigTable'
+import EditConfig from '../../components/config/EditConfig'
+import ImportExport from '../../components/config/ImportExport'
 import {
   deleteOSINTSource,
-  createNewOSINTSource,
+  createOSINTSource,
   updateOSINTSource,
   exportOSINTSources,
   importOSINTSources
 } from '@/api/config'
 import { mapActions, mapGetters } from 'vuex'
+import { notifySuccess, objectFromFormat, notifyFailure } from '@/utils/helpers'
 
 export default {
   name: 'OSINTSources',
   components: {
-    ConfigTable
+    ConfigTable,
+    EditConfig,
+    ImportExport
   },
   data: () => ({
+    unparsed_sources: [],
     osint_sources: [],
-    selected: []
+    parameters: {},
+    selected: [],
+    formData: {},
+    collectors: [],
+    edit: false
   }),
+  computed: {
+    formFormat() {
+      const base = [
+        {
+          name: 'id',
+          label: 'ID',
+          type: 'text',
+          disabled: true
+        },
+        {
+          name: 'name',
+          label: 'Name',
+          type: 'text',
+          required: true
+        },
+        {
+          name: 'description',
+          label: 'Description',
+          type: 'textarea',
+          required: true
+        },
+        {
+          name: 'collector_id',
+          label: 'Collector',
+          type: 'select',
+          options: this.collectors
+        }
+      ]
+      if (this.parameters[this.formData.collector_id]) {
+        return base.concat(this.parameters[this.formData.collector_id])
+      }
+      return base
+    }
+  },
   methods: {
-    ...mapActions('config', ['loadOSINTSources']),
-    ...mapGetters('config', ['getOSINTSources']),
-    // ...mapGetters('assess', ['getOSINTSources']),
+    ...mapActions('config', ['loadOSINTSources', 'loadCollectors']),
+    ...mapGetters('config', ['getOSINTSources', 'getCollectors']),
     ...mapActions(['updateItemCount']),
     updateData() {
       this.loadOSINTSources().then(() => {
         const sources = this.getOSINTSources()
-        this.osint_sources = sources.items
+        this.unparsed_sources = sources.items
+        this.osint_sources = this.parseSource(sources.items)
         this.updateItemCount({
           total: sources.total_count,
           filtered: sources.length
         })
       })
-    },
-    importSources() {
-      importOSINTSources(this.selected).then(() => {
-        this.message = `Successfully imported ${this.selected.length} sources`
-        this.dialog = true
-        this.updateData()
-      })
-    },
-    exportSources() {
-      exportOSINTSources(this.selected)
-    },
-    deleteItem(item) {
-      if (!item.default) {
-        deleteOSINTSource(item).then(() => {
-          this.message = `Successfully deleted ${item.name}`
-          this.dialog = true
-          this.$root.$emit('notification', {
-            type: 'success',
-            loc: `Successfully deleted ${item.name}`
+      this.loadCollectors().then(() => {
+        const collectors = this.getCollectors()
+        this.collectors = collectors.items.map(collector => {
+          this.parameters[collector.id] = collector.parameters.map(parameter => {
+            return {
+              name: parameter.key,
+              label: parameter.name,
+              type: 'text'
+            }
           })
-          this.updateData()
+          return {
+            value: collector.id,
+            text: collector.name
+          }
         })
-      }
-    },
-    addItem(item) {
-      createNewOSINTSource(item).then(() => {
-        this.$root.$emit('notification', {
-          type: 'success',
-          loc: `Successfully created ${item.name}`
-        })
-        this.updateData()
       })
+    },
+    parseSource(data) {
+      const sources = []
+
+      data.forEach(source => {
+        const rootLevel = {
+          name: source.name,
+          id: source.id,
+          description: source.description,
+          collector_id: source.collector_id
+        }
+
+        source.parameter_values.forEach(parameter => {
+          rootLevel[parameter.parameter.key] = parameter.value
+        })
+        sources.push(rootLevel)
+      })
+
+      return sources
+    },
+    parseSubmittedData(data) {
+      const result = this.unparsed_sources.find(item => item.id === data.id)
+
+      result.parameter_values.forEach(parameter => {
+        parameter.value = data[parameter.parameter.key]
+      })
+
+      return result
+    },
+    addItem() {
+      console.log(this.formFormat)
+      this.formData = objectFromFormat(this.formFormat)
+      this.edit = false
     },
     editItem(item) {
-      updateOSINTSource(item).then(() => {
-        this.$root.$emit('notification', {
-          type: 'success',
-          loc: `Successfully updated ${item.name}`
-        })
+      this.formData = item
+      this.edit = true
+    },
+    handleSubmit(submittedData) {
+      const updateItem = this.parseSubmittedData(submittedData)
+      if (this.edit) {
+        this.updateItem(updateItem)
+      } else {
+        this.createItem(updateItem)
+      }
+    },
+    deleteItem(item) {
+      deleteOSINTSource(item).then(() => {
+        notifySuccess(`Successfully deleted ${item.name}`)
         this.updateData()
+      }).catch(() => {
+        notifyFailure(`Failed to delete ${item.name}`)
       })
+    },
+    createItem(item) {
+      createOSINTSource(item).then(() => {
+        notifySuccess(`Successfully created ${item.name}`)
+        this.updateData()
+      }).catch(() => {
+        notifyFailure(`Failed to create ${item.name}`)
+      })
+    },
+    updateItem(item) {
+      updateOSINTSource(item).then(() => {
+        notifySuccess(`Successfully updated ${item.name}`)
+        this.updateData()
+      }).catch(() => {
+        notifyFailure(`Failed to update ${item.name}`)
+      })
+    },
+    importData(data) {
+      importOSINTSources(data)
+    },
+    exportData() {
+      console.debug('export OSINT sources')
+      exportOSINTSources(this.selected)
+    },
+    selectionChange(selected) {
+      this.selected = selected.map(item => item.id)
     }
+
   },
   mounted() {
     this.updateData()
   },
-  beforeDestroy() {
-  }
+  beforeDestroy() {}
 }
 </script>

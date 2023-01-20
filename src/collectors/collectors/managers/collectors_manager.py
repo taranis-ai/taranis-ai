@@ -13,7 +13,7 @@ status_report_thread = None
 def register_collector_node():
     try:
         logger.log_debug(f"Registering Collector Node at {Config.TARANIS_NG_CORE_URL}")
-        response, code = CoreApi().register_node(get_registered_collectors_info())
+        response, code = CoreApi().register_node()
         if code == 200:
             logger.log_info(f"Successfully registered: {response}")
         return response, code
@@ -52,6 +52,14 @@ def refresh_collector(collector_type):
 
     refresh_thread = RefreshThread()
     refresh_thread.start()
+    return 200
+
+
+def refresh():
+    for collector_type in collectors:
+        if refresh_collector(collector_type) != 200:
+            return 500
+
     return 200
 
 

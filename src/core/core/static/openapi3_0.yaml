@@ -1620,33 +1620,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/resp.auth.error'
-  /bots/bots-presets:
-    post:
-      tags: [bots]
-      summary: get a specific bot preset
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                api_key:
-                  type: string
-                bot_type:
-                  type: string
-      responses:
-        '200':
-          description: the specific bot preset
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/bot_preset'
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
   /bots/news-item-data:
     get:
       tags: [bots]
@@ -1812,55 +1785,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/resp.auth.error'
-  /bots/word-list-categories/{category_id}:
+  /bots/word-list/{word_list_id}/entries/{entry_name}:
     parameters:
-      - name: category_id
-        in: path
-        required: true
-        schema:
-          type: integer
-    get:
-      tags: [bots]
-      summary: get categories
-      responses:
-        '200':
-          description: DESCRIPTION
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/wordlist_category.new'
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-    put:
-      tags: [bots]
-      summary: add wordlist category
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/wordlist_category.new'
-      responses:
-        '200':
-          description: successfully added category
-          content:
-            application/json:
-              schema:
-                type: object
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-  /bots/word-list-categories/{category_id}/entries/{entry_name}:
-    parameters:
-      - name: category_id
+      - name: word_list_id
         in: path
         required: true
         schema:
@@ -3836,88 +3763,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/resp.auth.error'
-  /config/bots-presets:
-    get:
-      tags: [config]
-      summary: get all bot presets
-      parameters:
-        - name: search
-          in: query
-          schema:
-            type: string
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  total_count:
-                    type: integer
-                  items:
-                    type: array
-                    items: 
-                      $ref: '#/components/schemas/bot_preset.presentation'
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-    post:
-      tags: [config]
-      summary: add bot preset
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/bot_preset.new'
-      responses:
-        '200':
-          description: success
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-  /config/bots-presets/{preset_id}:
-    parameters:
-      - name: preset_id
-        in: path
-        required: true
-        schema:
-          type: integer
-    put:
-      tags: [config]
-      summary: update bot preset
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/bot_preset.new'
-      responses:
-        '200':
-          description: success
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-    delete:
-      tags: [config]
-      summary: delete bot preset
-      responses:
-        '200':
-          description: success
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
   /config/nodes:
     get:
       tags: [config]
@@ -4784,25 +4629,9 @@ components:
     wordlist_entry.new:
       allOf:
         - $ref: '#/components/schemas/wordlist_entry'
-    wordlist_category.new:
-      allOf:
-        - $ref: '#/components/schemas/wordlist_category'
-        - type: object
-          properties:
-            entries:
-              type: array
-              items:
-                $ref: '#/components/schemas/wordlist_entry.new'
     wordlist.new:
       allOf:
         - $ref: '#/components/schemas/wordlist'
-        - type: object
-          properties:
-            categories:
-              type: array
-              items:
-                $ref: '#/components/schemas/wordlist_category.new'
-
     wordlist_entry:
       type: object
       properties:
@@ -4810,19 +4639,6 @@ components:
           type: string
         description:
           type: string
-    wordlist_category:
-      type: object
-      properties:
-        name:
-          type: string
-        description:
-          type: string
-        link:
-          type: string
-        entries:
-          type: array
-          items:
-            $ref: '#/components/schemas/wordlist_entry'
     wordlist:
       type: object
       properties:
@@ -4834,10 +4650,12 @@ components:
           type: string
         use_for_stop_words:
           type: boolean
-        categories:
+        link:
+          type: string
+        entries:
           type: array
           items:
-            $ref: '#/components/schemas/wordlist_category'
+            $ref: '#/components/schemas/wordlist_entry'
     wordlist.presentation:
       allOf:
         - $ref: '#/components/schemas/wordlist'
@@ -5882,49 +5700,6 @@ components:
       properties:
         id:
           type: integer
-
-    bot_preset.new:
-      allOf:
-        - $ref: '#/components/schemas/bot_preset'
-        - type: object
-          properties:
-            parameter_values:
-              type: array
-              items:
-                $ref: '#/components/schemas/parameter_value.new'
-
-    bot_preset.base:
-      type: object
-      properties:
-        id:
-          type: string
-        name:
-          type: string
-        parameter_values:
-          type: array
-          items:
-            $ref: '#/components/schemas/parameter_value'
-    bot_preset:
-      allOf:
-        - $ref: '#/components/schemas/bot_preset.base'
-        - type: object
-          properties:
-            id:
-              type: string
-            name:
-              type: string
-            description:
-              type: string
-            bot_id:
-              type: string
-            parameter_values:
-              type: array
-              items:
-                $ref: '#/components/schemas/parameter_value'
-    bot_preset.presentation:
-      allOf:
-        - $ref: '#/components/schemas/bot_preset'
-        - $ref: '#/components/schemas/presentation'
 
     modify_group_action:
       type: object

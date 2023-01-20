@@ -16,7 +16,7 @@
 import MainMenu from './components/MainMenu'
 import AuthMixin from './services/auth/auth_mixin'
 import Notification from './components/common/Notification'
-import { mapActions, mapState } from 'vuex'
+import { mapActions } from 'vuex'
 
 export default {
   name: 'App',
@@ -24,9 +24,7 @@ export default {
     MainMenu,
     Notification
   },
-  computed: {
-    ...mapState(['drawerVisible'])
-  },
+  computed: { },
   mixins: [AuthMixin],
   methods: {
     ...mapActions('dashboard', ['updateStories']),

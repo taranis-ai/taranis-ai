@@ -9,7 +9,7 @@ export function getAllAttributes (filter_data) {
   return ApiService.get(`/config/attributes?${filter}`)
 }
 
-export function createNewAttribute (attribute) {
+export function createAttribute (attribute) {
   return ApiService.post('/config/attributes', attribute)
 }
 
@@ -42,7 +42,7 @@ export function getAllReportItemTypes (filter_data) {
   return ApiService.get(`/config/report-item-types?${filter}`)
 }
 
-export function createNewReportItemType (report_item_type) {
+export function createReportItemType (report_item_type) {
   return ApiService.post('/config/report-item-types', report_item_type)
 }
 
@@ -59,7 +59,7 @@ export function getAllProductTypes (filter_data) {
   return ApiService.get(`/config/product-types?${filter}`)
 }
 
-export function createNewProductType (product_type) {
+export function createProductType (product_type) {
   return ApiService.post('/config/product-types', product_type)
 }
 
@@ -86,7 +86,7 @@ export function getAllRoles (filter_data) {
   return ApiService.get(`/config/roles?${filter}`)
 }
 
-export function createNewRole (role) {
+export function createRole (role) {
   return ApiService.post('/config/roles', role)
 }
 
@@ -98,12 +98,22 @@ export function deleteRole (role) {
   return ApiService.delete(`/config/roles/${role.id}`)
 }
 
+export function getAllCollectors (filter_data) {
+  const filter = ApiService.getQueryStringFromNestedObject(filter_data)
+  return ApiService.get(`/config/collectors?${filter}`)
+}
+
+export function getAllBots (filter_data) {
+  const filter = ApiService.getQueryStringFromNestedObject(filter_data)
+  return ApiService.get(`/config/bots?${filter}`)
+}
+
 export function getAllACLEntries (filter_data) {
   const filter = ApiService.getQueryStringFromNestedObject(filter_data)
   return ApiService.get(`/config/acls?${filter}`)
 }
 
-export function createNewACLEntry (acl) {
+export function createACLEntry (acl) {
   return ApiService.post('/config/acls', acl)
 }
 
@@ -125,7 +135,9 @@ export function createOrganization (organization) {
 }
 
 export function updateOrganization (organization) {
-  return ApiService.put(`/config/organizations/${organization.id}`, organization)
+  const id = organization.id
+  delete organization.id
+  return ApiService.put(`/config/organizations/${id}`, organization)
 }
 
 export function deleteOrganization (organization) {
@@ -153,7 +165,7 @@ export function getAllExternalUsers (filter) {
   return ApiService.get(`/config/external-users?search=${filter.search}`)
 }
 
-export function createNewExternalUser (user) {
+export function createExternalUser (user) {
   return ApiService.post('/config/external-users', user)
 }
 
@@ -165,11 +177,12 @@ export function deleteExternalUser (user) {
   return ApiService.delete(`/config/external-users/${user.id}`)
 }
 
-export function getAllWordLists (filter) {
-  return ApiService.get(`/config/word-lists?search=${filter.search}`)
+export function getAllWordLists (filter_data) {
+  const filter = ApiService.getQueryStringFromNestedObject(filter_data)
+  return ApiService.get(`/config/word-lists?${filter}`)
 }
 
-export function createNewWordList (word_list) {
+export function createWordList (word_list) {
   return ApiService.post('/config/word-lists', word_list)
 }
 
@@ -181,11 +194,21 @@ export function deleteWordList (word_list) {
   return ApiService.delete(`/config/word-lists/${word_list.id}`)
 }
 
-export function getAllRemoteAccesses (filter) {
-  return ApiService.get(`/config/remote-accesses?search=${filter.search}`)
+export function importWordList (form_data) {
+  return ApiService.upload('/config/import-word-lists', form_data)
 }
 
-export function createNewRemoteAccess (remote_access) {
+export function exportWordList (filter_data) {
+  const filter = ApiService.getQueryStringFromNestedObject(filter_data)
+  return ApiService.download(`/config/export-word-lists?${filter}`, 'word_lists_export.json')
+}
+
+export function getAllRemoteAccesses (filter_data) {
+  const filter = ApiService.getQueryStringFromNestedObject(filter_data)
+  return ApiService.get(`/config/remote-accesses?${filter}`)
+}
+
+export function createRemoteAccess (remote_access) {
   return ApiService.post('/config/remote-accesses', remote_access)
 }
 
@@ -197,11 +220,12 @@ export function deleteRemoteAccess (remote_access) {
   return ApiService.delete(`/config/remote-accesses/${remote_access.id}`)
 }
 
-export function getAllRemoteNodes (filter) {
-  return ApiService.get(`/config/remote-nodes?search=${filter.search}`)
+export function getAllRemoteNodes (filter_data) {
+  const filter = ApiService.getQueryStringFromNestedObject(filter_data)
+  return ApiService.get(`/config/remote-nodes?${filter}`)
 }
 
-export function createNewRemoteNode (remote_node) {
+export function createRemoteNode (remote_node) {
   return ApiService.post('/config/remote-nodes', remote_node)
 }
 
@@ -215,10 +239,6 @@ export function deleteRemoteNode (remote_node) {
 
 export function connectRemoteNode (remote_node) {
   return ApiService.get(`/config/remote-nodes/${remote_node.id}/connect`)
-}
-
-export function getAllCollectorsNodes (filter) {
-  return ApiService.get(`/config/collectors-nodes?search=${filter.search}`)
 }
 
 export function getAllNodes (filter_data) {
@@ -271,24 +291,12 @@ export function deleteNode (node) {
   }
 }
 
-export function createNewCollectorsNode (node) {
-  return ApiService.post('/config/collectors-nodes', node)
-}
-
-export function updateCollectorsNode (node) {
-  return ApiService.put(`/config/collectors-nodes/${node.id}`, node)
-}
-
-export function deleteCollectorsNode (node) {
-  return ApiService.delete(`/config/collectors-nodes/${node.id}`)
-}
-
 export function getAllOSINTSources (filter_data) {
   const filter = ApiService.getQueryStringFromNestedObject(filter_data)
   return ApiService.get(`/config/osint-sources?${filter}`)
 }
 
-export function createNewOSINTSource (source) {
+export function createOSINTSource (source) {
   return ApiService.post('/config/osint-sources', source)
 }
 
@@ -304,8 +312,8 @@ export function importOSINTSources (form_data) {
   return ApiService.upload('/config/import-osint-sources', form_data)
 }
 
-export function exportOSINTSources (data) {
-  return ApiService.download('/config/export-osint-sources', data, 'osint_sources_export.json')
+export function exportOSINTSources (filter_data) {
+  return ApiService.download('/config/export-osint-sources', 'osint_sources_export.json')
 }
 
 export function getAllOSINTSourceGroups (filter_data) {
@@ -313,7 +321,7 @@ export function getAllOSINTSourceGroups (filter_data) {
   return ApiService.get(`/config/osint-source-groups?${filter}`)
 }
 
-export function createNewOSINTSourceGroup (group) {
+export function createOSINTSourceGroup (group) {
   return ApiService.post('/config/osint-source-groups', group)
 }
 
@@ -325,43 +333,12 @@ export function deleteOSINTSourceGroup (group) {
   return ApiService.delete(`/config/osint-source-groups/${group.id}`)
 }
 
-export function getAllPresentersNodes (filter) {
-  return ApiService.get(`/config/presenters-nodes?search=${filter.search}`)
+export function getAllPublisherPresets (filter_data) {
+  const filter = ApiService.getQueryStringFromNestedObject(filter_data)
+  return ApiService.get(`/config/publishers-presets?${filter}`)
 }
 
-export function createNewPresentersNode (node) {
-  return ApiService.post('/config/presenters-nodes', node)
-}
-
-export function updatePresentersNode (node) {
-  return ApiService.put(`/config/presenters-nodes/${node.id}`, node)
-}
-
-export function deletePresentersNode (node) {
-  return ApiService.delete(`/config/presenters-nodes/${node.id}`)
-}
-
-export function getAllPublishersNodes (filter) {
-  return ApiService.get(`/config/publishers-nodes?search=${filter.search}`)
-}
-
-export function createNewPublishersNode (node) {
-  return ApiService.post('/config/publishers-nodes', node)
-}
-
-export function updatePublishersNode (node) {
-  return ApiService.put(`/config/publishers-nodes/${node.id}`, node)
-}
-
-export function deletePublishersNode (node) {
-  return ApiService.delete(`/config/publishers-nodes/${node.id}`)
-}
-
-export function getAllPublisherPresets (filter) {
-  return ApiService.get(`/config/publishers-presets?search=${filter.search}`)
-}
-
-export function createNewPublisherPreset (preset) {
+export function createPublisherPreset (preset) {
   return ApiService.post('/config/publishers-presets', preset)
 }
 
@@ -371,36 +348,4 @@ export function updatePublisherPreset (node) {
 
 export function deletePublisherPreset (node) {
   return ApiService.delete(`/config/publishers-presets/${node.id}`)
-}
-
-export function getAllBotsNodes (filter) {
-  return ApiService.get(`/config/bots-nodes?search=${filter.search}`)
-}
-
-export function createNewBotsNode (node) {
-  return ApiService.post('/config/bots-nodes', node)
-}
-
-export function updateBotsNode (node) {
-  return ApiService.put(`/config/bots-nodes/${node.id}`, node)
-}
-
-export function deleteBotsNode (node) {
-  return ApiService.delete(`/config/bots-nodes/${node.id}`)
-}
-
-export function getAllBotPresets (filter) {
-  return ApiService.get(`/config/bots-presets?search=${filter.search}`)
-}
-
-export function createNewBotPreset (preset) {
-  return ApiService.post('/config/bots-presets', preset)
-}
-
-export function updateBotPreset (node) {
-  return ApiService.put(`/config/bots-presets/${node.id}`, node)
-}
-
-export function deleteBotPreset (node) {
-  return ApiService.delete(`/config/bots-presets/${node.id}`)
 }

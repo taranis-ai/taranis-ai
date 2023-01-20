@@ -74,7 +74,6 @@ const messages_en = {
     osint_sources: "OSINT Sources",
     osint_source_groups: "OSINT Source Groups",
     publisher_presets: "Publisher Presets",
-    bot_presets: "Bot Presets",
     collectors: "Collectors",
     report_items: "Report Items",
     attributes: "Attributes",
@@ -91,7 +90,8 @@ const messages_en = {
     notification_templates: "Notification Templates",
     remote_access: "Remote Access",
     remote_nodes: "Remote Nodes",
-    local: "Local"
+    local: "Local",
+    dashboard: "Dashboard"
   },
 
   nodes: {
@@ -355,26 +355,6 @@ const messages_en = {
       collected: "Collected Date",
       published: "Published Date"
     }
-  },
-
-  bot_preset: {
-    add_new: "Add new bot preset",
-    edit: "Edit bot preset",
-    node: "Bots Node",
-    bot: "Bot",
-    add: "Add",
-    save: "Save",
-    add_btn: "Add New",
-    cancel: "Cancel",
-    validation_error: "Please fill in all required fields",
-    error: "Could not create this bot.",
-    name: "Name",
-    description: "Description",
-    successful: "New bot preset was successfully added",
-    successful_edit: "Bot preset was successfully updated",
-    removed: "Bot preset was successfully removed",
-    removed_error: "Bot preset is in use and could not be deleted",
-    total_count: "Bot presets count: "
   },
 
   attribute: {

@@ -225,16 +225,6 @@ export const router = new Router({
       meta: { requiresAuth: true, requiresPerm: [Permissions.CONFIG_REMOTE_NODE_ACCESS] }
     },
     {
-      path: '/config/bots/presets',
-      name: 'bot_presets',
-      components: {
-        default: () => import('./views/admin/BotPresetsView.vue'),
-        nav: () => import('./views/nav/ConfigNav.vue')
-
-      },
-      meta: { requiresAuth: true, requiresPerm: [Permissions.CONFIG_BOT_PRESET_ACCESS] }
-    },
-    {
       path: '/config/product/types',
       name: 'product_types',
       components: {

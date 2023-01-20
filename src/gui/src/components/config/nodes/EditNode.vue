@@ -166,7 +166,6 @@ export default {
       this.visible = true
       this.edit = true
       this.show_error = false
-      console.log(data)
       this.node.id = data.id
       this.node.name = data.name
       this.node.description = data.description

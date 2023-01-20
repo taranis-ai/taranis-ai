@@ -204,6 +204,13 @@ header.app-header.border.dark {
     border-bottom: 1px solid #484848 !important;
 }
 
+svg.logo {
+  fill-rule: evenodd;
+  clip-rule: evenodd;
+  stroke-linejoin: round;
+  stroke-miterlimit: 2;
+}
+
 .logo {
     --color-1: black;
     --color-2: white;
@@ -898,8 +905,6 @@ button.ql-publish:hover {
     border: 1px solid gray;
     border-radius: 4px;
 }
-
-/* --- CardGroup.vue --- */
 
 /* --- NewRole.vue --- */
 .div-wrapper .theme--light.v-card {

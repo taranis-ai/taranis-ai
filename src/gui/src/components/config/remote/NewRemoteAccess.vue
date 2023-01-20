@@ -193,7 +193,7 @@
 
 <script>
 import AuthMixin from '../../../services/auth/auth_mixin'
-import { createNewRemoteAccess, updateRemoteAccess } from '@/api/config'
+import { createRemoteAccess, updateRemoteAccess } from '@/api/config'
 
 import Permissions from '@/services/auth/permissions'
 import { mapGetters, mapActions } from 'vuex'
@@ -311,7 +311,7 @@ export default {
               this.show_error = true
             })
           } else {
-            createNewRemoteAccess(this.remote_access).then(() => {
+            createRemoteAccess(this.remote_access).then(() => {
               this.$validator.reset()
               this.visible = false
 

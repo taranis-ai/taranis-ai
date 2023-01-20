@@ -98,7 +98,7 @@ export default {
     recipients: []
   }),
   methods: {
-    ...mapActions('dashboard', ['createNewStory', 'updateStory']),
+    ...mapActions('dashboard', ['createStory', 'updateStory']),
     ...mapActions('filter', ['resetNewsItemsFilter']),
     ...mapActions('assess', [
       'deselectNewsItem',

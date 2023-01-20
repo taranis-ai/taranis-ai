@@ -1,10 +1,11 @@
 <template>
   <v-navigation-drawer
+    v-if="filteredLinks.length > 0 && drawerVisible"
     clipped
     app
     color="cx-drawer-bg"
     class="sidebar"
-    :width="150"
+    :width="142"
     style="max-height: 100% !important; height: calc(100vh - 48px) !important"
   >
     <v-layout class="navigation" fill-height justify-center>
@@ -32,6 +33,7 @@
 
 <script>
 import AuthMixin from '@/services/auth/auth_mixin'
+import { mapState } from 'vuex'
 
 export default {
   name: 'Navigation',
@@ -44,6 +46,7 @@ export default {
   mixins: [AuthMixin],
   data: () => ({}),
   computed: {
+    ...mapState(['drawerVisible']),
     filteredLinks () {
       if (!this.filter) {
         return this.links

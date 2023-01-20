@@ -1,8 +1,10 @@
 import urllib
 import requests
 import base64
+from urllib.parse import quote
 from collectors.managers.log_manager import logger
 from collectors.config import Config
+
 
 class CoreApi:
     def __init__(self):
@@ -22,9 +24,9 @@ class CoreApi:
     def get_osint_sources(self, collector_type):
         try:
             response = requests.get(
-                f"{self.api_url}/api/v1/collectors/{self.node_id}/osint-sources?collector_type={urllib.parse.quote(collector_type)}",
+                f"{self.api_url}/api/v1/collectors/osint-sources/{quote(collector_type)}",
                 headers=self.headers,
-                verify=self.verify
+                verify=self.verify,
             )
 
             return response.json(), response.status_code
@@ -32,7 +34,7 @@ class CoreApi:
             logger.log_debug_trace("Can't get OSINT Sources")
             return None, 400
 
-    def register_node(self, collectors_info):
+    def register_node(self):
         try:
             response, status = self.get_collector_status()
             if status == 200:
@@ -43,7 +45,6 @@ class CoreApi:
                 "description": Config.NODE_DESCRIPTION,
                 "api_url": Config.NODE_URL,
                 "api_key": Config.API_KEY,
-                "collectors_info": collectors_info,
             }
 
             response = requests.post(
@@ -65,11 +66,7 @@ class CoreApi:
 
     def get_collector_status(self):
         try:
-            response = requests.get(
-                f"{self.api_url}/api/v1/collectors/{self.node_id}",
-                headers=self.headers,
-                verify=self.verify
-            )
+            response = requests.get(f"{self.api_url}/api/v1/collectors/{self.node_id}", headers=self.headers, verify=self.verify)
 
             return response.json(), response.status_code
         except Exception:
@@ -79,10 +76,7 @@ class CoreApi:
     def add_news_items(self, news_items):
         try:
             response = requests.post(
-                f"{self.api_url}/api/v1/collectors/news-items",
-                json=news_items,
-                headers=self.headers,
-                verify=self.verify
+                f"{self.api_url}/api/v1/collectors/news-items", json=news_items, headers=self.headers, verify=self.verify
             )
 
             return response.status_code

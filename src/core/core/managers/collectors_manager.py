@@ -27,7 +27,6 @@ def get_collectors_info(node: CollectorNodeSchema):
 
 def add_collectors_node(data):
     try:
-        collectors_info = data.pop("collectors_info")
         logger.log_debug(f"ADD COLLECTOR: {data}")
         node = CollectorNodeSchema.create(data)
 
@@ -36,8 +35,7 @@ def add_collectors_node(data):
         return str(e), 500
 
     try:
-        collectors = Collector.create_all(collectors_info)
-        CollectorsNode.add_new(data, collectors)
+        CollectorsNode.add_new(data)
     except Exception:
         logger.log_debug_trace(f"Couldn't add Collector Node: {node.name}")
         return f"Couldn't add Collector node: {node.name}", 500
@@ -78,49 +76,43 @@ def delete_osint_source(osint_source_id):
     refresh_collector(collector)
 
 
+def refresh_osint_source(osint_source_id):
+    osint_source = OSINTSource.find(osint_source_id)
+    refresh_collector(osint_source.collector)
+
+
 def refresh_collector(collector):
     try:
-        CollectorsApi(collector.node.api_url, collector.node.api_key).refresh_collector(collector.type)
+        node = CollectorsNode.get_first()
+        CollectorsApi(node.api_url, node.api_key).refresh_collector(collector.type)
     except ConnectionError:
         logger.critical(f"Connection error: Could not reach {collector.node.api_url}")
 
 
-def export_osint_sources(input_data):
-    osint_sources = OSINTSource.get_all()
-    if input_data is not None and "selection" in input_data:
-        data = [
-            osint_source
-            for osint_source in osint_sources[:]
-            if osint_source.id in input_data["selection"]
-        ]
-    else:
-        data = osint_sources
+def export_osint_sources(ids: list[str]):
+    data = OSINTSource.get_all_by_id(ids) if ids else OSINTSource.get_all()
 
     schema = OSINTSourceExportRootSchema()
     export_data = schema.dump(OSINTSourceExportRoot(1, data))
-
-    for osint_source in export_data["data"]:
-        for parameter_value in osint_source["parameter_values"]:
-            if parameter_value["parameter"]["key"] == "PROXY_SERVER":
-                parameter_value["value"] = ""
-
+    if "data" not in export_data:
+        return None
+    export_data = export_data["data"]
+    export_data = cleanup_paramaters(export_data)
     return json.dumps(export_data).encode("utf-8")
 
 
-def import_osint_sources(collectors_node_id, file):
-    collectors_node = CollectorsNode.get_by_id(collectors_node_id)
+def cleanup_paramaters(osint_sources: list) -> list:
+    for osint_source in osint_sources:
+        for parameter_value in osint_source["parameter_values"]:
+            if parameter_value["parameter"]["key"] == "PROXY_SERVER":
+                parameter_value["value"] = ""
+    return osint_sources
 
+
+def import_osint_sources(file):
     file_data = file.read()
     json_data = json.loads(file_data.decode("utf8"))
-    schema = OSINTSourceExportRootSchema()
-    import_data = schema.load(json_data)
+    import_data = OSINTSourceExportRootSchema().load(json_data).data
 
-    collectors = set()
-    for osint_source in import_data.data:
-        collector = collectors_node.find_collector_by_type(osint_source.collector.type)
-        if collector is not None:
-            collectors.add(collector)
-            OSINTSource.import_new(osint_source, collector)
-
-    for collector in collectors:
-        refresh_collector(collector)
+    for osint_source in import_data:
+        OSINTSource.import_new(osint_source)

@@ -99,7 +99,7 @@
 </template>
 
 <script>
-import { createNewAssetGroup, updateAssetGroup } from '@/api/assets'
+import { createAssetGroup, updateAssetGroup } from '@/api/assets'
 
 export default {
   name: 'NewAssetGroup',
@@ -193,7 +193,7 @@ export default {
               this.show_error = true
             })
           } else {
-            createNewAssetGroup(this.group).then(() => {
+            createAssetGroup(this.group).then(() => {
               this.$validator.reset()
               this.visible = false
               this.$root.$emit('notification',

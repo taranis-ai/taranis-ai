@@ -228,14 +228,18 @@ def upgrade():
     PermissionREVac311a84207a.add(session, "CONFIG_BOTS_NODE_CREATE", "Config bots node create", "Create bots node configuration")
     PermissionREVac311a84207a.add(session, "CONFIG_BOTS_NODE_UPDATE", "Config bots node update", "Update bots node configuration")
     PermissionREVac311a84207a.add(session, "CONFIG_BOTS_NODE_DELETE", "Config bots node delete", "Delete bots node configuration")
-    PermissionREVac311a84207a.add(session, "CONFIG_BOT_PRESET_ACCESS", "Config bot presets access", "Access to bot presets configuration")
-    PermissionREVac311a84207a.add(session, "CONFIG_BOT_PRESET_CREATE", "Config bot preset create", "Create bot preset configuration")
-    PermissionREVac311a84207a.add(session, "CONFIG_BOT_PRESET_UPDATE", "Config bot preset update", "Update bot preset configuration")
-    PermissionREVac311a84207a.add(session, "CONFIG_BOT_PRESET_DELETE", "Config bot preset delete", "Delete bot preset configuration")
-    PermissionREVac311a84207a.add(session, "CONFIG_PRESENTERS_NODE_ACCESS", "Config presenters nodes access", "Access to presenters nodes configuration")
-    PermissionREVac311a84207a.add(session, "CONFIG_PRESENTERS_NODE_CREATE", "Config presenters node create", "Create presenters node configuration")
-    PermissionREVac311a84207a.add(session, "CONFIG_PRESENTERS_NODE_UPDATE", "Config presenters node update", "Update presenters node configuration")
-    PermissionREVac311a84207a.add(session, "CONFIG_PRESENTERS_NODE_DELETE", "Config presenters node delete", "Delete presenters node configuration")
+    PermissionREVac311a84207a.add(
+        session, "CONFIG_PRESENTERS_NODE_ACCESS", "Config presenters nodes access", "Access to presenters nodes configuration"
+    )
+    PermissionREVac311a84207a.add(
+        session, "CONFIG_PRESENTERS_NODE_CREATE", "Config presenters node create", "Create presenters node configuration"
+    )
+    PermissionREVac311a84207a.add(
+        session, "CONFIG_PRESENTERS_NODE_UPDATE", "Config presenters node update", "Update presenters node configuration"
+    )
+    PermissionREVac311a84207a.add(
+        session, "CONFIG_PRESENTERS_NODE_DELETE", "Config presenters node delete", "Delete presenters node configuration"
+    )
     PermissionREVac311a84207a.add(session, "PUBLISH_ACCESS", "Publish access", "Access to publish module")
     PermissionREVac311a84207a.add(session, "PUBLISH_CREATE", "Publish create", "Create product")
     PermissionREVac311a84207a.add(session, "PUBLISH_UPDATE", "Publish update", "Update product")

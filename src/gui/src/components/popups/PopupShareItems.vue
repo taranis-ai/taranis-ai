@@ -247,7 +247,7 @@ export default {
     reportSummary: ''
   }),
   methods: {
-    ...mapActions('dashboard', ['createNewStory', 'updateStory']),
+    ...mapActions('dashboard', ['createStory', 'updateStory']),
     ...mapActions('filter', ['resetNewsItemsFilter']),
     ...mapActions('assess', [
       'deselectNewsItem',
@@ -286,7 +286,7 @@ export default {
         : 'this is an AI created summary ... ' // should be replaced by NLP algorithm
       newSharingSet.id = Math.floor(Math.random() * (700 - 500 + 1)) + 500 // get ID from creation
 
-      this.createNewStory(newSharingSet)
+      this.createStory(newSharingSet)
       this.assignReport({
         items: this.selection,
         sharingSet: newSharingSet.id

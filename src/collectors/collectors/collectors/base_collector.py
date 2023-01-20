@@ -92,12 +92,11 @@ class BaseCollector:
     @staticmethod
     def presanitize_html(html):
         html = re.sub(r"(?i)(&nbsp;|\xa0)", " ", html, re.DOTALL)
-        clean = BeautifulSoup(html, "lxml").text
-        return clean
+        return BeautifulSoup(html, "lxml").text
 
     @staticmethod
     def presanitize_url(url):
-        return quote(url, safe='/:?&')
+        return quote(url, safe="/:?&")
 
     @staticmethod
     def sanitize_news_items(news_items, source):
@@ -122,7 +121,6 @@ class BaseCollector:
             if item.hash is None:
                 for_hash = item.author + item.title + item.link
                 item.hash = hashlib.sha256(for_hash.encode()).hexdigest()
-
 
     def publish(self, news_items, source):
         BaseCollector.sanitize_news_items(news_items, source)
@@ -149,7 +147,6 @@ class BaseCollector:
             return
 
         try:
-            logger.log_debug(f"HTTP {code}: Got the following reply: {response}")
             source_schema = osint_source.OSINTSourceSchemaBase(many=True)
             self.osint_sources = source_schema.load(response)
 

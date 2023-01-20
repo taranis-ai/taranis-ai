@@ -101,7 +101,7 @@
 </template>
 
 <script>
-import { createNewPublisherPreset, updatePublisherPreset } from '@/api/config'
+import { createPublisherPreset, updatePublisherPreset } from '@/api/config'
 
 import FormParameters from '../../common/FormParameters'
 import AuthMixin from '@/services/auth/auth_mixin'
@@ -191,7 +191,7 @@ export default {
               this.show_error = true
             })
           } else {
-            createNewPublisherPreset(this.preset).then(() => {
+            createPublisherPreset(this.preset).then(() => {
               this.$validator.reset()
               this.visible = false
               this.$root.$emit('notification',

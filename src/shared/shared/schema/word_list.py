@@ -12,17 +12,6 @@ class WordListEntrySchema(Schema):
         return WordListEntry(**data)
 
 
-class WordListCategorySchema(Schema):
-    name = fields.Str()
-    description = fields.Str()
-    link = fields.Str(allow_none=True)
-    entries = fields.Nested(WordListEntrySchema, many=True)
-
-    @post_load
-    def make(self, data, **kwargs):
-        return WordListCategory(**data)
-
-
 class WordListSchema(Schema):
     class Meta:
         unknown = EXCLUDE
@@ -31,7 +20,8 @@ class WordListSchema(Schema):
     name = fields.Str()
     description = fields.Str()
     use_for_stop_words = fields.Bool()
-    categories = fields.Nested(WordListCategorySchema, many=True)
+    link = fields.Str(allow_none=True)
+    entries = fields.Nested(WordListEntrySchema, many=True)
 
     @post_load
     def make(self, data, **kwargs):
@@ -43,18 +33,11 @@ class WordListPresentationSchema(WordListSchema, PresentationSchema):
 
 
 class WordList:
-    def __init__(self, id, name, description, use_for_stop_words, categories):
+    def __init__(self, id, name, description, use_for_stop_words, link, entries):
         self.id = id
         self.name = name
         self.description = description
         self.use_for_stop_words = use_for_stop_words
-        self.categories = categories
-
-
-class WordListCategory:
-    def __init__(self, name, description, link, entries):
-        self.name = name
-        self.description = description
         self.link = link
         self.entries = entries
 
@@ -63,19 +46,3 @@ class WordListEntry:
     def __init__(self, value="", description=""):
         self.value = value
         self.description = description
-
-
-class WordListIdSchema(Schema):
-    class Meta:
-        unknown = EXCLUDE
-
-    id = fields.Int()
-
-    @post_load
-    def make(self, data, **kwargs):
-        return WordListId(**data)
-
-
-class WordListId:
-    def __init__(self, id):
-        self.id = id

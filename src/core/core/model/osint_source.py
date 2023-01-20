@@ -11,14 +11,22 @@ from model.collector import Collector
 from model.parameter_value import NewParameterValueSchema, ParameterValue
 from model.word_list import WordList
 from shared.schema.acl_entry import ItemType
-from shared.schema.osint_source import OSINTSourceSchema, OSINTSourceGroupSchema, OSINTSourceIdSchema, \
-    OSINTSourcePresentationSchema, OSINTSourceGroupPresentationSchema, OSINTSourceGroupIdSchema
-from shared.schema.word_list import WordListIdSchema
+from shared.schema.osint_source import (
+    OSINTSourceSchema,
+    OSINTSourceGroupSchema,
+    OSINTSourceIdSchema,
+    OSINTSourcePresentationSchema,
+    OSINTSourceGroupPresentationSchema,
+    OSINTSourceGroupIdSchema,
+    OSINTSourceGroupSchemaBase,
+    OSINTSourceCollectorSchema,
+)
+from shared.schema.word_list import WordListSchema
 
 
 class NewOSINTSourceSchema(OSINTSourceSchema):
     parameter_values = fields.List(fields.Nested(NewParameterValueSchema), load_default=[])
-    word_lists = fields.List(fields.Nested(WordListIdSchema), load_default=[])
+    word_lists = fields.List(fields.Nested(WordListSchema), load_default=[])
     osint_source_groups = fields.List(fields.Nested(OSINTSourceGroupIdSchema), load_default=[])
 
     @post_load
@@ -32,8 +40,6 @@ class OSINTSource(db.Model):
     description = db.Column(db.String())
 
     collector_id = db.Column(db.String, db.ForeignKey("collector.id"))
-    collector = db.relationship("Collector", back_populates="sources")
-
     parameter_values = db.relationship("ParameterValue", secondary="osint_source_parameter_value", cascade="all")
 
     word_lists = db.relationship("WordList", secondary="osint_source_word_list")
@@ -123,8 +129,12 @@ class OSINTSource(db.Model):
         return query.order_by(db.asc(OSINTSource.name)).all(), query.count()
 
     @classmethod
-    def get_by_id(cls, id):
+    def get_by_id(cls, id: str):
         return cls.query.filter_by(id=id).first()
+
+    @classmethod
+    def get_all_by_id(cls, ids: list):
+        return cls.query.filter(cls.id.in_(ids)).all()
 
     @classmethod
     def get_all_json(cls, search):
@@ -154,6 +164,14 @@ class OSINTSource(db.Model):
         return {"total_count": count, "items": sources_schema.dump(sources)}
 
     @classmethod
+    def get_all_by_type(cls, collector_type: str):
+        query = cls.query.join(Collector, OSINTSource.collector_id == Collector.id).filter(Collector.type == collector_type)
+        # query = query.options(db.joinedload(OSINTSource.parameter_values), db.joinedload(OSINTSource.word_lists))
+        sources = query.order_by(db.asc(OSINTSource.name)).all()
+        sources_schema = OSINTSourceSchema(many=True)
+        return sources_schema.dump(sources)
+
+    @classmethod
     def get_all_manual_json(cls, user):
         sources = cls.get_all_manual(user)
         for source in sources:
@@ -162,11 +180,10 @@ class OSINTSource(db.Model):
         return sources_schema.dump(sources)
 
     @classmethod
-    def get_all_for_collector_json(cls, collector_node, collector_type):
-        for collector in collector_node.collectors:
-            if collector.type == collector_type:
-                sources_schema = OSINTSourceSchema(many=True)
-                return sources_schema.dump(collector.sources)
+    def get_all_for_collector(cls, collector):
+        sources = cls.query.filter_by(collector_type=collector).all()
+        sources_schema = OSINTSourceSchema(many=True)
+        return sources_schema.dump(sources)
 
     @classmethod
     def add_new(cls, data):
@@ -186,7 +203,8 @@ class OSINTSource(db.Model):
         return osint_source
 
     @classmethod
-    def import_new(cls, osint_source, collector):
+    def import_new(cls, osint_source):
+        collector = Collector.find_by_type(osint_source.collector.type)
         parameter_values = []
         for parameter_value in osint_source.parameter_values:
             for parameter in collector.parameters:

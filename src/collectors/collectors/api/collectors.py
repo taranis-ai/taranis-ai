@@ -9,10 +9,18 @@ class Collectors(Resource):
     def get(self):
         return collectors_manager.get_registered_collectors_info()
 
+    @api_key_required
+    def post(self):
+        return collectors_manager.refresh()
+
 
 class Collector(Resource):
     @api_key_required
     def put(self, collector_type: str):
+        return collectors_manager.refresh_collector(collector_type)
+
+    @api_key_required
+    def post(self, collector_type: str):
         return collectors_manager.refresh_collector(collector_type)
 
 

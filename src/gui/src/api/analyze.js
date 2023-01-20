@@ -55,7 +55,7 @@ export function getReportItemData (report_item_id, data) {
   return ApiService.get(`/analyze/report-items/${report_item_id}/data${params}`)
 }
 
-export function createNewReportItem (data) {
+export function createReportItem (data) {
   return ApiService.post('/analyze/report-items', data)
 }
 

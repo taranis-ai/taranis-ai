@@ -3,7 +3,6 @@ __all__ = [
     "address",
     "asset",
     "attribute",
-    "bot_preset",
     "bots_node",
     "bot",
     "collector",

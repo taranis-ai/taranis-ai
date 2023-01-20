@@ -27,6 +27,9 @@ def pre_seed(app):
         pre_seed_wordlists()
         logger.log_debug("Wordlists seeded")
 
+        pre_seed_collectors()
+        logger.log_debug("Collectors seeded")
+
     except Exception:
         logger.log_debug_trace("Pre Seed failed")
 
@@ -35,6 +38,14 @@ def pre_seed_source_groups():
     from core.model.osint_source import OSINTSourceGroup
 
     OSINTSourceGroup.create(group_id="default", name="Default", description="Default group for uncategorized sources", default=True)
+
+
+def pre_seed_collectors():
+    from core.model.collector import Collector
+    from core.managers.collectors_pre_seed import collectors
+
+    for c in collectors:
+        Collector.add(c)
 
 
 def pre_seed_permissions():
@@ -365,27 +376,6 @@ def pre_seed_permissions():
         "CONFIG_BOTS_NODE_DELETE",
         "Config bots node delete",
         "Delete bots node configuration",
-    )
-
-    Permission.add(
-        "CONFIG_BOT_PRESET_ACCESS",
-        "Config bot presets access",
-        "Access to bot presets configuration",
-    )
-    Permission.add(
-        "CONFIG_BOT_PRESET_CREATE",
-        "Config bot preset create",
-        "Create bot preset configuration",
-    )
-    Permission.add(
-        "CONFIG_BOT_PRESET_UPDATE",
-        "Config bot preset update",
-        "Update bot preset configuration",
-    )
-    Permission.add(
-        "CONFIG_BOT_PRESET_DELETE",
-        "Config bot preset delete",
-        "Delete bot preset configuration",
     )
 
     Permission.add(
@@ -1262,14 +1252,8 @@ def pre_seed_wordlists():
                 "id": -1,
                 "name": "Default EN stop list",
                 "description": "English stop-word list packed with the standard Taranis NG installation.",
-                "categories": [
-                    {
-                        "name": "Default EN stop list",
-                        "description": "Source: https://www.maxqda.de/hilfe-mx20-dictio/stopp-listen",
-                        "entries": [],
-                        "link": "https://raw.githubusercontent.com/SK-CERT/Taranis-NG/main/resources/wordlists/en_complete.csv",
-                    }
-                ],
+                "link": "https://raw.githubusercontent.com/SK-CERT/Taranis-NG/main/resources/wordlists/en_complete.csv",
+                "entries": [],
                 "use_for_stop_words": True,
             }
         )
@@ -1280,14 +1264,8 @@ def pre_seed_wordlists():
                 "id": -1,
                 "name": "Default SK stop list",
                 "description": "Slovak stop-word list packed with the standard Taranis NG installation.",
-                "categories": [
-                    {
-                        "name": "Default SK stop list",
-                        "description": "Source: https://github.com/stopwords-iso/stopwords-sk/blob/master/stopwords-sk.txt",
-                        "entries": [],
-                        "link": "https://raw.githubusercontent.com/SK-CERT/Taranis-NG/main/resources/wordlists/sk_complete.csv",
-                    }
-                ],
+                "entries": [],
+                "link": "https://raw.githubusercontent.com/SK-CERT/Taranis-NG/main/resources/wordlists/sk_complete.csv",
                 "use_for_stop_words": True,
             }
         )
@@ -1298,14 +1276,8 @@ def pre_seed_wordlists():
                 "id": -1,
                 "name": "Default highlighting wordlist",
                 "description": "Default highlighting list packed with the standard Taranis NG installation.",
-                "categories": [
-                    {
-                        "name": "Default highlighting wordlist",
-                        "description": "Source: https://www.allot.com/100-plus-cybersecurity-terms-definitions/",
-                        "entries": [],
-                        "link": "https://raw.githubusercontent.com/SK-CERT/Taranis-NG/main/resources/wordlists/highlighting.csv",
-                    }
-                ],
+                "entries": [],
+                "link": "https://raw.githubusercontent.com/SK-CERT/Taranis-NG/main/resources/wordlists/highlighting.csv",
                 "use_for_stop_words": True,
             }
         )

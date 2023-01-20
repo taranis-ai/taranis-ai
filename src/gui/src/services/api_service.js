@@ -55,12 +55,9 @@ const ApiService = {
     })
   },
 
-  download (resource, data, file_name) {
-    axios({
-      url: resource,
-      method: 'POST',
-      responseType: 'blob',
-      data: data
+  download (resource, file_name) {
+    axios.get(resource, {
+      responseType: 'blob'
     }).then((response) => {
       const fileURL = window.URL.createObjectURL(new Blob([response.data]))
       const fileLink = document.createElement('a')
@@ -69,6 +66,8 @@ const ApiService = {
       document.body.appendChild(fileLink)
       fileLink.click()
       document.body.removeChild(fileLink)
+    }).catch((error) => {
+      console.error(error)
     })
   }
 }

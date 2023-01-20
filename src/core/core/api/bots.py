@@ -6,17 +6,7 @@ from datetime import datetime, timedelta
 from core.managers import sse_manager, bots_manager
 from core.managers.log_manager import logger
 from core.managers.auth_manager import api_key_required
-from core.model import bot_preset, news_item, word_list, bots_node
-
-
-class BotPresetsForBots(Resource):
-    @api_key_required
-    def post(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("api_key")
-        parser.add_argument("bot_type")
-        parameters = parser.parse_args()
-        return bot_preset.BotPreset.get_all_for_bot_json(parameters)
+from core.model import news_item, word_list, bots_node
 
 
 class BotGroupAction(Resource):
@@ -88,24 +78,14 @@ class GetDefaultNewsItemsAggregate(Resource):
         return json.loads(resp_str)
 
 
-class Categories(Resource):
+class WordListEntries(Resource):
     @api_key_required
-    def get(self, category_id):
-        return word_list.WordListCategory.get_categories(category_id)
+    def delete(self, word_list_id, entry_name):
+        return word_list.WordListEntry.delete_entries(word_list_id, entry_name)
 
     @api_key_required
-    def put(self, category_id):
-        return word_list.WordList.add_word_list_category(category_id, request.json)
-
-
-class Entries(Resource):
-    @api_key_required
-    def delete(self, category_id, entry_name):
-        return word_list.WordListEntry.delete_entries(category_id, entry_name)
-
-    @api_key_required
-    def put(self, category_id, entry_name):
-        return word_list.WordListEntry.update_word_list_entries(category_id, entry_name, request.json)
+    def put(self, word_list_id, entry_name):
+        return word_list.WordListEntry.update_word_list_entries(word_list_id, entry_name, request.json)
 
 
 class BotsStatusUpdate(Resource):
@@ -125,7 +105,6 @@ class BotsStatusUpdate(Resource):
 
 
 def initialize(api):
-    api.add_resource(BotPresetsForBots, "/api/v1/bots/bots-presets")
     api.add_resource(NewsItemData, "/api/v1/bots/news-item-data")
     api.add_resource(
         UpdateNewsItemTags,
@@ -141,10 +120,9 @@ def initialize(api):
         "/api/v1/bots/news-item-aggregates-by-group/<string:group_id>",
     )
     api.add_resource(GetDefaultNewsItemsAggregate, "/api/v1/bots/news-item-aggregates")
-    api.add_resource(Categories, "/api/v1/bots/word-list-categories/<int:category_id>")
     api.add_resource(
-        Entries,
-        "/api/v1/bots/word-list-categories/<int:category_id>/entries/<string:entry_name>",
+        WordListEntries,
+        "/api/v1/bots/word-list/<int:word_list_id>/entries/<string:entry_name>",
     )
     api.add_resource(BotsNode, "/api/v1/bots/node/<string:node_id>", "/api/v1/bots/node")
     api.add_resource(BotsStatusUpdate, "/api/v1/bots/<string:node_id>")

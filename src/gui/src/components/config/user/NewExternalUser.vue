@@ -84,7 +84,7 @@
 
 <script>
 import AuthMixin from '../../../services/auth/auth_mixin'
-import { createNewExternalUser, updateExternalUser } from '@/api/config'
+import { createExternalUser, updateExternalUser } from '@/api/config'
 
 export default {
   name: 'NewExternalUser',
@@ -164,7 +164,7 @@ export default {
               this.show_error = true
             })
           } else {
-            createNewExternalUser(this.user).then(() => {
+            createExternalUser(this.user).then(() => {
               this.$validator.reset()
               this.visible = false
 

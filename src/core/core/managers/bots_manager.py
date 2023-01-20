@@ -1,6 +1,5 @@
 from core.model.bots_node import BotsNode
 from core.model.bot import Bot
-from core.model.bot_preset import BotPreset
 from core.remote.bots_api import BotsApi
 from shared.schema.bots_node import BotsNode as BotsNodeSchema
 from core.managers.log_manager import logger
@@ -58,7 +57,3 @@ def update_bots_node(node_id, data):
 
 def verify_api_key(api_key):
     return BotsNode.exists_by_api_key(api_key)
-
-
-def add_bot_preset(data):
-    BotPreset.add_new(data)

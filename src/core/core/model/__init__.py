@@ -25,7 +25,6 @@ __all__ = [
     "asset",
     "bot",
     "bots_node",
-    "bot_preset",
     "notification_template",
     "remote",
     "tag_cloud",

@@ -37,7 +37,6 @@ class NewsItemDataBaseSchema(Schema):
     author = fields.Str()
     collected = fields.DateTime("%d.%m.%Y - %H:%M")
     osint_source_id = fields.Str(load_default=None)
-    tags = fields.List(fields.String(), required=False)
 
 
 class NewsItemDataSchema(NewsItemDataBaseSchema):

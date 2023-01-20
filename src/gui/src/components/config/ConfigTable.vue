@@ -1,35 +1,49 @@
 <template>
   <v-container fluid class="ma-5 mt-5 pa-5 pt-0">
-    <v-col cols="12">
-      <v-card>
-        <v-card-title>
-          <v-text-field
-            v-model="search"
-            append-icon="mdi-magnify"
-            label="Search"
-            single-line
-            class="mr-8"
-            hide-details
-          ></v-text-field>
-          <v-btn
-            color="primary"
-            dark
-            class="ml-8"
-            @click="addItem"
-            v-if="addButton"
-          >
-            New Item
-          </v-btn>
-        </v-card-title>
+    <v-card>
+      <v-card-title>
+        <v-text-field
+          v-model="search"
+          append-icon="mdi-magnify"
+          label="Search"
+          single-line
+          class="mr-8"
+          hide-details
+        ></v-text-field>
+        <v-btn
+          color="error"
+          dark
+          class="ml-8"
+          @click="deleteItems(selected)"
+          v-if="selected.length > 0"
+        >
+          Delete {{ selected.length }}
+        </v-btn>
+        <v-btn
+          color="primary"
+          dark
+          class="ml-8"
+          @click="addItem"
+          v-if="addButton"
+        >
+          New Item
+        </v-btn>
+        <slot name="titlebar"></slot>
+      </v-card-title>
       <v-data-table
         ref="configTable"
+        v-model="selected"
+        @change="emitSelectionChange"
+        @update:search="emitSearchChange"
+        @current-items="emitFilterChange"
         :headers="headers"
         :items="items"
         :search="search"
         :group-by="groupByItem"
         :sort-by="sortByItem"
         class="elevation-1"
-        hide-default-footer
+        :hide-default-footer="items.length < 10"
+        show-select
         @click:row="rowClick"
       >
         <template v-slot:[`group.header`]="{ items }">
@@ -48,49 +62,31 @@
         </template>
 
         <template v-slot:[`item.tag`]="{ item }">
-          <v-icon small class="mr-2">
+          <v-icon small class="mr-1">
             {{ item.tag }}
           </v-icon>
         </template>
         <template v-slot:[`item.actions`]="{ item }">
-          <v-icon small class="mr-2" @click.stop="rowClick(item)">
-            mdi-pencil
-          </v-icon>
-          <v-icon small @click.stop="deleteItem(item)"> mdi-delete </v-icon>
+          <div class="d-inline-flex">
+            <slot name="actionColumn"></slot>
+            <v-icon small class="mr-1" @click.stop="rowClick(item)"> mdi-pencil </v-icon>
+            <v-icon small @click.stop="deleteItem(item)"> mdi-delete </v-icon>
+          </div>
         </template>
         <template v-slot:no-data>
           <v-btn color="primary">Reset</v-btn>
         </template>
       </v-data-table>
-      </v-card>
-    </v-col>
-      <v-col cols="12">
-        <EditConfig
-          v-if="formData && Object.keys(formData).length > 0"
-          :configData="formData"
-          @submit="handleSubmit"
-        ></EditConfig>
-      </v-col>
-      <v-col cols="12">
-        <UserForm
-          :user_id=1
-        ></UserForm>
-      </v-col>
+    </v-card>
   </v-container>
 </template>
 
 <script>
-import { emptyValues } from '@/utils/helpers'
-import EditConfig from '../../components/config/EditConfig'
-import UserForm from '../../components/config/user/UserForm'
-
+import { mapActions } from 'vuex'
 export default {
   name: 'ConfigTable',
-  components: {
-    EditConfig,
-    UserForm
-  },
-  emits: ['delete-item', 'edit-item', 'add-item'],
+  components: {},
+  emits: ['delete-item', 'edit-item', 'add-item', 'selection-change', 'search-change'],
   props: {
     items: {
       type: Array,
@@ -118,9 +114,8 @@ export default {
     }
   },
   data: () => ({
-    edit: false,
-    formData: {},
-    search: ''
+    search: '',
+    selected: []
   }),
   computed: {
     headers() {
@@ -128,13 +123,15 @@ export default {
         text: 'Actions',
         value: 'actions',
         sortable: false,
-        width: '15px'
+        width: '30px'
       }
       var headers = []
       if (this.headerFilter.length > 0) {
         headers = this.headerFilter.map((key) => this.headerTransform(key))
       } else if (this.items.length > 0) {
-        headers = Object.keys(this.items[0]).map((key) => this.headerTransform(key))
+        headers = Object.keys(this.items[0]).map((key) =>
+          this.headerTransform(key)
+        )
       }
       if (this.actionColumn) {
         headers.push(actionHeader)
@@ -143,6 +140,8 @@ export default {
     }
   },
   methods: {
+    ...mapActions(['updateItemCountFiltered']),
+
     headerTransform(key) {
       if (key === 'tag') {
         return {
@@ -154,12 +153,20 @@ export default {
       }
       return { text: key, value: key }
     },
-    handleSubmit(submittedData) {
-      if (this.edit) {
-        this.$emit('edit-item', submittedData)
-      } else {
-        this.$emit('add-item', submittedData)
-      }
+    emitFilterChange(e) {
+      this.updateItemCountFiltered(e.length)
+    },
+    emitSearchChange() {
+      this.$emit('search-change', this.search)
+    },
+    emitSelectionChange() {
+      this.$emit('selection-change', this.selected)
+    },
+    rowClick(item) {
+      this.$emit('edit-item', item)
+    },
+    addItem() {
+      this.$emit('add-item')
     },
     getDefaultColor(defaultgroup) {
       return defaultgroup ? 'green' : ''
@@ -167,14 +174,8 @@ export default {
     deleteItem(item) {
       this.$emit('delete-item', item)
     },
-    addItem() {
-      this.edit = false
-      var onlyKeys = emptyValues(this.items[0])
-      this.formData = onlyKeys
-    },
-    rowClick(item, event) {
-      this.formData = item
-      this.edit = true
+    deleteItems(items) {
+      items.forEach((item) => this.deleteItem(item))
     }
   }
 }

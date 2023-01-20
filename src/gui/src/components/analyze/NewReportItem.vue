@@ -236,7 +236,7 @@
 <script>
 import AuthMixin from '@/services/auth/auth_mixin'
 import Permissions from '@/services/auth/permissions'
-import { createNewReportItem, updateReportItem, lockReportItem, unlockReportItem, holdLockReportItem, getReportItem, getReportItemData, getReportItemLocks } from '@/api/analyze'
+import { createReportItem, updateReportItem, lockReportItem, unlockReportItem, holdLockReportItem, getReportItem, getReportItemData, getReportItemLocks } from '@/api/analyze'
 
 import AttributeContainer from '@/components/common/attribute/AttributeContainer'
 import NewsItemSelector from '@/components/analyze/NewsItemSelector'
@@ -988,7 +988,7 @@ export default {
             }
           }
 
-          createNewReportItem(this.report_item).then((response) => {
+          createReportItem(this.report_item).then((response) => {
             this.attachmets_attributes_count = 0
             for (let i = 0; i < this.attribute_groups.length; i++) {
               for (let j = 0; j < this.attribute_groups[i].attribute_group_items.length; j++) {

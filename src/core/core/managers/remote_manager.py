@@ -119,7 +119,7 @@ def disconnect_from_node(node_id):
 
 def initialize(app):
     EventThread.app = app
-    remote_nodes, count = RemoteNode.get(None)
+    remote_nodes, _ = RemoteNode.get()
     for remote_node in remote_nodes:
         if remote_node.enabled:
             connect_to_node(remote_node.id)

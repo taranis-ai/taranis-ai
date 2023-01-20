@@ -1,62 +1,126 @@
 <template>
-    <ViewLayout>
-        <template v-slot:panel>
-            <ToolbarFilter title="nav_menu.word_lists" total_count_title="word_list.total_count"
-                           total_count_getter="config/getWordLists">
-                <template v-slot:addbutton>
-                    <NewWordList/>
-                </template>
-            </ToolbarFilter>
-        </template>
-        <template v-slot:content>
-            <ContentData
-                    name="WordLists"
-                    cardItem="CardCompact"
-                    action="config/loadWordLists"
-                    getter="config/getWordLists"
-                    deletePermission="CONFIG_WORD_LIST_DELETE"
-            />
-        </template>
-    </ViewLayout>
+  <div>
+    <ConfigTable
+      :addButton="true"
+      :items.sync="word_lists"
+      :headerFilter="['tag', 'name', 'description']"
+      sortByItem="id"
+      :actionColumn="true"
+      @delete-item="deleteItem"
+      @edit-item="editItem"
+      @add-item="addItem"
+      @selection-change="selectionChange"
+    >
+    <template v-slot:titlebar>
+      <ImportExport
+        @import="importData"
+        @export="exportData"
+      ></ImportExport>
+    </template>
+    </ConfigTable>
+    <EditConfig
+      v-if="formData && Object.keys(formData).length > 0"
+      :configData="formData"
+      @submit="handleSubmit"
+    ></EditConfig>
+  </div>
 </template>
 
 <script>
-import ViewLayout from '../../components/layouts/ViewLayout'
-import ToolbarFilter from '../../components/common/ToolbarFilter'
-import ContentData from '../../components/common/content/ContentData'
-import NewWordList from '../../components/config/word_lists/NewWordList'
-import { deleteWordList } from '@/api/config'
+import ConfigTable from '../../components/config/ConfigTable'
+import EditConfig from '../../components/config/EditConfig'
+import ImportExport from '../../components/config/ImportExport'
+import {
+  deleteWordList,
+  createWordList,
+  updateWordList,
+  exportWordList,
+  importWordList
+} from '@/api/config'
+import { mapActions, mapGetters } from 'vuex'
+import { notifySuccess, emptyValues, notifyFailure } from '@/utils/helpers'
 
 export default {
   name: 'WordLists',
   components: {
-    ViewLayout,
-    ToolbarFilter,
-    ContentData,
-    NewWordList
+    ConfigTable,
+    EditConfig,
+    ImportExport
   },
-  data: () => ({}),
-  mounted () {
-    this.$root.$on('delete-item', (item) => {
-      deleteWordList(item).then(() => {
-        this.$root.$emit('notification',
-          {
-            type: 'success',
-            loc: 'word_list.removed'
-          }
-        )
-      }).catch(() => {
-        this.$root.$emit('notification',
-          {
-            type: 'error',
-            loc: 'word_list.removed_error'
-          }
-        )
+  data: () => ({
+    word_lists: [],
+    selected: [],
+    formData: {},
+    edit: false
+  }),
+  methods: {
+    ...mapActions('config', ['loadWordLists']),
+    ...mapGetters('config', ['getWordLists']),
+    ...mapActions(['updateItemCount']),
+    updateData() {
+      this.loadWordLists().then(() => {
+        const sources = this.getWordLists()
+        this.word_lists = sources.items
+        this.updateItemCount({
+          total: sources.total_count,
+          filtered: sources.length
+        })
       })
-    })
+    },
+    addItem() {
+      this.formData = emptyValues(this.word_lists[0])
+      this.edit = false
+    },
+    editItem(item) {
+      this.formData = item
+      this.edit = true
+    },
+    handleSubmit(submittedData) {
+      console.log(submittedData)
+      if (this.edit) {
+        this.updateItem(submittedData)
+      } else {
+        this.createItem(submittedData)
+      }
+    },
+    deleteItem(item) {
+      deleteWordList(item).then(() => {
+        notifySuccess(`Successfully deleted ${item.name}`)
+        this.updateData()
+      }).catch(() => {
+        notifyFailure(`Failed to delete ${item.name}`)
+      })
+    },
+    createItem(item) {
+      createWordList(item).then(() => {
+        notifySuccess(`Successfully created ${item.name}`)
+        this.updateData()
+      }).catch(() => {
+        notifyFailure(`Failed to create ${item.name}`)
+      })
+    },
+    updateItem(item) {
+      updateWordList(item).then(() => {
+        notifySuccess(`Successfully updated ${item.name}`)
+        this.updateData()
+      }).catch(() => {
+        notifyFailure(`Failed to update ${item.name}`)
+      })
+    },
+    importData(data) {
+      importWordList(data)
+    },
+    exportData() {
+      console.debug('export OSINT sources')
+      exportWordList(this.selected)
+    },
+    selectionChange(selected) {
+      this.selected = selected.map(item => item.id)
+    }
   },
-  beforeDestroy () {
-    this.$root.$off('delete-item')
-  }
+  mounted() {
+    this.updateData()
+  },
+  beforeDestroy() {}
 }
 </script>

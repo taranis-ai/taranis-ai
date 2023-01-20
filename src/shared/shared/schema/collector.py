@@ -1,6 +1,17 @@
 from marshmallow import Schema, fields, post_load
 
 from shared.schema.parameter import ParameterSchema
+from enum import Enum, auto
+
+
+class CollectorType(Enum):
+    EMAIL_COLLECTOR = auto()
+    WEB_COLLECTOR = auto()
+    ATOM_COLLECTOR = auto()
+    TWITTER_COLLECTOR = auto()
+    RSS_COLLECTOR = auto()
+    MANUAL_COLLECTOR = auto()
+    SLACK_COLLECTOR = auto()
 
 
 class CollectorSchema(Schema):

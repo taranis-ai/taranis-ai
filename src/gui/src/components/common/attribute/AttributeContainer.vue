@@ -1,20 +1,13 @@
 <template>
-    <!--<v-card>
-        <v-card-title style="font-size: 16px; font-weight: bold; padding-top:0; padding-bottom:0">
-            {{attribute_item.attribute_group_item.title}}
-        </v-card-title>
-
-        <v-card-text>
-            <v-divider style="padding-bottom:8px"></v-divider>
-            <component v-bind:is="attributeType()" :attribute_group="attribute_item.attribute_group_item"
-                       :values="attribute_item.values"
-                       :read_only="read_only" :edit="edit" :modify="modify" :report_item_id="report_item_id"></component>
-        </v-card-text>
-    </v-card>-->
-    <component v-bind:is="attributeType()" :attribute_group="attribute_item.attribute_group_item"
-               :values="attribute_item.values"
-               :read_only="read_only" :edit="edit" :modify="modify" :report_item_id="report_item_id"></component>
-
+  <component
+    v-bind:is="attributeType()"
+    :attribute_group="attribute_item.attribute_group_item"
+    :values="attribute_item.values"
+    :read_only="read_only"
+    :edit="edit"
+    :modify="modify"
+    :report_item_id="report_item_id"
+  ></component>
 </template>
 
 <script>
@@ -78,7 +71,10 @@ export default {
   }),
   methods: {
     attributeType: function () {
-      return 'Attribute' + this.attributes[this.attribute_item.attribute_group_item.attribute.type]
+      return (
+        'Attribute' +
+        this.attributes[this.attribute_item.attribute_group_item.attribute.type]
+      )
     }
   }
 }

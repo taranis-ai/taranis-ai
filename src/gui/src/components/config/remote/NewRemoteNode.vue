@@ -141,7 +141,7 @@
 
 <script>
 import AuthMixin from '../../../services/auth/auth_mixin'
-import { createNewRemoteNode, updateRemoteNode, connectRemoteNode } from '@/api/config'
+import { createRemoteNode, updateRemoteNode, connectRemoteNode } from '@/api/config'
 
 import Permissions from '@/services/auth/permissions'
 import { mapActions, mapGetters } from 'vuex'
@@ -232,7 +232,7 @@ export default {
               this.show_error = true
             })
           } else {
-            createNewRemoteNode(this.remote_node).then(() => {
+            createRemoteNode(this.remote_node).then(() => {
               this.$validator.reset()
               this.makeConnection()
             }).catch(() => {
@@ -282,7 +282,7 @@ export default {
               this.show_error = true
             })
           } else {
-            createNewRemoteNode(this.remote_node).then(() => {
+            createRemoteNode(this.remote_node).then(() => {
               this.$validator.reset()
               this.visible = false
 

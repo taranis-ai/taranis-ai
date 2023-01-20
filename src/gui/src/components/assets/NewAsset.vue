@@ -93,7 +93,7 @@
 </template>
 
 <script>
-import { createNewAsset, updateAsset } from '@/api/assets'
+import { createAsset, updateAsset } from '@/api/assets'
 
 import CPETable from '@/components/assets/CPETable'
 import CardVulnerability from '@/components/assets/CardVulnerability'
@@ -178,7 +178,7 @@ export default {
               this.show_error = true
             })
           } else {
-            createNewAsset(this.asset).then(() => {
+            createAsset(this.asset).then(() => {
               this.$validator.reset()
               this.visible = false
               this.$root.$emit('notification',

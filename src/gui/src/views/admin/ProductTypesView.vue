@@ -1,65 +1,110 @@
 <template>
-    <ViewLayout>
-        <template v-slot:panel>
-            <ToolbarFilter title='nav_menu.product_types' total_count_title="product_type.total_count"
-                           total_count_getter="config/getProductTypes">
-                <template v-slot:addbutton>
-                    <NewProductType/>
-                </template>
-            </ToolbarFilter>
-
-        </template>
-        <template v-slot:content>
-            <ContentData
-                    name = "ProductTypes"
-                    cardItem="CardProductType"
-                    action="config/getAllProductTypes"
-                    getter="config/getProductTypes"
-                    deletePermission="CONFIG_PRODUCT_TYPE_DELETE"
-            />
-        </template>
-    </ViewLayout>
+  <div>
+    <ConfigTable
+      :addButton="true"
+      :items.sync="productTypes"
+      :headerFilter="['tag', 'id', 'name', 'description']"
+      sortByItem="id"
+      :actionColumn="true"
+      @delete-item="deleteItem"
+      @edit-item="editItem"
+      @add-item="addItem"
+    />
+    <NewProductType
+      @submit="handleSubmit"
+    ></NewProductType>
+  </div>
 </template>
 
 <script>
-import ViewLayout from '../../components/layouts/ViewLayout'
+import ConfigTable from '../../components/config/ConfigTable'
 import NewProductType from '@/components/config/product_types/NewProductType'
-import ToolbarFilter from '../../components/common/ToolbarFilter'
-import ContentData from '../../components/common/content/ContentData'
-import { deleteProductType } from '@/api/config'
+import {
+  deleteProductType,
+  createProductType,
+  updateProductType
+} from '@/api/config'
+import { mapActions, mapGetters } from 'vuex'
+import { notifySuccess, notifyFailure } from '@/utils/helpers'
 
 export default {
-  name: 'ProductTypes',
+  name: 'Organizations',
   components: {
-    ViewLayout,
-    ToolbarFilter,
-    ContentData,
+    ConfigTable,
     NewProductType
   },
   data: () => ({
+    productTypes: [],
+    formData: {},
+    edit: false,
+    product: {
+      id: -1,
+      title: '',
+      description: '',
+      presenter_id: '',
+      parameter_values: []
+    }
   }),
-  mounted () {
-    this.$root.$on('delete-item', (item) => {
-      deleteProductType(item).then(() => {
-        this.$root.$emit('notification',
-          {
-            type: 'success',
-            loc: 'product_type.removed'
-          }
-        )
-      }).catch(() => {
-        this.$root.$emit('notification',
-          {
-            type: 'error',
-            loc: 'product_type.removed_error'
-          }
-        )
+  methods: {
+    ...mapActions('config', ['loadProductTypes']),
+    ...mapGetters('config', ['getProductTypes']),
+    ...mapActions(['updateItemCount']),
+    updateData() {
+      this.loadProductTypes().then(() => {
+        const sources = this.getProductTypes()
+        this.productTypes = sources.items
+        this.updateItemCount({
+          total: sources.total_count,
+          filtered: sources.length
+        })
       })
-    })
+    },
+    addItem() {
+      this.formData = this.product
+      this.edit = false
+    },
+    editItem(item) {
+      this.formData = item
+      this.edit = true
+    },
+    handleSubmit(submittedData) {
+      console.log(submittedData)
+      if (this.edit) {
+        this.updateItem(submittedData)
+      } else {
+        this.createItem(submittedData)
+      }
+    },
+    deleteItem(item) {
+      if (!item.default) {
+        deleteProductType(item).then(() => {
+          notifySuccess(`Successfully deleted ${item.name}`)
+          this.updateData()
+        }).catch(() => {
+          notifyFailure(`Failed to delete ${item.name}`)
+        })
+      }
+    },
+    createItem(item) {
+      createProductType(item).then(() => {
+        notifySuccess(`Successfully created ${item.name}`)
+        this.updateData()
+      }).catch(() => {
+        notifyFailure(`Failed to create ${item.name}`)
+      })
+    },
+    updateItem(item) {
+      updateProductType(item).then(() => {
+        notifySuccess(`Successfully updated ${item.name}`)
+        this.updateData()
+      }).catch(() => {
+        notifyFailure(`Failed to update ${item.name}`)
+      })
+    }
   },
-  beforeDestroy () {
-    this.$root.$off('delete-item')
-  }
+  mounted() {
+    this.updateData()
+  },
+  beforeDestroy() {}
 }
-
 </script>

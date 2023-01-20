@@ -1,28 +1,38 @@
 <template>
-  <ConfigTable
-    :addButton="true"
-    :items.sync="users"
-    :headerFilter="['tag', 'id', 'name', 'username']"
-    sortByItem="id"
-    :actionColumn=true
-    @delete-item="deleteItem"
-    @edit-item="editItem"
-    @add-item="addItem"
-  />
+  <div>
+    <ConfigTable
+      :addButton="true"
+      :items.sync="users"
+      :headerFilter="['tag', 'id', 'name', 'username']"
+      sortByItem="id"
+      :actionColumn="true"
+      @delete-item="deleteItem"
+      @edit-item="editItem"
+      @add-item="addItem"
+    />
+    <UserForm
+      v-if="showForm"
+      :user_id.sync="userID"
+    ></UserForm>
+  </div>
 </template>
 
 <script>
 import ConfigTable from '../../components/config/ConfigTable'
+import UserForm from '../../components/config/user/UserForm'
 import { deleteUser, createUser, updateUser } from '@/api/config'
 import { mapActions, mapGetters } from 'vuex'
 
 export default {
   name: 'UsersView',
   components: {
-    ConfigTable
+    ConfigTable,
+    UserForm
   },
   data: () => ({
-    users: []
+    showForm: false,
+    users: [],
+    userID: null
   }),
   methods: {
     ...mapActions('config', ['loadUsers']),
@@ -32,48 +42,62 @@ export default {
       this.loadUsers().then(() => {
         const sources = this.getUsers()
         this.users = sources.items
-        this.updateItemCount({ total: sources.total_count, filtered: sources.length })
+        this.updateItemCount({
+          total: sources.total_count,
+          filtered: sources.length
+        })
       })
+    },
+    addItem() {
+      this.userID = null
+      this.showForm = true
+    },
+    editItem(item) {
+      this.userID = item.id
+      this.showForm = true
+    },
+    handleSubmit(submittedData) {
+      if (this.showForm) {
+        this.updateItem(submittedData)
+      } else {
+        this.createItem(submittedData)
+      }
     },
     deleteItem(item) {
       if (!item.default) {
         deleteUser(item).then(() => {
           this.message = `Successfully deleted ${item.name}`
           this.dialog = true
-          this.$root.$emit('notification',
-            {
-              type: 'success',
-              loc: `Successfully deleted ${item.name}`
-            })
+          this.$root.$emit('notification', {
+            type: 'success',
+            loc: `Successfully deleted ${item.name}`
+          })
           this.updateData()
         })
       }
     },
-    addItem(item) {
+    createItem(item) {
       createUser(item).then(() => {
-        this.$root.$emit('notification',
-          {
-            type: 'success',
-            loc: `Successfully added ${item.name}`
-          })
+        this.$root.$emit('notification', {
+          type: 'success',
+          loc: `Successfully added ${item.name}`
+        })
         this.updateData()
       })
     },
-    editItem(item) {
+    updateItem(item) {
       updateUser(item).then(() => {
-        this.$root.$emit('notification',
-          {
-            type: 'success',
-            loc: `Successfully updated ${item.name}`
-          })
+        this.$root.$emit('notification', {
+          type: 'success',
+          loc: `Successfully updated ${item.name}`
+        })
         this.updateData()
       })
     }
   },
-  mounted () {
+  mounted() {
     this.updateData()
   },
-  beforeDestroy () {}
+  beforeDestroy() {}
 }
-
 </script>

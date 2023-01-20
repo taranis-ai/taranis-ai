@@ -275,14 +275,13 @@ class RemoteNode(db.Model):
         self.osint_source_group_id = osint_source_group_id
         self.title = ""
         self.subtitle = ""
-        self.tag = ""
+        self.tag = "mdi-share-variant"
         self.status = ""
 
     @orm.reconstructor
     def reconstruct(self):
         self.title = self.name
         self.subtitle = self.description
-        self.tag = "mdi-share-variant"
         if self.enabled is False or not self.event_id:
             self.status = "red"
         else:
@@ -293,11 +292,11 @@ class RemoteNode(db.Model):
         return cls.query.get(node_id)
 
     @classmethod
-    def get(cls, search):
+    def get(cls, search=None):
         query = cls.query
 
         if search is not None:
-            search_string = "%" + search.lower() + "%"
+            search_string = f"%{search.lower()}%"
             query = query.filter(
                 or_(
                     func.lower(RemoteNode.name).like(search_string),

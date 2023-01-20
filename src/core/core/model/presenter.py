@@ -43,7 +43,7 @@ class Presenter(db.Model):
     @classmethod
     def to_dict(cls):
         presenter_schema = PresenterSchema()
-        return presenter_schema.dump(cls)
+        return presenter_schema.dump(Presenter(None, None, None, []))
 
 
 class PresenterParameter(db.Model):

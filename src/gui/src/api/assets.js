@@ -4,7 +4,7 @@ export function getAllAssetGroups (filter) {
   return ApiService.get(`/my-assets/asset-groups?search=${filter.search}`)
 }
 
-export function createNewAssetGroup (group) {
+export function createAssetGroup (group) {
   return ApiService.post('/my-assets/asset-groups', group)
 }
 
@@ -20,7 +20,7 @@ export function getAllNotificationTemplates (filter) {
   return ApiService.get(`/my-assets/asset-notification-templates?search=${filter.search}`)
 }
 
-export function createNewNotificationTemplate (template) {
+export function createNotificationTemplate (template) {
   return ApiService.post('/my-assets/asset-notification-templates', template)
 }
 
@@ -36,7 +36,7 @@ export function getAllAssets (data) {
   return ApiService.get(`/my-assets/asset-groups/${data.group_id}/assets?search=${data.filter.search}&sort=${data.filter.sort}&vulnerable=${data.filter.vulnerable}`)
 }
 
-export function createNewAsset (asset) {
+export function createAsset (asset) {
   return ApiService.post(`/my-assets/asset-groups/${asset.asset_group_id}/assets`, asset)
 }
 

@@ -57,7 +57,7 @@ const actions = {
     context.commit('REMOVE_TOPIC', id)
   },
 
-  createNewStory(context, mergedStory) {
+  createStory(context, mergedStory) {
     context.commit('CREATE_TOPIC', mergedStory)
   }
 
