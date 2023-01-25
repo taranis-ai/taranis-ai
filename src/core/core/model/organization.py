@@ -22,8 +22,8 @@ class Organization(db.Model):
     address_id = db.Column(db.Integer, db.ForeignKey("address.id"))
     address = db.relationship("Address", cascade="all")
 
-    def __init__(self, name, description, address):
-        self.id = None
+    def __init__(self, name, description, address, id=None):
+        self.id = id
         self.name = name
         self.description = description
         self.address = address
