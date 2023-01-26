@@ -104,6 +104,19 @@ class CoreApi:
             logger.log_debug_trace("update_news_item_tags failed")
             return None, 400
 
+    def update_news_items_aggregate_summary(self, id, summary):
+        try:
+            response = requests.put(
+                f"{self.api_url}/api/v1/bots/news-items-aggregate/{id}/summary",
+                json=summary,
+                headers=self.headers,
+            )
+            return response.status_code
+        except Exception:
+            logger.log_debug_trace("update_news_items_aggregate_summary failed")
+            return None, 400
+
+
     def delete_word_list_category_entries(self, id, name):
         try:
             response = requests.delete(

@@ -188,6 +188,7 @@ class NewsItemData(db.Model):
         except Exception:
             logger.log_debug_trace("Update News Item Tags Failed")
 
+
     @classmethod
     def get_for_sync(cls, last_synced, osint_sources):
         osint_source_ids = set()
@@ -560,6 +561,8 @@ class NewsItemAggregate(db.Model):
     relevance = db.Column(db.Integer, default=0)
 
     comments = db.Column(db.String(), default="")
+
+    summary = db.Column(db.Text, default="")
 
     osint_source_group_id = db.Column(db.String, db.ForeignKey("osint_source_group.id"))
 
@@ -1046,6 +1049,15 @@ class NewsItemAggregate(db.Model):
 
                 if news_item.read is False:
                     aggregate.read = False
+
+    @classmethod
+    def update_news_items_aggregate_summary(cls, aggregate_id, summary):
+        try:
+            aggregate = cls.find(aggregate_id)
+            aggregate.summary = summary
+            db.session.commit()
+        except Exception:
+            logger.log_debug_trace(f"Update News Aggregate Summary Failed for {aggregate_id}")
 
     @classmethod
     def get_news_items_aggregate(cls, source_group, limit):
