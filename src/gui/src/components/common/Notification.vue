@@ -11,9 +11,7 @@
 export default {
   name: 'Notification',
 
-  props: {
-  },
-
+  props: {},
   data: () => ({
     notification: false,
     notify: Object

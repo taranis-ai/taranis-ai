@@ -1,8 +1,5 @@
 from marshmallow import Schema, fields, post_load, EXCLUDE
 
-from shared.schema.presentation import PresentationSchema
-from shared.schema.bot import BotSchema
-
 
 class BotsNodeSchema(Schema):
     class Meta:
@@ -13,15 +10,15 @@ class BotsNodeSchema(Schema):
     description = fields.Str()
     api_url = fields.Str()
     api_key = fields.Str()
-    bots = fields.List(fields.Nested(BotSchema))
 
     @post_load
     def make(self, data, **kwargs):
         return BotsNode(**data)
 
 
-class BotsNodePresentationSchema(BotsNodeSchema, PresentationSchema):
-    pass
+class BotsNodePresentationSchema(BotsNodeSchema):
+    type = fields.Str()
+    tag = fields.Str()
 
 
 class BotsNode:

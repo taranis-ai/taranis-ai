@@ -2,14 +2,12 @@ from marshmallow import fields, post_load
 from sqlalchemy import or_, func
 import uuid
 
-from managers.db_manager import db
-from model.parameter import NewParameterSchema
+from core.managers.db_manager import db
 from shared.schema.collector import CollectorSchema
-
+from core.model.parameter import Parameter
+from shared.schema.parameter import ParameterSchema
 
 class NewCollectorSchema(CollectorSchema):
-    parameters = fields.List(fields.Nested(NewParameterSchema))
-
     @post_load
     def make_collector(self, data, **kwargs):
         return Collector(**data)
@@ -40,7 +38,10 @@ class Collector(db.Model):
         if cls.find_by_type(collectors_data["type"]):
             return None
         schema = NewCollectorSchema()
+        parameters = [Parameter.find_by_key(p) for p in collectors_data["parameters"] if p is not None]
+        collectors_data["parameters"] = []
         collector = schema.load(collectors_data)
+        collector.parameters = parameters
         db.session.add(collector)
         db.session.commit()
 
@@ -78,4 +79,4 @@ class Collector(db.Model):
 
 class CollectorParameter(db.Model):
     collector_id = db.Column(db.String, db.ForeignKey("collector.id", ondelete="CASCADE"), primary_key=True)
-    parameter_id = db.Column(db.Integer, db.ForeignKey("parameter.id", ondelete="CASCADE"), primary_key=True)
+    parameter_id = db.Column(db.String, db.ForeignKey("parameter.key", ondelete="CASCADE"), primary_key=True)

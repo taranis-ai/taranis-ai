@@ -8,26 +8,12 @@ from dateutil.parser import parse
 
 from .base_collector import BaseCollector
 from shared.schema.news_item import NewsItemData
-from shared.schema.parameter import Parameter, ParameterType
 
 
 class AtomCollector(BaseCollector):
     type = "ATOM_COLLECTOR"
     name = "Atom Collector"
     description = "Collector for gathering data from Atom feeds"
-
-    parameters = [
-        Parameter(
-            0,
-            "ATOM_FEED_URL",
-            "Atom feed URL",
-            "Full url for Atom feed",
-            ParameterType.STRING,
-        ),
-        Parameter(0, "USER_AGENT", "User agent", "Type of user agent", ParameterType.STRING),
-    ]
-
-    parameters.extend(BaseCollector.parameters)
 
     news_items = []
 

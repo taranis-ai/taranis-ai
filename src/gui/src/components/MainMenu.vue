@@ -69,7 +69,7 @@
       dense
       flat
       color="transparent"
-      class="justify-end"
+      class="justify-end mr-4"
     >
       <div v-for="button in getButtonList(permissions)" :key="button.route">
         <v-btn
@@ -81,52 +81,13 @@
           :ripple="false"
           :to="button.route"
         >
-          <span class="main-menu-item text-lowercase">{{
-            $t(button.title)
-          }}</span>
+          <v-icon left>{{ button.icon }}</v-icon>
+          <span class="main-menu-item">
+            {{ $t(button.title) }}
+          </span>
         </v-btn>
       </div>
     </v-toolbar>
-
-    <v-menu
-      offset-y
-      v-if="isAuthenticated() && this.$vuetify.breakpoint.mdAndDown"
-    >
-      <template v-slot:activator="{ on, attrs }">
-        <v-btn
-          color="dark-grey"
-          plain
-          tile
-          v-bind="attrs"
-          v-on="on"
-          class="main-menu-item text-lowercase mr-3 font-weight-regular"
-          :ripple="false"
-        >
-          <v-icon class="mr-3">{{ button.icon }}</v-icon>
-          Menu
-        </v-btn>
-      </template>
-      <v-list>
-        <v-list-item
-          v-for="button in getButtonList(permissions)"
-          :key="button.route"
-        >
-          <v-btn
-            text
-            plain
-            tile
-            route
-            color="dark-grey"
-            :ripple="false"
-            :to="button.route"
-          >
-            <span class="main-menu-item text-lowercase">{{
-              $t(button.title)
-            }}</span>
-          </v-btn>
-        </v-list-item>
-      </v-list>
-    </v-menu>
 
     <UserMenu v-if="isAuthenticated()"></UserMenu>
   </v-app-bar>
@@ -147,7 +108,7 @@ export default {
         title: 'main_menu.administration',
         icon: 'mdi-cog-outline',
         permission: 'CONFIG_ACCESS',
-        route: '/config',
+        route: '/config/dashboard',
         show: true
       },
       {

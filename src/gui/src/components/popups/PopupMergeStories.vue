@@ -174,7 +174,7 @@
           @click="$emit('close')"
         />
 
-        <button-solid
+        <button-outlined
           label="merge stories"
           icon="$awakeMerge"
           color="primary"
@@ -189,7 +189,6 @@
 import { mapActions, mapGetters } from 'vuex'
 import { xorConcat } from '@/utils/helpers'
 
-import buttonSolid from '@/components/_subcomponents/buttonSolid'
 import buttonOutlined from '@/components/_subcomponents/buttonOutlined'
 import textField from '@/components/_subcomponents/textField'
 import switchField from '@/components/_subcomponents/switchField'
@@ -197,7 +196,6 @@ import switchField from '@/components/_subcomponents/switchField'
 export default {
   name: 'PopupMergeStories',
   components: {
-    buttonSolid,
     buttonOutlined,
     textField,
     switchField

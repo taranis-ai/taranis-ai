@@ -39,7 +39,7 @@ import {
   importOSINTSources
 } from '@/api/config'
 import { mapActions, mapGetters } from 'vuex'
-import { notifySuccess, objectFromFormat, notifyFailure } from '@/utils/helpers'
+import { notifySuccess, objectFromFormat, notifyFailure, parseParameterValues, parseSubmittedParameterValues } from '@/utils/helpers'
 
 export default {
   name: 'OSINTSources',
@@ -99,7 +99,7 @@ export default {
       this.loadOSINTSources().then(() => {
         const sources = this.getOSINTSources()
         this.unparsed_sources = sources.items
-        this.osint_sources = this.parseSource(sources.items)
+        this.osint_sources = parseParameterValues(sources.items)
         this.updateItemCount({
           total: sources.total_count,
           filtered: sources.length
@@ -122,34 +122,7 @@ export default {
         })
       })
     },
-    parseSource(data) {
-      const sources = []
 
-      data.forEach(source => {
-        const rootLevel = {
-          name: source.name,
-          id: source.id,
-          description: source.description,
-          collector_id: source.collector_id
-        }
-
-        source.parameter_values.forEach(parameter => {
-          rootLevel[parameter.parameter.key] = parameter.value
-        })
-        sources.push(rootLevel)
-      })
-
-      return sources
-    },
-    parseSubmittedData(data) {
-      const result = this.unparsed_sources.find(item => item.id === data.id)
-
-      result.parameter_values.forEach(parameter => {
-        parameter.value = data[parameter.parameter.key]
-      })
-
-      return result
-    },
     addItem() {
       console.log(this.formFormat)
       this.formData = objectFromFormat(this.formFormat)
@@ -160,7 +133,7 @@ export default {
       this.edit = true
     },
     handleSubmit(submittedData) {
-      const updateItem = this.parseSubmittedData(submittedData)
+      const updateItem = parseSubmittedParameterValues(this.unparsed_sources, submittedData)
       if (this.edit) {
         this.updateItem(updateItem)
       } else {

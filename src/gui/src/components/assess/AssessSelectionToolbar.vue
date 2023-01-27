@@ -17,10 +17,6 @@
     <v-container class="py-1">
       <v-row>
         <v-col class="py-0">
-          <!--------------------->
-          <!-- append to story -->
-          <!--------------------->
-
           <v-dialog v-model="appendToStoryDialog" width="1024">
             <template v-slot:activator="{ on, attrs }">
               <v-btn
@@ -63,30 +59,6 @@
             </v-card>
           </v-dialog>
 
-          <!------------------>
-          <!-- share -->
-          <!------------------>
-
-          <v-dialog v-model="shareDialog" width="1024">
-            <template v-slot:activator="{ on, attrs }">
-              <v-btn
-                :ripple="false"
-                text
-                class="text-lowercase selection-toolbar-btn mr-1 mt-1"
-                v-bind="attrs"
-                v-on="on"
-              >
-                <v-icon left>$awakeShareOutline</v-icon>
-                share
-              </v-btn>
-            </template>
-
-            <popup-share-items
-              v-model="shareDialog"
-              :selection="selection"
-            />
-          </v-dialog>
-
           <v-btn
             v-for="button in actionButtons"
             :key="button.label"
@@ -116,40 +88,24 @@
 </template>
 
 <script>
-// import PopupShareItems from 'vuex'
-import PopupShareItems from '@/components/popups/PopupShareItems'
-
 export default {
   name: 'AssessSelectionToolbar',
-  components: {
-    PopupShareItems
-  },
+  components: { },
   props: {
     selection: []
   },
   data: () => ({
     actionButtons: [
       {
-        label: 'create report',
-        icon: '$awakeReport'
-      },
-      {
-        label: 'remove from story',
-        icon: '$awakeClose'
-      },
-      {
         label: 'delete items',
         icon: '$awakeDelete'
       }
     ],
-    shareDialog: false,
     appendToStoryDialog: false,
     createStoryDialog: false
   }),
-  methods: {
-
-  },
+  methods: {},
   computed: {},
-  mounted () {}
+  mounted() {}
 }
 </script>

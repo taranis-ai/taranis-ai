@@ -30,7 +30,7 @@ import {
   updateOSINTSourceGroup
 } from '@/api/config'
 import { mapActions, mapGetters } from 'vuex'
-import { notifySuccess, emptyValues, notifyFailure } from '@/utils/helpers'
+import { notifySuccess, objectFromFormat, notifyFailure } from '@/utils/helpers'
 
 export default {
   name: 'OSINTSources',
@@ -40,6 +40,7 @@ export default {
   },
   data: () => ({
     osint_source_groups: [],
+    osint_sources: [],
     selected: [],
     formData: {},
     edit: false
@@ -73,14 +74,15 @@ export default {
             { text: 'Name', value: 'name' },
             { text: 'Description', value: 'description' }
           ],
-          items: this.osint_source_groups.osint_sources
+          items: this.osint_sources
         }
       ]
     }
   },
   methods: {
-    ...mapActions('config', ['loadOSINTSourceGroups']),
-    ...mapGetters('config', ['getOSINTSourceGroups']),
+    ...mapActions('config', ['loadOSINTSourceGroups', 'loadOSINTSources']),
+    ...mapGetters('config', ['getOSINTSourceGroups', 'getOSINTSources']),
+
     ...mapActions(['updateItemCount']),
     updateData() {
       this.loadOSINTSourceGroups().then(() => {
@@ -91,9 +93,12 @@ export default {
           filtered: sources.length
         })
       })
+      this.loadOSINTSources().then(() => {
+        this.osint_sources = this.getOSINTSources().items
+      })
     },
     addItem() {
-      this.formData = emptyValues(this.osint_source_groups[0])
+      this.formData = objectFromFormat(this.formFormat)
       this.edit = false
     },
     editItem(item) {
@@ -101,10 +106,11 @@ export default {
       this.edit = true
     },
     handleSubmit(submittedData) {
-      console.log(submittedData)
       if (this.edit) {
+        console.debug(`Update: ${submittedData}`)
         this.updateItem(submittedData)
       } else {
+        console.debug(`Create: ${submittedData}`)
         this.createItem(submittedData)
       }
     },

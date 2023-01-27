@@ -21,6 +21,7 @@ from core.model import (
     presenter,
     collector,
     bot,
+    parameter,
     presenters_node,
     publisher_preset,
     publishers_node,
@@ -317,6 +318,12 @@ class Bots(Resource):
         search = request.args.get(key="search", default=None)
         return bot.Bot.get_all_json(search)
 
+    def put(self, bot_id):
+        return bot.Bot.update_bot_parameters(bot_id, request.json)
+
+class Parameters(Resource):
+    def get(self):
+        return parameter.Parameter.get_all_json()
 
 class CollectorsNodes(Resource):
     @auth_required("CONFIG_COLLECTORS_NODE_ACCESS")
@@ -610,7 +617,8 @@ def initialize(api):
 
     api.add_resource(CollectorsNodes, "/api/v1/config/collectors-nodes", "/api/v1/config/collectors-nodes/<string:node_id>")
     api.add_resource(Collectors, "/api/v1/config/collectors", "/api/v1/config/collectors/<string:collector_type>")
-    api.add_resource(Bots, "/api/v1/config/bots", "/api/v1/config/bots/<string:bot_type>")
+    api.add_resource(Bots, "/api/v1/config/bots", "/api/v1/config/bots/<string:bot_id>")
+    api.add_resource(Parameters, "/api/v1/config/parameters")
 
     api.add_resource(OSINTSources, "/api/v1/config/osint-sources")
     api.add_resource(OSINTSource, "/api/v1/config/osint-sources/<string:source_id>")

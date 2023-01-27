@@ -82,6 +82,7 @@ const messages_en = {
     roles: "Roles",
     acls: "ACL",
     users: "Users",
+    bots: "Bots",
     user: "User",
     nodes: "Nodes",
     organizations: "Organizations",

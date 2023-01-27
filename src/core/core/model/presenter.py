@@ -1,13 +1,13 @@
 from marshmallow import fields, post_load
 import uuid
 
-from managers.db_manager import db
-from model.parameter import NewParameterSchema
+from core.managers.db_manager import db
+from shared.schema.parameter import ParameterSchema
 from shared.schema.presenter import PresenterSchema
 
 
 class NewPresenterSchema(PresenterSchema):
-    parameters = fields.List(fields.Nested(NewParameterSchema))
+    parameters = fields.List(fields.Nested(ParameterSchema))
 
     @post_load
     def make(self, data, **kwargs):
@@ -48,4 +48,4 @@ class Presenter(db.Model):
 
 class PresenterParameter(db.Model):
     presenter_id = db.Column(db.String, db.ForeignKey("presenter.id"), primary_key=True)
-    parameter_id = db.Column(db.Integer, db.ForeignKey("parameter.id"), primary_key=True)
+    parameter_key = db.Column(db.String, db.ForeignKey("parameter.key"), primary_key=True)

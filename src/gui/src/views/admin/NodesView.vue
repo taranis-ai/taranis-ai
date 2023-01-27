@@ -3,7 +3,7 @@
     <ConfigTable
       :addButton="true"
       :items.sync="nodes"
-      :headerFilter="['tag', 'name', 'title', 'description']"
+      :headerFilter="['tag', 'name', 'description']"
       :actionColumn=true
       @delete-item="deleteItem"
       @edit-item="editItem"
@@ -23,7 +23,7 @@ import ConfigTable from '../../components/config/ConfigTable'
 import EditConfig from '../../components/config/EditConfig'
 import { deleteNode, createNode, updateNode } from '@/api/config'
 import { mapActions, mapGetters } from 'vuex'
-import { notifySuccess, notifyFailure, emptyValues } from '@/utils/helpers'
+import { notifySuccess, notifyFailure, objectFromFormat } from '@/utils/helpers'
 
 export default {
   name: 'Nodes',
@@ -35,7 +35,7 @@ export default {
     nodes: [],
     formData: {},
     edit: false,
-    worker_type: []
+    workers: []
   }),
   computed: {
     formFormat() {
@@ -69,8 +69,8 @@ export default {
           type: 'text'
         },
         {
-          name: this.worker_type,
-          label: 'Workers',
+          name: this.formData.type,
+          label: `${this.formData.type} Types`,
           type: 'table',
           disabled: true,
           headers: [
@@ -78,14 +78,14 @@ export default {
             { text: 'Description', value: 'description' },
             { text: 'Type', value: 'type' }
           ],
-          items: this.formData[this.worker_type] || []
+          items: this.workers
         }
       ]
     }
   },
   methods: {
-    ...mapActions('config', ['loadNodes']),
-    ...mapGetters('config', ['getNodes']),
+    ...mapActions('config', ['loadNodes', 'loadCollectors']),
+    ...mapGetters('config', ['getNodes', 'getCollectors']),
     ...mapActions(['updateItemCount']),
     updateData() {
       this.loadNodes().then(() => {
@@ -95,14 +95,16 @@ export default {
       })
     },
     addItem() {
-      this.formData = emptyValues(this.nodes[0])
+      this.formData = objectFromFormat(this.formFormat)
       this.edit = false
     },
     editItem(item) {
-      if (item.bots) {
-        this.worker_type = 'bots'
-      } else if (item.collectors) {
-        this.worker_type = 'collectors'
+      if (item.type === 'bot') {
+        this.workers = item.bots
+      } else if (item.type === 'collector') {
+        this.loadCollectors().then(() => {
+          this.workers = this.getCollectors().items
+        })
       } else {
         console.log('No workers found')
       }

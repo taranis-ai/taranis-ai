@@ -7,32 +7,12 @@ import socket
 
 from .base_collector import BaseCollector
 from shared.schema.news_item import NewsItemData
-from shared.schema.parameter import Parameter, ParameterType
 
 
 class SlackCollector(BaseCollector):
     type = "SLACK_COLLECTOR"
     name = "Slack Collector"
     description = "Collector for gathering data from Slack"
-
-    parameters = [
-        Parameter(
-            0,
-            "SLACK_API_TOKEN",
-            "Slack API token",
-            "API token for Slack authentication.",
-            ParameterType.STRING,
-        ),
-        Parameter(
-            0,
-            "WORKSPACE_CHANNELS_ID",
-            "Collected workspace's channels ID",
-            "Channels which will be collected.",
-            ParameterType.STRING,
-        ),
-    ]
-
-    parameters.extend(BaseCollector.parameters)
 
     def collect(self, source):
 

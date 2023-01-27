@@ -41,7 +41,7 @@
               This action cannot be undone.
             </p>
 
-            <button-solid
+            <button-outlined
               label="delete item"
               icon="$awakeDelete"
               color="awake-red-color"
@@ -52,29 +52,15 @@
       </v-row>
     </v-container>
 
-    <!-- <v-divider></v-divider>
-
-    <v-card-actions class="mt-3">
-      <v-spacer></v-spacer>
-
-      <button-outlined
-        label="cancel"
-        icon="$awakeClose"
-        color="awake-red-color"
-        @click="$emit('close')"
-      />
-    </v-card-actions> -->
   </v-card>
 </template>
 
 <script>
-import buttonSolid from '@/components/_subcomponents/buttonSolid'
 import buttonOutlined from '@/components/_subcomponents/buttonOutlined'
 
 export default {
   name: 'PopupDeleteItem',
   components: {
-    buttonSolid,
     buttonOutlined
   },
   props: {

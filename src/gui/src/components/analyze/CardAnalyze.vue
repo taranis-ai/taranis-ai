@@ -103,16 +103,14 @@ export default {
     selectedColor () {
       if (this.selected === true || this.preselected) {
         return 'orange lighten-4'
-      } else {
-        return ''
       }
+      return ''
     },
     itemStatus () {
       if (this.card.completed) {
         return 'completed'
-      } else {
-        return 'in_progress'
       }
+      return 'in_progress'
     }
   },
   methods: {

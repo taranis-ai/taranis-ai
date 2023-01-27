@@ -19,18 +19,20 @@ class CoreApi:
         uid = self.api_url + self.api_key
         return base64.urlsafe_b64encode(uid.encode("utf-8")).decode("utf-8")
 
-    def register_node(self, bots_info):
+    def register_node(self):
         try:
-            response, status = self.get_bot_node_status()
-            if status == 200:
-                return response, status
+            response = self.get_bot_node_status()
+            if response:
+                logger.log_info(f"Found registerd Bot {response}")
+                return
+            
+            logger.log_info(f"Registering bot Node at {Config.TARANIS_NG_CORE_URL}")
             node_info = {
                 "id": self.node_id,
                 "name": Config.NODE_NAME,
                 "description": Config.NODE_DESCRIPTION,
                 "api_url": Config.NODE_URL,
                 "api_key": Config.API_KEY,
-                "bots_info": bots_info,
             }
             response = requests.post(
                 f"{self.api_url}/api/v1/bots/node",
@@ -38,38 +40,37 @@ class CoreApi:
                 headers=self.headers,
             )
 
-            if response.status_code != 200:
-                logger.log_debug(f"Can't register Bot node: {response.text}")
-                return None, 400
+            if response.ok:
+                logger.log_info(f"Successfully registered: {response}")
+            else:
+                logger.critical(f"Can't register Bot node: {response.text}")
 
-            return response.json(), response.status_code
-        except Exception as e:
-            logger.log_debug("Can't register Bot node")
-            logger.log_debug(str(e))
-            return None, 400
+        except Exception:
+            logger.log_debug_trace("Can't register Bot node")
+            return None
 
-    def get_bot_node_status(self):
+    def get_bot_node_status(self) -> dict|None:
         try:
             response = requests.get(
-                f"{self.api_url}/api/v1/bots/{self.node_id}",
+                f"{self.api_url}/api/v1/bots/node/{self.node_id}",
                 headers=self.headers,
             )
 
-            return response.json(), response.status_code
+            return response.json() if response.ok else None
         except Exception:
             logger.log_debug_trace("Cannot update Bot status")
-            return None, 400
+            return None
 
-    def get_bots_presets(self, bot_type):
+    def get_bots(self) -> dict|None:
         try:
-            response = requests.post(
-                f"{self.api_url}/api/v1/bots/bots-presets",
-                json={"api_key": self.api_key, "bot_type": bot_type},
+            response = requests.get(
+                f"{self.api_url}/api/v1/bots",
                 headers=self.headers,
             )
-            return response.json(), response.status_code
-        except (requests.exceptions.ConnectionError, json.decoder.JSONDecodeError):
-            return {}, 503
+            return response.json()["items"] if response.ok else None
+        except Exception:
+            logger.log_debug_trace("Can't get Bot infos")
+            return None
 
     def get_news_items_data(self, limit):
         try:
@@ -159,16 +160,17 @@ class CoreApi:
         except Exception:
             return None, 400
 
-    def get_news_items_aggregate(self, source_group, limit):
+    def get_news_items_aggregate(self, source_group: str|None, limit: str|None) -> dict|None:
         try:
+            uri = f"{self.api_url}/api/v1/bots/news-item-aggregates-by-group/{source_group}" if source_group else f"{self.api_url}/api/v1/bots/news-item-aggregates"
             response = requests.get(
-                f"{self.api_url}/api/v1/bots/news-item-aggregates-by-group/{source_group}",
+                uri,
                 headers=self.headers,
             )
-            return response.json(), response.status_code
+            return response.json() if response.ok else None
         except Exception:
             logger.log_debug_trace("get_news_items_aggregate failed")
-            return None, 400
+            return None
 
     def news_items_grouping(self, data):
         try:

@@ -50,7 +50,7 @@ def update_collectors_node(node_id, data):
         return collectors, status_code
 
     try:
-        CollectorsNode.update(node_id, data, collectors)
+        CollectorsNode.update(node_id, data)
     except Exception:
         logger.log_debug_trace(f"Couldn't add Collector Node: {node.name}")
         return f"Couldn't add Collector node: {node.name}", 500
@@ -83,8 +83,8 @@ def refresh_osint_source(osint_source_id):
 
 def refresh_collector(collector):
     try:
-        node = CollectorsNode.get_first()
-        CollectorsApi(node.api_url, node.api_key).refresh_collector(collector.type)
+        if node := CollectorsNode.get_first():
+            CollectorsApi(node.api_url, node.api_key).refresh_collector(collector.type)
     except ConnectionError:
         logger.critical(f"Connection error: Could not reach {collector.node.api_url}")
 

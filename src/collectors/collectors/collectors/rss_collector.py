@@ -11,21 +11,12 @@ import dateutil.parser as dateparser
 from .base_collector import BaseCollector
 from collectors.managers.log_manager import logger
 from shared.schema.news_item import NewsItemData
-from shared.schema.parameter import Parameter, ParameterType
 
 
 class RSSCollector(BaseCollector):
     type = "RSS_COLLECTOR"
     name = "RSS Collector"
     description = "Collector for gathering data from RSS feeds"
-
-    parameters = [
-        Parameter(0, "FEED_URL", "Feed URL", "Full url for RSS feed", ParameterType.STRING),
-        Parameter(0, "USER_AGENT", "User agent", "Type of user agent", ParameterType.STRING),
-        Parameter(0, "CONTENT_LOCATION", "Content Location", "Location of the 'content' Field", ParameterType.STRING),
-    ]
-
-    parameters.extend(BaseCollector.parameters)
 
     news_items = []
     proxies = None

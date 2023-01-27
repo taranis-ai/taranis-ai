@@ -1,21 +1,16 @@
 from marshmallow import Schema, fields, post_load
 
-from shared.schema.parameter import ParameterSchema, ParameterExportSchema
+from shared.schema.parameter import ParameterExportSchema
+
+
+class ParameterValueImportSchema(Schema):
+    value = fields.Str(load_default="")
+    parameter = fields.Nested(ParameterExportSchema)
 
 
 class ParameterValueSchema(Schema):
     value = fields.Str(load_default="")
-    parameter = fields.Nested(ParameterSchema)
-
-    @post_load
-    def make_parameter_value(self, data, **kwargs):
-        return ParameterValue(**data)
-
-
-class ParameterValue:
-    def __init__(self, value, parameter):
-        self.value = value
-        self.parameter = parameter
+    parameter = fields.Str()
 
 
 class ParameterValueExportSchema(Schema):

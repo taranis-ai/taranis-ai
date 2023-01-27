@@ -13,5 +13,4 @@ __all__ = [
     "remote_manager",
     "sse_manager",
     "tagcloud_manager",
-    "time_manager",
 ]

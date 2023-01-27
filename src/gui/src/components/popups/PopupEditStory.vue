@@ -45,7 +45,7 @@
           @click="$emit('close')"
         />
 
-        <button-solid
+        <button-outlined
           label="apply"
           icon="mdi-check"
           color="primary"
@@ -59,14 +59,12 @@
 <script>
 import { mapActions } from 'vuex'
 import textField from '@/components/_subcomponents/textField'
-import buttonSolid from '@/components/_subcomponents/buttonSolid'
 import buttonOutlined from '@/components/_subcomponents/buttonOutlined'
 
 export default {
   name: 'PopupEditStory',
   components: {
     textField,
-    buttonSolid,
     buttonOutlined
   },
   props: {

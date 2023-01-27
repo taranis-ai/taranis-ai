@@ -17,28 +17,30 @@ import {
   getAllRoles,
   getAllUsers,
   getAllNodes,
-  getAllWordLists
+  getAllWordLists,
+  getAllParameters
 } from '@/api/config'
 import { getAllUserProductTypes, getAllUserWordLists } from '@/api/user'
 
 const state = {
-  attributes: { total_count: 0, items: [] },
-  report_item_types_config: { total_count: 0, items: [] },
-  product_types: { total_count: 0, items: [] },
-  permissions: { total_count: 0, items: [] },
-  roles: { total_count: 0, items: [] },
   acls: { total_count: 0, items: [] },
-  organizations: { total_count: 0, items: [] },
-  users: { total_count: 0, items: [] },
-  word_lists: { total_count: 0, items: [] },
-  remote_access: { total_count: 0, items: [] },
-  remote_nodes: { total_count: 0, items: [] },
-  nodes: { total_count: 0, items: [] },
-  collectors: { total_count: 0, items: [] },
+  attributes: { total_count: 0, items: [] },
   bots: { total_count: 0, items: [] },
+  collectors: { total_count: 0, items: [] },
+  nodes: { total_count: 0, items: [] },
+  organizations: { total_count: 0, items: [] },
   osint_sources: { total_count: 0, items: [] },
   osint_source_groups: { total_count: 0, items: [] },
-  publisher_presets: { total_count: 0, items: [] }
+  parameters: { total_count: 0, items: [] },
+  permissions: { total_count: 0, items: [] },
+  product_types: { total_count: 0, items: [] },
+  publisher_presets: { total_count: 0, items: [] },
+  remote_access: { total_count: 0, items: [] },
+  remote_nodes: { total_count: 0, items: [] },
+  report_item_types_config: { total_count: 0, items: [] },
+  roles: { total_count: 0, items: [] },
+  users: { total_count: 0, items: [] },
+  word_lists: { total_count: 0, items: [] }
 }
 
 const actions = {
@@ -188,6 +190,13 @@ const actions = {
       .then(response => {
         context.commit('setPublisherPresets', response.data)
       })
+  },
+
+  loadParameters (context, data) {
+    return getAllParameters(data)
+      .then(response => {
+        context.commit('setParameters', response.data)
+      })
   }
 }
 
@@ -258,6 +267,10 @@ const mutations = {
 
   setPublisherPresets (state, publisher_presets) {
     state.publisher_presets = publisher_presets
+  },
+
+  setParameters (state, parameters) {
+    state.parameters = parameters
   }
 }
 
@@ -369,8 +382,11 @@ const getters = {
 
   getPublisherPresets (state) {
     return state.publisher_presets
-  }
+  },
 
+  getParameters (state) {
+    return state.parameters
+  }
 }
 
 export const config = {

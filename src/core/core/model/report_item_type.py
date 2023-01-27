@@ -96,11 +96,7 @@ class AttributeGroup(db.Model):
         index,
         attribute_group_items,
     ):
-        if id is not None and id != -1:
-            self.id = id
-        else:
-            self.id = None
-
+        self.id = id if id is not None and id != -1 else None
         self.title = title
         self.description = description
         self.section = section
@@ -170,18 +166,15 @@ class ReportItemType(db.Model):
         cascade="all, delete-orphan",
     )
 
-    def __init__(self, id, title, description, attribute_groups):
+    def __init__(self, title, description, attribute_groups):
         self.id = None
         self.title = title
         self.description = description
         self.attribute_groups = attribute_groups
-        self.subtitle = ""
-        self.tag = ""
+        self.tag = "mdi-file-table-outline"
 
     @orm.reconstructor
     def reconstruct(self):
-        self.subtitle = self.description
-        self.tag = "mdi-file-table-outline"
         self.attribute_groups.sort(key=AttributeGroup.sort)
 
     @classmethod

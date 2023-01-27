@@ -2,11 +2,11 @@ import uuid
 from datetime import datetime
 
 from marshmallow import post_load
-from sqlalchemy import or_, func
+from sqlalchemy import or_, func, orm
 
 from core.managers.db_manager import db
 from core.managers.log_manager import logger
-from shared.schema.collectors_node import CollectorsNodeSchema
+from shared.schema.collectors_node import CollectorsNodeSchema, CollectorsNodePresentationSchema
 
 
 class NewCollectorsNodeSchema(CollectorsNodeSchema):
@@ -29,9 +29,6 @@ class CollectorsNode(db.Model):
     api_url = db.Column(db.String(), nullable=False)
     api_key = db.Column(db.String(), nullable=False)
 
-    created = db.Column(db.DateTime, default=datetime.now)
-    last_seen = db.Column(db.DateTime, default=datetime.now)
-
     def __init__(self, id, name, description, api_url, api_key):
         self.id = id if id != "" else str(uuid.uuid4())
         self.name = name
@@ -39,6 +36,12 @@ class CollectorsNode(db.Model):
         self.api_url = api_url
         self.api_key = api_key
         self.tag = "mdi-animation-outline"
+        self.type = "collector"
+
+    @orm.reconstructor
+    def reconstruct(self):
+        self.tag = "mdi-animation-outline"
+        self.type = "collector"
 
     @classmethod
     def exists_by_api_key(cls, api_key):
@@ -82,7 +85,7 @@ class CollectorsNode(db.Model):
     @classmethod
     def get_all_json(cls, search):
         nodes, count = cls.get(search)
-        node_schema = CollectorsNodeSchema(many=True)
+        node_schema = CollectorsNodePresentationSchema(many=True)
         items = node_schema.dump(nodes)
 
         return {"total_count": count, "items": items}
@@ -109,9 +112,4 @@ class CollectorsNode(db.Model):
     def delete(cls, node_id):
         node = cls.query.get_by_id(node_id)
         db.session.delete(node)
-        db.session.commit()
-
-    def updateLastSeen(self):
-        self.last_seen = datetime.now()
-        db.session.add(self)
         db.session.commit()

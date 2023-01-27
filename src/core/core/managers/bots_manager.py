@@ -23,15 +23,13 @@ def get_bots_info(node: BotsNodeSchema):
 def add_bots_node(data):
     try:
         logger.log_info(data)
-        bots_info = data.pop("bots_info")
         node = BotsNodeSchema.create(data)
     except Exception as e:
         logger.log_debug_trace()
         return str(e), 500
 
     try:
-        bots = Bot.create_all(bots_info)
-        BotsNode.add_new(data, bots)
+        BotsNode.add_new(data)
     except Exception:
         logger.log_debug_trace(f"Couldn't add Bot Node: {node.name}")
         return f"Couldn't add Bot Node: {node.name}", 500
@@ -47,7 +45,7 @@ def update_bots_node(node_id, data):
         return bots, status_code
 
     try:
-        BotsNode.update(node_id, data, bots)
+        BotsNode.update(node_id, data)
     except Exception:
         logger.log_debug_trace(f"Couldn't add Bot Node: {node.name}")
         return f"Couldn't add Bot node: {node.name}", 500

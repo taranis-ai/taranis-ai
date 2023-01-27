@@ -102,6 +102,10 @@ const getters = {
     return state.user.id
   },
 
+  getUser(state) {
+    return state.user
+  },
+
   getUserName(state) {
     return state.user.name
   },

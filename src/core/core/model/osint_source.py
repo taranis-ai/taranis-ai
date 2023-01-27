@@ -66,12 +66,10 @@ class OSINTSource(db.Model):
         self.description = description
         self.collector_id = collector_id
         self.parameter_values = parameter_values
-        self.tag = ""
+        self.tag = "mdi-animation-outline"
 
         self.word_lists = []
-        for word_list in word_lists:
-            self.word_lists.append(WordList.find(word_list.id))
-
+        self.word_lists.extend(WordList.find(word_list.id) for word_list in word_lists)
         self.osint_source_groups = []
         for osint_source_group in osint_source_groups:
             group = OSINTSourceGroup.find(osint_source_group.id)
@@ -139,8 +137,6 @@ class OSINTSource(db.Model):
     @classmethod
     def get_all_json(cls, search):
         sources, count = cls.get(search)
-        for source in sources:
-            source.osint_source_groups = OSINTSourceGroup.get_for_osint_source(source.id)
         sources_schema = OSINTSourceSchema(many=True)
         return {"total_count": count, "items": sources_schema.dump(sources)}
 
@@ -208,8 +204,9 @@ class OSINTSource(db.Model):
         parameter_values = []
         for parameter_value in osint_source.parameter_values:
             for parameter in collector.parameters:
-                if parameter.key == parameter_value.parameter.key:
-                    new_parameter_value = ParameterValue(parameter_value.value, parameter)
+                pv_key = parameter_value["parameter"] if type(parameter_value["parameter"]) == str else parameter_value["parameter"].key
+                if parameter.key == pv_key:
+                    new_parameter_value = ParameterValue(parameter_value["value"], parameter.key)
                     parameter_values.append(new_parameter_value)
                     break
 
@@ -244,7 +241,7 @@ class OSINTSource(db.Model):
 
         for value in osint_source.parameter_values:
             for updated_value in updated_osint_source.parameter_values:
-                if value.parameter_id == updated_value.parameter_id:
+                if value.parameter_key == updated_value.parameter_key.key:
                     value.value = updated_value.value
 
         osint_source.word_lists = updated_osint_source.word_lists

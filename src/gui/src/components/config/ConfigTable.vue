@@ -1,35 +1,5 @@
 <template>
   <v-container fluid class="ma-5 mt-5 pa-5 pt-0">
-    <v-card>
-      <v-card-title>
-        <v-text-field
-          v-model="search"
-          append-icon="mdi-magnify"
-          label="Search"
-          single-line
-          class="mr-8"
-          hide-details
-        ></v-text-field>
-        <v-btn
-          color="error"
-          dark
-          class="ml-8"
-          @click="deleteItems(selected)"
-          v-if="selected.length > 0"
-        >
-          Delete {{ selected.length }}
-        </v-btn>
-        <v-btn
-          color="primary"
-          dark
-          class="ml-8"
-          @click="addItem"
-          v-if="addButton"
-        >
-          New Item
-        </v-btn>
-        <slot name="titlebar"></slot>
-      </v-card-title>
       <v-data-table
         ref="configTable"
         v-model="selected"
@@ -46,6 +16,39 @@
         show-select
         @click:row="rowClick"
       >
+      <template v-slot:[`top`]>
+        <v-card>
+          <v-card-title>
+            <v-text-field
+              v-model="search"
+              append-icon="mdi-magnify"
+              label="Search"
+              single-line
+              class="mr-8"
+              hide-details
+            ></v-text-field>
+            <v-btn
+              color="error"
+              dark
+              class="ml-8"
+              @click="deleteItems(selected)"
+              v-if="selected.length > 0"
+            >
+              Delete {{ selected.length }}
+            </v-btn>
+            <v-btn
+              color="primary"
+              dark
+              class="ml-8"
+              @click="addItem"
+              v-if="addButton"
+            >
+              New Item
+            </v-btn>
+            <slot name="titlebar"></slot>
+          </v-card-title>
+         </v-card>
+      </template>
         <template v-slot:[`group.header`]="{ items }">
           <th :colspan="headers.length" class="text-left">
             {{ items[0].collector_type }}
@@ -77,7 +80,6 @@
           <v-btn color="primary">Reset</v-btn>
         </template>
       </v-data-table>
-    </v-card>
   </v-container>
 </template>
 

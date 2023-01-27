@@ -10,7 +10,6 @@ import socket
 
 from .base_collector import BaseCollector
 from shared.schema.news_item import NewsItemData, NewsItemAttribute
-from shared.schema.parameter import Parameter, ParameterType
 
 
 class EmailCollector(BaseCollector):
@@ -18,45 +17,6 @@ class EmailCollector(BaseCollector):
     name = "EMAIL Collector"
     description = "Collector for gathering data from emails"
 
-    parameters = [
-        Parameter(
-            0,
-            "EMAIL_SERVER_TYPE",
-            "Email server type",
-            "Server type parameter means IMAP or POP3 email server",
-            ParameterType.STRING,
-        ),
-        Parameter(
-            0,
-            "EMAIL_SERVER_HOSTNAME",
-            "Email server hostname",
-            "Hostname of email server",
-            ParameterType.STRING,
-        ),
-        Parameter(
-            0,
-            "EMAIL_SERVER_PORT",
-            "Email server port",
-            "Port of email server",
-            ParameterType.NUMBER,
-        ),
-        Parameter(
-            0,
-            "EMAIL_USERNAME",
-            "Username",
-            "Username of email account",
-            ParameterType.STRING,
-        ),
-        Parameter(
-            0,
-            "EMAIL_PASSWORD",
-            "Password",
-            "Password of email account",
-            ParameterType.STRING,
-        ),
-    ]
-
-    parameters.extend(BaseCollector.parameters)
 
     def collect(self, source):
 

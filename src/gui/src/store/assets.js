@@ -8,21 +8,21 @@ const state = {
 
 const actions = {
 
-  getAllAssetGroups (context, data) {
+  loadAssetGroups (context, data) {
     return getAllAssetGroups(data)
       .then(response => {
         context.commit('setAssetGroups', response.data)
       })
   },
 
-  getAllAssets (context, data) {
+  loadAssets (context, data) {
     return getAllAssets(data)
       .then(response => {
         context.commit('setAssets', response.data)
       })
   },
 
-  getAllNotificationTemplates (context, data) {
+  loadNotificationTemplates (context, data) {
     return getAllNotificationTemplates(data)
       .then(response => {
         context.commit('setNotificationTemplates', response.data)
@@ -61,6 +61,7 @@ const getters = {
 }
 
 export const assets = {
+  namespaced: true,
   state,
   actions,
   mutations,

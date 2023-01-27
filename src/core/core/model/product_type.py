@@ -38,12 +38,10 @@ class ProductType(db.Model):
         self.description = description
         self.presenter_id = presenter_id
         self.parameter_values = parameter_values
-        self.subtitle = ""
-        self.tag = ""
+        self.tag = "mdi-file-document-outline"
 
     @orm.reconstructor
     def reconstruct(self):
-        self.subtitle = self.description
         self.tag = "mdi-file-document-outline"
 
     @classmethod
@@ -124,7 +122,7 @@ class ProductType(db.Model):
 
         for value in product_type.parameter_values:
             for updated_value in updated_product_type.parameter_values:
-                if value.parameter_id == updated_value.parameter_id:
+                if value.parameter_key == updated_value.parameter_key:
                     value.value = updated_value.value
 
         db.session.commit()

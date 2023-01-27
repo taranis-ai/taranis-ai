@@ -1,7 +1,8 @@
 import ApiService from '@/services/api_service'
 
-export function getAllAssetGroups (filter) {
-  return ApiService.get(`/my-assets/asset-groups?search=${filter.search}`)
+export function getAllAssetGroups (filter_data) {
+  const filter = ApiService.getQueryStringFromNestedObject(filter_data)
+  return ApiService.get(`/my-assets/asset-groups?${filter}`)
 }
 
 export function createAssetGroup (group) {
@@ -16,8 +17,9 @@ export function deleteAssetGroup (group) {
   return ApiService.delete(`/my-assets/asset-groups/${group.id}`)
 }
 
-export function getAllNotificationTemplates (filter) {
-  return ApiService.get(`/my-assets/asset-notification-templates?search=${filter.search}`)
+export function getAllNotificationTemplates (filter_data) {
+  const filter = ApiService.getQueryStringFromNestedObject(filter_data)
+  return ApiService.get(`/my-assets/asset-notification-templates?${filter}`)
 }
 
 export function createNotificationTemplate (template) {
@@ -33,7 +35,9 @@ export function deleteNotificationTemplate (template) {
 }
 
 export function getAllAssets (data) {
-  return ApiService.get(`/my-assets/asset-groups/${data.group_id}/assets?search=${data.filter.search}&sort=${data.filter.sort}&vulnerable=${data.filter.vulnerable}`)
+  const { group_id, ...filter_data } = data
+  const filter = ApiService.getQueryStringFromNestedObject(filter_data)
+  return ApiService.get(`/my-assets/asset-groups/${group_id}/assets?${filter}`)
 }
 
 export function createAsset (asset) {
@@ -56,6 +60,7 @@ export function findAttributeCPE () {
   return ApiService.get('/my-assets/attributes/cpe')
 }
 
-export function getCPEAttributeEnums (filter) {
-  return ApiService.get(`/my-assets/attributes/cpe/enums?search=${filter.search}&offset=${filter.offset}&limit=${filter.limit}`)
+export function getCPEAttributeEnums (filter_data) {
+  const filter = ApiService.getQueryStringFromNestedObject(filter_data)
+  return ApiService.get(`/my-assets/attributes/cpe/enums?${filter}`)
 }

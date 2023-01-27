@@ -75,3 +75,28 @@ export function objectFromFormat(format) {
   })
   return newObject
 }
+
+export function parseParameterValues(data) {
+  const sources = []
+
+  data.forEach(source => {
+    const rootLevel = source
+
+    source.parameter_values.forEach(parameter => {
+      rootLevel[parameter.parameter.key] = parameter.value
+    })
+    sources.push(rootLevel)
+  })
+
+  return sources
+}
+
+export function parseSubmittedParameterValues(unparsed_sources, data) {
+  const result = unparsed_sources.find(item => item.id === data.id)
+
+  result.parameter_values.forEach(parameter => {
+    parameter.value = data[parameter.parameter.key]
+  })
+
+  return result
+}

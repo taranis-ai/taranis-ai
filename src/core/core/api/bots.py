@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from core.managers import sse_manager, bots_manager
 from core.managers.log_manager import logger
 from core.managers.auth_manager import api_key_required
-from core.model import news_item, word_list, bots_node
+from core.model import news_item, word_list, bots_node, bot
 
 
 class BotGroupAction(Resource):
@@ -78,7 +78,8 @@ class GetNewsItemsAggregate(Resource):
 class GetDefaultNewsItemsAggregate(Resource):
     @api_key_required
     def get(self):
-        resp_str = news_item.NewsItemAggregate.get_default_news_items_aggregate(request.args.get("limit"))
+        limit = request.args.get("limit", "")
+        resp_str = news_item.NewsItemAggregate.get_default_news_items_aggregate(limit)
         return json.loads(resp_str)
 
 
@@ -89,26 +90,26 @@ class WordListEntries(Resource):
 
     @api_key_required
     def put(self, word_list_id, entry_name):
-        return word_list.WordListEntry.update_word_list_entries(word_list_id, entry_name, request.json)
+        return word_list.WordListEntry.update_word_list_entries(word_list_id, request.json)
 
 
-class BotsStatusUpdate(Resource):
-    @api_key_required
-    def get(self, node_id):
-        collector = bots_node.BotsNode.get_by_id(node_id)
-        if not collector:
-            return "", 404
+class BotsInfo(Resource):
+    def get(self):
+        search = request.args.get(key="search", default=None)
+        return bot.Bot.get_all_json(search)
 
-        try:
-            collector.updateLastSeen()
-        except Exception as ex:
-            logger.log_debug(ex)
-            return {}, 400
 
-        return {}, 200
+class BotInfo(Resource):
+    def get(self, bot_id):
+        return bot.Bot.get_by_id(bot_id)
+
+    def put(self, bot_id):
+        return bot.Bot.update_bot_parameters(bot_id, request.json)
 
 
 def initialize(api):
+    api.add_resource(BotsInfo, "/api/v1/bots")
+    api.add_resource(BotInfo, "/api/v1/bots/<string:bot_id>")
     api.add_resource(NewsItemData, "/api/v1/bots/news-item-data")
     api.add_resource(
         UpdateNewsItemTags,
@@ -133,4 +134,3 @@ def initialize(api):
         "/api/v1/bots/word-list/<int:word_list_id>/entries/<string:entry_name>",
     )
     api.add_resource(BotsNode, "/api/v1/bots/node/<string:node_id>", "/api/v1/bots/node")
-    api.add_resource(BotsStatusUpdate, "/api/v1/bots/<string:node_id>")

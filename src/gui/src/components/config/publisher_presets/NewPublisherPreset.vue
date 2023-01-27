@@ -254,7 +254,7 @@ export default {
       this.values = []
       for (let i = 0; i < this.selected_publisher.parameters.length; i++) {
         for (let j = 0; j < this.preset.parameter_values.length; j++) {
-          if (this.selected_publisher.parameters[i].id === this.preset.parameter_values[j].parameter.id) {
+          if (this.selected_publisher.parameters[i].key === this.preset.parameter_values[j].parameter.key) {
             this.values.push(this.preset.parameter_values[j].value)
             break
           }

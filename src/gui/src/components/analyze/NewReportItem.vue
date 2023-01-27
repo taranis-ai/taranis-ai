@@ -1,242 +1,291 @@
 <template>
-    <v-row v-bind="UI.DIALOG.ROW.WINDOW">
-        <v-btn v-bind="UI.BUTTON.ADD_NEW" v-if="add_button && canCreate"
-                @click="addReportItem">
-            <v-icon left>{{ UI.ICON.PLUS }}</v-icon>
-            <span>{{ $t('analyze.add_new') }}</span>
-        </v-btn>
+  <v-row v-bind="UI.DIALOG.ROW.WINDOW">
+    <v-btn
+      v-bind="UI.BUTTON.ADD_NEW"
+      v-if="add_button && canCreate"
+      @click="addReportItem"
+    >
+      <v-icon left>{{ UI.ICON.PLUS }}</v-icon>
+      <span>{{ $t('analyze.add_new') }}</span>
+    </v-btn>
 
-        <v-dialog v-bind="UI.DIALOG.FULLSCREEN"
-                  v-model="visible" @keydown.esc="cancel" report-item>
-            <v-overlay :value="overlay" z-index="50000">
-                <v-progress-circular indeterminate size="64"></v-progress-circular>
-            </v-overlay>
+    <v-dialog
+      v-bind="UI.DIALOG.FULLSCREEN"
+      v-model="visible"
+      @keydown.esc="cancel"
+      report-item
+    >
+      <v-overlay :value="overlay" z-index="50000">
+        <v-progress-circular indeterminate size="64"></v-progress-circular>
+      </v-overlay>
 
-            <v-card v-bind="UI.DIALOG.BASEMENT">
-                <v-toolbar v-bind="UI.DIALOG.TOOLBAR" data-dialog="report-item">
-                    <v-btn icon dark @click="cancel" data-btn="cancel">
-                        <v-icon>mdi-close-circle</v-icon>
-                    </v-btn>
+      <v-card v-bind="UI.DIALOG.BASEMENT">
+        <v-toolbar v-bind="UI.DIALOG.TOOLBAR" data-dialog="report-item">
+          <v-btn icon dark @click="cancel" data-btn="cancel">
+            <v-icon>mdi-close-circle</v-icon>
+          </v-btn>
 
-                    <v-toolbar-title>
-                        <span v-if="!edit">{{ $t('report_item.add_new') }}</span>
-                        <span v-else>{{ $t('report_item.edit') }}</span>
-                    </v-toolbar-title>
+          <v-toolbar-title>
+            <span v-if="!edit">{{ $t('report_item.add_new') }}</span>
+            <span v-else>{{ $t('report_item.edit') }}</span>
+          </v-toolbar-title>
 
-                    <v-spacer></v-spacer>
+          <v-spacer></v-spacer>
 
-                    <!--DiALOG iMPORT CSV-->
-                    <v-dialog v-model="dialog_csv" max-width="500px">
-                        <template v-if="!edit" v-slot:activator="{ on }">
-                            <v-btn v-on="on" text :disabled="!selected_type">
-                                <v-icon left>mdi-upload</v-icon>
-                                <span>{{$t('report_item.import_csv')}}</span>
-                            </v-btn>
-                        </template>
-                        <v-card>
-                            <v-card-title>
-                                <span class="headline">{{$t('report_item.import_from_csv')}}</span>
-                            </v-card-title>
+          <v-dialog v-model="dialog_csv" max-width="500px">
+            <template v-if="!edit" v-slot:activator="{ on }">
+              <v-btn v-on="on" text :disabled="!selected_type">
+                <v-icon left>mdi-upload</v-icon>
+                <span>{{ $t('report_item.import_csv') }}</span>
+              </v-btn>
+            </template>
+            <v-card>
+              <v-card-title>
+                <span class="headline">{{
+                  $t('report_item.import_from_csv')
+                }}</span>
+              </v-card-title>
 
-                            <v-row class="ma-6">
-                                <VueCsvImport v-model="csv" :map-fields="csv_struct" autoMatchFields autoMatchIgnoreCase>
+              <v-row class="ma-6">
+                <VueCsvImport
+                  v-model="csv"
+                  :map-fields="csv_struct"
+                  autoMatchFields
+                  autoMatchIgnoreCase
+                >
+                  <template slot="hasHeaders" slot-scope="{ headers, toggle }">
+                    <label style="display: none">
+                      <input
+                        type="checkbox"
+                        id="hasHeaders"
+                        checked="checked"
+                        :value="headers"
+                        @change="toggle"
+                      />
+                      Headers?
+                    </label>
+                  </template>
 
-                                    <template slot="hasHeaders" slot-scope="{headers, toggle}">
-                                        <label style="display: none;">
-                                            <input type="checkbox" id="hasHeaders" checked="checked" :value="headers" @change="toggle">
-                                            Headers?
-                                        </label>
-                                    </template>
+                  <template slot="next" slot-scope="{ load }">
+                    <button class="load" @click.prevent="load">
+                      {{ $t('asset.load_csv_file') }}
+                    </button>
+                  </template>
+                </VueCsvImport>
+              </v-row>
 
-                                    <template slot="next" slot-scope="{load}">
-                                        <button class="load" @click.prevent="load">{{$t('asset.load_csv_file')}}</button>
-                                    </template>
-
-                                </VueCsvImport>
-
-                            </v-row>
-
-                            <v-card-actions>
-                                <v-spacer></v-spacer>
-                                <v-checkbox style="display: none;" v-model="csv_delete_exist_list" :label="$t('report_item.delete_existing_codes')"></v-checkbox>
-                                <v-spacer></v-spacer>
-                                <v-btn color="primary" dark @click="importCSV">
-                                    {{$t('asset.import')}}
-                                </v-btn>
-                                <v-btn color="primary" text @click="closeCSV">
-                                    {{$t('asset.cancel')}}
-                                </v-btn>
-                            </v-card-actions>
-                        </v-card>
-                    </v-dialog>
-                    <v-switch style="padding-top:25px"
-                              v-model="verticalView"
-                              label="Side-by-side view"
-                    ></v-switch>
-                    <v-switch :disabled="!canModify"
-                              style="padding-top:25px"
-                              v-model="report_item.completed"
-                              label="Completed"
-                              @change="onEdit('completed')"
-                    ></v-switch>
-                    <v-btn v-if="!edit" text dark type="submit" form="form">
-                        <v-icon left>mdi-content-save</v-icon>
-                        <span>{{ $t('report_item.save') }}</span>
-                    </v-btn>
-
-                </v-toolbar>
-
-                <v-row>
-                    <v-col :cols="verticalView ? 6 : 12" :style="verticalView ? 'height:calc(100vh - 3em); overflow-y: auto;' : ''">
-                        <v-form @submit.prevent="add" id="form" ref="form" class="px-4">
-                            <v-row no-gutters>
-                                <v-col cols="12" v-if="edit">
-                                    <span class="caption grey--text">ID: {{ report_item.uuid }}</span>
-                                </v-col>
-                                <v-col cols="4" class="pr-3">
-                                    <v-combobox v-on:change="reportSelected" :disabled="edit"
-                                                v-model="selected_type"
-                                                :items="report_types"
-                                                item-text="title"
-                                                :label="$t('report_item.report_type')"
-                                    />
-                                </v-col>
-                                <v-col cols="4" class="pr-3">
-                                    <v-text-field @focus="onFocus('title_prefix')"
-                                                  @blur="onBlur('title_prefix')"
-                                                  @keyup="onKeyUp('title_prefix')"
-                                                  :class="getLockedStyle('title_prefix')"
-                                                  :disabled="field_locks.title_prefix || !canModify"
-                                                  :label="$t('report_item.title_prefix')"
-                                                  name="title_prefix"
-                                                  v-model="report_item.title_prefix"
-                                                  :spellcheck="$store.state.settings.spellcheck"
-                                    ></v-text-field>
-                                </v-col>
-                                <v-col cols="4" class="pr-3">
-                                    <v-text-field @focus="onFocus('title')"
-                                                  @blur="onBlur('title')"
-                                                  @keyup="onKeyUp('title')"
-                                                  :class="getLockedStyle('title')"
-                                                  :disabled="field_locks.title || !canModify"
-                                                  :label="$t('report_item.title')"
-                                                  name="title"
-                                                  type="text"
-                                                  v-model="report_item.title"
-                                                  v-validate="'required'"
-                                                  data-vv-name="title"
-                                                  :error-messages="errors.collect('title')"
-                                                  :spellcheck="$store.state.settings.spellcheck"
-                                    ></v-text-field>
-                                </v-col>
-                            </v-row>
-                            <v-row no-gutters class="pb-4">
-                                <v-col cols="12">
-                                    <v-btn v-bind="UI.BUTTON.ADD_NEW_IN" v-if="canModify"
-                                           @click="$refs.new_item_selector.openSelector()">
-                                        <v-icon left>{{ UI.ICON.PLUS }}</v-icon>
-                                        <span>{{$t('assess.add_news_item')}}</span>
-                                    </v-btn>
-                                </v-col>
-                            </v-row>
-                            <v-row no-gutters>
-                                <v-col cols="12">
-                                    <NewsItemSelector v-if="!verticalView"
-                                                      ref="new_item_selector" analyze_selector
-                                                      :attach="false"
-                                                      :item_values="news_item_aggregates"
-                                                      :modify="modify"
-                                                      :collections="collections"
-                                                      :report_item_id="this.report_item.id"
-                                                      :edit="edit"/>
-                                </v-col>
-                            </v-row>
-                            <v-row no-gutters>
-                                <v-col cols="12">
-                                    <RemoteReportItemSelector :report_items="remote_report_items" :modify="modify" :edit="edit"
-                                                              :report_item_id="this.report_item.id"
-                                                              @remote-report-items-changed="updateRemoteAttributes"/>
-                                </v-col>
-                            </v-row>
-                            <v-row>
-                                <v-col cols="12" class="pa-0 ma-0">
-                                    <v-expansion-panels class="mb-1"
-                                                        v-for="(attribute_group, i) in attribute_groups"
-                                                        :key="attribute_group.id"
-                                                        v-model="expandPanelGroups"
-                                                        multiple
-                                    >
-                                        <v-expansion-panel>
-                                            <v-expansion-panel-header color="primary--text" class="body-1 text-uppercase pa-3">
-                                                {{ attribute_group.title }}
-                                            </v-expansion-panel-header>
-                                            <v-expansion-panel-content>
-                                                <!--TYPES-->
-                                                <v-expansion-panels multiple focusable class="items" v-model="expand_group_items[i].values">
-                                                    <v-expansion-panel v-for="attribute_item in attribute_group.attribute_group_items"
-                                                                       :key="attribute_item.id"
-                                                                       class="item-panel"
-                                                    >
-                                                        <v-expansion-panel-header class="pa-2 font-weight-bold primary--text rounded-0">
-                                                            <v-row>
-                                                                <!--<v-icon small left>mdi-account</v-icon>-->
-                                                                <span>{{attribute_item.attribute_group_item.title}}</span>
-                                                            </v-row>
-                                                        </v-expansion-panel-header>
-                                                        <v-expansion-panel-content class="pt-0">
-                                                            <AttributeContainer
-                                                                :attribute_item="attribute_item" :edit="edit" :modify="modify"
-                                                                :report_item_id="report_item.id"
-                                                            />
-                                                        </v-expansion-panel-content>
-                                                    </v-expansion-panel>
-                                                </v-expansion-panels>
-                                            </v-expansion-panel-content>
-                                        </v-expansion-panel>
-                                    </v-expansion-panels>
-                                </v-col>
-                            </v-row>
-
-                            <v-row no-gutters class="pt-2">
-                                <v-col cols="12">
-                                    <v-alert v-if="show_validation_error" dense type="error" text>
-                                        {{ $t('report_item.validation_error') }}
-                                    </v-alert>
-                                    <v-alert v-if="show_error" dense type="error" text>
-                                        {{ $t('report_item.error') }}
-                                    </v-alert>
-                                </v-col>
-                            </v-row>
-                        </v-form>
-                    </v-col>
-                    <v-col v-if="verticalView" :cols="verticalView ? 6 : 0"
-                        style="height:calc(100vh - 3em); overflow-y: auto;" class="pa-5 taranis-ng-vertical-view">
-                        <NewsItemSelector ref="new_item_selector" analyze_selector attach=".taranis-ng-vertical-view"
-                            :item_values="news_item_aggregates" :modify="modify" :collections="collections"
-                            :report_item_id="this.report_item.id" :edit="edit" />
-                    </v-col>
-                </v-row>
-
+              <v-card-actions>
+                <v-spacer></v-spacer>
+                <v-checkbox
+                  style="display: none"
+                  v-model="csv_delete_exist_list"
+                  :label="$t('report_item.delete_existing_codes')"
+                ></v-checkbox>
+                <v-spacer></v-spacer>
+                <v-btn color="primary" dark @click="importCSV">
+                  {{ $t('asset.import') }}
+                </v-btn>
+                <v-btn color="primary" text @click="closeCSV">
+                  {{ $t('asset.cancel') }}
+                </v-btn>
+              </v-card-actions>
             </v-card>
-        </v-dialog>
-    </v-row>
+          </v-dialog>
+          <v-switch
+            style="padding-top: 25px"
+            v-model="verticalView"
+            label="Side-by-side view"
+          ></v-switch>
+          <v-switch
+            :disabled="!canModify"
+            style="padding-top: 25px"
+            v-model="report_item.completed"
+            label="Completed"
+            @change="onEdit('completed')"
+          ></v-switch>
+          <v-btn v-if="!edit" text dark type="submit" form="form">
+            <v-icon left>mdi-content-save</v-icon>
+            <span>{{ $t('report_item.save') }}</span>
+          </v-btn>
+        </v-toolbar>
+
+        <v-row>
+          <v-col
+            :cols="verticalView ? 6 : 12"
+            :style="verticalView ? 'height:calc(100vh - 3em); overflow-y: auto;' : ''"
+          >
+            <v-form @submit.prevent="add" id="form" ref="form" class="px-4">
+              <v-row no-gutters>
+                <v-col cols="12" v-if="edit">
+                  <span class="caption grey--text"
+                    >ID: {{ report_item.uuid }}</span
+                  >
+                </v-col>
+                <v-col cols="4" class="pr-3">
+                  <v-combobox
+                    @change="reportSelected"
+                    :disabled="edit"
+                    v-model="selected_type"
+                    :items="report_types"
+                    item-text="title"
+                    :label="$t('report_item.report_type')"
+                  />
+                </v-col>
+                <v-col cols="4" class="pr-3">
+                  <v-text-field
+                    @focus="onFocus('title_prefix')"
+                    @blur="onBlur('title_prefix')"
+                    @keyup="onKeyUp('title_prefix')"
+                    :class="getLockedStyle('title_prefix')"
+                    :disabled="field_locks.title_prefix || !canModify"
+                    :label="$t('report_item.title_prefix')"
+                    name="title_prefix"
+                    v-model="report_item.title_prefix"
+                    :spellcheck="$store.state.settings.spellcheck"
+                  ></v-text-field>
+                </v-col>
+                <v-col cols="4" class="pr-3">
+                  <v-text-field
+                    @focus="onFocus('title')"
+                    @blur="onBlur('title')"
+                    @keyup="onKeyUp('title')"
+                    :class="getLockedStyle('title')"
+                    :disabled="field_locks.title || !canModify"
+                    :label="$t('report_item.title')"
+                    name="title"
+                    type="text"
+                    v-model="report_item.title"
+                    v-validate="'required'"
+                    data-vv-name="title"
+                    :error-messages="errors.collect('title')"
+                    :spellcheck="$store.state.settings.spellcheck"
+                  ></v-text-field>
+                </v-col>
+              </v-row>
+              <v-row no-gutters>
+                <v-col cols="12">
+                  <RemoteReportItemSelector
+                    :report_items="remote_report_items"
+                    :modify="modify"
+                    :edit="edit"
+                    :report_item_id="this.report_item.id"
+                    @remote-report-items-changed="updateRemoteAttributes"
+                  />
+                </v-col>
+              </v-row>
+              <v-row>
+                <v-col cols="12" class="pa-0 ma-0">
+                  <v-expansion-panels
+                    class="mb-1"
+                    v-for="(attribute_group, i) in attribute_groups"
+                    :key="attribute_group.id"
+                    v-model="expandPanelGroups"
+                    multiple
+                  >
+                    <v-expansion-panel>
+                      <v-expansion-panel-header
+                        color="primary--text"
+                        class="body-1 text-uppercase pa-3"
+                      >
+                        {{ attribute_group.title }}
+                      </v-expansion-panel-header>
+                      <v-expansion-panel-content>
+                        <!--TYPES-->
+                        <v-expansion-panels
+                          multiple
+                          focusable
+                          class="items"
+                          v-model="expand_group_items[i].values"
+                        >
+                          <v-expansion-panel
+                            v-for="attribute_item in attribute_group.attribute_group_items"
+                            :key="attribute_item.id"
+                            class="item-panel"
+                          >
+                            <v-expansion-panel-header
+                              class="pa-2 font-weight-bold primary--text rounded-0"
+                            >
+                              <v-row>
+                                <span>{{
+                                  attribute_item.attribute_group_item.title
+                                }}</span>
+                              </v-row>
+                            </v-expansion-panel-header>
+                            <v-expansion-panel-content class="pt-0">
+                              <AttributeContainer
+                                :attribute_item="attribute_item"
+                                :edit="edit"
+                                :modify="modify"
+                                :report_item_id="report_item.id"
+                              />
+                            </v-expansion-panel-content>
+                          </v-expansion-panel>
+                        </v-expansion-panels>
+                      </v-expansion-panel-content>
+                    </v-expansion-panel>
+                  </v-expansion-panels>
+                </v-col>
+              </v-row>
+
+              <v-row no-gutters class="pt-2">
+                <v-col cols="12">
+                  <v-alert v-if="show_validation_error" dense type="error" text>
+                    {{ $t('report_item.validation_error') }}
+                  </v-alert>
+                  <v-alert v-if="show_error" dense type="error" text>
+                    {{ $t('report_item.error') }}
+                  </v-alert>
+                </v-col>
+              </v-row>
+            </v-form>
+          </v-col>
+          <v-col
+            v-if="verticalView"
+            :cols="verticalView ? 6 : 0"
+            style="height: calc(100vh - 3em); overflow-y: auto"
+            class="pa-5 taranis-ng-vertical-view"
+          >
+            <NewsItemSelector
+              ref="new_item_selector"
+              analyze_selector
+              attach=".taranis-ng-vertical-view"
+              :item_values="news_item_aggregates"
+              :modify="modify"
+              :collections="collections"
+              :report_item_id="this.report_item.id"
+              :edit="edit"
+            />
+          </v-col>
+        </v-row>
+      </v-card>
+    </v-dialog>
+  </v-row>
 </template>
 
 <style>
 .taranis-ng-vertical-view {
-    position: relative;
+  position: relative;
 }
 
 .v-dialog__content,
 .v-dialog--fullscreen {
-    position: absolute;
+  position: absolute;
 }
 </style>
 
 <script>
 import AuthMixin from '@/services/auth/auth_mixin'
 import Permissions from '@/services/auth/permissions'
-import { createReportItem, updateReportItem, lockReportItem, unlockReportItem, holdLockReportItem, getReportItem, getReportItemData, getReportItemLocks } from '@/api/analyze'
+import {
+  createReportItem,
+  updateReportItem,
+  lockReportItem,
+  unlockReportItem,
+  holdLockReportItem,
+  getReportItem,
+  getReportItemData,
+  getReportItemLocks
+} from '@/api/analyze'
 
 import AttributeContainer from '@/components/common/attribute/AttributeContainer'
 import NewsItemSelector from '@/components/analyze/NewsItemSelector'
@@ -253,7 +302,12 @@ export default {
     collections: Array,
     csv_codes: Array
   },
-  components: { NewsItemSelector, AttributeContainer, RemoteReportItemSelector, VueCsvImport },
+  components: {
+    NewsItemSelector,
+    AttributeContainer,
+    RemoteReportItemSelector,
+    VueCsvImport
+  },
   data: () => ({
     verticalView: true,
     csv: null,
@@ -863,14 +917,21 @@ export default {
     }
   }),
   computed: {
-    canCreate () {
-      return this.checkPermission(Permissions.ANALYZE_CREATE) && this.local_reports === true
+    canCreate() {
+      return (
+        this.checkPermission(Permissions.ANALYZE_CREATE) &&
+        this.local_reports === true
+      )
     },
 
-    canModify () {
-      return this.edit === false || (this.checkPermission(Permissions.ANALYZE_UPDATE) && this.modify === true)
+    canModify() {
+      return (
+        this.edit === false ||
+        (this.checkPermission(Permissions.ANALYZE_UPDATE) &&
+          this.modify === true)
+      )
     },
-    expandPanelGroups () {
+    expandPanelGroups() {
       return this.expand_groups()
     }
   },
@@ -878,7 +939,7 @@ export default {
     ...mapGetters(['getUserId']),
     ...mapGetters('analyze', ['getReportItemTypes']),
     ...mapActions('analyze', ['loadReportItemTypes']),
-    addReportItem () {
+    addReportItem() {
       this.visible = true
       this.modify = true
       this.edit = false
@@ -899,10 +960,11 @@ export default {
       this.$validator.reset()
     },
 
-    reportSelected () {
+    reportSelected() {
       this.attribute_groups = []
       this.expand_group_items = []
 
+      console.log(this.selected_type)
       for (let i = 0; i < this.selected_type.attribute_groups.length; i++) {
         const group = {
           id: this.selected_type.attribute_groups[i].id,
@@ -910,21 +972,29 @@ export default {
           attribute_group_items: []
         }
 
-        for (let j = 0; j < this.selected_type.attribute_groups[i].attribute_group_items.length; j++) {
+        for (
+          let j = 0;
+          j <
+          this.selected_type.attribute_groups[i].attribute_group_items.length;
+          j++
+        ) {
           group.attribute_group_items.push({
-            attribute_group_item: this.selected_type.attribute_groups[i].attribute_group_items[j],
+            attribute_group_item:
+              this.selected_type.attribute_groups[i].attribute_group_items[j],
             values: []
           })
         }
-
+        console.log(group)
         this.attribute_groups.push(group)
-        this.expand_group_items.push({ values: Array.from(Array(group.attribute_group_items.length).keys()) })
+        this.expand_group_items.push({
+          values: Array.from(Array(group.attribute_group_items.length).keys())
+        })
       }
 
       this.csv_struct = this.findAttributeType()
     },
 
-    cancel () {
+    cancel() {
       setTimeout(() => {
         // this.$root.$emit('mouse-click-close');
         this.$root.$emit('change-state', 'DEFAULT')
@@ -934,7 +1004,7 @@ export default {
       }, 150)
     },
 
-    add () {
+    add() {
       this.$validator.validateAll().then(() => {
         if (!this.$validator.errors.any()) {
           this.overlay = true
@@ -946,30 +1016,43 @@ export default {
 
           this.report_item.news_item_aggregates = []
           for (let i = 0; i < this.news_item_aggregates.length; i++) {
-            this.report_item.news_item_aggregates.push(
-              {
-                id: this.news_item_aggregates[i].id
-              }
-            )
+            this.report_item.news_item_aggregates.push({
+              id: this.news_item_aggregates[i].id
+            })
           }
 
           this.report_item.remote_report_items = []
           for (let i = 0; i < this.remote_report_items.length; i++) {
-            this.report_item.remote_report_items.push(
-              {
-                id: this.remote_report_items[i].id
-              }
-            )
+            this.report_item.remote_report_items.push({
+              id: this.remote_report_items[i].id
+            })
           }
 
           this.report_item.attributes = []
           for (let i = 0; i < this.attribute_groups.length; i++) {
-            for (let j = 0; j < this.attribute_groups[i].attribute_group_items.length; j++) {
-              for (let k = 0; k < this.attribute_groups[i].attribute_group_items[j].values.length; k++) {
-                let value = this.attribute_groups[i].attribute_group_items[j].values[k].value
-                if (this.attribute_groups[i].attribute_group_items[j].attribute_group_item.attribute.type === 'CPE') {
+            for (
+              let j = 0;
+              j < this.attribute_groups[i].attribute_group_items.length;
+              j++
+            ) {
+              for (
+                let k = 0;
+                k <
+                this.attribute_groups[i].attribute_group_items[j].values.length;
+                k++
+              ) {
+                let value =
+                  this.attribute_groups[i].attribute_group_items[j].values[k]
+                    .value
+                if (
+                  this.attribute_groups[i].attribute_group_items[j]
+                    .attribute_group_item.attribute.type === 'CPE'
+                ) {
                   value = value.replace('*', '%')
-                } else if (this.attribute_groups[i].attribute_group_items[j].attribute_group_item.attribute.type === 'BOOLEAN') {
+                } else if (
+                  this.attribute_groups[i].attribute_group_items[j]
+                    .attribute_group_item.attribute.type === 'BOOLEAN'
+                ) {
                   if (value === true) {
                     value = 'true'
                   } else {
@@ -977,73 +1060,92 @@ export default {
                   }
                 }
 
-                if (this.attribute_groups[i].attribute_group_items[j].attribute_group_item.attribute.type !== 'ATTACHMENT') {
+                if (
+                  this.attribute_groups[i].attribute_group_items[j]
+                    .attribute_group_item.attribute.type !== 'ATTACHMENT'
+                ) {
                   this.report_item.attributes.push({
                     id: -1,
                     value: value,
-                    attribute_group_item_id: this.attribute_groups[i].attribute_group_items[j].attribute_group_item.id
+                    attribute_group_item_id:
+                      this.attribute_groups[i].attribute_group_items[j]
+                        .attribute_group_item.id
                   })
                 }
               }
             }
           }
 
-          createReportItem(this.report_item).then((response) => {
-            this.attachmets_attributes_count = 0
-            for (let i = 0; i < this.attribute_groups.length; i++) {
-              for (let j = 0; j < this.attribute_groups[i].attribute_group_items.length; j++) {
-                if (this.attribute_groups[i].attribute_group_items[j].attribute_group_item.attribute.type === 'ATTACHMENT') {
-                  this.attachmets_attributes_count++
+          createReportItem(this.report_item)
+            .then((response) => {
+              this.attachmets_attributes_count = 0
+              for (let i = 0; i < this.attribute_groups.length; i++) {
+                for (
+                  let j = 0;
+                  j < this.attribute_groups[i].attribute_group_items.length;
+                  j++
+                ) {
+                  if (
+                    this.attribute_groups[i].attribute_group_items[j]
+                      .attribute_group_item.attribute.type === 'ATTACHMENT'
+                  ) {
+                    this.attachmets_attributes_count++
+                  }
                 }
               }
-            }
 
-            if (this.attachmets_attributes_count > 0) {
-              this.$root.$emit('dropzone-new-process', { report_item_id: response.data })
-            } else {
-              this.$root.$emit('attachments-uploaded', {})
-            }
-          }).catch(() => {
-            this.show_error = true
-            this.overlay = false
-          })
+              if (this.attachmets_attributes_count > 0) {
+                this.$root.$emit('dropzone-new-process', {
+                  report_item_id: response.data
+                })
+              } else {
+                this.$root.$emit('attachments-uploaded', {})
+              }
+            })
+            .catch(() => {
+              this.show_error = true
+              this.overlay = false
+            })
         } else {
           this.show_validation_error = true
         }
       })
     },
 
-    getLockedStyle (field_id) {
+    getLockedStyle(field_id) {
       return this.field_locks[field_id] === true ? 'locked-style' : ''
     },
 
-    onFocus (field_id) {
+    onFocus(field_id) {
       if (this.edit === true) {
-        lockReportItem(this.report_item.id, { field_id: field_id }).then(() => {
-        })
+        lockReportItem(this.report_item.id, { field_id: field_id }).then(
+          () => {}
+        )
       }
     },
 
-    onBlur (field_id) {
+    onBlur(field_id) {
       if (this.edit === true) {
         this.onEdit(field_id)
-        unlockReportItem(this.report_item.id, { field_id: field_id }).then(() => {
-        })
+        unlockReportItem(this.report_item.id, { field_id: field_id }).then(
+          () => {}
+        )
       }
     },
 
-    onKeyUp (field_id) {
+    onKeyUp(field_id) {
       if (this.edit === true) {
         clearTimeout(this.key_timeout)
         const self = this
         this.key_timeout = setTimeout(function () {
-          holdLockReportItem(self.report_item.id, { field_id: field_id }).then(() => {
-          })
+          holdLockReportItem(self.report_item.id, { field_id: field_id }).then(
+            () => {}
+          )
         }, 1000)
       }
     },
 
-    onEdit (field_id) {
+    onEdit(field_id) {
       if (this.edit === true) {
         const data = {}
         data.update = true
@@ -1055,27 +1157,29 @@ export default {
           data.completed = this.report_item.completed
         }
 
-        updateReportItem(this.report_item.id, data).then(() => {
-        })
+        updateReportItem(this.report_item.id, data).then(() => {})
       }
     },
 
-    report_item_locked (data) {
+    report_item_locked(data) {
       if (this.edit === true && this.report_item.id === data.report_item_id) {
         if (data.user_id !== this.getUserId()) {
           this.field_locks[data.field_id] = true
         }
       }
     },
-    report_item_unlocked (data) {
+    report_item_unlocked(data) {
       if (this.edit === true && this.report_item.id === data.report_item_id) {
         if (data.user_id !== this.getUserId()) {
           this.field_locks[data.field_id] = false
         }
       }
     },
-    report_item_updated (data_info) {
-      if (this.edit === true && this.report_item.id === data_info.report_item_id) {
+    report_item_updated(data_info) {
+      if (
+        this.edit === true &&
+        this.report_item.id === data_info.report_item_id
+      ) {
         if (data_info.user_id !== this.getUserId()) {
           getReportItemData(this.report_item.id, data_info).then((response) => {
             const data = response.data
@@ -1090,7 +1194,7 @@ export default {
         }
       }
     },
-    showDetail (report_item) {
+    showDetail(report_item) {
       getReportItem(report_item.id).then((response) => {
         const data = response.data
 
@@ -1116,14 +1220,25 @@ export default {
         this.report_item.completed = data.completed
 
         for (let i = 0; i < this.report_types.length; i++) {
-          if (this.report_types[i].id === this.report_item.report_item_type_id) {
+          if (
+            this.report_types[i].id === this.report_item.report_item_type_id
+          ) {
             this.selected_type = this.report_types[i]
 
-            this.expand_panel_groups = Array.from(Array(this.selected_type.attribute_groups.length).keys())
+            this.expand_panel_groups = Array.from(
+              Array(this.selected_type.attribute_groups.length).keys()
+            )
             this.expand_group_items = []
 
             for (let j = 0; j < this.expand_panel_groups.length; j++) {
-              this.expand_group_items.push({ values: Array.from(Array(this.selected_type.attribute_groups[j].attribute_group_items.length).keys()) })
+              this.expand_group_items.push({
+                values: Array.from(
+                  Array(
+                    this.selected_type.attribute_groups[j].attribute_group_items
+                      .length
+                  ).keys()
+                )
+              })
             }
             break
           }
@@ -1134,7 +1249,10 @@ export default {
 
           if (locks_data.title !== undefined && locks_data.title !== null) {
             this.field_locks.title = true
-          } else if (locks_data.title_prefix !== undefined && locks_data.title_prefix !== null) {
+          } else if (
+            locks_data.title_prefix !== undefined &&
+            locks_data.title_prefix !== null
+          ) {
             this.field_locks.title_prefix = true
           }
 
@@ -1145,19 +1263,40 @@ export default {
               attribute_group_items: []
             }
 
-            for (let j = 0; j < this.selected_type.attribute_groups[i].attribute_group_items.length; j++) {
+            for (
+              let j = 0;
+              j <
+              this.selected_type.attribute_groups[i].attribute_group_items
+                .length;
+              j++
+            ) {
               const values = []
               for (let k = 0; k < data.attributes.length; k++) {
-                if (data.attributes[k].attribute_group_item_id === this.selected_type.attribute_groups[i].attribute_group_items[j].id) {
+                if (
+                  data.attributes[k].attribute_group_item_id ===
+                  this.selected_type.attribute_groups[i].attribute_group_items[
+                    j
+                  ].id
+                ) {
                   let value = data.attributes[k].value
-                  if (this.selected_type.attribute_groups[i].attribute_group_items[j].attribute.type === 'CPE') {
+                  if (
+                    this.selected_type.attribute_groups[i]
+                      .attribute_group_items[j].attribute.type === 'CPE'
+                  ) {
                     value = value.replace('%', '*')
-                  } else if (this.selected_type.attribute_groups[i].attribute_group_items[j].attribute.type === 'BOOLEAN') {
+                  } else if (
+                    this.selected_type.attribute_groups[i]
+                      .attribute_group_items[j].attribute.type === 'BOOLEAN'
+                  ) {
                     value = value === 'true'
                   }
 
                   let locked = false
-                  if (locks_data["'" + data.attributes[k].id + "'"] !== undefined && locks_data["'" + data.attributes[k].id + "'"] !== null) {
+                  if (
+                    locks_data["'" + data.attributes[k].id + "'"] !==
+                      undefined &&
+                    locks_data["'" + data.attributes[k].id + "'"] !== null
+                  ) {
                     locked = true
                   }
 
@@ -1177,12 +1316,27 @@ export default {
               }
 
               for (let l = 0; l < data.remote_report_items.length; l++) {
-                for (let k = 0; k < data.remote_report_items[l].attributes.length; k++) {
-                  if (data.remote_report_items[l].attributes[k].attribute_group_item_title === this.selected_type.attribute_groups[i].attribute_group_items[j].title) {
+                for (
+                  let k = 0;
+                  k < data.remote_report_items[l].attributes.length;
+                  k++
+                ) {
+                  if (
+                    data.remote_report_items[l].attributes[k]
+                      .attribute_group_item_title ===
+                    this.selected_type.attribute_groups[i]
+                      .attribute_group_items[j].title
+                  ) {
                     let value = data.remote_report_items[l].attributes[k].value
-                    if (this.selected_type.attribute_groups[i].attribute_group_items[j].attribute.type === 'CPE') {
+                    if (
+                      this.selected_type.attribute_groups[i]
+                        .attribute_group_items[j].attribute.type === 'CPE'
+                    ) {
                       value = value.replace('%', '*')
-                    } else if (this.selected_type.attribute_groups[i].attribute_group_items[j].attribute.type === 'BOOLEAN') {
+                    } else if (
+                      this.selected_type.attribute_groups[i]
+                        .attribute_group_items[j].attribute.type === 'BOOLEAN'
+                    ) {
                       value = value === 'true'
                     }
 
@@ -1190,10 +1344,16 @@ export default {
                       id: data.remote_report_items[l].attributes[k].id,
                       index: values.length,
                       value: value,
-                      last_updated: data.remote_report_items[l].attributes[k].last_updated,
-                      binary_mime_type: data.remote_report_items[l].attributes[k].binary_mime_type,
-                      binary_size: data.remote_report_items[l].attributes[k].binary_size,
-                      binary_description: data.remote_report_items[l].attributes[k].binary_description,
+                      last_updated:
+                        data.remote_report_items[l].attributes[k].last_updated,
+                      binary_mime_type:
+                        data.remote_report_items[l].attributes[k]
+                          .binary_mime_type,
+                      binary_size:
+                        data.remote_report_items[l].attributes[k].binary_size,
+                      binary_description:
+                        data.remote_report_items[l].attributes[k]
+                          .binary_description,
                       user: { name: data.remote_report_items[l].remote_user },
                       locked: false,
                       remote: true
@@ -1203,7 +1363,10 @@ export default {
               }
 
               group.attribute_group_items.push({
-                attribute_group_item: this.selected_type.attribute_groups[i].attribute_group_items[j],
+                attribute_group_item:
+                  this.selected_type.attribute_groups[i].attribute_group_items[
+                    j
+                  ],
                 values: values
               })
             }
@@ -1214,34 +1377,69 @@ export default {
       })
     },
 
-    updateRemoteAttributes () {
+    updateRemoteAttributes() {
       for (let i = 0; i < this.attribute_groups.length; i++) {
-        for (let j = 0; j < this.attribute_groups[i].attribute_group_items.length; j++) {
-          for (let k = 0; k < this.attribute_groups[i].attribute_group_items[j].values.length; k++) {
-            if (this.attribute_groups[i].attribute_group_items[j].values[k].remote === true) {
-              this.attribute_groups[i].attribute_group_items[j].values.splice(k, 1)
+        for (
+          let j = 0;
+          j < this.attribute_groups[i].attribute_group_items.length;
+          j++
+        ) {
+          for (
+            let k = 0;
+            k < this.attribute_groups[i].attribute_group_items[j].values.length;
+            k++
+          ) {
+            if (
+              this.attribute_groups[i].attribute_group_items[j].values[k]
+                .remote === true
+            ) {
+              this.attribute_groups[i].attribute_group_items[j].values.splice(
+                k,
+                1
+              )
               k--
             }
           }
 
           for (let l = 0; l < this.remote_report_items.length; l++) {
-            for (let k = 0; k < this.remote_report_items[l].attributes.length; k++) {
-              if (this.remote_report_items[l].attributes[k].attribute_group_item_title === this.attribute_groups[i].attribute_group_items[j].title) {
+            for (
+              let k = 0;
+              k < this.remote_report_items[l].attributes.length;
+              k++
+            ) {
+              if (
+                this.remote_report_items[l].attributes[k]
+                  .attribute_group_item_title ===
+                this.attribute_groups[i].attribute_group_items[j].title
+              ) {
                 let value = this.remote_report_items[l].attributes[k].value
-                if (this.attribute_groups[i].attribute_group_items[j].attribute.type === 'CPE') {
+                if (
+                  this.attribute_groups[i].attribute_group_items[j].attribute
+                    .type === 'CPE'
+                ) {
                   value = value.replace('%', '*')
-                } else if (this.attribute_groups[i].attribute_group_items[j].attribute.type === 'BOOLEAN') {
+                } else if (
+                  this.attribute_groups[i].attribute_group_items[j].attribute
+                    .type === 'BOOLEAN'
+                ) {
                   value = value === 'true'
                 }
 
                 this.attribute_groups[i].attribute_group_items[j].values.push({
                   id: this.remote_report_items[l].attributes[k].id,
-                  index: this.attribute_groups[i].attribute_group_items[j].values.length,
+                  index:
+                    this.attribute_groups[i].attribute_group_items[j].values
+                      .length,
                   value: value,
-                  last_updated: this.remote_report_items[l].attributes[k].last_updated,
-                  binary_mime_type: this.remote_report_items[l].attributes[k].binary_mime_type,
-                  binary_size: this.remote_report_items[l].attributes[k].binary_size,
-                  binary_description: this.remote_report_items[l].attributes[k].binary_description,
+                  last_updated:
+                    this.remote_report_items[l].attributes[k].last_updated,
+                  binary_mime_type:
+                    this.remote_report_items[l].attributes[k].binary_mime_type,
+                  binary_size:
+                    this.remote_report_items[l].attributes[k].binary_size,
+                  binary_description:
+                    this.remote_report_items[l].attributes[k]
+                      .binary_description,
                   user: { name: this.remote_report_items[l].remote_user },
                   locked: false,
                   remote: true
@@ -1253,12 +1451,14 @@ export default {
       }
     },
 
-    expand_groups () {
-      this.expand_panel_groups = Array.from(Array(this.attribute_groups.length).keys())
+    expand_groups() {
+      this.expand_panel_groups = Array.from(
+        Array(this.attribute_groups.length).keys()
+      )
       return this.expand_panel_groups
     },
 
-    findAttributeType () {
+    findAttributeType() {
       const groups = this.selected_type.attribute_groups
       const available = []
 
@@ -1271,7 +1471,7 @@ export default {
       }
       return available
     },
-    importCSV () {
+    importCSV() {
       const csv_lines = this.csv.length
       const sorted_csv = []
 
@@ -1284,11 +1484,20 @@ export default {
 
       let count = 0
       for (let i = 0; i < this.attribute_groups.length; i++) {
-        for (let j = 0; j < this.attribute_groups[i].attribute_group_items.length; j++) {
+        for (
+          let j = 0;
+          j < this.attribute_groups[i].attribute_group_items.length;
+          j++
+        ) {
           this.attribute_groups[i].attribute_group_items[j].values = []
           for (let k = 0; k < csv_lines - 1; k++) {
             if (sorted_csv[count][k] !== '') {
-              this.attribute_groups[i].attribute_group_items[j].values.push({ id: -1, index: k, value: sorted_csv[count][k], user: null })
+              this.attribute_groups[i].attribute_group_items[j].values.push({
+                id: -1,
+                index: k,
+                value: sorted_csv[count][k],
+                user: null
+              })
             }
           }
           count++
@@ -1301,7 +1510,7 @@ export default {
       this.$root.$emit('reset-csv-dialog')
     },
 
-    closeCSV () {
+    closeCSV() {
       this.dialog_csv = false
       this.csv = null
       this.csv_delete_exist_list = false
@@ -1309,28 +1518,25 @@ export default {
     }
   },
   mixins: [AuthMixin],
-  mounted () {
+  mounted() {
     this.$root.$on('attachments-uploaded', () => {
       this.attachmets_attributes_count--
       if (this.attachmets_attributes_count <= 0) {
         this.$validator.reset()
         this.visible = false
         this.overlay = false
-        this.$root.$emit('notification',
-          {
-            type: 'success',
-            loc: 'report_item.successful'
-          }
-        )
+        this.$root.$emit('notification', {
+          type: 'success',
+          loc: 'report_item.successful'
+        })
       }
     })
 
     this.local_reports = !window.location.pathname.includes('/group/')
 
-    this.loadReportItemTypes({ search: '' })
-      .then(() => {
-        this.report_types = this.getReportItemTypes().items
-      })
+    this.loadReportItemTypes().then(() => {
+      this.report_types = this.getReportItemTypes().items
+    })
 
     this.$root.$on('new-report', (data) => {
       this.visible = true
@@ -1346,11 +1552,11 @@ export default {
     this.$root.$on('report-item-updated', this.report_item_updated)
   },
   watch: {
-    $route () {
+    $route() {
       this.local_reports = !window.location.pathname.includes('/group/')
     }
   },
-  beforeDestroy () {
+  beforeDestroy() {
     this.$root.$off('attachments-uploaded')
     this.$root.$off('new-report')
     this.$root.$off('show-edit')

@@ -1,14 +1,11 @@
 import datetime
 import hashlib
 import uuid
-import contextlib
 import re
 
-from collectors.managers import time_manager
 from collectors.managers.log_manager import logger
 from collectors.remote.core_api import CoreApi
 from shared.schema import collector, osint_source, news_item
-from shared.schema.parameter import Parameter, ParameterType
 from bs4 import BeautifulSoup
 from urllib.parse import quote
 
@@ -18,26 +15,10 @@ class BaseCollector:
     name = "Base Collector"
     description = "Base abstract type for all collectors"
 
-    parameters = [
-        Parameter(
-            0,
-            "PROXY_SERVER",
-            "Proxy server",
-            "Type SOCKS5 proxy server as username:password@ip:port or ip:port",
-            ParameterType.STRING,
-        ),
-        Parameter(
-            0,
-            "REFRESH_INTERVAL",
-            "Refresh interval in minutes",
-            "How often is this collector queried for new data",
-            ParameterType.NUMBER,
-        ),
-    ]
-
     def __init__(self):
         self.osint_sources = []
         self.core_api = CoreApi()
+        self.refresh()
 
     def get_info(self):
         info_schema = collector.CollectorSchema()
@@ -130,16 +111,6 @@ class BaseCollector:
 
     def refresh(self):
         logger.log_info(f"Core API requested a refresh of osint sources for {self.type}...")
-
-        # cancel all existing jobs
-        # TODO: cannot cancel jobs that are running and are scheduled for further in time than 60 seconds
-        # updating of the configuration needs to be done more gracefully
-        for source in self.osint_sources:
-            with contextlib.suppress(Exception):
-                time_manager.cancel_job(source.scheduler_job)
-        self.osint_sources = []
-
-        # get new node configuration
         response, code = self.core_api.get_osint_sources(self.type)
 
         if code != 200 or response is None:
@@ -150,42 +121,8 @@ class BaseCollector:
             source_schema = osint_source.OSINTSourceSchemaBase(many=True)
             self.osint_sources = source_schema.load(response)
 
-            logger.log_debug(f"{len(self.osint_sources)} data loaded")
-
-            # start collection
             for source in self.osint_sources:
                 self.collect(source)
-                interval = source.parameter_values["REFRESH_INTERVAL"]
 
-                # do not schedule if no interval is set
-                if interval == "":
-                    continue
-
-                logger.log_debug("scheduling.....")
-
-                # run task every day at XY
-                if interval[0].isdigit() and ":" in interval:
-                    source.scheduler_job = time_manager.schedule_job_every_day(interval, self.collect, source)
-                elif interval[0].isalpha():
-                    interval = interval.split(",")
-                    day = interval[0].strip()
-                    at = interval[1].strip()
-                    if day == "Monday":
-                        source.scheduler_job = time_manager.schedule_job_on_monday(at, self.collect, source)
-                    elif day == "Tuesday":
-                        source.scheduler_job = time_manager.schedule_job_on_tuesday(at, self.collect, source)
-                    elif day == "Wednesday":
-                        source.scheduler_job = time_manager.schedule_job_on_wednesday(at, self.collect, source)
-                    elif day == "Thursday":
-                        source.scheduler_job = time_manager.schedule_job_on_thursday(at, self.collect, source)
-                    elif day == "Friday":
-                        source.scheduler_job = time_manager.schedule_job_on_friday(at, self.collect, source)
-                    elif day == "Saturday":
-                        source.scheduler_job = time_manager.schedule_job_on_saturday(at, self.collect, source)
-                    elif day == "Sunday":
-                        source.scheduler_job = time_manager.schedule_job_on_sunday(at, self.collect, source)
-                else:
-                    logger.log_debug(f"scheduling for {int(interval)}")
-                    source.scheduler_job = time_manager.schedule_job_minutes(int(interval), self.collect, source)
         except Exception:
             logger.log_debug_trace()

@@ -146,9 +146,9 @@ class WordListEntry(db.Model):
         return db.session.query(db.exists().where(WordListEntry.value == value).where(WordListEntry.word_list_id == word_list_id)).scalar()
 
     @classmethod
-    def delete_entries(cls, id):
+    def delete_entries(cls, id, value):
         word_list = WordList.find(id)
-        cls.query.filter_by(word_list_id=word_list.id).delete()
+        cls.query.filter_by(word_list_id=word_list.id).filter_by(value=value).delete()
         db.session.commit()
 
     @classmethod

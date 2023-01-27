@@ -213,30 +213,6 @@ textarea {
   }
 }
 
-.buttonSolid {
-  text-transform: lowercase;
-  letter-spacing: normal;
-  font-weight: 400;
-  color: white !important;
-  padding: 16px 16px 16px 12px !important;
-  transition: all 400ms ease;
-  border: 0 !important;
-  outline: none !important;
-
-  &.v-btn--disabled {
-    background-color: lighten($light-grey-1, 20) !important;
-    color: white !important;
-
-    & span {
-      color: white !important;
-    }
-  }
-
-  & svg {
-    fill: white;
-  }
-}
-
 .v-chip.story-label {
   font-size: 12px !important;
   padding: 12px 8px !important;

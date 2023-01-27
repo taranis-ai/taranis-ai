@@ -36,9 +36,12 @@ class CoreApi:
 
     def register_node(self):
         try:
-            response, status = self.get_collector_status()
-            if status == 200:
-                return response, status
+            response = self.get_collector_status()
+            if response:
+                logger.log_info(f"Found registerd Collector {response}")
+                return
+
+            logger.log_debug(f"Registering Collector Node at {Config.TARANIS_NG_CORE_URL}")
             node_info = {
                 "id": self.node_id,
                 "name": Config.NODE_NAME,
@@ -54,24 +57,21 @@ class CoreApi:
                 verify=self.verify,
             )
 
-            if response.status_code != 200:
-                logger.log_debug(f"Can't register Collector node: {response.text}")
-                return None, 400
+            if response.ok:
+                logger.log_info(f"Successfully registered: {response}")
+            else:
+                logger.critical(f"Can't register Collector node: {response.text}")
 
-            return response.json(), response.status_code
-        except Exception as e:
-            logger.log_debug("Can't register Collector node")
-            logger.log_debug(str(e))
-            return None, 400
+        except Exception:
+            logger.log_debug_trace("Can't register Collector node")
 
-    def get_collector_status(self):
+    def get_collector_status(self) -> dict|None:
         try:
-            response = requests.get(f"{self.api_url}/api/v1/collectors/{self.node_id}", headers=self.headers, verify=self.verify)
-
-            return response.json(), response.status_code
+            response = requests.get(f"{self.api_url}/api/v1/collectors/node/{self.node_id}", headers=self.headers, verify=self.verify)
+            return response.json() if response.ok else None
         except Exception:
             logger.log_debug_trace("Cannot update Collector status")
-            return None, 400
+            return None
 
     def add_news_items(self, news_items):
         try:

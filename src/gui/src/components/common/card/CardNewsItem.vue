@@ -77,18 +77,6 @@
           @click="decorateSource()"
           tooltip="emphasise originator"
         />
-
-        <news-item-action-dialog
-          icon="mdi-tag-outline"
-          tooltip="manage tags"
-          ref="manageTagsDialog"
-        >
-          <popup-manage-tags
-            :newsItem="newsItem"
-            @deleteItem="deleteNewsItem()"
-            @close="$refs.manageTagsDialog.close()"
-          />
-        </news-item-action-dialog>
       </div>
 
       <v-container no-gutters class="ma-0 pa-0">
@@ -103,10 +91,7 @@
             <v-container column style="height: 100%">
               <v-row class="flex-grow-0 mt-0">
                 <v-col class="pb-1">
-                  <news-item-title
-                    :title="newsItem.title"
-                    :read="newsItem.read"
-                  />
+                  <h2>{{ newsItem.title }}</h2>
                 </v-col>
               </v-row>
 
@@ -123,24 +108,33 @@
                   cols="12"
                   class="mx-0 d-flex justify-start flex-wrap pt-1 pb-8"
                 >
-                  <button-outlined
-                    label="view details"
-                    icon="$awakeEye"
-                    extraClass="mr-1 mt-1"
-                    @click="viewDetails($event)"
-                  />
-                  <button-outlined
-                    label="create report"
-                    icon="$awakeReport"
-                    extraClass="mr-1 mt-1"
+                  <v-btn
+                    class="buttonOutlined mr-1 mt-1"
+                    :style="{ borderColor: '#c8c8c8' }"
+                    outlined
                     @click="createReport($event)"
-                  />
-                  <button-outlined
-                    label="show related items"
-                    icon="$awakeRelated"
-                    extraClass="mr-1 mt-1"
-                    @click="showRelated($event)"
-                  />
+                  >
+                    <v-icon>$awakeReport</v-icon>
+                    <span>create report</span>
+                  </v-btn>
+                  <v-btn
+                    class="buttonOutlined mr-1 mt-1"
+                    :style="{ borderColor: '#c8c8c8' }"
+                    outlined
+                    @click="viewDetails($event)"
+                  >
+                    <v-icon>$awakeEye</v-icon>
+                    <span>view Details</span>
+                  </v-btn>
+                  <v-btn
+                    class="buttonOutlined mr-1 mt-1"
+                    :style="{ borderColor: '#c8c8c8' }"
+                    outlined
+                    @click="viewSingleDetails($event)"
+                  >
+                    <v-icon>$awakeEye</v-icon>
+                    <span>Open</span>
+                  </v-btn>
 
                   <div class="d-flex align-start justify-center mr-3 ml-2 mt-1">
                     <votes
@@ -233,16 +227,6 @@
                   </span>
                 </v-col>
               </v-row>
-              <!-- <v-row class="news-item-meta-infos">
-                <v-col class="news-item-meta-infos-label">
-                  <strong>Stories:</strong>
-                </v-col>
-                <v-col>
-                  <span class="news-item-meta-stories-list text-capitalize">
-                    {{ metaData.storiesList }}
-                  </span>
-                </v-col>
-              </v-row> -->
               <v-row class="news-item-meta-infos">
                 <v-col class="news-item-meta-infos-label d-flex align-center">
                   <strong>Tags:</strong>
@@ -261,6 +245,7 @@
       </v-container>
     </v-card>
     <NewsItemDetail ref="newsItemDetail" />
+    <NewsItemSingleDetail ref="newsItemSingleDetail" />
   </v-col>
 </template>
 
@@ -270,10 +255,8 @@ import TagList from '@/components/common/tags/TagList'
 import newsItemAction from '@/components/_subcomponents/newsItemAction'
 import newsItemActionDialog from '@/components/_subcomponents/newsItemActionDialog'
 import PopupDeleteItem from '@/components/popups/PopupDeleteItem'
-import PopupManageTags from '@/components/popups/PopupManageTags'
-import buttonOutlined from '@/components/_subcomponents/buttonOutlined'
-import newsItemTitle from '@/components/_subcomponents/newsItemTitle'
 import NewsItemDetail from '@/components/assess/NewsItemDetail'
+import NewsItemSingleDetail from '@/components/assess/NewsItemSingleDetail'
 
 import votes from '@/components/_subcomponents/votes'
 import { isValidUrl, stripHtml } from '@/utils/helpers'
@@ -287,10 +270,8 @@ export default {
     newsItemAction,
     newsItemActionDialog,
     PopupDeleteItem,
-    PopupManageTags,
-    buttonOutlined,
-    newsItemTitle,
     NewsItemDetail,
+    NewsItemSingleDetail,
     votes
   },
   props: {
@@ -341,6 +322,9 @@ export default {
 
     viewDetails(event) {
       this.$refs.newsItemDetail.open(this.newsItem)
+    },
+    viewSingleDetails(event) {
+      this.$refs.newsItemSingleDetail.open(this.newsItem)
     },
     createReport(event) {
       console.log('not yet implemented')

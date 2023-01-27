@@ -118,7 +118,7 @@ class PublisherPreset(db.Model):
 
         for value in preset.parameter_values:
             for updated_value in updated_preset.parameter_values:
-                if value.parameter_id == updated_value.parameter_id:
+                if value.parameter_key == updated_value.parameter_key:
                     value.value = updated_value.value
 
         db.session.commit()

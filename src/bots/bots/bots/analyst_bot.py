@@ -2,7 +2,6 @@ import re
 
 from .base_bot import BaseBot
 from shared.schema import news_item
-from shared.schema.parameter import Parameter, ParameterType
 from bots.managers.log_manager import logger
 
 
@@ -11,49 +10,22 @@ class AnalystBot(BaseBot):
     name = "Analyst Bot"
     description = "Bot for news items analysis"
 
-    parameters = [
-        Parameter(
-            0,
-            "SOURCE_GROUP",
-            "Source Group",
-            "OSINT Source group to inspect",
-            ParameterType.STRING,
-        ),
-        Parameter(
-            0,
-            "REGULAR_EXPRESSION",
-            "Regular Expression",
-            "Regular expression for data analysis",
-            ParameterType.STRING,
-        ),
-        Parameter(
-            0,
-            "ATTRIBUTE_NAME",
-            "Attribute name",
-            "Name of attribute for extracted data",
-            ParameterType.STRING,
-        ),
-    ]
-
-    parameters.extend(BaseBot.parameters)
-
     regexp = []
     attr_name = []
     news_items = []
     news_items_data = []
 
-    def execute(self, preset):
+    def execute(self):
         try:
             # source_group = preset.parameter_values["SOURCE_GROUP"]
-            regexp = preset.parameter_values["REGULAR_EXPRESSION"].replace(" ", "")
-            attr_name = preset.parameter_values["ATTRIBUTE_NAME"].replace(" ", "")
-            interval = preset.parameter_values["REFRESH_INTERVAL"]
+            regexp = self.parameters["REGULAR_EXPRESSION"].replace(" ", "")
+            attr_name = self.parameters["ATTRIBUTE_NAME"].replace(" ", "")
 
             regexp = regexp.split(",")
             attr_name = attr_name.split(",")
 
             bots_params = dict(zip(attr_name, regexp))
-            limit = BaseBot.history(interval)
+            limit = self.history()
 
             if news_items_data := self.core_api.get_news_items_data(limit):
                 for item in news_items_data:
@@ -93,14 +65,14 @@ class AnalystBot(BaseBot):
                                 )
 
         except Exception as error:
-            BaseBot.print_exception(preset, error)
+            logger.log_debug_trace(f"Error running Bot: {self.type}")
 
-    def execute_on_event(self, preset, event_type, data):
+    def execute_on_event(self, event_type, data):
         try:
-            source_group = preset.parameter_values["SOURCE_GROUP"]
-            regexp = preset.parameter_values["REGULAR_EXPRESSION"]
-            attr_name = preset.parameter_values["ATTRIBUTE_NAME"]
+            source_group = self.parameters["SOURCE_GROUP"]
+            regexp = self.parameters["REGULAR_EXPRESSION"]
+            attr_name = self.parameters["ATTRIBUTE_NAME"]
             logger.log_debug(source_group + regexp + attr_name)
 
         except Exception as error:
-            BaseBot.print_exception(preset, error)
+            logger.log_debug_trace(f"Error running Bot: {self.type}")
