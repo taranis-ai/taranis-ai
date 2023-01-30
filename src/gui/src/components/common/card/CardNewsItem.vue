@@ -240,6 +240,14 @@
                   <tag-list key="tags" limit="5" :tags="getTags()" />
                 </v-col>
               </v-row>
+              <v-row class="news-item-meta-infos">
+                <v-col class="news-item-meta-infos-label d-flex align-center">
+                  <strong>Summarzied:</strong>
+                </v-col>
+                <v-col>
+                  {{ isSummarized() }}
+                </v-col>
+              </v-row>
             </v-container>
           </v-col>
         </v-row>
@@ -369,6 +377,10 @@ export default {
 
     updateDetailsView(value) {
       this.viewDetails = value
+    },
+
+    isSummarized() {
+      return this.newsItem.summary !== undefined && this.newsItem.summary !== ''
     },
 
     getDescription() {

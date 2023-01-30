@@ -65,12 +65,13 @@ class NLPBot(BaseBot):
                 content_list = []
 
                 for news_item in aggregate["news_items"]:
-                    content = news_item["news_item_data"]["content"] + news_item["news_item_data"]["review"] + news_item["news_item_data"]["title"]
+                    content = (
+                        news_item["news_item_data"]["content"] + news_item["news_item_data"]["review"] + news_item["news_item_data"]["title"]
+                    )
                     content_list.append(content)
 
                     current_keywords = self.generateKeywords(content)
-                    for keyword in current_keywords:
-                        keywords.append(keyword[0])
+                    keywords.extend(keyword[0] for keyword in current_keywords)
 
                 summary = self.predict_summary(content_list)
                 self.core_api.update_news_items_aggregate_summary(aggregate["id"], summary)

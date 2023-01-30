@@ -17,7 +17,7 @@ services:
 
   database:
     image: "postgres:${POSTGRES_TAG}"
-    # ports:
+    #ports:
     # - 6543:5432
     deploy:
       restart_policy:
@@ -28,6 +28,11 @@ services:
       POSTGRES_USER: "${DB_USER}"
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
     command: ["postgres", "-c", "shared_buffers=${DB_SHARED_BUFFERS}", "-c", "max_connections=${DB_MAX_CONNECTIONS}"]
+    healthcheck:
+      test: ["CMD-SHELL", "sh -c 'pg_isready -U ${DB_USER} -d ${DB_DATABASE}'"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
     volumes:
       - "database_data:/var/lib/postgresql/data"
     logging:
@@ -38,8 +43,10 @@ services:
 
   core:
     depends_on:
-      - "redis"
-      - "database"
+      redis:
+        condition: service_started
+      database:
+        condition: service_healthy
     deploy:
       restart_policy:
         condition: on-failure

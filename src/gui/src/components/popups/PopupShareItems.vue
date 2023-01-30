@@ -13,7 +13,7 @@
       <v-btn
         color="awake-red-color darken-1"
         outlined
-        @click="$emit('input', false)"
+        @click="close()"
         class="text-lowercase pr-4"
       >
         <v-icon left class="red-icon">mdi-close</v-icon>
@@ -36,7 +36,7 @@
 
 <script>
 import { mapGetters, mapActions } from 'vuex'
-import { getReportItemData, updateReportItem } from '@/api/analyze'
+import { updateReportItem } from '@/api/analyze'
 
 export default {
   name: 'PopupShareItems',
@@ -46,6 +46,7 @@ export default {
     newsItem: [],
     dialog: Boolean
   },
+  emits: ['close'],
   data: () => ({
     reportItems: [],
     reportItemSelection: {}
@@ -56,11 +57,13 @@ export default {
     ...mapActions('analyze', ['loadReportItems']),
 
     share () {
-      if (this.dialog === 7) {
-        getReportItemData()
-        updateReportItem()
-      }
-      console.log(`Share ${this.newsItem} with ${this.reportItemSelection}`)
+      const reportItemData = { add: true, report_item_id: this.reportItemSelection, aggregate_ids: [this.newsItem.id] }
+      console.debug(reportItemData)
+      updateReportItem(this.reportItemSelection, reportItemData)
+      this.close()
+    },
+    close () {
+      this.$emit('close')
     }
   },
   mounted () {

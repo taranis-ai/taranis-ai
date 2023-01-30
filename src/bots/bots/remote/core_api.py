@@ -176,6 +176,7 @@ class CoreApi:
             return None
 
     def news_items_grouping(self, data):
+        return None, 200
         try:
             response = requests.put(
                 f"{self.api_url}/api/v1/bots/news-item-aggregates-group-action",

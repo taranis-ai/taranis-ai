@@ -164,31 +164,6 @@
                   ></v-text-field>
                 </v-col>
               </v-row>
-              <v-row no-gutters class="pb-4">
-                <v-col cols="12">
-                  <v-btn
-                    @click="$refs.new_item_selector.openSelector()"
-                  >
-                    <v-icon left>{{ UI.ICON.PLUS }}</v-icon>
-                    <span>{{ $t('assess.add_news_item') }}</span>
-                  </v-btn>
-                </v-col>
-              </v-row>
-              <v-row no-gutters>
-                <v-col cols="12">
-                  <NewsItemSelector
-                    v-if="!verticalView"
-                    ref="new_item_selector"
-                    analyze_selector
-                    :attach="false"
-                    :item_values="news_item_aggregates"
-                    :modify="modify"
-                    :collections="collections"
-                    :report_item_id="this.report_item.id"
-                    :edit="edit"
-                  />
-                </v-col>
-              </v-row>
               <v-row no-gutters>
                 <v-col cols="12">
                   <RemoteReportItemSelector
@@ -270,16 +245,14 @@
             style="height: calc(100vh - 3em); overflow-y: auto"
             class="pa-5 taranis-ng-vertical-view"
           >
-            <NewsItemSelector
-              ref="new_item_selector"
-              analyze_selector
-              attach=".taranis-ng-vertical-view"
-              :item_values="news_item_aggregates"
-              :modify="modify"
-              :collections="collections"
-              :report_item_id="this.report_item.id"
-              :edit="edit"
-            />
+
+          <card-news-item
+            v-for="(newsItem, index) in news_item_aggregates"
+            :key="newsItem.id"
+            :newsItem="newsItem"
+            :position="index"
+          ></card-news-item>
+
           </v-col>
         </v-row>
       </v-card>
@@ -313,8 +286,8 @@ import {
 } from '@/api/analyze'
 
 import AttributeContainer from '@/components/common/attribute/AttributeContainer'
-import NewsItemSelector from '@/components/analyze/NewsItemSelector'
 import RemoteReportItemSelector from '@/components/analyze/RemoteReportItemSelector'
+import CardNewsItem from '@/components/common/card/CardNewsItem'
 
 import VueCsvImport from '@/components/common/ImportCSV'
 import { mapActions, mapGetters } from 'vuex'
@@ -328,10 +301,10 @@ export default {
     csv_codes: Array
   },
   components: {
-    NewsItemSelector,
     AttributeContainer,
     RemoteReportItemSelector,
-    VueCsvImport
+    VueCsvImport,
+    CardNewsItem
   },
   data: () => ({
     verticalView: true,
