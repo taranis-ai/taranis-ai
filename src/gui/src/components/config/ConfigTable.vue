@@ -77,7 +77,10 @@
           </div>
         </template>
         <template v-slot:no-data>
-          <v-btn color="primary">Reset</v-btn>
+          <v-btn color="primary">
+            <v-icon class="mr-1">mdi-refresh</v-icon>
+            Refresh
+          </v-btn>
         </template>
       </v-data-table>
   </v-container>

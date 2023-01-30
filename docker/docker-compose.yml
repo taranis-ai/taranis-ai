@@ -103,7 +103,7 @@ services:
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-bots:${TARANIS_NG_TAG}"
     environment:
       API_KEY: "${API_KEY}"
-      TARANIS_NG_CORE_URL: "http://core/api/v1"
+      TARANIS_NG_CORE_URL: "http://core"
       TARANIS_NG_CORE_SSE: "http://core/sse"
       WORKERS_PER_CORE: "1"
     logging:
