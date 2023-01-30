@@ -15,8 +15,6 @@ class NewParameterValueSchema(ParameterValueSchema):
 
 
 class ParameterValueImportSchema(ParameterValueSchema):
-    parameter_key = fields.Str()
-
     @post_load
     def make_parameter_value(self, data, **kwargs):
         return ParameterValue(**data)

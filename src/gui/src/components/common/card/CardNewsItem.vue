@@ -90,7 +90,7 @@
             <v-container column style="height: 100%">
               <v-row class="flex-grow-0 mt-0">
                 <v-col class="pb-1">
-                  <h2>{{ newsItem.title }}</h2>
+                  <h2 class="news-item-title">{{ newsItem.title }}</h2>
                 </v-col>
               </v-row>
 
@@ -172,7 +172,7 @@
                   <strong>Published:</strong>
                 </v-col>
                 <v-col>
-                  <span class="red--text">
+                  <span :class="published_date_outdated ? 'red--text' : ''">
                     {{ getPublishedDate() }}
                   </span>
                   <v-icon v-if="published_date_outdated" small color="red"
@@ -376,7 +376,7 @@ export default {
     },
 
     getTags() {
-      return this.newsItem.news_items[0].news_item_data.tags
+      return this.newsItem.tags.map(tag => tag.name)
     },
 
     getPublishedDate() {

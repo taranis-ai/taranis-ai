@@ -520,6 +520,17 @@ textarea {
   margin-left: -4px;
 }
 
+.news-item-title {
+  // Clipping
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  -webkit-box-orient: vertical;
+  height: calc(1.5em * 1);
+}
+
 .news-item-summary {
   color: $dark-grey;
   margin-bottom: 0px !important;

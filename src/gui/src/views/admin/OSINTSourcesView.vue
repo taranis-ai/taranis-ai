@@ -40,7 +40,7 @@ import {
   importOSINTSources
 } from '@/api/config'
 import { mapActions, mapGetters } from 'vuex'
-import { notifySuccess, objectFromFormat, notifyFailure, parseParameterValues, parseSubmittedParameterValues, createParameterObjValues } from '@/utils/helpers'
+import { notifySuccess, objectFromFormat, notifyFailure, parseParameterValues, createParameterValues } from '@/utils/helpers'
 
 export default {
   name: 'OSINTSources',
@@ -50,7 +50,6 @@ export default {
     ImportExport
   },
   data: () => ({
-    unparsed_sources: [],
     osint_sources: [],
     parameters: {},
     selected: [],
@@ -99,7 +98,6 @@ export default {
     updateData() {
       this.loadOSINTSources().then(() => {
         const sources = this.getOSINTSources()
-        this.unparsed_sources = sources.items
         this.osint_sources = parseParameterValues(sources.items)
         this.updateItemCount({
           total: sources.total_count,
@@ -134,16 +132,13 @@ export default {
       this.edit = true
     },
     handleSubmit(submittedData) {
+      delete submittedData.parameter_values
       const parameter_list = this.parameters[this.formData.collector_id].map(item => item.name)
-      console.debug('submitted data', submittedData)
-      console.debug('parameter list', parameter_list)
+      const updateItem = createParameterValues(parameter_list, submittedData)
+      console.debug('createParameterValues', updateItem)
       if (this.edit) {
-        console.debug('parseSubmittedParameterValues', parseSubmittedParameterValues(this.unparsed_sources, submittedData))
-        const updateItem = parseSubmittedParameterValues(this.unparsed_sources, submittedData)
         this.updateItem(updateItem)
       } else {
-        console.debug('createParameterObjValues', createParameterObjValues(parameter_list, submittedData))
-        const updateItem = createParameterObjValues(parameter_list, submittedData)
         this.createItem(updateItem)
       }
     },

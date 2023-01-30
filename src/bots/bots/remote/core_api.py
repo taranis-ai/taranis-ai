@@ -96,7 +96,7 @@ class CoreApi:
     def update_news_item_tags(self, id, tags):
         try:
             response = requests.put(
-                f"{self.api_url}/api/v1/bots/news-item-data/{id}/tags",
+                f"{self.api_url}/api/v1/bots/news-items-aggregate/{id}/tags",
                 json=tags,
                 headers=self.headers,
             )

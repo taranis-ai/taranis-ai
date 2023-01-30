@@ -3,7 +3,7 @@
     <ConfigTable
       :addButton="true"
       :items.sync="productTypes"
-      :headerFilter="['tag', 'id', 'name', 'description']"
+      :headerFilter="['tag', 'id', 'title', 'description']"
       sortByItem="id"
       :actionColumn="true"
       @delete-item="deleteItem"
@@ -11,57 +11,108 @@
       @add-item="addItem"
       @update-items="updateData"
     />
-    <NewProductType
+    <EditConfig
+      v-if="formData && Object.keys(formData).length > 0"
+      :configData="formData"
+      :formFormat.sync="formFormat"
       @submit="handleSubmit"
-    ></NewProductType>
+    ></EditConfig>
   </div>
 </template>
 
 <script>
 import ConfigTable from '../../components/config/ConfigTable'
-import NewProductType from '@/components/config/product_types/NewProductType'
+import EditConfig from '@/components/config/EditConfig'
 import {
   deleteProductType,
   createProductType,
   updateProductType
 } from '@/api/config'
 import { mapActions, mapGetters } from 'vuex'
-import { notifySuccess, notifyFailure } from '@/utils/helpers'
+import { notifySuccess, notifyFailure, parseParameterValues, createParameterValues, objectFromFormat } from '@/utils/helpers'
 
 export default {
   name: 'Organizations',
   components: {
     ConfigTable,
-    NewProductType
+    EditConfig
   },
   data: () => ({
     productTypes: [],
     formData: {},
     edit: false,
-    product: {
-      id: -1,
-      title: '',
-      description: '',
-      presenter_id: '',
-      parameter_values: []
-    }
+    parameters: {},
+    selected: [],
+    presenters: []
   }),
+  computed: {
+    formFormat() {
+      const base = [
+        {
+          name: 'id',
+          label: 'ID',
+          type: 'number',
+          disabled: true
+        },
+        {
+          name: 'title',
+          label: 'Title',
+          type: 'text',
+          required: true
+        },
+        {
+          name: 'description',
+          label: 'Description',
+          type: 'textarea',
+          required: true
+        },
+        {
+          name: 'presenter_id',
+          label: 'Presenter',
+          type: 'select',
+          required: true,
+          options: this.presenters,
+          disabled: this.edit
+        }
+      ]
+      if (this.parameters[this.formData.presenter_id]) {
+        return base.concat(this.parameters[this.formData.presenter_id])
+      }
+      return base
+    }
+  },
   methods: {
-    ...mapActions('config', ['loadProductTypes']),
-    ...mapGetters('config', ['getProductTypes']),
+    ...mapActions('config', ['loadProductTypes', 'loadPresenters']),
+    ...mapGetters('config', ['getProductTypes', 'getPresenters']),
     ...mapActions(['updateItemCount']),
     updateData() {
       this.loadProductTypes().then(() => {
         const sources = this.getProductTypes()
-        this.productTypes = sources.items
+        this.productTypes = parseParameterValues(sources.items)
         this.updateItemCount({
           total: sources.total_count,
           filtered: sources.length
         })
       })
+      this.loadPresenters().then(() => {
+        const presenters = this.getPresenters()
+        this.presenters = presenters.items.map(presenter => {
+          this.parameters[presenter.id] = presenter.parameters.map(parameter => {
+            return {
+              name: parameter.key,
+              label: parameter.name,
+              type: 'text'
+            }
+          })
+          return {
+            value: presenter.id,
+            text: presenter.name
+          }
+        })
+      })
     },
     addItem() {
-      this.formData = this.product
+      this.formData = objectFromFormat(this.formFormat)
       this.edit = false
     },
     editItem(item) {
@@ -69,11 +120,14 @@ export default {
       this.edit = true
     },
     handleSubmit(submittedData) {
-      console.log(submittedData)
+      delete submittedData.parameter_values
+      const parameter_list = this.parameters[this.formData.presenter_id].map(item => item.name)
+      const updateItem = createParameterValues(parameter_list, submittedData)
+      console.debug(updateItem)
       if (this.edit) {
-        this.updateItem(submittedData)
+        this.updateItem(updateItem)
       } else {
-        this.createItem(submittedData)
+        this.createItem(updateItem)
       }
     },
     deleteItem(item) {

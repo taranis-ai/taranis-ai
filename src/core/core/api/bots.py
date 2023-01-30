@@ -59,8 +59,8 @@ class UpdateNewsItemAttributes(Resource):
 
 class UpdateNewsItemTags(Resource):
     @api_key_required
-    def put(self, news_item_data_id):
-        news_item.NewsItemData.update_news_item_tags(news_item_data_id, request.json)
+    def put(self, aggregate_id):
+        news_item.NewsItemData.update_news_item_tags(aggregate_id, request.json)
 
 
 class UpdateNewsItemsAggregateSummary(Resource):
@@ -115,7 +115,7 @@ def initialize(api):
     api.add_resource(NewsItemData, "/api/v1/bots/news-item-data")
     api.add_resource(
         UpdateNewsItemTags,
-        "/api/v1/bots/news-item-data/<string:news_item_data_id>/tags",
+        "/api/v1/bots/news-items-aggregate/<string:aggregate_id>/tags",
     )
     api.add_resource(
         UpdateNewsItemAttributes,

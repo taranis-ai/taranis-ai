@@ -14,30 +14,21 @@ class TaggingBot(BaseBot):
             keywords = self.parameters["KEYWORDS"].split(",")
 
             limit = self.history()
-            logger.log_debug(f"LIMIT: {limit}")
-            logger.log_debug(f"KEYWORDKS: {keywords}")
 
             data = self.core_api.get_news_items_aggregate(source_group, limit)
             if not data:
                 return
 
             for aggregate in data:
-                findings = {}
+                findings = set()
+                existing_tags = aggregate["tags"] if aggregate["tags"] is not None else []
                 for news_item in aggregate["news_items"]:
                     content = news_item["news_item_data"]["content"]
-                    existing_tags = news_item["news_item_data"]["tags"] if news_item["news_item_data"]["tags"] is not None else []
 
                     for keyword in keywords:
                         if keyword in content and keyword not in existing_tags:
-                            if news_item["id"] in findings:
-                                findings[news_item["id"]] = findings[news_item["id"]].add(keyword)
-                            else:
-                                findings[news_item["id"]] = {keyword}
-                for news_id, keyword in findings.items():
-                    logger.log_debug(f"news_id: {news_id}, keyword: {keyword}")
-                    if keyword is None:
-                        continue
-                    self.core_api.update_news_item_tags(news_id, list(keyword))
+                            findings.add(keyword)
+                self.core_api.update_news_item_tags(aggregate["id"], list(findings))
 
         except Exception as error:
             logger.log_debug_trace(f"Error running Bot: {self.type}")

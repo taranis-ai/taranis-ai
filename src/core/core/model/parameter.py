@@ -3,6 +3,7 @@ from marshmallow import post_load
 from managers.db_manager import db
 from shared.schema.parameter import ParameterType, ParameterSchema
 
+
 class NewParameterSchema(ParameterSchema):
     @post_load
     def make_parameter(self, data, **kwargs):
@@ -42,7 +43,7 @@ class Parameter(db.Model):
     def get_by_key(cls, key):
         param = cls.query.get(key)
         return ParameterSchema().dump(param) if param else None
-    
+
     @classmethod
     def get_all_json(cls):
         param, count = cls.query.all(), cls.query.count()

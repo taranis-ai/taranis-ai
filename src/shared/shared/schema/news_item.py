@@ -116,10 +116,8 @@ class NewsItemTag:
 
 
 class NewsItemTagSchema(Schema):
-    id = fields.Int()
     name = fields.Str()
     tag_type = fields.Str()
-    n_i_d = fields.Nested(NewsItemDataSchema, many=True)
 
 
 class NewsItemPresentationSchema(NewsItemBaseSchema, ACLEntryStatusSchema):
@@ -143,7 +141,7 @@ class NewsItemAggregateSchema(Schema):
     me_like = fields.Bool()
     me_dislike = fields.Bool()
     in_reports_count = fields.Int()
-    tags = fields.List(fields.String(), required=False)
+    tags = fields.Nested(NewsItemTagSchema, many=True)
     summary = fields.String()
     news_items = fields.Nested(NewsItemPresentationSchema, many=True)
 

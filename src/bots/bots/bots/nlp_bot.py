@@ -43,7 +43,7 @@ class NLPBot(BaseBot):
         nltk.download("stopwords")
 
     def bot_setup(self):
-        # self.set_summarization_model()
+        self.set_summarization_model()
         self.download_stopwords()
         self.language = self.parameters.get("LANGUAGE", "de").lower()
         self.kw_model = KeyBERT("all-MiniLM-L6-v2") if self.language == "en" else KeyBERT("paraphrase-mpnet-base-v2")
@@ -61,22 +61,20 @@ class NLPBot(BaseBot):
                 return
 
             for aggregate in data:
-                findings = {}
+                keywords = []
                 content_list = []
 
                 for news_item in aggregate["news_items"]:
-                    content = news_item["news_item_data"]["content"]
+                    content = news_item["news_item_data"]["content"] + news_item["news_item_data"]["review"] + news_item["news_item_data"]["title"]
                     content_list.append(content)
 
-                    findings[news_item["id"]] = self.generateKeywords(content)
+                    current_keywords = self.generateKeywords(content)
+                    for keyword in current_keywords:
+                        keywords.append(keyword[0])
 
                 summary = self.predict_summary(content_list)
                 self.core_api.update_news_items_aggregate_summary(aggregate["id"], summary)
-
-                for news_id, keywords in findings.items():
-                    keyword = [i[0] for i in keywords]
-                    logger.log_debug(f"news_id: {news_id}, keyword: {keyword}")
-                    self.core_api.update_news_item_tags(news_id, keyword)
+                self.core_api.update_news_item_tags(aggregate["id"], keywords)
 
         except Exception:
             logger.log_debug_trace(f"Error running Bot: {self.type}")

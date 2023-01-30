@@ -5,11 +5,12 @@ from marshmallow import post_load, fields
 from sqlalchemy import orm, func, or_, and_
 from sqlalchemy.types import JSON
 
-from managers.db_manager import db
-from model.acl_entry import ACLEntry
-from model.collector import Collector
-from model.parameter_value import NewParameterValueSchema, ParameterValue
-from model.word_list import WordList
+from core.managers.db_manager import db
+from core.managers.log_manager import logger
+from core.model.acl_entry import ACLEntry
+from core.model.collector import Collector
+from core.model.parameter_value import ParameterValue, ParameterValueImportSchema
+from core.model.word_list import WordList
 from shared.schema.acl_entry import ItemType
 from shared.schema.osint_source import (
     OSINTSourceSchema,
@@ -25,7 +26,7 @@ from shared.schema.word_list import WordListSchema
 
 
 class NewOSINTSourceSchema(OSINTSourceSchema):
-    parameter_values = fields.List(fields.Nested(NewParameterValueSchema), load_default=[])
+    parameter_values = fields.List(fields.Nested(ParameterValueImportSchema), load_default=[])
     word_lists = fields.List(fields.Nested(WordListSchema), load_default=[])
     osint_source_groups = fields.List(fields.Nested(OSINTSourceGroupIdSchema), load_default=[])
 
@@ -85,8 +86,12 @@ class OSINTSource(db.Model):
         return cls.query.get(source_id)
 
     @classmethod
+    def get_by_id(cls, id: str):
+        return cls.query.get(id)
+
+    @classmethod
     def get_all(cls):
-        return cls.query.order_by(db.asc(OSINTSource.name)).all()
+        return cls.query.order_by(OSINTSource.name).all()
 
     @classmethod
     def get_all_manual(cls, user):
@@ -125,10 +130,6 @@ class OSINTSource(db.Model):
             )
 
         return query.order_by(db.asc(OSINTSource.name)).all(), query.count()
-
-    @classmethod
-    def get_by_id(cls, id: str):
-        return cls.query.filter_by(id=id).first()
 
     @classmethod
     def get_all_by_id(cls, ids: list):
@@ -183,8 +184,8 @@ class OSINTSource(db.Model):
 
     @classmethod
     def add_new(cls, data):
-        new_osint_source_schema = NewOSINTSourceSchema()
-        osint_source = new_osint_source_schema.load(data)
+        print(data)
+        osint_source = NewOSINTSourceSchema().load(data)
         db.session.add(osint_source)
 
         if len(osint_source.osint_source_groups) > 0:
@@ -233,16 +234,14 @@ class OSINTSource(db.Model):
 
     @classmethod
     def update(cls, osint_source_id, data):
-        new_osint_source_schema = NewOSINTSourceSchema()
-        updated_osint_source = new_osint_source_schema.load(data)
+        updated_osint_source = NewOSINTSourceSchema().load(data)
         osint_source = cls.query.get(osint_source_id)
         osint_source.name = updated_osint_source.name
         osint_source.description = updated_osint_source.description
 
         for value in osint_source.parameter_values:
             for updated_value in updated_osint_source.parameter_values:
-                print(updated_value.parameter_key)
-                if value.parameter_key == updated_value.parameter_key["key"]:
+                if value.parameter_key == updated_value.parameter_key:
                     value.value = updated_value.value
 
         osint_source.word_lists = updated_osint_source.word_lists
@@ -410,8 +409,7 @@ class OSINTSourceGroup(db.Model):
 
     @classmethod
     def add(cls, data):
-        new_osint_source_group_schema = NewOSINTSourceGroupSchema()
-        osint_source_group = new_osint_source_group_schema.load(data)
+        osint_source_group = NewOSINTSourceGroupSchema().load(data)
         db.session.add(osint_source_group)
         db.session.commit()
 
