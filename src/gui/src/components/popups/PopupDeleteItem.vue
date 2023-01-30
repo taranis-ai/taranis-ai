@@ -2,7 +2,7 @@
   <v-card>
 
     <button-outlined
-      icon="$awakeClose"
+      icon="mdi-close"
       color="awake-red-color"
       extraClass="corner-close"
       @click="$emit('close')"
@@ -43,7 +43,7 @@
 
             <button-outlined
               label="delete item"
-              icon="$awakeDelete"
+              icon="mdi-delete"
               color="awake-red-color"
               @click="emitDeleteAction()"
             />

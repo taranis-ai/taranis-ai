@@ -18,10 +18,31 @@
           <v-select
             v-model="scope"
             :items="getScopeFilterList()"
+            prepent-icon="mdi-format-list-numbered"
             item-text="title"
             item-value="id"
             label="Sources"
             solo
+          ></v-select>
+        </v-col>
+        <v-col cols="6" class="pt-0 pb-0">
+          Display:
+          <v-select
+            v-model="limit"
+            :items="items_per_page"
+            label="display items"
+            solo
+            dense
+          ></v-select>
+        </v-col>
+        <v-col cols="6" class="pt-0 pb-0">
+          Offset:
+          <v-select
+            v-model="offset"
+            :items="offsetRange"
+            label="offset"
+            solo
+            dense
           ></v-select>
         </v-col>
       </v-row>
@@ -35,7 +56,14 @@
         </v-col>
 
         <v-col cols="12">
-          <search-field v-model="searchQuery" />
+          <v-text-field
+            v-model="search"
+            label="search"
+            outlined
+            dense
+            hide-details
+            append-icon="mdi-magnify"
+          ></v-text-field>
         </v-col>
       </v-row>
 
@@ -49,16 +77,8 @@
 
         <!-- time tags -->
         <v-col cols="12" class="pb-0">
-          <date-chips
-            v-model="filter.range"
-            @input="filter.range = []"
-          />
+          <date-chips v-model="filter.range" @input="filter.range = []" />
         </v-col>
-
-        <!-- date picker
-        <v-col cols="12">
-          <date-range v-model="filter.date" />
-        </v-col> -->
 
         <!-- tags -->
         <v-col cols="10" class="pr-0">
@@ -83,7 +103,7 @@
 
       <v-divider class="mt-2 mb-0"></v-divider>
 
-      <v-row class="my-3 mr-0 px-5 pb-5">
+      <v-row class="my-3 mr-0 px-5">
         <v-col cols="12" class="py-0">
           <h4>sort by</h4>
         </v-col>
@@ -92,13 +112,23 @@
           <filter-sort-list v-model="order.selected" :items="orderOptions" />
         </v-col>
       </v-row>
+
+      <v-divider class="mt-2 mb-0"></v-divider>
+
+      <v-row class="my-3 mr-0 px-5 pt-5 pb-5">
+        <v-col cols="12" class="py-0">
+          <v-btn @click="updateNewsItems()" color="primary" block>
+            Reload
+            <v-icon right dark> mdi-reload </v-icon>
+          </v-btn>
+        </v-col>
+      </v-row>
     </v-container>
   </v-navigation-drawer>
 </template>
 
 <script>
 import { mapState, mapGetters, mapActions } from 'vuex'
-import searchField from '@/components/_subcomponents/searchField'
 import dateChips from '@/components/_subcomponents/dateChips'
 import tagFilter from '@/components/_subcomponents/tagFilter'
 import filterSelectList from '@/components/_subcomponents/filterSelectList'
@@ -107,27 +137,25 @@ import filterSortList from '@/components/_subcomponents/filterSortList'
 export default {
   name: 'AssessNav',
   components: {
-    searchField,
     dateChips,
     tagFilter,
     filterSelectList,
     filterSortList
   },
   data: () => ({
-    searchQuery: '',
     awaitingSearch: false,
     filterAttributeSelections: {},
     filterAttributeOptions: [
-      { type: 'unread', label: 'unread', icon: '$awakeUnread' },
+      { type: 'unread', label: 'unread', icon: 'mdi-email-mark-as-unread' },
       {
         type: 'important',
         label: 'important',
-        icon: '$awakeImportant'
+        icon: 'mdi-exclamation'
       },
       {
         type: 'shared',
         label: 'items in reports',
-        icon: '$awakeShareOutline'
+        icon: 'mdi-share-outline'
       },
       {
         type: 'selected',
@@ -144,7 +172,7 @@ export default {
       },
       {
         label: 'relevance',
-        icon: '$awakeRelated',
+        icon: 'mdi-counter',
         type: 'relevanceScore',
         direction: ''
       }
@@ -163,58 +191,91 @@ export default {
       'Social',
       'APT',
       'MitM'
-    ]
+    ],
+    items_per_page: [5, 15, 25, 50, 100]
   }),
   computed: {
     ...mapState('filter', {
       scopeState: (state) => state.scope,
-      filter: (state) => state.newsItemsFilter,
+      filter: (state) => state.newsItemsFilter.filter,
+      offsetState: (state) => state.newsItemsFilter.offset,
+      limitState: (state) => state.newsItemsFilter.limit,
       order: (state) => state.newsItemsOrder
     }),
     ...mapState(['drawerVisible']),
     scope: {
-      get () { return this.scopeState },
-      set (value) { this.updateScope(value) }
-    }
+      get() {
+        return this.scopeState
+      },
+      set(value) {
+        this.setScope(value)
+        this.updateNewsItems()
+      }
+    },
+    limit: {
+      get() {
+        return this.limitState
+      },
+      set(value) {
+        this.setLimit(value)
+        this.updateNewsItems()
+      }
+    },
+    offset: {
+      get() {
+        return this.offsetState
+      },
+      set(value) {
+        this.setOffset(value)
+        this.updateNewsItems()
+      }
+    },
+    search: {
+      get() {
+        return this.filter.search
+      },
+      set(value) {
+        this.updateFilter({ search: value })
+        if (!this.awaitingSearch) {
+          setTimeout(() => {
+            this.updateNewsItems()
+            this.awaitingSearch = false
+          }, 500)
+        }
 
-    // ...mapState('filter', ['newsItemsFilter'])
-    // getData () {
-    //   return this.$store.getters.getDashboardData
-    // }
+        this.awaitingSearch = true
+      }
+    },
+    offsetRange () {
+      const blocks = Math.ceil(this.getItemCount().total / this.getItemCount().filtered)
+      const list = []
+      for (let i = 0; i <= blocks; i++) {
+        list.push(i)
+      }
+      return list
+    }
   },
   methods: {
+    ...mapGetters(['getItemCount']),
     ...mapGetters('dashboard', [
       'getStorieSelectionList',
       'getSharingSetSelectionList'
     ]),
-    ...mapGetters('assess', [
-      'getScopeFilterList'
+    ...mapGetters('assess', ['getScopeFilterList']),
+    ...mapActions('assess', ['updateNewsItems']),
+    ...mapActions('filter', [
+      'setScope',
+      'setFilter',
+      'setOrder',
+      'setLimit',
+      'setOffset',
+      'updateFilter'
     ]),
-    ...mapActions('assess', [
-      'updateNewsItems'
-    ]),
-    ...mapActions('filter', ['setScope', 'setFilter', 'setOrder']),
-    ...mapGetters('filter', ['getNewsItemsFilter']),
-    updateScope (scope) {
-      this.setScope(scope)
-      this.updateNewsItems()
-    }
+    ...mapGetters('filter', ['getNewsItemsFilter'])
   },
-  created () {
-  },
-  beforeDestroy () {
-  },
+  created() {},
+  beforeDestroy() {},
   watch: {
-    searchQuery: function () {
-      if (!this.awaitingSearch) {
-        setTimeout(() => {
-          this.filter.search = this.searchQuery
-          this.awaitingSearch = false
-        }, 500)
-      }
-
-      this.awaitingSearch = true
-    }
   }
 }
 </script>

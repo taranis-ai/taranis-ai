@@ -10,7 +10,8 @@
             class="news-item-action"
             :class="[{ active: active ? active : false }, extraClass]"
           >
-            <v-icon> {{ icon }} </v-icon>
+            <v-icon color="black">{{ icon }}</v-icon>
+            <span v-if="buttonText">{{ buttonText }}</span>
           </v-btn>
         </template>
         <span>{{ tooltip }}</span>
@@ -25,21 +26,31 @@
 export default {
   name: 'newsItemActionDialog',
   data: () => ({
-    dialog: false
   }),
   props: {
+    showDialog: { type: Boolean, default: false },
     active: Boolean,
     icon: String,
     extraClass: String,
-    tooltip: String
+    tooltip: String,
+    buttonText: { type: String, default: '' }
+  },
+  computed: {
+    dialog: {
+      get() {
+        return this.showDialog
+      },
+      set(value) {
+        if (!value) {
+          this.$emit('close')
+        }
+      }
+    }
   },
   methods: {
     modDialog (event) {
       event.stopPropagation()
       this.$emit('click', event)
-    },
-    close () {
-      this.dialog = false
     }
   }
 }

@@ -89,7 +89,7 @@
                           v-bind="attrs"
                           v-on="on"
                         >
-                          <v-icon left>$awakeEdit</v-icon>
+                          <v-icon left>mdi-file-edit</v-icon>
                           edit
                         </v-btn>
                       </template>
@@ -117,7 +117,7 @@
                           v-bind="attrs"
                           v-on="on"
                         >
-                          <v-icon left>$awakeShareOutline</v-icon>
+                          <v-icon left>mdi-share-outline</v-icon>
                           share with
                         </v-btn>
                       </template>
@@ -168,14 +168,14 @@
               <v-col>
                 <span v-if="story.sharingDirection === 'outgoing'">
                   <v-icon small left class="icon-color-grey"
-                    >$awakeShareOutline</v-icon
+                    >mdi-share-outline</v-icon
                   >
                   outgoing
                 </span>
 
                 <span v-else>
                   <v-icon small left class="flipped-icon icon-color-grey"
-                    >$awakeShare</v-icon
+                    >mdi-share</v-icon
                   >
                   incoming
                 </span>
@@ -229,7 +229,7 @@
               </v-col>
               <v-col>
                 <v-icon left small class="icon-color-grey"
-                  >$awakeShareOutline</v-icon
+                  >mdi-share-outline</v-icon
                 >
                 <span>{{ getMetaData().numberSharedItems }}</span>
               </v-col>

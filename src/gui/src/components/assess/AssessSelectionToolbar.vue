@@ -98,7 +98,7 @@ export default {
     actionButtons: [
       {
         label: 'delete items',
-        icon: '$awakeDelete'
+        icon: 'mdi-delete-circle'
       }
     ],
     appendToStoryDialog: false,

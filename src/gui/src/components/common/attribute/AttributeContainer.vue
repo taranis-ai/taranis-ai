@@ -5,7 +5,7 @@
     :values="attribute_item.values"
     :read_only="read_only"
     :edit="edit"
-    :modify="modify"
+    :modify="true"
     :report_item_id="report_item_id"
   ></component>
 </template>
@@ -48,7 +48,6 @@ export default {
     attribute_item: Object,
     read_only: Boolean,
     edit: Boolean,
-    modify: Boolean,
     report_item_id: Number
   },
   data: () => ({
@@ -76,6 +75,13 @@ export default {
         this.attributes[this.attribute_item.attribute_group_item.attribute.type]
       )
     }
+  },
+  mounted() {
+    console.debug('Mounted Attribute Container')
+    console.debug(this.attribute_item)
+    console.debug(this.read_only)
+    console.debug(this.edit)
+    console.debug(this.report_item_id)
   }
 }
 </script>

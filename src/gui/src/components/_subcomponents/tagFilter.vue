@@ -22,7 +22,7 @@
         label
         color="grey--lighten-4"
         close
-        close-icon="$newsItemActionRemove"
+        close-icon="mdi-delete"
         class="pa-2 ml-0 mt-1"
       >
         <span>{{ item }}</span>
@@ -35,7 +35,7 @@
         label
         color="grey--lighten-4"
         close
-        close-icon="$newsItemActionRemove"
+        close-icon="mdi-delete"
         class="pa-2 ml-0 mt-1"
       >
         <span>{{ item }}</span>

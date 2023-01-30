@@ -6,9 +6,7 @@
           <v-card-title>
             {{ user.name }}
           </v-card-title>
-          <v-card-subtitle>
-            User Name
-          </v-card-subtitle>
+          <v-card-subtitle> User Name </v-card-subtitle>
         </v-card>
       </v-col>
       <v-col>
@@ -16,9 +14,7 @@
           <v-card-title>
             {{ organizationName }}
           </v-card-title>
-          <v-card-subtitle>
-            Organization
-          </v-card-subtitle>
+          <v-card-subtitle> Organization </v-card-subtitle>
         </v-card>
       </v-col>
     </v-row>
@@ -28,7 +24,9 @@
 <script>
 export default {
   name: 'UserView',
-  data: () => ({}),
+  data: () => ({
+    expanded: false
+  }),
   computed: {
     user() {
       return this.$store.getters.getUser

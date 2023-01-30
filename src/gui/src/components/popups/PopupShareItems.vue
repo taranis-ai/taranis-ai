@@ -1,389 +1,78 @@
 <template>
   <v-card>
-    <v-form ref="form" v-model="valid">
-      <v-container>
-        <v-row>
-          <v-col cols="12">
-            <h2
-              class="
-                font-weight-bold
-                headline
-                dark-grey--text
-                text-capitalize
-                pt-3
-              "
-            >
-              Share Items
-            </h2>
-            The following Items were selected:
-          </v-col>
-        </v-row>
-        <v-row no-gutters>
-          <v-col
-            cols="12"
-            v-for="newsItemId in selection"
-            :key="newsItemId"
-            class="d-flex pa-0"
-          >
-            <v-card
-              elevation="0"
-              tile
-              height="100%"
-              :class="[
-                'align-self-stretch d-flex flex-column share-items-details py-1 pr-1',
-                {
-                  restricted: getItemDetails(newsItemId).restricted,
-                },
-              ]"
-            >
-              <v-row justify="start" no-gutters class="flex-grow-0">
-                <v-col cols="11" class="py-1">
-                  <h4
-                    class="
-                      font-weight-bold
-                      merge-stories-details-title
-                      text-capitalize
-                      my-1
-                    "
-                  >
-                    <span
-                      class="awake-red-color--text pr-3"
-                      v-if="getItemDetails(newsItemId).restricted"
-                    >
-                      <v-icon color="awake-red-color" class="mb-1 mt-0">
-                        mdi-alert-octagon-outline
-                      </v-icon>
-                      Restricted
-                    </span>
+    <v-card-text>
+      <v-select
+          solo
+          single-line
+          label="Select Report"
+          v-model="reportItemSelection"
+          :items="reportItems"
+       />
+    </v-card-text>
+    <v-card-actions class="mt-1">
+      <v-btn
+        color="awake-red-color darken-1"
+        outlined
+        @click="$emit('input', false)"
+        class="text-lowercase pr-4"
+      >
+        <v-icon left class="red-icon">mdi-close</v-icon>
+        abort
+      </v-btn>
 
-                    {{ getItemDetails(newsItemId).title }}
-                  </h4>
-                </v-col>
-                <v-col cols="1" class="d-flex align-content-center justify-end">
-                  <v-btn
-                    icon
-                    tile
-                    class="news-item-sharing-set-action"
-                    @click="deselectNewsItem(newsItemId)"
-                  >
-                    <v-icon> $newsItemActionRemove </v-icon>
-                  </v-btn>
-                </v-col>
-              </v-row>
-            </v-card>
-          </v-col>
-        </v-row>
-      </v-container>
-
-      <v-container class="pb-0 mb-0">
-        <v-row class="mt-4">
-          <v-col cols="12" sm="6" @mouseover="appendMode = false" class="pr-5">
-            <!---------------------------->
-            <!-- Create new report -->
-            <!---------------------------->
-            <h2
-              class="
-                font-weight-bold
-                headline
-                dark-grey--text
-                text-capitalize
-                pt-0
-              "
-            >
-              Create new Report
-            </h2>
-
-            Create a new report based on the currently selected items.
-
-            <v-text-field
-              hide-details
-              dense
-              label="Report title"
-              outlined
-              required
-              v-model="reportTitle"
-              class="mb-2 mt-4"
-            ></v-text-field>
-
-            <v-switch
-              v-model="autogenerateSummary"
-              inset
-              dense
-              label="auto-generate summary"
-              color="success"
-              hide-details
-              class="my-2"
-            ></v-switch>
-            <v-expand-transition appear v-if="!autogenerateSummary">
-              <v-textarea
-                v-model="reportSummary"
-                label="Summary"
-                hide-details
-                outlined
-                class="my-2"
-              ></v-textarea>
-            </v-expand-transition>
-
-            <v-btn
-              color="primary"
-              dark
-              depressed
-              :disabled="appendMode || !validCreateSettings"
-              class="
-                text-lowercase
-                selection-toolbar-btn
-                pr-4
-                sharing-sumbit-btn
-                mt-4
-              "
-              @click="createReport()"
-            >
-              <v-icon left>$awakeShareOutline</v-icon>
-              create report
-            </v-btn>
-          </v-col>
-
-          <v-divider class="d-none d-sm-flex" vertical></v-divider>
-
-          <v-col cols="12" sm="6" @mouseover="appendMode = true" class="pl-5">
-            <!--------------------------->
-            <!-- Append to report -->
-            <!--------------------------->
-            <h2
-              class="
-                font-weight-bold
-                headline
-                dark-grey--text
-                text-capitalize
-                pt-0
-              "
-            >
-              Select Sharing Set
-            </h2>
-
-            Alternatively, the selected items can be added to an existing
-            sharing set, which is then shared with the corresponding recipients.
-            Also with this method, the sharing set must be explicitly sent.
-
-            <v-combobox
-              v-model="existingReport"
-              :items="getSharingSetSelectionList()"
-              label="Sharing Set"
-              placeholder="select Sharing Sets"
-              return-object
-              item-text="title"
-              outlined
-              dense
-              hide-selected
-              append-icon="mdi-chevron-down"
-              class="pl-0 mb-5 mt-4"
-              hide-details
-              search-input
-            >
-              <template v-slot:item="{ item }">
-                <span class="dropdown-list-item">
-                  {{ item.title }}
-                </span>
-              </template>
-              <template v-slot:selection="{ item }">
-                <span class="text-capitalize">{{ item.title }}</span>
-              </template>
-            </v-combobox>
-            <v-btn
-              color="primary"
-              dark
-              depressed
-              :disabled="!appendMode || !validAppendSettings"
-              class="
-                text-lowercase
-                selection-toolbar-btn
-                pr-4
-                sharing-sumbit-btn
-              "
-              @click="appendToReport()"
-            >
-              <!-- @click="mergeSelectedStories()" -->
-              <v-icon left>$awakeShareOutline</v-icon>
-              append to report
-            </v-btn>
-          </v-col>
-        </v-row>
-      </v-container>
-
-      <v-divider class="mt-3"></v-divider>
-
-      <v-card-actions class="mt-1">
-        <v-spacer></v-spacer>
-        <v-btn
-          color="awake-red-color darken-1"
-          outlined
-          @click="$emit('input', false)"
-          class="text-lowercase pr-4"
-        >
-          <v-icon left class="red-icon">$awakeClose</v-icon>
-          abort
-        </v-btn>
-      </v-card-actions>
-    </v-form>
+      <v-btn
+        color="primary"
+        dark
+        depressed
+        @click="share()"
+        class="text-lowercase selection-toolbar-btn pr-4"
+      >
+        <v-icon left>mdi-share-outline</v-icon>
+        share
+      </v-btn>
+    </v-card-actions>
   </v-card>
 </template>
 
 <script>
-import { mapActions, mapGetters, mapState } from 'vuex'
+import { mapGetters, mapActions } from 'vuex'
+import { getReportItemData, updateReportItem } from '@/api/analyze'
 
 export default {
   name: 'PopupShareItems',
-  components: {},
+  components: {
+  },
   props: {
-    dialog: Boolean,
-    selection: []
+    newsItem: [],
+    dialog: Boolean
   },
   data: () => ({
-    valid: true,
-    appendMode: true,
-    existingReport: null,
-    autogenerateSummary: true,
-    reportTitle: '',
-    reportSummary: ''
+    reportItems: [],
+    reportItemSelection: {}
   }),
   methods: {
-    ...mapActions('dashboard', ['createStory', 'updateStory']),
-    ...mapActions('filter', ['resetNewsItemsFilter']),
-    ...mapActions('assess', [
-      'deselectNewsItem',
-      'deselectAllNewsItems',
-      'assignReport'
-    ]),
     ...mapGetters('assess', ['getNewsItemById']),
-    ...mapGetters('dashboard', ['getStoryById', 'getSharingSetSelectionList']),
+    ...mapGetters('analyze', ['getReportItems']),
+    ...mapActions('analyze', ['loadReportItems']),
 
-    getItemDetails (id) {
-      return this.getNewsItemById()(parseInt(id))
-    },
-
-    // removeItemFromSelection(newsItemId) {
-    //   this.deselectNewsItem(newsItemId)
-    // },
-
-    appendToReport () {
-      this.assignReport({
-        items: this.selection,
-        sharingSet: this.existingReport.id
-      })
-
-      const sharingSet = this.getStoryById()(this.existingReport.id)
-      sharingSet.sharingState = 'pending'
-      this.updateStory(sharingSet)
-
-      this.leavePopup(this.existingReport.id)
-    },
-
-    createReport () {
-      const newSharingSet = this.storyPrototype
-      newSharingSet.title = this.reportTitle
-      newSharingSet.summary = this.reportSummary
-        ? this.reportSummary
-        : 'this is an AI created summary ... ' // should be replaced by NLP algorithm
-      newSharingSet.id = Math.floor(Math.random() * (700 - 500 + 1)) + 500 // get ID from creation
-
-      this.createStory(newSharingSet)
-      this.assignReport({
-        items: this.selection,
-        sharingSet: newSharingSet.id
-      })
-
-      this.leavePopup(newSharingSet.id)
-    },
-
-    leavePopup (id) {
-      this.deselectAllNewsItems()
-      this.resetNewsItemsFilter()
-
-      const story = this.getStoryById()(id)
-      this.scope.sharingSets = [{ id: story.id, title: story.title }]
-      this.scope.stories = []
-
-      this.$router.push({
-        path: '/assess',
-        query: { story: id }
-      })
-
-      this.$emit('input', false)
-    }
-  },
-  computed: {
-    ...mapState('filter', {
-      scope: (state) => state.newsItemsFilter.scope
-    }),
-
-    validAppendSettings () {
-      return this.existingReport !== null
-    },
-    validCreateSettings () {
-      return (
-        this.reportTitle !== '' &&
-        (this.reportSummary !== '' || this.autogenerateSummary)
-      )
-    },
-    storyPrototype () {
-      const newStory = {
-        id: null,
-        relevanceScore: 100,
-        title: '',
-        tags: [],
-        ai: false,
-        originator: 'current user',
-        hot: false,
-        pinned: true,
-        lastActivity: new Date(),
-        summary: '',
-        items: {
-          total: 0,
-          new: 0
-        },
-        comments: {
-          total: 0,
-          new: 0
-        },
-        votes: {
-          up: 0,
-          down: 0
-        },
-        selected: false,
-        hasSharedItems: true,
-        isSharingSet: true,
-        sharingState: 'not shared',
-        sharingDirection: 'outgoing',
-        sharedBy: 'current user',
-        sharedWith: [],
-        sharingSets: [],
-        relatedStories: [],
-        keywords: []
+    share () {
+      if (this.dialog === 7) {
+        getReportItemData()
+        updateReportItem()
       }
-
-      this.selection.forEach((id) => {
-        const selectedNewsItem = this.getNewsItemById()(id)
-        newStory.items.total++
-        newStory.items.new += selectedNewsItem.read ? 0 : 1
-
-        // newStory.comments.total += this.mergeDiscussion
-        //   ? this.getStoryById()(id).comments.total
-        //   : 0
-        // newStory.comments.new += this.mergeDiscussion
-        //   ? this.getStoryById()(id).comments.new
-        //   : 0
-
-        // newStory.votes.up += this.mergeVotes
-        //   ? this.getStoryById()(id).votes.up
-        //   : 0
-        // newStory.votes.down += this.mergeVotes
-        //   ? this.getStoryById()(id).votes.down
-        //   : 0
-      })
-
-      return newStory
+      console.log(`Share ${this.newsItem} with ${this.reportItemSelection}`)
     }
   },
-  mounted () {}
+  mounted () {
+    this.loadReportItems().then(() => {
+      this.reportItems = this.getReportItems().map(item => {
+        return {
+          text: item.title,
+          value: item.id
+        }
+      })
+      console.debug(this.reportItems)
+    })
+  }
 }
 </script>

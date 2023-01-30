@@ -32,20 +32,21 @@
             @selectItem="selectNewsItem(newsItem.id)"
             @upvoteItem="upvoteNewsItem(newsItem.id)"
             @downvoteItem="downvoteNewsItem(newsItem.id)"
-            @init="itemsLoaded.push(newsItem.id)"
           ></card-news-item>
         </transition-group>
       </transition>
     </v-container>
 
     <!-- TODO: Loader not working -->
-    <div
-      class="text-subtitle-1 text-center dark-grey--text text--lighten-2 mt-3"
-    >
+    <div class="text-subtitle-1 text-center dark-grey--text mt-3">
+      <div v-if="moreToLoad">
+        <v-btn @click="loadNext">Next Page</v-btn>
+      </div>
+      <div v-else>
       <v-icon left color="primary">mdi-checkbox-marked-circle-outline</v-icon>
       All items loaded.
+      </div>
     </div>
-    <div v-intersect.quiet="infiniteScrolling"></div>
 
     <v-expand-transition>
       <assess-selection-toolbar
@@ -62,7 +63,6 @@ import CardNewsItem from '@/components/common/card/CardNewsItem'
 import AssessSelectionToolbar from '@/components/assess/AssessSelectionToolbar'
 
 import { mapState, mapGetters, mapActions } from 'vuex'
-import moment from 'moment'
 
 export default {
   name: 'AssessContent',
@@ -71,7 +71,6 @@ export default {
     AssessSelectionToolbar
   },
   data: () => ({
-    itemsLoaded: [],
     reloading: false,
     items: []
   }),
@@ -81,6 +80,7 @@ export default {
       'selectNewsItem',
       'upvoteNewsItem',
       'downvoteNewsItem',
+      'updateNewsItems',
       'removeStoryFromNewsItem'
     ]),
     ...mapActions(['updateItemCountTotal', 'updateItemCountFiltered']),
@@ -93,19 +93,16 @@ export default {
       'getNewsItemsByStoryList'
     ]),
     ...mapGetters('dashboard', ['getStorieSelectionList', 'getNewsItemIds']),
+    ...mapActions('filter', ['incrementOffset']),
 
     removeAndDeleteNewsItem (id) {
       this.items = this.items.filter((x) => x.id !== id)
       this.deleteNewsItem(id)
     },
 
-    infiniteScrolling (entries, observer, isIntersecting) {
-      if (this.itemsLoaded.length >= this.items.length && isIntersecting) {
-        this.reloading = true
-        // TODO: Make it async
-        this.getNewsItemsFromStore()
-        this.reloading = false
-      }
+    loadNext() {
+      this.incrementOffset()
+      this.updateNewsItems()
     },
 
     // TODO: Call API via Store
@@ -126,33 +123,8 @@ export default {
       order: (state) => state.newsItemsFilter.order
     }),
 
-    filteredItems () {
-      const filteredData = [...this.items]
-
-      // SORTING
-      filteredData.sort((x, y) => {
-        const directionModifier =
-          this.order.selected.direction === 'asc' ? 1 : -1
-
-        if (x === y) return 0
-
-        switch (this.order.selected.type) {
-          case 'relevanceScore':
-            return x.relevanceScore < y.relevanceScore
-              ? -1 * directionModifier
-              : 1 * directionModifier
-          case 'publishedDate':
-            return (
-              (moment(x.published, 'DD/MM/YYYY hh:mm:ss') -
-                moment(y.published, 'DD/MM/YYYY hh:mm:ss')) *
-              directionModifier
-            )
-        }
-      })
-
-      this.$store.dispatch('updateItemCountFiltered', filteredData.length)
-
-      return filteredData
+    moreToLoad () {
+      return this.items.length < this.getNewsItems().total_count
     },
 
     activeSelection () {

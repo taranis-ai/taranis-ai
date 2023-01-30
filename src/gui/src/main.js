@@ -12,12 +12,11 @@ import CKEditor from '@ckeditor/ckeditor5-vue2'
 import VueCookies from 'vue-cookies'
 import VueSSE from 'vue-sse'
 import DatetimePicker from 'vuetify-datetime-picker'
-import CSButton from '../src/components/common/CSButton'
 
 import layout_config from './assets/layout_config'
-import vuetify from '@/plugins/vuetify'
 import SmoothScrollbar from 'vue-smooth-scrollbar'
 import VueCalendarHeatmap from 'vue-calendar-heatmap'
+import vuetify from '@/plugins/vuetify'
 
 const CSL = {
   install(Vue) {
@@ -26,7 +25,6 @@ const CSL = {
   }
 }
 Vue.use(CSL)
-Vue.component('cs-button', CSButton)
 
 Vue.config.productionTip = false
 
@@ -58,8 +56,6 @@ ApiService.init(coreAPIURL)
 if (localStorage.ACCESS_TOKEN) {
   store.dispatch('setToken', (localStorage.ACCESS_TOKEN)).then()
 }
-
-Vue.component('cs-button', CSButton)
 
 Vue.use(SmoothScrollbar)
 

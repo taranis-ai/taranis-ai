@@ -66,7 +66,6 @@ services:
       CPE_UPDATE_FILE: "${CPE_UPDATE_FILE}"
 
       TZ: "${TZ}"
-      DEBUG: "true"
       SECRET_KEY: "${API_KEY}"
       API_KEY: "${API_KEY}"
     labels:
@@ -126,7 +125,6 @@ services:
       TARANIS_NG_CORE_URL: "http://core"
       API_KEY: "${API_KEY}"
       WORKERS_PER_CORE: "1"
-      DEBUG: "${DEBUG}"
         # ports:
         #      - "5001:80"
     volumes:

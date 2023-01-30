@@ -27,7 +27,7 @@ import {
   updatePublisherPreset
 } from '@/api/config'
 import { mapActions, mapGetters } from 'vuex'
-import { notifySuccess, emptyValues, notifyFailure } from '@/utils/helpers'
+import { notifySuccess, parseParameterValues, objectFromFormat, notifyFailure } from '@/utils/helpers'
 
 export default {
   name: 'presets',
@@ -37,9 +37,48 @@ export default {
   },
   data: () => ({
     presets: [],
+    unparsed_presets: [],
     formData: {},
+    parameters: {},
+    presets_types: [],
     edit: false
   }),
+  computed: {
+    formFormat() {
+      const base = [
+        {
+          name: 'id',
+          label: 'ID',
+          type: 'text',
+          disabled: true
+        },
+        {
+          name: 'name',
+          label: 'Name',
+          type: 'text',
+          disabled: true
+        },
+        {
+          name: 'description',
+          label: 'Description',
+          type: 'textarea',
+          disabled: true
+        },
+        {
+          name: 'type',
+          label: 'Type',
+          type: 'select',
+          required: true,
+          options: this.presets_types,
+          disabled: this.edit
+        }
+      ]
+      if (this.parameters[this.formData.type]) {
+        return base.concat(this.parameters[this.formData.type])
+      }
+      return base
+    }
+  },
   methods: {
     ...mapActions('config', ['loadPublisherPresets']),
     ...mapGetters('config', ['getPublisherPresets']),
@@ -47,7 +86,19 @@ export default {
     updateData() {
       this.loadPublisherPresets().then(() => {
         const sources = this.getPublisherPresets()
-        this.presets = sources.items
+        this.unparsed_presets = sources.items
+        this.presets = parseParameterValues(sources.items)
+
+        this.presets_types = sources.items.map(item => {
+          this.parameters[item.type] = item.parameter_values.map(param => {
+            return {
+              name: param.parameter.key,
+              label: param.parameter.key,
+              type: 'text'
+            }
+          })
+          return item.type
+        })
         this.updateItemCount({
           total: sources.total_count,
           filtered: sources.length
@@ -55,7 +106,7 @@ export default {
       })
     },
     addItem() {
-      this.formData = emptyValues(this.presets[0])
+      this.formData = objectFromFormat(this.formFormat)
       this.edit = false
     },
     editItem(item) {

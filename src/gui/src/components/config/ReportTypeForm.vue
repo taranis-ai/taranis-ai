@@ -1,6 +1,9 @@
 <template>
   <v-container fluid class="ma-5 mt-5 pa-5 pt-0">
-    <v-form @submit.prevent="add" id="form" ref="form" class="px-4">
+    <v-form @submit.prevent="add" id="form" ref="form">
+      <v-row no-gutters>
+        <v-btn type="submit" color="success" class="mr-4"> Submit </v-btn>
+      </v-row>
       <v-row no-gutters>
         <v-col cols="12" class="cation grey--text" v-if="edit">
           ID:{{ report_type.id }}
@@ -14,7 +17,6 @@
             v-validate="'required'"
             data-vv-name="name"
             :error-messages="errors.collect('name')"
-            :spellcheck="$store.state.settings.spellcheck"
           />
         </v-col>
         <v-col cols="12">
@@ -23,7 +25,6 @@
             :label="$t('report_type.description')"
             name="description"
             v-model="report_type.description"
-            :spellcheck="$store.state.settings.spellcheck"
           />
         </v-col>
       </v-row>
@@ -78,16 +79,10 @@
                 v-model="group.section_title"
                 :spellcheck="$store.state.settings.spellcheck"
               ></v-text-field>
-              <ConfigTable
-                :addButton="true"
-                :showSearch="false"
-                :items.sync="
-                  report_type.attribute_groups[index].attribute_group_items
-                "
-                :actionColumn="true"
-                @delete-item="(item) => deleteAttributeItem(index, item)"
-                @edit-item="(item) => editAttributeItem(index, item)"
-                @add-item="() => addAttributeItem(index)"
+              <AttributeTable
+                :attributes.sync="report_type.attribute_groups[index].attribute_group_items"
+                @update="(items) => updateAttributeGroupItems(index, items)"
+                :disabled="!canUpdate"
               />
             </v-card-text>
           </v-card>
@@ -99,20 +94,18 @@
 
 <script>
 import { createReportItemType, updateReportItemType } from '@/api/config'
-import ConfigTable from '../../components/config/ConfigTable'
+import AttributeTable from './AttributeTable'
 import AuthMixin from '@/services/auth/auth_mixin'
 import Permissions from '@/services/auth/permissions'
-import { mapActions, mapGetters } from 'vuex'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
 
 export default {
   name: 'NewReportType',
   components: {
-    ConfigTable
+    AttributeTable
   },
   data: () => ({
     edit: false,
-    attribute_templates: [],
     report_type: {
       id: -1,
       title: '',
@@ -136,21 +129,9 @@ export default {
     }
   },
   methods: {
-    ...mapGetters('config', ['getAttributes']),
-    ...mapActions('config', ['loadAttributes']),
-    addAttributeItem(index) {
-      const default_attribute = {
-        index: 0,
-        id: -1,
-        attribute_id: -1,
-        attribute_name: '',
-        title: '',
-        description: '',
-        min_occurrence: 0,
-        max_occurrence: 1
-      }
-      this.report_type.attribute_groups[index].attribute_group_items = default_attribute
-      console.debug(`Add Attribute Item ${default_attribute}`)
+    updateAttributeGroupItems(index, items) {
+      console.debug('RECEIVED')
+      this.report_type.attribute_groups[index].attribute_group_items = items
     },
     editAttributeItem(index, item) {
       console.debug(`Edit Attribute Item ${item}`)
@@ -176,7 +157,8 @@ export default {
         description: '',
         section: -1,
         section_title: '',
-        attribute_group_items: []
+        attribute_group_items: [
+        ]
       })
     },
 
@@ -205,6 +187,8 @@ export default {
     },
 
     add() {
+      console.debug('Submitting: ')
+      console.debug(this.report_type.attribute_groups)
       this.$validator.validateAll().then(() => {
         if (!this.$validator.errors.any()) {
           for (let x = 0; x < this.report_type.attribute_groups.length; x++) {
@@ -248,10 +232,6 @@ export default {
     }
   },
   mounted() {
-    this.loadAttributes().then(() => {
-      this.attribute_templates = this.getAttributes().items
-    })
-
     if (this.report_type_data) {
       this.edit = true
       this.report_type = this.report_type_data

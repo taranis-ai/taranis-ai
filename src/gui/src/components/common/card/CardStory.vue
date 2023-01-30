@@ -31,9 +31,9 @@
       class="story-corner-tag"
     >
       <v-icon x-small left v-if="story.sharingState === 'shared'"
-        >$awakeShare</v-icon
+        >mdi-share</v-icon
       >
-      <v-icon x-small left v-else>$awakeShareOutline</v-icon>
+      <v-icon x-small left v-else>mdi-share-outline</v-icon>
     </div>
     <div
       v-if="story.isSharingSet && story.sharingDirection === 'incoming'"
@@ -44,10 +44,10 @@
         left
         class="flipped-icon"
         v-if="story.sharingState === 'shared'"
-        >$awakeShare</v-icon
+        >mdi-share</v-icon
       >
       <v-icon x-small left class="flipped-icon" v-else
-        >$awakeShareOutline</v-icon
+        >mdi-share-outline</v-icon
       >
     </div>
 
@@ -182,7 +182,7 @@
             <v-col cols="12" md="4" class="mx-0 d-flex justify-end">
               <button-outlined
                 label="view story"
-                icon="$awakeEye"
+                icon="mdi-eye"
                 extraClass="mt-1"
                 @click="viewStory($event)"
               />

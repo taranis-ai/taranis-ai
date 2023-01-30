@@ -8,7 +8,7 @@
     :class="['fab-pin', { pinned: value }]"
     @click.native.capture="toggleValue($event)"
   >
-    <v-icon>$awakePin</v-icon>
+    <v-icon>mdi-pin</v-icon>
   </v-btn>
 </template>
 

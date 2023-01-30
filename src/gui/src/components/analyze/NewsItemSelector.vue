@@ -273,17 +273,16 @@ export default {
   },
 
   mounted () {
-    this.loadOSINTSourceGroups()
-      .then(() => {
-        this.groups = this.getOSINTSourceGroups()
-        for (let i = 0; i < this.groups.length; i++) {
-          this.links.push({
-            icon: 'mdi-folder-multiple',
-            title: this.groups[i].name,
-            id: this.groups[i].id
-          })
-        }
-      })
+    this.loadOSINTSourceGroups().then(() => {
+      this.groups = this.getOSINTSourceGroups()
+      for (let i = 0; i < this.groups.length; i++) {
+        this.links.push({
+          icon: 'mdi-folder-multiple',
+          title: this.groups[i].name,
+          id: this.groups[i].id
+        })
+      }
+    })
     this.$root.$on('report-item-updated', this.report_item_updated)
   },
 
@@ -292,9 +291,3 @@ export default {
   }
 }
 </script>
-
-<style>
-.row {
-  margin: 0;
-}
-</style>

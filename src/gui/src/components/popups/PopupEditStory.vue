@@ -39,7 +39,7 @@
         <v-spacer></v-spacer>
         <button-outlined
           label="cancel"
-          icon="$awakeClose"
+          icon="mdi-close"
           color="awake-red-color"
           extraClass="mr-2"
           @click="$emit('close')"

@@ -61,7 +61,7 @@ class AttributeGroupItem(db.Model):
 
 
 class NewAttributeGroupSchema(AttributeGroupBaseSchema):
-    attribute_group_items = fields.Nested("NewAttributeGroupItemSchema", many=True)
+    attribute_group_items = fields.Nested(NewAttributeGroupItemSchema, many=True)
 
     @post_load
     def make_attribute_group(self, data, **kwargs):
@@ -148,7 +148,7 @@ class AttributeGroup(db.Model):
 
 
 class NewReportItemTypeSchema(ReportItemTypeBaseSchema):
-    attribute_groups = fields.Nested("NewAttributeGroupSchema", many=True)
+    attribute_groups = fields.Nested(NewAttributeGroupSchema, many=True)
 
     @post_load
     def make_report_item_type(self, data, **kwargs):
@@ -166,7 +166,7 @@ class ReportItemType(db.Model):
         cascade="all, delete-orphan",
     )
 
-    def __init__(self, title, description, attribute_groups):
+    def __init__(self, id, title, description, attribute_groups):
         self.id = None
         self.title = title
         self.description = description
@@ -233,6 +233,8 @@ class ReportItemType(db.Model):
         for report_item_type in report_item_types:
             for attribute_group in report_item_type.attribute_groups:
                 for attribute_group_item in attribute_group.attribute_group_items:
+                    attribute_group_item.attribute_id = attribute_group_item.attribute.id
+                    attribute_group_item.attribute_name = attribute_group_item.attribute.name
                     attribute_group_item.attribute.attribute_enums = Attribute.get_enums(attribute_group_item.attribute)
 
         report_item_type_schema = ReportItemTypePresentationSchema(many=True)
@@ -255,7 +257,6 @@ class ReportItemType(db.Model):
         report_type = cls.query.get(report_type_id)
         report_type.title = updated_report_type.title
         report_type.description = updated_report_type.description
-
         for updated_attribute_group in updated_report_type.attribute_groups:
             found = False
             for attribute_group in report_type.attribute_groups:

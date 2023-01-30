@@ -8,7 +8,7 @@ class Settings(BaseSettings):
         env_file = ".env"
         env_file_encoding = "utf-8"
 
-    API_KEY: str
+    API_KEY: str = "supersecret"
     NODE_NAME: str = "MyCollector"
     NODE_DESCRIPTION: str = ""
     SSL_VERIFICATION: bool = False

@@ -536,6 +536,13 @@ textarea {
   height: calc(1.5em * 4);
 }
 
+.news-item-summary-no-clip {
+  color: $dark-grey;
+  margin-bottom: 0px !important;
+  font-weight: 300;
+  font-size: 13px;
+}
+
 .news-item-meta-infos.row {
   margin-top: 12px;
   min-height: 20px;

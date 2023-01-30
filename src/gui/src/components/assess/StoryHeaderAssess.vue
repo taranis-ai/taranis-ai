@@ -88,7 +88,7 @@
                           v-bind="attrs"
                           v-on="on"
                         >
-                          <v-icon left>$awakeEdit</v-icon>
+                          <v-icon left>mdi-file-edit</v-icon>
                           edit
                         </v-btn>
                       </template>
@@ -202,7 +202,7 @@
               </v-col>
               <v-col>
                 <v-icon left small class="icon-color-grey"
-                  >$awakeShareOutline</v-icon
+                  >mdi-share-outline</v-icon
                 >
                 <span>{{ getMetaData().numberSharedItems }}</span>
               </v-col>

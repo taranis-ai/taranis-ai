@@ -10,14 +10,16 @@
       @edit-item="editItem"
       @add-item="addItem"
     />
-    <ReportTypeForm>
+    <ReportTypeForm
+      v-if="formData && Object.keys(formData).length > 0"
+      :report_type_data="formData"
+    >
     </ReportTypeForm>
   </div>
 </template>
 
 <script>
 import ConfigTable from '../../components/config/ConfigTable'
-// import EditConfig from '../../components/config/EditConfig'
 import ReportTypeForm from '../../components/config/ReportTypeForm'
 import {
   deleteReportItemType,
@@ -38,45 +40,7 @@ export default {
     formData: {},
     edit: false
   }),
-  computed: {
-    formFormat() {
-      return [
-        {
-          name: 'id',
-          label: 'ID',
-          type: 'text',
-          disabled: true
-        },
-        {
-          name: 'title',
-          label: 'Title',
-          type: 'text',
-          required: true
-        },
-        {
-          name: 'description',
-          label: 'Description',
-          type: 'textarea',
-          required: true
-        },
-        {
-          name: 'attribute_groups',
-          label: 'Attribute Groups',
-          type: 'table',
-          addButton: true,
-          headers: [
-            { text: 'Title', value: 'title' },
-            { text: 'Description', value: 'description' },
-            { text: 'Section', value: 'section', type: 'number' },
-            { text: 'Section Title', value: 'section_title' },
-            { text: 'Index', value: 'index', type: 'number' },
-            { text: 'Attribute Group Items', value: 'attribute_group_items' }
-          ],
-          items: this.formData.attribute_groups
-        }
-      ]
-    }
-  },
+  computed: {},
   methods: {
     ...mapActions('config', ['loadReportItemTypesConfig']),
     ...mapGetters('config', ['getReportItemTypesConfig']),

@@ -230,8 +230,6 @@ export default {
         this.description = news_item.description
         this.editorData = this.news_item.comments
       }
-
-      this.$root.$emit('first-dialog', 'push')
     },
     close () {
       this.visible = false
@@ -241,7 +239,6 @@ export default {
         })
       }
       this.$root.$emit('change-state', 'DEFAULT')
-      this.$root.$emit('first-dialog', '')
     },
     openUrlToNewTab: function (url) {
       window.open(url, '_blank')

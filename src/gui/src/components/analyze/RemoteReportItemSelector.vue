@@ -219,25 +219,26 @@ export default {
     }
   },
   mounted () {
-    this.loadReportItemGroups()
-      .then(() => {
-        this.groups = this.getReportItemGroups()
+    this.loadReportItemGroups().then(() => {
+      this.groups = this.getReportItemGroups()
 
-        for (let i = 0; i < this.groups.length; i++) {
-          this.links.push({
-            icon: 'mdi-arrow-down-bold-circle-outline',
-            title: this.groups[i],
-            id: this.groups[i]
-          })
-        }
+      for (let i = 0; i < this.groups.length; i++) {
+        this.links.push({
+          icon: 'mdi-arrow-down-bold-circle-outline',
+          title: this.groups[i],
+          id: this.groups[i]
+        })
+      }
 
-        if (this.getCurrentReportItemGroup() === null && this.links.length > 0) {
+      if (this.getCurrentReportItemGroup() === null && this.links) {
+        if (this.links.length > 0) {
           this.selected_group_id = this.links[0].id
           this.changeCurrentReportItemGroup(this.links[0].id)
-        } else {
-          this.selected_group_id = this.getCurrentReportItemGroup()
         }
-      })
+      } else {
+        this.selected_group_id = this.getCurrentReportItemGroup()
+      }
+    })
 
     this.$root.$on('report-item-updated', this.report_item_updated)
   },

@@ -23,14 +23,13 @@ class ReportItemGroups(Resource):
 class ReportItems(Resource):
     @auth_required("ANALYZE_ACCESS")
     def get(self):
-
         try:
             filter_keys = ["search", "completed", "incompleted", "range", "sort"]
             filter_args = {k: v for k, v in request.args.items() if k in filter_keys}
 
-            group = None
-            if "group" in request.args and request.args["group"]:
-                group = int(request.args["group"])
+            group = request.args.get("group", None)
+            if group:
+                group = int(group)
 
             offset = int(request.args.get("offset", 0))
             limit = min(int(request.args.get("limit", 50)), 200)
@@ -72,7 +71,6 @@ class ReportItem(Resource):
         result, code = report_item.ReportItem.delete_report_item(report_item_id)
         if code == 200:
             sse_manager.report_items_updated()
-
         return result, code
 
 

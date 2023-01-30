@@ -45,7 +45,7 @@
                         v-if="getStoryDetails(storyId).isSharingSet"
                       >
                         <v-icon left x-small class="mr-1 flipped-icon"
-                          >$awakeShare</v-icon
+                          >mdi-share</v-icon
                         >
                         Shared Set
                       </v-col>
@@ -168,7 +168,7 @@
 
         <button-outlined
           label="cancel"
-          icon="$awakeClose"
+          icon="mdi-close"
           color="awake-red-color"
           extraClass="mr-2"
           @click="$emit('close')"
@@ -176,7 +176,7 @@
 
         <button-outlined
           label="merge stories"
-          icon="$awakeMerge"
+          icon="mdi-merge"
           color="primary"
           @click="mergeSelectedStories()"
         />

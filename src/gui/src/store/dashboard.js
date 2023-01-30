@@ -142,11 +142,6 @@ const getters = {
     return filteredStories.map(function (story) { return { id: story.id, title: story.title } })
   },
 
-  getSharingSetSelectionList(state) {
-    const filteredStories = state.stories.filter((story) => story.isSharingSet)
-    return filteredStories.map(function (story) { return { id: story.id, title: story.title } })
-  },
-
   getDashboardData(state) {
     return state.dashboard_data
   },

@@ -5,18 +5,33 @@
         <v-row justify="center">
           <!-- SORT -->
           <v-chip-group
-              v-if="sorted_values.length > 1"
-              active-class="success"
-              color=""
-              class="pr-4"
-              mandatory
-
+            v-if="sorted_values.length > 1"
+            active-class="success"
+            color=""
+            class="pr-4"
+            mandatory
           >
-            <v-chip small class="px-0 mr-1" :title="$t('report_item.tooltip.sort_time')">
-              <v-icon class="px-2" small center @click="sort(false)">mdi-clock-outline</v-icon>
+            <v-chip
+              small
+              class="px-0 mr-1"
+              :title="$t('report_item.tooltip.sort_time')"
+            >
+              <v-icon class="px-2" small center @click="sort(false)"
+                >mdi-clock-outline</v-icon
+              >
             </v-chip>
-            <v-chip small class="px-0 mr-1" :title="$t('report_item.tooltip.sort_user')">
-              <v-icon class="px-2" small center @click="sort(true, $store.getters.getUserName)">mdi-account</v-icon>
+            <v-chip
+              small
+              class="px-0 mr-1"
+              :title="$t('report_item.tooltip.sort_user')"
+            >
+              <v-icon
+                class="px-2"
+                small
+                center
+                @click="sort(true, $store.getters.getUserName)"
+                >mdi-account</v-icon
+              >
             </v-chip>
           </v-chip-group>
         </v-row>
@@ -27,7 +42,15 @@
     </v-row>
     <v-row class="ml-3 mr-5">
       <slot name="footer" class="pr-0">
-        <v-btn v-if="add_button" depressed small block class="mt-2 " @click="add" :title="$t('report_item.tooltip.add_value')">
+        <v-btn
+          v-if="add_button"
+          depressed
+          small
+          block
+          class="mt-2"
+          @click="add"
+          :title="$t('report_item.tooltip.add_value')"
+        >
           <v-icon center>mdi-plus</v-icon>
         </v-btn>
       </slot>
@@ -46,11 +69,11 @@ export default {
     sorted_values: this.values
   }),
   methods: {
-    add () {
+    add() {
       this.$emit('add-value')
     },
 
-    sort (my_first, user_name) {
+    sort(my_first, user_name) {
       this.sorted_values.sort(function (a, b) {
         if (my_first) {
           if (user_name === a.user.name && user_name !== b.user.name) {
@@ -60,14 +83,7 @@ export default {
           }
         }
 
-        if (a.last_updated < b.last_updated) {
-          return -1
-        } else if (a.last_updated > b.last_updated) {
-          // FIXME(mw): Is this needed? This is identical to the default case below
-          return 1
-        } else {
-          return 1
-        }
+        return (a.last_updated < b.last_updated) ? -1 : 1
       })
     }
   }

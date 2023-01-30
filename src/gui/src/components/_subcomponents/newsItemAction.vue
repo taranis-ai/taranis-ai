@@ -10,7 +10,8 @@
         :class="[{ active: active ? active : false }, extraClass]"
         @click.native.capture="execute($event)"
       >
-        <v-icon> {{ icon }} </v-icon>
+        <v-icon color="black">{{ icon }}</v-icon>
+        {{ buttonText }}
       </v-btn>
     </template>
     <span>{{ tooltip }}</span>
@@ -24,7 +25,8 @@ export default {
     active: Boolean,
     icon: String,
     extraClass: String,
-    tooltip: String
+    tooltip: String,
+    buttonText: { type: String, default: '' }
   },
   methods: {
     execute (event) {

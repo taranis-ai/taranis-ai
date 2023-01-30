@@ -5,7 +5,7 @@
     app
     color="cx-drawer-bg"
     class="sidebar"
-    :width="142"
+    :width="width"
     style="max-height: 100% !important; height: calc(100vh - 48px) !important"
   >
     <v-layout class="navigation" fill-height justify-center>
@@ -41,7 +41,11 @@ export default {
     titles: Array,
     links: Array,
     icon: String,
-    filter: Boolean
+    filter: Boolean,
+    width: {
+      type: Number,
+      default: 142
+    }
   },
   mixins: [AuthMixin],
   data: () => ({}),

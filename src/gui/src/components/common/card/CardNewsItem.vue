@@ -11,33 +11,21 @@
         'news-item',
         'dark-grey--text',
         {
-          selected: selected,
-          //'corner-tag-shared': item.shared && !item.restricted,
-          //'corner-tag-restricted': item.restricted,
-          //'status-important': item.important,
-          //'status-unread': !item.read,
-        },
+          selected: selected
+        }
       ]"
       @click="toggleSelection"
     >
       <div
         v-if="newsItem.shared && !newsItem.restricted"
-        class="
-          news-item-corner-tag
-          text-caption text-weight-bold text-uppercase
-          white--text
-        "
+        class="news-item-corner-tag text-caption text-weight-bold text-uppercase white--text"
       >
-        <v-icon x-small class="flipped-icon">$awakeShare</v-icon>
+        <v-icon x-small class="flipped-icon">mdi-share</v-icon>
       </div>
 
       <div
         v-if="newsItem.restricted"
-        class="
-          news-item-corner-tag
-          text-caption text-weight-bold text-uppercase
-          white--text
-        "
+        class="news-item-corner-tag text-caption text-weight-bold text-uppercase white--text"
       >
         <v-icon x-small>mdi-lock-outline</v-icon>
       </div>
@@ -46,7 +34,7 @@
 
       <div class="news-item-action-bar">
         <news-item-action-dialog
-          icon="$newsItemActionRemove"
+          icon="mdi-delete"
           tooltip="remove item"
           ref="deleteDialog"
         >
@@ -59,24 +47,35 @@
 
         <news-item-action
           :active="newsItem.read"
-          icon="$newsItemActionRead"
+          icon="mdi-email-mark-as-unread"
           @click="markAsRead()"
           tooltip="mark as read/unread"
         />
 
         <news-item-action
           :active="newsItem.important"
-          icon="$newsItemActionImportant"
+          icon="mdi-exclamation"
           @click="markAsImportant()"
           tooltip="mark as important"
         />
 
         <news-item-action
           :active="newsItem.decorateSource"
-          icon="$newsItemActionRibbon"
+          icon="mdi-seal"
           @click="decorateSource()"
           tooltip="emphasise originator"
         />
+
+        <news-item-action-dialog
+          icon="mdi-google-circles-communities"
+          tooltip="add to report"
+          :showDialog="sharingDialog"
+          @close="sharingDialog = false"
+        >
+        <popup-share-items
+          :newsItem="newsItem"
+        />
+        </news-item-action-dialog>
       </div>
 
       <v-container no-gutters class="ma-0 pa-0">
@@ -97,7 +96,7 @@
 
               <v-row class="flex-grow-0 mt-0">
                 <v-col>
-                  <p class="news-item-summary">
+                  <p :class="news_item_summary_class">
                     {{ getDescription() }}
                   </p>
                 </v-col>
@@ -108,32 +107,33 @@
                   cols="12"
                   class="mx-0 d-flex justify-start flex-wrap pt-1 pb-8"
                 >
+
                   <v-btn
                     class="buttonOutlined mr-1 mt-1"
                     :style="{ borderColor: '#c8c8c8' }"
                     outlined
-                    @click="createReport($event)"
+                    @click.stop="addToReport()"
                   >
-                    <v-icon>$awakeReport</v-icon>
-                    <span>create report</span>
+                    <v-icon>mdi-google-circles-communities</v-icon>
+                    <span>add to report</span>
                   </v-btn>
                   <v-btn
                     class="buttonOutlined mr-1 mt-1"
                     :style="{ borderColor: '#c8c8c8' }"
                     outlined
-                    @click="viewDetails($event)"
+                    @click.stop="viewDetails = true"
                   >
-                    <v-icon>$awakeEye</v-icon>
+                    <v-icon>mdi-eye</v-icon>
                     <span>view Details</span>
                   </v-btn>
                   <v-btn
                     class="buttonOutlined mr-1 mt-1"
                     :style="{ borderColor: '#c8c8c8' }"
                     outlined
-                    @click="viewSingleDetails($event)"
+                    @click.stop="openSummary = !openSummary"
                   >
-                    <v-icon>$awakeEye</v-icon>
-                    <span>Open</span>
+                    <v-icon>{{ news_item_summary_icon }}</v-icon>
+                    <span>{{ news_item_summary_text }}</span>
                   </v-btn>
 
                   <div class="d-flex align-start justify-center mr-3 ml-2 mt-1">
@@ -172,7 +172,12 @@
                   <strong>Published:</strong>
                 </v-col>
                 <v-col>
-                  {{ getPublishedDate() }}
+                  <span class="red--text">
+                    {{ getPublishedDate() }}
+                  </span>
+                  <v-icon v-if="published_date_outdated" small color="red"
+                    >mdi-alert</v-icon
+                  >
                 </v-col>
               </v-row>
               <v-row class="news-item-meta-infos">
@@ -222,7 +227,7 @@
                       small
                       v-if="newsItem.decorateSource"
                       class="ml-0"
-                      >$awakeRibbon</v-icon
+                      >mdi-seal</v-icon
                     >
                   </span>
                 </v-col>
@@ -232,11 +237,7 @@
                   <strong>Tags:</strong>
                 </v-col>
                 <v-col>
-                  <tag-list
-                    key="tags"
-                    limit=5
-                    :tags="getTags()"
-                  />
+                  <tag-list key="tags" limit="5" :tags="getTags()" />
                 </v-col>
               </v-row>
             </v-container>
@@ -244,8 +245,12 @@
         </v-row>
       </v-container>
     </v-card>
-    <NewsItemDetail ref="newsItemDetail" />
-    <NewsItemSingleDetail ref="newsItemSingleDetail" />
+    <NewsItemDetail
+      v-if="viewDetails"
+      @view="updateDetailsView"
+      :view_details_prop.sync="viewDetails"
+      :news_item_prop="newsItem.news_items[0]"
+    />
   </v-col>
 </template>
 
@@ -255,8 +260,9 @@ import TagList from '@/components/common/tags/TagList'
 import newsItemAction from '@/components/_subcomponents/newsItemAction'
 import newsItemActionDialog from '@/components/_subcomponents/newsItemActionDialog'
 import PopupDeleteItem from '@/components/popups/PopupDeleteItem'
+import PopupShareItems from '@/components/popups/PopupShareItems'
+
 import NewsItemDetail from '@/components/assess/NewsItemDetail'
-import NewsItemSingleDetail from '@/components/assess/NewsItemSingleDetail'
 
 import votes from '@/components/_subcomponents/votes'
 import { isValidUrl, stripHtml } from '@/utils/helpers'
@@ -270,8 +276,8 @@ export default {
     newsItemAction,
     newsItemActionDialog,
     PopupDeleteItem,
+    PopupShareItems,
     NewsItemDetail,
-    NewsItemSingleDetail,
     votes
   },
   props: {
@@ -280,19 +286,51 @@ export default {
     selected: Boolean
   },
   data: () => ({
+    viewDetails: false,
+    openSummary: false,
+    sharingDialog: false
   }),
   computed: {
     item_selected() {
       return this.has('selected') ? this.get('selected') : false
     },
-    item_read() {
-      return this.newsItem.has('read') ? this.newsItem.get('read') : false
-    },
     item_important() {
-      return this.newsItem.has('important') ? this.newsItem.get('important') : false
+      return this.newsItem.has('important')
+        ? this.newsItem.get('important')
+        : false
     },
     item_decorateSource() {
-      return this.newsItem.has('decorateSource') ? this.newsItem.get('decorateSource') : false
+      return this.newsItem.has('decorateSource')
+        ? this.newsItem.get('decorateSource')
+        : false
+    },
+    published_date() {
+      const published = this.newsItem.news_items[0].news_item_data.published
+      return published ? moment(published) : false
+    },
+    news_item_summary_class() {
+      return this.openSummary
+        ? 'news-item-summary-no-clip'
+        : 'news-item-summary'
+    },
+    news_item_summary_icon() {
+      return this.openSummary
+        ? 'mdi-unfold-less-horizontal'
+        : 'mdi-unfold-more-horizontal'
+    },
+    news_item_summary_text() {
+      return this.openSummary ? 'Close' : 'Open'
+    },
+    published_date_outdated() {
+      const pub_date = this.published_date
+      if (!pub_date) {
+        return false
+      }
+      const last_week = moment().subtract(1, 'week') // date one week ago
+      if (last_week.diff(pub_date, 'weeks') > 0) {
+        return true
+      }
+      return false
     }
   },
   methods: {
@@ -319,22 +357,25 @@ export default {
     downvote(event) {
       this.$emit('downvoteItem', this.newsItem.id)
     },
-
-    viewDetails(event) {
-      this.$refs.newsItemDetail.open(this.newsItem)
-    },
     viewSingleDetails(event) {
       this.$refs.newsItemSingleDetail.open(this.newsItem)
     },
-    createReport(event) {
-      console.log('not yet implemented')
+    addToReport() {
+      this.sharingDialog = true
     },
     showRelated(event) {
       console.log('not yet implemented')
     },
 
+    updateDetailsView(value) {
+      this.viewDetails = value
+    },
+
     getDescription() {
-      return stripHtml(this.newsItem.description + this.newsItem.news_items[0].news_item_data.content)
+      return stripHtml(
+        this.newsItem.description +
+          this.newsItem.news_items[0].news_item_data.content
+      )
     },
 
     getTags() {
@@ -342,8 +383,10 @@ export default {
     },
 
     getPublishedDate() {
-      const published = this.newsItem.news_items[0].news_item_data.published
-      if (published) return moment(published).format('DD/MM/YYYY hh:mm:ss')
+      const published = this.published_date
+      if (published) {
+        return moment(published).format('DD/MM/YYYY hh:mm:ss')
+      }
       return '** no published date **'
     },
 
@@ -397,8 +440,6 @@ export default {
   updated() {
     // console.log('card rendered!')
   },
-  mounted() {
-    this.$emit('init')
-  }
+  mounted() {}
 }
 </script>

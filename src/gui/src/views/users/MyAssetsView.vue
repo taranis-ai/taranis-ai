@@ -38,7 +38,7 @@ export default {
   },
   computed: {
     canAddAssets () {
-      return this.$store.getters.getAssetGroups.items.length > 0
+      return this.$store.getters['assets/getAssetGroups'].items.length > 0
     }
   },
   mounted () {
