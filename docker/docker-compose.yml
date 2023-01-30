@@ -28,6 +28,11 @@ services:
       POSTGRES_USER: "${DB_USER}"
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
     command: ["postgres", "-c", "shared_buffers=${DB_SHARED_BUFFERS}", "-c", "max_connections=${DB_MAX_CONNECTIONS}"]
+    healthcheck:
+      test: ["CMD-SHELL", "sh -c 'pg_isready -U ${DB_USER} -d ${DB_DATABASE}'"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
     volumes:
       - "database_data:/var/lib/postgresql/data"
     logging:
@@ -38,8 +43,10 @@ services:
 
   core:
     depends_on:
-      - "redis"
-      - "database"
+      redis:
+        condition: service_started
+      database:
+        condition: service_healthy
     deploy:
       restart_policy:
         condition: on-failure
@@ -60,12 +67,11 @@ services:
       JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
       OPENID_LOGOUT_URL: ""
       WORKERS_PER_CORE: "1"
+      WEB_CONCURRENCY: "1"
       TARANIS_NG_SAMPLE_DATA: "true"
 
       CVE_UPDATE_FILE: "${CVE_UPDATE_FILE}"
       CPE_UPDATE_FILE: "${CPE_UPDATE_FILE}"
-
-      TZ: "${TZ}"
       SECRET_KEY: "${API_KEY}"
       API_KEY: "${API_KEY}"
     labels:

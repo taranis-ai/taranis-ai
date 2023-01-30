@@ -31,7 +31,8 @@ def pre_seed(app):
         logger.log_debug("Workres seeded")
 
     except Exception:
-        logger.log_debug_trace("Pre Seed failed")
+        logger.log_debug_trace()
+        logger.critical("Pre Seed failed")
 
 
 def pre_seed_source_groups():
@@ -41,11 +42,10 @@ def pre_seed_source_groups():
 
 
 def pre_seed_workers():
+    from core.managers.workers_pre_seed import collectors, parameters, bots
     from core.model.collector import Collector
     from core.model.parameter import Parameter
-    from core.managers.workers_pre_seed import collectors, parameters
     from core.model.bot import Bot
-    from core.managers.workers_pre_seed import bots
 
     for p in parameters:
         Parameter.add(p)

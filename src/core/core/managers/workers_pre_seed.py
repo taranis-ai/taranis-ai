@@ -263,6 +263,48 @@ parameters = [
         "description": "language",
         "type": "STRING",
     },
+    {
+        "name": "Header template path",
+        "description": "Path of header template file",
+        "key": "HEADER_TEMPLATE_PATH",
+        "type": "STRING",
+    },
+    {
+        "name": "Body template path",
+        "description": "Path of body template file",
+        "key": "BODY_TEMPLATE_PATH",
+        "type": "STRING",
+    },
+    {
+        "name": "Footer template path",
+        "description": "Path of footer template file",
+        "key": "FOOTER_TEMPLATE_PATH",
+        "type": "STRING",
+    },
+    {
+        "name": "HTML template with its path",
+        "description": "Path of html template file",
+        "key": "HTML_TEMPLATE_PATH",
+        "type": "STRING",
+    },
+    {
+        "name": "TEXT template with its path",
+        "description": "Path of text template file",
+        "key": "TEXT_TEMPLATE_PATH",
+        "type": "STRING",
+    },
+    {
+        "name": "MISP template with its path",
+        "description": "Path of MISP template file",
+        "key": "MISP_TEMPLATE_PATH",
+        "type": "STRING",
+    },
+    {
+        "name": "FTP URL",
+        "description": "FTP server url",
+        "key": "FTP_URL",
+        "type": "STRING",
+    },
 ]
 
 
@@ -396,18 +438,9 @@ bots = [
         "type": "GROUPING_BOT",
         "name": "Grouping Bot",
         "parameter_values": [
-            {
-                "value": "",
-                "parameter": "SOURCE_GROUP"
-            },
-            {
-                "value": "",
-                "parameter": "REGULAR_EXPRESSION"
-            },
-            {
-                "value": "",
-                "parameter": "REFRESH_INTERVAL"
-            },
+            {"value": "", "parameter": "SOURCE_GROUP"},
+            {"value": "", "parameter": "REGULAR_EXPRESSION"},
+            {"value": "", "parameter": "REFRESH_INTERVAL"},
         ],
         "description": "Bot for grouping news items into aggregates",
     },
@@ -415,18 +448,9 @@ bots = [
         "type": "NLP_BOT",
         "name": "NLP Bot",
         "parameter_values": [
-            {
-                "value": "",
-                "parameter": "SOURCE_GROUP"
-            },
-            {
-                "value": "",
-                "parameter": "LANGUAGE"
-            },
-            {
-                "value": "",
-                "parameter": "REFRESH_INTERVAL"
-            },
+            {"value": "", "parameter": "SOURCE_GROUP"},
+            {"value": "", "parameter": "LANGUAGE"},
+            {"value": "", "parameter": "REFRESH_INTERVAL"},
         ],
         "description": "Bot for naturale language processing of news items",
     },
@@ -434,19 +458,137 @@ bots = [
         "type": "TAGGING_BOT",
         "name": "Tagging Bot",
         "parameter_values": [
-            {
-                "value": "",
-                "parameter": "SOURCE_GROUP"
-            },
-            {
-                "value": "",
-                "parameter": "KEYWORDS"
-            },
-            {
-                "value": "",
-                "parameter": "REFRESH_INTERVAL"
-            },
+            {"value": "", "parameter": "SOURCE_GROUP"},
+            {"value": "", "parameter": "KEYWORDS"},
+            {"value": "", "parameter": "REFRESH_INTERVAL"},
         ],
         "description": "Bot for tagging news items",
+    },
+]
+
+
+presenters = [
+    {
+        "type": "PDF_PRESENTER",
+        "description": "Presenter for generating PDF documents",
+        "id": "375202da-a082-4bab-a294-83855a813eae",
+        "parameters": ["HEADER_TEMPLATE_PATH", "BODY_TEMPLATE_PATH", "FOOTER_TEMPLATE_PATH"],
+        "name": "PDF Presenter",
+    },
+    {
+        "type": "HTML_PRESENTER",
+        "description": "Presenter for generating html documents",
+        "id": "80efdd0d-1b3a-4e39-9413-bc0409cb5b7b",
+        "parameters": ["HTML_TEMPLATE_PATH"],
+        "name": "HTML Presenter",
+    },
+    {
+        "type": "TEXT_PRESENTER",
+        "description": "Presenter for generating text documents",
+        "id": "cca1bff7-8c3f-4d40-908b-5bf586595277",
+        "parameters": ["TEXT_TEMPLATE_PATH"],
+        "name": "TEXT Presenter",
+    },
+    {
+        "type": "MISP_PRESENTER",
+        "description": "Presenter for generating MISP platform",
+        "id": "03d5bd9c-270e-4150-b5c6-8ec11a460af0",
+        "parameters": ["MISP_TEMPLATE_PATH"],
+        "name": "MISP Presenter",
+    },
+]
+
+publishers = [
+    {
+        "type": "FTP_PUBLISHER",
+        "description": "Publisher for publishing to FTP server",
+        "id": "d18b4e93-f72d-4798-b4af-aefac10111a6",
+        "parameters": [{"type": "STRING", "description": "FTP server url", "key": "FTP_URL", "id": 64, "name": "FTP URL"}],
+        "name": "FTP Publisher",
+    },
+    {
+        "type": "EMAIL_PUBLISHER",
+        "description": "Publisher for publishing by email",
+        "id": "d772cf32-0d3e-46c9-a37d-e7aa4c445def",
+        "parameters": [
+            {"type": "STRING", "description": "SMTP server for sending emails", "key": "SMTP_SERVER", "id": 65, "name": "SMTP server"},
+            {
+                "type": "STRING",
+                "description": "SMTP server port for sending emails",
+                "key": "SMTP_SERVER_PORT",
+                "id": 66,
+                "name": "SMTP server port",
+            },
+            {"type": "STRING", "description": "Username for email account", "key": "EMAIL_USERNAME", "id": 67, "name": "Email username"},
+            {"type": "STRING", "description": "Password for email account", "key": "EMAIL_PASSWORD", "id": 68, "name": "Email password"},
+            {"type": "STRING", "description": "Email address of recipient", "key": "EMAIL_RECIPIENT", "id": 69, "name": "Email recipient"},
+            {"type": "STRING", "description": "Text of email subject", "key": "EMAIL_SUBJECT", "id": 70, "name": "Email subject"},
+            {"type": "STRING", "description": "Text of email message", "key": "EMAIL_MESSAGE", "id": 71, "name": "Email message"},
+            {
+                "type": "STRING",
+                "description": "Turn ON/OFF email encryption",
+                "key": "EMAIL_ENCRYPTION",
+                "id": 72,
+                "name": "Do you want use email encrypt (yes/no)",
+            },
+        ],
+        "name": "EMAIL Publisher",
+    },
+    {
+        "type": "TWITTER_PUBLISHER",
+        "description": "Publisher for publishing to Twitter account",
+        "id": "47ae7d5a-7ebe-4c5f-946b-c67a432ac50c",
+        "parameters": [
+            {"type": "STRING", "description": "API key of Twitter account", "key": "TWITTER_API_KEY", "id": 73, "name": "Twitter API key"},
+            {
+                "type": "STRING",
+                "description": "API key secret of Twitter account",
+                "key": "TWITTER_API_KEY_SECRET",
+                "id": 74,
+                "name": "Twitter API key secret",
+            },
+            {
+                "type": "STRING",
+                "description": "Twitter access token of Twitter account",
+                "key": "TWITTER_ACCESS_TOKEN",
+                "id": 75,
+                "name": "Twitter access token",
+            },
+            {
+                "type": "STRING",
+                "description": "Twitter access token secret of Twitter account",
+                "key": "TWITTER_ACCESS_TOKEN_SECRET",
+                "id": 76,
+                "name": "Twitter access token secret",
+            },
+        ],
+        "name": "Twitter Publisher",
+    },
+    {
+        "type": "WORDPRESS_PUBLISHER",
+        "description": "Publisher for publishing on Wordpress webpage",
+        "id": "90198b3e-5fd6-44fc-a78e-144dd87ffb16",
+        "parameters": [
+            {"type": "STRING", "description": "URL address of wordpress webpage", "key": "WP_URL", "id": 77, "name": "Wordpress URL address"},
+            {"type": "STRING", "description": "Post editor's username", "key": "WP_USER", "id": 78, "name": "Username of wordpress editor"},
+            {
+                "type": "STRING",
+                "description": "Secret key created in Wordpress for Python application",
+                "key": "WP_PYTHON_APP_SECRET",
+                "id": 79,
+                "name": "Secret key of application",
+            },
+        ],
+        "name": "Wordpress Publisher",
+    },
+    {
+        "type": "MISP_PUBLISHER",
+        "description": "Publisher for publishing in MISP",
+        "id": "54383df2-9212-4036-be1f-0fb1b6b62622",
+        "parameters": [
+            {"type": "STRING", "description": "MISP server https url", "key": "MISP_URL", "id": 80, "name": "MISP url"},
+            {"type": "STRING", "description": "User MISP API key", "key": "MISP_API_KEY", "id": 81, "name": "MISP API key"},
+        ],
+        "name": "MISP Publisher",
     },
 ]

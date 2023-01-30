@@ -163,7 +163,7 @@ def auth_required(permissions, acl=None):
             claims = get_jwt()
             user_claims = claims.get("user_claims")
             if not user_claims:
-                logger.store_user_auth_error_activity(user, "Missing permissions in JWT for identity: {}".format(identity))
+                logger.store_user_auth_error_activity(user, "", f"Missing permissions in JWT for identity: {identity}")
                 return error
 
             permission_claims = set(user_claims.get("permissions"))
@@ -172,6 +172,7 @@ def auth_required(permissions, acl=None):
             if not permissions_set.intersection(permission_claims):
                 logger.store_user_auth_error_activity(
                     user,
+                    "",
                     "Insufficient permissions in JWT for identity: {}".format(identity),
                 )
                 return error
@@ -180,6 +181,7 @@ def auth_required(permissions, acl=None):
             if acl and not check_acl(kwargs[get_id_name_by_acl(acl)], acl, user):
                 logger.store_user_auth_error_activity(
                     user,
+                    "",
                     "Access denied by ACL in JWT for identity: {}".format(identity),
                 )
                 return error

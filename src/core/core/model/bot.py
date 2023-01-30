@@ -3,14 +3,14 @@ from sqlalchemy import or_, func
 import uuid
 
 from core.managers.db_manager import db
-from core.model.parameter_value import NewParameterValueSchema
+from core.model.parameter_value import NewParameterValueSchema, ParameterValueImportSchema
 from core.managers.log_manager import logger
 from shared.schema.bot import BotSchema
 from shared.schema.parameter_value import ParameterValueSchema
 
 
 class NewBotSchema(BotSchema):
-    parameter_values = fields.List(fields.Nested(NewParameterValueSchema), load_default=[])
+    parameter_values = fields.List(fields.Nested(ParameterValueImportSchema), load_default=[])
 
     @post_load
     def make(self, data, **kwargs):
@@ -40,11 +40,11 @@ class Bot(db.Model):
     def update_bot_parameters(cls, bot_id, data):
         try:
             bot = cls.find_by_id(bot_id)
-            #parameter_values = [NewParameterValueSchema().load(pv) for pv in data["parameter_values"]]
+            # parameter_values = [NewParameterValueSchema().load(pv) for pv in data["parameter_values"]]
             for pv in bot.parameter_values:
-              for updated_value in data["parameter_values"]:
-                if pv.parameter.key == updated_value["parameter"]:
-                    pv.value = updated_value["value"]
+                for updated_value in data["parameter_values"]:
+                    if pv.parameter.key == updated_value["parameter"]:
+                        pv.value = updated_value["value"]
 
             # bot_params = [{"id": pv.id, "key": pv.parameter.key, "value": pv.value} for pv in bot.parameter_values]
             # print(f"bot_params = {bot_params}")

@@ -16,6 +16,7 @@ class ParameterSchema(Schema):
     description = fields.Str()
     type = EnumField(ParameterType)
 
+
 class ParameterExportSchema(Schema):
     key = fields.Str()
 
