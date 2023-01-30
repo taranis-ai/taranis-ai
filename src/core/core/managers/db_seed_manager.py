@@ -28,7 +28,7 @@ def pre_seed(app):
         logger.log_debug("Wordlists seeded")
 
         pre_seed_workers()
-        logger.log_debug("Workres seeded")
+        logger.log_debug("Workers seeded")
 
     except Exception:
         logger.log_debug_trace()

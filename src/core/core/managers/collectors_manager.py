@@ -86,7 +86,16 @@ def refresh_collector(collector):
         if node := CollectorsNode.get_first():
             CollectorsApi(node.api_url, node.api_key).refresh_collector(collector.type)
     except ConnectionError:
-        logger.critical(f"Connection error: Could not reach {collector.node.api_url}")
+        logger.critical("Connection error: Could not reach Collector")
+
+
+def refresh_collectors():
+    try:
+        if node := CollectorsNode.get_first():
+            print(node.api_url, node.api_key)
+            CollectorsApi(node.api_url, node.api_key).refresh_collectors()
+    except ConnectionError:
+        logger.critical("Connection error: Could not reach Collector")
 
 
 def export_osint_sources(ids: list[str]):

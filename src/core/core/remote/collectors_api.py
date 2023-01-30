@@ -22,3 +22,8 @@ class CollectorsApi:
         response = requests.put(f"{self.api_url}/api/v1/collectors/{collector_type}", headers=self.headers)
 
         return response.status_code
+
+    def refresh_collectors(self):
+        response = requests.post(f"{self.api_url}/api/v1/collectors", headers=self.headers)
+
+        return response.status_code

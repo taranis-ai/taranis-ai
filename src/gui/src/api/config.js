@@ -254,6 +254,10 @@ export function getAllNodes (filter_data) {
   return ApiService.get(`/config/nodes?${filter}`)
 }
 
+export function triggerNode () {
+  return ApiService.post('/config/collectors-nodes/refresh')
+}
+
 export function updateNode (node) {
   if (node.type === 'Collector') {
     return ApiService.put(`/config/collectors-nodes/${node.id}`, node)
