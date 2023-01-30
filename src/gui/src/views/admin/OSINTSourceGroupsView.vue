@@ -10,6 +10,7 @@
       @edit-item="editItem"
       @add-item="addItem"
       @selection-change="selectionChange"
+      @update-items="updateData"
     >
     </ConfigTable>
     <EditConfig

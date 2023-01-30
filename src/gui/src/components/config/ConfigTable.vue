@@ -77,7 +77,7 @@
           </div>
         </template>
         <template v-slot:no-data>
-          <v-btn color="primary">
+          <v-btn color="primary" @click.stop="updateItems()">
             <v-icon class="mr-1">mdi-refresh</v-icon>
             Refresh
           </v-btn>
@@ -181,6 +181,9 @@ export default {
     },
     deleteItems(items) {
       items.forEach((item) => this.deleteItem(item))
+    },
+    updateItems() {
+      this.$emit('update-items')
     }
   }
 }

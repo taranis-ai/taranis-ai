@@ -5,7 +5,7 @@ import uuid
 from core.managers.db_manager import db
 from shared.schema.collector import CollectorSchema
 from core.model.parameter import Parameter
-from shared.schema.parameter import ParameterSchema
+
 
 class NewCollectorSchema(CollectorSchema):
     @post_load
@@ -34,13 +34,13 @@ class Collector(db.Model):
         return new_collector_schema.load(collectors_data)
 
     @classmethod
-    def add(cls, collectors_data):
-        if cls.find_by_type(collectors_data["type"]):
+    def add(cls, data):
+        if cls.find_by_type(data["type"]):
             return None
         schema = NewCollectorSchema()
-        parameters = [Parameter.find_by_key(p) for p in collectors_data["parameters"] if p is not None]
-        collectors_data["parameters"] = []
-        collector = schema.load(collectors_data)
+        parameters = [Parameter.find_by_key(p) for p in data["parameters"] if p is not None]
+        data["parameters"] = []
+        collector = schema.load(data)
         collector.parameters = parameters
         db.session.add(collector)
         db.session.commit()

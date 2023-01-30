@@ -9,6 +9,7 @@
       @delete-item="deleteItem"
       @edit-item="editItem"
       @add-item="addItem"
+      @update-items="updateData"
       @selection-change="selectionChange"
     >
     <template v-slot:titlebar>
@@ -39,7 +40,7 @@ import {
   importOSINTSources
 } from '@/api/config'
 import { mapActions, mapGetters } from 'vuex'
-import { notifySuccess, objectFromFormat, notifyFailure, parseParameterValues, parseSubmittedParameterValues } from '@/utils/helpers'
+import { notifySuccess, objectFromFormat, notifyFailure, parseParameterValues, parseSubmittedParameterValues, createParameterObjValues } from '@/utils/helpers'
 
 export default {
   name: 'OSINTSources',
@@ -124,7 +125,7 @@ export default {
     },
 
     addItem() {
-      console.log(this.formFormat)
+      console.debug(this.formFormat)
       this.formData = objectFromFormat(this.formFormat)
       this.edit = false
     },
@@ -133,10 +134,16 @@ export default {
       this.edit = true
     },
     handleSubmit(submittedData) {
-      const updateItem = parseSubmittedParameterValues(this.unparsed_sources, submittedData)
+      const parameter_list = this.parameters[this.formData.collector_id].map(item => item.name)
+      console.debug('submitted data', submittedData)
+      console.debug('parameter list', parameter_list)
       if (this.edit) {
+        console.debug('parseSubmittedParameterValues', parseSubmittedParameterValues(this.unparsed_sources, submittedData))
+        const updateItem = parseSubmittedParameterValues(this.unparsed_sources, submittedData)
         this.updateItem(updateItem)
       } else {
+        console.debug('createParameterObjValues', createParameterObjValues(parameter_list, submittedData))
+        const updateItem = createParameterObjValues(parameter_list, submittedData)
         this.createItem(updateItem)
       }
     },

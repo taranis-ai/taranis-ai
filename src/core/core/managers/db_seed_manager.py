@@ -42,9 +42,11 @@ def pre_seed_source_groups():
 
 
 def pre_seed_workers():
-    from core.managers.workers_pre_seed import collectors, parameters, bots
+    from core.managers.workers_pre_seed import collectors, parameters, bots, presenters, publishers
     from core.model.collector import Collector
     from core.model.parameter import Parameter
+    from core.model.presenter import Presenter
+    from core.model.publisher import Publisher
     from core.model.bot import Bot
 
     for p in parameters:
@@ -55,6 +57,12 @@ def pre_seed_workers():
 
     for b in bots:
         Bot.add(b)
+
+    for p in presenters:
+        Presenter.add(p)
+    
+    for p in publishers:
+        Publisher.add(p)
 
 
 def pre_seed_permissions():

@@ -9,6 +9,7 @@
       @delete-item="deleteItem"
       @edit-item="editItem"
       @add-item="addItem"
+      @update-items="updateData"
     />
     <UserForm
       v-if="showForm"
@@ -32,6 +33,7 @@ export default {
   data: () => ({
     showForm: false,
     users: [],
+    selected: [],
     userID: null
   }),
   methods: {
@@ -93,6 +95,9 @@ export default {
         })
         this.updateData()
       })
+    },
+    selectionChange(selected) {
+      this.selected = selected.map(item => item.id)
     }
   },
   mounted() {

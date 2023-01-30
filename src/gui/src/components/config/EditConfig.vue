@@ -15,7 +15,7 @@
             v-model="formData[item.parent][item.name]"
             :label="item.label"
             :required="item.required"
-            :disabled="item['disabled'] !== undefined"
+            :disabled="item['disabled']"
             :type="item.type"
             v-if="item.type === 'text' || item.type === 'number'"
           ></v-text-field>
@@ -25,7 +25,7 @@
             v-model="formData[item.name]"
             :label="item.label"
             :required="item.required"
-            :disabled="item['disabled'] !== undefined"
+            :disabled="item['disabled']"
             :type="item.type"
             v-if="item.type === 'text' || item.type === 'number'"
           ></v-text-field>
@@ -34,7 +34,7 @@
           v-model="formData[item.name]"
           :label="item.label"
           :required="item.required"
-          :disabled="item['disabled'] !== undefined"
+          :disabled="item['disabled']"
           :type="item.type"
           v-if="item.type === 'textarea'"
         ></v-textarea>
@@ -42,14 +42,14 @@
           v-model="formData[item.name]"
           :label="item.label"
           :required="item.required"
-          :disabled="item['disabled'] !== undefined"
+          :disabled="item['disabled']"
           :items="item.options"
           v-if="item.type === 'select' && item.options"
         ></v-select>
         <v-col cols="12" v-if="item.type === 'table' && item.items !== undefined">
           <v-data-table
             :headers="item.headers"
-            :show-select="item['disabled'] === undefined"
+            :show-select="item['disabled']"
             :items="item.items"
             :item-key="item.headers[0].value"
             :hide-default-footer="item.items.length < 10"

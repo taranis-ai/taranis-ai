@@ -37,6 +37,14 @@ def add_bots_node(data):
     return node.id, 200
 
 
+def refresh_bots():
+    try:
+        if node := BotsNode.get_first():
+            BotsApi(node.api_url, node.api_key).refresh_bots()
+    except ConnectionError:
+        logger.critical("Connection error: Could not reach Bot")
+
+
 def update_bots_node(node_id, data):
     node = BotsNodeSchema.create(data)
     bots, status_code = get_bots_info(node)

@@ -1,15 +1,20 @@
 from marshmallow import post_load, fields
-from sqlalchemy import func, or_, orm
+from sqlalchemy import orm
 import uuid
 
-from managers.db_manager import db
-from model.parameter_value import NewParameterValueSchema
-from model.publishers_node import PublishersNode
-from shared.schema.publisher_preset import PublisherPresetSchema, PublisherPresetPresentationSchema
+from core.managers.log_manager import logger
+from core.managers.db_manager import db
+from core.model.parameter_value import ParameterValueImportSchema
+
+from core.model.publishers_node import PublishersNode
+from shared.schema.publisher_preset import (
+    PublisherPresetSchema,
+    PublisherPresetPresentationSchema,
+)
 
 
 class NewPublisherPresetSchema(PublisherPresetSchema):
-    parameter_values = fields.List(fields.Nested(NewParameterValueSchema))
+    parameter_values = fields.List(fields.Nested(ParameterValueImportSchema))
 
     @post_load
     def make(self, data, **kwargs):
@@ -34,8 +39,8 @@ class PublisherPreset(db.Model):
         name,
         description,
         publisher_id,
-        use_for_notifications,
         parameter_values,
+        use_for_notifications=False,
     ):
         self.id = str(uuid.uuid4())
         self.name = name
@@ -43,20 +48,15 @@ class PublisherPreset(db.Model):
         self.publisher_id = publisher_id
         self.parameter_values = parameter_values
         self.use_for_notifications = use_for_notifications
-        self.title = ""
-        self.subtitle = ""
-        self.tag = ""
+        self.tag = "mdi-file-star-outline"
 
     @orm.reconstructor
     def reconstruct(self):
-        self.title = self.name
-        self.subtitle = self.description
         self.tag = "mdi-file-star-outline"
 
     @classmethod
     def find(cls, preset_id):
-        preset = cls.query.get(preset_id)
-        return preset
+        return cls.query.get(preset_id)
 
     @classmethod
     def find_for_notifications(cls):
@@ -67,19 +67,18 @@ class PublisherPreset(db.Model):
         return cls.query.order_by(db.asc(PublisherPreset.name)).all()
 
     @classmethod
-    def get(cls, search):
+    def get(cls, search=None):
         query = cls.query
 
-        if search is not None:
-            search_string = "%" + search.lower() + "%"
+        if search:
             query = query.filter(
-                or_(
-                    func.lower(PublisherPreset.name).like(search_string),
-                    func.lower(PublisherPreset.description).like(search_string),
+                db.or_(
+                    cls.name.ilike(f"%{search}%"),
+                    cls.description.ilike(f"%{search}%"),
                 )
             )
 
-        return query.order_by(db.asc(PublisherPreset.name)).all(), query.count()
+        return query.order_by(cls.name).all(), query.count()
 
     @classmethod
     def get_all_json(cls, search):
@@ -97,6 +96,7 @@ class PublisherPreset(db.Model):
 
     @classmethod
     def add_new(cls, data):
+        logger.debug(f"Adding new publisher preset: {data}")
         new_preset_schema = NewPublisherPresetSchema()
         preset = new_preset_schema.load(data)
         db.session.add(preset)

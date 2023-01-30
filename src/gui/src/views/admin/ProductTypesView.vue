@@ -9,6 +9,7 @@
       @delete-item="deleteItem"
       @edit-item="editItem"
       @add-item="addItem"
+      @update-items="updateData"
     />
     <NewProductType
       @submit="handleSubmit"

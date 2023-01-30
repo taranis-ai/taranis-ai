@@ -12,3 +12,7 @@ class BotsApi:
     def get_bots_info(self):
         response = requests.get(f"{self.api_url}/api/v1/bots", headers=self.headers)
         return response.json(), response.status_code
+
+    def refresh_bots(self):
+        response = requests.post(f"{self.api_url}/api/v1/bots", headers=self.headers)
+        return response.status_code

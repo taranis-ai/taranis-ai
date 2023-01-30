@@ -9,6 +9,7 @@
       @delete-item="deleteItem"
       @edit-item="editItem"
       @add-item="addItem"
+      @update-items="updateData"
     />
     <EditConfig
       v-if="formData && Object.keys(formData).length > 0"
@@ -55,13 +56,13 @@ export default {
           name: 'name',
           label: 'Name',
           type: 'text',
-          disabled: true
+          required: true
         },
         {
           name: 'description',
           label: 'Description',
           type: 'textarea',
-          disabled: true
+          required: true
         },
         {
           name: 'type',

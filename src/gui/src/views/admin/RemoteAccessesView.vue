@@ -8,6 +8,7 @@
       @delete-item="deleteItem"
       @edit-item="editItem"
       @add-item="addItem"
+      @update-items="updateData"
     />
     <EditConfig
       v-if="formData && Object.keys(formData).length > 0"

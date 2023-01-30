@@ -265,7 +265,7 @@ import PopupShareItems from '@/components/popups/PopupShareItems'
 import NewsItemDetail from '@/components/assess/NewsItemDetail'
 
 import votes from '@/components/_subcomponents/votes'
-import { isValidUrl, stripHtml } from '@/utils/helpers'
+import { isValidUrl } from '@/utils/helpers'
 
 import { mapGetters } from 'vuex'
 
@@ -372,10 +372,7 @@ export default {
     },
 
     getDescription() {
-      return stripHtml(
-        this.newsItem.description +
-          this.newsItem.news_items[0].news_item_data.content
-      )
+      return this.newsItem.summary || this.newsItem.description || this.newsItem.news_items[0].news_item_data.content || this.newsItem.news_items[0].news_item_data.review
     },
 
     getTags() {

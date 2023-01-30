@@ -3,7 +3,7 @@ from sqlalchemy import or_, func
 import uuid
 
 from core.managers.db_manager import db
-from core.model.parameter_value import NewParameterValueSchema, ParameterValueImportSchema
+from core.model.parameter_value import ParameterValueImportSchema
 from core.managers.log_manager import logger
 from shared.schema.bot import BotSchema
 from shared.schema.parameter_value import ParameterValueSchema

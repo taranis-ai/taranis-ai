@@ -28,9 +28,9 @@ def initialize():
     bots = bot_schema.load(response)
     parameters = {}
     for bot in bots:
-        parameters[bot['type']] = {}
-        for item in bot['parameter_values']:
-            parameters[bot['type']][item.parameter.key] = item.value
+        parameters[bot["type"]] = {}
+        for item in bot["parameter_values"]:
+            parameters[bot["type"]][item.parameter.key] = item.value
 
     for c in Config.BOTS_LOADABLE_BOTS:
         module_ = importlib.import_module(f"bots.bots.{c.lower()}_bot")
@@ -38,6 +38,10 @@ def initialize():
         register_bot(class_(parameters[f"{c.upper()}_BOT"]))
 
     logger.log_info("Bot node initialized")
+
+
+def refresh():
+    return next((500 for bot_type in bots if refresh_bot(bot_type) != 200), 200)
 
 
 def refresh_bot(bot_type):

@@ -97,3 +97,7 @@ class BotsNode(db.Model):
         node = cls.query.get(node_id)
         db.session.delete(node)
         db.session.commit()
+
+    @classmethod
+    def get_first(cls):
+        return cls.query.first()

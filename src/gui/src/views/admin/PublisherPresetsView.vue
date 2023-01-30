@@ -9,10 +9,12 @@
       @delete-item="deleteItem"
       @edit-item="editItem"
       @add-item="addItem"
+      @update-items="updateData"
     />
     <EditConfig
       v-if="formData && Object.keys(formData).length > 0"
       :configData="formData"
+      :formFormat.sync="formFormat"
       @submit="handleSubmit"
     ></EditConfig>
   </div>
@@ -27,7 +29,7 @@ import {
   updatePublisherPreset
 } from '@/api/config'
 import { mapActions, mapGetters } from 'vuex'
-import { notifySuccess, parseParameterValues, objectFromFormat, notifyFailure } from '@/utils/helpers'
+import { notifySuccess, parseParameterValues, createParameterValues, objectFromFormat, notifyFailure } from '@/utils/helpers'
 
 export default {
   name: 'presets',
@@ -37,10 +39,9 @@ export default {
   },
   data: () => ({
     presets: [],
-    unparsed_presets: [],
     formData: {},
     parameters: {},
-    presets_types: [],
+    publishers: [],
     edit: false
   }),
   computed: {
@@ -56,52 +57,56 @@ export default {
           name: 'name',
           label: 'Name',
           type: 'text',
-          disabled: true
+          required: true
         },
         {
           name: 'description',
           label: 'Description',
           type: 'textarea',
-          disabled: true
+          required: true
         },
         {
-          name: 'type',
+          name: 'publisher_id',
           label: 'Type',
           type: 'select',
           required: true,
-          options: this.presets_types,
+          options: this.publishers,
           disabled: this.edit
         }
       ]
-      if (this.parameters[this.formData.type]) {
-        return base.concat(this.parameters[this.formData.type])
+      if (this.parameters[this.formData.publisher_id]) {
+        return base.concat(this.parameters[this.formData.publisher_id])
       }
       return base
     }
   },
   methods: {
-    ...mapActions('config', ['loadPublisherPresets']),
-    ...mapGetters('config', ['getPublisherPresets']),
+    ...mapActions('config', ['loadPublisherPresets', 'loadPublishers']),
+    ...mapGetters('config', ['getPublisherPresets', 'getPublishers']),
     ...mapActions(['updateItemCount']),
     updateData() {
       this.loadPublisherPresets().then(() => {
         const sources = this.getPublisherPresets()
-        this.unparsed_presets = sources.items
         this.presets = parseParameterValues(sources.items)
-
-        this.presets_types = sources.items.map(item => {
-          this.parameters[item.type] = item.parameter_values.map(param => {
-            return {
-              name: param.parameter.key,
-              label: param.parameter.key,
-              type: 'text'
-            }
-          })
-          return item.type
-        })
         this.updateItemCount({
           total: sources.total_count,
           filtered: sources.length
+        })
+      })
+      this.loadPublishers().then(() => {
+        const publishers = this.getPublishers()
+        this.publishers = publishers.items.map(publisher => {
+          this.parameters[publisher.id] = publisher.parameters.map(parameter => {
+            return {
+              name: parameter.key,
+              label: parameter.name,
+              type: 'text'
+            }
+          })
+          return {
+            value: publisher.id,
+            text: publisher.name
+          }
         })
       })
     },
@@ -114,11 +119,13 @@ export default {
       this.edit = true
     },
     handleSubmit(submittedData) {
-      console.log(submittedData)
+      const parameter_list = this.parameters[this.formData.publisher_id].map(item => item.name)
+      const updateItem = createParameterValues(parameter_list, submittedData)
+      console.debug(updateItem)
       if (this.edit) {
-        this.updateItem(submittedData)
+        this.updateItem(updateItem)
       } else {
-        this.createItem(submittedData)
+        this.createItem(updateItem)
       }
     },
     deleteItem(item) {

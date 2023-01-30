@@ -70,8 +70,8 @@ class NLPBot(BaseBot):
 
                     findings[news_item["id"]] = self.generateKeywords(content)
 
-                # summary = self.predict_summary(content_list)
-                # self.core_api.update_news_items_aggregate_summary(aggregate["id"], summary)
+                summary = self.predict_summary(content_list)
+                self.core_api.update_news_items_aggregate_summary(aggregate["id"], summary)
 
                 for news_id, keywords in findings.items():
                     keyword = [i[0] for i in keywords]

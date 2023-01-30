@@ -8,6 +8,7 @@
       @delete-item="deleteItem"
       @edit-item="editItem"
       @add-item="addItem"
+      @update-items="updateData"
       @selection-change="selectionChange"
     >
       <template v-slot:titlebar>

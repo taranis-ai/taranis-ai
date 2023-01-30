@@ -25,7 +25,7 @@ class CoreApi:
             if response:
                 logger.log_info(f"Found registerd Bot {response}")
                 return
-            
+
             logger.log_info(f"Registering bot Node at {Config.TARANIS_NG_CORE_URL}")
             node_info = {
                 "id": self.node_id,
@@ -49,7 +49,7 @@ class CoreApi:
             logger.log_debug_trace("Can't register Bot node")
             return None
 
-    def get_bot_node_status(self) -> dict|None:
+    def get_bot_node_status(self) -> dict | None:
         try:
             response = requests.get(
                 f"{self.api_url}/api/v1/bots/node/{self.node_id}",
@@ -61,7 +61,7 @@ class CoreApi:
             logger.log_debug_trace("Cannot update Bot status")
             return None
 
-    def get_bots(self) -> dict|None:
+    def get_bots(self) -> dict | None:
         try:
             response = requests.get(
                 f"{self.api_url}/api/v1/bots",
@@ -117,7 +117,6 @@ class CoreApi:
             logger.log_debug_trace("update_news_items_aggregate_summary failed")
             return None, 400
 
-
     def delete_word_list_category_entries(self, id, name):
         try:
             response = requests.delete(
@@ -160,9 +159,13 @@ class CoreApi:
         except Exception:
             return None, 400
 
-    def get_news_items_aggregate(self, source_group: str|None, limit: str|None) -> dict|None:
+    def get_news_items_aggregate(self, source_group: str | None, limit: str | None) -> dict | None:
         try:
-            uri = f"{self.api_url}/api/v1/bots/news-item-aggregates-by-group/{source_group}" if source_group else f"{self.api_url}/api/v1/bots/news-item-aggregates"
+            uri = (
+                f"{self.api_url}/api/v1/bots/news-item-aggregates-by-group/{source_group}"
+                if source_group
+                else f"{self.api_url}/api/v1/bots/news-item-aggregates"
+            )
             response = requests.get(
                 uri,
                 headers=self.headers,

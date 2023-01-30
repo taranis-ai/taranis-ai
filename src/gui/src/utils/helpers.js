@@ -100,3 +100,28 @@ export function parseSubmittedParameterValues(unparsed_sources, data) {
 
   return result
 }
+
+export function createParameterObjValues(parameters, data) {
+  data.parameter_values = []
+
+  parameters.forEach(parameter => {
+    const param = { key: parameter }
+    data.parameter_values.push({
+      parameter: param,
+      value: data[parameter] || ''
+    })
+  })
+  return data
+}
+
+export function createParameterValues(parameters, data) {
+  data.parameter_values = []
+
+  parameters.forEach(parameter => {
+    data.parameter_values.push({
+      parameter: parameter,
+      value: data[parameter] || ''
+    })
+  })
+  return data
+}

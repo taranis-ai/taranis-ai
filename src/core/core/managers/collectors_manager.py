@@ -92,7 +92,6 @@ def refresh_collector(collector):
 def refresh_collectors():
     try:
         if node := CollectorsNode.get_first():
-            print(node.api_url, node.api_key)
             CollectorsApi(node.api_url, node.api_key).refresh_collectors()
     except ConnectionError:
         logger.critical("Connection error: Could not reach Collector")

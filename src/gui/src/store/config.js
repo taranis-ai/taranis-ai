@@ -11,6 +11,8 @@ import {
   getAllPermissions,
   getAllProductTypes,
   getAllPublisherPresets,
+  getAllPresenters,
+  getAllPublishers,
   getAllRemoteAccesses,
   getAllRemoteNodes,
   getAllReportItemTypes,
@@ -35,6 +37,8 @@ const state = {
   permissions: { total_count: 0, items: [] },
   product_types: { total_count: 0, items: [] },
   publisher_presets: { total_count: 0, items: [] },
+  presenters: { total_count: 0, items: [] },
+  publishers: { total_count: 0, items: [] },
   remote_access: { total_count: 0, items: [] },
   remote_nodes: { total_count: 0, items: [] },
   report_item_types_config: { total_count: 0, items: [] },
@@ -178,6 +182,20 @@ const actions = {
       })
   },
 
+  loadPresenters(context, data) {
+    return getAllPresenters(data)
+      .then(response => {
+        context.commit('setPresenters', response.data)
+      })
+  },
+
+  loadPublishers(context, data) {
+    return getAllPublishers(data)
+      .then(response => {
+        context.commit('setPublishers', response.data)
+      })
+  },
+
   loadOSINTSourceGroups (context, filter) {
     return getAllOSINTSourceGroups(filter)
       .then(response => {
@@ -255,6 +273,14 @@ const mutations = {
 
   setBots (state, bots) {
     state.bots = bots
+  },
+
+  setPresenters (state, presenters) {
+    state.presenters = presenters
+  },
+
+  setPublishers (state, publishers) {
+    state.publishers = publishers
   },
 
   setOSINTSources (state, osint_sources) {
@@ -386,6 +412,12 @@ const getters = {
 
   getParameters (state) {
     return state.parameters
+  },
+  getPresenters (state) {
+    return state.presenters
+  },
+  getPublishers (state) {
+    return state.publishers
   }
 }
 

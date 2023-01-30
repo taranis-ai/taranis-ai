@@ -9,6 +9,7 @@
       @delete-item="deleteItem"
       @edit-item="editItem"
       @add-item="addItem"
+      @update-items="updateData"
     />
     <ReportTypeForm
       v-if="formData && Object.keys(formData).length > 0"
@@ -37,6 +38,7 @@ export default {
   },
   data: () => ({
     report_types: [],
+    selected: [],
     formData: {},
     edit: false
   }),
@@ -96,6 +98,9 @@ export default {
       }).catch(() => {
         notifyFailure(`Failed to update ${item.name}`)
       })
+    },
+    selectionChange(selected) {
+      this.selected = selected.map(item => item.id)
     }
   },
   mounted() {
