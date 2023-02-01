@@ -7,4 +7,4 @@ build-backend = "setuptools.build_meta"
 
 [tool.black]
 line-length = 142
-target-version = ["py38","py310"]
+target-version = ["py38","py310","py311"]

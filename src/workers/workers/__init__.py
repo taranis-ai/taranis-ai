@@ -1,5 +1,3 @@
-from redis import Redis
-from rq import Queue, Worker
 from workers.config import get_settings
 
 

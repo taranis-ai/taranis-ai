@@ -23,7 +23,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: '3.11'
       - name: test
         working-directory: src/core
         run: |
@@ -40,7 +40,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: '3.11'
       - name: build
         working-directory: src/core
         run: |
@@ -58,6 +58,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           password: ${{ secrets.PYPI_API_TOKEN_CORE }}
+          packages_dir: src/core/dist/
 
   build_docker:
     name: build docker
