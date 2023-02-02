@@ -1,67 +1,26 @@
-@import url('https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;700;900&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@100;300;400;500;600;700;800;900&display=swap');
-
-// @font-face {
-//   font-family: 'Rubik';
-//   src: local('Rubik'),
-//     url(/fonts/Rubik/Rubik-VariableFont_wght.ttf) format('truetype');
-// }
-
-// @font-face {
-//   font-family: 'Montserrat';
-//   src: local('Montserrat'),
-//     url(/fonts/Montserrat/Montserrat-VariableFont_wght.ttf) format('truetype');
-// }
-
-$body-font-family: 'Rubik', sans-serif !default;
-$heading-font-family: 'Montserrat', sans-serif !default;
-
-$font-size-root: 14px;
-$btn-letter-spacing: 0;
-$btn-font-weight: 400;
-
-$app-bar-height: 48px;
-
-$grid-breakpoints: (
-  'xs': 0,
-  'sm': 600px - 16px,
-  'md': 976px - 16px,
-  'lg': 1280px - 16px,
-  'xl': 2200px - 16px,
+@use '~vuetify/src/styles/main' with (
+  $body-font-family: (
+    'Montserrat',
+    sans-serif
+  ),
+  $heading-font-family: (
+    'Rubik',
+    sans-serif
+  ),
+  $border-radius-root: 6px,
+  $font-size-root: 14px
 );
 
-// Colors:
+@use '~vuetify/src/components/VBtn/VBtn.sass' with (
+  $btn-letter-spacing: 0,
+  $btn-font-weight: 400
+);
 
-$primary: #7468e8;
-$secondary: #34a5e8;
-$accent: #6daed9;
-$info: #2196f3;
-$error: #ff5252;
-$success: #4caf50;
-$warning: #ffc107;
-$cx-app-header: #e6e6e6;
-$cx-toolbar-filter: #ffffff;
-$cx-combo-gray: #f2f2f2;
-$cx-user-menu: #d9d9d9;
-$cx-drawer-bg: #ffffff;
-$cx-drawer-text: #000000;
-$cx-drawer-text-invert: #000;
-$cx-line: #fafafa;
-$cx-favorites: #ff9d48;
-$cx-filter: #9f02ff;
-$cx-wordlist: #ffc107;
+@use '~vuetify/src/components/VList/VList.sass' with (
+  $list-item-title-font-size: 0.929rem,
+  $list-item-dense-title-font-size: 0.929rem,
+  $list-item-dense-title-font-weight: initial
+);
 
-$light-grey-1: #c9c9c9;
-$light-grey-2: #c8c8c8;
-$dark-grey: #575757;
-
-$story-selected-bg: #f4f3fb;
-$story-hot: #dbe868;
-$story-header-bg: #edeac2;
-$awake-green-color: #77bb70;
-$awake-yellow-color: #e9c645;
-$awake-red-color: #d18e8e;
-
-$status-important: #dbe868;
-$status-unread: #7468e8;
-$status-error: #d18e8e;
+// @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;700;900&display=swap');
+// @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@100;300;400;500;600;700;800;900&display=swap');

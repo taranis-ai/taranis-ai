@@ -134,7 +134,7 @@ def get_id_name_by_acl(acl):
         return "product_id"
 
 
-def auth_required(permissions, acl=None):
+def auth_required(permissions: list | str, acl=None):
     def auth_required_wrap(fn):
         @wraps(fn)
         def wrapper(*args, **kwargs):

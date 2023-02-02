@@ -205,15 +205,19 @@ class Attribute(db.Model):
         return cls.query.filter_by(type=attribute_type).first()
 
     @classmethod
+    def find_by_id(cls, attribute_id):
+        return cls.query.get(attribute_id)
+
+    @classmethod
     def get(cls, search):
         query = cls.query
 
         if search is not None:
-            search_string = "%" + search.lower() + "%"
+            search_string = f"%{search}%"
             query = query.filter(
                 or_(
-                    func.lower(Attribute.name).like(search_string),
-                    func.lower(Attribute.description).like(search_string),
+                    Attribute.name.ilike(search_string),
+                    Attribute.description.ilike(search_string),
                 )
             )
 

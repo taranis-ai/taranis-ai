@@ -211,7 +211,6 @@ const AttributesMixin = {
                   index: this.values.length,
                   value: data.attribute_value,
                   binary_mime_type: data.binary_mime_type,
-                  binary_size: data.binary_size,
                   binary_description: data.binary_description,
                   last_updated: data.attribute_last_updated,
                   user: { name: data.attribute_user }

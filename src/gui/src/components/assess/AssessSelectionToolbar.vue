@@ -6,11 +6,6 @@
     flat
     dense
     dark
-    style="
-      bottom: 0px !important;
-      top: auto !important;
-      height: auto !important;
-    "
     color="primary"
     class="selection-toolbar"
   >
@@ -32,8 +27,7 @@
 
         <v-col
           cols="1"
-          class="py-1 d-flex justify-content-center"
-          style="min-width: fit-content"
+          class="py-1 d-flex"
         >
           <span class="mr-2 my-auto selection-indicator">
             selected: <strong>{{ selection.length }}</strong>
@@ -45,16 +39,13 @@
 </template>
 
 <script>
-import {
-  deleteNewsItemAggregate,
-  groupAction
-} from '@/api/assess'
+import { deleteNewsItemAggregate, groupAction } from '@/api/assess'
 
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
 
 export default {
   name: 'AssessSelectionToolbar',
-  components: { },
+  components: {},
   emits: ['refresh'],
   props: {
     selection: []
@@ -73,7 +64,7 @@ export default {
       },
       {
         label: 'delete items',
-        icon: 'mdi-delete-circle',
+        icon: 'mdi-delete-outline',
         action: 'deleteItems'
       }
     ],
@@ -88,7 +79,7 @@ export default {
             notifySuccess('Items merged')
             this.$emit('refresh')
           })
-          .catch(err => {
+          .catch((err) => {
             notifyFailure('Failed to merge items')
             console.log(err)
           })
@@ -100,7 +91,7 @@ export default {
             notifySuccess('Items deleted')
             this.$emit('refresh')
           })
-          .catch(err => {
+          .catch((err) => {
             notifyFailure('Failed to delete items')
             console.log(err)
           })

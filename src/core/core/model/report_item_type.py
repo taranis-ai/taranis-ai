@@ -217,11 +217,11 @@ class ReportItemType(db.Model):
             query = ACLEntry.apply_query(query, user, True, False, False)
 
         if search is not None:
-            search_string = "%" + search.lower() + "%"
+            search_string = f"%{search}%"
             query = query.filter(
                 or_(
-                    func.lower(ReportItemType.title).like(search_string),
-                    func.lower(ReportItemType.description).like(search_string),
+                    ReportItemType.title.ilike(search_string),
+                    ReportItemType.description.ilike(search_string),
                 )
             )
 

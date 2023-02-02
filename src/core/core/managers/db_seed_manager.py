@@ -968,10 +968,6 @@ def pre_seed_report_items():
     from core.model.attribute import Attribute
 
     if not db.session.query(ReportItemType).filter_by(title="Vulnerability Report").first():
-        report_item_type = ReportItemType(None, "Vulnerability Report", "Basic report type", [])
-        db.session.add(report_item_type)
-        db.session.commit()
-
         cvss_item = AttributeGroupItem(
             None,
             "CVSS",
@@ -1063,8 +1059,6 @@ def pre_seed_report_items():
                 impact_item,
             ],
         )
-        db.session.add(group1)
-        db.session.commit()
 
         affected_systems_item = AttributeGroupItem(
             None,
@@ -1102,8 +1096,6 @@ def pre_seed_report_items():
             0,
             [affected_systems_item, ioc_item, recommendations_item],
         )
-        db.session.add(group2)
-        db.session.commit()
 
         links_item = AttributeGroupItem(
             None,
@@ -1114,154 +1106,161 @@ def pre_seed_report_items():
             1000,
             db.session.query(Attribute).filter_by(name="Text").first().id,
         )
-        db.session.add(AttributeGroup(None, "Resources", "", 0, "", 0, [links_item]))
+        group3 = AttributeGroup(None, "Resources", "", 0, "", 0, [links_item])
+        db.session.add(group1)
+        db.session.add(group2)
+        db.session.add(group3)
         db.session.commit()
 
-    if not db.session.query(ReportItemType).filter_by(title="MISP Report").first():
-        report_item_type = ReportItemType(None, "MISP Report", "MISP report type", [])
+        report_item_type = ReportItemType(None, "Vulnerability Report", "Basic report type", [group1, group2, group3])
         db.session.add(report_item_type)
         db.session.commit()
 
-        db.session.add(
-            AttributeGroupItem(
-                None,
-                "Event distribution",
-                "",
-                0,
-                1,
-                1,
-                db.session.query(Attribute).filter_by(name="Text").first().id,
-            )
+    if not db.session.query(ReportItemType).filter_by(title="MISP Report").first():
+        event_distribution = AttributeGroupItem(
+            None,
+            "Event distribution",
+            "",
+            0,
+            1,
+            1,
+            db.session.query(Attribute).filter_by(name="Text").first().id,
         )
-        db.session.add(
-            AttributeGroupItem(
-                None,
-                "Event threat level",
-                "",
-                1,
-                1,
-                1,
-                db.session.query(Attribute).filter_by(name="Text").first().id,
-            )
+        event_threat_level = AttributeGroupItem(
+            None,
+            "Event threat level",
+            "",
+            1,
+            1,
+            1,
+            db.session.query(Attribute).filter_by(name="Text").first().id,
         )
-        db.session.add(
-            AttributeGroupItem(
-                None,
-                "Event analysis",
-                "",
-                2,
-                1,
-                1,
-                db.session.query(Attribute).filter_by(name="Text").first().id,
-            )
+        event_analysis = AttributeGroupItem(
+            None,
+            "Event analysis",
+            "",
+            2,
+            1,
+            1,
+            db.session.query(Attribute).filter_by(name="Text").first().id,
         )
-        db.session.add(
-            AttributeGroupItem(
-                None,
-                "Event info",
-                "",
-                2,
-                1,
-                1,
-                db.session.query(Attribute).filter_by(name="Text").first().id,
-            )
+        event_info = AttributeGroupItem(
+            None,
+            "Event info",
+            "",
+            2,
+            1,
+            1,
+            db.session.query(Attribute).filter_by(name="Text").first().id,
         )
 
-        group4 = AttributeGroup(None, "Event", "", None, None, 0, [])
+        group4 = AttributeGroup(None, "Event", "", None, None, 0, [event_distribution, event_threat_level, event_analysis, event_info])
+
+        attribute_category = AttributeGroupItem(
+            None,
+            "Attribute category",
+            "",
+            0,
+            1,
+            1,
+            db.session.query(Attribute).filter_by(name="Text").first().id,
+        )
+
+        attribute_type = AttributeGroupItem(
+            None,
+            "Attribute type",
+            "",
+            1,
+            1,
+            1,
+            db.session.query(Attribute).filter_by(name="Text").first().id,
+        )
+
+        attribute_distribution = AttributeGroupItem(
+            None,
+            "Attribute distribution",
+            "",
+            2,
+            1,
+            1,
+            db.session.query(Attribute).filter_by(name="Text").first().id,
+        )
+
+        attribute_value = AttributeGroupItem(
+            None,
+            "Attribute value",
+            "",
+            3,
+            1,
+            1,
+            db.session.query(Attribute).filter_by(name="Text Area").first().id,
+        )
+
+        attribute_comment = AttributeGroupItem(
+            None,
+            "Attribute contextual comment",
+            "",
+            4,
+            1,
+            1,
+            db.session.query(Attribute).filter_by(name="Text").first().id,
+        )
+
+        attribute_additional_info = AttributeGroupItem(
+            None,
+            "Attribute additional information",
+            "",
+            5,
+            1,
+            1,
+            db.session.query(Attribute).filter_by(name="Additional Data").first().id,
+        )
+
+        attribute_first_seen = AttributeGroupItem(
+            None,
+            "First seen date",
+            "",
+            6,
+            1,
+            1,
+            db.session.query(Attribute).filter_by(name="Date").first().id,
+        )
+
+        attribute_last_seen = AttributeGroupItem(
+            None,
+            "Last seen date",
+            "",
+            7,
+            1,
+            1,
+            db.session.query(Attribute).filter_by(name="Date").first().id,
+        )
+
+        group5 = AttributeGroup(
+            None,
+            "Attribute",
+            "",
+            None,
+            None,
+            0,
+            [
+                attribute_category,
+                attribute_type,
+                attribute_distribution,
+                attribute_value,
+                attribute_comment,
+                attribute_additional_info,
+                attribute_first_seen,
+                attribute_last_seen,
+            ],
+        )
+
         db.session.add(group4)
+        db.session.add(group5)
         db.session.commit()
 
-        db.session.add(
-            AttributeGroupItem(
-                None,
-                "Attribute category",
-                "",
-                0,
-                1,
-                1,
-                db.session.query(Attribute).filter_by(name="Text").first().id,
-            )
-        )
-        db.session.add(
-            AttributeGroupItem(
-                None,
-                "Attribute type",
-                "",
-                1,
-                1,
-                1,
-                db.session.query(Attribute).filter_by(name="Text").first().id,
-            )
-        )
-        db.session.add(
-            AttributeGroupItem(
-                None,
-                "Attribute distribution",
-                "",
-                2,
-                1,
-                1,
-                db.session.query(Attribute).filter_by(name="Text").first().id,
-            )
-        )
-        db.session.add(
-            AttributeGroupItem(
-                None,
-                "Attribute value",
-                "",
-                3,
-                1,
-                1,
-                db.session.query(Attribute).filter_by(name="Text Area").first().id,
-            )
-        )
-        db.session.add(
-            AttributeGroupItem(
-                None,
-                "Attribute contextual comment",
-                "",
-                4,
-                1,
-                1,
-                db.session.query(Attribute).filter_by(name="Text").first().id,
-            )
-        )
-        db.session.add(
-            AttributeGroupItem(
-                None,
-                "Attribute additional information",
-                "",
-                5,
-                1,
-                1,
-                db.session.query(Attribute).filter_by(name="Additional Data").first().id,
-            )
-        )
-        db.session.add(
-            AttributeGroupItem(
-                None,
-                "First seen date",
-                "",
-                6,
-                1,
-                1,
-                db.session.query(Attribute).filter_by(name="Date").first().id,
-            )
-        )
-        db.session.add(
-            AttributeGroupItem(
-                None,
-                "Last seen date",
-                "",
-                7,
-                1,
-                1,
-                db.session.query(Attribute).filter_by(name="Date").first().id,
-            )
-        )
-        group5 = AttributeGroup(None, "Attribute", "", None, None, 0, [])
-        db.session.add(group5)
-
+        report_item_type = ReportItemType(None, "MISP Report", "MISP report type", [group4, group5])
+        db.session.add(report_item_type)
         db.session.commit()
 
 

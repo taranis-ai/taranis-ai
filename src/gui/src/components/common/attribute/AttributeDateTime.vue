@@ -1,26 +1,5 @@
 <template>
 
-    <!--<div class="datetime-value">
-        <v-row v-for="(value, index) in values" :key="value.index">
-            <span v-if="read_only || values[index].remote">{{values[index].value}}</span>
-            <v-datetime-picker
-                    v-if="!read_only && !values[index].remote"
-                    v-model="datetime"
-                    :label="$t('attribute.value')"
-                    date-format="yyyy.MM.dd"
-                    time-format="HH:mm"
-                    :disabled="!canModify"
-            >
-
-                <template slot="actions" slot-scope="{  }">
-                    &lt;!&ndash;<v-btn color="lighten-1" @click.native="parent.clearHandler">{{$t('attribute.cancel')}}</v-btn>
-                    <v-btn color="success darken-1" @click="parent.okHandler">Done</v-btn>&ndash;&gt;
-                    <v-btn color="info lighten-1" @click="getDateTime(index)">{{$t('attribute.done')}}</v-btn>
-                </template>
-
-            </v-datetime-picker>
-        </v-row>
-    </div>-->
     <AttributeItemLayout
             :add_button="addButtonVisible"
             @add-value="add()"

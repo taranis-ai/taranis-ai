@@ -81,20 +81,30 @@ class RSSCollector(BaseCollector):
             return True, content_location
         return False, content_location
 
+    def get_published_date(self, feed_entry: feedparser.FeedParserDict) -> datetime.datetime:
+        published: str | datetime.datetime = str(feed_entry.get("published", ""))
+        if not published:
+            link: str = str(feed_entry.get("link", ""))
+            if not link:
+                return datetime.datetime.now()
+            response = requests.head(link, headers=self.headers, proxies=self.proxies)
+            if not response.ok:
+                return datetime.datetime.now()
+
+            published = str(response.headers.get("Last-Modified", ""))
+        try:
+            return dateparser.parse(published) if published else datetime.datetime.now()
+        except Exception:
+            return datetime.datetime.now()
+
     def parse_feed(self, feed_entry: feedparser.FeedParserDict, feed_url: str, source) -> NewsItemData:
         author: str = str(feed_entry.get("author", ""))
-        published: str | datetime.datetime = str(feed_entry.get("published", ""))
         title: str = str(feed_entry.get("title", ""))
         description: str = str(feed_entry.get("description", ""))
         link: str = str(feed_entry.get("link", ""))
         for_hash: str = author + title + link
 
-        try:
-            published = dateparser.parse(published) if published else datetime.datetime.now()
-        except Exception:
-            logger.exception()
-            logger.debug(f"Could not parse date: {published}")
-            published = datetime.datetime.now()
+        published = self.get_published_date(feed_entry)
 
         # if published > limit: TODO: uncomment after testing, we need some initial data now
         logger.log_collector_activity("rss", source.id, f"Processing entry [{link}]")

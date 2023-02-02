@@ -7,7 +7,7 @@
             v-on="{ ...tooltip, ...dialog }"
             icon
             tile
-            class="news-item-action"
+            class="item-action-btn"
             :class="[{ active: active ? active : false }, extraClass]"
           >
             <v-icon color="black">{{ icon }}</v-icon>
@@ -25,8 +25,7 @@
 export default {
   name: 'newsItemActionDialog',
   emits: ['open', 'close'],
-  data: () => ({
-  }),
+  data: () => ({}),
   props: {
     showDialog: { type: Boolean, default: false },
     active: Boolean,

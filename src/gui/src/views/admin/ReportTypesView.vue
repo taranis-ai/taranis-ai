@@ -1,6 +1,6 @@
 <template>
   <div>
-    <DataTable
+    <data-table
       :addButton="true"
       :items.sync="report_types"
       :headerFilter="['tag', 'id', 'title', 'description']"
@@ -11,11 +11,10 @@
       @add-item="addItem"
       @update-items="updateData"
     />
-    <ReportTypeForm
-      v-if="formData && Object.keys(formData).length > 0"
-      :report_type_data="formData"
-    >
-    </ReportTypeForm>
+    <report-type-form
+      v-if="newItem || formData && Object.keys(formData).length > 0"
+      :report_type_data.sync="formData"
+    />
   </div>
 </template>
 
@@ -23,12 +22,10 @@
 import DataTable from '@/components/common/DataTable'
 import ReportTypeForm from '../../components/config/ReportTypeForm'
 import {
-  deleteReportItemType,
-  createReportItemType,
-  updateReportItemType
+  deleteReportItemType
 } from '@/api/config'
 import { mapActions, mapGetters } from 'vuex'
-import { notifySuccess, emptyValues, notifyFailure } from '@/utils/helpers'
+import { notifySuccess, notifyFailure } from '@/utils/helpers'
 
 export default {
   name: 'ReportTypes',
@@ -40,16 +37,16 @@ export default {
     report_types: [],
     selected: [],
     formData: {},
-    edit: false
+    newItem: false
   }),
   computed: {},
   methods: {
-    ...mapActions('config', ['loadReportItemTypesConfig']),
-    ...mapGetters('config', ['getReportItemTypesConfig']),
+    ...mapActions('config', ['loadReportTypesConfig']),
+    ...mapGetters('config', ['getReportTypesConfig']),
     ...mapActions(['updateItemCount']),
     updateData() {
-      this.loadReportItemTypesConfig().then(() => {
-        const sources = this.getReportItemTypesConfig()
+      this.loadReportTypesConfig().then(() => {
+        const sources = this.getReportTypesConfig()
         this.report_types = sources.items
         this.updateItemCount({
           total: sources.total_count,
@@ -58,20 +55,12 @@ export default {
       })
     },
     addItem() {
-      this.formData = emptyValues(this.report_types[0])
-      this.edit = false
+      this.formData = undefined
+      this.newItem = true
     },
     editItem(item) {
+      this.newItem = false
       this.formData = item
-      this.edit = true
-    },
-    handleSubmit(submittedData) {
-      console.debug(submittedData)
-      if (this.edit) {
-        this.updateItem(submittedData)
-      } else {
-        this.createItem(submittedData)
-      }
     },
     deleteItem(item) {
       if (!item.default) {
@@ -82,22 +71,6 @@ export default {
           notifyFailure(`Failed to delete ${item.name}`)
         })
       }
-    },
-    createItem(item) {
-      createReportItemType(item).then(() => {
-        notifySuccess(`Successfully created ${item.name}`)
-        this.updateData()
-      }).catch(() => {
-        notifyFailure(`Failed to create ${item.name}`)
-      })
-    },
-    updateItem(item) {
-      updateReportItemType(item).then(() => {
-        notifySuccess(`Successfully updated ${item.name}`)
-        this.updateData()
-      }).catch(() => {
-        notifyFailure(`Failed to update ${item.name}`)
-      })
     },
     selectionChange(selected) {
       this.selected = selected.map(item => item.id)

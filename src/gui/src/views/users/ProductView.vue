@@ -9,7 +9,7 @@ import { getNewsItemAggregate } from '@/api/assess'
 import StoryDetail from '@/components/assess/StoryDetail'
 
 export default {
-  name: 'StoryView',
+  name: 'ProductView',
   data: () => ({
     story: {}
   }),

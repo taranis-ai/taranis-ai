@@ -1,168 +1,199 @@
 <template>
   <v-row dense class="ma-0 pa-0">
-    <v-col cols="12">
-      <v-card
-        tile
-        elevation="4"
-        outlined
-        :ripple="false"
-        height="100%"
-        :class="[
-          'pl-5',
-          'align-self-stretch',
-          'news-item',
-          'dark-grey--text',
-          {
-            selected: selected
-          }
-        ]"
-        @click="toggleSelection"
-      >
-        <div
-          v-if="story.in_reports_count > 0"
-          class="news-item-corner-tag text-caption text-weight-bold text-uppercase white--text"
+    <v-row dense class="mx-0 mb-0 mt-2 py-0 px-5">
+      <!-- DIALOGS -->
+      <v-dialog :value="deleteDialog" width="auto">
+        <popup-delete-item
+          :newsItem="story"
+          @deleteItem="deleteNewsItem()"
+          @close="deleteDialog = false"
+        />
+      </v-dialog>
+      <v-dialog :value="sharingDialog" width="auto">
+        <popup-share-items
+          :newsItem="story"
+          @deleteItem="deleteNewsItem()"
+          @close="sharingDialog = false"
+        />
+      </v-dialog>
+
+      <v-col cols="12" class="pb-0">
+        <v-card
+          tile
+          elevation="3"
+          outlined
+          v-ripple="{ class: 'accent--text' }"
+          class="container no-gutters"
+          :class="[
+            'pl-5',
+            'align-self-stretch',
+            'news-item',
+            'dark-grey--text',
+            {
+              selected: selected
+            }
+          ]"
+          @click="toggleSelection"
         >
-          <v-icon class="flipped-icon">mdi-share</v-icon>
-          <span>{{ story.in_reports_count }}</span>
-        </div>
-
-        <div
-          v-if="storyRestricted()"
-          class="news-item-corner-tag text-caption text-weight-bold text-uppercase white--text"
-        >
-          <v-icon>mdi-lock-outline</v-icon>
-        </div>
-
-        <!-- Story Actions -->
-
-        <div class="news-item-action-bar">
-          <news-item-action-dialog
-            icon="mdi-delete"
-            tooltip="remove item"
-            :showDialog="deleteDialog"
-            @close="deleteDialog = false"
-            @open="deleteDialog = true"
-          >
-            <popup-delete-item
-              v-if="deleteDialog"
-              :newsItem="story"
-              @deleteItem="deleteNewsItem()"
-              @close="deleteDialog = false"
-            />
-          </news-item-action-dialog>
-
-          <news-item-action
-            :active="story.read"
-            icon="mdi-email-mark-as-unread"
-            @click="markAsRead()"
-            tooltip="mark as read/unread"
-          />
-
-          <news-item-action
-            :active="story.important"
-            icon="mdi-exclamation"
-            @click="markAsImportant()"
-            tooltip="mark as important"
-          />
-
-          <news-item-action-dialog
-            icon="mdi-google-circles-communities"
-            tooltip="add to report"
-            :showDialog="sharingDialog"
-            @close="sharingDialog = false"
-            @open="sharingDialog = true"
-          >
-            <popup-share-items
-              v-if="sharingDialog"
-              :newsItem="story"
-              @close="sharingDialog = false"
-            />
-          </news-item-action-dialog>
-        </div>
-
-        <v-container no-gutters class="ma-0 pa-0">
-          <v-row no-gutters>
+          <v-row>
+            <!-- STORY TITLE -->
             <v-col
               cols="12"
               sm="12"
-              md="7"
-              class="d-flex flex-column pr-3"
-              align-self="start"
+              lg="6"
+              class="d-flex flex-grow-1 mt-3 px-5 py-2"
+              align-self="center"
+              order="1"
+              order-sm="1"
             >
-              <v-container column style="height: 100%">
-                <v-row class="flex-grow-0 mt-0">
-                  <v-col class="pb-1">
-                    <h2 class="news-item-title">{{ story.title }}</h2>
-                  </v-col>
-                </v-row>
-
-                <v-row class="flex-grow-0 mt-0">
-                  <v-col>
-                    <p :class="news_item_summary_class">
-                      {{ getDescription() }}
-                    </p>
-                  </v-col>
-                </v-row>
-              </v-container>
+              <h2 class="news-item-title">
+                {{ story.title }}
+              </h2>
             </v-col>
 
-            <v-divider vertical class="d-none d-sm-flex"></v-divider>
-            <v-divider class="d-flex d-sm-none"></v-divider>
+            <!-- STORY ACTIONS -->
+            <v-col
+              order="3"
+              order-sm="2"
+              class="d-flex flex-row flex-grow-1 mt-3 px-5 py-2 item-action-container"
+              cols="12"
+              sm="12"
+              lg="6"
+              style="justify-content: space-evenly"
+            >
+              <v-btn
+                small
+                class="item-action-btn"
+                outlined
+                :to="'/story/' + story.id"
+                v-on:click.stop
+                v-ripple="false"
+              >
+                <span>Details</span>
+                <v-icon right>mdi-text-box-search-outline</v-icon>
+              </v-btn>
 
+              <v-btn
+                small
+                class="item-action-btn"
+                outlined
+                v-on:click.stop="sharingDialog = true"
+                v-ripple="false"
+              >
+                <span>Add to Report</span>
+                <v-icon right>mdi-google-circles-communities</v-icon>
+              </v-btn>
+
+              <v-btn
+                small
+                class="item-action-btn open-close-btn"
+                :class="openSummary ? 'opened' : 'closed'"
+                outlined
+                v-on:click.stop
+                v-ripple="false"
+                :style="{ minWidth: minButtonWidth }"
+                @click.stop="openSummary = !openSummary"
+              >
+                <span>{{ news_item_summary_text }}</span>
+                <span v-if="news_item_length > 1" class="primary--text">&nbsp;[{{ news_item_length }}]</span>
+                <v-icon right>mdi-chevron-down</v-icon>
+              </v-btn>
+
+              <v-btn
+                small
+                class="item-action-btn hidden-lg-and-down"
+                outlined
+                v-on:click.stop="markAsRead()"
+                v-ripple="false"
+              >
+                <span>mark as read</span>
+                <v-icon right>mdi-eye-outline</v-icon>
+              </v-btn>
+
+              <div class="item-action-btn btn-group">
+                <v-btn
+                  small
+                  outlined
+                  v-on:click.stop="upvote()"
+                  v-ripple="false"
+                >
+                  <span>{{ likes }}</span>
+                  <v-icon right color="awake-green-color"
+                    >mdi-arrow-up-circle-outline</v-icon
+                  >
+                </v-btn>
+                <v-btn
+                  small
+                  outlined
+                  v-on:click.stop="downvote()"
+                  v-ripple="false"
+                >
+                  <span>{{ dislikes }}</span>
+                  <v-icon right color="awake-red-color"
+                    >mdi-arrow-down-circle-outline</v-icon
+                  >
+                </v-btn>
+              </div>
+
+              <v-menu bottom offset-y>
+                <template v-slot:activator="{ on, attrs }">
+                  <v-btn
+                    small
+                    class="item-action-btn expandable"
+                    outlined
+                    v-on:click.stop
+                    v-ripple="false"
+                    v-bind="attrs"
+                    v-on="on"
+                  >
+                    <v-icon>mdi-dots-vertical</v-icon>
+                  </v-btn>
+                </template>
+
+                <v-list class="extraActionsList" dense>
+                  <v-list-item
+                    @click.stop="markAsRead()"
+                    class="hidden-xl-only"
+                  >
+                    <v-icon left>mdi-eye-outline</v-icon>mark as read
+                  </v-list-item>
+                  <v-list-item @click.stop="markAsImportant()">
+                    <v-icon left>mdi-star-outline</v-icon>mark as important
+                  </v-list-item>
+                  <v-list-item @click.stop>
+                    <v-icon left>mdi-bookmark-outline</v-icon>mark as trusted
+                    author
+                  </v-list-item>
+                  <v-list-item @click.stop="deleteDialog = true">
+                    <v-icon left>mdi-delete-outline</v-icon>delete
+                  </v-list-item>
+                </v-list>
+              </v-menu>
+            </v-col>
             <v-col
               cols="12"
               sm="12"
-              md="5"
-              class="d-flex flex-column"
-              align-self="start"
-              style="height: 100%"
+              class="px-5"
+              order="2"
+              order-sm="3"
+              lg="6"
+              align-self="stretch"
             >
-              <v-container column style="height: 100%" class="pb-5">
-                <v-row class="flex-grow-0 mt-1">
-                  <v-col
-                    cols="12"
-                    class="d-flex justify-start flex-wrap pt-1 pb-4"
-                  >
-                    <v-btn
-                      class="mr-1 mt-1"
-                      outlined
-                      @click.stop="addToReport()"
-                    >
-                      <v-icon>mdi-google-circles-communities</v-icon>
-                      <span>add to report</span>
-                    </v-btn>
-                    <v-btn
-                      class="mr-1 mt-1"
-                      outlined
-                      :to="'/story/' + story.id"
-                    >
-                      <v-icon>mdi-eye</v-icon>
-                      <span>view Details</span>
-                    </v-btn>
-                    <v-btn
-                      class="mr-1 mt-1"
-                      :outlined="news_item_length ? false : true"
-                      :color="news_item_length ? 'blue-grey' : null"
-                      @click.stop="openSummary = !openSummary"
-                    >
-                      <v-icon>{{ news_item_summary_icon }}</v-icon>
-                      <span>{{ news_item_summary_text }}</span>
-                    </v-btn>
-
-                    <div
-                      class="d-flex align-start justify-center mr-3 ml-2 mt-1"
-                    >
-                      <votes :count="likes" type="up" @input="upvote()" />
-                    </div>
-                    <div class="d-flex align-start justify-center mr-3 mt-1">
-                      <votes
-                        :count="dislikes"
-                        type="down"
-                        @input="downvote()"
-                      />
-                    </div>
-                  </v-col>
-                </v-row>
+              <!-- DESCRIPTION -->
+              <p :class="news_item_summary_class">
+                {{ getDescription() }}
+              </p>
+            </v-col>
+            <v-col
+              class="item-meta-info px-5 pt-2 pb-3"
+              order="4"
+              order-sm="4"
+              cols="12"
+              sm="12"
+              lg="6"
+            >
+              <v-container column class="pa-0 pb-3">
+                <!-- META INFO -->
                 <v-row class="news-item-meta-infos">
                   <v-col class="news-item-meta-infos-label">
                     <strong>{{ $t('assess.published') }}:</strong>
@@ -189,41 +220,65 @@
                     <strong>Tags:</strong>
                   </v-col>
                   <v-col>
-                    <tag-list key="tags" :tags="getTags()" />
+                    <div>
+                      <span
+                        class="plain-tags"
+                        v-for="(tag, i) in getTags()"
+                        v-bind:key="tag+i"
+                      >
+                        <a href="#">{{ tag }}</a
+                        >,
+                      </span>
+                    </div>
                   </v-col>
                 </v-row>
-                <v-row class="news-item-meta-infos">
+                <!-- <v-row class="news-item-meta-infos mb-2">
                   <v-col class="news-item-meta-infos-label d-flex align-center">
                     <strong>Summarzied:</strong>
                   </v-col>
                   <v-col>
-                    {{ isSummarized() }}
+                    <v-icon small v-if="isSummarized()">mdi-check</v-icon>
+                    <v-icon small v-else>mdi-close</v-icon>
                   </v-col>
-                </v-row>
-                <metainfo v-if="openSummary && story.news_items.length == 1" :newsItem="story.news_items[0]" />
+                </v-row> -->
+                <metainfo
+                  v-if="openSummary && news_item_length == 1"
+                  :newsItem="story.news_items[0]"
+                />
               </v-container>
             </v-col>
           </v-row>
-        </v-container>
-      </v-card>
-    </v-col>
-    <v-row no-gutter v-if="openSummary && story.news_items.length > 1">
-      <card-news-item
-        v-for="item in story.news_items"
-        :key="item.id"
-        :newsItem="item"
-      />
+        </v-card>
+      </v-col>
+    </v-row>
+    <v-row dense class="ma-0 py-0 px-5">
+      <v-col cols="12" class="py-0 px-1">
+        <div
+          class="hidden-story-items-wrapper"
+          :class="openSummary && news_item_length > 1 ? 'expanded' : ''"
+        >
+          <transition name="collapse" mode="in-out">
+            <div
+              v-if="openSummary && news_item_length > 1"
+              class="hidden-story-items-internal-wrapper"
+            >
+              <card-news-item
+                class="pa-0 my-2 story-news-item"
+                v-for="item in story.news_items"
+                :key="item.id"
+                :newsItem="item"
+              />
+            </div>
+          </transition>
+        </div>
+      </v-col>
     </v-row>
   </v-row>
 </template>
 
 <script>
-import TagList from '@/components/common/tags/TagList'
-import newsItemAction from '@/components/_subcomponents/newsItemAction'
-import newsItemActionDialog from '@/components/_subcomponents/newsItemActionDialog'
 import PopupDeleteItem from '@/components/popups/PopupDeleteItem'
 import PopupShareItems from '@/components/popups/PopupShareItems'
-import votes from '@/components/assess/card/votes'
 import metainfo from '@/components/assess/card/metainfo'
 import CardNewsItem from '@/components/assess/CardNewsItem'
 
@@ -239,18 +294,17 @@ import {
 export default {
   name: 'CardStory',
   components: {
-    TagList,
-    newsItemAction,
-    newsItemActionDialog,
     CardNewsItem,
     PopupDeleteItem,
     PopupShareItems,
-    votes,
     metainfo
   },
   emits: ['selectItem', 'deleteItem'],
   props: {
-    story: {},
+    story: {
+      type: Object,
+      required: true
+    },
     selected: Boolean
   },
   data: () => ({
@@ -259,7 +313,8 @@ export default {
     sharingDialog: false,
     deleteDialog: false,
     likes: 0,
-    dislikes: 0
+    dislikes: 0,
+    showDialog: false
   }),
   computed: {
     item_important() {
@@ -273,16 +328,19 @@ export default {
         ? 'news-item-summary-no-clip'
         : 'news-item-summary'
     },
-    news_item_summary_icon() {
-      return this.openSummary
-        ? 'mdi-unfold-less-horizontal'
-        : 'mdi-unfold-more-horizontal'
-    },
     news_item_length() {
-      return this.story.news_items.length > 1 ? this.story.news_items.length : ''
+      return this.story.news_items.length
     },
     news_item_summary_text() {
-      return this.openSummary ? 'Close' : `Open ${this.news_item_length}`
+      return this.openSummary
+        ? 'Close'
+        : 'Open'
+    },
+    minButtonWidth() {
+      const longestText = `${
+        this.news_item_length > 1 ? '(' + this.news_item_length + ')' : ''
+      }`
+      return longestText.length + 11 + 'ch'
     },
     published_date_outdated() {
       const pub_date = new Date(this.published_date)
@@ -292,6 +350,9 @@ export default {
       const oneWeekAgo = new Date()
       oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
       return oneWeekAgo > pub_date
+    },
+    story_in_reports() {
+      return this.story ? this.story.in_reports_count : 0
     }
   },
   methods: {
@@ -338,7 +399,8 @@ export default {
     },
 
     getTags() {
-      return this.story.tags.map((tag) => tag.name)
+      const tags = this.story.tags.map((tag) => tag.name)
+      return tags.slice(0, this.openSummary ? tags.length : 5)
     },
 
     getPublishedDate() {
@@ -358,10 +420,6 @@ export default {
       return this.story.news_items[0].news_item_data.author
     },
 
-    storyInReport() {
-      return this.story.in_reports_count
-    },
-
     storyRestricted() {
       return false
     }
@@ -370,8 +428,8 @@ export default {
     // console.log('card rendered!')
   },
   mounted() {
-    this.likes = this.story.likes || 0
-    this.dislikes = this.story.dislikes || 0
+    this.likes = this.story ? this.story.likes : 0
+    this.dislikes = this.story ? this.story.dislikes : 0
   }
 }
 </script>

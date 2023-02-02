@@ -69,19 +69,14 @@ export default {
     }
   }),
   methods: {
-    attributeType: function () {
+    attributeType() {
       return (
         'Attribute' +
-        this.attributes[this.attribute_item.attribute_group_item.attribute.type]
+        this.attributes[this.attribute_item.attribute_group_item.attribute_name]
       )
     }
   },
   mounted() {
-    console.debug('Mounted Attribute Container')
-    console.debug(this.attribute_item)
-    console.debug(this.read_only)
-    console.debug(this.edit)
-    console.debug(this.report_item_id)
   }
 }
 </script>

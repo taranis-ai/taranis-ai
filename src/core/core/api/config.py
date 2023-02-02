@@ -50,7 +50,7 @@ class DictionariesReload(Resource):
 
 
 class Attributes(Resource):
-    @auth_required("CONFIG_ATTRIBUTE_ACCESS")
+    @auth_required(["CONFIG_ATTRIBUTE_ACCESS", "ANALYZE_ACCESS"])
     def get(self):
         search = request.args.get(key="search", default=None)
         return attribute.Attribute.get_all_json(search)
@@ -61,6 +61,10 @@ class Attributes(Resource):
 
 
 class Attribute(Resource):
+    @auth_required(["CONFIG_ATTRIBUTE_ACCESS", "ANALYZE_ACCESS"])
+    def get(self, attribute_id):
+        return attribute.Attribute.find_by_id(attribute_id)
+
     @auth_required("CONFIG_ATTRIBUTE_UPDATE")
     def put(self, attribute_id):
         attribute.Attribute.update(attribute_id, request.json)

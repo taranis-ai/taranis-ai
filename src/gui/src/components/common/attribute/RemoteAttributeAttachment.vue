@@ -131,7 +131,6 @@ export default {
       for (let i = 0; i < this.values.length; i++) {
         const file = {
           id: this.values[i].id,
-          size: this.values[i].binary_size,
           name: this.values[i].value,
           type: this.values[i].binary_mime_type,
           description: this.values[i].binary_description,

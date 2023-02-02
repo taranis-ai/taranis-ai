@@ -112,7 +112,6 @@ export default {
       importWordList(data)
     },
     exportData() {
-      console.debug('export OSINT sources')
       exportWordList(this.selected)
     },
     selectionChange(selected) {

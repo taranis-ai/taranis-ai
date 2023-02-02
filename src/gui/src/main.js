@@ -12,7 +12,8 @@ import { dateTimeFormats } from '@/i18n/datetimeformat'
 import VeeValidate from 'vee-validate'
 import VueCookies from 'vue-cookies'
 import VueSSE from 'vue-sse'
-import DatetimePicker from 'vuetify-datetime-picker'
+import DatePicker from 'vue2-datepicker'
+import 'vue2-datepicker/index.css'
 
 import layout_config from './assets/layout_config'
 import VueCalendarHeatmap from 'vue-calendar-heatmap'
@@ -31,7 +32,7 @@ Vue.config.productionTip = false
 Vue.use(require('vue-cookies'))
 Vue.use(VueCookies)
 Vue.use(VueSSE)
-Vue.use(DatetimePicker)
+Vue.use(DatePicker)
 Vue.use(VueCalendarHeatmap)
 
 Vue.use(VueI18n)

@@ -39,6 +39,8 @@ class Bot(db.Model):
     def update_bot_parameters(cls, bot_id, data):
         try:
             bot = cls.find_by_id(bot_id)
+            if not bot:
+                return None
             # parameter_values = [NewParameterValueSchema().load(pv) for pv in data["parameter_values"]]
             for pv in bot.parameter_values:
                 for updated_value in data["parameter_values"]:

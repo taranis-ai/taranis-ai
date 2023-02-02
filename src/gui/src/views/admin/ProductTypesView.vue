@@ -123,7 +123,6 @@ export default {
       delete submittedData.parameter_values
       const parameter_list = this.parameters[this.formData.presenter_id].map(item => item.name)
       const updateItem = createParameterValues(parameter_list, submittedData)
-      console.debug(updateItem)
       if (this.edit) {
         this.updateItem(updateItem)
       } else {

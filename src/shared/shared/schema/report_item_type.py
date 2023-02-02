@@ -14,7 +14,7 @@ class AttributeGroupItemSchema(Schema):
     index = fields.Int()
     min_occurrence = fields.Int()
     max_occurrence = fields.Int()
-    attribute = fields.Nested(AttributeSchema, allow_none=True, load_only=True)
+    attribute = fields.Nested(AttributeSchema, allow_none=True)
     attribute_id = fields.Int(dump_only=True, allow_none=True)
     attribute_name = fields.Str(dump_only=True, allow_none=True)
 

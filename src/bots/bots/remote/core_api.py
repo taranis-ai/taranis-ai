@@ -191,7 +191,7 @@ class CoreApi:
     def news_items_grouping(self, data):
         try:
             response = requests.put(
-                f"{self.api_url}/api/v1/bots/news-item-aggregates-group-action",
+                f"{self.api_url}/api/v1/bots/news-item-aggregates/group",
                 json=data,
                 headers=self.headers,
             )

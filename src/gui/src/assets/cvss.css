@@ -1,0 +1,299 @@
+/* Copyright (c) 2015-2019, Chandan B.N
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
+ * following conditions are met:
+ * 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following
+ *    disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the
+ *    following disclaimer in the documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote
+ *    products derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+.cvssjs i {
+    width: 1em;
+    height: 1em;
+    display: inline-block;
+    background: url("cvssicons.png") 0 0 no-repeat;
+    vertical-align: middle;
+    background-size: cover;
+    margin-right: 4px;
+    margin: 2px;
+    font-size: 40px;
+}
+
+.cvssjs i.AVN {
+    background-position: -3em 0;
+}
+
+.cvssjs i.AVA {
+    background-position: -2em 0;
+}
+
+.cvssjs i.AVL {
+    background-position: -1em 0;
+}
+
+.cvssjs i.AVP {
+    background-position: 0 0;
+}
+
+.cvssjs i.ACL {
+    background-position: -4em 0;
+}
+
+.cvssjs i.ACH {
+    background-position: -5em 0;
+}
+
+.cvssjs i.PRN {
+    background-position: -6em 0;
+}
+
+.cvssjs i.PRL {
+    background-position: -7em 0;
+}
+
+.cvssjs i.PRH {
+    background-position: -8em 0;
+}
+
+.cvssjs i.UIN {
+    background-position: -10em 0;
+}
+
+.cvssjs i.UIR {
+    background-position: -9em 0;
+}
+
+.cvssjs i.SC {
+    background-position: -11em 0;
+}
+
+.cvssjs i.SU {
+    background-position: -10em 0;
+}
+
+.cvssjs i.CH {
+    background-position: -14em 0;
+}
+
+.cvssjs i.CL {
+    background-position: -13em 0;
+}
+
+.cvssjs i.CN {
+    background-position: -12em 0;
+}
+
+.cvssjs i.IH {
+    background-position: -16em 0;
+}
+
+.cvssjs i.IL {
+    background-position: -17em 0;
+}
+
+.cvssjs i.IN {
+    background-position: -15em 0;
+}
+
+.cvssjs i.AH {
+    background-position: -20em 0;
+}
+
+.cvssjs i.AL {
+    background-position: -19em 0;
+}
+
+.cvssjs i.AN {
+    background-position: -18em 0;
+}
+
+.cvssjs a {
+    color: #489;
+    text-decoration: none;
+}
+
+.cvssjs dl {
+    display: inline-block;
+    vertical-align: top;
+    background-color: #424a40;
+    margin-top: 2px;
+    margin-bottom: 2px;
+    margin: 2px;
+    border-radius: 4px;
+    box-shadow: 0px 0px 5px #bbb;
+    transition: background-color 0.3s ease-in-out;
+}
+.cvssjs dt {
+    color: #EEEEEE;
+    padding: 5px;
+    font-size: 60%;
+    overflow-x: hidden;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+}
+.cvssjs dl:hover, .cvssjs dl:focus {
+    background-color: #676a60;
+    box-shadow: 0px 0px 5px #aaa;
+}
+.cvssjs dl:hover dt, .cvssjs dl:focus dt {
+    color: #ffffff;
+}
+.cvssjs dd {
+    margin: 0px;
+    padding: 0px;
+    text-align: left;
+}
+
+.cvssjs dd label,
+#predef span {
+    min-width: 7.5em;
+    padding: 0px 2px 0px 2px;
+    display: block;
+    margin: 1px;
+    margin-top: 0px;
+    background-color: #f7f7f4;
+    transition: background-color 0.3s ease-in-out;
+}
+
+.cvssjs dd:last-child label,
+#predef span:last-child {
+    border-bottom-left-radius: 3px;
+    border-bottom-right-radius: 3px;
+}
+
+.cvssjs dd small {
+    display: none;
+}
+
+.cvssjs dd:hover small {
+    position: absolute;
+    max-width: 220px;
+    border: solid 1px #333;
+    display: block;
+    color: black;
+    background-color: #FFFFC1;
+    border-radius: 5px;
+    padding: 5px;
+    margin-top: .7em;
+    margin-left: 5em;
+    box-shadow: 2px 2px 5px #333;
+    z-index: 1;
+}
+
+#predef span:hover:before {
+    content: "<";
+    display: block;
+    position: absolute;
+    margin-top: 0px;
+    margin-left: -2px;
+    color: #424a40;
+}
+
+.cvssjs dd > input {
+    border: 0;
+    clip: rect(0 0 0 0);
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    padding: 0;
+    position: absolute;
+    width: 1px;
+}
+
+.cvssjs dd:nth-child(2) input:checked + label,
+.cvssjs .Critical {
+    background-color: rgb(240, 130, 120);
+}
+
+.cvssjs dd input:checked + label,
+.cvssjs .High {
+    background-color: rgb(240, 170, 83);
+    transition: background-color 0.1s ease-in-out;
+}
+
+.cvssjs dd:last-child input:checked + label,
+.cvssjs dl.AV dd:nth-child(4) input:checked + label,
+.cvssjs .Medium {
+    background-color: rgb(250, 230, 120);
+}
+
+.cvssjs .Low {
+    background-color: rgb(208, 212, 134)
+}
+
+.cvssjs dl.C dd:last-child input:checked + label,
+.cvssjs dl.I dd:last-child input:checked + label,
+.cvssjs dl.A dd:last-child input:checked + label,
+.cvssjs .None {
+    background-color: rgb(162, 213, 114);
+}
+
+.cvssjs dd:nth-child(2) label:hover {
+    background-color: rgb(250, 140, 130);
+}
+
+.cvssjs dd label:hover {
+    background-color: rgb(250, 180, 93);
+    transition: background-color 0.1s ease-in-out;
+}
+
+.cvssjs dl.PR dd:last-child label:hover,
+.cvssjs dd:last-child label:hover,
+.cvssjs dl.AV dd:nth-child(4) label:hover {
+    background-color: rgb(255, 240, 130);
+}
+
+.cvssjs dl.C dd:last-child label:hover,
+.cvssjs dl.I dd:last-child label:hover,
+.cvssjs dl.A dd:last-child label:hover {
+    background-color: rgb(172, 223, 124);
+}
+
+.cvssjs hr {
+    border-style: dashed;
+    color: #949ca0;
+}
+
+.cvssjs .score,
+.cvssjs .vector,
+.cvssjs .severity {
+    margin: 2px;
+    display: inline-block;
+}
+
+.cvssjs .score {
+    width: 1.5em;
+}
+
+.cvssjs .severity {
+    width: 7em;
+    border-radius: 4px;
+    padding: 5px;
+    text-align: center;
+    transition: background-color 0.1s ease-out;
+}
+
+.cvssjs .results {
+    padding: 7px;
+}
+
+.cvssjs dl dd label.results:hover {
+    background-color: white;
+}
+
+.cvssjs .results sub {
+    display: none;
+    font-size: x-small;
+}

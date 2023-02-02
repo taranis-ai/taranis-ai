@@ -184,9 +184,17 @@ const getters = {
     return state.newsItems
   },
 
+  getOSINTSourceGroupsList(state) {
+    return Array.isArray(state.osint_source_groups.items) ? state.osint_source_groups.items.map(value => ({ id: value.id, title: value.name })) : []
+  },
+
+  getOSINTSourcesList(state) {
+    return Array.isArray(state.osint_sources.items) ? state.osint_sources.items.map(value => ({ id: value.id, title: value.name })) : []
+  },
+
   getScopeFilterList(state) {
-    const osint_source_groups = Array.isArray(state.osint_source_groups.items) ? state.osint_source_groups.items.map(value => ({ id: value.id, title: value.name })) : []
-    const osint_sources = Array.isArray(state.osint_sources.items) ? state.osint_sources.items.map(value => ({ id: value.id, title: value.name })) : []
+    const osint_source_groups = Array.isArray(state.osint_source_groups.items) ? state.osint_source_groups.items.map(value => ({ id: { type: 'group', id: value.id }, title: value.name })) : []
+    const osint_sources = Array.isArray(state.osint_sources.items) ? state.osint_sources.items.map(value => ({ id: { type: 'source', id: value.id }, title: value.name })) : []
     return [...osint_source_groups, ...osint_sources]
   },
 

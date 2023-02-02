@@ -102,7 +102,6 @@ export default {
   },
   async created() {
     this.news_item = await this.loadNewsItem()
-    console.debug(this.news_item)
   },
   methods: {
     async loadNewsItem() {

@@ -15,7 +15,7 @@ import {
   getAllPublishers,
   getAllRemoteAccesses,
   getAllRemoteNodes,
-  getAllReportItemTypes,
+  getAllReportTypes,
   getAllRoles,
   getAllUsers,
   getAllNodes,
@@ -56,8 +56,8 @@ const actions = {
       })
   },
 
-  loadReportItemTypesConfig (context, data) {
-    return getAllReportItemTypes(data)
+  loadReportTypesConfig (context, data) {
+    return getAllReportTypes(data)
       .then(response => {
         context.commit('setReportItemTypesConfig', response.data)
       })
@@ -305,7 +305,7 @@ const getters = {
     return state.attributes
   },
 
-  getReportItemTypesConfig (state) {
+  getReportTypesConfig (state) {
     return state.report_item_types_config
   },
 

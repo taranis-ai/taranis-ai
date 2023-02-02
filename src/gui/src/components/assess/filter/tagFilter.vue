@@ -2,7 +2,7 @@
   <v-autocomplete
     v-model="selected"
     :loading="loading"
-    :items="tags"
+    :items="available_tags"
     chips
     dense
     deletable-chips
@@ -28,28 +28,39 @@ export default {
   name: 'tagFilter',
   emits: ['input'],
   data: () => ({
-    selected: [],
     loading: false,
-    tags: [],
+    available_tags: [],
     search: ''
   }),
-  props: {},
+  props: {
+    tags: {
+      type: Array,
+      default: () => []
+    }
+  },
+  computed: {
+    selected: {
+      get() {
+        return this.tags
+      },
+      set(val) {
+        this.$emit('input', val)
+      }
+    }
+  },
   watch: {
     search(val) {
-      val && val !== this.select && this.querySelections(val)
-    },
-    selected(val) {
-      this.$emit('input', val)
+      val && this.querySelections({ search: val })
     }
   },
   methods: {
     shortText(item) {
       return item.length > 20 ? item.substring(0, 20) + '...' : item
     },
-    querySelections(v) {
+    querySelections(filter) {
       this.loading = true
-      getTags().then((res) => {
-        this.tags = res.data
+      getTags(filter).then((res) => {
+        this.available_tags = res.data
         this.loading = false
       })
     }

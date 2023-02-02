@@ -63,7 +63,6 @@ export default {
 
     share () {
       const reportItemData = { add: true, report_item_id: this.reportItemSelection, aggregate_ids: [this.newsItem.id] }
-      console.debug(reportItemData)
       updateReportItem(this.reportItemSelection, reportItemData)
       this.close()
     },
@@ -79,7 +78,6 @@ export default {
           value: item.id
         }
       })
-      console.debug(this.reportItems)
     })
   }
 }

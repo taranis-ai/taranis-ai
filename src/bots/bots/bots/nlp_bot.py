@@ -15,6 +15,11 @@ class NLPBot(BaseBot):
     type = "NLP_BOT"
     name = "NLP Bot"
     description = "Bot for naturale language processing of news items"
+    """
+    summary_threshold: int
+        if content is larger than summary_threshold it will be summarized
+    """
+    summary_threshold = 750
 
     r"""
     Parameters
@@ -58,8 +63,6 @@ class NLPBot(BaseBot):
                 return
 
             for aggregate in data:
-                keywords = []
-
                 if aggregate.get("summary", None) and aggregate.get("tags", None):
                     logger.debug(f"Skipping aggregate: {aggregate['id']}")
                     continue
@@ -75,15 +78,15 @@ class NLPBot(BaseBot):
                     )
                     content_list.append(content)
 
-                    self.core_api.update_news_item_data(news_item["news_item_data"]["id"], {"language": self.detect_language(content)})
+                    self.language = self.detect_language(content)
 
-                    current_keywords = self.generateKeywords(content)
-                    keywords.extend(keyword[0] for keyword in current_keywords[:10])
+                    if "language" in news_item["news_item_data"] and self.language != news_item["news_item_data"]["language"]:
+                        self.core_api.update_news_item_data(news_item["news_item_data"]["id"], {"language": self.language})
 
-                if summary := self.predict_summary(content_list):
+                if len(content) > self.summary_threshold:
+                    summary = self.predict_summary(content_list)
                     self.core_api.update_news_items_aggregate_summary(aggregate["id"], summary)
-                if keywords:
-                    self.core_api.update_news_item_tags(aggregate["id"], keywords)
+                self.core_api.update_news_item_tags(aggregate["id"], keywords)
 
         except Exception:
             logger.log_debug_trace(f"Error running Bot: {self.type}")
@@ -100,11 +103,9 @@ class NLPBot(BaseBot):
         stop_words = "german" if self.language == "de" else "english"
         return self.kw_model.extract_keywords(
             text,
-            keyphrase_ngram_range=(1, 2),
+            keyphrase_ngram_range=(1, 1),
             stop_words=stop_words,
-            use_mmr=True,
-            diversity=0.8,
-            top_n=15,
+            top_n=10,
         )
 
     def detect_language(self, text) -> str:

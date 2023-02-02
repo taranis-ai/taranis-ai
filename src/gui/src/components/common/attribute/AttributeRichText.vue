@@ -37,29 +37,6 @@
                             >
                                 <div class="toolbar" slot="toolbar">
 
-                                    <!--<button class="ql-bold">Bold</button>
-                                    <button class="ql-italic">Italic</button>
-
-                                    <select class="ql-size">
-                                        <option value="small"></option>
-                                        <option selected></option>
-                                        <option value="large"></option>
-                                        <option value="huge"></option>
-                                    </select>
-                                    <select class="ql-font">
-                                        <option selected="selected"></option>
-                                        <option value="serif"></option>
-                                        <option value="monospace"></option>
-                                    </select>
-
-                                    <button class="ql-script" value="sub"></button>
-                                    <button class="ql-script" value="super"></button>-->
-
-                                    <!--<v-btn small text @click="selectionWrap">
-                                        <v-icon>mdi-account</v-icon>
-                                    </v-btn>-->
-
-                                    <!-- Insert Template -->
                                     <v-row justify="center" no-gutters>
                                         <v-col style="width: 40%;">
                                             <v-select

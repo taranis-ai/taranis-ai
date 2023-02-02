@@ -26,9 +26,9 @@
         >
           <v-list-item-content class="py-2" v-if="!link.separator">
             <v-icon color="cx-drawer-text">{{ link.icon }}</v-icon>
-            <v-list-item-title class="cx-drawer-text--text caption">{{
-              $t(link.title)
-            }}</v-list-item-title>
+            <v-list-item-title class="cx-drawer-text--text caption">
+              {{ $t(link.title) }}
+            </v-list-item-title>
           </v-list-item-content>
           <v-list-item-content class="separator py-0 blue-grey" v-else>
             <v-divider class="section-divider" color="white"></v-divider>

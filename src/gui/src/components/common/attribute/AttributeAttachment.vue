@@ -303,7 +303,6 @@ export default {
     addFile (value) {
       const file = {
         id: value.id,
-        size: value.binary_size,
         name: value.value,
         type: value.binary_mime_type,
         description: value.binary_description,
@@ -331,7 +330,6 @@ export default {
       for (let i = 0; i < this.values.length; i++) {
         const file = {
           id: this.values[i].id,
-          size: this.values[i].binary_size,
           name: this.values[i].value,
           type: this.values[i].binary_mime_type,
           description: this.values[i].binary_description,

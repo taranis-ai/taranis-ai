@@ -50,14 +50,10 @@ class User(db.Model):
         self.roles = [Role.find(role.id) for role in roles]
         self.permissions = [Permission.find(permission.id) for permission in permissions]
         self.profile = UserProfile(True, False, [])
-        self.title = ""
-        self.subtitle = ""
-        self.tag = ""
+        self.tag = "mdi-account"
 
     @orm.reconstructor
     def reconstruct(self):
-        self.title = self.name
-        self.subtitle = self.username
         self.tag = "mdi-account"
 
     @classmethod

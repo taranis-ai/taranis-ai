@@ -1,6 +1,6 @@
 <template>
   <div>
-    <v-container fluid style="min-height: 100vh">
+    <v-container fluid style="min-height: 40vh">
       <transition name="empty-list-transition" mode="out-in">
         <v-row v-if="!items">
           <v-col cols="12" class="empty-list-notification">
@@ -104,19 +104,20 @@ export default {
       this.items = this.getNewsItems().items
       this.updateItemCountTotal(this.getNewsItems().total_count)
       this.updateItemCountFiltered(this.items.length)
-      console.log('number of newsitems: ' + this.getNewsItems().total_count)
+      console.debug('number of newsitems: ' + this.getNewsItems().total_count)
     }
 
   },
   computed: {
     ...mapState('filter', {
       scope: (state) => state.newsItemsFilter.scope,
-      filter: (state) => state.newsItemsFilter.filter,
-      order: (state) => state.newsItemsFilter.order
+      filter: (state) => state.newsItemsFilter
     }),
 
     moreToLoad () {
-      return this.items.length < this.getNewsItems().total_count
+      const offset = this.filter.offset ? parseInt(this.filter.offset) : 0
+      const length = offset + this.items.length
+      return length < this.getNewsItems().total_count
     },
 
     activeSelection () {
@@ -125,10 +126,8 @@ export default {
   },
 
   created () {
-    console.log('update SourceList')
     this.updateOSINTSourceGroupsList()
     this.updateOSINTSources()
-    this.resetNewsItemsFilter()
     this.updateNewsItems()
 
     this.unsubscribe = this.$store.subscribe((mutation, state) => {
@@ -139,16 +138,6 @@ export default {
   },
   beforeDestroy() {
     this.unsubscribe()
-  },
-  watch: {
-    scope: {
-      handler () {
-        // Update news items based on the selected scope
-        this.getNewsItemsFromStore()
-      },
-      deep: true
-    }
   }
-
 }
 </script>

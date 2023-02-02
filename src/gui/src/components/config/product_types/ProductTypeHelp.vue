@@ -126,9 +126,9 @@ export default {
 
   methods: {
     ...mapActions('config', [
-      'loadReportItemTypesConfig'
+      'loadReportTypesConfig'
     ]),
-    ...mapGetters('config', ['getReportItemTypesConfig']),
+    ...mapGetters('config', ['getReportTypesConfig']),
 
     closeHelpDialog() {
       this.$emit('close')
@@ -163,8 +163,8 @@ export default {
     }
   },
   mounted() {
-    this.loadReportItemTypesConfig().then(() => {
-      this.report_types = this.getReportItemTypesConfig().items
+    this.loadReportTypesConfig().then(() => {
+      this.report_types = this.getReportTypesConfig().items
     })
   },
   beforeDestroy() {

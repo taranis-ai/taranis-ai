@@ -83,8 +83,8 @@ export function holdLockReportItem (report_item_id, data) {
   return ApiService.put(`/analyze/report-items/${report_item_id}/field-locks/${data.field_id}/hold`, data)
 }
 
-export function getAllReportItemTypes () {
-  return ApiService.get('/analyze/report-item-types')
+export function getAllReportTypes () {
+  return ApiService.get('/analyze/report-types')
 }
 
 export function getAttributeEnums (filter) {

@@ -37,7 +37,7 @@ export function deleteAttributeEnum (attribute_id, attribute_enum_id) {
   return ApiService.delete(`/config/attributes/${attribute_id}/enums/${attribute_enum_id}`)
 }
 
-export function getAllReportItemTypes (filter_data) {
+export function getAllReportTypes (filter_data) {
   const filter = ApiService.getQueryStringFromNestedObject(filter_data)
   return ApiService.get(`/config/report-item-types?${filter}`)
 }

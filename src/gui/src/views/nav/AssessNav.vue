@@ -11,17 +11,34 @@
       <!-- scope -->
       <v-row class="my-3 mr-0 px-3">
         <v-col cols="12" class="pb-0">
-          <h4>scope</h4>
+          <h4>group</h4>
         </v-col>
 
         <v-col cols="12" class="pt-0">
           <v-select
-            v-model="scope"
-            :items="getScopeFilterList()"
+            v-model="group"
+            :items="getOSINTSourceGroupsList()"
             prepent-icon="mdi-format-list-numbered"
             item-text="title"
             item-value="id"
-            label="Sources"
+            label="Source Group"
+            :hide-details="true"
+            solo
+            dense
+          ></v-select>
+        </v-col>
+        <v-col cols="12" class="pb-0">
+          <h4>source</h4>
+        </v-col>
+
+        <v-col cols="12" class="pt-0">
+          <v-select
+            v-model="source"
+            :items="getOSINTSourcesList()"
+            prepent-icon="mdi-format-list-numbered"
+            item-text="title"
+            item-value="id"
+            label="Source"
             :hide-details="true"
             solo
             dense
@@ -95,7 +112,7 @@
       <v-row class="my-3 mr-0 px-3">
         <v-col cols="12" class="pt-1">
           <filter-select-list
-            v-model="filterAttributeSelections"
+            v-model="filterAttribute"
             :items="filterAttributeOptions"
           />
         </v-col>
@@ -129,10 +146,10 @@
 
 <script>
 import { mapState, mapGetters, mapActions } from 'vuex'
-import dateChips from '@/components/_subcomponents/dateChips'
-import tagFilter from '@/components/_subcomponents/tagFilter'
-import filterSelectList from '@/components/_subcomponents/filterSelectList'
-import filterSortList from '@/components/_subcomponents/filterSortList'
+import dateChips from '@/components/assess/filter/dateChips'
+import tagFilter from '@/components/assess/filter/tagFilter'
+import filterSelectList from '@/components/assess/filter/filterSelectList'
+import filterSortList from '@/components/assess/filter/filterSortList'
 
 export default {
   name: 'AssessNav',
@@ -144,23 +161,23 @@ export default {
   },
   data: () => ({
     awaitingSearch: false,
-    filterAttributeSelections: {},
+    filterAttributeSelections: [],
     filterAttributeOptions: [
-      { type: 'unread', label: 'unread', icon: 'mdi-email-mark-as-unread' },
+      { type: 'read', label: 'read', icon: 'mdi-email-mark-as-unread' },
       {
         type: 'important',
         label: 'important',
         icon: 'mdi-exclamation'
       },
       {
-        type: 'shared',
+        type: 'in_report',
         label: 'items in reports',
         icon: 'mdi-share-outline'
       },
       {
-        type: 'selected',
-        label: 'selected',
-        icon: 'mdi-checkbox-marked-outline'
+        type: 'relevant',
+        label: 'relevant',
+        icon: 'mdi-bullhorn-outline'
       }
     ],
     orderOptions: [
@@ -181,17 +198,25 @@ export default {
   }),
   computed: {
     ...mapState('filter', {
-      scopeState: (state) => state.scope,
       filter: (state) => state.newsItemsFilter
     }),
     ...mapState(['drawerVisible']),
     ...mapState('route', ['query']),
-    scope: {
+    source: {
       get() {
-        return this.scopeState
+        return this.filter.source
       },
       set(value) {
-        this.setScope(value)
+        this.updateFilter({ source: value })
+        this.updateNewsItems()
+      }
+    },
+    group: {
+      get() {
+        return this.filter.group
+      },
+      set(value) {
+        this.updateFilter({ group: value })
         this.updateNewsItems()
       }
     },
@@ -240,6 +265,23 @@ export default {
         this.updateNewsItems()
       }
     },
+    filterAttribute: {
+      get() {
+        return this.filterAttributeSelections
+      },
+      set(value) {
+        this.filterAttributeSelections = value
+
+        const filterUpdate = this.filterAttributeOptions.reduce((obj, item) => {
+          obj[item.type] = value.includes(item.type) ? 'true' : undefined
+          return obj
+        }, {})
+
+        console.debug('filterAttributeSelections', filterUpdate)
+        this.updateFilter(filterUpdate)
+        this.updateNewsItems()
+      }
+    },
     search: {
       get() {
         return this.filter.search
@@ -276,7 +318,7 @@ export default {
   },
   methods: {
     ...mapGetters(['getItemCount']),
-    ...mapGetters('assess', ['getScopeFilterList']),
+    ...mapGetters('assess', ['getOSINTSourceGroupsList', 'getOSINTSourcesList']),
     ...mapActions('assess', ['updateNewsItems']),
     ...mapActions('filter', [
       'setScope',
@@ -289,9 +331,12 @@ export default {
     ]),
     ...mapGetters('filter', ['getNewsItemsFilter'])
   },
-  mounted() {
-    console.debug('loaded with query', this.query)
-  },
-  watch: {}
+  created() {
+    const query = Object.fromEntries(
+      Object.entries(this.query).filter(([_, v]) => v != null)
+    )
+    this.updateFilter(query)
+    console.debug('loaded with query', query)
+  }
 }
 </script>

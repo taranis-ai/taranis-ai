@@ -71,7 +71,12 @@
         <template v-slot:[`item.actions`]="{ item }">
           <div class="d-inline-flex">
             <slot name="actionColumn"></slot>
-            <v-icon color="red" @click.stop="deleteItem(item)"> mdi-delete </v-icon>
+            <v-tooltip left>
+              <template v-slot:activator="{ on }">
+                <v-icon v-on="on" color="red" @click.stop="deleteItem(item)"> mdi-delete </v-icon>
+              </template>
+              <span>Delete</span>
+            </v-tooltip>
           </div>
         </template>
         <template v-slot:no-data>

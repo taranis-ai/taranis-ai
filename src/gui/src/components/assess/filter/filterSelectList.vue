@@ -49,8 +49,14 @@
 export default {
   name: 'filterSelectList',
   props: {
-    value: [],
-    items: []
+    value: {
+      type: Array,
+      default: () => []
+    },
+    items: {
+      type: Array,
+      default: () => []
+    }
   },
   methods: {
     setValue (newValue) {

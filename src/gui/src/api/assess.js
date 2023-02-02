@@ -28,8 +28,9 @@ export function getTopStories () {
   return ApiService.get('/assess/top-stories')
 }
 
-export function getTags () {
-  return ApiService.get('/assess/tags')
+export function getTags (filter_data) {
+  const filter = ApiService.getQueryStringFromNestedObject(filter_data)
+  return ApiService.get(`/assess/tags?${filter}`)
 }
 
 export function addNewsItem (data) {

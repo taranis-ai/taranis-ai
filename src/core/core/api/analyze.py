@@ -6,9 +6,10 @@ from core.managers import asset_manager, auth_manager, sse_manager
 from core.managers.log_manager import logger
 from core.managers.auth_manager import auth_required, ACLCheck
 from core.model import attribute, report_item, report_item_type
+from core.api.config import Attribute, Attributes
 
 
-class ReportItemTypes(Resource):
+class ReportTypes(Resource):
     @auth_required("ANALYZE_ACCESS")
     def get(self):
         return report_item_type.ReportItemType.get_all_json(None, auth_manager.get_user_from_jwt(), True)
@@ -25,19 +26,19 @@ class ReportItems(Resource):
     def get(self):
         try:
             filter_keys = ["search", "completed", "incompleted", "range", "sort"]
-            filter_args = {k: v for k, v in request.args.items() if k in filter_keys}
+            filter_args: dict[str, str | int] = {k: v for k, v in request.args.items() if k in filter_keys}
 
             group = request.args.get("group", None)
             if group:
                 group = int(group)
 
-            offset = int(request.args.get("offset", 0))
-            limit = min(int(request.args.get("limit", 50)), 200)
+            filter_args["offset"] = int(request.args.get("offset", 0))
+            filter_args["limit"] = min(int(request.args.get("limit", 20)), 200)
         except Exception as ex:
             logger.log_debug(ex)
             return "", 400
 
-        return report_item.ReportItem.get_json(group, filter_args, offset, limit, auth_manager.get_user_from_jwt())
+        return report_item.ReportItem.get_json(group, filter_args, auth_manager.get_user_from_jwt())
 
     @auth_required("ANALYZE_CREATE")
     def post(self):
@@ -75,7 +76,7 @@ class ReportItem(Resource):
 
 
 class ReportItemData(Resource):
-    @auth_required("ANALYZE_ACCESS")
+    @auth_required("ANALYZE_ACCESS", ACLCheck.REPORT_ITEM_ACCESS)
     def get(self, report_item_id):
 
         try:
@@ -99,10 +100,6 @@ class ReportItemData(Resource):
         except Exception:
             logger.log_debug_trace("Error getting Report Item Data")
             return "", 400
-
-        user = auth_manager.get_user_from_jwt()
-        if auth_manager.check_acl(report_item_id, ACLCheck.REPORT_ITEM_ACCESS, user) is False:
-            return "", 401
 
         return report_item.ReportItem.get_updated_data(report_item_id, data)
 
@@ -176,45 +173,19 @@ class ReportItemRemoveAttachment(Resource):
 
 
 class ReportItemDownloadAttachment(Resource):
+    @auth_required("ANALYZE_ACCESS", ACLCheck.REPORT_ITEM_ACCESS)
     def get(self, report_item_id, attribute_id):
-        user = auth_manager.get_user_from_jwt()
-        if user is not None:
-            permissions = user.get_permissions()
-            if "ANALYZE_ACCESS" in permissions:
-                report_item_attribute = report_item.ReportItemAttribute.find(attribute_id)
-                if (
-                    report_item_attribute is not None
-                    and report_item_attribute.report_item.id == report_item_id
-                    and report_item.ReportItem.allowed_with_acl(
-                        report_item_attribute.report_item.id,
-                        user,
-                        False,
-                        True,
-                        False,
-                    )
-                ):
-                    logger.store_user_activity(
-                        user,
-                        "ANALYZE_ACCESS",
-                        str({"file": report_item_attribute.value}),
-                    )
-
-                    return send_file(
-                        io.BytesIO(report_item_attribute.binary_data),
-                        download_name=report_item_attribute.value,
-                        mimetype=report_item_attribute.binary_mime_type,
-                        as_attachment=True,
-                    )
-                else:
-                    logger.store_auth_error_activity("Unauthorized access attempt to Report Item Attribute")
-            else:
-                logger.store_auth_error_activity("Insufficient permissions")
-        else:
-            logger.store_auth_error_activity("Invalid JWT")
+        report_item_attribute = report_item.ReportItemAttribute.find(attribute_id)
+        return send_file(
+            io.BytesIO(report_item_attribute.binary_data),
+            download_name=report_item_attribute.value,
+            mimetype=report_item_attribute.binary_mime_type,
+            as_attachment=True,
+        )
 
 
 def initialize(api):
-    api.add_resource(ReportItemTypes, "/api/v1/analyze/report-item-types")
+    api.add_resource(ReportTypes, "/api/v1/analyze/report-types")
     api.add_resource(ReportItemGroups, "/api/v1/analyze/report-item-groups")
     api.add_resource(ReportItems, "/api/v1/analyze/report-items")
     api.add_resource(ReportItem, "/api/v1/analyze/report-items/<int:report_item_id>")
@@ -231,10 +202,6 @@ def initialize(api):
     api.add_resource(
         ReportItemHoldLock,
         "/api/v1/analyze/report-items/<int:report_item_id>/field-locks/<int:field_id>/hold",
-    )
-    api.add_resource(
-        ReportItemAttributeEnums,
-        "/api/v1/analyze/report-item-attributes/<int:attribute_id>/enums",
     )
     api.add_resource(
         ReportItemAddAttachment,

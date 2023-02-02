@@ -1,88 +1,125 @@
 <template>
-  <ViewLayout>
-    <template v-slot:panel>
-      <ToolbarFilterAnalyze
-        title="nav_menu.report_items"
-        total_count_title="analyze.total_count"
-        @update-report-items-filter="updateFilter"
-        ref="toolbarFilter"
-      >
-        <template v-slot:addbutton>
-          <NewReportItem add_button ref="reportItemDialog" />
-        </template>
-      </ToolbarFilterAnalyze>
-    </template>
-    <template v-slot:content>
-      <ContentDataAnalyze
-        card-item="CardAnalyze"
-        ref="contentData"
-        @show-report-item-detail="showReportItemDetail"
-        @show-remote-report-item-detail="showRemoteReportItemDetail"
-      />
-      <NewProduct class="np" add_button />
-      <RemoteReportItem ref="remoteReportItemDialog" />
-    </template>
-  </ViewLayout>
+    <DataTable
+      :addButton="true"
+      :items.sync="report_items"
+      :headerFilter="['tag', 'title', 'created']"
+      sortByItem="id"
+      :actionColumn="true"
+      @delete-item="deleteItem"
+      @edit-item="editItem"
+      @add-item="addItem"
+      @update-items="updateData"
+      @selection-change="selectionChange"
+    >
+      <template v-slot:actionColumn>
+        <v-tooltip left>
+          <template v-slot:activator="{ on }">
+            <v-icon
+              v-on="on"
+              color="secondary"
+              @click.stop="createProduct(item)"
+            >
+              mdi-file
+            </v-icon>
+          </template>
+          <span>Create Product</span>
+        </v-tooltip>
+      </template>
+    </DataTable>
 </template>
 
 <script>
-import ViewLayout from '../../components/layouts/ViewLayout'
-import ToolbarFilterAnalyze from '@/components/analyze/ToolbarFilterAnalyze'
-import NewReportItem from '@/components/analyze/NewReportItem'
-import NewProduct from '@/components/publish/NewProduct'
-import ContentDataAnalyze from '../../components/analyze/ContentDataAnalyze'
-import { deleteReportItem } from '@/api/analyze'
-import RemoteReportItem from '@/components/analyze/RemoteReportItem'
+import DataTable from '@/components/common/DataTable'
+import {
+  deleteReportItem,
+  createReportItem,
+  updateReportItem
+} from '@/api/analyze'
+import { mapActions, mapGetters } from 'vuex'
+import { notifySuccess, notifyFailure } from '@/utils/helpers'
 
 export default {
   name: 'Analyze',
   components: {
-    ViewLayout,
-    ToolbarFilterAnalyze,
-    ContentDataAnalyze,
-    NewProduct,
-    NewReportItem,
-    RemoteReportItem
+    DataTable
   },
+  data: () => ({
+    report_items: [],
+    report_types: {},
+    report_item: {
+      report_item_type_id: null,
+      title_prefix: '',
+      title: ''
+    }
+  }),
   methods: {
-    updateFilter(filter) {
-      this.$refs.contentData.updateFilter(filter)
+    ...mapActions('analyze', ['loadReportItems', 'loadReportTypes']),
+    ...mapGetters('analyze', ['getReportItems']),
+    ...mapActions(['updateItemCount']),
+    updateData() {
+      this.loadReportItems().then(() => {
+        const sources = this.getReportItems()
+        this.report_items = sources
+        this.updateItemCount({
+          total: sources.length,
+          filtered: sources.length
+        })
+      })
+      this.loadReportTypes().then(() => {
+        this.report_types = this.getReportTypes().items
+      })
     },
-    showReportItemDetail(report_item) {
-      this.$refs.reportItemDialog.showDetail(report_item)
+    addItem() {
+      this.$router.push('/report/0')
     },
-    showRemoteReportItemDetail(report_item) {
-      this.$refs.remoteReportItemDialog.showDetail(report_item)
-    }
-  },
-  computed: {},
-  watch: {
-    $route() {
-      this.$refs.contentData.updateData(false, false)
-    }
-  },
-  beforeCreate() {
-    this.$root.$on('delete-report-item', (item) => {
-      deleteReportItem(item)
-        .then(() => {
-          this.$root.$emit('notification', {
-            type: 'success',
-            loc: 'report_item.removed'
+    editItem(item) {
+      this.$router.push('/report/' + item.id)
+    },
+    handleSubmit(submittedData) {
+      console.log(submittedData)
+    },
+    deleteItem(item) {
+      if (!item.default) {
+        deleteReportItem(item)
+          .then(() => {
+            notifySuccess(`Successfully deleted ${item.name}`)
+            this.updateData()
           })
+          .catch(() => {
+            notifyFailure(`Failed to delete ${item.name}`)
+          })
+      }
+    },
+    createItem(item) {
+      createReportItem(item)
+        .then(() => {
+          notifySuccess(`Successfully created ${item.name}`)
+          this.updateData()
         })
         .catch(() => {
-          this.$root.$emit('notification', {
-            type: 'error',
-            loc: 'report_item.removed_error'
-          })
+          notifyFailure(`Failed to create ${item.name}`)
         })
-    })
+    },
+    updateItem(item) {
+      updateReportItem(item)
+        .then(() => {
+          notifySuccess(`Successfully updated ${item.name}`)
+          this.updateData()
+        })
+        .catch(() => {
+          notifyFailure(`Failed to update ${item.name}`)
+        })
+    },
+    createProduct() {
+      this.$router.push({ name: 'product', params: { id: null } })
+    },
+    selectionChange(selected) {
+      this.selected = selected.map((item) => item.id)
+    }
   },
   mounted() {
-    this.analyze_selector = true
+    this.updateData()
   },
-  beforeDestroy() {
-    this.$root.$off('delete-report-item')
-  }
+  beforeDestroy() {}
 }
 </script>

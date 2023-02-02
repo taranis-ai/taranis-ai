@@ -78,6 +78,17 @@ export const router = new Router({
       meta: { requiresAuth: true, requiresPerm: [Permissions.ANALYZE_ACCESS] }
     },
     {
+      path: '/report/:id',
+      name: 'report',
+      components: {
+        default: () =>
+          import(
+            /* webpackChunkName: "analyze" */ './views/users/ReportView.vue'
+          )
+      },
+      meta: { requiresAuth: true, requiresPerm: [Permissions.ASSESS_ACCESS] }
+    },
+    {
       path: '/publish',
       name: 'publish',
       components: {
@@ -89,6 +100,17 @@ export const router = new Router({
           import(/* webpackChunkName: "publish" */ './views/nav/PublishNav.vue')
       },
       meta: { requiresAuth: true, requiresPerm: [Permissions.PUBLISH_ACCESS] }
+    },
+    {
+      path: '/product/:id',
+      name: 'product',
+      components: {
+        default: () =>
+          import(
+            /* webpackChunkName: "publish" */ './views/users/ProductView.vue'
+          )
+      },
+      meta: { requiresAuth: true, requiresPerm: [Permissions.ASSESS_ACCESS] }
     },
     {
       path: '/myassets*',

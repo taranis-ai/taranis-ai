@@ -273,7 +273,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/resp.auth.error'
                 
-  /analyze/report-item-types:
+  /analyze/report-types:
     get:
       tags: [analyze]
       summary: get the types of report items
@@ -4882,8 +4882,6 @@ components:
           type: string
         binary_mime_type:
           type: string
-        binary_size:
-          type: integer
         binary_description:
           type: string
         attribute_group_item_title:
@@ -5378,8 +5376,6 @@ components:
               type: string
             binary_mime_type:
               type: string
-            binary_size:
-              type: integer
             binary_description:
               type: string
             attribute_last_updated:
