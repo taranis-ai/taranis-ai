@@ -3,25 +3,12 @@ from base64 import b64encode
 import jinja2
 
 from .base_presenter import BasePresenter
-from shared.schema.parameter import Parameter, ParameterType
 
 
 class TEXTPresenter(BasePresenter):
     type = "TEXT_PRESENTER"
     name = "TEXT Presenter"
     description = "Presenter for generating text documents"
-
-    parameters = [
-        Parameter(
-            0,
-            "TEXT_TEMPLATE_PATH",
-            "TEXT template with its path",
-            "Path of text template file",
-            ParameterType.STRING,
-        )
-    ]
-
-    parameters.extend(BasePresenter.parameters)
 
     def generate(self, presenter_input):
 
@@ -45,8 +32,6 @@ class TEXTPresenter(BasePresenter):
 
             data = base64_bytes.decode("UTF-8")
 
-            presenter_output = {"mime_type": "text/plain", "data": data}
-
-            return presenter_output
+            return {"mime_type": "text/plain", "data": data}
         except Exception as error:
             BasePresenter.print_exception(self, error)

@@ -121,7 +121,7 @@ export const router = new Router({
       path: '/config/dashboard',
       name: 'configDashboard',
       components: {
-        default: () => import('./views/admin/ConfigView.vue'),
+        default: () => import('./views/admin/DashBoardConfigView.vue'),
         nav: () => import('./views/nav/ConfigNav.vue')
       },
       meta: { requiresAuth: true, requiresPerm: [Permissions.CONFIG_ACCESS] }

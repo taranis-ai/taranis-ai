@@ -2,11 +2,17 @@ import uuid
 from marshmallow import fields, post_load
 from sqlalchemy import orm, func, or_, text
 
-from managers.db_manager import db
-from model.report_item import ReportItem
-from model.user import User
-from model.notification_template import NotificationTemplate
-from shared.schema.asset import AssetCpeSchema, AssetSchema, AssetPresentationSchema, AssetGroupSchema, AssetGroupPresentationSchema
+from core.managers.db_manager import db
+from core.model.report_item import ReportItem
+from core.model.user import User
+from core.model.notification_template import NotificationTemplate
+from shared.schema.asset import (
+    AssetCpeSchema,
+    AssetSchema,
+    AssetPresentationSchema,
+    AssetGroupSchema,
+    AssetGroupPresentationSchema,
+)
 from shared.schema.user import UserIdSchema
 from shared.schema.notification_template import NotificationTemplateIdSchema
 

@@ -97,6 +97,8 @@ class ACLEntry(db.Model):
     def update(cls, acl_id, data):
         schema = NewACLEntrySchema()
         updated_acl = schema.load(data)
+        if not updated_acl:
+            return
         acl = cls.query.get(acl_id)
         acl.name = updated_acl.name
         acl.description = updated_acl.description

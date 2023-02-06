@@ -46,17 +46,18 @@ class NewsItems(Resource):
         user = auth_manager.get_user_from_jwt()
 
         try:
-            filter_keys = ["search", "read", "important", "relevant", "in_analyze", "range", "sort"]
-            filter_args = {k: v for k, v in request.args.items() if k in filter_keys}
+            filter_keys = ["search" "read", "important", "relevant", "in_analyze", "range", "sort"]
+            filter_args: dict[str, str | int] = {k: v for k, v in request.args.items() if k in filter_keys}
 
             group_id = request.args.get("group", osint_source.OSINTSourceGroup.get_default().id)
-            offset = int(request.args.get("offset", 0))
-            limit = min(int(request.args.get("limit", 50)), 200)
+            filter_args["limit"] = min(int(request.args.get("limit", 20)), 200)
+            page = int(request.args.get("page", 0))
+            filter_args["offset"] = int(request.args.get("offset", page * filter_args["limit"]))
         except Exception as ex:
             logger.log_debug(ex)
             return "", 400
 
-        return news_item.NewsItem.get_by_group_json(group_id, filter_args, offset, limit, user)
+        return news_item.NewsItem.get_by_group_json(group_id, filter_args, user)
 
 
 class NewsItemAggregates(Resource):
@@ -65,17 +66,31 @@ class NewsItemAggregates(Resource):
         user = auth_manager.get_user_from_jwt()
 
         try:
-            filter_keys = ["search", "read", "important", "relevant", "in_analyze", "range", "sort"]
-            filter_args = {k: v for k, v in request.args.items() if k in filter_keys}
+            filter_keys = ["search", "read", "important", "relevant", "in_analyze", "range", "sort", "tags"]
+            filter_args: dict[str, str | int] = {k: v for k, v in request.args.items() if k in filter_keys}
 
             group_id = request.args.get("group", osint_source.OSINTSourceGroup.get_default().id)
-            offset = int(request.args.get("offset", 0))
-            limit = min(int(request.args.get("limit", 50)), 200)
+            filter_args["limit"] = min(int(request.args.get("limit", 20)), 200)
+            page = int(request.args.get("page", 0))
+            filter_args["offset"] = int(request.args.get("offset", page * filter_args["limit"]))
         except Exception as ex:
             logger.log_debug(ex)
             return "", 400
 
-        return news_item.NewsItemAggregate.get_by_group_json(group_id, filter_args, offset, limit, user)
+        return news_item.NewsItemAggregate.get_by_group_json(group_id, filter_args, user)
+
+
+class NewsItemAggregateTags(Resource):
+    @auth_required("ASSESS_ACCESS")
+    def get(self):
+        user = auth_manager.get_user_from_jwt()
+
+        try:
+            search = request.args.get("search", "")
+            return news_item.NewsItemTag.get_json(search)
+        except Exception as ex:
+            logger.log_debug(ex)
+            return "", 400
 
 
 class NewsItemAggregatesByGroup(Resource):
@@ -86,15 +101,16 @@ class NewsItemAggregatesByGroup(Resource):
 
         try:
             filter_keys = ["search", "read", "important", "relevant", "in_analyze", "range", "sort"]
-            filter_args = {k: v for k, v in request.args.items() if k in filter_keys}
+            filter_args: dict[str, str | int] = {k: v for k, v in request.args.items() if k in filter_keys}
 
-            offset = int(request.args.get("offset", 0))
-            limit = min(int(request.args.get("limit", 50)), 200)
+            filter_args["limit"] = min(int(request.args.get("limit", 20)), 200)
+            page = int(request.args.get("page", 0))
+            filter_args["offset"] = int(request.args.get("offset", page * filter_args["limit"]))
         except Exception as ex:
             logger.log_debug(ex)
             return "", 400
 
-        return news_item.NewsItemAggregate.get_by_group_json(group_id, filter_args, offset, limit, user)
+        return news_item.NewsItemAggregate.get_by_group_json(group_id, filter_args, user)
 
 
 class NewsItem(Resource):
@@ -157,41 +173,32 @@ class GroupAction(Resource):
 
 
 class DownloadAttachment(Resource):
+    @auth_required("ASSESS_ACCESS")
     def get(self, item_data_id, attribute_id):
-        if "jwt" in request.args:
-            user = auth_manager.decode_user_from_jwt(request.args["jwt"])
-            if user is not None:
-                permissions = user.get_permissions()
-                if "ASSESS_ACCESS" in permissions:
-                    attribute_mapping = news_item.NewsItemDataNewsItemAttribute.find(attribute_id)
-                    need_check = attribute_mapping is not None
-                    attribute = news_item.NewsItemAttribute.find(attribute_id)
-                    if (
-                        need_check
-                        and item_data_id == attribute_mapping.news_item_data_id
-                        and news_item.NewsItemData.allowed_with_acl(
-                            attribute_mapping.news_item_data_id,
-                            user,
-                            False,
-                            True,
-                            False,
-                        )
-                    ):
-                        logger.store_user_activity(user, "ASSESS_ACCESS", str({"file": attribute.value}))
-                        return send_file(
-                            io.BytesIO(attribute.binary_data),
-                            attachment_filename=attribute.value,
-                            mimetype=attribute.binary_mime_type,
-                            as_attachment=True,
-                        )
-                    else:
-                        logger.store_auth_error_activity("Unauthorized access attempt to News Item Data")
-                else:
-                    logger.store_auth_error_activity("Insufficient permissions")
-            else:
-                logger.store_auth_error_activity("Invalid JWT")
+        user = auth_manager.get_user_from_jwt()
+        attribute_mapping = news_item.NewsItemDataNewsItemAttribute.find(attribute_id)
+        need_check = attribute_mapping is not None
+        attribute = news_item.NewsItemAttribute.find(attribute_id)
+        if (
+            need_check
+            and item_data_id == attribute_mapping.news_item_data_id
+            and news_item.NewsItemData.allowed_with_acl(
+                attribute_mapping.news_item_data_id,
+                user,
+                False,
+                True,
+                False,
+            )
+        ):
+            logger.store_user_activity(user, "ASSESS_ACCESS", str({"file": attribute.value}))
+            return send_file(
+                io.BytesIO(attribute.binary_data),
+                download_name=attribute.value,
+                mimetype=attribute.binary_mime_type,
+                as_attachment=True,
+            )
         else:
-            logger.store_auth_error_activity("Missing JWT")
+            logger.store_auth_error_activity("Unauthorized access attempt to News Item Data")
 
 
 def initialize(api):
@@ -212,6 +219,7 @@ def initialize(api):
         NewsItems,
         "/api/v1/assess/news-items",
     )
+    api.add_resource(NewsItemAggregateTags, "/api/v1/assess/tags")
     api.add_resource(NewsItem, "/api/v1/assess/news-items/<int:item_id>")
     api.add_resource(NewsItemAggregate, "/api/v1/assess/news-item-aggregates/<int:aggregate_id>")
     api.add_resource(GroupAction, "/api/v1/assess/news-item-aggregates-group-action")

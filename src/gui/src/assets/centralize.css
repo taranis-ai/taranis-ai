@@ -412,7 +412,7 @@ html {
     background-color: #caecff;
 }
 
-/* --- AssessContent.vue --- */
+/* --- AssessView.vue --- */
 html,
 .v-dialog--active .cs-inside {
     scroll-behavior: smooth;

@@ -28,15 +28,6 @@ class BaseCollector:
         pass
 
     @staticmethod
-    def print_exception(source, error):
-        logger.log_info(f"OSINTSource ID: {source.id}")
-        logger.log_info(f"OSINTSource name: {source.name}")
-        if str(error).startswith("b"):
-            logger.log_info(f"ERROR: {str(error)[2:-1]}")
-        else:
-            logger.log_info(f"ERROR: {str(error)}")
-
-    @staticmethod
     def history(interval):
         if interval[0].isdigit() and ":" in interval:
             return datetime.datetime.now() - datetime.timedelta(days=1)
@@ -83,12 +74,6 @@ class BaseCollector:
     def sanitize_news_items(news_items, source):
         for item in news_items:
             item.id = item.id or uuid.uuid4()
-            item.title = item.title or ""
-            item.review = item.review or ""
-            item.source = item.source or ""
-            item.link = item.link or ""
-            item.author = item.author or ""
-            item.content = item.content or ""
             item.published = item.published or datetime.datetime.now()
             item.collected = item.collected or datetime.datetime.now()
             item.osint_source_id = item.osint_source_id or source.id
@@ -111,15 +96,19 @@ class BaseCollector:
 
     def refresh(self):
         logger.log_info(f"Core API requested a refresh of osint sources for {self.type}...")
-        response, code = self.core_api.get_osint_sources(self.type)
+        response = self.core_api.get_osint_sources(self.type)
 
-        if code != 200 or response is None:
-            logger.log_debug(f"HTTP {code}: Got the following reply: {response}")
+        if not response:
+            logger.log_debug(f"Got the following reply: {response}")
             return
 
         try:
             source_schema = osint_source.OSINTSourceSchemaBase(many=True)
             self.osint_sources = source_schema.load(response)
+
+            if not self.osint_sources:
+                logger.log_info(f"No osint sources found for {self.type}")
+                return
 
             for source in self.osint_sources:
                 self.collect(source)

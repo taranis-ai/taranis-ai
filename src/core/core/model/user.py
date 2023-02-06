@@ -1,11 +1,16 @@
 from marshmallow import fields, post_load
 from sqlalchemy import func, or_, orm
 
-from managers.db_manager import db
-from model.role import Role
-from model.permission import Permission
-from model.organization import Organization
-from shared.schema.user import UserSchemaBase, UserProfileSchema, HotkeySchema, UserPresentationSchema
+from core.managers.db_manager import db
+from core.model.role import Role
+from core.model.permission import Permission
+from core.model.organization import Organization
+from shared.schema.user import (
+    UserSchemaBase,
+    UserProfileSchema,
+    HotkeySchema,
+    UserPresentationSchema,
+)
 from shared.schema.role import RoleIdSchema, PermissionIdSchema
 from shared.schema.organization import OrganizationIdSchema
 from core.managers.log_manager import logger

@@ -9,7 +9,7 @@
   >
     <v-container class="pa-0">
       <!-- scope -->
-      <v-row class="my-3 mr-0 px-5">
+      <v-row class="my-3 mr-0 px-3">
         <v-col cols="12" class="pb-0">
           <h4>scope</h4>
         </v-col>
@@ -22,24 +22,28 @@
             item-text="title"
             item-value="id"
             label="Sources"
-            solo
-          ></v-select>
-        </v-col>
-        <v-col cols="6" class="pt-0 pb-0">
-          Display:
-          <v-select
-            v-model="limit"
-            :items="items_per_page"
-            label="display items"
+            :hide-details="true"
             solo
             dense
           ></v-select>
         </v-col>
         <v-col cols="6" class="pt-0 pb-0">
-          Offset:
+          <h4>Display</h4>
+          <v-select
+            v-model="limit"
+            :items="items_per_page"
+            label="display items"
+            :hide-details="true"
+            solo
+            dense
+          ></v-select>
+        </v-col>
+        <v-col cols="6" class="pt-0 pb-0">
+          <h4>Offset</h4>
           <v-select
             v-model="offset"
             :items="offsetRange"
+            :hide-details="true"
             label="offset"
             solo
             dense
@@ -50,7 +54,7 @@
       <v-divider class="mt-0 mb-0"></v-divider>
 
       <!-- search -->
-      <v-row class="my-3 mr-0 px-5">
+      <v-row class="my-3 mr-0 px-3">
         <v-col cols="12" class="py-0">
           <h4>search</h4>
         </v-col>
@@ -70,30 +74,26 @@
       <v-divider class="mt-0 mb-0"></v-divider>
 
       <!-- filter results -->
-      <v-row class="my-3 mr-0 px-5">
+      <v-row class="my-3 mr-0 px-3">
         <v-col cols="12" class="py-0">
           <h4>filter results</h4>
         </v-col>
 
         <!-- time tags -->
         <v-col cols="12" class="pb-0">
-          <date-chips v-model="filter.range" @input="filter.range = []" />
+          <date-chips v-model="range" @input="filter.range = []" />
         </v-col>
 
         <!-- tags -->
-        <v-col cols="10" class="pr-0">
-          <tag-filter v-model="filter.tags" :items="tagList" />
+        <v-col cols="12" class="pr-0">
+          <tag-filter v-model="tags" />
         </v-col>
       </v-row>
 
       <v-divider class="mt-0 mb-0"></v-divider>
 
-      <v-row class="my-3 mr-0 px-5">
-        <v-col cols="12" class="py-0">
-          <h4>only show</h4>
-        </v-col>
-
-        <v-col cols="12" class="pt-2">
+      <v-row class="my-3 mr-0 px-3">
+        <v-col cols="12" class="pt-1">
           <filter-selectList
             v-model="filterAttributeSelections"
             :items="filterAttributeOptions"
@@ -103,19 +103,19 @@
 
       <v-divider class="mt-2 mb-0"></v-divider>
 
-      <v-row class="my-3 mr-0 px-5">
+      <v-row class="my-3 mr-0 px-3">
         <v-col cols="12" class="py-0">
           <h4>sort by</h4>
         </v-col>
 
         <v-col cols="12" class="pt-2">
-          <filter-sort-list v-model="order.selected" :items="orderOptions" />
+          <filter-sort-list v-model="sort" :items="orderOptions" />
         </v-col>
       </v-row>
 
       <v-divider class="mt-2 mb-0"></v-divider>
 
-      <v-row class="my-3 mr-0 px-5 pt-5 pb-5">
+      <v-row class="my-3 mr-0 px-3 pb-5">
         <v-col cols="12" class="py-0">
           <v-btn @click="updateNewsItems()" color="primary" block>
             Reload
@@ -167,40 +167,22 @@ export default {
       {
         label: 'published date',
         icon: 'mdi-calendar-range-outline',
-        type: 'publishedDate',
-        direction: 'desc'
+        type: 'DATE',
+        direction: 'DESC'
       },
       {
         label: 'relevance',
         icon: 'mdi-counter',
-        type: 'relevanceScore',
-        direction: ''
+        type: 'RELEVANCE',
+        direction: 'DESC'
       }
-    ],
-    tagList: [
-      'State',
-      'Cyberwar',
-      'Threat',
-      'DDoS',
-      'Vulnerability',
-      'Java',
-      'CVE',
-      'OT/CPS',
-      'Python',
-      'Privacy',
-      'Social',
-      'APT',
-      'MitM'
     ],
     items_per_page: [5, 15, 25, 50, 100]
   }),
   computed: {
     ...mapState('filter', {
       scopeState: (state) => state.scope,
-      filter: (state) => state.newsItemsFilter.filter,
-      offsetState: (state) => state.newsItemsFilter.offset,
-      limitState: (state) => state.newsItemsFilter.limit,
-      order: (state) => state.newsItemsOrder
+      filter: (state) => state.newsItemsFilter
     }),
     ...mapState(['drawerVisible']),
     scope: {
@@ -214,19 +196,46 @@ export default {
     },
     limit: {
       get() {
-        return this.limitState
+        return this.filter.limit
       },
       set(value) {
         this.setLimit(value)
         this.updateNewsItems()
       }
     },
+    sort: {
+      get() {
+        return this.filter.order
+      },
+      set(value) {
+        this.setSort(value)
+        this.updateNewsItems()
+      }
+    },
     offset: {
       get() {
-        return this.offsetState
+        return this.filter.offset
       },
       set(value) {
         this.setOffset(value)
+        this.updateNewsItems()
+      }
+    },
+    tags: {
+      get() {
+        return this.filter.tags
+      },
+      set(value) {
+        this.setTags(value)
+        this.updateNewsItems()
+      }
+    },
+    range: {
+      get() {
+        return this.filter.range
+      },
+      set(value) {
+        this.setRange(value)
         this.updateNewsItems()
       }
     },
@@ -246,8 +255,17 @@ export default {
         this.awaitingSearch = true
       }
     },
-    offsetRange () {
-      const blocks = Math.ceil(this.getItemCount().total / this.getItemCount().filtered)
+    offsetRange() {
+      const list = []
+      for (let i = 0; i <= this.getItemCount().total; i++) {
+        list.push(i)
+      }
+      return list
+    },
+    pages() {
+      const blocks = Math.ceil(
+        this.getItemCount().total / this.getItemCount().filtered
+      )
       const list = []
       for (let i = 0; i <= blocks; i++) {
         list.push(i)
@@ -257,16 +275,12 @@ export default {
   },
   methods: {
     ...mapGetters(['getItemCount']),
-    ...mapGetters('dashboard', [
-      'getStorieSelectionList',
-      'getSharingSetSelectionList'
-    ]),
     ...mapGetters('assess', ['getScopeFilterList']),
     ...mapActions('assess', ['updateNewsItems']),
     ...mapActions('filter', [
       'setScope',
       'setFilter',
-      'setOrder',
+      'setSort',
       'setLimit',
       'setOffset',
       'updateFilter'
@@ -275,7 +289,6 @@ export default {
   },
   created() {},
   beforeDestroy() {},
-  watch: {
-  }
+  watch: {}
 }
 </script>

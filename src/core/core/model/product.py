@@ -5,9 +5,9 @@ from marshmallow import post_load
 from sqlalchemy import orm, func, or_, and_
 from sqlalchemy.sql.expression import cast
 
-from managers.db_manager import db
-from model.acl_entry import ACLEntry
-from model.report_item import ReportItem
+from core.managers.db_manager import db
+from core.model.acl_entry import ACLEntry
+from core.model.report_item import ReportItem
 from shared.schema.acl_entry import ItemType
 from shared.schema.product import ProductPresentationSchema, ProductSchemaBase
 from shared.schema.report_item import ReportItemIdSchema

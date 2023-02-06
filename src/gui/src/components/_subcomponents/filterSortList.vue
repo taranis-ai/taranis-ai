@@ -13,7 +13,7 @@
           :key="item.title"
           class="extra-dense"
           :ripple="false"
-          :value="{ type: item.type, direction: item.direction }"
+          :value="item.type + '_' + item.direction"
           @click.native.capture="changeDirection($event, item)"
         >
           <template v-slot:default="{ active }">
@@ -36,9 +36,9 @@
                   'dark-grey--text',
                   'text--lighten-3',
                   {
-                    asc: item.direction === 'asc',
-                    desc: item.direction === 'desc',
-                  },
+                    asc: item.direction === 'ASC',
+                    desc: item.direction === 'DESC'
+                  }
                 ]"
               >
                 mdi-chevron-up
@@ -67,17 +67,11 @@ export default {
     },
     changeDirection (event, item) {
       event.preventDefault()
-      this.orderOptions = this.orderOptions.map((orderOption) =>
-        orderOption.type === item.type
-          ? {
-            ...orderOption,
-            direction: orderOption.direction === 'desc' ? 'asc' : 'desc'
-          }
-          : {
-            ...orderOption,
-            direction: ''
-          }
-      )
+      this.orderOptions.forEach((option) => {
+        if (option.type === item.type) {
+          option.direction = option.direction === 'ASC' ? 'DESC' : 'ASC'
+        }
+      })
     }
   },
   mounted () {

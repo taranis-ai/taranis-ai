@@ -124,7 +124,6 @@ export default {
       this.edit = true
     },
     handleSubmit(submittedData) {
-      console.log(submittedData)
       if (this.edit) {
         this.updateItem(submittedData)
       } else {
@@ -132,7 +131,6 @@ export default {
       }
     },
     deleteItem(item) {
-      console.log(item)
       deleteNode(item)
         .then(() => {
           notifySuccess(`Successfully deleted ${item.name}`)

@@ -301,7 +301,7 @@ export default {
   },
   methods: {
     ...mapGetters('dashboard', ['getStoryById', 'getStoryTitleById']),
-    ...mapGetters('assess', ['getNewsItemsByStoryId']),
+    ...mapGetters('assess', ['getNewsItems']),
     ...mapGetters('users', ['getUsernameById']),
 
     getSharingState () {
@@ -334,7 +334,7 @@ export default {
       const heatmapCounter = {}
       let numberSharedItems = 0
       let numberRestrictedItems = 0
-      const newsItems = this.getNewsItemsByStoryId()(this.story.id)
+      const newsItems = this.getNewsItems()
 
       newsItems.forEach((element) => {
         const date = moment(element.published).format('YYYY/MM/DD')

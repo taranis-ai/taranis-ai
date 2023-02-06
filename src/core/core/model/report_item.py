@@ -5,11 +5,12 @@ from sqlalchemy import orm, or_, func, text, and_
 from sqlalchemy.sql.expression import cast
 import sqlalchemy
 
-from managers.db_manager import db
-from model.news_item import NewsItemAggregate
-from model.report_item_type import AttributeGroupItem
-from model.report_item_type import ReportItemType
-from model.acl_entry import ACLEntry
+from core.managers.db_manager import db
+from core.managers.log_manager import logger
+from core.model.news_item import NewsItemAggregate
+from core.model.report_item_type import AttributeGroupItem
+from core.model.report_item_type import ReportItemType
+from core.model.acl_entry import ACLEntry
 from shared.schema.acl_entry import ItemType
 from shared.schema.attribute import AttributeType
 from shared.schema.news_item import NewsItemAggregateIdSchema, NewsItemAggregateSchema
@@ -333,7 +334,7 @@ class ReportItem(db.Model):
         report_item = report_item_schema.load(report_item_data)
 
         if not ReportItemType.allowed_with_acl(report_item.report_item_type_id, user, False, False, True):
-            return "Unauthorized access to report item type", 401
+            return report_item, 401
 
         report_item.user_id = user.id
         for attribute in report_item.attributes:
@@ -556,23 +557,24 @@ class ReportItem(db.Model):
 
         report_item.last_updated = datetime.now()
 
-        data = dict()
-        data["delete"] = True
-        data["user_id"] = user.id
-        data["report_item_id"] = int(id)
-        data["attribute_id"] = attribute_id
-
+        data = {
+            "delete": True,
+            "user_id": user.id,
+            "report_item_id": int(id),
+            "attribute_id": attribute_id,
+        }
         db.session.commit()
 
         return data
 
     @classmethod
-    def delete_report_item(cls, id):
+    def delete_report_item(cls, id) -> tuple[str, int]:
         report_item = cls.query.get(id)
         if report_item is not None:
             db.session.delete(report_item)
             db.session.commit()
             return "success", 200
+        return "not found", 404
 
     def update_cpes(self):
         self.report_item_cpes = []

@@ -250,7 +250,7 @@ def get_access_key():
     return request.headers["Authorization"].replace("Bearer ", "")
 
 
-def get_user_from_jwt():
+def get_user_from_jwt() -> User | None:
     try:
         verify_jwt_in_request()
     except JWTExtendedException:
@@ -265,8 +265,4 @@ def get_external_permissions_ids():
 
 
 def get_external_permissions():
-    permissions = []
-    for permission_id in get_external_permissions_ids():
-        permissions.append(Permission.find(permission_id))
-
-    return permissions
+    return [Permission.find(permission_id) for permission_id in get_external_permissions_ids()]

@@ -5,13 +5,13 @@ import tweepy
 
 from .base_collector import BaseCollector
 from shared.schema.news_item import NewsItemData
+from collectors.managers.log_manager import logger
 
 
 class TwitterCollector(BaseCollector):
     type = "TWITTER_COLLECTOR"
     name = "Twitter Collector"
     description = "Collector for gathering data from Twitter"
-
 
     def collect(self, source):
 
@@ -67,7 +67,7 @@ class TwitterCollector(BaseCollector):
                     author = tweet.author.name
                     preview = tweet.text.encode("utf-8")
                     published = tweet.created_at
-                    title = "Twitter post from " + "@" + author
+                    title = f"Twitter post from @{author}"
                     content = ""
                     url = ""
 
@@ -91,5 +91,6 @@ class TwitterCollector(BaseCollector):
                     news_items.append(news_item)
 
             self.publish(news_items, source)
-        except Exception as error:
-            BaseCollector.print_exception(source, error)
+        except Exception:
+            logger.exception()
+            logger.collector_exception(source, "Could not collect Tweeets")

@@ -2,8 +2,11 @@ from marshmallow import post_load
 from sqlalchemy import func, or_, orm
 import uuid
 
-from managers.db_manager import db
-from shared.schema.publishers_node import PublishersNodeSchema, PublishersNodePresentationSchema
+from core.managers.db_manager import db
+from shared.schema.publishers_node import (
+    PublishersNodeSchema,
+    PublishersNodePresentationSchema,
+)
 
 
 class NewPublishersNodeSchema(PublishersNodeSchema):

@@ -4,20 +4,12 @@ import urllib3
 from pymisp import ExpandedPyMISP, MISPEvent
 
 from .base_publisher import BasePublisher
-from shared.schema.parameter import Parameter, ParameterType
 
 
 class MISPPublisher(BasePublisher):
     type = "MISP_PUBLISHER"
     name = "MISP Publisher"
     description = "Publisher for publishing in MISP"
-
-    parameters = [
-        Parameter(0, "MISP_URL", "MISP url", "MISP server https url", ParameterType.STRING),
-        Parameter(0, "MISP_API_KEY", "MISP API key", "User MISP API key", ParameterType.STRING),
-    ]
-
-    parameters.extend(BasePublisher.parameters)
 
     def publish(self, publisher_input):
 

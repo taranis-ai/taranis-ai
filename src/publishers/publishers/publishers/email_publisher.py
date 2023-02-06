@@ -7,26 +7,12 @@ from email.mime.text import MIMEText
 import gnupg
 
 from .base_publisher import BasePublisher
-from shared.schema.parameter import Parameter, ParameterType
 
 
 class EMAILPublisher(BasePublisher):
     type = "EMAIL_PUBLISHER"
     name = "EMAIL Publisher"
     description = "Publisher for publishing by email"
-
-    parameters = [
-        Parameter(0, "SMTP_SERVER", "SMTP server", "SMTP server for sending emails", ParameterType.STRING),
-        Parameter(0, "SMTP_SERVER_PORT", "SMTP server port", "SMTP server port for sending emails", ParameterType.STRING),
-        Parameter(0, "EMAIL_USERNAME", "Email username", "Username for email account", ParameterType.STRING),
-        Parameter(0, "EMAIL_PASSWORD", "Email password", "Password for email account", ParameterType.STRING),
-        Parameter(0, "EMAIL_RECIPIENT", "Email recipient", "Email address of recipient", ParameterType.STRING),
-        Parameter(0, "EMAIL_SUBJECT", "Email subject", "Text of email subject", ParameterType.STRING),
-        Parameter(0, "EMAIL_MESSAGE", "Email message", "Text of email message", ParameterType.STRING),
-        Parameter(0, "EMAIL_ENCRYPTION", "Do you want use email encrypt (yes/no)", "Turn ON/OFF email encryption", ParameterType.STRING),
-    ]
-
-    parameters.extend(BasePublisher.parameters)
 
     def publish(self, publisher_input):
 

@@ -1,8 +1,8 @@
 from marshmallow import fields, post_load
 from sqlalchemy import func, or_, orm
 
-from managers.db_manager import db
-from model.permission import Permission
+from core.managers.db_manager import db
+from core.model.permission import Permission
 from shared.schema.role import RoleSchemaBase, PermissionIdSchema, RolePresentationSchema
 
 
@@ -26,9 +26,7 @@ class Role(db.Model):
         self.name = name
         self.description = description
         self.permissions = []
-        self.permissions.extend(
-            Permission.find(permission.id) for permission in permissions
-        )
+        self.permissions.extend(Permission.find(permission.id) for permission in permissions)
         self.tag = "mdi-account-arrow-right"
 
     @orm.reconstructor

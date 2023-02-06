@@ -66,6 +66,18 @@ class TaranisLogger:
     def critical(self, message):
         self.logger.critical(message)
 
+    def log_warning(self, message):
+        self.logger.warning(message)
+
+    def warning(self, message):
+        self.logger.warning(message)
+
+    def log_error(self, message):
+        self.logger.error(message)
+
+    def error(self, message):
+        self.logger.error(message)
+
 
 class TaranisLogFormatter(logging.Formatter):
     def __init__(self, module):

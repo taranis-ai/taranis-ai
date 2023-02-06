@@ -8,7 +8,6 @@ const state = {
   osint_sources: [],
   osint_source_groups: [],
   default_source_group_id: '',
-  filter: {},
   newsItems: { total_count: 0, items: [] },
   newsItemsSelection: [],
   top_stories: []
@@ -109,10 +108,6 @@ const actions = {
 
   removeStoryFromNewsItem(context, { newsItemId, storyId }) {
     context.commit('REMOVE_TOPIC_FROM_NEWSITEM', { newsItemId, storyId })
-  },
-
-  filter(context, data) {
-    context.commit('setFilter', data)
   }
 }
 
@@ -208,10 +203,6 @@ const mutations = {
 
   setDefaultOSINTSourceGroup(state, osint_source_groups) {
     state.default_source_group_id = osint_source_groups.items.filter(value => value.default)[0].id
-  },
-
-  setFilter(state, data) {
-    state.filter = data
   }
 }
 
@@ -221,21 +212,13 @@ const getters = {
   },
 
   getScopeFilterList(state) {
-    return Array.isArray(state.osint_source_groups.items) ? state.osint_source_groups.items.map(value => ({ id: value.id, title: value.name })) : []
+    const osint_source_groups = Array.isArray(state.osint_source_groups.items) ? state.osint_source_groups.items.map(value => ({ id: value.id, title: value.name })) : []
+    const osint_sources = Array.isArray(state.osint_sources.items) ? state.osint_sources.items.map(value => ({ id: value.id, title: value.name })) : []
+    return [...osint_source_groups, ...osint_sources]
   },
 
   getOSINTSourceGroupList(state) {
     return state.osint_source_groups
-  },
-
-  getNewsItemsByStoryId: (state) => (id) => {
-    return state.newsItems.filter(newsItem => newsItem.stories.includes(id))
-  },
-
-  getNewsItemsByStoryList: (state) => (storiesList) => {
-    return state.newsItems.filter(newsItem => {
-      return newsItem.stories.some((itemStories) => storiesList.map((story) => story.id).indexOf(itemStories) >= 0)
-    })
   },
 
   getNewsItemById: (state) => (id) => {
@@ -256,10 +239,6 @@ const getters = {
 
   getOSINTSources(state) {
     return state.osint_sources
-  },
-
-  getFilter(state) {
-    return state.filter
   }
 }
 

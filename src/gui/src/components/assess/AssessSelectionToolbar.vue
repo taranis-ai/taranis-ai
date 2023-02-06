@@ -17,52 +17,11 @@
     <v-container class="py-1">
       <v-row>
         <v-col class="py-0">
-          <v-dialog v-model="appendToStoryDialog" width="1024">
-            <template v-slot:activator="{ on, attrs }">
-              <v-btn
-                :ripple="false"
-                text
-                class="text-lowercase selection-toolbar-btn mr-1 mt-1"
-                v-bind="attrs"
-                v-on="on"
-              >
-                <v-icon left>mdi-folder-open-outline</v-icon>
-                append to story
-              </v-btn>
-            </template>
-
-            <v-card>
-              <h2>append to story</h2>
-            </v-card>
-          </v-dialog>
-
-          <!------------------>
-          <!-- create story -->
-          <!------------------>
-
-          <v-dialog v-model="createStoryDialog" width="1024">
-            <template v-slot:activator="{ on, attrs }">
-              <v-btn
-                :ripple="false"
-                text
-                class="text-lowercase selection-toolbar-btn mr-1 mt-1"
-                v-bind="attrs"
-                v-on="on"
-              >
-                <v-icon left>mdi-folder-plus-outline</v-icon>
-                create story
-              </v-btn>
-            </template>
-
-            <v-card>
-              <h2>create story</h2>
-            </v-card>
-          </v-dialog>
-
           <v-btn
             v-for="button in actionButtons"
             :key="button.label"
             :ripple="false"
+            @click.stop="actionClicked(button.action)"
             text
             class="text-lowercase selection-toolbar-btn mr-1 mt-1"
           >
@@ -70,8 +29,6 @@
             {{ button.label }}
           </v-btn>
         </v-col>
-
-        <!-- <v-spacer></v-spacer> -->
 
         <v-col
           cols="1"
@@ -97,14 +54,30 @@ export default {
   data: () => ({
     actionButtons: [
       {
+        label: 'merge',
+        icon: 'mdi-merge',
+        action: 'merge'
+      },
+      {
+        label: 'add to report',
+        icon: 'mdi-google-circles-communities',
+        action: 'addToReport'
+      },
+      {
         label: 'delete items',
-        icon: 'mdi-delete-circle'
+        icon: 'mdi-delete-circle',
+        action: 'deleteItems'
       }
     ],
     appendToStoryDialog: false,
     createStoryDialog: false
   }),
-  methods: {},
+  methods: {
+    actionClicked(action) {
+      console.log('action clicked: ', action)
+      this.$emit('actionClicked', action)
+    }
+  },
   computed: {},
   mounted() {}
 }

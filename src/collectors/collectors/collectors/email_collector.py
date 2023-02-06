@@ -8,6 +8,7 @@ import email.header
 import email.utils
 import socket
 
+from collectors.managers.log_manager import logger
 from .base_collector import BaseCollector
 from shared.schema.news_item import NewsItemData, NewsItemAttribute
 
@@ -16,7 +17,6 @@ class EmailCollector(BaseCollector):
     type = "EMAIL_COLLECTOR"
     name = "EMAIL Collector"
     description = "Collector for gathering data from emails"
-
 
     def collect(self, source):
 
@@ -127,8 +127,9 @@ class EmailCollector(BaseCollector):
 
                 connection.close()
                 connection.logout()
-            except Exception as error:
-                BaseCollector.print_exception(source, error)
+            except Exception:
+                logger.exception()
+                logger.collector_exception(source, "Could not collect EMAIL")
         else:
             try:
                 if proxy_server:
@@ -152,7 +153,8 @@ class EmailCollector(BaseCollector):
                     get_data()
 
                 connection.quit()
-            except Exception as error:
-                BaseCollector.print_exception(source, error)
+            except Exception:
+                logger.exception()
+                logger.collector_exception(source, "Could not collect EMAIL")
 
         self.publish(news_items, source)

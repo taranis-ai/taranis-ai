@@ -6,39 +6,12 @@ import jinja2
 import pdfkit
 
 from .base_presenter import BasePresenter
-from shared.schema.parameter import Parameter, ParameterType
 
 
 class PDFPresenter(BasePresenter):
     type = "PDF_PRESENTER"
     name = "PDF Presenter"
     description = "Presenter for generating PDF documents"
-
-    parameters = [
-        Parameter(
-            0,
-            "HEADER_TEMPLATE_PATH",
-            "Header template path",
-            "Path of header template file",
-            ParameterType.STRING,
-        ),
-        Parameter(
-            0,
-            "BODY_TEMPLATE_PATH",
-            "Body template path",
-            "Path of body template file",
-            ParameterType.STRING,
-        ),
-        Parameter(
-            0,
-            "FOOTER_TEMPLATE_PATH",
-            "Footer template path",
-            "Path of footer template file",
-            ParameterType.STRING,
-        ),
-    ]
-
-    parameters.extend(BasePresenter.parameters)
 
     def generate(self, presenter_input):
 

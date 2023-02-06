@@ -2,28 +2,12 @@ from base64 import b64decode
 import tweepy
 
 from .base_publisher import BasePublisher
-from shared.schema.parameter import Parameter, ParameterType
 
 
 class TWITTERPublisher(BasePublisher):
     type = "TWITTER_PUBLISHER"
     name = "Twitter Publisher"
     description = "Publisher for publishing to Twitter account"
-
-    parameters = [
-        Parameter(0, "TWITTER_API_KEY", "Twitter API key", "API key of Twitter account", ParameterType.STRING),
-        Parameter(0, "TWITTER_API_KEY_SECRET", "Twitter API key secret", "API key secret of Twitter account", ParameterType.STRING),
-        Parameter(0, "TWITTER_ACCESS_TOKEN", "Twitter access token", "Twitter access token of Twitter account", ParameterType.STRING),
-        Parameter(
-            0,
-            "TWITTER_ACCESS_TOKEN_SECRET",
-            "Twitter access token secret",
-            "Twitter access token secret of Twitter account",
-            ParameterType.STRING,
-        ),
-    ]
-
-    parameters.extend(BasePublisher.parameters)
 
     def publish(self, publisher_input):
 

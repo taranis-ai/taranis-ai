@@ -3,9 +3,9 @@ from sqlalchemy import orm, func, or_, and_
 import sqlalchemy
 from sqlalchemy.sql.expression import cast
 
-from managers.db_manager import db
-from model.acl_entry import ACLEntry
-from model.attribute import Attribute
+from core.managers.db_manager import db
+from core.model.acl_entry import ACLEntry
+from core.model.attribute import Attribute
 from shared.schema.acl_entry import ItemType
 from shared.schema.report_item_type import AttributeGroupItemSchema, AttributeGroupBaseSchema, ReportItemTypeBaseSchema, ReportItemTypePresentationSchema
 

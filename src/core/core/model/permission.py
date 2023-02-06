@@ -1,6 +1,6 @@
 from sqlalchemy import func, or_
 
-from managers.db_manager import db
+from core.managers.db_manager import db
 from shared.schema.role import PermissionSchema
 
 

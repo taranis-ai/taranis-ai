@@ -1,73 +1,58 @@
 <template>
-  <v-combobox
-    :value="value"
-    :items="items"
-    @change="setValue"
-    :label="label ? label : 'tags'"
-    multiple
-    outlined
+  <v-autocomplete
+    v-model="selected"
+    :loading="loading"
+    :items="tags"
+    chips
     dense
-    append-icon="mdi-chevron-down"
-    class="pl-0"
-    hide-details
-    hide-selected
     deletable-chips
+    :search-input.sync="search"
+    clearable
+    flat
+    no-data-text="No tags found"
+    hide-details
+    cache-items
+    label="Tags"
+    multiple
   >
-    <!-- @change="defaultTag" -->
-    <template v-slot:selection="{ parent, item, index }">
-      <v-chip
-        small
-        v-if="index < 1 && !parent.isMenuActive"
-        @click:close="removeTag(item)"
-        label
-        color="grey--lighten-4"
-        close
-        close-icon="mdi-delete"
-        class="pa-2 ml-0 mt-1"
-      >
-        <span>{{ item }}</span>
-      </v-chip>
-
-      <v-chip
-        small
-        v-else-if="parent.isMenuActive"
-        @click:close="removeTag(item)"
-        label
-        color="grey--lighten-4"
-        close
-        close-icon="mdi-delete"
-        class="pa-2 ml-0 mt-1"
-      >
-        <span>{{ item }}</span>
-      </v-chip>
-      <span
-        v-if="index === 1 && !parent.isMenuActive"
-        class="grey--text text-caption"
-      >
-        (+{{ value.length - 1 }})
-      </span>
-    </template>
-  </v-combobox>
+  <template v-slot:item="{ item }">
+   {{ shortText(item) }}
+  </template>
+  </v-autocomplete>
 </template>
 
 <script>
+import { getTags } from '@/api/assess'
+
 export default {
   name: 'tagFilter',
-  props: {
-    label: String,
-    value: [],
-    items: []
+  emits: ['input'],
+  data: () => ({
+    selected: [],
+    loading: false,
+    tags: [],
+    search: ''
+  }),
+  props: {},
+  watch: {
+    search(val) {
+      val && val !== this.select && this.querySelections(val)
+    }
   },
   methods: {
-    removeTag (chip) {
-      this.$emit(
-        'input',
-        this.value.filter((c) => c !== chip)
-      )
+    shortText(item) {
+      return item.length > 20 ? item.substring(0, 20) + '...' : item
     },
-    setValue (newValue) {
-      this.$emit('input', newValue)
+    querySelections(v) {
+      this.loading = true
+      getTags().then((res) => {
+        this.tags = res.data
+        this.loading = false
+      })
     }
+  },
+  mounted() {
+    this.querySelections()
   }
 }
 </script>

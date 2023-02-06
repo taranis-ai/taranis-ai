@@ -42,7 +42,7 @@ class ReportItems(Resource):
     @auth_required("ANALYZE_CREATE")
     def post(self):
         new_report_item, status = report_item.ReportItem.add_report_item(request.json, auth_manager.get_user_from_jwt())
-        if status == 200:
+        if status == 200 and new_report_item:
             asset_manager.report_item_changed(new_report_item)
             sse_manager.remote_access_report_items_updated(new_report_item.report_item_type_id)
             sse_manager.report_items_updated()
@@ -118,19 +118,22 @@ class ReportItemLocks(Resource):
 class ReportItemLock(Resource):
     @auth_required("ANALYZE_UPDATE", ACLCheck.REPORT_ITEM_MODIFY)
     def put(self, report_item_id, field_id):
-        sse_manager.report_item_lock(report_item_id, field_id, auth_manager.get_user_from_jwt().id)
+        if user := auth_manager.get_user_from_jwt():
+            sse_manager.report_item_lock(report_item_id, field_id, user.id)
 
 
 class ReportItemUnlock(Resource):
     @auth_required("ANALYZE_UPDATE", ACLCheck.REPORT_ITEM_MODIFY)
     def put(self, report_item_id, field_id):
-        sse_manager.report_item_unlock(report_item_id, field_id, auth_manager.get_user_from_jwt().id)
+        if user := auth_manager.get_user_from_jwt():
+            sse_manager.report_item_unlock(report_item_id, field_id, user.id)
 
 
 class ReportItemHoldLock(Resource):
     @auth_required("ANALYZE_UPDATE", ACLCheck.REPORT_ITEM_MODIFY)
     def put(self, report_item_id, field_id):
-        sse_manager.report_item_hold_lock(report_item_id, field_id, auth_manager.get_user_from_jwt().id)
+        if user := auth_manager.get_user_from_jwt():
+            sse_manager.report_item_hold_lock(report_item_id, field_id, user.id)
 
 
 class ReportItemAttributeEnums(Resource):
@@ -198,7 +201,7 @@ class ReportItemDownloadAttachment(Resource):
 
                     return send_file(
                         io.BytesIO(report_item_attribute.binary_data),
-                        attachment_filename=report_item_attribute.value,
+                        download_name=report_item_attribute.value,
                         mimetype=report_item_attribute.binary_mime_type,
                         as_attachment=True,
                     )

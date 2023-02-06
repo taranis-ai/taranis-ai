@@ -26,6 +26,10 @@ export function getTopStories () {
   return ApiService.get('/assess/top-stories')
 }
 
+export function getTags () {
+  return ApiService.get('/assess/tags')
+}
+
 export function addNewsItem (data) {
   return ApiService.post('/assess/news-items', data)
 }

@@ -1,6 +1,6 @@
 from marshmallow import post_load
 
-from managers.db_manager import db
+from core.managers.db_manager import db
 from shared.schema.parameter import ParameterType, ParameterSchema
 
 

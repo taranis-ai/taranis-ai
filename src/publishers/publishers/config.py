@@ -6,7 +6,7 @@ class Settings(BaseSettings):
         env_file = ".env"
         env_file_encoding = "utf-8"
 
-    API_KEY: str
+    API_KEY: str = "supersecret"
     SSL_VERIFICATION: bool = False
     MODULE_ID: str = "Publishers"
     COLORED_LOGS: bool = True

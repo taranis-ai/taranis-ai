@@ -6,17 +6,12 @@ from urllib.parse import urlsplit
 import paramiko
 
 from .base_publisher import BasePublisher
-from shared.schema.parameter import Parameter, ParameterType
 
 
 class FTPPublisher(BasePublisher):
     type = "FTP_PUBLISHER"
     name = "FTP Publisher"
     description = "Publisher for publishing to FTP server"
-
-    parameters = [Parameter(0, "FTP_URL", "FTP URL", "FTP server url", ParameterType.STRING)]
-
-    parameters.extend(BasePublisher.parameters)
 
     def publish(self, publisher_input):
 
@@ -39,10 +34,8 @@ class FTPPublisher(BasePublisher):
 
             bytes_data = b64decode(data, validate=True)
 
-            f = open(filename, "wb")
-            f.write(bytes_data)
-            f.close()
-
+            with open(filename, "wb") as f:
+                f.write(bytes_data)
             ftp_data = urlsplit(ftp_url)
 
             ftp_hostname = ftp_data.hostname
@@ -52,7 +45,7 @@ class FTPPublisher(BasePublisher):
             remote_path = ftp_data.path + filename
 
             if ftp_data.scheme == "sftp":
-                ssh_port = ftp_data.port if ftp_data.port else 22
+                ssh_port = ftp_data.port or 22
                 ssh = paramiko.SSHClient()
                 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                 ssh.connect(hostname=ftp_hostname, port=ssh_port, username=ftp_username, password=ftp_password)
@@ -60,14 +53,14 @@ class FTPPublisher(BasePublisher):
                 sftp.put(filename, remote_path)
                 sftp.close()
             elif ftp_data.scheme == "ftp":
-                ftp_port = ftp_data.port if ftp_data.port else 21
+                ftp_port = ftp_data.port or 21
                 ftp = ftplib.FTP()
                 ftp.connect(host=ftp_hostname, port=ftp_port)
                 ftp.login(ftp_username, ftp_password)
-                ftp.storbinary("STOR " + remote_path, open(filename, "rb"))
+                ftp.storbinary(f"STOR {remote_path}", open(filename, "rb"))
                 ftp.quit()
             else:
-                raise Exception("Schema '{}' not supported, choose 'ftp' or 'sftp'".format(ftp_data.scheme))
+                raise Exception(f"Schema '{ftp_data.scheme}' not supported, choose 'ftp' or 'sftp'")
         except Exception as error:
             BasePublisher.print_exception(self, error)
         finally:

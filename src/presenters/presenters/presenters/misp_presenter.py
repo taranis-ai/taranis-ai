@@ -3,25 +3,12 @@ from base64 import b64encode
 import jinja2
 
 from .base_presenter import BasePresenter
-from shared.schema.parameter import Parameter, ParameterType
 
 
 class MISPPresenter(BasePresenter):
     type = "MISP_PRESENTER"
     name = "MISP Presenter"
     description = "Presenter for generating MISP platform"
-
-    parameters = [
-        Parameter(
-            0,
-            "MISP_TEMPLATE_PATH",
-            "MISP template with its path",
-            "Path of MISP template file",
-            ParameterType.STRING,
-        )
-    ]
-
-    parameters.extend(BasePresenter.parameters)
 
     def generate(self, presenter_input):
 
@@ -38,8 +25,6 @@ class MISPPresenter(BasePresenter):
 
             data = base64_bytes.decode("UTF-8")
 
-            presenter_output = {"mime_type": "application/json", "data": data}
-
-            return presenter_output
+            return {"mime_type": "application/json", "data": data}
         except Exception as error:
             BasePresenter.print_exception(self, error)

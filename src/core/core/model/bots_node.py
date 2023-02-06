@@ -2,7 +2,7 @@ from marshmallow import post_load
 from sqlalchemy import func, or_, orm
 import uuid
 
-from managers.db_manager import db
+from core.managers.db_manager import db
 from shared.schema.bots_node import BotsNodeSchema, BotsNodePresentationSchema
 
 

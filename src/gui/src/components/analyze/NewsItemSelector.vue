@@ -52,15 +52,7 @@
           class="pa-0 pt-12 pl-8 ma-0 ml-16"
           style="width: calc(100% - 64px); position: sticky"
         >
-          <div :style="UI.STYLE.sticky_filter_toolbar">
-            <ToolbarFilterAssess
-              analyze_selector
-              total_count_title="assess.total_count"
-              ref="toolbarFilter"
-            />
-          </div>
-
-          <AssessContent
+          <assess-view
             analyze_selector
             :selection="values"
             class="item-selector"
@@ -105,7 +97,6 @@
 <script>
 import AuthMixin from '@/services/auth/auth_mixin'
 import Permissions from '@/services/auth/permissions'
-import ViewLayout from '@/components/layouts/ViewLayout'
 import AssessContent from '../../components/assess/AssessContent'
 import ToolbarFilterAssess from '@/components/assess/ToolbarFilterAssess'
 import CardAssess from '@/components/assess/CardAssess'
@@ -118,7 +109,6 @@ import { mapActions, mapGetters } from 'vuex'
 export default {
   name: 'NewsItemSelector',
   components: {
-    ViewLayout,
     AssessContent,
     ToolbarFilterAssess,
     CardAssess,

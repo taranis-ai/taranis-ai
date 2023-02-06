@@ -7,8 +7,6 @@ class BasePresenter:
     name = "Base Presenter"
     description = "Base abstract type for all presenters"
 
-    parameters = []
-
     def get_info(self):
         info_schema = PresenterSchema()
         return info_schema.dump(self)
@@ -53,8 +51,7 @@ class BasePresenter:
 
                             self.news_items = list()
                             for news_item_aggregate in report_item.news_item_aggregates:
-                                for news_item in news_item_aggregate["news_items"]:
-                                    self.news_items.append(news_item["news_item_data"])
+                                self.news_items.extend(news_item["news_item_data"] for news_item in news_item_aggregate["news_items"])
 
                             class AttributesObject:
                                 def toJSON(self):
@@ -75,19 +72,17 @@ class BasePresenter:
                                         if attribute_map[attribute.attribute_group_item_id].max_occurrence > 1:
                                             attr = getattr(self.attrs, attr_key)
                                             attr.append(attribute.value)
+                                    elif attribute_map[attribute.attribute_group_item_id].max_occurrence == 1:
+                                        setattr(self.attrs, attr_key, attribute.value)
                                     else:
-                                        if attribute_map[attribute.attribute_group_item_id].max_occurrence == 1:
-                                            setattr(self.attrs, attr_key, attribute.value)
-                                        else:
-                                            setattr(self.attrs, attr_key, [attribute.value])
+                                        setattr(self.attrs, attr_key, [attribute.value])
 
                     self.report_items.append(ReportItemObject(report))
 
         data = InputDataObject()
         data_json = data.toJSON()
         logger.log_info("=== TEMPLATING FROM THE FOLLOWING INPUT ===\n" + data_json)
-        data_obj = json.loads(data_json)
-        return data_obj
+        return json.loads(data_json)
 
     def generate(self, presenter_input):
         pass

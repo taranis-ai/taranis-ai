@@ -4,8 +4,7 @@ from marshmallow import post_load
 from sqlalchemy import func
 from sqlalchemy.sql import label
 
-from managers.db_manager import db
-from model.word_list import WordListEntry
+from core.managers.db_manager import db
 from shared.schema.tag_cloud import TagCloudSchema, GroupedWordsSchema
 
 

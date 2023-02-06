@@ -3,9 +3,9 @@ from datetime import datetime
 from marshmallow import post_load, fields
 from sqlalchemy import orm, func, or_, and_
 
-from managers.db_manager import db
-from model.osint_source import OSINTSource
-from model.report_item_type import ReportItemType
+from core.managers.db_manager import db
+from core.model.osint_source import OSINTSource
+from core.model.report_item_type import ReportItemType
 from shared.schema.osint_source import OSINTSourceIdSchema
 from shared.schema.remote import RemoteAccessSchema, RemoteAccessPresentationSchema, RemoteNodeSchema, RemoteNodePresentationSchema
 from shared.schema.report_item_type import ReportItemTypeIdSchema

@@ -6,6 +6,7 @@ import requests
 from bs4 import BeautifulSoup
 from dateutil.parser import parse
 
+from collectors.managers.log_manager import logger
 from .base_collector import BaseCollector
 from shared.schema.news_item import NewsItemData
 
@@ -88,5 +89,6 @@ class AtomCollector(BaseCollector):
                     news_items.append(news_item)
 
             self.publish(news_items, source)
-        except Exception as error:
-            BaseCollector.print_exception(source, error)
+        except Exception:
+            logger.exception()
+            logger.collector_exception(source, "Could not collect ATOM Feed")
