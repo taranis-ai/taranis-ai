@@ -1,5 +1,6 @@
 from marshmallow import fields, post_load
 from sqlalchemy import func, or_, orm
+from werkzeug.security import generate_password_hash
 
 from core.managers.db_manager import db
 from core.model.role import Role
@@ -127,6 +128,7 @@ class User(db.Model):
         schema = NewUserSchema()
         updated_user = schema.load(data)
         user = cls.query.get(user_id)
+        user.password = generate_password_hash(updated_user.password, method="sha256")
         user.username = updated_user.username
         user.name = updated_user.name
         user.organizations = updated_user.organizations

@@ -13,8 +13,9 @@ const actions = {
         context.commit('setJwtToken', response.data.access_token)
         context.dispatch('setUser', context.getters.getUserData)
       })
-      .catch(() => {
+      .catch((error) => {
         context.commit('clearJwtToken')
+        return error.toJSON()
       })
   },
 

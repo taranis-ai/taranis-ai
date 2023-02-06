@@ -1118,6 +1118,10 @@ textarea {
   font-size: 1.5rem !important;
 }
 
+.nocaps {
+  text-transform: unset !important;
+}
+
 .corner-close {
   position: absolute;
   right: -3px;

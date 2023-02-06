@@ -32,27 +32,23 @@ class RSSCollector(BaseCollector):
             if not response.ok:
                 return None
         except Exception:
+            logger.exception()
+            logger.info(f"Could not get article content for: {url}")
             return None
 
         return response
 
     def get_article_content(self, link_for_article: str) -> str:
-        try:
-            html_content = self.make_request(link_for_article)
-            if html_content is None:
-                return ""
-        except Exception:
-            return ""
+        html_content = self.make_request(link_for_article)
 
-        return html_content.content.decode("utf-8")
+        return html_content.content.decode("utf-8") if html_content is not None else ""
 
     def parse_article_content(self, html_content: str, content_location: str = "p") -> str:
-        soup = BeautifulSoup(html_content, features="html.parser")
         if html_content:
+            soup = BeautifulSoup(html_content, features="html.parser")
             content_text = [p.text.strip() for p in soup.findAll(content_location)]
-            if replaced_str := "\xa0":
-                content = [w.replace(replaced_str, " ") for w in content_text]
-                return " ".join(content)
+            content = [w.replace("\xa0", " ") for w in content_text]
+            return " ".join(content)
         return ""
 
     def collect(self, source):
@@ -96,8 +92,12 @@ class RSSCollector(BaseCollector):
         link: str = str(feed_entry.get("link", ""))
         for_hash: str = author + title + link
 
-        with contextlib.suppress(Exception):
+        try:
             published = dateparser.parse(published)
+        except Exception:
+            logger.exception()
+            logger.debug(f"Could not parse date: {published}")
+            published = datetime.datetime.now()
 
         # if published > limit: TODO: uncomment after testing, we need some initial data now
         logger.log_collector_activity("rss", source.id, f"Processing entry [{link}]")
@@ -105,10 +105,10 @@ class RSSCollector(BaseCollector):
         content_location = source.parameter_values.get("CONTENT_LOCATION", "p")
         content_from_feed, content_location = self.content_from_feed(feed_entry, content_location)
         if content_from_feed:
-            content = feed_entry[content_location]
+            content = str(feed_entry[content_location])
         else:
-            content = self.get_article_content(link_for_article=link)
-            content = self.parse_article_content(html_content=content, content_location=content_location)
+            html_content = self.get_article_content(link_for_article=link)
+            content = self.parse_article_content(html_content, content_location)
 
         return NewsItemData(
             uuid.uuid4(),

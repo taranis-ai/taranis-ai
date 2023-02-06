@@ -14,7 +14,7 @@ class OpenIDAuthenticator(BaseAuthenticator):
             name="openid",
             client_id=app.config.get("OPENID_CLIENT_ID"),
             client_secret=app.config.get("OPENID_CLIENT_SECRET"),
-            server_metadata_url=app.config.get("OPENID_METADAT_URL"),
+            server_metadata_url=app.config.get("OPENID_METADATA_URL"),
         )
 
     def authenticate(self, credentials):

@@ -1,4 +1,3 @@
-import os
 from datetime import datetime, timedelta
 from enum import Enum, auto
 from functools import wraps
@@ -28,7 +27,7 @@ from core.model.token_blacklist import TokenBlacklist
 from core.model.user import User
 from core.config import Config
 
-current_authenticator = None
+current_authenticator = TestAuthenticator()
 
 api_key = Config.API_KEY
 
@@ -43,15 +42,13 @@ def initialize(app):
 
     JWTManager(app)
 
-    which = os.getenv("TARANIS_NG_AUTHENTICATOR")
-    if which == "openid":
+    authenticator = app.config.get("TARANIS_NG_AUTHENTICATOR", "test")
+    if authenticator == "openid":
         current_authenticator = OpenIDAuthenticator()
-    elif which == "keycloak":
+    elif authenticator == "keycloak":
         current_authenticator = KeycloakAuthenticator()
-    elif which == "database":
+    elif authenticator == "database":
         current_authenticator = DatabaseAuthenticator()
-    elif which == "test":
-        current_authenticator = TestAuthenticator()
     else:
         current_authenticator = TestAuthenticator()
 

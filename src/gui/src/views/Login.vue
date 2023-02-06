@@ -43,7 +43,7 @@
         </table>
       </v-form>
     </v-container>
-    <v-alert v-if="show_login_error" dense type="error" text>{{$t('login.error')}}</v-alert>
+    <v-alert v-if="login_error !== undefined" dense type="error" text>{{$t(login_error)}}</v-alert>
   </v-container>
 </template>
 
@@ -56,7 +56,7 @@ export default {
   data: () => ({
     username: '',
     password: '',
-    show_login_error: false
+    login_error: undefined
   }),
   mixins: [AuthMixin],
   methods: {
@@ -65,18 +65,24 @@ export default {
       this.$validator.validateAll().then(() => {
         if (!this.$validator.errors.any()) {
           this.login({ username: this.username, password: this.password })
-            .then(() => {
+            .then((error) => {
               if (this.isAuthenticated()) {
-                this.show_login_error = false
+                this.login_error = undefined
                 this.$router.push('/')
-              } else {
-                this.show_login_error = true
+                return
+              }
+              if (error) {
                 this.$refs.form.reset()
                 this.$validator.reset()
+                if (error.status > 500) {
+                  this.login_error = 'login.backend_error'
+                } else {
+                  this.login_error = 'login.error'
+                }
               }
             })
         } else {
-          this.show_login_error = false
+          this.login_error = undefined
         }
       })
     }

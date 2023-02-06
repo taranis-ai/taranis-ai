@@ -35,7 +35,8 @@
     "vuetify": "^2.6.9",
     "vuetify-datetime-picker": "^2.1.1",
     "vuex": "^3.6.2",
-    "vuex-map-fields": "^1.4.1"
+    "vuex-map-fields": "^1.4.1",
+    "vuex-router-sync": "^5.0.0"
   },
   "devDependencies": {
     "@babel/helper-compilation-targets": "^7.16.3",
@@ -93,5 +94,9 @@
   "browserslist": [
     "> 1%"
   ],
-  "prettier": { "singleQuote": true, "trailingComma": "none", "semi": false }
+  "prettier": {
+    "singleQuote": true,
+    "trailingComma": "none",
+    "semi": false
+  }
 }

@@ -41,7 +41,7 @@ class NewsItemData(db.Model):
     language = db.Column(db.String())
     content = db.Column(db.String())
     collected = db.Column(db.DateTime)
-    published = db.Column(db.String())
+    published = db.Column(db.DateTime, default=datetime.now())
     updated = db.Column(db.DateTime, default=datetime.now())
 
     attributes = db.relationship("NewsItemAttribute", secondary="news_item_data_news_item_attribute")

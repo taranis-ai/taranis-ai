@@ -31,7 +31,6 @@ class Dashboard(Resource):
 class Tagcloud(Resource):
     @jwt_required()
     def get(self):
-
         try:
             tag_cloud_day = 0
             if "tag_cloud_day" in request.args and request.args["tag_cloud_day"]:

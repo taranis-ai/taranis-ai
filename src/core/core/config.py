@@ -1,5 +1,4 @@
 from pydantic import BaseSettings, validator
-from typing import Optional
 
 
 class Settings(BaseSettings):
@@ -7,10 +6,10 @@ class Settings(BaseSettings):
         env_file = ".env"
         env_file_encoding = "utf-8"
 
-    API_KEY: str
+    API_KEY: str = "supersecret"
     MODULE_ID: str = "Core"
     DEBUG: bool = False
-    SECRET_KEY: str
+    SECRET_KEY: str = "supersecret"
 
     JWT_IDENTITY_CLAIM: str = "sub"
     JWT_ACCESS_TOKEN_EXPIRES: int = 14400
@@ -23,7 +22,7 @@ class Settings(BaseSettings):
     SQLALCHEMY_SCHEMA: str = "postgresql+psycopg2"
     SQLALCHEMY_ECHO: bool = False
     SQLALCHEMY_TRACK_MODIFICATIONS: bool = False
-    SQLALCHEMY_DATABASE_URI: Optional[str]
+    SQLALCHEMY_DATABASE_URI: str | None = None
     COLORED_LOGS: bool = True
     OpenAPI: str = "static/"
 
@@ -45,9 +44,11 @@ class Settings(BaseSettings):
     #         "pool_timeout": DB_POOL_TIMEOUT,
     #     }
 
-    OPENID_CLIENT_ID: Optional[str]
-    OPENID_CLIENT_SECRET: Optional[str]
-    OPENID_METADAT_URL: str = "http://keycloak/realms/master/.well-known/openid-configuration"
+    TARANIS_NG_AUTHENTICATOR: str | None = None
+
+    OPENID_CLIENT_ID: str | None = None
+    OPENID_CLIENT_SECRET: str | None = None
+    OPENID_METADATA_URL: str = "http://keycloak/realms/master/.well-known/openid-configuration"
 
 
 Config = Settings()

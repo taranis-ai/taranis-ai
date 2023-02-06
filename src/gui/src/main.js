@@ -4,6 +4,7 @@ import Vue from 'vue'
 import App from './App.vue'
 import { router } from './router'
 import { store } from '@/store/store'
+import { sync } from 'vuex-router-sync'
 import ApiService from '@/services/api_service'
 import VueI18n from 'vue-i18n'
 import messages from '@/i18n/messages'
@@ -56,6 +57,8 @@ ApiService.init(coreAPIURL)
 if (localStorage.ACCESS_TOKEN) {
   store.dispatch('setToken', (localStorage.ACCESS_TOKEN)).then()
 }
+
+sync(store, router)
 
 Vue.use(SmoothScrollbar)
 

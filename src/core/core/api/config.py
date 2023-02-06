@@ -237,13 +237,13 @@ class Users(Resource):
 class User(Resource):
     @auth_required("CONFIG_USER_UPDATE")
     def put(self, user_id):
-        original_user = user.User.find_by_id(user_id)
-        original_username = original_user.username
-
         try:
-            external_auth_manager.update_user(request.json, original_username)
-        except Exception as ex:
-            logger.log_debug(ex)
+            if external_auth_manager.keycloak_user_management_enabled():
+                original_user = user.User.find_by_id(user_id)
+                original_username = original_user.username
+                external_auth_manager.update_user(request.json, original_username)
+        except Exception:
+            logger.exception()
             logger.store_data_error_activity(get_user_from_jwt(), "Could not update user in external auth system")
             return "", 400
 

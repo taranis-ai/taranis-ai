@@ -36,12 +36,14 @@
         <news-item-action-dialog
           icon="mdi-delete"
           tooltip="remove item"
-          ref="deleteDialog"
+          :showDialog="deleteDialog"
+          @close="deleteDialog = false"
         >
           <popup-delete-item
+            v-if="deleteDialog"
             :newsItem="newsItem"
             @deleteItem="deleteNewsItem()"
-            @close="$refs.deleteDialog.close()"
+            @close="deleteDialog = false"
           />
         </news-item-action-dialog>
 
@@ -295,7 +297,8 @@ export default {
   data: () => ({
     viewDetails: false,
     openSummary: false,
-    sharingDialog: false
+    sharingDialog: false,
+    deleteDialog: false
   }),
   computed: {
     item_selected() {

@@ -42,7 +42,8 @@ const messages_en = {
     username: "Username",
     password: "Password",
     submit: "Login",
-    error: "Username or password is incorrect"
+    error: "Username or password is incorrect",
+    backend_error: "Taranis Core Backend error"
   },
 
   user_menu: {
