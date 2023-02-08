@@ -161,7 +161,7 @@ export default {
         })
     },
     selectionChange(selected) {
-      this.selected = selected.map(item => item.id)
+      this.selected = selected.map((item) => item.id)
     },
     triggerWorkers() {
       triggerNode().then(() => {

@@ -17,40 +17,33 @@ class AnalystBot(BaseBot):
 
     def execute(self):
         try:
-            # source_group = preset.parameter_values["SOURCE_GROUP"]
-            regexp = self.parameters["REGULAR_EXPRESSION"].replace(" ", "")
-            attr_name = self.parameters["ATTRIBUTE_NAME"].replace(" ", "")
+            regex = self.parameters.get("REGULAR_EXPRESSION", "")
+            attr = self.parameters.get("ATTRIBUTE_NAME", "")
+            if not regex or not attr:
+                return
 
-            regexp = regexp.split(",")
-            attr_name = attr_name.split(",")
+            self.regexp = regex.replace(" ", "").split(",")
+            self.attr_name = attr.replace(" ", "").split(",")
 
-            bots_params = dict(zip(attr_name, regexp))
+            bots_params = dict(zip(self.regexp, self.attr_name))
             limit = self.history()
 
             if news_items_data := self.core_api.get_news_items_data(limit):
                 for item in news_items_data:
-                    if item is not type(dict):
+                    if not item:
                         continue
                     news_item_id = item["id"]
                     title = item["title"]
-                    preview = item["review"]
+                    review = item["review"]
                     content = item["content"]
 
-                    analyzed_text = "".join([title, preview, content]).split()
-                    analyzed_text = [item.replace(".", "") if item.endswith(".") else item for item in analyzed_text]
-                    analyzed_text = [item.replace(",", "") if item.endswith(",") else item for item in analyzed_text]
+                    analyzed_text = set((title + review + content).split())
 
                     for element in analyzed_text:
-
                         attributes = []
-
                         for key, value in bots_params.items():
-
-                            finding = re.search("(" + value + ")", element)
-                            if finding:
-                                found_value = finding.group(1)
-
-                                value = found_value
+                            if finding := re.search(f"({value})", element.strip(".,")):
+                                value = finding[1]
                                 binary_mime_type = ""
                                 binary_value = ""
 
@@ -64,7 +57,7 @@ class AnalystBot(BaseBot):
                                     news_item_attributes_schema.dump(attributes),
                                 )
 
-        except Exception as error:
+        except Exception:
             logger.log_debug_trace(f"Error running Bot: {self.type}")
 
     def execute_on_event(self, event_type, data):

@@ -97,7 +97,7 @@ const state = {
 }
 
 const actions = {
-  getUserProfile(context) {
+  loadUserProfile(context) {
     return getProfile().then((response) => {
       context.commit('setUserProfile', response.data)
     })

@@ -1,6 +1,6 @@
-import json
 import requests
 import base64
+import hashlib
 from bots.managers.log_manager import logger
 from bots.config import Config
 
@@ -16,8 +16,8 @@ class CoreApi:
         return {"Authorization": f"Bearer {self.api_key}", "Content-type": "application/json"}
 
     def get_node_id(self) -> str:
-        uid = self.api_url + self.api_key
-        return base64.urlsafe_b64encode(uid.encode("utf-8")).decode("utf-8")
+        uid = Config.NODE_URL + Config.API_KEY + Config.NODE_NAME + Config.TARANIS_NG_CORE_URL
+        return hashlib.md5(uid.encode("utf-8")).hexdigest()
 
     def register_node(self):
         try:
@@ -72,17 +72,28 @@ class CoreApi:
             logger.log_debug_trace("Can't get Bot infos")
             return None
 
-    def get_news_items_data(self, limit):
+    def get_news_items_data(self, limit) -> dict | None:
         try:
             response = requests.get(
                 f"{self.api_url}/api/v1/bots/news-item-data?limit={limit}",
                 headers=self.headers,
             )
-            return response.json()
+            return response.json() if response.ok else None
         except Exception:
-            return None, 400
+            return None
 
-    def update_news_item_attributes(self, id, attributes):
+    def update_news_item_data(self, id, data) -> int:
+        try:
+            response = requests.put(
+                f"{self.api_url}/api/v1/bots/news-item-data/{id}",
+                json=data,
+                headers=self.headers,
+            )
+            return response.status_code
+        except Exception:
+            return 400
+
+    def update_news_item_attributes(self, id, attributes) -> int:
         try:
             response = requests.put(
                 f"{self.api_url}/api/v1/bots/news-item-data/{id}/attributes",
@@ -91,9 +102,9 @@ class CoreApi:
             )
             return response.status_code
         except Exception:
-            return None, 400
+            return 400
 
-    def update_news_item_tags(self, id, tags):
+    def update_news_item_tags(self, id, tags) -> int:
         try:
             response = requests.put(
                 f"{self.api_url}/api/v1/bots/news-items-aggregate/{id}/tags",
@@ -103,7 +114,7 @@ class CoreApi:
             return response.status_code
         except Exception:
             logger.log_debug_trace("update_news_item_tags failed")
-            return None, 400
+            return 400
 
     def update_news_items_aggregate_summary(self, id, summary):
         try:
@@ -176,7 +187,6 @@ class CoreApi:
             return None
 
     def news_items_grouping(self, data):
-        return None, 200
         try:
             response = requests.put(
                 f"{self.api_url}/api/v1/bots/news-item-aggregates-group-action",

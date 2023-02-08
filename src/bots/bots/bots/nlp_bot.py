@@ -1,7 +1,7 @@
 from .base_bot import BaseBot
 from bots.managers.log_manager import logger
 from keybert import KeyBERT
-from nltk.corpus import stopwords
+import py3langid
 
 from transformers import (
     BartTokenizer,
@@ -37,15 +37,12 @@ class NLPBot(BaseBot):
             self.sum_model = AutoModelForSeq2SeqLM.from_pretrained(self.sum_model_name)
             self.sum_tokenizer = AutoTokenizer.from_pretrained(self.sum_model_name, use_fast=False)
 
-    def download_stopwords(self):
-        import nltk
-
-        nltk.download("stopwords")
-
     def bot_setup(self):
-        self.set_summarization_model()
-        self.download_stopwords()
         self.language = self.parameters.get("LANGUAGE", "de").lower()
+        sum_model = "facebook/bart-large-cnn" if self.language == "en" else "T-Systems-onsite/mt5-small-sum-de-en-v2"
+        logger.debug("Setup Summarization Model...")
+        self.set_summarization_model(sum_model)
+        logger.debug("Setup KeyWord Model...")
         self.kw_model = KeyBERT("all-MiniLM-L6-v2") if self.language == "en" else KeyBERT("paraphrase-mpnet-base-v2")
 
     def execute(self):
@@ -62,7 +59,15 @@ class NLPBot(BaseBot):
 
             for aggregate in data:
                 keywords = []
+
+                if aggregate.get("summary", None) and aggregate.get("tags", None):
+                    logger.debug(f"Skipping aggregate: {aggregate['id']}")
+                    continue
+
+                keywords = []
                 content_list = []
+
+                logger.debug(f"NLP processing aggregate: {aggregate['id']}")
 
                 for news_item in aggregate["news_items"]:
                     content = (
@@ -70,12 +75,15 @@ class NLPBot(BaseBot):
                     )
                     content_list.append(content)
 
-                    current_keywords = self.generateKeywords(content)
-                    keywords.extend(keyword[0] for keyword in current_keywords)
+                    self.core_api.update_news_item_data(news_item["news_item_data"]["id"], {"language": self.detect_language(content)})
 
-                summary = self.predict_summary(content_list)
-                self.core_api.update_news_items_aggregate_summary(aggregate["id"], summary)
-                self.core_api.update_news_item_tags(aggregate["id"], keywords)
+                    current_keywords = self.generateKeywords(content)
+                    keywords.extend(keyword[0] for keyword in current_keywords[:10])
+
+                if summary := self.predict_summary(content_list):
+                    self.core_api.update_news_items_aggregate_summary(aggregate["id"], summary)
+                if keywords:
+                    self.core_api.update_news_item_tags(aggregate["id"], keywords)
 
         except Exception:
             logger.log_debug_trace(f"Error running Bot: {self.type}")
@@ -89,24 +97,18 @@ class NLPBot(BaseBot):
             logger.log_debug_trace(f"Error running Bot: {self.type}")
 
     def generateKeywords(self, text):
-        if self.language == "en":
-            return self.kw_model.extract_keywords(
-                text,
-                keyphrase_ngram_range=(1, 2),
-                stop_words="english",
-                use_mmr=True,
-                diversity=0.8,
-                top_n=15,
-            )
-        german_stop_words = stopwords.words("german")
+        stop_words = "german" if self.language == "de" else "english"
         return self.kw_model.extract_keywords(
             text,
             keyphrase_ngram_range=(1, 2),
-            stop_words=german_stop_words,
+            stop_words=stop_words,
             use_mmr=True,
             diversity=0.8,
             top_n=15,
         )
+
+    def detect_language(self, text) -> str:
+        return py3langid.classify(text)[0]
 
     def predict_summary(self, texts, pct_min_length=0.2):
         r"""
@@ -129,26 +131,26 @@ class NLPBot(BaseBot):
         nb_tokens = len(text_to_summarize.split(" "))
         min_length = int(nb_tokens * pct_min_length)
         max_length = nb_tokens
-        if self.sum_model_name not in [
-            "T-Systems-onsite/mt5-small-sum-de-en-v2",
-            "deutsche-telekom/mt5-small-sum-de-en-v1",
-            "facebook/bart-large-cnn",
-        ]:
+        if not self.sum_model:
             return ""
+
+        input_ids = self.sum_tokenizer(
+            text_to_summarize,
+            max_length=1024,
+            padding=True,
+            truncation=True,
+            return_tensors="pt",
+        )["input_ids"]
+        if input_ids is None:
+            return ""
+
         if self.sum_model_name == "facebook/bart-large-cnn":
-            inputs = self.sum_tokenizer(
-                text_to_summarize,
-                max_length=1024,
-                padding=True,
-                truncation=True,
-                return_tensors="pt",
-            )
             summary_ids = self.sum_model.generate(
-                inputs["input_ids"],
-                num_beams=6,
+                input_ids=input_ids,
                 min_length=min_length,
                 max_length=max_length,
                 no_repeat_ngram_size=2,
+                num_beams=6,
             )
             return self.sum_tokenizer.batch_decode(
                 summary_ids,
@@ -156,13 +158,6 @@ class NLPBot(BaseBot):
                 clean_up_tokenization_spaces=False,
             )[0]
 
-        input_ids = self.sum_tokenizer(
-            [text_to_summarize],
-            return_tensors="pt",
-            padding="max_length",
-            truncation=True,
-            max_length=1024,
-        )["input_ids"]
         output_ids = self.sum_model.generate(
             input_ids=input_ids,
             min_length=min_length,

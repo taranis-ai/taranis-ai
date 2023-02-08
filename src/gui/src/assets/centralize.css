@@ -555,11 +555,6 @@ html,
     margin-right: 16px;
 }
 
-/* --- CSButton.vue --- */
-.v-tooltip__content.hide-tooltip {
-    display: none !important;
-}
-
 /* --- CalculatorCVSS.vue --- */
 .v-tooltip__content.hide-tooltip {
     display: none !important;

@@ -21,11 +21,19 @@ def initialize():
     response = CoreApi().get_bots()
 
     if not response:
-        logger.log_debug(f"Couldn't get Bot info: {response}")
+        logger.warning(f"Couldn't get Bot info: {response}")
         return
 
-    bot_schema = BotImportSchema(many=True)
-    bots = bot_schema.load(response)
+    try:
+        bot_schema = BotImportSchema(many=True)
+        bots = bot_schema.load(response)
+        if not bots:
+            logger.warning(f"Couldn't parse Bot info: {response}")
+            return
+
+    except Exception:
+        logger.warning(f"Couldn't parse Bot info: {response}")
+        return
 
     parameters = {}
     for bot in bots:

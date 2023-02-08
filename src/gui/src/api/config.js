@@ -269,46 +269,46 @@ export function triggerNode () {
 }
 
 export function updateNode (node) {
-  if (node.type === 'Collector') {
+  if (node.type === 'collector') {
     return ApiService.put(`/config/collectors-nodes/${node.id}`, node)
   }
-  if (node.type === 'Bot') {
+  if (node.type === 'bot') {
     return ApiService.put(`/config/bots-nodes/${node.id}`, node)
   }
-  if (node.type === 'Presenter') {
+  if (node.type === 'presenter') {
     return ApiService.put(`/config/presenters-nodes/${node.id}`, node)
   }
-  if (node.type === 'Publisher') {
+  if (node.type === 'publisher') {
     return ApiService.put(`/config/publishers-nodes/${node.id}`, node)
   }
 }
 
 export function createNode (node) {
-  if (node.type === 'Collector') {
+  if (node.type === 'collector') {
     return ApiService.post('/config/collectors-nodes', node)
   }
-  if (node.type === 'Bot') {
+  if (node.type === 'bot') {
     return ApiService.post('/config/bots-nodes', node)
   }
-  if (node.type === 'Presenter') {
+  if (node.type === 'presenter') {
     return ApiService.post('/config/presenters-nodes', node)
   }
-  if (node.type === 'Publisher') {
+  if (node.type === 'publisher') {
     return ApiService.post('/config/publishers-nodes', node)
   }
 }
 
 export function deleteNode (node) {
-  if (node.type === 'Collector') {
+  if (node.type === 'collector') {
     return ApiService.delete(`/config/collectors-nodes/${node.id}`, node)
   }
-  if (node.type === 'Bot') {
+  if (node.type === 'bot') {
     return ApiService.delete(`/config/bots-nodes/${node.id}`, node)
   }
-  if (node.type === 'Presenter') {
+  if (node.type === 'presenter') {
     return ApiService.delete(`/config/presenters-nodes/${node.id}`, node)
   }
-  if (node.type === 'Publisher') {
+  if (node.type === 'publisher') {
     return ApiService.delete(`/config/publishers-nodes/${node.id}`, node)
   }
 }

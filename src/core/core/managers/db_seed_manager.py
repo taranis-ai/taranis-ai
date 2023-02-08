@@ -60,7 +60,7 @@ def pre_seed_workers():
 
     for p in presenters:
         Presenter.add(p)
-    
+
     for p in publishers:
         Publisher.add(p)
 
@@ -473,6 +473,11 @@ def pre_seed_permissions():
         "CONFIG_NODE_ACCESS",
         "Config nodes access",
         "Access to all nodes from configuration",
+    )
+    Permission.add(
+        "CONFIG_API_ACCESS",
+        "Config API access",
+        "Access to API configuration",
     )
 
 

@@ -1,6 +1,5 @@
-import urllib
 import requests
-import base64
+import hashlib
 from urllib.parse import quote
 from collectors.managers.log_manager import logger
 from collectors.config import Config
@@ -18,8 +17,8 @@ class CoreApi:
         return {"Authorization": f"Bearer {self.api_key}", "Content-type": "application/json"}
 
     def get_node_id(self) -> str:
-        uid = self.api_url + self.api_key
-        return base64.urlsafe_b64encode(uid.encode("utf-8")).decode("utf-8")
+        uid = Config.NODE_URL + Config.API_KEY + Config.NODE_NAME + Config.TARANIS_NG_CORE_URL
+        return hashlib.md5(uid.encode("utf-8")).hexdigest()
 
     def get_osint_sources(self, collector_type: str) -> dict | None:
         try:

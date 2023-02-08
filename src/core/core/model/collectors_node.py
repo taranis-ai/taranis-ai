@@ -102,7 +102,7 @@ class CollectorsNode(db.Model):
     def update(cls, node_id, node_data):
         new_node_schema = NewCollectorsNodeSchema()
         updated_node = new_node_schema.load(node_data)
-        node = cls.query.get_by_id(node_id)
+        node = cls.query.get(node_id)
         node = updated_node
 
         db.session.commit()
@@ -110,6 +110,6 @@ class CollectorsNode(db.Model):
 
     @classmethod
     def delete(cls, node_id):
-        node = cls.query.get_by_id(node_id)
+        node = cls.query.get(node_id)
         db.session.delete(node)
         db.session.commit()

@@ -32,8 +32,8 @@ class BaseBot:
     def history(self):
         interval = self.parameters.get("REFRESH_INTERVAL")
         if not interval:
-            limit = datetime.datetime.now() - datetime.timedelta(days=7)
-            return limit.strftime("%d.%m.%Y - %H:%M")
+            return (datetime.datetime.now() - datetime.timedelta(days=7)).isoformat()
+
         if interval[0].isdigit() and ":" in interval:
             limit = datetime.datetime.now() - datetime.timedelta(days=1)
         elif interval[0].isalpha():
@@ -45,8 +45,7 @@ class BaseBot:
         else:
             limit = datetime.datetime.now() - datetime.timedelta(days=0, hours=0, minutes=int(interval))
 
-        limit = limit.strftime("%d.%m.%Y - %H:%M")
-        return limit
+        return limit.isoformat()
 
     def refresh(self):
         logger.info(f"Refreshing Bot: {self.type} with {self.parameters} ...")

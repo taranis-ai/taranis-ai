@@ -279,8 +279,6 @@ import { mapGetters } from 'vuex'
 import PopupEditStory from '@/components/popups/PopupEditStory'
 import PopupShareSharingSet from '@/components/popups/PopupShareSharingSet'
 
-// import { mapState } from 'vuex'
-
 export default {
   name: 'SharingSetHeaderAssess',
   components: {

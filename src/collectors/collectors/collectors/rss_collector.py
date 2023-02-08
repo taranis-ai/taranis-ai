@@ -90,7 +90,7 @@ class RSSCollector(BaseCollector):
         for_hash: str = author + title + link
 
         try:
-            published = dateparser.parse(published)
+            published = dateparser.parse(published) if published else datetime.datetime.now()
         except Exception:
             logger.exception()
             logger.debug(f"Could not parse date: {published}")

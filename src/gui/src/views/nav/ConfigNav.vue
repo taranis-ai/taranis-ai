@@ -38,7 +38,8 @@ export default {
       { separator: '1' },
       { icon: 'mdi-remote-desktop', title: 'nav_menu.remote_access', route: '/config/remote/access', permission: 'CONFIG_REMOTE_ACCESS_ACCESS' },
       { icon: 'mdi-share-variant', title: 'nav_menu.remote_nodes', route: '/config/remote/nodes', permission: 'CONFIG_REMOTE_NODE_ACCESS' },
-      { icon: 'mdi-robot', title: 'nav_menu.bots', route: '/config/bots', permission: 'CONFIG_NODE_ACCESS' }
+      { icon: 'mdi-robot', title: 'nav_menu.bots', route: '/config/bots', permission: 'CONFIG_NODE_ACCESS' },
+      { icon: 'mdi-api', title: 'OpenAPI', route: '/config/openapi' }
 
     ]
   })

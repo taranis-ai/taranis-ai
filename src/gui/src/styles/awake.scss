@@ -552,6 +552,9 @@ textarea {
   margin-bottom: 0px !important;
   font-weight: 300;
   font-size: 13px;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  min-height: 6em;
 }
 
 .news-item-meta-infos.row {
@@ -1048,6 +1051,13 @@ textarea {
 
 .stories-chip {
   max-width: 120px;
+}
+
+.openapi {
+  position: absolute;
+  height: 100%;
+  width: 100%;
+  border: none
 }
 
 .dropdown-list-item {

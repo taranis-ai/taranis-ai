@@ -8,7 +8,6 @@ __all__ = [
     "config",
     "dashboard",
     "isalive",
-    "openapi",
     "presenters",
     "publish",
     "publishers",
@@ -25,7 +24,6 @@ import core.api.collectors
 import core.api.config
 import core.api.dashboard
 import core.api.isalive
-import core.api.openapi
 import core.api.presenters
 import core.api.publish
 import core.api.publishers

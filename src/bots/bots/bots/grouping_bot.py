@@ -13,37 +13,30 @@ class GroupingBot(BaseBot):
     def execute(self):
         try:
             source_group = self.parameters.get("SOURCE_GROUP", None)
-            regexp = self.parameters["REGULAR_EXPRESSION"]
+            regexp = self.parameters.get("REGULAR_EXPRESSION", None)
 
-            limit = self.history()
+            if not source_group or not regexp:
+                return
 
-            data = self.core_api.get_news_items_aggregate(source_group, limit)
+            data = self.core_api.get_news_items_aggregate(source_group, self.history())
             if not data:
                 return
+
             for aggregate in data:
 
                 findings = []
 
                 for news_item in aggregate["news_items"]:
-
                     content = news_item["news_item_data"]["content"]
+                    title = news_item["news_item_data"]["title"]
+                    review = news_item["news_item_data"]["review"]
 
-                    analyzed_content = "".join(content).split()
-                    analyzed_content = [item.replace(".", "") if item.endswith(".") else item for item in analyzed_content]
-                    analyzed_content = [item.replace(",", "") if item.endswith(",") else item for item in analyzed_content]
-
-                    analyzed_content = set(analyzed_content)
+                    analyzed_content = set((title + review + content).split())
 
                     for element in analyzed_content:
-
-                        finding = re.search("(" + regexp + ")", element)
-
-                        if finding:
-                            finding = [news_item["id"], finding.group(1)]
+                        if finding := re.search(f"({regexp})", element.strip(".,")):
+                            finding = [news_item["id"], finding[1]]
                             findings.append(finding)
-
-                # NEXT PART OF CODE IS FOR FINDINGS IN ONE AGGREGATE
-                # IT WILL GROUP NEWS_ITEMS TOGETHER FROM ONE AGGREGATE
 
                 if findings:
 
@@ -51,15 +44,12 @@ class GroupingBot(BaseBot):
                     values = {}
 
                     for k, val in findings:
-
                         if val in values:
-
                             grouped = [x for x in grouped_ids if len(x) != 1]
                             x_flat = [k for sublist in grouped for k in sublist]
 
                             if str(k) not in x_flat:
                                 grouped_ids[values[val]].extend(str(k))
-
                         else:
                             grouped_ids.append([str(k)])
                             values[val] = len(values)
@@ -89,7 +79,7 @@ class GroupingBot(BaseBot):
                         data = {"action": "GROUP", "items": items}
                         self.core_api.news_items_grouping(data)
 
-        except Exception as error:
+        except Exception:
             logger.log_debug_trace(f"Error running Bot: {self.type}")
 
     def execute_on_event(self, event_type, data):

@@ -1,8 +1,7 @@
 <template>
-  <div>
-  <h1>OpenAPI</h1>
-  <div id="swagger-ui" />
-  </div>
+  <v-container fluid>
+  <iframe src="/api/doc" title="OpenAPI" class="openapi"></iframe>
+  </v-container>
 </template>
 
 <script>

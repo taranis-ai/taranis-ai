@@ -1,20 +1,21 @@
 <template>
-
-    <v-container id="selector">
-        <component v-bind:is="cardLayout()" v-for="collection in collections" :card="collection" :key="collection.id"></component>
-    </v-container>
-
+  <v-container id="selector">
+    <component
+      v-bind:is="cardLayout()"
+      v-for="collection in collections"
+      :card="collection"
+      :key="collection.id"
+    ></component>
+  </v-container>
 </template>
 
 <script>
 import CardAsset from '@/components/assets/CardAsset'
-import CardCompact from '@/components/common/card/CardCompact'
 
 export default {
   name: 'ContentData',
   components: {
-    CardAsset,
-    CardCompact
+    CardAsset
   },
   props: {
     name: String,
@@ -31,13 +32,14 @@ export default {
     }
   }),
   methods: {
-    updateData () {
+    updateData() {
       if (window.location.pathname.includes('/group/')) {
         const i = window.location.pathname.indexOf('/group/')
         const len = window.location.pathname.length
         const group = window.location.pathname.substring(i + 7, len)
 
-        this.$store.dispatch('getAllAssets', { group_id: group, filter: this.filter })
+        this.$store
+          .dispatch('getAllAssets', { group_id: group, filter: this.filter })
           .then(() => {
             this.collections = this.$store.getters.getAssets.items
           })
@@ -48,11 +50,11 @@ export default {
     }
   },
   watch: {
-    $route () {
+    $route() {
       this.updateData()
     }
   },
-  mounted () {
+  mounted() {
     this.updateData()
     this.$root.$on('notification', () => {
       this.updateData()

@@ -38,6 +38,7 @@
           tooltip="remove item"
           :showDialog="deleteDialog"
           @close="deleteDialog = false"
+          @open="deleteDialog = true"
         >
           <popup-delete-item
             v-if="deleteDialog"
@@ -73,6 +74,7 @@
           tooltip="add to report"
           :showDialog="sharingDialog"
           @close="sharingDialog = false"
+          @open="sharingDialog = true"
         >
           <popup-share-items
             v-if="sharingDialog"
@@ -141,14 +143,14 @@
 
                   <div class="d-flex align-start justify-center mr-3 ml-2 mt-1">
                     <votes
-                      :count="newsItem.likes"
+                      :count="likes"
                       type="up"
                       @input="upvote()"
                     />
                   </div>
                   <div class="d-flex align-start justify-center mr-3 mt-1">
                     <votes
-                      :count="newsItem.dislikes"
+                      :count="dislikes"
                       type="down"
                       @input="downvote()"
                     />
@@ -172,7 +174,7 @@
             <v-container column style="height: 100%" class="pb-5">
               <v-row class="news-item-meta-infos">
                 <v-col class="news-item-meta-infos-label">
-                  <strong>Published:</strong>
+                  <strong>{{ $t('assess.published') }}:</strong>
                 </v-col>
                 <v-col>
                   <span :class="published_date_outdated ? 'red--text' : ''">
@@ -185,7 +187,7 @@
               </v-row>
               <v-row class="news-item-meta-infos">
                 <v-col class="news-item-meta-infos-label">
-                  <strong>Collected:</strong>
+                  <strong>{{ $t('assess.collected') }}:</strong>
                 </v-col>
                 <v-col>
                   {{ $d(getCollectedDate(), 'long') }}
@@ -193,7 +195,7 @@
               </v-row>
               <v-row class="news-item-meta-infos">
                 <v-col class="news-item-meta-infos-label">
-                  <strong>Source:</strong>
+                  <strong>{{ $t('assess.source') }}:</strong>
                 </v-col>
                 <v-col>
                   {{ getSource().name }} <br />
@@ -210,9 +212,9 @@
                   </a>
                 </v-col>
               </v-row>
-              <v-row class="news-item-meta-infos">
+              <v-row class="news-item-meta-infos" v-if="getAuthor()">
                 <v-col class="news-item-meta-infos-label">
-                  <strong>Author:</strong>
+                  <strong>{{ $t('assess.author') }}:</strong>
                 </v-col>
                 <v-col>
                   <span :class="[{ decorateSource: newsItem.decorateSource }]">
@@ -297,20 +299,17 @@ export default {
     viewDetails: false,
     openSummary: false,
     sharingDialog: false,
-    deleteDialog: false
+    deleteDialog: false,
+    likes: 0,
+    dislikes: 0
   }),
   computed: {
-    item_selected() {
-      return this.has('selected') ? this.get('selected') : false
-    },
     item_important() {
-      return this.newsItem.has('important')
-        ? this.newsItem.get('important')
-        : false
+      return 'important' in this.newsItem ? this.newsItem.important : false
     },
     item_decorateSource() {
-      return this.newsItem.has('decorateSource')
-        ? this.newsItem.get('decorateSource')
+      return 'decorateSource' in this.newsItem
+        ? this.newsItem.decorateSource
         : false
     },
     published_date() {
@@ -346,23 +345,25 @@ export default {
       this.$emit('selectItem', this.newsItem.id)
     },
     markAsRead() {
-      readNewsItemAggregate(this.getGroupId(), this.newsItem.id)
+      readNewsItemAggregate(this.newsItem.id)
     },
     markAsImportant() {
-      importantNewsItemAggregate(this.getGroupId(), this.newsItem.id)
+      importantNewsItemAggregate(this.newsItem.id)
     },
     decorateSource() {
       this.item_decorateSource = !this.item_decorateSource
     },
     deleteNewsItem() {
-      deleteNewsItemAggregate(this.getGroupId(), this.newsItem.id)
+      deleteNewsItemAggregate(this.newsItem.id)
       this.$emit('deleteItem', this.newsItem.id)
     },
     upvote() {
-      voteNewsItemAggregate(this.getGroupId(), this.newsItem.id, 1)
+      this.likes += 1
+      voteNewsItemAggregate(this.newsItem.id, 1)
     },
     downvote() {
-      voteNewsItemAggregate(this.getGroupId(), this.newsItem.id, -1)
+      this.dislikes += 1
+      voteNewsItemAggregate(this.newsItem.id, -1)
     },
     addToReport() {
       this.sharingDialog = true
@@ -407,9 +408,7 @@ export default {
     },
 
     getAuthor() {
-      const author = this.newsItem.news_items[0].news_item_data.author
-      if (author) return author
-      return '** no author given **'
+      return this.newsItem.news_items[0].news_item_data.author
     },
 
     getSource() {
@@ -430,6 +429,9 @@ export default {
   updated() {
     // console.log('card rendered!')
   },
-  mounted() {}
+  mounted() {
+    this.likes = this.newsItem.likes
+    this.dislikes = this.newsItem.dislikes
+  }
 }
 </script>

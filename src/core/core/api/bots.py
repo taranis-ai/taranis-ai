@@ -23,14 +23,25 @@ class NewsItemData(Resource):
     @api_key_required
     def get(self):
         try:
-            limit = datetime.strftime(datetime.now() - timedelta(weeks=1), "%d.%m.%Y - %H:%M")
-            if "limit" in request.args:
-                limit = request.args["limit"]
+            limit = request.args.get("limit", default=(datetime.now() - timedelta(weeks=1)).isoformat())
+            return news_item.NewsItemData.get_all_news_items_data(limit)
         except Exception:
             logger.log_debug_trace("GET /api/v1/bots/news-item-data failed")
             return "", 400
 
-        return news_item.NewsItemData.get_all_news_items_data(limit)
+
+class UpdateNewsItemData(Resource):
+    @api_key_required
+    def put(self, news_item_data_id):
+        try:
+            if not request.json:
+                return {"Not update data provided"}
+            if language := request.json.get("language"):
+                return news_item.NewsItemData.update_news_item_lang(news_item_data_id, language)
+            return {"Not implemented"}
+        except Exception:
+            logger.log_debug_trace("GET /api/v1/bots/news-item-data failed")
+            return "", 400
 
 
 class BotsNode(Resource):
@@ -60,7 +71,7 @@ class UpdateNewsItemAttributes(Resource):
 class UpdateNewsItemTags(Resource):
     @api_key_required
     def put(self, aggregate_id):
-        news_item.NewsItemData.update_news_item_tags(aggregate_id, request.json)
+        news_item.NewsItemAggregate.update_tags(aggregate_id, request.json)
 
 
 class UpdateNewsItemsAggregateSummary(Resource):
@@ -116,6 +127,10 @@ def initialize(api):
     api.add_resource(
         UpdateNewsItemTags,
         "/api/v1/bots/news-items-aggregate/<string:aggregate_id>/tags",
+    )
+    api.add_resource(
+        UpdateNewsItemData,
+        "/api/v1/bots/news-item-data/<string:news_item_data_id>",
     )
     api.add_resource(
         UpdateNewsItemAttributes,

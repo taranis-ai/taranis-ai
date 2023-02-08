@@ -11,9 +11,7 @@
 </template>
 
 <script>
-import CardNode from '../card/CardNode'
 import CardAssess from '../../assess/CardAssess'
-import CardCompact from '../card/CardCompact'
 import CardAnalyze from '@/components/analyze/CardAnalyze'
 import CardProduct from '@/components/publish/CardProduct'
 import CardPreset from '@/components/common/card/CardPreset'
@@ -21,9 +19,7 @@ import CardPreset from '@/components/common/card/CardPreset'
 export default {
   name: 'ContentData',
   components: {
-    CardNode,
     CardAssess,
-    CardCompact,
     CardAnalyze,
     CardProduct,
     CardPreset

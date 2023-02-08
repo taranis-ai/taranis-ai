@@ -121,10 +121,10 @@ class NewsItem(Resource):
     @auth_required("ASSESS_UPDATE", ACLCheck.NEWS_ITEM_MODIFY)
     def put(self, item_id):
         user = auth_manager.get_user_from_jwt()
-        response, osint_source_ids, code = news_item.NewsItem.update(item_id, request.json, user.id)
+        if not user:
+            return "Invalid User", 403
+        response, code = news_item.NewsItem.update(item_id, request.json, user.id)
         sse_manager.news_items_updated()
-        if len(osint_source_ids) > 0:
-            sse_manager.remote_access_news_items_updated(osint_source_ids)
         return response, code
 
     @auth_required("ASSESS_DELETE", ACLCheck.NEWS_ITEM_MODIFY)
@@ -142,10 +142,8 @@ class NewsItemAggregate(Resource):
     @auth_required("ASSESS_UPDATE")
     def put(self, aggregate_id):
         user = auth_manager.get_user_from_jwt()
-        response, osint_source_ids, code = news_item.NewsItemAggregate.update(aggregate_id, request.json, user)
+        response, code = news_item.NewsItemAggregate.update(aggregate_id, request.json, user)
         sse_manager.news_items_updated()
-        if len(osint_source_ids) > 0:
-            sse_manager.remote_access_news_items_updated(osint_source_ids)
         return response, code
 
     @auth_required("ASSESS_DELETE")

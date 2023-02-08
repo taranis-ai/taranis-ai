@@ -11,7 +11,12 @@ class TaggingBot(BaseBot):
     def execute(self):
         try:
             source_group = self.parameters.get("SOURCE_GROUP", None)
-            keywords = self.parameters["KEYWORDS"].split(",")
+            keyword_param = self.parameters.get("KEYWORDS", None)
+
+            if keyword_param is None or source_group is None or keyword_param == "":
+                return
+
+            keywords = keyword_param.split(",")
 
             limit = self.history()
 

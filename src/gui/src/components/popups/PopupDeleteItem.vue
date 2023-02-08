@@ -1,12 +1,12 @@
 <template>
   <v-card>
-
-    <button-outlined
-      icon="mdi-close"
-      color="awake-red-color"
-      extraClass="corner-close"
+    <v-btn
+      outlined
+      color="#d18e8e"
       @click="$emit('close')"
-    />
+    >
+      <v-icon>mdi-close</v-icon>
+    </v-btn>
 
     <v-container>
       <v-row>
@@ -25,11 +25,6 @@
             sm="12"
             class="pl-5 d-flex flex-column align-start"
           >
-            <!----------------->
-            <!-- Delete item -->
-            <!----------------->
-            <h2 class="popup-title mb-3">Delete item</h2>
-
             <p>
               This action deletes the item permanently.
             </p>
@@ -41,28 +36,24 @@
               This action cannot be undone.
             </p>
 
-            <button-outlined
-              label="delete item"
-              icon="mdi-delete"
-              color="awake-red-color"
+            <v-btn
+              outlined
+              color="#d18e8e"
               @click="emitDeleteAction()"
-            />
+            >
+              <v-icon>mdi-delete</v-icon>
+              delete item
+            </v-btn>
           </v-col>
         </v-row>
       </v-row>
     </v-container>
-
   </v-card>
 </template>
 
 <script>
-import buttonOutlined from '@/components/_subcomponents/buttonOutlined'
-
 export default {
   name: 'PopupDeleteItem',
-  components: {
-    buttonOutlined
-  },
   props: {
     newsItem: {}
   },
