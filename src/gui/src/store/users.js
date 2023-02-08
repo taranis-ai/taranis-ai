@@ -1,29 +1,20 @@
-import { getField, updateField } from 'vuex-map-fields'
-
 const state = {
   users: []
 }
 
 const actions = {
-
   updateUsers(context, users) {
     context.commit('UPDATE_USERS', users)
   }
-
 }
 
 const mutations = {
-  updateField,
-
   UPDATE_USERS(state, users) {
     state.users = users
   }
 }
 
 const getters = {
-
-  getField,
-
   getUsers(state) {
     return state.users
   },

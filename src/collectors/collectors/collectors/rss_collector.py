@@ -1,9 +1,6 @@
-import contextlib
 import datetime
 import hashlib
 import uuid
-import traceback
-import re
 import feedparser
 import requests
 from bs4 import BeautifulSoup

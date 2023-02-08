@@ -41,8 +41,7 @@ class BaseCollector:
         else:
             return datetime.datetime.now() - datetime.timedelta(days=0, hours=0, minutes=int(interval))
 
-    @staticmethod
-    def filter_by_word_list(news_items, source):
+    def filter_by_word_list(self, news_items, source):
         if not source.word_lists:
             return news_items
         one_word_list = set()
@@ -61,36 +60,33 @@ class BaseCollector:
                     break
         return filtered_news_items
 
-    @staticmethod
-    def presanitize_html(html):
+    def presanitize_html(self, html):
         html = re.sub(r"(?i)(&nbsp;|\xa0)", " ", html, re.DOTALL)
         return BeautifulSoup(html, "lxml").text
 
-    @staticmethod
-    def presanitize_url(url):
+    def presanitize_url(self, url):
         return quote(url, safe="/:?&")
 
-    @staticmethod
-    def sanitize_news_items(news_items, source):
+    def sanitize_news_items(self, news_items, source):
         for item in news_items:
             item.id = item.id or uuid.uuid4()
             item.published = item.published or datetime.datetime.now()
             item.collected = item.collected or datetime.datetime.now()
             item.osint_source_id = item.osint_source_id or source.id
             item.attributes = item.attributes or []
-            item.title = BaseCollector.presanitize_html(item.title)
-            item.review = BaseCollector.presanitize_html(item.review)
-            item.content = BaseCollector.presanitize_html(item.content)
-            item.author = BaseCollector.presanitize_html(item.author)
-            item.source = BaseCollector.presanitize_url(item.source)
-            item.link = BaseCollector.presanitize_url(item.link)
+            item.title = self.presanitize_html(item.title)
+            item.review = self.presanitize_html(item.review)
+            item.content = self.presanitize_html(item.content)
+            item.author = self.presanitize_html(item.author)
+            item.source = self.presanitize_url(item.source)
+            item.link = self.presanitize_url(item.link)
             if item.hash is None:
                 for_hash = item.author + item.title + item.link
                 item.hash = hashlib.sha256(for_hash.encode()).hexdigest()
 
     def publish(self, news_items, source):
-        BaseCollector.sanitize_news_items(news_items, source)
-        filtered_news_items = BaseCollector.filter_by_word_list(news_items, source)
+        self.sanitize_news_items(news_items, source)
+        filtered_news_items = self.filter_by_word_list(news_items, source)
         news_items_schema = news_item.NewsItemDataSchema(many=True)
         self.core_api.add_news_items(news_items_schema.dump(filtered_news_items))
 

@@ -1,75 +1,104 @@
 <template>
-    <div class="vue-csv-uploader" data-id="csv-importer">
-        <div class="form">
-            <div class="vue-csv-uploader-part-one">
-                <div class="form-check form-group csv-import-checkbox" v-if="headers === null">
-                    <slot name="hasHeaders" :headers="hasHeaders" :toggle="toggleHasHeaders">
-                        <input :class="checkboxClass" type="checkbox" :id="makeId('hasHeaders')" :value="hasHeaders" @change="toggleHasHeaders">
-                        <label class="form-check-label" :for="makeId('hasHeaders')">
-                            File Has Headers
-                        </label>
-                    </slot>
-                </div>
-                <div class="form-group csv-import-file">
-                    <input ref="csv" type="file" @change.prevent="validFileMimeType" :class="inputClass" name="csv">
-                    <slot name="error" v-if="showErrorMessage">
-                        <div class="invalid-feedback d-block">
-                            File type is invalid
-                        </div>
-                    </slot>
-                </div>
-                <div class="form-group">
-                    <slot name="next" :load="load">
-                        <button type="submit" :disabled="disabledNextButton" :class="buttonClass" @click.prevent="load">
-                            {{ loadBtnText }}
-                        </button>
-                    </slot>
-                </div>
-            </div>
-            <div class="vue-csv-uploader-part-two">
-                <div class="vue-csv-mapping" v-if="sample">
-                    <v-simple-table :class="tableClass">
-                        <slot name="thead">
-                            <thead>
-                            <tr>
-                                <th>Field</th>
-                                <th>CSV Column</th>
-                            </tr>
-                            </thead>
-                        </slot>
-                        <tbody>
-                        <tr v-for="(field, key) in fieldsToMap" :key="key">
-                            <td>{{ field.label }}</td>
-                            <td>
-                                <select :class="tableSelectClass" :name="`csv_uploader_map_${key}`" v-model="map[field.key]">
-                                    <option :value="null" v-if="canIgnore">Ignore</option>
-                                    <option v-for="(column, key) in firstRow" :key="key" :value="key">{{ column }}</option>
-                                </select>
-
-                                <!--<v-select
-                                        :class="tableSelectClass"
-                                        :name="`csv_uploader_map_${key}`"
-                                        v-model="map[field.key]"
-                                        :items="firstRow"
-                                        :value="key"
-                                />-->
-                            </td>
-                        </tr>
-                        </tbody>
-                    </v-simple-table>
-                    <div class="form-group" v-if="url">
-                        <slot name="submit" :submit="submit">
-                            <input type="submit" :class="buttonClass" @click.prevent="submit" :value="submitBtnText">
-                        </slot>
-                    </div>
-                </div>
-            </div>
+  <div class="vue-csv-uploader" data-id="csv-importer">
+    <div class="form">
+      <div class="vue-csv-uploader-part-one">
+        <div
+          class="form-check form-group csv-import-checkbox"
+          v-if="headers === null"
+        >
+          <slot
+            name="hasHeaders"
+            :headers="hasHeaders"
+            :toggle="toggleHasHeaders"
+          >
+            <input
+              :class="checkboxClass"
+              type="checkbox"
+              :id="makeId('hasHeaders')"
+              :value="hasHeaders"
+              @change="toggleHasHeaders"
+            />
+            <label class="form-check-label" :for="makeId('hasHeaders')">
+              File Has Headers
+            </label>
+          </slot>
         </div>
+        <div class="form-group csv-import-file">
+          <input
+            ref="csv"
+            type="file"
+            @change.prevent="validFileMimeType"
+            :class="inputClass"
+            name="csv"
+          />
+          <slot name="error" v-if="showErrorMessage">
+            <div class="invalid-feedback d-block">File type is invalid</div>
+          </slot>
+        </div>
+        <div class="form-group">
+          <slot name="next" :load="load">
+            <button
+              type="submit"
+              :disabled="disabledNextButton"
+              :class="buttonClass"
+              @click.prevent="load"
+            >
+              {{ loadBtnText }}
+            </button>
+          </slot>
+        </div>
+      </div>
+      <div class="vue-csv-uploader-part-two">
+        <div class="vue-csv-mapping" v-if="sample">
+          <v-simple-table :class="tableClass">
+            <slot name="thead">
+              <thead>
+                <tr>
+                  <th>Field</th>
+                  <th>CSV Column</th>
+                </tr>
+              </thead>
+            </slot>
+            <tbody>
+              <tr v-for="(field, key) in fieldsToMap" :key="key">
+                <td>{{ field.label }}</td>
+                <td>
+                  <select
+                    :class="tableSelectClass"
+                    :name="`csv_uploader_map_${key}`"
+                    v-model="map[field.key]"
+                  >
+                    <option :value="null" v-if="canIgnore">Ignore</option>
+                    <option
+                      v-for="(column, key) in firstRow"
+                      :key="key"
+                      :value="key"
+                    >
+                      {{ column }}
+                    </option>
+                  </select>
+                </td>
+              </tr>
+            </tbody>
+          </v-simple-table>
+          <div class="form-group" v-if="url">
+            <slot name="submit" :submit="submit">
+              <input
+                type="submit"
+                :class="buttonClass"
+                @click.prevent="submit"
+                :value="submitBtnText"
+              />
+            </slot>
+          </div>
+        </div>
+      </div>
     </div>
+  </div>
 </template>
 
 <script>
-import { drop, every, forEach, get, isArray, map, set } from 'lodash'
+import { drop, forEach, get, isArray, map, set } from 'lodash'
 import axios from 'axios'
 import Papa from 'papaparse'
 // import mimeTypes from 'mime-types'
@@ -97,7 +126,7 @@ export default {
     },
     parseConfig: {
       type: Object,
-      default () {
+      default() {
         return {}
       }
     },
@@ -143,7 +172,12 @@ export default {
     fileMimeTypes: {
       type: Array,
       default: () => {
-        return ['text/csv', 'text/x-csv', 'application/vnd.ms-excel', 'text/plain']
+        return [
+          'text/csv',
+          'text/x-csv',
+          'application/vnd.ms-excel',
+          'text/plain'
+        ]
       }
     },
     tableSelectClass: {
@@ -169,7 +203,7 @@ export default {
     fileSelected: false
   }),
 
-  created () {
+  created() {
     this.hasHeaders = this.headers
 
     if (isArray(this.mapFields)) {
@@ -194,24 +228,28 @@ export default {
   },
 
   methods: {
-    submit () {
+    submit() {
       const _this = this
       this.form.csv = this.buildMappedCsv()
       this.$emit('input', this.form.csv)
 
       if (this.url) {
-        axios.post(this.url, this.form).then(response => {
-          _this.callback(response)
-        }).catch(response => {
-          _this.catch(response)
-        }).finally(response => {
-          _this.finally(response)
-        })
+        axios
+          .post(this.url, this.form)
+          .then((response) => {
+            _this.callback(response)
+          })
+          .catch((response) => {
+            _this.catch(response)
+          })
+          .finally((response) => {
+            _this.finally(response)
+          })
       } else {
         _this.callback(this.form.csv)
       }
     },
-    buildMappedCsv () {
+    buildMappedCsv() {
       const _this = this
 
       const csv = this.hasHeaders ? drop(this.csv) : this.csv
@@ -226,30 +264,35 @@ export default {
         return newRow
       })
     },
-    validFileMimeType () {
+    validFileMimeType() {
       const file = this.$refs.csv.files[0]
       const mimeType = file.type
 
       if (file) {
         this.fileSelected = true
-        this.isValidFileMimeType = this.validation ? this.validateMimeType(mimeType) : true
+        this.isValidFileMimeType = this.validation
+          ? this.validateMimeType(mimeType)
+          : true
       } else {
         this.isValidFileMimeType = !this.validation
         this.fileSelected = false
       }
     },
-    validateMimeType (type) {
+    validateMimeType(type) {
       return this.fileMimeTypes.indexOf(type) > -1
     },
-    load () {
+    load() {
       const _this = this
 
       this.readFile((output) => {
-        _this.sample = get(Papa.parse(output, { preview: 2, skipEmptyLines: true }), 'data')
+        _this.sample = get(
+          Papa.parse(output, { preview: 2, skipEmptyLines: true }),
+          'data'
+        )
         _this.csv = get(Papa.parse(output, { skipEmptyLines: true }), 'data')
       })
     },
-    readFile (callback) {
+    readFile(callback) {
       const file = this.$refs.csv.files[0]
 
       if (file) {
@@ -258,17 +301,16 @@ export default {
         reader.onload = function (evt) {
           callback(evt.target.result)
         }
-        reader.onerror = function () {
-        }
+        reader.onerror = function () {}
       }
     },
-    toggleHasHeaders () {
+    toggleHasHeaders() {
       this.hasHeaders = !this.hasHeaders
     },
-    makeId (id) {
+    makeId(id) {
       return `${id}${this._uid}`
     },
-    reset () {
+    reset() {
       this.form.csv = null
       this.map = {}
       this.hasHeaders = false
@@ -290,11 +332,9 @@ export default {
       deep: true,
       handler: function (newVal) {
         if (!this.url) {
-          const hasAllKeys = Array.isArray(this.mapFields) ? every(this.mapFields, function (item) {
-            return Object.prototype.hasOwnProperty.call(newVal, item)
-          }) : every(this.mapFields, function (item, key) {
-            return Object.prototype.hasOwnProperty.call(newVal, key)
-          })
+          const hasAllKeys = Array.isArray(this.mapFields)
+            ? this.mapFields.every((field) => field in newVal)
+            : Object.keys(this.mapFields).every((key) => key in newVal)
 
           if (hasAllKeys) {
             this.submit()
@@ -302,13 +342,16 @@ export default {
         }
       }
     },
-    sample (newVal) {
+    sample(newVal) {
       if (this.autoMatchFields) {
         if (newVal !== null) {
-          this.fieldsToMap.forEach(field => {
+          this.fieldsToMap.forEach((field) => {
             newVal[0].forEach((columnName, index) => {
               if (this.autoMatchIgnoreCase === true) {
-                if (field.label.toLowerCase().trim() === columnName.toLowerCase().trim()) {
+                if (
+                  field.label.toLowerCase().trim() ===
+                  columnName.toLowerCase().trim()
+                ) {
                   this.$set(this.map, field.key, index)
                 }
               } else {
@@ -324,17 +367,16 @@ export default {
     }
   },
   computed: {
-    firstRow () {
+    firstRow() {
       return get(this, 'sample.0')
     },
-    showErrorMessage () {
+    showErrorMessage() {
       return this.fileSelected && !this.isValidFileMimeType
     },
-    disabledNextButton () {
+    disabledNextButton() {
       return !this.isValidFileMimeType
     }
   },
-  mounted () {
-  }
+  mounted() {}
 }
 </script>

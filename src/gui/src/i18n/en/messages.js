@@ -1,4 +1,4 @@
-const messages_en = {
+export const messages_en = {
 
   validations: {
     messages: {
@@ -791,6 +791,7 @@ const messages_en = {
     delete_item: "Delete",
     spellcheck: "Spellcheck",
     dark_theme: "Dark Theme",
+    locale: "Language",
     press_key: "Press new key for ",
     cancel_press_key: "Cancel",
     selection: "Selection",
@@ -968,5 +969,3 @@ const messages_en = {
     server_error: "Unknown server error..."
   }
 }
-
-export default messages_en

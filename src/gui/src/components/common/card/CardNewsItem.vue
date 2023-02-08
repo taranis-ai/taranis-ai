@@ -143,14 +143,14 @@
                     <votes
                       :count="newsItem.likes"
                       type="up"
-                      @input="upvote($event)"
+                      @input="upvote()"
                     />
                   </div>
                   <div class="d-flex align-start justify-center mr-3 mt-1">
                     <votes
                       :count="newsItem.dislikes"
                       type="down"
-                      @input="downvote($event)"
+                      @input="downvote()"
                     />
                   </div>
                 </v-col>
@@ -176,7 +176,7 @@
                 </v-col>
                 <v-col>
                   <span :class="published_date_outdated ? 'red--text' : ''">
-                    {{ getPublishedDate() }}
+                    {{ $d(getPublishedDate(), 'long') }}
                   </span>
                   <v-icon v-if="published_date_outdated" small color="red"
                     >mdi-alert</v-icon
@@ -188,7 +188,7 @@
                   <strong>Collected:</strong>
                 </v-col>
                 <v-col>
-                  {{ getCollectedDate() }}
+                  {{ $d(getCollectedDate(), 'long') }}
                 </v-col>
               </v-row>
               <v-row class="news-item-meta-infos">
@@ -258,7 +258,6 @@
 </template>
 
 <script>
-import moment from 'moment'
 import TagList from '@/components/common/tags/TagList'
 import newsItemAction from '@/components/_subcomponents/newsItemAction'
 import newsItemActionDialog from '@/components/_subcomponents/newsItemActionDialog'
@@ -271,6 +270,13 @@ import { isValidUrl } from '@/utils/helpers'
 
 import { mapGetters } from 'vuex'
 
+import {
+  deleteNewsItemAggregate,
+  importantNewsItemAggregate,
+  readNewsItemAggregate,
+  voteNewsItemAggregate
+} from '@/api/assess'
+
 export default {
   name: 'CardNewsItem',
   components: {
@@ -282,14 +288,7 @@ export default {
     NewsItemDetail,
     votes
   },
-  emits: [
-    'selectItem',
-    'deleteItem',
-    'downvoteItem',
-    'upvoteItem',
-    'readItem',
-    'importantItem'
-  ],
+  emits: ['selectItem', 'deleteItem'],
   props: {
     newsItem: {},
     selected: Boolean
@@ -315,8 +314,7 @@ export default {
         : false
     },
     published_date() {
-      const published = this.newsItem.news_items[0].news_item_data.published
-      return published ? moment(published) : false
+      return this.newsItem.news_items[0].news_item_data.published || false
     },
     news_item_summary_class() {
       return this.openSummary
@@ -336,11 +334,9 @@ export default {
       if (!pub_date) {
         return false
       }
-      const last_week = moment().subtract(1, 'week') // date one week ago
-      if (last_week.diff(pub_date, 'weeks') > 0) {
-        return true
-      }
-      return false
+      const oneWeekAgo = new Date()
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
+      return oneWeekAgo > pub_date
     }
   },
   methods: {
@@ -350,22 +346,23 @@ export default {
       this.$emit('selectItem', this.newsItem.id)
     },
     markAsRead() {
-      this.$emit('readItem', this.newsItem.id)
+      readNewsItemAggregate(this.getGroupId(), this.newsItem.id)
     },
     markAsImportant() {
-      this.$emit('importantItem', this.newsItem.id)
+      importantNewsItemAggregate(this.getGroupId(), this.newsItem.id)
     },
     decorateSource() {
       this.item_decorateSource = !this.item_decorateSource
     },
     deleteNewsItem() {
+      deleteNewsItemAggregate(this.getGroupId(), this.newsItem.id)
       this.$emit('deleteItem', this.newsItem.id)
     },
-    upvote(event) {
-      this.$emit('upvoteItem', this.newsItem.id)
+    upvote() {
+      voteNewsItemAggregate(this.getGroupId(), this.newsItem.id, 1)
     },
-    downvote(event) {
-      this.$emit('downvoteItem', this.newsItem.id)
+    downvote() {
+      voteNewsItemAggregate(this.getGroupId(), this.newsItem.id, -1)
     },
     addToReport() {
       this.sharingDialog = true
@@ -399,21 +396,14 @@ export default {
     getPublishedDate() {
       const published = this.published_date
       if (published) {
-        return moment(published).format('DD/MM/YYYY hh:mm:ss')
+        return new Date(published)
       }
       return '** no published date **'
     },
 
     getCollectedDate() {
       const collected = this.newsItem.news_items[0].news_item_data.collected
-      if (collected) {
-        return moment(collected, 'DD.MM.YYYY - hh:mm').format(
-          'DD/MM/YYYY hh:mm:ss'
-        )
-      }
-      return moment(this.newsItem.created, 'DD.MM.YYYY - hh:mm').format(
-        'DD/MM/YYYY hh:mm:ss'
-      )
+      return collected ? new Date(collected) : new Date(this.newsItem.created)
     },
 
     getAuthor() {

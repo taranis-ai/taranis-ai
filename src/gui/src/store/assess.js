@@ -1,6 +1,6 @@
 import { getNewsItemsAggregates, getOSINTSourceGroupsList, getTopStories, getNewsItemAggregate, getOSINTSourcesList } from '@/api/assess'
 import { filter } from '@/store/filter'
-import { xor } from 'lodash'
+import { xorConcat } from '@/utils/helpers'
 
 const state = {
   multi_select: false,
@@ -62,20 +62,8 @@ const actions = {
     context.commit('UPDATE_NEWSITEMS', newsItems)
   },
 
-  upvoteNewsItem(context, id) {
-    context.commit('UPVOTE_NEWSITEM', id)
-  },
-
-  downvoteNewsItem(context, id) {
-    context.commit('DOWNVOTE_NEWSITEM', id)
-  },
-
   selectNewsItem(context, id) {
     context.commit('SELECT_NEWSITEM', id)
-  },
-
-  deleteNewsItem(context, id) {
-    context.commit('DELETE_NEWSITEM', id)
   },
 
   deselectNewsItem(context, id) {
@@ -121,22 +109,7 @@ const mutations = {
   },
 
   SELECT_NEWSITEM(state, id) {
-    state.newsItemsSelection = xor(state.newsItemsSelection, [id])
-  },
-
-  UPVOTE_NEWSITEM(state, id) {
-    const index = state.newsItems.findIndex((x) => x.id === id)
-    state.newsItems[index].votes.up += 1
-  },
-
-  DOWNVOTE_NEWSITEM(state, id) {
-    const index = state.newsItems.findIndex((x) => x.id === id)
-    state.newsItems[index].votes.down += 1
-  },
-
-  DELETE_NEWSITEM(state, id) {
-    state.newsItems = state.newsItems.filter((x) => x.id !== id)
-    state.newsItemsSelection = state.newsItemsSelection.filter((x) => x !== id)
+    state.newsItemsSelection = xorConcat(state.newsItemsSelection, id)
   },
 
   DESELECT_NEWSITEM(state, id) {

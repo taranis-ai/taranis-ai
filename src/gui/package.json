@@ -3,30 +3,57 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "serve": "vue-cli-service serve",
     "build": "vue-cli-service build",
-    "lint": "vue-cli-service lint"
+    "lint": "vue-cli-service lint",
+    "serve": "vue-cli-service serve"
+  },
+  "browserslist": [
+    "> 1%"
+  ],
+  "prettier": {
+    "semi": false,
+    "singleQuote": true,
+    "trailingComma": "none"
+  },
+  "eslintConfig": {
+    "env": {
+      "node": true
+    },
+    "parserOptions": {
+      "parser": "babel-eslint"
+    },
+    "extends": [
+      "plugin:vue/essential",
+      "eslint:recommended",
+      "@vue/standard"
+    ],
+    "rules": {
+      "camelcase": "off",
+      "quotes": [
+        2,
+        "single",
+        {
+          "avoidEscape": true
+        }
+      ],
+      "space-before-function-paren": 0,
+      "vue/multi-word-component-names": "off"
+    },
+    "root": true
   },
   "dependencies": {
-    "@ckeditor/ckeditor5-build-classic": "^34.2.0",
-    "@ckeditor/ckeditor5-vue2": "^3.0.1",
-    "@hapi/bourne": "^2.1.0",
-    "axios": "^0.27.2",
-    "js-base64": "^3.7.2",
-    "moment": "^2.29.4",
+    "axios": "^1.3.2",
+    "js-base64": "^3.7.5",
     "papaparse": "^5.3.2",
     "vee-validate": "^2.2.15",
     "vue": "^2.7.14",
     "vue-calendar-heatmap": "^0.8.4",
     "vue-cookies": "^1.8.1",
-    "vue-csv-import": "^3.3.10",
-    "vue-cvss": "^1.1.2",
-    "vue-i18n": "^8.27.2",
+    "vue-i18n": "^8.28.2",
     "vue-keypress": "^1.4.0",
     "vue-quick-chat": "^1.2.8",
-    "vue-router": "^3.6.4",
+    "vue-router": "^3.6.5",
     "vue-shortkey": "^3.1.7",
-    "vue-smooth-scrollbar": "^1.0.3",
     "vue-sse": "^1.1.1",
     "vue-wordcloud": "^1.1.1",
     "vue2-datepicker": "^3.10.2",
@@ -35,7 +62,7 @@
     "vuetify": "^2.6.9",
     "vuetify-datetime-picker": "^2.1.1",
     "vuex": "^3.6.2",
-    "vuex-map-fields": "^1.4.1",
+    "vuex-persist": "^3.1.3",
     "vuex-router-sync": "^5.0.0"
   },
   "devDependencies": {
@@ -60,43 +87,9 @@
     "vuetify-loader": "^1.4.3",
     "webpack": "^4.46.0"
   },
-  "eslintConfig": {
-    "root": true,
-    "env": {
-      "node": true
-    },
-    "extends": [
-      "plugin:vue/essential",
-      "eslint:recommended",
-      "@vue/standard"
-    ],
-    "rules": {
-      "camelcase": "off",
-      "vue/multi-word-component-names": "off",
-      "space-before-function-paren": 0,
-      "quotes": [
-        2,
-        "single",
-        {
-          "avoidEscape": true
-        }
-      ]
-    },
-    "parserOptions": {
-      "parser": "babel-eslint"
-    }
-  },
   "postcss": {
     "plugins": {
       "autoprefixer": {}
     }
-  },
-  "browserslist": [
-    "> 1%"
-  ],
-  "prettier": {
-    "singleQuote": true,
-    "trailingComma": "none",
-    "semi": false
   }
 }

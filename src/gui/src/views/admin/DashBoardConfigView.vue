@@ -93,7 +93,7 @@
                   mdi-lightbulb-off-outline
                 </v-icon>
                 <span class="caption "
-                  >Collectors are pending at the moment.</span
+                  >Collectors are pending</span
                 >
                 <v-divider inset></v-divider>
 

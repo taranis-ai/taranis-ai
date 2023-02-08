@@ -201,7 +201,7 @@
               <v-col class="story-header-meta-infos-label">
                 <strong>Last activity:</strong>
               </v-col>
-              <v-col> {{ getLastActivity() }} </v-col>
+              <v-col> {{ $d(getLastActivity(), 'long') }} </v-col>
             </v-row>
             <v-row class="story-header-meta-infos">
               <v-col class="story-header-meta-infos-label">
@@ -272,8 +272,6 @@
 </template>
 
 <script>
-import moment from 'moment'
-
 import TagMini from '@/components/common/tags/TagMini'
 import TagNorm from '@/components/common/tags/TagNorm'
 import { CalendarHeatmap } from 'vue-calendar-heatmap'
@@ -315,7 +313,7 @@ export default {
       }
     },
     getLastActivity () {
-      return moment(this.story.lastActivity).format('DD/MM/YYYY hh:mm:ss')
+      return new Date(this.story.lastActivity)
     },
     getRelatedStories () {
       return this.story.relatedStories.join(', ')
@@ -337,7 +335,7 @@ export default {
       const newsItems = this.getNewsItems()
 
       newsItems.forEach((element) => {
-        const date = moment(element.published).format('YYYY/MM/DD')
+        const date = new Date(element.published)
         heatmapCounter[date] = heatmapCounter[date] || 0
         heatmapCounter[date]++
 
@@ -356,7 +354,7 @@ export default {
       }
     },
     getHeatmapEndDate () {
-      return moment(new Date()).format('YYYY/MM/DD')
+      return new Date()
     }
   }
 }

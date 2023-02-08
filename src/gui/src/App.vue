@@ -16,7 +16,7 @@
 import MainMenu from './components/MainMenu'
 import AuthMixin from './services/auth/auth_mixin'
 import Notification from './components/common/Notification'
-import { mapActions } from 'vuex'
+import { mapActions, mapGetters } from 'vuex'
 
 export default {
   name: 'App',
@@ -30,6 +30,7 @@ export default {
     ...mapActions('dashboard', ['updateStories']),
     ...mapActions('users', ['updateUsers']),
     ...mapActions('assess', ['updateNewsItems']),
+    ...mapGetters('settings', ['getUserProfile']),
 
     connectSSE () { // TODO: unsubscribe
       if (process.env.VUE_APP_TARANIS_NG_CORE_SSE === undefined) {
@@ -78,7 +79,7 @@ export default {
 
     if (localStorage.ACCESS_TOKEN) {
       if (this.isAuthenticated()) {
-        this.$store.dispatch('getUserProfile').then(() => {
+        this.getUserProfile().then(() => {
           this.$vuetify.theme.dark = this.$store.getters.getProfileDarkTheme
         })
         this.connectSSE()

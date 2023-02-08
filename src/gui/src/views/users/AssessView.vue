@@ -28,8 +28,6 @@
             :selected="getNewsItemsSelection().includes(newsItem.id)"
             @deleteItem="removeAndDeleteNewsItem(newsItem.id)"
             @selectItem="selectNewsItem(newsItem.id)"
-            @upvoteItem="upvoteNewsItem(newsItem.id)"
-            @downvoteItem="downvoteNewsItem(newsItem.id)"
           ></card-news-item>
         </transition-group>
       </transition>
@@ -80,10 +78,7 @@ export default {
       'updateNewsItems',
       'updateOSINTSourceGroupsList',
       'updateOSINTSources',
-      'deleteNewsItem',
       'selectNewsItem',
-      'upvoteNewsItem',
-      'downvoteNewsItem',
       'removeStoryFromNewsItem'
     ]),
     ...mapGetters('assess', [
@@ -97,7 +92,6 @@ export default {
 
     removeAndDeleteNewsItem (id) {
       this.items = this.items.filter((x) => x.id !== id)
-      this.deleteNewsItem(id)
     },
 
     loadNext() {

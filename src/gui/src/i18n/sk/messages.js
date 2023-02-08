@@ -1,4 +1,4 @@
-const messages_sk = {
+export const messages_sk = {
 
   validations: {
     custom: {
@@ -87,5 +87,3 @@ const messages_sk = {
     successful: 'Nový OSINT zdroj bol úspešne pridaný'
   }
 }
-
-export default messages_sk

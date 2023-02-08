@@ -65,7 +65,7 @@
               <div v-if="story.isSharingSet">
                 <span class="last-activity font-weight-light">Shared on: </span>
                 <span class="last-activity font-weight-bold">
-                  {{ getLastActivity() }} </span
+                  {{ $d(getLastActivity(), 'long') }} </span
                 ><br />
                 <span class="last-activity font-weight-light">Shared by: </span>
                 <span class="last-activity font-weight-bold">
@@ -78,7 +78,7 @@
                   >Last activity:
                 </span>
                 <span class="last-activity font-weight-bold">
-                  {{ getLastActivity() }}
+                  {{ $d(getLastActivity(), 'long') }}
                 </span>
               </div>
             </v-col>
@@ -198,7 +198,6 @@
 import TagNorm from '@/components/common/tags/TagNorm'
 import buttonOutlined from '@/components/_subcomponents/buttonOutlined'
 import pin from '@/components/_subcomponents/pin'
-import moment from 'moment'
 
 import { mapActions } from 'vuex'
 
@@ -224,7 +223,7 @@ export default {
     ]),
 
     getLastActivity () {
-      return moment(this.story.lastActivity).format('DD/MM/YYYY hh:mm:ss')
+      return new Date(this.story.lastActivity)
     },
 
     toggleSelection () {

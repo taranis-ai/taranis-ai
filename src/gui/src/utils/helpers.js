@@ -1,8 +1,13 @@
-import { xor } from 'lodash'
 import { vm } from '../main.js'
 
-export function xorConcat (arrayOne, arrayTwo) {
-  return xor(arrayOne, arrayTwo)
+export function xorConcat(array, element) {
+  const i = array.indexOf(element)
+  if (i === -1) {
+    array.push(element)
+  } else {
+    array.splice(i, 1)
+  }
+  return array
 }
 
 export function isValidUrl(urlString) {
@@ -25,19 +30,17 @@ export function stripHtml(html) {
 }
 
 export function notifySuccess(text) {
-  vm.$emit('notification',
-    {
-      type: 'success',
-      loc: text
-    })
+  vm.$emit('notification', {
+    type: 'success',
+    loc: text
+  })
 }
 
 export function notifyFailure(text) {
-  vm.$emit('notification',
-    {
-      type: 'red',
-      loc: text
-    })
+  vm.$emit('notification', {
+    type: 'red',
+    loc: text
+  })
 }
 
 export function emptyValues(obj) {
@@ -59,13 +62,17 @@ export function emptyValues(obj) {
 
 export function objectFromFormat(format) {
   var newObject = {}
-  format.map(function(item) {
+  format.map(function (item) {
     if (item === undefined) {
       return
     }
     if (item.type === 'checkbox') {
       newObject[item.name] = false
-    } else if (item.type === 'text' || item.type === 'textarea' || item.type === 'select') {
+    } else if (
+      item.type === 'text' ||
+      item.type === 'textarea' ||
+      item.type === 'select'
+    ) {
       newObject[item.name] = ''
     } else if (item.type === 'number') {
       newObject[item.name] = 0
@@ -79,10 +86,10 @@ export function objectFromFormat(format) {
 export function parseParameterValues(data) {
   const sources = []
 
-  data.forEach(source => {
+  data.forEach((source) => {
     const rootLevel = source
 
-    source.parameter_values.forEach(parameter => {
+    source.parameter_values.forEach((parameter) => {
       rootLevel[parameter.parameter.key] = parameter.value
     })
     sources.push(rootLevel)
@@ -92,9 +99,9 @@ export function parseParameterValues(data) {
 }
 
 export function parseSubmittedParameterValues(unparsed_sources, data) {
-  const result = unparsed_sources.find(item => item.id === data.id)
+  const result = unparsed_sources.find((item) => item.id === data.id)
 
-  result.parameter_values.forEach(parameter => {
+  result.parameter_values.forEach((parameter) => {
     parameter.value = data[parameter.parameter.key]
   })
 
@@ -102,7 +109,7 @@ export function parseSubmittedParameterValues(unparsed_sources, data) {
 }
 
 export function createParameterValues(parameters, data) {
-  data.parameter_values = parameters.map(param => ({
+  data.parameter_values = parameters.map((param) => ({
     parameter: param,
     value: data[param] || ''
   }))

@@ -6,7 +6,6 @@ from core.managers.log_manager import logger
 
 
 class OpenAPI(Resource):
-    @jwt_required()
     def get(self):
         try:
             return send_from_directory(Config.OpenAPI, "openapi3_0.yaml")

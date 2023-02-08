@@ -187,7 +187,6 @@
 
 <script>
 import { mapActions, mapGetters } from 'vuex'
-import { xorConcat } from '@/utils/helpers'
 
 import buttonOutlined from '@/components/_subcomponents/buttonOutlined'
 import textField from '@/components/_subcomponents/textField'
@@ -221,7 +220,6 @@ export default {
       'createStory'
     ]),
     ...mapActions('assess', [
-      'deselectNewsItem',
       'deselectAllNewsItems',
       'assignSharingSet',
       'changeMergeAttr'
@@ -296,8 +294,6 @@ export default {
         const selectedStory = this.getStoryById()(id)
         newStory.items.total += selectedStory.items.total
         newStory.items.new += selectedStory.items.new
-
-        newStory.tags = xorConcat(newStory.tags, selectedStory.tags)
 
         newStory.comments.total += this.mergeDiscussion
           ? selectedStory.comments.total

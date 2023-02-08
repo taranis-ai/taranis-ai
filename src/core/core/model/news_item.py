@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime, timedelta
 import dateutil.parser as dateparser
 
-from marshmallow import post_load, fields
+from marshmallow import post_load, fields, ValidationError
 from sqlalchemy import orm, and_, or_, func
 
 from core.managers.db_manager import db
@@ -705,7 +705,11 @@ class NewsItemAggregate(db.Model):
     @classmethod
     def add_news_items(cls, news_items_data_list):
         news_item_data_schema = NewNewsItemDataSchema(many=True)
-        news_items_data = news_item_data_schema.load(news_items_data_list)
+        try:
+            news_items_data = news_item_data_schema.load(news_items_data_list)
+        except ValidationError:
+            logger.exception("Error while parsing news items")
+            return
         osint_source_ids = set()
         if not news_items_data:
             return

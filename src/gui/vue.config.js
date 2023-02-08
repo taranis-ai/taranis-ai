@@ -7,7 +7,7 @@ module.exports = {
     }
   },
   configureWebpack: {
-    devtool: 'inline-source-map'
+    devtool: 'source-map',
   },
   devServer: {
     disableHostCheck: true,
