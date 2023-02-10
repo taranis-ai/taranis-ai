@@ -1,6 +1,6 @@
 <template>
   <v-app class="grey lighten-2">
-    <MainMenu v-if="isAuthenticated()" />
+    <MainMenu/>
 
     <router-view name="nav"></router-view>
 
@@ -8,7 +8,7 @@
       <router-view />
     </v-main>
 
-    <Notification v-if="isAuthenticated()" />
+    <Notification/>
   </v-app>
 </template>
 
@@ -80,6 +80,7 @@ export default {
 
     if (localStorage.ACCESS_TOKEN) {
       if (this.isAuthenticated()) {
+        this.$store.dispatch('setAuthURLs')
         this.loadUserProfile().then(() => {
           this.$vuetify.theme.dark = this.getProfileDarkTheme()
         })

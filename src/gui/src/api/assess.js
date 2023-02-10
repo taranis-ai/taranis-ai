@@ -1,4 +1,5 @@
 import ApiService from '@/services/api_service'
+import { router } from '@/router'
 
 export function getOSINTSourceGroupsList () {
   return ApiService.get('/assess/osint-source-group-list')
@@ -14,6 +15,7 @@ export function getManualOSINTSources () {
 
 export function getNewsItemsAggregates (filter_data) {
   const filter = ApiService.getQueryStringFromNestedObject(filter_data)
+  router.replace({ query: filter_data }).catch(() => {})
   return ApiService.get(`/assess/news-item-aggregates?${filter}`)
 }
 

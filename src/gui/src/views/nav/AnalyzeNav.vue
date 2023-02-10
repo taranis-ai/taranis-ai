@@ -1,9 +1,9 @@
 <template>
   <Navigation
     v-if="links.length > 0"
-    :links = "links"
-    :icon  = "'mdi-google-circles-communities'"
-    :width = "80"
+    :links="links"
+    icon="mdi-google-circles-communities"
+    :width="80"
   />
 </template>
 
@@ -24,22 +24,33 @@ export default {
     ...mapGetters('analyze', ['getReportItemGroups']),
     ...mapActions('analyze', ['loadReportItemGroups'])
   },
-  mounted () {
-    this.links = [{
-      icon: 'mdi-home-circle-outline',
-      title: this.$t('nav_menu.local'),
-      route: '/analyze/local'
-    }]
+  mounted() {
+    this.links = [
+      {
+        icon: 'mdi-home-circle-outline',
+        title: this.$t('nav_menu.local'),
+        route: '/analyze/local'
+      }
+    ]
 
-    this.loadReportItemGroups().then(() => {
-      this.groups = this.getReportItemGroups()
+    this.loadReportItemGroups()
+      .then(() => {
+        this.groups = this.getReportItemGroups()
+        if (this.groups.length < 1) {
+          console.debug('NO GROUPS')
+          return
+        }
 
-      this.links = [...this.links, ...this.groups.map(group => ({
-        icon: 'mdi-arrow-down-bold-circle-outline',
-        title: group,
-        route: `/analyze/group/${group.replace(/ /g, '-')}`
-      }))]
-    })
+        this.links = [
+          ...this.links,
+          ...this.groups.map((group) => ({
+            icon: 'mdi-arrow-down-bold-circle-outline',
+            title: group,
+            route: `/analyze/group/${group.replace(/ /g, '-')}`
+          }))
+        ]
+      })
+      .catch(() => {})
   }
 }
 </script>

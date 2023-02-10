@@ -154,12 +154,6 @@
               <v-col class="story-header-meta-infos-label">
                 <strong>Status:</strong>
               </v-col>
-              <v-col>
-                <tag-mini
-                  :label="getSharingState().label"
-                  :color="getSharingState().color"
-                />
-              </v-col>
             </v-row>
             <v-row class="story-header-meta-infos">
               <v-col class="story-header-meta-infos-label">
@@ -272,7 +266,6 @@
 </template>
 
 <script>
-import TagMini from '@/components/common/tags/TagMini'
 import TagNorm from '@/components/common/tags/TagNorm'
 import { CalendarHeatmap } from 'vue-calendar-heatmap'
 import { mapGetters } from 'vuex'
@@ -282,7 +275,6 @@ import PopupShareSharingSet from '@/components/popups/PopupShareSharingSet'
 export default {
   name: 'SharingSetHeaderAssess',
   components: {
-    TagMini,
     TagNorm,
     CalendarHeatmap,
     PopupEditStory,

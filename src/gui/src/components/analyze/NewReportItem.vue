@@ -164,17 +164,6 @@
                   ></v-text-field>
                 </v-col>
               </v-row>
-              <v-row no-gutters>
-                <v-col cols="12">
-                  <RemoteReportItemSelector
-                    :report_items="remote_report_items"
-                    :modify="modify"
-                    :edit="edit"
-                    :report_item_id="this.report_item.id"
-                    @remote-report-items-changed="updateRemoteAttributes"
-                  />
-                </v-col>
-              </v-row>
               <v-row>
                 <v-col cols="12" class="pa-0 ma-0">
                   <v-expansion-panels
@@ -286,7 +275,6 @@ import {
 } from '@/api/analyze'
 
 import AttributeContainer from '@/components/common/attribute/AttributeContainer'
-import RemoteReportItemSelector from '@/components/analyze/RemoteReportItemSelector'
 import CardNewsItem from '@/components/common/card/CardNewsItem'
 
 import VueCsvImport from '@/components/common/ImportCSV'
@@ -302,7 +290,6 @@ export default {
   },
   components: {
     AttributeContainer,
-    RemoteReportItemSelector,
     VueCsvImport,
     CardNewsItem
   },

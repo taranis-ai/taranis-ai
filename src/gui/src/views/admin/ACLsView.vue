@@ -26,7 +26,7 @@ import { notifySuccess } from '@/utils/helpers'
 import { mapActions, mapGetters } from 'vuex'
 
 export default {
-  name: 'ACLEntriesView',
+  name: 'ACLsView',
   components: {
     ConfigTable,
     NewACL
@@ -42,7 +42,7 @@ export default {
     ...mapActions(['updateItemCount']),
     updateData() {
       this.loadACLEntries().then(() => {
-        const sources = this.getUsers()
+        const sources = this.getACLEntries()
         this.acls = sources.items
         this.updateItemCount({
           total: sources.total_count,

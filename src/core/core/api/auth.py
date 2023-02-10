@@ -1,4 +1,4 @@
-import urllib
+from werkzeug.urls import url_quote
 from flask import redirect, make_response
 from flask_restful import Resource, reqparse, request, ResponseBase
 from flask_jwt_extended import jwt_required
@@ -43,7 +43,7 @@ class Logout(Resource):
 
         if not isinstance(response, ResponseBase) and "gotoUrl" in request.args:
             goto_url = request.args["gotoUrl"]
-            url = Config.OPENID_LOGOUT_URL.replace("GOTO_URL", urllib.parse.quote(goto_url)) if Config.OPENID_LOGOUT_URL else goto_url
+            url = Config.OPENID_LOGOUT_URL.replace("GOTO_URL", url_quote(goto_url)) if Config.OPENID_LOGOUT_URL else goto_url
             return redirect(url)
 
         return response

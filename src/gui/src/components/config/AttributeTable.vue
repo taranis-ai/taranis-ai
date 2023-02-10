@@ -1,93 +1,95 @@
 <template>
-  <v-container>      <v-toolbar flat color="white">
-        <v-toolbar-title>{{ $t('attribute.attributes') }}</v-toolbar-title>
-        <v-divider class="mx-4" inset vertical></v-divider>
-        <v-spacer></v-spacer>
-        <v-dialog v-if="!disabled" v-model="dialog" max-width="500px">
-          <template v-slot:activator="{ on }">
-            <v-btn color="primary" dark class="mb-2" v-on="on">
-              <v-icon left>mdi-plus</v-icon>
-              <span>{{ $t('attribute.new_attribute') }}</span>
-            </v-btn>
-          </template>
-          <v-card>
-            <v-card-title>
-              <span class="headline">{{ formTitle }}</span>
-            </v-card-title>
+  <v-container>
+    <v-toolbar flat color="white">
+      <v-toolbar-title>{{ $t('attribute.attributes') }}</v-toolbar-title>
+      <v-divider class="mx-4" inset vertical></v-divider>
+      <v-spacer></v-spacer>
+      <v-dialog v-if="!disabled" v-model="dialog" max-width="500px">
+        <template v-slot:activator="{ on }">
+          <v-btn color="primary" dark class="mb-2" v-on="on">
+            <v-icon left>mdi-plus</v-icon>
+            <span>{{ $t('attribute.new_attribute') }}</span>
+          </v-btn>
+        </template>
+        <v-card>
+          <v-card-title>
+            <span class="headline">{{ formTitle }}</span>
+          </v-card-title>
 
-            <v-card-text>
-              <v-combobox
-                v-model="attribute_type"
-                :items="attribute_templates"
-                item-text="name"
-                :label="$t('attribute.attribute')"
-              ></v-combobox>
+          <v-card-text>
+            <v-combobox
+              v-model="attribute_type"
+              :items="attribute_templates"
+              item-text="name"
+              :label="$t('attribute.attribute')"
+            ></v-combobox>
 
-              <v-text-field
-                v-model="edited_attribute.title"
-                :label="$t('attribute.name')"
-                :spellcheck="$store.state.settings.spellcheck"
-              ></v-text-field>
+            <v-text-field
+              v-model="edited_attribute.title"
+              :label="$t('attribute.name')"
+              :spellcheck="$store.state.settings.spellcheck"
+            ></v-text-field>
 
-              <v-text-field
-                v-model="edited_attribute.description"
-                :label="$t('attribute.description')"
-                :spellcheck="$store.state.settings.spellcheck"
-              ></v-text-field>
+            <v-text-field
+              v-model="edited_attribute.description"
+              :label="$t('attribute.description')"
+              :spellcheck="$store.state.settings.spellcheck"
+            ></v-text-field>
 
-              <v-row>
-                <v-col>
-                  <v-text-field
-                    v-model="edited_attribute.min_occurrence"
-                    type="number"
-                    :label="$t('attribute.min_occurrence')"
-                  ></v-text-field>
-                </v-col>
-                <v-col>
-                  <v-text-field
-                    v-model="edited_attribute.max_occurrence"
-                    type="number"
-                    :label="$t('attribute.max_occurrence')"
-                  ></v-text-field>
-                </v-col>
-              </v-row>
-              <v-row>
-                <v-col>
-                  <v-text-field
-                    v-model="edited_attribute.index"
-                    type="number"
-                    label="Index"
-                  ></v-text-field>
-                </v-col>
-              </v-row>
-            </v-card-text>
+            <v-row>
+              <v-col>
+                <v-text-field
+                  v-model="edited_attribute.min_occurrence"
+                  type="number"
+                  :label="$t('attribute.min_occurrence')"
+                ></v-text-field>
+              </v-col>
+              <v-col>
+                <v-text-field
+                  v-model="edited_attribute.max_occurrence"
+                  type="number"
+                  :label="$t('attribute.max_occurrence')"
+                ></v-text-field>
+              </v-col>
+            </v-row>
+            <v-row>
+              <v-col>
+                <v-text-field
+                  v-model="edited_attribute.index"
+                  type="number"
+                  label="Index"
+                ></v-text-field>
+              </v-col>
+            </v-row>
+          </v-card-text>
 
-            <v-card-actions>
-              <v-spacer></v-spacer>
-              <v-btn color="primary" dark @click="save">{{
-                $t('attribute.save')
-              }}</v-btn>
-              <v-btn color="primary" text @click="close">{{
-                $t('attribute.cancel')
-              }}</v-btn>
-            </v-card-actions>
-          </v-card>
-        </v-dialog>
-      </v-toolbar>
+          <v-card-actions>
+            <v-spacer></v-spacer>
+            <v-btn color="primary" dark @click="save">{{
+              $t('attribute.save')
+            }}</v-btn>
+            <v-btn color="primary" text @click="close">{{
+              $t('attribute.cancel')
+            }}</v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
+    </v-toolbar>
 
     <v-data-table
-    :headers="headers"
-    :items="attribute_contents"
-    :hide-default-footer="attribute_contents.length < 10"
-    :sort-by="index"
-  >
-    <template v-slot:[`item.actions`]="{ item }">
-      <v-icon v-if="!disabled" small class="mr-2" @click="editItem(item)">
-        edit
-      </v-icon>
-      <v-icon v-if="!disabled" small @click="deleteItem(item)"> delete </v-icon>
-    </template>
-  </v-data-table>
+      :headers="headers"
+      :items="attribute_contents"
+      :hide-default-footer="attribute_contents.length < 10"
+    >
+      <template v-slot:[`item.actions`]="{ item }">
+        <v-icon v-if="!disabled" small class="mr-2" @click="editItem(item)">
+          edit
+        </v-icon>
+        <v-icon v-if="!disabled" small @click="deleteItem(item)">
+          delete
+        </v-icon>
+      </template>
+    </v-data-table>
   </v-container>
 </template>
 
@@ -136,7 +138,12 @@ export default {
     },
     headers() {
       return [
-        { text: 'Type', value: 'attribute_name', align: 'left', sortable: false },
+        {
+          text: 'Type',
+          value: 'attribute_name',
+          align: 'left',
+          sortable: false
+        },
         { text: 'Name', value: 'title', sortable: false },
         { text: 'Description', value: 'description', sortable: false },
         { text: 'Min Occurence', value: 'min_occurrence', sortable: false },

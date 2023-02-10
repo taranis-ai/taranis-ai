@@ -2,8 +2,7 @@
   <v-container fluid class="ma-5 mt-5 pa-5 pt-0">
       <v-data-table
         ref="configTable"
-        v-model="selected"
-        @change="emitSelectionChange"
+        v-model="selection"
         @update:search="emitSearchChange"
         @current-items="emitFilterChange"
         :headers="headers"
@@ -72,8 +71,7 @@
         <template v-slot:[`item.actions`]="{ item }">
           <div class="d-inline-flex">
             <slot name="actionColumn"></slot>
-            <v-icon small class="mr-1" @click.stop="rowClick(item)"> mdi-pencil </v-icon>
-            <v-icon small @click.stop="deleteItem(item)"> mdi-delete </v-icon>
+            <v-icon color="red darken-4" @click.stop="deleteItem(item)"> mdi-delete </v-icon>
           </div>
         </template>
         <template v-slot:no-data>
@@ -123,6 +121,15 @@ export default {
     selected: []
   }),
   computed: {
+    selection: {
+      get() {
+        return this.selected
+      },
+      set(value) {
+        this.selected = value
+        this.$emit('selection-change', this.selected)
+      }
+    },
     headers() {
       var actionHeader = {
         text: 'Actions',
@@ -163,9 +170,6 @@ export default {
     },
     emitSearchChange() {
       this.$emit('search-change', this.search)
-    },
-    emitSelectionChange() {
-      this.$emit('selection-change', this.selected)
     },
     rowClick(item) {
       this.$emit('edit-item', item)

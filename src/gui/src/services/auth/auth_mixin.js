@@ -1,5 +1,5 @@
-import AuthService from '@/services/auth/auth_service'
 import Permissions from '@/services/auth/permissions'
+import { store } from '@/store/store'
 
 const AuthMixin = {
   data: () => ({
@@ -8,13 +8,13 @@ const AuthMixin = {
 
   methods: {
     isAuthenticated () {
-      return AuthService.isAuthenticated()
+      return store.getters.isAuthenticated
     },
     needTokenRefresh () {
-      return AuthService.needTokenRefresh()
+      return store.getters.needTokenRefresh
     },
     checkPermission (permission) {
-      return AuthService.hasPermission(permission)
+      return store.getters.getPermissions.includes(permission)
     }
   }
 }

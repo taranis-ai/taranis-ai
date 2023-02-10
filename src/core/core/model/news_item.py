@@ -125,9 +125,7 @@ class NewsItemData(db.Model):
     @classmethod
     def latest_collected(cls):
         news_item_data = cls.query.order_by(db.desc(NewsItemData.collected)).first()
-        if len(news_item_data) > 0:
-            return news_item_data[0].collected.isoformat()
-        return ""
+        return news_item_data.collected.isoformat() if news_item_data else ""
 
     @classmethod
     def get_all_news_items_data(cls, limit: str):

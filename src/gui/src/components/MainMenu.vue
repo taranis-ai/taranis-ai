@@ -12,7 +12,6 @@
       tile
       color="primary"
       class="burger-menu"
-      v-if="isAuthenticated()"
       @click.stop="navClicked"
     >
       <v-icon
@@ -65,7 +64,6 @@
     <!-- Menu -->
 
     <v-toolbar
-      v-if="isAuthenticated() && !this.$vuetify.breakpoint.mdAndDown"
       dense
       flat
       color="transparent"
@@ -89,7 +87,7 @@
       </div>
     </v-toolbar>
 
-    <UserMenu v-if="isAuthenticated()"></UserMenu>
+    <UserMenu></UserMenu>
   </v-app-bar>
 </template>
 

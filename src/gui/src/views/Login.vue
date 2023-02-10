@@ -16,6 +16,7 @@
                   v-validate="'required'"
                   data-vv-name="username"
                   :error-messages="errors.collect('username')"
+                  required
                 />
               </v-flex>
             </td>

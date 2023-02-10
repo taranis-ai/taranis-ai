@@ -185,6 +185,7 @@ export default {
       filter: (state) => state.newsItemsFilter
     }),
     ...mapState(['drawerVisible']),
+    ...mapState('route', ['query']),
     scope: {
       get() {
         return this.scopeState
@@ -287,8 +288,9 @@ export default {
     ]),
     ...mapGetters('filter', ['getNewsItemsFilter'])
   },
-  created() {},
-  beforeDestroy() {},
+  mounted() {
+    console.debug('loaded with query', this.query)
+  },
   watch: {}
 }
 </script>

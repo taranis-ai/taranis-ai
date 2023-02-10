@@ -86,6 +86,7 @@ export const messages_en = {
     bots: "Bots",
     user: "User",
     nodes: "Nodes",
+    openapi: "OpenAPI",
     organizations: "Organizations",
     word_lists: "Word Lists",
     asset_groups: "Asset Groups",
