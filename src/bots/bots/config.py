@@ -1,5 +1,4 @@
 import os
-from typing import List, Tuple, Optional
 from pydantic import BaseSettings
 
 
@@ -18,9 +17,9 @@ class Settings(BaseSettings):
     NODE_NAME: str = "MyBot"
     NODE_DESCRIPTION: str = ""
     NODE_URL: str = "http://bots"
-    BOTS_LOADABLE_BOTS: List[str] = ["Analyst", "Grouping", "NLP", "Tagging"]
-    SYSLOG_ADDRESS: Optional[Tuple[str, int]]
+    BOTS_LOADABLE_BOTS: list[str] = ["Analyst", "Grouping", "NLP", "Tagging"]
+    SYSLOG_ADDRESS: tuple[str, int] | None = None
     GUNICORN: bool = "gunicorn" in os.environ.get("SERVER_SOFTWARE", "")
 
 
-Config = Settings()
+settings = Settings()

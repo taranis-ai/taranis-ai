@@ -90,7 +90,7 @@
 
     <NewsItemSingleDetail ref="newsItemSingleDetail" />
     <NewsItemDetail ref="newsItemDetail" />
-    <NewsItemAggregateDetail ref="newsItemAggregateDetail" />
+    <StoryDetail ref="StoryDetail" />
   </v-row>
 </template>
 
@@ -98,11 +98,10 @@
 import AuthMixin from '@/services/auth/auth_mixin'
 import Permissions from '@/services/auth/permissions'
 import AssessContent from '../../components/assess/AssessContent'
-import ToolbarFilterAssess from '@/components/assess/ToolbarFilterAssess'
-import CardAssess from '@/components/assess/CardAssess'
+import CardAssess from '@/components/assess/legacy/CardAssess'
 import NewsItemSingleDetail from '@/components/assess/NewsItemSingleDetail'
 import NewsItemDetail from '@/components/assess/NewsItemDetail'
-import NewsItemAggregateDetail from '@/components/assess/NewsItemAggregateDetail'
+import StoryDetail from '@/components/assess/StoryDetail'
 import { getReportItemData, updateReportItem } from '@/api/analyze'
 import { mapActions, mapGetters } from 'vuex'
 
@@ -110,11 +109,10 @@ export default {
   name: 'NewsItemSelector',
   components: {
     AssessContent,
-    ToolbarFilterAssess,
     CardAssess,
     NewsItemSingleDetail,
     NewsItemDetail,
-    NewsItemAggregateDetail
+    StoryDetail
   },
   props: {
     item_values: Array,
@@ -227,7 +225,7 @@ export default {
     },
 
     showAggregateDetail (news_item) {
-      this.$refs.newsItemAggregateDetail.open(news_item)
+      this.$refs.StoryDetail.open(news_item)
     },
 
     showItemDetail (news_item) {

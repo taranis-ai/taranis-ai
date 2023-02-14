@@ -1,6 +1,6 @@
 <template>
   <div>
-    <ConfigTable
+    <DataTable
       :addButton="true"
       :items.sync="users"
       :headerFilter="['tag', 'id', 'name', 'username']"
@@ -19,7 +19,7 @@
 </template>
 
 <script>
-import ConfigTable from '../../components/config/ConfigTable'
+import DataTable from '@/components/common/DataTable'
 import UserForm from '../../components/config/user/UserForm'
 import { deleteUser, createUser, updateUser } from '@/api/config'
 import { mapActions, mapGetters } from 'vuex'
@@ -27,7 +27,7 @@ import { mapActions, mapGetters } from 'vuex'
 export default {
   name: 'UsersView',
   components: {
-    ConfigTable,
+    DataTable,
     UserForm
   },
   data: () => ({

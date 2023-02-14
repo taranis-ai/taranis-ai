@@ -24,6 +24,9 @@ const ApiService = {
       return ''
     }
     return Object.entries(filterObject).filter(([key, val]) => val != null).map(function ([key, val]) {
+      if (Array.isArray(val)) {
+        return val.map((v) => `${key}=${v}`).join('&')
+      }
       if (typeof val === 'object') {
         return ApiService.getQueryStringFromObject(val)
       }

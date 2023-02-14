@@ -12,10 +12,22 @@ from core.model import news_item, word_list, bots_node, bot
 class BotGroupAction(Resource):
     @api_key_required
     def put(self):
-        response, osint_source_ids, code = news_item.NewsItemAggregate.group_action(request.json, None)
+        aggregate_ids = request.json
+        if not aggregate_ids:
+            return {"No aggregate ids provided"}, 400
+        response, code = news_item.NewsItemAggregate.group_aggregate(aggregate_ids)
         sse_manager.news_items_updated()
-        if len(osint_source_ids) > 0:
-            sse_manager.remote_access_news_items_updated(osint_source_ids)
+        return response, code
+
+
+class BotUnGroupAction(Resource):
+    @api_key_required
+    def put(self):
+        newsitem_ids = request.json
+        if not newsitem_ids:
+            return {"No aggregate ids provided"}, 400
+        response, code = news_item.NewsItemAggregate.ungroup_aggregate(newsitem_ids)
+        sse_manager.news_items_updated()
         return response, code
 
 
@@ -83,8 +95,8 @@ class UpdateNewsItemsAggregateSummary(Resource):
 class GetNewsItemsAggregate(Resource):
     @api_key_required
     def get(self, group_id):
-
-        resp_str = news_item.NewsItemAggregate.get_news_items_aggregate(group_id, request.json)
+        limit = request.args.get("limit", "")
+        resp_str = news_item.NewsItemAggregate.get_news_items_aggregate(group_id, limit)
         return json.loads(resp_str)
 
 
@@ -136,7 +148,8 @@ def initialize(api):
         UpdateNewsItemAttributes,
         "/api/v1/bots/news-item-data/<string:news_item_data_id>/attributes",
     )
-    api.add_resource(BotGroupAction, "/api/v1/bots/news-item-aggregates-group-action")
+    api.add_resource(BotGroupAction, "/api/v1/bots/news-item-aggregates/group")
+    api.add_resource(BotUnGroupAction, "/api/v1/bots/news-item-aggregates/ungroup")
     api.add_resource(
         GetNewsItemsAggregate,
         "/api/v1/bots/news-item-aggregates-by-group/<string:group_id>",

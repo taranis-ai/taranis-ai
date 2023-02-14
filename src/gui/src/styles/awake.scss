@@ -219,6 +219,11 @@ textarea {
   max-width: 88px;
 }
 
+.v-chip.story-label-no-trunc {
+  font-size: 12px !important;
+  padding: 12px 8px !important;
+}
+
 .v-application .v-card .activity-row {
   min-height: 54px;
   line-height: 1;

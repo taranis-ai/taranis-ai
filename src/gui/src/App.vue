@@ -1,6 +1,6 @@
 <template>
   <v-app class="grey lighten-2">
-    <MainMenu/>
+    <MainMenu v-if="isAuthenticated()" />
 
     <router-view name="nav"></router-view>
 
@@ -8,7 +8,7 @@
       <router-view />
     </v-main>
 
-    <Notification/>
+    <Notification v-if="isAuthenticated()" />
   </v-app>
 </template>
 

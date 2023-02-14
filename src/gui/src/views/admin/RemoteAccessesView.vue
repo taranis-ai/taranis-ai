@@ -1,6 +1,6 @@
 <template>
   <div>
-    <ConfigTable
+    <DataTable
       :addButton="true"
       :items.sync="RemoteAccess"
       :headerFilter="['tag', 'name', 'title', 'description']"
@@ -20,7 +20,7 @@
 </template>
 
 <script>
-import ConfigTable from '../../components/config/ConfigTable'
+import DataTable from '@/components/common/DataTable'
 import EditConfig from '../../components/config/EditConfig'
 import { deleteRemoteAccess, createRemoteAccess, updateRemoteAccess } from '@/api/config'
 import { mapActions, mapGetters } from 'vuex'
@@ -29,7 +29,7 @@ import { notifySuccess, notifyFailure, emptyValues } from '@/utils/helpers'
 export default {
   name: 'RemoteAccess',
   components: {
-    ConfigTable,
+    DataTable,
     EditConfig
   },
   data: () => ({

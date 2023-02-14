@@ -20,15 +20,14 @@
           v-else
           appear
         >
-          <card-news-item
-            v-for="(newsItem, index) in items"
+          <card-story
+            v-for="(newsItem) in items"
             :key="newsItem.id"
-            :newsItem="newsItem"
-            :position="index"
+            :story="newsItem"
             :selected="getNewsItemsSelection().includes(newsItem.id)"
             @deleteItem="removeAndDeleteNewsItem(newsItem.id)"
             @selectItem="selectNewsItem(newsItem.id)"
-          ></card-news-item>
+          ></card-story>
         </transition-group>
       </transition>
     </v-container>
@@ -56,7 +55,7 @@
 
 <script>
 import KeyboardMixin from '../../assets/keyboard_mixin'
-import CardNewsItem from '@/components/common/card/CardNewsItem'
+import CardStory from '@/components/assess/CardStory'
 import AssessSelectionToolbar from '@/components/assess/AssessSelectionToolbar'
 
 import { mapState, mapGetters, mapActions } from 'vuex'
@@ -65,7 +64,7 @@ export default {
   name: 'Assess',
   mixins: [KeyboardMixin('assess')],
   components: {
-    CardNewsItem,
+    CardStory,
     AssessSelectionToolbar
   },
   data: () => ({

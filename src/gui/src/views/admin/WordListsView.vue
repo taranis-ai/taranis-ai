@@ -1,6 +1,6 @@
 <template>
   <div>
-    <ConfigTable
+    <DataTable
       :addButton="true"
       :items.sync="word_lists"
       :headerFilter="['tag', 'name', 'description']"
@@ -18,7 +18,7 @@
         @export="exportData"
       ></ImportExport>
     </template>
-    </ConfigTable>
+    </DataTable>
     <EditConfig
       v-if="formData && Object.keys(formData).length > 0"
       :configData="formData"
@@ -28,7 +28,7 @@
 </template>
 
 <script>
-import ConfigTable from '../../components/config/ConfigTable'
+import DataTable from '@/components/common/DataTable'
 import EditConfig from '../../components/config/EditConfig'
 import ImportExport from '../../components/config/ImportExport'
 import {
@@ -44,7 +44,7 @@ import { notifySuccess, emptyValues, notifyFailure } from '@/utils/helpers'
 export default {
   name: 'WordLists',
   components: {
-    ConfigTable,
+    DataTable,
     EditConfig,
     ImportExport
   },

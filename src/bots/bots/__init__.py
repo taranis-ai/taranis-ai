@@ -6,7 +6,7 @@ from bots.managers import api_manager, bots_manager
 
 def create_app():
     app = Flask(__name__)
-    app.config.from_object("bots.config.Config")
+    app.config.from_object("bots.config.settings")
 
     with app.app_context():
         CORS(app)

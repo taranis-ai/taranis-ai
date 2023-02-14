@@ -181,12 +181,22 @@
           </v-tab-item>
 
           <v-tab-item value="tab-2" class="pa-5">
-            <NewsItemAttribute
-              v-for="attribute in news_item.attributes"
-              :key="attribute.id"
-              :attribute="attribute"
-              :news_item_data="news_item.news_items[0].news_item_data"
-            />
+            <v-row>
+              <v-col>
+                <span style="margin-right: 20px; font-size: 12px">{{
+                  attribute.key
+                }}</span>
+                <br />
+                <v-row>
+                  <v-col style="flex-grow: 0">
+                    <v-icon>mdi-file-document</v-icon>
+                  </v-col>
+                  <v-col>
+                    <div>{{ attribute.value }}</div>
+                  </v-col>
+                </v-row>
+              </v-col>
+            </v-row>
           </v-tab-item>
 
           <v-tab-item value="tab-3" class="pa-5">
@@ -211,7 +221,6 @@ import {
   saveNewsItemAggregate
 } from '@/api/assess'
 
-import NewsItemAttribute from '@/components/assess/NewsItemAttribute'
 import AuthMixin from '@/services/auth/auth_mixin'
 import Permissions from '@/services/auth/permissions'
 
@@ -240,7 +249,7 @@ const toolbarOptions = [
 
 export default {
   name: 'NewsItemSingleDetail',
-  components: { NewsItemAttribute, VueEditor },
+  components: { VueEditor },
   mixins: [AuthMixin],
   props: {
     analyze_selector: Boolean,

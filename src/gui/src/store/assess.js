@@ -18,7 +18,7 @@ const actions = {
   updateAggregateByID(context, id) {
     return getNewsItemAggregate(id)
       .then(response => {
-        context.commit('', response.data)
+        context.commit('UPDATE_NEWSITEMS', [response.data])
       })
   },
 

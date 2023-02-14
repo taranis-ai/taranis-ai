@@ -1,6 +1,6 @@
 <template>
   <div>
-    <ConfigTable
+    <DataTable
       :addButton="false"
       :items.sync="bots"
       :headerFilter="['name', 'description']"
@@ -21,7 +21,7 @@
 </template>
 
 <script>
-import ConfigTable from '../../components/config/ConfigTable'
+import DataTable from '@/components/common/DataTable'
 import EditConfig from '../../components/config/EditConfig'
 import {
   updateBot
@@ -32,7 +32,7 @@ import { notifySuccess, objectFromFormat, notifyFailure, parseParameterValues, p
 export default {
   name: 'Bots',
   components: {
-    ConfigTable,
+    DataTable,
     EditConfig
   },
   data: () => ({

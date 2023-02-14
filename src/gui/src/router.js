@@ -30,6 +30,28 @@ export const router = new Router({
       meta: { requiresAuth: true, requiresPerm: [Permissions.ASSESS_CREATE] }
     },
     {
+      path: '/newsitem/:id',
+      name: 'newsitem',
+      components: {
+        default: () =>
+          import(
+            /* webpackChunkName: "assess" */ './views/users/NewsItemView.vue'
+          )
+      },
+      meta: { requiresAuth: true, requiresPerm: [Permissions.ASSESS_ACCESS] }
+    },
+    {
+      path: '/story/:id',
+      name: 'story',
+      components: {
+        default: () =>
+          import(
+            /* webpackChunkName: "assess" */ './views/users/StoryView.vue'
+          )
+      },
+      meta: { requiresAuth: true, requiresPerm: [Permissions.ASSESS_ACCESS] }
+    },
+    {
       path: '/assess*',
       name: 'assess',
       components: {

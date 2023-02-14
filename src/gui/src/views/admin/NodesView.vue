@@ -1,6 +1,6 @@
 <template>
   <div>
-    <ConfigTable
+    <DataTable
       :addButton="true"
       :items.sync="nodes"
       :headerFilter="['tag', 'name', 'description']"
@@ -16,7 +16,7 @@
           <v-icon>mdi-run</v-icon>Trigger Workers
         </v-btn>
       </template>
-    </ConfigTable>
+    </DataTable>
     <EditConfig
       v-if="formData && Object.keys(formData).length > 0"
       :configData="formData"
@@ -27,7 +27,7 @@
 </template>
 
 <script>
-import ConfigTable from '../../components/config/ConfigTable'
+import DataTable from '@/components/common/DataTable'
 import EditConfig from '../../components/config/EditConfig'
 import { deleteNode, createNode, updateNode, triggerNode } from '@/api/config'
 import { mapActions, mapGetters } from 'vuex'
@@ -36,7 +36,7 @@ import { notifySuccess, notifyFailure, objectFromFormat } from '@/utils/helpers'
 export default {
   name: 'Nodes',
   components: {
-    ConfigTable,
+    DataTable,
     EditConfig
   },
   data: () => ({

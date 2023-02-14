@@ -1,6 +1,6 @@
 <template>
   <div>
-    <ConfigTable
+    <DataTable
       :addButton="true"
       :items.sync="roles"
       sortByItem="id"
@@ -21,7 +21,7 @@
 </template>
 
 <script>
-import ConfigTable from '../../components/config/ConfigTable'
+import DataTable from '@/components/common/DataTable'
 import EditConfig from '../../components/config/EditConfig'
 import {
   deleteNotificationTemplate,
@@ -34,7 +34,7 @@ import { notifySuccess, objectFromFormat, notifyFailure } from '@/utils/helpers'
 export default {
   name: 'Roles',
   components: {
-    ConfigTable,
+    DataTable,
     EditConfig
   },
   data: () => ({

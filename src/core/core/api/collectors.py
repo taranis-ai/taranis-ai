@@ -4,7 +4,7 @@ from flask_restful import Resource, reqparse
 from core.managers import sse_manager, collectors_manager
 from core.managers.auth_manager import api_key_required
 from core.managers.log_manager import logger
-from core.model import osint_source, collector, news_item, collectors_node
+from core.model import osint_source, news_item, collectors_node
 from shared.schema.osint_source import OSINTSourceUpdateStatusSchema
 
 
@@ -52,8 +52,7 @@ class OSINTSourceStatusUpdate(Resource):
             return {}, 404
 
         try:
-            osint_source_status_schema = OSINTSourceUpdateStatusSchema()
-            osint_source_status = osint_source_status_schema.load(request.json)
+            osint_source_status = OSINTSourceUpdateStatusSchema().load(request.json)
             logger.debug(f"osint_source_status: ${osint_source_status}")
         except Exception:
             logger.log_debug_trace()

@@ -2,7 +2,7 @@ import importlib
 
 from bots.managers.log_manager import logger
 from bots.remote.core_api import CoreApi
-from bots.config import Config
+from bots.config import settings
 from shared.schema.bot import BotImportSchema
 
 
@@ -16,7 +16,7 @@ def register_bot(bot):
 def initialize():
     CoreApi().register_node()
 
-    logger.log_info(f"Initializing bot node: {Config.NODE_NAME}...")
+    logger.log_info(f"Initializing bot node: {settings.NODE_NAME}...")
 
     response = CoreApi().get_bots()
 
@@ -41,7 +41,7 @@ def initialize():
         for item in bot["parameter_values"]:
             parameters[bot["type"]][item["parameter"].key] = item["value"]
 
-    for c in Config.BOTS_LOADABLE_BOTS:
+    for c in settings.BOTS_LOADABLE_BOTS:
         module_ = importlib.import_module(f"bots.bots.{c.lower()}_bot")
         class_ = getattr(module_, f"{c}Bot")
         register_bot(class_(parameters[f"{c.upper()}_BOT"]))

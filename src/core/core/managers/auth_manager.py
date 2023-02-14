@@ -198,18 +198,18 @@ def api_key_required(fn):
         # do we have the authorization header?
         auth_header = request.headers.get("Authorization", None)
         if not auth_header:
-            logger.store_auth_error_activity("Missing Authorization header for external access")
+            logger.store_auth_error_activity("Missing Authorization header")
             return error
 
         if not auth_header.startswith("Bearer"):
-            logger.store_auth_error_activity("Missing Authorization Bearer for external access")
+            logger.store_auth_error_activity("Missing Authorization Bearer")
             return error
 
         api_key = auth_header.replace("Bearer ", "")
 
         # does it match some of our collector's keys?
         if not CollectorsNode.exists_by_api_key(api_key) and Config.API_KEY != api_key:
-            logger.store_auth_error_activity(f"Incorrect api key: {api_key} for external access")
+            logger.store_auth_error_activity(f"Incorrect api key: {api_key}")
             return error
 
         # allow

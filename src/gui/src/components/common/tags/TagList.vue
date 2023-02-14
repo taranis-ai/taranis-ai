@@ -4,12 +4,12 @@
         v-for="(tag, i) in tags.slice(0, limit)"
         :key="i"
         label
-        class="mr-1 mb-1 story-label"
+        :class="getChipClass"
         dark
         x-small
         :color="labelcolor(i)"
         >
-        <span class="text-truncate text-capitalize">
+        <span :class="getTagClass">
           {{ tag }}
         </span>
       </v-chip>
@@ -20,10 +20,26 @@
 export default {
   name: 'TagList',
   props: {
-    tags: []
+    tags: [],
+    limit: {
+      type: Number,
+      default: 5
+    },
+    truncate: {
+      type: Boolean,
+      default: true
+    }
+  },
+  computed: {
+    getChipClass() {
+      const c = 'mr-1 mb-1 story-label'
+      return this.truncate ? c : c + '-no-trunc'
+    },
+    getTagClass() {
+      return this.truncate ? 'text-truncate' : ''
+    }
   },
   data: () => ({
-    limit: 5,
     colorStart: Math.floor(Math.random() * 9)
   }),
   methods: {

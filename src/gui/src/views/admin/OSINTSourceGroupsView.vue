@@ -1,6 +1,6 @@
 <template>
   <div>
-    <ConfigTable
+    <DataTable
       :addButton="true"
       :items.sync="osint_source_groups"
       :headerFilter="['tag', 'default', 'name', 'description']"
@@ -12,7 +12,7 @@
       @selection-change="selectionChange"
       @update-items="updateData"
     >
-    </ConfigTable>
+    </DataTable>
     <EditConfig
       v-if="formData && Object.keys(formData).length > 0"
       :configData="formData"
@@ -23,7 +23,7 @@
 </template>
 
 <script>
-import ConfigTable from '../../components/config/ConfigTable'
+import DataTable from '@/components/common/DataTable'
 import EditConfig from '../../components/config/EditConfig'
 import {
   createOSINTSourceGroup,
@@ -36,7 +36,7 @@ import { notifySuccess, objectFromFormat, notifyFailure } from '@/utils/helpers'
 export default {
   name: 'OSINTSources',
   components: {
-    ConfigTable,
+    DataTable,
     EditConfig
   },
   data: () => ({

@@ -1,6 +1,6 @@
 <template>
   <div>
-    <ConfigTable
+    <DataTable
       :addButton="true"
       :items.sync="acls"
       :headerFilter="['tag', 'id', 'name', 'username']"
@@ -19,7 +19,7 @@
 </template>
 
 <script>
-import ConfigTable from '../../components/config/ConfigTable'
+import DataTable from '@/components/common/DataTable'
 import NewACL from '../../components/config/user/NewACL'
 import { deleteACLEntry, createACLEntry, updateACLEntry } from '@/api/config'
 import { notifySuccess } from '@/utils/helpers'
@@ -28,7 +28,7 @@ import { mapActions, mapGetters } from 'vuex'
 export default {
   name: 'ACLsView',
   components: {
-    ConfigTable,
+    DataTable,
     NewACL
   },
   data: () => ({

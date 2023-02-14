@@ -64,7 +64,6 @@ class NewsItemAggregates(Resource):
     @auth_required("ASSESS_ACCESS")
     def get(self):
         user = auth_manager.get_user_from_jwt()
-
         try:
             filter_keys = ["search", "read", "important", "relevant", "in_analyze", "range", "sort", "tags"]
             filter_args: dict[str, str | int] = {k: v for k, v in request.args.items() if k in filter_keys}
@@ -137,7 +136,7 @@ class NewsItem(Resource):
 class NewsItemAggregate(Resource):
     @auth_required("ASSESS_ACCESS")
     def get(self, aggregate_id):
-        return news_item.NewsItemAggregate.find(aggregate_id)
+        return news_item.NewsItemAggregate.get_by_id(aggregate_id)
 
     @auth_required("ASSESS_UPDATE")
     def put(self, aggregate_id):
@@ -154,11 +153,26 @@ class NewsItemAggregate(Resource):
         return response, code
 
 
+class UnGroupAction(Resource):
+    @auth_required("ASSESS_UPDATE")
+    def put(self):
+        user = auth_manager.get_user_from_jwt()
+        newsitem_ids = request.json
+        if not newsitem_ids:
+            return {"No aggregate ids provided"}, 400
+        response, code = news_item.NewsItemAggregate.ungroup_aggregate(newsitem_ids, user)
+        sse_manager.news_items_updated()
+        return response, code
+
+
 class GroupAction(Resource):
     @auth_required("ASSESS_UPDATE")
     def put(self):
         user = auth_manager.get_user_from_jwt()
-        response, code = news_item.NewsItemAggregate.group_action(request.json, user)
+        aggregate_ids = request.json
+        if not aggregate_ids:
+            return {"No aggregate ids provided"}, 400
+        response, code = news_item.NewsItemAggregate.group_aggregate(aggregate_ids, user)
         sse_manager.news_items_updated()
         return response, code
 
@@ -220,7 +234,8 @@ def initialize(api):
     api.add_resource(NewsItemAggregateTags, "/api/v1/assess/tags")
     api.add_resource(NewsItem, "/api/v1/assess/news-items/<int:item_id>")
     api.add_resource(NewsItemAggregate, "/api/v1/assess/news-item-aggregates/<int:aggregate_id>")
-    api.add_resource(GroupAction, "/api/v1/assess/news-item-aggregates-group-action")
+    api.add_resource(GroupAction, "/api/v1/assess/news-item-aggregates/group")
+    api.add_resource(UnGroupAction, "/api/v1/assess/news-item-aggregates/ungroup")
     api.add_resource(
         DownloadAttachment,
         "/api/v1/assess/news-item-data/<string:item_data_id>/attributes/<int:attribute_id>/file",

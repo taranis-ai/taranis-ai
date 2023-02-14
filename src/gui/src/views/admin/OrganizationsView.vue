@@ -1,6 +1,6 @@
 <template>
   <div>
-    <ConfigTable
+    <DataTable
       :addButton="true"
       :items.sync="organizations"
       :headerFilter="['tag', 'id', 'name', 'description']"
@@ -20,7 +20,7 @@
 </template>
 
 <script>
-import ConfigTable from '../../components/config/ConfigTable'
+import DataTable from '@/components/common/DataTable'
 import EditConfig from '../../components/config/EditConfig'
 import {
   deleteOrganization,
@@ -33,7 +33,7 @@ import { notifySuccess, emptyValues, notifyFailure } from '@/utils/helpers'
 export default {
   name: 'Organizations',
   components: {
-    ConfigTable,
+    DataTable,
     EditConfig
   },
   data: () => ({

@@ -53,7 +53,7 @@
 
 <script>
 export default {
-  name: 'filterSelectList',
+  name: 'filterSortList',
   props: {
     value: {},
     items: []
@@ -63,6 +63,7 @@ export default {
   }),
   methods: {
     setValue (newValue) {
+      if (newValue === this.value) return
       this.$emit('input', newValue)
     },
     changeDirection (event, item) {

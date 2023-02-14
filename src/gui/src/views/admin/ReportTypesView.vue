@@ -1,6 +1,6 @@
 <template>
   <div>
-    <ConfigTable
+    <DataTable
       :addButton="true"
       :items.sync="report_types"
       :headerFilter="['tag', 'id', 'title', 'description']"
@@ -20,7 +20,7 @@
 </template>
 
 <script>
-import ConfigTable from '../../components/config/ConfigTable'
+import DataTable from '@/components/common/DataTable'
 import ReportTypeForm from '../../components/config/ReportTypeForm'
 import {
   deleteReportItemType,
@@ -33,7 +33,7 @@ import { notifySuccess, emptyValues, notifyFailure } from '@/utils/helpers'
 export default {
   name: 'ReportTypes',
   components: {
-    ConfigTable,
+    DataTable,
     ReportTypeForm
   },
   data: () => ({

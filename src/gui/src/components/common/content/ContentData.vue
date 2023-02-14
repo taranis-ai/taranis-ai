@@ -11,7 +11,7 @@
 </template>
 
 <script>
-import CardAssess from '../../assess/CardAssess'
+import CardAssess from '@/components/assess/legacy/CardAssess'
 import CardAnalyze from '@/components/analyze/CardAnalyze'
 import CardProduct from '@/components/publish/CardProduct'
 import CardPreset from '@/components/common/card/CardPreset'

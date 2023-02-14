@@ -275,7 +275,7 @@ import {
 } from '@/api/analyze'
 
 import AttributeContainer from '@/components/common/attribute/AttributeContainer'
-import CardNewsItem from '@/components/common/card/CardNewsItem'
+import CardNewsItem from '@/components/assess/CardNewsItem'
 
 import VueCsvImport from '@/components/common/ImportCSV'
 import { mapActions, mapGetters } from 'vuex'

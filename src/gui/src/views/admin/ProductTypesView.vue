@@ -1,6 +1,6 @@
 <template>
   <div>
-    <ConfigTable
+    <DataTable
       :addButton="true"
       :items.sync="productTypes"
       :headerFilter="['tag', 'id', 'title', 'description']"
@@ -21,7 +21,7 @@
 </template>
 
 <script>
-import ConfigTable from '../../components/config/ConfigTable'
+import DataTable from '@/components/common/DataTable'
 import EditConfig from '@/components/config/EditConfig'
 import {
   deleteProductType,
@@ -34,7 +34,7 @@ import { notifySuccess, notifyFailure, parseParameterValues, createParameterValu
 export default {
   name: 'Organizations',
   components: {
-    ConfigTable,
+    DataTable,
     EditConfig
   },
   data: () => ({

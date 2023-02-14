@@ -220,7 +220,7 @@
 </template>
 
 <script>
-import CardAssessItem from '@/components/assess/CardAssessItem'
+import CardAssessItem from '@/components/assess/legacy/CardAssessItem'
 import {
   deleteNewsItemAggregate,
   groupAction,

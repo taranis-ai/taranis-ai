@@ -1,6 +1,6 @@
 <template>
   <div>
-    <ConfigTable
+    <DataTable
       :addButton="true"
       :items.sync="presets"
       :headerFilter="['tag', 'id', 'name', 'description']"
@@ -21,7 +21,7 @@
 </template>
 
 <script>
-import ConfigTable from '../../components/config/ConfigTable'
+import DataTable from '@/components/common/DataTable'
 import EditConfig from '../../components/config/EditConfig'
 import {
   deletePublisherPreset,
@@ -34,7 +34,7 @@ import { notifySuccess, parseParameterValues, createParameterValues, objectFromF
 export default {
   name: 'presets',
   components: {
-    ConfigTable,
+    DataTable,
     EditConfig
   },
   data: () => ({

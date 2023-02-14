@@ -1154,34 +1154,27 @@ paths:
               schema:
                 type: string
                 example: aggregate_in_use
-  /assess/news-item-aggregates-group-action:
+  /assess/news-item-aggregates/group:
     put:
       tags: [assess]
-      summary: modify a user's group action
+      summary: Group News Items to an Aggregates
       requestBody:
         content:
           application/json:
             schema:
               type: object
               properties:
-                action:
-                  type: string
-                  enum: [DELETE, GROUP, UNGROUP, LIKE, DISLIKE, IMPORTANT, READ]
-                items:
-                  type: object
-                  properties:
-                    type:
-                      type: string
-                      enum: [AGGREGATE]
-                    id:
-                      type: string
+                aggregate_ids:
+                  type: array
+                  items:
+                    type: integer
+                  
       responses:
         '200':
-          description: the OSINT source IDs of the modified group action
+          description: successfully grouped news items to an aggregate
           content:
             application/json:
               schema:
-                type: array
                 items:
                   type: string
         '401':
@@ -1190,6 +1183,37 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/resp.auth.error'
+
+  /assess/news-item-aggregates/ungroup:
+    put:
+      tags: [assess]
+      summary: Remove News Items from an Aggregate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                newsitem_ids:
+                  type: array
+                  items:
+                    type: integer
+                  
+      responses:
+        '200':
+          description: successfully removed news items from an aggregate
+          content:
+            application/json:
+              schema:
+                items:
+                  type: string
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+
   /assess/news-item-data/{item_data_id}/attributes/{attribute_id}/file:
     parameters:
       - name: item_data_id
@@ -1703,22 +1727,27 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/resp.auth.error'
-  /bots/news-item-aggregates-group-action:
+  /bots/news-item-aggregates/group:
     put:
       tags: [bots]
-      summary: modify group action
+      summary: Group News Items to an Aggregates
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/modify_group_action'
+              type: object
+              properties:
+                aggregate_ids:
+                  type: array
+                  items:
+                    type: integer
+                  
       responses:
         '200':
-          description: the IDs of the OSINT sources
+          description: successfully grouped news items to an aggregate
           content:
             application/json:
               schema:
-                type: array
                 items:
                   type: string
         '401':
@@ -1727,6 +1756,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/resp.auth.error'
+
   /bots/news-item-aggregates-by-group/{group_id}:
     parameters:
       - name: group_id
@@ -1734,18 +1764,14 @@ paths:
         required: true
         schema:
           type: string
+          parameters:
+      - name: limit
+        in: query
+        schema:
+          type: string
     get:
       tags: [bots]
       summary: get news items aggregate
-      requestBody:
-        # TODO: the `limit` parameter in the request's body should be moved to the query
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                limit:
-                  $ref: '#/components/schemas/date_time'
       responses:
         '200':
           description: the IDs of the OSINT sources

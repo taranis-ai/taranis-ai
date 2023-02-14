@@ -2,13 +2,13 @@ import requests
 import base64
 import hashlib
 from bots.managers.log_manager import logger
-from bots.config import Config
+from bots.config import settings
 
 
 class CoreApi:
     def __init__(self):
-        self.api_url = Config.TARANIS_NG_CORE_URL
-        self.api_key = Config.API_KEY
+        self.api_url = settings.TARANIS_NG_CORE_URL
+        self.api_key = settings.API_KEY
         self.headers = self.get_headers()
         self.node_id = self.get_node_id()
 
@@ -16,7 +16,7 @@ class CoreApi:
         return {"Authorization": f"Bearer {self.api_key}", "Content-type": "application/json"}
 
     def get_node_id(self) -> str:
-        uid = Config.NODE_URL + Config.API_KEY + Config.NODE_NAME + Config.TARANIS_NG_CORE_URL
+        uid = settings.NODE_URL + settings.API_KEY + settings.NODE_NAME + settings.TARANIS_NG_CORE_URL
         return hashlib.md5(uid.encode("utf-8")).hexdigest()
 
     def register_node(self):
@@ -26,13 +26,13 @@ class CoreApi:
                 logger.log_info(f"Found registerd Bot {response}")
                 return
 
-            logger.log_info(f"Registering bot Node at {Config.TARANIS_NG_CORE_URL}")
+            logger.log_info(f"Registering bot Node at {settings.TARANIS_NG_CORE_URL}")
             node_info = {
                 "id": self.node_id,
-                "name": Config.NODE_NAME,
-                "description": Config.NODE_DESCRIPTION,
-                "api_url": Config.NODE_URL,
-                "api_key": Config.API_KEY,
+                "name": settings.NODE_NAME,
+                "description": settings.NODE_DESCRIPTION,
+                "api_url": settings.NODE_URL,
+                "api_key": settings.API_KEY,
             }
             response = requests.post(
                 f"{self.api_url}/api/v1/bots/node",
@@ -177,6 +177,8 @@ class CoreApi:
                 if source_group
                 else f"{self.api_url}/api/v1/bots/news-item-aggregates"
             )
+            if limit:
+                uri = f"{uri}?limit={limit}"
             response = requests.get(
                 uri,
                 headers=self.headers,

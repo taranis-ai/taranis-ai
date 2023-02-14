@@ -37,6 +37,9 @@ export default {
   watch: {
     search(val) {
       val && val !== this.select && this.querySelections(val)
+    },
+    selected(val) {
+      this.$emit('input', val)
     }
   },
   methods: {

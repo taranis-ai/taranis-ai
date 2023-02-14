@@ -45,9 +45,17 @@
 </template>
 
 <script>
+import {
+  deleteNewsItemAggregate,
+  groupAction
+} from '@/api/assess'
+
+import { notifySuccess, notifyFailure } from '@/utils/helpers'
+
 export default {
   name: 'AssessSelectionToolbar',
   components: { },
+  emits: ['refresh'],
   props: {
     selection: []
   },
@@ -74,8 +82,29 @@ export default {
   }),
   methods: {
     actionClicked(action) {
-      console.log('action clicked: ', action)
-      this.$emit('actionClicked', action)
+      if (action === 'merge') {
+        groupAction(this.selection)
+          .then(() => {
+            notifySuccess('Items merged')
+            this.$emit('refresh')
+          })
+          .catch(err => {
+            notifyFailure('Failed to merge items')
+            console.log(err)
+          })
+      } else if (action === 'addToReport') {
+        notifySuccess('Not Yet Implemented')
+      } else if (action === 'deleteItems') {
+        deleteNewsItemAggregate(this.selection)
+          .then(() => {
+            notifySuccess('Items deleted')
+            this.$emit('refresh')
+          })
+          .catch(err => {
+            notifyFailure('Failed to delete items')
+            console.log(err)
+          })
+      }
     }
   },
   computed: {},

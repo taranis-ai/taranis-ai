@@ -1,6 +1,6 @@
 <template>
   <div>
-    <ConfigTable
+    <DataTable
       :addButton="true"
       :items.sync="osint_sources"
       :headerFilter="['tag', 'name', 'description', 'FEED_URL']"
@@ -15,7 +15,7 @@
       <template v-slot:titlebar>
         <ImportExport @import="importData" @export="exportData"></ImportExport>
       </template>
-    </ConfigTable>
+    </DataTable>
     <EditConfig
       v-if="formData && Object.keys(formData).length > 0"
       :configData.sync="formData"
@@ -26,7 +26,7 @@
 </template>
 
 <script>
-import ConfigTable from '../../components/config/ConfigTable'
+import DataTable from '@/components/common/DataTable'
 import EditConfig from '../../components/config/EditConfig'
 import ImportExport from '../../components/config/ImportExport'
 import {
@@ -48,7 +48,7 @@ import {
 export default {
   name: 'OSINTSources',
   components: {
-    ConfigTable,
+    DataTable,
     EditConfig,
     ImportExport
   },
