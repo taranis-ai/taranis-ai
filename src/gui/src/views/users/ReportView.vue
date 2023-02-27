@@ -12,7 +12,6 @@ import { notifySuccess } from '@/utils/helpers'
 export default {
   name: 'ReportView',
   data: () => ({
-    report_item: undefined,
     default_report_item: {
       id: null,
       uuid: null,
@@ -24,16 +23,20 @@ export default {
       remote_report_items: [],
       attributes: []
     },
+    report_item: undefined,
     edit: true
   }),
   components: {
     ReportItem
   },
+  mounted() {
+    this.report_item = this.default_report_item
+  },
   async created() {
     this.report_item = await this.loadReportItem()
     if (this.report_item === undefined) {
-      this.edit = false
       this.report_item = this.default_report_item
+      this.edit = false
     }
   },
   methods: {

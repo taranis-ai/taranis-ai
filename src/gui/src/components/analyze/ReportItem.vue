@@ -76,7 +76,8 @@
                       v-for="attribute_item in attributes[attribute_group.id]"
                       :attribute_item="attribute_item"
                       :key="attribute_item.id"
-                      v-model="values[attribute_item.id]"
+                      :value="attribute_values[attribute_item.id]"
+                      @input="updateAttributeValues(attribute_item.id, $event)"
                     />
                     <!-- v-model="report_item.attributes.find(attr => attr.attribute_group_item_id === attribute_item.id).value" -->
                   </v-expansion-panel-content>
@@ -120,7 +121,7 @@ import { mapActions, mapGetters } from 'vuex'
 export default {
   name: 'ReportItem',
   props: {
-    report_item_prop: Object,
+    report_item_prop: { type: Object, default: () => {}, required: true },
     edit: { type: Boolean, default: false }
   },
   emits: ['reportcreated'],
@@ -136,11 +137,19 @@ export default {
     report_types: [],
     report_types_selection: [],
     attributes: {},
-    values: {}
+    report_item: {}
   }),
+  watch: {
+    report_item_prop(val) {
+      this.report_item = val
+    }
+  },
   computed: {
-    report_item() {
-      return this.report_item_prop
+    attribute_values() {
+      return this.report_item.attributes.reduce((acc, attr) => {
+        acc[attr.attribute_group_item_id] = attr.value
+        return acc
+      }, {})
     },
     report_type: {
       get() {
@@ -193,8 +202,18 @@ export default {
       return result
     },
 
+    updateAttributeValues(key, values) {
+      console.debug(`updating ${key} with ${values}`)
+      this.report_item.attributes.find(
+        (attr) => attr.attribute_group_item_id === parseInt(key)
+      ).value = values
+    },
+
     saveReportItem() {
       if (this.edit) {
+        console.debug(this.report_item.attributes.find(
+          (attr) => attr.value !== ''
+        ))
         updateReportItem(this.report_item.id, this.report_item)
       } else {
         createReportItem(this.report_item).then((response) => {
@@ -205,6 +224,7 @@ export default {
     }
   },
   mounted() {
+    this.report_item = this.report_item_prop
     this.loadReportTypes().then(() => {
       this.report_types = this.getReportTypes().items
       this.report_type = this.report_item.report_item_type_id

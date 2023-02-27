@@ -3,6 +3,7 @@ from datetime import datetime
 import uuid as uuid_generator
 from sqlalchemy import orm, or_, func, text, and_
 from sqlalchemy.sql.expression import cast
+from typing import Any
 import sqlalchemy
 
 from core.managers.db_manager import db
@@ -11,6 +12,7 @@ from core.model.news_item import NewsItemAggregate
 from core.model.report_item_type import AttributeGroupItem
 from core.model.report_item_type import ReportItemType
 from core.model.acl_entry import ACLEntry
+from core.model.user import User
 from shared.schema.acl_entry import ItemType
 from shared.schema.attribute import AttributeType
 from shared.schema.news_item import NewsItemAggregateIdSchema, NewsItemAggregateSchema
@@ -298,11 +300,13 @@ class ReportItem(db.Model):
     def get_json(cls, group, filter, user):
         results, count = cls.get(group, filter, user, True)
         logger.log_debug(f"Found {count} report items with filter {filter}")
-        for result in results:
-            logger.log_debug(result.__dict__)
         report_items_schema = ReportItemPresentationSchema(many=True)
-        logger.log_debug(report_items_schema.dump(results))
         return {"total_count": count, "items": report_items_schema.dump(results)}
+
+    @classmethod
+    def get_aggregate_ids(cls, id):
+        report_item = cls.query.get(id)
+        return [aggregate.id for aggregate in report_item.aggregates]
 
     @classmethod
     def get_detail_json(cls, id):
@@ -323,8 +327,7 @@ class ReportItem(db.Model):
 
     @classmethod
     def add_report_item(cls, report_item_data, user):
-        report_item_schema = NewReportItemSchema()
-        report_item = report_item_schema.load(report_item_data)
+        report_item = NewReportItemSchema().load(report_item_data)
 
         if not ReportItemType.allowed_with_acl(report_item.report_item_type_id, user, False, False, True):
             return report_item, 401
@@ -339,8 +342,7 @@ class ReportItem(db.Model):
 
     @classmethod
     def add_remote_report_items(cls, report_item_data, remote_node_name):
-        report_item_schema = NewReportItemSchema(many=True)
-        report_items = report_item_schema.load(report_item_data)
+        report_items = NewReportItemSchema(many=True).load(report_item_data)
 
         for report_item in report_items:
             original_report_item = cls.find_by_uuid(report_item.uuid)
@@ -357,100 +359,47 @@ class ReportItem(db.Model):
         db.session.commit()
 
     @classmethod
-    def update_report_item(cls, id, data, user):
-        modified = False
-        new_attribute = None
+    def add_aggregates(cls, id: int, aggregate_ids: list, user: User) -> tuple[Any, int]:
         report_item = cls.query.get(id)
-        if report_item is not None:
-            if "update" in data:
-                if "title" in data and report_item.title != data["title"]:
-                    modified = True
-                    report_item.title = data["title"]
-                    data["title"] = ""
+        if report_item is None:
+            return None, 404
 
-                if "title_prefix" in data and report_item.title_prefix != data["title_prefix"]:
-                    modified = True
-                    report_item.title_prefix = data["title_prefix"]
-                    data["title_prefix"] = ""
+        if not ReportItemType.allowed_with_acl(report_item.report_item_type_id, user, False, False, True):
+            return report_item, 401
 
-                if "completed" in data and report_item.completed != data["completed"]:
-                    modified = True
-                    report_item.completed = data["completed"]
-                    data["completed"] = ""
+        for aggregate_id in aggregate_ids:
+            aggregate = NewsItemAggregate.find(aggregate_id)
+            report_item.news_item_aggregates.append(aggregate)
 
-                if "attribute_id" in data:
-                    for attribute in report_item.attributes:
-                        if attribute.id == data["attribute_id"] and attribute.value != data["attribute_value"]:
-                            modified = True
-                            attribute.value = data["attribute_value"]
-                            data["attribute_value"] = ""
-                            attribute.last_updated = datetime.now()
-                            break
+        db.session.commit()
 
-            if "add" in data:
-                if "attribute_id" in data:
-                    modified = True
-                    new_attribute = ReportItemAttribute(None, "", None, 0, None, data["attribute_group_item_id"], None)
-                    report_item.attributes.append(new_attribute)
+        return f"Successfully added {aggregate_ids} to {report_item.id}", 200
 
-                if "aggregate_ids" in data:
-                    modified = True
-                    for aggregate_id in data["aggregate_ids"]:
-                        aggregate = NewsItemAggregate.find(aggregate_id)
-                        report_item.news_item_aggregates.append(aggregate)
+    @classmethod
+    def update_report_item(cls, id: int, data: dict, user: User) -> tuple[Any, int]:
+        report_item = cls.query.get(id)
+        if report_item is None:
+            return None, 404
 
-                if "remote_report_item_ids" in data:
-                    modified = True
-                    for remote_report_item_id in data["remote_report_item_ids"]:
-                        remote_report_item = ReportItem.find(remote_report_item_id)
-                        report_item.remote_report_items.append(remote_report_item)
+        if not ReportItemType.allowed_with_acl(report_item.report_item_type_id, user, False, False, True):
+            return report_item, 401
 
-            if "delete" in data:
-                if "attribute_id" in data:
-                    attribute_to_delete = None
-                    for attribute in report_item.attributes:
-                        if attribute.id == data["attribute_id"]:
-                            attribute_to_delete = attribute
-                            break
+        report_item.title = data["title"]
+        report_item.title_prefix = data["title_prefix"]
+        report_item.completed = data["completed"]
 
-                    if attribute_to_delete is not None:
-                        modified = True
-                        report_item.attributes.remove(attribute_to_delete)
+        attributes = NewReportItemAttributeSchema(many=True).load(data["attributes"])
 
-                if "aggregate_id" in data:
-                    aggregate_to_delete = None
-                    for aggregate in report_item.news_item_aggregates:
-                        if aggregate.id == data["aggregate_id"]:
-                            aggregate_to_delete = aggregate
-                            break
+        report_item.attributes = attributes
 
-                    if aggregate_to_delete is not None:
-                        modified = True
-                        report_item.news_item_aggregates.remove(aggregate_to_delete)
+        if "aggregate_ids" in data:
+            for aggregate_id in data["aggregate_ids"]:
+                aggregate = NewsItemAggregate.find(aggregate_id)
+                report_item.news_item_aggregates.append(aggregate)
 
-                if "remote_report_item_id" in data:
-                    remote_report_item_to_delete = None
-                    for remote_report_item in report_item.remote_report_items:
-                        if remote_report_item.id == data["remote_report_item_id"]:
-                            remote_report_item_to_delete = remote_report_item
-                            break
+        db.session.commit()
 
-                    if remote_report_item_to_delete is not None:
-                        modified = True
-                        report_item.remote_report_items.remove(remote_report_item_to_delete)
-
-            if modified:
-                report_item.last_updated = datetime.now()
-                data["user_id"] = user.id
-                data["report_item_id"] = int(id)
-                report_item.update_cpes()
-
-            db.session.commit()
-
-            if new_attribute is not None:
-                data["attribute_id"] = new_attribute.id
-
-        return modified, data
+        return f"Successfully updated: {report_item.id}", 200
 
     @classmethod
     def get_updated_data(cls, id, data):

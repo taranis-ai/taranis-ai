@@ -6,7 +6,6 @@ from core.managers import asset_manager, auth_manager, sse_manager
 from core.managers.log_manager import logger
 from core.managers.auth_manager import auth_required, ACLCheck
 from core.model import attribute, report_item, report_item_type
-from core.api.config import Attribute, Attributes
 
 
 class ReportTypes(Resource):
@@ -51,6 +50,20 @@ class ReportItems(Resource):
         return new_report_item.id, status
 
 
+class ReportItemAggregates(Resource):
+    @auth_required("ANALYZE_ACCESS", ACLCheck.REPORT_ITEM_ACCESS)
+    def get(self, report_item_id):
+        return report_item.ReportItem.get_aggregate_ids(report_item_id)
+
+    @auth_required("ANALYZE_UPDATE", ACLCheck.REPORT_ITEM_MODIFY)
+    def put(self, report_item_id):
+        request_data = request.json
+        if not request_data:
+            logger.debug("No data in request")
+            return "No data in request", 400
+        return report_item.ReportItem.add_aggregates(report_item_id, request_data, auth_manager.get_user_from_jwt())
+
+
 class ReportItem(Resource):
     @auth_required("ANALYZE_ACCESS", ACLCheck.REPORT_ITEM_ACCESS)
     def get(self, report_item_id):
@@ -58,14 +71,11 @@ class ReportItem(Resource):
 
     @auth_required("ANALYZE_UPDATE", ACLCheck.REPORT_ITEM_MODIFY)
     def put(self, report_item_id):
-        modified, data = report_item.ReportItem.update_report_item(report_item_id, request.json, auth_manager.get_user_from_jwt())
-        if modified is True:
-            updated_report_item = report_item.ReportItem.find(report_item_id)
-            asset_manager.report_item_changed(updated_report_item)
-            sse_manager.report_item_updated(data)
-            sse_manager.remote_access_report_items_updated(updated_report_item.report_item_type_id)
-
-        return data
+        request_data = request.json
+        if not request_data:
+            logger.debug("No data in request")
+            return "No data in request", 400
+        return report_item.ReportItem.update_report_item(report_item_id, request_data, auth_manager.get_user_from_jwt())
 
     @auth_required("ANALYZE_DELETE", ACLCheck.REPORT_ITEM_MODIFY)
     def delete(self, report_item_id):
@@ -189,6 +199,7 @@ def initialize(api):
     api.add_resource(ReportItemGroups, "/api/v1/analyze/report-item-groups")
     api.add_resource(ReportItems, "/api/v1/analyze/report-items")
     api.add_resource(ReportItem, "/api/v1/analyze/report-items/<int:report_item_id>")
+    api.add_resource(ReportItemAggregates, "/api/v1/analyze/report-items/<int:report_item_id>/aggregates")
     api.add_resource(ReportItemData, "/api/v1/analyze/report-items/<int:report_item_id>/data")
     api.add_resource(ReportItemLocks, "/api/v1/analyze/report-items/<int:report_item_id>/field-locks")
     api.add_resource(

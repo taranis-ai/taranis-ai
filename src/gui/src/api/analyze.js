@@ -67,6 +67,10 @@ export function updateReportItem (report_item_id, data) {
   return ApiService.put(`/analyze/report-items/${report_item_id}`, data)
 }
 
+export function addAggregatesToReportItem (report_item_id, data) {
+  return ApiService.put(`/analyze/report-items/${report_item_id}/aggregates`, data)
+}
+
 export function getReportItemLocks (report_item_id) {
   return ApiService.get(`/analyze/report-items/${report_item_id}/field-locks`)
 }

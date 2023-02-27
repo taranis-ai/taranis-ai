@@ -18,7 +18,7 @@ export default {
   props: {
     value: {
       type: String,
-      default: '',
+      default: 'CVSS:3.1/AV:L/AC:L/PR:N/UI:N/S:C/C:N/I:N/A:L',
       required: true
     }
   },

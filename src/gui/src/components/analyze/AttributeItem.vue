@@ -113,7 +113,7 @@
   </div>
 </template>
 
-// ATTACHMENT: 'Attachment', // CVSS: 'CVSS'
+// ATTACHMENT: 'Attachment'
 
 <script>
 import AttributeCVSS from './AttributeCVSS.vue'
