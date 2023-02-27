@@ -680,8 +680,7 @@ class NewsItemAggregate(db.Model):
 
             news_item_aggregate.in_reports_count = ReportItemNewsItemAggregate.count(news_item_aggregate.id)
 
-        news_item_aggregate_schema = NewsItemAggregateSchema(many=True)
-        items = news_item_aggregate_schema.dump(news_item_aggregates)
+        items = NewsItemAggregateSchema(many=True).dump(news_item_aggregates)
 
         return {"total_count": count, "items": items}
 

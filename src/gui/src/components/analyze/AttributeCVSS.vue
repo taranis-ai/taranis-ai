@@ -24,8 +24,10 @@ export default {
   },
   methods: {
     onChange() {
-      console.debug(this.cvss.get().vector)
-      this.$emit('input', this.cvss.get().vector)
+      const vector = this.cvss.get().vector
+      if (vector !== 'CVSS:3.0/AV:_/AC:_/PR:_/UI:_/S:_/C:_/I:_/A:_') {
+        this.$emit('input', this.cvss.get().vector)
+      }
     }
   },
   mounted() {

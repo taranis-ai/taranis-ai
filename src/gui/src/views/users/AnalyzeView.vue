@@ -54,7 +54,7 @@ export default {
   }),
   methods: {
     ...mapActions('analyze', ['loadReportItems', 'loadReportTypes']),
-    ...mapGetters('analyze', ['getReportItems']),
+    ...mapGetters('analyze', ['getReportItems', 'getReportTypes']),
     ...mapActions(['updateItemCount']),
     updateData() {
       this.loadReportItems().then(() => {

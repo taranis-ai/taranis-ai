@@ -204,16 +204,16 @@ export default {
 
     updateAttributeValues(key, values) {
       console.debug(`updating ${key} with ${values}`)
-      this.report_item.attributes.find(
+      const attribute = this.report_item.attributes.find(
         (attr) => attr.attribute_group_item_id === parseInt(key)
-      ).value = values
+      )
+      if (attribute) {
+        attribute.value = values
+      }
     },
 
     saveReportItem() {
       if (this.edit) {
-        console.debug(this.report_item.attributes.find(
-          (attr) => attr.value !== ''
-        ))
         updateReportItem(this.report_item.id, this.report_item)
       } else {
         createReportItem(this.report_item).then((response) => {
@@ -230,10 +230,6 @@ export default {
       this.report_type = this.report_item.report_item_type_id
       console.debug('REPORT ITEM')
       console.debug(this.report_item)
-      console.debug('Report Types')
-      console.debug(this.report_types)
-      console.debug('Report Type')
-      console.debug(this.report_type)
     })
   },
   beforeDestroy() {}
