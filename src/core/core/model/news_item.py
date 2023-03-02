@@ -278,6 +278,12 @@ class NewsItem(db.Model):
         if "relevant" in filter and filter["relevant"].lower() == "true":
             query = query.filter(NewsItem.likes > 0)
 
+        if "in_report" in filter and filter["in_report"].lower() == "true":
+            query = query.join(
+                ReportItemNewsItemAggregate,
+                NewsItemAggregate.id == ReportItemNewsItemAggregate.news_item_aggregate_id,
+            )
+
         if "range" in filter and filter["range"] != "ALL":
             date_limit = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
 
@@ -705,7 +711,7 @@ class NewsItemAggregate(db.Model):
 
     @classmethod
     def create_new_for_all_groups(cls, news_item_data):
-        groups = OSINTSourceGroup.get_all_with_source(news_item_data.osint_source_id)
+        groups = OSINTSourceGroup.get_for_osint_source(news_item_data.osint_source_id)
         for group in groups:
             news_item = NewsItem()
             news_item.news_item_data = news_item_data

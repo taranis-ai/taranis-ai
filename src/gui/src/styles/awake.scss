@@ -1313,48 +1313,9 @@ a.item-action-btn {
   }
 }
 
-.hidden-story-items-wrapper {
-  overflow: hidden;
-  max-height: 0;
-  transition: max-height 400ms cubic-bezier(0, 1, 0, 1);
-
-  &.expanded {
-    max-height: 1000px;
-    transition: max-height 600ms ease-in-out;
-  }
-}
-
-.hidden-story-items-internal-wrapper {
-  overflow: hidden;
-  transition: all 250ms ease;
-  height: auto;
-  flex: 1;
-  position: relative;
-}
-
 .collapse {
   &-enter,
   &-leave-to {
     flex: 0;
   }
-}
-
-.hidden-story-items-internal-wrapper .story-news-item {
-  border-left: 2px solid #ddd;
-}
-
-.hidden-story-items-internal-wrapper .story-news-item:last-child {
-  border-color: transparent;
-}
-
-.hidden-story-items-internal-wrapper .story-news-item::before {
-  content: '';
-  display: block;
-  position: absolute;
-  top: 0;
-  left: 5%;
-  width: 50%;
-  height: 50%;
-  border: dotted #c5c5c5;
-  border-width: 0 0 3px 3px;
 }

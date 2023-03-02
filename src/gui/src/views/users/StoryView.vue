@@ -1,6 +1,6 @@
 <template>
-  <v-container fluid style="min-height: 100vh">
-    <card-story :story="story" />
+  <v-container fluid style="min-height: 100vh" v-if="story">
+    <card-story :story="story" :detailView="true"/>
   </v-container>
 </template>
 
@@ -11,7 +11,7 @@ import CardStory from '@/components/assess/CardStory'
 export default {
   name: 'StoryView',
   data: () => ({
-    story: {}
+    story: null
   }),
   components: {
     CardStory
