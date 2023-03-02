@@ -4,7 +4,7 @@ import threading
 import time
 import json
 
-from core.managers import sse_manager
+from core.managers.sse_manager import sse_manager
 from core.model.news_item import NewsItemAggregate
 from core.model.remote import RemoteAccess, RemoteNode
 from core.model.report_item import ReportItem

@@ -1,5 +1,6 @@
 <template>
   <v-container fluid>
+    {{ clusters }}
     <v-row no-gutters>
       <v-col cols="4" class="pa-2 mb-8">
           <v-card class="mt-4 mx-auto" max-width="100%">
@@ -68,7 +69,8 @@ export default {
   name: 'Home',
   components: {},
   data: () => ({
-    dashboardData: {}
+    dashboardData: {},
+    clusters: []
   }),
   computed: {
     totalItems() {
@@ -76,13 +78,16 @@ export default {
     }
   },
   methods: {
-    ...mapActions('dashboard', ['loadDashboardData']),
-    ...mapGetters('dashboard', ['getDashboardData']),
+    ...mapActions('dashboard', ['loadDashboardData', 'loadClusters']),
+    ...mapGetters('dashboard', ['getDashboardData', 'getClusters']),
     ...mapGetters(['getItemCount'])
   },
   mounted() {
     this.loadDashboardData().then(() => {
       this.dashboardData = this.getDashboardData()
+    })
+    this.loadClusters().then(() => {
+      this.clusters = this.getClusters()
     })
   }
 }

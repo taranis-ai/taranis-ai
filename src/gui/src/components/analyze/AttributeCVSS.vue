@@ -1,5 +1,13 @@
 <template>
-  <div id="cvssboard" ref="cvssboard"></div>
+  <div>
+  <v-text-field
+    name="cvss"
+    v-model="vector"
+    prepend-icon="mdi-chevron-down"
+    @click:prepend="open = !open"
+  />
+  <div v-show="open" id="cvssboard" ref="cvssboard"></div>
+  </div>
 </template>
 
 <style src="@/assets/cvss.css">
@@ -10,16 +18,29 @@ import { CVSS } from '@/plugins/cvss.js'
 
 export default {
   name: 'AttributeCVSS',
-  components: {},
   emits: ['input'],
   data: () => ({
-    cvss: null
+    cvss: null,
+    open: true
   }),
   props: {
     value: {
       type: String,
       default: 'CVSS:3.1/AV:L/AC:L/PR:N/UI:N/S:C/C:N/I:N/A:L',
       required: true
+    }
+  },
+  computed: {
+    vector: {
+      get() {
+        if (!this.cvss) {
+          return this.value
+        }
+        return this.cvss.get().vector
+      },
+      set(value) {
+        this.cvss.set(value)
+      }
     }
   },
   methods: {

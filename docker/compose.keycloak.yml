@@ -8,13 +8,6 @@ x-logging:
         max-file: "10"
 
 services:
-  redis:
-    image: "redis:${REDIS_TAG}"
-    restart: unless-stopped
-    volumes:
-      - "redis_conf:/usr/local/etc/redis"
-    logging: *default-logging
-
   database:
     image: "postgres:${POSTGRES_TAG}"
     restart: unless-stopped
@@ -29,7 +22,6 @@ services:
 
   core:
     depends_on: 
-      - "redis"
       - "database"
     restart: unless-stopped
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-core:${TARANIS_NG_TAG}"
@@ -39,7 +31,6 @@ services:
 #   ports: 
 #     - "5000:80"
     environment: 
-      REDIS_URL: "redis://redis"
       DB_URL: "database"
       DB_DATABASE: "taranis-ng"
       DB_USER: "taranis-ng"
@@ -241,7 +232,6 @@ services:
 
 
 volumes:
-  redis_conf:
   database_data:
   keycloak_database_data:
   core_data:

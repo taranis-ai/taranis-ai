@@ -1,4 +1,4 @@
-import { getReportItemData, holdLockReportItem, lockReportItem, unlockReportItem, updateReportItem } from '@/api/analyze'
+import { getReportItemData, lockReportItem, unlockReportItem, updateReportItem } from '@/api/analyze'
 import AuthMixin from '@/services/auth/auth_mixin'
 import Permissions from '@/services/auth/permissions'
 
@@ -119,11 +119,6 @@ const AttributesMixin = {
     onKeyUp (field_index) {
       if (this.edit === true) {
         clearTimeout(this.key_timeout)
-        const self = this
-        this.key_timeout = setTimeout(function () {
-          holdLockReportItem(self.report_item_id, { field_id: self.values[field_index].id }).then(() => {
-          })
-        }, 1000)
       }
     },
 

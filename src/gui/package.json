@@ -47,7 +47,7 @@
     "papaparse": "^5.3.2",
     "vee-validate": "^2.2.15",
     "vue": "^2.7.14",
-    "vue-calendar-heatmap": "^0.8.4",
+    "vue-chartjs": "4.1.2",
     "vue-cookies": "^1.8.1",
     "vue-i18n": "^8.28.2",
     "vue-keypress": "^1.4.0",

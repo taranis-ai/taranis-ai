@@ -273,7 +273,6 @@ import {
   updateReportItem,
   lockReportItem,
   unlockReportItem,
-  holdLockReportItem,
   getReportItem,
   getReportItemData,
   getReportItemLocks
@@ -1122,12 +1121,6 @@ export default {
     onKeyUp(field_id) {
       if (this.edit === true) {
         clearTimeout(this.key_timeout)
-        const self = this
-        this.key_timeout = setTimeout(function () {
-          holdLockReportItem(self.report_item.id, { field_id: field_id }).then(
-            () => {}
-          )
-        }, 1000)
       }
     },
 

@@ -57,16 +57,16 @@ export default {
     shortText(item) {
       return item.length > 20 ? item.substring(0, 20) + '...' : item
     },
-    querySelections(filter) {
+    async querySelections(filter) {
       this.loading = true
-      getTags(filter).then((res) => {
+      await getTags(filter).then((res) => {
         this.available_tags = res.data
         this.loading = false
       })
     }
   },
-  mounted() {
-    this.querySelections()
+  async mounted() {
+    await this.querySelections()
   }
 }
 </script>

@@ -76,18 +76,17 @@ class User(db.Model):
             query = query.join(UserOrganization, User.id == UserOrganization.user_id)
 
         if search is not None:
-            search_string = f"%{search.lower()}%"
             query = query.filter(
                 or_(
-                    func.lower(User.name).like(search_string),
-                    func.lower(User.username).like(search_string),
+                    User.name.ilike(f"%{search}%"),
+                    User.username.ilike(f"%{search}%"),
                 )
             )
 
         return query.order_by(db.asc(User.name)).all(), query.count()
 
     @classmethod
-    def get_all_json(cls, search):
+    def get_all_json(cls, search=None):
         users, count = cls.get(search, None)
         user_schema = UserPresentationSchema(many=True)
         return {"total_count": count, "items": user_schema.dump(users)}

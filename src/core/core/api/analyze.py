@@ -2,7 +2,8 @@ import io
 from flask import request, jsonify, send_file
 from flask_restful import Resource
 
-from core.managers import asset_manager, auth_manager, sse_manager
+from core.managers import asset_manager, auth_manager
+from core.managers.sse_manager import sse_manager
 from core.managers.log_manager import logger
 from core.managers.auth_manager import auth_required, ACLCheck
 from core.model import attribute, report_item, report_item_type
@@ -124,23 +125,16 @@ class ReportItemLocks(Resource):
 
 class ReportItemLock(Resource):
     @auth_required("ANALYZE_UPDATE", ACLCheck.REPORT_ITEM_MODIFY)
-    def put(self, report_item_id, field_id):
+    def put(self, report_item_id):
         if user := auth_manager.get_user_from_jwt():
-            sse_manager.report_item_lock(report_item_id, field_id, user.id)
+            sse_manager.report_item_lock(report_item_id, user.id)
 
 
 class ReportItemUnlock(Resource):
     @auth_required("ANALYZE_UPDATE", ACLCheck.REPORT_ITEM_MODIFY)
-    def put(self, report_item_id, field_id):
+    def put(self, report_item_id):
         if user := auth_manager.get_user_from_jwt():
-            sse_manager.report_item_unlock(report_item_id, field_id, user.id)
-
-
-class ReportItemHoldLock(Resource):
-    @auth_required("ANALYZE_UPDATE", ACLCheck.REPORT_ITEM_MODIFY)
-    def put(self, report_item_id, field_id):
-        if user := auth_manager.get_user_from_jwt():
-            sse_manager.report_item_hold_lock(report_item_id, field_id, user.id)
+            sse_manager.report_item_unlock(report_item_id, user.id)
 
 
 class ReportItemAttributeEnums(Resource):
@@ -201,18 +195,14 @@ def initialize(api):
     api.add_resource(ReportItem, "/api/v1/analyze/report-items/<int:report_item_id>")
     api.add_resource(ReportItemAggregates, "/api/v1/analyze/report-items/<int:report_item_id>/aggregates")
     api.add_resource(ReportItemData, "/api/v1/analyze/report-items/<int:report_item_id>/data")
-    api.add_resource(ReportItemLocks, "/api/v1/analyze/report-items/<int:report_item_id>/field-locks")
+    api.add_resource(ReportItemLocks, "/api/v1/analyze/report-items/<int:report_item_id>/locks")
     api.add_resource(
         ReportItemLock,
-        "/api/v1/analyze/report-items/<int:report_item_id>/field-locks/<int:field_id>/lock",
+        "/api/v1/analyze/report-items/<int:report_item_id>/lock",
     )
     api.add_resource(
         ReportItemUnlock,
-        "/api/v1/analyze/report-items/<int:report_item_id>/field-locks/<int:field_id>/unlock",
-    )
-    api.add_resource(
-        ReportItemHoldLock,
-        "/api/v1/analyze/report-items/<int:report_item_id>/field-locks/<int:field_id>/hold",
+        "/api/v1/analyze/report-items/<int:report_item_id>/unlock",
     )
     api.add_resource(
         ReportItemAddAttachment,

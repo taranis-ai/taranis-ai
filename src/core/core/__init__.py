@@ -16,19 +16,21 @@ def create_app():
     app.config.from_object("core.config.Config")
 
     with app.app_context():
-        CORS(app)
-
-        log_manager.logger.log_info(f"Connecting Database: {app.config.get('SQLALCHEMY_DATABASE_URI')}")
-        db_manager.initialize(app)
-        log_manager.logger.log_info("DB Done")
-
-        auth_manager.initialize(app)
-        api_manager.initialize(app)
-
-        sse_manager.initialize(app)
-        remote_manager.initialize(app)
-        tagcloud_manager.initialize(app)
-        log_manager.logger.log_info("All Done")
-        # import test
+        initialize_managers(app)
 
     return app
+
+
+def initialize_managers(app):
+    CORS(app)
+
+    log_manager.logger.log_info(f"Connecting Database: {app.config.get('SQLALCHEMY_DATABASE_URI')}")
+    db_manager.initialize(app)
+    log_manager.logger.log_info("DB Done")
+
+    auth_manager.initialize(app)
+    api_manager.initialize(app)
+
+    remote_manager.initialize(app)
+    tagcloud_manager.initialize(app)
+    log_manager.logger.log_info("All Done")

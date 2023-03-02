@@ -1145,8 +1145,32 @@ class NewsItemTag(db.Model):
         return cls.query.filter(cls.name.ilike(f"%{tag_name}%"))
 
     @classmethod
-    def get_json(cls, tag_name=""):
-        rows = cls.search(tag_name).all()
+    def find_largest_tag_clusters(cls, days=7, limit=10):
+        start_date = datetime.now() - timedelta(days=days)
+        clusters = (
+            cls.query.join(NewsItemAggregate)
+            .join(NewsItem)
+            .join(NewsItemData)
+            .filter(NewsItemData.published >= start_date)
+            .group_by(cls.name, cls.id)
+            .order_by(func.count().desc())
+            .having(func.count() > 1)
+            .limit(limit)
+            .all()
+        )
+        return [{"name": cluster.name, "size": len(cluster.n_i_a.news_items)} for cluster in clusters]
+
+    @classmethod
+    def get_json(cls, filter_args: dict):
+        query = cls.query
+
+        if search := filter_args.get("search", None):
+            query = query.filter(cls.name.ilike(f"%{search}%"))
+
+        offset = filter_args.get("offset", 0)
+        limit = filter_args.get("limit", 20)
+        rows = query.offset(offset).limit(limit).all()
+        # count = query.count()
         return [row.name for row in rows]
 
     @classmethod

@@ -1,20 +1,6 @@
 version: "3.9"
 
 services:
-  redis:
-    image: "redis:${REDIS_TAG}"
-    deploy:
-      restart_policy:
-        condition: on-failure
-        max_attempts: 3
-    volumes:
-      - "redis_conf:/usr/local/etc/redis"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "200k"
-        max-file: "10"
-
   database:
     image: "postgres:${POSTGRES_TAG}"
     #ports:
@@ -43,8 +29,6 @@ services:
 
   core:
     depends_on:
-      redis:
-        condition: service_started
       database:
         condition: service_healthy
     deploy:
@@ -55,7 +39,6 @@ services:
 #   ports:
 #     - "5000:80"
     environment:
-      REDIS_URL: "redis://redis"
       DB_URL: "${DB_URL}"
       DB_DATABASE: "${DB_DATABASE}"
       DB_USER: "${DB_USER}"
@@ -248,7 +231,6 @@ services:
         max-file: "10"
 
 volumes:
-  redis_conf:
   database_data:
   core_data:
   presenters_templates:

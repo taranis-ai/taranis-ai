@@ -13,7 +13,6 @@ class Settings(BaseSettings):
 
     JWT_IDENTITY_CLAIM: str = "sub"
     JWT_ACCESS_TOKEN_EXPIRES: int = 14400
-    REDIS_URL: str = "redis://localhost"
 
     DB_URL: str = "localhost"
     DB_DATABASE: str = "taranis"

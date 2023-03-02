@@ -83,19 +83,17 @@ class RemoteAccess(db.Model):
 
     @classmethod
     def find_by_access_key(cls, access_key):
-        remote_access = cls.query.filter(RemoteAccess.access_key == access_key).scalar()
-        return remote_access
+        return cls.query.filter(RemoteAccess.access_key == access_key).scalar()
 
     @classmethod
     def get(cls, search):
         query = cls.query
 
         if search is not None:
-            search_string = "%" + search.lower() + "%"
             query = query.filter(
                 or_(
-                    func.lower(RemoteAccess.name).like(search_string),
-                    func.lower(RemoteAccess.description).like(search_string),
+                    func(RemoteAccess.name).ilike(f"%{search}%"),
+                    func(RemoteAccess.description).ilike(f"%{search}%"),
                 )
             )
 
@@ -108,7 +106,7 @@ class RemoteAccess(db.Model):
         return {"total_count": count, "items": schema.dump(remote_accesses)}
 
     @classmethod
-    def get_relevant_for_news_items(cls, osint_source_ids):
+    def get_relevant_for_news_items(cls, osint_source_ids) -> set[int]:
         query = db.session.query(RemoteAccess.event_id).join(
             RemoteAccessOSINTSource,
             and_(
@@ -118,14 +116,10 @@ class RemoteAccess(db.Model):
         )
 
         response = query.all()
-        ids = set()
-        for rows in response:
-            ids.add(rows[0])
-
-        return list(ids)
+        return {rows.id for rows in response}
 
     @classmethod
-    def get_relevant_for_report_item(cls, report_type_id):
+    def get_relevant_for_report_item(cls, report_type_id) -> set[int]:
         query = db.session.query(RemoteAccess.event_id).join(
             RemoteAccessReportItemType,
             and_(
@@ -135,11 +129,7 @@ class RemoteAccess(db.Model):
         )
 
         response = query.all()
-        ids = set()
-        for rows in response:
-            ids.add(rows[0])
-
-        return list(ids)
+        return {rows.id for rows in response}
 
     @classmethod
     def add(cls, data):

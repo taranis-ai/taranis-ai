@@ -46,6 +46,12 @@
               order="1"
               order-sm="1"
             >
+              <v-icon
+                v-if="story_in_report"
+                class="flipped-icon mr-2 ml-n4 mt-n5"
+                >mdi-share</v-icon
+              >
+              <v-icon small v-if="is_summarized">mdi-check</v-icon>
               <h2 class="news-item-title">
                 {{ story.title }}
               </h2>
@@ -95,7 +101,9 @@
                 @click.stop="openSummary = !openSummary"
               >
                 <span>{{ news_item_summary_text }}</span>
-                <span v-if="news_item_length > 1" class="primary--text">&nbsp;[{{ news_item_length }}]</span>
+                <span v-if="news_item_length > 1" class="primary--text"
+                  >&nbsp;[{{ news_item_length }}]</span
+                >
                 <v-icon right>mdi-chevron-down</v-icon>
               </v-btn>
 
@@ -109,31 +117,6 @@
                 <span>mark as read</span>
                 <v-icon right>mdi-eye-outline</v-icon>
               </v-btn>
-
-              <div class="item-action-btn btn-group">
-                <v-btn
-                  small
-                  outlined
-                  v-on:click.stop="upvote()"
-                  v-ripple="false"
-                >
-                  <span>{{ likes }}</span>
-                  <v-icon right color="awake-green-color"
-                    >mdi-arrow-up-circle-outline</v-icon
-                  >
-                </v-btn>
-                <v-btn
-                  small
-                  outlined
-                  v-on:click.stop="downvote()"
-                  v-ripple="false"
-                >
-                  <span>{{ dislikes }}</span>
-                  <v-icon right color="awake-red-color"
-                    >mdi-arrow-down-circle-outline</v-icon
-                  >
-                </v-btn>
-              </div>
 
               <v-menu bottom offset-y>
                 <template v-slot:activator="{ on, attrs }">
@@ -200,19 +183,11 @@
                   </v-col>
                   <v-col>
                     <span :class="published_date_outdated ? 'red--text' : ''">
-                      {{ $d(getPublishedDate(), 'long') }}
+                      {{ getPublishedDate() }}
                     </span>
                     <v-icon v-if="published_date_outdated" small color="red"
                       >mdi-alert</v-icon
                     >
-                  </v-col>
-                </v-row>
-                <v-row class="news-item-meta-infos">
-                  <v-col class="news-item-meta-infos-label">
-                    <strong>{{ $t('card_item.created') }}:</strong>
-                  </v-col>
-                  <v-col>
-                    {{ $d(getCollectedDate(), 'long') }}
                   </v-col>
                 </v-row>
                 <v-row class="news-item-meta-infos">
@@ -224,7 +199,7 @@
                       <span
                         class="plain-tags"
                         v-for="(tag, i) in getTags()"
-                        v-bind:key="tag+i"
+                        v-bind:key="tag + i"
                       >
                         <a href="#">{{ tag }}</a
                         >,
@@ -232,15 +207,14 @@
                     </div>
                   </v-col>
                 </v-row>
-                <!-- <v-row class="news-item-meta-infos mb-2">
-                  <v-col class="news-item-meta-infos-label d-flex align-center">
-                    <strong>Summarzied:</strong>
-                  </v-col>
-                  <v-col>
-                    <v-icon small v-if="isSummarized()">mdi-check</v-icon>
-                    <v-icon small v-else>mdi-close</v-icon>
-                  </v-col>
-                </v-row> -->
+                <v-row>
+                  <LineChart
+                    :chart-options="chartOptions"
+                    :chart-data="chart_data"
+                    :width="400"
+                    :height="200"
+                  />
+                </v-row>
                 <metainfo
                   v-if="openSummary && news_item_length == 1"
                   :newsItem="story.news_items[0]"
@@ -283,13 +257,33 @@ import metainfo from '@/components/assess/card/metainfo'
 import CardNewsItem from '@/components/assess/CardNewsItem'
 
 import { mapGetters } from 'vuex'
+import { Line as LineChart } from 'vue-chartjs/legacy'
+import {
+  Chart as ChartJS,
+  Title,
+  Tooltip,
+  Legend,
+  LineElement,
+  LinearScale,
+  CategoryScale,
+  PointElement
+} from 'chart.js'
 
 import {
   deleteNewsItemAggregate,
   importantNewsItemAggregate,
-  readNewsItemAggregate,
-  voteNewsItemAggregate
+  readNewsItemAggregate
 } from '@/api/assess'
+
+ChartJS.register(
+  Title,
+  Tooltip,
+  Legend,
+  LineElement,
+  LinearScale,
+  CategoryScale,
+  PointElement
+)
 
 export default {
   name: 'CardStory',
@@ -297,7 +291,8 @@ export default {
     CardNewsItem,
     PopupDeleteItem,
     PopupShareItems,
-    metainfo
+    metainfo,
+    LineChart
   },
   emits: ['selectItem', 'deleteItem'],
   props: {
@@ -312,29 +307,87 @@ export default {
     openSummary: false,
     sharingDialog: false,
     deleteDialog: false,
-    likes: 0,
-    dislikes: 0,
-    showDialog: false
+    showDialog: false,
+    chartOptions: {
+      responsive: true,
+      maintainAspectRatio: false
+    }
   }),
   computed: {
     item_important() {
       return 'important' in this.story ? this.story.important : false
     },
-    published_date() {
-      return this.story.news_items[0].news_item_data.published || false
+    published_date_newest() {
+      return (
+        this.story.news_items
+          .map((item) => item.news_item_data.published)
+          .sort()[0] || false
+      )
+    },
+
+    published_date_oldest() {
+      return (
+        this.story.news_items
+          .map((item) => item.news_item_data.published)
+          .sort()[this.news_item_length - 1] || false
+      )
     },
     news_item_summary_class() {
       return this.openSummary
         ? 'news-item-summary-no-clip'
         : 'news-item-summary'
     },
+
+    story_in_report() {
+      return this.story.in_reports_count > 0
+    },
+
+    last_seven_days() {
+      return Array.from(Array(7).keys(), (i) => {
+        const date = new Date()
+        date.setDate(date.getDate() - i)
+        return date.toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })
+      })
+    },
+
+    news_items_per_day() {
+      const days = this.last_seven_days
+      const items_per_day = this.story.news_items.reduce((acc, item) => {
+        const day = new Date(item.news_item_data.published).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })
+        if (day in acc) {
+          acc[day] += 1
+        } else {
+          acc[day] = 1
+        }
+        return acc
+      }, {})
+
+      return days.map(day => {
+        if (day in items_per_day) {
+          return items_per_day[day]
+        } else {
+          return 0
+        }
+      })
+    },
+
+    chart_data() {
+      return {
+        labels: this.last_seven_days,
+        datasets: [
+          {
+            label: 'Anzahl der Artikel',
+            data: this.news_items_per_day
+          }
+        ]
+      }
+    },
+
     news_item_length() {
       return this.story.news_items.length
     },
     news_item_summary_text() {
-      return this.openSummary
-        ? 'Close'
-        : 'Open'
+      return this.openSummary ? 'Close' : 'Open'
     },
     minButtonWidth() {
       const longestText = `${
@@ -353,6 +406,9 @@ export default {
     },
     story_in_reports() {
       return this.story ? this.story.in_reports_count : 0
+    },
+    is_summarized() {
+      return this.story.summary !== undefined && this.story.summary !== ''
     }
   },
   methods: {
@@ -371,14 +427,6 @@ export default {
       deleteNewsItemAggregate(this.story.id)
       this.$emit('deleteItem', this.story.id)
     },
-    upvote() {
-      this.likes += 1
-      voteNewsItemAggregate(this.story.id, 1)
-    },
-    downvote() {
-      this.dislikes += 1
-      voteNewsItemAggregate(this.story.id, -1)
-    },
     addToReport() {
       this.sharingDialog = true
     },
@@ -388,10 +436,6 @@ export default {
 
     updateDetailsView(value) {
       this.viewDetails = value
-    },
-
-    isSummarized() {
-      return this.story.summary !== undefined && this.story.summary !== ''
     },
 
     getDescription() {
@@ -404,11 +448,16 @@ export default {
     },
 
     getPublishedDate() {
-      const published = this.published_date
-      if (published) {
-        return new Date(published)
+      const pubDateNew = new Date(this.published_date_newest)
+      const pubDateNewStr = this.$d(pubDateNew, 'short')
+      const pubDateOld = new Date(this.published_date_oldest)
+      const pubDateOldStr = this.$d(pubDateOld, 'short')
+      if (pubDateNew && pubDateOld) {
+        return pubDateNewStr === pubDateOldStr
+          ? pubDateNewStr
+          : `${pubDateOldStr} - ${pubDateNewStr}`
       }
-      return '** no published date **'
+      return ''
     },
 
     getCollectedDate() {
@@ -427,9 +476,6 @@ export default {
   updated() {
     // console.log('card rendered!')
   },
-  mounted() {
-    this.likes = this.story ? this.story.likes : 0
-    this.dislikes = this.story ? this.story.dislikes : 0
-  }
+  mounted() {}
 }
 </script>

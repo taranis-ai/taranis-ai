@@ -1,7 +1,8 @@
 from flask import request
-from flask_restful import Resource, reqparse
+from flask_restful import Resource
 
-from core.managers import sse_manager, collectors_manager
+from core.managers import collectors_manager
+from core.managers.sse_manager import sse_manager
 from core.managers.auth_manager import api_key_required
 from core.managers.log_manager import logger
 from core.model import osint_source, news_item, collectors_node

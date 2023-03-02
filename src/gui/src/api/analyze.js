@@ -72,19 +72,15 @@ export function addAggregatesToReportItem (report_item_id, data) {
 }
 
 export function getReportItemLocks (report_item_id) {
-  return ApiService.get(`/analyze/report-items/${report_item_id}/field-locks`)
+  return ApiService.get(`/analyze/report-items/${report_item_id}/locks`)
 }
 
 export function lockReportItem (report_item_id, data) {
-  return ApiService.put(`/analyze/report-items/${report_item_id}/field-locks/${data.field_id}/lock`, data)
+  return ApiService.put(`/analyze/report-items/${report_item_id}/lock`, data)
 }
 
 export function unlockReportItem (report_item_id, data) {
-  return ApiService.put(`/analyze/report-items/${report_item_id}/field-locks/${data.field_id}/unlock`, data)
-}
-
-export function holdLockReportItem (report_item_id, data) {
-  return ApiService.put(`/analyze/report-items/${report_item_id}/field-locks/${data.field_id}/hold`, data)
+  return ApiService.put(`/analyze/report-items/${report_item_id}/unlock`, data)
 }
 
 export function getAllReportTypes () {

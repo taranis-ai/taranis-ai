@@ -1,4 +1,4 @@
-import { getDashboardData } from '@/api/dashboard'
+import { getDashboardData, getTrendingClusters } from '@/api/dashboard'
 
 const state = {
   dashboard_data: {
@@ -10,7 +10,7 @@ const state = {
     latest_collected: '',
     tag_cloud: {}
   },
-  stories: []
+  clusters: []
 }
 
 const actions = {
@@ -22,17 +22,12 @@ const actions = {
       })
   },
 
-  loadStories(context) {
-    return getDashboardData()
+  loadClusters(context) {
+    return getTrendingClusters()
       .then(response => {
-        context.commit('setStories', response.data)
+        context.commit('setClusters', response.data)
       })
-  },
-
-  createStory(context, mergedStory) {
-    context.commit('createStory', mergedStory)
   }
-
 }
 
 const mutations = {
@@ -40,35 +35,18 @@ const mutations = {
     state.dashboard_data = data
   },
 
-  setStories (state, stories) {
-    state.stories = stories
-  },
-
-  createStory (state, mergedStory) {
-    state.stories.push(mergedStory)
+  setClusters (state, clusters) {
+    state.clusters = clusters
   }
-
 }
 
 const getters = {
-  getStories(state) {
-    return state.stories
+  getClusters(state) {
+    return state.clusters
   },
 
   getDashboardData(state) {
     return state.dashboard_data
-  },
-
-  getNewsItemIds: (state) => (id) => {
-    return state.stories.find(story => story.id === id).items.ids
-  },
-
-  getStoryById: (state) => (id) => {
-    return state.stories.find(story => story.id === id)
-  },
-
-  getStoryTitleById: (state) => (id) => {
-    return state.stories.find(story => story.id === id).title
   }
 }
 

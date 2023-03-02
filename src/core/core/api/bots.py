@@ -1,9 +1,10 @@
 from flask import request
 import json
-from flask_restful import Resource, reqparse
+from flask_restful import Resource
 from datetime import datetime, timedelta
 
-from core.managers import sse_manager, bots_manager
+from core.managers import bots_manager
+from core.managers.sse_manager import sse_manager
 from core.managers.log_manager import logger
 from core.managers.auth_manager import api_key_required
 from core.model import news_item, word_list, bots_node, bot

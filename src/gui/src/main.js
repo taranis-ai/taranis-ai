@@ -16,13 +16,12 @@ import DatePicker from 'vue2-datepicker'
 import 'vue2-datepicker/index.css'
 
 import layout_config from './assets/layout_config'
-import VueCalendarHeatmap from 'vue-calendar-heatmap'
 import vuetify from '@/plugins/vuetify'
 
 const CSL = {
   install(Vue) {
     Vue.prototype.UI = layout_config
-    this.UI = () => { }
+    this.UI = () => {}
   }
 }
 Vue.use(CSL)
@@ -33,12 +32,14 @@ Vue.use(require('vue-cookies'))
 Vue.use(VueCookies)
 Vue.use(VueSSE)
 Vue.use(DatePicker)
-Vue.use(VueCalendarHeatmap)
 
 Vue.use(VueI18n)
 
 const i18n = new VueI18n({
-  locale: ((typeof (process.env.VUE_APP_TARANIS_NG_LOCALE) === 'undefined') ? 'en' : process.env.VUE_APP_TARANIS_NG_LOCALE),
+  locale:
+    typeof process.env.VUE_APP_TARANIS_NG_LOCALE === 'undefined'
+      ? 'en'
+      : process.env.VUE_APP_TARANIS_NG_LOCALE,
   fallbackLocale: 'en',
   messages,
   dateTimeFormats
@@ -49,12 +50,15 @@ Vue.use(VeeValidate, {
   i18n
 })
 
-const coreAPIURL = ((typeof (process.env.VUE_APP_TARANIS_NG_CORE_API) === 'undefined') ? '$VUE_APP_TARANIS_NG_CORE_API' : process.env.VUE_APP_TARANIS_NG_CORE_API)
+const coreAPIURL =
+  typeof process.env.VUE_APP_TARANIS_NG_CORE_API === 'undefined'
+    ? '$VUE_APP_TARANIS_NG_CORE_API'
+    : process.env.VUE_APP_TARANIS_NG_CORE_API
 
 ApiService.init(coreAPIURL)
 
 if (localStorage.ACCESS_TOKEN) {
-  store.dispatch('setToken', (localStorage.ACCESS_TOKEN)).then()
+  store.dispatch('setToken', localStorage.ACCESS_TOKEN).then()
 }
 
 sync(store, router)
@@ -64,6 +68,5 @@ export const vm = new Vue({
   vuetify,
   store,
   router,
-  render: h => h(App)
-
+  render: (h) => h(App)
 }).$mount('#app')

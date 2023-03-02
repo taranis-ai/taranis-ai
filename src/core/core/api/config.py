@@ -5,7 +5,6 @@ from flask_restful import Resource
 
 from core.managers import (
     auth_manager,
-    sse_manager,
     remote_manager,
     presenters_manager,
     publishers_manager,
@@ -455,9 +454,7 @@ class RemoteAccesses(Resource):
 class RemoteAccess(Resource):
     @auth_required("CONFIG_REMOTE_ACCESS_UPDATE")
     def put(self, remote_access_id):
-        event_id, disconnect = remote.RemoteAccess.update(remote_access_id, request.json)
-        if disconnect:
-            sse_manager.remote_access_disconnect([event_id])
+        return remote.RemoteAccess.update(remote_access_id, request.json)
 
     @auth_required("CONFIG_REMOTE_ACCESS_DELETE")
     def delete(self, remote_access_id):

@@ -38,16 +38,6 @@ class UserPublisherPresets(Resource):
         return publisher_preset.PublisherPreset.get_all_json(None)
 
 
-class UserSetup(Resource):
-    @no_auth
-    def get(self):
-        if auth_manager.current_authenticator.get_authenticator_name() != "TestAuthenticator":
-            return {"External Authtenicator"}
-        if User.get_all_json().total_count > 0:
-            return {"User setup complete"}
-        return {"Initial user setup required"}
-
-
 def initialize(api):
     api.add_resource(UserProfile, "/api/v1/users/my-profile")
     api.add_resource(UserWordLists, "/api/v1/users/my-word-lists")
