@@ -8,12 +8,11 @@ class GroupingBot(BaseBot):
     type = "GROUPING_BOT"
     name = "Grouping Bot"
     description = "Bot for grouping news items into aggregates"
-    default_regex = r"CVE-\d{4}-\d{4,7}"
 
     def execute(self):
         try:
             source_group = self.parameters.get("SOURCE_GROUP", None) or "default"
-            regexp = self.parameters.get("REGULAR_EXPRESSION", None) or self.default_regex
+            regexp = self.parameters.get("REGULAR_EXPRESSION", None)
 
             if not source_group or not regexp:
                 return
@@ -43,10 +42,8 @@ class GroupingBot(BaseBot):
                 return
 
             for group, ids in findings.items():
-                logger.debug(f"Grouping: {group} with: {ids}")
-                for id in ids:
-                    self.core_api.update_news_item_tags(id, [group])
                 if len(ids) > 1:
+                    logger.debug(f"Grouping: {group} with: {ids}")
                     self.core_api.news_items_grouping(ids)
 
         except Exception:

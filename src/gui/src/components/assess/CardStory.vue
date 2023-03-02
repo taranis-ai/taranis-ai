@@ -68,6 +68,7 @@
               style="justify-content: space-evenly"
             >
               <v-btn
+                v-if="!detailView"
                 small
                 class="item-action-btn"
                 outlined
@@ -209,6 +210,7 @@
                 </v-row>
                 <v-row>
                   <LineChart
+                    v-if="openSummary && !published_date_outdated"
                     :chart-options="chartOptions"
                     :chart-data="chart_data"
                     :width="400"
@@ -300,7 +302,8 @@ export default {
       type: Object,
       required: true
     },
-    selected: Boolean
+    selected: Boolean,
+    detailView: { type: Boolean, default: false }
   },
   data: () => ({
     viewDetails: false,
@@ -396,7 +399,7 @@ export default {
       return longestText.length + 11 + 'ch'
     },
     published_date_outdated() {
-      const pub_date = new Date(this.published_date)
+      const pub_date = new Date(this.published_date_newest)
       if (!pub_date) {
         return false
       }
@@ -439,7 +442,7 @@ export default {
     },
 
     getDescription() {
-      return this.story.summary || this.story.description
+      return this.openSummary ? this.story.description : (this.story.summary || this.story.description)
     },
 
     getTags() {

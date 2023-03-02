@@ -15,11 +15,11 @@
 export default {
   name: 'dateChips',
   props: {
-    label: String,
     value: String
   },
   methods: {
     setValue (newValue) {
+      console.debug('dateChips.setValue', newValue)
       this.$emit('input', newValue)
     }
   },

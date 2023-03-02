@@ -24,6 +24,7 @@
             label="Source Group"
             :hide-details="true"
             solo
+            clearable
             dense
           ></v-select>
         </v-col>
@@ -41,6 +42,7 @@
             label="Source"
             :hide-details="true"
             solo
+            clearable
             dense
           ></v-select>
         </v-col>
@@ -52,6 +54,7 @@
             label="display items"
             :hide-details="true"
             solo
+            clearable
             dense
           ></v-select>
         </v-col>
@@ -63,6 +66,7 @@
             :hide-details="true"
             label="offset"
             solo
+            clearable
             dense
           ></v-select>
         </v-col>
@@ -98,7 +102,7 @@
 
         <!-- time tags -->
         <v-col cols="12" class="pb-0">
-          <date-chips v-model="range" @input="filter.range = []" />
+          <date-chips v-model="range" />
         </v-col>
 
         <!-- tags -->
@@ -261,7 +265,7 @@ export default {
         return this.filter.range
       },
       set(value) {
-        this.setRange(value)
+        this.updateFilter({ range: value })
         this.updateNewsItems()
       }
     },

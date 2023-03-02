@@ -1,12 +1,12 @@
 <template>
   <v-container fluid style="min-height: 100vh">
-    <story-detail :story="story" />
+    <card-story :story="story" />
   </v-container>
 </template>
 
 <script>
 import { getNewsItemAggregate } from '@/api/assess'
-import StoryDetail from '@/components/assess/StoryDetail'
+import CardStory from '@/components/assess/CardStory'
 
 export default {
   name: 'StoryView',
@@ -14,7 +14,7 @@ export default {
     story: {}
   }),
   components: {
-    StoryDetail
+    CardStory
   },
   async created() {
     this.story = await this.loadStories()

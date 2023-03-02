@@ -259,9 +259,15 @@ class NewsItem(db.Model):
 
         query = ACLEntry.apply_query(query, user, True, False, False)
 
-        if "search" in filter and filter["search"] != "":
-            search_string = f"%{filter['search'].lower()}%"
-            query = query.filter(NewsItemData.content.like(search_string))
+        search = filter.get("search", None)
+        if search and search != "":
+            query = query.filter(
+                db.or_(
+                    NewsItemData.content.ilike(f"%{search}%"),
+                    NewsItemData.review.ilike(f"%{search}%"),
+                    NewsItemData.title.ilike(f"%{search}%"),
+                )
+            )
 
         if "read" in filter and filter["read"].lower() == "true":
             query = query.filter(NewsItem.read is False)
@@ -599,60 +605,73 @@ class NewsItemAggregate(db.Model):
 
         query = ACLEntry.apply_query(query, user, True, False, False)
 
-        if "source" in filter and filter["source"] != "":
-            query = query.filter(OSINTSource.id == filter["source"])
+        if source := filter.get("source"):
+            query = query.filter(OSINTSource.id == source)
 
-        if "search" in filter and filter["search"] != "":
-            search_string = f"%{filter['search']}%"
+        if search := filter.get("search"):
             query = query.join(
                 NewsItemAggregateSearchIndex,
                 NewsItemAggregate.id == NewsItemAggregateSearchIndex.news_item_aggregate_id,
-            ).filter(NewsItemAggregateSearchIndex.data.ilike(search_string))
+            ).filter(NewsItemAggregateSearchIndex.data.ilike(f"%{search}%"))
 
-        if "read" in filter and filter["read"].lower() == "true":
+        if "read" in filter:
             query = query.filter(NewsItemAggregate.read is False)
 
-        if "important" in filter and filter["important"].lower() == "true":
-            query = query.filter(NewsItemAggregate.important is True)
+        if "unread" in filter:
+            query = query.filter(NewsItemAggregate.read)
 
-        if "relevant" in filter and filter["relevant"].lower() == "true":
+        if "important" in filter:
+            query = query.filter(NewsItemAggregate.important)
+
+        if "unimportant" in filter:
+            query = query.filter(NewsItemAggregate.important is False)
+
+        if "relevant" in filter:
             query = query.filter(NewsItemAggregate.relevance > 0)
 
-        if "in_report" in filter and filter["in_report"].lower() == "true":
+        if "in_report" in filter:
             query = query.join(
                 ReportItemNewsItemAggregate,
                 NewsItemAggregate.id == ReportItemNewsItemAggregate.news_item_aggregate_id,
             )
-        if "tags" in filter and filter["tags"] != "":
+
+        if tags := filter.get("tags"):
             query = query.join(
                 NewsItemTag,
                 NewsItemAggregate.id == NewsItemTag.n_i_a_id,
             )
-            query = query.filter(NewsItemTag.name.in_(filter["tags"].split(",")))
+            query = query.filter(NewsItemTag.name.in_(tags.split(",")))
 
-        if "range" in filter and filter["range"] != "ALL":
+        filter_range = filter.get("range", "").lower()
+        if filter_range and filter_range in ["day", "week", "month"]:
             date_limit = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
 
-            if filter["range"] == "WEEK":
+            if filter_range == "day":
+                pass
+
+            elif filter_range == "week":
                 date_limit -= timedelta(days=date_limit.weekday())
 
-            elif filter["range"] == "MONTH":
+            elif filter_range == "month":
                 date_limit = date_limit.replace(day=1)
 
             query = query.filter(NewsItemAggregate.created >= date_limit)
 
-        if "sort" in filter:
-            if filter["sort"] == "DATE_DESC":
+        if sort := filter.get("sort", "date_desc").lower():
+            if sort == "date_desc":
                 query = query.order_by(db.desc(NewsItemAggregate.created), db.desc(NewsItemAggregate.id))
 
-            elif filter["sort"] == "DATE_ASC":
+            elif sort == "date_asc":
                 query = query.order_by(db.asc(NewsItemAggregate.created), db.asc(NewsItemAggregate.id))
 
-            elif filter["sort"] == "RELEVANCE_DESC":
+            elif sort == "relevance_desc":
                 query = query.order_by(db.desc(NewsItemAggregate.relevance), db.desc(NewsItemAggregate.id))
 
-            elif filter["sort"] == "RELEVANCE_ASC":
+            elif sort == "relevance_asc":
                 query = query.order_by(db.asc(NewsItemAggregate.relevance), db.asc(NewsItemAggregate.id))
+
+            elif sort == "source":
+                query = query.order_by(db.desc(OSINTSource.name), db.desc(NewsItemAggregate.created), db.desc(NewsItemAggregate.id))
 
         offset = filter.get("offset", 0)
         limit = filter.get("limit", 20)
@@ -890,15 +909,18 @@ class NewsItemAggregate(db.Model):
         return any(ReportItemNewsItemAggregate.assigned(aggregate_id) for aggregate_id in aggregate_ids)
 
     @classmethod
-    def update_tags(cls, news_item_aggregate_id, tags):
+    def update_tags(cls, news_item_aggregate_id: int, tags: list):
         try:
             n_i_a = cls.find(news_item_aggregate_id)
-            if type(tags) is list:
-                for tag in tags:
-                    if tag not in n_i_a.tags:
-                        n_i_a.tags.append(NewsItemTag(name=tag, tag_type="undef"))
-            elif tags not in n_i_a.tags:
-                n_i_a.tags.append(NewsItemTag(name=tags, tag_type="undef"))
+            for tag in tags:
+                if type(tag) is dict:
+                    tag_name = tag["name"]
+                    tag_type = tag["type"]
+                else:
+                    tag_name = tag
+                    tag_type = "undef"
+                if tag_name not in [tag.name for tag in n_i_a.tags]:
+                    n_i_a.tags.append(NewsItemTag(name=tag_name, tag_type=tag_type))
             db.session.commit()
         except Exception:
             logger.log_debug_trace("Update News Item Tags Failed")

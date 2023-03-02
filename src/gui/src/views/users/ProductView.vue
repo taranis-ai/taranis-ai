@@ -1,28 +1,28 @@
 <template>
   <v-container fluid style="min-height: 100vh">
-    <story-detail :story="story" />
+    <card-product :card="product" />
   </v-container>
 </template>
 
 <script>
-import { getNewsItemAggregate } from '@/api/assess'
-import StoryDetail from '@/components/assess/StoryDetail'
+import { getProduct } from '@/api/publish'
+import CardProduct from '@/components/publish/CardProduct'
 
 export default {
   name: 'ProductView',
   data: () => ({
-    story: {}
+    product: {}
   }),
   components: {
-    StoryDetail
+    CardProduct
   },
   async created() {
-    this.story = await this.loadStories()
+    this.products = await this.loadProducts()
   },
   methods: {
-    async loadStories() {
+    async loadProducts() {
       if (this.$route.params.id) {
-        return await getNewsItemAggregate(this.$route.params.id).then((response) => {
+        return await getProduct(this.$route.params.id).then((response) => {
           return response.data
         })
       }

@@ -90,7 +90,6 @@
 
     <NewsItemSingleDetail ref="newsItemSingleDetail" />
     <NewsItemDetail ref="newsItemDetail" />
-    <StoryDetail ref="StoryDetail" />
   </v-row>
 </template>
 
@@ -101,7 +100,6 @@ import AssessContent from '../../components/assess/AssessContent'
 import CardAssess from '@/components/assess/legacy/CardAssess'
 import NewsItemSingleDetail from '@/components/assess/NewsItemSingleDetail'
 import NewsItemDetail from '@/components/assess/NewsItemDetail'
-import StoryDetail from '@/components/assess/StoryDetail'
 import { getReportItemData, updateReportItem } from '@/api/analyze'
 import { mapActions, mapGetters } from 'vuex'
 
@@ -111,8 +109,7 @@ export default {
     AssessContent,
     CardAssess,
     NewsItemSingleDetail,
-    NewsItemDetail,
-    StoryDetail
+    NewsItemDetail
   },
   props: {
     item_values: Array,
@@ -222,10 +219,6 @@ export default {
 
     showSingleAggregateDetail (news_item) {
       this.$refs.newsItemSingleDetail.open(news_item)
-    },
-
-    showAggregateDetail (news_item) {
-      this.$refs.StoryDetail.open(news_item)
     },
 
     showItemDetail (news_item) {

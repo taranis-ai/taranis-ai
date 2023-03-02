@@ -1,6 +1,6 @@
 from .base_bot import BaseBot
 from bots.managers.log_manager import logger
-import datetime
+import re
 
 
 class TaggingBot(BaseBot):
@@ -11,12 +11,10 @@ class TaggingBot(BaseBot):
     def execute(self):
         try:
             source_group = self.parameters.get("SOURCE_GROUP", None)
-            keyword_param = self.parameters.get("KEYWORDS", None)
+            regexp = self.parameters.get("REGULAR_EXPRESSION", None)
 
-            if keyword_param is None or source_group is None or keyword_param == "":
+            if not regexp or not source_group:
                 return
-
-            keywords = keyword_param.split(",")
 
             limit = self.history()
 
@@ -26,13 +24,18 @@ class TaggingBot(BaseBot):
 
             for aggregate in data:
                 findings = set()
-                existing_tags = aggregate["tags"] if aggregate["tags"] is not None else []
+                existing_tags = aggregate["tags"] or []
                 for news_item in aggregate["news_items"]:
                     content = news_item["news_item_data"]["content"]
+                    title = news_item["news_item_data"]["title"]
+                    review = news_item["news_item_data"]["review"]
 
-                    for keyword in keywords:
-                        if keyword in content and keyword not in existing_tags:
-                            findings.add(keyword)
+                    analyzed_content = set((title + review + content).split())
+
+                    for element in analyzed_content:
+                        if finding := re.search(f"({regexp})", element.strip(".,")):
+                            if finding[1] not in existing_tags:
+                                findings.add(finding[1])
                 self.core_api.update_news_item_tags(aggregate["id"], list(findings))
 
         except Exception as error:

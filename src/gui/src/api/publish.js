@@ -13,6 +13,10 @@ export function updateProduct (data) {
   return ApiService.put(`/publish/products/${data.id}`, data)
 }
 
+export function getProduct (product) {
+  return ApiService.get(`/publish/products/${product.id}`)
+}
+
 export function deleteProduct (product) {
   return ApiService.delete(`/publish/products/${product.id}`)
 }
