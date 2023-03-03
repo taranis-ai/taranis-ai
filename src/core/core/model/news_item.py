@@ -915,7 +915,7 @@ class NewsItemAggregate(db.Model):
         return any(ReportItemNewsItemAggregate.assigned(aggregate_id) for aggregate_id in aggregate_ids)
 
     @classmethod
-    def update_tags(cls, news_item_aggregate_id: int, tags: list):
+    def update_tags(cls, news_item_aggregate_id: int, tags: list) -> tuple[str, int]:
         try:
             n_i_a = cls.find(news_item_aggregate_id)
             for tag in tags:
@@ -928,8 +928,11 @@ class NewsItemAggregate(db.Model):
                 if tag_name not in [tag.name for tag in n_i_a.tags]:
                     n_i_a.tags.append(NewsItemTag(name=tag_name, tag_type=tag_type))
             db.session.commit()
+            return "success", 200
         except Exception:
             logger.log_debug_trace("Update News Item Tags Failed")
+            return "error", 500
+
 
     @classmethod
     def group_aggregate(cls, aggregate_ids: list, user: User | None = None):

@@ -46,7 +46,7 @@ export default {
   methods: {
     onChange() {
       const vector = this.cvss.get().vector
-      if (vector !== 'CVSS:3.0/AV:_/AC:_/PR:_/UI:_/S:_/C:_/I:_/A:_') {
+      if (vector !== 'CVSS:3.1/AV:_/AC:_/PR:_/UI:_/S:_/C:_/I:_/A:_') {
         this.$emit('input', this.cvss.get().vector)
       }
     }

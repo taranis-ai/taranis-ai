@@ -218,7 +218,7 @@ export var CVSS = function (id, options) {
   l.appendChild(document.createTextNode(' '))
   l.appendChild((this.vector = e('a')))
   this.vector.className = 'vector'
-  this.vector.innerHTML = 'CVSS:3.0/AV:_/AC:_/PR:_/UI:_/S:_/C:_/I:_/A:_'
+  this.vector.innerHTML = 'CVSS:3.1/AV:_/AC:_/PR:_/UI:_/S:_/C:_/I:_/A:_'
 
   if (options.onsubmit) {
     f.appendChild(e('hr'))
@@ -403,7 +403,7 @@ CVSS.prototype.setMetric = function (a) {
 }
 
 CVSS.prototype.set = function (vec) {
-  var newVec = 'CVSS:3.0/'
+  var newVec = 'CVSS:3.1/'
   var sep = ''
   var match
   var check

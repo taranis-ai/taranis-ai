@@ -84,7 +84,8 @@ class UpdateNewsItemAttributes(Resource):
 class UpdateNewsItemTags(Resource):
     @api_key_required
     def put(self, aggregate_id):
-        news_item.NewsItemAggregate.update_tags(aggregate_id, request.json)
+        if data := request.json:
+            return news_item.NewsItemAggregate.update_tags(aggregate_id, data)
 
 
 class UpdateNewsItemsAggregateSummary(Resource):

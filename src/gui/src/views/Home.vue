@@ -1,73 +1,64 @@
 <template>
   <v-container fluid>
-    {{ clusters }}
     <v-row no-gutters>
-      <v-col cols="4" class="pa-2 mb-8">
-          <v-card class="mt-4 mx-auto" max-width="100%">
-            <v-card-text class="pt-0">
-              <router-link to="/assess" class="title">Assess</router-link>
-              <div class="subheading">news items</div>
-              <v-divider class="my-2"></v-divider>
-              <v-icon class="mr-2"> mdi-email-multiple </v-icon>
-              <span class="caption"
-                >There are
-                <strong>{{ dashboardData.total_news_items }}</strong> total
-                Assess items.</span
-              >
-            </v-card-text>
-          </v-card>
-      </v-col>
-      <v-col cols="4" class="pa-2 mb-4">
-          <v-card class="mt-4 mx-auto" max-width="100%">
-            <v-card-text class="pt-0">
-              <router-link to="/analyze" class="title">Analyze</router-link>
-              <div class="subheading">report items</div>
-              <v-divider class="my-2"></v-divider>
-              <v-icon class="mr-2"> mdi-account </v-icon>
-              <span class="caption"
-                >There are
-                <b>{{ dashboardData.report_items_completed }}</b> completed
-                analyses.</span
-              >
-              <v-divider inset></v-divider>
-              <v-icon class="mr-2" color="grey">
-                mdi-account-question-outline
-              </v-icon>
-              <span class="caption"
-                >There are
-                <b>{{ dashboardData.report_items_in_progress }}</b> pending
-                analyses.</span
-              >
-            </v-card-text>
-          </v-card>
-      </v-col>
-      <v-col cols="4" class="pa-2 mb-8">
-          <v-card class="mt-4 mx-auto" max-width="100%">
-            <v-card-text class="pt-0">
-              <router-link to="/publish" class="title">Publish</router-link>
-              <div class="subheading">products</div>
-              <v-divider class="my-2"></v-divider>
-              <v-icon class="mr-2" color="orange">
-                mdi-email-check-outline
-              </v-icon>
-              <span class="caption"
-                >There are <b>{{ dashboardData.total_products }}</b> products
-                ready for publications.</span
-              >
-              <v-divider inset></v-divider>
-            </v-card-text>
-          </v-card>
-      </v-col>
+      <dash-board-card v-for="cluster in clusters" :key="cluster.name" :linkTo="`/assess?tags=${cluster.name}`" :linkText="cluster.name">
+        <template v-slot:content>
+          <trending-card :cluster="cluster.name"/>
+        </template>
+      </dash-board-card>
+
+      <dash-board-card linkTo="/assess" linkText="Assess">
+        <template v-slot:content>
+          <v-icon class="mr-2"> mdi-email-multiple </v-icon>
+          <span class="caption">
+            There are <strong>{{ dashboardData.total_news_items }}</strong> total
+            Assess items.
+          </span>
+        </template>
+      </dash-board-card>
+      <dash-board-card linkTo="/analyze" linkText="Analyze">
+        <template v-slot:content>
+          <v-icon class="mr-2"> mdi-account </v-icon>
+          <span class="caption">
+            There are <b>{{ dashboardData.report_items_completed }}</b>
+            completed analyses.
+          </span>
+          <v-divider inset></v-divider>
+          <v-icon class="mr-2" color="grey">
+            mdi-account-question-outline
+          </v-icon>
+          <span class="caption">
+            There are <b>{{ dashboardData.report_items_in_progress }}</b>
+            pending analyses.
+          </span>
+        </template>
+      </dash-board-card>
+      <dash-board-card linkTo="/publish" linkText="Publish">
+        <template v-slot:content>
+          <v-icon class="mr-2" color="orange">
+            mdi-email-check-outline
+          </v-icon>
+          <span class="caption">
+            There are <b>{{ dashboardData.total_products }}</b> products
+            ready for publications.
+          </span>
+        </template>
+      </dash-board-card>
     </v-row>
   </v-container>
 </template>
 
 <script>
+import DashBoardCard from '@/components/common/DashBoardCard'
 import { mapGetters, mapActions } from 'vuex'
+import TrendingCard from '@/components/common/TrendingCard'
 
 export default {
   name: 'Home',
-  components: {},
+  components: {
+    DashBoardCard,
+    TrendingCard
+  },
   data: () => ({
     dashboardData: {},
     clusters: []
