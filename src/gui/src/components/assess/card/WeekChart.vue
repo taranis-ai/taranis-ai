@@ -2,7 +2,6 @@
   <LineChart
     :chart-options="chartOptions"
     :chart-data="chart_data"
-    :width="400"
     :height="200"
   />
 </template>

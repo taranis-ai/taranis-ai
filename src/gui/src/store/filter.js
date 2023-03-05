@@ -3,7 +3,7 @@ const state = {
     offset: undefined,
     limit: undefined,
     search: undefined,
-    sort: 'DATE_DESC',
+    sort: undefined,
     range: undefined,
     read: undefined,
     tags: undefined,
@@ -27,6 +27,9 @@ const actions = {
   },
   setTags(context, tags) {
     context.commit('SET_TAGS', tags)
+  },
+  appendTag(context, tag) {
+    context.commit('APPEND_TAG', tag)
   },
   incrementOffset(context) {
     context.commit('INCREMENT_OFFSET')
@@ -76,7 +79,7 @@ const mutations = {
       offset: undefined,
       limit: undefined,
       search: undefined,
-      sort: 'DATE_DESC',
+      sort: undefined,
       range: undefined,
       read: undefined,
       tags: undefined,
@@ -106,6 +109,13 @@ const mutations = {
   },
   SET_TAGS(state, tags) {
     state.newsItemsFilter.tags = tags
+  },
+  APPEND_TAG(state, tag) {
+    if (state.newsItemsFilter.tags) {
+      state.newsItemsFilter.tags.push(tag)
+    } else {
+      state.newsItemsFilter.tags = [tag]
+    }
   }
 }
 

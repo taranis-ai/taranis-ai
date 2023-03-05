@@ -1190,12 +1190,8 @@ textarea {
   }
 }
 
-span.plain-tags {
-  a {
-    color: $dark-grey;
-    text-decoration: underline !important;
-    text-transform: capitalize;
-  }
+.tag-button {
+  padding-left: 4px !important;
 }
 
 div.item-meta-info {

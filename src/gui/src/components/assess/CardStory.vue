@@ -109,7 +109,7 @@
 
               <v-btn
                 small
-                class="item-action-btn hidden-lg-and-down"
+                class="item-action-btn"
                 outlined
                 v-on:click.stop="markAsRead()"
                 v-ripple="false"
@@ -117,6 +117,8 @@
                 <span>mark as read</span>
                 <v-icon right>mdi-eye-outline</v-icon>
               </v-btn>
+
+              <votes v-if="detailView" :story="story" />
 
               <v-menu bottom offset-y>
                 <template v-slot:activator="{ on, attrs }">
@@ -195,21 +197,32 @@
                     <strong>Tags:</strong>
                   </v-col>
                   <v-col>
-                    <div>
-                      <span
-                        class="plain-tags"
-                        v-for="(tag, i) in getTags()"
-                        v-bind:key="tag + i"
-                      >
-                        <a href="#">{{ tag }}</a
-                        >,
+                    <v-btn
+                      small
+                      text
+                      density="compact"
+                      height="auto"
+                      class="tag-button"
+                      v-for="tag in getTags()"
+                      :key="tag + story.id"
+                      v-on:click.stop="updateTags(tag)"
+                      v-ripple="false"
+                    >
+                      <span class="text-decoration-underline">
+                        {{ tag }}
                       </span>
-                    </div>
+                    </v-btn>
                   </v-col>
                 </v-row>
-                <v-row v-if="openSummary && !published_date_outdated">
-                  <week-chart :story="story" />
+                <v-row
+                  class="news-item-meta-infos"
+                  v-if="openSummary && !published_date_outdated"
+                >
+                  <v-col>
+                    <week-chart :story="story" />
+                  </v-col>
                 </v-row>
+
                 <metainfo
                   v-if="openSummary && news_item_length == 1"
                   :newsItem="story.news_items[0]"
@@ -220,7 +233,11 @@
         </v-card>
       </v-col>
     </v-row>
-    <v-row dense class="ma-0 py-0 px-5" v-if="openSummary && news_item_length > 1">
+    <v-row
+      dense
+      class="ma-0 py-0 px-5"
+      v-if="openSummary && news_item_length > 1"
+    >
       <v-col cols="11" offset="1">
         <transition-group
           name="news-items-grid"
@@ -243,10 +260,11 @@
 import PopupDeleteItem from '@/components/popups/PopupDeleteItem'
 import PopupShareItems from '@/components/popups/PopupShareItems'
 import metainfo from '@/components/assess/card/metainfo'
+import votes from '@/components/assess/card/votes'
 import CardNewsItem from '@/components/assess/CardNewsItem'
 import WeekChart from '@/components/assess/card/WeekChart'
 
-import { mapGetters } from 'vuex'
+import { mapGetters, mapActions } from 'vuex'
 import {
   deleteNewsItemAggregate,
   importantNewsItemAggregate,
@@ -260,6 +278,7 @@ export default {
     PopupDeleteItem,
     PopupShareItems,
     metainfo,
+    votes,
     WeekChart
   },
   emits: ['selectItem', 'deleteItem'],
@@ -331,6 +350,8 @@ export default {
   },
   methods: {
     ...mapGetters('users', ['getUsernameById']),
+    ...mapActions('assess', ['updateNewsItems']),
+    ...mapActions('filter', ['appendTag']),
 
     toggleSelection() {
       this.$emit('selectItem', this.story.id)
@@ -348,10 +369,13 @@ export default {
     addToReport() {
       this.sharingDialog = true
     },
+    updateTags(tag) {
+      this.appendTag(tag)
+      this.updateNewsItems()
+    },
     showRelated(event) {
       console.log('not yet implemented')
     },
-
     updateDetailsView(value) {
       this.viewDetails = value
     },
@@ -396,6 +420,6 @@ export default {
   updated() {
     // console.log('card rendered!')
   },
-  mounted() { }
+  mounted() {}
 }
 </script>

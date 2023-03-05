@@ -235,6 +235,7 @@ export default {
     },
     sort: {
       get() {
+        if (!this.filter.order) return 'DATE_DESC'
         return this.filter.order
       },
       set(value) {

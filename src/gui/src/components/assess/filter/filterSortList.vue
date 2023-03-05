@@ -1,13 +1,11 @@
 <template>
   <v-list dense class="py-0">
     <v-list-item-group
-      :value="value"
+      v-model="selected"
       active-class="selected"
       class="filter-list"
       mandatory
-      @change="setValue"
     >
-      <template>
         <v-list-item
           v-for="item in orderOptions"
           :key="item.title"
@@ -46,7 +44,6 @@
             </v-list-item-action>
           </template>
         </v-list-item>
-      </template>
     </v-list-item-group>
   </v-list>
 </template>
@@ -58,14 +55,22 @@ export default {
     value: {},
     items: []
   },
-  data: () => ({
-    orderOptions: []
-  }),
+  data: function() {
+    return {
+      orderOptions: this.items
+    }
+  },
+  computed: {
+    selected: {
+      get () {
+        return this.value
+      },
+      set (newValue) {
+        this.$emit('input', newValue)
+      }
+    }
+  },
   methods: {
-    setValue (newValue) {
-      if (newValue === this.value) return
-      this.$emit('input', newValue)
-    },
     changeDirection (event, item) {
       event.preventDefault()
       this.orderOptions.forEach((option) => {
@@ -74,9 +79,6 @@ export default {
         }
       })
     }
-  },
-  mounted () {
-    this.orderOptions = this.items
   }
 }
 </script>

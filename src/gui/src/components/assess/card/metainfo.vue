@@ -2,19 +2,6 @@
   <div>
     <v-row class="news-item-meta-infos">
       <v-col class="news-item-meta-infos-label">
-        <strong>{{ $t('assess.published') }}:</strong>
-      </v-col>
-      <v-col>
-        <span :class="published_date_outdated ? 'red--text' : ''">
-          {{ $d(getPublishedDate(), 'long') }}
-        </span>
-        <v-icon v-if="published_date_outdated" small color="red"
-          >mdi-alert</v-icon
-        >
-      </v-col>
-    </v-row>
-    <v-row class="news-item-meta-infos">
-      <v-col class="news-item-meta-infos-label">
         <strong>{{ $t('assess.collected') }}:</strong>
       </v-col>
       <v-col>
@@ -66,9 +53,6 @@ export default {
     }
   },
   computed: {
-    published_date() {
-      return this.newsItem.news_item_data.published || false
-    },
     published_date_outdated() {
       const pub_date = this.published_date
       if (!pub_date) {
@@ -96,14 +80,6 @@ export default {
         link: this.newsItem.news_item_data.link,
         type: this.newsItem.news_item_data.osint_source_id
       }
-    },
-
-    getPublishedDate() {
-      const published = this.published_date
-      if (published) {
-        return new Date(published)
-      }
-      return '** no published date **'
     },
 
     getCollectedDate() {

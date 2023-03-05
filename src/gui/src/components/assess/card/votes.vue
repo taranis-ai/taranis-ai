@@ -1,40 +1,45 @@
 <template>
-  <div class="align-self-center">
-    <v-icon
-      v-if="type === 'up'"
-      left
-      color="awake-green-color"
-      class="mr-1"
-      @click.native.capture="setValue($event)"
-    >
-      mdi-arrow-up-circle-outline
-    </v-icon>
-    <v-icon
-      v-if="type === 'down'"
-      left
-      color="awake-red-color"
-      class="mr-1"
-      @click.native.capture="setValue($event)"
-    >
-      mdi-arrow-down-circle-outline
-    </v-icon>
-    <span class="text-caption">
-      {{ count }}
-    </span>
+  <div class="item-action-btn btn-group">
+    <v-btn small outlined v-on:click.stop="upvote()" v-ripple="false">
+      <span>{{ likes }}</span>
+      <v-icon right color="awake-green-color"
+        >mdi-arrow-up-circle-outline</v-icon
+      >
+    </v-btn>
+    <v-btn small outlined v-on:click.stop="downvote()" v-ripple="false">
+      <span>{{ dislikes }}</span>
+      <v-icon right color="awake-red-color"
+        >mdi-arrow-down-circle-outline</v-icon
+      >
+    </v-btn>
   </div>
 </template>
 
 <script>
+import { voteNewsItemAggregate } from '@/api/assess'
+
 export default {
   name: 'votes',
   props: {
-    count: Number,
-    type: String
+    story: {
+      type: Object,
+      required: true
+    }
+  },
+  data: function () {
+    return {
+      likes: this.story.likes,
+      dislikes: this.story.dislikes
+    }
   },
   methods: {
-    setValue(event) {
-      this.$emit('input', event)
-      event.stopPropagation()
+    upvote() {
+      this.likes += 1
+      voteNewsItemAggregate(this.story.id, 1)
+    },
+    downvote() {
+      this.dislikes += 1
+      voteNewsItemAggregate(this.story.id, -1)
     }
   }
 }
