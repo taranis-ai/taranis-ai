@@ -1,6 +1,6 @@
 import uuid
 from marshmallow import fields, post_load
-from sqlalchemy import orm, func, or_, text
+from sqlalchemy import orm, or_, text
 
 from core.managers.db_manager import db
 from core.model.report_item import ReportItem
@@ -73,23 +73,22 @@ class Asset(db.Model):
     @classmethod
     def get_by_cpe(cls, cpes):
 
-        if len(cpes) > 0:
-            query_string = "SELECT DISTINCT asset_id FROM asset_cpe WHERE value LIKE ANY(:cpes) OR {}"
-            params = {"cpes": cpes}
-
-            inner_query = ""
-            for i in range(len(cpes)):
-                if i > 0:
-                    inner_query += " OR "
-                param = "cpe" + str(i)
-                inner_query += ":" + param + " LIKE value"
-                params[param] = cpes[i]
-
-            result = db.engine.execute(text(query_string.format(inner_query)), params)
-
-            return [cls.query.get(row[0]) for row in result]
-        else:
+        if len(cpes) <= 0:
             return []
+        query_string = "SELECT DISTINCT asset_id FROM asset_cpe WHERE value LIKE ANY(:cpes) OR {}"
+        params = {"cpes": cpes}
+
+        inner_query = ""
+        for i in range(len(cpes)):
+            if i > 0:
+                inner_query += " OR "
+            param = f"cpe{str(i)}"
+            inner_query += f":{param} LIKE value"
+            params[param] = cpes[i]
+
+        result = db.engine.execute(text(query_string.format(inner_query)), params)
+
+        return [cls.query.get(row[0]) for row in result]
 
     @classmethod
     def remove_vulnerability(cls, report_item_id):
@@ -108,17 +107,10 @@ class Asset(db.Model):
         self.vulnerabilities_count += 1
 
     def update_vulnerabilities(self):
-        cpes = []
-        for cpe in self.asset_cpes:
-            cpes.append(cpe.value)
-
+        cpes = [cpe.value for cpe in self.asset_cpes]
         report_item_ids = ReportItem.get_by_cpe(cpes)
 
-        solved = []
-        for vulnerability in self.vulnerabilities:
-            if vulnerability.solved is True:
-                solved.append(vulnerability.report_item_id)
-
+        solved = [vulnerability.report_item_id for vulnerability in self.vulnerabilities if vulnerability.solved is True]
         self.vulnerabilities = []
         self.vulnerabilities_count = 0
         for report_item_id in report_item_ids:
@@ -148,18 +140,16 @@ class Asset(db.Model):
     def get(cls, group_id, search, sort, vulnerable):
         query = cls.query.filter(Asset.asset_group_id == group_id)
 
-        if vulnerable is not None:
-            if vulnerable == "true":
-                query = query.filter(Asset.vulnerabilities_count > 0)
+        if vulnerable is not None and vulnerable == "true":
+            query = query.filter(Asset.vulnerabilities_count > 0)
 
         if search is not None:
-            search_string = "%" + search.lower() + "%"
             query = query.join(AssetCpe, Asset.id == AssetCpe.asset_id).filter(
                 or_(
-                    func.lower(Asset.name).like(search_string),
-                    func.lower(Asset.description).like(search_string),
-                    func.lower(Asset.serial).like(search_string),
-                    func.lower(AssetCpe.value).like(search_string),
+                    Asset.name.ilike(f"%{search}%"),
+                    Asset.description.ilike(f"%{search}%"),
+                    Asset.serial.ilike(f"%{search}%"),
+                    AssetCpe.value.ilike(f"%{search}%"),
                 )
             )
 
@@ -247,32 +237,23 @@ class AssetGroup(db.Model):
     users = db.relationship("User", secondary="asset_group_user")
 
     def __init__(self, id, name, description, users, templates):
-        self.id = str(uuid.uuid4())
+        self.id = id or str(uuid.uuid4())
         self.name = name
         self.description = description
         self.organizations = []
         self.users = []
-        for user in users:
-            self.users.append(User.find_by_id(user.id))
-
+        self.users.extend(User.find_by_id(user.id) for user in users)
         self.templates = []
-        for template in templates:
-            self.templates.append(NotificationTemplate.find(template.id))
-
-        self.title = ""
-        self.subtitle = ""
-        self.tag = ""
+        self.templates.extend(NotificationTemplate.find(template.id) for template in templates)
+        self.tag = "mdi-folder-multiple"
 
     @orm.reconstructor
     def reconstruct(self):
-        self.title = self.name
-        self.subtitle = self.description
         self.tag = "mdi-folder-multiple"
 
     @classmethod
     def find(cls, group_id):
-        group = cls.query.get(group_id)
-        return group
+        return cls.query.get(group_id)
 
     @classmethod
     def access_allowed(cls, user, group_id):
@@ -290,11 +271,10 @@ class AssetGroup(db.Model):
             )
 
         if search is not None:
-            search_string = "%" + search.lower() + "%"
             query = query.filter(
                 or_(
-                    func.lower(AssetGroup.name).like(search_string),
-                    func.lower(AssetGroup.description).like(search_string),
+                    AssetGroup.name.ilike(f"%{search}%"),
+                    AssetGroup.description.ilike(f"%{search}%"),
                 )
             )
 
@@ -307,13 +287,8 @@ class AssetGroup(db.Model):
         if "MY_ASSETS_CONFIG" not in permissions:
             for group in groups[:]:
                 if len(group.users) > 0:
-                    found = False
-                    for accessed_user in group.users:
-                        if accessed_user.id == user.id:
-                            found = True
-                            break
-
-                    if found is False:
+                    found = any(accessed_user.id == user.id for accessed_user in group.users)
+                    if not found:
                         groups.remove(group)
                         count -= 1
 
@@ -351,16 +326,14 @@ class AssetGroup(db.Model):
         if any(org in user.organizations for org in group.organizations):
             group.name = updated_group.name
             group.description = updated_group.description
-            group.users = []
-            for added_user in updated_group.users:
-                if any(org in added_user.organizations for org in group.organizations):
-                    group.users.append(added_user)
-
-            group.templates = []
-            for added_template in updated_group.templates:
-                if any(org in added_template.organizations for org in group.organizations):
-                    group.templates.append(added_template)
-
+            group.users = [
+                added_user for added_user in updated_group.users if any(org in added_user.organizations for org in group.organizations)
+            ]
+            group.templates = [
+                added_template
+                for added_template in updated_group.templates
+                if any(org in added_template.organizations for org in group.organizations)
+            ]
             db.session.commit()
 
 

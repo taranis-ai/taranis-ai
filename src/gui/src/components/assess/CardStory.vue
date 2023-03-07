@@ -49,7 +49,6 @@
                 class="flipped-icon mr-2 ml-n4 mt-n5"
                 >mdi-share</v-icon
               >
-              <v-icon small v-if="is_summarized">mdi-check</v-icon>
               <h2 class="news-item-title">
                 {{ story.title }}
               </h2>
@@ -165,9 +164,7 @@
               align-self="stretch"
             >
               <!-- DESCRIPTION -->
-              <p :class="news_item_summary_class">
-                {{ getDescription() }}
-              </p>
+              <summarized-content :is_summarized="is_summarized" :content="getDescription()"/>
             </v-col>
             <v-col
               class="item-meta-info px-5 pt-2 pb-3"
@@ -197,21 +194,12 @@
                     <strong>Tags:</strong>
                   </v-col>
                   <v-col>
-                    <v-btn
-                      small
-                      text
-                      density="compact"
-                      height="auto"
-                      class="tag-button"
-                      v-for="tag in getTags()"
-                      :key="tag + story.id"
-                      v-on:click.stop="updateTags(tag)"
-                      v-ripple="false"
-                    >
-                      <span class="text-decoration-underline">
-                        {{ tag }}
-                      </span>
-                    </v-btn>
+                    <tag-list
+                      :tags="story.tags"
+                      :truncate="openSummary"
+                      :limit="openSummary ? 20 : 5"
+                      :color="openSummary"
+                    />
                   </v-col>
                 </v-row>
                 <v-row
@@ -261,10 +249,13 @@ import PopupDeleteItem from '@/components/popups/PopupDeleteItem'
 import PopupShareItems from '@/components/popups/PopupShareItems'
 import metainfo from '@/components/assess/card/metainfo'
 import votes from '@/components/assess/card/votes'
+import TagList from '@/components/assess/card/TagList'
+import SummarizedContent from '@/components/assess/card/SummarizedContent'
 import CardNewsItem from '@/components/assess/CardNewsItem'
 import WeekChart from '@/components/assess/card/WeekChart'
+import { notifySuccess } from '@/utils/helpers'
 
-import { mapGetters, mapActions } from 'vuex'
+import { mapGetters } from 'vuex'
 import {
   deleteNewsItemAggregate,
   importantNewsItemAggregate,
@@ -279,7 +270,9 @@ export default {
     PopupShareItems,
     metainfo,
     votes,
-    WeekChart
+    TagList,
+    WeekChart,
+    SummarizedContent
   },
   emits: ['selectItem', 'deleteItem'],
   props: {
@@ -309,12 +302,6 @@ export default {
         .sort()
 
       return [pub_dates[pub_dates.length - 1], pub_dates[0]]
-    },
-
-    news_item_summary_class() {
-      return this.openSummary
-        ? 'news-item-summary-no-clip'
-        : 'news-item-summary'
     },
 
     story_in_report() {
@@ -350,8 +337,10 @@ export default {
   },
   methods: {
     ...mapGetters('users', ['getUsernameById']),
-    ...mapActions('assess', ['updateNewsItems']),
-    ...mapActions('filter', ['appendTag']),
+
+    notify(text) {
+      notifySuccess(text)
+    },
 
     toggleSelection() {
       this.$emit('selectItem', this.story.id)
@@ -369,10 +358,6 @@ export default {
     addToReport() {
       this.sharingDialog = true
     },
-    updateTags(tag) {
-      this.appendTag(tag)
-      this.updateNewsItems()
-    },
     showRelated(event) {
       console.log('not yet implemented')
     },
@@ -384,11 +369,6 @@ export default {
       return this.openSummary
         ? this.story.description
         : this.story.summary || this.story.description
-    },
-
-    getTags() {
-      const tags = this.story.tags.map((tag) => tag.name)
-      return tags.slice(0, this.openSummary ? tags.length : 5)
     },
 
     getPublishedDate() {

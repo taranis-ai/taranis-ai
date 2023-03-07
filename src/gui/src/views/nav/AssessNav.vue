@@ -7,7 +7,7 @@
     style="max-height: 100% !important; height: calc(100vh - 48px) !important"
     v-if="drawerVisible"
   >
-    <v-container class="pa-0">
+    <v-container class="pa-0 ma-0">
       <!-- scope -->
       <v-row class="my-3 mr-0 px-3">
         <v-col cols="12" class="pb-0">
@@ -46,7 +46,7 @@
             dense
           ></v-select>
         </v-col>
-        <v-col cols="6" class="pt-0 pb-0">
+        <v-col cols="12" class="pb-0">
           <h4>Display</h4>
           <v-select
             v-model="limit"
@@ -58,7 +58,7 @@
             dense
           ></v-select>
         </v-col>
-        <v-col cols="6" class="pt-0 pb-0">
+        <v-col cols="12" class="pb-0">
           <h4>Offset</h4>
           <v-select
             v-model="offset"
@@ -107,7 +107,7 @@
 
         <!-- tags -->
         <v-col cols="12" class="pr-0">
-          <tag-filter v-model="tags" />
+          <tag-filter />
         </v-col>
       </v-row>
 
@@ -252,15 +252,6 @@ export default {
         this.updateNewsItems()
       }
     },
-    tags: {
-      get() {
-        return this.filter.tags
-      },
-      set(value) {
-        this.setTags(value)
-        this.updateNewsItems()
-      }
-    },
     range: {
       get() {
         return this.filter.range
@@ -331,7 +322,6 @@ export default {
       'setSort',
       'setLimit',
       'setOffset',
-      'setTags',
       'updateFilter'
     ]),
     ...mapGetters('filter', ['getNewsItemsFilter'])

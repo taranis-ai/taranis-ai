@@ -14,7 +14,6 @@
     </template>
     <template v-slot:content>
       <ContentDataAssets cardItem="CardAsset"/>
-      <VulnerabilityDetail/>
     </template>
   </ViewLayout>
 </template>
@@ -25,16 +24,13 @@ import { deleteAsset } from '@/api/assets'
 import ToolbarFilterAssets from '@/components/assets/ToolbarFilterAssets'
 import ContentDataAssets from '@/components/assets/ContentDataAssets'
 import NewAsset from '@/components/assets/NewAsset'
-import VulnerabilityDetail from '@/components/assets/VulnerabilityDetail'
-
 export default {
   name: 'MyAssets',
   components: {
     ViewLayout,
     ToolbarFilterAssets,
     ContentDataAssets,
-    NewAsset,
-    VulnerabilityDetail
+    NewAsset
   },
   computed: {
     canAddAssets () {

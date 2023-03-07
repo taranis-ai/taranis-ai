@@ -22,6 +22,7 @@ $cx-wordlist: #ffc107;
 $light-grey-1: #c9c9c9;
 $light-grey-2: #c8c8c8;
 $dark-grey: #575757;
+$very-dark-grey: #313131;
 
 $story-selected-bg: #f4f3fb;
 $story-hot: #dbe868;
@@ -497,7 +498,7 @@ textarea {
   border-color: $light-grey-2;
   color: $dark-grey !important;
   flex-grow: 1 !important;
-  padding: 19px 10px;
+  padding: 10px 10px;
   margin: 0;
   justify-content: center;
 
@@ -568,10 +569,8 @@ textarea {
 }
 
 .news-item-summary {
-  color: $dark-grey;
+  color: $very-dark-grey;
   margin-bottom: 0px !important;
-  font-weight: 300;
-  font-size: 0.85rem;
 
   // Clipping
   overflow: hidden;
@@ -584,10 +583,8 @@ textarea {
 }
 
 .news-item-summary-no-clip {
-  color: $dark-grey;
+  color: $very-dark-grey;
   margin-bottom: 0px !important;
-  font-weight: 300;
-  font-size: 0.85rem;
   -webkit-line-clamp: 4;
   line-clamp: 4;
   min-height: 6em;

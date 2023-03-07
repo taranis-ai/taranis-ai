@@ -3,7 +3,7 @@
     <v-row no-gutters>
       <dash-board-card v-for="cluster in clusters" :key="cluster.name" :linkTo="`/assess?tags=${cluster.name}`" :linkText="cluster.name">
         <template v-slot:content>
-          <trending-card :cluster="cluster.name"/>
+          <trending-card :cluster="cluster"/>
         </template>
       </dash-board-card>
 

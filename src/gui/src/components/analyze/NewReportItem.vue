@@ -206,12 +206,6 @@
                               </v-row>
                             </v-expansion-panel-header>
                             <v-expansion-panel-content class="pt-0">
-                              <AttributeContainer
-                                :attribute_item="attribute_item"
-                                :edit="edit"
-                                :modify="modify"
-                                :report_item_id="report_item.id"
-                              />
                             </v-expansion-panel-content>
                           </v-expansion-panel>
                         </v-expansion-panels>
@@ -278,7 +272,6 @@ import {
   getReportItemLocks
 } from '@/api/analyze'
 
-import AttributeContainer from '@/components/common/attribute/AttributeContainer'
 import CardStory from '@/components/assess/CardStory'
 
 import VueCsvImport from '@/components/common/ImportCSV'
@@ -293,7 +286,6 @@ export default {
     csv_codes: Array
   },
   components: {
-    AttributeContainer,
     VueCsvImport,
     CardStory
   },

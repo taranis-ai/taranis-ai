@@ -57,6 +57,12 @@ const getters = {
   },
   getOffset(state) {
     return state.newsItemsFilter.offset
+  },
+  getFilterTags(state) {
+    if (typeof state.newsItemsFilter.tags === 'string') {
+      return [state.newsItemsFilter.tags]
+    }
+    return state.newsItemsFilter.tags
   }
 }
 

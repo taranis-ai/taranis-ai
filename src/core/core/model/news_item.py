@@ -933,7 +933,6 @@ class NewsItemAggregate(db.Model):
             logger.log_debug_trace("Update News Item Tags Failed")
             return "error", 500
 
-
     @classmethod
     def group_aggregate(cls, aggregate_ids: list, user: User | None = None):
         try:
@@ -1189,7 +1188,14 @@ class NewsItemTag(db.Model):
             .limit(limit)
             .all()
         )
-        return [{"name": cluster.name, "size": len(cluster.n_i_a.news_items)} for cluster in clusters]
+        return [
+            {
+                "name": cluster.name,
+                "size": len(cluster.n_i_a.news_items),
+                "published": [ni.news_item_data.published.isoformat() for ni in cluster.n_i_a.news_items],
+            }
+            for cluster in clusters
+        ]
 
     @classmethod
     def get_json(cls, filter_args: dict):
@@ -1202,7 +1208,21 @@ class NewsItemTag(db.Model):
         limit = filter_args.get("limit", 20)
         rows = query.offset(offset).limit(limit).all()
         # count = query.count()
+        return [{ "name": row.name, "tag_type": row.tag_type } for row in rows]
+
+    @classmethod
+    def get_list(cls, filter_args: dict):
+        query = cls.query
+
+        if search := filter_args.get("search", None):
+            query = query.filter(cls.name.ilike(f"%{search}%"))
+
+        offset = filter_args.get("offset", 0)
+        limit = filter_args.get("limit", 20)
+        rows = query.offset(offset).limit(limit).all()
+        # count = query.count()
         return [row.name for row in rows]
+
 
     @classmethod
     def remove(cls, tag):

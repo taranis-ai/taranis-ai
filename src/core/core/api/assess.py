@@ -91,7 +91,21 @@ class NewsItemAggregateTags(Resource):
             return news_item.NewsItemTag.get_json(filter_args)
         except Exception as ex:
             logger.log_debug(ex)
-            return "", 400
+            return "Failed to get Tags", 400
+
+
+class NewsItemAggregateTagList(Resource):
+    @auth_required("ASSESS_ACCESS")
+    def get(self):
+        try:
+            search = request.args.get("search", "")
+            limit = int(request.args.get("limit", 20))
+            offset = int(request.args.get("offset", 0))
+            filter_args = {"limit": limit, "offset": offset, "search": search}
+            return news_item.NewsItemTag.get_list(filter_args)
+        except Exception as ex:
+            logger.log_debug(ex)
+            return "Failed to get Tags", 400
 
 
 class NewsItemAggregatesByGroup(Resource):
@@ -227,6 +241,8 @@ def initialize(api):
         "/api/v1/assess/news-items",
     )
     api.add_resource(NewsItemAggregateTags, "/api/v1/assess/tags")
+    api.add_resource(NewsItemAggregateTagList, "/api/v1/assess/taglist")
+
     api.add_resource(NewsItem, "/api/v1/assess/news-items/<int:item_id>")
     api.add_resource(NewsItemAggregate, "/api/v1/assess/news-item-aggregates/<int:aggregate_id>")
     api.add_resource(GroupAction, "/api/v1/assess/news-item-aggregates/group")
