@@ -19,13 +19,17 @@
         </span>
       </v-btn>
     </template>
-    <span>{{ tag.tag_type }}</span>
+    <span>
+      <v-icon left>{{ tagIcon(tag.tag_type) }}</v-icon>
+      {{ tag.tag_type }}
+    </span>
   </v-tooltip>
   </div>
 </template>
 
 <script>
 import { mapActions } from 'vuex'
+import { tagIconFromType } from '@/utils/helpers'
 
 export default {
   name: 'TagList',
@@ -64,6 +68,7 @@ export default {
       this.appendTag(tag)
       this.updateNewsItems()
     },
+    tagIcon(tag_type) { return tagIconFromType(tag_type) },
 
     labelcolor: function (i) {
       if (!this.color) {

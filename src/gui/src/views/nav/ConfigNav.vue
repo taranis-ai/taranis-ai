@@ -1,14 +1,14 @@
 <template>
-  <Navigation v-if="links.length > 0" :links="links" icon="mdi-ballot-outline" />
+  <icon-navigation v-if="links.length > 0" :links="links" icon="mdi-ballot-outline" />
 </template>
 
 <script>
-import Navigation from '@/components/common/Navigation'
+import IconNavigation from '@/components/common/IconNavigation'
 
 export default {
   name: 'ConfigNav',
   components: {
-    Navigation
+    IconNavigation
   },
   computed: {
     l() {

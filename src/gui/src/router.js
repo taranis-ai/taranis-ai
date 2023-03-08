@@ -113,15 +113,38 @@ export const router = new Router({
       meta: { requiresAuth: true, requiresPerm: [Permissions.ASSESS_ACCESS] }
     },
     {
-      path: '/myassets*',
-      name: 'myassets',
+      path: '/assets',
+      name: 'assets',
       components: {
         default: () =>
           import(
-            /* webpackChunkName: "assets" */ './views/users/MyAssetsView.vue'
+            /* webpackChunkName: "assets" */ './views/users/AssetsView.vue'
           ),
         nav: () =>
-          import(/* webpackChunkName: "assets" */ './views/nav/MyAssetsNav.vue')
+          import(/* webpackChunkName: "assets" */ './views/nav/AssetsNav.vue')
+
+      },
+      meta: { requiresAuth: true, requiresPerm: [Permissions.MY_ASSETS_ACCESS] }
+    },
+    {
+      path: '/asset/:id',
+      name: 'asset',
+      components: {
+        default: () =>
+          import(
+            /* webpackChunkName: "assets" */ './views/users/AssetView.vue'
+          )
+      },
+      meta: { requiresAuth: true, requiresPerm: [Permissions.MY_ASSETS_ACCESS] }
+    },
+    {
+      path: '/asset-group/:id',
+      name: 'asset-group',
+      components: {
+        default: () =>
+          import(
+            /* webpackChunkName: "assets" */ './views/users/AssetGroupView.vue'
+          )
       },
       meta: { requiresAuth: true, requiresPerm: [Permissions.MY_ASSETS_ACCESS] }
     },
@@ -163,25 +186,8 @@ export const router = new Router({
       meta: { requiresAuth: true, requiresPerm: [Permissions.MY_ASSETS_CONFIG] }
     },
     {
-      path: '/user/assets',
-      name: 'user-assets',
-      components: {
-        default: () =>
-          import(
-            /* webpackChunkName: "user" */ './views/users/AssetGroupsView.vue'
-          ),
-        nav: () =>
-          import(/* webpackChunkName: "user" */ './views/nav/UserNav.vue')
-      },
-      meta: { requiresAuth: true, requiresPerm: [Permissions.MY_ASSETS_CONFIG] }
-    },
-    {
-      path: '/config',
-      name: 'config',
-      redirect: '/config/dashboard'
-    },
-    {
       path: '/config/dashboard',
+      alias: '/config',
       name: 'configDashboard',
       components: {
         default: () =>

@@ -5,9 +5,9 @@
     active-class="selected"
     class="date-filter-group d-flex"
   >
-    <v-chip label outlined dark value="all">all</v-chip>
-    <v-chip label outlined dark value="today">today</v-chip>
-    <v-chip label outlined dark value="week">one week</v-chip>
+    <v-chip label outlined dark color="black" value="all">all</v-chip>
+    <v-chip label outlined dark color="black" value="today">today</v-chip>
+    <v-chip label outlined dark color="black" value="week">one week</v-chip>
   </v-chip-group>
 </template>
 

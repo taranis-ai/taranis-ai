@@ -1,5 +1,5 @@
 <template>
-  <Navigation
+  <icon-navigation
     v-if="links.length > 0"
     :links="links"
     icon="mdi-google-circles-communities"
@@ -8,13 +8,13 @@
 </template>
 
 <script>
-import Navigation from '../../components/common/Navigation'
+import IconNavigation from '@/components/common/IconNavigation'
 import { mapActions, mapGetters } from 'vuex'
 
 export default {
   name: 'AnalyzeNav',
   components: {
-    Navigation
+    IconNavigation
   },
   data: () => ({
     groups: [],

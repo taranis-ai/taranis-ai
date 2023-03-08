@@ -31,6 +31,7 @@
 <script>
 import { getTags } from '@/api/assess'
 import { mapActions, mapGetters } from 'vuex'
+import { tagIconFromType } from '@/utils/helpers'
 
 export default {
   name: 'tagFilter',
@@ -64,18 +65,7 @@ export default {
     shortText(item) {
       return item.length > 20 ? item.substring(0, 20) + '...' : item
     },
-    tagIcon(tag_type) {
-      if (tag_type === 'ORG') {
-        return 'mdi-domain'
-      }
-      if (tag_type === 'LOC') {
-        return 'mdi-map-marker'
-      }
-      if (tag_type === 'PER') {
-        return 'mdi-account'
-      }
-      return 'mdi-tag'
-    },
+    tagIcon(tag_type) { return tagIconFromType(tag_type) },
     async querySelections(filter) {
       this.loading = true
       await getTags(filter).then((res) => {

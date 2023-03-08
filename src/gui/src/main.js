@@ -14,17 +14,7 @@ import VueCookies from 'vue-cookies'
 import VueSSE from 'vue-sse'
 import DatePicker from 'vue2-datepicker'
 import 'vue2-datepicker/index.css'
-
-import layout_config from './assets/layout_config'
 import vuetify from '@/plugins/vuetify'
-
-const CSL = {
-  install(Vue) {
-    Vue.prototype.UI = layout_config
-    this.UI = () => {}
-  }
-}
-Vue.use(CSL)
 
 Vue.config.productionTip = false
 

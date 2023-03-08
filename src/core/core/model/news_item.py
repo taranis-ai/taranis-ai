@@ -1208,7 +1208,7 @@ class NewsItemTag(db.Model):
         limit = filter_args.get("limit", 20)
         rows = query.offset(offset).limit(limit).all()
         # count = query.count()
-        return [{ "name": row.name, "tag_type": row.tag_type } for row in rows]
+        return [{"name": row.name, "tag_type": row.tag_type} for row in rows]
 
     @classmethod
     def get_list(cls, filter_args: dict):
@@ -1222,7 +1222,6 @@ class NewsItemTag(db.Model):
         rows = query.offset(offset).limit(limit).all()
         # count = query.count()
         return [row.name for row in rows]
-
 
     @classmethod
     def remove(cls, tag):

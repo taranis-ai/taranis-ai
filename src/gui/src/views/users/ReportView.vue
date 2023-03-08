@@ -29,15 +29,8 @@ export default {
   components: {
     ReportItem
   },
-  mounted() {
-    this.report_item = this.default_report_item
-  },
   async created() {
     this.report_item = await this.loadReportItem()
-    if (this.report_item === undefined) {
-      this.report_item = this.default_report_item
-      this.edit = false
-    }
   },
   methods: {
     async loadReportItem() {
@@ -46,6 +39,8 @@ export default {
           return response.data
         })
       }
+      this.edit = false
+      return this.default_report_item
     },
     reportCreated(report_item) {
       notifySuccess(`Report with ID ${report_item} created`)

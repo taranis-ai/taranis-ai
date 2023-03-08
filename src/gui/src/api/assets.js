@@ -34,10 +34,13 @@ export function deleteNotificationTemplate (template) {
   return ApiService.delete(`/my-assets/asset-notification-templates/${template.id}`)
 }
 
-export function getAllAssets (data) {
-  const { group_id, ...filter_data } = data
+export function getAllAssets (filter_data) {
   const filter = ApiService.getQueryStringFromNestedObject(filter_data)
-  return ApiService.get(`/my-assets/asset-groups/${group_id}/assets?${filter}`)
+  return ApiService.get(`/assets?${filter}`)
+}
+
+export function getAsset (asset_id) {
+  return ApiService.get(`/asset/${asset_id}`)
 }
 
 export function createAsset (asset) {

@@ -1,17 +1,17 @@
 <template>
-    <Navigation
+    <icon-navigation
       :links  = "links"
       :icon   = "'mdi-publish'"
     />
 </template>
 
 <script>
-import Navigation from '../../components/common/Navigation'
+import IconNavigation from '@/components/common/IconNavigation'
 
 export default {
   name: 'PublishNav',
   components: {
-    Navigation
+    IconNavigation
   },
   data: () => ({
     links: [

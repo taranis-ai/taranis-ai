@@ -30,6 +30,9 @@ def pre_seed(app):
         pre_seed_workers()
         logger.log_debug("Workers seeded")
 
+        pre_seed_assets()
+        logger.log_debug("Assets seeded")
+
     except Exception:
         logger.log_debug_trace()
         logger.critical("Pre Seed failed")
@@ -1309,6 +1312,10 @@ def pre_seed_default_user():
     from core.model.organization import Organization
     from core.model.user import User
 
+    user_count = User.get_all_json()["total_count"]
+    if user_count > 0:
+        return
+
     admin_organization = Organization.find(1)
     if not admin_organization:
         Organization.add_new(
@@ -1320,7 +1327,7 @@ def pre_seed_default_user():
             }
         )
 
-    if not User.find(username="admin"):
+    if not User.find(username="admin") and not User.find_by_role(1):
         User.add_new(
             {
                 "id": -1,
@@ -1332,11 +1339,7 @@ def pre_seed_default_user():
                     },
                 ],
                 "permissions": [],
-                "organizations": [
-                    {
-                        "id": 1,
-                    },
-                ],
+                "organization": {"id": 1},
                 "password": generate_password_hash("admin", method="sha256"),
             }
         )
@@ -1368,11 +1371,19 @@ def pre_seed_default_user():
                     },
                 ],
                 "permissions": [],
-                "organizations": [
-                    {
-                        "id": 2,
-                    },
-                ],
+                "organization": {"id": 2},
                 "password": generate_password_hash("user", method="sha256"),
             }
         )
+
+
+def pre_seed_assets():
+    from core.model.asset import AssetGroup
+    from core.model.user import User
+
+    if AssetGroup.find("default"):
+        return
+    users = User.get_all()
+    AssetGroup.create(
+        name="Default", description="Default group for uncategorized assets", organization_id=users[0].organization.id, id="default"
+    )

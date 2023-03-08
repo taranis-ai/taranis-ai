@@ -1,17 +1,17 @@
 <template>
-  <v-navigation-drawer
-    clipped
-    app
-    color="cx-drawer-bg"
-    class="sidebar"
-    style="max-height: 100% !important; height: calc(100vh - 48px) !important"
-    v-if="drawerVisible"
+  <filter-navigation
+    :search="filter.search"
+    @update:search="(value) => (search = value)"
+    :limit="limit"
+    @update:limit="(value) => (limit = value)"
+    :offsest="offset"
+    @update:offset="(value) => (offset = value)"
   >
-    <v-container class="pa-0 ma-0">
+    <template #navdrawer>
       <!-- scope -->
-      <v-row class="my-3 mr-0 px-3">
+      <v-row class="my-2 mr-0 px-2">
         <v-col cols="12" class="pb-0">
-          <h4>group</h4>
+          <h4>Source</h4>
         </v-col>
 
         <v-col cols="12" class="pt-0">
@@ -28,9 +28,6 @@
             dense
           ></v-select>
         </v-col>
-        <v-col cols="12" class="pb-0">
-          <h4>source</h4>
-        </v-col>
 
         <v-col cols="12" class="pt-0">
           <v-select
@@ -46,56 +43,12 @@
             dense
           ></v-select>
         </v-col>
-        <v-col cols="12" class="pb-0">
-          <h4>Display</h4>
-          <v-select
-            v-model="limit"
-            :items="items_per_page"
-            label="display items"
-            :hide-details="true"
-            solo
-            clearable
-            dense
-          ></v-select>
-        </v-col>
-        <v-col cols="12" class="pb-0">
-          <h4>Offset</h4>
-          <v-select
-            v-model="offset"
-            :items="offsetRange"
-            :hide-details="true"
-            label="offset"
-            solo
-            clearable
-            dense
-          ></v-select>
-        </v-col>
-      </v-row>
-
-      <v-divider class="mt-0 mb-0"></v-divider>
-
-      <!-- search -->
-      <v-row class="my-3 mr-0 px-3">
-        <v-col cols="12" class="py-0">
-          <h4>search</h4>
-        </v-col>
-
-        <v-col cols="12">
-          <v-text-field
-            v-model="search"
-            label="search"
-            outlined
-            dense
-            hide-details
-            append-icon="mdi-magnify"
-          ></v-text-field>
-        </v-col>
       </v-row>
 
       <v-divider class="mt-0 mb-0"></v-divider>
 
       <!-- filter results -->
-      <v-row class="my-3 mr-0 px-3">
+      <v-row class="my-2 mr-0 px-2">
         <v-col cols="12" class="py-0">
           <h4>filter results</h4>
         </v-col>
@@ -113,7 +66,7 @@
 
       <v-divider class="mt-0 mb-0"></v-divider>
 
-      <v-row class="my-3 mr-0 px-3">
+      <v-row class="my-2 mr-0 px-2">
         <v-col cols="12" class="pt-1">
           <filter-select-list
             v-model="filterAttribute"
@@ -124,7 +77,7 @@
 
       <v-divider class="mt-2 mb-0"></v-divider>
 
-      <v-row class="my-3 mr-0 px-3">
+      <v-row class="my-2 mr-0 px-2">
         <v-col cols="12" class="py-0">
           <h4>sort by</h4>
         </v-col>
@@ -136,7 +89,7 @@
 
       <v-divider class="mt-2 mb-0"></v-divider>
 
-      <v-row class="my-3 mr-0 px-3 pb-5">
+      <v-row class="my-2 mr-0 px-2 pb-5">
         <v-col cols="12" class="py-0">
           <v-btn @click="updateNewsItems()" color="primary" block>
             Reload
@@ -144,8 +97,8 @@
           </v-btn>
         </v-col>
       </v-row>
-    </v-container>
-  </v-navigation-drawer>
+    </template>
+  </filter-navigation>
 </template>
 
 <script>
@@ -154,6 +107,7 @@ import dateChips from '@/components/assess/filter/dateChips'
 import tagFilter from '@/components/assess/filter/tagFilter'
 import filterSelectList from '@/components/assess/filter/filterSelectList'
 import filterSortList from '@/components/assess/filter/filterSortList'
+import FilterNavigation from '@/components/common/FilterNavigation'
 
 export default {
   name: 'AssessNav',
@@ -161,7 +115,8 @@ export default {
     dateChips,
     tagFilter,
     filterSelectList,
-    filterSortList
+    filterSortList,
+    FilterNavigation
   },
   data: () => ({
     awaitingSearch: false,
@@ -197,8 +152,7 @@ export default {
         type: 'RELEVANCE',
         direction: 'DESC'
       }
-    ],
-    items_per_page: [5, 15, 25, 50, 100]
+    ]
   }),
   computed: {
     ...mapState('filter', {
@@ -278,6 +232,23 @@ export default {
         this.updateNewsItems()
       }
     },
+    filterAttribute: {
+      get() {
+        return this.filterAttributeSelections
+      },
+      set(value) {
+        this.filterAttributeSelections = value
+
+        const filterUpdate = this.filterAttributeOptions.reduce((obj, item) => {
+          obj[item.type] = value.includes(item.type) ? 'true' : undefined
+          return obj
+        }, {})
+
+        console.debug('filterAttributeSelections', filterUpdate)
+        this.updateFilter(filterUpdate)
+        this.updateNewsItems()
+      }
+    },
     search: {
       get() {
         return this.filter.search
@@ -293,28 +264,14 @@ export default {
 
         this.awaitingSearch = true
       }
-    },
-    offsetRange() {
-      const list = []
-      for (let i = 0; i <= this.getItemCount().total; i++) {
-        list.push(i)
-      }
-      return list
-    },
-    pages() {
-      const blocks = Math.ceil(
-        this.getItemCount().total / this.getItemCount().filtered
-      )
-      const list = []
-      for (let i = 0; i <= blocks; i++) {
-        list.push(i)
-      }
-      return list
     }
   },
   methods: {
     ...mapGetters(['getItemCount']),
-    ...mapGetters('assess', ['getOSINTSourceGroupsList', 'getOSINTSourcesList']),
+    ...mapGetters('assess', [
+      'getOSINTSourceGroupsList',
+      'getOSINTSourcesList'
+    ]),
     ...mapActions('assess', ['updateNewsItems']),
     ...mapActions('filter', [
       'setScope',

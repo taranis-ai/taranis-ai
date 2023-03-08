@@ -47,8 +47,8 @@ class OSINTSourceUpdateStatusSchema(Schema):
     class Meta:
         unknown = EXCLUDE
 
-    last_collected = fields.DateTime("%d.%m.%Y - %H:%M:%s")
-    last_attempted = fields.DateTime("%d.%m.%Y - %H:%M:%s")
+    last_collected = fields.DateTime()
+    last_attempted = fields.DateTime()
     last_error_message = fields.Str()
     last_data = fields.Raw()
 
@@ -125,7 +125,6 @@ class OSINTSourceExport:
         self.description = description
         self.collector = collector
         self.parameter_values = parameter_values
-
 
 
 class OSINTSourceExportRootSchema(Schema):

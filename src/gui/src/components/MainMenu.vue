@@ -113,7 +113,7 @@ export default {
         title: 'main_menu.administration',
         icon: 'mdi-cog-outline',
         permission: 'CONFIG_ACCESS',
-        route: '/config/dashboard',
+        route: '/config',
         show: true
       },
       {
@@ -145,10 +145,10 @@ export default {
         show: true
       },
       {
-        title: 'main_menu.my_assets',
+        title: 'main_menu.assets',
         icon: 'mdi-file-multiple-outline',
         permission: 'MY_ASSETS_ACCESS',
-        route: '/myassets',
+        route: '/assets',
         show: true
       }
     ],

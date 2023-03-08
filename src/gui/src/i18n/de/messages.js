@@ -55,7 +55,7 @@ export const messages_de = {
     publish: 'Publish',
     config: 'Config',
     dashboard: 'Dashboard',
-    my_assets: 'Assets'
+    assets: 'Assets'
   },
   nav_menu: {
     enter: 'Newsbeitrag erstellen',
@@ -171,7 +171,7 @@ export const messages_de = {
     successful_edit: 'Benutzer wurde erfolgreich aktualisiert',
     removed: 'Benutzer wurde erfolgreich entfernt',
     removed_error: 'Benutzer wird verwendet und konnte nicht gelöscht werden',
-    organizations: 'Organisationen',
+    organization: 'Organisation',
     roles: 'Rollen',
     permissions: 'Berechtigungen',
     total_count: 'Benutzer zählen: ',

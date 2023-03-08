@@ -50,26 +50,18 @@
 
       <v-row no-gutters>
         <v-col cols="6" class="pr-1">
-          <v-data-table
+          <v-select
             :disabled="!canUpdate"
-            v-model="user.organizations"
-            :headers="headers"
+            v-model="user.organization"
+            item-text="name"
+            item-value="id"
+            :hint="$t('user.organization')"
+            :label="$t('user.organization')"
             :items="organizations"
-            item-key="id"
-            :show-select="canUpdate"
-            :hide-default-footer="organizations.length < 10"
-            class="elevation-1"
           >
-            <template v-slot:top>
-              <v-toolbar flat color="white">
-                <v-toolbar-title>{{
-                  $t('user.organizations')
-                }}</v-toolbar-title>
-              </v-toolbar>
-            </template>
-          </v-data-table>
+          </v-select>
         </v-col>
-        <v-col cols="6" class="pl-1">
+        <v-col cols="12" class="pl-1">
           <v-data-table
             :disabled="!canUpdate"
             v-model="user.roles"

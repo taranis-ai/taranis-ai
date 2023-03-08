@@ -61,6 +61,10 @@ class NLPBot(BaseBot):
                 return
 
             for aggregate in data:
+                if aggregate.get("summary", None) and aggregate.get("tags", None):
+                    logger.debug(f"Skipping aggregate: {aggregate['id']}")
+                    continue
+
                 keywords = []
                 content_list = []
                 existing_tags = aggregate["tags"] or []

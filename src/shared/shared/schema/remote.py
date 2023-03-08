@@ -16,7 +16,7 @@ class RemoteAccessSchema(Schema):
 
 
 class RemoteAccessPresentationSchema(RemoteAccessSchema, PresentationSchema):
-    last_synced = fields.DateTime("%d.%m.%Y - %H:%M:%s")
+    last_synced = fields.DateTime()
 
 
 class RemoteNodeSchema(Schema):
@@ -33,5 +33,5 @@ class RemoteNodeSchema(Schema):
 
 
 class RemoteNodePresentationSchema(RemoteNodeSchema, PresentationSchema):
-    last_synced = fields.DateTime("%d.%m.%Y - %H:%M:%s")
+    last_synced = fields.DateTime()
     event_id = fields.Str()

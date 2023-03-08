@@ -45,7 +45,8 @@ class NotificationTemplate(db.Model):
 
     recipients = db.relationship("EmailRecipient", cascade="all, delete-orphan")
 
-    organizations = db.relationship("Organization", secondary="notification_template_organization")
+    organization_id = db.Column(db.Integer, db.ForeignKey("organization.id"))
+    organization = db.relationship("Organization")
 
     def __init__(self, id, name, description, message_title, message_body, recipients):
         self.id = None
@@ -68,18 +69,15 @@ class NotificationTemplate(db.Model):
     def get(cls, search, organization):
         query = cls.query
 
-        if organization is not None:
-            query = query.join(
-                NotificationTemplateOrganization,
-                NotificationTemplate.id == NotificationTemplateOrganization.notification_template_id,
-            )
+        if organization:
+            query = query.filter_by(organization_id=organization.id)
 
-        if search is not None:
-            search_string = f"%{search.lower()}%"
+        if search:
+            search_string = f"%{search}%"
             query = query.filter(
                 or_(
-                    func.lower(NotificationTemplate.name).like(search_string),
-                    func.lower(NotificationTemplate.description).like(search_string),
+                    NotificationTemplate.name.ilike(search_string),
+                    NotificationTemplate.description.ilike(search_string),
                 )
             )
 
@@ -87,7 +85,7 @@ class NotificationTemplate(db.Model):
 
     @classmethod
     def get_all_json(cls, user, search):
-        templates, count = cls.get(search, user.organizations[0])
+        templates, count = cls.get(search, user.organization)
         template_schema = NotificationTemplatePresentationSchema(many=True)
         return {"total_count": count, "items": template_schema.dump(templates)}
 
@@ -95,33 +93,6 @@ class NotificationTemplate(db.Model):
     def add(cls, user, data):
         new_template_schema = NewNotificationTemplateSchema()
         template = new_template_schema.load(data)
-        template.organizations = user.organizations
+        template.organization = user.organization
         db.session.add(template)
         db.session.commit()
-
-    @classmethod
-    def delete(cls, user, template_id):
-        template = cls.query.get(template_id)
-        if any(org in user.organizations for org in template.organizations):
-            db.session.delete(template)
-            db.session.commit()
-
-    @classmethod
-    def update(cls, user, template_id, data):
-        new_template_schema = NewNotificationTemplateSchema()
-        for r in data["recipients"]:
-            r.pop("id")
-        updated_template = new_template_schema.load(data)
-        template = cls.query.get(template_id)
-        if any(org in user.organizations for org in template.organizations):
-            template.name = updated_template.name
-            template.description = updated_template.description
-            template.message_title = updated_template.message_title
-            template.message_body = updated_template.message_body
-            template.recipients = updated_template.recipients
-            db.session.commit()
-
-
-class NotificationTemplateOrganization(db.Model):
-    notification_template_id = db.Column(db.Integer, db.ForeignKey("notification_template.id"), primary_key=True)
-    organization_id = db.Column(db.Integer, db.ForeignKey("organization.id"), primary_key=True)

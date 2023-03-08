@@ -11,9 +11,7 @@ from shared.schema.attribute import AttributeType
 class AssetGroups(Resource):
     @auth_required("MY_ASSETS_ACCESS")
     def get(self):
-        search = None
-        if "search" in request.args and request.args["search"]:
-            search = request.args["search"]
+        search = request.args.get("search", None)
         return asset.AssetGroup.get_all_json(auth_manager.get_user_from_jwt(), search)
 
     @auth_required("MY_ASSETS_CONFIG")
@@ -34,9 +32,7 @@ class AssetGroup(Resource):
 class NotificationTemplates(Resource):
     @auth_required("MY_ASSETS_CONFIG")
     def get(self):
-        search = None
-        if "search" in request.args and request.args["search"]:
-            search = request.args["search"]
+        search = request.args.get("search", None)
         return notification_template.NotificationTemplate.get_all_json(auth_manager.get_user_from_jwt(), search)
 
     @auth_required("MY_ASSETS_CONFIG")
@@ -56,17 +52,11 @@ class NotificationTemplate(Resource):
 
 class Assets(Resource):
     @auth_required("MY_ASSETS_ACCESS")
-    def get(self, group_id):
-        search = None
-        sort = None
-        vulnerable = None
-        if "search" in request.args and request.args["search"]:
-            search = request.args["search"]
-        if "sort" in request.args and request.args["sort"]:
-            sort = request.args["sort"]
-        if "vulnerable" in request.args and request.args["vulnerable"]:
-            vulnerable = request.args["vulnerable"]
-        return asset.Asset.get_all_json(auth_manager.get_user_from_jwt(), group_id, search, sort, vulnerable)
+    def get(self):
+        filter_keys = ["search" "vulnerable", "group", "sort"]
+        filter_args: dict[str, str | int] = {k: v for k, v in request.args.items() if k in filter_keys}
+
+        return asset.Asset.get_all_json(auth_manager.get_user_from_jwt(), filter_args)
 
     @auth_required("MY_ASSETS_CREATE")
     def post(self, group_id):
@@ -128,8 +118,8 @@ def initialize(api):
         "/api/v1/my-assets/asset-notification-templates/<int:template_id>",
     )
 
-    api.add_resource(Assets, "/api/v1/my-assets/asset-groups/<string:group_id>/assets")
-    api.add_resource(Asset, "/api/v1/my-assets/asset-groups/<string:group_id>/assets/<int:asset_id>")
+    api.add_resource(Assets, "/api/v1/assets")
+    api.add_resource(Asset, "/api/v1/assets/<int:asset_id>")
 
     api.add_resource(
         AssetVulnerability,

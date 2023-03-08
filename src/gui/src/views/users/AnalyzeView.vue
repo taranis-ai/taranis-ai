@@ -46,6 +46,7 @@ export default {
   data: () => ({
     report_items: [],
     report_types: {},
+    selected: [],
     report_item: {
       report_item_type_id: null,
       title_prefix: '',
@@ -79,16 +80,14 @@ export default {
       console.log(submittedData)
     },
     deleteItem(item) {
-      if (!item.default) {
-        deleteReportItem(item)
-          .then(() => {
-            notifySuccess(`Successfully deleted ${item.name}`)
-            this.updateData()
-          })
-          .catch(() => {
-            notifyFailure(`Failed to delete ${item.name}`)
-          })
-      }
+      deleteReportItem(item)
+        .then(() => {
+          notifySuccess(`Successfully deleted ${item.name}`)
+          this.updateData()
+        })
+        .catch(() => {
+          notifyFailure(`Failed to delete ${item.name}`)
+        })
     },
     createItem(item) {
       createReportItem(item)

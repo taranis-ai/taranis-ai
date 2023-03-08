@@ -47,8 +47,9 @@
               <v-icon
                 v-if="story_in_report"
                 class="flipped-icon mr-2 ml-n4 mt-n5"
-                >mdi-share</v-icon
               >
+                mdi-share
+              </v-icon>
               <h2 class="news-item-title">
                 {{ story.title }}
               </h2>

@@ -37,6 +37,23 @@ export const messages_en = {
     },
   },
 
+  button: {
+    add: "Add",
+    edit: "Edit",
+    save: "Save",
+    cancel: "Cancel",
+    delete: "Delete",
+    close: "Close",
+    create: "Create",
+    add_new: "Add New"
+  },
+
+  title: {
+    add_new: "Add new",
+    edit: "Edit",
+    delete: "Delete"
+  },
+
   login: {
     title: "Please Login",
     username: "Username",
@@ -60,7 +77,7 @@ export const messages_en = {
     publish: "Publish",
     config: "Configuration",
     dashboard: "Dashboard",
-    my_assets: "My Assets"
+    assets: "Assets"
   },
 
   nav_menu: {
@@ -183,7 +200,7 @@ export const messages_en = {
     successful_edit: "User was successfully updated",
     removed: "User was successfully removed",
     removed_error: "User is in use and could not be deleted",
-    organizations: "Organizations",
+    organization: "Organization",
     roles: "Roles",
     permissions: "Permissions",
     total_count: "Users count: ",
@@ -488,8 +505,6 @@ export const messages_en = {
   report_item: {
     add_new: "New report item",
     edit: "Edit report item",
-    save: "Save",
-    cancel: "Cancel",
     validation_error: "Please fill in all required fields",
     error: "Could not create this report item",
     title: "Name",
@@ -501,7 +516,6 @@ export const messages_en = {
     removed_error: "Report item is in use and could not be deleted",
     select: "Select Report Items",
     select_remote: "Select Report Items from Remote Nodes",
-    add: "Add",
     attributes: "Attributes",
     import_csv: "Import CSV",
     import_from_csv: "Import CVE/CPE from CSV",
@@ -717,9 +731,6 @@ export const messages_en = {
   asset_group: {
     add_new: "Add new asset group",
     edit: "Edit asset group",
-    add: "Add New",
-    cancel: "Cancel",
-    save: "Save",
     validation_error: "Please fill in all required fields",
     error: "Could not save this asset group",
     name: "Name",

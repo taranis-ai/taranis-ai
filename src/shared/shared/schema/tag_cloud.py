@@ -7,7 +7,7 @@ class TagCloudBaseSchema(Schema):
 
     word = fields.Str()
     word_quantity = fields.Int()
-    collected = fields.DateTime("%d.%m.%Y")
+    collected = fields.DateTime()
 
 
 class TagCloudSchema(TagCloudBaseSchema):

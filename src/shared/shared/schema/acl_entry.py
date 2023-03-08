@@ -4,7 +4,6 @@ from marshmallow_enum import EnumField
 
 from shared.schema.presentation import PresentationSchema
 from shared.schema.role import RoleSchema
-from shared.schema.user import UserSchemaBase
 
 
 class ItemType(Enum):
@@ -40,4 +39,3 @@ class ACLEntrySchema(ACLEntryStatusSchema):
 
 class ACLEntryPresentationSchema(ACLEntrySchema, PresentationSchema):
     roles = fields.Nested(RoleSchema, many=True)
-    users = fields.Nested(UserSchemaBase, many=True)

@@ -12,6 +12,27 @@ const state = {
     in_report: undefined,
     relevant: undefined,
     important: undefined
+  },
+  assetFilter: {
+    offset: undefined,
+    limit: undefined,
+    search: undefined,
+    sort: undefined
+  },
+  reportFilter: {
+    offset: undefined,
+    limit: undefined,
+    search: undefined,
+    sort: undefined,
+    range: undefined,
+    completed: undefined
+  },
+  productFilter: {
+    offset: undefined,
+    limit: undefined,
+    search: undefined,
+    sort: undefined,
+    range: undefined
   }
 }
 
@@ -45,6 +66,24 @@ const actions = {
   },
   setSort(context, sort) {
     context.commit('SET_SORT', sort)
+  },
+  updateAssetFilter(context, filter) {
+    context.commit('UPDATE_ASSET_FILTER', filter)
+  },
+  setAssetFilter(context, filter) {
+    context.commit('SET_ASSET_FILTER', filter)
+  },
+  updateReportFilter(context, filter) {
+    context.commit('UPDATE_REPORT_FILTER', filter)
+  },
+  setReportFilter(context, filter) {
+    context.commit('SET_REPORT_FILTER', filter)
+  },
+  updateProductFilter(context, filter) {
+    context.commit('UPDATE_PRODUCT_FILTER', filter)
+  },
+  setProductFilter(context, filter) {
+    context.commit('SET_PRODUCT_FILTER', filter)
   }
 }
 
@@ -54,6 +93,15 @@ const getters = {
   },
   getNewsItemsFilter(state) {
     return state.newsItemsFilter
+  },
+  getAssetFilter(state) {
+    return state.assetFilter
+  },
+  getReportFilter(state) {
+    return state.reportFilter
+  },
+  getProductFilter(state) {
+    return state.productFilter
   },
   getOffset(state) {
     return state.newsItemsFilter.offset
@@ -102,6 +150,30 @@ const mutations = {
   UPDATE_FILTER(state, filter) {
     Object.keys(filter).forEach((element) => {
       state.newsItemsFilter[element] = filter[element]
+    })
+  },
+  SET_ASSET_FILTER(state, filter) {
+    state.assetFilter = filter
+  },
+  UPDATE_ASSET_FILTER(state, filter) {
+    Object.keys(filter).forEach((element) => {
+      state.assetFilter[element] = filter[element]
+    })
+  },
+  SET_REPORT_FILTER(state, filter) {
+    state.reportFilter = filter
+  },
+  UPDATE_REPORT_FILTER(state, filter) {
+    Object.keys(filter).forEach((element) => {
+      state.reportFilter[element] = filter[element]
+    })
+  },
+  SET_PRODUCT_FILTER(state, filter) {
+    state.productFilter = filter
+  },
+  UPDATE_PRODUCT_FILTER(state, filter) {
+    Object.keys(filter).forEach((element) => {
+      state.productFilter[element] = filter[element]
     })
   },
   SET_SORT(state, sort) {

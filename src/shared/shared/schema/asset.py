@@ -2,7 +2,6 @@ from marshmallow import Schema, fields, EXCLUDE
 
 from shared.schema.presentation import PresentationSchema
 from shared.schema.report_item import ReportItemBaseSchema, ReportItemAttributeSchema
-from shared.schema.user import UserSchemaBase
 from shared.schema.notification_template import NotificationTemplateSchema
 from shared.schema.report_item_type import ReportItemTypeSchema
 
@@ -51,5 +50,4 @@ class AssetGroupSchema(Schema):
 
 
 class AssetGroupPresentationSchema(AssetGroupSchema, PresentationSchema):
-    users = fields.Nested(UserSchemaBase, many=True)
     templates = fields.Nested(NotificationTemplateSchema, many=True)

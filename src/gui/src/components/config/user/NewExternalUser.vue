@@ -124,7 +124,7 @@ export default {
       this.user.username = ''
       this.user.name = ''
       this.user.roles = []
-      this.user.organizations = []
+      this.user.organization = {}
       this.selected_permissions = []
       this.$validator.reset()
     },

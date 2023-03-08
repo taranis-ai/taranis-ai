@@ -488,17 +488,19 @@ textarea {
   column-gap: 7px;
 }
 
+.sidebar {
+  max-height: 100% !important;
+  height: calc(100vh - 48px) !important;
+}
+
+
 .v-application .sidebar .filter-btn,
 .date-filter-group .v-slide-group__content .v-chip,
 .tags-logic-operator .v-btn {
   min-width: 10px !important;
-  letter-spacing: normal;
   font-weight: 400;
-  caret-color: $light-grey-2;
-  border-color: $light-grey-2;
-  color: $dark-grey !important;
   flex-grow: 1 !important;
-  padding: 10px 10px;
+  padding: 5px 5px;
   margin: 0;
   justify-content: center;
 

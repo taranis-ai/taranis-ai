@@ -44,7 +44,7 @@ import AuthMixin from '@/services/auth/auth_mixin'
 import { mapState } from 'vuex'
 
 export default {
-  name: 'Navigation',
+  name: 'IconNavigation',
   props: {
     links: Array,
     icon: String,

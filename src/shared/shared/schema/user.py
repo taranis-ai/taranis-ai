@@ -19,7 +19,7 @@ class UserSchemaBase(Schema):
 class UserSchema(UserSchemaBase):
     roles = fields.Nested(RoleSchema, many=True)
     permissions = fields.Nested(PermissionSchema, many=True)
-    organizations = fields.Nested(OrganizationSchema, many=True)
+    organization = fields.Nested(OrganizationSchema)
 
     @post_load
     def make(self, data, **kwargs):

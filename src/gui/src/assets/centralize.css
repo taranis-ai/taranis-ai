@@ -679,8 +679,6 @@ nav .v-list-item__title {
     padding-left: 1em;
 }
 
-.tabs .v-window-item {}
-
 .icon-field-offset {
     margin-left: 8px;
 }
@@ -704,8 +702,6 @@ nav .v-list-item__title {
     padding-left: 1em;
 }
 
-.tabs .v-window-item {}
-
 .icon-field-offset {
     margin-left: 8px;
 }
@@ -726,50 +722,6 @@ nav .v-list-item__title {
 
 .vue-csv-uploader-part-two table thead {
     text-align: left;
-}
-
-.vue-csv-uploader-part-two table select {
-    -webkit-appearance: auto;
-    -moz-appearance: auto;
-    border: 1px solid gray;
-    border-radius: 4px;
-}
-
-/* --- AttributeItemLayout.vue --- */
-.attribute-item-layout .row {
-    width: 100%;
-}
-
-/* --- AttributeValueLayout.vue --- */
-.col-left {
-    width: 8% !important;
-}
-
-.col-middle {
-    width: 82% !important;
-}
-
-.col-right {
-    width: 10% !important;
-}
-
-.col-left,
-.col-right {
-    line-height: 2;
-}
-
-.attribute-value-layout:hover {
-    background-color: rgba(106, 190, 242, 0.06);
-}
-
-.icon-tooltip {
-    position: absolute;
-    opacity: 0.7;
-    top: -23px;
-    left: -4px;
-    font-size: 10px;
-    width: 320px;
-    color: #4694db;
 }
 
 /* --- ContentDataPublish.vue --- */

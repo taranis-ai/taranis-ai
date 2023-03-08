@@ -8,6 +8,7 @@ class GroupingBot(BaseBot):
     type = "GROUPING_BOT"
     name = "Grouping Bot"
     description = "Bot for grouping news items into aggregates"
+    default_regex = r"CVE-\d{4}-\d{4,7}"
 
     def execute(self):
         try:

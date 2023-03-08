@@ -1,20 +1,21 @@
 <template>
   <v-container fluid class="ma-5 mt-5 pa-5 pt-0">
-      <v-data-table
-        v-model="selected"
-        @change="emitSelectionChange"
-        @update:search="emitSearchChange"
-        @current-items="emitFilterChange"
-        :headers="headers"
-        :items="items"
-        :search="search"
-        :group-by="groupByItem"
-        :sort-by="sortByItem"
-        class="elevation-1"
-        :hide-default-footer="items.length < 10"
-        show-select
-        @click:row="rowClick"
-      >
+    <slot name="header"></slot>
+    <v-data-table
+      v-model="selected"
+      @change="emitSelectionChange"
+      @update:search="emitSearchChange"
+      @current-items="emitFilterChange"
+      :headers="headers"
+      :items="items"
+      :search="search"
+      :group-by="groupByItem"
+      :sort-by="sortByItem"
+      class="elevation-1"
+      :hide-default-footer="items.length < 10"
+      show-select
+      @click:row="rowClick"
+    >
       <template v-slot:[`top`]>
         <v-card>
           <v-card-title>
@@ -46,46 +47,43 @@
             </v-btn>
             <slot name="titlebar"></slot>
           </v-card-title>
-         </v-card>
+        </v-card>
       </template>
-        <template v-slot:[`group.header`]="{ items }">
-          <th :colspan="headers.length" class="text-left">
-            {{ items[0].collector_type }}
-          </th>
-        </template>
+      <template v-slot:[`header.tag`]="{}"></template>
+      <template v-slot:[`header.actions`]="{}"></template>
 
-        <template v-slot:[`header.tag`]="{}"></template>
-        <template v-slot:[`header.actions`]="{}"></template>
+      <template v-slot:[`item.default`]="{ item }">
+        <v-chip :color="getDefaultColor(item.default)" dark>
+          {{ item.default }}
+        </v-chip>
+      </template>
 
-        <template v-slot:[`item.default`]="{ item }">
-          <v-chip :color="getDefaultColor(item.default)" dark>
-            {{ item.default }}
-          </v-chip>
-        </template>
+      <template v-slot:[`item.tag`]="{ item }">
+        <v-icon small class="mr-1">
+          {{ item.tag }}
+        </v-icon>
+      </template>
 
-        <template v-slot:[`item.tag`]="{ item }">
-          <v-icon small class="mr-1">
-            {{ item.tag }}
-          </v-icon>
-        </template>
-        <template v-slot:[`item.actions`]="{ item }">
-          <div class="d-inline-flex">
-            <slot name="actionColumn"></slot>
-            <v-tooltip left>
-              <template v-slot:activator="{ on }">
-                <v-icon v-on="on" color="red" @click.stop="deleteItem(item)"> mdi-delete </v-icon>
-              </template>
-              <span>Delete</span>
-            </v-tooltip>
-          </div>
-        </template>
-        <template v-slot:no-data>
-          <v-btn color="primary" @click.stop="updateItems()">
-            <v-icon class="mr-1">mdi-refresh</v-icon>
-            Refresh
-          </v-btn>
-        </template>
-      </v-data-table>
+      <template v-slot:[`item.actions`]="{ item }">
+        <div class="d-inline-flex">
+          <slot name="actionColumn"></slot>
+          <v-tooltip left>
+            <template v-slot:activator="{ on }">
+              <v-icon v-on="on" color="red" @click.stop="deleteItem(item)">
+                mdi-delete
+              </v-icon>
+            </template>
+            <span>Delete</span>
+          </v-tooltip>
+        </div>
+      </template>
+      <template v-slot:no-data>
+        <v-btn color="primary" @click.stop="updateItems()">
+          <v-icon class="mr-1">mdi-refresh</v-icon>
+          Refresh
+        </v-btn>
+      </template>
+    </v-data-table>
   </v-container>
 </template>
 
@@ -94,7 +92,13 @@ import { mapActions } from 'vuex'
 export default {
   name: 'DataTable',
   components: {},
-  emits: ['delete-item', 'edit-item', 'add-item', 'selection-change', 'search-change'],
+  emits: [
+    'delete-item',
+    'edit-item',
+    'add-item',
+    'selection-change',
+    'search-change'
+  ],
   props: {
     items: {
       type: Array,
@@ -135,7 +139,11 @@ export default {
       }
       var headers = []
       if (this.headerFilter.length > 0) {
-        headers = this.headerFilter.map((key) => this.headerTransform(key))
+        if (typeof this.headerFilter[0] !== 'object') {
+          headers = this.headerFilter.map((key) => this.headerTransform(key))
+        } else {
+          headers = this.headerFilter
+        }
       } else if (this.items.length > 0) {
         headers = Object.keys(this.items[0]).map((key) =>
           this.headerTransform(key)
