@@ -134,7 +134,7 @@ export default {
         title: 'main_menu.analyze',
         icon: 'mdi-google-circles-communities',
         permission: 'ANALYZE_ACCESS',
-        route: '/analyze/local',
+        route: '/analyze',
         show: true
       },
       {

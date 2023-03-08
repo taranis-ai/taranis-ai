@@ -232,23 +232,6 @@ export default {
         this.updateNewsItems()
       }
     },
-    filterAttribute: {
-      get() {
-        return this.filterAttributeSelections
-      },
-      set(value) {
-        this.filterAttributeSelections = value
-
-        const filterUpdate = this.filterAttributeOptions.reduce((obj, item) => {
-          obj[item.type] = value.includes(item.type) ? 'true' : undefined
-          return obj
-        }, {})
-
-        console.debug('filterAttributeSelections', filterUpdate)
-        this.updateFilter(filterUpdate)
-        this.updateNewsItems()
-      }
-    },
     search: {
       get() {
         return this.filter.search

@@ -47,7 +47,7 @@ class User(db.Model):
         self.username = username
         self.name = name
         self.password = password
-        self.organization = Organization.find(organization.id)
+        self.organization = Organization.find(organization["id"]) if isinstance(organization, dict) else Organization.find(organization.id)
         self.roles = [Role.find(role.id) for role in roles]
         self.permissions = [Permission.find(permission.id) for permission in permissions]
         self.profile = UserProfile(True, False, [])

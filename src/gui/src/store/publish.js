@@ -1,5 +1,6 @@
 import { getAllProducts } from '@/api/publish'
 import { getAllUserPublishersPresets } from '@/api/user'
+import { filter } from '@/store/filter'
 
 const state = {
   products: { total_count: 0, items: [] },
@@ -10,6 +11,13 @@ const actions = {
 
   loadProducts (context, data) {
     return getAllProducts(data)
+      .then(response => {
+        context.commit('setProducts', response.data)
+      })
+  },
+
+  updateProducts (context) {
+    return getAllProducts(filter.state.productFilter)
       .then(response => {
         context.commit('setProducts', response.data)
       })

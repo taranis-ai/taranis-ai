@@ -1,4 +1,5 @@
 import { getAllReportItems, getAllReportTypes, getAllReportItemGroups } from '@/api/analyze'
+import { filter } from '@/store/filter'
 
 const state = {
   report_items: { total_count: 0, items: [] },
@@ -20,6 +21,13 @@ const actions = {
 
   loadReportItems (context, data) {
     return getAllReportItems(data)
+      .then(response => {
+        context.commit('setReportItems', response.data)
+      })
+  },
+
+  updateReportItems (context) {
+    return getAllReportItems(filter.state.reportFilter)
       .then(response => {
         context.commit('setReportItems', response.data)
       })

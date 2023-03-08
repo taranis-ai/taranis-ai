@@ -65,7 +65,8 @@ export const router = new Router({
       meta: { requiresAuth: true, requiresPerm: [Permissions.ASSESS_ACCESS] }
     },
     {
-      path: '/analyze*',
+      path: '/analyze',
+      alias: '/reports',
       name: 'analyze',
       components: {
         default: () =>
@@ -90,6 +91,7 @@ export const router = new Router({
     },
     {
       path: '/publish',
+      alias: '/products',
       name: 'publish',
       components: {
         default: () =>

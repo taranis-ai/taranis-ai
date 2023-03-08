@@ -9,13 +9,13 @@
   >
     <template #navdrawer>
       <v-row class="my-2 mr-0 px-2 pb-5">
-        <v-col cols="6" offset="3" align-self="center" class="py-1">
+        <v-col cols="12" align-self="center" class="py-1">
           <v-btn @click="addAsset()" color="primary" block>
-            <v-icon left dark> mdi-file-plus-outline </v-icon>
+            <v-icon left dark> mdi-view-grid-plus </v-icon>
             New Asset
           </v-btn>
         </v-col>
-        <v-col cols="6" offset="2" align-self="center" class="py-2">
+        <v-col cols="12" align-self="center" class="py-2">
           <v-btn @click="addAssetGroup()" color="primary" block>
             <v-icon left dark> mdi-folder-plus-outline </v-icon>
             New Asset Group
@@ -148,10 +148,6 @@ export default {
     },
     addAssetGroup() {
       this.$router.push('/asset-group/0')
-    },
-    setSearch(value) {
-      console.debug('setSearch', value)
-      this.updateAssetFilter({ search: value })
     }
   },
   created() {
