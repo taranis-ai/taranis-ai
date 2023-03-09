@@ -2,7 +2,7 @@
   <LineChart
     :chart-options="chartOptions"
     :chart-data="chart_data"
-    :height="200"
+    :height="chartHeight"
   />
 </template>
 
@@ -13,6 +13,7 @@ import {
   Title,
   Tooltip,
   Legend,
+  Filler,
   LineElement,
   LinearScale,
   CategoryScale,
@@ -23,6 +24,7 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
+  Filler,
   LineElement,
   LinearScale,
   CategoryScale,
@@ -49,13 +51,37 @@ export default {
       type: Array,
       required: false,
       default: () => []
+    },
+    threshold: {
+      type: Number,
+      required: false,
+      default: 20
+    },
+    chartHeight: {
+      type: Number,
+      required: false,
+      default: 150
     }
   },
   data: function () {
     return {
       chartOptions: {
         responsive: true,
-        maintainAspectRatio: false
+        maintainAspectRatio: false,
+        elements: {
+          line: {
+            tension: 0.4
+          }
+        },
+        plugins: {
+          filler: {
+            propagate: false
+          },
+          legend: {
+            display: false
+          }
+        }
+
       }
     }
   },
@@ -118,11 +144,16 @@ export default {
         labels: this.last_n_days,
         datasets: [
           {
-            label: 'Anzahl der Artikel',
-            data: this.news_items_per_day
+            data: this.news_items_per_day,
+            showLine: false,
+            backgroundColor: 'rgba(127, 116, 234, 1.0)',
+            fill: true
           }
         ]
       }
+    },
+    threshold_line() {
+      return Array(this.timespan).fill(this.threshold)
     }
   },
   updated() {

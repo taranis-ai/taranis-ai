@@ -585,31 +585,55 @@ class NewsItemAggregate(db.Model):
         return NewsItemAggregateSchema().dump(aggregate)
 
     @classmethod
-    def get_by_group(cls, group_id, filter: dict, user: User):
+    def get_story_clusters(cls, days: int = 7, limit: int = 10):
+        start_date = datetime.now() - timedelta(days=days)
+        clusters = (
+            cls.query.join(NewsItem)
+            .join(NewsItemData)
+            .filter(NewsItemData.published >= start_date)
+            .group_by(cls.title, cls.id)
+            .order_by(func.count().desc())
+            .having(func.count() > 1)
+            .limit(limit)
+            .all()
+        )
+        return [
+            {
+                "name": cluster.title,
+                "size": len(cluster.news_items),
+                "published": [ni.news_item_data.published.isoformat() for ni in cluster.news_items],
+            }
+            for cluster in clusters
+        ]
+
+    @classmethod
+    def get_by_filter(cls, filter: dict, user: User):
         logger.debug(f"Getting NewsItems Filtered: {filter}")
         query = cls.query.distinct().group_by(NewsItemAggregate.id)
 
-        query = query.filter(NewsItemAggregate.osint_source_group_id == group_id)
+        if group := filter.get("group"):
+            query = query.filter(NewsItemAggregate.osint_source_group_id == group)
 
         query = query.join(NewsItem, NewsItem.news_item_aggregate_id == NewsItemAggregate.id)
         query = query.join(NewsItemData, NewsItem.news_item_data_id == NewsItemData.id)
         query = query.outerjoin(OSINTSource, NewsItemData.osint_source_id == OSINTSource.id)
 
-        query = query.outerjoin(
-            ACLEntry,
-            or_(
-                and_(
-                    NewsItemData.osint_source_id == ACLEntry.item_id,
-                    ACLEntry.item_type == ItemType.OSINT_SOURCE,
+        if ACLEntry.has_rows():
+            query = query.outerjoin(
+                ACLEntry,
+                or_(
+                    and_(
+                        NewsItemData.osint_source_id == ACLEntry.item_id,
+                        ACLEntry.item_type == ItemType.OSINT_SOURCE,
+                    ),
+                    and_(
+                        OSINTSource.collector_id == ACLEntry.item_id,
+                        ACLEntry.item_type == ItemType.COLLECTOR,
+                    ),
                 ),
-                and_(
-                    OSINTSource.collector_id == ACLEntry.item_id,
-                    ACLEntry.item_type == ItemType.COLLECTOR,
-                ),
-            ),
-        )
+            )
 
-        query = ACLEntry.apply_query(query, user, True, False, False)
+            query = ACLEntry.apply_query(query, user, True, False, False)
 
         if source := filter.get("source"):
             query = query.filter(OSINTSource.id == source)
@@ -684,30 +708,19 @@ class NewsItemAggregate(db.Model):
         return query.offset(offset).limit(limit).all(), query.count()
 
     @classmethod
-    def get_by_group_json(cls, group_id, filter, user):
-        news_item_aggregates, count = cls.get_by_group(group_id, filter, user)
+    def get_by_filter_json(cls, filter, user):
+        news_item_aggregates, count = cls.get_by_filter(filter, user)
         for news_item_aggregate in news_item_aggregates:
-            news_item_aggregate.me_like = False
-            news_item_aggregate.me_dislike = False
-            for news_item in news_item_aggregate.news_items:
-                see, access, modify = NewsItem.get_acl_status(news_item.id, user)
-                if not see:
-                    news_item_aggregate.news_items.remove(news_item)
-                    continue
-                news_item.see = see
-                news_item.access = access
-                news_item.modify = modify
-                vote = NewsItemVote.find(news_item.id, user.id)
-                news_item.me_like = vote.like if vote is not None else False
-                news_item_aggregate.me_like = vote.like if vote is not None else False
-                news_item.me_dislike = vote.dislike if vote is not None else False
-                news_item_aggregate.me_dislike = vote.dislike if vote is not None else False
-
             news_item_aggregate.in_reports_count = ReportItemNewsItemAggregate.count(news_item_aggregate.id)
 
         items = NewsItemAggregateSchema(many=True).dump(news_item_aggregates)
 
         return {"total_count": count, "items": items}
+
+    @classmethod
+    def get_by_group_json(cls, group_id, filter, user):
+        filter.update({"group": group_id})
+        return cls.get_by_filter_json(filter, user)
 
     @classmethod
     def create_new_for_all_groups(cls, news_item_data):
@@ -943,6 +956,7 @@ class NewsItemAggregate(db.Model):
                 for news_item in aggregate.news_items[:]:
                     if user is None or NewsItem.allowed_with_acl(news_item.id, user, False, False, True):
                         first_aggregate.news_items.append(news_item)
+                        first_aggregate.relevance += news_item.relevance + 1
                         aggregate.news_items.remove(news_item)
                 processed_aggregates.add(aggregate)
 
@@ -1175,27 +1189,38 @@ class NewsItemTag(db.Model):
         return cls.query.filter(cls.name.ilike(f"%{tag_name}%"))
 
     @classmethod
-    def find_largest_tag_clusters(cls, days=7, limit=10):
+    def find_largest_tag_clusters(cls, days: int = 7, limit: int = 12):
         start_date = datetime.now() - timedelta(days=days)
+        subquery = (
+            db.session.query(cls.name, cls.tag_type, NewsItemAggregate.id, NewsItemAggregate.created)
+            .join(cls.n_i_a)
+            .filter(NewsItemAggregate.created >= start_date)
+            .subquery()
+        )
         clusters = (
-            cls.query.join(NewsItemAggregate)
-            .join(NewsItem)
-            .join(NewsItemData)
-            .filter(NewsItemData.published >= start_date)
-            .group_by(cls.name, cls.id)
-            .order_by(func.count().desc())
-            .having(func.count() > 1)
+            db.session.query(
+                subquery.c.name, subquery.c.tag_type, func.group_concat(subquery.c.created), func.count(subquery.c.name).label("count")
+            )
+            .select_from(subquery.join(NewsItemAggregate, subquery.c.id == NewsItemAggregate.id))
+            .group_by(subquery.c.name, subquery.c.tag_type)
+            .order_by(func.count(subquery.c.name).desc())
             .limit(limit)
             .all()
         )
-        return [
-            {
-                "name": cluster.name,
-                "size": len(cluster.n_i_a.news_items),
-                "published": [ni.news_item_data.published.isoformat() for ni in cluster.n_i_a.news_items],
-            }
-            for cluster in clusters
-        ]
+
+        return (
+            [
+                {
+                    "name": cluster[0],
+                    "tag_type": cluster[1],
+                    "published": list(cluster[2].split(",")),
+                    "size": cluster[3],
+                }
+                for cluster in clusters
+            ]
+            if clusters
+            else []
+        )
 
     @classmethod
     def get_json(cls, filter_args: dict):

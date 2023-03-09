@@ -22,11 +22,15 @@ export default {
     is_summarized: {
       type: Boolean,
       default: false
+    },
+    open: {
+      type: Boolean,
+      default: false
     }
   },
   computed: {
     news_item_summary_class() {
-      return this.is_summarized
+      return this.open
         ? 'news-item-summary-no-clip'
         : 'news-item-summary'
     }

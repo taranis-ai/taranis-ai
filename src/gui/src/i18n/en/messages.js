@@ -45,7 +45,19 @@ export const messages_en = {
     delete: "Delete",
     close: "Close",
     create: "Create",
-    add_new: "Add New"
+    add_new: "Add New",
+    import: "Import",
+    export: "Export",
+    search: "Search",
+    clear: "Clear"
+  },
+
+  form: {
+    title: "Title",
+    description: "Description",
+    name: "Name",
+    username: "Username",
+    validation_error: "Please fill in all required fields",
   },
 
   title: {
@@ -166,12 +178,8 @@ export const messages_en = {
   organization: {
     add_new: "Add new organization",
     edit: "Edit organization",
-    add: "Add",
-    add_btn: "Add New",
-    save: "Save",
-    cancel: "Cancel",
     validation_error: "Please fill in all required fields",
-    error: "Could not create this organization.",
+    error: "Could not create this organization",
     name: "Name",
     description: "Description",
     street: "Street",
@@ -213,9 +221,6 @@ export const messages_en = {
     edit: "Edit OSINT source",
     node: "Collectors Node",
     collector: "Collector",
-    save: "Save",
-    add_btn: "Add New",
-    cancel: "Cancel",
     validation_error: "Please fill in all required fields",
     error: "Could not save this OSINT source",
     name: "Name",
@@ -484,12 +489,6 @@ export const messages_en = {
   },
 
   report_type: {
-    add_new: "Add new report item type",
-    edit: "Edit report item type",
-    add_btn: "Add New",
-    save: "Save",
-    cancel: "Cancel",
-    validation_error: "Please fill in all required fields",
     error: "Could not save this report item type",
     name: "Name",
     description: "Description",
@@ -503,9 +502,6 @@ export const messages_en = {
   },
 
   report_item: {
-    add_new: "New report item",
-    edit: "Edit report item",
-    validation_error: "Please fill in all required fields",
     error: "Could not create this report item",
     title: "Name",
     title_prefix: "Name prefix",
@@ -588,7 +584,6 @@ export const messages_en = {
     author: "Author",
     add_news_item: "Add News Items",
     select_news_item: "Select News Item",
-    add: "Add",
     aggregate_detail: "Aggregate Detail",
     aggregate_info: "Info",
     aggregate_title: "Title",
@@ -597,7 +592,6 @@ export const messages_en = {
     title: "Title",
     description: "Description",
     download: "Download",
-    total_count: "News items count: ",
     selected_count: "Selected news items count: ",
     tooltip: {
       filter_read: "Show/hide unread news items",
@@ -699,15 +693,8 @@ export const messages_en = {
   },
 
   word_list: {
-    add_new: "Add new word list",
-    edit: "Edit word list",
-    add: "Add",
-    add_btn: "Add New",
-    save: "Save",
-    cancel: "Cancel",
     validation_error: "Please fill in all required fields",
     error: "Could not save this word list",
-    name: "Name",
     description: "Description",
     link: "URL",
     use_for_stop_words: "Use as stop word list",
@@ -729,11 +716,8 @@ export const messages_en = {
   },
 
   asset_group: {
-    add_new: "Add new asset group",
-    edit: "Edit asset group",
     validation_error: "Please fill in all required fields",
     error: "Could not save this asset group",
-    name: "Name",
     description: "Description",
     notification_templates: "Notification Templates",
     allowed_users: "Allowed users (If none is selected than all users are allowed)",
@@ -741,18 +725,13 @@ export const messages_en = {
     successful_edit: "Asset group was successfully updated",
     removed: "Asset group was successfully removed",
     removed_error: "Asset group is in use and could not be deleted",
-    total_count: "Asset groups count: "
   },
 
   notification_template: {
     add_new: "Add new notification template",
     edit: "Edit notification template",
-    add: "Add New",
-    cancel: "Cancel",
-    save: "Save",
     validation_error: "Please fill in all required fields",
     error: "Could not save this notification template",
-    name: "Name",
     description: "Description",
     message_title: "Message Title",
     message_body: "Message Body",
@@ -763,50 +742,31 @@ export const messages_en = {
     successful_edit: "Notification template was successfully updated",
     removed: "Notification template was successfully removed",
     removed_error: "Notification template is in use and could not be deleted",
-    total_count: "Notification templates count: "
   },
 
   asset: {
-    add_new: "Add new asset",
     add_group_info: "Please add an asset group",
-    edit: "Edit asset",
-    add: "Add New",
-    cancel: "Cancel",
-    save: "Save",
     validation_error: "Please fill in all required fields",
     error: "Could not save this asset",
-    name: "Name",
     serial: "Serial Number",
+    group: "Asset Group",
     description: "Description",
     cpe: "CPE Code",
     new_cpe: "Add CPE Code",
     cpes: "CPE Codes",
     value: "Value",
+    failed: "Failed to manipulate asset",
     successful: "New asset was successfully added",
     successful_edit: "Asset was successfully updated",
     removed: "Asset was successfully removed",
     removed_error: "Asset is in use and could not be deleted",
-    total_count: "Assets count: ",
     vulnerabilities: "Vulnerabilities",
     vulnerabilities_count: "Vulnerabilities: ",
-    no_vulnerabilities: "No vulnerabilities",
-    import_csv: "Import CSV",
-    import_from_csv: "Import CPE from CSV",
-    file_has_header: "File has header",
-    load_csv_file: "Load CSV file",
-    import: "Import",
-    close: "Close"
+    no_vulnerabilities: "No vulnerabilities"
   },
 
   remote_access: {
-    add_new: "Add new remote access",
-    edit: "Edit remote access",
-    add: "Add New",
-    cancel: "Cancel",
-    save: "Save",
-    validation_error: "Please fill in all required fields",
     error: "Could not save this remote access",
-    name: "Name",
     description: "Description",
     access_key: "Access Key",
     enabled: "Enabled",
@@ -816,18 +776,10 @@ export const messages_en = {
     removed_error: "Remote access is in use and could not be deleted",
     osint_sources: "OSINT Sources to share",
     report_item_types: "Report Item Types to share",
-    total_count: "Remote access count: "
   },
 
   remote_node: {
-    add_new: "Add new remote node",
-    edit: "Edit remote node",
-    add: "Add New",
-    cancel: "Cancel",
-    save: "Save",
-    validation_error: "Please fill in all required fields",
     error: "Could not save this remote node",
-    name: "Name",
     description: "Description",
     remote_url: "Remote node URL",
     event_url: "Remote event source URL",
@@ -843,7 +795,6 @@ export const messages_en = {
     successful_edit: "Remote node was successfully updated",
     removed: "Remote node was successfully removed",
     removed_error: "Remote node is in use and could not be deleted",
-    total_count: "Remote nodes count: "
   },
 
   drop_zone: {

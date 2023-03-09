@@ -3,7 +3,7 @@ from flask_jwt_extended import jwt_required
 from flask_restful import Resource
 
 from core.managers.log_manager import logger
-from core.model.news_item import NewsItemData, NewsItemTag
+from core.model.news_item import NewsItemData, NewsItemTag, NewsItemAggregate
 from core.model.product import Product
 from core.model.report_item import ReportItem
 from core.model.tag_cloud import TagCloud
@@ -33,8 +33,20 @@ class TrendingClusters(Resource):
     def get(self):
         try:
             days = int(request.args.get("days", 7))
-            limit = int(request.args.get("limit", 10))
+            limit = int(request.args.get("limit", 12))
             return NewsItemTag.find_largest_tag_clusters(days, limit)
+        except Exception:
+            logger.log_debug_trace()
+            return "", 400
+
+
+class StoryClusters(Resource):
+    @jwt_required()
+    def get(self):
+        try:
+            days = int(request.args.get("days", 7))
+            limit = int(request.args.get("limit", 12))
+            return NewsItemAggregate.get_story_clusters(days, limit)
         except Exception:
             logger.log_debug_trace()
             return "", 400
@@ -58,3 +70,4 @@ def initialize(api):
     api.add_resource(Dashboard, "/api/v1/dashboard-data")
     api.add_resource(Tagcloud, "/api/v1/tagcloud")
     api.add_resource(TrendingClusters, "/api/v1/trending-clusters")
+    api.add_resource(StoryClusters, "/api/v1/story-clusters")

@@ -17,15 +17,13 @@ export const router = new Router({
       meta: { requiresAuth: true, requiresPerm: [] }
     },
     {
-      path: '/enter*',
+      path: '/enter',
       name: 'enter',
       components: {
         default: () =>
           import(
             /* webpackChunkName: "common" */ './views/users/EnterView.vue'
-          ),
-        nav: () =>
-          import(/* webpackChunkName: "common" */ './views/nav/EnterNav.vue')
+          )
       },
       meta: { requiresAuth: true, requiresPerm: [Permissions.ASSESS_CREATE] }
     },

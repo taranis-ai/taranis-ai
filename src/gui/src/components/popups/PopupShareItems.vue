@@ -48,7 +48,7 @@ export default {
   components: {
   },
   props: {
-    newsItem: [],
+    item_ids: [],
     dialog: Boolean
   },
   emits: ['close'],
@@ -62,7 +62,7 @@ export default {
     ...mapActions('analyze', ['loadReportItems']),
 
     share () {
-      addAggregatesToReportItem(this.reportItemSelection, [this.newsItem.id])
+      addAggregatesToReportItem(this.reportItemSelection, this.item_ids)
       this.close()
     },
     close () {
@@ -70,6 +70,8 @@ export default {
     }
   },
   mounted () {
+    console.debug('PopupShareItems mounted')
+    console.debug(this.item_ids)
     this.loadReportItems().then(() => {
       this.reportItems = this.getReportItems().map(item => {
         return {

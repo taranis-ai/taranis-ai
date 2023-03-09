@@ -3,28 +3,35 @@
     <v-app-bar :elevation="2" app class="mt-12">
       <v-toolbar-title>{{ container_title }}</v-toolbar-title>
       <v-spacer></v-spacer>
-      <v-btn color="success" class="mr-2" @click="saveReportItem">
+      <v-btn color="success" class="mr-2" @click="saveAsset">
         <v-icon left>mdi-content-save</v-icon>
         <span>{{ $t('button.save') }}</span>
       </v-btn>
     </v-app-bar>
 
     <v-row no-gutters>
-      <v-col cols="6" class="pr-3">
+      <v-col cols="6">
         <v-text-field
-          :label="$t('asset.name')"
+          :label="$t('form.name')"
           v-model="asset.name"
           :rules="required"
         />
       </v-col>
-      <v-col cols="6" class="pr-3">
-        <v-text-field :hint="$t('asset.serial')" v-model="asset.serial" />
+      <v-col cols="6">
+        <v-text-field :label="$t('asset.serial')" v-model="asset.serial" />
       </v-col>
-      <v-col cols="12" class="pr-3">
+      <v-col cols="12">
         <v-textarea
           :label="$t('asset.description')"
           v-model="asset.description"
           :spellcheck="$store.state.settings.spellcheck"
+        />
+      </v-col>
+      <v-col cols="12">
+        <v-select
+          :label="$t('asset.group')"
+          v-model="asset.group"
+          :items="['foo', 'bar', 'fizz', 'buzz']"
         />
       </v-col>
     </v-row>
@@ -41,6 +48,7 @@
 
 <script>
 import { createAsset, updateAsset } from '@/api/assets'
+import { notifySuccess, notifyFailure } from '@/utils/helpers'
 
 export default {
   name: 'Asset',
@@ -49,7 +57,6 @@ export default {
     asset_prop: { type: Object, default: () => {}, required: true },
     edit: { type: Boolean, default: false }
   },
-  emits: ['reportcreated'],
   data: function () {
     return {
       required: [(v) => !!v || 'Required'],
@@ -65,43 +72,22 @@ export default {
     }
   },
   methods: {
-    addAsset() {
-      this.visible = true
-      this.asset.id = -1
-      this.asset.name = ''
-      this.asset.serial = ''
-      this.asset.description = ''
-      this.asset.asset_cpes = []
-      this.asset.asset_group_id = ''
-      this.$validator.reset()
-    },
-
-    add() {
-      if (this.edit === true) {
+    saveAsset() {
+      if (this.edit) {
         updateAsset(this.asset)
           .then(() => {
-            this.$validator.reset()
-            this.visible = false
-            this.$root.$emit('notification', {
-              type: 'success',
-              loc: 'asset.successful_edit'
-            })
+            notifySuccess('asset.successful_edit')
           })
           .catch(() => {
-            this.show_error = true
+            notifyFailure('asset.failed')
           })
       } else {
         createAsset(this.asset)
           .then(() => {
-            this.$validator.reset()
-            this.visible = false
-            this.$root.$emit('notification', {
-              type: 'success',
-              loc: 'asset.successful'
-            })
+            notifySuccess('asset.successful')
           })
           .catch(() => {
-            this.show_error = true
+            notifyFailure('asset.failed')
           })
       }
     },

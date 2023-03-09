@@ -46,7 +46,9 @@ class RSSCollector(BaseCollector):
             return ""
 
         if not content_location:
-            return extract(html_content, include_links=False, include_comments=False, include_formatting=False, with_metadata=False)
+            content = extract(html_content, include_links=False, include_comments=False, include_formatting=False, with_metadata=False)
+            return content or html_content
+
         soup = BeautifulSoup(html_content, features="html.parser")
         content_text = [p.text.strip() for p in soup.findAll(content_location)]
         return " ".join([w.replace("\xa0", " ") for w in content_text])
@@ -70,19 +72,15 @@ class RSSCollector(BaseCollector):
 
         logger.log_debug(f"{self.type} collection finished.")
 
-    def content_from_feed(self, feed_entry, content_location) -> tuple[bool, str]:
-        if content_location in feed_entry:
-            return True, content_location
-        if "content" in feed_entry:
-            content_location = "content"
-            return True, content_location
-        if "content:encoded" in feed_entry:
-            content_location = "content:encoded"
-            return True, content_location
+    def content_from_feed(self, feed_entry, content_location: str) -> tuple[bool, str]:
+        content_locations = [content_location, "content", "content:encoded"]
+        for location in content_locations:
+            if location in feed_entry and isinstance(feed_entry[location], str):
+                return True, location
         return False, content_location
 
     def get_published_date(self, feed_entry: feedparser.FeedParserDict) -> datetime.datetime:
-        published: str | datetime.datetime = str(feed_entry.get("published", ""))
+        published: str | datetime.datetime = str(feed_entry.get("published")) or str(feed_entry.get("pubDate")) or ""
         if not published:
             link: str = str(feed_entry.get("link", ""))
             if not link:

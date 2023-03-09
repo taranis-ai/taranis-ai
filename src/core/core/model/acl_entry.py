@@ -47,14 +47,10 @@ class ACLEntry(db.Model):
         self.modify = modify
         self.users = [User.find_by_id(user.id) for user in users]
         self.roles = [Role.find(role.id) for role in roles]
-        self.title = ""
-        self.subtitle = ""
-        self.tag = ""
+        self.tag = "mdi-lock-check"
 
     @orm.reconstructor
     def reconstruct(self):
-        self.title = self.name
-        self.subtitle = self.description
         self.tag = "mdi-lock-check"
 
     @classmethod
@@ -64,6 +60,10 @@ class ACLEntry(db.Model):
     @classmethod
     def get_all(cls):
         return cls.query.order_by(db.asc(ACLEntry.name)).all()
+
+    @classmethod
+    def has_rows(cls) -> bool:
+        return db.session.query(db.exists().where(cls.id.isnot(None))).scalar()
 
     @classmethod
     def get(cls, search):

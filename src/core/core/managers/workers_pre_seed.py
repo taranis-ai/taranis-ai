@@ -505,10 +505,6 @@ bots = [
                 "value": "",
                 "parameter": "SOURCE_GROUP",
             },
-            {
-                "value": "",
-                "parameter": "REFRESH_INTERVAL",
-            },
         ],
         "description": "Bot for news items analysis",
     },
@@ -518,7 +514,6 @@ bots = [
         "parameter_values": [
             {"value": "", "parameter": "SOURCE_GROUP"},
             {"value": "", "parameter": "REGULAR_EXPRESSION"},
-            {"value": "", "parameter": "REFRESH_INTERVAL"},
         ],
         "description": "Bot for grouping news items into aggregates",
     },
@@ -528,7 +523,6 @@ bots = [
         "parameter_values": [
             {"value": "", "parameter": "SOURCE_GROUP"},
             {"value": "", "parameter": "LANGUAGE"},
-            {"value": "", "parameter": "REFRESH_INTERVAL"},
         ],
         "description": "Bot for naturale language processing of news items",
     },
@@ -538,7 +532,6 @@ bots = [
         "parameter_values": [
             {"value": "", "parameter": "SOURCE_GROUP"},
             {"value": "", "parameter": "KEYWORDS"},
-            {"value": "", "parameter": "REFRESH_INTERVAL"},
         ],
         "description": "Bot for tagging news items",
     },

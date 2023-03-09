@@ -128,3 +128,16 @@ export function tagIconFromType(tag_type) {
   }
   return 'mdi-tag'
 }
+
+export function tagTextFromType(tag_type) {
+  if (tag_type === 'ORG') {
+    return 'Organization'
+  }
+  if (tag_type === 'LOC') {
+    return 'Location'
+  }
+  if (tag_type === 'PER') {
+    return 'Person'
+  }
+  return 'Miscellaneous'
+}

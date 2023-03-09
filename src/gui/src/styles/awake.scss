@@ -215,40 +215,6 @@ textarea {
   }
 }
 
-.buttonOutlined {
-  text-transform: lowercase;
-  background-color: white;
-  letter-spacing: normal;
-  font-weight: 400;
-  caret-color: $light-grey-2;
-  border-color: $light-grey-2;
-  color: $dark-grey;
-  padding: 16px 16px 16px 12px !important;
-  transition: all 250ms ease;
-
-  &.v-btn--disabled {
-    background-color: lighten($light-grey-1, 20) !important;
-    color: white !important;
-
-    & span {
-      color: white !important;
-    }
-  }
-
-  & svg {
-    fill: inherit;
-  }
-
-  &.red-button {
-    caret-color: darken($awake-red-color, 10);
-    border-color: darken($awake-red-color, 10);
-
-    & svg {
-      fill: darken($awake-red-color, 10);
-    }
-  }
-}
-
 .v-chip.story-label {
   font-size: 12px !important;
   padding: 12px 8px !important;
@@ -587,8 +553,6 @@ textarea {
 .news-item-summary-no-clip {
   color: $very-dark-grey;
   margin-bottom: 0px !important;
-  -webkit-line-clamp: 4;
-  line-clamp: 4;
   min-height: 6em;
 }
 

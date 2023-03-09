@@ -387,8 +387,7 @@ class OSINTSource(Resource):
 class OSINTSourceRefresh(Resource):
     @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
     def put(self, source_id):
-        result = collectors_manager.refresh_osint_source(source_id)
-        return result
+        return collectors_manager.refresh_osint_source(source_id)
 
 
 class OSINTSourcesExport(Resource):

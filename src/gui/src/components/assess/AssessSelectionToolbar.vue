@@ -34,19 +34,28 @@
           </span>
         </v-col>
       </v-row>
+      <v-dialog :value="sharingDialog" width="auto">
+        <popup-share-items
+          :item_ids="selection"
+          @close="sharingDialog = false"
+        />
+      </v-dialog>
     </v-container>
   </v-app-bar>
 </template>
 
 <script>
 import { deleteNewsItemAggregate, groupAction } from '@/api/assess'
+import PopupShareItems from '@/components/popups/PopupShareItems'
 
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
+import { mapActions } from 'vuex'
 
 export default {
   name: 'AssessSelectionToolbar',
-  components: {},
-  emits: ['refresh'],
+  components: {
+    PopupShareItems
+  },
   props: {
     selection: []
   },
@@ -68,28 +77,31 @@ export default {
         action: 'deleteItems'
       }
     ],
-    appendToStoryDialog: false,
-    createStoryDialog: false
+    sharingDialog: false
   }),
   methods: {
+    ...mapActions('assess', ['clearNewsItemSelection', 'updateNewsItems']),
+
     actionClicked(action) {
       if (action === 'merge') {
         groupAction(this.selection)
           .then(() => {
             notifySuccess('Items merged')
-            this.$emit('refresh')
+            this.clearNewsItemSelection()
+            this.updateNewsItems()
           })
           .catch((err) => {
             notifyFailure('Failed to merge items')
             console.log(err)
           })
       } else if (action === 'addToReport') {
-        notifySuccess('Not Yet Implemented')
+        this.sharingDialog = true
       } else if (action === 'deleteItems') {
         deleteNewsItemAggregate(this.selection)
           .then(() => {
             notifySuccess('Items deleted')
-            this.$emit('refresh')
+            this.clearNewsItemSelection()
+            this.updateNewsItems()
           })
           .catch((err) => {
             notifyFailure('Failed to delete items')

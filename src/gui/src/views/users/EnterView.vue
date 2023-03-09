@@ -1,88 +1,57 @@
 <template>
-  <ViewLayout>
-    <template v-slot:panel>
-      <v-container
-        v-bind="UI.TOOLBAR.CONTAINER"
-        :style="UI.STYLE.shadow + UI.STYLE.enter_special"
-      >
-        <v-row v-bind="UI.TOOLBAR.ROW">
-          <v-col v-bind="UI.TOOLBAR.COL.LEFT">
-            <div :class="UI.CLASS.toolbar_filter_title">
-              {{ $t('nav_menu.enter') }}
-            </div>
-          </v-col>
-        </v-row>
-      </v-container>
-    </template>
+  <v-form
+    @submit.prevent="add"
+    id="form"
+    ref="form"
+    style="width: 100%; padding: 8px"
+  >
+    <v-card>
+      <v-card-text>
+        <v-text-field
+          :label="$t('enter.title')"
+          name="title"
+          type="text"
+          v-model="news_item.title"
+          v-validate="'required'"
+          data-vv-name="title"
+          :error-messages="errors.collect('title')"
+        ></v-text-field>
 
-    <template v-slot:content>
-      <v-form
-        @submit.prevent="add"
-        id="form"
-        ref="form"
-        style="width: 100%; padding: 8px"
-      >
-        <v-card>
-          <v-card-text>
-            <v-text-field
-              :label="$t('enter.title')"
-              name="title"
-              type="text"
-              v-model="news_item.title"
-              v-validate="'required'"
-              data-vv-name="title"
-              :error-messages="errors.collect('title')"
-            ></v-text-field>
+        <v-textarea
+          :label="$t('enter.review')"
+          name="review"
+          v-model="news_item.review"
+        ></v-textarea>
 
-            <v-textarea
-              :label="$t('enter.review')"
-              name="review"
-              v-model="news_item.review"
-            ></v-textarea>
+        <v-text-field
+          :label="$t('enter.source')"
+          name="source"
+          type="text"
+          v-model="news_item.source"
+        ></v-text-field>
 
-            <v-text-field
-              :label="$t('enter.source')"
-              name="source"
-              type="text"
-              v-model="news_item.source"
-            ></v-text-field>
+        <v-text-field
+          :label="$t('enter.link')"
+          name="link"
+          type="text"
+          v-model="news_item.link"
+        ></v-text-field>
 
-            <v-text-field
-              :label="$t('enter.link')"
-              name="link"
-              type="text"
-              v-model="news_item.link"
-            ></v-text-field>
-
-            <vue-editor
-              v-model="editorData"
-              :editorOptions="editorOptionVue2"
-            />
-          </v-card-text>
-        </v-card>
-        <v-spacer class="pt-2"></v-spacer>
-        <v-btn color="primary" @click="add()">{{ $t('enter.create') }}</v-btn>
-      </v-form>
-
-      <v-alert v-if="show_validation_error" dense type="error" text>
-        {{ $t('enter.validation_error') }}
-      </v-alert>
-      <v-alert v-if="show_error" dense type="error" text
-        >{{ $t('enter.error') }}
-      </v-alert>
-    </template>
-  </ViewLayout>
+        <vue-editor v-model="editorData" :editorOptions="editorOptionVue2" />
+      </v-card-text>
+    </v-card>
+    <v-spacer class="pt-2"></v-spacer>
+    <v-btn color="primary" @click="add()">{{ $t('enter.create') }}</v-btn>
+  </v-form>
 </template>
 
 <script>
-import ViewLayout from '../../components/layouts/ViewLayout'
 import { VueEditor } from 'vue2-editor'
 import { addNewsItem } from '@/api/assess'
 
 export default {
   name: 'Enter',
   components: {
-    ViewLayout,
     VueEditor
   },
   data: () => ({

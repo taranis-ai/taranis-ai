@@ -91,8 +91,6 @@ export default {
   async mounted() {
     this.selected_tags = this.loadFilterTags()
     await this.querySelections()
-
-    console.debug('mounted tagFilter')
   }
 }
 </script>

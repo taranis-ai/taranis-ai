@@ -69,7 +69,7 @@ class NewsItemAggregates(Resource):
             filter_keys = ["search", "read", "unread", "important", "relevant", "in_report", "range", "sort", "tags", "source"]
             filter_args: dict[str, str | int] = {k: v for k, v in request.args.items() if k in filter_keys}
 
-            group_id = request.args.get("group", osint_source.OSINTSourceGroup.get_default().id)
+            filter_args["group"] = request.args.get("group", osint_source.OSINTSourceGroup.get_default().id) or "default"
             filter_args["limit"] = min(int(request.args.get("limit", 20)), 200)
             page = int(request.args.get("page", 0))
             filter_args["offset"] = int(request.args.get("offset", page * filter_args["limit"]))
@@ -77,7 +77,7 @@ class NewsItemAggregates(Resource):
             logger.log_debug(ex)
             return "", 400
 
-        return news_item.NewsItemAggregate.get_by_group_json(group_id, filter_args, user)
+        return news_item.NewsItemAggregate.get_by_filter_json(filter_args, user)
 
 
 class NewsItemAggregateTags(Resource):

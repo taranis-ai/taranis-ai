@@ -66,6 +66,10 @@ const actions = {
     context.commit('SELECT_NEWSITEM', id)
   },
 
+  clearNewsItemSelection(context) {
+    context.commit('CLEAR_NEWSITEM_SELECTION')
+  },
+
   deselectNewsItem(context, id) {
     context.commit('DESELECT_NEWSITEM', id)
   },
@@ -120,6 +124,10 @@ const mutations = {
 
   DESELECT_ALL_NEWSITEMS(state) {
     state.newsItems.items.forEach((newsItem) => { newsItem.selected = false })
+    state.newsItemsSelection = []
+  },
+
+  CLEAR_NEWSITEM_SELECTION(state) {
     state.newsItemsSelection = []
   },
 

@@ -62,7 +62,7 @@ class OSINTSource(db.Model):
         word_lists,
         osint_source_groups,
     ):
-        self.id = str(uuid.uuid4())
+        self.id = id or str(uuid.uuid4())
         self.name = name
         self.description = description
         self.collector_id = collector_id

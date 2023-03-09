@@ -23,11 +23,15 @@
 <script>
 import DataTable from '@/components/common/DataTable'
 import EditConfig from '../../components/config/EditConfig'
-import {
-  updateBot
-} from '@/api/config'
+import { updateBot } from '@/api/config'
 import { mapActions, mapGetters } from 'vuex'
-import { notifySuccess, objectFromFormat, notifyFailure, parseParameterValues, parseSubmittedParameterValues } from '@/utils/helpers'
+import {
+  notifySuccess,
+  objectFromFormat,
+  notifyFailure,
+  parseParameterValues,
+  createParameterValues
+} from '@/utils/helpers'
 
 export default {
   name: 'Bots',
@@ -89,8 +93,8 @@ export default {
         this.unparsed_sources = sources.items
         this.bots = parseParameterValues(sources.items)
 
-        this.bot_types = sources.items.map(item => {
-          this.parameters[item.type] = item.parameter_values.map(param => {
+        this.bot_types = sources.items.map((item) => {
+          this.parameters[item.type] = item.parameter_values.map((param) => {
             return {
               name: param.parameter.key,
               label: param.parameter.key,
@@ -114,11 +118,18 @@ export default {
       this.edit = true
     },
     handleSubmit(submittedData) {
-      const params = parseSubmittedParameterValues(this.unparsed_bots, submittedData)
+      console.debug(submittedData)
+      delete submittedData.parameter_values
+      const parameter_list = this.parameters[this.formData.type].map(
+        (item) => item.name
+      )
+      const updateItem = createParameterValues(parameter_list, submittedData)
+      console.debug(updateItem)
+
       if (this.edit) {
-        this.updateItem(params)
+        this.updateItem(updateItem)
       } else {
-        this.createItem(params)
+        this.createItem(updateItem)
       }
     },
     deleteItem(item) {
@@ -128,12 +139,14 @@ export default {
       notifyFailure('Creating Bots not supported')
     },
     updateItem(item) {
-      updateBot(item).then(() => {
-        notifySuccess(`Successfully updated ${item.id}`)
-        this.updateData()
-      }).catch(() => {
-        notifyFailure(`Failed to update ${item.id}`)
-      })
+      updateBot(item)
+        .then(() => {
+          notifySuccess(`Successfully updated ${item.id}`)
+          this.updateData()
+        })
+        .catch(() => {
+          notifyFailure(`Failed to update ${item.id}`)
+        })
     }
   },
   mounted() {

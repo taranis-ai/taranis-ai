@@ -155,7 +155,7 @@ export default {
     ...mapActions('filter', ['setProductFilter', 'updateProductFilter']),
     ...mapGetters('filter', ['getProductFilter']),
     addReport() {
-      this.$router.push('/report/0')
+      this.$router.push('/product/0')
     }
   },
   created() {

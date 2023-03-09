@@ -476,54 +476,6 @@ html,
     font-size: 1em;
 }
 
-/* --- CardAsset.vue --- */
-
-
-/* --- CardVulnerability.vue --- */
-
-/* --- CPETable.vue --- */
-.vue-csv-uploader button.load {
-    margin: 10px;
-    margin-left: 0;
-    padding: 4px 10px 4px 10px;
-    background-color: #4092dd;
-    border-radius: 4px;
-    color: white;
-}
-
-.vue-csv-uploader-part-two table {
-    width: 400px;
-}
-
-.vue-csv-uploader-part-two table thead {
-    text-align: left;
-}
-
-.vue-csv-uploader-part-two table select {
-    -webkit-appearance: auto;
-    -moz-appearance: auto;
-    border: 1px solid gray;
-    border-radius: 4px;
-}
-
-/* --- NewAsset.vue --- */
-
-.cx-toolbar-filter {
-    position: sticky;
-    top: 0;
-    z-index: 100;
-}
-
-#selector .card.focus {
-    background-color: #caecff;
-}
-
-/* --- ToolbarFilterAssets.vue --- */
-.v-chip-group .v-chip.filter {
-    height: 20px;
-    margin-top: 5px;
-}
-
 /* --- VulnerabilityDetail.vue --- */
 .div-wrapper .theme--light.v-card {
     border-left: 5px solid rgb(255, 172, 33);

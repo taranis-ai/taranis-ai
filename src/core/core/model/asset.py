@@ -120,7 +120,7 @@ class Asset(db.Model):
             self.vulnerabilities.append(vulnerability)
 
     @classmethod
-    def solve_vulnerability(cls, user, group_id, asset_id, report_item_id, solved):
+    def solve_vulnerability(cls, user, asset_id, report_item_id, solved):
         asset = cls.query.get(asset_id)
         if AssetGroup.access_allowed(user, asset.asset_group_id):
             for vulnerability in asset.vulnerabilities:
@@ -135,13 +135,13 @@ class Asset(db.Model):
                     return
 
     @classmethod
-    def get(cls, group_id, search, sort, vulnerable):
+    def get_by_filter(cls, group_id, search, sort, vulnerable, organization):
         query = cls.query.filter(Asset.asset_group_id == group_id)
 
-        if vulnerable is not None and vulnerable == "true":
+        if vulnerable:
             query = query.filter(Asset.vulnerabilities_count > 0)
 
-        if search is not None:
+        if search:
             query = query.join(AssetCpe, Asset.id == AssetCpe.asset_id).filter(
                 or_(
                     Asset.name.ilike(f"%{search}%"),
@@ -151,7 +151,10 @@ class Asset(db.Model):
                 )
             )
 
-        if sort is not None:
+        if organization:
+            query = query.join(AssetGroup, Asset.asset_group_id == AssetGroup.id).filter(AssetGroup.organization == organization)
+
+        if sort:
             if sort == "ALPHABETICAL":
                 query = query.order_by(db.asc(Asset.name))
             else:
@@ -160,15 +163,30 @@ class Asset(db.Model):
         return query.all(), query.count()
 
     @classmethod
+    def get_by_id(cls, asset_id, organization):
+        query = cls.query.filter(Asset.id == asset_id)
+
+        if organization:
+            query = query.join(AssetGroup, Asset.asset_group_id == AssetGroup.id).filter(AssetGroup.organization == organization)
+
+        return query.first()
+
+    @classmethod
     def get_all_json(cls, user, filter):
         group_id = filter.get("group", AssetGroup.get_default_group().id)
         search = filter.get("search")
         sort = filter.get("sort")
         vulnerable = filter.get("vulnerable")
-        if AssetGroup.access_allowed(user, group_id):
-            assets, count = cls.get(group_id, search, sort, vulnerable)
-            items = AssetPresentationSchema(many=True).dump(assets)
-            return {"total_count": count, "items": items}
+        organization = user.organization
+        assets, count = cls.get_by_filter(group_id, search, sort, vulnerable, organization)
+        items = AssetPresentationSchema(many=True).dump(assets)
+        return {"total_count": count, "items": items}, 200
+
+    @classmethod
+    def get_json(cls, user, asset_id):
+        organization = user.organization
+        asset = cls.get_by_id(asset_id, organization)
+        return AssetPresentationSchema().dump(asset), 200
 
     @classmethod
     def add(cls, user, group_id, data):

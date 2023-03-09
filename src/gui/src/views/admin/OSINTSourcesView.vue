@@ -188,7 +188,10 @@ export default {
         })
     },
     exportData() {
-      const queryString = 'ids=' + this.selected.join('&ids=')
+      let queryString = ''
+      if (this.selected.length > 0) {
+        queryString = 'ids=' + this.selected.join('&ids=')
+      }
       exportOSINTSources(queryString)
     },
     selectionChange(selected) {

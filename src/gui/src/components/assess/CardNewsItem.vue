@@ -61,7 +61,7 @@
       >
         <popup-share-items
           v-if="sharingDialog"
-          :newsItem="newsItem"
+          :item_ids="[newsItem.id]"
           @close="sharingDialog = false"
         />
       </news-item-action-dialog>
@@ -232,6 +232,7 @@ export default {
       unGroupAction([this.newsItem.id])
         .then(() => {
           notifySuccess('News Item removed from Story')
+
           this.$emit('refresh')
         })
         .catch((err) => {

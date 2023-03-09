@@ -99,21 +99,18 @@ def refresh_collectors():
 
 def export_osint_sources(ids: list[str]):
     data = OSINTSource.get_all_by_id(ids) if ids else OSINTSource.get_all()
-
-    schema = OSINTSourceExportRootSchema()
-    export_data = schema.dump(OSINTSourceExportRoot(1, data))
+    data = cleanup_paramaters(data)
+    export_data = OSINTSourceExportRootSchema().dump(OSINTSourceExportRoot(1, data))
     if "data" not in export_data:
         return None
-    export_data = export_data["data"]
-    export_data = cleanup_paramaters(export_data)
     return json.dumps(export_data).encode("utf-8")
 
 
 def cleanup_paramaters(osint_sources: list) -> list:
     for osint_source in osint_sources:
-        for parameter_value in osint_source["parameter_values"]:
-            if parameter_value["parameter"]["key"] == "PROXY_SERVER":
-                parameter_value["value"] = ""
+        for parameter_value in osint_source.parameter_values:
+            if parameter_value.parameter.key == "PROXY_SERVER":
+                parameter_value.value = ""
     return osint_sources
 
 
