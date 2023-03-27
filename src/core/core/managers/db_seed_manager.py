@@ -1,5 +1,6 @@
 from flask_sqlalchemy import SQLAlchemy
 from core.managers.log_manager import logger
+from core.config import Config
 
 db = SQLAlchemy()
 
@@ -1340,7 +1341,7 @@ def pre_seed_default_user():
                 ],
                 "permissions": [],
                 "organization": {"id": 1},
-                "password": generate_password_hash("admin", method="sha256"),
+                "password": generate_password_hash(Config.PRE_SEED_PASSWORD_ADMIN, method="sha256"),
             }
         )
 
@@ -1372,7 +1373,7 @@ def pre_seed_default_user():
                 ],
                 "permissions": [],
                 "organization": {"id": 2},
-                "password": generate_password_hash("user", method="sha256"),
+                "password": generate_password_hash(Config.PRE_SEED_PASSWORD_USER, method="sha256"),
             }
         )
 
