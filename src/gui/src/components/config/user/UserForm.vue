@@ -52,7 +52,7 @@
         <v-col cols="6" class="pr-1">
           <v-select
             :disabled="!canUpdate"
-            v-model="user.organization"
+            v-model="user.organization.id"
             item-text="name"
             item-value="id"
             :hint="$t('user.organization')"
@@ -130,9 +130,6 @@ export default {
 
     visible: false,
     edit: false,
-    selected_roles: [],
-    selected_permissions: [],
-    selected_organizations: [],
     roles: [],
     permissions: [],
     organizations: [],
@@ -216,9 +213,11 @@ export default {
           id: -1,
           username: '',
           name: '',
+          organization: {
+            id: 0
+          },
           roles: [],
-          permissions: [],
-          organizations: []
+          permissions: []
         }
       }
     }
