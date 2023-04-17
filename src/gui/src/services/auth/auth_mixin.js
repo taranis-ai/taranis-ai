@@ -7,13 +7,13 @@ const AuthMixin = {
   }),
 
   methods: {
-    isAuthenticated () {
+    isAuthenticated() {
       return store.getters.isAuthenticated
     },
-    needTokenRefresh () {
+    needTokenRefresh() {
       return store.getters.needTokenRefresh
     },
-    checkPermission (permission) {
+    checkPermission(permission) {
       return store.getters.getPermissions.includes(permission)
     }
   }

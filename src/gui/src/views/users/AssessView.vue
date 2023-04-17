@@ -21,7 +21,7 @@
           appear
         >
           <card-story
-            v-for="(newsItem) in items"
+            v-for="newsItem in items"
             :key="newsItem.id"
             :story="newsItem"
             :selected="getNewsItemsSelection().includes(newsItem.id)"
@@ -38,8 +38,8 @@
         <v-btn @click="loadNext">Next Page</v-btn>
       </div>
       <div v-else>
-      <v-icon left color="primary">mdi-checkbox-marked-circle-outline</v-icon>
-      All items loaded.
+        <v-icon left color="primary">mdi-checkbox-marked-circle-outline</v-icon>
+        All items loaded.
       </div>
     </div>
 
@@ -89,7 +89,7 @@ export default {
     ]),
     ...mapActions('filter', ['resetNewsItemsFilter', 'nextPage']),
 
-    removeAndDeleteNewsItem (id) {
+    removeAndDeleteNewsItem(id) {
       this.items = this.items.filter((x) => x.id !== id)
     },
 
@@ -100,13 +100,12 @@ export default {
 
     // TODO: Call API via Store
     // + pass filter parameter for presorting
-    getNewsItemsFromStore () {
+    getNewsItemsFromStore() {
       this.items = this.getNewsItems().items
       this.updateItemCountTotal(this.getNewsItems().total_count)
       this.updateItemCountFiltered(this.items.length)
       console.debug('number of newsitems: ' + this.getNewsItems().total_count)
     }
-
   },
   computed: {
     ...mapState('filter', {
@@ -114,23 +113,23 @@ export default {
       filter: (state) => state.newsItemsFilter
     }),
 
-    moreToLoad () {
+    moreToLoad() {
       const offset = this.filter.offset ? parseInt(this.filter.offset) : 0
       const length = offset + this.items.length
       return length < this.getNewsItems().total_count
     },
 
-    activeSelection () {
+    activeSelection() {
       return this.getNewsItemsSelection().length > 0
     }
   },
 
-  created () {
+  created() {
     this.updateOSINTSourceGroupsList()
     this.updateOSINTSources()
     this.updateNewsItems()
 
-    this.unsubscribe = this.$store.subscribe((mutation, state) => {
+    this.unsubscribe = this.$store.subscribe((mutation) => {
       if (mutation.type === 'assess/UPDATE_NEWSITEMS') {
         this.getNewsItemsFromStore()
       }

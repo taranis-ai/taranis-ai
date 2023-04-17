@@ -1,6 +1,5 @@
 <template>
-
-    <div></div>
+  <div></div>
 </template>
 
 <script>
@@ -11,13 +10,12 @@ export default {
   components: {
     // DialogLayout
   },
-  props: {
-  },
+  props: {},
   data: () => ({
     visible: false,
     title: String
   }),
-  mounted () {
+  mounted() {
     this.$root.$on('callDialog', (e) => {
       this.visible = !this.visible
       this.title = e

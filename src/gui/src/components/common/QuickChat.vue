@@ -1,30 +1,30 @@
 <template>
-    <div class="chatEnv">
-        <div class="taranis-chat" v-if="chat">
-            <Chat
-              :participants="participants"
-              :myself="myself"
-              :messages="messages"
-              :on-type="onType"
-              :on-message-submit="onMessageSubmit"
-              :chat-title="chatTitle"
-              :placeholder="placeholder"
-              :colors="colors"
-              :border-style="borderStyle"
-              :hide-close-button="hideCloseButton"
-              :close-button-icon-size="closeButtonIconSize"
-              :on-close="onClose"
-              :submit-icon-size="submitIconSize"
-              :load-more-messages="toLoad.length > 0 ? loadMoreMessages : null"
-              :async-mode="asyncMode"
-              :scroll-bottom="scrollBottom"
-              :display-header="displayHeader"/>
-        </div>
-        <v-btn class="chatButton" icon  @click="onChat">
-            <v-icon medium color="white">mdi-chat</v-icon>
-        </v-btn>
+  <div class="chatEnv">
+    <div class="taranis-chat" v-if="chat">
+      <Chat
+        :participants="participants"
+        :myself="myself"
+        :messages="messages"
+        :on-type="onType"
+        :on-message-submit="onMessageSubmit"
+        :chat-title="chatTitle"
+        :placeholder="placeholder"
+        :colors="colors"
+        :border-style="borderStyle"
+        :hide-close-button="hideCloseButton"
+        :close-button-icon-size="closeButtonIconSize"
+        :on-close="onClose"
+        :submit-icon-size="submitIconSize"
+        :load-more-messages="toLoad.length > 0 ? loadMoreMessages : null"
+        :async-mode="asyncMode"
+        :scroll-bottom="scrollBottom"
+        :display-header="displayHeader"
+      />
     </div>
-
+    <v-btn class="chatButton" icon @click="onChat">
+      <v-icon medium color="white">mdi-chat</v-icon>
+    </v-btn>
+  </div>
 </template>
 
 <script>
@@ -39,14 +39,13 @@ export default {
     Chat
   },
   props: [],
-  data () {
+  data() {
     return {
       chat: false,
       visible: false,
       chatTitle: 'Global Chat',
       placeholder: 'Write message',
-      participants: [
-      ],
+      participants: [],
       messages: [],
       myself: {
         name: 'Test User - SK-CERT',
@@ -94,7 +93,7 @@ export default {
     /* onType: function (event) {
                 //here you can set any behavior
             }, */
-    loadMoreMessages (resolve) {
+    loadMoreMessages(resolve) {
       setTimeout(() => {
         resolve(this.toLoad) // We end the loading state and add the messages
         // Make sure the loaded messages are also added to our local messages copy or they will be lost
@@ -105,10 +104,10 @@ export default {
     onMessageSubmit: function (message) {
       this.messages.push(message)
     },
-    onClose () {
+    onClose() {
       this.chat = !this.chat
     },
-    onChat () {
+    onChat() {
       this.chat = !this.chat
     }
   }

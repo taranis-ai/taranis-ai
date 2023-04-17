@@ -12,12 +12,9 @@
       @selection-change="selectionChange"
       @update-items="updateData"
     >
-    <template v-slot:titlebar>
-      <ImportExport
-        @import="importData"
-        @export="exportData"
-      ></ImportExport>
-    </template>
+      <template v-slot:titlebar>
+        <ImportExport @import="importData" @export="exportData"></ImportExport>
+      </template>
     </DataTable>
     <EditConfig
       v-if="formData && Object.keys(formData).length > 0"
@@ -85,28 +82,34 @@ export default {
       }
     },
     deleteItem(item) {
-      deleteWordList(item).then(() => {
-        notifySuccess(`Successfully deleted ${item.name}`)
-        this.updateData()
-      }).catch(() => {
-        notifyFailure(`Failed to delete ${item.name}`)
-      })
+      deleteWordList(item)
+        .then(() => {
+          notifySuccess(`Successfully deleted ${item.name}`)
+          this.updateData()
+        })
+        .catch(() => {
+          notifyFailure(`Failed to delete ${item.name}`)
+        })
     },
     createItem(item) {
-      createWordList(item).then(() => {
-        notifySuccess(`Successfully created ${item.name}`)
-        this.updateData()
-      }).catch(() => {
-        notifyFailure(`Failed to create ${item.name}`)
-      })
+      createWordList(item)
+        .then(() => {
+          notifySuccess(`Successfully created ${item.name}`)
+          this.updateData()
+        })
+        .catch(() => {
+          notifyFailure(`Failed to create ${item.name}`)
+        })
     },
     updateItem(item) {
-      updateWordList(item).then(() => {
-        notifySuccess(`Successfully updated ${item.name}`)
-        this.updateData()
-      }).catch(() => {
-        notifyFailure(`Failed to update ${item.name}`)
-      })
+      updateWordList(item)
+        .then(() => {
+          notifySuccess(`Successfully updated ${item.name}`)
+          this.updateData()
+        })
+        .catch(() => {
+          notifyFailure(`Failed to update ${item.name}`)
+        })
     },
     importData(data) {
       importWordList(data)
@@ -115,7 +118,7 @@ export default {
       exportWordList(this.selected)
     },
     selectionChange(selected) {
-      this.selected = selected.map(item => item.id)
+      this.selected = selected.map((item) => item.id)
     }
   },
   mounted() {

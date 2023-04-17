@@ -2,7 +2,9 @@
   <div>
     <v-snackbar dark v-model="notification" :color="notify.type">
       <span>{{ $t(notify.loc) }}</span>
-      <v-btn text color="white--text" @click="notification = false">{{$t('notification.close')}}</v-btn>
+      <v-btn text color="white--text" @click="notification = false">{{
+        $t('notification.close')
+      }}</v-btn>
     </v-snackbar>
   </div>
 </template>
@@ -17,7 +19,7 @@ export default {
     notify: Object
   }),
 
-  mounted () {
+  mounted() {
     this.$root.$on('notification', (message) => {
       console.log(message)
       this.notification = true

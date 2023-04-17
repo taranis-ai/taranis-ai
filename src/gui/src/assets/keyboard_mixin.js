@@ -1,6 +1,4 @@
-
-const keyboardMixin = targetId => ({
-
+const keyboardMixin = (targetId) => ({
   data: () => ({
     target: String,
     pos: null,
@@ -31,7 +29,6 @@ const keyboardMixin = targetId => ({
   },
 
   methods: {
-
     cardReindex() {
       this.keyRemaper()
 
@@ -45,7 +42,9 @@ const keyboardMixin = targetId => ({
     },
 
     reindexCardItems() {
-      const data = document.querySelectorAll('#selector_' + this.target + ' .card-item')
+      const data = document.querySelectorAll(
+        '#selector_' + this.target + ' .card-item'
+      )
 
       data.forEach((add, i) => {
         add.setAttribute('data-id', i)
@@ -69,19 +68,31 @@ const keyboardMixin = targetId => ({
         temp = this.card_items[this.pos]
       }
 
-      const dialog = this.card_items[this.pos].dataset ? this.card_items[this.pos].dataset.type : null
+      const dialog = this.card_items[this.pos].dataset
+        ? this.card_items[this.pos].dataset.type
+        : null
 
       // Multi Select Button
-      card.multi_select = document.querySelector(".multiselect button[data-btn='multi_select']")
+      card.multi_select = document.querySelector(
+        ".multiselect button[data-btn='multi_select']"
+      )
 
       // - - -
-      card.aggregate = this.card_items[this.pos].querySelector("button[data-button='aggregate']")
-      card.select = this.card_items[this.pos].querySelector("input[type='checkbox']")
+      card.aggregate = this.card_items[this.pos].querySelector(
+        "button[data-button='aggregate']"
+      )
+      card.select = this.card_items[this.pos].querySelector(
+        "input[type='checkbox']"
+      )
       card.show = this.card_items[this.pos].querySelector('.card')
       card.id = this.card_items[this.pos].dataset.id
-      card.close = document.querySelector("[data-dialog='" + dialog + "-detail'] [data-btn='close']")
+      card.close = document.querySelector(
+        "[data-dialog='" + dialog + "-detail'] [data-btn='close']"
+      )
       // Link is always extracted from the news item newdial button, does not work for opening all selected items, but also with opened items
-      card.link = this.card_items[this.pos].querySelector(".v-card button[data-btn='link'] a")
+      card.link = this.card_items[this.pos].querySelector(
+        ".v-card button[data-btn='link'] a"
+      )
 
       // Speed Dial Toolbar
       card.group = temp.querySelector(which + "[data-btn='group']")
@@ -112,7 +123,8 @@ const keyboardMixin = targetId => ({
     setNewsItem(newPosition) {
       if (newPosition < 0) newPosition = 0
       if (newPosition !== undefined) this.pos = newPosition
-      if (newPosition >= this.card_items.length) this.pos = this.card_items.length - 1
+      if (newPosition >= this.card_items.length)
+        this.pos = this.card_items.length - 1
       this.$refs.contentData.checkFocus(this.pos)
       setTimeout(() => {
         this.keyRemaper()
@@ -128,12 +140,19 @@ const keyboardMixin = targetId => ({
       let keyAlias = ''
       for (let i = 0; i < this.shortcuts.length; i++) {
         // ignore all presses with Ctrl or Alt key, they have a different meaning
-        if (!(press.ctrlKey || press.altKey) && (this.shortcuts[i].character === press.key || this.shortcuts[i].key_code === press.keyCode)) {
+        if (
+          !(press.ctrlKey || press.altKey) &&
+          (this.shortcuts[i].character === press.key ||
+            this.shortcuts[i].key_code === press.keyCode)
+        ) {
           keyAlias = this.shortcuts[i].alias
           break
         }
       }
-      if (document.activeElement === search_field && (keyAlias !== 'close_item' || press.keyCode !== 27)) {
+      if (
+        document.activeElement === search_field &&
+        (keyAlias !== 'close_item' || press.keyCode !== 27)
+      ) {
         // when search field is active, ignore all keypresses except Escape
         return
       }
@@ -142,7 +161,10 @@ const keyboardMixin = targetId => ({
         if (!this.focus) {
           this.focus = true
           this.setNewsItem()
-        } else if (this.state === 'DEFAULT' && this.keyboard_state === 'DEFAULT') {
+        } else if (
+          this.state === 'DEFAULT' &&
+          this.keyboard_state === 'DEFAULT'
+        ) {
           switch (keyAlias) {
             case 'collection_up':
               press.preventDefault()
@@ -188,10 +210,13 @@ const keyboardMixin = targetId => ({
 
             case 'source_group_up': {
               const groups = this.$store.getters.getOSINTSourceGroups.items
-              const active_group_element = document.querySelector('.v-list-item--active')
-              const active_group_id = active_group_element.pathname.split('/')[3]
+              const active_group_element = document.querySelector(
+                '.v-list-item--active'
+              )
+              const active_group_id =
+                active_group_element.pathname.split('/')[3]
               let index
-              console.log(groups)// eslint-disable-line
+              console.log(groups) // eslint-disable-line
               for (index = 0; index < groups.length; index++) {
                 if (groups[index].id === active_group_id) {
                   break
@@ -205,10 +230,13 @@ const keyboardMixin = targetId => ({
             }
             case 'source_group_down': {
               const groups = this.$store.getters.getOSINTSourceGroups.items
-              const active_group_element = document.querySelector('.v-list-item--active')
-              const active_group_id = active_group_element.pathname.split('/')[3]
+              const active_group_element = document.querySelector(
+                '.v-list-item--active'
+              )
+              const active_group_id =
+                active_group_element.pathname.split('/')[3]
               let index
-              console.log(groups)// eslint-disable-line
+              console.log(groups) // eslint-disable-line
               for (index = 0; index < groups.length; index++) {
                 if (groups[index].id === active_group_id) {
                   break
@@ -234,7 +262,11 @@ const keyboardMixin = targetId => ({
               } else {
                 this.card.select.click()
                 setTimeout(() => {
-                  if (!document.querySelectorAll("#selector_assess input[type='checkbox'][aria-checked='true']").length) {
+                  if (
+                    !document.querySelectorAll(
+                      "#selector_assess input[type='checkbox'][aria-checked='true']"
+                    ).length
+                  ) {
                     this.card.multi_select.click()
                   }
                 }, 155)
@@ -243,7 +275,10 @@ const keyboardMixin = targetId => ({
 
             case 'read_item':
               this.card.read.click()
-              if (this.multiSelectActive && this.$store.getters.getFilter.read) {
+              if (
+                this.multiSelectActive &&
+                this.$store.getters.getFilter.read
+              ) {
                 const selection = this.$store.getters.getSelection
                 // set focus to the next item to read instead of keeping the current position
                 this.setNewsItem(this.pos - selection.length + 1)
@@ -252,7 +287,10 @@ const keyboardMixin = targetId => ({
 
             case 'important_item':
               this.card.important.click()
-              if (this.multiSelectActive && this.$store.getters.getFilter.important) {
+              if (
+                this.multiSelectActive &&
+                this.$store.getters.getFilter.important
+              ) {
                 const selection = this.$store.getters.getSelection
                 // set focus to the next item to read instead of keeping the current position
                 this.setNewsItem(this.pos - selection.length + 1)
@@ -265,7 +303,10 @@ const keyboardMixin = targetId => ({
 
             case 'unlike_item':
               this.card.unlike.click()
-              if (this.multiSelectActive && this.$store.getters.getFilter.relevant) {
+              if (
+                this.multiSelectActive &&
+                this.$store.getters.getFilter.relevant
+              ) {
                 const selection = this.$store.getters.getSelection
                 // set focus to the next item to read instead of keeping the current position
                 this.setNewsItem(this.pos - selection.length + 1)
@@ -310,19 +351,20 @@ const keyboardMixin = targetId => ({
 
             case 'enter_filter_mode':
               this.keyboard_state = 'FILTER'
-              this.$root.$emit('notification',
-                {
-                  type: 'success',
-                  loc: 'assess.shortcuts.enter_filter_mode'
-                }
-              )
+              this.$root.$emit('notification', {
+                type: 'success',
+                loc: 'assess.shortcuts.enter_filter_mode'
+              })
               break
 
             case 'reload':
               this.$root.$emit('news-items-updated')
               break
           }
-        } else if (this.state === 'SHOW_ITEM' && this.keyboard_state === 'SHOW_ITEM') {
+        } else if (
+          this.state === 'SHOW_ITEM' &&
+          this.keyboard_state === 'SHOW_ITEM'
+        ) {
           switch (keyAlias) {
             // scroll the dialog instead of the window behind
             case 'collection_up':
@@ -384,7 +426,10 @@ const keyboardMixin = targetId => ({
             default:
               break
           }
-        } else if (this.state === 'NEW_PRODUCT' && this.keyboard_state === 'DEFAULT') {
+        } else if (
+          this.state === 'NEW_PRODUCT' &&
+          this.keyboard_state === 'DEFAULT'
+        ) {
           switch (keyAlias) {
             case 'close_item':
               if (document.activeElement.className !== 'ql-editor') {
@@ -440,15 +485,23 @@ const keyboardMixin = targetId => ({
     },
 
     scrollPos() {
-      window.scrollTo(0, document.querySelectorAll('#selector_assess .card-item')[this.pos].offsetTop - 350)
+      window.scrollTo(
+        0,
+        document.querySelectorAll('#selector_assess .card-item')[this.pos]
+          .offsetTop - 350
+      )
     },
 
     newPosition(newPos, isFromDetail) {
-      this.card_items[this.pos].querySelector(this.selector).classList.remove('focus')
+      this.card_items[this.pos]
+        .querySelector(this.selector)
+        .classList.remove('focus')
 
       this.pos = newPos
 
-      this.card_items[this.pos].querySelector(this.selector).classList.add('focus')
+      this.card_items[this.pos]
+        .querySelector(this.selector)
+        .classList.add('focus')
       this.isItemOpen = isFromDetail
     }
   },

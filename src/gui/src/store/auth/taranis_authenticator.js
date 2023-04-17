@@ -126,13 +126,13 @@ const getters = {
     return new Date(state.exp * 1000)
   },
 
-  isAuthenticated (state) {
+  isAuthenticated(state) {
     const exp = new Date(state.exp * 1000)
     const now = new Date()
     return now < exp
   },
 
-  needTokenRefresh (state) {
+  needTokenRefresh(state) {
     const exp = new Date((state - 300) * 1000)
     const now = new Date()
     return now > exp

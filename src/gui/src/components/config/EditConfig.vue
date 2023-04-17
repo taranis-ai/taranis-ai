@@ -46,7 +46,10 @@
           :items="item.options"
           v-if="item.type === 'select' && item.options"
         ></v-select>
-        <v-col cols="12" v-if="item.type === 'table' && item.items !== undefined">
+        <v-col
+          cols="12"
+          v-if="item.type === 'table' && item.items !== undefined"
+        >
           <v-data-table
             :headers="item.headers"
             :show-select="!item['disabled']"
@@ -130,7 +133,8 @@ export default {
       const newRow = {}
       const headers = this.format.find((row) => row.name === name).headers
       headers.forEach((header) => {
-        newRow[header.value] = header.type === 'number' ? 0 : `new${header.value}`
+        newRow[header.value] =
+          header.type === 'number' ? 0 : `new${header.value}`
       })
       this.formData[name].push(newRow)
     },

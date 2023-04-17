@@ -81,7 +81,6 @@ class NewsItemData(db.Model):
 
     @classmethod
     def allowed_with_acl(cls, news_item_data_id, user, see, access, modify):
-
         news_item_data = cls.query.get(news_item_data_id)
         if news_item_data.remote_source is not None:
             return True
@@ -381,7 +380,6 @@ class NewsItem(db.Model):
 
     @classmethod
     def get_acl_status(cls, news_item_id: int, user) -> tuple[bool, bool, bool]:
-
         news_item = cls.query.get(news_item_id)
         if news_item.news_item_data.remote_source is not None:
             return True, True, True
@@ -1197,36 +1195,44 @@ class NewsItemTag(db.Model):
             .filter(NewsItemAggregate.created >= start_date)
             .subquery()
         )
+
+        if db.session.bind.dialect.name == "sqlite":
+            group_concat_fn = func.group_concat(subquery.c.created)
+        else:
+            group_concat_fn = func.array_agg(subquery.c.created)
+
         clusters = (
-            db.session.query(
-                subquery.c.name, subquery.c.tag_type, func.group_concat(subquery.c.created), func.count(subquery.c.name).label("count")
-            )
+            db.session.query(subquery.c.name, subquery.c.tag_type, group_concat_fn, func.count(subquery.c.name).label("count"))
             .select_from(subquery.join(NewsItemAggregate, subquery.c.id == NewsItemAggregate.id))
             .group_by(subquery.c.name, subquery.c.tag_type)
             .order_by(func.count(subquery.c.name).desc())
             .limit(limit)
             .all()
         )
+        if not clusters:
+            return []
+        results = []
+        for cluster in clusters:
+            if db.session.bind.dialect.name == "sqlite":
+                published = list(cluster[2].split(","))
+            else:
+                published = [dt.isoformat() for dt in cluster[2]]
 
-        return (
-            [
+            results.append(
                 {
                     "name": cluster[0],
                     "tag_type": cluster[1],
-                    "published": list(cluster[2].split(",")),
+                    "published": published,
                     "size": cluster[3],
                 }
-                for cluster in clusters
-            ]
-            if clusters
-            else []
-        )
+            )
+        return results
 
     @classmethod
     def get_json(cls, filter_args: dict):
         query = cls.query
 
-        if search := filter_args.get("search", None):
+        if search := filter_args.get("search"):
             query = query.filter(cls.name.ilike(f"%{search}%"))
 
         offset = filter_args.get("offset", 0)
@@ -1239,7 +1245,7 @@ class NewsItemTag(db.Model):
     def get_list(cls, filter_args: dict):
         query = cls.query
 
-        if search := filter_args.get("search", None):
+        if search := filter_args.get("search"):
             query = query.filter(cls.name.ilike(f"%{search}%"))
 
         offset = filter_args.get("offset", 0)

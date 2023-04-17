@@ -6,13 +6,13 @@
     <v-card-text>
       Select a report to share the item with:
       <v-select
-          solo
-          single-line
-          label="Select Report"
-          v-model="reportItemSelection"
-          no-data-text="No reports found"
-          :items="reportItems"
-       />
+        solo
+        single-line
+        label="Select Report"
+        v-model="reportItemSelection"
+        no-data-text="No reports found"
+        :items="reportItems"
+      />
     </v-card-text>
     <v-card-actions class="mt-1">
       <v-btn
@@ -45,8 +45,7 @@ import { addAggregatesToReportItem } from '@/api/analyze'
 
 export default {
   name: 'PopupShareItems',
-  components: {
-  },
+  components: {},
   props: {
     item_ids: [],
     dialog: Boolean
@@ -61,19 +60,19 @@ export default {
     ...mapGetters('analyze', ['getReportItems']),
     ...mapActions('analyze', ['loadReportItems']),
 
-    share () {
+    share() {
       addAggregatesToReportItem(this.reportItemSelection, this.item_ids)
       this.close()
     },
-    close () {
+    close() {
       this.$emit('close')
     }
   },
-  mounted () {
+  mounted() {
     console.debug('PopupShareItems mounted')
     console.debug(this.item_ids)
     this.loadReportItems().then(() => {
-      this.reportItems = this.getReportItems().map(item => {
+      this.reportItems = this.getReportItems().map((item) => {
         return {
           text: item.title,
           value: item.id

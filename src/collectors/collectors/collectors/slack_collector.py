@@ -15,13 +15,11 @@ class SlackCollector(BaseCollector):
     description = "Collector for gathering data from Slack"
 
     def collect(self, source):
-
         news_items = []
 
         proxy_server = source.parameter_values["PROXY_SERVER"]
 
         if proxy_server:
-
             server = "https://slack.com"
             port = 443
 
@@ -44,14 +42,12 @@ class SlackCollector(BaseCollector):
         slack_client = SlackClient(source.parameter_values["SLACK_API_TOKEN"])
 
         if slack_client.rtm_connect():
-
             while True:
                 try:
                     data = slack_client.rtm_read()
 
                     if data:
                         for item in data:
-
                             ids = source.parameter_values["WORKSPACE_CHANNELS_ID"].replace(" ", "")
                             channels_list = ids.split(",")
 

@@ -1,9 +1,9 @@
 import ApiService from '@/services/api_service'
 
-export function getDashboardData () {
+export function getDashboardData() {
   return ApiService.get('/dashboard-data')
 }
 
-export function getTrendingClusters () {
+export function getTrendingClusters() {
   return ApiService.get('/trending-clusters')
 }

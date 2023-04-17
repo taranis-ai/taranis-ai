@@ -69,10 +69,7 @@
                       :style="UI.STYLE.card_toolbar"
                     >
                       <v-col v-bind="UI.CARD.COL.TOOLS">
-                        <v-btn
-                          icon
-                          @click.stop="cardItemToolbar('remove')"
-                        >
+                        <v-btn icon @click.stop="cardItemToolbar('remove')">
                           <v-icon color="accent"
                             >mdi-minus-circle-outline</v-icon
                           >

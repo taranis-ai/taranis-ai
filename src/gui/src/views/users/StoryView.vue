@@ -1,6 +1,6 @@
 <template>
   <v-container fluid style="min-height: 100vh" v-if="story">
-    <card-story :story="story" :detailView="true"/>
+    <card-story :story="story" :detailView="true" />
   </v-container>
 </template>
 
@@ -22,9 +22,11 @@ export default {
   methods: {
     async loadStories() {
       if (this.$route.params.id) {
-        return await getNewsItemAggregate(this.$route.params.id).then((response) => {
-          return response.data
-        })
+        return await getNewsItemAggregate(this.$route.params.id).then(
+          (response) => {
+            return response.data
+          }
+        )
       }
     }
   }

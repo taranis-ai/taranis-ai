@@ -5,7 +5,7 @@
     - sudo
 
 - name: forward ssh agent via sudo
-  lineinfile: 
+  lineinfile:
     dest: /etc/sudoers
     state: present
     regexp: SSH_AUTH_SOCK

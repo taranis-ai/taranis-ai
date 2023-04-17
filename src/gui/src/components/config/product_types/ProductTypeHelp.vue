@@ -1,10 +1,10 @@
 <template>
   <v-dialog v-model="dialog">
     <template v-slot:activator="{ on }">
-    <v-btn color="primary" dark v-on="on">
-      <v-icon left>{{ UI.ICON.HELP }}</v-icon>
-      <span>{{ $t('product_type.help') }}</span>
-    </v-btn>
+      <v-btn color="primary" dark v-on="on">
+        <v-icon left>{{ UI.ICON.HELP }}</v-icon>
+        <span>{{ $t('product_type.help') }}</span>
+      </v-btn>
     </template>
     <v-toolbar>
       <v-btn icon dark @click="dialog = false">
@@ -35,7 +35,8 @@
             >
               <span
                 ><strong>
-                  {{ $t('product_type.report_items_object.' + obj) }} </strong>:
+                  {{ $t('product_type.report_items_object.' + obj) }} </strong
+                >:
                 <span
                   class="product_type_help"
                   v-html="variableUsage(obj)"
@@ -125,9 +126,7 @@ export default {
   computed: {},
 
   methods: {
-    ...mapActions('config', [
-      'loadReportTypesConfig'
-    ]),
+    ...mapActions('config', ['loadReportTypesConfig']),
     ...mapGetters('config', ['getReportTypesConfig']),
 
     closeHelpDialog() {
@@ -144,13 +143,17 @@ export default {
         )
       }
       return (
-        '{{ <span style="color: #6d9abe">report_item.attrs.' + variable + ' | e</span> }}'
+        '{{ <span style="color: #6d9abe">report_item.attrs.' +
+        variable +
+        ' | e</span> }}'
       )
     },
 
     variableUsage(variable) {
       return (
-        '{{ <span style="color: #6d9abe">report_item.' + variable + ' | e</span> }}'
+        '{{ <span style="color: #6d9abe">report_item.' +
+        variable +
+        ' | e</span> }}'
       )
     },
 

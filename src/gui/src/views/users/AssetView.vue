@@ -1,11 +1,11 @@
 <template>
   <v-container fluid style="min-height: 100vh">
-  <asset
-    v-if="asset"
-    :asset_prop="asset"
-    :edit.sync="edit"
-    @assetcreated="assetcreated"
-  />
+    <asset
+      v-if="asset"
+      :asset_prop="asset"
+      :edit.sync="edit"
+      @assetcreated="assetcreated"
+    />
   </v-container>
 </template>
 

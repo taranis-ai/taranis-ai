@@ -120,29 +120,35 @@ export default {
     },
     deleteItem(item) {
       if (!item.default) {
-        deleteNotificationTemplate(item).then(() => {
-          notifySuccess(`Successfully deleted ${item.name}`)
-          this.updateData()
-        }).catch(() => {
-          notifyFailure(`Failed to delete ${item.name}`)
-        })
+        deleteNotificationTemplate(item)
+          .then(() => {
+            notifySuccess(`Successfully deleted ${item.name}`)
+            this.updateData()
+          })
+          .catch(() => {
+            notifyFailure(`Failed to delete ${item.name}`)
+          })
       }
     },
     createItem(item) {
-      createNotificationTemplate(item).then(() => {
-        notifySuccess(`Successfully created ${item.name}`)
-        this.updateData()
-      }).catch(() => {
-        notifyFailure(`Failed to create ${item.name}`)
-      })
+      createNotificationTemplate(item)
+        .then(() => {
+          notifySuccess(`Successfully created ${item.name}`)
+          this.updateData()
+        })
+        .catch(() => {
+          notifyFailure(`Failed to create ${item.name}`)
+        })
     },
     updateItem(item) {
-      updateNotificationTemplate(item).then(() => {
-        notifySuccess(`Successfully updated ${item.name}`)
-        this.updateData()
-      }).catch(() => {
-        notifyFailure(`Failed to update ${item.name}`)
-      })
+      updateNotificationTemplate(item)
+        .then(() => {
+          notifySuccess(`Successfully updated ${item.name}`)
+          this.updateData()
+        })
+        .catch(() => {
+          notifyFailure(`Failed to update ${item.name}`)
+        })
     }
   },
   mounted() {

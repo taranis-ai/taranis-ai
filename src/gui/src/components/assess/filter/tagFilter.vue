@@ -18,11 +18,13 @@
     multiple
   >
     <template v-slot:item="{ item }">
-      <v-icon left>{{ tagIcon(item.tag_type) }}</v-icon>{{ shortText(item.name) }}
+      <v-icon left>{{ tagIcon(item.tag_type) }}</v-icon
+      >{{ shortText(item.name) }}
     </template>
     <template v-slot:selection="{ item }">
       <v-chip>
-      <v-icon left>{{ tagIcon(item.tag_type) }}</v-icon>{{ shortText(item.name) }}
+        <v-icon left>{{ tagIcon(item.tag_type) }}</v-icon
+        >{{ shortText(item.name) }}
       </v-chip>
     </template>
   </v-autocomplete>
@@ -65,12 +67,14 @@ export default {
     shortText(item) {
       return item.length > 20 ? item.substring(0, 20) + '...' : item
     },
-    tagIcon(tag_type) { return tagIconFromType(tag_type) },
+    tagIcon(tag_type) {
+      return tagIconFromType(tag_type)
+    },
     async querySelections(filter) {
       this.loading = true
       await getTags(filter).then((res) => {
         this.available_tags = res.data
-        this.selected_tags.forEach(tag => {
+        this.selected_tags.forEach((tag) => {
           if (!this.available_tags.includes(tag)) {
             this.available_tags.unshift(tag)
           }

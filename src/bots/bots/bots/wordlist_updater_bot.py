@@ -12,7 +12,6 @@ class WordlistUpdaterBot(BaseBot):
 
     def execute(self):
         def load_file(source, word_list_format):
-
             if "http" in source and word_list_format == "txt":
                 response = requests.get(source)
                 content = response.text.strip().split("\r\n")
@@ -35,7 +34,6 @@ class WordlistUpdaterBot(BaseBot):
             categories = self.core_api.get_categories(word_list_id)
 
             if not any(category["name"] == word_list_category_name for category in categories):
-
                 name = word_list_category_name
                 description = "Stop word list category created by Updater Bot."
                 entries = []
@@ -51,7 +49,6 @@ class WordlistUpdaterBot(BaseBot):
             entries = []
 
             for word in source_word_list:
-
                 value = word
                 description = ""
 

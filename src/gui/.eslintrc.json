@@ -1,0 +1,22 @@
+{
+  "env": {
+    "node": true
+  },
+  "extends": [
+    "plugin:vue/essential",
+    "eslint:recommended"
+  ],
+  "rules": {
+    "camelcase": "off",
+    "quotes": [
+      2,
+      "single",
+      {
+        "avoidEscape": true
+      }
+    ],
+    "space-before-function-paren": 0,
+    "vue/multi-word-component-names": "off"
+  },
+  "root": true
+}

@@ -53,9 +53,9 @@ paths:
       tags:
         - auth
       summary: >-
-        authenticate with either 
-        username and password, 
-        via Keycloak or 
+        authenticate with either
+        username and password,
+        via Keycloak or
         OpenID Connect
       security: []
       requestBody:
@@ -142,7 +142,7 @@ paths:
       responses:
         '302':
           description: redirection to the specified URL
-          
+
   /isalive:
     get:
       tags:
@@ -160,12 +160,12 @@ paths:
                   isalive:
                     type: boolean
                     example: True
-                    
+
   /users/my-profile:
     get:
       tags: [users]
       summary: get the user's profile
-      responses: 
+      responses:
         '200':
           description: the user profile
           content:
@@ -187,7 +187,7 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/user_profile.new'
-      responses: 
+      responses:
         '200':
           description: the updated user profile
           content:
@@ -216,7 +216,7 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items: 
+                    items:
                       $ref: '#/components/schemas/wordlist'
         '401':
           description: authorization error
@@ -240,7 +240,7 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items: 
+                    items:
                       $ref: '#/components/schemas/product_type'
         '401':
           description: authorization error
@@ -264,7 +264,7 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items: 
+                    items:
                       $ref: '#/components/schemas/publisher_preset'
         '401':
           description: authorization error
@@ -272,7 +272,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/resp.auth.error'
-                
+
   /analyze/report-item-types:
     get:
       tags: [analyze]
@@ -289,7 +289,7 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items: 
+                    items:
                       $ref: '#/components/schemas/report_item_type'
         '401':
           description: authorization error
@@ -365,7 +365,7 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items: 
+                    items:
                       $ref: '#/components/schemas/report_item.presentation'
         '401':
           description: authorization error
@@ -631,7 +631,7 @@ paths:
           type: integer
     get:
       tags: [analyze]
-      summary: get the report item attribute's enums 
+      summary: get the report item attribute's enums
       parameters:
         - name: search
           in: query
@@ -657,7 +657,7 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items: 
+                    items:
                       $ref: '#/components/schemas/attribute_enum'
         '401':
           description: authorization error
@@ -794,7 +794,7 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items: 
+                    items:
                       $ref: '#/components/schemas/osint_source_group.presentation'
         '401':
           description: authorization error
@@ -818,7 +818,7 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items: 
+                    items:
                       $ref: '#/components/schemas/osint_source_group.base'
         '401':
           description: authorization error
@@ -926,7 +926,7 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items: 
+                    items:
                       $ref: '#/components/schemas/news_item_aggregate'
         '401':
           description: authorization error
@@ -987,7 +987,7 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items: 
+                    items:
                       $ref: '#/components/schemas/news_item_aggregate'
         '401':
           description: authorization error
@@ -1235,7 +1235,7 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items: 
+                    items:
                       $ref: '#/components/schemas/asset_group.presentation'
         '401':
           description: authorization error
@@ -1258,7 +1258,7 @@ paths:
             application/json:
               schema:
                 type: string
-                example: 
+                example:
         '401':
           description: authorization error
           content:
@@ -1287,7 +1287,7 @@ paths:
             application/json:
               schema:
                 type: string
-                example: 
+                example:
         '401':
           description: authorization error
           content:
@@ -1304,7 +1304,7 @@ paths:
             application/json:
               schema:
                 type: string
-                example: 
+                example:
         '401':
           description: authorization error
           content:
@@ -1332,7 +1332,7 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items: 
+                    items:
                       $ref: '#/components/schemas/notification_template.presentation'
         '401':
           description: authorization error
@@ -1355,7 +1355,7 @@ paths:
             application/json:
               schema:
                 type: string
-                example: 
+                example:
         '401':
           description: authorization error
           content:
@@ -1384,7 +1384,7 @@ paths:
             application/json:
               schema:
                 type: string
-                example: 
+                example:
         '401':
           description: authorization error
           content:
@@ -1401,7 +1401,7 @@ paths:
             application/json:
               schema:
                 type: string
-                example: 
+                example:
         '401':
           description: authorization error
           content:
@@ -1443,7 +1443,7 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items: 
+                    items:
                       $ref: '#/components/schemas/asset.presentation'
         '401':
           description: authorization error
@@ -1466,7 +1466,7 @@ paths:
             application/json:
               schema:
                 type: string
-                example: 
+                example:
         '401':
           description: authorization error
           content:
@@ -1500,7 +1500,7 @@ paths:
             application/json:
               schema:
                 type: string
-                example: 
+                example:
         '401':
           description: authorization error
           content:
@@ -1517,7 +1517,7 @@ paths:
             application/json:
               schema:
                 type: string
-                example: 
+                example:
         '401':
           description: authorization error
           content:
@@ -1559,7 +1559,7 @@ paths:
             application/json:
               schema:
                 type: string
-                example: 
+                example:
         '401':
           description: authorization error
           content:
@@ -1612,7 +1612,7 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items: 
+                    items:
                       $ref: '#/components/schemas/attribute_enum'
         '401':
           description: authorization error
@@ -1932,7 +1932,7 @@ paths:
             application/json:
               schema:
                 type: array
-                items: 
+                items:
                   $ref: '#/components/schemas/osint_source'
 
         '401':
@@ -2167,7 +2167,7 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items: 
+                    items:
                       $ref: '#/components/schemas/attribute.presentation'
         '401':
           description: authorization error
@@ -2348,7 +2348,7 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items: 
+                    items:
                       $ref: '#/components/schemas/report_item_type.presentation'
         '401':
           description: authorization error
@@ -2430,7 +2430,7 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items: 
+                    items:
                       $ref: '#/components/schemas/product_type.presentation'
         '401':
           description: authorization error
@@ -2512,7 +2512,7 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items: 
+                    items:
                       $ref: '#/components/schemas/permission'
         '401':
           description: authorization error
@@ -2536,7 +2536,7 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items: 
+                    items:
                       $ref: '#/components/schemas/permission'
         '401':
           description: authorization error
@@ -2565,7 +2565,7 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items: 
+                    items:
                       $ref: '#/components/schemas/role.presentation'
         '401':
           description: authorization error
@@ -2647,7 +2647,7 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items: 
+                    items:
                       $ref: '#/components/schemas/acl_entry.presentation'
         '401':
           description: authorization error
@@ -2729,7 +2729,7 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items: 
+                    items:
                       $ref: '#/components/schemas/organization.presentation'
         '401':
           description: authorization error
@@ -2812,7 +2812,7 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items: 
+                    items:
                       $ref: '#/components/schemas/user.presentation'
         '401':
           description: authorization error
@@ -2900,7 +2900,7 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items: 
+                    items:
                       $ref: '#/components/schemas/user.presentation'
         '401':
           description: authorization error
@@ -2982,7 +2982,7 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items: 
+                    items:
                       $ref: '#/components/schemas/wordlist.presentation'
         '401':
           description: authorization error
@@ -3064,7 +3064,7 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items: 
+                    items:
                       $ref: '#/components/schemas/collectors_node'
         '401':
           description: authorization error
@@ -3146,7 +3146,7 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items: 
+                    items:
                       $ref: '#/components/schemas/osint_source.presentation'
         '401':
           description: authorization error
@@ -3270,7 +3270,7 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items: 
+                    items:
                       $ref: '#/components/schemas/osint_source_group.presentation'
         '401':
           description: authorization error
@@ -3352,7 +3352,7 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items: 
+                    items:
                       $ref: '#/components/schemas/remote_access.presentation'
         '401':
           description: authorization error
@@ -3434,7 +3434,7 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items: 
+                    items:
                       $ref: '#/components/schemas/remote_node.presentation'
         '401':
           description: authorization error
@@ -3529,7 +3529,7 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items: 
+                    items:
                       $ref: '#/components/schemas/presenters_node.presentation'
         '401':
           description: authorization error
@@ -3611,7 +3611,7 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items: 
+                    items:
                       $ref: '#/components/schemas/publishers_node.presentation'
         '401':
           description: authorization error
@@ -3693,7 +3693,7 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items: 
+                    items:
                       $ref: '#/components/schemas/publisher_preset.presentation'
         '401':
           description: authorization error
@@ -3775,7 +3775,7 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items: 
+                    items:
                       $ref: '#/components/schemas/bots_node.presentation'
         '401':
           description: authorization error
@@ -3857,7 +3857,7 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items: 
+                    items:
                       $ref: '#/components/schemas/bot_preset.presentation'
         '401':
           description: authorization error
@@ -3939,7 +3939,7 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items: 
+                    items:
                       anyOf:
                         - $ref: '#/components/schemas/publishers_node.presentation'
                         - $ref: '#/components/schemas/bots_node.presentation'
@@ -4024,7 +4024,7 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items: 
+                    items:
                       $ref: '#/components/schemas/presenters_node.presentation'
         '401':
           description: authorization error
@@ -4122,7 +4122,7 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items: 
+                    items:
                       $ref: '#/components/schemas/product.presentation'
         '400':
           description: resource not found
@@ -4270,7 +4270,7 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items: 
+                    items:
                       $ref: '#/components/schemas/publishers_node.presentation'
         '401':
           description: authorization error
@@ -4352,7 +4352,7 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items: 
+                    items:
                       $ref: '#/components/schemas/publisher_preset.presentation'
         '401':
           description: authorization error
@@ -4527,9 +4527,9 @@ paths:
 components:
 
   schemas:
-    
+
     #requests
-    
+
     req.auth.username_password:
       type: object
       properties:
@@ -4557,11 +4557,11 @@ components:
       properties:
         access_token:
           type: string
-      required: 
+      required:
         - access_token
-            
+
     #responses
-    
+
     resp.auth.JWT:
       type: object
       properties:
@@ -4584,9 +4584,9 @@ components:
         error:
           type: string
           example: Internal server error
-          
+
     #general
-    
+
     presentation:
       type: object
       properties:
@@ -4687,11 +4687,11 @@ components:
           example: False
         word_lists:
           type: array
-          items: 
+          items:
             $ref: '#/components/schemas/wordlist'
         hotkeys:
           type: array
-          items: 
+          items:
             $ref: '#/components/schemas/hotkey'
 
     permission:
@@ -4735,7 +4735,7 @@ components:
       properties:
         id:
           type: string
-    
+
     organization.new:
       allOf:
         - $ref: '#/components/schemas/organization'
@@ -5857,7 +5857,7 @@ components:
     notification_template:
       type: object
       properties:
-        id: 
+        id:
           type: integer
         name:
           type: string
@@ -5940,7 +5940,7 @@ components:
               enum: [AGGREGATE]
             id:
               type: string
-              
+
     collectors_node.new:
       allOf:
         - $ref: '#/components/schemas/collectors_node'

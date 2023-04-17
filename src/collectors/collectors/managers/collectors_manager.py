@@ -9,6 +9,7 @@ from collectors.config import Config
 collectors = {}
 status_report_thread = None
 
+
 def initialize():
     CoreApi().register_node()
 

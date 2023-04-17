@@ -14,7 +14,6 @@ class PDFPresenter(BasePresenter):
     description = "Presenter for generating PDF documents"
 
     def generate(self, presenter_input):
-
         try:
             temporary_directory = f"{tempfile.gettempdir()}/"
             output_body_html = f"{temporary_directory}pdf_body.html"

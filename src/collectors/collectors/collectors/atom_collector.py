@@ -19,7 +19,6 @@ class AtomCollector(BaseCollector):
     news_items = []
 
     def collect(self, source):
-
         feed_url = source.parameter_values["ATOM_FEED_URL"]
         user_agent = source.parameter_values["USER_AGENT"]
         interval = source.parameter_values["REFRESH_INTERVAL"]
@@ -44,13 +43,11 @@ class AtomCollector(BaseCollector):
             news_items = []
 
             for feed_entry in feed["entries"]:
-
                 limit = BaseCollector.history(interval)
                 published = feed_entry["updated"]
                 published = parse(published)
 
                 if str(published) > str(limit):
-
                     link_for_article = feed_entry["link"]
 
                     if proxies:

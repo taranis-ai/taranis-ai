@@ -19,7 +19,6 @@
 
       <v-divider class="mt-0 mb-0"></v-divider>
       <v-row class="my-2 mr-0 px-2">
-
         <v-col cols="12" class="py-0">
           <h4>filter</h4>
         </v-col>
@@ -39,7 +38,6 @@
         <v-col cols="12" class="pt-2">
           <filter-sort-list v-model="sort" :items="orderOptions" />
         </v-col>
-
       </v-row>
     </template>
   </filter-navigation>
@@ -160,7 +158,7 @@ export default {
   },
   created() {
     const query = Object.fromEntries(
-      Object.entries(this.query).filter(([_, v]) => v != null)
+      Object.entries(this.query).filter(([, v]) => v != null)
     )
     this.updateProductFilter(query)
     console.debug('loaded with query', query)

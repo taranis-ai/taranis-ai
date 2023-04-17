@@ -15,7 +15,6 @@ class EMAILPublisher(BasePublisher):
     description = "Publisher for publishing by email"
 
     def publish(self, publisher_input):
-
         smtp_server = publisher_input.parameter_values_map["SMTP_SERVER"]
         smtp_server_port = publisher_input.parameter_values_map["SMTP_SERVER_PORT"]
         email_user = publisher_input.parameter_values_map["EMAIL_USERNAME"]
@@ -92,7 +91,6 @@ class EMAILPublisher(BasePublisher):
             return pgp_msg.as_string()
 
         try:
-
             server = smtplib.SMTP(smtp_server, smtp_server_port)
             server.starttls()
             server.login(email_user, email_password)

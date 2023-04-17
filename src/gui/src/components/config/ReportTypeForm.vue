@@ -80,7 +80,9 @@
                 :spellcheck="$store.state.settings.spellcheck"
               ></v-text-field>
               <AttributeTable
-                :attributes.sync="report_type.attribute_groups[index].attribute_group_items"
+                :attributes.sync="
+                  report_type.attribute_groups[index].attribute_group_items
+                "
                 @update="(items) => updateAttributeGroupItems(index, items)"
                 :disabled="!canUpdate"
               />
@@ -157,8 +159,7 @@ export default {
         description: '',
         section: -1,
         section_title: '',
-        attribute_group_items: [
-        ]
+        attribute_group_items: []
       })
     },
 

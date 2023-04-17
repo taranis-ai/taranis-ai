@@ -59,7 +59,7 @@ export default {
     }
   },
   methods: {
-    setValue (newValue) {
+    setValue(newValue) {
       this.$emit('input', newValue)
     }
   }

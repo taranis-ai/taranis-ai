@@ -1,7 +1,16 @@
 <template>
-  <v-container class="login-screen pa-0 ma-0" fluid fill-height align-center justify-center>
-    <v-container style="background-color: #c7c7c7; text-align: center; position: relative;" fluid>
-      <img src="@/assets/taranis-logo-login.svg" alt="">
+  <v-container
+    class="login-screen pa-0 ma-0"
+    fluid
+    fill-height
+    align-center
+    justify-center
+  >
+    <v-container
+      style="background-color: #c7c7c7; text-align: center; position: relative"
+      fluid
+    >
+      <img src="@/assets/taranis-logo-login.svg" alt="" />
       <v-form @submit.prevent="authenticate" id="form" ref="form">
         <table>
           <tr>
@@ -44,7 +53,9 @@
         </table>
       </v-form>
     </v-container>
-    <v-alert v-if="login_error !== undefined" dense type="error" text>{{$t(login_error)}}</v-alert>
+    <v-alert v-if="login_error !== undefined" dense type="error" text>{{
+      $t(login_error)
+    }}</v-alert>
   </v-container>
 </template>
 
@@ -62,11 +73,11 @@ export default {
   mixins: [AuthMixin],
   methods: {
     ...mapActions(['login']),
-    authenticate () {
+    authenticate() {
       this.$validator.validateAll().then(() => {
         if (!this.$validator.errors.any()) {
-          this.login({ username: this.username, password: this.password })
-            .then((error) => {
+          this.login({ username: this.username, password: this.password }).then(
+            (error) => {
               if (this.isAuthenticated()) {
                 this.login_error = undefined
                 this.$router.push('/')
@@ -81,7 +92,8 @@ export default {
                   this.login_error = 'login.error'
                 }
               }
-            })
+            }
+          )
         } else {
           this.login_error = undefined
         }

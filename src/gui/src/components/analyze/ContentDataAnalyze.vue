@@ -1,14 +1,18 @@
 <template>
-
-    <v-container id="selector_analyze">
-        <component v-bind:is="cardLayout()" v-for="collection in collections" :card="collection" :key="collection.id"
-                   :publish_selector="publish_selector" :preselected="preselected(collection.id)"
-                   @show-report-item-detail="showReportItemDetail"
-                   @show-remote-report-item-detail="showRemoteReportItemDetail"
-                   @remove-report-item-from-selector="removeReportItemFromSelector"></component>
-        <v-card v-intersect.quiet="infiniteScrolling"></v-card>
-    </v-container>
-
+  <v-container id="selector_analyze">
+    <component
+      v-bind:is="cardLayout()"
+      v-for="collection in collections"
+      :card="collection"
+      :key="collection.id"
+      :publish_selector="publish_selector"
+      :preselected="preselected(collection.id)"
+      @show-report-item-detail="showReportItemDetail"
+      @show-remote-report-item-detail="showRemoteReportItemDetail"
+      @remove-report-item-from-selector="removeReportItemFromSelector"
+    ></component>
+    <v-card v-intersect.quiet="infiniteScrolling"></v-card>
+  </v-container>
 </template>
 
 <script>
@@ -40,16 +44,16 @@ export default {
     ...mapGetters('analyze', ['getCurrentReportItemGroup', 'getReportItems']),
     ...mapActions('analyze', ['loadReportItems']),
 
-    showReportItemDetail (report_item) {
+    showReportItemDetail(report_item) {
       this.$emit('show-report-item-detail', report_item)
     },
-    showRemoteReportItemDetail (report_item) {
+    showRemoteReportItemDetail(report_item) {
       this.$emit('show-remote-report-item-detail', report_item)
     },
-    removeReportItemFromSelector (report_item) {
+    removeReportItemFromSelector(report_item) {
       this.$emit('remove-report-item-from-selector', report_item)
     },
-    preselected (item_id) {
+    preselected(item_id) {
       if (this.selection != null) {
         for (let i = 0; i < this.selection.length; i++) {
           if (this.selection[i].id === item_id) {
@@ -64,13 +68,13 @@ export default {
       return this.cardItem
     },
 
-    infiniteScrolling (entries, observer, isIntersecting) {
+    infiniteScrolling(entries, observer, isIntersecting) {
       if (this.data_loaded && isIntersecting) {
         this.updateData(true, false)
       }
     },
 
-    updateData (append, reload_all) {
+    updateData(append, reload_all) {
       this.data_loaded = false
 
       if (append === false) {
@@ -93,39 +97,45 @@ export default {
       } else if (window.location.pathname.includes('/group/')) {
         const i = window.location.pathname.indexOf('/group/')
         const len = window.location.pathname.length
-        group = window.location.pathname.substring(i + 7, len).replaceAll('-', ' ')
+        group = window.location.pathname
+          .substring(i + 7, len)
+          .replaceAll('-', ' ')
       }
 
-      this.loadReportItems({ group: group, filter: this.filter, offset: offset, limit: limit })
-        .then(() => {
-          this.collections = this.collections.concat(this.getReportItems())
-          this.data_loaded = true
-        })
+      this.loadReportItems({
+        group: group,
+        filter: this.filter,
+        offset: offset,
+        limit: limit
+      }).then(() => {
+        this.collections = this.collections.concat(this.getReportItems())
+        this.data_loaded = true
+      })
     },
 
-    report_item_updated () {
+    report_item_updated() {
       this.updateData(false, true)
     },
 
-    updateFilter (filter) {
+    updateFilter(filter) {
       this.filter = filter
       this.updateData(false, false)
     }
   },
   computed: {
-    multiSelectActive () {
+    multiSelectActive() {
       return this.$store.getters.getMultiSelect
     }
   },
 
-  mounted () {
+  mounted() {
     this.updateData(false, false)
 
     this.$root.$on('report-item-updated', this.report_item_updated)
     this.$root.$on('report-items-updated', this.report_item_updated)
   },
-  created () {},
-  beforeDestroy () {
+  created() {},
+  beforeDestroy() {
     this.$root.$off('report-item-updated', this.report_item_updated)
     this.$root.$off('report-items-updated', this.report_item_updated)
   }

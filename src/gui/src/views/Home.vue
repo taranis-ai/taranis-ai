@@ -1,9 +1,14 @@
 <template>
   <v-container fluid>
     <v-row no-gutters>
-      <dash-board-card v-for="cluster in clusters" :key="cluster.name" :linkTo="`/assess?tags=${cluster.name}`" :linkText="cluster.name">
+      <dash-board-card
+        v-for="cluster in clusters"
+        :key="cluster.name"
+        :linkTo="`/assess?tags=${cluster.name}`"
+        :linkText="cluster.name"
+      >
         <template v-slot:content>
-          <trending-card :cluster="cluster"/>
+          <trending-card :cluster="cluster" />
         </template>
       </dash-board-card>
 
@@ -11,8 +16,9 @@
         <template v-slot:content>
           <v-icon class="mr-2"> mdi-email-multiple </v-icon>
           <span class="caption">
-            There are <strong>{{ dashboardData.total_news_items }}</strong> total
-            Assess items.
+            There are
+            <strong>{{ dashboardData.total_news_items }}</strong> total Assess
+            items.
           </span>
         </template>
       </dash-board-card>
@@ -35,12 +41,10 @@
       </dash-board-card>
       <dash-board-card linkTo="/publish" linkText="Publish">
         <template v-slot:content>
-          <v-icon class="mr-2" color="orange">
-            mdi-email-check-outline
-          </v-icon>
+          <v-icon class="mr-2" color="orange"> mdi-email-check-outline </v-icon>
           <span class="caption">
-            There are <b>{{ dashboardData.total_products }}</b> products
-            ready for publications.
+            There are <b>{{ dashboardData.total_products }}</b> products ready
+            for publications.
           </span>
         </template>
       </dash-board-card>

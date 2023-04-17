@@ -351,10 +351,7 @@ CVSS.prototype.calculate = function () {
       metricWeight.PR *
       metricWeight.UI
     var impactSubScoreMultiplier =
-      1 -
-      (1 - metricWeight.C) *
-        (1 - metricWeight.I) *
-        (1 - metricWeight.A)
+      1 - (1 - metricWeight.C) * (1 - metricWeight.I) * (1 - metricWeight.A)
     if (val.S === 'U') {
       impactSubScore = metricWeight.S * impactSubScoreMultiplier
     } else {

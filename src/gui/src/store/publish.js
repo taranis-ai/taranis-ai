@@ -8,52 +8,52 @@ const state = {
 }
 
 const actions = {
-
-  loadProducts (context, data) {
-    return getAllProducts(data)
-      .then(response => {
-        context.commit('setProducts', response.data)
-      })
+  loadProducts(context, data) {
+    return getAllProducts(data).then((response) => {
+      context.commit('setProducts', response.data)
+    })
   },
 
-  updateProducts (context) {
-    return getAllProducts(filter.state.productFilter)
-      .then(response => {
-        context.commit('setProducts', response.data)
-      })
+  updateProducts(context) {
+    return getAllProducts(filter.state.productFilter).then((response) => {
+      context.commit('setProducts', response.data)
+    })
   },
 
-  loadUserPublishersPresets (context, data) {
-    return getAllUserPublishersPresets(data)
-      .then(response => {
-        context.commit('setProductsPublisherPresets', response.data)
-      })
+  loadUserPublishersPresets(context, data) {
+    return getAllUserPublishersPresets(data).then((response) => {
+      context.commit('setProductsPublisherPresets', response.data)
+    })
   }
 }
 
 const mutations = {
-
-  setProducts (state, new_product) {
+  setProducts(state, new_product) {
     state.products = new_product
   },
 
-  setProductsPublisherPresets (state, new_publisher_presets) {
+  setProductsPublisherPresets(state, new_publisher_presets) {
     state.products_publisher_presets = new_publisher_presets
   }
 }
 
 const getters = {
-
-  getProducts (state) {
+  getProducts(state) {
     return state.products.items
   },
 
-  getProductsPublisherPresets (state) {
+  getProductsPublisherPresets(state) {
     return state.products_publisher_presets
   },
 
-  getPreviewLink (state, product) {
-    return this.$store.getters.getCoreAPIURL + '/publish/products/' + product + '/overview?jwt=' + this.$store.getters.getJWT
+  getPreviewLink(state, product) {
+    return (
+      this.$store.getters.getCoreAPIURL +
+      '/publish/products/' +
+      product +
+      '/overview?jwt=' +
+      this.$store.getters.getJWT
+    )
   }
 }
 

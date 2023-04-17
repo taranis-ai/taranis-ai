@@ -187,7 +187,6 @@ class ReportItemType(db.Model):
 
     @classmethod
     def allowed_with_acl(cls, report_item_type_id, user, see, access, modify):
-
         query = db.session.query(ReportItemType.id).distinct().group_by(ReportItemType.id).filter(ReportItemType.id == report_item_type_id)
 
         query = query.outerjoin(

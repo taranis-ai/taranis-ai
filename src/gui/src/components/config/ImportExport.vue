@@ -1,20 +1,10 @@
 <template>
   <div>
-    <v-btn
-      color="blue-grey"
-      dark
-      class="ml-4"
-      @click="importClick"
-    >
-    <v-icon>mdi-import</v-icon>Import
+    <v-btn color="blue-grey" dark class="ml-4" @click="importClick">
+      <v-icon>mdi-import</v-icon>Import
     </v-btn>
-    <v-btn
-      color="blue-grey"
-      dark
-      class="ml-4"
-      @click="exportFile"
-    >
-    <v-icon>mdi-export</v-icon>Export
+    <v-btn color="blue-grey" dark class="ml-4" @click="exportFile">
+      <v-icon>mdi-export</v-icon>Export
     </v-btn>
     <input
       @change="fileSelected"
@@ -31,8 +21,7 @@ export default {
   name: 'ImportExport',
   components: {},
   emits: ['import', 'export'],
-  data: () => ({
-  }),
+  data: () => ({}),
   computed: {},
   methods: {
     importClick() {

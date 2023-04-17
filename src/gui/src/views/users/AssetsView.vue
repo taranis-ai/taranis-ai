@@ -5,9 +5,14 @@
         {{ asset.name }}
       </v-card-title>
     </v-card>
-    <v-card v-for="asset_group in asset_groups" :key="asset_group.id" class="mt-3">
+    <v-card
+      v-for="asset_group in asset_groups"
+      :key="asset_group.id"
+      class="mt-3"
+    >
       <v-card-title>
-        {{ asset_group.name }} - {{ asset_group.id }} - {{ asset_group.description }}
+        {{ asset_group.name }} - {{ asset_group.id }} -
+        {{ asset_group.description }}
       </v-card-title>
     </v-card>
   </v-container>

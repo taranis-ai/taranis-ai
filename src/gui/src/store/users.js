@@ -24,15 +24,17 @@ const getters = {
   },
 
   getUserById: (state) => (id) => {
-    return state.users.find(user => user.id === id)
+    return state.users.find((user) => user.id === id)
   },
 
   getUsernameById: (state) => (id) => {
-    return state.users.find(user => user.id === id).username
+    return state.users.find((user) => user.id === id).username
   },
 
   getUsersSelectionList(state) {
-    return state.users.map(function (user) { return { id: user.id, username: user.username } })
+    return state.users.map(function (user) {
+      return { id: user.id, username: user.username }
+    })
   }
 }
 

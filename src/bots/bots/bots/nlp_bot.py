@@ -31,7 +31,6 @@ class NLPBot(BaseBot):
     """
 
     def set_summarization_model(self) -> None:
-
         self.sum_model_name_en = "facebook/bart-large-cnn"
         self.sum_model_en = BartForConditionalGeneration.from_pretrained(self.sum_model_name_en)
         self.sum_tokenizer_en = BartTokenizer.from_pretrained(self.sum_model_name_en)

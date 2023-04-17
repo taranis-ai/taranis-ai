@@ -14,7 +14,6 @@ class TwitterCollector(BaseCollector):
     description = "Collector for gathering data from Twitter"
 
     def collect(self, source):
-
         try:
             news_items = []
             attributes = []
@@ -58,7 +57,6 @@ class TwitterCollector(BaseCollector):
             limit = BaseCollector.history(interval)
 
             for tweet in public_tweets:
-
                 time_to_collect = tweet.created_at
 
                 if time_to_collect > limit:

@@ -25,7 +25,9 @@
             <v-icon>mdi-cog-outline</v-icon>
           </v-list-item-icon>
           <v-list-item-content>
-            <v-list-item-title> {{ $t('user_menu.settings') }}</v-list-item-title>
+            <v-list-item-title>
+              {{ $t('user_menu.settings') }}</v-list-item-title
+            >
           </v-list-item-content>
         </v-list-item>
 
@@ -49,25 +51,24 @@ export default {
     darkTheme: false
   }),
   computed: {
-    username () {
+    username() {
       return this.$store.getters.getUserName
     },
-    organizationName () {
+    organizationName() {
       return this.$store.getters.getOrganizationName
     }
   },
   methods: {
-    logout () {
-      this.$store.dispatch('logout')
-        .then(() => {
-          window.location.reload()
-        })
+    logout() {
+      this.$store.dispatch('logout').then(() => {
+        window.location.reload()
+      })
     },
-    settings () {
+    settings() {
       this.$router.push({ path: '/user/settings' })
       // this.$root.$emit('show-user-settings')
     },
-    userview () {
+    userview() {
       this.$router.push({ path: '/user' })
     }
   }

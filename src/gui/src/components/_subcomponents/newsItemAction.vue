@@ -29,7 +29,7 @@ export default {
     buttonText: { type: String, default: '' }
   },
   methods: {
-    execute (event) {
+    execute(event) {
       event.stopPropagation()
       this.$emit('click', event)
     }

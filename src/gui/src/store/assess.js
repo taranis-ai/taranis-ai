@@ -1,4 +1,10 @@
-import { getNewsItemsAggregates, getOSINTSourceGroupsList, getTopStories, getNewsItemAggregate, getOSINTSourcesList } from '@/api/assess'
+import {
+  getNewsItemsAggregates,
+  getOSINTSourceGroupsList,
+  getTopStories,
+  getNewsItemAggregate,
+  getOSINTSourcesList
+} from '@/api/assess'
 import { filter } from '@/store/filter'
 import { xorConcat } from '@/utils/helpers'
 
@@ -14,48 +20,43 @@ const state = {
 }
 
 const actions = {
-
   updateAggregateByID(context, id) {
-    return getNewsItemAggregate(id)
-      .then(response => {
-        context.commit('UPDATE_NEWSITEMS', [response.data])
-      })
+    return getNewsItemAggregate(id).then((response) => {
+      context.commit('UPDATE_NEWSITEMS', [response.data])
+    })
   },
 
   updateNewsItemsByGroup(context, newsItemsFilter) {
-    return getNewsItemsAggregates(newsItemsFilter)
-      .then(response => {
-        context.commit('UPDATE_NEWSITEMS', response.data)
-      })
+    return getNewsItemsAggregates(newsItemsFilter).then((response) => {
+      context.commit('UPDATE_NEWSITEMS', response.data)
+    })
   },
 
   updateNewsItems(context) {
-    return getNewsItemsAggregates(filter.state.newsItemsFilter)
-      .then(response => {
+    return getNewsItemsAggregates(filter.state.newsItemsFilter).then(
+      (response) => {
         context.commit('UPDATE_NEWSITEMS', response.data)
-      })
+      }
+    )
   },
 
   updateOSINTSources(context) {
-    return getOSINTSourcesList()
-      .then(response => {
-        context.commit('UPDATE_OSINTSOURCES', response.data)
-      })
+    return getOSINTSourcesList().then((response) => {
+      context.commit('UPDATE_OSINTSOURCES', response.data)
+    })
   },
 
   updateOSINTSourceGroupsList(context) {
-    return getOSINTSourceGroupsList()
-      .then(response => {
-        context.commit('setOSINTSourceGroups', response.data)
-        context.commit('setDefaultOSINTSourceGroup', response.data)
-      })
+    return getOSINTSourceGroupsList().then((response) => {
+      context.commit('setOSINTSourceGroups', response.data)
+      context.commit('setDefaultOSINTSourceGroup', response.data)
+    })
   },
 
   updateTopStories(context) {
-    return getTopStories()
-      .then(response => {
-        context.commit('setTopStories', response.data)
-      })
+    return getTopStories().then((response) => {
+      context.commit('setTopStories', response.data)
+    })
   },
 
   setNewsItems(context, newsItems) {
@@ -90,10 +91,6 @@ const actions = {
     context.commit('removeSelection', data)
   },
 
-  changeMergeAttr(context, { src, dest }) {
-    context.commit('CHANGE_MERGE_ATTR', { src, dest })
-  },
-
   assignSharingSet(context, { items, sharingSet }) {
     context.commit('ASSIGN_SHARINGSET', { items, sharingSet })
   },
@@ -123,7 +120,9 @@ const mutations = {
   },
 
   DESELECT_ALL_NEWSITEMS(state) {
-    state.newsItems.items.forEach((newsItem) => { newsItem.selected = false })
+    state.newsItems.items.forEach((newsItem) => {
+      newsItem.selected = false
+    })
     state.newsItemsSelection = []
   },
 
@@ -140,22 +139,6 @@ const mutations = {
     })
   },
 
-  CHANGE_MERGE_ATTR(state, replacement) {
-    replacement.src.forEach(storyToReplace => {
-      state.newsItems = [...state.newsItems].map(({ stories, sharingSets, shared, ...rest }) => ({
-        stories: stories.map(element => {
-          if (storyToReplace === element) {
-            return replacement.dest
-          }
-          return element
-        }),
-        sharingSets: sharingSets.filter(element => storyToReplace !== element),
-        shared: Boolean(sharingSets.length),
-        ...rest
-      }))
-    })
-  },
-
   setMultiSelect(state, enable) {
     state.multi_select = enable
     state.selection = []
@@ -167,7 +150,10 @@ const mutations = {
 
   removeSelection(state, selectedItem) {
     for (let i = 0; i < state.selection.length; i++) {
-      if (state.selection[i].type === selectedItem.type && state.selection[i].id === selectedItem.id) {
+      if (
+        state.selection[i].type === selectedItem.type &&
+        state.selection[i].id === selectedItem.id
+      ) {
         state.selection.splice(i, 1)
         break
       }
@@ -183,7 +169,9 @@ const mutations = {
   },
 
   setDefaultOSINTSourceGroup(state, osint_source_groups) {
-    state.default_source_group_id = osint_source_groups.items.filter(value => value.default)[0].id
+    state.default_source_group_id = osint_source_groups.items.filter(
+      (value) => value.default
+    )[0].id
   }
 }
 
@@ -193,16 +181,36 @@ const getters = {
   },
 
   getOSINTSourceGroupsList(state) {
-    return Array.isArray(state.osint_source_groups.items) ? state.osint_source_groups.items.map(value => ({ id: value.id, title: value.name })) : []
+    return Array.isArray(state.osint_source_groups.items)
+      ? state.osint_source_groups.items.map((value) => ({
+          id: value.id,
+          title: value.name
+        }))
+      : []
   },
 
   getOSINTSourcesList(state) {
-    return Array.isArray(state.osint_sources.items) ? state.osint_sources.items.map(value => ({ id: value.id, title: value.name })) : []
+    return Array.isArray(state.osint_sources.items)
+      ? state.osint_sources.items.map((value) => ({
+          id: value.id,
+          title: value.name
+        }))
+      : []
   },
 
   getScopeFilterList(state) {
-    const osint_source_groups = Array.isArray(state.osint_source_groups.items) ? state.osint_source_groups.items.map(value => ({ id: { type: 'group', id: value.id }, title: value.name })) : []
-    const osint_sources = Array.isArray(state.osint_sources.items) ? state.osint_sources.items.map(value => ({ id: { type: 'source', id: value.id }, title: value.name })) : []
+    const osint_source_groups = Array.isArray(state.osint_source_groups.items)
+      ? state.osint_source_groups.items.map((value) => ({
+          id: { type: 'group', id: value.id },
+          title: value.name
+        }))
+      : []
+    const osint_sources = Array.isArray(state.osint_sources.items)
+      ? state.osint_sources.items.map((value) => ({
+          id: { type: 'source', id: value.id },
+          title: value.name
+        }))
+      : []
     return [...osint_source_groups, ...osint_sources]
   },
 
@@ -211,7 +219,7 @@ const getters = {
   },
 
   getNewsItemById: (state) => (id) => {
-    return state.newsItems.find(newsItem => newsItem.id === id)
+    return state.newsItems.find((newsItem) => newsItem.id === id)
   },
 
   getNewsItemsSelection(state) {

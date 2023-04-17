@@ -11,7 +11,6 @@ class TEXTPresenter(BasePresenter):
     description = "Presenter for generating text documents"
 
     def generate(self, presenter_input):
-
         try:
             head, tail = os.path.split(presenter_input.parameter_values_map["TEXT_TEMPLATE_PATH"])
 

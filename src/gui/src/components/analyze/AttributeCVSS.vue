@@ -1,17 +1,16 @@
 <template>
   <div>
-  <v-text-field
-    name="cvss"
-    v-model="vector"
-    prepend-icon="mdi-chevron-down"
-    @click:prepend="open = !open"
-  />
-  <div v-show="open" id="cvssboard" ref="cvssboard"></div>
+    <v-text-field
+      name="cvss"
+      v-model="vector"
+      prepend-icon="mdi-chevron-down"
+      @click:prepend="open = !open"
+    />
+    <div v-show="open" id="cvssboard" ref="cvssboard"></div>
   </div>
 </template>
 
-<style src="@/assets/cvss.css">
-</style>
+<style src="@/assets/cvss.css"></style>
 
 <script>
 import { CVSS } from '@/plugins/cvss.js'

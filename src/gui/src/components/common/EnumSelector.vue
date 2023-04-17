@@ -1,61 +1,62 @@
 <template>
-    <v-row v-bind="UI.DIALOG.ROW.WINDOW">
-        <v-btn text small @click="show" :title="$t('report_item.tooltip.enum_selector')">
-            <v-icon>mdi-feature-search-outline</v-icon>
-        </v-btn>
-        <v-dialog v-bind="UI.DIALOG.FULLSCREEN" v-model="visible">
-            <v-card v-bind="UI.DIALOG.BASEMENT">
-                <v-toolbar v-bind="UI.DIALOG.TOOLBAR">
-                    <v-btn v-bind="UI.BUTTON.CLOSE_ICON" @click="cancel">
-                        <v-icon>{{ UI.ICON.CLOSE }}</v-icon>
-                    </v-btn>
-                    <v-toolbar-title>{{$t('attribute.select_enum')}}</v-toolbar-title>
+  <v-row v-bind="UI.DIALOG.ROW.WINDOW">
+    <v-btn
+      text
+      small
+      @click="show"
+      :title="$t('report_item.tooltip.enum_selector')"
+    >
+      <v-icon>mdi-feature-search-outline</v-icon>
+    </v-btn>
+    <v-dialog v-bind="UI.DIALOG.FULLSCREEN" v-model="visible">
+      <v-card v-bind="UI.DIALOG.BASEMENT">
+        <v-toolbar v-bind="UI.DIALOG.TOOLBAR">
+          <v-btn v-bind="UI.BUTTON.CLOSE_ICON" @click="cancel">
+            <v-icon>{{ UI.ICON.CLOSE }}</v-icon>
+          </v-btn>
+          <v-toolbar-title>{{ $t('attribute.select_enum') }}</v-toolbar-title>
+        </v-toolbar>
+
+        <v-card>
+          <v-card-text>
+            <v-data-table
+              :headers="headers"
+              :items="attribute_enums"
+              :server-items-length="attribute_enums_total_count"
+              @update:options="updateOptions"
+              :items-per-page="25"
+              class="elevation-1 enum_selector"
+              :page.sync="current_page"
+              @click:row="clickRow"
+              :footer-props="{
+                showFirstLastPage: true,
+                itemsPerPageOptions: [25, 50, 100],
+                showCurrentPage: true
+              }"
+            >
+              <template v-slot:top>
+                <v-toolbar flat color="white">
+                  <v-toolbar-title>{{
+                    $t('attribute.attribute_constants')
+                  }}</v-toolbar-title>
+                  <v-divider class="mx-4" inset vertical></v-divider>
+                  <v-spacer></v-spacer>
+                  <v-text-field
+                    v-model="search"
+                    append-icon="mdi-magnify"
+                    :label="$t('attribute.search')"
+                    v-on:keyup="filterSearch"
+                    single-line
+                    hide-details
+                  ></v-text-field>
                 </v-toolbar>
-
-                <v-card>
-                    <v-card-text>
-                        <v-data-table
-                            :headers="headers"
-                            :items="attribute_enums"
-                            :server-items-length="attribute_enums_total_count"
-                            @update:options="updateOptions"
-                            :items-per-page="25"
-                            class="elevation-1 enum_selector"
-                            :page.sync="current_page"
-                            @click:row="clickRow"
-                            :footer-props="{
-                                                      showFirstLastPage: true,
-                                                      itemsPerPageOptions: [25, 50, 100],
-                                                      showCurrentPage: true
-                                                    }"
-
-                        >
-                            <template v-slot:top>
-                                <v-toolbar flat color="white">
-                                    <v-toolbar-title>{{$t('attribute.attribute_constants')}}</v-toolbar-title>
-                                    <v-divider
-                                        class="mx-4"
-                                        inset
-                                        vertical
-                                    ></v-divider>
-                                    <v-spacer></v-spacer>
-                                    <v-text-field
-                                        v-model="search"
-                                        append-icon="mdi-magnify"
-                                        :label="$t('attribute.search')"
-                                        v-on:keyup="filterSearch"
-                                        single-line
-                                        hide-details
-                                    ></v-text-field>
-                                </v-toolbar>
-                            </template>
-
-                        </v-data-table>
-                    </v-card-text>
-                </v-card>
-            </v-card>
-        </v-dialog>
-    </v-row>
+              </template>
+            </v-data-table>
+          </v-card-text>
+        </v-card>
+      </v-card>
+    </v-dialog>
+  </v-row>
 </template>
 
 <script>
@@ -87,16 +88,16 @@ export default {
     attribute_enums_total_count: 0
   }),
   methods: {
-    show () {
+    show() {
       this.updateAttributeEnums()
       this.visible = true
     },
 
-    cancel () {
+    cancel() {
       this.visible = false
     },
 
-    filterSearch () {
+    filterSearch() {
       clearTimeout(this.timeout)
 
       const self = this
@@ -106,12 +107,15 @@ export default {
       }, 300)
     },
 
-    clickRow (event, row) {
-      this.$emit('enum-selected', { index: this.value_index, value: row.item.value })
+    clickRow(event, row) {
+      this.$emit('enum-selected', {
+        index: this.value_index,
+        value: row.item.value
+      })
       this.visible = false
     },
 
-    updateAttributeEnums () {
+    updateAttributeEnums() {
       if (this.cpe_only === true) {
         getCPEAttributeEnums({
           search: this.search,
@@ -132,7 +136,7 @@ export default {
       }
     },
 
-    processResponse (response) {
+    processResponse(response) {
       this.attribute_enums = []
       this.attribute_enums_total_count = response.data.total_count
       for (let i = 0; i < response.data.items.length; i++) {
@@ -140,7 +144,7 @@ export default {
       }
     },
 
-    updateOptions (options) {
+    updateOptions(options) {
       this.current_page = options.page
       this.current_page_size = options.itemsPerPage
       this.updateAttributeEnums()

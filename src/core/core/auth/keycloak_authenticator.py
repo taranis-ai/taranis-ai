@@ -10,7 +10,6 @@ from core.auth.base_authenticator import BaseAuthenticator
 
 class KeycloakAuthenticator(BaseAuthenticator):
     def authenticate(self, credentials):
-
         # check if code and session_state are present in keycloak callback
         if "code" not in request.args or "session_state" not in request.args:
             return {"error": "Missing code or session_state parameters"}, 400

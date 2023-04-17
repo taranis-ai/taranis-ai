@@ -131,7 +131,6 @@ class ReportItem(db.Model):
         attributes,
         completed,
     ):
-
         self.id = id
 
         self.uuid = uuid or str(uuid_generator.uuid4())
@@ -166,7 +165,6 @@ class ReportItem(db.Model):
 
     @classmethod
     def allowed_with_acl(cls, report_item_id, user, see, access, modify):
-
         query = db.session.query(ReportItem.id).distinct().group_by(ReportItem.id).filter(ReportItem.id == report_item_id)
 
         query = query.outerjoin(

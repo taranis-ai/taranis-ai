@@ -54,7 +54,6 @@ class WordList(db.Model):
 
     @classmethod
     def allowed_with_acl(cls, word_list_id, user, see, access, modify):
-
         query = db.session.query(WordList.id).distinct().group_by(WordList.id).filter(WordList.id == word_list_id)
 
         query = query.outerjoin(

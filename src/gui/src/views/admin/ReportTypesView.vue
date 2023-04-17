@@ -12,7 +12,7 @@
       @update-items="updateData"
     />
     <report-type-form
-      v-if="newItem || formData && Object.keys(formData).length > 0"
+      v-if="newItem || (formData && Object.keys(formData).length > 0)"
       :report_type_data.sync="formData"
     />
   </div>
@@ -21,9 +21,7 @@
 <script>
 import DataTable from '@/components/common/DataTable'
 import ReportTypeForm from '../../components/config/ReportTypeForm'
-import {
-  deleteReportItemType
-} from '@/api/config'
+import { deleteReportItemType } from '@/api/config'
 import { mapActions, mapGetters } from 'vuex'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
 
@@ -64,16 +62,18 @@ export default {
     },
     deleteItem(item) {
       if (!item.default) {
-        deleteReportItemType(item).then(() => {
-          notifySuccess(`Successfully deleted ${item.name}`)
-          this.updateData()
-        }).catch(() => {
-          notifyFailure(`Failed to delete ${item.name}`)
-        })
+        deleteReportItemType(item)
+          .then(() => {
+            notifySuccess(`Successfully deleted ${item.name}`)
+            this.updateData()
+          })
+          .catch(() => {
+            notifyFailure(`Failed to delete ${item.name}`)
+          })
       }
     },
     selectionChange(selected) {
-      this.selected = selected.map(item => item.id)
+      this.selected = selected.map((item) => item.id)
     }
   },
   mounted() {

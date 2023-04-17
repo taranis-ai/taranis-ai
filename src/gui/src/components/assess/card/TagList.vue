@@ -1,29 +1,29 @@
 <template>
   <div>
-  <v-tooltip bottom v-for="(tag, i) in tags.slice(0, limit)" :key="i">
-    <template v-slot:activator="{ on, attrs }">
-      <v-btn
-        small
-        text
-        density="compact"
-        height="auto"
-        class="tag-button"
-        :color="labelcolor(i)"
-        @click.stop="updateTags(tag.name)"
-        v-ripple="false"
-        v-bind="attrs"
-        v-on="on"
-      >
-        <span class="text-decoration-underline">
-          {{ tag.name }}
-        </span>
-      </v-btn>
-    </template>
-    <span>
-      <v-icon left>{{ tagIcon(tag.tag_type) }}</v-icon>
-      {{ tag.tag_type }}
-    </span>
-  </v-tooltip>
+    <v-tooltip bottom v-for="(tag, i) in tags.slice(0, limit)" :key="i">
+      <template v-slot:activator="{ on, attrs }">
+        <v-btn
+          small
+          text
+          density="compact"
+          height="auto"
+          class="tag-button"
+          :color="labelcolor(i)"
+          @click.stop="updateTags(tag.name)"
+          v-ripple="false"
+          v-bind="attrs"
+          v-on="on"
+        >
+          <span class="text-decoration-underline">
+            {{ tag.name }}
+          </span>
+        </v-btn>
+      </template>
+      <span>
+        <v-icon left>{{ tagIcon(tag.tag_type) }}</v-icon>
+        {{ tag.tag_type }}
+      </span>
+    </v-tooltip>
   </div>
 </template>
 
@@ -68,19 +68,16 @@ export default {
       this.appendTag(tag)
       this.updateNewsItems()
     },
-    tagIcon(tag_type) { return tagIconFromType(tag_type) },
+    tagIcon(tag_type) {
+      return tagIconFromType(tag_type)
+    },
 
     labelcolor: function (i) {
       if (!this.color) {
         return undefined
       }
 
-      var colorList = [
-        '#2E3D7C',
-        '#282528',
-        '#BA292E',
-        '#E15D3A'
-      ]
+      var colorList = ['#2E3D7C', '#282528', '#BA292E', '#E15D3A']
       return colorList[(this.colorStart + i) % colorList.length]
     }
   }

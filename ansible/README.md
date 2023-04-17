@@ -46,7 +46,7 @@ Install the command line tool `git`.
 
 ### 3.2 Prepare your target hosts
 
-Make your physical servers, or VMs ready. 
+Make your physical servers, or VMs ready.
 
 - use **Ubuntu 18.04** and **Ubuntu 20.04**, which are currently supported.
 - enable ssh service
@@ -78,7 +78,7 @@ Edit one of the files
   - [inventory/localhost.yml](inventory/localhost.yml) for local installation
   - [inventory/simple.yml](inventory/simple.yml) to install everything in one host, or
   - [inventory/distributed.yml](inventory/distributed.yml) for installation split to various hosts.
- 
+
 Here are some sample entries:
 
 ```

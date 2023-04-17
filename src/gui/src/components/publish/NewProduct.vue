@@ -1,113 +1,136 @@
 <template>
-    <v-row v-bind="UI.DIALOG.ROW.WINDOW">
-        <v-btn v-bind="UI.BUTTON.ADD_NEW" v-if="add_button && canCreate"
-               @click="addProduct">
-            <v-icon left>{{ UI.ICON.PLUS }}</v-icon>
-            <span>{{ $t('product.add_btn') }}</span>
-        </v-btn>
+  <v-row v-bind="UI.DIALOG.ROW.WINDOW">
+    <v-btn
+      v-bind="UI.BUTTON.ADD_NEW"
+      v-if="add_button && canCreate"
+      @click="addProduct"
+    >
+      <v-icon left>{{ UI.ICON.PLUS }}</v-icon>
+      <span>{{ $t('product.add_btn') }}</span>
+    </v-btn>
 
-        <v-dialog v-bind="UI.DIALOG.FULLSCREEN" v-model="visible" new-product>
-            <v-card v-bind="UI.DIALOG.BASEMENT">
-                <v-toolbar v-bind="UI.DIALOG.TOOLBAR" :style="UI.STYLE.z10000">
-                    <v-btn v-bind="UI.BUTTON.CLOSE_ICON" @click="cancel">
-                        <v-icon>{{ UI.ICON.CLOSE }}</v-icon>
-                    </v-btn>
+    <v-dialog v-bind="UI.DIALOG.FULLSCREEN" v-model="visible" new-product>
+      <v-card v-bind="UI.DIALOG.BASEMENT">
+        <v-toolbar v-bind="UI.DIALOG.TOOLBAR" :style="UI.STYLE.z10000">
+          <v-btn v-bind="UI.BUTTON.CLOSE_ICON" @click="cancel">
+            <v-icon>{{ UI.ICON.CLOSE }}</v-icon>
+          </v-btn>
 
-                    <v-toolbar-title>
-                        <span v-if="!edit">{{ $t('product.add_new') }}</span>
-                        <span v-else>{{ $t('product.edit') }}</span>
-                    </v-toolbar-title>
+          <v-toolbar-title>
+            <span v-if="!edit">{{ $t('product.add_new') }}</span>
+            <span v-else>{{ $t('product.edit') }}</span>
+          </v-toolbar-title>
 
-                    <v-spacer></v-spacer>
-                    <v-btn v-if="canModify" text dark type="submit" form="form">
-                        <v-icon left>mdi-content-save</v-icon>
-                        <span>{{ $t('report_item.save') }}</span>
-                    </v-btn>
-                </v-toolbar>
+          <v-spacer></v-spacer>
+          <v-btn v-if="canModify" text dark type="submit" form="form">
+            <v-icon left>mdi-content-save</v-icon>
+            <span>{{ $t('report_item.save') }}</span>
+          </v-btn>
+        </v-toolbar>
 
-                <v-form @submit.prevent="add" id="form" ref="form" class="px-4">
-                    <v-row no-gutters>
-                        <v-col cols="6" class="pr-3">
-                            <v-combobox v-on:change="productSelected" :disabled="!canModify"
-                                        v-model="selected_type"
-                                        :items="product_types"
-                                        item-text="title"
-                                        :label="$t('product.report_type')"
-                            />
-                        </v-col>
-                        <v-col cols="6" class="pr-3">
-                            <v-text-field :disabled="!canModify"
-                                          :label="$t('product.title')"
-                                          name="title"
-                                          type="text"
-                                          v-model="product.title"
-                                          v-validate="'required'"
-                                          data-vv-name="title"
-                                          :error-messages="errors.collect('title')"
-                                          :spellcheck="$store.state.settings.spellcheck"
-                            />
-                        </v-col>
-                        <v-col cols="12" class="pr-3">
-                            <v-textarea :disabled="!canModify"
-                                        :label="$t('product.description')"
-                                        name="description"
-                                        v-model="product.description"
-                                        :spellcheck="$store.state.settings.spellcheck"
-                            />
-                        </v-col>
-                    </v-row>
-                    <v-row no-gutters>
-                        <v-col cols="12" class="mb-2">
-                            <v-btn v-bind="UI.BUTTON.ADD_NEW_IN" v-if="canModify" @click="$refs.report_item_selector.openSelector()">
-                                <v-icon left>{{ UI.ICON.PLUS }}</v-icon>
-                                <span>{{$t('report_item.select')}}</span>
-                            </v-btn>
-                        </v-col>
-                        <v-col cols="12">
-                            <ReportItemSelector ref="report_item_selector" :values="report_items" :modify="modify"
-                                                :edit="edit" />
-                        </v-col>
-                    </v-row>
-                    <v-row no-gutters>
-                        <v-col cols="12">
-                            <v-checkbox v-for="preset in publisher_presets" :key="preset.id"
-                                        :label="preset.name" :disabled="!canModify" v-model="preset.selected">
-                            </v-checkbox>
-                        </v-col>
-                    </v-row>
-                    <v-row no-gutters class="pt-4">
-                        <v-col cols="6">
-                            <v-btn :href="preview_link" style="display: none"
-                                   target="_blank" ref="previewBtn">
-                            </v-btn>
-                            <v-btn depressed small @click="previewProduct">
-                                <v-icon left>mdi-eye-outline</v-icon>
-                                <span>{{ $t('product.preview') }}</span>
-                            </v-btn>
-                        </v-col>
-                        <v-col cols="6">
-                            <v-btn v-if="canPublish" depressed small @click="publishProduct">
-                                <v-icon left>mdi-send-outline</v-icon>
-                                <span>{{ $t('product.publish') }}</span>
-                            </v-btn>
-                        </v-col>
-                    </v-row>
+        <v-form @submit.prevent="add" id="form" ref="form" class="px-4">
+          <v-row no-gutters>
+            <v-col cols="6" class="pr-3">
+              <v-combobox
+                v-on:change="productSelected"
+                :disabled="!canModify"
+                v-model="selected_type"
+                :items="product_types"
+                item-text="title"
+                :label="$t('product.report_type')"
+              />
+            </v-col>
+            <v-col cols="6" class="pr-3">
+              <v-text-field
+                :disabled="!canModify"
+                :label="$t('product.title')"
+                name="title"
+                type="text"
+                v-model="product.title"
+                v-validate="'required'"
+                data-vv-name="title"
+                :error-messages="errors.collect('title')"
+                :spellcheck="$store.state.settings.spellcheck"
+              />
+            </v-col>
+            <v-col cols="12" class="pr-3">
+              <v-textarea
+                :disabled="!canModify"
+                :label="$t('product.description')"
+                name="description"
+                v-model="product.description"
+                :spellcheck="$store.state.settings.spellcheck"
+              />
+            </v-col>
+          </v-row>
+          <v-row no-gutters>
+            <v-col cols="12" class="mb-2">
+              <v-btn
+                v-bind="UI.BUTTON.ADD_NEW_IN"
+                v-if="canModify"
+                @click="$refs.report_item_selector.openSelector()"
+              >
+                <v-icon left>{{ UI.ICON.PLUS }}</v-icon>
+                <span>{{ $t('report_item.select') }}</span>
+              </v-btn>
+            </v-col>
+            <v-col cols="12">
+              <ReportItemSelector
+                ref="report_item_selector"
+                :values="report_items"
+                :modify="modify"
+                :edit="edit"
+              />
+            </v-col>
+          </v-row>
+          <v-row no-gutters>
+            <v-col cols="12">
+              <v-checkbox
+                v-for="preset in publisher_presets"
+                :key="preset.id"
+                :label="preset.name"
+                :disabled="!canModify"
+                v-model="preset.selected"
+              >
+              </v-checkbox>
+            </v-col>
+          </v-row>
+          <v-row no-gutters class="pt-4">
+            <v-col cols="6">
+              <v-btn
+                :href="preview_link"
+                style="display: none"
+                target="_blank"
+                ref="previewBtn"
+              >
+              </v-btn>
+              <v-btn depressed small @click="previewProduct">
+                <v-icon left>mdi-eye-outline</v-icon>
+                <span>{{ $t('product.preview') }}</span>
+              </v-btn>
+            </v-col>
+            <v-col cols="6">
+              <v-btn v-if="canPublish" depressed small @click="publishProduct">
+                <v-icon left>mdi-send-outline</v-icon>
+                <span>{{ $t('product.publish') }}</span>
+              </v-btn>
+            </v-col>
+          </v-row>
 
-                    <v-row no-gutters class="pt-2">
-                        <v-col cols="12">
-                            <v-alert v-if="show_validation_error" dense type="error" text>
-                                {{ $t('report_item.validation_error') }}
-                            </v-alert>
-                            <v-alert v-if="show_error" dense type="error" text>
-                                {{ $t('report_item.error') }}
-                            </v-alert>
-                        </v-col>
-                    </v-row>
-
-                </v-form>
-            </v-card>
-        </v-dialog>
-    </v-row>
+          <v-row no-gutters class="pt-2">
+            <v-col cols="12">
+              <v-alert v-if="show_validation_error" dense type="error" text>
+                {{ $t('report_item.validation_error') }}
+              </v-alert>
+              <v-alert v-if="show_error" dense type="error" text>
+                {{ $t('report_item.error') }}
+              </v-alert>
+            </v-col>
+          </v-row>
+        </v-form>
+      </v-card>
+    </v-dialog>
+  </v-row>
 </template>
 
 <script>
@@ -143,16 +166,25 @@ export default {
   }),
   mixins: [AuthMixin],
   computed: {
-    canCreate () {
+    canCreate() {
       return this.checkPermission(Permissions.PUBLISH_CREATE)
     },
 
-    canModify () {
-      return this.edit === false || (this.checkPermission(Permissions.PUBLISH_UPDATE) && this.modify === true)
+    canModify() {
+      return (
+        this.edit === false ||
+        (this.checkPermission(Permissions.PUBLISH_UPDATE) &&
+          this.modify === true)
+      )
     },
 
-    canPublish () {
-      return this.publisher_presets.length > 0 && (this.edit === false || (this.checkPermission(Permissions.PUBLISH_PRODUCT) && this.access === true))
+    canPublish() {
+      return (
+        this.publisher_presets.length > 0 &&
+        (this.edit === false ||
+          (this.checkPermission(Permissions.PUBLISH_PRODUCT) &&
+            this.access === true))
+      )
     }
   },
   methods: {
@@ -161,7 +193,7 @@ export default {
     ...mapGetters('publish', ['getProductsPublisherPresets']),
     ...mapActions('publish', ['loadUserPublishersPresets']),
 
-    addProduct () {
+    addProduct() {
       this.visible = true
       this.edit = false
       this.show_error = false
@@ -177,7 +209,7 @@ export default {
       this.$validator.reset()
     },
 
-    publishProduct () {
+    publishProduct() {
       for (let i = 0; i < this.publisher_presets.length; i++) {
         if (this.publisher_presets[i].selected) {
           this.$validator.validateAll().then(() => {
@@ -189,11 +221,9 @@ export default {
 
               this.product.report_items = []
               for (let i = 0; i < this.report_items.length; i++) {
-                this.product.report_items.push(
-                  {
-                    id: this.report_items[i].id
-                  }
-                )
+                this.product.report_items.push({
+                  id: this.report_items[i].id
+                })
               }
 
               if (this.product.id !== -1) {
@@ -216,16 +246,14 @@ export default {
       }
     },
 
-    productSelected () {
+    productSelected() {},
 
-    },
-
-    cancel () {
+    cancel() {
       this.$validator.reset()
       this.visible = false
     },
 
-    previewProduct () {
+    previewProduct() {
       this.$validator.validateAll().then(() => {
         if (!this.$validator.errors.any()) {
           this.show_validation_error = false
@@ -235,24 +263,32 @@ export default {
 
           this.product.report_items = []
           for (let i = 0; i < this.report_items.length; i++) {
-            this.product.report_items.push(
-              {
-                id: this.report_items[i].id
-              }
-            )
+            this.product.report_items.push({
+              id: this.report_items[i].id
+            })
           }
 
           if (this.product.id !== -1) {
             updateProduct(this.product).then(() => {
               this.$validator.reset()
-              this.preview_link = this.$store.getters.getCoreAPIURL + '/publish/products/' + this.product.id + '/overview?jwt=' + this.$store.getters.getJWT
+              this.preview_link =
+                this.$store.getters.getCoreAPIURL +
+                '/publish/products/' +
+                this.product.id +
+                '/overview?jwt=' +
+                this.$store.getters.getJWT
               this.$refs.previewBtn.$el.click()
             })
           } else {
             createProduct(this.product).then((response) => {
               this.product.id = response.data
               this.$validator.reset()
-              this.preview_link = this.$store.getters.getCoreAPIURL + '/publish/products/' + response.data + '/overview?jwt=' + this.$store.getters.getJWT
+              this.preview_link =
+                this.$store.getters.getCoreAPIURL +
+                '/publish/products/' +
+                response.data +
+                '/overview?jwt=' +
+                this.$store.getters.getJWT
               this.$refs.previewBtn.$el.click()
             })
           }
@@ -262,7 +298,7 @@ export default {
       })
     },
 
-    add () {
+    add() {
       this.$validator.validateAll().then(() => {
         if (!this.$validator.errors.any()) {
           this.show_validation_error = false
@@ -272,41 +308,39 @@ export default {
 
           this.product.report_items = []
           for (let i = 0; i < this.report_items.length; i++) {
-            this.product.report_items.push(
-              {
-                id: this.report_items[i].id
-              }
-            )
+            this.product.report_items.push({
+              id: this.report_items[i].id
+            })
           }
 
           if (this.product.id !== -1) {
-            updateProduct(this.product).then(() => {
-              this.$validator.reset()
-              this.visible = false
+            updateProduct(this.product)
+              .then(() => {
+                this.$validator.reset()
+                this.visible = false
 
-              this.$root.$emit('notification',
-                {
+                this.$root.$emit('notification', {
                   type: 'success',
                   loc: 'product.successful_edit'
-                }
-              )
-            }).catch(() => {
-              this.show_error = true
-            })
+                })
+              })
+              .catch(() => {
+                this.show_error = true
+              })
           } else {
-            createProduct(this.product).then(() => {
-              this.$validator.reset()
-              this.visible = false
+            createProduct(this.product)
+              .then(() => {
+                this.$validator.reset()
+                this.visible = false
 
-              this.$root.$emit('notification',
-                {
+                this.$root.$emit('notification', {
                   type: 'success',
                   loc: 'product.successful'
-                }
-              )
-            }).catch(() => {
-              this.show_error = true
-            })
+                })
+              })
+              .catch(() => {
+                this.show_error = true
+              })
           }
         } else {
           this.show_validation_error = true
@@ -314,25 +348,23 @@ export default {
       })
     }
   },
-  mounted () {
+  mounted() {
     this.$root.$on('new-product', (data) => {
       this.visible = true
       this.selected_type = null
       this.report_items = data
     })
 
-    this.loadUserProductTypes({ search: '' })
-      .then(() => {
-        this.product_types = this.getProductTypes().items
-      })
+    this.loadUserProductTypes({ search: '' }).then(() => {
+      this.product_types = this.getProductTypes().items
+    })
 
-    this.loadUserPublishersPresets({ search: '' })
-      .then(() => {
-        this.publisher_presets = this.getProductsPublisherPresets().items
-        for (let i = 0; i < this.publisher_presets.length; i++) {
-          this.publisher_presets.selected = false
-        }
-      })
+    this.loadUserPublishersPresets({ search: '' }).then(() => {
+      this.publisher_presets = this.getProductsPublisherPresets().items
+      for (let i = 0; i < this.publisher_presets.length; i++) {
+        this.publisher_presets.selected = false
+      }
+    })
 
     this.$root.$on('show-product-edit', (data) => {
       this.visible = true
@@ -356,10 +388,17 @@ export default {
         }
       }
 
-      this.preview_link = ((typeof (process.env.VUE_APP_TARANIS_NG_CORE_API) === 'undefined') ? '$VUE_APP_TARANIS_NG_CORE_API' : process.env.VUE_APP_TARANIS_NG_CORE_API) + '/publish/products/' + data.id + '/overview?jwt=' + this.$store.getters.getJWT
+      this.preview_link =
+        (typeof process.env.VUE_APP_TARANIS_NG_CORE_API === 'undefined'
+          ? ''
+          : process.env.VUE_APP_TARANIS_NG_CORE_API) +
+        '/publish/products/' +
+        data.id +
+        '/overview?jwt=' +
+        this.$store.getters.getJWT
     })
   },
-  beforeDestroy () {
+  beforeDestroy() {
     this.$root.$off('new-product')
     this.$root.$off('show-product-edit')
   }

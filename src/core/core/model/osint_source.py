@@ -343,7 +343,6 @@ class OSINTSourceGroup(db.Model):
 
     @classmethod
     def allowed_with_acl(cls, group_id, user, see: bool, access: bool, modify: bool) -> bool:
-
         query = db.session.query(OSINTSourceGroup.id).distinct().group_by(OSINTSourceGroup.id).filter(OSINTSourceGroup.id == group_id)
 
         query = query.outerjoin(

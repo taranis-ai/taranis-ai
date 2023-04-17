@@ -1,5 +1,5 @@
 from marshmallow import fields, post_load
-from sqlalchemy import func, or_, orm
+from sqlalchemy import or_, orm
 from werkzeug.security import generate_password_hash
 
 from core.managers.db_manager import db
@@ -18,6 +18,7 @@ from core.managers.log_manager import logger
 
 
 class NewUserSchema(UserSchemaBase):
+    password = fields.Str(required=False)
     roles = fields.Nested(RoleIdSchema, many=True)
     permissions = fields.Nested(PermissionIdSchema, many=True)
     organization = fields.Nested(OrganizationSchema, only=["id"])
@@ -43,7 +44,7 @@ class User(db.Model):
     profile = db.relationship("UserProfile", cascade="all")
 
     def __init__(self, id, username, name, password, organization, roles, permissions):
-        self.id = None
+        self.id = id or None
         self.username = username
         self.name = name
         self.password = password
@@ -123,9 +124,12 @@ class User(db.Model):
     @classmethod
     def update(cls, user_id, data):
         schema = NewUserSchema()
-        updated_user = schema.load(data)
         user = cls.query.get(user_id)
-        user.password = generate_password_hash(updated_user.password, method="sha256")
+        if "password" not in data:
+            data["password"] = ""
+        updated_user = schema.load(data)
+        if updated_user.password:
+            user.password = generate_password_hash(updated_user.password, method="sha256")
         user.username = updated_user.username
         user.name = updated_user.name
         user.organization = updated_user.organization

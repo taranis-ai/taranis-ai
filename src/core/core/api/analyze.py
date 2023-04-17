@@ -90,7 +90,6 @@ class ReportItem(Resource):
 class ReportItemData(Resource):
     @auth_required("ANALYZE_ACCESS", ACLCheck.REPORT_ITEM_ACCESS)
     def get(self, report_item_id):
-
         try:
             data = {}
             if "update" in request.args and request.args["update"]:

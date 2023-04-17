@@ -89,7 +89,6 @@ class AttributeEnum(db.Model):
 
     @classmethod
     def add(cls, attribute_id, data):
-
         count = 0
         if data["delete_existing"] is True:
             cls.delete_for_attribute(attribute_id)
@@ -295,7 +294,6 @@ class Attribute(db.Model):
 
     @classmethod
     def load_cve_from_file(cls, file_path):
-
         attribute = cls.query.filter_by(type=AttributeType.CVE).first()
         AttributeEnum.delete_imported_for_attribute(attribute.id)
 
@@ -325,7 +323,6 @@ class Attribute(db.Model):
 
     @classmethod
     def load_cpe_from_file(cls, file_path):
-
         attribute = cls.query.filter_by(type=AttributeType.CPE).first()
         AttributeEnum.delete_imported_for_attribute(attribute.id)
 

@@ -14,7 +14,6 @@ class FTPPublisher(BasePublisher):
     description = "Publisher for publishing to FTP server"
 
     def publish(self, publisher_input):
-
         try:
             ftp_url = publisher_input.parameter_values_map["FTP_URL"]
 

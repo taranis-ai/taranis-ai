@@ -23,11 +23,7 @@
 <script>
 import DataTable from '@/components/common/DataTable'
 import EditConfig from '../../components/config/EditConfig'
-import {
-  deleteRole,
-  createRole,
-  updateRole
-} from '@/api/config'
+import { deleteRole, createRole, updateRole } from '@/api/config'
 import { mapActions, mapGetters } from 'vuex'
 import { notifySuccess, objectFromFormat, notifyFailure } from '@/utils/helpers'
 
@@ -113,32 +109,38 @@ export default {
     },
     deleteItem(item) {
       if (!item.default) {
-        deleteRole(item).then(() => {
-          notifySuccess(`Successfully deleted ${item.name}`)
-          this.updateData()
-        }).catch(() => {
-          notifyFailure(`Failed to delete ${item.name}`)
-        })
+        deleteRole(item)
+          .then(() => {
+            notifySuccess(`Successfully deleted ${item.name}`)
+            this.updateData()
+          })
+          .catch(() => {
+            notifyFailure(`Failed to delete ${item.name}`)
+          })
       }
     },
     createItem(item) {
-      createRole(item).then(() => {
-        notifySuccess(`Successfully created ${item.name}`)
-        this.updateData()
-      }).catch(() => {
-        notifyFailure(`Failed to create ${item.name}`)
-      })
+      createRole(item)
+        .then(() => {
+          notifySuccess(`Successfully created ${item.name}`)
+          this.updateData()
+        })
+        .catch(() => {
+          notifyFailure(`Failed to create ${item.name}`)
+        })
     },
     updateItem(item) {
-      updateRole(item).then(() => {
-        notifySuccess(`Successfully updated ${item.name}`)
-        this.updateData()
-      }).catch(() => {
-        notifyFailure(`Failed to update ${item.name}`)
-      })
+      updateRole(item)
+        .then(() => {
+          notifySuccess(`Successfully updated ${item.name}`)
+          this.updateData()
+        })
+        .catch(() => {
+          notifyFailure(`Failed to update ${item.name}`)
+        })
     },
     selectionChange(selected) {
-      this.selected = selected.map(item => item.id)
+      this.selected = selected.map((item) => item.id)
     }
   },
   mounted() {

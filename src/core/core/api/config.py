@@ -242,15 +242,13 @@ class User(Resource):
     def put(self, user_id):
         try:
             if external_auth_manager.keycloak_user_management_enabled():
-                original_user = user.User.find_by_id(user_id)
-                original_username = original_user.username
-                external_auth_manager.update_user(request.json, original_username)
+                original_username = user.User.find_by_id(user_id).username
+                return external_auth_manager.update_user(request.json, original_username), 200
+            return user.User.update(user_id, request.json), 200
         except Exception:
             logger.exception()
             logger.store_data_error_activity(get_user_from_jwt(), "Could not update user in external auth system")
             return "", 400
-
-        user.User.update(user_id, request.json)
 
     @auth_required("CONFIG_USER_DELETE")
     def delete(self, user_id):

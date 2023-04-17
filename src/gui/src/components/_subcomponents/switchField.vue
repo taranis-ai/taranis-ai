@@ -24,11 +24,11 @@ export default {
     localValue: false
   }),
   methods: {
-    setValue () {
+    setValue() {
       this.$emit('input', this.localValue)
     }
   },
-  mounted () {
+  mounted() {
     this.localValue = this.value
   }
 }

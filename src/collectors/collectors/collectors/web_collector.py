@@ -30,7 +30,6 @@ class WebCollector(BaseCollector):
     name = "Web Collector"
     description = "Collector for gathering data from web page"
 
-
     # helper: parse the selector
     @staticmethod
     def __get_prefix_and_selector(element_selector):

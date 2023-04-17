@@ -29,7 +29,7 @@ services:
         max-file: "10"
 
   core:
-    depends_on: 
+    depends_on:
       - "redis"
       - "database"
     restart: unless-stopped
@@ -37,9 +37,9 @@ services:
     build:
       context: ..
       dockerfile: ./docker/Dockerfile.core
-#   ports: 
+#   ports:
 #     - "5000:80"
-    environment: 
+    environment:
       REDIS_URL: "redis://redis"
       DB_URL: "database"
       DB_DATABASE: "taranis-ng"
@@ -100,7 +100,7 @@ services:
       options:
         max-size: "200k"
         max-file: "10"
-    
+
   collectors:
     depends_on:
       core:
@@ -124,7 +124,7 @@ services:
       options:
         max-size: "200k"
         max-file: "10"
-    
+
   presenters:
     depends_on:
       core:
@@ -147,7 +147,7 @@ services:
       options:
         max-size: "200k"
         max-file: "10"
-    
+
   publishers:
     depends_on:
       core:
@@ -177,7 +177,7 @@ services:
     build:
       context: ..
       dockerfile: ./docker/Dockerfile.gui
-#    ports: 
+#    ports:
 #      - "8080:80"
     environment:
       NGINX_WORKERS: "4"
@@ -215,7 +215,7 @@ services:
       - "core"
     restart: unless-stopped
     image: "traefik:latest"
-    ports: 
+    ports:
       - "${TARANIS_NG_HTTP_PORT}:80"
       - "${TARANIS_NG_HTTPS_PORT}:443"
       - "${TRAEFIK_MANAGEMENT_PORT}:9090"

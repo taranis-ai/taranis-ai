@@ -2,11 +2,11 @@
   <v-container>
     <v-card>
       <v-row class="pb-5">
-      <h1>{{ $t('settings.user_settings') }}</h1>
-      <v-btn color="success" @click="save()">
-        <v-icon left>mdi-content-save</v-icon>
-        <span>{{ $t('settings.save') }}</span>
-      </v-btn>
+        <h1>{{ $t('settings.user_settings') }}</h1>
+        <v-btn color="success" @click="save()">
+          <v-icon left>mdi-content-save</v-icon>
+          <span>{{ $t('settings.save') }}</span>
+        </v-btn>
       </v-row>
 
       <v-tabs dark centered grow height="32">
@@ -44,7 +44,7 @@
                 <v-autocomplete
                   v-model="browser_locale"
                   :items="locale_descriptions"
-                  :item-text="item => item.value + ' - ' + item.text"
+                  :item-text="(item) => item.value + ' - ' + item.text"
                   hint="Select your locale"
                   :label="$t('settings.locale')"
                   solo
@@ -154,7 +154,7 @@ export default {
         // this.saveUserProfile({ browser_locale: value })
       }
     },
-    locale_descriptions () {
+    locale_descriptions() {
       return [
         { value: 'en', text: 'English' },
         { value: 'de', text: 'Deutsch' },

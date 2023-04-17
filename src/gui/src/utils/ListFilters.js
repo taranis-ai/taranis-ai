@@ -1,4 +1,4 @@
-export function filterSearch (fields, searchString) {
+export function filterSearch(fields, searchString) {
   let match = false
 
   const regexStr = searchString
@@ -59,7 +59,7 @@ export function filterDateRange(publishedDate, selectedType, dateRange) {
   return publishedDate >= range[0] && publishedDate <= range[1]
 }
 
-export function filterTags (itemTags, selectedTags, andOperator) {
+export function filterTags(itemTags, selectedTags, andOperator) {
   if (!selectedTags.length) return true
 
   const selectedTagExists = (selectedTag) =>

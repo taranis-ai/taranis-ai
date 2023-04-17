@@ -84,7 +84,11 @@ export default {
   }),
   computed: {},
   methods: {
-    ...mapGetters('analyze', ['getCurrentReportItemGroup', 'getReportItems', 'getSelectionReport']),
+    ...mapGetters('analyze', [
+      'getCurrentReportItemGroup',
+      'getReportItems',
+      'getSelectionReport'
+    ]),
     ...mapActions('analyze', ['selectReport', 'multiSelectReport']),
     newDataLoaded(count) {
       this.$refs.toolbarFilter.updateDataCount(count)

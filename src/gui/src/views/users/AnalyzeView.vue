@@ -1,31 +1,27 @@
 <template>
-    <DataTable
-      :addButton="true"
-      :items.sync="report_items"
-      :headerFilter="['tag', 'title', 'created']"
-      sortByItem="id"
-      :actionColumn="true"
-      @delete-item="deleteItem"
-      @edit-item="editItem"
-      @add-item="addItem"
-      @update-items="updateData"
-      @selection-change="selectionChange"
-    >
-      <template v-slot:actionColumn>
-        <v-tooltip left>
-          <template v-slot:activator="{ on }">
-            <v-icon
-              v-on="on"
-              color="secondary"
-              @click.stop="createProduct(item)"
-            >
-              mdi-file
-            </v-icon>
-          </template>
-          <span>Create Product</span>
-        </v-tooltip>
-      </template>
-    </DataTable>
+  <DataTable
+    :addButton="true"
+    :items.sync="report_items"
+    :headerFilter="['tag', 'title', 'created']"
+    sortByItem="id"
+    :actionColumn="true"
+    @delete-item="deleteItem"
+    @edit-item="editItem"
+    @add-item="addItem"
+    @update-items="updateData"
+    @selection-change="selectionChange"
+  >
+    <template v-slot:actionColumn>
+      <v-tooltip left>
+        <template v-slot:activator="{ on }">
+          <v-icon v-on="on" color="secondary" @click.stop="createProduct(item)">
+            mdi-file
+          </v-icon>
+        </template>
+        <span>Create Product</span>
+      </v-tooltip>
+    </template>
+  </DataTable>
 </template>
 
 <script>

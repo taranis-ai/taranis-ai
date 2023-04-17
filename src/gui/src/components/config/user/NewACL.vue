@@ -1,138 +1,138 @@
 <template>
   <v-container fluid class="ma-5 mt-5 pa-5 pt-0">
-  <v-form @submit.prevent="add" id="form" ref="form" class="px-4">
-    <v-row no-gutters>
-      <v-col cols="12" class="pa-1">
-        <v-text-field
-          :disabled="!canUpdate"
-          :label="$t('acl.name')"
-          name="name"
-          type="text"
-          v-model="acl.name"
-          v-validate="'required'"
-          data-vv-name="name"
-          :error-messages="errors.collect('name')"
-          :spellcheck="$store.state.settings.spellcheck"
-        />
-      </v-col>
-      <v-col cols="12" class="pa-1">
-        <v-textarea
-          :disabled="!canUpdate"
-          :label="$t('acl.description')"
-          name="description"
-          v-model="acl.description"
-          :spellcheck="$store.state.settings.spellcheck"
-        />
-      </v-col>
-      <v-col cols="6" class="pa-1">
-        <v-combobox
-          :disabled="!canUpdate"
-          v-model="selected_type"
-          :items="types"
-          item-text="title"
-          :label="$t('acl.item_type')"
-        />
-      </v-col>
-      <v-col cols="6" class="pa-1">
-        <v-text-field
-          :disabled="!canUpdate"
-          :label="$t('acl.item_id')"
-          name="item_id"
-          type="text"
-          v-model="acl.item_id"
-        />
-      </v-col>
-    </v-row>
-    <v-row no-gutters>
-      <v-col cols="12" class="d-flex">
-        <v-checkbox
-          :disabled="!canUpdate"
-          class="pr-8"
-          :label="$t('acl.see')"
-          name="see"
-          v-model="acl.see"
-          :spellcheck="$store.state.settings.spellcheck"
-        />
-        <v-checkbox
-          :disabled="!canUpdate"
-          class="pr-8"
-          :label="$t('acl.access')"
-          name="access"
-          v-model="acl.access"
-          :spellcheck="$store.state.settings.spellcheck"
-        />
-        <v-checkbox
-          :disabled="!canUpdate"
-          class="pr-8"
-          :label="$t('acl.modify')"
-          name="modify"
-          v-model="acl.modify"
-          :spellcheck="$store.state.settings.spellcheck"
-        />
-      </v-col>
-    </v-row>
-    <v-row no-gutters>
-      <v-col cols="12">
-        <v-checkbox
-          :disabled="!canUpdate"
-          :label="$t('acl.everyone')"
-          name="everyone"
-          v-model="acl.everyone"
-          :spellcheck="$store.state.settings.spellcheck"
-        />
-      </v-col>
-      <v-col cols="12">
-        <v-data-table
-          :disabled="!canUpdate"
-          v-model="selected_users"
-          :headers="headers_user"
-          :items="users"
-          item-key="id"
-          :show-select="canUpdate"
-          class="elevation-1"
-        >
-          <template v-slot:top>
-            <v-toolbar flat color="white">
-              <v-toolbar-title>{{ $t('acl.users') }}</v-toolbar-title>
-            </v-toolbar>
-          </template>
-        </v-data-table>
-      </v-col>
-      <v-col cols="12" class="pt-2">
-        <v-data-table
-          :disabled="!canUpdate"
-          v-model="selected_roles"
-          :headers="headers_role"
-          :items="roles"
-          item-key="id"
-          :show-select="canUpdate"
-          class="elevation-1"
-        >
-          <template v-slot:top>
-            <v-toolbar flat color="white">
-              <v-toolbar-title>{{ $t('acl.roles') }}</v-toolbar-title>
-            </v-toolbar>
-          </template>
-        </v-data-table>
-      </v-col>
-    </v-row>
-    <v-row no-gutters>
-      <v-col cols="12">
-        <v-alert v-if="show_validation_error" dense type="error" text>
-          {{ $t('acl.validation_error') }}
-        </v-alert>
-        <v-alert v-if="show_error" dense type="error" text>
-          {{ $t('acl.error') }}
-        </v-alert>
-      </v-col>
-    </v-row>
-    <v-row>
-      <v-btn v-if="canUpdate" text dark type="submit" form="form">
-        <v-icon left>mdi-content-save</v-icon>
-        <span>{{ $t('acl.save') }}</span>
-      </v-btn></v-row
-    >
-  </v-form>
+    <v-form @submit.prevent="add" id="form" ref="form" class="px-4">
+      <v-row no-gutters>
+        <v-col cols="12" class="pa-1">
+          <v-text-field
+            :disabled="!canUpdate"
+            :label="$t('acl.name')"
+            name="name"
+            type="text"
+            v-model="acl.name"
+            v-validate="'required'"
+            data-vv-name="name"
+            :error-messages="errors.collect('name')"
+            :spellcheck="$store.state.settings.spellcheck"
+          />
+        </v-col>
+        <v-col cols="12" class="pa-1">
+          <v-textarea
+            :disabled="!canUpdate"
+            :label="$t('acl.description')"
+            name="description"
+            v-model="acl.description"
+            :spellcheck="$store.state.settings.spellcheck"
+          />
+        </v-col>
+        <v-col cols="6" class="pa-1">
+          <v-combobox
+            :disabled="!canUpdate"
+            v-model="selected_type"
+            :items="types"
+            item-text="title"
+            :label="$t('acl.item_type')"
+          />
+        </v-col>
+        <v-col cols="6" class="pa-1">
+          <v-text-field
+            :disabled="!canUpdate"
+            :label="$t('acl.item_id')"
+            name="item_id"
+            type="text"
+            v-model="acl.item_id"
+          />
+        </v-col>
+      </v-row>
+      <v-row no-gutters>
+        <v-col cols="12" class="d-flex">
+          <v-checkbox
+            :disabled="!canUpdate"
+            class="pr-8"
+            :label="$t('acl.see')"
+            name="see"
+            v-model="acl.see"
+            :spellcheck="$store.state.settings.spellcheck"
+          />
+          <v-checkbox
+            :disabled="!canUpdate"
+            class="pr-8"
+            :label="$t('acl.access')"
+            name="access"
+            v-model="acl.access"
+            :spellcheck="$store.state.settings.spellcheck"
+          />
+          <v-checkbox
+            :disabled="!canUpdate"
+            class="pr-8"
+            :label="$t('acl.modify')"
+            name="modify"
+            v-model="acl.modify"
+            :spellcheck="$store.state.settings.spellcheck"
+          />
+        </v-col>
+      </v-row>
+      <v-row no-gutters>
+        <v-col cols="12">
+          <v-checkbox
+            :disabled="!canUpdate"
+            :label="$t('acl.everyone')"
+            name="everyone"
+            v-model="acl.everyone"
+            :spellcheck="$store.state.settings.spellcheck"
+          />
+        </v-col>
+        <v-col cols="12">
+          <v-data-table
+            :disabled="!canUpdate"
+            v-model="selected_users"
+            :headers="headers_user"
+            :items="users"
+            item-key="id"
+            :show-select="canUpdate"
+            class="elevation-1"
+          >
+            <template v-slot:top>
+              <v-toolbar flat color="white">
+                <v-toolbar-title>{{ $t('acl.users') }}</v-toolbar-title>
+              </v-toolbar>
+            </template>
+          </v-data-table>
+        </v-col>
+        <v-col cols="12" class="pt-2">
+          <v-data-table
+            :disabled="!canUpdate"
+            v-model="selected_roles"
+            :headers="headers_role"
+            :items="roles"
+            item-key="id"
+            :show-select="canUpdate"
+            class="elevation-1"
+          >
+            <template v-slot:top>
+              <v-toolbar flat color="white">
+                <v-toolbar-title>{{ $t('acl.roles') }}</v-toolbar-title>
+              </v-toolbar>
+            </template>
+          </v-data-table>
+        </v-col>
+      </v-row>
+      <v-row no-gutters>
+        <v-col cols="12">
+          <v-alert v-if="show_validation_error" dense type="error" text>
+            {{ $t('acl.validation_error') }}
+          </v-alert>
+          <v-alert v-if="show_error" dense type="error" text>
+            {{ $t('acl.error') }}
+          </v-alert>
+        </v-col>
+      </v-row>
+      <v-row>
+        <v-btn v-if="canUpdate" text dark type="submit" form="form">
+          <v-icon left>mdi-content-save</v-icon>
+          <span>{{ $t('acl.save') }}</span>
+        </v-btn></v-row
+      >
+    </v-form>
   </v-container>
 </template>
 

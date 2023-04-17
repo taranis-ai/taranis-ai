@@ -7,11 +7,7 @@
         </v-btn>
         <v-toolbar-title>{{ news_item.news_item_data.title }}</v-toolbar-title>
         <v-spacer></v-spacer>
-        <v-btn
-          small
-          icon
-          :title="$t('assess.tooltip.delete_item')"
-        >
+        <v-btn small icon :title="$t('assess.tooltip.delete_item')">
           <v-icon small color="accent">mdi-delete</v-icon>
         </v-btn>
       </v-toolbar>

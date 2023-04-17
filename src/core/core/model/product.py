@@ -37,7 +37,6 @@ class Product(db.Model):
     report_items = db.relationship("ReportItem", secondary="product_report_item")
 
     def __init__(self, id, title, description, product_type_id, report_items):
-
         self.id = id if id != -1 else None
         self.title = title
         self.description = description
@@ -69,7 +68,6 @@ class Product(db.Model):
 
     @classmethod
     def get(cls, filter, offset, limit, user):
-
         query = (
             db.session.query(
                 Product,

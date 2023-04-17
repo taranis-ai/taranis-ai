@@ -42,11 +42,10 @@ const icons = {
 
 const directives = { Scroll }
 
-const vuetify = new Vuetify(
-  {
-    directives: directives,
-    icons: icons,
-    theme: theme
-  })
+const vuetify = new Vuetify({
+  directives: directives,
+  icons: icons,
+  theme: theme
+})
 
 export default vuetify

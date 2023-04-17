@@ -81,7 +81,6 @@ export default {
             display: false
           }
         }
-
       }
     }
   },
@@ -99,7 +98,7 @@ export default {
 
     data_point_items() {
       const dateCounts = {}
-      this.dataPoints.forEach(date => {
+      this.dataPoints.forEach((date) => {
         const day = new Date(date).toLocaleDateString(undefined, {
           day: '2-digit',
           month: '2-digit'

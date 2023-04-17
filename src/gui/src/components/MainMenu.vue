@@ -19,7 +19,8 @@
           'menu-icon',
           { closed: !drawerVisible || this.$vuetify.breakpoint.mdAndDown }
         ]"
-        >mdi-menu-open</v-icon>
+        >mdi-menu-open</v-icon
+      >
     </v-btn>
 
     <v-toolbar-title class="headline" style="width: 300px">
@@ -63,12 +64,7 @@
 
     <!-- Menu -->
 
-    <v-toolbar
-      dense
-      flat
-      color="transparent"
-      class="justify-end mr-4"
-    >
+    <v-toolbar dense flat color="transparent" class="justify-end mr-4">
       <div v-for="button in getButtonList(permissions)" :key="button.route">
         <v-btn
           text

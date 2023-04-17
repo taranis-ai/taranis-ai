@@ -11,10 +11,7 @@
       @add-item="addItem"
       @update-items="updateData"
     />
-    <NewACL
-      v-if="showForm"
-      :user_id.sync="userID"
-    ></NewACL>
+    <NewACL v-if="showForm" :user_id.sync="userID"></NewACL>
   </div>
 </template>
 
@@ -89,5 +86,4 @@ export default {
   },
   beforeDestroy() {}
 }
-
 </script>

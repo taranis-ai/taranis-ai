@@ -70,7 +70,6 @@ class Asset(db.Model):
 
     @classmethod
     def get_by_cpe(cls, cpes):
-
         if len(cpes) <= 0:
             return []
         query_string = "SELECT DISTINCT asset_id FROM asset_cpe WHERE value LIKE ANY(:cpes) OR {}"

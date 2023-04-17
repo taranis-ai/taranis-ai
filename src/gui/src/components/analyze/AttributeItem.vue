@@ -93,7 +93,7 @@
       v-if="attribute_item.type === 'TIME'"
       :placeholder="attribute_item.title"
       type="time"
-      :show-second='false'
+      :show-second="false"
       :disabled="read_only"
       v-model="input"
     />
@@ -104,12 +104,9 @@
       :label="attribute_item.title"
       :items="attribute_item.attribute_enums"
     >
-    <!-- TODO: Use MyAssets for Autocomplete -->
+      <!-- TODO: Use MyAssets for Autocomplete -->
     </v-autocomplete>
-    <AttributeCVSS
-      v-model="input"
-      v-if="attribute_item.type === 'CVSS'"
-    />
+    <AttributeCVSS v-model="input" v-if="attribute_item.type === 'CVSS'" />
   </div>
 </template>
 
@@ -147,7 +144,6 @@ export default {
     }
   },
   methods: {},
-  mounted() {
-  }
+  mounted() {}
 }
 </script>

@@ -128,7 +128,7 @@ export default {
   }),
   mixins: [AuthMixin],
   computed: {
-    canModify () {
+    canModify() {
       return (
         this.edit === false ||
         (this.checkPermission(Permissions.ANALYZE_UPDATE) &&
@@ -143,17 +143,17 @@ export default {
       return 'CardAssess'
     },
 
-    changeGroup (e, group_id) {
+    changeGroup(e, group_id) {
       this.selected_group_id = group_id
     },
 
-    openSelector () {
+    openSelector() {
       this.selected_group_id = this.groups[0].id
       this.$store.dispatch('multiSelect', true)
       this.dialog = true
     },
 
-    add () {
+    add() {
       const selection = this.$store.getters.getSelection
       const added_values = []
       const data = {}
@@ -192,16 +192,16 @@ export default {
       this.close()
     },
 
-    close () {
+    close() {
       this.$store.dispatch('multiSelect', false)
       this.dialog = false
     },
 
-    newDataLoaded (count) {
+    newDataLoaded(count) {
       this.$refs.toolbarFilter.updateDataCount(count)
     },
 
-    removeFromSelector (aggregate) {
+    removeFromSelector(aggregate) {
       const data = {}
       data.delete = true
       data.aggregate_id = aggregate.id
@@ -217,15 +217,15 @@ export default {
       }
     },
 
-    showSingleAggregateDetail (news_item) {
+    showSingleAggregateDetail(news_item) {
       this.$refs.newsItemSingleDetail.open(news_item)
     },
 
-    showItemDetail (news_item) {
+    showItemDetail(news_item) {
       this.$refs.newsItemDetail.open(news_item)
     },
 
-    report_item_updated (data_info) {
+    report_item_updated(data_info) {
       if (
         this.edit === true &&
         this.report_item_id === data_info.report_item_id
@@ -253,7 +253,7 @@ export default {
     }
   },
 
-  mounted () {
+  mounted() {
     this.loadOSINTSourceGroups().then(() => {
       this.groups = this.getOSINTSourceGroups()
       for (let i = 0; i < this.groups.length; i++) {
@@ -267,7 +267,7 @@ export default {
     this.$root.$on('report-item-updated', this.report_item_updated)
   },
 
-  beforeDestroy () {
+  beforeDestroy() {
     this.$root.$off('report-item-updated', this.report_item_updated)
   }
 }

@@ -7,8 +7,8 @@ on:
 # TODO USE SECRET Environment variable to setup CICD pipeline
 
 jobs:
-  lint:
-    name: lint & check formatting
+  black:
+    name: run black linter
     runs-on: ubuntu-22.04
     strategy:
       matrix:
@@ -20,3 +20,16 @@ jobs:
         with:
           black_args: "src --check"
           fail_on_error: false
+
+  eslint:
+    name: eslint
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - name: install dependencies
+        run: npm --prefix src/gui ci
+      - name: lint with eslint
+        run: npm --prefix src/gui run lint_and_format

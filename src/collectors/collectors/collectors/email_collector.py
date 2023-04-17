@@ -19,7 +19,6 @@ class EmailCollector(BaseCollector):
     description = "Collector for gathering data from emails"
 
     def collect(self, source):
-
         news_items = []
 
         email_server_type = source.parameter_values["EMAIL_SERVER_TYPE"]
@@ -91,7 +90,6 @@ class EmailCollector(BaseCollector):
                 file_name = part.get_filename()
 
                 if file_name:
-
                     binary_mime_type = part.get_content_type()
                     binary_value = part.get_payload()
 

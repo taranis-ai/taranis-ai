@@ -12,7 +12,6 @@ class WORDPRESSPublisher(BasePublisher):
     description = "Publisher for publishing on Wordpress webpage"
 
     def publish(self, publisher_input):
-
         try:
             user = publisher_input.parameter_values_map["WP_USER"]
             python_app_secret = publisher_input.parameter_values_map["WP_PYTHON_APP_SECRET"]

@@ -42,7 +42,7 @@ Vue.use(VeeValidate, {
 
 const coreAPIURL =
   typeof process.env.VUE_APP_TARANIS_NG_CORE_API === 'undefined'
-    ? '$VUE_APP_TARANIS_NG_CORE_API'
+    ? '/api'
     : process.env.VUE_APP_TARANIS_NG_CORE_API
 
 ApiService.init(coreAPIURL)

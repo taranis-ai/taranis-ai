@@ -21,9 +21,7 @@ export const router = new Router({
       name: 'enter',
       components: {
         default: () =>
-          import(
-            /* webpackChunkName: "common" */ './views/users/EnterView.vue'
-          )
+          import(/* webpackChunkName: "common" */ './views/users/EnterView.vue')
       },
       meta: { requiresAuth: true, requiresPerm: [Permissions.ASSESS_CREATE] }
     },
@@ -43,9 +41,7 @@ export const router = new Router({
       name: 'story',
       components: {
         default: () =>
-          import(
-            /* webpackChunkName: "assess" */ './views/users/StoryView.vue'
-          )
+          import(/* webpackChunkName: "assess" */ './views/users/StoryView.vue')
       },
       meta: { requiresAuth: true, requiresPerm: [Permissions.ASSESS_ACCESS] }
     },
@@ -122,7 +118,6 @@ export const router = new Router({
           ),
         nav: () =>
           import(/* webpackChunkName: "assets" */ './views/nav/AssetsNav.vue')
-
       },
       meta: { requiresAuth: true, requiresPerm: [Permissions.MY_ASSETS_ACCESS] }
     },
@@ -131,9 +126,7 @@ export const router = new Router({
       name: 'asset',
       components: {
         default: () =>
-          import(
-            /* webpackChunkName: "assets" */ './views/users/AssetView.vue'
-          )
+          import(/* webpackChunkName: "assets" */ './views/users/AssetView.vue')
       },
       meta: { requiresAuth: true, requiresPerm: [Permissions.MY_ASSETS_ACCESS] }
     },
@@ -236,9 +229,7 @@ export const router = new Router({
       name: 'acls',
       components: {
         default: () =>
-          import(
-            /* webpackChunkName: "config" */ './views/admin/ACLsView.vue'
-          ),
+          import(/* webpackChunkName: "config" */ './views/admin/ACLsView.vue'),
         nav: () =>
           import(/* webpackChunkName: "config" */ './views/nav/ConfigNav.vue')
       },

@@ -22,9 +22,9 @@ workers = web_concurrency
 reload = use_reload
 keepalive = 120
 timeout = 600
-errorlog = '-'
-accesslog = '-'
-log_file = '-'
+errorlog = "-"
+accesslog = "-"
+log_file = "-"
 disable_redirect_access_to_syslog = True
 
 # For debugging and testing

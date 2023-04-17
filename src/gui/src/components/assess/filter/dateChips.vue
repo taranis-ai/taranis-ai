@@ -18,13 +18,13 @@ export default {
     value: String
   },
   methods: {
-    setValue (newValue) {
+    setValue(newValue) {
       console.debug('dateChips.setValue', newValue)
       this.$emit('input', newValue)
     }
   },
   computed: {
-    defaultValue () {
+    defaultValue() {
       return this.value ? this.value : 'all'
     }
   }

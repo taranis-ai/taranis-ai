@@ -1,10 +1,12 @@
 <template>
-
-    <v-container id="selector_publish">
-        <CardProduct v-for="collection in collections" :card="collection" :key="collection.id"></CardProduct>
-        <v-card v-intersect.quiet="infiniteScrolling"></v-card>
-    </v-container>
-
+  <v-container id="selector_publish">
+    <CardProduct
+      v-for="collection in collections"
+      :card="collection"
+      :key="collection.id"
+    ></CardProduct>
+    <v-card v-intersect.quiet="infiniteScrolling"></v-card>
+  </v-container>
 </template>
 
 <script>
@@ -28,13 +30,13 @@ export default {
   methods: {
     ...mapGetters('publish', ['getProducts']),
     ...mapActions('publish', ['loadProducts']),
-    infiniteScrolling (entries, observer, isIntersecting) {
+    infiniteScrolling(entries, observer, isIntersecting) {
       if (this.data_loaded && isIntersecting) {
         this.updateData(true, false)
       }
     },
 
-    updateData (append, reload_all) {
+    updateData(append, reload_all) {
       this.data_loaded = false
 
       if (append === false) {
@@ -50,20 +52,23 @@ export default {
         }
         this.collections = []
       }
-      this.loadProducts({ filter: this.filter, offset: offset, limit: limit })
-        .then(() => {
-          this.collections = this.collections.concat(this.getProducts())
-          console.log(this.collections)
-          this.data_loaded = true
-        })
+      this.loadProducts({
+        filter: this.filter,
+        offset: offset,
+        limit: limit
+      }).then(() => {
+        this.collections = this.collections.concat(this.getProducts())
+        console.log(this.collections)
+        this.data_loaded = true
+      })
     }
   },
   watch: {
-    $route () {
+    $route() {
       this.updateData(false, false)
     }
   },
-  mounted () {
+  mounted() {
     this.updateData()
     this.$root.$on('notification', () => {
       this.updateData(true, true)
@@ -73,9 +78,7 @@ export default {
       this.updateData(false, false)
     })
   },
-  created () {
-  },
-  beforeDestroy () {
-  }
+  created() {},
+  beforeDestroy() {}
 }
 </script>

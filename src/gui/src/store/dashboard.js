@@ -14,28 +14,25 @@ const state = {
 }
 
 const actions = {
-
   loadDashboardData(context) {
-    return getDashboardData()
-      .then(response => {
-        context.commit('setDashboardData', response.data)
-      })
+    return getDashboardData().then((response) => {
+      context.commit('setDashboardData', response.data)
+    })
   },
 
   loadClusters(context) {
-    return getTrendingClusters()
-      .then(response => {
-        context.commit('setClusters', response.data)
-      })
+    return getTrendingClusters().then((response) => {
+      context.commit('setClusters', response.data)
+    })
   }
 }
 
 const mutations = {
-  setDashboardData (state, data) {
+  setDashboardData(state, data) {
     state.dashboard_data = data
   },
 
-  setClusters (state, clusters) {
+  setClusters(state, clusters) {
     state.clusters = clusters
   }
 }

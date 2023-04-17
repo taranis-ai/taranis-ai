@@ -23,11 +23,7 @@
 <script>
 import DataTable from '@/components/common/DataTable'
 import EditConfig from '../../components/config/EditConfig'
-import {
-  deleteAttribute,
-  createAttribute,
-  updateAttribute
-} from '@/api/config'
+import { deleteAttribute, createAttribute, updateAttribute } from '@/api/config'
 import { mapActions, mapGetters } from 'vuex'
 import { notifySuccess, emptyValues, notifyFailure } from '@/utils/helpers'
 
@@ -92,13 +88,7 @@ export default {
         name: 'validator',
         label: 'Validator',
         type: 'select',
-        options: [
-          'NONE',
-          'EMAIL',
-          'NUMBER',
-          'RANGE',
-          'REGEXP'
-        ]
+        options: ['NONE', 'EMAIL', 'NUMBER', 'RANGE', 'REGEXP']
       },
       {
         name: 'validator_parameter',
@@ -139,29 +129,35 @@ export default {
     },
     deleteItem(item) {
       if (!item.default) {
-        deleteAttribute(item).then(() => {
-          notifySuccess(`Successfully deleted ${item.name}`)
-          this.updateData()
-        }).catch(() => {
-          notifyFailure(`Failed to delete ${item.name}`)
-        })
+        deleteAttribute(item)
+          .then(() => {
+            notifySuccess(`Successfully deleted ${item.name}`)
+            this.updateData()
+          })
+          .catch(() => {
+            notifyFailure(`Failed to delete ${item.name}`)
+          })
       }
     },
     createItem(item) {
-      createAttribute(item).then(() => {
-        notifySuccess(`Successfully created ${item.name}`)
-        this.updateData()
-      }).catch(() => {
-        notifyFailure(`Failed to create ${item.name}`)
-      })
+      createAttribute(item)
+        .then(() => {
+          notifySuccess(`Successfully created ${item.name}`)
+          this.updateData()
+        })
+        .catch(() => {
+          notifyFailure(`Failed to create ${item.name}`)
+        })
     },
     updateItem(item) {
-      updateAttribute(item).then(() => {
-        notifySuccess(`Successfully updated ${item.name}`)
-        this.updateData()
-      }).catch(() => {
-        notifyFailure(`Failed to update ${item.name}`)
-      })
+      updateAttribute(item)
+        .then(() => {
+          notifySuccess(`Successfully updated ${item.name}`)
+          this.updateData()
+        })
+        .catch(() => {
+          notifyFailure(`Failed to update ${item.name}`)
+        })
     }
   },
   mounted() {

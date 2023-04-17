@@ -101,7 +101,6 @@ class TagCloud(db.Model):
 
     @classmethod
     def generate_tag_cloud_words(cls, news_item_data):
-
         news_items_title_words = []
         news_items_review_words = []
         news_items_content_words = []
@@ -109,7 +108,11 @@ class TagCloud(db.Model):
 
         title, review, content = TagCloud.unwanted_chars(news_item_data)
 
-        (news_items_title_words, news_items_review_words, news_items_content_words,) = TagCloud.news_items_words(
+        (
+            news_items_title_words,
+            news_items_review_words,
+            news_items_content_words,
+        ) = TagCloud.news_items_words(
             title,
             review,
             content,

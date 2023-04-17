@@ -3774,6 +3774,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/resp.auth.error'
+  /trending-clusters:
+    get:
+      tags: [trending-clusters]
+      summary: get trending clusters
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  clusters:
+                    type: integer
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
   /dashboard-data:
     get:
       tags: [dashboard-data]

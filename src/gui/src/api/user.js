@@ -1,21 +1,21 @@
 import ApiService from '@/services/api_service'
 
-export function getProfile () {
+export function getProfile() {
   return ApiService.get('/users/my-profile')
 }
 
-export function updateProfile (data) {
+export function updateProfile(data) {
   return ApiService.put('/users/my-profile', data)
 }
 
-export function getAllUserWordLists () {
+export function getAllUserWordLists() {
   return ApiService.get('/users/my-word-lists')
 }
 
-export function getAllUserProductTypes () {
+export function getAllUserProductTypes() {
   return ApiService.get('/users/my-product-types')
 }
 
-export function getAllUserPublishersPresets () {
+export function getAllUserPublishersPresets() {
   return ApiService.get('/users/my-publisher-presets')
 }

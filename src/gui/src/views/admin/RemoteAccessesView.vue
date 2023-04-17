@@ -4,7 +4,7 @@
       :addButton="true"
       :items.sync="RemoteAccess"
       :headerFilter="['tag', 'name', 'title', 'description']"
-      :actionColumn=true
+      :actionColumn="true"
       @delete-item="deleteItem"
       @edit-item="editItem"
       @add-item="addItem"
@@ -22,7 +22,11 @@
 <script>
 import DataTable from '@/components/common/DataTable'
 import EditConfig from '../../components/config/EditConfig'
-import { deleteRemoteAccess, createRemoteAccess, updateRemoteAccess } from '@/api/config'
+import {
+  deleteRemoteAccess,
+  createRemoteAccess,
+  updateRemoteAccess
+} from '@/api/config'
 import { mapActions, mapGetters } from 'vuex'
 import { notifySuccess, notifyFailure, emptyValues } from '@/utils/helpers'
 
@@ -79,7 +83,10 @@ export default {
       this.loadRemoteAccesses().then(() => {
         const sources = this.getRemoteAccesses()
         this.RemoteAccess = sources.items
-        this.updateItemCount({ total: sources.total_count, filtered: sources.length })
+        this.updateItemCount({
+          total: sources.total_count,
+          filtered: sources.length
+        })
       })
     },
     addItem() {
@@ -100,33 +107,39 @@ export default {
     },
     deleteItem(item) {
       console.log(item)
-      deleteRemoteAccess(item).then(() => {
-        notifySuccess(`Successfully deleted ${item.name}`)
-        this.updateData()
-      }).catch(() => {
-        notifyFailure(`Failed to delete ${item.name}`)
-      })
+      deleteRemoteAccess(item)
+        .then(() => {
+          notifySuccess(`Successfully deleted ${item.name}`)
+          this.updateData()
+        })
+        .catch(() => {
+          notifyFailure(`Failed to delete ${item.name}`)
+        })
     },
     createItem(item) {
-      createRemoteAccess(item).then(() => {
-        notifySuccess(`Successfully created ${item.name}`)
-        this.updateData()
-      }).catch(() => {
-        notifyFailure(`Failed to create ${item.name}`)
-      })
+      createRemoteAccess(item)
+        .then(() => {
+          notifySuccess(`Successfully created ${item.name}`)
+          this.updateData()
+        })
+        .catch(() => {
+          notifyFailure(`Failed to create ${item.name}`)
+        })
     },
     updateItem(item) {
-      updateRemoteAccess(item).then(() => {
-        notifySuccess(`Successfully updated ${item.name}`)
-        this.updateData()
-      }).catch(() => {
-        notifyFailure(`Failed to update ${item.name}`)
-      })
+      updateRemoteAccess(item)
+        .then(() => {
+          notifySuccess(`Successfully updated ${item.name}`)
+          this.updateData()
+        })
+        .catch(() => {
+          notifyFailure(`Failed to update ${item.name}`)
+        })
     }
   },
-  mounted () {
+  mounted() {
     this.updateData()
   },
-  beforeDestroy () {}
+  beforeDestroy() {}
 }
 </script>

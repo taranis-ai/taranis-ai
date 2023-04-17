@@ -1,5 +1,4 @@
 export const messages_sk = {
-
   validations: {
     custom: {
       username: {

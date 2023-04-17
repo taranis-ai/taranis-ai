@@ -7,19 +7,15 @@
       <v-row no-gutters>
         <v-col cols="6" class="pa-1">
           <v-text-field
-            :disabled="!canUpdate"
             :label="$t('user.username')"
             name="username"
             type="text"
             v-model="user.username"
-            v-validate="'required'"
-            data-vv-name="username"
-            :error-messages="errors.collect('username')"
+            :rules="[rules.required]"
           />
         </v-col>
         <v-col cols="6" class="pa-1">
           <v-text-field
-            :disabled="!canUpdate"
             :label="$t('user.name')"
             name="name"
             v-model="user.name"
@@ -30,20 +26,16 @@
             ref="password"
             type="password"
             v-model="pwd"
-            v-validate="checkPassEdit ? 'required' : ''"
-            :error-messages="errors.collect('password_check')"
+            :rules="passwordRules"
             :label="$t('user.password')"
-            data-vv-name="password_check"
           />
         </v-col>
         <v-col cols="6" class="pa-1">
           <v-text-field
             v-model="repwd"
             type="password"
-            v-validate="checkPassEdit ? 'required|confirmed:password' : ''"
-            :error-messages="errors.collect('password_check')"
+            :rules="passwordRules"
             :label="$t('user.password_check')"
-            data-vv-name="password_check"
           />
         </v-col>
       </v-row>
@@ -51,7 +43,6 @@
       <v-row no-gutters>
         <v-col cols="6" class="pr-1">
           <v-select
-            :disabled="!canUpdate"
             v-model="user.organization.id"
             item-text="name"
             item-value="id"
@@ -63,12 +54,11 @@
         </v-col>
         <v-col cols="12" class="pl-1">
           <v-data-table
-            :disabled="!canUpdate"
             v-model="user.roles"
             :headers="headers"
             :items="roles"
             item-key="id"
-            :show-select="canUpdate"
+            :show-select="true"
             :hide-default-footer="roles.length < 10"
             class="elevation-1"
           >
@@ -81,12 +71,11 @@
         </v-col>
         <v-col cols="12" class="pt-2">
           <v-data-table
-            :disabled="!canUpdate"
             v-model="user.permissions"
             :headers="headers"
             :items="permissions"
             item-key="id"
-            :show-select="canUpdate"
+            :show-select="true"
             :hide-default-footer="permissions.length < 10"
             class="elevation-1"
           >
@@ -103,58 +92,23 @@
 </template>
 
 <script>
-import AuthMixin from '../../../services/auth/auth_mixin'
 import { createUser, updateUser } from '@/api/config'
-import Permissions from '@/services/auth/permissions'
 import { mapGetters, mapActions } from 'vuex'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
+import { ref, computed } from 'vue'
 
 export default {
   name: 'UserForm',
-  components: {},
   props: {
     user_id: {
       type: Number,
       required: false
     }
   },
-  data: () => ({
-    headers: [
-      {
-        text: 'Name',
-        align: 'start',
-        value: 'name'
-      },
-      { text: 'Description', value: 'description' }
-    ],
-
-    visible: false,
-    edit: false,
-    roles: [],
-    permissions: [],
-    organizations: [],
-    pwd: '',
-    repwd: '',
-    pwdvld: true,
-    user: {}
-  }),
-  computed: {
-    checkPassEdit() {
-      if (this.edit) {
-        return this.pwd !== '' || this.repwd !== ''
-      }
-      return true
-    },
-    canCreate() {
-      return this.checkPermission(Permissions.CONFIG_USER_CREATE)
-    },
-    canUpdate() {
-      return this.checkPermission(Permissions.CONFIG_USER_UPDATE)
-    }
-  },
+  computed: {},
   watch: {
-    user_id: function () {
-      this.loadUser()
+    user_id(uid) {
+      this.loadUser(uid)
     }
   },
   methods: {
@@ -183,24 +137,28 @@ export default {
         }
 
         if (this.edit) {
-          updateUser(this.user).then(() => {
-            this.$validator.reset()
-            notifySuccess('user.successful_edit')
-          }).catch(() => {
-            notifyFailure('user.error')
-          })
+          updateUser(this.user)
+            .then(() => {
+              this.$validator.reset()
+              notifySuccess('user.successful_edit')
+            })
+            .catch(() => {
+              notifyFailure('user.error')
+            })
         } else {
-          createUser(this.user).then(() => {
-            this.$validator.reset()
-            notifySuccess('user.successful')
-          }).catch(() => {
-            notifyFailure('user.error')
-          })
+          createUser(this.user)
+            .then(() => {
+              this.$validator.reset()
+              notifySuccess('user.successful')
+            })
+            .catch(() => {
+              notifyFailure('user.error')
+            })
         }
       })
     },
-    loadUser() {
-      if (this.user_id !== undefined && this.user_id !== null) {
+    loadUser(user_id) {
+      if (user_id !== undefined && user_id !== null) {
         this.loadUsers().then(() => {
           const stored_user = this.getUserByID()(this.user_id)
           if (stored_user !== null) {
@@ -219,11 +177,11 @@ export default {
           roles: [],
           permissions: []
         }
+        this.edit = false
       }
     }
   },
-  mixins: [AuthMixin],
-  mounted() {
+  created() {
     this.loadOrganizations().then(() => {
       this.organizations = this.getOrganizations().items
     })
@@ -236,8 +194,68 @@ export default {
       this.permissions = this.getPermissions().items
     })
 
-    this.loadUser()
+    console.debug('Loading User: ' + this.user_id)
+    this.loadUser(this.user_id)
+    console.debug(this.user)
   },
-  beforeDestroy() {}
+
+  setup() {
+    const headers = [
+      {
+        text: 'Name',
+        align: 'start',
+        value: 'name'
+      },
+      { text: 'Description', value: 'description' }
+    ]
+
+    const edit = ref(false)
+    const pwd = ref('')
+    const repwd = ref('')
+    const organizations = ref([])
+    const roles = ref([])
+    const permissions = ref([])
+    const user = ref({
+      id: -1,
+      username: '',
+      name: '',
+      organization: {
+        id: 0
+      },
+      roles: [],
+      permissions: []
+    })
+
+    const rules = {
+      required: (value) => !!value || 'Required.',
+      matchPassword: (value) => {
+        if (!edit.value) {
+          return !!value || 'Required.'
+        }
+        if (!value && !pwd.value) {
+          return true
+        }
+        return value === pwd.value || 'Passwords must match.'
+      }
+    }
+    const passwordRules = computed(() => {
+      return edit.value
+        ? [rules.matchPassword]
+        : [rules.required, rules.matchPassword]
+    })
+
+    return {
+      headers,
+      rules,
+      edit,
+      roles,
+      permissions,
+      organizations,
+      pwd,
+      repwd,
+      user,
+      passwordRules
+    }
+  }
 }
 </script>

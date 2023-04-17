@@ -11,7 +11,6 @@ class MISPPresenter(BasePresenter):
     description = "Presenter for generating MISP platform"
 
     def generate(self, presenter_input):
-
         try:
             head, tail = os.path.split(presenter_input.parameter_values_map["MISP_TEMPLATE_PATH"])
 

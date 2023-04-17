@@ -29,7 +29,13 @@ import {
   updatePublisherPreset
 } from '@/api/config'
 import { mapActions, mapGetters } from 'vuex'
-import { notifySuccess, parseParameterValues, createParameterValues, objectFromFormat, notifyFailure } from '@/utils/helpers'
+import {
+  notifySuccess,
+  parseParameterValues,
+  createParameterValues,
+  objectFromFormat,
+  notifyFailure
+} from '@/utils/helpers'
 
 export default {
   name: 'presets',
@@ -95,14 +101,16 @@ export default {
       })
       this.loadPublishers().then(() => {
         const publishers = this.getPublishers()
-        this.publishers = publishers.items.map(publisher => {
-          this.parameters[publisher.id] = publisher.parameters.map(parameter => {
-            return {
-              name: parameter.key,
-              label: parameter.name,
-              type: 'text'
+        this.publishers = publishers.items.map((publisher) => {
+          this.parameters[publisher.id] = publisher.parameters.map(
+            (parameter) => {
+              return {
+                name: parameter.key,
+                label: parameter.name,
+                type: 'text'
+              }
             }
-          })
+          )
           return {
             value: publisher.id,
             text: publisher.name
@@ -120,7 +128,9 @@ export default {
     },
     handleSubmit(submittedData) {
       delete submittedData.parameter_values
-      const parameter_list = this.parameters[this.formData.publisher_id].map(item => item.name)
+      const parameter_list = this.parameters[this.formData.publisher_id].map(
+        (item) => item.name
+      )
       const updateItem = createParameterValues(parameter_list, submittedData)
       if (this.edit) {
         this.updateItem(updateItem)
@@ -130,29 +140,35 @@ export default {
     },
     deleteItem(item) {
       if (!item.default) {
-        deletePublisherPreset(item).then(() => {
-          notifySuccess(`Successfully deleted ${item.name}`)
-          this.updateData()
-        }).catch(() => {
-          notifyFailure(`Failed to delete ${item.name}`)
-        })
+        deletePublisherPreset(item)
+          .then(() => {
+            notifySuccess(`Successfully deleted ${item.name}`)
+            this.updateData()
+          })
+          .catch(() => {
+            notifyFailure(`Failed to delete ${item.name}`)
+          })
       }
     },
     createItem(item) {
-      createPublisherPreset(item).then(() => {
-        notifySuccess(`Successfully created ${item.name}`)
-        this.updateData()
-      }).catch(() => {
-        notifyFailure(`Failed to create ${item.name}`)
-      })
+      createPublisherPreset(item)
+        .then(() => {
+          notifySuccess(`Successfully created ${item.name}`)
+          this.updateData()
+        })
+        .catch(() => {
+          notifyFailure(`Failed to create ${item.name}`)
+        })
     },
     updateItem(item) {
-      updatePublisherPreset(item).then(() => {
-        notifySuccess(`Successfully updated ${item.name}`)
-        this.updateData()
-      }).catch(() => {
-        notifyFailure(`Failed to update ${item.name}`)
-      })
+      updatePublisherPreset(item)
+        .then(() => {
+          notifySuccess(`Successfully updated ${item.name}`)
+          this.updateData()
+        })
+        .catch(() => {
+          notifyFailure(`Failed to update ${item.name}`)
+        })
     }
   },
   mounted() {
