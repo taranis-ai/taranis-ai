@@ -33,6 +33,10 @@ const state = {
     search: undefined,
     sort: undefined,
     range: undefined
+  },
+  chartFilter: {
+    threshold: 20,
+    y2max: undefined
   }
 }
 
@@ -84,6 +88,12 @@ const actions = {
   },
   setProductFilter(context, filter) {
     context.commit('SET_PRODUCT_FILTER', filter)
+  },
+  setThreshold(context, threshold) {
+    context.commit('SET_THRESHHOLD', threshold)
+  },
+  setY2Max(context, y2max) {
+    context.commit('SET_y2max', y2max)
   }
 }
 
@@ -111,6 +121,12 @@ const getters = {
       return [state.newsItemsFilter.tags]
     }
     return state.newsItemsFilter.tags
+  },
+  getThreshold(state) {
+    return state.chartFilter.threshold
+  },
+  getY2max(state) {
+    return state.chartFilter.y2max
   }
 }
 
@@ -194,6 +210,12 @@ const mutations = {
     } else {
       state.newsItemsFilter.tags = [tag]
     }
+  },
+  SET_THRESHHOLD(state, threshold) {
+    state.chartFilter.threshold = threshold
+  },
+  SET_y2max(state, y2max) {
+    state.chartFilter.y2max = y2max
   }
 }
 

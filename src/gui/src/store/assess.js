@@ -16,7 +16,8 @@ const state = {
   default_source_group_id: '',
   newsItems: { total_count: 0, items: [] },
   newsItemsSelection: [],
-  top_stories: []
+  top_stories: [],
+  max_item: null
 }
 
 const actions = {
@@ -36,6 +37,7 @@ const actions = {
     return getNewsItemsAggregates(filter.state.newsItemsFilter).then(
       (response) => {
         context.commit('UPDATE_NEWSITEMS', response.data)
+        context.dispatch('updateMaxItem', response.data.items)
       }
     )
   },
@@ -97,10 +99,33 @@ const actions = {
 
   removeStoryFromNewsItem(context, { newsItemId, storyId }) {
     context.commit('REMOVE_TOPIC_FROM_NEWSITEM', { newsItemId, storyId })
+  },
+  updateMaxItem(context, newsItems) {
+    const countsArray = newsItems.map((item) =>
+      Math.max(
+        ...Object.values(
+          item.news_items.reduce((acc, item) => {
+            const day = new Date(
+              item.news_item_data.published
+            ).toLocaleDateString(undefined, {
+              day: '2-digit',
+              month: '2-digit'
+            })
+            acc[day] = (acc[day] || 0) + 1
+            return acc
+          }, {})
+        )
+      )
+    )
+    context.commit('UPDATE_MAXITEM', Math.max(...countsArray))
   }
 }
 
 const mutations = {
+  UPDATE_MAXITEM(state, max_item) {
+    state.max_item = max_item
+  },
+
   UPDATE_NEWSITEMS(state, newsItems) {
     state.newsItems = newsItems
   },
@@ -236,6 +261,9 @@ const getters = {
 
   getOSINTSources(state) {
     return state.osint_sources
+  },
+  getMaxItem(state) {
+    return state.max_item
   }
 }
 

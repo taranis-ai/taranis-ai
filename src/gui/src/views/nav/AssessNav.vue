@@ -74,8 +74,7 @@
           />
         </v-col>
       </v-row>
-
-      <v-divider class="mt-2 mb-0"></v-divider>
+      <v-divider class="mt-0 mb-0"></v-divider>
 
       <v-row class="my-2 mr-0 px-2">
         <v-col cols="12" class="py-0">
@@ -87,10 +86,27 @@
         </v-col>
       </v-row>
 
-      <v-divider class="mt-2 mb-0"></v-divider>
+      <v-divider class="mt-1 mb-0"></v-divider>
+      <v-row class="my-2 mr-0 px-2">
+        <v-col cols="12" class="py-0">
+          <h4>Set Chart properties</h4>
+        </v-col>
+        <v-col cols="4" class="pt-2"> Threshold: </v-col>
+        <v-col cols="8" class="pt-2">
+          <input type="number" v-model="threshold" min="0"
+        /></v-col>
+        <v-col cols="4" class="pt-2"> y2 Max: </v-col>
+        <v-col cols="8" class="pt-2">
+          <input type="number" v-model="yMax" min="0" />
+        </v-col>
+      </v-row>
 
+      <v-divider class="mt-2 mb-0"></v-divider>
       <v-row class="my-2 mr-0 px-2 pb-5">
         <v-col cols="12" class="py-0">
+          <h4>Debug</h4>
+        </v-col>
+        <v-col cols="12" class="py-2">
           <v-btn @click="updateNewsItems()" color="primary" block>
             Reload
             <v-icon right dark> mdi-reload </v-icon>
@@ -247,6 +263,22 @@ export default {
 
         this.awaitingSearch = true
       }
+    },
+    threshold: {
+      get() {
+        return this.getThreshold()
+      },
+      set(value) {
+        this.setThreshold(value)
+      }
+    },
+    yMax: {
+      get() {
+        return this.getY2max()
+      },
+      set(value) {
+        this.setY2Max(value)
+      }
     }
   },
   methods: {
@@ -262,9 +294,11 @@ export default {
       'setSort',
       'setLimit',
       'setOffset',
-      'updateFilter'
+      'updateFilter',
+      'setThreshold',
+      'setY2Max'
     ]),
-    ...mapGetters('filter', ['getNewsItemsFilter'])
+    ...mapGetters('filter', ['getNewsItemsFilter', 'getThreshold', 'getY2max'])
   },
   created() {
     const query = Object.fromEntries(

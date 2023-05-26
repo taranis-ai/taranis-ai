@@ -13,7 +13,7 @@
 import { getReportItem } from '@/api/analyze'
 import ReportItem from '@/components/analyze/ReportItem'
 import { notifySuccess } from '@/utils/helpers'
-
+import { mapActions } from 'vuex'
 export default {
   name: 'ReportView',
   data: () => ({
@@ -37,10 +37,13 @@ export default {
   async created() {
     this.report_item = await this.loadReportItem()
   },
+
   methods: {
+    ...mapActions('assess', ['updateMaxItem']),
     async loadReportItem() {
       if (this.$route.params.id && this.$route.params.id !== '0') {
         return await getReportItem(this.$route.params.id).then((response) => {
+          this.updateMaxItem(response.data.news_item_aggregates)
           return response.data
         })
       }

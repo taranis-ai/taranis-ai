@@ -4,12 +4,12 @@
     {{ tagText(cluster.tag_type) }}
     <span class="ml-4"> SIZE: {{ cluster.size }}</span>
     <v-divider class="mt-2 mb-2" />
-    <week-chart :dataPoints="cluster.published" :timespan="10" />
+    <trending-chart :dataPoints="cluster.published" :timespan="10" />
   </div>
 </template>
 
 <script>
-import WeekChart from '@/components/assess/card/WeekChart'
+import TrendingChart from '@/components/common/card/TrendingChart.vue'
 import { tagIconFromType, tagTextFromType } from '@/utils/helpers'
 
 export default {
@@ -18,7 +18,7 @@ export default {
     cluster: { type: Object, required: true }
   },
   components: {
-    WeekChart
+    TrendingChart
   },
   data: function () {
     return {}
