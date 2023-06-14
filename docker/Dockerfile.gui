@@ -4,14 +4,8 @@ RUN npm install -g npm@latest
 
 WORKDIR /app
 COPY ./src/gui/package*.json ./
-RUN npm install --include=dev
-COPY ./src/gui/public /app/public
-COPY ./src/gui/src /app/src
-COPY ./src/gui/babel.config.js .
-COPY ./src/gui/vue.config.js .
-COPY ./src/gui/.eslintignore .
-COPY ./src/gui/package.json .
-COPY ./src/gui/package-lock.json .
+RUN npm ci
+COPY ./src/gui/ /app/
 
 ENV NODE_OPTIONS=--openssl-legacy-provider
 RUN npm run build

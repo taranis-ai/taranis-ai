@@ -30,11 +30,11 @@
 import DataTable from '@/components/common/DataTable.vue'
 import EditConfig from '@/components/config/EditConfig.vue'
 import { deleteNode, createNode, updateNode, triggerNode } from '@/api/config'
-import { mapActions } from 'pinia'
 import { useConfigStore } from '@/stores/ConfigStore'
 import { useMainStore } from '@/stores/MainStore'
 import { notifySuccess, notifyFailure, objectFromFormat } from '@/utils/helpers'
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { storeToRefs } from 'pinia'
 
 export default {
   name: 'NodesView',
@@ -48,8 +48,9 @@ export default {
     const selected = ref([])
     const workers = ref([])
     const mainStore = useMainStore()
-    const nodes = useConfigStore().nodes
-    const collectors = useConfigStore().collectors
+    const configStore = useConfigStore()
+
+    const { nodes, collectors } = storeToRefs(configStore)
 
     const formFormat = computed(() => {
       return [
@@ -96,13 +97,10 @@ export default {
       ]
     })
 
-    const loadNodes = mapActions(useConfigStore, ['loadNodes'])
-    const loadCollectors = mapActions(useConfigStore, ['loadCollectors'])
-
     const updateData = () => {
-      loadNodes().then(() => {
-        mainStore.itemCountTotal = nodes.total_count
-        mainStore.itemCountFiltered = nodes.items.length
+      configStore.loadNodes().then(() => {
+        mainStore.itemCountTotal = nodes.value.total_count
+        mainStore.itemCountFiltered = nodes.value.items.length
       })
     }
 
@@ -115,7 +113,7 @@ export default {
       if (item.type === 'bot') {
         workers.value = item.bots
       } else if (item.type === 'collector') {
-        loadCollectors().then(() => {
+        configStore.loadCollectors().then(() => {
           workers.value = collectors.items
         })
       } else {
@@ -175,6 +173,10 @@ export default {
         notifySuccess('Node run triggerd')
       })
     }
+
+    onMounted(() => {
+      updateData()
+    })
 
     return {
       formData,

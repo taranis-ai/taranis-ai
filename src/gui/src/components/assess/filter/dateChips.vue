@@ -1,14 +1,13 @@
 <template>
   <v-btn-toggle
     v-model="selected"
-    variant="outlined"
     density="compact"
     divided
     selected-class="text-primary"
   >
-    <v-btn variant="text" value="all">all</v-btn>
-    <v-btn variant="text" value="today">today</v-btn>
-    <v-btn variant="text" value="week">week</v-btn>
+    <v-btn variant="outlined" value="all">all</v-btn>
+    <v-btn variant="outlined" value="today">today</v-btn>
+    <v-btn variant="outlined" value="week">week</v-btn>
   </v-btn-toggle>
 </template>
 

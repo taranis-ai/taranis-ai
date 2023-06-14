@@ -23,6 +23,9 @@ class AtomCollector(BaseCollector):
         user_agent = source.parameter_values["USER_AGENT"]
         interval = source.parameter_values["REFRESH_INTERVAL"]
 
+        if not feed_url:
+            return
+
         proxies = {}
         if "PROXY_SERVER" in source.parameter_values:
             proxy_server = source.parameter_values["PROXY_SERVER"]

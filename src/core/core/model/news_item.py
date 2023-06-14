@@ -644,10 +644,10 @@ class NewsItemAggregate(db.Model):
             ).filter(NewsItemAggregateSearchIndex.data.ilike(f"%{search}%"))
 
         if "read" in filter:
-            query = query.filter(NewsItemAggregate.read == False)
+            query = query.filter(NewsItemAggregate.read)
 
         if "unread" in filter:
-            query = query.filter(NewsItemAggregate.read)
+            query = query.filter(NewsItemAggregate.read == False)
 
         if "important" in filter:
             query = query.filter(NewsItemAggregate.important)

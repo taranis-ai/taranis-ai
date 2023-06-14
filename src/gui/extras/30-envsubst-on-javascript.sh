@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 
 # This script is started when Docker container starts.
-# It goes through /usr/share/nginx/html/js/*.js, and replaces
+# It goes through /usr/share/nginx/html/assets/*.js, and replaces
 # occurrences of $VUE_SOMETHING by the contents of
 # environment variables of that name.
 
@@ -10,7 +10,7 @@ set -e
 ME="$(basename "$0")"
 
 vue_envsubst() {
-  js_dir="${VUE_ENVSUBST_JS_DIR:-/usr/share/nginx/html/js}"
+  js_dir="${VUE_ENVSUBST_JS_DIR:-/usr/share/nginx/html/assets}"
 
   [ -d "$js_dir" ] || return 0
   if [ ! -w "$js_dir" ]; then
@@ -19,7 +19,7 @@ vue_envsubst() {
   fi
 
   cd "$js_dir"
-  defined_envs="$(printf '${%s} ' $(env | grep -Eio '^VUE[-_a-z0-9]+'))"
+  defined_envs="$(printf '${%s} ' $(env | grep -Eio '^VITE[-_a-z0-9]+'))"
 
   for FILE in *.js ; do
     if [ ! -f ".$FILE.processed" ]; then

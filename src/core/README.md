@@ -16,7 +16,7 @@
 # **TaranisNG frontend setup**
 1. Install Node.js from https://nodejs.org/en/
 1. Set environment variables for taranis-ng-gui:
-    VUE_APP_TARANIS_NG_URL=http://127.0.0.1:8080;VUE_APP_TARANIS_NG_CORE_API=http://127.0.0.1:5000/api;VUE_APP_TARANIS_NG_LOCALE=en;VUE_APP_TARANIS_NG_CORE_SSE=http://127.0.0.1:5000/sse
+    VITE_TARANIS_NG_URL=http://127.0.0.1:8080;VITE_TARANIS_NG_CORE_API=http://127.0.0.1:5000/api;VITE_TARANIS_NG_LOCALE=en;VITE_TARANIS_NG_CORE_SSE=http://127.0.0.1:5000/sse
 3. Install all required packages: `npm install`
 4. Run application inside taranis-ng-gui: `npm run serve`
 5. In Browser go to: http://127.0.0.1:8080/
@@ -38,5 +38,5 @@ Keycloak is not needed to run test version of TaranisNG at the moment. You can u
 11. Set `TARANIS_NG_AUTHENTICATOR=keycloak` environment variable for the core service.
 12. In **taranis-ng-core** add environment variable OPENID_LOGOUT_URL and set it according to your Keycloak installation e.g. http://127.0.0.1:8081/auth/realms/taranisng/protocol/openid-connect/logout?redirect_uri=<GOTO_URL>
 13. In **taranis-ng-gui** add these environment variables to activate external login:
-    VUE_APP_TARANIS_NG_LOGIN_URL=http://127.0.0.1:5000/api/auth/login;VUE_APP_TARANIS_NG_LOGOUT_URL=http://127.0.0.1:5000/api/auth/logout
+    VITE_TARANIS_NG_LOGIN_URL=http://127.0.0.1:5000/api/auth/login;VITE_TARANIS_NG_LOGOUT_URL=http://127.0.0.1:5000/api/auth/logout
 

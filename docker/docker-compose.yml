@@ -187,10 +187,10 @@ services:
     environment:
       NGINX_WORKERS: "4"
       NGINX_CONNECTIONS: "16"
-      VUE_APP_TARANIS_NG_URL: "${TARANIS_NG_HTTPS_URI}"
-      VUE_APP_TARANIS_NG_CORE_API: "${TARANIS_NG_HTTPS_URI}/api/v1"
-      VUE_APP_TARANIS_NG_CORE_SSE: "${TARANIS_NG_HTTPS_URI}/sse"
-      VUE_APP_TARANIS_NG_LOCALE: en
+      VITE_TARANIS_NG_URL: "${TARANIS_NG_HTTPS_URI}"
+      VITE_TARANIS_NG_CORE_API: "${TARANIS_NG_HTTPS_URI}/api/v1"
+      VITE_TARANIS_NG_CORE_SSE: "${TARANIS_NG_HTTPS_URI}/sse"
+      VITE_TARANIS_NG_LOCALE: en
     labels:
       traefik.enable: "true"
       traefik.http.services.taranis-gui.loadbalancer.server.port: "80"
