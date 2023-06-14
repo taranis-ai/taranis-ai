@@ -1,29 +1,30 @@
 <template>
   <div>
     <DataTable
-      :addButton="false"
-      :items.sync="bots"
-      :headerFilter="['name', 'description']"
-      sortByItem="name"
-      :actionColumn="false"
+      v-model:items="bots"
+      :add-button="false"
+      :header-filter="['name', 'description']"
+      sort-by-item="name"
+      :action-column="false"
       @edit-item="editItem"
       @add-item="addItem"
       @update-items="updateData"
     />
     <EditConfig
       v-if="formData && Object.keys(formData).length > 0"
-      :configData="formData"
-      :formFormat="formFormat"
+      :config-data="formData"
+      :form-format="formFormat"
       @submit="handleSubmit"
     ></EditConfig>
   </div>
 </template>
 
 <script>
-import DataTable from '@/components/common/DataTable'
-import EditConfig from '../../components/config/EditConfig'
+import DataTable from '@/components/common/DataTable.vue'
+import EditConfig from '@/components/config/EditConfig.vue'
 import { updateBot } from '@/api/config'
-import { mapActions, mapGetters } from 'vuex'
+import { mapActions, mapState, mapWritableState } from 'pinia'
+import { useConfigStore } from '@/stores/ConfigStore'
 import {
   notifySuccess,
   objectFromFormat,
@@ -31,9 +32,10 @@ import {
   parseParameterValues,
   createParameterValues
 } from '@/utils/helpers'
+import { useMainStore } from '@/stores/MainStore'
 
 export default {
-  name: 'Bots',
+  name: 'BotsView',
   components: {
     DataTable,
     EditConfig
@@ -47,6 +49,8 @@ export default {
     edit: false
   }),
   computed: {
+    ...mapWritableState(useMainStore, ['itemCountTotal', 'itemCountFiltered']),
+    ...mapState(useConfigStore, { store_bots: 'bots' }),
     formFormat() {
       const base = [
         {
@@ -82,13 +86,14 @@ export default {
       return base
     }
   },
+  mounted() {
+    this.updateData()
+  },
   methods: {
-    ...mapActions('config', ['loadBots', 'loadParameters']),
-    ...mapGetters('config', ['getBots', 'getParameters']),
-    ...mapActions(['updateItemCount']),
+    ...mapActions(useConfigStore, ['loadBots', 'loadParameters']),
     updateData() {
       this.loadBots().then(() => {
-        const sources = this.getBots()
+        const sources = this.store_bots
         this.unparsed_sources = sources.items
         this.bots = parseParameterValues(sources.items)
 
@@ -102,10 +107,8 @@ export default {
           })
           return item.type
         })
-        this.updateItemCount({
-          total: sources.total_count,
-          filtered: sources.length
-        })
+        this.itemCountTotal = sources.total_count
+        this.itemCountFiltered = sources.items.length
       })
     },
     addItem() {
@@ -141,10 +144,6 @@ export default {
           notifyFailure(`Failed to update ${item.id}`)
         })
     }
-  },
-  mounted() {
-    this.updateData()
-  },
-  beforeDestroy() {}
+  }
 }
 </script>

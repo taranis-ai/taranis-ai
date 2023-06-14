@@ -22,10 +22,10 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-export var CVSS = function (id, options) {
+export const CVSS = function (id, options) {
   this.options = options
   this.wId = id
-  var e = function (tag) {
+  const e = function (tag) {
     return document.createElement(tag)
   }
 
@@ -168,7 +168,7 @@ export var CVSS = function (id, options) {
     I: 'C',
     A: 'C'
   }
-  var s, f, dl, g, dd, l
+  let s, f, dl, g, dd, l
   this.el = document.getElementById(id)
   this.el.appendChild((s = e('style')))
   s.innerHTML = ''
@@ -178,22 +178,21 @@ export var CVSS = function (id, options) {
   for (g in this.bg) {
     f.appendChild((dl = e('dl')))
     dl.setAttribute('class', g)
-    var dt = e('dt')
+    const dt = e('dt')
     dt.innerHTML = this.bg[g]
     dl.appendChild(dt)
     for (s in this.bm[g]) {
       dd = e('dd')
       dl.appendChild(dd)
-      var inp = e('input')
+      const inp = e('input')
       inp.setAttribute('name', g)
       inp.setAttribute('value', s)
       inp.setAttribute('id', id + g + s)
       inp.setAttribute('class', g + s)
       inp.setAttribute('type', 'radio')
       this.bme[g + s] = inp
-      var me = this
       inp.onchange = function () {
-        me.setMetric(this)
+        this.setMetric(this)
       }
       dd.appendChild(inp)
       l = e('label')
@@ -257,8 +256,8 @@ CVSS.prototype.severityRatings = [
 ]
 
 CVSS.prototype.severityRating = function (score) {
-  var i
-  var severityRatingLength = this.severityRatings.length
+  let i
+  const severityRatingLength = this.severityRatings.length
   for (i = 0; i < severityRatingLength; i++) {
     if (
       score >= this.severityRatings[i].bottom &&
@@ -275,10 +274,10 @@ CVSS.prototype.severityRating = function (score) {
 }
 
 CVSS.prototype.calculate = function () {
-  var exploitabilityCoefficient = 8.22
-  var scopeCoefficient = 1.08
+  const exploitabilityCoefficient = 8.22
+  const scopeCoefficient = 1.08
 
-  var Weight = {
+  const Weight = {
     AV: {
       N: 0.85,
       A: 0.62,
@@ -326,9 +325,9 @@ CVSS.prototype.calculate = function () {
     }
   }
 
-  var p
-  var val = {}
-  var metricWeight = {}
+  let p
+  const val = {}
+  const metricWeight = {}
   try {
     for (p in this.bg) {
       val[p] = this.calc.elements[p].value
@@ -342,15 +341,15 @@ CVSS.prototype.calculate = function () {
   }
   metricWeight.PR = Weight.PR[val.S][val.PR]
   try {
-    var baseScore
-    var impactSubScore
-    var exploitabalitySubScore =
+    let baseScore
+    let impactSubScore
+    const exploitabalitySubScore =
       exploitabilityCoefficient *
       metricWeight.AV *
       metricWeight.AC *
       metricWeight.PR *
       metricWeight.UI
-    var impactSubScoreMultiplier =
+    const impactSubScoreMultiplier =
       1 - (1 - metricWeight.C) * (1 - metricWeight.I) * (1 - metricWeight.A)
     if (val.S === 'U') {
       impactSubScore = metricWeight.S * impactSubScoreMultiplier
@@ -388,11 +387,11 @@ CVSS.prototype.get = function () {
 }
 
 CVSS.prototype.setMetric = function (a) {
-  var vectorString = this.vector.innerHTML
+  let vectorString = this.vector.innerHTML
   if (!/AV:.\/AC:.\/PR:.\/UI:.\/S:.\/C:.\/I:.\/A:./.test(vectorString)) {
     vectorString = 'AV:_/AC:_/PR:_/UI:_/S:_/C:_/I:_/A:_'
   }
-  var newVec = vectorString.replace(
+  const newVec = vectorString.replace(
     new RegExp('\\b' + a.name + ':.'),
     a.name + ':' + a.value
   )
@@ -400,11 +399,11 @@ CVSS.prototype.setMetric = function (a) {
 }
 
 CVSS.prototype.set = function (vec) {
-  var newVec = 'CVSS:3.1/'
-  var sep = ''
-  var match
-  var check
-  var m
+  let newVec = 'CVSS:3.1/'
+  let sep = ''
+  let match
+  let check
+  let m
   for (m in this.bm) {
     if (
       (match = new RegExp('\\b(' + m + ':[' + this.bmgReg[m] + '])').exec(
@@ -423,7 +422,7 @@ CVSS.prototype.set = function (vec) {
       newVec = newVec + sep + m + ':H'
     } else {
       newVec = newVec + sep + m + ':_'
-      for (var j in this.bm[m]) {
+      for (const j in this.bm[m]) {
         this.bme[m + j].checked = false
       }
     }
@@ -434,9 +433,9 @@ CVSS.prototype.set = function (vec) {
 
 CVSS.prototype.update = function (newVec) {
   this.vector.innerHTML = newVec
-  var s = this.calculate()
+  const s = this.calculate()
   this.score.innerHTML = s
-  var rating = this.severityRating(s)
+  const rating = this.severityRating(s)
   this.severity.className = rating.name + ' severity'
   this.severity.innerHTML =
     rating.name + '<sub>' + rating.bottom + ' - ' + rating.top + '</sub>'

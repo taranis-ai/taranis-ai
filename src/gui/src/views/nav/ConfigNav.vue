@@ -1,32 +1,22 @@
 <template>
-  <icon-navigation
-    v-if="links.length > 0"
-    :links="links"
-    icon="mdi-ballot-outline"
-  />
+  <icon-navigation :links="links" />
 </template>
 
 <script>
-import IconNavigation from '@/components/common/IconNavigation'
+import IconNavigation from '@/components/common/IconNavigation.vue'
 
 export default {
   name: 'ConfigNav',
   components: {
     IconNavigation
   },
-  computed: {
-    l() {
-      return this.links
-    }
-  },
   data: () => ({
     links: [
       {
         icon: 'mdi-monitor-dashboard',
         title: 'nav_menu.dashboard',
-        route: '/config'
+        route: '/config/dashboard'
       },
-      { separator: '1' },
       {
         icon: 'mdi-account-group',
         title: 'nav_menu.users',
@@ -55,9 +45,9 @@ export default {
         icon: 'mdi-server-network',
         title: 'nav_menu.nodes',
         route: '/config/nodes',
-        permission: 'CONFIG_NODE_ACCESS'
+        permission: 'CONFIG_NODE_ACCESS',
+        separator: '1'
       },
-      { separator: '1' },
       {
         icon: 'mdi-animation-outline',
         title: 'nav_menu.osint_sources',
@@ -68,23 +58,23 @@ export default {
         icon: 'mdi-folder-multiple',
         title: 'nav_menu.osint_source_groups',
         route: '/config/collectors/groups',
-        permission: 'CONFIG_OSINT_SOURCE_GROUP_ACCESS'
+        permission: 'CONFIG_OSINT_SOURCE_GROUP_ACCESS',
+        separator: '1'
       },
-      { separator: '1' },
       {
         icon: 'mdi-file-document-outline',
         title: 'nav_menu.product_types',
         route: '/config/product/types',
-        permission: 'CONFIG_PRODUCT_TYPE_ACCESS'
+        permission: 'CONFIG_PRODUCT_TYPE_ACCESS',
+        separator: '1'
       },
-      { separator: '1' },
       {
         icon: 'mdi-file-star-outline',
         title: 'nav_menu.publisher_presets',
         route: '/config/publishers/presets',
-        permission: 'CONFIG_PUBLISHER_PRESET_ACCESS'
+        permission: 'CONFIG_PUBLISHER_PRESET_ACCESS',
+        separator: '1'
       },
-      { separator: '1' },
       {
         icon: 'mdi-application-variable-outline',
         title: 'nav_menu.attributes',
@@ -95,16 +85,16 @@ export default {
         icon: 'mdi-file-table-outline',
         title: 'nav_menu.report_types',
         route: '/config/reportitems/types',
-        permission: 'CONFIG_REPORT_TYPE_ACCESS'
+        permission: 'CONFIG_REPORT_TYPE_ACCESS',
+        separator: '1'
       },
-      { separator: '1' },
       {
         icon: 'mdi-format-list-text',
         title: 'nav_menu.word_lists',
         route: '/config/wordlists',
-        permission: 'CONFIG_WORD_LIST_ACCESS'
+        permission: 'CONFIG_WORD_LIST_ACCESS',
+        separator: '1'
       },
-      { separator: '1' },
       {
         icon: 'mdi-remote-desktop',
         title: 'nav_menu.remote_access',

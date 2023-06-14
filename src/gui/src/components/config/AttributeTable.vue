@@ -4,37 +4,40 @@
       <v-toolbar-title>{{ $t('attribute.attributes') }}</v-toolbar-title>
       <v-divider class="mx-4" inset vertical></v-divider>
       <v-spacer></v-spacer>
-      <v-dialog v-if="!disabled" v-model="dialog" max-width="500px">
-        <template v-slot:activator="{ on }">
-          <v-btn color="primary" dark class="mb-2" v-on="on">
-            <v-icon left>mdi-plus</v-icon>
-            <span>{{ $t('attribute.new_attribute') }}</span>
-          </v-btn>
-        </template>
+      <v-btn
+        color="primary"
+        dark
+        class="mb-2"
+        prepend-icon="mdi-plus"
+        @click="dialog = true"
+      >
+        {{ $t('attribute.new_attribute') }}
+      </v-btn>
+
+      <v-dialog v-model="dialog" width="auto">
         <v-card>
           <v-card-title>
-            <span class="headline">{{ formTitle }}</span>
+            {{ formTitle }}
           </v-card-title>
 
           <v-card-text>
             <v-combobox
               v-model="attribute_type"
               :items="attribute_templates"
-              item-text="name"
+              item-title="name"
               :label="$t('attribute.attribute')"
-            ></v-combobox>
+            />
 
             <v-text-field
               v-model="edited_attribute.title"
               :label="$t('attribute.name')"
-              :spellcheck="$store.state.settings.spellcheck"
-            ></v-text-field>
+            />
 
             <v-text-field
               v-model="edited_attribute.description"
               :label="$t('attribute.description')"
-              :spellcheck="$store.state.settings.spellcheck"
-            ></v-text-field>
+              :spellcheck="spellcheck"
+            />
 
             <v-row>
               <v-col>
@@ -76,25 +79,40 @@
       </v-dialog>
     </v-toolbar>
 
-    <v-data-table
-      :headers="headers"
-      :items="attribute_contents"
-      :hide-default-footer="attribute_contents.length < 10"
-    >
-      <template v-slot:[`item.actions`]="{ item }">
-        <v-icon v-if="!disabled" small class="mr-2" @click="editItem(item)">
-          edit
-        </v-icon>
-        <v-icon v-if="!disabled" small @click="deleteItem(item)">
-          delete
-        </v-icon>
+    <v-data-table :headers="headers" :items="attribute_contents">
+      <template #item.actions="{ item }">
+        <div class="d-inline-flex">
+          <v-tooltip left>
+            <template #activator="{ props }">
+              <v-icon v-bind="props" @click.stop="editItem(item.raw)">
+                mdi-pencil
+              </v-icon>
+            </template>
+            <span>Edit</span>
+          </v-tooltip>
+          <v-tooltip left>
+            <template #activator="{ props }">
+              <v-icon
+                v-bind="props"
+                color="red"
+                @click.stop="deleteItem(item.raw)"
+              >
+                mdi-delete
+              </v-icon>
+            </template>
+            <span>Delete</span>
+          </v-tooltip>
+        </div>
       </template>
+      <template v-if="attribute_contents.length < 10" #bottom />
     </v-data-table>
   </v-container>
 </template>
 
 <script>
-import { mapActions, mapGetters } from 'vuex'
+import { mapActions, mapState } from 'pinia'
+import { useSettingsStore } from '@/stores/SettingsStore'
+import { useConfigStore } from '@/stores/ConfigStore'
 
 export default {
   name: 'AttributeTable',
@@ -133,22 +151,24 @@ export default {
     }
   }),
   computed: {
+    ...mapState(useSettingsStore, ['spellcheck']),
+    ...mapState(useConfigStore, { store_attributes: 'attributes' }),
     attribute_contents() {
       return this.attributes || []
     },
     headers() {
       return [
         {
-          text: 'Type',
-          value: 'attribute_name',
+          title: 'Type',
+          key: 'attribute_name',
           align: 'left',
           sortable: false
         },
-        { text: 'Name', value: 'title', sortable: false },
-        { text: 'Description', value: 'description', sortable: false },
-        { text: 'Min Occurence', value: 'min_occurrence', sortable: false },
-        { text: 'Max Occurence', value: 'max_occurrence', sortable: false },
-        { text: 'Actions', value: 'actions', align: 'right', sortable: false }
+        { title: 'Name', key: 'title', sortable: false },
+        { title: 'Description', key: 'description', sortable: false },
+        { title: 'Min Occurence', key: 'min_occurrence', sortable: false },
+        { title: 'Max Occurence', key: 'max_occurrence', sortable: false },
+        { title: 'Actions', key: 'actions', align: 'right', sortable: false }
       ]
     },
 
@@ -156,14 +176,14 @@ export default {
       return this.edited_index === -1 ? 'Add Attribute' : 'Edit Attribute'
     }
   },
-  watch: {
-    dialog(val) {
-      val || this.close()
-    }
+  mounted() {
+    this.loadAttributes().then(() => {
+      this.attribute_templates = this.store_attributes.items
+    })
+    this.edited_attribute.index = this.attribute_contents.length
   },
   methods: {
-    ...mapGetters('config', ['getAttributes']),
-    ...mapActions('config', ['loadAttributes']),
+    ...mapActions(useConfigStore, ['loadAttributes']),
     close() {
       this.dialog = false
       this.$nextTick(() => {
@@ -203,12 +223,6 @@ export default {
           attribute_template.id === this.edited_attribute.attribute_id
       )
     }
-  },
-  mounted() {
-    this.loadAttributes().then(() => {
-      this.attribute_templates = this.getAttributes().items
-    })
-    this.edited_attribute.index = this.attribute_contents.length
   }
 }
 </script>

@@ -1,11 +1,9 @@
 <template>
-  <v-row v-bind="UI.DIALOG.ROW.WINDOW">
-    <v-dialog v-bind="UI.DIALOG.FULLSCREEN" v-model="dialog">
-      <v-card v-bind="UI.DIALOG.BASEMENT">
-        <v-toolbar v-bind="UI.DIALOG.TOOLBAR" :style="UI.STYLE.z10000">
-          <v-btn v-bind="UI.BUTTON.CLOSE_ICON" @click="close">
-            <v-icon>{{ UI.ICON.CLOSE }}</v-icon>
-          </v-btn>
+  <v-row>
+    <v-dialog v-model="dialog">
+      <v-card>
+        <v-toolbar>
+          <v-btn icon="mdi-close" @click="close"> </v-btn>
           <v-toolbar-title>{{ $t('report_item.select') }}</v-toolbar-title>
           <v-spacer></v-spacer>
           <v-btn text dark @click="add">
@@ -16,19 +14,19 @@
         <v-container fluid class="pa-0 ma-0">
           <div :style="UI.STYLE.sticky_filter_toolbar">
             <ToolbarFilterAnalyze
+              ref="toolbarFilter"
               publish_selector
               total_count_title="analyze.total_count"
               @update-report-items-filter="updateFilter"
-              ref="toolbarFilter"
             />
           </div>
 
           <ContentDataAnalyze
+            ref="contentData"
             publish_selector
             :selection="selector_values"
             class="item-selector"
             card-item="CardAnalyze"
-            ref="contentData"
             @show-report-item-detail="showReportItemDetail"
             @new-data-loaded="newDataLoaded"
           />
@@ -38,15 +36,13 @@
 
     <v-spacer style="height: 8px"></v-spacer>
 
-    <NewReportItem ref="reportItemDialog" />
-
     <component
+      :is="cardLayout()"
+      v-for="sel_value in selector_values"
+      :key="sel_value.id"
       publish_selector
       class="item-selector"
-      v-bind:is="cardLayout()"
-      v-for="value in selector_values"
-      :card="value"
-      :key="value.id"
+      :card="sel_value"
       @show-report-item-detail="showReportItemDetail"
       @remove-report-item-from-selector="removeReportItemFromSelector"
     />
@@ -54,42 +50,41 @@
 </template>
 
 <script>
-import ContentDataAnalyze from '@/components/analyze/ContentDataAnalyze'
-import ToolbarFilter from '@/components/common/ToolbarFilter'
 import CardAnalyze from '../analyze/CardAnalyze'
-import ToolbarFilterAnalyze from '@/components/analyze/ToolbarFilterAnalyze'
-import NewReportItem from '@/components/analyze/NewReportItem'
+import ToolbarFilterAnalyze from '@/components/analyze/ToolbarFilterAnalyze.vue'
 import AuthMixin from '@/services/auth/auth_mixin'
-import { mapGetters, mapActions } from 'vuex'
+import { mapActions } from 'pinia'
+import { useAnalyzeStore } from '@/stores/AnalyzeStore'
 
 export default {
   name: 'ReportItemSelector',
   components: {
     ToolbarFilterAnalyze,
-    ContentDataAnalyze,
-    ToolbarFilter,
-    CardAnalyze,
-    NewReportItem
+    CardAnalyze
   },
   mixins: [AuthMixin],
   props: {
-    values: Array,
-    modify: Boolean,
-    edit: Boolean
+    values: {
+      type: Array,
+      required: true
+    },
+    modify: {
+      type: Boolean
+    },
+    edit: {
+      type: Boolean
+    }
   },
   data: () => ({
     dialog: false,
     value: '',
     selector_values: this.values
   }),
-  computed: {},
+  computed: {
+    ...mapActions(useAnalyzeStore, ['selection_report'])
+  },
   methods: {
-    ...mapGetters('analyze', [
-      'getCurrentReportItemGroup',
-      'getReportItems',
-      'getSelectionReport'
-    ]),
-    ...mapActions('analyze', ['selectReport', 'multiSelectReport']),
+    ...mapActions(useAnalyzeStore, ['setMultiSelectReport']),
     newDataLoaded(count) {
       this.$refs.toolbarFilter.updateDataCount(count)
     },
@@ -112,12 +107,12 @@ export default {
     },
 
     openSelector() {
-      this.$store.dispatch('multiSelectReport', true)
+      this.setMultiSelectReport(true)
       this.dialog = true
     },
 
     add() {
-      const selection = this.getSelectionReport()
+      const selection = this.selection_report
       for (let i = 0; i < selection.length; i++) {
         let found = false
         for (let j = 0; j < this.selector_values.length; j++) {
@@ -137,7 +132,7 @@ export default {
     },
 
     close() {
-      this.$store.dispatch('multiSelectReport', false)
+      this.setMultiSelectReport(false)
       this.dialog = false
     }
   }

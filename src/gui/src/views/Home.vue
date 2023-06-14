@@ -4,29 +4,29 @@
       <dash-board-card
         v-for="cluster in clusters"
         :key="cluster.name"
-        :linkTo="`/assess?tags=${cluster.name}`"
-        :linkText="cluster.name"
+        :link-to="`/assess?tags=${cluster.name}`"
+        :link-text="cluster.name"
       >
-        <template v-slot:content>
+        <template #card>
           <trending-card :cluster="cluster" />
         </template>
       </dash-board-card>
 
-      <dash-board-card linkTo="/assess" linkText="Assess">
-        <template v-slot:content>
+      <dash-board-card link-to="/assess" link-text="Assess">
+        <template #content>
           <v-icon class="mr-2"> mdi-email-multiple </v-icon>
           <span class="caption">
             There are
-            <strong>{{ dashboardData.total_news_items }}</strong> total Assess
+            <strong>{{ dashboard_data.total_news_items }}</strong> total Assess
             items.
           </span>
         </template>
       </dash-board-card>
-      <dash-board-card linkTo="/analyze" linkText="Analyze">
-        <template v-slot:content>
+      <dash-board-card link-to="/analyze" link-text="Analyze">
+        <template #content>
           <v-icon class="mr-2"> mdi-account </v-icon>
           <span class="caption">
-            There are <b>{{ dashboardData.report_items_completed }}</b>
+            There are <b>{{ dashboard_data.report_items_completed }}</b>
             completed analyses.
           </span>
           <v-divider inset></v-divider>
@@ -34,16 +34,16 @@
             mdi-account-question-outline
           </v-icon>
           <span class="caption">
-            There are <b>{{ dashboardData.report_items_in_progress }}</b>
+            There are <b>{{ dashboard_data.report_items_in_progress }}</b>
             pending analyses.
           </span>
         </template>
       </dash-board-card>
-      <dash-board-card linkTo="/publish" linkText="Publish">
-        <template v-slot:content>
+      <dash-board-card link-to="/publish" link-text="Publish">
+        <template #content>
           <v-icon class="mr-2" color="orange"> mdi-email-check-outline </v-icon>
           <span class="caption">
-            There are <b>{{ dashboardData.total_products }}</b> products ready
+            There are <b>{{ dashboard_data.total_products }}</b> products ready
             for publications.
           </span>
         </template>
@@ -53,37 +53,34 @@
 </template>
 
 <script>
-import DashBoardCard from '@/components/common/DashBoardCard'
-import { mapGetters, mapActions } from 'vuex'
-import TrendingCard from '@/components/common/TrendingCard'
+import DashBoardCard from '@/components/common/DashBoardCard.vue'
+import { onMounted } from 'vue'
+import TrendingCard from '@/components/common/TrendingCard.vue'
+import { defineComponent } from 'vue'
+import { useDashboardStore } from '@/stores/DashboardStore'
+import { storeToRefs } from 'pinia'
+import { useMainStore } from '@/stores/MainStore'
 
-export default {
-  name: 'Home',
+export default defineComponent({
+  name: 'HomeView',
   components: {
     DashBoardCard,
     TrendingCard
   },
-  data: () => ({
-    dashboardData: {},
-    clusters: []
-  }),
-  computed: {
-    totalItems() {
-      return this.getItemCount().total
+  setup() {
+    const mainStore = useMainStore()
+    const dashboardStore = useDashboardStore()
+    const { dashboard_data, clusters } = storeToRefs(dashboardStore)
+
+    onMounted(() => {
+      dashboardStore.loadDashboardData()
+      dashboardStore.loadClusters()
+      mainStore.resetItemCount()
+    })
+    return {
+      dashboard_data,
+      clusters
     }
-  },
-  methods: {
-    ...mapActions('dashboard', ['loadDashboardData', 'loadClusters']),
-    ...mapGetters('dashboard', ['getDashboardData', 'getClusters']),
-    ...mapGetters(['getItemCount'])
-  },
-  mounted() {
-    this.loadDashboardData().then(() => {
-      this.dashboardData = this.getDashboardData()
-    })
-    this.loadClusters().then(() => {
-      this.clusters = this.getClusters()
-    })
   }
-}
+})
 </script>

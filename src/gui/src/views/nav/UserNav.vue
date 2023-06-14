@@ -1,9 +1,9 @@
 <template>
-  <icon-navigation :links="links" icon="mdi-ballot-outline" />
+  <icon-navigation :links="links" />
 </template>
 
 <script>
-import IconNavigation from '@/components/common/IconNavigation'
+import IconNavigation from '@/components/common/IconNavigation.vue'
 
 export default {
   name: 'UserNav',

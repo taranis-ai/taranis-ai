@@ -1,43 +1,43 @@
 <template>
   <v-form
-    @submit.prevent="add"
     id="form"
     ref="form"
     style="width: 100%; padding: 8px"
+    @submit.prevent="add"
   >
     <v-card>
       <v-card-text>
         <v-text-field
+          v-model="news_item.title"
+          v-validate="'required'"
           :label="$t('enter.title')"
           name="title"
           type="text"
-          v-model="news_item.title"
-          v-validate="'required'"
           data-vv-name="title"
           :error-messages="errors.collect('title')"
         ></v-text-field>
 
         <v-textarea
+          v-model="news_item.review"
           :label="$t('enter.review')"
           name="review"
-          v-model="news_item.review"
         ></v-textarea>
 
         <v-text-field
+          v-model="news_item.source"
           :label="$t('enter.source')"
           name="source"
           type="text"
-          v-model="news_item.source"
         ></v-text-field>
 
         <v-text-field
+          v-model="news_item.link"
           :label="$t('enter.link')"
           name="link"
           type="text"
-          v-model="news_item.link"
         ></v-text-field>
 
-        <vue-editor v-model="editorData" :editorOptions="editorOptionVue2" />
+        <quill-editor v-model="editorData" :editor-options="editorOptions" />
       </v-card-text>
     </v-card>
     <v-spacer class="pt-2"></v-spacer>
@@ -46,21 +46,23 @@
 </template>
 
 <script>
-import { VueEditor } from 'vue2-editor'
+import { quillEditor } from 'vue3-quill'
 import { addNewsItem } from '@/api/assess'
+import { notifySuccess } from '@/utils/helpers'
+import { mapState } from 'pinia'
+import { useMainStore } from '@/stores/MainStore'
 
 export default {
-  name: 'Enter',
+  name: 'EnterView',
   components: {
-    VueEditor
+    quillEditor
   },
   data: () => ({
     show_error: false,
     show_validation_error: false,
 
     editorData: '<p></p>',
-    editorOptionVue2: {
-      theme: 'snow',
+    editorOptions: {
       placeholder: 'insert text here ...'
     },
 
@@ -80,6 +82,9 @@ export default {
       attributes: []
     }
   }),
+  computed: {
+    ...mapState(useMainStore, ['user'])
+  },
   methods: {
     add() {
       this.$validator.validateAll().then(() => {
@@ -93,12 +98,7 @@ export default {
             len
           )
 
-          this.news_item.author = this.$store.getters.getUserName
-          this.news_item.language =
-            typeof process.env.VUE_APP_TARANIS_NG_LOCALE === 'undefined'
-              ? '$VUE_APP_TARANIS_NG_LOCALE'
-              : process.env.VUE_APP_TARANIS_NG_LOCALE
-
+          this.news_item.author = this.user.name
           const d = new Date()
           this.news_item.collected =
             this.appendLeadingZeroes(d.getDate()) +
@@ -132,10 +132,7 @@ export default {
 
               this.editorData = '<p></p>'
 
-              this.$root.$emit('notification', {
-                type: 'success',
-                loc: 'enter.successful'
-              })
+              notifySuccess('enter.successful')
             })
             .catch(() => {
               this.show_error = true
@@ -152,8 +149,6 @@ export default {
       }
       return n
     }
-  },
-
-  created() {}
+  }
 }
 </script>

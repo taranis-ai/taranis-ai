@@ -5,11 +5,11 @@
       <v-row>
         <v-text-field
           v-if="ui === 'text'"
+          v-model="value[index]"
+          v-validate="'required'"
           :label="parameter.name"
           :name="'parameter' + index"
           type="text"
-          v-model="value[index]"
-          v-validate="'required'"
           :data-vv-name="'parameter' + index"
           :disabled="disabled"
           :error-messages="errors.collect('parameter' + index)"
@@ -19,7 +19,7 @@
           v-else-if="ui === 'combobox'"
           :label="$t(parameter.name)"
           :items="[]"
-          item-text="name"
+          item-title="name"
         />
 
         <v-select v-else-if="ui === 'select'" :label="$t(parameter.name)" />
@@ -31,8 +31,8 @@
         />
 
         <v-tooltip left>
-          <template v-slot:activator="{ on, attrs }">
-            <v-icon color="primary" dark v-bind="attrs" v-on="on" class="pr-2">
+          <template #activator="{ props }">
+            <v-icon color="primary" dark v-bind="props" class="pr-2">
               mdi-help-circle
             </v-icon>
           </template>
@@ -47,10 +47,22 @@
 export default {
   name: 'FormParameters',
   props: {
-    ui: String,
-    sources: Array,
-    values: Array,
-    disabled: Boolean
+    ui: {
+      type: String,
+      default: 'text'
+    },
+    sources: {
+      type: Array,
+      default: () => []
+    },
+    values: {
+      type: Array,
+      default: () => []
+    },
+    disabled: {
+      type: Boolean,
+      default: false
+    }
   },
   data: () => ({
     value: this.values

@@ -1,75 +1,58 @@
 <template>
-  <div class="user-menu cx-user-menu">
-    <v-menu close-on-click close-on-content-click offset-y st>
-      <template v-slot:activator="{ on }">
-        <div class="user-menu-button pl-0 mr-0">
-          <v-btn depressed icon tile v-on="on">
-            <v-icon color="dark-grey" medium>mdi-account</v-icon>
-          </v-btn>
-        </div>
-      </template>
-      <v-list>
-        <v-list-item @click="userview">
-          <v-list-item-avatar class="">
-            <v-icon>mdi-account</v-icon>
-          </v-list-item-avatar>
-          <v-list-item-content>
-            <v-list-item-title>{{ username }}</v-list-item-title>
-            <v-list-item-subtitle>{{ organizationName }}</v-list-item-subtitle>
-          </v-list-item-content>
-        </v-list-item>
-        <v-divider></v-divider>
+  <v-menu close-on-back close-on-content-click>
+    <template #activator="{ props }">
+      <v-btn icon="mdi-account" v-bind="props" />
+    </template>
+    <v-list>
+      <v-list-item prepend-icon="mdi-account" @click="userview">
+        <v-list-item-title>{{ user.name }}</v-list-item-title>
+        <v-list-item-subtitle>{{
+          user.organization_name
+        }}</v-list-item-subtitle>
+      </v-list-item>
+      <v-divider></v-divider>
 
-        <v-list-item @click="settings">
-          <v-list-item-icon>
-            <v-icon>mdi-cog-outline</v-icon>
-          </v-list-item-icon>
-          <v-list-item-content>
-            <v-list-item-title>
-              {{ $t('user_menu.settings') }}</v-list-item-title
-            >
-          </v-list-item-content>
-        </v-list-item>
+      <v-list-item prepend-icon="mdi-cog-outline" @click="settings">
+        <v-list-item-title> {{ $t('user_menu.settings') }}</v-list-item-title>
+      </v-list-item>
 
-        <v-list-item @click="logout">
-          <v-list-item-icon>
-            <v-icon>mdi-logout</v-icon>
-          </v-list-item-icon>
-          <v-list-item-content>
-            <v-list-item-title> {{ $t('user_menu.logout') }}</v-list-item-title>
-          </v-list-item-content>
-        </v-list-item>
-      </v-list>
-    </v-menu>
-  </div>
+      <v-list-item prepend-icon="mdi-logout" @click="logout">
+        <v-list-item-title> {{ $t('user_menu.logout') }}</v-list-item-title>
+      </v-list-item>
+    </v-list>
+  </v-menu>
 </template>
 
 <script>
+import { useAuthStore } from '@/stores/AuthStore'
+import { useMainStore } from '@/stores/MainStore'
+import { useRouter } from 'vue-router'
+
 export default {
   name: 'UserMenu',
-  data: () => ({
-    darkTheme: false
-  }),
-  computed: {
-    username() {
-      return this.$store.getters.getUserName
-    },
-    organizationName() {
-      return this.$store.getters.getOrganizationName
+  setup() {
+    const { user } = useMainStore()
+    const authStore = useAuthStore()
+    const router = useRouter()
+
+    const logout = async () => {
+      await authStore.logout()
+      window.location.reload()
     }
-  },
-  methods: {
-    logout() {
-      this.$store.dispatch('logout').then(() => {
-        window.location.reload()
-      })
-    },
-    settings() {
-      this.$router.push({ path: '/user/settings' })
-      // this.$root.$emit('show-user-settings')
-    },
-    userview() {
-      this.$router.push({ path: '/user' })
+
+    const settings = () => {
+      router.push({ path: '/user/settings' })
+    }
+
+    const userview = () => {
+      router.push({ path: '/user' })
+    }
+
+    return {
+      user,
+      logout,
+      settings,
+      userview
     }
   }
 }

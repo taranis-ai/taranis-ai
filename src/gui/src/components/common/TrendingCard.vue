@@ -1,11 +1,15 @@
 <template>
-  <div>
-    <v-icon left>{{ tagIcon(cluster.tag_type) }}</v-icon>
-    {{ tagText(cluster.tag_type) }}
-    <span class="ml-4"> SIZE: {{ cluster.size }}</span>
+  <v-card-subtitle>
+    <span>
+      <v-icon :icon="tagIcon(cluster.tag_type)" />
+      {{ tagText(cluster.tag_type) }}
+    </span>
+    <span class="ml-5"> Cluster size: {{ cluster.size }}</span>
     <v-divider class="mt-2 mb-2" />
-    <trending-chart :dataPoints="cluster.published" :timespan="10" />
-  </div>
+  </v-card-subtitle>
+  <v-card-text>
+    <trending-chart :data-points="cluster.published" :timespan="10" />
+  </v-card-text>
 </template>
 
 <script>
@@ -14,11 +18,11 @@ import { tagIconFromType, tagTextFromType } from '@/utils/helpers'
 
 export default {
   name: 'TrendingCard',
-  props: {
-    cluster: { type: Object, required: true }
-  },
   components: {
     TrendingChart
+  },
+  props: {
+    cluster: { type: Object, required: true }
   },
   data: function () {
     return {}
@@ -30,8 +34,6 @@ export default {
     tagText(tag_type) {
       return tagTextFromType(tag_type)
     }
-  },
-  computed: {},
-  mounted() {}
+  }
 }
 </script>

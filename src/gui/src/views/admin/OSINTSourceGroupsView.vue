@@ -1,11 +1,11 @@
 <template>
   <div>
     <DataTable
-      :addButton="true"
-      :items.sync="osint_source_groups"
-      :headerFilter="['tag', 'default', 'name', 'description']"
-      sortByItem="id"
-      :actionColumn="true"
+      v-model:items="osint_source_groups.items"
+      :add-button="true"
+      :header-filter="['tag', 'default', 'name', 'description']"
+      sort-by-item="id"
+      :action-column="true"
       @delete-item="deleteItem"
       @edit-item="editItem"
       @add-item="addItem"
@@ -15,143 +15,157 @@
     </DataTable>
     <EditConfig
       v-if="formData && Object.keys(formData).length > 0"
-      :configData="formData"
-      :formFormat="formFormat"
+      :config-data="formData"
+      :form-format="formFormat"
       @submit="handleSubmit"
     ></EditConfig>
   </div>
 </template>
 
 <script>
-import DataTable from '@/components/common/DataTable'
-import EditConfig from '../../components/config/EditConfig'
+import DataTable from '@/components/common/DataTable.vue'
+import EditConfig from '@/components/config/EditConfig.vue'
 import {
   createOSINTSourceGroup,
   deleteOSINTSourceGroup,
   updateOSINTSourceGroup
 } from '@/api/config'
-import { mapActions, mapGetters } from 'vuex'
+import { ref, computed, onMounted } from 'vue'
 import { notifySuccess, objectFromFormat, notifyFailure } from '@/utils/helpers'
+import { useConfigStore } from '@/stores/ConfigStore'
+import { useMainStore } from '@/stores/MainStore'
+import { storeToRefs } from 'pinia'
 
 export default {
-  name: 'OSINTSources',
+  name: 'OSINTSourceGroupsView',
   components: {
     DataTable,
     EditConfig
   },
-  data: () => ({
-    osint_source_groups: [],
-    osint_sources: [],
-    selected: [],
-    formData: {},
-    edit: false
-  }),
-  computed: {
-    formFormat() {
-      return [
-        {
-          name: 'id',
-          label: 'ID',
-          type: 'text',
-          disabled: true
-        },
-        {
-          name: 'name',
-          label: 'Name',
-          type: 'text',
-          required: true
-        },
-        {
-          name: 'description',
-          label: 'Description',
-          type: 'textarea',
-          required: true
-        },
-        {
-          name: 'osint_sources',
-          label: 'Sources',
-          type: 'table',
-          headers: [
-            { text: 'Name', value: 'name' },
-            { text: 'Description', value: 'description' }
-          ],
-          items: this.osint_sources
-        }
-      ]
-    }
-  },
-  methods: {
-    ...mapActions('config', ['loadOSINTSourceGroups', 'loadOSINTSources']),
-    ...mapGetters('config', ['getOSINTSourceGroups', 'getOSINTSources']),
+  setup() {
+    const store = useConfigStore()
+    const mainStore = useMainStore()
+    const { osint_source_groups, osint_sources } = storeToRefs(store)
+    const selected = ref([])
+    const formData = ref({})
+    const edit = ref(false)
 
-    ...mapActions(['updateItemCount']),
-    updateData() {
-      this.loadOSINTSourceGroups().then(() => {
-        const sources = this.getOSINTSourceGroups()
-        this.osint_source_groups = sources.items
-        this.updateItemCount({
-          total: sources.total_count,
-          filtered: sources.length
-        })
+    const formFormat = computed(() => [
+      {
+        name: 'id',
+        label: 'ID',
+        type: 'text',
+        disabled: true
+      },
+      {
+        name: 'name',
+        label: 'Name',
+        type: 'text',
+        required: true
+      },
+      {
+        name: 'description',
+        label: 'Description',
+        type: 'textarea',
+        required: true
+      },
+      {
+        name: 'osint_sources',
+        label: 'Sources',
+        type: 'table',
+        headers: [
+          { title: 'Name', key: 'name' },
+          { title: 'Description', key: 'description' }
+        ],
+        items: osint_sources.value.items
+      }
+    ])
+
+    const updateData = () => {
+      store.loadOSINTSourceGroups().then(() => {
+        mainStore.itemCountTotal = osint_source_groups.value.total_count
+        mainStore.itemCountFiltered = osint_source_groups.value.items.length
       })
-      this.loadOSINTSources().then(() => {
-        this.osint_sources = this.getOSINTSources().items
-      })
-    },
-    addItem() {
-      this.formData = objectFromFormat(this.formFormat)
-      this.edit = false
-    },
-    editItem(item) {
-      this.formData = item
-      this.edit = true
-    },
-    handleSubmit(submittedData) {
-      if (this.edit) {
+      store.loadOSINTSources().then()
+    }
+
+    const addItem = () => {
+      formData.value = objectFromFormat(formFormat.value)
+      edit.value = false
+    }
+
+    const editItem = (item) => {
+      formData.value = item
+      edit.value = true
+    }
+
+    const handleSubmit = (submittedData) => {
+      if (edit.value) {
         console.debug(`Update: ${submittedData}`)
-        this.updateItem(submittedData)
+        updateItem(submittedData)
       } else {
         console.debug(`Create: ${submittedData}`)
-        this.createItem(submittedData)
+        createItem(submittedData)
       }
-    },
-    deleteItem(item) {
+    }
+
+    const deleteItem = (item) => {
       deleteOSINTSourceGroup(item)
         .then(() => {
           notifySuccess(`Successfully deleted ${item.name}`)
-          this.updateData()
+          updateData()
         })
         .catch(() => {
           notifyFailure(`Failed to delete ${item.name}`)
         })
-    },
-    createItem(item) {
+    }
+
+    const createItem = (item) => {
       createOSINTSourceGroup(item)
         .then(() => {
           notifySuccess(`Successfully created ${item.name}`)
-          this.updateData()
+          updateData()
         })
         .catch(() => {
           notifyFailure(`Failed to create ${item.name}`)
         })
-    },
-    updateItem(item) {
+    }
+
+    const updateItem = (item) => {
       updateOSINTSourceGroup(item)
         .then(() => {
           notifySuccess(`Successfully updated ${item.name}`)
-          this.updateData()
+          updateData()
         })
         .catch(() => {
           notifyFailure(`Failed to update ${item.name}`)
         })
-    },
-    selectionChange(selected) {
-      this.selected = selected.map((item) => item.id)
     }
-  },
-  mounted() {
-    this.updateData()
-  },
-  beforeDestroy() {}
+
+    const selectionChange = (selectedItems) => {
+      selected.value = selectedItems.map((item) => item.id)
+    }
+
+    onMounted(() => {
+      updateData()
+    })
+
+    return {
+      osint_source_groups,
+      osint_sources,
+      selected,
+      formData,
+      edit,
+      formFormat,
+      addItem,
+      editItem,
+      handleSubmit,
+      updateData,
+      deleteItem,
+      createItem,
+      updateItem,
+      selectionChange
+    }
+  }
 }
 </script>

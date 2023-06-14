@@ -104,7 +104,12 @@ class ReportItemTypesConfig(Resource):
 
     @auth_required("CONFIG_REPORT_TYPE_CREATE")
     def post(self):
-        report_item_type.ReportItemType.add_report_item_type(request.json)
+        try:
+            item_id = report_item_type.ReportItemType.add_report_item_type(request.json)
+            return {"message": "Report item type added", "id": item_id}, 201
+        except Exception:
+            logger.exception("Failed to add report item type")
+            return {"message": "Failed to add report item type"}, 500
 
 
 class ReportItemType(Resource):
@@ -228,13 +233,12 @@ class Users(Resource):
     @auth_required("CONFIG_USER_CREATE")
     def post(self):
         try:
-            external_auth_manager.create_user(request.json)
-        except Exception as ex:
-            logger.log_debug(ex)
-            logger.store_data_error_activity(get_user_from_jwt(), "Could not create user in external auth system")
-            return "", 400
-
-        user.User.add_new(request.json)
+            if external_auth_manager.keycloak_user_management_enabled():
+                return external_auth_manager.create_user(request.json), 200
+            return user.User.add_new(request.json), 200
+        except Exception:
+            logger.exception()
+            return "Could not create user", 400
 
 
 class User(Resource):
@@ -247,22 +251,23 @@ class User(Resource):
             return user.User.update(user_id, request.json), 200
         except Exception:
             logger.exception()
-            logger.store_data_error_activity(get_user_from_jwt(), "Could not update user in external auth system")
-            return "", 400
+            logger.store_data_error_activity(get_user_from_jwt(), "Could not update user")
+            return "Could not update user", 400
 
     @auth_required("CONFIG_USER_DELETE")
     def delete(self, user_id):
-        original_user = user.User.find_by_id(user_id)
-        original_username = original_user.username
-
-        user.User.delete(user_id)
-
         try:
-            external_auth_manager.delete_user(original_username)
+            original_user = user.User.find_by_id(user_id)
+            original_username = original_user.username
+            if external_auth_manager.keycloak_user_management_enabled():
+                return external_auth_manager.delete_user(original_username), 200
+
+            return user.User.delete(user_id), 200
+
         except Exception as ex:
-            logger.log_debug(ex)
-            logger.store_data_error_activity(get_user_from_jwt(), "Could not delete user in external auth system")
-            return "", 400
+            logger.exception(ex)
+            logger.store_data_error_activity(get_user_from_jwt(), "Could not delete user")
+            return "Could not delete user", 400
 
 
 class ExternalUsers(Resource):

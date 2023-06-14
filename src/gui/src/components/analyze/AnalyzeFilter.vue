@@ -28,7 +28,7 @@
 </template>
 
 <script>
-import DateInput from '../../components/common/DateInput'
+import DateInput from '@/components/common/DateInput.vue'
 
 export default {
   name: 'AnalyzeFilter',

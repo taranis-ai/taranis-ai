@@ -19,7 +19,7 @@ from core.managers.log_manager import logger
 
 class NewUserSchema(UserSchemaBase):
     password = fields.Str(required=False)
-    roles = fields.Nested(RoleIdSchema, many=True)
+    roles = fields.Nested(RoleIdSchema, many=True, only=["id"])
     permissions = fields.Nested(PermissionIdSchema, many=True)
     organization = fields.Nested(OrganizationSchema, only=["id"])
 
@@ -44,14 +44,14 @@ class User(db.Model):
     profile = db.relationship("UserProfile", cascade="all")
 
     def __init__(self, id, username, name, password, organization, roles, permissions):
-        self.id = id or None
+        self.id = id if id > 0 else None
         self.username = username
         self.name = name
         self.password = password
         self.organization = Organization.find(organization["id"]) if isinstance(organization, dict) else Organization.find(organization.id)
         self.roles = [Role.find(role.id) for role in roles]
         self.permissions = [Permission.find(permission.id) for permission in permissions]
-        self.profile = UserProfile(True, False, [])
+        self.profile = UserProfile(True, False, [], "en")
         self.tag = "mdi-account"
 
     @orm.reconstructor
@@ -106,6 +106,7 @@ class User(db.Model):
     @classmethod
     def add_new(cls, data):
         user = NewUserSchema().load(data)
+        user.password = generate_password_hash(user.password, method="sha256")
         db.session.add(user)
         db.session.commit()
 
@@ -184,13 +185,7 @@ class User(db.Model):
 
     @classmethod
     def update_profile(cls, user, data):
-        new_profile_schema = NewUserProfileSchema()
-        updated_profile = new_profile_schema.load(data)
-
-        user.profile.spellcheck = updated_profile.spellcheck
-        user.profile.dark_theme = updated_profile.dark_theme
-
-        user.profile.hotkeys = updated_profile.hotkeys
+        user.profile = NewUserProfileSchema().load(data)
 
         db.session.commit()
 
@@ -228,16 +223,14 @@ class UserProfile(db.Model):
     dark_theme = db.Column(db.Boolean, default=False)
 
     hotkeys = db.relationship("Hotkey", cascade="all, delete-orphan")
+    language = db.Column(db.String(2), default="en")
 
-    def __init__(self, spellcheck, dark_theme, hotkeys):
+    def __init__(self, spellcheck, dark_theme, hotkeys, language="en"):
         self.id = None
         self.spellcheck = spellcheck
         self.dark_theme = dark_theme
         self.hotkeys = hotkeys
-
-
-class UserProfileWordList(db.Model):
-    user_profile_id = db.Column(db.Integer, db.ForeignKey("user_profile.id"), primary_key=True)
+        self.language = language
 
 
 class Hotkey(db.Model):

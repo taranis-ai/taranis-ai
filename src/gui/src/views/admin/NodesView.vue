@@ -1,17 +1,17 @@
 <template>
   <div>
     <DataTable
-      :addButton="true"
-      :items.sync="nodes"
-      :headerFilter="['tag', 'name', 'description']"
-      :actionColumn="true"
+      v-model:items="nodes.items"
+      :add-button="false"
+      :header-filter="['tag', 'name', 'description']"
+      :action-column="true"
       @delete-item="deleteItem"
       @edit-item="editItem"
       @add-item="addItem"
       @update-items="updateData"
       @selection-change="selectionChange"
     >
-      <template v-slot:titlebar>
+      <template #titlebar>
         <v-btn color="blue-grey" dark class="ml-4" @click="triggerWorkers">
           <v-icon>mdi-run</v-icon>Trigger Workers
         </v-btn>
@@ -19,35 +19,39 @@
     </DataTable>
     <EditConfig
       v-if="formData && Object.keys(formData).length > 0"
-      :configData="formData"
-      :formFormat="formFormat"
+      :config-data="formData"
+      :form-format="formFormat"
       @submit="handleSubmit"
     ></EditConfig>
   </div>
 </template>
 
 <script>
-import DataTable from '@/components/common/DataTable'
-import EditConfig from '../../components/config/EditConfig'
+import DataTable from '@/components/common/DataTable.vue'
+import EditConfig from '@/components/config/EditConfig.vue'
 import { deleteNode, createNode, updateNode, triggerNode } from '@/api/config'
-import { mapActions, mapGetters } from 'vuex'
+import { mapActions } from 'pinia'
+import { useConfigStore } from '@/stores/ConfigStore'
+import { useMainStore } from '@/stores/MainStore'
 import { notifySuccess, notifyFailure, objectFromFormat } from '@/utils/helpers'
+import { ref, computed } from 'vue'
 
 export default {
-  name: 'Nodes',
+  name: 'NodesView',
   components: {
     DataTable,
     EditConfig
   },
-  data: () => ({
-    nodes: [],
-    formData: {},
-    edit: false,
-    selected: [],
-    workers: []
-  }),
-  computed: {
-    formFormat() {
+  setup() {
+    const formData = ref({})
+    const edit = ref(false)
+    const selected = ref([])
+    const workers = ref([])
+    const mainStore = useMainStore()
+    const nodes = useConfigStore().nodes
+    const collectors = useConfigStore().collectors
+
+    const formFormat = computed(() => {
       return [
         {
           name: 'id',
@@ -78,100 +82,118 @@ export default {
           type: 'text'
         },
         {
-          name: this.formData.type,
-          label: `${this.formData.type} Types`,
+          name: formData.value.type,
+          label: `${formData.value.type} Types`,
           type: 'table',
           disabled: true,
           headers: [
-            { text: 'Name', value: 'name' },
-            { text: 'Description', value: 'description' },
-            { text: 'Type', value: 'type' }
+            { title: 'Name', key: 'name' },
+            { title: 'Description', key: 'description' },
+            { title: 'Type', key: 'type' }
           ],
-          items: this.workers
+          items: workers.value
         }
       ]
-    }
-  },
-  methods: {
-    ...mapActions('config', ['loadNodes', 'loadCollectors']),
-    ...mapGetters('config', ['getNodes', 'getCollectors']),
-    ...mapActions(['updateItemCount']),
-    updateData() {
-      this.loadNodes().then(() => {
-        const sources = this.getNodes()
-        this.nodes = sources.items
-        this.updateItemCount({
-          total: sources.total_count,
-          filtered: sources.length
-        })
+    })
+
+    const loadNodes = mapActions(useConfigStore, ['loadNodes'])
+    const loadCollectors = mapActions(useConfigStore, ['loadCollectors'])
+
+    const updateData = () => {
+      loadNodes().then(() => {
+        mainStore.itemCountTotal = nodes.total_count
+        mainStore.itemCountFiltered = nodes.items.length
       })
-    },
-    addItem() {
-      this.formData = objectFromFormat(this.formFormat)
-      this.edit = false
-    },
-    editItem(item) {
+    }
+
+    const addItem = () => {
+      formData.value = objectFromFormat(formFormat.value)
+      edit.value = false
+    }
+
+    const editItem = (item) => {
       if (item.type === 'bot') {
-        this.workers = item.bots
+        workers.value = item.bots
       } else if (item.type === 'collector') {
-        this.loadCollectors().then(() => {
-          this.workers = this.getCollectors().items
+        loadCollectors().then(() => {
+          workers.value = collectors.items
         })
       } else {
         console.log('No workers found')
       }
-      this.formData = item
-      this.edit = true
-    },
-    handleSubmit(submittedData) {
-      if (this.edit) {
-        this.updateItem(submittedData)
+      formData.value = item
+      edit.value = true
+    }
+
+    const handleSubmit = (submittedData) => {
+      if (edit.value) {
+        updateItem(submittedData)
       } else {
-        this.createItem(submittedData)
+        createItem(submittedData)
       }
-    },
-    deleteItem(item) {
+    }
+
+    const deleteItem = (item) => {
       deleteNode(item)
         .then(() => {
           notifySuccess(`Successfully deleted ${item.name}`)
-          this.updateData()
+          updateData()
         })
         .catch(() => {
           notifyFailure(`Failed to delete ${item.name}`)
         })
-    },
-    createItem(item) {
+    }
+
+    const createItem = (item) => {
       createNode(item)
         .then(() => {
           notifySuccess(`Successfully created ${item.name}`)
-          this.updateData()
+          updateData()
         })
         .catch(() => {
           notifyFailure(`Failed to create ${item.name}`)
         })
-    },
-    updateItem(item) {
+    }
+
+    const updateItem = (item) => {
       updateNode(item)
         .then(() => {
           notifySuccess(`Successfully updated ${item.name}`)
-          this.updateData()
+          updateData()
         })
         .catch(() => {
           notifyFailure(`Failed to update ${item.name}`)
         })
-    },
-    selectionChange(selected) {
-      this.selected = selected.map((item) => item.id)
-    },
-    triggerWorkers() {
+    }
+
+    const selectionChange = (selectedItems) => {
+      selected.value = selectedItems.map((item) => item.id)
+    }
+
+    const triggerWorkers = () => {
       triggerNode().then(() => {
         notifySuccess('Node run triggerd')
       })
     }
-  },
-  mounted() {
-    this.updateData()
-  },
-  beforeDestroy() {}
+
+    return {
+      formData,
+      edit,
+      selected,
+      workers,
+      nodes,
+      collectors,
+      formFormat,
+      updateData,
+      addItem,
+      editItem,
+      handleSubmit,
+      deleteItem,
+      createItem,
+      updateItem,
+      selectionChange,
+      triggerWorkers
+    }
+  }
 }
 </script>

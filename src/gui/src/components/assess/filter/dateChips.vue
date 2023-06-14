@@ -1,31 +1,42 @@
 <template>
-  <v-chip-group
-    :value="defaultValue"
-    @change="setValue"
-    active-class="selected"
-    class="date-filter-group d-flex"
+  <v-btn-toggle
+    v-model="selected"
+    variant="outlined"
+    density="compact"
+    divided
+    selected-class="text-primary"
   >
-    <v-chip label outlined dark color="black" value="all">all</v-chip>
-    <v-chip label outlined dark color="black" value="today">today</v-chip>
-    <v-chip label outlined dark color="black" value="week">one week</v-chip>
-  </v-chip-group>
+    <v-btn variant="text" value="all">all</v-btn>
+    <v-btn variant="text" value="today">today</v-btn>
+    <v-btn variant="text" value="week">week</v-btn>
+  </v-btn-toggle>
 </template>
 
 <script>
+import { ref, computed } from 'vue'
+
 export default {
-  name: 'dateChips',
+  name: 'DateChips',
   props: {
-    value: String
-  },
-  methods: {
-    setValue(newValue) {
-      console.debug('dateChips.setValue', newValue)
-      this.$emit('input', newValue)
+    modelValue: {
+      type: String,
+      default: 'all'
     }
   },
-  computed: {
-    defaultValue() {
-      return this.value ? this.value : 'all'
+  emits: ['update:modelValue'],
+  setup(props, { emit }) {
+    const selected = ref(props.modelValue)
+
+    const updateSelected = (val) => {
+      selected.value = val
+      emit('update:modelValue', val)
+    }
+
+    return {
+      selected: computed({
+        get: () => selected.value,
+        set: updateSelected
+      })
     }
   }
 }

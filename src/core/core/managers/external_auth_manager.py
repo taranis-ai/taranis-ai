@@ -21,7 +21,7 @@ def create_user(user_data):
     if not keycloak_user_management_enabled():
         return
     keycloak_admin = get_keycloak_admin()
-    keycloak_admin.create_user(
+    return keycloak_admin.create_user(
         {"username": user_data["username"], "credentials": [{"value": user_data["password"], "type": "password"}], "enabled": True}
     )
 
@@ -46,4 +46,4 @@ def delete_user(username):
     keycloak_admin = get_keycloak_admin()
     keycloak_user_id = keycloak_admin.get_user_id(username)
     if keycloak_user_id is not None:
-        keycloak_admin.delete_user(user_id=keycloak_user_id)
+        return keycloak_admin.delete_user(user_id=keycloak_user_id)

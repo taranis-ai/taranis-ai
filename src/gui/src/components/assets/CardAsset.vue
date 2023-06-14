@@ -81,8 +81,12 @@ import Permissions from '@/services/auth/permissions'
 
 export default {
   name: 'CardAsset',
+  mixins: [AuthMixin],
   props: {
-    card: Object
+    card: {
+      type: Object,
+      required: true
+    }
   },
 
   data: () => ({
@@ -90,7 +94,6 @@ export default {
     selected: false,
     status: 'in_progress'
   }),
-  mixins: [AuthMixin],
   computed: {
     itemStatus() {
       if (this.card.vulnerabilities_count > 0) {

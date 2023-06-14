@@ -3,9 +3,15 @@
     "node": true
   },
   "extends": [
-    "plugin:vue/essential",
-    "eslint:recommended"
+    "plugin:vue/vue3-recommended",
+    "eslint:recommended",
+    "@vue/prettier",
+    "@vue/eslint-config-prettier",
+    "@vue/typescript/recommended"
   ],
+  "parserOptions": {
+    "ecmaVersion": 2020
+  },
   "rules": {
     "camelcase": "off",
     "quotes": [
@@ -16,7 +22,9 @@
       }
     ],
     "space-before-function-paren": 0,
-    "vue/multi-word-component-names": "off"
+    "vue/valid-v-slot": ["error", {
+      "allowModifiers": true
+    }]
   },
   "root": true
 }

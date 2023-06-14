@@ -1,6 +1,6 @@
 <template>
   <div class="chatEnv">
-    <div class="taranis-chat" v-if="chat">
+    <div v-if="chat" class="taranis-chat">
       <Chat
         :participants="participants"
         :myself="myself"

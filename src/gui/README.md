@@ -19,11 +19,11 @@ npm install
 You can run the GUI on the local machine, and edit it with your favorite IDE or text editor. The application will react to your changes in real time. Depending on whether you expose your API directly on `http://localhost:5000` (see `docker-compose.yml`), via Traefik on `https://localhost:4443`, or on a public IP and host name, you may need to change the following environment variables.
 
 ```
-# set the environment variables needed by GUI
-export VUE_APP_TARANIS_NG_CORE_API="http://localhost:5000/api/v1"
-export VUE_APP_TARANIS_NG_CORE_SSE="http://localhost:5000/sse"
-export VUE_APP_TARANIS_NG_URL="http://localhost:8080"
-export VUE_APP_TARANIS_NG_LOCALE="en"
+# env variables
+env variables can be adapted in .env file
+
+# map taranis
+Add `127.0.0.1   taranis` to your local `/etc/hosts` file
 
 # run the development server
 npm run serve

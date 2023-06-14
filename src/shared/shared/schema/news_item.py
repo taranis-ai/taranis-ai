@@ -143,6 +143,7 @@ class NewsItemAggregateSchema(Schema):
     in_reports_count = fields.Int()
     tags = fields.Nested(NewsItemTagSchema, many=True)
     summary = fields.String()
+    relevance = fields.Int()
     news_items = fields.Nested(NewsItemPresentationSchema, many=True)
 
 

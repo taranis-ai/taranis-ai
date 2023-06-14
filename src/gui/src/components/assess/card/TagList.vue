@@ -1,43 +1,50 @@
 <template>
-  <div>
-    <v-tooltip bottom v-for="(tag, i) in tags.slice(0, limit)" :key="i">
-      <template v-slot:activator="{ on, attrs }">
-        <v-btn
-          small
-          text
-          density="compact"
-          height="auto"
-          class="tag-button"
+  <div class="ml-0 pl-0 d-flex flex-wrap">
+    <v-tooltip v-for="(tag, i) in tags.slice(0, limit)" :key="i">
+      <template #activator="{ props }">
+        <v-chip
+          v-bind="props"
+          class="mr-1 mt-1"
           :color="labelcolor(i)"
+          link
+          label
+          density="compact"
+          :prepend-icon="tagIcon(tag.tag_type)"
           @click.stop="updateTags(tag.name)"
-          v-ripple="false"
-          v-bind="attrs"
-          v-on="on"
         >
-          <span class="text-decoration-underline">
+          <span
+            :style="truncate ? 'max-width: 80px' : 'max-width: 120px'"
+            class="d-inline-block text-truncate text-black"
+          >
             {{ tag.name }}
           </span>
-        </v-btn>
+        </v-chip>
       </template>
       <span>
-        <v-icon left>{{ tagIcon(tag.tag_type) }}</v-icon>
-        {{ tag.tag_type }}
+        <v-icon start :icon="tagIcon(tag.tag_type)" />
+        {{ tag.name }}
       </span>
     </v-tooltip>
   </div>
 </template>
 
 <script>
-import { mapActions } from 'vuex'
+import { mapActions } from 'pinia'
+
 import { tagIconFromType } from '@/utils/helpers'
+import { useAssessStore } from '@/stores/AssessStore'
+import { useFilterStore } from '@/stores/FilterStore'
 
 export default {
   name: 'TagList',
   props: {
-    tags: [],
+    tags: {
+      type: Array,
+      required: true
+    },
     limit: {
       type: Number,
-      default: 5
+      default: 6
     },
     truncate: {
       type: Boolean,
@@ -48,21 +55,12 @@ export default {
       default: true
     }
   },
-  computed: {
-    getChipClass() {
-      const c = 'mr-1 mb-1 story-label'
-      return this.truncate ? c : c + '-no-trunc'
-    },
-    getTagClass() {
-      return this.truncate ? 'text-truncate' : ''
-    }
-  },
   data: () => ({
     colorStart: Math.floor(Math.random() * 9)
   }),
   methods: {
-    ...mapActions('assess', ['updateNewsItems']),
-    ...mapActions('filter', ['appendTag']),
+    ...mapActions(useAssessStore, ['updateNewsItems']),
+    ...mapActions(useFilterStore, ['appendTag']),
 
     updateTags(tag) {
       this.appendTag(tag)
@@ -74,10 +72,10 @@ export default {
 
     labelcolor: function (i) {
       if (!this.color) {
-        return undefined
+        return ''
       }
 
-      var colorList = ['#2E3D7C', '#282528', '#BA292E', '#E15D3A']
+      const colorList = ['red', 'blue', 'green', 'black']
       return colorList[(this.colorStart + i) % colorList.length]
     }
   }

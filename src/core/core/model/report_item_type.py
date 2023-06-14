@@ -248,6 +248,7 @@ class ReportItemType(db.Model):
         report_item_type = report_item_type_schema.load(report_item_type_data)
         db.session.add(report_item_type)
         db.session.commit()
+        return report_item_type.id
 
     @classmethod
     def update(cls, report_type_id, data):

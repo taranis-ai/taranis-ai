@@ -35,11 +35,10 @@ class ReportItems(Resource):
 
             filter_args["offset"] = int(request.args.get("offset", 0))
             filter_args["limit"] = min(int(request.args.get("limit", 20)), 200)
+            return report_item.ReportItem.get_json(group, filter_args, auth_manager.get_user_from_jwt())
         except Exception as ex:
             logger.log_debug(ex)
-            return "", 400
-
-        return report_item.ReportItem.get_json(group, filter_args, auth_manager.get_user_from_jwt())
+            return "Could not get report items", 400
 
     @auth_required("ANALYZE_CREATE")
     def post(self):

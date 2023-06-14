@@ -1,3 +1,7 @@
+import { useAssessStore } from '@/stores/AssessStore'
+import { useConfigStore } from '@/stores/ConfigStore'
+import { mapState } from 'pinia'
+
 const keyboardMixin = (targetId) => ({
   data: () => ({
     target: String,
@@ -13,8 +17,9 @@ const keyboardMixin = (targetId) => ({
   }),
 
   computed: {
+    ...mapState(useAssessStore, ['getMultiSelect', 'getSelection']),
     multiSelectActive() {
-      return this.$store.getters.getMultiSelect
+      return this.getMultiSelect
     },
     state() {
       return this.keyboard_state
@@ -209,7 +214,7 @@ const keyboardMixin = (targetId) => ({
               break
 
             case 'source_group_up': {
-              const groups = this.$store.getters.getOSINTSourceGroups.items
+              const groups = this.getOSINTSourceGroups.items
               const active_group_element = document.querySelector(
                 '.v-list-item--active'
               )
@@ -229,7 +234,7 @@ const keyboardMixin = (targetId) => ({
               break
             }
             case 'source_group_down': {
-              const groups = this.$store.getters.getOSINTSourceGroups.items
+              const groups = this.getOSINTSourceGroups.items
               const active_group_element = document.querySelector(
                 '.v-list-item--active'
               )
@@ -275,11 +280,8 @@ const keyboardMixin = (targetId) => ({
 
             case 'read_item':
               this.card.read.click()
-              if (
-                this.multiSelectActive &&
-                this.$store.getters.getFilter.read
-              ) {
-                const selection = this.$store.getters.getSelection
+              if (this.multiSelectActive && this.getFilter.read) {
+                const selection = this.getSelection
                 // set focus to the next item to read instead of keeping the current position
                 this.setNewsItem(this.pos - selection.length + 1)
               }
@@ -287,11 +289,8 @@ const keyboardMixin = (targetId) => ({
 
             case 'important_item':
               this.card.important.click()
-              if (
-                this.multiSelectActive &&
-                this.$store.getters.getFilter.important
-              ) {
-                const selection = this.$store.getters.getSelection
+              if (this.multiSelectActive && this.getFilter.important) {
+                const selection = this.getSelection
                 // set focus to the next item to read instead of keeping the current position
                 this.setNewsItem(this.pos - selection.length + 1)
               }
@@ -301,13 +300,10 @@ const keyboardMixin = (targetId) => ({
               this.card.like.click()
               break
 
-            case 'unlike_item':
+            case 'dislike_item':
               this.card.unlike.click()
-              if (
-                this.multiSelectActive &&
-                this.$store.getters.getFilter.relevant
-              ) {
-                const selection = this.$store.getters.getSelection
+              if (this.multiSelectActive && this.getFilter.relevant) {
+                const selection = this.getSelection
                 // set focus to the next item to read instead of keeping the current position
                 this.setNewsItem(this.pos - selection.length + 1)
               }
@@ -316,7 +312,7 @@ const keyboardMixin = (targetId) => ({
             case 'delete_item':
               this.card.delete.click()
               if (this.multiSelectActive) {
-                const selection = this.$store.getters.getSelection
+                const selection = this.getSelection
                 // set focus to the next item to read instead of keeping the current position
                 this.setNewsItem(this.pos - selection.length + 1)
               }
@@ -351,14 +347,10 @@ const keyboardMixin = (targetId) => ({
 
             case 'enter_filter_mode':
               this.keyboard_state = 'FILTER'
-              this.$root.$emit('notification', {
-                type: 'success',
-                loc: 'assess.shortcuts.enter_filter_mode'
-              })
               break
 
             case 'reload':
-              this.$root.$emit('news-items-updated')
+              //this.$root.$emit('news-items-updated')
               break
           }
         } else if (
@@ -397,7 +389,7 @@ const keyboardMixin = (targetId) => ({
               this.card.like.click()
               break
 
-            case 'unlike_item':
+            case 'dislike_item':
               this.card.unlike.click()
               break
 
@@ -507,30 +499,13 @@ const keyboardMixin = (targetId) => ({
   },
 
   mounted() {
-    this.shortcuts = this.$store.getters.getProfileHotkeys
+    this.shortcuts = this.getProfileHotkeys
     this.pos = 0
     this.focus = null
   },
 
   created() {
     this.target = targetId
-    this.$root.$on('change-state', (_state) => {
-      this.keyboard_state = _state
-    })
-    this.$root.$on('key-remap', () => {
-      setTimeout(() => {
-        this.reindexCardItems()
-      }, 150)
-    })
-    this.$root.$on('update-pos', (_pos) => {
-      this.pos = _pos
-    })
-  },
-
-  beforeDestroy() {
-    this.$root.$off('change-state')
-    this.$root.$off('key-remap')
-    this.$root.$off('update-pos')
   }
 })
 

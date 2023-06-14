@@ -1,13 +1,14 @@
 <template>
   <Bar
-    :chart-options="chartOptions"
-    :chart-data="chart_data"
-    :height="chartHeight"
+    v-if="shouldRender"
+    :options="chartOptions"
+    :data="chart_data"
+    update-mode="active"
   />
 </template>
 
 <script>
-import { Bar } from 'vue-chartjs/legacy'
+import { Bar } from 'vue-chartjs'
 import {
   Chart as ChartJS,
   Title,
@@ -21,7 +22,9 @@ import {
   PointElement,
   LineController
 } from 'chart.js'
-import { mapGetters } from 'vuex'
+import { mapState } from 'pinia'
+import { useAssessStore } from '@/stores/AssessStore'
+import { useFilterStore } from '@/stores/FilterStore'
 
 ChartJS.register(
   Title,
@@ -43,9 +46,9 @@ export default {
   },
   props: {
     story: {
-      type: Object,
+      type: Object || null,
       required: false,
-      default: () => {}
+      default: null
     },
     timespan: {
       type: Number,
@@ -56,58 +59,29 @@ export default {
       type: Number,
       required: false,
       default: 150
+    },
+    chartWidth: {
+      type: Number,
+      required: false,
+      default: 400
     }
   },
   data: function () {
     return {
-      chartOptions: {
-        responsive: true,
-        maintainAspectRatio: true,
-        scales: {
-          y1: {
-            position: 'left',
-            beginAtZero: true
-          },
-          y2: {
-            position: 'right',
-            beginAtZero: true,
-            max: parseInt(this.getMaxItem()),
-            grid: {
-              // display gridlines only for y1
-              drawOnChartArea: false
-            }
-          }
-        },
-        plugins: {
-          filler: {
-            propagate: false
-          },
-          legend: {
-            display: false
-          },
-          tooltip: {
-            mode: 'index',
-            intersect: false
-          }
-        }
-      }
-    }
-  },
-  watch: {
-    getY2MaxFromStore: {
-      handler(newValue) {
-        this.chartOptions.scales.y2.max = parseInt(newValue)
-      },
-      immediate: true
+      shouldRender: false
     }
   },
   computed: {
-    getY2MaxFromStore() {
-      if (this.getY2max()) {
-        return this.getY2max()
+    ...mapState(useFilterStore, ['chartFilter']),
+    ...mapState(useAssessStore, ['max_item']),
+    chart_style() {
+      return {
+        height: this.chartHeight + 'px',
+        width: this.chartWidth + 'px',
+        position: 'relative'
       }
-      return this.getMaxItem()
     },
+
     last_n_days() {
       return Array.from(Array(this.timespan).keys(), (i) => {
         const date = new Date()
@@ -128,6 +102,84 @@ export default {
         return acc
       }, {})
     },
+    chartOptions() {
+      if (this.chartFilter.y2max) {
+        return {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y1: {
+              position: 'left',
+              beginAtZero: true,
+              ticks: {
+                stepSize: 1
+              }
+            },
+            y2: {
+              position: 'right',
+              beginAtZero: true,
+              max: parseInt(this.chartFilter.y2max),
+              grid: {
+                // display gridlines only for y1
+                drawOnChartArea: false
+              },
+              ticks: {
+                stepSize: 1
+              }
+            }
+          },
+          plugins: {
+            filler: {
+              propagate: false
+            },
+            legend: {
+              display: false
+            },
+            tooltip: {
+              mode: 'index',
+              intersect: false
+            }
+          }
+        }
+      }
+      return {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y1: {
+            position: 'left',
+            beginAtZero: true,
+            ticks: {
+              stepSize: 1
+            }
+          },
+          y2: {
+            position: 'right',
+            beginAtZero: true,
+            max: parseInt(this.max_item),
+            grid: {
+              // display gridlines only for y1
+              drawOnChartArea: false
+            },
+            ticks: {
+              stepSize: 1
+            }
+          }
+        },
+        plugins: {
+          filler: {
+            propagate: false
+          },
+          legend: {
+            display: false
+          },
+          tooltip: {
+            mode: 'index',
+            intersect: false
+          }
+        }
+      }
+    },
     news_items_per_day() {
       let items_per_day = {}
       items_per_day = this.story_items
@@ -144,7 +196,7 @@ export default {
     },
     chart_colors() {
       return this.news_items_per_day.map((item) => {
-        if (item >= this.getThreshold()) {
+        if (item >= this.chartFilter.threshold) {
           return 'rgba(255, 0, 0, 1.0)'
         } else {
           return 'rgba(127, 116, 234, 1.0)'
@@ -176,15 +228,13 @@ export default {
       }
     }
   },
-  methods: {
-    ...mapGetters('filter', ['getThreshold', 'getY2max']),
-    ...mapGetters('assess', ['getMaxItem'])
-  },
   updated() {
     //console.log('card rendered!')
   },
   mounted() {
-    if (!this.story) {
+    if (this.story) {
+      this.shouldRender = true
+    } else {
       console.error('No data provided to WeekChart')
     }
   }

@@ -1,34 +1,34 @@
 <template>
   <div>
     <DataTable
-      :addButton="true"
-      :items.sync="osint_sources"
-      :headerFilter="['tag', 'name', 'description', 'FEED_URL']"
-      sortByItem="id"
-      :actionColumn="true"
+      v-model:items="osint_sources"
+      :add-button="true"
+      :header-filter="['tag', 'name', 'description', 'FEED_URL']"
+      sort-by-item="id"
+      :action-column="true"
       @delete-item="deleteItem"
       @edit-item="editItem"
       @add-item="addItem"
       @update-items="updateData"
       @selection-change="selectionChange"
     >
-      <template v-slot:titlebar>
+      <template #titlebar>
         <ImportExport @import="importData" @export="exportData"></ImportExport>
       </template>
     </DataTable>
     <EditConfig
       v-if="formData && Object.keys(formData).length > 0"
-      :configData.sync="formData"
-      :formFormat.sync="formFormat"
+      v-model:config-data="formData"
+      v-model:form-format="formFormat"
       @submit="handleSubmit"
     ></EditConfig>
   </div>
 </template>
 
 <script>
-import DataTable from '@/components/common/DataTable'
-import EditConfig from '../../components/config/EditConfig'
-import ImportExport from '../../components/config/ImportExport'
+import DataTable from '@/components/common/DataTable.vue'
+import EditConfig from '@/components/config/EditConfig.vue'
+import ImportExport from '@/components/config/ImportExport.vue'
 import {
   deleteOSINTSource,
   createOSINTSource,
@@ -36,7 +36,6 @@ import {
   exportOSINTSources,
   importOSINTSources
 } from '@/api/config'
-import { mapActions, mapGetters } from 'vuex'
 import {
   notifySuccess,
   objectFromFormat,
@@ -44,9 +43,12 @@ import {
   parseParameterValues,
   createParameterValues
 } from '@/utils/helpers'
+import { mapActions, mapState, mapWritableState } from 'pinia'
+import { useConfigStore } from '@/stores/ConfigStore'
+import { useMainStore } from '@/stores/MainStore'
 
 export default {
-  name: 'OSINTSources',
+  name: 'OSINTSourcesView',
   components: {
     DataTable,
     EditConfig,
@@ -61,6 +63,11 @@ export default {
     edit: false
   }),
   computed: {
+    ...mapState(useConfigStore, {
+      store_collectors: 'collectors',
+      store_osint_sources: 'osint_sources'
+    }),
+    ...mapWritableState(useMainStore, ['itemCountTotal', 'itemCountFiltered']),
     formFormat() {
       const base = [
         {
@@ -94,22 +101,20 @@ export default {
       return base
     }
   },
+  mounted() {
+    this.updateData()
+  },
   methods: {
-    ...mapActions('config', ['loadOSINTSources', 'loadCollectors']),
-    ...mapGetters('config', ['getOSINTSources', 'getCollectors']),
-    ...mapActions(['updateItemCount']),
+    ...mapActions(useConfigStore, ['loadOSINTSources', 'loadCollectors']),
     updateData() {
       this.loadOSINTSources().then(() => {
-        const sources = this.getOSINTSources()
+        const sources = this.store_osint_sources
         this.osint_sources = parseParameterValues(sources.items)
-        this.updateItemCount({
-          total: sources.total_count,
-          filtered: sources.length
-        })
+        this.itemCountFiltered = sources.length
+        this.itemCountTotal = sources.total_count
       })
       this.loadCollectors().then(() => {
-        const collectors = this.getCollectors()
-        this.collectors = collectors.items.map((collector) => {
+        this.collectors = this.store_collectors.items.map((collector) => {
           this.parameters[collector.id] = collector.parameters.map(
             (parameter) => {
               return {
@@ -121,7 +126,7 @@ export default {
           )
           return {
             value: collector.id,
-            text: collector.name
+            title: collector.name
           }
         })
       })
@@ -197,10 +202,6 @@ export default {
     selectionChange(selected) {
       this.selected = selected.map((item) => item.id)
     }
-  },
-  mounted() {
-    this.updateData()
-  },
-  beforeDestroy() {}
+  }
 }
 </script>

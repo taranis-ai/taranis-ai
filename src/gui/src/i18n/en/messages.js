@@ -59,12 +59,6 @@ export const messages_en = {
     validation_error: 'Please fill in all required fields'
   },
 
-  title: {
-    add_new: 'Add new',
-    edit: 'Edit',
-    delete: 'Delete'
-  },
-
   login: {
     title: 'Please Login',
     username: 'Username',
@@ -100,8 +94,8 @@ export const messages_en = {
     popular: 'Popular',
     favourites: 'Favourites',
     configuration: 'Configuration',
-    osint_sources: 'OSINT Sources',
-    osint_source_groups: 'OSINT Source Groups',
+    osint_sources: 'OSINTSources',
+    osint_source_groups: 'Source Groups',
     publisher_presets: 'Publisher Presets',
     collectors: 'Collectors',
     report_items: 'Report Items',
@@ -144,7 +138,13 @@ export const messages_en = {
   },
 
   notification: {
-    close: 'Close'
+    close: 'Close',
+    successful_delete: 'Successfully deleted',
+    successful_update: 'Successfully updated',
+    successful_create: 'Successfully created',
+    failed_delete: 'Failed to delete',
+    failed_update: 'Failed to update',
+    failed_create: 'Failed to create'
   },
 
   enter: {
@@ -535,7 +535,8 @@ export const messages_en = {
     title: 'Title',
     name: 'Name',
     description: 'Description',
-    report_type: 'Product Type',
+    product_type: 'Product Type',
+    publisher: 'Publisher',
     successful: 'New product was successfully added',
     successful_edit: 'Product was successfully saved',
     removed: 'Product was successfully removed',
@@ -675,8 +676,8 @@ export const messages_en = {
     show_item: 'Show',
     read_item: 'Mark as Read',
     important_item: 'Mark as Important',
-    like_item: 'Mark as Like',
-    unlike_item: 'Mark as Unlike',
+    like_item: 'Mark as Liked',
+    dislike_item: 'Mark as Disliked',
     delete_item: 'Delete',
     spellcheck: 'Spellcheck',
     dark_theme: 'Dark Theme',
@@ -687,7 +688,16 @@ export const messages_en = {
     group: 'Group',
     ungroup: 'Ungroup',
     new_product: 'New Product',
-    aggregate_open: 'Open Aggregate'
+    story_open: 'Open Story',
+    open_search: 'Open Search',
+    end: 'End',
+    home: 'Home',
+    reload: 'Reload',
+    cluster: 'Cluster',
+    source_group_up: 'Move Source Up',
+    source_group_down: 'Move Source Down',
+    enter_filter_mode: 'Enter Filter Mode',
+    open_item_source: 'Open Source'
   },
 
   word_list: {

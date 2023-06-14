@@ -1,63 +1,84 @@
 <template>
-  <v-container fluid>
-    <v-card v-for="product in products" :key="product.id" class="mt-3">
-      <v-card-title>
-        {{ product }}
-      </v-card-title>
-    </v-card>
-    <h2 v-if="!products">No Products found</h2>
-  </v-container>
+  <DataTable
+    :items="products.items"
+    :add-button="false"
+    :search-bar="false"
+    sort-by-item="id"
+    :action-column="true"
+    @delete-item="deleteItem"
+    @edit-item="editItem"
+    @add-item="addItem"
+    @update-items="updateData"
+    @selection-change="selectionChange"
+  >
+  </DataTable>
 </template>
 
 <script>
+import { ref } from 'vue'
+import DataTable from '@/components/common/DataTable.vue'
 import { deleteProduct } from '@/api/publish'
-import { mapActions, mapGetters } from 'vuex'
+import { usePublishStore } from '@/stores/PublishStore'
+import { useMainStore } from '@/stores/MainStore'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
+import { storeToRefs } from 'pinia'
+import { onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 
 export default {
-  name: 'PruoductView',
-  components: {},
-  data: function () {
-    return {
-      selected: [],
-      products: []
-    }
+  name: 'ProductView',
+  components: {
+    DataTable
   },
-  computed: {},
-  methods: {
-    ...mapActions('publish', ['loadProducts']),
-    ...mapGetters('publish', ['getProducts']),
-    ...mapActions(['updateItemCount']),
-    updateData() {
-      this.loadProducts().then(() => {
-        const sources = this.getProducts()
-        this.products = sources.items
-        this.updateItemCount({
-          total: sources.total_count,
-          filtered: sources.length
-        })
-      })
-    },
-    editProduct(item) {
-      this.$router.push('/product/' + item.id)
-    },
-    deleteItem(item) {
+  setup() {
+    const mainStore = useMainStore()
+    const publishStore = usePublishStore()
+    const selected = ref([])
+    const router = useRouter()
+    const { products } = storeToRefs(publishStore)
+
+    const updateData = async () => {
+      await publishStore.loadProducts()
+      mainStore.itemCountTotal = products.value.total_count
+      mainStore.itemCountFiltered = products.value.items.length
+    }
+
+    const addItem = () => {
+      router.push('/report/0')
+    }
+
+    const editItem = (item) => {
+      router.push('/product/' + item.id)
+    }
+
+    const deleteItem = (item) => {
       deleteProduct(item)
         .then(() => {
           notifySuccess(`Successfully deleted ${item.name}`)
-          this.updateData()
+          updateData()
         })
         .catch(() => {
           notifyFailure(`Failed to delete ${item.name}`)
         })
-    },
-    selectionChange(selected) {
-      this.selected = selected.map((item) => item.id)
     }
-  },
-  mounted() {
-    this.updateData()
-  },
-  beforeDestroy() {}
+
+    const selectionChange = (selected) => {
+      selected.value = selected.map((item) => item.id)
+    }
+
+    onMounted(() => {
+      updateData()
+    })
+
+    return {
+      selected,
+      products,
+      updateData,
+      addItem,
+      editItem,
+      deleteItem,
+      selectionChange
+    }
+  }
 }
 </script>

@@ -1,84 +1,118 @@
 <template>
   <div>
     <data-table
-      :addButton="true"
-      :items.sync="report_types"
-      :headerFilter="['tag', 'id', 'title', 'description']"
-      sortByItem="id"
-      :actionColumn="true"
+      v-model:items="report_item_types_config.items"
+      :add-button="true"
+      :header-filter="['tag', 'id', 'title', 'description']"
+      sort-by-item="id"
+      :action-column="true"
       @delete-item="deleteItem"
       @edit-item="editItem"
       @add-item="addItem"
       @update-items="updateData"
     />
     <report-type-form
-      v-if="newItem || (formData && Object.keys(formData).length > 0)"
-      :report_type_data.sync="formData"
+      v-if="showForm"
+      :report-type-data="formData"
+      :edit="edit"
+      @updated="formUpdated"
     />
   </div>
 </template>
 
 <script>
-import DataTable from '@/components/common/DataTable'
-import ReportTypeForm from '../../components/config/ReportTypeForm'
+import { defineComponent, ref, onMounted } from 'vue'
+import DataTable from '@/components/common/DataTable.vue'
+import ReportTypeForm from '@/components/config/ReportTypeForm.vue'
 import { deleteReportItemType } from '@/api/config'
-import { mapActions, mapGetters } from 'vuex'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
+import { storeToRefs } from 'pinia'
 
-export default {
+import { useConfigStore } from '@/stores/ConfigStore'
+import { useMainStore } from '@/stores/MainStore'
+
+export default defineComponent({
   name: 'ReportTypes',
   components: {
     DataTable,
     ReportTypeForm
   },
-  data: () => ({
-    report_types: [],
-    selected: [],
-    formData: {},
-    newItem: false
-  }),
-  computed: {},
-  methods: {
-    ...mapActions('config', ['loadReportTypesConfig']),
-    ...mapGetters('config', ['getReportTypesConfig']),
-    ...mapActions(['updateItemCount']),
-    updateData() {
-      this.loadReportTypesConfig().then(() => {
-        const sources = this.getReportTypesConfig()
-        this.report_types = sources.items
-        this.updateItemCount({
-          total: sources.total_count,
-          filtered: sources.length
-        })
+  setup() {
+    const configStore = useConfigStore()
+    const mainStore = useMainStore()
+    const selected = ref([])
+    const formData = ref({})
+    const edit = ref(false)
+    const showForm = ref(false)
+
+    const { report_item_types_config } = storeToRefs(configStore)
+
+    const updateData = () => {
+      configStore.loadReportTypesConfig().then(() => {
+        mainStore.itemCountTotal = report_item_types_config.value.total_count
+        mainStore.itemCountFiltered =
+          report_item_types_config.value.items.length
       })
-    },
-    addItem() {
-      this.formData = undefined
-      this.newItem = true
-    },
-    editItem(item) {
-      this.newItem = false
-      this.formData = item
-    },
-    deleteItem(item) {
+    }
+
+    const formUpdated = () => {
+      console.debug('formUpdated')
+      showForm.value = false
+      updateData()
+    }
+
+    const addItem = () => {
+      formData.value = {
+        id: -1,
+        title: '',
+        description: '',
+        attribute_groups: []
+      }
+      edit.value = false
+      showForm.value = true
+    }
+
+    const editItem = (item) => {
+      edit.value = true
+      console.debug('editItem', item)
+      formData.value = item
+      showForm.value = true
+    }
+
+    const deleteItem = (item) => {
       if (!item.default) {
         deleteReportItemType(item)
           .then(() => {
             notifySuccess(`Successfully deleted ${item.name}`)
-            this.updateData()
+            updateData()
           })
           .catch(() => {
             notifyFailure(`Failed to delete ${item.name}`)
           })
       }
-    },
-    selectionChange(selected) {
-      this.selected = selected.map((item) => item.id)
     }
-  },
-  mounted() {
-    this.updateData()
-  },
-  beforeDestroy() {}
-}
+
+    const selectionChange = (selected) => {
+      selected.value = selected.map((item) => item.id)
+    }
+
+    onMounted(() => {
+      updateData()
+    })
+
+    return {
+      selected,
+      formData,
+      showForm,
+      edit,
+      report_item_types_config,
+      addItem,
+      editItem,
+      deleteItem,
+      selectionChange,
+      updateData,
+      formUpdated
+    }
+  }
+})
 </script>

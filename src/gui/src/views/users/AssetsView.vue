@@ -24,8 +24,10 @@ import {
   // solveVulnerability,
   deleteAsset
 } from '@/api/assets'
-import { mapActions, mapGetters } from 'vuex'
+import { mapActions, mapState, mapWritableState } from 'pinia'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
+import { useAssetsStore } from '@/stores/AssetsStore'
+import { useMainStore } from '@/stores/MainStore'
 
 export default {
   name: 'AssetsView',
@@ -36,27 +38,33 @@ export default {
       assets: [],
       asset_groups: [],
       headers: [
-        { text: 'tag', value: 'tag', sortable: false, width: '15px' },
-        { text: 'name', value: 'name' },
-        { text: 'description', value: 'description' }
+        { title: 'tag', key: 'tag', sortable: false, width: '15px' },
+        { title: 'name', key: 'name' },
+        { title: 'description', key: 'description' }
       ]
     }
   },
+  computed: {
+    ...mapWritableState(useMainStore, ['itemCountTotal', 'itemCountFiltered']),
+    ...mapState(useAssetsStore, {
+      store_asset_groups: 'asset_groups',
+      store_assets: 'assets'
+    })
+  },
+  mounted() {
+    this.updateData()
+  },
   methods: {
-    ...mapActions('assets', ['loadAssetGroups', 'loadAssets']),
-    ...mapGetters('assets', ['getAssetGroups', 'getAssets']),
-    ...mapActions(['updateItemCount']),
+    ...mapActions(useAssetsStore, ['loadAssetGroups', 'loadAssets']),
     updateData() {
       this.loadAssets().then(() => {
-        const sources = this.getAssets()
+        const sources = this.store_assets
         this.assets = sources.items
-        this.updateItemCount({
-          total: sources.total_count,
-          filtered: sources.length
-        })
+        this.itemCountTotal = sources.total_count
+        this.itemCountFiltered = sources.length
       })
       this.loadAssetGroups().then(() => {
-        this.asset_groups = this.getAssetGroups().items
+        this.asset_groups = this.store_asset_groups.items
       })
     },
     addAsset() {
@@ -94,10 +102,6 @@ export default {
     selectionChange(selected) {
       this.selected = selected.map((item) => item.id)
     }
-  },
-  mounted() {
-    this.updateData()
-  },
-  beforeDestroy() {}
+  }
 }
 </script>

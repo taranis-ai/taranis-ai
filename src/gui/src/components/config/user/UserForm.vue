@@ -1,32 +1,35 @@
 <template>
   <v-container fluid class="ma-5 mt-5 pa-5 pt-0">
-    <v-form @submit.prevent="add" id="form" ref="form">
+    <span v-if="edit" class="caption">ID: {{ user.id }}</span>
+    <v-form id="form" ref="form" validate-on="submit" @submit.prevent="add">
       <v-row no-gutters>
         <v-btn type="submit" color="success" class="mr-4"> Submit </v-btn>
       </v-row>
       <v-row no-gutters>
         <v-col cols="6" class="pa-1">
           <v-text-field
+            v-model="user.username"
             :label="$t('user.username')"
             name="username"
             type="text"
-            v-model="user.username"
+            autocomplete="username"
             :rules="[rules.required]"
           />
         </v-col>
         <v-col cols="6" class="pa-1">
           <v-text-field
+            v-model="user.name"
             :label="$t('user.name')"
             name="name"
-            v-model="user.name"
           />
         </v-col>
         <v-col cols="6" class="pa-1">
           <v-text-field
             ref="password"
-            type="password"
             v-model="pwd"
+            type="password"
             :rules="passwordRules"
+            autocomplete="new-password"
             :label="$t('user.password')"
           />
         </v-col>
@@ -35,6 +38,7 @@
             v-model="repwd"
             type="password"
             :rules="passwordRules"
+            autocomplete="new-password"
             :label="$t('user.password_check')"
           />
         </v-col>
@@ -44,7 +48,7 @@
         <v-col cols="6" class="pr-1">
           <v-select
             v-model="user.organization.id"
-            item-text="name"
+            item-title="name"
             item-value="id"
             :hint="$t('user.organization')"
             :label="$t('user.organization')"
@@ -54,19 +58,18 @@
         </v-col>
         <v-col cols="12" class="pl-1">
           <v-data-table
-            v-model="user.roles"
+            v-model="user_roles"
             :headers="headers"
             :items="roles"
-            item-key="id"
-            :show-select="true"
-            :hide-default-footer="roles.length < 10"
-            class="elevation-1"
+            return-object
+            show-select
           >
-            <template v-slot:top>
-              <v-toolbar flat color="white">
-                <v-toolbar-title>{{ $t('user.roles') }}</v-toolbar-title>
-              </v-toolbar>
+            <template #top>
+              <v-toolbar-title class="ml-3 text-center">
+                {{ $t('user.roles') }}
+              </v-toolbar-title>
             </template>
+            <template v-if="roles.length < 10" #bottom />
           </v-data-table>
         </v-col>
         <v-col cols="12" class="pt-2">
@@ -74,16 +77,15 @@
             v-model="user.permissions"
             :headers="headers"
             :items="permissions"
-            item-key="id"
-            :show-select="true"
-            :hide-default-footer="permissions.length < 10"
-            class="elevation-1"
+            return-object
+            show-select
           >
-            <template v-slot:top>
-              <v-toolbar flat color="white">
-                <v-toolbar-title>{{ $t('user.permissions') }}</v-toolbar-title>
-              </v-toolbar>
+            <template #top>
+              <v-toolbar-title class="ml-3 text-center">
+                {{ $t('user.permissions') }}
+              </v-toolbar-title>
             </template>
+            <template v-if="permissions.length < 10" #bottom />
           </v-data-table>
         </v-col>
       </v-row>
@@ -93,143 +95,49 @@
 
 <script>
 import { createUser, updateUser } from '@/api/config'
-import { mapGetters, mapActions } from 'vuex'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useConfigStore } from '@/stores/ConfigStore'
 
 export default {
   name: 'UserForm',
   props: {
-    user_id: {
-      type: Number,
-      required: false
-    }
-  },
-  computed: {},
-  watch: {
-    user_id(uid) {
-      this.loadUser(uid)
-    }
-  },
-  methods: {
-    ...mapActions('config', [
-      'loadOrganizations',
-      'loadRoles',
-      'loadPermissions',
-      'loadUsers'
-    ]),
-    ...mapGetters('config', [
-      'getUsers',
-      'getOrganizations',
-      'getRoles',
-      'getPermissions',
-      'getUserByID'
-    ]),
-    add() {
-      this.$validator.validateAll().then(() => {
-        if (this.$validator.errors.any()) {
-          notifyFailure('user.validation_error')
-          return
-        }
-
-        if (this.edit === false || this.pwd !== '') {
-          this.user.password = this.pwd
-        }
-
-        if (this.edit) {
-          updateUser(this.user)
-            .then(() => {
-              this.$validator.reset()
-              notifySuccess('user.successful_edit')
-            })
-            .catch(() => {
-              notifyFailure('user.error')
-            })
-        } else {
-          createUser(this.user)
-            .then(() => {
-              this.$validator.reset()
-              notifySuccess('user.successful')
-            })
-            .catch(() => {
-              notifyFailure('user.error')
-            })
-        }
-      })
+    userProp: {
+      type: Object,
+      required: true
     },
-    loadUser(user_id) {
-      if (user_id !== undefined && user_id !== null) {
-        this.loadUsers().then(() => {
-          const stored_user = this.getUserByID()(this.user_id)
-          if (stored_user !== null) {
-            this.user = stored_user
-            this.edit = true
-          }
-        })
-      } else {
-        this.user = {
-          id: -1,
-          username: '',
-          name: '',
-          organization: {
-            id: 0
-          },
-          roles: [],
-          permissions: []
-        }
-        this.edit = false
-      }
+    edit: {
+      type: Boolean,
+      required: true,
+      default: false
     }
   },
-  created() {
-    this.loadOrganizations().then(() => {
-      this.organizations = this.getOrganizations().items
-    })
+  emits: ['updated'],
+  setup(props, { emit }) {
+    const store = useConfigStore()
+    const { loadOrganizations, loadRoles, loadPermissions } = store
+    const form = ref(null)
 
-    this.loadRoles().then(() => {
-      this.roles = this.getRoles().items
-    })
-
-    this.loadPermissions().then(() => {
-      this.permissions = this.getPermissions().items
-    })
-
-    console.debug('Loading User: ' + this.user_id)
-    this.loadUser(this.user_id)
-    console.debug(this.user)
-  },
-
-  setup() {
     const headers = [
       {
-        text: 'Name',
+        title: 'Name',
         align: 'start',
-        value: 'name'
+        key: 'name'
       },
-      { text: 'Description', value: 'description' }
+      { title: 'Description', key: 'description' }
     ]
 
-    const edit = ref(false)
     const pwd = ref('')
     const repwd = ref('')
-    const organizations = ref([])
-    const roles = ref([])
-    const permissions = ref([])
-    const user = ref({
-      id: -1,
-      username: '',
-      name: '',
-      organization: {
-        id: 0
-      },
-      roles: [],
-      permissions: []
-    })
+    const user = ref(props.userProp)
+    const roles = computed(() => store.roles.items)
+    const organizations = computed(() => store.organizations.items)
+    const permissions = computed(() => store.permissions.items)
 
     const rules = {
       required: (value) => !!value || 'Required.',
       matchPassword: (value) => {
-        if (!edit.value) {
+        if (!props.edit) {
           return !!value || 'Required.'
         }
         if (!value && !pwd.value) {
@@ -239,22 +147,83 @@ export default {
       }
     }
     const passwordRules = computed(() => {
-      return edit.value
+      return props.edit
         ? [rules.matchPassword]
         : [rules.required, rules.matchPassword]
+    })
+
+    const user_roles = computed({
+      get: () => {
+        return user.value.roles.map((role) => role.id)
+      },
+      set: (value) => {
+        user.value.roles = value
+      }
+    })
+
+    const user_permissions = computed({
+      get: () => {
+        return user.value.permissions.map((permission) => permission.id)
+      },
+      set: (value) => {
+        user.value.permissions = value
+      }
+    })
+
+    const add = () => {
+      if (props.edit === false || pwd.value !== '') {
+        user.value.password = pwd.value
+      }
+
+      if (props.edit) {
+        updateUser(user.value)
+          .then(() => {
+            form.value.reset()
+            notifySuccess('user.successful_edit')
+            emit('updated')
+          })
+          .catch(() => {
+            notifyFailure('user.error')
+          })
+      } else {
+        createUser(user.value)
+          .then(() => {
+            form.value.reset()
+            notifySuccess('user.successful')
+            emit('updated')
+          })
+          .catch(() => {
+            notifyFailure('user.error')
+          })
+      }
+    }
+
+    onMounted(() => {
+      console.debug('Loading User: ' + user.value.id)
+      loadOrganizations()
+      loadRoles()
+      loadPermissions()
     })
 
     return {
       headers,
       rules,
-      edit,
       roles,
       permissions,
       organizations,
+      form,
+      user_roles,
+      user_permissions,
       pwd,
       repwd,
+      passwordRules,
       user,
-      passwordRules
+      add
+    }
+  },
+  watch: {
+    userProp(u) {
+      this.user = u
     }
   }
 }

@@ -66,18 +66,19 @@ class NewsItemAggregates(Resource):
     def get(self):
         user = auth_manager.get_user_from_jwt()
         try:
-            filter_keys = ["search", "read", "unread", "important", "relevant", "in_report", "range", "sort", "tags", "source"]
+            filter_keys = ["search", "read", "unread", "important", "relevant", "in_report", "range", "sort", "source"]
             filter_args: dict[str, str | int] = {k: v for k, v in request.args.items() if k in filter_keys}
 
             filter_args["group"] = request.args.get("group", osint_source.OSINTSourceGroup.get_default().id) or "default"
             filter_args["limit"] = min(int(request.args.get("limit", 20)), 200)
+            filter_args["tags"] = request.args.getlist("tags")
             page = int(request.args.get("page", 0))
             filter_args["offset"] = int(request.args.get("offset", page * filter_args["limit"]))
+
+            return news_item.NewsItemAggregate.get_by_filter_json(filter_args, user)
         except Exception as ex:
             logger.log_debug(ex)
-            return "", 400
-
-        return news_item.NewsItemAggregate.get_by_filter_json(filter_args, user)
+            return "Failed to get Stories", 400
 
 
 class NewsItemAggregateTags(Resource):

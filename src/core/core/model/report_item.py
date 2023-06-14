@@ -1,5 +1,6 @@
 from marshmallow import post_load, fields
-from datetime import datetime
+from datetime import datetime, timedelta
+
 import uuid as uuid_generator
 from sqlalchemy import orm, or_, func, text, and_
 from sqlalchemy.sql.expression import cast
@@ -225,37 +226,30 @@ class ReportItem(db.Model):
         if group:
             query = cls.query.filter(ReportItem.remote_user == group)
 
-        if "search" in filter and filter["search"] != "":
-            search_string = f"%{filter['search']}%"
+        search = filter.get("search")
+        if search and search != "":
             query = query.join(ReportItemAttribute, ReportItem.id == ReportItemAttribute.report_item_id).filter(
                 or_(
-                    ReportItemAttribute.value.ilike(search_string),
-                    ReportItem.title.ilike(search_string),
-                    ReportItem.title_prefix.ilike(search_string),
+                    ReportItemAttribute.value.ilike(search),
+                    ReportItem.title.ilike(search),
+                    ReportItem.title_prefix.ilike(search),
                 )
             )
 
-        if "completed" in filter and filter["completed"].lower() == "true":
+        if "completed" in filter and filter["completed"].lower() != "false":
             query = query.filter(ReportItem.completed)
 
-        if "incompleted" in filter and filter["incompleted"].lower() == "true":
-            query = query.filter(ReportItem.completed is False)
+        if "incompleted" in filter and filter["incompleted"].lower() != "false":
+            query = query.filter(ReportItem.completed == False)
 
-        if "range" in filter and filter["range"] != "ALL":
-            date_limit = datetime.now()
-            if filter["range"] == "TODAY":
-                date_limit = date_limit.replace(hour=0, minute=0, second=0, microsecond=0)
+        if "range" in filter and filter["range"].upper() != "ALL":
+            filter_range = filter["range"].upper()
+            date_limit = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
 
-            if filter["range"] == "WEEK":
-                date_limit = date_limit.replace(
-                    day=date_limit.day - date_limit.weekday(),
-                    hour=0,
-                    minute=0,
-                    second=0,
-                    microsecond=0,
-                )
+            if filter_range == "WEEK":
+                date_limit -= timedelta(days=date_limit.weekday())
 
-            if filter["range"] == "MONTH":
+            if filter_range == "MONTH":
                 date_limit = date_limit.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
             query = query.filter(ReportItem.created >= date_limit)

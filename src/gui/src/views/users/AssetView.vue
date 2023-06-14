@@ -2,8 +2,8 @@
   <v-container fluid style="min-height: 100vh">
     <asset
       v-if="asset"
-      :asset_prop="asset"
-      :edit.sync="edit"
+      v-model:edit="edit"
+      :asset-prop="asset"
       @assetcreated="assetcreated"
     />
   </v-container>
@@ -12,10 +12,13 @@
 <script>
 import { getAsset } from '@/api/assets'
 import { notifySuccess } from '@/utils/helpers'
-import Asset from '@/components/assets/Asset'
+import Asset from '@/components/assets/Asset.vue'
 
 export default {
   name: 'AssetView',
+  components: {
+    Asset
+  },
   data: function () {
     return {
       default_asset: {
@@ -30,11 +33,7 @@ export default {
       edit: true
     }
   },
-  components: {
-    Asset
-  },
   async created() {
-    console.debug('AssetView created')
     this.asset = await this.loadAsset()
   },
   methods: {

@@ -1,13 +1,15 @@
 <template>
   <LineChart
-    :chart-options="chartOptions"
-    :chart-data="chart_data"
+    :options="chartOptions"
+    :data="chart_data"
+    :style="chart_style"
     :height="chartHeight"
+    update-mode="active"
   />
 </template>
 
 <script>
-import { Line as LineChart } from 'vue-chartjs/legacy'
+import { Line as LineChart } from 'vue-chartjs'
 import {
   Chart as ChartJS,
   Title,
@@ -37,11 +39,6 @@ export default {
     LineChart
   },
   props: {
-    story: {
-      type: Object,
-      required: false,
-      default: () => {}
-    },
     timespan: {
       type: Number,
       required: false,
@@ -52,15 +49,15 @@ export default {
       required: false,
       default: () => []
     },
-    threshold: {
-      type: Number,
-      required: false,
-      default: 20
-    },
     chartHeight: {
       type: Number,
       required: false,
       default: 150
+    },
+    chartWidth: {
+      type: Number,
+      required: false,
+      default: 400
     }
   },
   data: function () {
@@ -85,6 +82,13 @@ export default {
     }
   },
   computed: {
+    chart_style() {
+      return {
+        height: this.chartHeight + 'px',
+        width: this.chartWidth + 'px'
+      }
+    },
+
     last_n_days() {
       return Array.from(Array(this.timespan).keys(), (i) => {
         const date = new Date()
@@ -108,25 +112,12 @@ export default {
       return dateCounts
     },
 
-    story_items() {
-      return this.story.news_items.reduce((acc, item) => {
-        const day = new Date(item.news_item_data.published).toLocaleDateString(
-          undefined,
-          { day: '2-digit', month: '2-digit' }
-        )
-        acc[day] = (acc[day] || 0) + 1
-        return acc
-      }, {})
-    },
-
     news_items_per_day() {
       let items_per_day = {}
       if (this.dataPoints.length > 0) {
         items_per_day = this.data_point_items
       }
-      if (this.story) {
-        items_per_day = this.story_items
-      }
+
       const days = this.last_n_days
 
       return days.map((day) => {
@@ -150,16 +141,13 @@ export default {
           }
         ]
       }
-    },
-    threshold_line() {
-      return Array(this.timespan).fill(this.threshold)
     }
   },
   updated() {
     // console.log('card rendered!')
   },
   mounted() {
-    if (!this.story && !this.dataPoints) {
+    if (!this.dataPoints) {
       console.error('No data provided to TrendingChart')
     }
   }

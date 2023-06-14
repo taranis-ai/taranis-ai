@@ -12,25 +12,25 @@
     <v-row no-gutters>
       <v-col cols="6">
         <v-text-field
-          :label="$t('form.name')"
           v-model="asset.name"
+          :label="$t('form.name')"
           :rules="required"
         />
       </v-col>
       <v-col cols="6">
-        <v-text-field :label="$t('asset.serial')" v-model="asset.serial" />
+        <v-text-field v-model="asset.serial" :label="$t('asset.serial')" />
       </v-col>
       <v-col cols="12">
         <v-textarea
-          :label="$t('asset.description')"
           v-model="asset.description"
-          :spellcheck="$store.state.settings.spellcheck"
+          :label="$t('asset.description')"
+          :spellcheck="spellcheck"
         />
       </v-col>
       <v-col cols="12">
         <v-select
-          :label="$t('asset.group')"
           v-model="asset.group"
+          :label="$t('asset.group')"
           :items="['foo', 'bar', 'fizz', 'buzz']"
         />
       </v-col>
@@ -50,26 +50,29 @@
 import { createAsset, updateAsset } from '@/api/assets'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
 
+import { mapState } from 'pinia'
+import { useSettingsStore } from '@/stores/SettingsStore'
+
 export default {
-  name: 'Asset',
-  components: {},
+  name: 'AssetView',
   props: {
-    asset_prop: { type: Object, default: () => {}, required: true },
+    assetProp: { type: Object, required: true },
     edit: { type: Boolean, default: false }
   },
   data: function () {
     return {
       required: [(v) => !!v || 'Required'],
       vulnerabilities: [],
-      asset: this.asset_prop
+      asset: this.assetProp
     }
   },
   computed: {
     container_title() {
       return this.edit
-        ? `${this.$t('title.edit')} asset`
-        : `${this.$t('title.add_new')} asset`
-    }
+        ? `${this.$t('button.edit')} asset`
+        : `${this.$t('button.add_new')} asset`
+    },
+    ...mapState(useSettingsStore, ['spellcheck'])
   },
   methods: {
     saveAsset() {
@@ -95,7 +98,6 @@ export default {
     update(cpes) {
       this.asset.asset_cpes = cpes
     }
-  },
-  mounted() {}
+  }
 }
 </script>

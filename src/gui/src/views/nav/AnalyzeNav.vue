@@ -1,16 +1,16 @@
 <template>
   <filter-navigation
-    :search="filter.search"
+    :search="reportFilter.search"
+    :limit="reportFilter.limit"
+    :offset="reportFilter.offset"
     @update:search="(value) => (search = value)"
-    :limit="limit"
-    @update:limit="(value) => (limit = value)"
-    :offsest="offset"
-    @update:offset="(value) => (offset = value)"
+    @update:limit="(value) => (reportFilter.limit = value)"
+    @update:offset="(value) => (reportFilter.offset = value)"
   >
     <template #navdrawer>
       <v-row class="my-2 mr-0 px-2 pb-5">
         <v-col cols="12" align-self="center" class="py-1">
-          <v-btn @click="addReport()" color="primary" block>
+          <v-btn color="primary" block @click="addReport()">
             <v-icon left dark> mdi-file-document-plus-outline </v-icon>
             New Report
           </v-btn>
@@ -23,27 +23,17 @@
           <h4>filter</h4>
         </v-col>
 
-        <!-- time tags -->
         <v-col cols="12" class="pb-0">
-          <date-chips v-model="range" />
+          <date-chips v-model="reportFilter.range" />
         </v-col>
+
+        <v-divider class="mt-3 mb-3"></v-divider>
 
         <v-col cols="12" class="pt-1">
           <filter-select-list
             v-model="filterAttribute"
-            :items="filterAttributeOptions"
+            :filter-attribute-options="filterAttributeOptions"
           />
-        </v-col>
-      </v-row>
-
-      <v-divider class="mt-0 mb-0"></v-divider>
-      <v-row class="my-2 mr-0 px-2">
-        <v-col cols="12" class="py-0">
-          <h4>sort by</h4>
-        </v-col>
-
-        <v-col cols="12" class="pt-2">
-          <filter-sort-list v-model="sort" :items="orderOptions" />
         </v-col>
       </v-row>
     </template>
@@ -51,148 +41,91 @@
 </template>
 
 <script>
-import { mapState, mapGetters, mapActions } from 'vuex'
-import FilterNavigation from '@/components/common/FilterNavigation'
-import filterSortList from '@/components/assess/filter/filterSortList'
-import dateChips from '@/components/assess/filter/dateChips'
-import filterSelectList from '@/components/assess/filter/filterSelectList'
+import { computed, onMounted, onUnmounted, watch } from 'vue'
+import { useAnalyzeStore } from '@/stores/AnalyzeStore'
+import { useFilterStore } from '@/stores/FilterStore'
+import FilterNavigation from '@/components/common/FilterNavigation.vue'
+import dateChips from '@/components/assess/filter/dateChips.vue'
+import filterSelectList from '@/components/assess/filter/filterSelectList.vue'
+import { storeToRefs } from 'pinia'
+import { useRoute } from 'vue-router'
+import { router } from '@/router'
 
 export default {
   name: 'AnalyzeNav',
   components: {
     dateChips,
     filterSelectList,
-    filterSortList,
     FilterNavigation
   },
-  data: () => ({
-    awaitingSearch: false,
-    orderOptions: [
-      {
-        label: 'date',
-        icon: 'mdi-calendar-range-outline',
-        type: 'DATE',
-        direction: 'DESC'
-      }
-    ],
-    filterAttributeOptions: [
-      { type: 'completed', label: 'completed', icon: 'mdi-progress-check' },
-      { type: 'incomplete', label: 'incomplete', icon: 'mdi-progress-close' }
-    ],
-    filterAttributeSelections: []
-  }),
-  computed: {
-    ...mapState('filter', {
-      filter: (state) => state.reportFilter
-    }),
-    ...mapState(['drawerVisible']),
-    ...mapState('route', ['query']),
-    limit: {
-      get() {
-        return this.filter.limit
-      },
-      set(value) {
-        this.updateReportFilter({ limit: value })
-        this.updateReportItems()
-      }
-    },
-    sort: {
-      get() {
-        if (!this.filter.order) return 'DATE_DESC'
-        return this.filter.order
-      },
-      set(value) {
-        this.updateReportFilter({ sort: value })
-        this.updateReportItems()
-      }
-    },
-    offset: {
-      get() {
-        return this.filter.offset
-      },
-      set(value) {
-        this.updateReportFilter({ offset: value })
-        this.updateReportItems()
-      }
-    },
-    range: {
-      get() {
-        return this.filter.range
-      },
-      set(value) {
-        this.updateReportFilter({ range: value })
-        this.updateReportItems()
-      }
-    },
-    search: {
-      get() {
-        return this.filter.search
-      },
-      set(value) {
-        this.updateReportFilter({ search: value })
-        if (!this.awaitingSearch) {
-          setTimeout(() => {
-            this.updateReportItems()
-            this.awaitingSearch = false
-          }, 500)
-        }
+  setup() {
+    const filterStore = useFilterStore()
+    const analyzeStore = useAnalyzeStore()
+    const { reportFilter } = storeToRefs(filterStore)
+    const { updateReportFilter, setReportFilter } = filterStore
+    const updateReportItems = analyzeStore.updateReportItems
 
-        this.awaitingSearch = true
-      }
-    },
-    filterAttribute: {
+    const route = useRoute()
+
+    const search = computed({
       get() {
-        return this.filterAttributeSelections
+        return reportFilter.value.search
       },
       set(value) {
-        this.filterAttributeSelections = value
-
-        const filterUpdate = this.filterAttributeOptions.reduce((obj, item) => {
-          obj[item.type] = value.includes(item.type) ? 'true' : undefined
-          return obj
-        }, {})
-
-        console.debug('filterAttributeSelections', filterUpdate)
-        this.updateReportFilter(filterUpdate)
-        this.updateReportItems()
+        updateReportFilter({ search: value })
       }
-    },
-    offsetRange() {
-      const list = []
-      for (let i = 0; i <= this.getItemCount().total; i++) {
-        list.push(i)
+    })
+    const filterAttributeOptions = [
+      { value: 'completed', label: 'completed', icon: 'mdi-progress-check' },
+      { value: 'incompleted', label: 'incomplete', icon: 'mdi-progress-close' }
+    ]
+
+    const filterAttribute = computed({
+      get() {
+        return filterAttributeOptions
+          .filter((option) => reportFilter.value[option.value])
+          .map((option) => option.value)
+      },
+      set(value) {
+        updateReportFilter(value)
+        console.debug('filterAttributeSelections', value)
       }
-      return list
-    },
-    pages() {
-      const blocks = Math.ceil(
-        this.getItemCount().total / this.getItemCount().filtered
+    })
+
+    function addReport() {
+      router.push('/report/0')
+    }
+
+    onMounted(() => {
+      const query = Object.fromEntries(
+        Object.entries(route.query).filter(([, v]) => v != null)
       )
-      const list = []
-      for (let i = 0; i <= blocks; i++) {
-        list.push(i)
-      }
-      return list
-    },
-    navigation_drawer_class() {
-      return this.showOmniSearch ? 'mt-12' : ''
-    }
-  },
-  methods: {
-    ...mapGetters(['getItemCount']),
-    ...mapActions('analyze', ['updateReportItems']),
-    ...mapActions('filter', ['setReportFilter', 'updateReportFilter']),
-    ...mapGetters('filter', ['getReportFilter']),
-    addReport() {
-      this.$router.push('/report/0')
-    }
-  },
-  created() {
-    const query = Object.fromEntries(
-      Object.entries(this.query).filter(([, v]) => v != null)
+      updateReportFilter(query)
+      console.debug('loaded with query', query)
+    })
+
+    onUnmounted(() => {
+      setReportFilter({})
+    })
+
+    watch(
+      reportFilter,
+      (filter, prevFilter) => {
+        console.debug('filter changed', filter, prevFilter)
+        updateReportItems()
+      },
+      { deep: true }
     )
-    this.updateReportFilter(query)
-    console.debug('loaded with query', query)
+
+    return {
+      reportFilter,
+      updateReportFilter,
+      updateReportItems,
+      search,
+      filterAttributeOptions,
+      filterAttribute,
+      addReport
+    }
   }
 }
 </script>

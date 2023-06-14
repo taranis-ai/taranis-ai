@@ -1,11 +1,11 @@
 <template>
   <div>
     <DataTable
-      :addButton="true"
-      :items.sync="roles"
-      :headerFilter="['tag', 'id', 'name', 'description']"
-      sortByItem="id"
-      :actionColumn="true"
+      v-model:items="roles.items"
+      :add-button="true"
+      :header-filter="['tag', 'id', 'name', 'description']"
+      sort-by-item="id"
+      :action-column="true"
       @delete-item="deleteItem"
       @edit-item="editItem"
       @add-item="addItem"
@@ -13,139 +13,153 @@
     />
     <EditConfig
       v-if="formData && Object.keys(formData).length > 0"
-      :configData="formData"
-      :formFormat="formFormat"
+      :config-data="formData"
+      :form-format="formFormat"
       @submit="handleSubmit"
     ></EditConfig>
   </div>
 </template>
 
 <script>
-import DataTable from '@/components/common/DataTable'
-import EditConfig from '../../components/config/EditConfig'
+import DataTable from '@/components/common/DataTable.vue'
+import EditConfig from '@/components/config/EditConfig.vue'
 import { deleteRole, createRole, updateRole } from '@/api/config'
-import { mapActions, mapGetters } from 'vuex'
+import { ref, onMounted, computed } from 'vue'
+import { useConfigStore } from '@/stores/ConfigStore'
+import { useMainStore } from '@/stores/MainStore'
+import { storeToRefs } from 'pinia'
 import { notifySuccess, objectFromFormat, notifyFailure } from '@/utils/helpers'
 
 export default {
-  name: 'Roles',
+  name: 'RolesView',
   components: {
     DataTable,
     EditConfig
   },
-  data: () => ({
-    roles: [],
-    formData: {},
-    selected: [],
-    edit: false,
-    permissions: []
-  }),
-  computed: {
-    formFormat() {
-      return [
-        {
-          name: 'id',
-          label: 'ID',
-          type: 'text',
-          disabled: true
-        },
-        {
-          name: 'name',
-          label: 'Name',
-          type: 'text',
-          required: true
-        },
-        {
-          name: 'description',
-          label: 'Description',
-          type: 'textarea',
-          required: true
-        },
-        {
-          name: 'permissions',
-          label: 'Permissions',
-          type: 'table',
-          headers: [
-            { text: 'Name', value: 'name' },
-            { text: 'Description', value: 'description' }
-          ],
-          items: this.permissions
-        }
-      ]
-    }
-  },
-  methods: {
-    ...mapActions('config', ['loadRoles', 'loadPermissions']),
-    ...mapGetters('config', ['getRoles', 'getPermissions']),
-    ...mapActions(['updateItemCount']),
-    updateData() {
-      this.loadRoles().then(() => {
-        const sources = this.getRoles()
-        this.roles = sources.items
-        this.updateItemCount({
-          total: sources.total_count,
-          filtered: sources.length
-        })
-      })
-      this.loadPermissions().then(() => {
-        this.permissions = this.getPermissions().items
-      })
-    },
-    addItem() {
-      this.formData = objectFromFormat(this.formFormat)
-      this.edit = false
-    },
-    editItem(item) {
-      this.formData = item
-      this.edit = true
-    },
-    handleSubmit(submittedData) {
-      console.log(submittedData)
-      if (this.edit) {
-        this.updateItem(submittedData)
-      } else {
-        this.createItem(submittedData)
+  setup() {
+    const store = useConfigStore()
+    const mainStore = useMainStore()
+    const { roles, permissions } = storeToRefs(store)
+    const formData = ref({})
+    const selected = ref([])
+    const edit = ref(false)
+
+    const formFormat = computed(() => [
+      {
+        name: 'id',
+        label: 'ID',
+        type: 'text',
+        disabled: true
+      },
+      {
+        name: 'name',
+        label: 'Name',
+        type: 'text',
+        required: true
+      },
+      {
+        name: 'description',
+        label: 'Description',
+        type: 'textarea',
+        required: true
+      },
+      {
+        name: 'permissions',
+        label: 'Permissions',
+        type: 'table',
+        headers: [
+          { title: 'Name', key: 'name' },
+          { title: 'Description', key: 'description' }
+        ],
+        items: permissions.value.items
       }
-    },
-    deleteItem(item) {
+    ])
+
+    const updateData = () => {
+      store.loadRoles().then(() => {
+        mainStore.itemCountTotal = roles.value.total_count
+        mainStore.itemCountFiltered = roles.value.items.length
+      })
+      store.loadPermissions().then()
+    }
+
+    const addItem = () => {
+      formData.value = objectFromFormat(formFormat.value)
+      console.debug(formData.value)
+      edit.value = false
+    }
+
+    const editItem = (item) => {
+      formData.value = item
+      edit.value = true
+    }
+
+    const handleSubmit = (submittedData) => {
+      console.log(submittedData)
+      if (edit.value) {
+        updateItem(submittedData)
+      } else {
+        createItem(submittedData)
+      }
+    }
+
+    const deleteItem = (item) => {
       if (!item.default) {
         deleteRole(item)
           .then(() => {
             notifySuccess(`Successfully deleted ${item.name}`)
-            this.updateData()
+            updateData()
           })
           .catch(() => {
             notifyFailure(`Failed to delete ${item.name}`)
           })
       }
-    },
-    createItem(item) {
+    }
+
+    const createItem = (item) => {
       createRole(item)
         .then(() => {
           notifySuccess(`Successfully created ${item.name}`)
-          this.updateData()
+          updateData()
         })
         .catch(() => {
           notifyFailure(`Failed to create ${item.name}`)
         })
-    },
-    updateItem(item) {
+    }
+
+    const updateItem = (item) => {
       updateRole(item)
         .then(() => {
           notifySuccess(`Successfully updated ${item.name}`)
-          this.updateData()
+          updateData()
         })
         .catch(() => {
           notifyFailure(`Failed to update ${item.name}`)
         })
-    },
-    selectionChange(selected) {
-      this.selected = selected.map((item) => item.id)
     }
-  },
-  mounted() {
-    this.updateData()
-  },
-  beforeDestroy() {}
+
+    const selectionChange = (selectedItems) => {
+      selected.value = selectedItems.map((item) => item.id)
+    }
+
+    onMounted(() => {
+      updateData()
+    })
+
+    return {
+      roles,
+      formData,
+      selected,
+      edit,
+      permissions,
+      formFormat,
+      addItem,
+      editItem,
+      handleSubmit,
+      deleteItem,
+      selectionChange,
+      updateData
+    }
+  }
 }
 </script>

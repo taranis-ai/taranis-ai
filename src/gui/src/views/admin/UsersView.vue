@@ -1,25 +1,34 @@
 <template>
   <div>
     <DataTable
-      :addButton="true"
-      :items.sync="users"
-      :headerFilter="['tag', 'id', 'name', 'username']"
-      sortByItem="id"
-      :actionColumn="true"
+      v-model:items="users.items"
+      :add-button="true"
+      :header-filter="['tag', 'id', 'name', 'username']"
+      sort-by-item="id"
+      :action-column="true"
       @delete-item="deleteItem"
       @edit-item="editItem"
       @add-item="addItem"
       @update-items="updateData"
     />
-    <UserForm v-if="showForm" :user_id="userID"></UserForm>
+    <UserForm
+      v-if="showForm"
+      :user-prop="user"
+      :edit="edit"
+      @updated="formUpdated"
+    ></UserForm>
   </div>
 </template>
 
 <script>
-import DataTable from '@/components/common/DataTable'
-import UserForm from '../../components/config/user/UserForm'
+import DataTable from '@/components/common/DataTable.vue'
+import UserForm from '@/components/config/user/UserForm.vue'
 import { deleteUser, createUser, updateUser } from '@/api/config'
-import { mapActions, mapGetters } from 'vuex'
+import { ref, onMounted } from 'vue'
+import { useConfigStore } from '@/stores/ConfigStore'
+import { useMainStore } from '@/stores/MainStore'
+import { notifySuccess, notifyFailure } from '@/utils/helpers'
+import { storeToRefs } from 'pinia'
 
 export default {
   name: 'UsersView',
@@ -27,79 +36,115 @@ export default {
     DataTable,
     UserForm
   },
-  data: () => ({
-    showForm: false,
-    users: [],
-    selected: [],
-    userID: -1
-  }),
-  methods: {
-    ...mapActions('config', ['loadUsers']),
-    ...mapGetters('config', ['getUsers']),
-    ...mapActions(['updateItemCount']),
-    updateData() {
-      this.loadUsers().then(() => {
-        const sources = this.getUsers()
-        this.users = sources.items
-        this.updateItemCount({
-          total: sources.total_count,
-          filtered: sources.length
-        })
+  setup() {
+    const store = useConfigStore()
+    const { users } = storeToRefs(store)
+    const mainStore = useMainStore()
+    const showForm = ref(false)
+    const selected = ref([])
+    const user = ref({})
+    const edit = ref(false)
+
+    const updateData = () => {
+      store.loadUsers().then(() => {
+        mainStore.itemCountTotal = users.value.total_count
+        mainStore.itemCountFiltered = users.value.items?.length || 0
       })
-    },
-    addItem() {
-      this.userID = -1
-      this.showForm = true
-    },
-    editItem(item) {
-      this.userID = item.id
-      this.showForm = true
-    },
-    handleSubmit(submittedData) {
-      if (this.showForm) {
-        this.updateItem(submittedData)
-      } else {
-        this.createItem(submittedData)
-      }
-    },
-    deleteItem(item) {
-      if (!item.default) {
-        deleteUser(item).then(() => {
-          this.message = `Successfully deleted ${item.name}`
-          this.dialog = true
-          this.$root.$emit('notification', {
-            type: 'success',
-            loc: `Successfully deleted ${item.name}`
-          })
-          this.updateData()
-        })
-      }
-    },
-    createItem(item) {
-      createUser(item).then(() => {
-        this.$root.$emit('notification', {
-          type: 'success',
-          loc: `Successfully added ${item.name}`
-        })
-        this.updateData()
-      })
-    },
-    updateItem(item) {
-      updateUser(item).then(() => {
-        this.$root.$emit('notification', {
-          type: 'success',
-          loc: `Successfully updated ${item.name}`
-        })
-        this.updateData()
-      })
-    },
-    selectionChange(selected) {
-      this.selected = selected.map((item) => item.id)
     }
-  },
-  mounted() {
-    this.updateData()
-  },
-  beforeDestroy() {}
+
+    const formUpdated = () => {
+      showForm.value = false
+      updateData()
+    }
+
+    const addItem = () => {
+      user.value = {
+        id: -1,
+        username: '',
+        name: '',
+        organization: {
+          id: undefined
+        },
+        roles: [],
+        permissions: []
+      }
+      edit.value = false
+      showForm.value = true
+    }
+
+    const editItem = (item) => {
+      user.value = item
+      edit.value = true
+      showForm.value = true
+    }
+
+    const handleSubmit = (submittedData) => {
+      if (showForm.value) {
+        updateItem(submittedData)
+      } else {
+        createItem(submittedData)
+      }
+    }
+
+    const deleteItem = (item) => {
+      console.debug('deleteItem', item)
+      deleteUser(item)
+        .then(() => {
+          notifySuccess(`Successfully deleted ${item.name}`)
+          updateData()
+        })
+        .catch(() => {
+          notifyFailure(`Failed to delete ${item.name}`)
+        })
+    }
+
+    const createItem = (item) => {
+      createUser(item)
+        .then(() => {
+          notifySuccess(`Successfully created ${item.name}`)
+          updateData()
+        })
+        .catch(() => {
+          notifyFailure(`Failed to create ${item.name}`)
+        })
+    }
+
+    const updateItem = (item) => {
+      updateUser(item)
+        .then(() => {
+          notifySuccess(`Successfully updated ${item.name}`)
+          updateData()
+        })
+        .catch(() => {
+          notifyFailure(`Failed to update ${item.name}`)
+        })
+    }
+
+    const selectionChange = (selectedItems) => {
+      selected.value = selectedItems.map((item) => item.id)
+    }
+
+    onMounted(() => {
+      updateData()
+    })
+
+    return {
+      showForm,
+      users,
+      selected,
+      user,
+      edit,
+      updateData,
+      formUpdated,
+      addItem,
+      editItem,
+      handleSubmit,
+      deleteItem,
+      createItem,
+      updateItem,
+      selectionChange
+    }
+  }
 }
 </script>
+showForm = false

@@ -1,20 +1,18 @@
-import Permissions from '@/services/auth/permissions'
-import { store } from '@/store/store'
+import { useAuthStore } from '@/stores/AuthStore'
 
 const AuthMixin = {
-  data: () => ({
-    permissions: Permissions
-  }),
-
   methods: {
     isAuthenticated() {
-      return store.getters.isAuthenticated
+      const authstore = useAuthStore()
+      return authstore.isAuthenticated
     },
     needTokenRefresh() {
-      return store.getters.needTokenRefresh
+      const authstore = useAuthStore()
+      return authstore.needTokenRefresh
     },
     checkPermission(permission) {
-      return store.getters.getPermissions.includes(permission)
+      const authstore = useAuthStore()
+      return authstore.user.permissions.includes(permission)
     }
   }
 }

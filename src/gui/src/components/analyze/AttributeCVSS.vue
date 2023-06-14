@@ -1,8 +1,8 @@
 <template>
   <div>
     <v-text-field
-      name="cvss"
       v-model="vector"
+      name="cvss"
       prepend-icon="mdi-chevron-down"
       @click:prepend="open = !open"
     />
@@ -10,18 +10,11 @@
   </div>
 </template>
 
-<style src="@/assets/cvss.css"></style>
-
 <script>
 import { CVSS } from '@/plugins/cvss.js'
 
 export default {
   name: 'AttributeCVSS',
-  emits: ['input'],
-  data: () => ({
-    cvss: null,
-    open: true
-  }),
   props: {
     value: {
       type: String,
@@ -29,6 +22,11 @@ export default {
       required: true
     }
   },
+  emits: ['input'],
+  data: () => ({
+    cvss: null,
+    open: true
+  }),
   computed: {
     vector: {
       get() {
@@ -42,6 +40,12 @@ export default {
       }
     }
   },
+  mounted() {
+    this.cvss = new CVSS('cvssboard', {
+      onchange: this.onChange
+    })
+    this.cvss.set(this.value)
+  },
   methods: {
     onChange() {
       const vector = this.cvss.get().vector
@@ -49,12 +53,8 @@ export default {
         this.$emit('input', this.cvss.get().vector)
       }
     }
-  },
-  mounted() {
-    this.cvss = new CVSS('cvssboard', {
-      onchange: this.onChange
-    })
-    this.cvss.set(this.value)
   }
 }
 </script>
+
+<style src="@/assets/cvss.css"></style>

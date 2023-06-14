@@ -1,11 +1,11 @@
 <template>
   <div>
     <DataTable
-      :addButton="true"
-      :items.sync="attributes"
-      :headerFilter="['tag', 'id', 'name', 'description']"
-      sortByItem="id"
-      :actionColumn="true"
+      v-model:items="attributes.items"
+      :add-button="true"
+      :header-filter="['tag', 'id', 'name', 'description']"
+      sort-by-item="id"
+      :action-column="true"
       @delete-item="deleteItem"
       @edit-item="editItem"
       @add-item="addItem"
@@ -13,28 +13,29 @@
     />
     <EditConfig
       v-if="formData && Object.keys(formData).length > 0"
-      :configData="formData"
-      :formFormat="formFormat"
+      :config-data="formData"
+      :form-format="formFormat"
       @submit="handleSubmit"
     ></EditConfig>
   </div>
 </template>
 
 <script>
-import DataTable from '@/components/common/DataTable'
-import EditConfig from '../../components/config/EditConfig'
+import DataTable from '@/components/common/DataTable.vue'
+import EditConfig from '@/components/config/EditConfig.vue'
 import { deleteAttribute, createAttribute, updateAttribute } from '@/api/config'
-import { mapActions, mapGetters } from 'vuex'
+import { mapActions, mapState, mapWritableState } from 'pinia'
+import { useConfigStore } from '@/stores/ConfigStore'
 import { notifySuccess, emptyValues, notifyFailure } from '@/utils/helpers'
+import { useMainStore } from '@/stores/MainStore'
 
 export default {
-  name: 'Attributes',
+  name: 'AttributesView',
   components: {
     DataTable,
     EditConfig
   },
   data: () => ({
-    attributes: [],
     formData: {},
     edit: false,
     formFormat: [
@@ -97,22 +98,22 @@ export default {
       }
     ]
   }),
+  computed: {
+    ...mapWritableState(useMainStore, ['itemCountTotal', 'itemCountFiltered']),
+    ...mapState(useConfigStore, ['attributes'])
+  },
+  mounted() {
+    this.updateData()
+  },
   methods: {
-    ...mapActions('config', ['loadAttributes']),
-    ...mapGetters('config', ['getAttributes']),
-    ...mapActions(['updateItemCount']),
-    updateData() {
-      this.loadAttributes().then(() => {
-        const sources = this.getAttributes()
-        this.attributes = sources.items
-        this.updateItemCount({
-          total: sources.total_count,
-          filtered: sources.length
-        })
-      })
+    ...mapActions(useConfigStore, ['loadAttributes']),
+    async updateData() {
+      await this.loadAttributes()
+      this.itemCountTotal = this.attributes.total_count
+      this.itemCountFiltered = this.attributes.items.length
     },
     addItem() {
-      this.formData = emptyValues(this.attributes[0])
+      this.formData = emptyValues(this.attributes.items[0])
       this.edit = false
     },
     editItem(item) {
@@ -159,10 +160,6 @@ export default {
           notifyFailure(`Failed to update ${item.name}`)
         })
     }
-  },
-  mounted() {
-    this.updateData()
-  },
-  beforeDestroy() {}
+  }
 }
 </script>

@@ -1,11 +1,11 @@
 <template>
   <div>
     <DataTable
-      :addButton="true"
-      :items.sync="presets"
-      :headerFilter="['tag', 'id', 'name', 'description']"
-      sortByItem="id"
-      :actionColumn="true"
+      :items="presets"
+      :add-button="true"
+      :header-filter="['tag', 'id', 'name', 'description']"
+      sort-by-item="id"
+      :action-column="true"
       @delete-item="deleteItem"
       @edit-item="editItem"
       @add-item="addItem"
@@ -13,22 +13,22 @@
     />
     <EditConfig
       v-if="formData && Object.keys(formData).length > 0"
-      :configData="formData"
-      :formFormat.sync="formFormat"
+      :form-format="formFormat"
+      :config-data="formData"
       @submit="handleSubmit"
     ></EditConfig>
   </div>
 </template>
 
 <script>
-import DataTable from '@/components/common/DataTable'
-import EditConfig from '../../components/config/EditConfig'
+import { defineComponent, ref, computed, onMounted } from 'vue'
+import DataTable from '@/components/common/DataTable.vue'
+import EditConfig from '@/components/config/EditConfig.vue'
 import {
   deletePublisherPreset,
   createPublisherPreset,
   updatePublisherPreset
 } from '@/api/config'
-import { mapActions, mapGetters } from 'vuex'
 import {
   notifySuccess,
   parseParameterValues,
@@ -36,22 +36,29 @@ import {
   objectFromFormat,
   notifyFailure
 } from '@/utils/helpers'
+import { useConfigStore } from '@/stores/ConfigStore'
+import { useMainStore } from '@/stores/MainStore'
+import { storeToRefs } from 'pinia'
 
-export default {
-  name: 'presets',
+export default defineComponent({
+  name: 'PublisherPresetsView',
   components: {
     DataTable,
     EditConfig
   },
-  data: () => ({
-    presets: [],
-    formData: {},
-    parameters: {},
-    publishers: [],
-    edit: false
-  }),
-  computed: {
-    formFormat() {
+  setup() {
+    const store = useConfigStore()
+    const mainStore = useMainStore()
+
+    const { publisher_presets, publishers } = storeToRefs(store)
+
+    const presets = ref([])
+    const publishersList = ref([])
+    const formData = ref({})
+    const parameters = ref({})
+    const edit = ref(false)
+
+    const formFormat = computed(() => {
       const base = [
         {
           name: 'id',
@@ -76,33 +83,31 @@ export default {
           label: 'Type',
           type: 'select',
           required: true,
-          options: this.publishers,
-          disabled: this.edit
+          options: publishersList.value,
+          disabled: edit.value
         }
       ]
-      if (this.parameters[this.formData.publisher_id]) {
-        return base.concat(this.parameters[this.formData.publisher_id])
+      if (parameters.value[formData.value.publisher_id]) {
+        return base.concat(parameters.value[formData.value.publisher_id])
       }
       return base
-    }
-  },
-  methods: {
-    ...mapActions('config', ['loadPublisherPresets', 'loadPublishers']),
-    ...mapGetters('config', ['getPublisherPresets', 'getPublishers']),
-    ...mapActions(['updateItemCount']),
-    updateData() {
-      this.loadPublisherPresets().then(() => {
-        const sources = this.getPublisherPresets()
-        this.presets = parseParameterValues(sources.items)
-        this.updateItemCount({
-          total: sources.total_count,
-          filtered: sources.length
-        })
+    })
+
+    const updateData = () => {
+      store.loadPublisherPresets().then(() => {
+        presets.value = parseParameterValues(publisher_presets.value.items)
+        mainStore.itemCountTotal = publisher_presets.value.total_count
+        mainStore.itemCountFiltered = publisher_presets.value.items.length
       })
-      this.loadPublishers().then(() => {
-        const publishers = this.getPublishers()
-        this.publishers = publishers.items.map((publisher) => {
-          this.parameters[publisher.id] = publisher.parameters.map(
+      store.loadPublishers().then(() => {
+        publishersList.value = publishers.value.items.map((item) => {
+          return {
+            title: item.name,
+            value: item.id
+          }
+        })
+        publishers.value.items.forEach((publisher) => {
+          parameters.value[publisher.id] = publisher.parameters.map(
             (parameter) => {
               return {
                 name: parameter.key,
@@ -111,69 +116,89 @@ export default {
               }
             }
           )
-          return {
-            value: publisher.id,
-            text: publisher.name
-          }
         })
       })
-    },
-    addItem() {
-      this.formData = objectFromFormat(this.formFormat)
-      this.edit = false
-    },
-    editItem(item) {
-      this.formData = item
-      this.edit = true
-    },
-    handleSubmit(submittedData) {
+    }
+
+    const addItem = () => {
+      formData.value = objectFromFormat(formFormat.value)
+      edit.value = false
+    }
+
+    const editItem = (item) => {
+      formData.value = item
+      edit.value = true
+    }
+
+    const handleSubmit = (submittedData) => {
       delete submittedData.parameter_values
-      const parameter_list = this.parameters[this.formData.publisher_id].map(
+      const parameterList = parameters.value[formData.value.publisher_id].map(
         (item) => item.name
       )
-      const updateItem = createParameterValues(parameter_list, submittedData)
-      if (this.edit) {
-        this.updateItem(updateItem)
+      const updateItem = createParameterValues(parameterList, submittedData)
+      if (edit.value) {
+        updateItem(updateItem)
       } else {
-        this.createItem(updateItem)
+        createItem(updateItem)
       }
-    },
-    deleteItem(item) {
+    }
+
+    const deleteItem = (item) => {
       if (!item.default) {
         deletePublisherPreset(item)
           .then(() => {
             notifySuccess(`Successfully deleted ${item.name}`)
-            this.updateData()
+            updateData()
           })
           .catch(() => {
             notifyFailure(`Failed to delete ${item.name}`)
           })
       }
-    },
-    createItem(item) {
+    }
+
+    const createItem = (item) => {
       createPublisherPreset(item)
         .then(() => {
           notifySuccess(`Successfully created ${item.name}`)
-          this.updateData()
+          updateData()
         })
         .catch(() => {
           notifyFailure(`Failed to create ${item.name}`)
         })
-    },
-    updateItem(item) {
+    }
+
+    const updateItem = (item) => {
       updatePublisherPreset(item)
         .then(() => {
           notifySuccess(`Successfully updated ${item.name}`)
-          this.updateData()
+          updateData()
         })
         .catch(() => {
           notifyFailure(`Failed to update ${item.name}`)
         })
     }
-  },
-  mounted() {
-    this.updateData()
-  },
-  beforeDestroy() {}
-}
+
+    onMounted(() => {
+      updateData()
+    })
+
+    return {
+      publisher_presets,
+      publishersList,
+      publishers,
+      presets,
+      formData,
+      parameters,
+      edit,
+      formFormat,
+      addItem,
+      editItem,
+      handleSubmit,
+      deleteItem,
+      createItem,
+      updateItem,
+      updateData
+    }
+  }
+})
 </script>

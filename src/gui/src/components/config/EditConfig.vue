@@ -1,70 +1,78 @@
 <template>
   <v-container fluid class="ma-5 mt-5 pa-5 pt-0">
     <v-form
-      @submit.prevent="handleSubmit"
       id="edit_config_form"
       ref="config_form"
       class="px-4"
+      @submit.prevent="handleSubmit"
     >
       <v-row class="mb-4 grey pt-3 pb-3 rounded">
         <v-btn type="submit" color="success" class="ml-4"> Submit </v-btn>
       </v-row>
-      <v-row no-gutters v-for="item in format" :key="item.name">
-        <v-col cols="12" v-if="item.parent">
+      <v-row v-for="item in format" :key="item.name" no-gutters>
+        <v-col v-if="item.parent" cols="12">
           <v-text-field
+            v-if="item.type === 'text' || item.type === 'number'"
             v-model="formData[item.parent][item.name]"
             :label="item.label"
             :required="item.required"
             :disabled="item['disabled']"
             :type="item.type"
-            v-if="item.type === 'text' || item.type === 'number'"
           ></v-text-field>
         </v-col>
-        <v-col cols="12" v-else>
+        <v-col v-else cols="12">
           <v-text-field
+            v-if="item.type === 'text' || item.type === 'number'"
             v-model="formData[item.name]"
             :label="item.label"
             :required="item.required"
             :disabled="item['disabled']"
             :type="item.type"
-            v-if="item.type === 'text' || item.type === 'number'"
           ></v-text-field>
         </v-col>
         <v-textarea
+          v-if="item.type === 'textarea'"
           v-model="formData[item.name]"
           :label="item.label"
           :required="item.required"
           :disabled="item['disabled']"
           :type="item.type"
-          v-if="item.type === 'textarea'"
         ></v-textarea>
         <v-select
+          v-if="item.type === 'select' && item.options"
           v-model="formData[item.name]"
           :label="item.label"
           :required="item.required"
           :disabled="item['disabled']"
           :items="item.options"
-          v-if="item.type === 'select' && item.options"
         ></v-select>
+        <v-switch
+          v-if="item.type === 'switch'"
+          v-model="formData[item.name]"
+          :label="item.label"
+          :disabled="item['disabled']"
+          true-value="true"
+          false-value="false"
+        ></v-switch>
+
         <v-col
-          cols="12"
           v-if="item.type === 'table' && item.items !== undefined"
+          cols="12"
         >
           <v-data-table
+            v-model="formData[item.name]"
             :headers="item.headers"
             :show-select="!item['disabled']"
             :items="item.items"
-            :item-key="item.headers[0].value"
-            :hide-default-footer="item.items.length < 10"
-            v-model="formData[item.name]"
+            :item-value="item.headers[0].value"
           >
-            <template v-slot:[`top`]>
+            <template #top>
               <v-row justify="space-between">
                 <v-col md="4">
                   <h2 class="ml-4">{{ item.label }}</h2>
                 </v-col>
                 <v-col md="1">
-                  <v-btn @click="addItem(item.name)" v-if="item.addButton">
+                  <v-btn v-if="item.addButton" @click="addItem(item.name)">
                     Add
                   </v-btn>
                 </v-col>
@@ -72,14 +80,12 @@
             </template>
             <template
               v-for="h in item.headers"
-              v-slot:[`item.${h.value}`]="props"
+              #[`item.${h.value}`]="props"
+              :key="h.value"
             >
-              <v-edit-dialog
-                :key="h.value"
-                :return-value.sync="props.item[h.value]"
-              >
+              <v-dialog v-model:return-value="props.item[h.value]">
                 {{ props.item[h.value] }}
-                <template v-slot:input>
+                <template #input>
                   <v-text-field
                     v-model="props.item[h.value]"
                     :disabled="item['disabled'] === undefined"
@@ -88,8 +94,9 @@
                     single-line
                   ></v-text-field>
                 </template>
-              </v-edit-dialog>
+              </v-dialog>
             </template>
+            <template v-if="item.items.length < 10" #bottom />
           </v-data-table>
         </v-col>
       </v-row>
@@ -100,7 +107,6 @@
 <script>
 export default {
   name: 'EditConfig',
-  emits: ['submit'],
   props: {
     configData: {
       type: Object,
@@ -108,9 +114,11 @@ export default {
     },
     formFormat: {
       type: Array,
-      required: false
+      required: false,
+      default: null
     }
   },
+  emits: ['submit'],
   computed: {
     formData() {
       return this.configData

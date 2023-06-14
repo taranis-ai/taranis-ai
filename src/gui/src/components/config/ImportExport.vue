@@ -7,11 +7,11 @@
       <v-icon>mdi-export</v-icon>Export
     </v-btn>
     <input
-      @change="fileSelected"
+      ref="fileInput"
       accept="application/json"
       type="file"
       hidden
-      ref="fileInput"
+      @change="fileSelected"
     />
   </div>
 </template>

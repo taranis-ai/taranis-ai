@@ -1,11 +1,11 @@
 <template>
   <filter-navigation
-    :search="filter.search"
+    :search="search"
+    :limit="newsItemsFilter.limit"
+    :offset="newsItemsFilter.offset"
     @update:search="(value) => (search = value)"
-    :limit="limit"
-    @update:limit="(value) => (limit = value)"
-    :offsest="offset"
-    @update:offset="(value) => (offset = value)"
+    @update:limit="(value) => (newsItemsFilter.limit = value)"
+    @update:offset="(value) => (newsItemsFilter.offset = value)"
   >
     <template #navdrawer>
       <!-- scope -->
@@ -16,51 +16,46 @@
 
         <v-col cols="12" class="pt-0">
           <v-select
-            v-model="group"
-            :items="getOSINTSourceGroupsList()"
-            prepent-icon="mdi-format-list-numbered"
-            item-text="title"
+            v-model="newsItemsFilter.group"
+            :items="getOSINTSourceGroupsList"
+            item-title="title"
             item-value="id"
             label="Source Group"
             :hide-details="true"
-            solo
+            variant="solo"
             clearable
-            dense
+            density="compact"
           ></v-select>
         </v-col>
 
         <v-col cols="12" class="pt-0">
           <v-select
-            v-model="source"
-            :items="getOSINTSourcesList()"
-            prepent-icon="mdi-format-list-numbered"
-            item-text="title"
+            v-model="newsItemsFilter.source"
+            :items="getOSINTSourcesList"
+            item-title="title"
             item-value="id"
             label="Source"
             :hide-details="true"
-            solo
+            variant="solo"
             clearable
-            dense
+            density="compact"
           ></v-select>
         </v-col>
       </v-row>
 
       <v-divider class="mt-0 mb-0"></v-divider>
 
-      <!-- filter results -->
       <v-row class="my-2 mr-0 px-2">
         <v-col cols="12" class="py-0">
-          <h4>filter results</h4>
+          <h4>Filter</h4>
         </v-col>
 
-        <!-- time tags -->
         <v-col cols="12" class="pb-0">
-          <date-chips v-model="range" />
+          <date-chips v-model="newsItemsFilter.range" />
         </v-col>
 
-        <!-- tags -->
         <v-col cols="12" class="pr-0">
-          <tag-filter />
+          <tag-filter v-model="newsItemsFilter.tags" />
         </v-col>
       </v-row>
 
@@ -70,7 +65,7 @@
         <v-col cols="12" class="pt-1">
           <filter-select-list
             v-model="filterAttribute"
-            :items="filterAttributeOptions"
+            :filter-attribute-options="filterAttributeOptions"
           />
         </v-col>
       </v-row>
@@ -78,26 +73,26 @@
 
       <v-row class="my-2 mr-0 px-2">
         <v-col cols="12" class="py-0">
-          <h4>sort by</h4>
+          <h4>Sort</h4>
         </v-col>
 
         <v-col cols="12" class="pt-2">
-          <filter-sort-list v-model="sort" :items="orderOptions" />
+          <filter-sort-list v-model="newsItemsFilter.sort" />
         </v-col>
       </v-row>
 
       <v-divider class="mt-1 mb-0"></v-divider>
       <v-row class="my-2 mr-0 px-2">
         <v-col cols="12" class="py-0">
-          <h4>Set Chart properties</h4>
+          <h4>Chart Properties</h4>
         </v-col>
-        <v-col cols="4" class="pt-2"> Threshold: </v-col>
+        <v-col cols="4" class="pt-2">threshold:</v-col>
         <v-col cols="8" class="pt-2">
-          <input type="number" v-model="threshold" min="0"
+          <input v-model="chartFilter.threshold" type="number" min="0"
         /></v-col>
-        <v-col cols="4" class="pt-2"> y2 Max: </v-col>
+        <v-col cols="4" class="pt-2">y2 Max:</v-col>
         <v-col cols="8" class="pt-2">
-          <input type="number" v-model="yMax" min="0" />
+          <input v-model="chartFilter.y2max" type="number" min="0" />
         </v-col>
       </v-row>
 
@@ -107,7 +102,7 @@
           <h4>Debug</h4>
         </v-col>
         <v-col cols="12" class="py-2">
-          <v-btn @click="updateNewsItems()" color="primary" block>
+          <v-btn color="primary" block @click="updateNewsItems()">
             Reload
             <v-icon right dark> mdi-reload </v-icon>
           </v-btn>
@@ -118,12 +113,17 @@
 </template>
 
 <script>
-import { mapState, mapGetters, mapActions } from 'vuex'
-import dateChips from '@/components/assess/filter/dateChips'
-import tagFilter from '@/components/assess/filter/tagFilter'
-import filterSelectList from '@/components/assess/filter/filterSelectList'
-import filterSortList from '@/components/assess/filter/filterSortList'
-import FilterNavigation from '@/components/common/FilterNavigation'
+import dateChips from '@/components/assess/filter/dateChips.vue'
+import tagFilter from '@/components/assess/filter/tagFilter.vue'
+import filterSelectList from '@/components/assess/filter/filterSelectList.vue'
+import filterSortList from '@/components/assess/filter/filterSortList.vue'
+import FilterNavigation from '@/components/common/FilterNavigation.vue'
+import { computed, onUnmounted, onBeforeMount } from 'vue'
+import { useRoute } from 'vue-router'
+import { useFilterStore } from '@/stores/FilterStore'
+import { useAssessStore } from '@/stores/AssessStore'
+import { storeToRefs } from 'pinia'
+import { watch } from 'vue'
 
 export default {
   name: 'AssessNav',
@@ -134,178 +134,89 @@ export default {
     filterSortList,
     FilterNavigation
   },
-  data: () => ({
-    awaitingSearch: false,
-    filterAttributeSelections: [],
-    filterAttributeOptions: [
-      { type: 'read', label: 'read', icon: 'mdi-email-mark-as-unread' },
+  setup() {
+    const assessStore = useAssessStore()
+    const filterStore = useFilterStore()
+
+    const { getOSINTSourceGroupsList, getOSINTSourcesList } =
+      storeToRefs(assessStore)
+    const { updateNewsItems } = assessStore
+    const { newsItemsFilter, chartFilter } = storeToRefs(filterStore)
+
+    const { setFilter, updateFilter } = useFilterStore()
+
+    const route = useRoute()
+
+    const filterAttributeOptions = [
+      { value: 'read', label: 'read', icon: 'mdi-email-mark-as-unread' },
       {
-        type: 'important',
+        value: 'important',
         label: 'important',
         icon: 'mdi-exclamation'
       },
       {
-        type: 'in_report',
+        value: 'in_report',
         label: 'items in reports',
         icon: 'mdi-share-outline'
       },
       {
-        type: 'relevant',
+        value: 'relevant',
         label: 'relevant',
         icon: 'mdi-bullhorn-outline'
       }
-    ],
-    orderOptions: [
-      {
-        label: 'published date',
-        icon: 'mdi-calendar-range-outline',
-        type: 'DATE',
-        direction: 'DESC'
-      },
-      {
-        label: 'relevance',
-        icon: 'mdi-counter',
-        type: 'RELEVANCE',
-        direction: 'DESC'
-      }
     ]
-  }),
-  computed: {
-    ...mapState('filter', {
-      filter: (state) => state.newsItemsFilter
-    }),
-    ...mapState(['drawerVisible']),
-    ...mapState('route', ['query']),
-    source: {
+    const filterAttribute = computed({
       get() {
-        return this.filter.source
+        return filterAttributeOptions
+          .filter((option) => newsItemsFilter.value[option.value])
+          .map((option) => option.value)
       },
       set(value) {
-        this.updateFilter({ source: value })
-        this.updateNewsItems()
+        updateFilter(value)
+        console.debug('filterAttributeSelections', value)
       }
-    },
-    group: {
-      get() {
-        return this.filter.group
-      },
-      set(value) {
-        this.updateFilter({ group: value })
-        this.updateNewsItems()
-      }
-    },
-    limit: {
-      get() {
-        return this.filter.limit
-      },
-      set(value) {
-        this.setLimit(value)
-        this.updateNewsItems()
-      }
-    },
-    sort: {
-      get() {
-        if (!this.filter.order) return 'DATE_DESC'
-        return this.filter.order
-      },
-      set(value) {
-        this.setSort(value)
-        this.updateNewsItems()
-      }
-    },
-    offset: {
-      get() {
-        return this.filter.offset
-      },
-      set(value) {
-        this.setOffset(value)
-        this.updateNewsItems()
-      }
-    },
-    range: {
-      get() {
-        return this.filter.range
-      },
-      set(value) {
-        this.updateFilter({ range: value })
-        this.updateNewsItems()
-      }
-    },
-    filterAttribute: {
-      get() {
-        return this.filterAttributeSelections
-      },
-      set(value) {
-        this.filterAttributeSelections = value
+    })
 
-        const filterUpdate = this.filterAttributeOptions.reduce((obj, item) => {
-          obj[item.type] = value.includes(item.type) ? 'true' : undefined
-          return obj
-        }, {})
+    const search = computed({
+      get() {
+        return newsItemsFilter.value.search
+      },
+      set(value) {
+        updateFilter({ search: value })
+      }
+    })
 
-        console.debug('filterAttributeSelections', filterUpdate)
-        this.updateFilter(filterUpdate)
-        this.updateNewsItems()
-      }
-    },
-    search: {
-      get() {
-        return this.filter.search
-      },
-      set(value) {
-        this.updateFilter({ search: value })
-        if (!this.awaitingSearch) {
-          setTimeout(() => {
-            this.updateNewsItems()
-            this.awaitingSearch = false
-          }, 500)
-        }
+    onBeforeMount(() => {
+      const query = Object.fromEntries(
+        Object.entries(route.query).filter(([, v]) => v != null)
+      )
+      updateFilter(query)
+      console.debug('loaded with query', query)
+    })
 
-        this.awaitingSearch = true
-      }
-    },
-    threshold: {
-      get() {
-        return this.getThreshold()
+    onUnmounted(() => {
+      setFilter({})
+    })
+
+    watch(
+      newsItemsFilter,
+      (filter, prevFilter) => {
+        console.debug('filter changed', filter, prevFilter)
+        updateNewsItems()
       },
-      set(value) {
-        this.setThreshold(value)
-      }
-    },
-    yMax: {
-      get() {
-        return this.getY2max()
-      },
-      set(value) {
-        this.setY2Max(value)
-      }
-    }
-  },
-  methods: {
-    ...mapGetters(['getItemCount']),
-    ...mapGetters('assess', [
-      'getOSINTSourceGroupsList',
-      'getOSINTSourcesList'
-    ]),
-    ...mapActions('assess', ['updateNewsItems']),
-    ...mapActions('filter', [
-      'setScope',
-      'setFilter',
-      'setSort',
-      'setLimit',
-      'setOffset',
-      'updateFilter',
-      'setThreshold',
-      'setY2Max'
-    ]),
-    ...mapGetters('filter', ['getNewsItemsFilter', 'getThreshold', 'getY2max'])
-  },
-  created() {
-    const query = Object.fromEntries(
-      Object.entries(this.query).filter(([, v]) => v != null)
+      { deep: true }
     )
-    this.updateFilter(query)
-    console.debug('loaded with query', query)
+
+    return {
+      search,
+      chartFilter,
+      getOSINTSourceGroupsList,
+      getOSINTSourcesList,
+      newsItemsFilter,
+      filterAttribute,
+      filterAttributeOptions,
+      updateNewsItems
+    }
   }
 }
 </script>

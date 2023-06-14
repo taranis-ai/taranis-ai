@@ -1,11 +1,15 @@
 <template>
   <v-col :cols="cols" class="pa-2 mb-8">
-    <v-card class="mt-4 mx-auto" max-width="100%">
-      <v-card-text class="pt-0">
+    <v-card class="mt-4 mx-auto">
+      <v-card-title>
         <router-link :to="linkTo" class="title">{{ linkText }}</router-link>
         <v-divider class="my-2"></v-divider>
-        <slot name="content"></slot>
-      </v-card-text>
+      </v-card-title>
+      <slot name="card">
+        <v-card-text class="pt-0">
+          <slot name="content"></slot>
+        </v-card-text>
+      </slot>
     </v-card>
   </v-col>
 </template>
@@ -14,8 +18,8 @@
 export default {
   name: 'DashBoardCard',
   props: {
-    linkTo: { type: String },
-    linkText: { type: String },
+    linkTo: { type: String, default: '/' },
+    linkText: { type: String, default: '/' },
     cols: { type: String, default: '4' }
   }
 }

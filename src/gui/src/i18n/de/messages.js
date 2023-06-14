@@ -606,8 +606,8 @@ export const messages_de = {
     show_item: 'Zeigen',
     read_item: 'Als gelesen markieren',
     important_item: 'Als wichtig markieren',
-    like_item: 'Als „Gefällt mir“ markieren',
-    unlike_item: 'Als „Gegenüber“ markieren',
+    like_item: 'Gefällt mir',
+    dislike_item: 'Gefällt mir nicht',
     delete_item: 'Löschen',
     spellcheck: 'Rechtschreibprüfung',
     dark_theme: 'Dunkles Thema',
@@ -618,7 +618,7 @@ export const messages_de = {
     group: 'Gruppe',
     ungroup: 'Gruppierung aufheben',
     new_product: 'Neues Produkt',
-    aggregate_open: 'Aggregat öffnen'
+    story_open: 'Story öffnen'
   },
   word_list: {
     add_new: 'Neue Wortliste hinzufügen',

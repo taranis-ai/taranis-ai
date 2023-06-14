@@ -8,10 +8,6 @@ export function updateProfile(data) {
   return ApiService.put('/users/my-profile', data)
 }
 
-export function getAllUserWordLists() {
-  return ApiService.get('/users/my-word-lists')
-}
-
 export function getAllUserProductTypes() {
   return ApiService.get('/users/my-product-types')
 }

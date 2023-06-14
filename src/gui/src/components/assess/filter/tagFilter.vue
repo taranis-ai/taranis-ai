@@ -1,100 +1,106 @@
 <template>
-  <v-autocomplete
-    v-model="selected"
-    :loading="loading"
-    :items="available_tags"
-    chips
-    dense
-    deletable-chips
-    :search-input.sync="search"
-    clearable
-    flat
-    no-data-text="No tags found"
-    item-value="name"
-    item-text="name"
-    hide-details
-    cache-items
-    label="Tags"
-    multiple
-  >
-    <template v-slot:item="{ item }">
-      <v-icon left>{{ tagIcon(item.tag_type) }}</v-icon
-      >{{ shortText(item.name) }}
-    </template>
-    <template v-slot:selection="{ item }">
-      <v-chip>
-        <v-icon left>{{ tagIcon(item.tag_type) }}</v-icon
-        >{{ shortText(item.name) }}
-      </v-chip>
-    </template>
-  </v-autocomplete>
+  <div>
+    <v-autocomplete
+      v-model="selected"
+      v-model:search="search"
+      :loading="loading"
+      :items="available_tags"
+      chips
+      density="compact"
+      deletable-chips
+      clearable
+      no-data-text="No tags found"
+      item-value="name"
+      item-title="name"
+      label="Tags"
+      multiple
+    >
+      <template #item="{ props, item }">
+        <v-list-item
+          v-bind="props"
+          :prepend-icon="tagIcon(item.raw.tag_type)"
+          :text="shortText(item.raw.name)"
+        />
+      </template>
+      <template #chip="{ props, item }">
+        <v-chip
+          :prepend-icon="tagIcon(item.raw.tag_type)"
+          v-bind="props"
+          :text="shortText(item.raw.name)"
+        />
+      </template>
+    </v-autocomplete>
+  </div>
 </template>
 
 <script>
+import { ref, watch, onMounted, computed } from 'vue'
 import { getTags } from '@/api/assess'
-import { mapActions, mapGetters } from 'vuex'
 import { tagIconFromType } from '@/utils/helpers'
 
 export default {
-  name: 'tagFilter',
-  data: () => ({
-    loading: false,
-    available_tags: [],
-    selected_tags: [],
-    search: ''
-  }),
-  props: {},
-  computed: {
-    selected: {
-      get() {
-        return this.selected_tags
+  name: 'TagFilter',
+  props: {
+    modelValue: {
+      type: Array || String,
+      default: () => [],
+      required: true
+    }
+  },
+  emits: ['update:modelValue'],
+  setup(props, { emit }) {
+    const selected = computed({
+      get: () => {
+        if (typeof props.modelValue === 'string') {
+          return [props.modelValue]
+        }
+        return props.modelValue
       },
-      set(val) {
-        this.setTags(val)
-        this.updateNewsItems()
+      set: (val) => {
+        emit('update:modelValue', val)
       }
+    })
+    const available_tags = ref([])
+    const search = ref('')
+    const loading = ref(false)
+
+    const shortText = (item) => {
+      return item?.length > 15 ? item.substring(0, 15) + '...' : item
     }
-  },
-  watch: {
-    search(val) {
-      val && this.querySelections({ search: val })
-    }
-  },
-  methods: {
-    ...mapGetters('filter', ['getFilterTags']),
-    ...mapActions('filter', ['setTags']),
-    ...mapActions('assess', ['updateNewsItems']),
-    shortText(item) {
-      return item.length > 20 ? item.substring(0, 20) + '...' : item
-    },
-    tagIcon(tag_type) {
+
+    const tagIcon = (tag_type) => {
       return tagIconFromType(tag_type)
-    },
-    async querySelections(filter) {
-      this.loading = true
+    }
+
+    const querySelections = async (filter) => {
+      loading.value = true
       await getTags(filter).then((res) => {
-        this.available_tags = res.data
-        this.selected_tags.forEach((tag) => {
-          if (!this.available_tags.includes(tag)) {
-            this.available_tags.unshift(tag)
+        available_tags.value = res.data
+        selected.value.forEach((tag) => {
+          if (!available_tags.value.includes(tag)) {
+            available_tags.value.unshift(tag)
           }
         })
-        this.loading = false
-      })
-    },
-    loadFilterTags() {
-      const tags = this.getFilterTags()
-      if (!tags) {
-        return []
-      }
-      return tags.map((tag) => {
-        return { name: tag }
+        loading.value = false
       })
     }
-  },
-  async mounted() {
-    this.selected_tags = this.loadFilterTags()
-    await this.querySelections()
+
+    watch(search, (val) => {
+      val && querySelections({ search: val })
+    })
+
+    onMounted(() => {
+      querySelections({ search: search.value })
+    })
+
+    return {
+      selected,
+      available_tags,
+      search,
+      loading,
+      shortText,
+      tagIcon
+    }
   }
 }
 </script>

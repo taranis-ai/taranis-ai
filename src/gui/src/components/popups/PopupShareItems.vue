@@ -1,38 +1,33 @@
 <template>
   <v-card>
-    <v-card-title>
-      <span class="headline">Share Items</span>
-    </v-card-title>
+    <v-card-title> Share Items </v-card-title>
     <v-card-text>
       Select a report to share the item with:
+      {{ reportItemSelection }}
       <v-select
-        solo
+        v-model="reportItemSelection"
         single-line
         label="Select Report"
-        v-model="reportItemSelection"
         no-data-text="No reports found"
         :items="reportItems"
       />
     </v-card-text>
     <v-card-actions class="mt-1">
       <v-btn
-        color="awake-red-color darken-1"
-        outlined
+        variant="outlined"
+        class="text-lowercase text-red-darken-3 ml-3"
+        prepend-icon="mdi-close"
         @click="close()"
-        class="text-lowercase pr-4"
       >
-        <v-icon left class="red-icon">mdi-close</v-icon>
         abort
       </v-btn>
-
+      <v-spacer></v-spacer>
       <v-btn
-        color="primary"
-        dark
-        depressed
+        variant="outlined"
+        class="text-lowercase text-primary mr-3"
+        prepend-icon="mdi-share-outline"
         @click="share()"
-        class="text-lowercase selection-toolbar-btn pr-4"
       >
-        <v-icon left>mdi-share-outline</v-icon>
         share
       </v-btn>
     </v-card-actions>
@@ -40,45 +35,56 @@
 </template>
 
 <script>
-import { mapGetters, mapActions } from 'vuex'
 import { addAggregatesToReportItem } from '@/api/analyze'
+import { useAnalyzeStore } from '@/stores/AnalyzeStore'
+import { ref, onMounted, computed } from 'vue'
 
 export default {
   name: 'PopupShareItems',
-  components: {},
   props: {
-    item_ids: [],
+    itemIds: {
+      type: Array,
+      default: () => []
+    },
     dialog: Boolean
   },
   emits: ['close'],
-  data: () => ({
-    reportItems: [],
-    reportItemSelection: {}
-  }),
-  methods: {
-    ...mapGetters('assess', ['getNewsItemById']),
-    ...mapGetters('analyze', ['getReportItems']),
-    ...mapActions('analyze', ['loadReportItems']),
+  setup(props, { emit }) {
+    const reportItemSelection = ref(null)
+    const store = useAnalyzeStore()
 
-    share() {
-      addAggregatesToReportItem(this.reportItemSelection, this.item_ids)
-      this.close()
-    },
-    close() {
-      this.$emit('close')
-    }
-  },
-  mounted() {
-    console.debug('PopupShareItems mounted')
-    console.debug(this.item_ids)
-    this.loadReportItems().then(() => {
-      this.reportItems = this.getReportItems().map((item) => {
+    const { loadReportItems } = store
+
+    const reportItems = computed(() =>
+      store.report_items.items.map((item) => {
         return {
-          text: item.title,
+          title: item.title,
           value: item.id
         }
       })
+    )
+
+    const share = () => {
+      addAggregatesToReportItem(reportItemSelection.value, props.itemIds)
+      emit('close')
+    }
+
+    const close = () => {
+      emit('close')
+    }
+
+    onMounted(() => {
+      console.debug('PopupShareItems mounted')
+      console.debug(props.itemIds)
+      loadReportItems()
     })
+
+    return {
+      reportItems,
+      reportItemSelection,
+      share,
+      close
+    }
   }
 }
 </script>

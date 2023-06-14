@@ -1,10 +1,10 @@
 <template>
   <div>
     <DataTable
-      :addButton="true"
-      :items.sync="RemoteNodes"
-      :headerFilter="['tag', 'name', 'title', 'description']"
-      :actionColumn="true"
+      v-model:items="remote_nodes.items"
+      :add-button="true"
+      :header-filter="['tag', 'name', 'title', 'description']"
+      :action-column="true"
       @delete-item="deleteItem"
       @edit-item="editItem"
       @add-item="addItem"
@@ -12,19 +12,22 @@
     />
     <EditConfig
       v-if="formData && Object.keys(formData).length > 0"
-      :configData="formData"
-      :formFormat="formFormat"
+      :config-data="formData"
+      :form-format="formFormat"
       @submit="handleSubmit"
     ></EditConfig>
   </div>
 </template>
 
 <script>
-import DataTable from '@/components/common/DataTable'
-import EditConfig from '../../components/config/EditConfig'
+import DataTable from '@/components/common/DataTable.vue'
+import EditConfig from '@/components/config/EditConfig.vue'
 import { deleteNode, createNode, updateNode } from '@/api/config'
-import { mapActions, mapGetters } from 'vuex'
 import { notifySuccess, notifyFailure, emptyValues } from '@/utils/helpers'
+
+import { mapActions, mapState, mapWritableState } from 'pinia'
+import { useConfigStore } from '@/stores/ConfigStore'
+import { useMainStore } from '@/stores/MainStore'
 
 export default {
   name: 'RemoteNodes',
@@ -39,6 +42,8 @@ export default {
     edit: false
   }),
   computed: {
+    ...mapState(useConfigStore, ['remote_nodes']),
+    ...mapWritableState(useMainStore, ['itemCountTotal', 'itemCountFiltered']),
     formFormat() {
       return [
         {
@@ -72,18 +77,16 @@ export default {
       ]
     }
   },
+  mounted() {
+    this.updateData()
+  },
   methods: {
-    ...mapActions('config', ['loadRemoteNodes']),
-    ...mapGetters('config', ['getRemoteNodes']),
-    ...mapActions(['updateItemCount']),
+    ...mapActions(useConfigStore, ['loadRemoteNodes']),
     updateData() {
       this.loadRemoteNodes().then(() => {
-        const sources = this.getRemoteNodes()
-        this.RemoteNodes = sources.items
-        this.updateItemCount({
-          total: sources.total_count,
-          filtered: sources.length
-        })
+        this.RemoteNodes = this.remote_nodes.items
+        this.itemCountFiltered = this.remote_nodes.length
+        this.itemCountTotal = this.remote_nodes.total_count
       })
     },
     addItem() {
@@ -143,10 +146,6 @@ export default {
     selectionChange(selected) {
       this.selected = selected.map((item) => item.id)
     }
-  },
-  mounted() {
-    this.updateData()
-  },
-  beforeDestroy() {}
+  }
 }
 </script>

@@ -1,26 +1,28 @@
 <template>
   <div>
     <DataTable
-      :addButton="true"
-      :items.sync="acls"
-      :headerFilter="['tag', 'id', 'name', 'username']"
-      sortByItem="id"
-      :actionColumn="true"
+      v-model:items="acls.items"
+      :add-button="true"
+      :header-filter="['tag', 'id', 'name', 'username']"
+      sort-by-item="id"
+      :action-column="true"
       @delete-item="deleteItem"
       @edit-item="editItem"
       @add-item="addItem"
       @update-items="updateData"
     />
-    <NewACL v-if="showForm" :user_id.sync="userID"></NewACL>
+    <new-ACL v-if="showForm" :acl-prop="acl" :edit="edit"></new-ACL>
   </div>
 </template>
 
 <script>
-import DataTable from '@/components/common/DataTable'
-import NewACL from '../../components/config/user/NewACL'
+import { ref, onMounted } from 'vue'
+import DataTable from '@/components/common/DataTable.vue'
+import NewACL from '@/components/config/user/NewACL.vue'
 import { deleteACLEntry, createACLEntry, updateACLEntry } from '@/api/config'
 import { notifySuccess } from '@/utils/helpers'
-import { mapActions, mapGetters } from 'vuex'
+import { useConfigStore } from '@/stores/ConfigStore'
+import { useMainStore } from '@/stores/MainStore'
 
 export default {
   name: 'ACLsView',
@@ -28,62 +30,86 @@ export default {
     DataTable,
     NewACL
   },
-  data: () => ({
-    acls: [],
-    showForm: false,
-    edit: false
-  }),
-  methods: {
-    ...mapActions('config', ['loadACLEntries']),
-    ...mapGetters('config', ['getACLEntries']),
-    ...mapActions(['updateItemCount']),
-    updateData() {
-      this.loadACLEntries().then(() => {
-        const sources = this.getACLEntries()
-        this.acls = sources.items
-        this.updateItemCount({
-          total: sources.total_count,
-          filtered: sources.length
+  setup() {
+    const showForm = ref(false)
+    const edit = ref(false)
+    const acl = ref({})
+    const acls = useConfigStore().acls
+    const mainStore = useMainStore()
+
+    const updateData = () => {
+      useConfigStore()
+        .loadACLEntries()
+        .then(() => {
+          mainStore.itemCountTotal = acls.total_count
+          mainStore.itemCountFiltered = acls.items.length
         })
-      })
-    },
-    addItem() {
-      this.userID = null
-      this.showForm = true
-    },
-    editItem(item) {
-      this.userID = item.id
-      this.showForm = true
-    },
-    handleSubmit(submittedData) {
-      if (this.showForm) {
-        this.updateItem(submittedData)
-      } else {
-        this.createItem(submittedData)
+    }
+
+    const addItem = () => {
+      acl.value = {
+        id: -1,
+        name: '',
+        description: '',
+        users: [],
+        roles: []
       }
-    },
-    deleteItem(item) {
+      edit.value = false
+      showForm.value = true
+    }
+
+    const editItem = (item) => {
+      acl.value = item
+      edit.value = true
+      showForm.value = true
+    }
+
+    const handleSubmit = (submittedData) => {
+      if (showForm.value) {
+        updateItem(submittedData)
+      } else {
+        createItem(submittedData)
+      }
+    }
+
+    const deleteItem = (item) => {
       deleteACLEntry(item).then(() => {
         notifySuccess(`Successfully deleted ${item.name}`)
-        this.updateData()
-      })
-    },
-    createItem(item) {
-      createACLEntry(item).then(() => {
-        notifySuccess(`Successfully created ${item.name}`)
-        this.updateData()
-      })
-    },
-    updateItem(item) {
-      updateACLEntry(item).then(() => {
-        notifySuccess(`Successfully updated ${item.name}`)
-        this.updateData()
+        updateData()
       })
     }
-  },
-  mounted() {
-    this.updateData()
-  },
-  beforeDestroy() {}
+
+    const createItem = (item) => {
+      createACLEntry(item).then(() => {
+        notifySuccess(`Successfully created ${item.name}`)
+        updateData()
+      })
+    }
+
+    const updateItem = (item) => {
+      updateACLEntry(item).then(() => {
+        notifySuccess(`Successfully updated ${item.name}`)
+        updateData()
+      })
+    }
+
+    onMounted(() => {
+      updateData()
+    })
+
+    return {
+      showForm,
+      acl,
+      edit,
+      acls,
+      addItem,
+      editItem,
+      handleSubmit,
+      deleteItem,
+      createItem,
+      updateItem,
+      updateData
+    }
+  }
 }
 </script>

@@ -23,26 +23,26 @@
           </v-btn>
         </v-toolbar>
 
-        <v-form @submit.prevent="add" id="form" ref="form" class="px-4">
+        <v-form id="form" ref="form" class="px-4" @submit.prevent="add">
           <v-row no-gutters>
             <v-col cols="12" class="pa-1">
               <v-text-field
+                v-model="group.name"
+                v-validate="'required'"
                 :label="$t('asset_group.name')"
                 name="name"
                 type="text"
-                v-model="group.name"
-                v-validate="'required'"
                 data-vv-name="name"
                 :error-messages="errors.collect('name')"
-                :spellcheck="$store.state.settings.spellcheck"
+                :spellcheck="spellcheck"
               />
             </v-col>
             <v-col cols="12" class="pa-1">
               <v-textarea
+                v-model="group.description"
                 :label="$t('asset_group.description')"
                 name="description"
-                v-model="group.description"
-                :spellcheck="$store.state.settings.spellcheck"
+                :spellcheck="spellcheck"
               />
             </v-col>
           </v-row>
@@ -56,7 +56,7 @@
                 show-select
                 class="elevation-1"
               >
-                <template v-slot:top>
+                <template #top>
                   <v-toolbar flat color="white">
                     <v-toolbar-title>{{
                       $t('asset_group.allowed_users')
@@ -74,7 +74,7 @@
                 show-select
                 class="elevation-1"
               >
-                <template v-slot:top>
+                <template #top>
                   <v-toolbar flat color="white">
                     <v-toolbar-title>{{
                       $t('asset_group.notification_templates')
@@ -103,6 +103,11 @@
 <script>
 import { createAssetGroup, updateAssetGroup } from '@/api/assets'
 
+import { mapActions, mapState } from 'pinia'
+import { useSettingsStore } from '@/stores/SettingsStore'
+import { useConfigStore } from '@/stores/ConfigStore'
+import { useAssetsStore } from '@/stores/AssetsStore'
+
 export default {
   name: 'NewAssetGroup',
   data: () => ({
@@ -110,22 +115,21 @@ export default {
     edit: false,
     headers: [
       {
-        text: 'Username',
+        title: 'Username',
         align: 'start',
-        value: 'username'
+        key: 'username'
       },
-      { text: 'Name', value: 'name' }
+      { title: 'Name', key: 'name' }
     ],
     headers_template: [
       {
-        text: 'Name',
+        title: 'Name',
         align: 'start',
-        value: 'name'
+        key: 'name'
       },
-      { text: 'Description', value: 'description' }
+      { title: 'Description', key: 'description' }
     ],
     selected_users: [],
-    users: [],
     templates: [],
     selected_templates: [],
     show_validation_error: false,
@@ -138,7 +142,34 @@ export default {
       templates: []
     }
   }),
+  computed: {
+    ...mapState(useSettingsStore, ['spellcheck']),
+    ...mapState(useAssetsStore, ['notification_templates']),
+    ...mapState(useConfigStore, ['users'])
+  },
+  async mounted() {
+    await this.getAllExternalUsers({ search: '' })
+
+    this.getAllNotificationTemplates({ search: '' }).then(() => {
+      this.templates = this.notification_templates.items
+    })
+
+    this.$root.$on('show-edit', (data) => {
+      this.visible = true
+      this.edit = true
+      this.show_error = false
+      this.group.id = data.id
+      this.group.name = data.name
+      this.group.description = data.description
+      this.selected_users = data.users
+      this.selected_templates = data.templates
+    })
+  },
   methods: {
+    ...mapActions(useConfigStore, [
+      'getAllNotificationTemplates',
+      'getAllExternalUsers'
+    ]),
     addGroup() {
       this.visible = true
       this.edit = false
@@ -182,10 +213,6 @@ export default {
               .then(() => {
                 this.$validator.reset()
                 this.visible = false
-                this.$root.$emit('notification', {
-                  type: 'success',
-                  loc: 'asset_group.successful_edit'
-                })
               })
               .catch(() => {
                 this.show_error = true
@@ -195,10 +222,6 @@ export default {
               .then(() => {
                 this.$validator.reset()
                 this.visible = false
-                this.$root.$emit('notification', {
-                  type: 'success',
-                  loc: 'asset_group.successful'
-                })
               })
               .catch(() => {
                 this.show_error = true
@@ -209,33 +232,6 @@ export default {
         }
       })
     }
-  },
-  mounted() {
-    this.$store
-      .dispatch('config/getAllExternalUsers', { search: '' })
-      .then(() => {
-        this.users = this.$store.getters.getUsers.items
-      })
-
-    this.$store
-      .dispatch('config/getAllNotificationTemplates', { search: '' })
-      .then(() => {
-        this.templates = this.$store.getters.getNotificationTemplates.items
-      })
-
-    this.$root.$on('show-edit', (data) => {
-      this.visible = true
-      this.edit = true
-      this.show_error = false
-      this.group.id = data.id
-      this.group.name = data.name
-      this.group.description = data.description
-      this.selected_users = data.users
-      this.selected_templates = data.templates
-    })
-  },
-  beforeDestroy() {
-    this.$root.$off('show-edit')
   }
 }
 </script>

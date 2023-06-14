@@ -2,74 +2,80 @@
   <v-container fluid class="ma-5 mt-5 pa-5 pt-0">
     <slot name="header"></slot>
     <v-data-table
-      v-model="selected"
-      @change="emitSelectionChange"
-      @update:search="emitSearchChange"
-      @current-items="emitFilterChange"
       :headers="headers"
       :items="items"
       :search="search"
-      :group-by="groupByItem"
-      :sort-by="sortByItem"
+      :sort-by="[{ key: sortByItem }]"
       class="elevation-1"
-      :hide-default-footer="items.length < 10"
       show-select
+      :custom-filter="customFilter"
       @click:row="rowClick"
+      @update:model-value="emitFilterChange"
     >
-      <template v-slot:[`top`]>
+      <template #top>
         <v-card>
           <v-card-title>
-            <v-text-field
-              v-model="search"
-              append-icon="mdi-magnify"
-              label="Search"
-              single-line
-              class="mr-8"
-              hide-details
-            ></v-text-field>
-            <v-btn
-              color="error"
-              dark
-              class="ml-8"
-              @click="deleteItems(selected)"
-              v-if="selected.length > 0"
-            >
-              Delete {{ selected.length }}
-            </v-btn>
-            <v-btn
-              color="primary"
-              dark
-              class="ml-8"
-              @click="addItem"
-              v-if="addButton"
-            >
-              New Item
-            </v-btn>
-            <slot name="titlebar"></slot>
+            <v-row no-gutters>
+              <v-text-field
+                v-if="searchBar"
+                v-model="search"
+                append-inner-icon="mdi-magnify"
+                density="compact"
+                label="Search"
+                single-line
+                class="mr-4"
+                hide-details
+              />
+              <v-btn
+                v-if="selected.length > 0"
+                color="error"
+                dark
+                class="ml-4"
+                @click="deleteItems(selected)"
+              >
+                Delete {{ selected.length }}
+              </v-btn>
+              <v-btn
+                v-if="addButton"
+                color="primary"
+                dark
+                class="ml-4"
+                @click="addItem"
+              >
+                New Item
+              </v-btn>
+              <slot name="titlebar"></slot>
+            </v-row>
           </v-card-title>
         </v-card>
       </template>
-      <template v-slot:[`header.tag`]="{}"></template>
-      <template v-slot:[`header.actions`]="{}"></template>
-
-      <template v-slot:[`item.default`]="{ item }">
-        <v-chip :color="getDefaultColor(item.default)" dark>
-          {{ item.default }}
+      <template #item.default="{ item }">
+        <v-chip :color="getDefaultColor(item.raw.default)" variant="outlined">
+          {{ item.raw.default }}
         </v-chip>
       </template>
-
-      <template v-slot:[`item.tag`]="{ item }">
-        <v-icon small class="mr-1">
-          {{ item.tag }}
-        </v-icon>
+      <template #item.completed="{ item }">
+        <v-chip
+          :color="item.raw.completed ? 'green' : 'blue'"
+          variant="outlined"
+          :text="item.raw.completed ? 'true' : 'false'"
+        />
       </template>
 
-      <template v-slot:[`item.actions`]="{ item }">
+      <template #item.tag="{ item }">
+        <v-icon small class="mr-1" :icon="item.raw.tag" />
+      </template>
+
+      <template #item.actions="{ item }">
         <div class="d-inline-flex">
           <slot name="actionColumn"></slot>
           <v-tooltip left>
-            <template v-slot:activator="{ on }">
-              <v-icon v-on="on" color="red" @click.stop="deleteItem(item)">
+            <template #activator="{ props }">
+              <v-icon
+                v-bind="props"
+                color="red"
+                @click.stop="deleteItem(item.raw)"
+              >
                 mdi-delete
               </v-icon>
             </template>
@@ -77,7 +83,8 @@
           </v-tooltip>
         </div>
       </template>
-      <template v-slot:no-data>
+      <template v-if="items.length < 10" #bottom />
+      <template #no-data>
         <v-btn color="primary" @click.stop="updateItems()">
           <v-icon class="mr-1">mdi-refresh</v-icon>
           Refresh
@@ -88,17 +95,13 @@
 </template>
 
 <script>
-import { mapActions } from 'vuex'
-export default {
+import { useMainStore } from '@/stores/MainStore'
+import { mapWritableState } from 'pinia'
+import { defineComponent, toRaw } from 'vue'
+
+export default defineComponent({
   name: 'DataTable',
   components: {},
-  emits: [
-    'delete-item',
-    'edit-item',
-    'add-item',
-    'selection-change',
-    'search-change'
-  ],
   props: {
     items: {
       type: Array,
@@ -107,10 +110,6 @@ export default {
     addButton: {
       type: Boolean,
       default: false
-    },
-    groupByItem: {
-      type: String,
-      default: null
     },
     sortByItem: {
       type: String,
@@ -123,21 +122,33 @@ export default {
     actionColumn: {
       type: Boolean,
       default: false
+    },
+    searchBar: {
+      type: Boolean,
+      default: true
     }
   },
+  emits: [
+    'delete-item',
+    'edit-item',
+    'add-item',
+    'selection-change',
+    'update-items'
+  ],
   data: () => ({
     search: '',
     selected: []
   }),
   computed: {
+    ...mapWritableState(useMainStore, ['itemCountFiltered']),
     headers() {
-      var actionHeader = {
-        text: 'Actions',
-        value: 'actions',
+      const actionHeader = {
+        title: 'Actions',
+        key: 'actions',
         sortable: false,
         width: '30px'
       }
-      var headers = []
+      let headers = []
       if (this.headerFilter.length > 0) {
         if (typeof this.headerFilter[0] !== 'object') {
           headers = this.headerFilter.map((key) => this.headerTransform(key))
@@ -156,29 +167,33 @@ export default {
     }
   },
   methods: {
-    ...mapActions(['updateItemCountFiltered']),
-
     headerTransform(key) {
       if (key === 'tag') {
         return {
-          text: key,
-          value: key,
+          title: key,
+          key: key,
           sortable: false,
           width: '15px'
         }
       }
-      return { text: key, value: key }
+      return { title: key, key: key }
     },
-    emitFilterChange(e) {
-      this.updateItemCountFiltered(e.length)
+    emitFilterChange(selected) {
+      this.selected = selected
+      this.$emit('selection-change', selected)
+      this.itemCountFiltered = selected.length
     },
-    emitSearchChange() {
-      this.$emit('search-change', this.search)
+    customFilter(value, query) {
+      return (
+        value != null &&
+        query != null &&
+        typeof value === 'string' &&
+        value.toString().indexOf(query) !== -1
+      )
     },
-    emitSelectionChange() {
-      this.$emit('selection-change', this.selected)
-    },
-    rowClick(item) {
+
+    rowClick(event, value) {
+      const item = toRaw(value.item.raw)
       this.$emit('edit-item', item)
     },
     addItem() {
@@ -191,11 +206,12 @@ export default {
       this.$emit('delete-item', item)
     },
     deleteItems(items) {
-      items.forEach((item) => this.deleteItem(item))
+      items.forEach((item) => this.deleteItem({ id: item }))
+      this.selected = []
     },
     updateItems() {
       this.$emit('update-items')
     }
   }
-}
+})
 </script>

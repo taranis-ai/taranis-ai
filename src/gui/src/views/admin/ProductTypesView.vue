@@ -1,11 +1,11 @@
 <template>
   <div>
     <DataTable
-      :addButton="true"
-      :items.sync="productTypes"
-      :headerFilter="['tag', 'id', 'title', 'description']"
-      sortByItem="id"
-      :actionColumn="true"
+      v-model:items="productTypes"
+      :add-button="true"
+      :header-filter="['tag', 'id', 'title', 'description']"
+      sort-by-item="id"
+      :action-column="true"
       @delete-item="deleteItem"
       @edit-item="editItem"
       @add-item="addItem"
@@ -13,22 +13,21 @@
     />
     <EditConfig
       v-if="formData && Object.keys(formData).length > 0"
-      :configData="formData"
-      :formFormat.sync="formFormat"
+      :form-format="formFormat"
+      :config-data="formData"
       @submit="handleSubmit"
     ></EditConfig>
   </div>
 </template>
 
 <script>
-import DataTable from '@/components/common/DataTable'
-import EditConfig from '@/components/config/EditConfig'
+import DataTable from '@/components/common/DataTable.vue'
+import EditConfig from '@/components/config/EditConfig.vue'
 import {
   deleteProductType,
   createProductType,
   updateProductType
 } from '@/api/config'
-import { mapActions, mapGetters } from 'vuex'
 import {
   notifySuccess,
   notifyFailure,
@@ -36,9 +35,12 @@ import {
   createParameterValues,
   objectFromFormat
 } from '@/utils/helpers'
+import { mapActions, mapState, mapWritableState } from 'pinia'
+import { useConfigStore } from '@/stores/ConfigStore'
+import { useMainStore } from '@/stores/MainStore'
 
 export default {
-  name: 'Organizations',
+  name: 'ProductTypesView',
   components: {
     DataTable,
     EditConfig
@@ -52,6 +54,11 @@ export default {
     presenters: []
   }),
   computed: {
+    ...mapState(useConfigStore, {
+      store_product_types: 'product_types',
+      store_presenters: 'presenters'
+    }),
+    ...mapWritableState(useMainStore, ['itemCountTotal', 'itemCountFiltered']),
     formFormat() {
       const base = [
         {
@@ -85,23 +92,25 @@ export default {
         return base.concat(this.parameters[this.formData.presenter_id])
       }
       return base
+    },
+    xxx() {
+      return objectFromFormat(this.formFormat)
     }
   },
+  mounted() {
+    this.updateData()
+  },
   methods: {
-    ...mapActions('config', ['loadProductTypes', 'loadPresenters']),
-    ...mapGetters('config', ['getProductTypes', 'getPresenters']),
-    ...mapActions(['updateItemCount']),
+    ...mapActions(useConfigStore, ['loadProductTypes', 'loadPresenters']),
     updateData() {
       this.loadProductTypes().then(() => {
-        const sources = this.getProductTypes()
+        const sources = this.store_product_types
         this.productTypes = parseParameterValues(sources.items)
-        this.updateItemCount({
-          total: sources.total_count,
-          filtered: sources.length
-        })
+        this.itemCountFiltered = sources.length
+        this.itemCountTotal = sources.total_count
       })
       this.loadPresenters().then(() => {
-        const presenters = this.getPresenters()
+        const presenters = this.store_presenters
         this.presenters = presenters.items.map((presenter) => {
           this.parameters[presenter.id] = presenter.parameters.map(
             (parameter) => {
@@ -114,7 +123,7 @@ export default {
           )
           return {
             value: presenter.id,
-            text: presenter.name
+            title: presenter.name
           }
         })
       })
@@ -128,6 +137,7 @@ export default {
       this.edit = true
     },
     handleSubmit(submittedData) {
+      console.debug('submittedData', submittedData)
       delete submittedData.parameter_values
       const parameter_list = this.parameters[this.formData.presenter_id].map(
         (item) => item.name
@@ -171,10 +181,6 @@ export default {
           notifyFailure(`Failed to update ${item.name}`)
         })
     }
-  },
-  mounted() {
-    this.updateData()
-  },
-  beforeDestroy() {}
+  }
 }
 </script>

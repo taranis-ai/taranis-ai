@@ -1,4 +1,4 @@
-import { vm } from '../main.js'
+import { useMainStore } from '@/stores/MainStore'
 
 export function xorConcat(array, element) {
   const i = array.indexOf(element)
@@ -10,37 +10,30 @@ export function xorConcat(array, element) {
   return array
 }
 
-export function isValidUrl(urlString) {
-  var urlPattern = new RegExp(
-    '^(https?:\\/\\/)?' + // validate protocol
-      '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|' + // validate domain name
-      '((\\d{1,3}\\.){3}\\d{1,3}))' + // validate OR ip (v4) address
-      '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*' + // validate port and path
-      '(\\?[;&a-z\\d%_.~+=-]*)?' + // validate query string
-      '(\\#[-a-z\\d_]*)?$',
-    'i'
-  ) // validate fragment locator
-  return !!urlPattern.test(urlString)
-}
-
-export function stripHtml(html) {
-  const tmp = document.createElement('DIV')
-  tmp.innerHTML = html
-  return tmp.textContent || tmp.innerText || ''
+export function getCleanHostname(url) {
+  try {
+    return new URL(url).hostname.replace('www.', '')
+  } catch (error) {
+    return url
+  }
 }
 
 export function notifySuccess(text) {
-  vm.$emit('notification', {
+  const store = useMainStore()
+  store.notification = {
     type: 'success',
-    loc: text
-  })
+    message: text,
+    show: true
+  }
 }
 
 export function notifyFailure(text) {
-  vm.$emit('notification', {
+  const store = useMainStore()
+  store.notification = {
     type: 'red',
-    loc: text
-  })
+    message: text,
+    show: true
+  }
 }
 
 export function emptyValues(obj) {
@@ -61,7 +54,7 @@ export function emptyValues(obj) {
 }
 
 export function objectFromFormat(format) {
-  var newObject = {}
+  const newObject = {}
   format.map(function (item) {
     if (item === undefined) {
       return

@@ -1,72 +1,56 @@
 <template>
   <v-navigation-drawer
     v-if="filteredLinks.length > 0 && drawerVisible"
-    clipped
-    app
     color="cx-drawer-bg"
     class="sidebar"
     :width="width"
-    style="max-height: 100% !important; height: calc(100vh - 48px) !important"
+    :permanent="true"
   >
-    <v-layout class="navigation" fill-height justify-center>
-      <v-list class="navigation-list pa-0">
-        <v-list-item class="section-icon" dense>
-          <v-list-item-title>
-            <v-icon class="" color="white">{{ icon }}</v-icon>
-          </v-list-item-title>
-        </v-list-item>
-        <v-divider class="section-divider" color="white"></v-divider>
+    <v-list nav>
+      <v-list-item
+        v-for="link in filteredLinks"
+        :key="link.route"
+        :to="link.route"
+        class="d-flex justify-center"
+      >
+        <v-list-item-title class="d-flex justify-center">
+          <v-icon :icon="link.icon" />
+        </v-list-item-title>
 
-        <v-list-item
-          class="px-1"
-          v-for="link in filteredLinks"
-          :key="link.route"
-          router
-          :to="link.route"
-        >
-          <v-list-item-content class="py-2" v-if="!link.separator">
-            <v-icon color="cx-drawer-text">{{ link.icon }}</v-icon>
-            <v-list-item-title class="cx-drawer-text--text caption">
-              {{ $t(link.title) }}
-            </v-list-item-title>
-          </v-list-item-content>
-          <v-list-item-content class="separator py-0 blue-grey" v-else>
-            <v-divider class="section-divider" color="white"></v-divider>
-          </v-list-item-content>
-        </v-list-item>
-      </v-list>
-    </v-layout>
+        <v-list-item-subtitle class="d-flex text-center text-caption">
+          {{ $t(link.title) }}
+        </v-list-item-subtitle>
+      </v-list-item>
+      <v-divider />
+    </v-list>
   </v-navigation-drawer>
 </template>
 
 <script>
-import AuthMixin from '@/services/auth/auth_mixin'
-import { mapState } from 'vuex'
+import { mapState } from 'pinia'
+import { useMainStore } from '@/stores/MainStore'
 
 export default {
   name: 'IconNavigation',
   props: {
-    links: Array,
-    icon: String,
+    links: {
+      type: Array,
+      default: () => []
+    },
     width: {
       type: Number,
       default: 142
     }
   },
-  mixins: [AuthMixin],
   data: () => ({}),
   computed: {
-    ...mapState(['drawerVisible']),
+    ...mapState(useMainStore, ['drawerVisible', 'user']),
+
     filteredLinks() {
-      return this.links
-        .filter(
-          (link) => !link.permission || this.checkPermission(link.permission)
-        )
-        .filter(
-          (link, index, links) =>
-            !link.separator ||
-            (index > 0 && links[index - 1].separator === undefined)
-        )
+      return this.links.filter(
+        (link) =>
+          !link.permission || this.user.permissions.includes(link.permission)
+      )
     }
   },
   methods: {}

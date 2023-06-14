@@ -1,4 +1,4 @@
-export const dateTimeFormats = {
+export const datetimeFormats = {
   en: {
     short: {
       year: 'numeric',

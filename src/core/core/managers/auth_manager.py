@@ -251,6 +251,7 @@ def get_user_from_jwt() -> User | None:
     try:
         verify_jwt_in_request()
     except JWTExtendedException:
+        logger.exception()
         return None
     identity = get_jwt_identity()
 

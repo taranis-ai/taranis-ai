@@ -6,15 +6,15 @@ from core.managers import auth_manager
 from core.managers.auth_manager import auth_required, no_auth
 from core.model import word_list, product_type, publisher_preset
 from core.model.user import User
+from core.managers.log_manager import logger
 
 
 class UserProfile(Resource):
-    @jwt_required()
     def get(self):
-        user = auth_manager.get_user_from_jwt()
-        return User.get_profile_json(user)
+        if user := auth_manager.get_user_from_jwt():
+            return User.get_profile_json(user)
+        return {"message": "User not found"}, 404
 
-    @jwt_required()
     def put(self):
         user = auth_manager.get_user_from_jwt()
         return User.update_profile(user, request.json)
