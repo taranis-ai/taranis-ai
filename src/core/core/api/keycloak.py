@@ -2,7 +2,7 @@ import os
 import re
 import requests
 from flask import request, Response
-from flask_restful import Resource
+from flask_restx import Resource
 
 from core.managers.auth_manager import no_auth
 

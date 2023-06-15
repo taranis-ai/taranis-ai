@@ -1,7 +1,7 @@
 import base64
 from flask import Response
 from flask import request
-from flask_restful import Resource
+from flask_restx import Resource
 
 from core.managers import auth_manager, presenters_manager, publishers_manager
 from core.managers.log_manager import logger

@@ -1,5 +1,5 @@
 from flask import request
-from flask_restful import Resource
+from flask_restx import Resource
 
 from managers import auth_manager
 from managers.auth_manager import auth_required

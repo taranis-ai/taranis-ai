@@ -1,6 +1,6 @@
 from flask import request
 import json
-from flask_restful import Resource
+from flask_restx import Resource
 from datetime import datetime, timedelta
 
 from core.managers import bots_manager

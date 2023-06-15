@@ -68,4 +68,4 @@ class UserProfileSchema(Schema):
     spellcheck = fields.Bool()
     dark_theme = fields.Bool()
     hotkeys = fields.Nested(HotkeySchema, many=True)
-    language = fields.Str(default="en")
+    language = fields.Str(load_default="en", dump_default="en")

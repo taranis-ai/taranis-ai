@@ -8,3 +8,8 @@ build-backend = "setuptools.build_meta"
 [tool.black]
 line-length = 142
 target-version = ["py38","py310"]
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore:.*_app_ctx_stack.*:DeprecationWarning"
+]

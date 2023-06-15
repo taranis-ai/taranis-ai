@@ -2,18 +2,20 @@ openapi: 3.0.3
 info:
   title: Taranis NG
   description: |-
-    The Taranis NG API provides endpoints for TODO.
+    The Taranis NG API provides endpoints for the Taranis NG is an OSINT gathering and analysis tool.
   license:
-    name: GPL-3.0
-  version: 1.0.11
+    name: EUPL-1.2
+  version: 0.1.8
 externalDocs:
   description: GitHub
   url: https://github.com/ait-cs-IaaS/Taranis-NG/
 servers:
+  - url: /api/v1
+    description: default
   - url: https://dev.taranis.cyberrange.rocks/api/v1
-    description: AWAKE branch
+    description: dev
   - url: https://taranis.cyberrange.rocks/api/v1
-    description: main branch
+    description: main
 tags:
   - name: auth
     description: session-related functionality

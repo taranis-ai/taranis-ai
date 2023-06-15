@@ -19,7 +19,7 @@ def test_auth_logout(client):
 
 
 def test_auth_login(client):
-    body = {"username": "admin", "password": "admin"}
+    body = {"username": "user", "password": "user"}
     response = client.post("/api/v1/auth/login", json=body)
     assert response.status_code == 200
 

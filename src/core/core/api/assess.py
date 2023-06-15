@@ -1,6 +1,6 @@
 import io
 from flask import request, send_file
-from flask_restful import Resource
+from flask_restx import Resource
 
 from core.managers import auth_manager
 from core.managers.sse_manager import sse_manager

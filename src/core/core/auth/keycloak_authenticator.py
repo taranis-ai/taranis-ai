@@ -1,6 +1,6 @@
 from os import environ
 from flask_jwt_extended import get_jwt
-from flask_restful import request
+from flask import request
 from requests import post
 from requests.auth import HTTPBasicAuth
 

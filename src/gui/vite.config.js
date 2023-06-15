@@ -19,34 +19,37 @@ export default defineConfig({
     rollupOptions: {
       // https://rollupjs.org/guide/en/#outputmanualchunks
       output: {
-        manualChunks: {
-          vue: ['vue', 'vue-router'],
-          vuetify: ['vuetify', 'vuetify/components', 'vuetify/directives'],
-          materialdesignicons: ['@mdi/font/css/materialdesignicons.css']
-          // assess: (id) =>
-          //   id.includes('@/views/users/AssessView.vue') ||
-          //   id.includes('@/views/nav/AssessNav.vue') ||
-          //   id.includes('@/views/users/NewsItemView.vue') ||
-          //   id.includes('@/views/users/StoryView.vue')
-          // analyze: (id) =>
-          //   id.includes('@/views/users/AnalyzeView.vue') ||
-          //   id.includes('@/views/nav/AnalyzeNav.vue') ||
-          //   id.includes('@/views/users/ReportView.vue'),
-          // publish: (id) =>
-          //   id.includes('@/views/users/PublishView.vue') ||
-          //   id.includes('@/views/nav/PublishNav.vue') ||
-          //   id.includes('@/views/users/ProductView.vue'),
-          // assets: (id) =>
-          //   id.includes('@/views/users/AssetsView.vue') ||
-          //   id.includes('@/views/nav/AssetsNav.vue') ||
-          //   id.includes('@/views/users/AssetView.vue') ||
-          //   id.includes('@/views/users/AssetGroupView.vue'),
-          // user: (id) =>
-          //   id.includes('@/views/users/settings/') ||
-          //   id.includes('@/views/nav/UserNav.vue'),
-          // config: (id) =>
-          //   id.includes('@/views/admin/') ||
-          //   id.includes('@/views/nav/ConfigNav.vue')
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            const match = id.match(/[\\/]node_modules[\\/](.*?)([\\/]|$)/)
+            if (match) {
+              const pkg = match[1]
+              if (pkg === '@vue') {
+                return 'vue'
+              }
+              if (
+                pkg === 'vuetify' ||
+                pkg === 'pinia' ||
+                pkg === 'vue-i18n' ||
+                pkg === 'vue-router'
+              ) {
+                return 'vue_packages'
+              }
+              if (pkg === '@mdi') {
+                return 'mdi'
+              }
+              if (pkg === 'chart.js' || pkg === 'vue-chartjs') {
+                return 'chart'
+              }
+              return 'vendor'
+            }
+          }
+
+          if (id.includes('/views/admin/')) {
+            return 'admin_views'
+          }
+
+          return 'app'
         }
       }
     }

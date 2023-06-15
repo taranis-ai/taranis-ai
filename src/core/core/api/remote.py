@@ -1,5 +1,5 @@
 from flask import request
-from flask_restful import Resource
+from flask_restx import Resource
 
 from core.managers import auth_manager
 from core.managers.auth_manager import access_key_required

@@ -1,6 +1,6 @@
 from werkzeug.urls import url_quote
-from flask import redirect, make_response
-from flask_restful import Resource, reqparse, request, ResponseBase
+from flask import redirect, make_response, request
+from flask_restx import Resource, reqparse
 from flask_jwt_extended import jwt_required
 
 from core.config import Config
@@ -13,7 +13,7 @@ class Login(Resource):
     @no_auth
     def get(self):
         response = auth_manager.authenticate(None)
-        if not isinstance(response, ResponseBase) and "access_token" in response:
+        if "access_token" in response:
             goto_url = request.args.get(key="gotoUrl", default="/")
             redirect_response = make_response(redirect(goto_url))
             redirect_response.set_cookie("jwt", response["access_token"])
@@ -41,7 +41,7 @@ class Logout(Resource):
         token = request.args["jwt"] if "jwt" in request.args else None
         response = auth_manager.logout(token)
 
-        if not isinstance(response, ResponseBase) and "gotoUrl" in request.args:
+        if "gotoUrl" in request.args:
             goto_url = request.args["gotoUrl"]
             url = Config.OPENID_LOGOUT_URL.replace("GOTO_URL", url_quote(goto_url)) if Config.OPENID_LOGOUT_URL else goto_url
             return redirect(url)

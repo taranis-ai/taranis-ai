@@ -1,5 +1,5 @@
 from flask import request
-from flask_restful import Resource
+from flask_restx import Resource
 
 from core.managers import collectors_manager
 from core.managers.sse_manager import sse_manager

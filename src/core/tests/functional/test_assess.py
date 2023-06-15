@@ -2,93 +2,75 @@ from core.model.news_item import NewsItemAggregate
 
 
 class TestAssessApi(object):
+    def assert_get_ok(self, client, uri, auth_header):
+        response = client.get(uri, headers=auth_header)
+        assert response
+        assert response.content_type == "application/json"
+        assert response.data
+        assert response.status_code == 200
+
+    def assert_get_failed(self, client, uri):
+        response = client.get(uri)
+        assert response
+        assert response.content_type == "application/json"
+        assert response.get_json()["error"] == "not authorized"
+        assert response.status_code == 401
+
     def test_get_OSINTSourceGroupsAssess_auth(self, client, auth_header):
         """
         This test queries the OSINTSourceGroupsAssess authenticated.
         It expects a valid data and a valid status-code
         """
-        response = client.get("/api/v1/assess/osint-source-groups", headers=auth_header)
-        assert response
-        assert response.content_type == "application/json"
-        assert response.data
-        assert response.status_code == 200
+        self.assert_get_ok(client, "/api/v1/assess/osint-source-groups", auth_header)
 
     def test_get_OSINTSourceGroupsAssess_unauth(self, client):
         """
         This test queries the OSINTSourceGroupsAssess UNauthenticated.
         It expects "not authorized"
         """
-        response = client.get("/api/v1/assess/osint-source-groups")
-        assert response
-        assert response.content_type == "application/json"
-        assert response.get_json()["error"] == "not authorized"
-        assert response.status_code == 401
+        self.assert_get_failed(client, "/api/v1/assess/osint-source-groups")
 
     def test_get_OSINTSourceGroupsList_auth(self, client, auth_header):
         """
         This test queries the OSINTSourceGroupsList authenticated.
         It expects a valid data and a valid status-code
         """
-        response = client.get("/api/v1/assess/osint-source-group-list", headers=auth_header)
-        assert response
-        assert response.content_type == "application/json"
-        assert response.data
-        assert response.status_code == 200
+        self.assert_get_ok(client, "/api/v1/assess/osint-source-group-list", auth_header)
 
     def test_get_OSINTSourceGroupsList_unauth(self, client):
         """
         This test queries the OSINTSourceGroupsList UNauthenticated.
         It expects "not authorized"
         """
-        response = client.get("/api/v1/assess/osint-source-group-list")
-        assert response
-        assert response.content_type == "application/json"
-        assert response.get_json()["error"] == "not authorized"
-        assert response.status_code == 401
+        self.assert_get_failed(client, "/api/v1/assess/osint-source-group-list")
 
     def test_get_OSINTSourcesList_auth(self, client, auth_header):
         """
         This test queries the OSINTSourcesList authenticated.
         It expects a valid data and a valid status-code
         """
-        response = client.get("/api/v1/assess/osint-sources-list", headers=auth_header)
-        assert response
-        assert response.content_type == "application/json"
-        assert response.data
-        assert response.status_code == 200
+        self.assert_get_ok(client, "/api/v1/assess/osint-sources-list", auth_header)
 
     def test_get_OSINTSourcesList_unauth(self, client):
         """
         This test queries the OSINTSourcesList UNauthenticated.
         It expects "not authorized"
         """
-        response = client.get("/api/v1/assess/osint-sources-list")
-        assert response
-        assert response.content_type == "application/json"
-        assert response.get_json()["error"] == "not authorized"
-        assert response.status_code == 401
+        self.assert_get_failed(client, "/api/v1/assess/osint-sources-list")
 
     def test_get_ManualOSINTSources_auth(self, client, auth_header):
         """
         This test queries the ManualOSINTSources authenticated.
         It expects a valid data and a valid status-code
         """
-        response = client.get("/api/v1/assess/manual-osint-sources", headers=auth_header)
-        assert response
-        assert response.content_type == "application/json"
-        assert response.data
-        assert response.status_code == 200
+        self.assert_get_ok(client, "/api/v1/assess/manual-osint-sources", auth_header)
 
     def test_get_ManualOSINTSources_unauth(self, client):
         """
         This test queries the ManualOSINTSources UNauthenticated.
         It expects "not authorized"
         """
-        response = client.get("/api/v1/assess/manual-osint-sources")
-        assert response
-        assert response.content_type == "application/json"
-        assert response.get_json()["error"] == "not authorized"
-        assert response.status_code == 401
+        self.assert_get_failed(client, "/api/v1/assess/manual-osint-sources")
 
     def test_post_AddNewsItem_auth(self, client, news_item_data, db_session, auth_header):
         """
@@ -155,8 +137,6 @@ class TestAssessApi(object):
         from core.model.news_item import NewsItemAggregate, NewNewsItemDataSchema, NewsItem
         from core.model.osint_source import OSINTSource
         from shared.schema.osint_source import OSINTSourceExportSchema
-        from core.model.user import User
-        import datetime
 
         ossi = {
             "description": "",
