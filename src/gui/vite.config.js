@@ -19,37 +19,10 @@ export default defineConfig({
     rollupOptions: {
       // https://rollupjs.org/guide/en/#outputmanualchunks
       output: {
-        manualChunks(id) {
-          if (id.includes('node_modules')) {
-            const match = id.match(/[\\/]node_modules[\\/](.*?)([\\/]|$)/)
-            if (match) {
-              const pkg = match[1]
-              if (pkg === '@vue') {
-                return 'vue'
-              }
-              if (
-                pkg === 'vuetify' ||
-                pkg === 'pinia' ||
-                pkg === 'vue-i18n' ||
-                pkg === 'vue-router'
-              ) {
-                return 'vue_packages'
-              }
-              if (pkg === '@mdi') {
-                return 'mdi'
-              }
-              if (pkg === 'chart.js' || pkg === 'vue-chartjs') {
-                return 'chart'
-              }
-              return 'vendor'
-            }
-          }
-
-          if (id.includes('/views/admin/')) {
-            return 'admin_views'
-          }
-
-          return 'app'
+        manualChunks: {
+          vue: ['vue', 'vue-router'],
+          vuetify: ['vuetify', 'vuetify/components', 'vuetify/directives'],
+          materialdesignicons: ['@mdi/font/css/materialdesignicons.css']
         }
       }
     }
