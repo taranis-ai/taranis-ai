@@ -869,6 +869,73 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/resp.auth.error'
+  /assess/news-item-aggregates-by-group/{group_id}:
+    parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [assess]
+      summary: get news items of a specific group
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: read
+          in: query
+          schema:
+            type: string
+        - name: important
+          in: query
+          schema:
+            type: string
+        - name: relevant
+          in: query
+          schema:
+            type: string
+        - name: in_analyze
+          in: query
+          schema:
+            type: string
+        - name: range
+          in: query
+          schema:
+            type: integer
+        - name: sort
+          in: query
+          schema:
+            type: string
+        - name: offset
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: the news items of the specified group
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/news_item_aggregate'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
   /assess/news-item-aggregates:
     get:
       tags: [assess]

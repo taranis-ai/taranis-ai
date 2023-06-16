@@ -148,7 +148,7 @@
       >
         <summarized-content
           :open="openSummary"
-          :is_summarized="is_summarized"
+          :is-summarized="is_summarized"
           :content="getDescription"
         />
       </v-col>

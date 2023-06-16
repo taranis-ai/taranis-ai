@@ -1,5 +1,7 @@
 import pytest
+import os
 from dotenv import load_dotenv
+from sqlalchemy.orm import scoped_session, sessionmaker
 
 # from sqlalchemy import event
 # from sqlalchemy.orm import sessionmaker
@@ -7,43 +9,66 @@ from dotenv import load_dotenv
 load_dotenv(dotenv_path="tests/.env", override=True)
 
 
-@pytest.fixture()
-def app():
+@pytest.fixture(scope="session")
+def app(request):
     from core.__init__ import create_app
 
+    def teardown():
+        # os.remove("/var/tmp/taranis_test.db")
+        pass
+
+    request.addfinalizer(teardown)
     yield create_app()
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def client(app):
     yield app.test_client()
 
 
-@pytest.fixture()
-def _db(app):
+@pytest.fixture
+def db_persistent_session(app):
+    """
+    Do not delete the dbsession automatically.
+    Use this fixture for debugging the database
+    """
     with app.app_context():
         from core.managers.db_manager import db
+
+        yield db.session
+
+
+@pytest.fixture(scope="session")
+def db(app, request):
+    with app.app_context():
+        from core.managers.db_manager import db
+
+        def teardown():
+            db.drop_all()
+
+        request.addfinalizer(teardown)
 
         yield db
 
 
-@pytest.fixture
-def news_item_data(app):
-    with app.app_context():
-        from core.model.news_item import NewsItemData
+@pytest.fixture()
+def session(db, request):
+    """Creates a new database session for a test."""
+    connection = db.engine.connect()
+    transaction = connection.begin()
 
-        yield NewsItemData
+    db.session = scoped_session(session_factory=sessionmaker(bind=connection))
+
+    def teardown():
+        transaction.rollback()
+        connection.close()
+        db.session.remove()
+
+    request.addfinalizer(teardown)
+    return db.session
 
 
-@pytest.fixture
-def news_item(app):
-    with app.app_context():
-        from core.model.news_item import NewsItem
-
-        yield NewsItem
-
-
-@pytest.fixture
+@pytest.fixture(scope="session")
 def access_token(app):
     from flask_jwt_extended import create_access_token
 

@@ -56,10 +56,6 @@ export default {
       }
     })
 
-    onMounted(() => {
-      console.debug('filterAttributeOptions', props.filterAttributeOptions)
-    })
-
     return {
       filterAttribute
     }

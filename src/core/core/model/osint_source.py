@@ -184,7 +184,6 @@ class OSINTSource(db.Model):
 
     @classmethod
     def add_new(cls, data):
-        print(data)
         osint_source = NewOSINTSourceSchema().load(data)
         db.session.add(osint_source)
 
@@ -200,7 +199,7 @@ class OSINTSource(db.Model):
         return osint_source
 
     @classmethod
-    def import_new(cls, osint_source):
+    def import_new(cls, osint_source) -> str:
         collector = Collector.find_by_type(osint_source.collector.type)
         parameter_values = []
         for parameter_value in osint_source.parameter_values:
@@ -210,9 +209,9 @@ class OSINTSource(db.Model):
                     new_parameter_value = ParameterValue(parameter_value["value"], parameter.key)
                     parameter_values.append(new_parameter_value)
                     break
-
+        source_id = str(uuid.uuid4())
         news_osint_source = OSINTSource(
-            "",
+            source_id,
             osint_source.name,
             osint_source.description,
             collector.id,
@@ -225,6 +224,7 @@ class OSINTSource(db.Model):
         default_group = OSINTSourceGroup.get_default()
         default_group.osint_sources.append(news_osint_source)
         db.session.commit()
+        return source_id
 
     @classmethod
     def delete(cls, osint_source_id):

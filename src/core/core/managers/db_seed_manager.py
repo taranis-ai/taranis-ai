@@ -1,11 +1,8 @@
-from flask_sqlalchemy import SQLAlchemy
 from core.managers.log_manager import logger
 from core.config import Config
 
-db = SQLAlchemy()
 
-
-def pre_seed(app):
+def pre_seed(db):
     try:
         pre_seed_permissions()
         logger.log_debug("Permissions seeded")
@@ -19,10 +16,10 @@ def pre_seed(app):
         pre_seed_default_user()
         logger.log_debug("Default users seeded")
 
-        pre_seed_attributes()
+        pre_seed_attributes(db)
         logger.log_debug("Attributes seeded")
 
-        pre_seed_report_items()
+        pre_seed_report_items(db)
         logger.log_debug("Report items seeded")
 
         pre_seed_wordlists()
@@ -527,7 +524,7 @@ def pre_seed_roles():
         )
 
 
-def pre_seed_attributes():
+def pre_seed_attributes(db):
     from core.model.attribute import Attribute
 
     base_attr = {
@@ -963,7 +960,7 @@ def pre_seed_attributes():
         Attribute.add_attribute(attr)
 
 
-def pre_seed_report_items():
+def pre_seed_report_items(db):
     from core.model.report_item_type import (
         ReportItemType,
         AttributeGroupItem,

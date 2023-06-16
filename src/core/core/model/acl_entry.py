@@ -1,6 +1,6 @@
 from sqlalchemy import func, or_, orm, and_
 from marshmallow import fields, post_load
-from flask_sqlalchemy import BaseQuery
+from flask_sqlalchemy import query
 
 from core.managers.db_manager import db
 from core.model.role import Role
@@ -63,7 +63,7 @@ class ACLEntry(db.Model):
 
     @classmethod
     def has_rows(cls) -> bool:
-        return db.session.query(db.exists().where(cls.id.isnot(None))).scalar()
+        return cls.query.count() > 0
 
     @classmethod
     def get(cls, search):
@@ -100,16 +100,8 @@ class ACLEntry(db.Model):
         if not updated_acl:
             return
         acl = cls.query.get(acl_id)
-        acl.name = updated_acl.name
-        acl.description = updated_acl.description
-        acl.item_type = updated_acl.item_type
-        acl.item_id = updated_acl.item_id
-        acl.everyone = updated_acl.everyone
-        acl.see = updated_acl.see
-        acl.access = updated_acl.access
-        acl.modify = updated_acl.modify
-        acl.users = updated_acl.users
-        acl.roles = updated_acl.roles
+        for key in vars(updated_acl):
+            setattr(acl, key, getattr(updated_acl, key))
         db.session.commit()
 
     @classmethod
@@ -119,7 +111,7 @@ class ACLEntry(db.Model):
         db.session.commit()
 
     @classmethod
-    def apply_query(cls, query: BaseQuery, user: User, see: bool, access: bool, modify: bool) -> BaseQuery:
+    def apply_query(cls, query: query.Query, user: User, see: bool, access: bool, modify: bool) -> query.Query:
         roles = [role.id for role in user.roles]
 
         query = query.outerjoin(

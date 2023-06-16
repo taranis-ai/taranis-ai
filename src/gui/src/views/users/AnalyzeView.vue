@@ -123,8 +123,8 @@ export default {
       router.push({ name: 'product', params: { id: 0 } })
     }
 
-    const selectionChange = (selected) => {
-      state.selected = selected.map((item) => item.id)
+    const selectionChange = (new_selection) => {
+      selected.value = new_selection.map((item) => item.id)
     }
 
     onMounted(() => {

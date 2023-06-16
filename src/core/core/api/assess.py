@@ -165,7 +165,7 @@ class NewsItemAggregate(Resource):
     @auth_required("ASSESS_DELETE")
     def delete(self, aggregate_id):
         user = auth_manager.get_user_from_jwt()
-        response, code = news_item.NewsItemAggregate.delete(aggregate_id, user)
+        response, code = news_item.NewsItemAggregate.delete_by_id(aggregate_id, user)
         sse_manager.news_items_updated()
         return response, code
 

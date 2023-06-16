@@ -59,6 +59,7 @@
           v-if="item.type === 'table' && item.items !== undefined"
           cols="12"
         >
+          {{ formData[item.name] }}
           <v-data-table
             v-model="formData[item.name]"
             :headers="item.headers"
