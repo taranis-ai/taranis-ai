@@ -12,7 +12,6 @@
         </v-col>
       </v-row>
 
-      <!-- class="row d-flex align-stretch row--dense stories-grid-container" -->
       <card-story
         v-for="newsItem in items"
         :key="newsItem.id"
@@ -20,7 +19,7 @@
         :selected="newsItemsSelection.includes(newsItem.id)"
         @delete-item="removeAndDeleteNewsItem(newsItem.id)"
         @select-item="selectNewsItem(newsItem.id)"
-      ></card-story>
+      />
     </v-container>
 
     <!-- TODO: Loader not working -->
@@ -44,82 +43,103 @@
 <script>
 import CardStory from '@/components/assess/CardStory.vue'
 import AssessSelectionToolbar from '@/components/assess/AssessSelectionToolbar.vue'
-import { mapActions, mapState, storeToRefs, mapWritableState } from 'pinia'
+import { storeToRefs } from 'pinia'
 import { useAssessStore } from '@/stores/AssessStore'
-import { watch } from 'vue'
+import {
+  watch,
+  defineComponent,
+  computed,
+  ref,
+  onMounted,
+  onUnmounted
+} from 'vue'
 import { useFilterStore } from '@/stores/FilterStore'
 import { useMainStore } from '@/stores/MainStore'
 
-export default {
+export default defineComponent({
   name: 'AssessView',
   components: {
     CardStory,
     AssessSelectionToolbar
   },
-  data: () => ({
-    reloading: false,
-    items: []
-  }),
-  computed: {
-    ...mapWritableState(useMainStore, ['itemCountTotal', 'itemCountFiltered']),
-    ...mapState(useAssessStore, ['newsItems', 'newsItemsSelection']),
-    ...mapState(useFilterStore, ['newsItemsFilter']),
-    moreToLoad() {
-      const offset = this.newsItemsFilter.offset
-        ? parseInt(this.newsItemsFilter.offset)
+  setup() {
+    const reloading = ref(false)
+    const items = ref([])
+    const assessStore = useAssessStore()
+    const filterStore = useFilterStore()
+    const mainStore = useMainStore()
+    const { newsItems, newsItemsSelection } = storeToRefs(assessStore)
+    const {
+      updateNewsItems,
+      selectNewsItem,
+      updateOSINTSourceGroupsList,
+      updateOSINTSources,
+      clearNewsItemSelection
+    } = assessStore
+
+    const moreToLoad = computed(() => {
+      const offset = filterStore.newsItemsFilter.offset
+        ? parseInt(filterStore.newsItemsFilter.offset)
         : 0
-      const length = offset + this.items.length
-      return length < this.newsItems.total_count
-    },
-
-    activeSelection() {
-      return this.newsItemsSelection.length > 0
-    }
-  },
-
-  created() {
-    this.updateOSINTSourceGroupsList()
-    this.updateOSINTSources()
-    this.updateNewsItems()
-
-    const assessstore = useAssessStore()
-    const { newsItems } = storeToRefs(assessstore)
-
-    watch(newsItems, () => {
-      this.getNewsItemsFromStore()
+      const length = offset + items.value.length
+      return length < newsItems.value.total_count
     })
-  },
-  unmounted() {
-    this.clearNewsItemSelection()
-    this.itemCountTotal = 0
-    this.itemCountFiltered = 0
-  },
-  methods: {
-    ...mapActions(useAssessStore, [
-      'updateNewsItems',
-      'updateOSINTSourceGroupsList',
-      'updateOSINTSources',
-      'selectNewsItem',
-      'clearNewsItemSelection'
-    ]),
-    ...mapActions(useFilterStore, ['nextPage']),
-    removeAndDeleteNewsItem(id) {
-      this.items = this.items.filter((x) => x.id !== id)
-    },
 
-    loadNext() {
-      this.nextPage()
-      this.updateNewsItems()
-    },
+    const activeSelection = computed(() => {
+      return newsItemsSelection.value.length > 0
+    })
 
-    // TODO: Call API via Store
-    // + pass filter parameter for presorting
-    getNewsItemsFromStore() {
-      this.items = this.newsItems.items
-      this.itemCountTotal = this.newsItems.total_count
-      this.itemCountFiltered = this.items.length
-      console.debug('number of newsitems: ' + this.newsItems.total_count)
+    const removeAndDeleteNewsItem = (id) => {
+      items.value = items.value.filter((x) => x.id !== id)
+    }
+
+    const loadMore = ({ done }) => {
+      console.debug('loadMore')
+      filterStore.displayMore()
+      updateNewsItems()
+      done('ok')
+    }
+
+    const loadNext = ({ done }) => {
+      console.debug('loadNext')
+      filterStore.nextPage()
+      updateNewsItems()
+      done('ok')
+    }
+
+    const getNewsItemsFromStore = () => {
+      items.value = newsItems.value.items
+      mainStore.itemCountTotal = newsItems.value.total_count
+      mainStore.itemCountFiltered = items.value.length
+      console.debug('number of newsitems: ' + newsItems.value.total_count)
+    }
+
+    onMounted(() => {
+      updateOSINTSourceGroupsList()
+      updateOSINTSources()
+      updateNewsItems()
+      watch(newsItems, () => {
+        getNewsItemsFromStore()
+      })
+    })
+
+    onUnmounted(() => {
+      clearNewsItemSelection()
+      mainStore.itemCountTotal = 0
+      mainStore.itemCountFiltered = 0
+    })
+
+    return {
+      reloading,
+      items,
+      newsItemsSelection,
+      moreToLoad,
+      activeSelection,
+      removeAndDeleteNewsItem,
+      loadNext,
+      selectNewsItem,
+      loadMore
     }
   }
-}
+})
 </script>

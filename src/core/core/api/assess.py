@@ -67,7 +67,7 @@ class NewsItemAggregates(Resource):
         user = auth_manager.get_user_from_jwt()
         try:
             filter_keys = ["search", "read", "unread", "important", "relevant", "in_report", "range", "sort", "source"]
-            filter_args: dict[str, str | int] = {k: v for k, v in request.args.items() if k in filter_keys}
+            filter_args: dict[str, str | int | list] = {k: v for k, v in request.args.items() if k in filter_keys}
 
             filter_args["group"] = request.args.get("group", osint_source.OSINTSourceGroup.get_default().id) or "default"
             filter_args["limit"] = min(int(request.args.get("limit", 20)), 200)

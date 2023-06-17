@@ -68,6 +68,7 @@ export default {
         label: 'Permissions',
         type: 'table',
         headers: [
+          { title: 'ID', key: 'id' },
           { title: 'Name', key: 'name' },
           { title: 'Description', key: 'description' }
         ],
@@ -85,12 +86,15 @@ export default {
 
     const addItem = () => {
       formData.value = objectFromFormat(formFormat.value)
-      console.debug(formData.value)
+      delete formData.value['id']
       edit.value = false
     }
 
     const editItem = (item) => {
       formData.value = item
+      formData.value.permissions = formData.value.permissions.map(
+        (item) => item.id
+      )
       edit.value = true
     }
 

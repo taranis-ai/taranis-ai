@@ -1,8 +1,8 @@
 <template>
   <p :class="news_item_summary_class">
     <v-tooltip v-if="isSummarized" top>
-      <template #activator="{ on, attrs }">
-        <v-icon v-bind="attrs" v-on="on">mdi-text-short</v-icon>
+      <template #activator="{ props }">
+        <v-icon v-bind="props">mdi-text-short</v-icon>
       </template>
       <span>This text is Summarized</span>
     </v-tooltip>

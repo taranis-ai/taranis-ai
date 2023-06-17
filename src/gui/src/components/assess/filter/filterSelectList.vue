@@ -22,7 +22,7 @@
 </template>
 
 <script>
-import { computed, onMounted } from 'vue'
+import { computed } from 'vue'
 
 export default {
   name: 'FilterSelectList',

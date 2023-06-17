@@ -59,13 +59,11 @@
           v-if="item.type === 'table' && item.items !== undefined"
           cols="12"
         >
-          {{ formData[item.name] }}
           <v-data-table
             v-model="formData[item.name]"
             :headers="item.headers"
             :show-select="!item['disabled']"
             :items="item.items"
-            :item-value="item.headers[0].value"
           >
             <template #top>
               <v-row justify="space-between">
@@ -78,24 +76,6 @@
                   </v-btn>
                 </v-col>
               </v-row>
-            </template>
-            <template
-              v-for="h in item.headers"
-              #[`item.${h.value}`]="props"
-              :key="h.value"
-            >
-              <v-dialog v-model:return-value="props.item[h.value]">
-                {{ props.item[h.value] }}
-                <template #input>
-                  <v-text-field
-                    v-model="props.item[h.value]"
-                    :disabled="item['disabled'] === undefined"
-                    :type="item.type ? item.type : 'text'"
-                    label="Edit"
-                    single-line
-                  ></v-text-field>
-                </template>
-              </v-dialog>
             </template>
             <template v-if="item.items.length < 10" #bottom />
           </v-data-table>

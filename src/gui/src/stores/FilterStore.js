@@ -67,6 +67,12 @@ export const useFilterStore = defineStore('filter', {
         this.newsItemsFilter.tags = [tag]
       }
     },
+    displayMore() {
+      const limit = this.newsItemsFilter.limit
+        ? parseInt(this.newsItemsFilter.limit)
+        : 20
+      this.newsItemsFilter.limit = limit + 20
+    },
     nextPage() {
       const offset = this.newsItemsFilter.offset
         ? parseInt(this.newsItemsFilter.offset)

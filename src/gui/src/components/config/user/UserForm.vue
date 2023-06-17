@@ -1,9 +1,9 @@
 <template>
   <v-container fluid class="ma-5 mt-5 pa-5 pt-0">
-    <span v-if="edit" class="caption">ID: {{ user.id }}</span>
     <v-form id="form" ref="form" validate-on="submit" @submit.prevent="add">
       <v-row no-gutters>
         <v-btn type="submit" color="success" class="mr-4"> Submit </v-btn>
+        <span v-if="edit">ID: {{ user.id }}</span>
       </v-row>
       <v-row no-gutters>
         <v-col cols="6" class="pa-1">
@@ -61,7 +61,6 @@
             v-model="user_roles"
             :headers="headers"
             :items="roles"
-            return-object
             show-select
           >
             <template #top>
@@ -74,10 +73,9 @@
         </v-col>
         <v-col cols="12" class="pt-2">
           <v-data-table
-            v-model="user.permissions"
+            v-model="user_permissions"
             :headers="headers"
             :items="permissions"
-            return-object
             show-select
           >
             <template #top>

@@ -3,15 +3,8 @@ from sqlalchemy import func, or_, orm
 
 from core.managers.db_manager import db
 from core.model.permission import Permission
-from shared.schema.role import RoleSchemaBase, PermissionIdSchema, RolePresentationSchema
-
-
-class NewRoleSchema(RoleSchemaBase):
-    permissions = fields.Nested(PermissionIdSchema, many=True)
-
-    @post_load
-    def make(self, data, **kwargs):
-        return Role(**data)
+from shared.schema.role import RolePresentationSchema
+from typing import Any
 
 
 class Role(db.Model):
@@ -21,12 +14,12 @@ class Role(db.Model):
 
     permissions = db.relationship(Permission, secondary='role_permission')
 
-    def __init__(self, id, name, description, permissions):
-        self.id = None
+    def __init__(self, name, description, permissions, id=None):
+        self.id = id
         self.name = name
         self.description = description
         self.permissions = []
-        self.permissions.extend(Permission.find(permission.id) for permission in permissions)
+        self.permissions.extend(Permission.find(permission) for permission in permissions)
         self.tag = "mdi-account-arrow-right"
 
     @orm.reconstructor
@@ -50,11 +43,10 @@ class Role(db.Model):
         query = cls.query
 
         if search is not None:
-            search_string = "%" + search.lower() + "%"
             query = query.filter(
                 or_(
-                    func.lower(Role.name).like(search_string),
-                    func.lower(Role.description).like(search_string),
+                    Role.name.ilike(f"%{search}%"),
+                    Role.description.ilike(f"%{search}%"),
                 )
             )
 
@@ -66,29 +58,38 @@ class Role(db.Model):
         roles_schema = RolePresentationSchema(many=True)
         return {"total_count": count, "items": roles_schema.dump(roles)}
 
+    def to_dict(self):
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+
     @classmethod
-    def add_new(cls, data):
-        new_role_schema = NewRoleSchema()
-        role = new_role_schema.load(data)
+    def load_multiple(cls, data: list[dict[str, Any]]) -> list["Role"]:
+        return [cls.from_dict(publisher_data) for publisher_data in data]
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Role":
+        return cls(**data)
+
+    @classmethod
+    def add_new(cls, data) -> tuple[str, int]:
+        role = cls.from_dict(data)
         db.session.add(role)
         db.session.commit()
+        return f"Successfully Added {role.id}", 201
 
     def get_permissions(self):
-        all_permissions = set()
-        for permission in self.permissions:
-            all_permissions.add(permission.id)
-
-        return all_permissions
+        return {permission.id for permission in self.permissions}
 
     @classmethod
-    def update(cls, role_id, data):
-        schema = NewRoleSchema()
-        updated_role = schema.load(data)
+    def update(cls, role_id: int, data) -> tuple[str, int]:
         role = cls.query.get(role_id)
-        role.name = updated_role.name
-        role.description = updated_role.description
-        role.permissions = updated_role.permissions
+        if role is None:
+            return "Role not found", 404
+        permissions = [Permission.find(permission_id) for permission_id in data.pop("permissions", [])]
+        role.name = data["name"]
+        role.description = data["description"]
+        role.permissions = permissions
         db.session.commit()
+        return f"Succussfully updated {role.id}", 201
 
     @classmethod
     def delete(cls, id):
