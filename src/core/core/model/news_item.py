@@ -666,13 +666,9 @@ class NewsItemAggregate(db.Model):
             )
 
         if tags := filter.get("tags"):
-            query = query.join(
-                NewsItemTag,
-                NewsItemAggregate.id == NewsItemTag.n_i_a_id,
-            )
-            query = query.filter(NewsItemTag.name.in_(tags))
-            # for tag in tags:
-            #     query = query.filter(NewsItemTag.name.in_(tag))
+            for tag in tags:
+                alias = orm.aliased(NewsItemTag)
+                query = query.join(alias, NewsItemAggregate.id == alias.n_i_a_id).filter(alias.name == tag)
 
         filter_range = filter.get("range", "").lower()
         if filter_range and filter_range in ["day", "week", "month"]:
@@ -1251,7 +1247,7 @@ class NewsItemTag(db.Model):
 
         offset = filter_args.get("offset", 0)
         limit = filter_args.get("limit", 20)
-        rows = query.offset(offset).limit(limit).all()
+        rows = query.offset(offset).limit(limit).distinct(cls.name).all()
         # count = query.count()
         return [{"name": row.name, "tag_type": row.tag_type} for row in rows]
 
