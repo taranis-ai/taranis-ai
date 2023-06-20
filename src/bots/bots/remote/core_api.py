@@ -126,7 +126,7 @@ class CoreApi:
             return response.status_code
         except Exception:
             logger.log_debug_trace("update_news_items_aggregate_summary failed")
-            return None, 400
+            return "update_news_items_aggregate_summary failed", 400
 
     def delete_word_list_category_entries(self, id, name):
         try:

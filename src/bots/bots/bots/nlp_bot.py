@@ -1,6 +1,5 @@
 from .base_bot import BaseBot
 from bots.managers.log_manager import logger
-from keybert import KeyBERT
 import spacy, spacy.cli
 import py3langid
 
@@ -76,21 +75,24 @@ class NLPBot(BaseBot):
                     )
                     content_list.append(content)
 
-                    self.language = self.detect_language(content)
-
-                    if "language" in news_item["news_item_data"] and self.language != news_item["news_item_data"]["language"]:
+                    if "language" in news_item["news_item_data"] and news_item["news_item_data"]["language"] != "":
+                        self.language = self.detect_language(content)
                         self.core_api.update_news_item_data(news_item["news_item_data"]["id"], {"language": self.language})
 
-                    current_keywords = self.extract_ner(content)
-                    keywords.extend([keyword for keyword in current_keywords[:10] if keyword["name"] not in existing_tags])
+                    if len(existing_tags) == 0:
+                        current_keywords = self.extract_ner(content)
+                        keywords.extend([keyword for keyword in current_keywords[:10] if keyword["name"] not in existing_tags])
 
                     # Disabled for now, as it is not working well
                     # current_keywords = self.generateKeywords(content)
                     # keywords.extend(keyword[0] for keyword in current_keywords[:10])
 
                 if not aggregate.get("summary"):
-                    if summary := self.predict_summary(content_list):
-                        self.core_api.update_news_items_aggregate_summary(aggregate["id"], summary)
+                    try:
+                        if summary := self.predict_summary(content_list):
+                            self.core_api.update_news_items_aggregate_summary(aggregate["id"], summary)
+                    except Exception:
+                        logger.error(f"Could not generate summary for {aggregate['id']}")
                 if keywords:
                     self.core_api.update_news_item_tags(aggregate["id"], keywords)
 

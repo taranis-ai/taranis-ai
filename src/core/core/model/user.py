@@ -106,7 +106,7 @@ class User(db.Model):
     @classmethod
     def add_new(cls, data):
         user = NewUserSchema().load(data)
-        user.password = generate_password_hash(user.password, method="sha256")
+        user.password = generate_password_hash(user.password)
         db.session.add(user)
         db.session.commit()
 
@@ -130,7 +130,7 @@ class User(db.Model):
             data["password"] = ""
         updated_user = schema.load(data)
         if updated_user.password:
-            user.password = generate_password_hash(updated_user.password, method="sha256")
+            user.password = generate_password_hash(updated_user.password)
         user.username = updated_user.username
         user.name = updated_user.name
         user.organization = updated_user.organization
