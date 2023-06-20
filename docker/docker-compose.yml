@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   database:
-    image: "postgres:${POSTGRES_TAG}"
+    image: "postgres:${POSTGRES_TAG:-13-alpine}"
     ports:
      - 6543:5432
     deploy:
@@ -13,7 +13,7 @@ services:
       POSTGRES_DB: "${DB_DATABASE}"
       POSTGRES_USER: "${DB_USER}"
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
-    command: ["postgres", "-c", "shared_buffers=${DB_SHARED_BUFFERS}", "-c", "max_connections=${DB_MAX_CONNECTIONS}"]
+    command: ["postgres", "-c", "shared_buffers=${DB_SHARED_BUFFERS:-64MB}", "-c", "max_connections=${DB_MAX_CONNECTIONS:-1000}"]
     healthcheck:
       test: ["CMD-SHELL", "sh -c 'pg_isready -U ${DB_USER} -d ${DB_DATABASE}'"]
       interval: 10s
@@ -35,27 +35,28 @@ services:
       restart_policy:
         condition: on-failure
         max_attempts: 3
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-core:${TARANIS_NG_TAG}"
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-core:${TARANIS_NG_TAG:-latest}"
     ports:
       - "5000:80"
     environment:
-      DB_URL: "${DB_URL}"
-      DB_DATABASE: "${DB_DATABASE}"
-      DB_USER: "${DB_USER}"
+      DB_URL: "${DB_URL:-database}"
+      DB_DATABASE: "${DB_DATABASE:-taranis}"
+      DB_USER: "${DB_USER:-taranis}"
       DB_PASSWORD: "${POSTGRES_PASSWORD}"
       DB_POOL_SIZE: 100
       DB_POOL_RECYCLE: 300
       DB_POOL_TIMEOUT: 5
 
       JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
-      TARANIS_NG_AUTHENTICATOR: "${TARANIS_NG_AUTHENTICATOR}"
+      TARANIS_NG_AUTHENTICATOR: "${TARANIS_NG_AUTHENTICATOR:-database}"
       WORKERS_PER_CORE: "1"
       WEB_CONCURRENCY: "1"
 
-      CVE_UPDATE_FILE: "${CVE_UPDATE_FILE}"
-      CPE_UPDATE_FILE: "${CPE_UPDATE_FILE}"
+      CVE_UPDATE_FILE: "${CVE_UPDATE_FILE:-/data/cve_dictionary.xml}"
+      CPE_UPDATE_FILE: "${CPE_UPDATE_FILE:-/data/cpe_dictionary.xml}"
       SECRET_KEY: "${API_KEY}"
       API_KEY: "${API_KEY}"
+      DEBUG: "${DEBUG:-False}"
     labels:
       traefik.enable: "true"
       traefik.http.services.taranis-api.loadbalancer.server.port: "80"
@@ -91,13 +92,14 @@ services:
       resources:
         limits:
           memory: 8G
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-bots:${TARANIS_NG_TAG}"
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-bots:${TARANIS_NG_TAG:-latest}"
     environment:
       API_KEY: "${API_KEY}"
       TARANIS_NG_CORE_URL: "http://core"
       TARANIS_NG_CORE_SSE: "http://core/sse"
       WORKERS_PER_CORE: "1"
       WEB_CONCURRENCY: "1"
+      DEBUG: "${DEBUG:-False}"
     logging:
       driver: "json-file"
       options:
@@ -112,14 +114,13 @@ services:
       restart_policy:
         condition: on-failure
         max_attempts: 3
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-collectors:${TARANIS_NG_TAG}"
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-collectors:${TARANIS_NG_TAG:-latest}"
     environment:
       TARANIS_NG_CORE_URL: "http://core"
       API_KEY: "${API_KEY}"
       WORKERS_PER_CORE: "1"
       WEB_CONCURRENCY: "1"
-        # ports:
-        #      - "5001:80"
+      DEBUG: "${DEBUG:-False}"
     volumes:
       - "collector_storage:/app/storage"
     logging:
@@ -136,14 +137,13 @@ services:
       restart_policy:
         condition: on-failure
         max_attempts: 3
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-presenters:${TARANIS_NG_TAG}"
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-presenters:${TARANIS_NG_TAG:-latest}"
     environment:
       TARANIS_NG_CORE_URL: "http://core"
       API_KEY: "${API_KEY}"
       WORKERS_PER_CORE: "1"
       WEB_CONCURRENCY: "1"
-        # ports:
-        # - "5002:80"
+      DEBUG: "${DEBUG:-False}"
     volumes:
       - "presenters_templates:/app/templates"
     logging:
@@ -160,14 +160,13 @@ services:
       restart_policy:
         condition: on-failure
         max_attempts: 3
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-publishers:${TARANIS_NG_TAG}"
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-publishers:${TARANIS_NG_TAG:-latest}"
     environment:
       TARANIS_NG_CORE_URL: "http://core"
       API_KEY: "${API_KEY}"
       WORKERS_PER_CORE: "1"
       WEB_CONCURRENCY: "1"
-        #    ports:
-        # - "5003:80"
+      DEBUG: "${DEBUG:-False}"
     logging:
       driver: "json-file"
       options:
@@ -181,7 +180,7 @@ services:
       restart_policy:
         condition: on-failure
         max_attempts: 3
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-gui:${TARANIS_NG_TAG}"
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-gui:${TARANIS_NG_TAG:-latest}"
 #    ports:
 #      - "8080:80"
     environment:
@@ -226,7 +225,7 @@ services:
     ports:
       - "${TARANIS_NG_HTTP_PORT}:80"
       - "${TARANIS_NG_HTTPS_PORT}:443"
-      - "${TRAEFIK_MANAGEMENT_PORT}:9090"
+      - "${TRAEFIK_MANAGEMENT_PORT:-127.0.0.1:8081}:9090"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
       - "./traefik:/etc/traefik:ro"
