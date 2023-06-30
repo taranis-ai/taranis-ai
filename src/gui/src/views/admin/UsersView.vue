@@ -3,7 +3,7 @@
     <DataTable
       v-model:items="users.items"
       :add-button="true"
-      :header-filter="['tag', 'id', 'name', 'username']"
+      :header-filter="['tag', 'id', 'username', 'name']"
       sort-by-item="id"
       :action-column="true"
       @delete-item="deleteItem"
@@ -59,12 +59,9 @@ export default {
 
     const addItem = () => {
       user.value = {
-        id: -1,
         username: '',
         name: '',
-        organization: {
-          id: undefined
-        },
+        organization: undefined,
         roles: [],
         permissions: []
       }
@@ -73,6 +70,7 @@ export default {
     }
 
     const editItem = (item) => {
+      console.debug(item)
       user.value = item
       edit.value = true
       showForm.value = true

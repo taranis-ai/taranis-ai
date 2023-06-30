@@ -27,8 +27,8 @@
     "vue-router": "^4.1.6",
     "vue-shortkey": "^3.1.7",
     "vue2-dropzone-vue3": "^1.1.0",
-    "vue3-quill": "^0.3.0",
-    "vuetify": "^3.3.4"
+    "@vueup/vue-quill": "^1.2.0",
+    "vuetify": "^3.3.6"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^4.1.0",

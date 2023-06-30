@@ -1,6 +1,6 @@
 from werkzeug.urls import url_quote
 from flask import redirect, make_response, request
-from flask_restx import Resource, reqparse
+from flask_restx import Resource, reqparse, Namespace
 from flask_jwt_extended import jwt_required
 
 from core.config import Config
@@ -12,13 +12,7 @@ from core.managers.auth_manager import no_auth
 class Login(Resource):
     @no_auth
     def get(self):
-        response = auth_manager.authenticate(None)
-        if "access_token" in response:
-            goto_url = request.args.get(key="gotoUrl", default="/")
-            redirect_response = make_response(redirect(goto_url))
-            redirect_response.set_cookie("jwt", response["access_token"])
-            return redirect_response
-        return response
+        return make_response(redirect(request.args.get(key="gotoUrl", default="/")))
 
     def post(self):
         parser = reqparse.RequestParser()
@@ -50,6 +44,8 @@ class Logout(Resource):
 
 
 def initialize(api):
-    api.add_resource(Login, "/api/v1/auth/login")
-    api.add_resource(Refresh, "/api/v1/auth/refresh")
-    api.add_resource(Logout, "/api/v1/auth/logout")
+    namespace = Namespace("Auth", description="Authentication related operations", path="/api/v1/auth")
+    namespace.add_resource(Login, "/login")
+    namespace.add_resource(Refresh, "/refresh")
+    namespace.add_resource(Logout, "/logout")
+    api.add_namespace(namespace)

@@ -42,7 +42,7 @@ export default {
   name: 'TagFilter',
   props: {
     modelValue: {
-      type: Array || String,
+      type: Array,
       default: () => [],
       required: true
     }
@@ -51,9 +51,6 @@ export default {
   setup(props, { emit }) {
     const selected = computed({
       get: () => {
-        if (typeof props.modelValue === 'string') {
-          return [props.modelValue]
-        }
         return props.modelValue
       },
       set: (val) => {

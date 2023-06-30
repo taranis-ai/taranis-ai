@@ -1,31 +1,17 @@
 import uuid
-from marshmallow import fields, post_load
-from sqlalchemy import orm, or_, text
+from sqlalchemy import or_
+from typing import Any
 
 from core.managers.db_manager import db
+from core.model.base_model import BaseModel
 from core.model.report_item import ReportItem
 from core.model.user import User
 from core.model.organization import Organization
 from core.model.notification_template import NotificationTemplate
-from shared.schema.asset import (
-    AssetCpeSchema,
-    AssetSchema,
-    AssetPresentationSchema,
-    AssetGroupSchema,
-    AssetGroupPresentationSchema,
-)
-from shared.schema.user import UserIdSchema
-from shared.schema.notification_template import NotificationTemplateIdSchema
 from core.managers.log_manager import logger
 
 
-class NewAssetCpeSchema(AssetCpeSchema):
-    @post_load
-    def make(self, data, **kwargs):
-        return AssetCpe(**data)
-
-
-class AssetCpe(db.Model):
+class AssetCpe(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     value = db.Column(db.String())
     asset_id = db.Column(db.Integer, db.ForeignKey('asset.id'))
@@ -35,15 +21,7 @@ class AssetCpe(db.Model):
         self.value = value
 
 
-class NewAssetSchema(AssetSchema):
-    asset_cpes = fields.Nested(NewAssetCpeSchema, many=True)
-
-    @post_load
-    def make(self, data, **kwargs):
-        return Asset(**data)
-
-
-class Asset(db.Model):
+class Asset(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(), nullable=False)
     serial = db.Column(db.String())
@@ -55,37 +33,26 @@ class Asset(db.Model):
     vulnerabilities = db.relationship("AssetVulnerability", cascade="all, delete-orphan")
     vulnerabilities_count = db.Column(db.Integer, default=0)
 
-    def __init__(self, id, name, serial, description, asset_group_id, asset_cpes):
-        self.id = None
+    def __init__(self, name, serial, description, asset_group_id, asset_cpes=None, id=None):
+        self.id = id
         self.name = name
         self.serial = serial
         self.description = description
         self.asset_group_id = asset_group_id
-        self.asset_cpes = asset_cpes
-        self.tag = "mdi-laptop"
-
-    @orm.reconstructor
-    def reconstruct(self):
-        self.tag = "mdi-laptop"
+        self.asset_cpes = [AssetCpe.get(cpe) for cpe in asset_cpes] if asset_cpes else []
 
     @classmethod
     def get_by_cpe(cls, cpes):
         if len(cpes) <= 0:
             return []
-        query_string = "SELECT DISTINCT asset_id FROM asset_cpe WHERE value LIKE ANY(:cpes) OR {}"
-        params = {"cpes": cpes}
 
-        inner_query = ""
-        for i in range(len(cpes)):
-            if i > 0:
-                inner_query += " OR "
-            param = f"cpe{str(i)}"
-            inner_query += f":{param} LIKE value"
-            params[param] = cpes[i]
-
-        result = db.engine.execute(text(query_string.format(inner_query)), params)
-
-        return [cls.query.get(row[0]) for row in result]
+        return (
+            db.session.query(cls)
+            .join(AssetCpe, cls.id == AssetCpe.asset_id)
+            .filter(or_(*[AssetCpe.value.like(cpe) for cpe in cpes]))
+            .distinct()
+            .all()
+        )
 
     @classmethod
     def remove_vulnerability(cls, report_item_id):
@@ -125,7 +92,7 @@ class Asset(db.Model):
             for vulnerability in asset.vulnerabilities:
                 if vulnerability.report_item_id == report_item_id:
                     if solved is not vulnerability.solved:
-                        if solved is True:
+                        if solved:
                             asset.vulnerabilities_count -= 1
                         else:
                             asset.vulnerabilities_count += 1
@@ -162,7 +129,7 @@ class Asset(db.Model):
         return query.all(), query.count()
 
     @classmethod
-    def get_by_id(cls, asset_id, organization):
+    def get_by_id(cls, asset_id, organization: Organization = None):
         query = cls.query.filter(Asset.id == asset_id)
 
         if organization:
@@ -178,47 +145,70 @@ class Asset(db.Model):
         vulnerable = filter.get("vulnerable")
         organization = user.organization
         assets, count = cls.get_by_filter(group_id, search, sort, vulnerable, organization)
-        items = AssetPresentationSchema(many=True).dump(assets)
+        items = [asset.to_dict() for asset in assets]
         return {"total_count": count, "items": items}, 200
 
     @classmethod
-    def get_json(cls, user, asset_id):
-        organization = user.organization
+    def load_multiple(cls, json_data: list[dict[str, Any]]) -> list["Asset"]:
+        return [cls.from_dict(data) for data in json_data]
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Asset":
+        return cls(**data)
+
+    def to_dict(self):
+        data = {c.name: getattr(self, c.name) for c in self.__table__.columns}
+        data["asset_cpes"] = [asset_cpe.id for asset_cpe in self.asset_cpes]
+        data["vulnerabilities"] = [vulnerability.id for vulnerability in self.vulnerabilities]
+        data["tag"] = "mdi-laptop"
+        return data
+
+    @classmethod
+    def get_json(cls, organization, asset_id):
         asset = cls.get_by_id(asset_id, organization)
-        return AssetPresentationSchema().dump(asset), 200
+        return (asset.to_dict(), 200) if asset else ("Asset Not Found", 404)
 
     @classmethod
-    def add(cls, user, group_id, data):
-        schema = NewAssetSchema()
-        asset = schema.load(data)
-        asset.asset_group_id = group_id
-        if AssetGroup.access_allowed(user, group_id):
-            db.session.add(asset)
-            asset.update_vulnerabilities()
-            db.session.commit()
+    def add(cls, user, data) -> tuple[str, int]:
+        asset = cls.from_dict(data)
+        if not AssetGroup.access_allowed(user, asset.asset_group_id):
+            return "Access Denied", 403
+
+        db.session.add(asset)
+        asset.update_vulnerabilities()
+        db.session.commit()
+        return f"Successfully Added {asset.id}", 201
 
     @classmethod
-    def update(cls, user, group_id, asset_id, data):
+    def update(cls, user, asset_id, data) -> tuple[str, int]:
         asset = cls.query.get(asset_id)
-        if AssetGroup.access_allowed(user, asset.asset_group_id):
-            schema = NewAssetSchema()
-            updated_asset = schema.load(data)
-            asset.name = updated_asset.name
-            asset.serial = updated_asset.serial
-            asset.description = updated_asset.description
-            asset.asset_cpes = updated_asset.asset_cpes
-            asset.update_vulnerabilities()
-            db.session.commit()
+        if not asset:
+            return "Asset Not Found", 404
+
+        if not AssetGroup.access_allowed(user, asset.asset_group_id):
+            return "Access Denied", 403
+        for key, value in data.items():
+            if hasattr(asset, key) and key != "id":
+                setattr(asset, key, value)
+        asset.update_vulnerabilities()
+        db.session.commit()
+        return f"Succussfully updated {asset.id}", 201
 
     @classmethod
-    def delete(cls, user, group_id, id):
+    def delete(cls, user, id):
         asset = cls.query.get(id)
-        if AssetGroup.access_allowed(user, asset.asset_group_id):
-            db.session.delete(asset)
-            db.session.commit()
+        if not asset:
+            return "Asset Not Found", 404
+
+        if not AssetGroup.access_allowed(user, asset.asset_group_id):
+            return "Access Denied", 403
+
+        db.session.delete(asset)
+        db.session.commit()
+        return f"Successfully deleted {asset.id}", 200
 
 
-class AssetVulnerability(db.Model):
+class AssetVulnerability(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     solved = db.Column(db.Boolean, default=False)
     asset_id = db.Column(db.Integer, db.ForeignKey('asset.id'))
@@ -235,16 +225,7 @@ class AssetVulnerability(db.Model):
         return cls.query.filter_by(report_item_id=report_id).all()
 
 
-class NewAssetGroupGroupSchema(AssetGroupSchema):
-    users = fields.Nested(UserIdSchema, many=True)
-    templates = fields.Nested(NotificationTemplateIdSchema, many=True)
-
-    @post_load
-    def make(self, data, **kwargs):
-        return AssetGroup(**data)
-
-
-class AssetGroup(db.Model):
+class AssetGroup(BaseModel):
     id = db.Column(db.String(64), primary_key=True)
     name = db.Column(db.String(), nullable=False)
     description = db.Column(db.String())
@@ -253,24 +234,12 @@ class AssetGroup(db.Model):
     organization_id = db.Column(db.Integer, db.ForeignKey("organization.id"))
     organization = db.relationship("Organization")
 
-    def __init__(self, id, name: str, description: str, organization_id: int, templates: list | None = None):
+    def __init__(self, name: str, description: str, organization_id: int, templates: list = None, id=None):
         self.id = id or str(uuid.uuid4())
         self.name = name
         self.description = description
-        try:
-            self.organization = Organization.find(organization_id)
-            self.templates = [NotificationTemplate.find(template.id) for template in templates] if templates else []
-            self.tag = "mdi-folder-multiple"
-        except Exception:
-            logger.exception("Error creating asset group")
-
-    @orm.reconstructor
-    def reconstruct(self):
-        self.tag = "mdi-folder-multiple"
-
-    @classmethod
-    def find(cls, group_id):
-        return cls.query.get(group_id)
+        self.organization = Organization.get(organization_id)
+        self.templates = [NotificationTemplate.get(template_id) for template_id in templates]
 
     @classmethod
     def access_allowed(cls, user: User, group_id: str):
@@ -281,7 +250,7 @@ class AssetGroup(db.Model):
         return cls.query.get("default")
 
     @classmethod
-    def get(cls, search: str | None, organization: Organization | None = None):
+    def get_by_filter(cls, search: str | None, organization: Organization | None = None):
         query = cls.query
 
         if organization:
@@ -299,25 +268,15 @@ class AssetGroup(db.Model):
 
     @classmethod
     def get_all_json(cls, user, search):
-        groups, count = cls.get(search, user.organization)
-        group_schema = AssetGroupPresentationSchema(many=True)
-        return {"total_count": count, "items": group_schema.dump(groups)}
+        groups, count = cls.get_by_filter(search, user.organization)
+        items = [group.to_dict() for group in groups]
+        return {"total_count": count, "items": items}
 
-    @classmethod
-    def create(cls, name: str, description: str, organization_id: int, templates: list | None = None, id: str | None = None):
-        group = AssetGroup(id, name, description, organization_id, templates)
-        db.session.add(group)
-        db.session.commit()
-
-    @classmethod
-    def add(cls, user, data):
-        group = NewAssetGroupGroupSchema().load(data)
-        if not group:
-            return "Invalid group data", 400
-        group.organization = user.organization
-        db.session.add(group)
-        db.session.commit()
-        return "Group added", 200
+    def to_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
+        data["templates"] = [template.to_dict() for template in self.templates]
+        data["tag"] = "mdi-folder-multiple"
+        return data
 
     @classmethod
     def delete(cls, user, group_id):
@@ -337,7 +296,7 @@ class AssetGroup(db.Model):
         if not cls.access_allowed(user, group_id):
             return "Access denied", 403
 
-        updated_group = NewAssetGroupGroupSchema().load(data)
+        updated_group = cls.from_dict(data)
         if not updated_group:
             return "Invalid group data", 400
         group = cls.query.get(group_id)
@@ -348,6 +307,6 @@ class AssetGroup(db.Model):
         return "Group updated", 200
 
 
-class AssetGroupNotificationTemplate(db.Model):
+class AssetGroupNotificationTemplate(BaseModel):
     asset_group_id = db.Column(db.String, db.ForeignKey("asset_group.id"), primary_key=True)
     notification_template_id = db.Column(db.Integer, db.ForeignKey("notification_template.id"), primary_key=True)

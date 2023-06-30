@@ -6,7 +6,7 @@
     selected-class="text-primary"
   >
     <v-btn variant="outlined" value="all">all</v-btn>
-    <v-btn variant="outlined" value="today">today</v-btn>
+    <v-btn variant="outlined" value="day">day</v-btn>
     <v-btn variant="outlined" value="week">week</v-btn>
   </v-btn-toggle>
 </template>

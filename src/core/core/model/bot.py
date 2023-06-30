@@ -1,22 +1,14 @@
-from marshmallow import fields, post_load
-from sqlalchemy import or_, func
+from typing import Any
+from sqlalchemy import or_
 import uuid
 
 from core.managers.db_manager import db
-from core.model.parameter_value import ParameterValueImportSchema
 from core.managers.log_manager import logger
-from shared.schema.bot import BotSchema
+from core.model.base_model import BaseModel
+from core.model.parameter_value import ParameterValue
 
 
-class NewBotSchema(BotSchema):
-    parameter_values = fields.List(fields.Nested(ParameterValueImportSchema), load_default=[])
-
-    @post_load
-    def make(self, data, **kwargs):
-        return Bot(**data)
-
-
-class Bot(db.Model):
+class Bot(BaseModel):
     id = db.Column(db.String(64), primary_key=True)
     name = db.Column(db.String(), nullable=False)
     description = db.Column(db.String())
@@ -30,49 +22,59 @@ class Bot(db.Model):
         self.type = type
         self.parameter_values = parameter_values
 
-    @classmethod
-    def create_all(cls, bots_data):
-        new_bot_schema = NewBotSchema(many=True)
-        return new_bot_schema.load(bots_data)
+    def to_bot_info_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "type": self.type,
+            self.type: {parameter_value.parameter.key: parameter_value.value for parameter_value in self.parameter_values},
+        }
 
     @classmethod
-    def update_bot_parameters(cls, bot_id, data):
+    def update(cls, bot_id, data) -> "Bot | None":
+        bot = cls.get(bot_id)
+        if not bot:
+            return None
+
         try:
-            bot = cls.find_by_id(bot_id)
-            if not bot:
-                return None
-            # parameter_values = [NewParameterValueSchema().load(pv) for pv in data["parameter_values"]]
-            for pv in bot.parameter_values:
-                for updated_value in data["parameter_values"]:
-                    if pv.parameter.key == updated_value["parameter"]:
-                        pv.value = updated_value["value"]
+            bot.name = data.get("name", bot.name)
+            bot.description = data.get("description", bot.description)
 
-            # bot_params = [{"id": pv.id, "key": pv.parameter.key, "value": pv.value} for pv in bot.parameter_values]
-            # print(f"bot_params = {bot_params}")
-            # bot.parameter_values = parameter_values
+            cls.update_parameters(bot, data)
+
             db.session.commit()
+            return bot
         except Exception:
             logger.log_debug_trace("Update Bot Parameters Failed")
+            return None
 
     @classmethod
-    def add(cls, data):
-        if cls.find_by_type(data["type"]):
-            return None
-        schema = NewBotSchema()
-        bot = schema.load(data)
+    def update_parameters(cls, bot, data):
+        if p_values := data.get("parameter_values"):
+            for updated_value in p_values:
+                if pv := ParameterValue.find_param_value(bot.parameter_values, updated_value["parameter"]):
+                    pv.value = updated_value["value"]
+        elif bot_type_params := data.get(bot.type):
+            for key, value in bot_type_params.items():
+                if pv := ParameterValue.find_param_value(bot.parameter_values, key):
+                    pv.value = value
+
+    @classmethod
+    def add(cls, data) -> tuple[str, int]:
+        if cls.filter_by_type(data["type"]):
+            return f"Bot with type {data['type']} already exists", 409
+        bot = cls.from_dict(data)
         db.session.add(bot)
         db.session.commit()
+        return f"Bot {bot.name} added", 201
 
     @classmethod
     def get_first(cls):
         return cls.query.first()
 
     @classmethod
-    def find_by_id(cls, id):
-        return cls.query.filter_by(id=id).first()
-
-    @classmethod
-    def find_by_type(cls, type):
+    def filter_by_type(cls, type):
         return cls.query.filter_by(type=type).first()
 
     @classmethod
@@ -80,15 +82,14 @@ class Bot(db.Model):
         return cls.query.filter_by(type=type).all()
 
     @classmethod
-    def get(cls, search):
+    def get_by_filter(cls, search):
         query = cls.query
 
-        if search is not None:
-            search_string = f"%{search.lower()}%"
+        if search:
             query = query.filter(
                 or_(
-                    func.lower(Bot.name).like(search_string),
-                    func.lower(Bot.description).like(search_string),
+                    Bot.name.ilike(f"%{search}%"),
+                    Bot.description.ilike(f"%{search}%"),
                 )
             )
 
@@ -96,13 +97,23 @@ class Bot(db.Model):
 
     @classmethod
     def get_all_json(cls, search):
-        bots, count = cls.get(search)
-        node_schema = BotSchema(many=True)
-        items = node_schema.dump(bots)
-
+        bots, count = cls.get_by_filter(search)
+        items = [bot.to_bot_info_dict() for bot in bots]
         return {"total_count": count, "items": items}
 
+    def to_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
+        data["parameter_values"] = [pv.to_dict() for pv in self.parameter_values]
+        return data
 
-class BotParameterValue(db.Model):
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Bot":
+        if parameter_values := data.pop("parameter_values", None):
+            data["parameter_values"] = [ParameterValue(**pv) for pv in parameter_values]
+
+        return cls(**data)
+
+
+class BotParameterValue(BaseModel):
     bot_id = db.Column(db.String, db.ForeignKey("bot.id"), primary_key=True)
     parameter_value_id = db.Column(db.Integer, db.ForeignKey("parameter_value.id"), primary_key=True)

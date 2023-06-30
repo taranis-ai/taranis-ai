@@ -86,3 +86,11 @@ class CoreApi:
         except Exception:
             logger.log_debug_trace("Cannot add Newsitem")
             return False
+
+    def update_osintsource_status(self, osint_source_id, status):
+        try:
+            response = requests.put(f"{self.api_url}/api/v1/collectors/osint-source/{osint_source_id}", headers=self.headers, verify=self.verify, json={"error": status})
+            return response.ok
+        except Exception:
+            logger.log_debug_trace("Cannot update OSINT Source status")
+            return False

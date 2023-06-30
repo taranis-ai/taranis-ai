@@ -11,4 +11,6 @@ def initialize(app):
     db.init_app(app)
     migrate.init_app(app, db)
     db.create_all()
+    # TODO: Uncomment after testing
+    # migrate.upgrade()
     pre_seed(db)

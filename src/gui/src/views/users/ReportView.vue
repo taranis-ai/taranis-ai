@@ -1,7 +1,7 @@
 <template>
   <v-container fluid style="min-height: 100vh">
     <report-item
-      v-if="report_item"
+      v-if="readyToRender"
       :report-item-prop="report_item"
       :edit="edit"
       @reportcreated="reportCreated"
@@ -10,18 +10,19 @@
 </template>
 
 <script>
+import { ref, onBeforeMount } from 'vue'
 import { getReportItem } from '@/api/analyze'
 import ReportItem from '@/components/analyze/ReportItem.vue'
-import { mapActions } from 'pinia'
-import { useAssessStore } from '@/stores/AssessStore'
+import { useRoute } from 'vue-router'
+
 export default {
   name: 'ReportView',
   components: {
     ReportItem
   },
-  data: () => ({
-    default_report_item: {
-      id: null,
+  setup() {
+    const route = useRoute()
+    const default_report_item = ref({
       uuid: null,
       title: '',
       title_prefix: '',
@@ -30,29 +31,32 @@ export default {
       news_item_aggregates: [],
       remote_report_items: [],
       attributes: []
-    },
-    report_item: undefined,
-    edit: true
-  }),
-  async created() {
-    this.report_item = await this.loadReportItem()
-  },
+    })
+    const report_item = ref(default_report_item.value)
+    const edit = ref(true)
+    const readyToRender = ref(false)
 
-  methods: {
-    ...mapActions(useAssessStore, ['updateMaxItem']),
-    async loadReportItem() {
-      if (this.$route.params.id && this.$route.params.id !== '0') {
-        return await getReportItem(this.$route.params.id).then((response) => {
-          this.updateMaxItem(response.data.news_item_aggregates)
-          return response.data
-        })
+    const loadReportItem = async () => {
+      console.debug('Loading report item', route.params.id)
+      if (route.params.id && route.params.id !== '0') {
+        const response = await getReportItem(route.params.id)
+        console.debug('Loaded report item', response.data)
+        return response.data
       }
-      this.edit = false
-      return this.default_report_item
-    },
-    reportCreated() {
-      this.edit = true
+      edit.value = false
+      return default_report_item.value
     }
+
+    const reportCreated = () => {
+      edit.value = true
+    }
+
+    onBeforeMount(async () => {
+      report_item.value = await loadReportItem()
+      readyToRender.value = true
+    })
+
+    return { report_item, edit, readyToRender, reportCreated }
   }
 }
 </script>

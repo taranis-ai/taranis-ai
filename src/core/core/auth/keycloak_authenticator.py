@@ -16,7 +16,7 @@ class KeycloakAuthenticator(BaseAuthenticator):
 
         # verify code and get JWT token from keycloak
         response = post(
-            url=environ.get("TARANIS_NG_KEYCLOAK_INTERNAL_URL") + "auth/realms/taranis_ng/protocol/openid-connect/token",
+            url=environ.get("TARANIS_NG_KEYCLOAK_INTERNAL_URL", "/") + "auth/realms/taranis_ng/protocol/openid-connect/token",
             data={
                 "grant_type": "authorization_code",
                 "code": request.args["code"],  # code from url
@@ -24,11 +24,10 @@ class KeycloakAuthenticator(BaseAuthenticator):
                 # original redirect_uri (host needs to match)
             },
             auth=HTTPBasicAuth(
-                environ.get("TARANIS_NG_KEYCLOAK_CLIENT_ID"),
-                environ.get("TARANIS_NG_KEYCLOAK_CLIENT_SECRET"),
+                environ.get("TARANIS_NG_KEYCLOAK_CLIENT_ID", "taranis-ng"),
+                environ.get("TARANIS_NG_KEYCLOAK_CLIENT_SECRET", "taranis-ng"),
             ),
             # do not forget credentials
-            proxies={"http": None, "https": None},
             allow_redirects=False,
         )
 
@@ -44,7 +43,6 @@ class KeycloakAuthenticator(BaseAuthenticator):
         try:
             # decode token to get user data
             data = get_jwt()["access_token"]
-            user = auth_manager.get_user_from_jwt()
         except Exception:
             logger.store_auth_error_activity("Keycloak returned invalid access_token.")
             return {"error": "Internal server error"}, 500

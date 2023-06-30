@@ -1,4 +1,4 @@
-from flask_restful import Resource
+from flask_restx import Resource
 
 from bots.managers.bots_manager import get_registered_bots_info, refresh
 from bots.managers.auth_manager import api_key_required

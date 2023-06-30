@@ -3,11 +3,9 @@ from core.model.presenter import Presenter
 from core.model.product import Product
 from core.remote.presenters_api import PresentersApi
 from core.managers.log_manager import logger
-from shared.schema.presenters_node import PresentersNode as PresentersNodeSchema
-from shared.schema.presenter import PresenterInput, PresenterInputSchema
 
 
-def get_presenters_info(node: PresentersNodeSchema):
+def get_presenters_info(node: PresentersNode):
     try:
         presenters_info, status_code = PresentersApi(node.api_url, node.api_key).get_presenters_info()
     except ConnectionError:
@@ -19,30 +17,11 @@ def get_presenters_info(node: PresentersNodeSchema):
     if status_code != 200:
         return None, status_code
 
-    return Presenter.create_all(presenters_info), status_code
-
-
-def add_presenters_node(data):
-    try:
-        logger.log_info(data)
-        presenters_info = data.pop("presenters_info")
-        node = PresentersNodeSchema.create(data)
-    except Exception as e:
-        logger.log_debug_trace()
-        return str(e), 500
-
-    try:
-        presenters = Presenter.create_all(presenters_info)
-        PresentersNode.add_new(data, presenters)
-    except Exception:
-        logger.log_debug_trace(f"Couldn't add Presenter Node: {node.name}")
-        return f"Couldn't add Presenter Node: {node.name}", 500
-
-    return node.id, 200
+    return Presenter.load_multiple(presenters_info), status_code
 
 
 def update_presenters_node(node_id, data):
-    node = PresentersNodeSchema.create(data)
+    node = PresentersNode.get(node_id)
     presenters, status_code = get_presenters_info(node)
 
     if status_code != 200:
@@ -58,16 +37,15 @@ def update_presenters_node(node_id, data):
 
 
 def generate_product(product_id):
-    product = Product.find(product_id)
+    product = Product.get(product_id)
     presenter = product.product_type.presenter
     node = presenter.node
 
-    input_data = PresenterInput(
-        presenter.type,
-        product.product_type.parameter_values,
-        product.report_items,
-        product.report_items[0].report_item_type,
-    )
-    input_schema = PresenterInputSchema()
+    input_data = {
+        "type": presenter.type,
+        "parameter_values": product.product_type.parameter_values,
+        "report_items": product.report_items,
+        "report_type": product.report_items[0].report_item_type,
+    }
 
-    return PresentersApi(node.api_url, node.api_key).generate(input_schema.dump(input_data))
+    return PresentersApi(node.api_url, node.api_key).generate(input_data)

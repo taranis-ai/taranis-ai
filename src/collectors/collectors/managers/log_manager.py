@@ -8,7 +8,7 @@ class Logger(TaranisLogger):
         self.log_info(log_text)
 
     def collector_exception(self, source, message: str):
-        logger.log_info(f"OSINTSource [{source.id}/{source.name}]: {message}")
+        logger.log_info(f"OSINTSource [{source['id']}/{source['name']}]: {message}")
 
 
 logger = Logger(

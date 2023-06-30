@@ -100,7 +100,7 @@ def verify_access_key(access_key):
 
 
 def connect_to_node(node_id):
-    remote_node = RemoteNode.find(node_id)
+    remote_node = RemoteNode.get(node_id)
     access_info, status_code = RemoteApi(remote_node.remote_url, remote_node.access_key).connect()
     if status_code == 200:
         remote_node.connect(access_info)
@@ -113,13 +113,9 @@ def connect_to_node(node_id):
 
 
 def disconnect_from_node(node_id):
-    remote_node = RemoteNode.find(node_id)
+    remote_node = RemoteNode.get(node_id)
     RemoteApi(remote_node.remote_url, remote_node.access_key).disconnect()
 
 
 def initialize(app):
-    EventThread.app = app
-    remote_nodes, _ = RemoteNode.get()
-    for remote_node in remote_nodes:
-        if remote_node.enabled:
-            connect_to_node(remote_node.id)
+    pass

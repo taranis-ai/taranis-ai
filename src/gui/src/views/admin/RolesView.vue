@@ -55,13 +55,13 @@ export default {
         name: 'name',
         label: 'Name',
         type: 'text',
-        required: true
+        rules: [(v) => !!v || 'Required']
       },
       {
         name: 'description',
         label: 'Description',
         type: 'textarea',
-        required: true
+        rules: [(v) => !!v || 'Required']
       },
       {
         name: 'permissions',
@@ -92,9 +92,6 @@ export default {
 
     const editItem = (item) => {
       formData.value = item
-      formData.value.permissions = formData.value.permissions.map(
-        (item) => item.id
-      )
       edit.value = true
     }
 

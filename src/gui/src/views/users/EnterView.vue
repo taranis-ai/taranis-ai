@@ -37,7 +37,10 @@
           type="text"
         ></v-text-field>
 
-        <quill-editor v-model="editorData" :editor-options="editorOptions" />
+        <quill-editor
+          v-model:content="editorData"
+          placeholder="insert text here ..."
+        />
       </v-card-text>
     </v-card>
     <v-spacer class="pt-2"></v-spacer>
@@ -46,7 +49,7 @@
 </template>
 
 <script>
-import { quillEditor } from 'vue3-quill'
+import { QuillEditor } from '@vueup/vue-quill'
 import { addNewsItem } from '@/api/assess'
 import { notifySuccess } from '@/utils/helpers'
 import { mapState } from 'pinia'
@@ -55,16 +58,13 @@ import { useMainStore } from '@/stores/MainStore'
 export default {
   name: 'EnterView',
   components: {
-    quillEditor
+    QuillEditor
   },
   data: () => ({
     show_error: false,
     show_validation_error: false,
 
-    editorData: '<p></p>',
-    editorOptions: {
-      placeholder: 'insert text here ...'
-    },
+    editorData: '',
 
     news_item: {
       id: '',

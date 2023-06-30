@@ -1,25 +1,27 @@
 <template>
   <div>
     <v-textarea
-      v-if="attributeItem.type === 'TEXT'"
+      v-if="attributeItem.attribute.type === 'TEXT'"
       v-model="input"
       :readonly="readOnly"
       :label="attributeItem.title"
-    ></v-textarea>
+      :hint="attributeItem.description"
+    />
     <v-text-field
-      v-if="attributeItem.type === 'STRING'"
+      v-if="attributeItem.attribute.type === 'STRING'"
       v-model="input"
       :readonly="readOnly"
       :label="attributeItem.title"
-    ></v-text-field>
+      :hint="attributeItem.description"
+    />
     <v-checkbox
-      v-if="attributeItem.type === 'BOOLEAN'"
+      v-if="attributeItem.attribute.type === 'BOOLEAN'"
       v-model="input"
       :readonly="readOnly"
       :label="attributeItem.title"
     />
     <v-select
-      v-if="attributeItem.type === 'ENUM'"
+      v-if="attributeItem.attribute.type === 'ENUM'"
       v-model="input"
       :readonly="readOnly"
       item-title="value"
@@ -28,7 +30,7 @@
       :label="attributeItem.title"
     />
     <v-radio-group
-      v-if="attributeItem.type === 'RADIO'"
+      v-if="attributeItem.attribute.type === 'RADIO'"
       v-model="input"
       :disabled="readOnly"
       row
@@ -38,18 +40,15 @@
         :key="attr_enum.id"
         :label="attr_enum.value"
         :value="attr_enum.value"
-      ></v-radio>
+      />
     </v-radio-group>
-    <!-- <vue-editor
-      v-if="attributeItem.type === 'RICH_TEXT'"
-      v-model="input"
-      :disabled="readOnly"
-      :editor-options="{
-        height: 300
-      }"
-    /> -->
+    <quill-editor
+      v-if="attributeItem.attribute.type === 'RICH_TEXT'"
+      v-model:content="input"
+      :read-only="readOnly"
+    />
     <v-radio-group
-      v-if="attributeItem.type === 'TLP'"
+      v-if="attributeItem.attribute.type === 'TLP'"
       v-model="input"
       :disabled="readOnly"
       row
@@ -57,27 +56,19 @@
     >
       <v-radio
         :label="$t('attribute.tlp_white')"
-        color="blue-grey-lighten-4"
+        color="blue-grey"
         value="WHITE"
-      ></v-radio>
-      <v-radio
-        :label="$t('attribute.tlp_green')"
-        color="green"
-        value="GREEN"
-      ></v-radio>
+      />
+      <v-radio :label="$t('attribute.tlp_green')" color="green" value="GREEN" />
       <v-radio
         :label="$t('attribute.tlp_amber')"
         color="orange"
         value="AMBER"
-      ></v-radio>
-      <v-radio
-        :label="$t('attribute.tlp_red')"
-        color="red"
-        value="RED"
-      ></v-radio>
+      />
+      <v-radio :label="$t('attribute.tlp_red')" color="red" value="RED" />
     </v-radio-group>
     <date-picker
-      v-if="attributeItem.type === 'DATE'"
+      v-if="attributeItem.attribute.type === 'DATE'"
       v-model:value="input"
       :placeholder="attributeItem.title"
       :disabled="readOnly"
@@ -86,7 +77,7 @@
     />
 
     <date-picker
-      v-if="attributeItem.type === 'DATE_TIME'"
+      v-if="attributeItem.attribute.type === 'DATE_TIME'"
       v-model:value="input"
       :placeholder="attributeItem.title"
       type="datetime"
@@ -95,7 +86,7 @@
       class="date-picker-style"
     />
     <date-picker
-      v-if="attributeItem.type === 'TIME'"
+      v-if="attributeItem.attribute.type === 'TIME'"
       v-model:value="input"
       :placeholder="attributeItem.title"
       type="time"
@@ -105,7 +96,7 @@
       class="date-picker-style"
     />
     <v-text-field
-      v-if="attributeItem.type === 'CVE'"
+      v-if="attributeItem.attribute.type === 'CVE'"
       v-model="input"
       :rules="[rules.cve]"
       :readonly="readOnly"
@@ -113,7 +104,7 @@
     >
     </v-text-field>
     <v-autocomplete
-      v-if="attributeItem.type === 'CPE'"
+      v-if="attributeItem.attribute.type === 'CPE'"
       v-model="input"
       :readonly="readOnly"
       :label="attributeItem.title"
@@ -121,19 +112,18 @@
     >
       <!-- TODO: Use MyAssets for Autocomplete -->
     </v-autocomplete>
-    <!-- <AttributeCVSS v-if="attributeItem.type === 'CVSS'" v-model="input" /> -->
+    <!-- <AttributeCVSS v-if="attributeItem.attribute.type === 'CVSS'" v-model="input" /> -->
   </div>
 </template>
 
-// ATTACHMENT: 'Attachment'
-
 <script>
-// import AttributeCVSS from './AttributeCVSS.vue'
+import { ref, computed } from 'vue'
+import { QuillEditor } from '@vueup/vue-quill'
 
 export default {
   name: 'AttributeItem',
   components: {
-    // AttributeCVSS
+    QuillEditor
   },
   props: {
     value: {
@@ -147,23 +137,23 @@ export default {
     },
     readOnly: { type: Boolean, default: false }
   },
-  emits: ['input'],
-  data: () => ({
-    rules: {
-      cve: (value) =>
-        value.match(/^$|CVE-\d{4}-\d{4,7}/)
+  emits: ['update:value'],
+  setup(props, { emit }) {
+    const rules = ref({
+      cve: (val) =>
+        val.match(/^$|CVE-\d{4}-\d{4,7}/)
           ? true
           : 'Input is is not a CVE reference'
-    }
-  }),
-  computed: {
-    input: {
-      get() {
-        return this.value
-      },
-      set(value) {
-        this.$emit('input', value || '')
-      }
+    })
+
+    const input = computed({
+      get: () => props.value,
+      set: (newValue) => emit('update:value', newValue || '')
+    })
+
+    return {
+      input,
+      rules
     }
   }
 }

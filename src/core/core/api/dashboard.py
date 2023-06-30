@@ -67,6 +67,7 @@ class Tagcloud(Resource):
 
 
 def initialize(api):
+    # namespace = Namespace("dashboard", description="Dashboard related operations")
     api.add_resource(Dashboard, "/api/v1/dashboard-data")
     api.add_resource(Tagcloud, "/api/v1/tagcloud")
     api.add_resource(TrendingClusters, "/api/v1/trending-clusters")

@@ -1,7 +1,7 @@
 <template>
   <div>
     <DataTable
-      v-model:items="productTypes"
+      v-model:items="product_types.items"
       :add-button="true"
       :header-filter="['tag', 'id', 'title', 'description']"
       sort-by-item="id"
@@ -28,16 +28,11 @@ import {
   createProductType,
   updateProductType
 } from '@/api/config'
-import {
-  notifySuccess,
-  notifyFailure,
-  parseParameterValues,
-  createParameterValues,
-  objectFromFormat
-} from '@/utils/helpers'
-import { mapActions, mapState, mapWritableState } from 'pinia'
+import { notifySuccess, notifyFailure, objectFromFormat } from '@/utils/helpers'
 import { useConfigStore } from '@/stores/ConfigStore'
 import { useMainStore } from '@/stores/MainStore'
+import { ref, computed, onMounted } from 'vue'
+import { storeToRefs } from 'pinia'
 
 export default {
   name: 'ProductTypesView',
@@ -45,21 +40,18 @@ export default {
     DataTable,
     EditConfig
   },
-  data: () => ({
-    productTypes: [],
-    formData: {},
-    edit: false,
-    parameters: {},
-    selected: [],
-    presenters: []
-  }),
-  computed: {
-    ...mapState(useConfigStore, {
-      store_product_types: 'product_types',
-      store_presenters: 'presenters'
-    }),
-    ...mapWritableState(useMainStore, ['itemCountTotal', 'itemCountFiltered']),
-    formFormat() {
+  setup() {
+    const configStore = useConfigStore()
+    const mainStore = useMainStore()
+
+    const formData = ref({})
+    const edit = ref(false)
+    const parameters = ref({})
+    const presenterList = ref([])
+
+    const { product_types, presenters } = storeToRefs(configStore)
+
+    const formFormat = computed(() => {
       const base = [
         {
           name: 'id',
@@ -71,115 +63,127 @@ export default {
           name: 'title',
           label: 'Title',
           type: 'text',
-          required: true
+          rules: [(v) => !!v || 'Required']
         },
         {
           name: 'description',
           label: 'Description',
           type: 'textarea',
-          required: true
+          rules: [(v) => !!v || 'Required']
         },
         {
           name: 'presenter_id',
           label: 'Presenter',
           type: 'select',
-          required: true,
-          options: this.presenters,
-          disabled: this.edit
+          rules: [(v) => !!v || 'Required'],
+          options: presenterList.value,
+          disabled: edit.value
         }
       ]
-      if (this.parameters[this.formData.presenter_id]) {
-        return base.concat(this.parameters[this.formData.presenter_id])
+      if (parameters.value[formData.value.presenter_id]) {
+        return base.concat(parameters.value[formData.value.presenter_id])
       }
       return base
-    },
-    xxx() {
-      return objectFromFormat(this.formFormat)
-    }
-  },
-  mounted() {
-    this.updateData()
-  },
-  methods: {
-    ...mapActions(useConfigStore, ['loadProductTypes', 'loadPresenters']),
-    updateData() {
-      this.loadProductTypes().then(() => {
-        const sources = this.store_product_types
-        this.productTypes = parseParameterValues(sources.items)
-        this.itemCountFiltered = sources.length
-        this.itemCountTotal = sources.total_count
+    })
+
+    const updateData = () => {
+      configStore.loadProductTypes().then(() => {
+        mainStore.itemCountTotal = product_types.value.total_count
+        mainStore.itemCountFiltered = product_types.value.length
       })
-      this.loadPresenters().then(() => {
-        const presenters = this.store_presenters
-        this.presenters = presenters.items.map((presenter) => {
-          this.parameters[presenter.id] = presenter.parameters.map(
+      configStore.loadPresenters().then(() => {
+        presenterList.value = presenters.value.items.map((item) => {
+          return {
+            title: item.name,
+            value: item.id
+          }
+        })
+        presenters.value.items.forEach((presenter) => {
+          parameters.value[presenter.id] = presenter.parameters.map(
             (parameter) => {
               return {
                 name: parameter.key,
                 label: parameter.name,
+                parent: 'parameter_values',
                 type: 'text'
               }
             }
           )
-          return {
-            value: presenter.id,
-            title: presenter.name
-          }
         })
       })
-    },
-    addItem() {
-      this.formData = objectFromFormat(this.formFormat)
-      this.edit = false
-    },
-    editItem(item) {
-      this.formData = item
-      this.edit = true
-    },
-    handleSubmit(submittedData) {
+    }
+
+    const addItem = () => {
+      formData.value = objectFromFormat(formFormat.value)
+      formData.value.parameter_values = {}
+      edit.value = false
+    }
+
+    const editItem = (item) => {
+      formData.value = item
+      edit.value = true
+    }
+
+    const handleSubmit = (submittedData) => {
+      delete submittedData.tag
       console.debug('submittedData', submittedData)
-      delete submittedData.parameter_values
-      const parameter_list = this.parameters[this.formData.presenter_id].map(
-        (item) => item.name
-      )
-      const updateItem = createParameterValues(parameter_list, submittedData)
-      if (this.edit) {
-        this.updateItem(updateItem)
+      if (edit.value) {
+        updateItem(submittedData)
       } else {
-        this.createItem(updateItem)
+        createItem(submittedData)
       }
-    },
-    deleteItem(item) {
+    }
+
+    const createItem = (item) => {
+      createProductType(item)
+        .then(() => {
+          notifySuccess(`Successfully created ${item.name}`)
+          updateData()
+        })
+        .catch(() => {
+          notifyFailure(`Failed to create ${item.name}`)
+        })
+    }
+
+    const deleteItem = (item) => {
       if (!item.default) {
         deleteProductType(item)
           .then(() => {
             notifySuccess(`Successfully deleted ${item.name}`)
-            this.updateData()
+            updateData()
           })
           .catch(() => {
             notifyFailure(`Failed to delete ${item.name}`)
           })
       }
-    },
-    createItem(item) {
-      createProductType(item)
-        .then(() => {
-          notifySuccess(`Successfully created ${item.name}`)
-          this.updateData()
-        })
-        .catch(() => {
-          notifyFailure(`Failed to create ${item.name}`)
-        })
-    },
-    updateItem(item) {
+    }
+
+    const updateItem = (item) => {
       updateProductType(item)
         .then(() => {
           notifySuccess(`Successfully updated ${item.name}`)
-          this.updateData()
+          updateData()
         })
         .catch(() => {
           notifyFailure(`Failed to update ${item.name}`)
         })
+    }
+
+    onMounted(() => {
+      updateData()
+    })
+
+    return {
+      product_types,
+      formData,
+      formFormat,
+      edit,
+      presenters,
+      addItem,
+      editItem,
+      handleSubmit,
+      deleteItem,
+      updateData
     }
   }
 }

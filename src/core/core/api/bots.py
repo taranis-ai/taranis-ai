@@ -1,13 +1,13 @@
-from flask import request
 import json
-from flask_restx import Resource
+from flask import request
+from flask_restx import Resource, Namespace
 from datetime import datetime, timedelta
 
 from core.managers import bots_manager
 from core.managers.sse_manager import sse_manager
 from core.managers.log_manager import logger
-from core.managers.auth_manager import api_key_required
-from core.model import news_item, word_list, bots_node, bot
+from core.managers.auth_manager import api_key_required, get_user_from_jwt
+from core.model import news_item, word_list, bots_node, bot, osint_source
 
 
 class BotGroupAction(Resource):
@@ -39,7 +39,7 @@ class NewsItemData(Resource):
             limit = request.args.get("limit", default=(datetime.now() - timedelta(weeks=1)).isoformat())
             return news_item.NewsItemData.get_all_news_items_data(limit)
         except Exception:
-            logger.log_debug_trace("GET /api/v1/bots/news-item-data failed")
+            logger.log_debug_trace("GET /news-item-data failed")
             return "", 400
 
 
@@ -53,7 +53,7 @@ class UpdateNewsItemData(Resource):
                 return news_item.NewsItemData.update_news_item_lang(news_item_data_id, language)
             return {"Not implemented"}
         except Exception:
-            logger.log_debug_trace("GET /api/v1/bots/news-item-data failed")
+            logger.log_debug_trace("GET /news-item-data failed")
             return "", 400
 
 
@@ -68,11 +68,12 @@ class BotsNode(Resource):
 
     @api_key_required
     def post(self):
-        return bots_manager.add_bots_node(request.json)
+        bots_result = bots_node.BotsNode.add(request.json)
+        return {"id": bots_result.id, "name": bots_result.name}, 201
 
     @api_key_required
     def delete(self, node_id):
-        bots_node.BotsNode.delete(node_id)
+        return bots_node.BotsNode.delete(node_id)
 
 
 class UpdateNewsItemAttributes(Resource):
@@ -94,20 +95,26 @@ class UpdateNewsItemsAggregateSummary(Resource):
         news_item.NewsItemAggregate.update_news_items_aggregate_summary(aggregate_id, request.json)
 
 
-class GetNewsItemsAggregate(Resource):
+class BotNewsItemAggregates(Resource):
     @api_key_required
-    def get(self, group_id):
-        limit = request.args.get("limit", "")
-        resp_str = news_item.NewsItemAggregate.get_news_items_aggregate(group_id, limit)
-        return json.loads(resp_str)
+    def get(self):
+        try:
+            filter_args = {
+                "group": request.args.get("group", default=osint_source.OSINTSourceGroup.get_default().id),
+                "timestamp": datetime.fromisoformat(request.args.get("timestamp", datetime.now().isoformat())),
+            }
+
+            return news_item.NewsItemAggregate.get_by_timestamp_json(filter_args)
+        except Exception:
+            logger.exception("Failed to get Stories")
+            return "Failed to get Stories", 400
 
 
 class GetDefaultNewsItemsAggregate(Resource):
     @api_key_required
     def get(self):
         limit = request.args.get("limit", "")
-        resp_str = news_item.NewsItemAggregate.get_default_news_items_aggregate(limit)
-        return json.loads(resp_str)
+        return news_item.NewsItemAggregate.get_for_worker(limit), 200
 
 
 class WordListEntries(Resource):
@@ -128,41 +135,44 @@ class BotsInfo(Resource):
 
 class BotInfo(Resource):
     def get(self, bot_id):
-        return bot.Bot.get_by_id(bot_id)
+        return bot.Bot.get_by_filter(bot_id)
 
     def put(self, bot_id):
-        return bot.Bot.update_bot_parameters(bot_id, request.json)
+        return bot.Bot.update(bot_id, request.json)
 
 
 def initialize(api):
-    api.add_resource(BotsInfo, "/api/v1/bots")
-    api.add_resource(BotInfo, "/api/v1/bots/<string:bot_id>")
-    api.add_resource(NewsItemData, "/api/v1/bots/news-item-data")
-    api.add_resource(
+    namespace = Namespace("bots", description="Bots related operations", path="/api/v1/bots")
+    namespace.add_resource(BotsInfo, "/")
+    namespace.add_resource(BotInfo, "/<string:bot_id>")
+    namespace.add_resource(NewsItemData, "/news-item-data")
+    namespace.add_resource(
         UpdateNewsItemTags,
-        "/api/v1/bots/news-items-aggregate/<string:aggregate_id>/tags",
+        "/news-items-aggregate/<string:aggregate_id>/tags",
     )
-    api.add_resource(
+    namespace.add_resource(
         UpdateNewsItemData,
-        "/api/v1/bots/news-item-data/<string:news_item_data_id>",
+        "/news-item-data/<string:news_item_data_id>",
     )
-    api.add_resource(
+    namespace.add_resource(
         UpdateNewsItemAttributes,
-        "/api/v1/bots/news-item-data/<string:news_item_data_id>/attributes",
+        "/news-item-data/<string:news_item_data_id>/attributes",
     )
-    api.add_resource(BotGroupAction, "/api/v1/bots/news-item-aggregates/group")
-    api.add_resource(BotUnGroupAction, "/api/v1/bots/news-item-aggregates/ungroup")
-    api.add_resource(
-        GetNewsItemsAggregate,
-        "/api/v1/bots/news-item-aggregates-by-group/<string:group_id>",
+    namespace.add_resource(BotGroupAction, "/news-item-aggregates/group")
+    namespace.add_resource(BotUnGroupAction, "/news-item-aggregates/ungroup")
+
+    namespace.add_resource(
+        BotNewsItemAggregates,
+        "/news-item-aggregates",
     )
-    api.add_resource(
+    namespace.add_resource(
         UpdateNewsItemsAggregateSummary,
-        "/api/v1/bots/news-items-aggregate/<string:aggregate_id>/summary",
+        "/news-items-aggregate/<string:aggregate_id>/summary",
     )
-    api.add_resource(GetDefaultNewsItemsAggregate, "/api/v1/bots/news-item-aggregates")
-    api.add_resource(
+    namespace.add_resource(GetDefaultNewsItemsAggregate, "/news-item-aggregates")
+    namespace.add_resource(
         WordListEntries,
-        "/api/v1/bots/word-list/<int:word_list_id>/entries/<string:entry_name>",
+        "/word-list/<int:word_list_id>/entries/<string:entry_name>",
     )
-    api.add_resource(BotsNode, "/api/v1/bots/node/<string:node_id>", "/api/v1/bots/node")
+    namespace.add_resource(BotsNode, "/node/<string:node_id>", "/node")
+    api.add_namespace(namespace)

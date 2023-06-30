@@ -7,4 +7,4 @@ export APP_MODULE=${APP_MODULE:-"$MODULE_NAME:$VARIABLE_NAME"}
 
 export GUNICORN_CONF=${GUNICORN_CONF:-/gunicorn_conf.py}
 
-gunicorn -k gevent -c "$GUNICORN_CONF" "$APP_MODULE"
+gunicorn -c "$GUNICORN_CONF" "$APP_MODULE"

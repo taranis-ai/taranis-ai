@@ -160,7 +160,7 @@ class WebCollector(BaseCollector):
         except Exception:
             logger.log_collector_activity(
                 "web",
-                self.source.id,
+                self.source["id"],
                 "Browser tab restoration failed, reloading the title page",
             )
             try:
@@ -175,11 +175,11 @@ class WebCollector(BaseCollector):
     def __parse_settings(self):
         """Loads the collector settings to instance variables"""
 
-        self.auth_username = self.source.parameter_values["AUTH_USERNAME"]
-        self.auth_password = self.source.parameter_values["AUTH_PASSWORD"]
+        self.auth_username = self.source["parameter_values"]["AUTH_USERNAME"]
+        self.auth_password = self.source["parameter_values"]["AUTH_PASSWORD"]
 
         # parse the URL
-        web_url = self.source.parameter_values["WEB_URL"]
+        web_url = self.source["parameter_values"]["WEB_URL"]
 
         if web_url.lower().startswith("file://"):
             file_part = web_url[7:]
@@ -192,7 +192,7 @@ class WebCollector(BaseCollector):
                 self.web_url = file_part
 
             else:
-                logger.log_collector_activity("web", self.source.id, "Missing file {}".format(web_url))
+                logger.log_collector_activity("web", self.source["id"], "Missing file {}".format(web_url))
                 return False
 
         elif re.search(r"^[a-z0-9]+://", web_url.lower()):
@@ -222,13 +222,13 @@ class WebCollector(BaseCollector):
             )
 
         # parse other arguments
-        self.user_agent = self.source.parameter_values["USER_AGENT"]
-        self.tor_service = self.source.parameter_values["TOR"]
+        self.user_agent = self.source["parameter_values"]["USER_AGENT"]
+        self.tor_service = self.source["parameter_values"]["TOR"]
 
-        # self.interval = self.source.parameter_values['REFRESH_INTERVAL']
+        # self.interval = self.source["parameter_values"]['REFRESH_INTERVAL']
 
         try:
-            self.pagination_limit = int(self.source.parameter_values["PAGINATION_LIMIT"])
+            self.pagination_limit = int(self.source["parameter_values"]["PAGINATION_LIMIT"])
         except Exception:
             self.pagination_limit = 1
         if self.pagination_limit <= 0:
@@ -236,32 +236,32 @@ class WebCollector(BaseCollector):
 
         self.selectors = {}
 
-        self.selectors["popup_close"] = self.source.parameter_values["POPUP_CLOSE_SELECTOR"]
-        self.selectors["next_page"] = self.source.parameter_values["NEXT_BUTTON_SELECTOR"]
-        self.selectors["load_more"] = self.source.parameter_values["LOAD_MORE_BUTTON_SELECTOR"]
-        self.selectors["single_article_link"] = self.source.parameter_values["SINGLE_ARTICLE_LINK_SELECTOR"]
+        self.selectors["popup_close"] = self.source["parameter_values"]["POPUP_CLOSE_SELECTOR"]
+        self.selectors["next_page"] = self.source["parameter_values"]["NEXT_BUTTON_SELECTOR"]
+        self.selectors["load_more"] = self.source["parameter_values"]["LOAD_MORE_BUTTON_SELECTOR"]
+        self.selectors["single_article_link"] = self.source["parameter_values"]["SINGLE_ARTICLE_LINK_SELECTOR"]
 
-        self.selectors["title"] = self.source.parameter_values["TITLE_SELECTOR"]
-        self.selectors["article_description"] = self.source.parameter_values["ARTICLE_DESCRIPTION_SELECTOR"]
-        self.selectors["article_full_text"] = self.source.parameter_values["ARTICLE_FULL_TEXT_SELECTOR"]
-        self.selectors["published"] = self.source.parameter_values["PUBLISHED_SELECTOR"]
-        self.selectors["author"] = self.source.parameter_values["AUTHOR_SELECTOR"]
-        self.selectors["attachment"] = self.source.parameter_values["ATTACHMENT_SELECTOR"]
-        self.selectors["additional_id"] = self.source.parameter_values["ADDITIONAL_ID_SELECTOR"]
+        self.selectors["title"] = self.source["parameter_values"]["TITLE_SELECTOR"]
+        self.selectors["article_description"] = self.source["parameter_values"]["ARTICLE_DESCRIPTION_SELECTOR"]
+        self.selectors["article_full_text"] = self.source["parameter_values"]["ARTICLE_FULL_TEXT_SELECTOR"]
+        self.selectors["published"] = self.source["parameter_values"]["PUBLISHED_SELECTOR"]
+        self.selectors["author"] = self.source["parameter_values"]["AUTHOR_SELECTOR"]
+        self.selectors["attachment"] = self.source["parameter_values"]["ATTACHMENT_SELECTOR"]
+        self.selectors["additional_id"] = self.source["parameter_values"]["ADDITIONAL_ID_SELECTOR"]
 
         try:
-            self.word_limit = int(self.source.parameter_values["WORD_LIMIT"])
+            self.word_limit = int(self.source["parameter_values"]["WORD_LIMIT"])
             if self.word_limit < 0:
                 self.word_limit = 0
         except Exception:
             self.word_limit = 0
 
-        self.web_driver_type = self.source.parameter_values["WEBDRIVER"]
-        self.client_cert_directory = self.source.parameter_values["CLIENT_CERT_DIR"]
+        self.web_driver_type = self.source["parameter_values"]["WEBDRIVER"]
+        self.client_cert_directory = self.source["parameter_values"]["CLIENT_CERT_DIR"]
 
         set_proxy = False
         self.proxy = ""
-        param_proxy = self.source.parameter_values["PROXY_SERVER"]
+        param_proxy = self.source["parameter_values"]["PROXY_SERVER"]
         if re.search(r"^(https?|socks[45])://", param_proxy.lower()):
             set_proxy = True
             self.proxy = param_proxy
@@ -409,7 +409,7 @@ class WebCollector(BaseCollector):
     def __run_tor(self):
         """Runs The Onion Router service in a subprocess"""
 
-        logger.log_collector_activity("web", self.source.id, "Initializing TOR")
+        logger.log_collector_activity("web", self.source["id"], "Initializing TOR")
         subprocess.Popen(["tor"])
         time.sleep(3)
 
@@ -417,7 +417,7 @@ class WebCollector(BaseCollector):
         """Collects news items from this source (main function)"""
 
         self.source = source
-        logger.log_collector_activity("web", self.source.id, "Starting collector")
+        logger.log_collector_activity("web", self.source["id"], "Starting collector")
 
         self.__parse_settings()
         self.news_items = []
@@ -436,7 +436,7 @@ class WebCollector(BaseCollector):
         elif self.interpret_as == "directory":
             logger.log_collector_activity(
                 "web",
-                self.source.id,
+                self.source["id"],
                 "Searching for html files in {}".format(self.web_url),
             )
             for file_name in os.listdir(self.web_url):
@@ -449,15 +449,15 @@ class WebCollector(BaseCollector):
 
         browser = self.__get_headless_driver()
         if browser is None:
-            logger.log_collector_activity("web", self.source.id, "Error initialising the headless browser")
+            logger.log_collector_activity("web", self.source["id"], "Error initialising the headless browser")
             return False, "Error initialising the headless browser", 0, 0
 
-        logger.log_collector_activity("web", self.source.id, "Requesting title page: {}".format(self.web_url))
+        logger.log_collector_activity("web", self.source["id"], "Requesting title page: {}".format(self.web_url))
         try:
             browser.get(index_url)
-            logger.log_collector_activity("web", self.source.id, "Title page obtained")
+            logger.log_collector_activity("web", self.source["id"], "Title page obtained")
         except Exception:
-            logger.log_collector_activity("web", self.source.id, "Error obtaining title page")
+            logger.log_collector_activity("web", self.source["id"], "Error obtaining title page")
             self.__dispose_of_headless_driver(browser)
             logger.log_debug(traceback.format_exc())
             return False, "Error obtaining title page", 0, 0
@@ -512,34 +512,34 @@ class WebCollector(BaseCollector):
                 if not self.__close_other_tabs(browser, title_page_handle, fallback_url=index_url):
                     logger.log_collector_activity(
                         "web",
-                        self.source.id,
+                        self.source["id"],
                         "Error during page crawl (after-crawl clean up)",
                     )
                     break
             except Exception:
-                logger.log_collector_activity("web", self.source.id, "Error during page crawl (exception)")
+                logger.log_collector_activity("web", self.source["id"], "Error during page crawl (exception)")
                 logger.log_debug(traceback.format_exc())
                 break
 
             if page >= self.pagination_limit or not self.selectors["next_page"]:
-                logger.log_collector_activity("web", self.source.id, "Page limit reached")
+                logger.log_collector_activity("web", self.source["id"], "Page limit reached")
                 break
 
             # visit next page of results
             page += 1
-            logger.log_collector_activity("web", self.source.id, 'Clicking "next page"')
+            logger.log_collector_activity("web", self.source["id"], 'Clicking "next page"')
             try:
                 next_page = self.__find_element_by(browser, self.selectors["next_page"])
                 # TODO: check for None
                 ActionChains(browser).move_to_element(next_page).click(next_page).perform()
             except Exception:
-                logger.log_collector_activity("web", self.source.id, "This was the last page")
+                logger.log_collector_activity("web", self.source["id"], "This was the last page")
                 break
 
         self.__dispose_of_headless_driver(browser)
         logger.log_collector_activity(
             "web",
-            self.source.id,
+            self.source["id"],
             "Committing {} news items".format(len(self.news_items)),
         )
         self.publish(self.news_items, self.source)
@@ -555,7 +555,7 @@ class WebCollector(BaseCollector):
         if article_items is None:
             logger.log_collector_activity(
                 "web",
-                self.source.id,
+                self.source["id"],
                 "Invalid page or incorrect selector for article items",
             )
             return 0, 0
@@ -565,10 +565,10 @@ class WebCollector(BaseCollector):
         for item in article_items:
             try:
                 href = item.get_attribute("href")
-                logger.log_collector_activity("web", self.source.id, "Visiting article at {}".format(href))
+                logger.log_collector_activity("web", self.source["id"], "Visiting article at {}".format(href))
             except Exception:
                 href = ""
-                logger.log_collector_activity("web", self.source.id, f"Visiting article with no link {href}")
+                logger.log_collector_activity("web", self.source["id"], f"Visiting article with no link {href}")
             click_method = 1  # TODO: some day, make this user-configurable with tri-state enum
 
             if click_method == 1:
@@ -588,12 +588,12 @@ class WebCollector(BaseCollector):
             try:
                 news_item = self.__process_article_page(index_url, browser)
                 if news_item:
-                    logger.log_collector_activity("web", self.source.id, "Successfully parsed an article")
+                    logger.log_collector_activity("web", self.source["id"], "Successfully parsed an article")
                     self.news_items.append(news_item)
                 else:
-                    logger.log_collector_activity("web", self.source.id, "Failed to parse an article")
+                    logger.log_collector_activity("web", self.source["id"], "Failed to parse an article")
             except Exception:
-                logger.log_collector_activity("web", self.source.id, "Failed to parse an article (exception)")
+                logger.log_collector_activity("web", self.source["id"], "Failed to parse an article (exception)")
                 logger.log_debug(traceback.format_exc())
 
             if len(browser.window_handles) == 1:
@@ -604,13 +604,13 @@ class WebCollector(BaseCollector):
                     if back_clicks > 3:
                         logger.log_collector_activity(
                             "web",
-                            self.source.id,
+                            self.source["id"],
                             "Error during page crawl (cannot restore window after crawl)",
                         )
             elif not self.__close_other_tabs(browser, title_page_handle, fallback_url=index_url):
                 logger.log_collector_activity(
                     "web",
-                    self.source.id,
+                    self.source["id"],
                     "Error during page crawl (after-crawl clean up)",
                 )
                 break
@@ -621,7 +621,7 @@ class WebCollector(BaseCollector):
 
         current_url = browser.current_url
 
-        logger.log_collector_activity("web", self.source.id, "Processing article page: {}".format(current_url))
+        logger.log_collector_activity("web", self.source["id"], "Processing article page: {}".format(current_url))
 
         title = self.__find_element_text_by(browser, self.selectors["title"])
 
@@ -659,7 +659,7 @@ class WebCollector(BaseCollector):
             author,
             datetime.datetime.now(),
             article_full_text,
-            self.source.id,
+            self.source["id"],
             [],
         )
 

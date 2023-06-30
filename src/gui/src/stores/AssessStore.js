@@ -49,7 +49,7 @@ export const useAssessStore = defineStore('assess', {
       const filter = useFilterStore()
       const response = await getNewsItemsAggregates(filter.newsItemsFilter)
       this.newsItems = response.data
-      this.updateMaxItem()
+      // this.updateMaxItem()
     },
     async updateOSINTSources() {
       const response = await getOSINTSourcesList()

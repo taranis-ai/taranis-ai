@@ -1,20 +1,13 @@
-from marshmallow import post_load, fields
-from sqlalchemy import func, or_, orm
+from sqlalchemy import or_
+from typing import Any
 
 from core.managers.db_manager import db
-from core.model.address import NewAddressSchema
-from shared.schema.organization import OrganizationSchema, OrganizationPresentationSchema
+from core.model.address import Address
+from core.model.base_model import BaseModel
+from core.managers.log_manager import logger
 
 
-class NewOrganizationSchema(OrganizationSchema):
-    address = fields.Nested(NewAddressSchema)
-
-    @post_load
-    def make(self, data, **kwargs):
-        return Organization(**data)
-
-
-class Organization(db.Model):
+class Organization(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(), nullable=False)
     description = db.Column(db.String())
@@ -27,30 +20,27 @@ class Organization(db.Model):
         self.name = name
         self.description = description
         self.address = address
-        self.tag = "mdi-office-building"
 
-    @orm.reconstructor
-    def reconstruct(self):
-        self.tag = "mdi-office-building"
-
-    @classmethod
-    def find(cls, organization_id):
-        return cls.query.get(organization_id)
+    def to_dict(self):
+        data = {c.name: getattr(self, c.name) for c in self.__table__.columns}
+        data["address"] = self.address.to_dict() if self.address else None
+        data.pop("address_id")
+        data["tag"] = "mdi-office-building"
+        return data
 
     @classmethod
     def get_all(cls):
         return cls.query.order_by(db.asc(Organization.name)).all()
 
     @classmethod
-    def get(cls, search):
+    def get_by_filter(cls, search):
         query = cls.query
 
-        if search is not None:
-            search_string = f"%{search.lower()}%"
+        if search:
             query = query.filter(
                 or_(
-                    func.lower(Organization.name).like(search_string),
-                    func.lower(Organization.description).like(search_string),
+                    Organization.name.ilike(f"%{search}%"),
+                    Organization.description.ilike(f"%{search}%"),
                 )
             )
 
@@ -58,33 +48,30 @@ class Organization(db.Model):
 
     @classmethod
     def get_all_json(cls, search):
-        organizations, count = cls.get(search)
-        organizations_schema = OrganizationPresentationSchema(many=True)
-        return {"total_count": count, "items": organizations_schema.dump(organizations)}
+        organizations, count = cls.get_by_filter(search)
+        items = [organization.to_dict() for organization in organizations]
+        return {"total_count": count, "items": items}
 
     @classmethod
-    def add_new(cls, data):
-        new_organization_schema = NewOrganizationSchema()
-        organization = new_organization_schema.load(data, partial=True)
-        db.session.add(organization.address)
-        db.session.add(organization)
-        db.session.commit()
+    def from_dict(cls, data: dict[str, Any]) -> "Organization":
+        address_data = data.pop("address", None)
+        address = Address.from_dict(address_data) if address_data else None
+        return cls(address=address, **data)
 
     @classmethod
-    def update(cls, organization_id, data):
-        schema = NewOrganizationSchema()
-        updated_organization = schema.load(data)
+    def update(cls, organization_id, data) -> tuple[str, int]:
         organization = cls.query.get(organization_id)
-        organization.name = updated_organization.name
-        organization.description = updated_organization.description
-        organization.address.street = updated_organization.address.street
-        organization.address.city = updated_organization.address.city
-        organization.address.zip = updated_organization.address.zip
-        organization.address.country = updated_organization.address.country
-        db.session.commit()
+        if organization is None:
+            return f"Organization with id {organization_id} not found", 404
 
-    @classmethod
-    def delete(cls, id):
-        organization = cls.query.get(id)
-        db.session.delete(organization)
+        if address_data := data.pop("address", None):
+            address_update_message, status_code = organization.address.update(address_data)
+            if status_code != 200:
+                return address_update_message, status_code
+
+        for key, value in data.items():
+            if hasattr(organization, key) and key != "id":
+                setattr(organization, key, value)
+
         db.session.commit()
+        return f"Successfully updated {organization.id}", 200

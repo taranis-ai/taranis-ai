@@ -1,7 +1,6 @@
 from core.model.publishers_node import PublishersNode
 from core.model.publisher import Publisher
 from core.remote.publishers_api import PublishersApi
-from core.model.publisher_preset import PublisherPreset
 from core.managers.log_manager import logger
 
 from shared.schema.publishers_node import PublishersNode as PublishersNodeSchema
@@ -20,30 +19,31 @@ def get_publishers_info(node: PublishersNodeSchema):
     if status_code != 200:
         return None, status_code
 
-    return Publisher.create_all(publishers_info), status_code
+    return Publisher.load_multiple(publishers_info), status_code
 
 
 def add_publishers_node(data):
     try:
         logger.log_info(data)
         publishers_info = data.pop("publishers_info")
-        node = PublishersNodeSchema.create(data)
     except Exception as e:
         logger.log_debug_trace()
         return str(e), 500
 
     try:
-        publishers = Publisher.create_all(publishers_info)
-        PublishersNode.add_new(data, publishers)
+        publishers = Publisher.load_multiple(publishers_info)
+        node = PublishersNode.add(data, publishers)
     except Exception:
-        logger.log_debug_trace(f"Couldn't add Publisher Node: {node.name}")
-        return f"Couldn't add Publisher Node: {node.name}", 500
+        logger.log_debug_trace("Couldn't add Publisher Node")
+        return "Couldn't add Publisher Node", 500
 
-    return node.id, 200
+    return {"id": node.id, "message": "Added node"}, 200
 
 
 def update_publishers_node(node_id, data):
     node = PublishersNodeSchema.create(data)
+    if node is None:
+        return "Invalid node data", 400
     publishers, status_code = get_publishers_info(node)
 
     if status_code != 200:
@@ -56,10 +56,6 @@ def update_publishers_node(node_id, data):
         return f"Couldn't add Publisher node: {node.name}", 500
 
     return node.id, status_code
-
-
-def add_publisher_preset(data):
-    PublisherPreset.add_new(data)
 
 
 def publish(preset, data, message_title, message_body, recipients):

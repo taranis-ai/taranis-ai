@@ -1,5 +1,5 @@
 from flask import request
-from flask_restful import Resource
+from flask_restx import Resource
 
 from presenters.managers import presenters_manager
 from presenters.managers.auth_manager import api_key_required

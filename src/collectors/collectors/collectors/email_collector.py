@@ -21,12 +21,12 @@ class EmailCollector(BaseCollector):
     def collect(self, source):
         news_items = []
 
-        email_server_type = source.parameter_values["EMAIL_SERVER_TYPE"]
-        email_server_hostname = source.parameter_values["EMAIL_SERVER_HOSTNAME"]
-        email_server_port = source.parameter_values["EMAIL_SERVER_PORT"]
-        email_username = source.parameter_values["EMAIL_USERNAME"]
-        email_password = source.parameter_values["EMAIL_PASSWORD"]
-        proxy_server = source.parameter_values["PROXY_SERVER"]
+        email_server_type = source["parameter_values"]["EMAIL_SERVER_TYPE"]
+        email_server_hostname = source["parameter_values"]["EMAIL_SERVER_HOSTNAME"]
+        email_server_port = source["parameter_values"]["EMAIL_SERVER_PORT"]
+        email_username = source["parameter_values"]["EMAIL_USERNAME"]
+        email_password = source["parameter_values"]["EMAIL_PASSWORD"]
+        proxy_server = source["parameter_values"]["PROXY_SERVER"]
 
         def proxy_tunnel():
             server = email_server_type.lower() + "." + email_server_hostname.lower()
@@ -78,7 +78,7 @@ class EmailCollector(BaseCollector):
                     author,
                     datetime.datetime.now(),
                     content,
-                    source.id,
+                    source["id"],
                     attributes,
                 )
 

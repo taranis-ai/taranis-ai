@@ -90,8 +90,6 @@ export const messages_en = {
     newsitems: 'News Items',
     products: 'Products',
     publications: 'Publications',
-    recent: 'Recent',
-    popular: 'Popular',
     favourites: 'Favourites',
     configuration: 'Configuration',
     osint_sources: 'OSINTSources',

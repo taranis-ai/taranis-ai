@@ -1,4 +1,4 @@
-from flask_restx import Resource, reqparse
+from flask_restx import Resource, reqparse, Namespace
 from flask import request
 
 from core.managers import publishers_manager
@@ -29,11 +29,13 @@ class PublisherPreset(Resource):
 
     @auth_required("CONFIG_PUBLISHER_PRESET_CREATE")
     def post(self):
-        publishers_manager.add_publisher_preset(request.json)
+        pub_result = publisher_preset.PublisherPreset.add(request.json)
+        return {"id": pub_result.id, "message": "Publisher preset created successfully"}, 200
 
     @auth_required("CONFIG_PUBLISHER_PRESET_UPDATE")
     def put(self, id):
-        publisher_preset.PublisherPreset.update(id, request.json)
+        pub_result = publisher_preset.PublisherPreset.update(id, request.json)
+        return {"id": pub_result.id, "message": "Publisher preset updated successfully"}, 200
 
     @auth_required("CONFIG_PUBLISHER_PRESET_DELETE")
     def delete(self, id):
@@ -60,7 +62,8 @@ class PublishersNode(Resource):
 
 
 def initialize(api):
-    api.add_resource(PublishersNode, "/api/publishers/nodes", "/api/publishers/node", "/api/publishers/node/<id>")
-
-    api.add_resource(PublisherPresets, "/api/publishers/presets")
-    api.add_resource(PublisherPreset, "/api/publishers/preset", "/api/publishers/preset/<id>")
+    namespace = Namespace("publishers", description="Publishers API", path="/api/v1/publishers")
+    namespace.add_resource(PublishersNode, "/nodes", "/node", "/node/<id>")
+    namespace.add_resource(PublisherPresets, "/presets")
+    namespace.add_resource(PublisherPreset, "/preset", "/preset/<id>")
+    api.add_namespace(namespace)

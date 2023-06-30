@@ -57,32 +57,36 @@ export default {
         name: 'name',
         label: 'Name',
         type: 'text',
-        required: true
+        rules: [(v) => !!v || 'Required']
       },
       {
         name: 'description',
         label: 'Description',
         type: 'textarea',
-        required: true
+        rules: [(v) => !!v || 'Required']
       },
       {
         name: 'street',
         label: 'Street',
+        parent: 'address',
         type: 'text'
       },
       {
         name: 'city',
         label: 'City',
+        parent: 'address',
         type: 'text'
       },
       {
         name: 'zip',
         label: 'Zip',
+        parent: 'address',
         type: 'text'
       },
       {
-        country: 'country',
+        name: 'country',
         label: 'Country',
+        parent: 'address',
         type: 'text'
       }
     ])

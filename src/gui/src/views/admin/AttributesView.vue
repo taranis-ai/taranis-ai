@@ -49,13 +49,13 @@ export default {
         name: 'name',
         label: 'Name',
         type: 'text',
-        required: true
+        rules: [(v) => !!v || 'Required']
       },
       {
         name: 'description',
         label: 'Description',
         type: 'textarea',
-        required: true
+        rules: [(v) => !!v || 'Required']
       },
       {
         name: 'default_value',
@@ -83,7 +83,8 @@ export default {
           'CVE',
           'CPE',
           'CVSS'
-        ]
+        ],
+        rules: [(v) => !!v || 'Required']
       },
       {
         name: 'validator',
@@ -114,6 +115,8 @@ export default {
     },
     addItem() {
       this.formData = emptyValues(this.attributes.items[0])
+      delete this.formData.attribute_enums
+      delete this.formData.tag
       this.edit = false
     },
     editItem(item) {
@@ -121,11 +124,15 @@ export default {
       this.edit = true
     },
     handleSubmit(submittedData) {
-      console.log(submittedData)
+      const nonemptyEntries = Object.entries(submittedData).filter(
+        ([key, value]) => value !== ''
+      )
+      const nonemptyValues = Object.fromEntries(nonemptyEntries)
+      console.debug('Submitting :', nonemptyValues)
       if (this.edit) {
-        this.updateItem(submittedData)
+        this.updateItem(nonemptyValues)
       } else {
-        this.createItem(submittedData)
+        this.createItem(nonemptyValues)
       }
     },
     deleteItem(item) {

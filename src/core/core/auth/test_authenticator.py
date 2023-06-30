@@ -2,7 +2,7 @@ from core.managers.log_manager import logger
 from core.auth.base_authenticator import BaseAuthenticator
 
 
-users = {"user": "user", "user2": "user", "admin": "admin", "customer": "customer"}
+users = {"user": "user", "admin": "admin"}
 
 
 class TestAuthenticator(BaseAuthenticator):
@@ -15,7 +15,7 @@ class TestAuthenticator(BaseAuthenticator):
     def get_required_credentials(self):
         return ["username", "password"]
 
-    def authenticate(self, credentials):
+    def authenticate(self, credentials: dict[str, str]) -> tuple[dict[str, str], int]:
         logger.log_debug(f"TEST AUTH with {credentials}")
         if credentials is None:
             return BaseAuthenticator.generate_error()
@@ -24,5 +24,5 @@ class TestAuthenticator(BaseAuthenticator):
         if users[credentials["username"]] == credentials["password"]:
             return BaseAuthenticator.generate_jwt(credentials["username"])
 
-        logger.store_auth_error_activity(f"Authentication failed with credentials: {str(credentials)}")
+        logger.store_auth_error_activity(f"Authentication failed with credentials: {credentials}")
         return BaseAuthenticator.generate_error()

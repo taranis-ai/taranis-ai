@@ -30,12 +30,12 @@
             </v-col>
             <v-col cols="4" class="pr-3">
               <v-select
-                v-model="report_type"
+                v-model="report_item.report_item_type_id"
                 :disabled="edit"
                 item-title="title"
                 item-value="id"
                 :rules="required"
-                :items="report_types"
+                :items="report_item_types.items"
                 :label="$t('report_item.report_type')"
               />
             </v-col>
@@ -44,7 +44,7 @@
                 v-model="report_item.title_prefix"
                 :label="$t('report_item.title_prefix')"
                 name="title_prefix"
-              ></v-text-field>
+              />
             </v-col>
             <v-col cols="4" class="pr-3">
               <v-text-field
@@ -53,32 +53,28 @@
                 name="title"
                 type="text"
                 :rules="required"
-              ></v-text-field>
+              />
             </v-col>
           </v-row>
           <v-row>
-            <v-col v-if="report_type && edit" cols="12" class="pa-0 ma-0">
+            <v-col v-if="edit && report_type" cols="12" class="pa-0 ma-0">
               <v-expansion-panels
                 v-for="attribute_group in report_type.attribute_groups"
                 :key="attribute_group.id"
                 class="mb-1"
                 multiple
               >
-                <v-expansion-panel>
-                  <v-expansion-panel-title
-                    color="primary--text"
-                    class="body-1 text-uppercase pa-3"
-                  >
-                    {{ attribute_group.title }}
-                  </v-expansion-panel-title>
+                <v-expansion-panel :title="attribute_group.title">
                   <v-expansion-panel-text>
                     <attribute-item
-                      v-for="attribute_item in attributes[attribute_group.id]"
+                      v-for="attribute_item in attribute_group.attribute_group_items"
                       :key="attribute_item.id"
                       :read-only="!edit"
                       :attribute-item="attribute_item"
                       :value="attribute_values[attribute_item.id]"
-                      @input="updateAttributeValues(attribute_item.id, $event)"
+                      @update:value="
+                        updateAttributeValues(attribute_item.id, $event)
+                      "
                     />
                   </v-expansion-panel-text>
                 </v-expansion-panel>
@@ -102,13 +98,15 @@
 </template>
 
 <script>
+import { ref, computed, onMounted } from 'vue'
+import { useAnalyzeStore } from '@/stores/AnalyzeStore'
 import { createReportItem, updateReportItem } from '@/api/analyze'
 import AttributeItem from '@/components/analyze/AttributeItem.vue'
 import CardStory from '@/components/assess/CardStory.vue'
-import { useAnalyzeStore } from '@/stores/AnalyzeStore'
-import { notifyFailure } from '@/utils/helpers'
-import { mapActions, mapState } from 'pinia'
-import { notifySuccess } from '@/utils/helpers'
+import { notifyFailure, notifySuccess } from '@/utils/helpers'
+import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+import { storeToRefs } from 'pinia'
 
 export default {
   name: 'ReportItem',
@@ -121,106 +119,54 @@ export default {
     edit: { type: Boolean, default: false }
   },
   emits: ['reportcreated'],
-  data: function () {
-    return {
-      verticalView: this.edit,
-      expand_panel_groups: [],
-      selected_report_type: null,
-      report_types: [],
-      report_types_selection: [],
-      attributes: {},
-      report_item: this.reportItemProp,
-      required: [(v) => !!v || 'Required']
-    }
-  },
-  computed: {
-    ...mapState(useAnalyzeStore, ['report_item_types']),
-    attribute_values() {
-      return this.report_item.attributes.reduce((acc, attr) => {
+  setup(props, { emit }) {
+    const { t } = useI18n()
+    const router = useRouter()
+    const store = useAnalyzeStore()
+
+    const verticalView = ref(props.edit)
+    const expand_panel_groups = ref([])
+    const attributes = ref({})
+    const report_item = ref(props.reportItemProp)
+    const required = ref([(v) => !!v || 'Required'])
+
+    const { report_item_types } = storeToRefs(store)
+    const attribute_values = computed(() =>
+      report_item.value.attributes.reduce((acc, attr) => {
         acc[attr.attribute_group_item_id] = attr.value
         return acc
       }, {})
-    },
-    report_type: {
-      get() {
-        return this.selected_report_type
-      },
-      set(value) {
-        this.updateSelectedReportType(value)
-      }
-    },
-    container_title() {
-      return this.edit
-        ? `${this.$t('button.edit')} report item - ${this.report_item.title}`
-        : `${this.$t('button.add_new')} report item`
-    }
-  },
-  mounted() {
-    console.debug(`Loaded REPORT ITEM ${this.report_item.id}`)
+    )
 
-    this.loadReportTypes().then(() => {
-      this.report_types = this.report_item_types.items
-      if (this.report_item.report_item_type_id) {
-        this.updateSelectedReportType(this.report_item.report_item_type_id)
-      }
+    const report_type = computed(() =>
+      report_item_types.value.items.find(
+        (item) => item.id === report_item.value.report_item_type_id
+      )
+    )
+
+    const container_title = computed(() =>
+      props.edit
+        ? `${t('button.edit')} report item - ${report_item.value.title}`
+        : `${t('button.add_new')} report item`
+    )
+
+    onMounted(() => {
+      console.debug(`Loaded REPORT ITEM ${report_item.value.id}`)
+      store.loadReportTypes()
     })
-  },
-  methods: {
-    ...mapActions(useAnalyzeStore, ['loadReportTypes']),
 
-    updateSelectedReportType(value) {
-      this.selected_report_type = this.report_types.find(
-        (report_type) => report_type.id === value
-      )
-      console.debug('Selected report type', this.selected_report_type)
-      this.report_item.report_item_type_id = value
-      if (!this.selected_report_type) {
-        return
-      }
-      this.attributes = this.extractAttributes(
-        this.selected_report_type.attribute_groups
-      )
-
-      if (this.report_item.attributes.length > 0) {
-        return
-      }
-      this.report_item.attributes =
-        this.selected_report_type.attribute_groups.flatMap((group) =>
-          group.attribute_group_items.map((item) => ({
-            attribute_group_item_id: item.id,
-            value: ''
-          }))
-        )
-    },
-
-    extractAttributes(attribute_groups) {
-      const result = {}
-      for (const group of attribute_groups) {
-        const items = group.attribute_group_items.map((item) => ({
-          ...item.attribute,
-          title: item.title,
-          id: item.id
-        }))
-        result[group.id] = items.reduce((acc, item) => {
-          acc[item.id] = item
-          return acc
-        }, {})
-      }
-      return result
-    },
-
-    updateAttributeValues(key, values) {
-      const attribute = this.report_item.attributes.find(
+    const updateAttributeValues = (key, values) => {
+      const attribute = report_item.value.attributes.find(
         (attr) => attr.attribute_group_item_id === parseInt(key)
       )
       if (attribute) {
         attribute.value = values
       }
-    },
+    }
 
-    saveReportItem() {
-      if (this.edit) {
-        updateReportItem(this.report_item.id, this.report_item)
+    const saveReportItem = () => {
+      if (props.edit) {
+        updateReportItem(report_item.value.id, report_item.value)
           .then((response) => {
             notifySuccess(`Report with ID ${response.data} updated`)
           })
@@ -228,17 +174,31 @@ export default {
             notifyFailure('Failed to update report item')
           })
       } else {
-        createReportItem(this.report_item)
+        createReportItem(report_item.value)
           .then((response) => {
-            this.$router.push('/report/' + response.data)
-            this.$emit('reportcreated', response.data)
+            router.push('/report/' + response.data)
+            emit('reportcreated', response.data)
             notifySuccess(`Report with ID ${response.data} created`)
-            this.report_item.id = response.data
+            report_item.value.id = response.data
           })
           .catch(() => {
             notifyFailure('Failed to create report item')
           })
       }
+    }
+
+    return {
+      verticalView,
+      expand_panel_groups,
+      attributes,
+      report_item,
+      required,
+      report_item_types,
+      attribute_values,
+      report_type,
+      container_title,
+      updateAttributeValues,
+      saveReportItem
     }
   }
 }

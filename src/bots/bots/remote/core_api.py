@@ -170,19 +170,23 @@ class CoreApi:
         except Exception:
             return None, 400
 
-    def get_news_items_aggregate(self, source_group: str | None, limit: str | None) -> dict | None:
+    def get_news_items_aggregate(self, source_group: str | None, timestamp: str | None) -> dict | None:
         try:
-            uri = (
-                f"{self.api_url}/api/v1/bots/news-item-aggregates-by-group/{source_group}"
-                if source_group
-                else f"{self.api_url}/api/v1/bots/news-item-aggregates"
-            )
-            if limit:
-                uri = f"{uri}?limit={limit}"
+            uri = f"{self.api_url}/api/v1/bots/news-item-aggregates"
+            query_parameters = {}
+
+            if source_group:
+                query_parameters['group'] = source_group
+
+            if timestamp:
+                query_parameters['timestamp'] = timestamp
+
             response = requests.get(
                 uri,
                 headers=self.headers,
+                params=query_parameters
             )
+
             return response.json() if response.ok else None
         except Exception:
             logger.log_debug_trace("get_news_items_aggregate failed")

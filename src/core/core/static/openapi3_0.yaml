@@ -163,7 +163,7 @@ paths:
                     type: boolean
                     example: True
 
-  /users/my-profile:
+  /users/profile:
     get:
       tags: [users]
       summary: get the user's profile
@@ -1778,15 +1778,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/resp.auth.error'
 
-  /bots/news-item-aggregates-by-group/{group_id}:
+  /bots/news-item-aggregates:
     parameters:
-      - name: group_id
-        in: path
-        required: true
+      - name: group
+        in: query
         schema:
           type: string
-          parameters:
-      - name: limit
+      - name: timestamp
         in: query
         schema:
           type: string
@@ -1796,30 +1794,6 @@ paths:
       responses:
         '200':
           description: the IDs of the OSINT sources
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/news_item_aggregate'
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-  /bots/news-item-aggregates:
-    get:
-      tags: [bots]
-      summary: get default news item aggregate
-      parameters:
-        - name: limit
-          in: query
-          schema:
-            type: string
-      responses:
-        '200':
-          description: the default news item aggregate
           content:
             application/json:
               schema:
@@ -1883,25 +1857,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/resp.auth.error'
-  /collectors/{collector_id}/osint-sources:
+  /collectors/osint-sources/{collector_type}:
     parameters:
-      - name: collector_id
+      - name: collector_type
         in: path
         required: true
         schema:
           type: string
     get:
       tags: [collectors]
-      summary: get all OSINT sources of a specific collector
-      parameters:
-        - name: collector_type
-          in: query
-          schema:
-            type: string
-          required: true
+      summary: get all OSINT sources of a specific collector type
       responses:
         '200':
-          description: OSINT sources of a specific collector
+          description: OSINT sources of a specific collector type
           content:
             application/json:
               schema:
@@ -4925,8 +4893,6 @@ components:
           type: string
         binary_description:
           type: string
-        attribute_group_item_title:
-          type: string
         attribute_group_item_id:
           type: integer
     report_item_attribute:
@@ -4997,8 +4963,6 @@ components:
     report_item_attribute_remote:
       type: object
       properties:
-        attribute_group_item_title:
-          type: string
         value:
           type: string
     report_item_remote:
@@ -5132,14 +5096,6 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/attribute_enum'
-    attribute.presentation:
-      allOf:
-        - $ref: '#/components/schemas/attribute'
-        - $ref: '#/components/schemas/presentation'
-        - type: object
-          properties:
-            attribute_enums_total_count:
-              type: integer
 
     news_item_attribute.new:
       allOf:

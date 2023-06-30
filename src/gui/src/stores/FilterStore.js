@@ -85,7 +85,11 @@ export const useFilterStore = defineStore('filter', {
     },
     updateFilter(filter) {
       Object.keys(filter).forEach((element) => {
-        this.newsItemsFilter[element] = filter[element]
+        if (element == 'tags' && typeof filter[element] === 'string') {
+          this.newsItemsFilter[element] = [filter[element]]
+        } else {
+          this.newsItemsFilter[element] = filter[element]
+        }
       })
     },
     updateAssetFilter(filter) {

@@ -117,10 +117,8 @@ export default {
     const addAttributeGroup = () => {
       report_type.value.attribute_groups.push({
         index: report_type.value.attribute_groups.length,
-        id: -1,
         title: '',
         description: '',
-        section: -1,
         section_title: '',
         attribute_group_items: []
       })

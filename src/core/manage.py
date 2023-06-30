@@ -52,7 +52,7 @@ def account_manager(opt_list, create, edit, delete, username, name, password, ro
             app.logger.critical("Username, password or role not specified!")
             abort()
 
-        if user.User.find(username):
+        if user.User.get(username):
             app.logger.critical("User already exists!")
             abort()
 
@@ -62,7 +62,7 @@ def account_manager(opt_list, create, edit, delete, username, name, password, ro
         for ro in roles:
             r = None
             try:
-                r = role.Role.find(int(ro))
+                r = role.Role.get_by_filter(int(ro))
             except Exception:
                 r = role.Role.find_by_name(ro)
 
@@ -81,7 +81,7 @@ def account_manager(opt_list, create, edit, delete, username, name, password, ro
             app.logger.critical("Please specify a new password or role id!")
             abort()
 
-        if not user.User.find(username):
+        if not user.User.get(username):
             app.logger.critical("User does not exist!")
             abort()
 
@@ -92,7 +92,7 @@ def account_manager(opt_list, create, edit, delete, username, name, password, ro
             for ro in roles:
                 r = None
                 try:
-                    r = role.Role.find(int(ro))
+                    r = role.Role.get_by_filter(int(ro))
                 except Exception:
                     r = role.Role.find_by_name(ro)
 
@@ -109,7 +109,7 @@ def account_manager(opt_list, create, edit, delete, username, name, password, ro
             app.logger.critical("Username not specified!")
             abort()
 
-        if not user.User.find(username):
+        if not user.User.get(username):
             app.logger.critical("User does not exist!")
             abort()
 
@@ -132,7 +132,13 @@ def role_manager(opt_list, create, edit, delete, filter, id, name, description, 
 
     permissions.run(db_manager.db)
 
-    def run(self, opt_list, opt_create, opt_edit, opt_delete, opt_filter, opt_id, opt_name, opt_description, opt_permissions):
+    if opt_list:
+        roles = None
+        roles = role.Role.get_by_filter(filter)[0] if filter else role.Role.get_all()
+        for ro in roles:
+            perms = [p.id for p in ro.permissions]
+            print(f"Id: {ro.id}\n\tName: {ro.name}\n\tDescription: {ro.description}\n\tPermissions: {perms}")
+        return
 
     if create:
         if not name or not permissions:
@@ -143,7 +149,7 @@ def role_manager(opt_list, create, edit, delete, filter, id, name, description, 
         perms = []
 
         for pe in permissions:
-            p = permission.Permission.find(pe)
+            p = permission.Permission.get(pe)
 
             if not p:
                 app.logger.critical("The specified permission '{}' does not exist!".format(pe))
@@ -244,8 +250,8 @@ def collector_manager(
             print("Response from collector: {}".format(collectors_info))
             abort()
 
-        collectors = collector.Collector.create_all(collectors_info)
-        node = collectors_node.CollectorsNode.add_new(data, collectors)
+        collectors = collector.Collector.load_multiple(collectors_info)
+        node = collectors_node.CollectorsNode.add(data, collectors)
         collectors_info, status_code = CollectorsApi(api_url, api_key).get_collectors_info(node.id)
 
         print("Collector node '{}' with id {} created.".format(name, node.id))
@@ -276,12 +282,12 @@ def collector_manager(
                 app.logger.critical("Collector node does not exit!")
                 abort()
         elif name:
-            nodes, count = collectors_node.CollectorsNode.get(name)
+            nodes, count = collectors_node.CollectorsNode.get_by_filter(name)
             if not count:
                 app.logger.critical("Collector node does not exit!")
                 abort()
         else:
-            nodes, count = collectors_node.CollectorsNode.get(None)
+            nodes, count = collectors_node.CollectorsNode.get_by_filter(None)
             if not count:
                 app.logger.critical("No collector nodes exist!")
                 abort()
@@ -315,8 +321,8 @@ def collector_manager(
                 print('Response from collector: {}'.format(collectors_info))
                 abort()
 
-            collectors = collector.Collector.create_all(collectors_info)
-            node = collectors_node.CollectorsNode.add_new(data, collectors)
+            collectors = collector.Collector.load_multiple(collectors_info)
+            node = collectors_node.CollectorsNode.add(data, collectors)
             collectors_info, status_code = CollectorsApi(opt_api_url, opt_api_key).get_collectors_info(node.id)
 
             print('Collector node \'{}\' with id {} created.'.format(opt_name, node.id))
@@ -348,7 +354,7 @@ def collector_manager(
                     app.logger.critical("Collector node does not exit!")
                     abort()
             elif opt_name:
-                nodes, count = collectors_node.CollectorsNode.get(opt_name)
+                nodes, count = collectors_node.CollectorsNode.get_by_filter(opt_name)
                 if not count:
                     app.logger.critical("Collector node does not exit!")
                     abort()

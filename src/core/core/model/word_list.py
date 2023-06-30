@@ -1,33 +1,14 @@
 import sqlalchemy
-from marshmallow import post_load, fields
-from sqlalchemy import orm, func, or_, and_
+from typing import Any
+from sqlalchemy import func, or_, and_
 from sqlalchemy.sql.expression import cast
 
 from core.managers.db_manager import db
-from core.model.acl_entry import ACLEntry
-from shared.schema.acl_entry import ItemType
-from shared.schema.word_list import (
-    WordListEntrySchema,
-    WordListSchema,
-    WordListPresentationSchema,
-)
+from core.model.base_model import BaseModel
+from core.model.acl_entry import ACLEntry, ItemType
 
 
-class NewWordListEntrySchema(WordListEntrySchema):
-    @post_load
-    def make(self, data, **kwargs):
-        return WordListEntry(**data)
-
-
-class NewWordListSchema(WordListSchema):
-    entries = fields.Nested(WordListEntrySchema, many=True)
-
-    @post_load
-    def make(self, data, **kwargs):
-        return WordList(**data)
-
-
-class WordList(db.Model):
+class WordList(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(), nullable=False)
     description = db.Column(db.String(), nullable=False)
@@ -35,18 +16,13 @@ class WordList(db.Model):
     link = db.Column(db.String(), nullable=True, default=None)
     entries = db.relationship("WordListEntry", cascade="all, delete-orphan")
 
-    def __init__(self, id, name, description="", use_for_stop_words=False, link=None, entries=None):
-        self.id = None
+    def __init__(self, name, description="", use_for_stop_words=False, link=None, entries=None, id=None):
+        self.id = id
         self.name = name
         self.description = description
         self.use_for_stop_words = use_for_stop_words
         self.link = link
-        self.entries = entries
-        self.tag = "mdi-format-list-bulleted-square"
-
-    @classmethod
-    def find(cls, id):
-        return cls.query.get(id)
+        self.entries = entries or []
 
     @classmethod
     def find_by_name(cls, name):
@@ -73,10 +49,10 @@ class WordList(db.Model):
         return cls.query.order_by(db.asc(WordList.name)).all()
 
     @classmethod
-    def get(cls, search, user, acl_check):
+    def get_by_filter(cls, search, user, acl_check):
         query = cls.query.distinct().group_by(WordList.id)
 
-        if acl_check is True:
+        if acl_check:
             query = query.outerjoin(
                 ACLEntry,
                 and_(
@@ -86,12 +62,11 @@ class WordList(db.Model):
             )
             query = ACLEntry.apply_query(query, user, True, False, False)
 
-        if search is not None:
-            search_string = f"%{search.lower()}%"
+        if search:
             query = query.filter(
                 or_(
-                    func.lower(WordList.name).like(search_string),
-                    func.lower(WordList.description).like(search_string),
+                    WordList.name.ilike(f"%{search}%"),
+                    WordList.description.ilike(f"%{search}%"),
                 )
             )
 
@@ -99,36 +74,38 @@ class WordList(db.Model):
 
     @classmethod
     def get_all_json(cls, search, user, acl_check):
-        word_lists, count = cls.get(search, user, acl_check)
-        schema = WordListPresentationSchema(many=True)
-        return {"total_count": count, "items": schema.dump(word_lists)}
+        word_lists, count = cls.get_by_filter(search, user, acl_check)
+        items = [word_list.to_dict() for word_list in word_lists]
+        return {"total_count": count, "items": items}
 
     @classmethod
-    def add_new(cls, data):
-        schema = NewWordListSchema()
-        word_list = schema.load(data)
-        db.session.add(word_list)
-        db.session.commit()
+    def load_multiple(cls, json_data: list[dict[str, Any]]) -> list["WordList"]:
+        return [cls.from_dict(data) for data in json_data]
 
     @classmethod
-    def update(cls, word_list_id, data):
-        schema = NewWordListSchema()
-        updated_word_list = schema.load(data)
-        word_list = cls.query.get(word_list_id)
-        word_list.name = updated_word_list.name
-        word_list.description = updated_word_list.description
-        word_list.use_for_stop_words = updated_word_list.use_for_stop_words
-        word_list.entries = updated_word_list.entries
-        db.session.commit()
+    def from_dict(cls, data: dict[str, Any]) -> "WordList":
+        return cls(**data)
+
+    def to_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
+        data["entries"] = [entry.to_dict() for entry in self.entries]
+        data["tag"] = "mdi-format-list-bulleted-square"
+        return data
 
     @classmethod
-    def delete(cls, id):
-        word_list = cls.query.get(id)
-        db.session.delete(word_list)
+    def update(cls, word_list_id, data) -> tuple[str, int]:
+        word_list = cls.get(word_list_id)
+        if word_list is None:
+            return "WordList not found", 404
+        word_list.entries = [WordListEntry.from_dict(entry) for entry in data.pop("entries")]
+        for key, value in data.items():
+            if hasattr(word_list, key) and key != "id" and key != "entries":
+                setattr(word_list, key, value)
         db.session.commit()
+        return "Word list updated", 200
 
 
-class WordListEntry(db.Model):
+class WordListEntry(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     value = db.Column(db.String(), nullable=False)
     description = db.Column(db.String(), nullable=False)
@@ -146,32 +123,16 @@ class WordListEntry(db.Model):
 
     @classmethod
     def delete_entries(cls, id, value):
-        word_list = WordList.find(id)
+        word_list = WordList.get(id)
         cls.query.filter_by(word_list_id=word_list.id).filter_by(value=value).delete()
         db.session.commit()
 
     @classmethod
-    def update_word_list_entries(cls, id, entries):
-        word_list = WordList.find(id)
+    def update_word_list_entries(cls, id, entries_data):
+        word_list = WordList.get(id)
 
-        entries_schema = NewWordListEntrySchema(many=True)
-        entries = entries_schema.load(entries)
-
+        entries = cls.load_multiple(entries_data)
         for entry in entries:
-            if not WordListEntry.identical(entry.value, word_list.id):
+            if not cls.identical(entry.value, word_list.id):
                 word_list.entries.append(entry)
                 db.session.commit()
-
-    @classmethod
-    def stopwords_subquery(cls):
-        return (
-            db.session.query(func.lower(WordListEntry.value))
-            .distinct()
-            .group_by(WordListEntry.value)
-            .join(
-                WordList,
-                WordList.id == WordList.word_list_id,
-            )
-            .filter(WordList.use_for_stop_words is True)
-            .subquery()
-        )

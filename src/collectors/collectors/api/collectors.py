@@ -1,4 +1,4 @@
-from flask_restful import Resource
+from flask_restx import Resource, Namespace
 
 from collectors.managers import collectors_manager
 from collectors.managers.auth_manager import api_key_required
@@ -25,5 +25,7 @@ class Collector(Resource):
 
 
 def initialize(api):
-    api.add_resource(Collectors, "/api/v1/collectors")
-    api.add_resource(Collector, "/api/v1/collectors/<string:collector_type>")
+    namespace = Namespace("Collectors", description="Collectors related operations", path="/api/v1/collectors")
+    namespace.add_resource(Collectors, "/")
+    namespace.add_resource(Collector, "/<string:collector_type>")
+    api.add_namespace(namespace)

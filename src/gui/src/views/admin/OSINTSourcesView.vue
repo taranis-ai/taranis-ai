@@ -1,9 +1,9 @@
 <template>
   <div>
     <DataTable
-      v-model:items="osint_sources"
+      :items="sources"
       :add-button="true"
-      :header-filter="['tag', 'name', 'description', 'FEED_URL']"
+      :header-filter="['tag', 'state', 'name', 'description', 'FEED_URL']"
       sort-by-item="id"
       :action-column="true"
       @delete-item="deleteItem"
@@ -18,8 +18,8 @@
     </DataTable>
     <EditConfig
       v-if="formData && Object.keys(formData).length > 0"
-      v-model:config-data="formData"
-      v-model:form-format="formFormat"
+      :config-data="formData"
+      :form-format="formFormat"
       @submit="handleSubmit"
     ></EditConfig>
   </div>
@@ -43,9 +43,10 @@ import {
   parseParameterValues,
   createParameterValues
 } from '@/utils/helpers'
-import { mapActions, mapState, mapWritableState } from 'pinia'
+import { storeToRefs } from 'pinia'
 import { useConfigStore } from '@/stores/ConfigStore'
 import { useMainStore } from '@/stores/MainStore'
+import { ref, computed, onMounted } from 'vue'
 
 export default {
   name: 'OSINTSourcesView',
@@ -54,22 +55,21 @@ export default {
     EditConfig,
     ImportExport
   },
-  data: () => ({
-    osint_sources: [],
-    parameters: {},
-    selected: [],
-    formData: {},
-    collectors: [],
-    edit: false
-  }),
-  computed: {
-    ...mapState(useConfigStore, {
-      store_collectors: 'collectors',
-      store_osint_sources: 'osint_sources'
-    }),
-    ...mapWritableState(useMainStore, ['itemCountTotal', 'itemCountFiltered']),
-    formFormat() {
-      const base = [
+  setup() {
+    const configStore = useConfigStore()
+    const mainStore = useMainStore()
+
+    const { collectors, osint_sources } = storeToRefs(configStore)
+
+    const sources = ref([])
+    const parameters = ref({})
+    const collector_options = ref([])
+    const selected = ref([])
+    const formData = ref({})
+    const edit = ref(false)
+
+    const formFormat = computed(() => {
+      let base = [
         {
           name: 'id',
           label: 'ID',
@@ -77,45 +77,56 @@ export default {
           disabled: true
         },
         {
+          name: 'last_collected',
+          label: 'Last Collected',
+          type: 'text',
+          disabled: true
+        },
+        {
           name: 'name',
           label: 'Name',
           type: 'text',
-          required: true
+          rules: [(v) => !!v || 'Required']
         },
         {
           name: 'description',
           label: 'Description',
           type: 'textarea',
-          required: true
+          rules: [(v) => !!v || 'Required']
         },
         {
           name: 'collector_id',
           label: 'Collector',
           type: 'select',
-          options: this.collectors
+          options: collector_options.value
         }
       ]
-      if (this.parameters[this.formData.collector_id]) {
-        return base.concat(this.parameters[this.formData.collector_id])
+      if (formData.value.last_error_message) {
+        base = [
+          {
+            name: 'last_error_message',
+            label: 'Error Message',
+            type: 'text',
+            disabled: true,
+            color: 'red'
+          }
+        ].concat(base)
+      }
+      if (parameters.value[formData.value.collector_id]) {
+        return base.concat(parameters.value[formData.value.collector_id])
       }
       return base
-    }
-  },
-  mounted() {
-    this.updateData()
-  },
-  methods: {
-    ...mapActions(useConfigStore, ['loadOSINTSources', 'loadCollectors']),
-    updateData() {
-      this.loadOSINTSources().then(() => {
-        const sources = this.store_osint_sources
-        this.osint_sources = parseParameterValues(sources.items)
-        this.itemCountFiltered = sources.length
-        this.itemCountTotal = sources.total_count
+    })
+
+    const updateData = () => {
+      configStore.loadOSINTSources().then(() => {
+        sources.value = parseParameterValues(osint_sources.value.items)
+        mainStore.itemCountFiltered = osint_sources.value.items.length
+        mainStore.itemCountTotal = osint_sources.value.total_count
       })
-      this.loadCollectors().then(() => {
-        this.collectors = this.store_collectors.items.map((collector) => {
-          this.parameters[collector.id] = collector.parameters.map(
+      configStore.loadCollectors().then(() => {
+        collector_options.value = collectors.value.items.map((collector) => {
+          parameters.value[collector.id] = collector.parameters.map(
             (parameter) => {
               return {
                 name: parameter.key,
@@ -130,77 +141,109 @@ export default {
           }
         })
       })
-    },
+    }
 
-    addItem() {
-      this.formData = objectFromFormat(this.formFormat)
-      this.edit = false
-    },
-    editItem(item) {
-      this.formData = item
-      this.edit = true
-    },
-    handleSubmit(submittedData) {
+    onMounted(() => {
+      updateData()
+    })
+
+    const addItem = () => {
+      formData.value = objectFromFormat(formFormat.value)
+      edit.value = false
+    }
+
+    const editItem = (item) => {
+      formData.value = item
+      edit.value = true
+    }
+
+    const handleSubmit = (submittedData) => {
       delete submittedData.parameter_values
-      const parameter_list = this.parameters[this.formData.collector_id].map(
+      const parameter_list = parameters.value[formData.value.collector_id].map(
         (item) => item.name
       )
       const updateItem = createParameterValues(parameter_list, submittedData)
-      if (this.edit) {
-        this.updateItem(updateItem)
+      if (edit.value) {
+        updateItem(updateItem)
       } else {
-        this.createItem(updateItem)
+        createItem(updateItem)
       }
-    },
-    deleteItem(item) {
+    }
+
+    const deleteItem = (item) => {
       deleteOSINTSource(item)
         .then(() => {
           notifySuccess(`Successfully deleted ${item.name}`)
-          this.updateData()
+          updateData()
         })
         .catch(() => {
           notifyFailure(`Failed to delete ${item.name}`)
         })
-    },
-    createItem(item) {
+    }
+
+    const createItem = (item) => {
       createOSINTSource(item)
         .then(() => {
           notifySuccess(`Successfully created ${item.name}`)
-          this.updateData()
+          updateData()
         })
         .catch(() => {
           notifyFailure(`Failed to create ${item.name}`)
         })
-    },
-    updateItem(item) {
+    }
+
+    const updateItem = (item) => {
       updateOSINTSource(item)
         .then(() => {
           notifySuccess(`Successfully updated ${item.name}`)
-          this.updateData()
+          updateData()
         })
         .catch(() => {
           notifyFailure(`Failed to update ${item.name}`)
         })
-    },
-    importData(data) {
+    }
+
+    const importData = (data) => {
       importOSINTSources(data)
         .then(() => {
           notifySuccess(`Successfully imported ${data.get('file').name}`)
-          setTimeout(this.updateData(), 1000)
+          setTimeout(updateData(), 1000)
         })
         .catch(() => {
           notifyFailure('Failed to import')
         })
-    },
-    exportData() {
+    }
+
+    const exportData = () => {
       let queryString = ''
-      if (this.selected.length > 0) {
-        queryString = 'ids=' + this.selected.join('&ids=')
+      if (selected.value.length > 0) {
+        queryString = 'ids=' + selected.value.join('&ids=')
       }
       exportOSINTSources(queryString)
-    },
-    selectionChange(selected) {
-      this.selected = selected.map((item) => item.id)
+    }
+
+    const selectionChange = (selected) => {
+      selected.value = selected.map((item) => item.id)
+    }
+
+    return {
+      sources,
+      parameters,
+      collector_options,
+      selected,
+      formData,
+      edit,
+      formFormat,
+      updateData,
+      addItem,
+      editItem,
+      handleSubmit,
+      deleteItem,
+      createItem,
+      updateItem,
+      importData,
+      exportData,
+      selectionChange
     }
   }
 }

@@ -1,21 +1,10 @@
-from sqlalchemy import orm, func, or_
-from marshmallow import post_load, fields
+from sqlalchemy import or_
 
 from core.managers.db_manager import db
-from shared.schema.notification_template import (
-    NotificationTemplatePresentationSchema,
-    NotificationTemplateSchema,
-    EmailRecipientSchema,
-)
+from core.model.base_model import BaseModel
 
 
-class NewEmailRecipientSchema(EmailRecipientSchema):
-    @post_load
-    def make(self, data, **kwargs):
-        return EmailRecipient(**data)
-
-
-class EmailRecipient(db.Model):
+class EmailRecipient(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(), nullable=False)
     name = db.Column(db.String())
@@ -28,15 +17,7 @@ class EmailRecipient(db.Model):
         self.name = name
 
 
-class NewNotificationTemplateSchema(NotificationTemplateSchema):
-    recipients = fields.Nested(NewEmailRecipientSchema, many=True)
-
-    @post_load
-    def make(self, data, **kwargs):
-        return NotificationTemplate(**data)
-
-
-class NotificationTemplate(db.Model):
+class NotificationTemplate(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(), nullable=False)
     description = db.Column(db.String())
@@ -48,25 +29,16 @@ class NotificationTemplate(db.Model):
     organization_id = db.Column(db.Integer, db.ForeignKey("organization.id"))
     organization = db.relationship("Organization")
 
-    def __init__(self, id, name, description, message_title, message_body, recipients):
-        self.id = None
+    def __init__(self, name, description, message_title, message_body, recipients, id=None):
+        self.id = id
         self.name = name
         self.description = description
         self.message_title = message_title
         self.message_body = message_body
         self.recipients = recipients
-        self.tag = "mdi-email-outline"
-
-    @orm.reconstructor
-    def reconstruct(self):
-        self.tag = "mdi-email-outline"
 
     @classmethod
-    def find(cls, id):
-        return cls.query.get(id)
-
-    @classmethod
-    def get(cls, search, organization):
+    def get_by_filter(cls, search, organization):
         query = cls.query
 
         if organization:
@@ -85,14 +57,20 @@ class NotificationTemplate(db.Model):
 
     @classmethod
     def get_all_json(cls, user, search):
-        templates, count = cls.get(search, user.organization)
-        template_schema = NotificationTemplatePresentationSchema(many=True)
-        return {"total_count": count, "items": template_schema.dump(templates)}
+        templates, count = cls.get_by_filter(search, user.organization)
+        items = [template.to_dict() for template in templates]
+        return {"total_count": count, "items": items}
 
     @classmethod
-    def add(cls, user, data):
-        new_template_schema = NewNotificationTemplateSchema()
-        template = new_template_schema.load(data)
+    def add(cls, user, data) -> tuple[str, int]:
+        template = cls.from_dict(data)
         template.organization = user.organization
         db.session.add(template)
         db.session.commit()
+        return f"created {template.id}", 201
+
+    def to_dict(self):
+        data = {c.name: getattr(self, c.name) for c in self.__table__.columns}
+        data["recipients"] = [recipient.id for recipient in self.recipients]
+        data["tag"] = "mdi-email-outline"
+        return data

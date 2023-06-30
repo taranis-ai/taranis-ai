@@ -1,27 +1,15 @@
-from datetime import datetime
-import sqlalchemy
-from marshmallow import fields
-from marshmallow import post_load
-from sqlalchemy import orm, func, or_, and_
+from datetime import datetime, timedelta
+from typing import Any
+from sqlalchemy import func, or_, and_, String as SQLString
 from sqlalchemy.sql.expression import cast
 
 from core.managers.db_manager import db
-from core.model.acl_entry import ACLEntry
+from core.model.acl_entry import ACLEntry, ItemType
 from core.model.report_item import ReportItem
-from shared.schema.acl_entry import ItemType
-from shared.schema.product import ProductPresentationSchema, ProductSchemaBase
-from shared.schema.report_item import ReportItemIdSchema
+from core.model.base_model import BaseModel
 
 
-class NewProductSchema(ProductSchemaBase):
-    report_items = fields.Nested(ReportItemIdSchema, many=True)
-
-    @post_load
-    def make(self, data, **kwargs):
-        return Product(**data)
-
-
-class Product(db.Model):
+class Product(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(), nullable=False)
     description = db.Column(db.String())
@@ -36,44 +24,29 @@ class Product(db.Model):
 
     report_items = db.relationship("ReportItem", secondary="product_report_item")
 
-    def __init__(self, id, title, description, product_type_id, report_items):
-        self.id = id if id != -1 else None
+    def __init__(self, title, description, product_type_id, report_items, id=None):
+        self.id = id
         self.title = title
         self.description = description
         self.product_type_id = product_type_id
-        self.subtitle = ""
-        self.tag = ""
-
-        self.report_items = [ReportItem.find(report_item.id) for report_item in report_items]
-
-    @orm.reconstructor
-    def reconstruct(self):
-        self.subtitle = self.description
-        self.tag = "mdi-file-pdf-outline"
+        self.report_items = [ReportItem.get(report_item.id) for report_item in report_items]
 
     @classmethod
     def count_all(cls):
         return cls.query.count()
 
     @classmethod
-    def find(cls, product_id):
-        product = cls.query.get(product_id)
-        return product
-
-    @classmethod
     def get_detail_json(cls, product_id):
-        product = cls.query.get(product_id)
-        products_schema = ProductPresentationSchema()
-        return products_schema.dump(product)
+        return cls.get(product_id).to_dict()
 
     @classmethod
-    def get(cls, filter, offset, limit, user):
+    def get_by_filter(cls, filter, user):
         query = (
             db.session.query(
                 Product,
-                func.count().filter(ACLEntry.id > 0).label("acls"),
-                func.count().filter(ACLEntry.access is True).label("access"),
-                func.count().filter(ACLEntry.modify is True).label("modify"),
+                func.count().filter(ACLEntry.id is not None).label("acls"),
+                func.count().filter(ACLEntry.access).label("access"),
+                func.count().filter(ACLEntry.modify).label("modify"),
             )
             .distinct()
             .group_by(Product.id)
@@ -82,37 +55,30 @@ class Product(db.Model):
         query = query.outerjoin(
             ACLEntry,
             and_(
-                cast(Product.product_type_id, sqlalchemy.String) == ACLEntry.item_id,
+                cast(Product.product_type_id, SQLString) == ACLEntry.item_id,
                 ACLEntry.item_type == ItemType.PRODUCT_TYPE,
             ),
         )
         query = ACLEntry.apply_query(query, user, True, False, False)
 
-        if "search" in filter and filter["search"] != "":
-            search_string = "%" + filter["search"].lower() + "%"
+        search = filter.get("search")
+        if search and search != "":
             query = query.filter(
                 or_(
-                    func.lower(Product.title).like(search_string),
-                    func.lower(Product.description).like(search_string),
+                    Product.title.ilike(f"%{search}%"),
+                    Product.description.ilike(f"%{search}%"),
                 )
             )
 
-        if "range" in filter and filter["range"] != "ALL":
-            date_limit = datetime.now()
-            if filter["range"] == "TODAY":
-                date_limit = date_limit.replace(hour=0, minute=0, second=0, microsecond=0)
+        if "range" in filter and filter["range"].upper() != "ALL":
+            filter_range = filter["range"].upper()
+            date_limit = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
 
-            if filter["range"] == "WEEK":
-                date_limit = date_limit.replace(
-                    day=date_limit.day - date_limit.weekday(),
-                    hour=0,
-                    minute=0,
-                    second=0,
-                    microsecond=0,
-                )
+            if filter_range == "WEEK":
+                date_limit -= timedelta(days=date_limit.weekday())
 
-            if filter["range"] == "MONTH":
-                date_limit = date_limit.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            elif filter_range == "MONTH":
+                date_limit = date_limit.replace(day=1)
 
             query = query.filter(Product.created >= date_limit)
 
@@ -123,11 +89,13 @@ class Product(db.Model):
             elif filter["sort"] == "DATE_ASC":
                 query = query.order_by(db.asc(Product.created))
 
+        offset = filter.get("offset", 0)
+        limit = filter.get("limit", 20)
         return query.offset(offset).limit(limit).all(), query.count()
 
     @classmethod
-    def get_json(cls, filter, offset, limit, user):
-        results, count = cls.get(filter, offset, limit, user)
+    def get_json(cls, filter, user):
+        results, count = cls.get_by_filter(filter, user)
         products = []
         for result in results:
             product = result.Product
@@ -136,47 +104,37 @@ class Product(db.Model):
             product.modify = result.modify > 0 or result.acls == 0
             products.append(product)
 
-            for report_item in product.report_items:
-                report_item.see = True
-                report_item.access = True
-                report_item.modify = False
+        items = [product.to_dict() for product in products]
+        return {"total_count": count, "items": items}
 
-        products_schema = ProductPresentationSchema(many=True)
-        return {"total_count": count, "items": products_schema.dump(products)}
+    def to_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
+        data["report_items"] = [report_item.id for report_item in self.report_items]
+        data["tag"] = "mdi-file-pdf-outline"
+        return data
 
     @classmethod
-    def add_product(cls, product_data, user_id):
-        product_schema = NewProductSchema()
-        product = product_schema.load(product_data)
+    def update(cls, product_id, data) -> tuple[str, int]:
+        product = Product.get(product_id)
+        if product is None:
+            return f"Product {product_id} not found", 404
+        new_product = cls.from_dict(data)
+        for key, value in vars(new_product).items():
+            if hasattr(product, key) and key != "id":
+                setattr(product, key, value)
 
-        product.user_id = user_id
-        db.session.add(product)
         db.session.commit()
+        return f"Product {product_id} updated", 200
 
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Product":
+        report_items = data.pop("report_items", None)
+        product = cls(**data)
+        if report_items:
+            product.report_items = [ReportItem.get_by_filter(r) for r in report_items]
         return product
 
-    @classmethod
-    def update_product(cls, product_id, product_data):
-        product_schema = NewProductSchema()
-        product = product_schema.load(product_data)
 
-        original_product = Product.find(product_id)
-        original_product.title = product.title
-        original_product.description = product.description
-        original_product.product_type_id = product.product_type_id
-        original_product.report_items = []
-        original_product.report_items.extend(product.report_items)
-
-        db.session.commit()
-
-    @classmethod
-    def delete(cls, id):
-        product = cls.query.get(id)
-        if product is not None:
-            db.session.delete(product)
-            db.session.commit()
-
-
-class ProductReportItem(db.Model):
+class ProductReportItem(BaseModel):
     product_id = db.Column(db.Integer, db.ForeignKey("product.id"), primary_key=True)
     report_item_id = db.Column(db.Integer, db.ForeignKey("report_item.id"), primary_key=True)

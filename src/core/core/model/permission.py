@@ -1,47 +1,47 @@
-from sqlalchemy import func, or_
+from sqlalchemy import or_
 
 from core.managers.db_manager import db
-from shared.schema.role import PermissionSchema
+from core.model.base_model import BaseModel
 
 
-class Permission(db.Model):
+class Permission(BaseModel):
     id = db.Column(db.String, primary_key=True)
     name = db.Column(db.String(), unique=True, nullable=False)
     description = db.Column(db.String())
 
-    @classmethod
-    def find(cls, permission_id):
-        permission = cls.query.get(permission_id)
-        return permission
+    roles = db.relationship("Role", secondary="role_permission")
+
+    def __init__(self, name, description, id=None):
+        self.id = id
+        self.name = name
+        self.description = description
 
     @classmethod
-    def add(cls, id, name, description):
-        permission = cls.find(id)
-        if permission is None:
-            permission = Permission()
-            permission.id = id
-            permission.name = name
-            permission.description = description
-            db.session.add(permission)
-        else:
-            permission.name = name
-            permission.description = description
+    def add(cls, id, name, description) -> str:
+        if permission := cls.get(id):
+            return f"{permission.name} already exists."
+        permission = cls(id=id, name=name, description=description)
+        db.session.add(permission)
         db.session.commit()
+        return f"Successfully created {permission.id}"
 
     @classmethod
     def get_all(cls):
         return cls.query.order_by(db.asc(Permission.id)).all()
 
     @classmethod
-    def get(cls, search):
+    def get_all_ids(cls):
+        return [permission.id for permission in cls.get_all()]
+
+    @classmethod
+    def get_by_filter(cls, search):
         query = cls.query
 
         if search is not None:
-            search_string = f"%{search.lower()}%"
             query = query.filter(
                 or_(
-                    func.lower(Permission.name).like(search_string),
-                    func.lower(Permission.description).like(search_string),
+                    Permission.name.ilike(f"%{search}%"),
+                    Permission.description.ilike(f"%{search}%"),
                 )
             )
 
@@ -49,6 +49,20 @@ class Permission(db.Model):
 
     @classmethod
     def get_all_json(cls, search):
-        permissions, count = cls.get(search)
-        permissions_schema = PermissionSchema(many=True)
-        return {"total_count": count, "items": permissions_schema.dump(permissions)}
+        permissions, count = cls.get_by_filter(search)
+        items = [permission.to_dict() for permission in permissions]
+        return {"total_count": count, "items": items}
+
+    @staticmethod
+    def get_external_permissions_ids():
+        return ["MY_ASSETS_ACCESS", "MY_ASSETS_CREATE", "MY_ASSETS_CONFIG"]
+
+    @classmethod
+    def get_external_permissions(cls):
+        return [cls.get(permission_id) for permission_id in cls.get_external_permissions_ids()]
+
+    @classmethod
+    def get_external_permissions_json(cls):
+        permissions = cls.get_external_permissions()
+        items = [permission.to_dict() if permission else None for permission in permissions]
+        return {"total_count": len(items), "items": items}

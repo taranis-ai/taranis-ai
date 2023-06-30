@@ -15,37 +15,38 @@
             v-if="item.type === 'text' || item.type === 'number'"
             v-model="formData[item.parent][item.name]"
             :label="item.label"
-            :required="item.required"
+            :rules="item.rules"
             :disabled="item['disabled']"
             :type="item.type"
-          ></v-text-field>
+          />
         </v-col>
         <v-col v-else cols="12">
           <v-text-field
             v-if="item.type === 'text' || item.type === 'number'"
             v-model="formData[item.name]"
             :label="item.label"
-            :required="item.required"
+            :rules="item.rules"
             :disabled="item['disabled']"
             :type="item.type"
-          ></v-text-field>
+            :bg-color="item.color"
+          />
         </v-col>
         <v-textarea
           v-if="item.type === 'textarea'"
           v-model="formData[item.name]"
           :label="item.label"
-          :required="item.required"
+          :rules="item.rules"
           :disabled="item['disabled']"
           :type="item.type"
-        ></v-textarea>
+        />
         <v-select
           v-if="item.type === 'select' && item.options"
           v-model="formData[item.name]"
           :label="item.label"
-          :required="item.required"
+          :rules="item.rules"
           :disabled="item['disabled']"
           :items="item.options"
-        ></v-select>
+        />
         <v-switch
           v-if="item.type === 'switch'"
           v-model="formData[item.name]"
@@ -53,7 +54,7 @@
           :disabled="item['disabled']"
           true-value="true"
           false-value="false"
-        ></v-switch>
+        />
 
         <v-col
           v-if="item.type === 'table' && item.items !== undefined"

@@ -1,7 +1,7 @@
 <template>
   <div>
     <DataTable
-      :items="presets"
+      :items="publisher_presets.items"
       :add-button="true"
       :header-filter="['tag', 'id', 'name', 'description']"
       sort-by-item="id"
@@ -29,13 +29,7 @@ import {
   createPublisherPreset,
   updatePublisherPreset
 } from '@/api/config'
-import {
-  notifySuccess,
-  parseParameterValues,
-  createParameterValues,
-  objectFromFormat,
-  notifyFailure
-} from '@/utils/helpers'
+import { notifySuccess, objectFromFormat, notifyFailure } from '@/utils/helpers'
 import { useConfigStore } from '@/stores/ConfigStore'
 import { useMainStore } from '@/stores/MainStore'
 import { storeToRefs } from 'pinia'
@@ -52,7 +46,6 @@ export default defineComponent({
 
     const { publisher_presets, publishers } = storeToRefs(store)
 
-    const presets = ref([])
     const publishersList = ref([])
     const formData = ref({})
     const parameters = ref({})
@@ -70,19 +63,19 @@ export default defineComponent({
           name: 'name',
           label: 'Name',
           type: 'text',
-          required: true
+          rules: [(v) => !!v || 'Required']
         },
         {
           name: 'description',
           label: 'Description',
           type: 'textarea',
-          required: true
+          rules: [(v) => !!v || 'Required']
         },
         {
           name: 'publisher_id',
           label: 'Type',
           type: 'select',
-          required: true,
+          rules: [(v) => !!v || 'Required'],
           options: publishersList.value,
           disabled: edit.value
         }
@@ -95,7 +88,6 @@ export default defineComponent({
 
     const updateData = () => {
       store.loadPublisherPresets().then(() => {
-        presets.value = parseParameterValues(publisher_presets.value.items)
         mainStore.itemCountTotal = publisher_presets.value.total_count
         mainStore.itemCountFiltered = publisher_presets.value.items.length
       })
@@ -112,6 +104,7 @@ export default defineComponent({
               return {
                 name: parameter.key,
                 label: parameter.name,
+                parent: 'parameter_values',
                 type: 'text'
               }
             }
@@ -122,6 +115,7 @@ export default defineComponent({
 
     const addItem = () => {
       formData.value = objectFromFormat(formFormat.value)
+      formData.value.parameter_values = {}
       edit.value = false
     }
 
@@ -131,15 +125,12 @@ export default defineComponent({
     }
 
     const handleSubmit = (submittedData) => {
-      delete submittedData.parameter_values
-      const parameterList = parameters.value[formData.value.publisher_id].map(
-        (item) => item.name
-      )
-      const updateItem = createParameterValues(parameterList, submittedData)
+      delete submittedData.tag
+      console.debug('submittedData', submittedData)
       if (edit.value) {
-        updateItem(updateItem)
+        updateItem(submittedData)
       } else {
-        createItem(updateItem)
+        createItem(submittedData)
       }
     }
 
@@ -186,7 +177,6 @@ export default defineComponent({
       publisher_presets,
       publishersList,
       publishers,
-      presets,
       formData,
       parameters,
       edit,

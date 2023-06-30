@@ -16,7 +16,7 @@
         density="compact"
         prepend-icon="mdi-magnify"
         class="mr-5 ml-5"
-      ></v-text-field>
+      />
       <slot name="appbar"></slot>
     </v-app-bar>
     <v-navigation-drawer

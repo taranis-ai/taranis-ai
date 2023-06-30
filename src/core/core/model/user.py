@@ -1,34 +1,17 @@
-from marshmallow import fields, post_load
-from sqlalchemy import or_, orm
+from sqlalchemy import or_
 from werkzeug.security import generate_password_hash
+from typing import Any
 
 from core.managers.db_manager import db
 from core.model.role import Role
 from core.model.permission import Permission
 from core.model.organization import Organization
-from shared.schema.user import (
-    UserSchemaBase,
-    UserProfileSchema,
-    HotkeySchema,
-    UserPresentationSchema,
-)
-from shared.schema.role import RoleIdSchema, PermissionIdSchema
-from shared.schema.organization import OrganizationSchema
+
+from core.model.base_model import BaseModel
 from core.managers.log_manager import logger
 
 
-class NewUserSchema(UserSchemaBase):
-    password = fields.Str(required=False)
-    roles = fields.Nested(RoleIdSchema, many=True, only=["id"])
-    permissions = fields.Nested(PermissionIdSchema, many=True)
-    organization = fields.Nested(OrganizationSchema, only=["id"])
-
-    @post_load
-    def make(self, data, **kwargs):
-        return User(**data)
-
-
-class User(db.Model):
+class User(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), unique=True, nullable=False)
     name = db.Column(db.String(), nullable=False)
@@ -43,23 +26,19 @@ class User(db.Model):
     profile_id = db.Column(db.Integer, db.ForeignKey("user_profile.id"))
     profile = db.relationship("UserProfile", cascade="all")
 
-    def __init__(self, id, username, name, password, organization, roles, permissions):
-        self.id = id if id > 0 else None
+    def __init__(self, username, name, organization, roles, permissions, password=None, id=None):
+        self.id = id
         self.username = username
         self.name = name
-        self.password = password
-        self.organization = Organization.find(organization["id"]) if isinstance(organization, dict) else Organization.find(organization.id)
-        self.roles = [Role.find(role.id) for role in roles]
-        self.permissions = [Permission.find(permission.id) for permission in permissions]
+        if password:
+            self.password = generate_password_hash(password)
+        self.organization = Organization.get(organization["id"]) if isinstance(organization, dict) else Organization.get(organization)
+        self.roles = [Role.get(role["id"]) for role in roles]
+        self.permissions = [Permission.get(permission["id"]) for permission in permissions]
         self.profile = UserProfile(True, False, [], "en")
-        self.tag = "mdi-account"
-
-    @orm.reconstructor
-    def reconstruct(self):
-        self.tag = "mdi-account"
 
     @classmethod
-    def find(cls, username):
+    def find_by_name(cls, username):
         return cls.query.filter_by(username=username).first()
 
     @classmethod
@@ -68,14 +47,14 @@ class User(db.Model):
 
     @classmethod
     def find_by_role(cls, role_id: int):
-        return cls.query.filter(cls.roles.any(id=role_id)).all()
+        return cls.query.join(Role, Role.id == role_id).all()
 
     @classmethod
     def get_all(cls):
         return cls.query.order_by(db.asc(User.name)).all()
 
     @classmethod
-    def get(cls, search, organization):
+    def get_by_filter(cls, search, organization):
         query = cls.query
 
         if organization:
@@ -93,81 +72,47 @@ class User(db.Model):
 
     @classmethod
     def get_all_json(cls, search=None):
-        users, count = cls.get(search, None)
-        user_schema = UserPresentationSchema(many=True)
-        return {"total_count": count, "items": user_schema.dump(users)}
+        users, count = cls.get_by_filter(search, None)
+        items = [user.to_dict() for user in users]
+        return {"total_count": count, "items": items}
+
+    def to_dict(self):
+        data = {c.name: getattr(self, c.name) for c in self.__table__.columns if c.name != "password"}
+        data["organization"] = data.pop("organization_id")
+        data["roles"] = [role.id for role in self.roles]
+        data["permissions"] = [permission.id for permission in self.permissions]
+        data["tag"] = "mdi-account"
+        return data
 
     @classmethod
-    def get_all_external_json(cls, user, search):
-        users, count = cls.get(search, user.organization)
-        user_schema = UserPresentationSchema(many=True)
-        return {"total_count": count, "items": user_schema.dump(users)}
-
-    @classmethod
-    def add_new(cls, data):
-        user = NewUserSchema().load(data)
-        user.password = generate_password_hash(user.password)
-        db.session.add(user)
+    def add(cls: "User", data) -> "User":
+        item = cls.from_dict(data)
+        if not item.password:
+            raise ValueError("Password is required")
+        db.session.add(item)
         db.session.commit()
+        return item
 
     @classmethod
-    def add_new_external(cls, user, permissions, data):
-        new_user = NewUserSchema().load(data)
-        new_user.roles = []
-
-        for permission in new_user.permissions[:]:
-            if permission.id not in permissions:
-                new_user.permissions.remove(permission)
-
-        db.session.add(new_user)
+    def update(cls, user_id, data) -> tuple[str, int]:
+        user = cls.get(user_id)
+        if not user:
+            return f"User {user_id} not found", 404
+        data.pop("id")
+        data.pop("tag")
+        organization = Organization.get(data.pop("organization"))
+        profile = UserProfile.get(data.pop("profile_id"))
+        roles = [Role.get(role_id) for role_id in data.pop("roles")]
+        logger.debug(f"Organization: {organization}")
+        user.username = data["username"]
+        user.name = data["name"]
+        if password := data.get("password"):
+            user.password = generate_password_hash(password)
+        user.organization = organization
+        user.profile = profile
+        user.roles = roles
         db.session.commit()
-
-    @classmethod
-    def update(cls, user_id, data):
-        schema = NewUserSchema()
-        user = cls.query.get(user_id)
-        if "password" not in data:
-            data["password"] = ""
-        updated_user = schema.load(data)
-        if updated_user.password:
-            user.password = generate_password_hash(updated_user.password)
-        user.username = updated_user.username
-        user.name = updated_user.name
-        user.organization = updated_user.organization
-        user.roles = updated_user.roles
-        user.permissions = updated_user.permissions
-        db.session.commit()
-
-    @classmethod
-    def update_external(cls, user, permissions, user_id, data):
-        schema = NewUserSchema()
-        updated_user = schema.load(data)
-        existing_user = cls.query.get(user_id)
-
-        if user.organization == existing_user.organization:
-            existing_user.username = updated_user.username
-            existing_user.name = updated_user.name
-
-            for permission in updated_user.permissions[:]:
-                if permission.id not in permissions:
-                    updated_user.permissions.remove(permission)
-
-            existing_user.permissions = updated_user.permissions
-
-            db.session.commit()
-
-    @classmethod
-    def delete(cls, id):
-        user = cls.query.get(id)
-        db.session.delete(user)
-        db.session.commit()
-
-    @classmethod
-    def delete_external(cls, user, id):
-        existing_user = cls.query.get(id)
-        if user.organization == existing_user.organization:
-            db.session.delete(existing_user)
-            db.session.commit()
+        return f"User {user_id} updated", 200
 
     def get_permissions(self):
         all_permissions = {permission.id for permission in self.permissions}
@@ -181,42 +126,81 @@ class User(db.Model):
 
     @classmethod
     def get_profile_json(cls, user):
-        return UserProfileSchema().dump(user.profile)
+        return user.profile.to_dict()
 
     @classmethod
     def update_profile(cls, user, data):
-        user.profile = NewUserProfileSchema().load(data)
+        logger.debug(user.profile.from_dict(data))
+        user.profile = user.profile.from_dict(data)
 
         db.session.commit()
+        return user.profile.to_dict(), 200
 
-        return cls.get_profile_json(user)
+    ##
+    # External User Management - TODO: Check if this is still needed
+    ##
+
+    @classmethod
+    def get_all_external_json(cls, user, search):
+        users, count = cls.get(search, user.organization)
+        items = [user.to_dict() for user in users]
+        return {"total_count": count, "items": items}
+
+    @classmethod
+    def add_new_external(cls, user, data):
+        permissions = Permission.get_external_permissions_ids()
+        data.pop("roles")
+        for permission in data["permissions"]:
+            if permission["id"] not in permissions:
+                data["permissions"].remove(permission)
+        user = cls.from_dict(data)
+        db.session.add(user)
+        db.session.commit()
+        return f"User {user.id} created", 201
+
+    @classmethod
+    def update_external(cls, user, user_id, data):
+        permissions = Permission.get_external_permissions_ids()
+        user = cls.query.get(user_id)
+        if user is None:
+            return f"User {user_id} not found", 404
+
+        updated_user = cls.from_dict(data)
+        if user.organization != updated_user.organization:
+            return f"User {user_id} could not be updated", 400
+        user.username = updated_user.username
+        user.name = updated_user.name
+
+        for permission in updated_user.permissions:
+            if permission.id not in permissions:
+                updated_user.permissions.remove(permission)
+
+        user.permissions = updated_user.permissions
+
+        db.session.commit()
+        return f"User {user_id} updated", 200
+
+    @classmethod
+    def delete_external(cls, user, id):
+        existing_user = cls.query.get(id)
+        if user.organization != existing_user.organization:
+            return f"User {id} could not be deleted", 400
+        db.session.delete(existing_user)
+        db.session.commit()
+        return f"User {id} deleted", 200
 
 
-class UserRole(db.Model):
+class UserRole(BaseModel):
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), primary_key=True)
     role_id = db.Column(db.Integer, db.ForeignKey("role.id"), primary_key=True)
 
 
-class UserPermission(db.Model):
+class UserPermission(BaseModel):
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), primary_key=True)
     permission_id = db.Column(db.String, db.ForeignKey("permission.id"), primary_key=True)
 
 
-class NewHotkeySchema(HotkeySchema):
-    @post_load
-    def make(self, data, **kwargs):
-        return Hotkey(**data)
-
-
-class NewUserProfileSchema(UserProfileSchema):
-    hotkeys = fields.List(fields.Nested(NewHotkeySchema))
-
-    @post_load
-    def make(self, data, **kwargs):
-        return UserProfile(**data)
-
-
-class UserProfile(db.Model):
+class UserProfile(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
 
     spellcheck = db.Column(db.Boolean, default=True)
@@ -232,8 +216,21 @@ class UserProfile(db.Model):
         self.hotkeys = hotkeys
         self.language = language
 
+    @classmethod
+    def from_dict(cls, data: dict):
+        hotkeys = [Hotkey.from_dict(hotkey) for hotkey in data["hotkeys"]]
+        return cls(data["spellcheck"], data["dark_theme"], hotkeys, data["language"])
 
-class Hotkey(db.Model):
+    def to_dict(self):
+        return {
+            "spellcheck": self.spellcheck,
+            "dark_theme": self.dark_theme,
+            "hotkeys": [hotkey.to_dict() for hotkey in self.hotkeys],
+            "language": self.language,
+        }
+
+
+class Hotkey(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     key_code = db.Column(db.Integer)
     key = db.Column(db.String)
@@ -241,8 +238,13 @@ class Hotkey(db.Model):
 
     user_profile_id = db.Column(db.Integer, db.ForeignKey("user_profile.id"))
 
-    def __init__(self, key_code, key, alias):
-        self.id = None
+    def __init__(self, key_code, key, alias, id=None):
+        self.id = id
         self.key_code = key_code
         self.key = key
         self.alias = alias
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Hotkey":
+        logger.debug(data)
+        return cls(data["key_code"], data["key"], data["alias"])

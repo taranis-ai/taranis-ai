@@ -47,18 +47,19 @@
       <v-row no-gutters>
         <v-col cols="6" class="pr-1">
           <v-select
-            v-model="user.organization.id"
+            v-model="user.organization"
             item-title="name"
             item-value="id"
             :hint="$t('user.organization')"
             :label="$t('user.organization')"
             :items="organizations"
+            :rules="[rules.required]"
           >
           </v-select>
         </v-col>
         <v-col cols="12" class="pl-1">
           <v-data-table
-            v-model="user_roles"
+            v-model="user.roles"
             :headers="headers"
             :items="roles"
             show-select
@@ -73,7 +74,7 @@
         </v-col>
         <v-col cols="12" class="pt-2">
           <v-data-table
-            v-model="user_permissions"
+            v-model="user.permissions"
             :headers="headers"
             :items="permissions"
             show-select
@@ -150,25 +151,13 @@ export default {
         : [rules.required, rules.matchPassword]
     })
 
-    const user_roles = computed({
-      get: () => {
-        return user.value.roles.map((role) => role.id)
-      },
-      set: (value) => {
-        user.value.roles = value
+    const add = async () => {
+      const isValid = await form.value.validate()
+      if (!isValid.valid) {
+        console.debug('Invalid')
+        return
       }
-    })
 
-    const user_permissions = computed({
-      get: () => {
-        return user.value.permissions.map((permission) => permission.id)
-      },
-      set: (value) => {
-        user.value.permissions = value
-      }
-    })
-
-    const add = () => {
       if (props.edit === false || pwd.value !== '') {
         user.value.password = pwd.value
       }
@@ -210,8 +199,6 @@ export default {
       permissions,
       organizations,
       form,
-      user_roles,
-      user_permissions,
       pwd,
       repwd,
       passwordRules,

@@ -1,7 +1,7 @@
 import io
 
-from flask import request, send_file
-from flask_restx import Resource
+from flask import request, send_file, jsonify
+from flask_restx import Resource, Namespace
 
 from core.managers import (
     auth_manager,
@@ -38,7 +38,6 @@ from core.model import (
 )
 from core.model.news_item import NewsItemAggregate
 from core.model.permission import Permission
-from shared.schema.role import PermissionSchema
 
 
 class DictionariesReload(Resource):
@@ -56,13 +55,15 @@ class Attributes(Resource):
 
     @auth_required("CONFIG_ATTRIBUTE_CREATE")
     def post(self):
-        attribute.Attribute.add_attribute(request.json)
+        attribute_result = attribute.Attribute.add(request.json)
+        return {"message": "Attribute added", "id": attribute_result.id}, 201
 
 
 class Attribute(Resource):
     @auth_required(["CONFIG_ATTRIBUTE_ACCESS", "ANALYZE_ACCESS"])
     def get(self, attribute_id):
-        return attribute.Attribute.find_by_id(attribute_id)
+        result = attribute.Attribute.get(attribute_id)
+        return result.to_json() if result else ("Attribute not found", 404)
 
     @auth_required("CONFIG_ATTRIBUTE_UPDATE")
     def put(self, attribute_id):
@@ -70,7 +71,7 @@ class Attribute(Resource):
 
     @auth_required("CONFIG_ATTRIBUTE_DELETE")
     def delete(self, attribute_id):
-        return attribute.Attribute.delete_attribute(attribute_id)
+        return attribute.Attribute.delete(attribute_id)
 
 
 class AttributeEnums(Resource):
@@ -83,7 +84,8 @@ class AttributeEnums(Resource):
 
     @auth_required("CONFIG_ATTRIBUTE_UPDATE")
     def post(self, attribute_id):
-        attribute.AttributeEnum.add(attribute_id, request.json)
+        result = attribute.AttributeEnum.add(request.json)
+        return {"message": "Attribute enum added", "id": result.id}, 201
 
 
 class AttributeEnum(Resource):
@@ -105,8 +107,8 @@ class ReportItemTypesConfig(Resource):
     @auth_required("CONFIG_REPORT_TYPE_CREATE")
     def post(self):
         try:
-            item_id = report_item_type.ReportItemType.add_report_item_type(request.json)
-            return {"message": "Report item type added", "id": item_id}, 201
+            item = report_item_type.ReportItemType.add(request.json)
+            return {"message": "Report item type added", "id": item.id}, 201
         except Exception:
             logger.exception("Failed to add report item type")
             return {"message": "Failed to add report item type"}, 500
@@ -119,24 +121,25 @@ class ReportItemType(Resource):
 
     @auth_required("CONFIG_REPORT_TYPE_DELETE")
     def delete(self, type_id):
-        return report_item_type.ReportItemType.delete_report_item_type(type_id)
+        return report_item_type.ReportItemType.delete(type_id)
 
 
 class ProductTypes(Resource):
     @auth_required("CONFIG_PRODUCT_TYPE_ACCESS")
     def get(self):
         search = request.args.get(key="search", default=None)
-        return product_type.ProductType.get_all_json(search, auth_manager.get_user_from_jwt(), False)
+        return jsonify(product_type.ProductType.get_all_json(search, auth_manager.get_user_from_jwt(), False))
 
     @auth_required("CONFIG_PRODUCT_TYPE_CREATE")
     def post(self):
-        product_type.ProductType.add_new(request.json)
+        product = product_type.ProductType.add(request.json)
+        return {"message": "Product type created", "id": product.id}, 201
 
 
 class ProductType(Resource):
     @auth_required("CONFIG_PRODUCT_TYPE_UPDATE")
     def put(self, type_id):
-        product_type.ProductType.update(type_id, request.json)
+        return product_type.ProductType.update(type_id, request.json)
 
     @auth_required("CONFIG_PRODUCT_TYPE_DELETE")
     def delete(self, type_id):
@@ -153,12 +156,7 @@ class Permissions(Resource):
 class ExternalPermissions(Resource):
     @auth_required("MY_ASSETS_CONFIG")
     def get(self):
-        permissions = auth_manager.get_external_permissions()
-        permissions_schema = PermissionSchema(many=True)
-        return {
-            "total_count": len(permissions),
-            "items": permissions_schema.dump(permissions),
-        }
+        return Permission.get_external_permissions_json()
 
 
 class Roles(Resource):
@@ -169,7 +167,8 @@ class Roles(Resource):
 
     @auth_required("CONFIG_ROLE_CREATE")
     def post(self):
-        role.Role.add_new(request.json)
+        new_role = role.Role.add(request.json)
+        return {"message": "Role created", "id": new_role.id}, 201
 
 
 class Role(Resource):
@@ -190,7 +189,8 @@ class ACLEntries(Resource):
 
     @auth_required("CONFIG_ACL_CREATE")
     def post(self):
-        acl_entry.ACLEntry.add_new(request.json)
+        acl = acl_entry.ACLEntry.add(request.json)
+        return {"message": "ACL created", "id": acl.id}, 201
 
 
 class ACLEntry(Resource):
@@ -211,7 +211,8 @@ class Organizations(Resource):
 
     @auth_required("CONFIG_ORGANIZATION_CREATE")
     def post(self):
-        organization.Organization.add_new(request.json)
+        org = organization.Organization.add(request.json)
+        return {"message": "Organization created", "id": org.id}, 201
 
 
 class Organization(Resource):
@@ -233,9 +234,8 @@ class Users(Resource):
     @auth_required("CONFIG_USER_CREATE")
     def post(self):
         try:
-            if external_auth_manager.keycloak_user_management_enabled():
-                return external_auth_manager.create_user(request.json), 200
-            return user.User.add_new(request.json), 200
+            new_user = user.User.add(request.json)
+            return {"message": "User created", "id": new_user.id}, 201
         except Exception:
             logger.exception()
             return "Could not create user", 400
@@ -278,15 +278,13 @@ class ExternalUsers(Resource):
 
     @auth_required("MY_ASSETS_CONFIG")
     def post(self):
-        permissions = auth_manager.get_external_permissions_ids()
-        user.User.add_new_external(auth_manager.get_user_from_jwt(), permissions, request.json)
+        return user.User.add_new_external(auth_manager.get_user_from_jwt(), request.json)
 
 
 class ExternalUser(Resource):
     @auth_required("CONFIG_USER_ACCESS")
     def put(self, user_id):
-        permissions = auth_manager.get_external_permissions_ids()
-        user.User.update_external(auth_manager.get_user_from_jwt(), permissions, user_id, request.json)
+        user.User.update_external(auth_manager.get_user_from_jwt(), user_id, request.json)
 
     @auth_required("MY_ASSETS_CONFIG")
     def delete(self, user_id):
@@ -301,7 +299,8 @@ class WordLists(Resource):
 
     @auth_required("CONFIG_WORD_LIST_CREATE")
     def post(self):
-        word_list.WordList.add_new(request.json)
+        wordlist = word_list.WordList.add(request.json)
+        return {"id": wordlist.id, "message": "Word list created successfully"}, 200
 
 
 class WordList(Resource):
@@ -326,7 +325,7 @@ class Bots(Resource):
         return bot.Bot.get_all_json(search)
 
     def put(self, bot_id):
-        return bot.Bot.update_bot_parameters(bot_id, request.json)
+        return bot.Bot.update(bot_id, request.json)
 
 
 class Parameters(Resource):
@@ -342,7 +341,8 @@ class CollectorsNodes(Resource):
 
     @auth_required("CONFIG_COLLECTORS_NODE_CREATE")
     def post(self):
-        return collectors_manager.add_collectors_node(request.json)
+        node = collectors_node.CollectorsNode.add(request.json)
+        return {"id": node.id, "message": "Node created successfully"}, 200
 
     @auth_required("CONFIG_COLLECTORS_NODE_UPDATE")
     def put(self, node_id):
@@ -368,13 +368,16 @@ class OSINTSources(Resource):
 
     @auth_required("CONFIG_OSINT_SOURCE_CREATE")
     def post(self):
-        collectors_manager.add_osint_source(request.json)
+        return collectors_manager.add_osint_source(request.json)
 
 
 class OSINTSource(Resource):
     @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
     def get(self, source_id):
-        return osint_source.OSINTSource.get_by_id(source_id)
+        if source := osint_source.OSINTSource.get(source_id):
+            return source.to_dict(), 200
+        else:
+            return "OSINT source not found", 404
 
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def put(self, source_id):
@@ -384,7 +387,7 @@ class OSINTSource(Resource):
 
     @auth_required("CONFIG_OSINT_SOURCE_DELETE")
     def delete(self, source_id):
-        collectors_manager.delete_osint_source(source_id)
+        return collectors_manager.delete_osint_source(source_id)
 
 
 class OSINTSourceRefresh(Resource):
@@ -396,10 +399,9 @@ class OSINTSourceRefresh(Resource):
 class OSINTSourcesExport(Resource):
     @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
     def get(self):
-        ids = request.args.getlist(key="ids")
-        data = collectors_manager.export_osint_sources(ids)
+        data = collectors_manager.export_osint_sources()
         if data is None:
-            return "", 400
+            return "Unable to export", 400
         return send_file(
             io.BytesIO(data),
             download_name="osint_sources_export.json",
@@ -412,7 +414,11 @@ class OSINTSourcesImport(Resource):
     @auth_required("CONFIG_OSINT_SOURCE_CREATE")
     def post(self):
         if file := request.files.get("file"):
-            collectors_manager.import_osint_sources(file)
+            sources = collectors_manager.import_osint_sources(file)
+            if sources is None:
+                return "Unable to import", 400
+            return {"sources": [source.id for source in sources], "count": len(sources), "message": "Successfully imported sources"}
+        return "No file provided", 400
 
 
 class OSINTSourceGroups(Resource):
@@ -423,19 +429,14 @@ class OSINTSourceGroups(Resource):
 
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_CREATE")
     def post(self):
-        osint_source.OSINTSourceGroup.add(request.json)
+        source_group = osint_source.OSINTSourceGroup.add(request.json)
+        return {"id": source_group.id, "message": "OSINT source group created successfully"}, 200
 
 
 class OSINTSourceGroup(Resource):
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_UPDATE")
     def put(self, group_id):
-        sources_in_default_group, message, code = osint_source.OSINTSourceGroup.update(group_id, request.json)
-        if sources_in_default_group is not None:
-            default_group = osint_source.OSINTSourceGroup.get_default()
-            for source in sources_in_default_group:
-                NewsItemAggregate.reassign_to_new_groups(source.id, default_group.id)
-
-        return message, code
+        return osint_source.OSINTSourceGroup.update(group_id, request.json)
 
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_DELETE")
     def delete(self, group_id):
@@ -450,7 +451,8 @@ class RemoteAccesses(Resource):
 
     @auth_required("CONFIG_REMOTE_ACCESS_CREATE")
     def post(self):
-        remote.RemoteAccess.add(request.json)
+        result = remote.RemoteAccess.add(request.json)
+        return {"id": result.id, "message": "Remote access created successfully"}, 200
 
 
 class RemoteAccess(Resource):
@@ -471,7 +473,8 @@ class RemoteNodes(Resource):
 
     @auth_required("CONFIG_REMOTE_ACCESS_CREATE")
     def post(self):
-        remote.RemoteNode.add(request.json)
+        result = remote.RemoteNode.add(request.json)
+        return {"id": result.id, "message": "Remote node created successfully"}, 200
 
 
 class RemoteNode(Resource):
@@ -512,7 +515,8 @@ class PresentersNodes(Resource):
 
     @auth_required("CONFIG_PRESENTERS_NODE_CREATE")
     def post(self):
-        return "", presenters_manager.add_presenters_node(request.json)
+        presenter = presenters_node.PresentersNode.add(request.json)
+        return {"id": presenter.id, "message": "Presenters node created successfully"}, 200
 
     @auth_required("CONFIG_PRESENTERS_NODE_UPDATE")
     def put(self, node_id):
@@ -531,7 +535,7 @@ class PublisherNodes(Resource):
 
     @auth_required("CONFIG_PUBLISHERS_NODE_CREATE")
     def post(self):
-        return "", publishers_manager.add_publishers_node(request.json)
+        return publishers_manager.add_publishers_node(request.json)
 
     @auth_required("CONFIG_PUBLISHERS_NODE_UPDATE")
     def put(self, node_id):
@@ -550,7 +554,8 @@ class PublisherPresets(Resource):
 
     @auth_required("CONFIG_PUBLISHER_PRESET_CREATE")
     def post(self):
-        publishers_manager.add_publisher_preset(request.json)
+        pub_result = publisher_preset.PublisherPreset.add(request.json)
+        return {"id": pub_result.id, "message": "Publisher preset created successfully"}, 200
 
 
 class PublisherPreset(Resource):
@@ -586,11 +591,12 @@ class BotNodes(Resource):
 
     @auth_required("CONFIG_BOTS_NODE_CREATE")
     def post(self):
-        return bots_manager.add_bots_node(request.json)
+        bot = bots_node.BotsNode.add(request.json)
+        return {"id": bot.id, "message": "Bots node created successfully"}, 200
 
     @auth_required("CONFIG_BOTS_NODE_UPDATE")
     def put(self, node_id):
-        bots_manager.update_bots_node(node_id, request.json)
+        return bots_manager.update_bots_node(node_id, request.json)
 
     @auth_required("CONFIG_BOTS_NODE_DELETE")
     def delete(self, node_id):
@@ -598,71 +604,73 @@ class BotNodes(Resource):
 
 
 def initialize(api):
-    api.add_resource(
+    namespace = Namespace("config", description="Configuration operations", path="/api/v1/config")
+    namespace.add_resource(
         DictionariesReload,
-        "/api/v1/config/reload-enum-dictionaries/<string:dictionary_type>",
+        "/reload-enum-dictionaries/<string:dictionary_type>",
     )
-    api.add_resource(Attributes, "/api/v1/config/attributes")
-    api.add_resource(Attribute, "/api/v1/config/attributes/<int:attribute_id>")
-    api.add_resource(AttributeEnums, "/api/v1/config/attributes/<int:attribute_id>/enums")
-    api.add_resource(
+    namespace.add_resource(Attributes, "/attributes")
+    namespace.add_resource(Attribute, "/attributes/<int:attribute_id>")
+    namespace.add_resource(AttributeEnums, "/attributes/<int:attribute_id>/enums")
+    namespace.add_resource(
         AttributeEnum,
-        "/api/v1/config/attributes/<int:attribute_id>/enums/<int:enum_id>",
+        "/attributes/<int:attribute_id>/enums/<int:enum_id>",
     )
 
-    api.add_resource(ReportItemTypesConfig, "/api/v1/config/report-item-types")
-    api.add_resource(ReportItemType, "/api/v1/config/report-item-types/<int:type_id>")
+    namespace.add_resource(ReportItemTypesConfig, "/report-item-types")
+    namespace.add_resource(ReportItemType, "/report-item-types/<int:type_id>")
 
-    api.add_resource(ProductTypes, "/api/v1/config/product-types")
-    api.add_resource(ProductType, "/api/v1/config/product-types/<int:type_id>")
+    namespace.add_resource(ProductTypes, "/product-types")
+    namespace.add_resource(ProductType, "/product-types/<int:type_id>")
 
-    api.add_resource(Permissions, "/api/v1/config/permissions")
-    api.add_resource(ExternalPermissions, "/api/v1/config/external-permissions")
-    api.add_resource(Roles, "/api/v1/config/roles")
-    api.add_resource(Role, "/api/v1/config/roles/<int:role_id>")
-    api.add_resource(ACLEntries, "/api/v1/config/acls")
-    api.add_resource(ACLEntry, "/api/v1/config/acls/<int:acl_id>")
+    namespace.add_resource(Permissions, "/permissions")
+    namespace.add_resource(ExternalPermissions, "/external-permissions")
+    namespace.add_resource(Roles, "/roles")
+    namespace.add_resource(Role, "/roles/<int:role_id>")
+    namespace.add_resource(ACLEntries, "/acls")
+    namespace.add_resource(ACLEntry, "/acls/<int:acl_id>")
 
-    api.add_resource(Organizations, "/api/v1/config/organizations")
-    api.add_resource(Organization, "/api/v1/config/organizations/<int:organization_id>")
+    namespace.add_resource(Organizations, "/organizations")
+    namespace.add_resource(Organization, "/organizations/<int:organization_id>")
 
-    api.add_resource(Users, "/api/v1/config/users")
-    api.add_resource(User, "/api/v1/config/users/<int:user_id>")
+    namespace.add_resource(Users, "/users")
+    namespace.add_resource(User, "/users/<int:user_id>")
 
-    api.add_resource(ExternalUsers, "/api/v1/config/external-users")
-    api.add_resource(ExternalUser, "/api/v1/config/external-users/<int:user_id>")
+    namespace.add_resource(ExternalUsers, "/external-users")
+    namespace.add_resource(ExternalUser, "/external-users/<int:user_id>")
 
-    api.add_resource(WordLists, "/api/v1/config/word-lists")
-    api.add_resource(WordList, "/api/v1/config/word-lists/<int:word_list_id>")
+    namespace.add_resource(WordLists, "/word-lists")
+    namespace.add_resource(WordList, "/word-lists/<int:word_list_id>")
 
-    api.add_resource(CollectorsNodes, "/api/v1/config/collectors-nodes", "/api/v1/config/collectors-nodes/<string:node_id>")
-    api.add_resource(RefreshWorkers, "/api/v1/config/workers/refresh")
-    api.add_resource(Collectors, "/api/v1/config/collectors", "/api/v1/config/collectors/<string:collector_type>")
-    api.add_resource(Bots, "/api/v1/config/bots", "/api/v1/config/bots/<string:bot_id>")
-    api.add_resource(Parameters, "/api/v1/config/parameters")
+    namespace.add_resource(CollectorsNodes, "/collectors-nodes", "/collectors-nodes/<string:node_id>")
+    namespace.add_resource(RefreshWorkers, "/workers/refresh")
+    namespace.add_resource(Collectors, "/collectors", "/collectors/<string:collector_type>")
+    namespace.add_resource(Bots, "/bots", "/bots/<string:bot_id>")
+    namespace.add_resource(Parameters, "/parameters")
 
-    api.add_resource(OSINTSources, "/api/v1/config/osint-sources")
-    api.add_resource(OSINTSource, "/api/v1/config/osint-sources/<string:source_id>")
-    api.add_resource(OSINTSourceRefresh, "/api/v1/config/osint-sources/<string:source_id>/refresh")
-    api.add_resource(OSINTSourcesExport, "/api/v1/config/export-osint-sources")
-    api.add_resource(OSINTSourcesImport, "/api/v1/config/import-osint-sources")
-    api.add_resource(OSINTSourceGroups, "/api/v1/config/osint-source-groups")
-    api.add_resource(OSINTSourceGroup, "/api/v1/config/osint-source-groups/<string:group_id>")
+    namespace.add_resource(OSINTSources, "/osint-sources")
+    namespace.add_resource(OSINTSource, "/osint-sources/<string:source_id>")
+    namespace.add_resource(OSINTSourceRefresh, "/osint-sources/<string:source_id>/refresh")
+    namespace.add_resource(OSINTSourcesExport, "/export-osint-sources")
+    namespace.add_resource(OSINTSourcesImport, "/import-osint-sources")
+    namespace.add_resource(OSINTSourceGroups, "/osint-source-groups")
+    namespace.add_resource(OSINTSourceGroup, "/osint-source-groups/<string:group_id>")
 
-    api.add_resource(RemoteAccesses, "/api/v1/config/remote-accesses")
-    api.add_resource(RemoteAccess, "/api/v1/config/remote-accesses/<int:remote_access_id>")
+    namespace.add_resource(RemoteAccesses, "/remote-accesses")
+    namespace.add_resource(RemoteAccess, "/remote-accesses/<int:remote_access_id>")
 
-    api.add_resource(RemoteNodes, "/api/v1/config/remote-nodes")
-    api.add_resource(RemoteNode, "/api/v1/config/remote-nodes/<int:remote_node_id>")
-    api.add_resource(RemoteNodeConnect, "/api/v1/config/remote-nodes/<int:remote_node_id>/connect")
+    namespace.add_resource(RemoteNodes, "/remote-nodes")
+    namespace.add_resource(RemoteNode, "/remote-nodes/<int:remote_node_id>")
+    namespace.add_resource(RemoteNodeConnect, "/remote-nodes/<int:remote_node_id>/connect")
 
-    api.add_resource(Presenters, "/api/v1/config/presenters")
-    api.add_resource(Publishers, "/api/v1/config/publishers")
-    api.add_resource(PresentersNodes, "/api/v1/config/presenters-nodes", "/api/v1/config/presenters-nodes/<string:node_id>")
-    api.add_resource(PublisherNodes, "/api/v1/config/publishers-nodes", "/api/v1/config/publishers-nodes/<string:node_id>")
-    api.add_resource(PublisherPresets, "/api/v1/config/publishers-presets")
-    api.add_resource(PublisherPreset, "/api/v1/config/publishers-presets/<string:preset_id>")
+    namespace.add_resource(Presenters, "/presenters")
+    namespace.add_resource(Publishers, "/publishers")
+    namespace.add_resource(PresentersNodes, "/presenters-nodes", "/presenters-nodes/<string:node_id>")
+    namespace.add_resource(PublisherNodes, "/publishers-nodes", "/publishers-nodes/<string:node_id>")
+    namespace.add_resource(PublisherPresets, "/publishers-presets")
+    namespace.add_resource(PublisherPreset, "/publishers-presets/<string:preset_id>")
 
-    api.add_resource(BotNodes, "/api/v1/config/bots-nodes", "/api/v1/config/bots-nodes/<string:node_id>")
+    namespace.add_resource(BotNodes, "/bots-nodes", "/bots-nodes/<string:node_id>")
 
-    api.add_resource(Nodes, "/api/v1/config/nodes", "/api/v1/config/nodes/<string:node_id>")
+    namespace.add_resource(Nodes, "/nodes", "/nodes/<string:node_id>")
+    api.add_namespace(namespace)

@@ -54,6 +54,15 @@
           {{ item.raw.default }}
         </v-chip>
       </template>
+      <template #item.state="{ item }">
+        <v-chip
+          :color="item.raw.state > 0 ? 'red' : 'green'"
+          variant="outlined"
+        >
+          {{ item.raw.state > 0 ? 'error' : 'ok' }}
+        </v-chip>
+      </template>
+
       <template #item.completed="{ item }">
         <v-chip
           :color="item.raw.completed ? 'green' : 'blue'"

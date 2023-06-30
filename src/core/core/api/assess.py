@@ -1,6 +1,6 @@
 import io
 from flask import request, send_file
-from flask_restx import Resource
+from flask_restx import Resource, Namespace
 
 from core.managers import auth_manager
 from core.managers.sse_manager import sse_manager
@@ -18,7 +18,7 @@ class OSINTSourceGroupsAssess(Resource):
 class OSINTSourceGroupsList(Resource):
     @auth_required("ASSESS_ACCESS")
     def get(self):
-        return osint_source.OSINTSourceGroup.get_list_json(user=auth_manager.get_user_from_jwt(), acl_check=True)
+        return osint_source.OSINTSourceGroup.get_all_json(search=None, user=auth_manager.get_user_from_jwt(), acl_check=True)
 
 
 class OSINTSourcesList(Resource):
@@ -30,15 +30,15 @@ class OSINTSourcesList(Resource):
 class ManualOSINTSources(Resource):
     @auth_required(["ASSESS_ACCESS"])
     def get(self):
-        return osint_source.OSINTSource.get_all_manual_json(auth_manager.get_user_from_jwt())
+        return osint_source.OSINTSource.get_all_by_type("MANUAL_COLLECTOR")
 
 
 class AddNewsItem(Resource):
     @auth_required("ASSESS_CREATE")
     def post(self):
-        osint_source_ids = news_item.NewsItemAggregate.add_news_item(request.json)
+        ids, status = news_item.NewsItemAggregate.add_news_item(request.json)
         sse_manager.news_items_updated()
-        sse_manager.remote_access_news_items_updated(osint_source_ids)
+        return ids, status
 
 
 class NewsItems(Resource):
@@ -50,21 +50,18 @@ class NewsItems(Resource):
             filter_keys = ["search" "read", "important", "relevant", "in_analyze", "range", "sort"]
             filter_args: dict[str, str | int] = {k: v for k, v in request.args.items() if k in filter_keys}
 
-            group_id = request.args.get("group", osint_source.OSINTSourceGroup.get_default().id)
             filter_args["limit"] = min(int(request.args.get("limit", 20)), 200)
             page = int(request.args.get("page", 0))
             filter_args["offset"] = int(request.args.get("offset", page * filter_args["limit"]))
+            return news_item.NewsItem.get_by_filter_json(filter_args, user)
         except Exception as ex:
             logger.log_debug(ex)
-            return "", 400
-
-        return news_item.NewsItem.get_by_group_json(group_id, filter_args, user)
+            return "Failed to get Newsitems", 400
 
 
 class NewsItemAggregates(Resource):
     @auth_required("ASSESS_ACCESS")
     def get(self):
-        user = auth_manager.get_user_from_jwt()
         try:
             filter_keys = ["search", "read", "unread", "important", "relevant", "in_report", "range", "sort", "source"]
             filter_args: dict[str, str | int | list] = {k: v for k, v in request.args.items() if k in filter_keys}
@@ -75,9 +72,9 @@ class NewsItemAggregates(Resource):
             page = int(request.args.get("page", 0))
             filter_args["offset"] = int(request.args.get("offset", page * filter_args["limit"]))
 
-            return news_item.NewsItemAggregate.get_by_filter_json(filter_args, user)
-        except Exception as ex:
-            logger.log_debug(ex)
+            return news_item.NewsItemAggregate.get_by_filter_json(filter_args, auth_manager.get_user_from_jwt())
+        except Exception:
+            logger.exception("Failed to get Stories")
             return "Failed to get Stories", 400
 
 
@@ -88,7 +85,8 @@ class NewsItemAggregateTags(Resource):
             search = request.args.get("search", "")
             limit = int(request.args.get("limit", 20))
             offset = int(request.args.get("offset", 0))
-            filter_args = {"limit": limit, "offset": offset, "search": search}
+            min_size = int(request.args.get("min_size", 2))
+            filter_args = {"limit": limit, "offset": offset, "search": search, "min_size": min_size}
             return news_item.NewsItemTag.get_json(filter_args)
         except Exception as ex:
             logger.log_debug(ex)
@@ -109,30 +107,11 @@ class NewsItemAggregateTagList(Resource):
             return "Failed to get Tags", 400
 
 
-class NewsItemAggregatesByGroup(Resource):
-    # DEPRECATED IN FAVOR OF NewsItemAggregates
-    @auth_required("ASSESS_ACCESS")
-    def get(self, group_id):
-        user = auth_manager.get_user_from_jwt()
-
-        try:
-            filter_keys = ["search", "read", "unread", "important", "relevant", "in_report", "range", "sort"]
-            filter_args: dict[str, str | int] = {k: v for k, v in request.args.items() if k in filter_keys}
-
-            filter_args["limit"] = min(int(request.args.get("limit", 20)), 200)
-            page = int(request.args.get("page", 0))
-            filter_args["offset"] = int(request.args.get("offset", page * filter_args["limit"]))
-        except Exception as ex:
-            logger.log_debug(ex)
-            return "", 400
-
-        return news_item.NewsItemAggregate.get_by_group_json(group_id, filter_args, user)
-
-
 class NewsItem(Resource):
     @auth_required("ASSESS_ACCESS", ACLCheck.NEWS_ITEM_ACCESS)
     def get(self, item_id):
-        return news_item.NewsItem.get_detail_json(item_id)
+        item = news_item.NewsItem.get(item_id)
+        return item.to_json() if item else ("NewsItem not found", 404)
 
     @auth_required("ASSESS_UPDATE", ACLCheck.NEWS_ITEM_MODIFY)
     def put(self, item_id):
@@ -153,7 +132,7 @@ class NewsItem(Resource):
 class NewsItemAggregate(Resource):
     @auth_required("ASSESS_ACCESS")
     def get(self, aggregate_id):
-        return news_item.NewsItemAggregate.get_by_id(aggregate_id)
+        return news_item.NewsItemAggregate.get_json(aggregate_id)
 
     @auth_required("ASSESS_UPDATE")
     def put(self, aggregate_id):
@@ -198,11 +177,12 @@ class DownloadAttachment(Resource):
     @auth_required("ASSESS_ACCESS")
     def get(self, item_data_id, attribute_id):
         user = auth_manager.get_user_from_jwt()
-        attribute_mapping = news_item.NewsItemDataNewsItemAttribute.find(attribute_id)
+        attribute_mapping = news_item.NewsItemDataNewsItemAttribute.get(attribute_id)
         need_check = attribute_mapping is not None
-        attribute = news_item.NewsItemAttribute.find(attribute_id)
+        attribute = news_item.NewsItemAttribute.get(attribute_id)
         if (
-            need_check
+            attribute
+            and need_check
             and item_data_id == attribute_mapping.news_item_data_id
             and news_item.NewsItemData.allowed_with_acl(
                 attribute_mapping.news_item_data_id,
@@ -224,31 +204,29 @@ class DownloadAttachment(Resource):
 
 
 def initialize(api):
-    api.add_resource(OSINTSourceGroupsAssess, "/api/v1/assess/osint-source-groups")
-    api.add_resource(OSINTSourceGroupsList, "/api/v1/assess/osint-source-group-list")
-    api.add_resource(OSINTSourcesList, "/api/v1/assess/osint-sources-list")
-    api.add_resource(ManualOSINTSources, "/api/v1/assess/manual-osint-sources")
-    api.add_resource(AddNewsItem, "/api/v1/assess/news-items")
-    api.add_resource(
-        NewsItemAggregatesByGroup,
-        "/api/v1/assess/news-item-aggregates-by-group/<string:group_id>",
-    )
-    api.add_resource(
+    namespace = Namespace("Assess", description="Assess related operations", path="/api/v1/assess")
+    namespace.add_resource(OSINTSourceGroupsAssess, "/osint-source-groups")
+    namespace.add_resource(OSINTSourceGroupsList, "/osint-source-group-list")
+    namespace.add_resource(OSINTSourcesList, "/osint-sources-list")
+    namespace.add_resource(ManualOSINTSources, "/manual-osint-sources")
+    namespace.add_resource(AddNewsItem, "/news-items")
+    namespace.add_resource(
         NewsItemAggregates,
-        "/api/v1/assess/news-item-aggregates",
+        "/news-item-aggregates",
     )
-    api.add_resource(
+    namespace.add_resource(
         NewsItems,
-        "/api/v1/assess/news-items",
+        "/news-items",
     )
-    api.add_resource(NewsItemAggregateTags, "/api/v1/assess/tags")
-    api.add_resource(NewsItemAggregateTagList, "/api/v1/assess/taglist")
+    namespace.add_resource(NewsItemAggregateTags, "/tags")
+    namespace.add_resource(NewsItemAggregateTagList, "/taglist")
 
-    api.add_resource(NewsItem, "/api/v1/assess/news-items/<int:item_id>")
-    api.add_resource(NewsItemAggregate, "/api/v1/assess/news-item-aggregates/<int:aggregate_id>")
-    api.add_resource(GroupAction, "/api/v1/assess/news-item-aggregates/group")
-    api.add_resource(UnGroupAction, "/api/v1/assess/news-item-aggregates/ungroup")
-    api.add_resource(
+    namespace.add_resource(NewsItem, "/news-items/<int:item_id>")
+    namespace.add_resource(NewsItemAggregate, "/news-item-aggregates/<int:aggregate_id>")
+    namespace.add_resource(GroupAction, "/news-item-aggregates/group")
+    namespace.add_resource(UnGroupAction, "/news-item-aggregates/ungroup")
+    namespace.add_resource(
         DownloadAttachment,
-        "/api/v1/assess/news-item-data/<string:item_data_id>/attributes/<int:attribute_id>/file",
+        "/news-item-data/<string:item_data_id>/attributes/<int:attribute_id>/file",
     )
+    api.add_namespace(namespace)

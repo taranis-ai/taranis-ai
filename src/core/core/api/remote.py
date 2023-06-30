@@ -1,5 +1,5 @@
 from flask import request
-from flask_restx import Resource
+from flask_restx import Resource, Namespace
 
 from core.managers import auth_manager
 from core.managers.auth_manager import access_key_required
@@ -47,7 +47,9 @@ class RemoteSyncReportItems(Resource):
 
 
 def initialize(api):
-    api.add_resource(RemoteConnect, "/api/v1/remote/connect")
-    api.add_resource(RemoteDisconnect, "/api/v1/remote/disconnect")
-    api.add_resource(RemoteSyncNewsItems, "/api/v1/remote/sync-news-items")
-    api.add_resource(RemoteSyncReportItems, "/api/v1/remote/sync-report-items")
+    namespace = Namespace("remote", description="Remote access API", path="")
+    namespace.add_resource(RemoteConnect, "/connect")
+    namespace.add_resource(RemoteDisconnect, "/disconnect")
+    namespace.add_resource(RemoteSyncNewsItems, "/sync-news-items")
+    namespace.add_resource(RemoteSyncReportItems, "/sync-report-items")
+    api.add_namespace(namespace)

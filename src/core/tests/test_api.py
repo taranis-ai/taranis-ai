@@ -10,7 +10,7 @@ def test_is_alive_fail(client):
 
 def test_auth_login_fail(client):
     response = client.get("/api/v1/auth/login")
-    assert response.status_code == 401
+    assert response.status_code == 302
 
 
 def test_auth_logout(client):
@@ -29,7 +29,7 @@ def test_access_token(access_token):
 
 
 def test_user_profile(client, auth_header):
-    response = client.get("/api/v1/users/my-profile", headers=auth_header)
+    response = client.get("/api/v1/users/profile", headers=auth_header)
     assert response.json
     assert response.data
     assert response.status_code == 200

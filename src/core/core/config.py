@@ -52,5 +52,7 @@ class Settings(BaseSettings):
     PRE_SEED_PASSWORD_ADMIN: str = "admin"
     PRE_SEED_PASSWORD_USER: str = "user"
 
+    CELERY: dict | None = {"broker_url": "amqp://localhost", "result_persistent": False}
+
 
 Config = Settings()

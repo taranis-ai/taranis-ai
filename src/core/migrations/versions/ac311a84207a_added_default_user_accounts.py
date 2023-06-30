@@ -74,7 +74,7 @@ class PermissionREVac311a84207a(Base):
     name = sa.Column(sa.String(), unique=True, nullable=False)
     description = sa.Column(sa.String())
 
-    def __init__(self, id, name, description):
+    def __init__(self, name, description, id=None):
         self.id = id
         self.name = name
         self.description = description

@@ -1,26 +1,18 @@
 import datetime
-from marshmallow import post_load, fields
-from sqlalchemy import func, or_, orm, and_
+from typing import Any
+from sqlalchemy import or_, and_
 import sqlalchemy
 from sqlalchemy.sql.expression import cast
 
 from core.managers.db_manager import db
+from core.managers.log_manager import logger
 from core.model.product import Product
-from core.model.parameter_value import ParameterValueImportSchema
-from core.model.acl_entry import ACLEntry
-from shared.schema.acl_entry import ItemType
-from shared.schema.product_type import ProductTypePresentationSchema, ProductTypeSchema
+from core.model.base_model import BaseModel
+from core.model.acl_entry import ACLEntry, ItemType
+from core.model.parameter_value import ParameterValue
 
 
-class NewProductTypeSchema(ProductTypeSchema):
-    parameter_values = fields.List(fields.Nested(ParameterValueImportSchema))
-
-    @post_load
-    def make(self, data, **kwargs):
-        return ProductType(**data)
-
-
-class ProductType(db.Model):
+class ProductType(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(64), unique=True, nullable=False)
     description = db.Column(db.String(), nullable=False)
@@ -32,17 +24,12 @@ class ProductType(db.Model):
 
     parameter_values = db.relationship("ParameterValue", secondary="product_type_parameter_value", cascade="all")
 
-    def __init__(self, id, title, description, presenter_id, parameter_values):
-        self.id = None
+    def __init__(self, title, description, presenter_id, parameter_values, id=None):
+        self.id = id
         self.title = title
         self.description = description
         self.presenter_id = presenter_id
         self.parameter_values = parameter_values
-        self.tag = "mdi-file-document-outline"
-
-    @orm.reconstructor
-    def reconstruct(self):
-        self.tag = "mdi-file-document-outline"
 
     @classmethod
     def get_all(cls):
@@ -69,7 +56,7 @@ class ProductType(db.Model):
         return query.scalar() is not None
 
     @classmethod
-    def get(cls, search, user, acl_check):
+    def get_by_filter(cls, search, user, acl_check):
         query = cls.query.distinct().group_by(ProductType.id)
 
         if acl_check:
@@ -82,12 +69,11 @@ class ProductType(db.Model):
             )
             query = ACLEntry.apply_query(query, user, True, False, False)
 
-        if search is not None:
-            search_string = f"%{search.lower()}%"
+        if search:
             query = query.filter(
                 or_(
-                    func.lower(ProductType.title).like(search_string),
-                    func.lower(ProductType.description).like(search_string),
+                    ProductType.title.ilike(f"%{search}%"),
+                    ProductType.description.ilike(f"%{search}%"),
                 )
             )
 
@@ -95,28 +81,14 @@ class ProductType(db.Model):
 
     @classmethod
     def get_all_json(cls, search, user, acl_check):
-        product_types, count = cls.get(search, user, acl_check)
-        product_type_schema = ProductTypePresentationSchema(many=True)
-        return {"total_count": count, "items": product_type_schema.dump(product_types)}
-
-    @classmethod
-    def add_new(cls, data):
-        new_product_type_schema = NewProductTypeSchema()
-        product_type = new_product_type_schema.load(data)
-        db.session.add(product_type)
-        db.session.commit()
-
-    @classmethod
-    def delete(cls, id):
-        product_type = cls.query.get(id)
-        db.session.delete(product_type)
-        db.session.commit()
+        product_types, count = cls.get_by_filter(search, user, acl_check)
+        items = [product_type.to_dict() for product_type in product_types]
+        return {"total_count": count, "items": items}
 
     @classmethod
     def update(cls, preset_id, data):
-        new_product_type_schema = NewProductTypeSchema()
-        updated_product_type = new_product_type_schema.load(data)
         product_type = cls.query.get(preset_id)
+        updated_product_type = cls.from_dict(data)
         product_type.title = updated_product_type.title
         product_type.description = updated_product_type.description
 
@@ -126,8 +98,25 @@ class ProductType(db.Model):
                     value.value = updated_value.value
 
         db.session.commit()
+        return product_type.id
+
+    def to_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
+        data["parameter_values"] = [value.to_dict() for value in self.parameter_values]
+        data["tag"] = "mdi-file-document-outline"
+        return data
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "ProductType":
+        logger.debug(data)
+        if parameter_values := data.pop("parameter_values", None):
+            data["parameter_values"] = [ParameterValue(parameter=param, value=val) for param, val in parameter_values.items()]
+        else:
+            data["parameter_values"] = []
+
+        return cls(**data)
 
 
-class ProductTypeParameterValue(db.Model):
+class ProductTypeParameterValue(BaseModel):
     product_type_id = db.Column(db.Integer, db.ForeignKey("product_type.id"), primary_key=True)
     parameter_value_id = db.Column(db.Integer, db.ForeignKey("parameter_value.id"), primary_key=True)

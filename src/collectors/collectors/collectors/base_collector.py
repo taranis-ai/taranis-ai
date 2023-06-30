@@ -1,11 +1,12 @@
 import datetime
 import hashlib
 import uuid
+import json
 import re
 
 from collectors.managers.log_manager import logger
 from collectors.remote.core_api import CoreApi
-from shared.schema import collector, osint_source, news_item
+from shared.schema import collector, news_item
 from bs4 import BeautifulSoup
 from urllib.parse import quote
 
@@ -42,10 +43,10 @@ class BaseCollector:
             return datetime.datetime.now() - datetime.timedelta(days=0, hours=0, minutes=int(interval))
 
     def filter_by_word_list(self, news_items, source):
-        if not source.word_lists:
+        if not source["word_lists"]:
             return news_items
         one_word_list = set()
-        for word_list in source.word_lists:
+        for word_list in source["word_lists"]:
             if word_list.use_for_stop_words is False:
                 for category in word_list.categories:
                     for entry in category.entries:
@@ -72,7 +73,7 @@ class BaseCollector:
             item.id = item.id or uuid.uuid4()
             item.published = item.published or datetime.datetime.now()
             item.collected = item.collected or datetime.datetime.now()
-            item.osint_source_id = item.osint_source_id or source.id
+            item.osint_source_id = item.osint_source_id or source["id"]
             item.attributes = item.attributes or []
             item.title = self.presanitize_html(item.title)
             item.review = self.presanitize_html(item.review)
@@ -85,29 +86,25 @@ class BaseCollector:
                 item.hash = hashlib.sha256(for_hash.encode()).hexdigest()
 
     def publish(self, news_items, source):
+        logger.debug(f"Publishing {len(news_items)} news items to core api")
         self.sanitize_news_items(news_items, source)
-        filtered_news_items = self.filter_by_word_list(news_items, source)
+        if "word_lists" in source:
+            news_items = self.filter_by_word_list(news_items, source)
         news_items_schema = news_item.NewsItemDataSchema(many=True)
-        self.core_api.add_news_items(news_items_schema.dump(filtered_news_items))
+        self.core_api.add_news_items(news_items_schema.dump(news_items))
 
     def refresh(self):
-        logger.log_info(f"Core API requested a refresh of osint sources for {self.type}...")
-        response = self.core_api.get_osint_sources(self.type)
-
-        if not response:
-            logger.log_debug(f"Got the following reply: {response}")
-            return
-
         try:
-            source_schema = osint_source.OSINTSourceSchemaBase(many=True)
-            self.osint_sources = source_schema.load(response)
+            logger.log_info(f"Core API requested a refresh of osint sources for {self.type}...")
+            self.osint_sources = self.core_api.get_osint_sources(self.type)
 
             if not self.osint_sources:
                 logger.log_info(f"No osint sources found for {self.type}")
                 return
 
             for source in self.osint_sources:
-                self.collect(source)
+                collect_status = self.collect(source)
+                self.core_api.update_osintsource_status(source['id'], collect_status)
 
         except Exception:
             logger.log_debug_trace()

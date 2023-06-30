@@ -1,19 +1,13 @@
-from marshmallow import post_load
 import uuid
-from sqlalchemy import or_, func
+from sqlalchemy import or_
+from typing import Any
 
 from core.managers.db_manager import db
+from core.model.base_model import BaseModel
 from core.model.parameter import Parameter
-from shared.schema.presenter import PresenterSchema
 
 
-class NewPresenterSchema(PresenterSchema):
-    @post_load
-    def make(self, data, **kwargs):
-        return Presenter(**data)
-
-
-class Presenter(db.Model):
+class Presenter(BaseModel):
     id = db.Column(db.String(64), primary_key=True)
     name = db.Column(db.String(), nullable=False)
     description = db.Column(db.String())
@@ -35,15 +29,14 @@ class Presenter(db.Model):
         self.parameters = parameters
 
     @classmethod
-    def get(cls, search):
+    def get_by_filter(cls, search):
         query = cls.query
 
         if search is not None:
-            search_string = f"%{search.lower()}%"
             query = query.filter(
                 or_(
-                    func.lower(Presenter.name).like(search_string),
-                    func.lower(Presenter.description).like(search_string),
+                    Presenter.name.ilike(f"%{search}%"),
+                    Presenter.description.ilike(f"%{search}%"),
                 )
             )
 
@@ -51,35 +44,29 @@ class Presenter(db.Model):
 
     @classmethod
     def get_all_json(cls, search):
-        presenters, count = cls.get(search)
-        node_schema = PresenterSchema(many=True)
-        items = node_schema.dump(presenters)
-
+        presenters, count = cls.get_by_filter(search)
+        items = [presenter.to_dict() for presenter in presenters]
         return {"total_count": count, "items": items}
 
     @classmethod
-    def create_all(cls, presenters_data):
-        new_presenter_schema = NewPresenterSchema(many=True)
-        return new_presenter_schema.load(presenters_data)
+    def load_multiple(cls, data: list[dict[str, Any]]) -> list["Presenter"]:
+        return [cls.from_dict(publisher_data) for publisher_data in data]
 
     @classmethod
-    def to_dict(cls):
-        presenter_schema = PresenterSchema()
-        return presenter_schema.dump(Presenter(None, None, None, []))
+    def from_dict(cls, data: dict[str, Any]) -> "Presenter":
+        parameters = [Parameter.find_by_key(param_id) for param_id in data.pop("parameters", [])]
+        return cls(parameters=parameters, **data)
 
     @classmethod
-    def add(cls, data):
+    def add(cls, data) -> tuple[str, int]:
         if cls.find_by_type(data["type"]):
-            return None
-        schema = NewPresenterSchema()
+            return "Presenter type already exists", 400
 
-        parameters = [Parameter.find_by_key(p) for p in data["parameters"] if p is not None]
-        data["parameters"] = []
-        presenter = schema.load(data)
-        presenter.parameters = parameters
+        presenter = cls.from_dict(data)
 
         db.session.add(presenter)
         db.session.commit()
+        return f"Updated presenter {presenter.id}", 200
 
     @classmethod
     def get_first(cls):
@@ -93,7 +80,13 @@ class Presenter(db.Model):
     def find_by_type(cls, type):
         return cls.query.filter_by(type=type).first()
 
+    def to_dict(self: "Presenter") -> dict[str, Any]:
+        data = super().to_dict()
+        data["parameters"] = [parameter.to_dict() for parameter in self.parameters]
+        data["product_types"] = [product_type.id for product_type in self.product_types]
+        return data
 
-class PresenterParameter(db.Model):
+
+class PresenterParameter(BaseModel):
     presenter_id = db.Column(db.String, db.ForeignKey("presenter.id"), primary_key=True)
     parameter_key = db.Column(db.String, db.ForeignKey("parameter.key"), primary_key=True)

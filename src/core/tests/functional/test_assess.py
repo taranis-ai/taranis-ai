@@ -5,28 +5,28 @@ import pytest
 def fake_source(app):
     with app.app_context():
         from core.model.osint_source import OSINTSource
-        from shared.schema.osint_source import OSINTSourceExportSchema
 
         ossi = {
+            "id": "fake-source-id",
             "description": "",
             "name": "Some Bind",
             "parameter_values": [
                 {
                     "value": "https://www.some.bind.it/SiteGlobals/Functions/RSSFeed/RSSNewsfeed/RSSNewsfeed.xml",
-                    "parameter": {"key": "FEED_URL"},
+                    "parameter": "FEED_URL",
                 },
             ],
             "collector": {"type": "RSS_COLLECTOR"},
         }
 
-        osint_source = OSINTSourceExportSchema().load(ossi)
-        yield OSINTSource.import_new(osint_source)
+        OSINTSource.add(ossi)
+        yield ossi["id"]
 
 
 @pytest.fixture
 def news_items_data(app, fake_source):
     with app.app_context():
-        from core.model.news_item import NewNewsItemDataSchema
+        from core.model.news_item import NewsItemData
 
         news_items_data_list = [
             {
@@ -49,7 +49,6 @@ def news_items_data(app, fake_source):
                 "source": "https: //www.content.xxxx.link/RSSNewsfeed.xml",
                 "title": "Bundesinnenministerin Nancy Faeser wird Claudia Plattner zur neuen BSI-Präsidentin berufen",
                 "author": "",
-                "likes": 0,
                 "collected": "2023-01-20T15:00:14.086285",
                 "hash": "e270c3a7d87051dea6c3dc14234451f884b427c32791862dacdd7a3e3d318da6",
                 "attributes": [],
@@ -60,14 +59,13 @@ def news_items_data(app, fake_source):
             },
         ]
 
-        news_item_data_schema = NewNewsItemDataSchema(many=True)
-        yield news_item_data_schema.load(news_items_data_list)
+        yield NewsItemData.load_multiple(news_items_data_list)
 
 
 @pytest.fixture
 def news_item_aggregates(app, request, news_items_data):
     with app.app_context():
-        from core.model.news_item import NewsItemAggregate, NewsItem
+        from core.model.news_item import NewsItemAggregate
         from core.model.user import User
         from core.managers.db_manager import db
 
@@ -77,7 +75,7 @@ def news_item_aggregates(app, request, news_items_data):
 
         def teardown():
             nia = NewsItemAggregate()
-            user = User.find("admin")
+            user = User.find_by_name("admin")
             news_item_aggregates, _ = nia.get_by_filter({"group": "default"}, user)
             for aggregate in news_item_aggregates:
                 aggregate.delete(user)
@@ -88,75 +86,80 @@ def news_item_aggregates(app, request, news_items_data):
 
 
 class TestAssessApi(object):
+    base_uri = "/api/v1/assess"
+
     def assert_get_ok(self, client, uri, auth_header):
-        response = client.get(uri, headers=auth_header)
+        response = client.get(f"{self.base_uri}/{uri}", headers=auth_header)
         assert response
         assert response.content_type == "application/json"
         assert response.data
         assert response.status_code == 200
+        return response
 
     def assert_get_failed(self, client, uri):
-        response = client.get(uri)
+        response = client.get(f"{self.base_uri}/{uri}")
         assert response
         assert response.content_type == "application/json"
         assert response.get_json()["error"] == "not authorized"
         assert response.status_code == 401
+        return response
 
     def test_get_OSINTSourceGroupsAssess_auth(self, client, auth_header):
         """
         This test queries the OSINTSourceGroupsAssess authenticated.
         It expects a valid data and a valid status-code
         """
-        self.assert_get_ok(client, "/api/v1/assess/osint-source-groups", auth_header)
+        response = self.assert_get_ok(client, "osint-source-groups", auth_header)
+        assert response.get_json()["items"][0]["id"] == "default"
 
     def test_get_OSINTSourceGroupsAssess_unauth(self, client):
         """
         This test queries the OSINTSourceGroupsAssess UNauthenticated.
         It expects "not authorized"
         """
-        self.assert_get_failed(client, "/api/v1/assess/osint-source-groups")
+        self.assert_get_failed(client, "osint-source-groups")
 
     def test_get_OSINTSourceGroupsList_auth(self, client, auth_header):
         """
         This test queries the OSINTSourceGroupsList authenticated.
         It expects a valid data and a valid status-code
         """
-        self.assert_get_ok(client, "/api/v1/assess/osint-source-group-list", auth_header)
+        self.assert_get_ok(client, "osint-source-group-list", auth_header)
 
     def test_get_OSINTSourceGroupsList_unauth(self, client):
         """
         This test queries the OSINTSourceGroupsList UNauthenticated.
         It expects "not authorized"
         """
-        self.assert_get_failed(client, "/api/v1/assess/osint-source-group-list")
+        self.assert_get_failed(client, "osint-source-group-list")
 
     def test_get_OSINTSourcesList_auth(self, client, auth_header):
         """
         This test queries the OSINTSourcesList authenticated.
         It expects a valid data and a valid status-code
         """
-        self.assert_get_ok(client, "/api/v1/assess/osint-sources-list", auth_header)
+        self.assert_get_ok(client, "osint-sources-list", auth_header)
 
     def test_get_OSINTSourcesList_unauth(self, client):
         """
         This test queries the OSINTSourcesList UNauthenticated.
         It expects "not authorized"
         """
-        self.assert_get_failed(client, "/api/v1/assess/osint-sources-list")
+        self.assert_get_failed(client, "osint-sources-list")
 
     def test_get_ManualOSINTSources_auth(self, client, auth_header):
         """
         This test queries the ManualOSINTSources authenticated.
         It expects a valid data and a valid status-code
         """
-        self.assert_get_ok(client, "/api/v1/assess/manual-osint-sources", auth_header)
+        self.assert_get_ok(client, "manual-osint-sources", auth_header)
 
     def test_get_ManualOSINTSources_unauth(self, client):
         """
         This test queries the ManualOSINTSources UNauthenticated.
         It expects "not authorized"
         """
-        self.assert_get_failed(client, "/api/v1/assess/manual-osint-sources")
+        self.assert_get_failed(client, "manual-osint-sources")
 
     # def test_post_AddNewsItem_auth(self, client, news_item_aggregates, auth_header):
     #     """
@@ -274,6 +277,7 @@ class TestAssessApi(object):
         assert response.data
         assert response.content_type == "application/json"
         assert response.status_code == 200
+        print(response.get_json())
         assert len(response.get_json()["items"]) == 2
 
     def test_get_NewsItemAggregatesTags_unauth(self, client):
@@ -293,7 +297,7 @@ class TestAssessApi(object):
         It expects "not authorized"
         """
         nia1, nia2 = news_item_aggregates
-        response = nia1.update_tags(nia1.id, ["foo", "bar"])
+        response = nia1.update_tags(nia1.id, ["foo", "bar", "baz"])
         assert response[1] == 200
         response = nia2.update_tags(nia2.id, [{"name": "foo", "type": "some-tag-type"}, {"name": "bar", "type": "some-tag-type"}])
         assert response[1] == 200
@@ -301,12 +305,12 @@ class TestAssessApi(object):
         response = client.get("/api/v1/assess/tags", headers=auth_header)
         assert response
         assert response.data
-        assert len(response.get_json()) == 4
+        assert len(response.get_json()) == 2
         assert response.content_type == "application/json"
         assert response.status_code == 200
         response = client.get("/api/v1/assess/tags?search=fo", headers=auth_header)
-        assert len(response.get_json()) == 2
+        assert len(response.get_json()) == 1
         response = client.get("/api/v1/assess/tags?limit=1", headers=auth_header)
         assert len(response.get_json()) == 1
         response = client.get("/api/v1/assess/tags?offset=1", headers=auth_header)
-        assert len(response.get_json()) == 3
+        assert len(response.get_json()) == 1

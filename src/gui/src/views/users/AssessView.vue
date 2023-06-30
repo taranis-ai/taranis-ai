@@ -25,7 +25,7 @@
     <!-- TODO: Loader not working -->
     <div class="text-subtitle-1 text-center dark-grey--text mt-3">
       <div v-if="moreToLoad">
-        <v-btn @click="loadNext">Next Page</v-btn>
+        <v-btn @click="nextPage">Next Page</v-btn>
       </div>
       <div v-else>
         <v-icon left color="primary">mdi-checkbox-marked-circle-outline</v-icon>
@@ -93,18 +93,17 @@ export default defineComponent({
       items.value = items.value.filter((x) => x.id !== id)
     }
 
-    const loadMore = ({ done }) => {
+    const displayMore = ({ done }) => {
       console.debug('loadMore')
       filterStore.displayMore()
       updateNewsItems()
       done('ok')
     }
 
-    const loadNext = ({ done }) => {
+    const nextPage = () => {
       console.debug('loadNext')
       filterStore.nextPage()
       updateNewsItems()
-      done('ok')
     }
 
     const getNewsItemsFromStore = () => {
@@ -136,9 +135,9 @@ export default defineComponent({
       moreToLoad,
       activeSelection,
       removeAndDeleteNewsItem,
-      loadNext,
+      nextPage,
       selectNewsItem,
-      loadMore
+      displayMore
     }
   }
 })

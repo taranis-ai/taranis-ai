@@ -34,6 +34,7 @@
         </v-row>
         <v-row>
           <v-col cols="4">
+            {{ language }}
             <v-autocomplete
               v-model="language"
               :items="locale_descriptions"
@@ -73,7 +74,7 @@
 </template>
 
 <script>
-import { ref, computed, watchEffect } from 'vue'
+import { ref, computed } from 'vue'
 import { useSettingsStore } from '@/stores/SettingsStore'
 import { storeToRefs } from 'pinia'
 import { onMounted } from 'vue'
@@ -146,25 +147,13 @@ export default {
       hotkeys.value[hotkeyIndex].key = key.code
     }
 
-    watchEffect(() => {
-      shortcuts.value = hotkeys.value.map((shortcut) => {
-        return {
-          alias: shortcut.alias,
-          icon: shortcut.icon,
-          key: shortcut.key,
-          key_code: shortcut.key_code
-        }
-      })
-    })
-
     onMounted(() => {
       settingsStore.loadUserProfile()
       shortcuts.value = hotkeys.value.map((shortcut) => {
         return {
           alias: shortcut.alias,
-          icon: shortcut.icon,
-          key: shortcut.key,
-          key_code: shortcut.key_code
+          key: shortcut.key || null,
+          key_code: shortcut.key_code || null
         }
       })
     })

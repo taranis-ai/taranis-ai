@@ -1,9 +1,8 @@
-from flask_restx import Resource
+from flask_restx import Resource, Namespace
 from flask import request
-from flask_jwt_extended import jwt_required
 
 from core.managers import auth_manager
-from core.managers.auth_manager import auth_required, no_auth
+from core.managers.auth_manager import auth_required
 from core.model import word_list, product_type, publisher_preset
 from core.model.user import User
 from core.managers.log_manager import logger
@@ -39,7 +38,10 @@ class UserPublisherPresets(Resource):
 
 
 def initialize(api):
-    api.add_resource(UserProfile, "/api/v1/users/my-profile")
-    api.add_resource(UserWordLists, "/api/v1/users/my-word-lists")
-    api.add_resource(UserProductTypes, "/api/v1/users/my-product-types")
-    api.add_resource(UserPublisherPresets, "/api/v1/users/my-publisher-presets")
+    namespace = Namespace("users", description="User API", path="/api/v1/users")
+
+    namespace.add_resource(UserProfile, "/profile")
+    namespace.add_resource(UserWordLists, "/my-word-lists")
+    namespace.add_resource(UserProductTypes, "/my-product-types")
+    namespace.add_resource(UserPublisherPresets, "/my-publisher-presets")
+    api.add_namespace(namespace)

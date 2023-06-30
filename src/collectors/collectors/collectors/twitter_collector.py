@@ -18,20 +18,20 @@ class TwitterCollector(BaseCollector):
             news_items = []
             attributes = []
 
-            search_keywords = source.parameter_values["SEARCH_KEYWORDS"].replace(" ", "")
+            search_keywords = source["parameter_values"]["SEARCH_KEYWORDS"].replace(" ", "")
             keywords_list = search_keywords.split(",")
 
-            search_hashtags = source.parameter_values["SEARCH_HASHTAGS"].replace(" ", "")
+            search_hashtags = source["parameter_values"]["SEARCH_HASHTAGS"].replace(" ", "")
             hashtags_list = search_hashtags.split(",")
 
-            number_of_tweets = source.parameter_values["NUMBER_OF_TWEETS"]
+            number_of_tweets = source["parameter_values"]["NUMBER_OF_TWEETS"]
 
-            twitter_api_key = source.parameter_values["TWITTER_API_KEY"]
-            twitter_api_key_secret = source.parameter_values["TWITTER_API_KEY_SECRET"]
-            twitter_access_token = source.parameter_values["TWITTER_ACCESS_TOKEN"]
-            twitter_access_token_secret = source.parameter_values["TWITTER_ACCESS_TOKEN_SECRET"]
+            twitter_api_key = source["parameter_values"]["TWITTER_API_KEY"]
+            twitter_api_key_secret = source["parameter_values"]["TWITTER_API_KEY_SECRET"]
+            twitter_access_token = source["parameter_values"]["TWITTER_ACCESS_TOKEN"]
+            twitter_access_token_secret = source["parameter_values"]["TWITTER_ACCESS_TOKEN_SECRET"]
 
-            proxy_server = source.parameter_values["PROXY_SERVER"]
+            proxy_server = source["parameter_values"]["PROXY_SERVER"]
 
             auth = tweepy.OAuthHandler(twitter_api_key, twitter_api_key_secret)
             auth.set_access_token(twitter_access_token, twitter_access_token_secret)
@@ -52,7 +52,7 @@ class TwitterCollector(BaseCollector):
             else:
                 public_tweets = api.home_timeline(count=number_of_tweets)
 
-            interval = source.parameter_values["REFRESH_INTERVAL"]
+            interval = source["parameter_values"]["REFRESH_INTERVAL"]
 
             limit = BaseCollector.history(interval)
 
@@ -82,7 +82,7 @@ class TwitterCollector(BaseCollector):
                         author,
                         datetime.datetime.now(),
                         content,
-                        source.id,
+                        source["id"],
                         attributes,
                     )
 

@@ -63,7 +63,6 @@ export default defineComponent({
 
     const addItem = () => {
       formData.value = {
-        id: -1,
         title: '',
         description: '',
         attribute_groups: []

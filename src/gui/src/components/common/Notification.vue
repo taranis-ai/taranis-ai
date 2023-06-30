@@ -4,9 +4,9 @@
     <v-btn
       variant="text"
       color="white--text"
+      append-icon="mdi-close"
       @click="notification.show = false"
     >
-      {{ $t('notification.close') }}
     </v-btn>
   </v-snackbar>
 </template>

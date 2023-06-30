@@ -17,16 +17,15 @@ class DatabaseAuthenticator(BaseAuthenticator):
     def get_required_credentials(self):
         return ["username", "password"]
 
-    def authenticate(self, credentials):
+    def authenticate(self, credentials: dict[str, str]) -> tuple[dict[str, str], int]:
         if credentials is None:
             return BaseAuthenticator.generate_error()
         if "username" not in credentials or "password" not in credentials:
             return BaseAuthenticator.generate_error()
 
-        user = User.find(credentials["username"])
-
+        user = User.find_by_name(credentials["username"])
         if user and check_password_hash(user.password, credentials["password"]):
             return BaseAuthenticator.generate_jwt(credentials["username"])
 
-        logger.store_auth_error_activity(f"Authentication failed with credentials: {str(credentials)}")
+        logger.store_auth_error_activity(f"Authentication failed with credentials: {credentials}")
         return BaseAuthenticator.generate_error()

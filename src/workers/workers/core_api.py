@@ -91,7 +91,7 @@ class CoreApi:
     def get_news_items_aggregate(self, source_group, limit):
         try:
             response = requests.get(
-                f"{self.api_url}/api/v1/bots/news-item-aggregates-by-group/{source_group}",
+                f"{self.api_url}/api/v1/bots/news-item-aggregates?group={source_group}",
                 headers=self.headers,
             )
             return response.json(), response.status_code

@@ -1,5 +1,4 @@
 from datetime import datetime
-import schedule
 from core.model.remote import RemoteAccess
 from core.managers.sse import SSE
 
@@ -50,7 +49,7 @@ class SSEManager:
             },
             event="report-item-locked",
         )
-        schedule.every(1).minute.do(self.schedule_unlock_report_item, report_item_id, user_id)
+        # schedule.every(1).minute.do(self.schedule_unlock_report_item, report_item_id, user_id)
 
     def report_item_unlock(self, report_item_id: int, user_id):
         del self.report_item_locks[report_item_id]
@@ -63,18 +62,18 @@ class SSEManager:
             event="report-item-unlocked",
         )
 
-    def schedule_unlock_report_item(self, report_item_id: int, user_id, time_to_unlock: datetime):
-        if report_item_id not in self.report_item_locks:
-            return schedule.CancelJob
+    # def schedule_unlock_report_item(self, report_item_id: int, user_id, time_to_unlock: datetime):
+    #     if report_item_id not in self.report_item_locks:
+    #         return schedule.CancelJob
 
-        if self.report_item_locks[report_item_id]["user_id"] != user_id:
-            return schedule.CancelJob
+    #     if self.report_item_locks[report_item_id]["user_id"] != user_id:
+    #         return schedule.CancelJob
 
-        if self.report_item_locks[report_item_id]["lock_time"] > time_to_unlock:
-            return
+    #     if self.report_item_locks[report_item_id]["lock_time"] > time_to_unlock:
+    #         return
 
-        self.report_item_unlock(report_item_id, user_id)
-        return schedule.CancelJob
+    #     self.report_item_unlock(report_item_id, user_id)
+    #     return schedule.CancelJob
 
 
 sse_manager = SSEManager()

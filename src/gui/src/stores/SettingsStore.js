@@ -113,13 +113,15 @@ export const useSettingsStore = defineStore('settings', {
     language: 'en'
   }),
   actions: {
-    async loadUserProfile() {
-      const response = await getProfile()
-      this.setUserProfile(response.data)
+    loadUserProfile() {
+      getProfile().then((response) => {
+        this.setUserProfile(response.data)
+      })
     },
     async saveUserProfile(data) {
-      const response = await updateProfile(data)
-      this.setUserProfile(response.data)
+      updateProfile(data).then((response) => {
+        this.setUserProfile(response.data)
+      })
     },
     setUserProfile(profile) {
       this.spellcheck = profile.spellcheck
@@ -129,13 +131,7 @@ export const useSettingsStore = defineStore('settings', {
       i18n.global.locale.value = profile.language
       vuetify.theme.global.name.value = profile.dark_theme ? 'dark' : 'light'
 
-      for (const hotkey of profile.hotkeys) {
-        const stateHotkey = this.hotkeys.find((h) => h.alias === hotkey.alias)
-        if (stateHotkey) {
-          stateHotkey.key = hotkey.key
-          stateHotkey.key_code = hotkey.key_code
-        }
-      }
+      console.debug(profile)
     }
   }
 })

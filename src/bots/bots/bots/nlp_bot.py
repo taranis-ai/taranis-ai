@@ -59,13 +59,13 @@ class NLPBot(BaseBot):
                 return
 
             for aggregate in data:
+                existing_tags = aggregate.get("tags", [])
+                keywords = []
+                content_list = []
+
                 if aggregate.get("summary", None) and aggregate.get("tags", None):
                     logger.debug(f"Skipping aggregate: {aggregate['id']}")
                     continue
-
-                keywords = []
-                content_list = []
-                existing_tags = aggregate["tags"] or []
 
                 logger.debug(f"NLP processing aggregate: {aggregate['id']}")
 
@@ -92,7 +92,7 @@ class NLPBot(BaseBot):
                         if summary := self.predict_summary(content_list):
                             self.core_api.update_news_items_aggregate_summary(aggregate["id"], summary)
                     except Exception:
-                        logger.error(f"Could not generate summary for {aggregate['id']}")
+                        logger.log_debug_trace(f"Could not generate summary for {aggregate['id']}")
                 if keywords:
                     self.core_api.update_news_item_tags(aggregate["id"], keywords)
 
@@ -110,7 +110,7 @@ class NLPBot(BaseBot):
     def extract_ner(self, text):
         ner_model = self.ner_model
         doc = ner_model(text)
-        return [{"name": ent.text, "type": ent.label_} for ent in doc.ents]
+        return [{"name": ent.text, "type": ent.label_} for ent in doc.ents if len(ent.text) > 2]
 
     def generateKeywords(self, text):
         stop_words = "german" if self.language == "de" else "english"

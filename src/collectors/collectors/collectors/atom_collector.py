@@ -19,16 +19,16 @@ class AtomCollector(BaseCollector):
     news_items = []
 
     def collect(self, source):
-        feed_url = source.parameter_values["ATOM_FEED_URL"]
-        user_agent = source.parameter_values["USER_AGENT"]
-        interval = source.parameter_values["REFRESH_INTERVAL"]
+        feed_url = source["parameter_values"]["ATOM_FEED_URL"]
+        user_agent = source["parameter_values"]["USER_AGENT"]
+        interval = source["parameter_values"]["REFRESH_INTERVAL"]
 
         if not feed_url:
             return
 
         proxies = {}
-        if "PROXY_SERVER" in source.parameter_values:
-            proxy_server = source.parameter_values["PROXY_SERVER"]
+        if "PROXY_SERVER" in source["parameter_values"]:
+            proxy_server = source["parameter_values"]["PROXY_SERVER"]
             if proxy_server.startswith("https://"):
                 proxies["https"] = proxy_server
             elif proxy_server.startswith("http://"):
@@ -82,7 +82,7 @@ class AtomCollector(BaseCollector):
                         feed_entry["author"],
                         datetime.datetime.now(),
                         content,
-                        source.id,
+                        source["id"],
                         [],
                     )
 

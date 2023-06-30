@@ -17,7 +17,7 @@ class SlackCollector(BaseCollector):
     def collect(self, source):
         news_items = []
 
-        proxy_server = source.parameter_values["PROXY_SERVER"]
+        proxy_server = source["parameter_values"]["PROXY_SERVER"]
 
         if proxy_server:
             server = "https://slack.com"
@@ -35,11 +35,11 @@ class SlackCollector(BaseCollector):
                 s.send(str.encode(connection))
                 s.recv(4096)
             except Exception:
-                print("OSINTSource ID: " + source.id)
+                print("OSINTSource ID: " + source["id"])
                 print("OSINTSource name: " + source.name)
                 print("Proxy connection failed")
 
-        slack_client = SlackClient(source.parameter_values["SLACK_API_TOKEN"])
+        slack_client = SlackClient(source["parameter_values"]["SLACK_API_TOKEN"])
 
         if slack_client.rtm_connect():
             while True:
@@ -48,7 +48,7 @@ class SlackCollector(BaseCollector):
 
                     if data:
                         for item in data:
-                            ids = source.parameter_values["WORKSPACE_CHANNELS_ID"].replace(" ", "")
+                            ids = source["parameter_values"]["WORKSPACE_CHANNELS_ID"].replace(" ", "")
                             channels_list = ids.split(",")
 
                             if item["type"] == "message" and item["channel"] in channels_list:
@@ -85,7 +85,7 @@ class SlackCollector(BaseCollector):
                                     author,
                                     datetime.datetime.now(),
                                     content,
-                                    source.id,
+                                    source["id"],
                                     [],
                                 )
 
@@ -98,6 +98,6 @@ class SlackCollector(BaseCollector):
                     print("Deleted message")
                     pass
         else:
-            print("OSINTSource ID: " + source.id)
+            print("OSINTSource ID: " + source["id"])
             print("OSINTSource name: " + source.name)
             print("ERROR")

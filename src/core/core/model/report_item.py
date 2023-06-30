@@ -1,91 +1,73 @@
-from marshmallow import post_load, fields
 from datetime import datetime, timedelta
 
 import uuid as uuid_generator
-from sqlalchemy import orm, or_, func, text, and_
+from sqlalchemy import orm, or_, text, and_
 from sqlalchemy.sql.expression import cast
 from typing import Any
 import sqlalchemy
 
 from core.managers.db_manager import db
+from core.model.base_model import BaseModel
 from core.managers.log_manager import logger
 from core.model.news_item import NewsItemAggregate
 from core.model.report_item_type import AttributeGroupItem
 from core.model.report_item_type import ReportItemType
 from core.model.acl_entry import ACLEntry
 from core.model.user import User
-from shared.schema.acl_entry import ItemType
-from shared.schema.attribute import AttributeType
-from shared.schema.news_item import NewsItemAggregateIdSchema, NewsItemAggregateSchema
-from shared.schema.report_item import ReportItemAttributeBaseSchema, ReportItemBaseSchema, ReportItemIdSchema, RemoteReportItemSchema, ReportItemRemoteSchema, ReportItemSchema, ReportItemPresentationSchema
+from core.model.acl_entry import ItemType
+from core.model.attribute import AttributeType
 
 
-class NewReportItemAttributeSchema(ReportItemAttributeBaseSchema):
-    @post_load
-    def make_report_item_attribute(self, data, **kwargs):
-        return ReportItemAttribute(**data)
-
-
-class ReportItemAttribute(db.Model):
+class ReportItemAttribute(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     value = db.Column(db.String(), nullable=False)
     binary_mime_type = db.Column(db.String())
     binary_data = orm.deferred(db.Column(db.LargeBinary))
     binary_description = db.Column(db.String())
-    created = db.Column(db.DateTime, default=datetime.now)
-    last_updated = db.Column(db.DateTime, default=datetime.now)
-
-    version = db.Column(db.Integer, default=1)
-    current = db.Column(db.Boolean, default=True)
 
     attribute_group_item_id = db.Column(db.Integer, db.ForeignKey("attribute_group_item.id"))
     attribute_group_item = db.relationship("AttributeGroupItem")
-    attribute_group_item_title = db.Column(db.String)
 
     report_item_id = db.Column(db.Integer, db.ForeignKey("report_item.id"), nullable=True)
     report_item = db.relationship("ReportItem")
 
     def __init__(
         self,
-        id,
         value,
-        binary_mime_type,
-        binary_description,
         attribute_group_item_id,
-        attribute_group_item_title,
+        binary_mime_type=None,
+        binary_description=None,
+        id=None,
     ):
-        self.id = None
+        self.id = id
         self.value = value
         self.binary_mime_type = binary_mime_type
         self.binary_description = binary_description
         self.attribute_group_item_id = attribute_group_item_id
-        self.attribute_group_item_title = attribute_group_item_title
 
     @classmethod
-    def find(cls, attribute_id):
-        return cls.query.get(attribute_id)
+    def find_by_attribute_group(cls, attribute_group_id, report_item_id=None):
+        return cls.query.filter_by(attribute_group_item_id=attribute_group_id).filter_by(report_item_id=report_item_id).first()
 
     @staticmethod
     def sort(report_item_attribute):
         return report_item_attribute.last_updated
 
+    def update(self, new_item: dict[str, Any]) -> tuple[str, int]:
+        for key, value in new_item.items():
+            if hasattr(self, key) and key != "id":
+                setattr(self, key, value)
 
-class NewReportItemSchema(ReportItemBaseSchema):
-    news_item_aggregates = fields.Nested(NewsItemAggregateIdSchema, many=True, load_default=[])
-    remote_report_items = fields.Nested(ReportItemIdSchema, many=True, load_default=[])
-    attributes = fields.Nested(NewReportItemAttributeSchema, many=True)
-
-    @post_load
-    def make(self, data, **kwargs):
-        return ReportItem(**data)
+        db.session.commit()
+        return f"Successfully updated {self.id}", 200
 
 
-class ReportItemRemoteReportItem(db.Model):
+class ReportItemRemoteReportItem(BaseModel):
     report_item_id = db.Column(db.Integer, db.ForeignKey("report_item.id"), primary_key=True)
     remote_report_item_id = db.Column(db.Integer, db.ForeignKey("report_item.id"), primary_key=True)
 
 
-class ReportItem(db.Model):
+class ReportItem(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     uuid = db.Column(db.String(64))
 
@@ -122,7 +104,6 @@ class ReportItem(db.Model):
 
     def __init__(
         self,
-        id,
         uuid,
         title,
         title_prefix,
@@ -131,6 +112,7 @@ class ReportItem(db.Model):
         remote_report_items,
         attributes,
         completed,
+        id=None,
     ):
         self.id = id
 
@@ -141,28 +123,90 @@ class ReportItem(db.Model):
         self.attributes = attributes
         self.completed = completed
         self.report_item_cpes = []
-        self.tag = "mdi-file-table-outline"
 
-        self.news_item_aggregates = [NewsItemAggregate.find(news_item_aggregate.id) for news_item_aggregate in news_item_aggregates]
+        self.news_item_aggregates = [NewsItemAggregate.get(news_item_aggregate.id) for news_item_aggregate in news_item_aggregates]
 
-        self.remote_report_items = [ReportItem.find(remote_report_item.id) for remote_report_item in remote_report_items]
-
-    @orm.reconstructor
-    def reconstruct(self):
-        self.tag = "mdi-file-table-outline"
-        self.attributes.sort(key=ReportItemAttribute.sort)
+        self.remote_report_items = [ReportItem.get(remote_report_item.id) for remote_report_item in remote_report_items]
 
     @classmethod
     def count_all(cls, is_completed):
         return cls.query.filter_by(completed=is_completed).count()
 
     @classmethod
-    def find(cls, report_item_id):
-        return cls.query.get(report_item_id)
-
-    @classmethod
     def find_by_uuid(cls, report_item_uuid):
         return cls.query.filter_by(uuid=report_item_uuid)
+
+    @classmethod
+    def get_json(cls, filter, user):
+        reports, count = cls.get_by_filter(filter, user, True)
+        items = [report.to_dict() for report in reports]
+        return {"total_count": count, "items": items}
+
+    @classmethod
+    def get_aggregate_ids(cls, id):
+        report_item = cls.query.get(id)
+        return [aggregate.id for aggregate in report_item.aggregates]
+
+    @classmethod
+    def get_detail_json(cls, id):
+        report_item = cls.get(id)
+        return report_item.to_detail_dict() if report_item else None
+
+    @classmethod
+    def get_groups(cls):
+        result = (
+            db.session.query(ReportItem.remote_user)
+            .distinct()
+            .group_by(ReportItem.remote_user)
+            .filter(ReportItem.remote_user is not None)
+            .all()
+        )
+        groups = {row[0] for row in result if row[0] is not None}
+        return list(groups)
+
+    def to_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
+        data["tag"] = "mdi-file-table-outline"
+        return data
+
+    def to_detail_dict(self):
+        data = self.to_dict()
+        data["attributes"] = [attribute.to_dict() for attribute in self.attributes]
+        data["news_item_aggregates"] = [aggregate.id for aggregate in self.news_item_aggregates]
+        return data
+
+    @classmethod
+    def from_dict(cls, data) -> "ReportItem":
+        logger.debug(f"Creating ReportItem from {data}")
+        attributes = ReportItemAttribute.load_multiple(data.pop("attributes"))
+        return cls(attributes=attributes, **data)
+
+    @classmethod
+    def load_multiple(cls, data: list[dict[str, Any]]) -> list["ReportItem"]:
+        return [cls.from_dict(report_item) for report_item in data]
+
+    @classmethod
+    def add(cls, report_item_data, user):
+        report_item = cls.from_dict(report_item_data)
+
+        if not ReportItemType.allowed_with_acl(report_item.report_item_type_id, user, False, False, True):
+            return report_item, 401
+
+        report_item.user_id = user.id
+        report_item.update_cpes()
+        report_item.add_attributes()
+
+        db.session.add(report_item)
+        db.session.commit()
+
+        return report_item, 200
+
+    def add_attributes(self):
+        """Adds attributes based on the report item type to the report item."""
+        attribute_groups = ReportItemType.get(self.report_item_type_id).attribute_groups
+        for attribute_group in attribute_groups:
+            for attribute_group_item in attribute_group.attribute_group_items:
+                self.attributes.append(ReportItemAttribute(attribute_group_item_id=attribute_group_item.id, value=""))
 
     @classmethod
     def allowed_with_acl(cls, report_item_id, user, see, access, modify):
@@ -200,17 +244,10 @@ class ReportItem(db.Model):
 
         report_items = query.all()
 
-        for report_item in report_items:
-            for attribute in report_item.attributes:
-                attribute.attribute_group_item_title = attribute.attribute_group_item.title
-
-        report_item_remote_schema = ReportItemRemoteSchema(many=True)
-        items = report_item_remote_schema.dump(report_items)
-
-        return items, last_sync_time
+        return [report_item.to_dict() for report_item in report_items], last_sync_time
 
     @classmethod
-    def get(cls, group, filter: dict, user, acl_check: bool):
+    def get_by_filter(cls, filter: dict, user, acl_check: bool):
         query = cls.query
 
         if acl_check:
@@ -223,7 +260,8 @@ class ReportItem(db.Model):
             )
             query = ACLEntry.apply_query(query, user, True, False, False)
 
-        if group:
+        group = filter.get("group")
+        if group and group != "":
             query = cls.query.filter(ReportItem.remote_user == group)
 
         search = filter.get("search")
@@ -289,79 +327,16 @@ class ReportItem(db.Model):
         return [row[0] for row in result if row[0] is not None]
 
     @classmethod
-    def get_json(cls, group, filter, user):
-        results, count = cls.get(group, filter, user, True)
-        logger.log_debug(f"Found {count} report items with filter {filter}")
-        report_items_schema = ReportItemPresentationSchema(many=True)
-        return {"total_count": count, "items": report_items_schema.dump(results)}
-
-    @classmethod
-    def get_aggregate_ids(cls, id):
-        report_item = cls.query.get(id)
-        return [aggregate.id for aggregate in report_item.aggregates]
-
-    @classmethod
-    def get_detail_json(cls, id):
-        report_item = cls.query.get(id)
-        return ReportItemSchema().dump(report_item)
-
-    @classmethod
-    def get_groups(cls):
-        result = (
-            db.session.query(ReportItem.remote_user)
-            .distinct()
-            .group_by(ReportItem.remote_user)
-            .filter(ReportItem.remote_user is not None)
-            .all()
-        )
-        groups = {row[0] for row in result if row[0] is not None}
-        return list(groups)
-
-    @classmethod
-    def add_report_item(cls, report_item_data, user):
-        report_item = NewReportItemSchema().load(report_item_data)
-
-        if not ReportItemType.allowed_with_acl(report_item.report_item_type_id, user, False, False, True):
-            return report_item, 401
-
-        report_item.user_id = user.id
-        report_item.update_cpes()
-
-        db.session.add(report_item)
-        db.session.commit()
-
-        return report_item, 200
-
-    @classmethod
-    def add_remote_report_items(cls, report_item_data, remote_node_name):
-        report_items = NewReportItemSchema(many=True).load(report_item_data)
-
-        for report_item in report_items:
-            original_report_item = cls.find_by_uuid(report_item.uuid)
-            if original_report_item is None:
-                report_item.remote_user = remote_node_name
-                db.session.add(report_item)
-            else:
-                original_report_item.title = report_item.title
-                original_report_item.title_prefix = report_item.title_prefix
-                original_report_item.completed = report_item.completed
-                original_report_item.last_updated = datetime.now()
-                original_report_item.attributes = report_item.attributes
-
-        db.session.commit()
-
-    @classmethod
     def add_aggregates(cls, id: int, aggregate_ids: list, user: User) -> tuple[Any, int]:
         report_item = cls.query.get(id)
         if report_item is None:
             return None, 404
 
         if not ReportItemType.allowed_with_acl(report_item.report_item_type_id, user, False, False, True):
-            return report_item, 401
+            return f"User {user.id} is not allowed to update Report {report_item.id}", 401
 
         for aggregate_id in aggregate_ids:
-            aggregate = NewsItemAggregate.find(aggregate_id)
-            report_item.news_item_aggregates.append(aggregate)
+            report_item.news_item_aggregates.append(NewsItemAggregate.get(aggregate_id))
 
         db.session.commit()
 
@@ -380,13 +355,16 @@ class ReportItem(db.Model):
         report_item.title_prefix = data["title_prefix"]
         report_item.completed = data["completed"]
 
-        attributes = NewReportItemAttributeSchema(many=True).load(data["attributes"])
-
-        report_item.attributes = attributes
+        if attributes_data := data.pop("attributes", None):
+            for attribute_data in attributes_data:
+                attribute = ReportItemAttribute.find_by_attribute_group(
+                    attribute_group_id=attribute_data["attribute_group_item_id"], report_item_id=report_item.id
+                )
+                attribute.value = attribute_data["value"]
 
         if "aggregate_ids" in data:
             for aggregate_id in data["aggregate_ids"]:
-                aggregate = NewsItemAggregate.find(aggregate_id)
+                aggregate = NewsItemAggregate.get(aggregate_id)
                 report_item.news_item_aggregates.append(aggregate)
 
         db.session.commit()
@@ -416,18 +394,16 @@ class ReportItem(db.Model):
 
             if "add" in data:
                 if "aggregate_ids" in data:
-                    schema = NewsItemAggregateSchema()
                     data["news_item_aggregates"] = []
                     for aggregate_id in data["aggregate_ids"]:
-                        aggregate = NewsItemAggregate.find(aggregate_id)
-                        data["news_item_aggregates"].append(schema.dump(aggregate))
+                        data["news_item_aggregates"].append(NewsItemAggregate.get(aggregate_id).to_dict())
 
                 if "remote_report_item_ids" in data:
-                    schema = RemoteReportItemSchema()
                     data["remote_report_items"] = []
                     for remote_report_item_id in data["remote_report_item_ids"]:
-                        remote_report_item = ReportItem.find(remote_report_item_id)
-                        data["remote_report_items"].append(schema.dump(remote_report_item))
+                        remote_report_item = ReportItem.get(remote_report_item_id)
+                        if remote_report_item is not None:
+                            data["remote_report_items"].append(remote_report_item.to_dict())
 
                 if "attribute_id" in data:
                     for attribute in report_item.attributes:
@@ -435,7 +411,7 @@ class ReportItem(db.Model):
                             data["attribute_value"] = attribute.value
                             data["binary_mime_type"] = attribute.binary_mime_type
                             data["binary_description"] = attribute.binary_description
-                            data["attribute_last_updated"] = attribute.last_updated.strftime("%d.%m.%Y - %H:%M")
+                            data["attribute_last_updated"] = attribute.last_updated.isoformat()
                             break
 
         return data
@@ -445,14 +421,12 @@ class ReportItem(db.Model):
         report_item = cls.query.get(id)
         file_data = file.read()
         new_attribute = ReportItemAttribute(
-            None,
-            file.filename,
-            file.mimetype,
-            len(file_data),
-            description,
-            attribute_group_item_id,
-            None,
+            value=file.filename,
+            binary_description=file.filename,
+            binary_mime_type=file.mimetype,
+            attribute_group_item_id=attribute_group_item_id,
         )
+
         new_attribute.binary_data = file_data
         report_item.attributes.append(new_attribute)
 
@@ -492,25 +466,34 @@ class ReportItem(db.Model):
 
         return data
 
-    @classmethod
-    def delete_report_item(cls, id) -> tuple[str, int]:
-        report_item = cls.query.get(id)
-        if report_item is not None:
-            db.session.delete(report_item)
-            db.session.commit()
-            return "success", 200
-        return "not found", 404
-
     def update_cpes(self):
         self.report_item_cpes = []
-        if self.completed is True:
+        if self.completed:
             for attribute in self.attributes:
-                attribute_group = AttributeGroupItem.find(attribute.attribute_group_item_id)
+                attribute_group = AttributeGroupItem.get(attribute.attribute_group_item_id)
                 if attribute_group.attribute.type == AttributeType.CPE:
                     self.report_item_cpes.append(ReportItemCpe(attribute.value))
 
+    @classmethod
+    def add_remote_report_items(cls, report_item_data, remote_node_name):
+        report_items = ReportItem.load_multiple(report_item_data)
 
-class ReportItemCpe(db.Model):
+        for report_item in report_items:
+            original_report_item = cls.find_by_uuid(report_item.uuid)
+            if original_report_item is None:
+                report_item.remote_user = remote_node_name
+                db.session.add(report_item)
+            else:
+                original_report_item.title = report_item.title
+                original_report_item.title_prefix = report_item.title_prefix
+                original_report_item.completed = report_item.completed
+                original_report_item.last_updated = datetime.now()
+                original_report_item.attributes = report_item.attributes
+
+        db.session.commit()
+
+
+class ReportItemCpe(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     value = db.Column(db.String())
     report_item_id = db.Column(db.Integer, db.ForeignKey('report_item.id'))

@@ -1,9 +1,10 @@
 from datetime import datetime
 
 from core.managers.db_manager import db
+from core.model.base_model import BaseModel
 
 
-class TokenBlacklist(db.Model):
+class TokenBlacklist(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     token = db.Column(db.String(), nullable=False)
     created = db.Column(db.DateTime, default=datetime.now)

@@ -1,4 +1,4 @@
-from flask_restful import Api
+from flask_restx import Api
 
 import bots.api as apis
 

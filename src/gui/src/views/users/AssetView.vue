@@ -22,7 +22,6 @@ export default {
   data: function () {
     return {
       default_asset: {
-        id: -1,
         name: '',
         serial: '',
         description: '',

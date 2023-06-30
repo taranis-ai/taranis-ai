@@ -166,8 +166,7 @@ export function createOrganization(organization) {
 }
 
 export function updateOrganization(organization) {
-  const id = organization.id
-  delete organization.id
+  const { id } = organization
   return ApiService.put(`/config/organizations/${id}`, organization)
 }
 

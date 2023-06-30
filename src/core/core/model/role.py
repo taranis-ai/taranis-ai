@@ -1,13 +1,12 @@
-from marshmallow import fields, post_load
-from sqlalchemy import func, or_, orm
-
-from core.managers.db_manager import db
-from core.model.permission import Permission
-from shared.schema.role import RolePresentationSchema
+from sqlalchemy import or_
 from typing import Any
 
+from core.managers.db_manager import db
+from core.model.base_model import BaseModel
+from core.model.permission import Permission
 
-class Role(db.Model):
+
+class Role(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(64), unique=True, nullable=False)
     description = db.Column(db.String())
@@ -18,17 +17,7 @@ class Role(db.Model):
         self.id = id
         self.name = name
         self.description = description
-        self.permissions = []
-        self.permissions.extend(Permission.find(permission) for permission in permissions)
-        self.tag = "mdi-account-arrow-right"
-
-    @orm.reconstructor
-    def reconstruct(self):
-        self.tag = "mdi-account-arrow-right"
-
-    @classmethod
-    def find(cls, role_id):
-        return cls.query.get(role_id)
+        self.permissions = permissions
 
     @classmethod
     def find_by_name(cls, role_name):
@@ -39,7 +28,7 @@ class Role(db.Model):
         return cls.query.order_by(db.asc(Role.name)).all()
 
     @classmethod
-    def get(cls, search):
+    def get_by_filter(cls, search):
         query = cls.query
 
         if search is not None:
@@ -54,27 +43,24 @@ class Role(db.Model):
 
     @classmethod
     def get_all_json(cls, search):
-        roles, count = cls.get(search)
-        roles_schema = RolePresentationSchema(many=True)
-        return {"total_count": count, "items": roles_schema.dump(roles)}
-
-    def to_dict(self):
-        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+        roles, count = cls.get_by_filter(search)
+        items = [role.to_dict() for role in roles]
+        return {"total_count": count, "items": items}
 
     @classmethod
-    def load_multiple(cls, data: list[dict[str, Any]]) -> list["Role"]:
-        return [cls.from_dict(publisher_data) for publisher_data in data]
+    def load_multiple(cls, json_data: list[dict[str, Any]]) -> list["Role"]:
+        return [cls.from_dict(data) for data in json_data]
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Role":
-        return cls(**data)
+        permissions = [Permission.get(permission_id) for permission_id in data.pop("permissions", [])]
+        return cls(permissions=permissions, **data)
 
-    @classmethod
-    def add_new(cls, data) -> tuple[str, int]:
-        role = cls.from_dict(data)
-        db.session.add(role)
-        db.session.commit()
-        return f"Successfully Added {role.id}", 201
+    def to_dict(self):
+        data = {c.name: getattr(self, c.name) for c in self.__table__.columns}
+        data["permissions"] = [permission.id for permission in self.permissions]
+        data["tag"] = "mdi-account-arrow-right"
+        return data
 
     def get_permissions(self):
         return {permission.id for permission in self.permissions}
@@ -84,20 +70,14 @@ class Role(db.Model):
         role = cls.query.get(role_id)
         if role is None:
             return "Role not found", 404
-        permissions = [Permission.find(permission_id) for permission_id in data.pop("permissions", [])]
+        permissions = [Permission.get(permission_id) for permission_id in data.pop("permissions", [])]
         role.name = data["name"]
         role.description = data["description"]
         role.permissions = permissions
         db.session.commit()
         return f"Succussfully updated {role.id}", 201
 
-    @classmethod
-    def delete(cls, id):
-        role = cls.query.get(id)
-        db.session.delete(role)
-        db.session.commit()
 
-
-class RolePermission(db.Model):
+class RolePermission(BaseModel):
     role_id = db.Column(db.Integer, db.ForeignKey("role.id"), primary_key=True)
     permission_id = db.Column(db.String, db.ForeignKey("permission.id"), primary_key=True)

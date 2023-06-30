@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from enum import Enum, auto
 from functools import wraps
 from flask import request
+from typing import Any
 from flask_jwt_extended import (
     JWTManager,
     get_jwt,
@@ -10,7 +11,7 @@ from flask_jwt_extended import (
 )
 from flask_jwt_extended.exceptions import JWTExtendedException
 
-from core.managers import time_manager
+# from core.managers import time_manager
 from core.managers.log_manager import logger
 from core.auth.keycloak_authenticator import KeycloakAuthenticator
 from core.auth.openid_authenticator import OpenIDAuthenticator
@@ -19,7 +20,6 @@ from core.auth.database_authenticator import DatabaseAuthenticator
 from core.model.collectors_node import CollectorsNode
 from core.model.news_item import NewsItem
 from core.model.osint_source import OSINTSourceGroup
-from core.model.permission import Permission
 from core.model.product_type import ProductType
 from core.model.remote import RemoteAccess
 from core.model.report_item import ReportItem
@@ -55,15 +55,14 @@ def initialize(app):
     with app.app_context():
         current_authenticator.initialize(app)
 
-    time_manager.schedule_job_every_day("00:00", cleanup_token_blacklist, app)
+    # time_manager.schedule_job_every_day("00:00", cleanup_token_blacklist)
 
 
 def get_required_credentials():
     return current_authenticator.get_required_credentials()
 
 
-def authenticate(credentials):
-    logger.log_debug(f"credentials: {credentials}")
+def authenticate(credentials: dict[str, str]) -> tuple[dict[str, Any], int]:
     return current_authenticator.authenticate(credentials)
 
 
@@ -123,7 +122,7 @@ def no_auth(fn):
     return wrapper
 
 
-def get_id_name_by_acl(acl):
+def get_id_name_by_acl(acl) -> str | None:
     if "NEWS_ITEM" in acl.name:
         return "item_id"
     elif "REPORT_ITEM" in acl.name:
@@ -132,6 +131,7 @@ def get_id_name_by_acl(acl):
         return "group_id"
     elif "PRODUCT" in acl.name:
         return "product_id"
+    return None
 
 
 def auth_required(permissions: list | str, acl=None):
@@ -154,7 +154,7 @@ def auth_required(permissions: list | str, acl=None):
                 logger.store_auth_error_activity(f"Missing identity in JWT: {get_jwt()}")
                 return error
 
-            user = User.find(identity)
+            user = User.find_by_name(identity)
 
             # does it include permissions?
             claims = get_jwt()
@@ -170,18 +170,23 @@ def auth_required(permissions: list | str, acl=None):
                 logger.store_user_auth_error_activity(
                     user,
                     "",
-                    "Insufficient permissions in JWT for identity: {}".format(identity),
+                    f"Insufficient permissions in JWT for identity: {identity}",
                 )
                 return error
 
             # if the object does have an ACL, do we match it?
-            if acl and not check_acl(kwargs[get_id_name_by_acl(acl)], acl, user):
-                logger.store_user_auth_error_activity(
-                    user,
-                    "",
-                    "Access denied by ACL in JWT for identity: {}".format(identity),
-                )
-                return error
+            if acl:
+                id_name = get_id_name_by_acl(acl)
+                if not id_name:
+                    return fn(*args, **kwargs)
+
+                if not check_acl(kwargs[id_name], acl, user):
+                    logger.store_user_auth_error_activity(
+                        user,
+                        "",
+                        f"Access denied by ACL in JWT for identity: {identity}",
+                    )
+                    return error
 
             return fn(*args, **kwargs)
 
@@ -255,12 +260,4 @@ def get_user_from_jwt() -> User | None:
         return None
     identity = get_jwt_identity()
 
-    return User.find(identity) if identity else None
-
-
-def get_external_permissions_ids():
-    return ["MY_ASSETS_ACCESS", "MY_ASSETS_CREATE", "MY_ASSETS_CONFIG"]
-
-
-def get_external_permissions():
-    return [Permission.find(permission_id) for permission_id in get_external_permissions_ids()]
+    return User.find_by_name(identity) if identity else None

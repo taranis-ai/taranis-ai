@@ -1,25 +1,26 @@
-from sqlalchemy import func, or_, orm, and_
-from marshmallow import fields, post_load
+from sqlalchemy import or_, and_
 from flask_sqlalchemy import query
+from typing import Any
+from enum import Enum, auto
 
 from core.managers.db_manager import db
 from core.model.role import Role
 from core.model.user import User
-from shared.schema.role import RoleIdSchema
-from shared.schema.user import UserIdSchema
-from shared.schema.acl_entry import ACLEntrySchema, ACLEntryPresentationSchema, ItemType
+from core.model.base_model import BaseModel
 
 
-class NewACLEntrySchema(ACLEntrySchema):
-    users = fields.Nested(UserIdSchema, many=True)
-    roles = fields.Nested(RoleIdSchema, many=True)
+class ItemType(Enum):
+    COLLECTOR = auto()
+    OSINT_SOURCE = auto()
+    OSINT_SOURCE_GROUP = auto()
+    WORD_LIST = auto()
+    REPORT_ITEM = auto()
+    REPORT_ITEM_TYPE = auto()
+    PRODUCT_TYPE = auto()
+    DELEGATION = auto()
 
-    @post_load
-    def make(self, data, **kwargs):
-        return ACLEntry(**data)
 
-
-class ACLEntry(db.Model):
+class ACLEntry(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(64), unique=True, nullable=False)
     description = db.Column(db.String())
@@ -35,8 +36,8 @@ class ACLEntry(db.Model):
     access = db.Column(db.Boolean)
     modify = db.Column(db.Boolean)
 
-    def __init__(self, id, name, description, item_type, item_id, everyone, users, see, access, modify, roles):
-        self.id = None
+    def __init__(self, name, description, item_type, item_id, everyone, users, see, access, modify, roles, id=None):
+        self.id = id
         self.name = name
         self.description = description
         self.item_type = item_type
@@ -46,69 +47,53 @@ class ACLEntry(db.Model):
         self.access = access
         self.modify = modify
         self.users = [User.find_by_id(user.id) for user in users]
-        self.roles = [Role.find(role.id) for role in roles]
-        self.tag = "mdi-lock-check"
-
-    @orm.reconstructor
-    def reconstruct(self):
-        self.tag = "mdi-lock-check"
-
-    @classmethod
-    def find(cls, id):
-        return cls.query.get(id)
-
-    @classmethod
-    def get_all(cls):
-        return cls.query.order_by(db.asc(ACLEntry.name)).all()
+        self.roles = [Role.get(role.id) for role in roles]
 
     @classmethod
     def has_rows(cls) -> bool:
         return cls.query.count() > 0
 
     @classmethod
-    def get(cls, search):
+    def get_by_filter(cls, filter_params: dict[str, Any]):
         query = cls.query
 
-        if search is not None:
-            search_string = f"%{search.lower()}%"
+        if search := filter_params.get("search"):
             query = query.filter(
                 or_(
-                    func.lower(ACLEntry.name).like(search_string),
-                    func.lower(ACLEntry.description).like(search_string),
+                    cls.name.ilike(f"%{search}%"),
+                    cls.description.ilike(f"%{search}%"),
                 )
             )
 
-        return query.order_by(db.asc(ACLEntry.name)).all(), query.count()
+        return query.all(), query.count()
 
     @classmethod
     def get_all_json(cls, search):
-        acls, count = cls.get(search)
-        acl_schema = ACLEntryPresentationSchema(many=True)
-        return {"total_count": count, "items": acl_schema.dump(acls)}
+        acls, count = cls.get_by_filter({"search": search})
+        items = [acl.to_dict() for acl in acls]
+        return {"total_count": count, "items": items}
 
     @classmethod
-    def add_new(cls, data):
-        new_acl_schema = NewACLEntrySchema()
-        acl = new_acl_schema.load(data)
-        db.session.add(acl)
-        db.session.commit()
+    def from_dict(cls, data: dict[str, Any]) -> "ACLEntry":
+        return cls(**data)
+
+    def to_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
+        data["roles"] = [role.id for role in self.roles]
+        data["users"] = [user.id for user in self.users]
+        data["tag"] = "mdi-lock-check"
+        return data
 
     @classmethod
-    def update(cls, acl_id, data):
-        schema = NewACLEntrySchema()
-        updated_acl = schema.load(data)
-        if not updated_acl:
-            return
+    def update(cls, acl_id: int, data) -> tuple[str, int]:
         acl = cls.query.get(acl_id)
-        for key in vars(updated_acl):
-            setattr(acl, key, getattr(updated_acl, key))
+        if acl is None:
+            return "ACL not found", 404
+        for key, value in data.items():
+            if hasattr(acl, key) and key != "id":
+                setattr(acl, key, value)
         db.session.commit()
-
-    @classmethod
-    def delete(cls, id):
-        acl = cls.query.get(id)
-        db.session.delete(acl)
-        db.session.commit()
+        return f"Succussfully updated {acl.id}", 201
 
     @classmethod
     def apply_query(cls, query: query.Query, user: User, see: bool, access: bool, modify: bool) -> query.Query:
@@ -129,9 +114,9 @@ class ACLEntry(db.Model):
                 or_(
                     ACLEntry.id is not None,
                     and_(
-                        ACLEntry.see is True,
+                        ACLEntry.see,
                         or_(
-                            ACLEntry.everyone is True,
+                            ACLEntry.everyone,
                             ACLEntryUser.user_id == user.id,
                             ACLEntryRole.role_id.in_(roles),
                         ),
@@ -144,9 +129,9 @@ class ACLEntry(db.Model):
                 or_(
                     ACLEntry.id is not None,
                     and_(
-                        ACLEntry.access is True,
+                        ACLEntry.access,
                         or_(
-                            ACLEntry.everyone is True,
+                            ACLEntry.everyone,
                             ACLEntryUser.user_id == user.id,
                             ACLEntryRole.role_id.in_(roles),
                         ),
@@ -159,9 +144,9 @@ class ACLEntry(db.Model):
                 or_(
                     ACLEntry.id is not None,
                     and_(
-                        ACLEntry.modify is True,
+                        ACLEntry.modify,
                         or_(
-                            ACLEntry.everyone is True,
+                            ACLEntry.everyone,
                             ACLEntryUser.user_id == user.id,
                             ACLEntryRole.role_id.in_(roles),
                         ),
@@ -172,18 +157,18 @@ class ACLEntry(db.Model):
         return query.filter(
             or_(
                 ACLEntry.id is not None,
-                ACLEntry.everyone is True,
+                ACLEntry.everyone,
                 ACLEntryUser.user_id == user.id,
                 ACLEntryRole.role_id.in_(roles),
             )
         )
 
 
-class ACLEntryUser(db.Model):
+class ACLEntryUser(BaseModel):
     acl_entry_id = db.Column(db.Integer, db.ForeignKey("acl_entry.id"), primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), primary_key=True)
 
 
-class ACLEntryRole(db.Model):
+class ACLEntryRole(BaseModel):
     acl_entry_id = db.Column(db.Integer, db.ForeignKey("acl_entry.id"), primary_key=True)
     role_id = db.Column(db.Integer, db.ForeignKey("role.id"), primary_key=True)

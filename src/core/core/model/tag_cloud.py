@@ -1,20 +1,14 @@
 import datetime
 import re
-from marshmallow import post_load
+from typing import Any
 from sqlalchemy import func
 from sqlalchemy.sql import label
 
 from core.managers.db_manager import db
-from shared.schema.tag_cloud import TagCloudSchema, GroupedWordsSchema
+from core.model.base_model import BaseModel
 
 
-class NewTagCloudSchema(TagCloudSchema):
-    @post_load
-    def make_tag_cloud(self, data, **kwargs):
-        return TagCloud(**data)
-
-
-class TagCloud(db.Model):
+class TagCloud(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     word = db.Column(db.String())
     word_quantity = db.Column(db.BigInteger)
@@ -47,8 +41,7 @@ class TagCloud(db.Model):
             .limit(100)
             .all()
         )
-        grouped_words_schema = GroupedWordsSchema(many=True)
-        return grouped_words_schema.dump(grouped_words)
+        return [grouped_word.to_dict() for grouped_word in grouped_words]
 
     @classmethod
     def delete_words(cls):
@@ -70,8 +63,7 @@ class TagCloud(db.Model):
     @staticmethod
     def create_tag_cloud(word):
         collected = datetime.datetime.now().date()
-        tag_cloud_word = TagCloud(word, 1, collected)
-        return tag_cloud_word
+        return TagCloud(word, 1, collected)
 
     @staticmethod
     def news_item_words(title, review, content):
@@ -104,8 +96,6 @@ class TagCloud(db.Model):
         news_items_title_words = []
         news_items_review_words = []
         news_items_content_words = []
-        tag_cloud_words = []
-
         title, review, content = TagCloud.unwanted_chars(news_item_data)
 
         (
@@ -122,7 +112,9 @@ class TagCloud(db.Model):
         )
         news_items_words = news_items_title_words + news_items_review_words + news_items_content_words
 
-        for word_item in set(news_items_words):
-            tag_cloud_words.append(TagCloud.create_tag_cloud(word_item))
-
+        tag_cloud_words = [TagCloud.create_tag_cloud(word_item) for word_item in set(news_items_words)]
         cls.add_tag_clouds(tag_cloud_words)
+
+    def to_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
+        return data

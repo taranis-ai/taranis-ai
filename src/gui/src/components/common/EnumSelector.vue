@@ -21,7 +21,6 @@
               v-model:page="current_page"
               :headers="headers"
               :items="attribute_enums"
-              :server-items-length="attribute_enums_total_count"
               :items-per-page="25"
               @update:options="updateOptions"
               @click:row="clickRow"
@@ -65,8 +64,7 @@ export default {
     ],
     current_page: 1,
     current_page_size: 25,
-    attribute_enums: [],
-    attribute_enums_total_count: 0
+    attribute_enums: []
   }),
   methods: {
     show() {
@@ -108,7 +106,6 @@ export default {
 
     processResponse(response) {
       this.attribute_enums = []
-      this.attribute_enums_total_count = response.data.total_count
       for (let i = 0; i < response.data.items.length; i++) {
         this.attribute_enums.push(response.data.items[i])
       }

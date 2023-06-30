@@ -48,7 +48,6 @@ export default {
 
     const addItem = () => {
       acl.value = {
-        id: -1,
         name: '',
         description: '',
         users: [],
