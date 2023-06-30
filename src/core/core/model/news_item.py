@@ -601,7 +601,6 @@ class NewsItemAggregate(BaseModel):
 
     @classmethod
     def get_by_filter(cls, filter_args: dict, user: User | None = None):
-        logger.debug(f"Getting NewsItems Filtered: {filter_args}")
         query = cls.query.distinct().group_by(NewsItemAggregate.id)
 
         if user:
@@ -800,7 +799,7 @@ class NewsItemAggregate(BaseModel):
                     tag_type = tag["type"]
                 else:
                     tag_name = tag
-                    tag_type = "undef"
+                    tag_type = "misc"
                 if tag_name not in [tag.name for tag in n_i_a.tags]:
                     n_i_a.tags.append(NewsItemTag(name=tag_name, tag_type=tag_type))
             db.session.commit()
@@ -1071,7 +1070,7 @@ class NewsItemTag(BaseModel):
         return results
 
     @classmethod
-    def get_filtered_tags(cls, filter_args: dict):
+    def get_filtered_tags(cls, filter_args: dict) -> list["NewsItemTag"]:
         query = cls.query.with_entities(cls.name, cls.tag_type)
 
         if search := filter_args.get("search"):
@@ -1084,24 +1083,25 @@ class NewsItemTag(BaseModel):
             # returns only tags where the name appears at least min_size times in the database
             query = query.group_by(cls.name, cls.tag_type).having(func.count(cls.name) >= min_size)
 
-        return cls.get_rows(query, filter_args)
+        rows = cls.get_rows(query, filter_args)
+        return [cls(name=row[0], tag_type=row[1]) for row in rows]
 
     @classmethod
-    def get_rows(cls, query, filter_args: dict):
+    def get_rows(cls, query, filter_args: dict) -> list["NewsItemTag"]:
         offset = filter_args.get("offset", 0)
         limit = filter_args.get("limit", 20)
 
         return query.offset(offset).limit(limit).all()
 
     @classmethod
-    def get_json(cls, filter_args: dict):
-        rows = cls.get_filtered_tags(filter_args)
-        return [{"name": row.name, "tag_type": row.tag_type} for row in rows]
+    def get_json(cls, filter_args: dict) -> list[dict[str, Any]]:
+        tags = cls.get_filtered_tags(filter_args)
+        return [tag.to_dict() for tag in tags]
 
     @classmethod
-    def get_list(cls, filter_args: dict):
-        rows = cls.get_filtered_tags(filter_args)
-        return [row.name for row in rows]
+    def get_list(cls, filter_args: dict) -> list[str]:
+        tags = cls.get_filtered_tags(filter_args)
+        return [tag.name for tag in tags]
 
     @classmethod
     def remove_by_aggregate(cls, aggregate):

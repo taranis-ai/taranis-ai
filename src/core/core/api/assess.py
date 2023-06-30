@@ -82,7 +82,7 @@ class NewsItemAggregateTags(Resource):
     @auth_required("ASSESS_ACCESS")
     def get(self):
         try:
-            search = request.args.get("search", "")
+            search = request.args.get("search", None)
             limit = int(request.args.get("limit", 20))
             offset = int(request.args.get("offset", 0))
             min_size = int(request.args.get("min_size", 2))

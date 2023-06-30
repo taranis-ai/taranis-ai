@@ -53,8 +53,8 @@ class OSINTSourceStatusUpdate(Resource):
             if not source:
                 return {"error": f"OSINTSource with ID: {osint_source_id} not found"}, 404
 
-            error = request.json.get("error", None)
-            source.update_status(error)
+            if request_json := request.json:
+                source.update_status(request_json.get("error", None))
             return {"message": "Status updated"}
         except Exception:
             logger.log_debug_trace()

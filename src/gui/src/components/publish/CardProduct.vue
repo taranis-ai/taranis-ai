@@ -20,6 +20,7 @@
               v-model="product.product_type_id"
               :items="product_types"
               item-value="id"
+              no-data-text="No Product Types available - please create one under Admin > Product Types"
               :label="$t('product.product_type')"
             />
           </v-col>

@@ -2,7 +2,7 @@ import pytest
 
 
 @pytest.fixture(scope="session")
-def fake_source(app):
+def fake_source(app, request):
     with app.app_context():
         from core.model.osint_source import OSINTSource
 
@@ -20,6 +20,13 @@ def fake_source(app):
         }
 
         OSINTSource.add(ossi)
+
+        def teardown():
+            with app.app_context():
+                OSINTSource.delete(ossi["id"])
+
+        request.addfinalizer(teardown)
+
         yield ossi["id"]
 
 
@@ -67,7 +74,6 @@ def news_item_aggregates(app, request, news_items_data):
     with app.app_context():
         from core.model.news_item import NewsItemAggregate
         from core.model.user import User
-        from core.managers.db_manager import db
 
         nia = NewsItemAggregate()
         nia1 = nia.create_new_for_group(news_items_data[0], "default")
@@ -293,18 +299,19 @@ class TestAssessApi(object):
 
     def test_get_NewsItemAggregatesTags(self, client, news_item_aggregates, auth_header):
         """
-        This test queries the NewsItemsAggregatesTags UNauthenticated.
-        It expects "not authorized"
+        This test queries the NewsItemsAggregatesTags Authentictaed.
+        It expects a list of tags
         """
         nia1, nia2 = news_item_aggregates
         response = nia1.update_tags(nia1.id, ["foo", "bar", "baz"])
         assert response[1] == 200
-        response = nia2.update_tags(nia2.id, [{"name": "foo", "type": "some-tag-type"}, {"name": "bar", "type": "some-tag-type"}])
+        response = nia2.update_tags(nia2.id, [{"name": "foo", "type": "misc"}, {"name": "bar", "type": "misc"}])
         assert response[1] == 200
 
         response = client.get("/api/v1/assess/tags", headers=auth_header)
         assert response
         assert response.data
+        print(response.get_json())
         assert len(response.get_json()) == 2
         assert response.content_type == "application/json"
         assert response.status_code == 200

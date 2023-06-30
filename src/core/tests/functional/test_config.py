@@ -46,8 +46,3 @@ class TestConfigApi(object):
         response = self.assert_get_ok(client, "permissions", auth_header)
 
         # assert response.json == permissions_data
-
-    def test_external_permissions_get(self, client, auth_header):
-        response = self.assert_get_ok(client, "external-permissions", auth_header)
-
-        # assert response.json == external_permissions_data

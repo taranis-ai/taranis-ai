@@ -56,7 +56,7 @@ EXPOSE 80
 # setup environment variables
 ENV PYTHONPATH=/app
 ENV APP_MODULE run:app
-ENV GUNICORN_CMD_ARGS --timeout 120
+ENV GUNICORN_CMD_ARGS --timeout 600
 ENV WORKERS_PER_CORE 4
 
 VOLUME ["/app/storage"]

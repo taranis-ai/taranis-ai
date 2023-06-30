@@ -9,7 +9,6 @@ from trafilatura import extract
 
 from .base_collector import BaseCollector
 from collectors.managers.log_manager import logger
-from shared.schema.news_item import NewsItemData
 
 
 class RSSCollector(BaseCollector):
@@ -62,6 +61,7 @@ class RSSCollector(BaseCollector):
             self.rss_collector(feed_url, source)
         except Exception as e:
             logger.exception()
+            logger.error(f"RSS collector for {feed_url} failed with error: {str(e)}")
             return str(e)
 
         logger.log_debug(f"{self.type} collection finished.")
@@ -90,7 +90,7 @@ class RSSCollector(BaseCollector):
         except Exception:
             return datetime.datetime.now()
 
-    def parse_feed(self, feed_entry: feedparser.FeedParserDict, feed_url: str, source) -> NewsItemData:
+    def parse_feed(self, feed_entry: feedparser.FeedParserDict, feed_url, source) -> dict[str, str | datetime.datetime | list]:
         author: str = str(feed_entry.get("author", ""))
         title: str = str(feed_entry.get("title", ""))
         description: str = str(feed_entry.get("description", ""))
@@ -106,24 +106,29 @@ class RSSCollector(BaseCollector):
         content_from_feed, content_location = self.content_from_feed(feed_entry, content_location)
         if content_from_feed:
             content = str(feed_entry[content_location])
+        elif link:
+            if published.date() >= (datetime.date.today() - datetime.timedelta(days=90)):
+                html_content = self.get_article_content(link_for_article=link)
+                content = self.parse_article_content(html_content, content_location)
+            else:
+                content = "The article is older than 90 days - skipping"
         else:
-            html_content = self.get_article_content(link_for_article=link)
-            content = self.parse_article_content(html_content, content_location)
+            content = "No content found in feed or article - please check your CONTENT_LOCATION parameter"
 
-        return NewsItemData(
-            uuid.uuid4(),
-            hashlib.sha256(for_hash.encode()).hexdigest(),
-            title,
-            description,
-            feed_url,
-            link,
-            published,
-            author,
-            datetime.datetime.now(),
-            content,
-            source["id"],
-            [],
-        )
+        return {
+            "id": str(uuid.uuid4()),
+            "hash": hashlib.sha256(for_hash.encode()).hexdigest(),
+            "title": title,
+            "review": description,
+            "source": feed_url,
+            "link": link,
+            "published": published,
+            "author": author,
+            "collected": datetime.datetime.now(),
+            "content": content,
+            "osint_source_id": source["id"],
+            "attributes": [],
+        }
 
     def rss_collector(self, feed_url: str, source):
         feed_content = self.make_request(feed_url)

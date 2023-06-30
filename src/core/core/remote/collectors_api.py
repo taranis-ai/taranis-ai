@@ -12,7 +12,7 @@ class CollectorsApi:
         collector_endpoint = f"{self.api_url}/api/v1/collectors"
         logger.log_debug(f"Getting Collector Infos from: {collector_endpoint}")
         try:
-            response = requests.get(collector_endpoint, headers=self.headers)
+            response = requests.get(collector_endpoint, headers=self.headers, timeout=30)
         except Exception as e:
             return str(e), 500
 
@@ -24,6 +24,6 @@ class CollectorsApi:
         return response.status_code
 
     def refresh_collectors(self):
-        response = requests.post(f"{self.api_url}/api/v1/collectors", headers=self.headers)
+        response = requests.post(f"{self.api_url}/api/v1/collectors", headers=self.headers, timeout=10)
 
         return response.status_code

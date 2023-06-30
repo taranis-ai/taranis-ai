@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   database:
-    image: "postgres:${POSTGRES_TAG:-13-alpine}"
+    image: "postgres:${POSTGRES_TAG:-14-alpine}"
     # ports:
     # - 6543:5432
     deploy:
@@ -54,6 +54,8 @@ services:
 
       CVE_UPDATE_FILE: "${CVE_UPDATE_FILE:-/data/cve_dictionary.xml}"
       CPE_UPDATE_FILE: "${CPE_UPDATE_FILE:-/data/cpe_dictionary.xml}"
+      PRE_SEED_PASSWORD_ADMIN: "${PRE_SEED_PASSWORD_ADMIN:-admin}"
+      PRE_SEED_PASSWORD_USER: "${PRE_SEED_PASSWORD_USER:-user}"
       SECRET_KEY: "${API_KEY}"
       API_KEY: "${API_KEY}"
       DEBUG: "${DEBUG:-False}"
