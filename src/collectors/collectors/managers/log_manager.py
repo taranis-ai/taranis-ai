@@ -1,3 +1,4 @@
+import os
 from collectors.config import Config
 from shared.log import TaranisLogger
 
@@ -10,7 +11,8 @@ class Logger(TaranisLogger):
     def collector_exception(self, source, message: str):
         logger.log_info(f"OSINTSource [{source['id']}/{source['name']}]: {message}")
 
+gunicorn = "gunicorn" in os.environ.get("SERVER_SOFTWARE", "")
 
 logger = Logger(
-    module=Config.MODULE_ID, colored=Config.COLORED_LOGS, debug=Config.DEBUG, gunicorn=Config.GUNICORN, syslog_address=Config.SYSLOG_ADDRESS
+    module=Config.MODULE_ID, colored=Config.COLORED_LOGS, debug=Config.DEBUG, gunicorn=gunicorn, syslog_address=None
 )

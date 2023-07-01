@@ -1,6 +1,8 @@
 import json
 import multiprocessing
 import os
+import logging
+from gunicorn import glogging
 
 workers_per_core = int(os.getenv("WORKERS_PER_CORE", "2"))
 default_web_concurrency = int(workers_per_core * multiprocessing.cpu_count())
@@ -38,3 +40,20 @@ log_data = {
     "port": port,
 }
 print(json.dumps(log_data))
+
+class CustomGunicornLogger(glogging.Logger):
+
+    def setup(self, cfg):
+        super().setup(cfg)
+
+        # Add filters to Gunicorn logger
+        logger = logging.getLogger("gunicorn.access")
+        logger.addFilter(HealthCheckFilter())
+
+class HealthCheckFilter(logging.Filter):
+    def filter(self, record):
+        return 'GET /api/v1/isalive' not in record.getMessage()
+
+accesslog = '-'
+logger_class = CustomGunicornLogger
+

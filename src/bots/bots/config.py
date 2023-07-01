@@ -1,5 +1,4 @@
-import os
-from pydantic_settings import BaseSettings
+from pydantic import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -18,8 +17,6 @@ class Settings(BaseSettings):
     NODE_DESCRIPTION: str = ""
     NODE_URL: str = "http://bots"
     BOTS_LOADABLE_BOTS: list[str] = ["Analyst", "Grouping", "NLP", "Tagging"]
-    SYSLOG_ADDRESS: tuple[str, int] | None = None
-    GUNICORN: bool = "gunicorn" in os.environ.get("SERVER_SOFTWARE", "")
 
 
 settings = Settings()
