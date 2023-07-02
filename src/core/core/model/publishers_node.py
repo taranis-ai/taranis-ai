@@ -35,7 +35,7 @@ class PublishersNode(BaseModel):
         return cls.query.order_by(db.asc(PublishersNode.name)).all()
 
     @classmethod
-    def get(cls, search):
+    def get_by_filter(cls, search):
         query = cls.query
 
         if search:
@@ -50,7 +50,7 @@ class PublishersNode(BaseModel):
 
     @classmethod
     def get_all_json(cls, search):
-        nodes, count = cls.get(search)
+        nodes, count = cls.get_by_filter(search)
         items = [node.to_dict() for node in nodes]
         return {"total_count": count, "items": items}
 
@@ -64,7 +64,7 @@ class PublishersNode(BaseModel):
 
     @classmethod
     def update(cls, node_id, node_data, publishers):
-        node = cls.query.get(node_id)
+        node = cls.get(node_id)
         updated_node = cls.from_dict(node_data)
         node.name = updated_node.name
         node.description = updated_node.description

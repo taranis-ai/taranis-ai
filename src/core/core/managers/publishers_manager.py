@@ -3,11 +3,8 @@ from core.model.publisher import Publisher
 from core.remote.publishers_api import PublishersApi
 from core.managers.log_manager import logger
 
-from shared.schema.publishers_node import PublishersNode as PublishersNodeSchema
-from shared.schema.publisher import PublisherInput, PublisherInputSchema
 
-
-def get_publishers_info(node: PublishersNodeSchema):
+def get_publishers_info(node: PublishersNode) -> tuple[list[Publisher] | str, int]:
     try:
         publishers_info, status_code = PublishersApi(node.api_url, node.api_key).get_publishers_info()
     except ConnectionError:
@@ -17,7 +14,7 @@ def get_publishers_info(node: PublishersNodeSchema):
         return f"Couldn't add Publisher node: {node.name}", 500
 
     if status_code != 200:
-        return None, status_code
+        return publishers_info, status_code
 
     return Publisher.load_multiple(publishers_info), status_code
 
@@ -41,9 +38,9 @@ def add_publishers_node(data):
 
 
 def update_publishers_node(node_id, data):
-    node = PublishersNodeSchema.create(data)
-    if node is None:
-        return "Invalid node data", 400
+    node = PublishersNode.get(node_id)
+    if not node:
+        return
     publishers, status_code = get_publishers_info(node)
 
     if status_code != 200:
@@ -67,15 +64,14 @@ def publish(preset, data, message_title, message_body, recipients):
         data_data = data["data"]
         data_mime = data["mime_type"]
 
-    input_data = PublisherInput(
-        publisher.type,
-        preset.parameter_values,
-        data_mime,
-        data_data,
-        message_title,
-        message_body,
-        recipients,
-    )
-    input_schema = PublisherInputSchema()
+    input_data = {
+        "type": publisher.type,
+        "parameter_values": preset.parameter_values,
+        "mime_type": data_mime,
+        "data": data_data,
+        "message_title": message_title,
+        "message_body": message_body,
+        "recipients": recipients,
+    }
 
-    return PublishersApi(node.api_url, node.api_key).publish(input_schema.dump(input_data))
+    return PublishersApi(node.api_url, node.api_key).publish(input_data)

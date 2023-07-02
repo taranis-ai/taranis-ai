@@ -37,7 +37,7 @@ class PresentersNode(BaseModel):
         return cls.query.order_by(db.asc(PresentersNode.name)).all()
 
     @classmethod
-    def get(cls, search):
+    def get_by_filter(cls, search):
         query = cls.query
 
         if search is not None:
@@ -52,7 +52,7 @@ class PresentersNode(BaseModel):
 
     @classmethod
     def get_all_json(cls, search):
-        nodes, count = cls.get(search)
+        nodes, count = cls.get_by_filter(search)
         items = [node.to_dict() for node in nodes]
         return {"total_count": count, "items": items}
 

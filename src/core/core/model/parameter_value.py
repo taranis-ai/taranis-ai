@@ -26,6 +26,9 @@ class ParameterValue(BaseModel):
     def to_simple_dict(self) -> dict[str, Any]:
         return {self.parameter_key: self.value}
 
+    def to_export_dict(self) -> dict[str, Any]:
+        return {"parameter": self.parameter_key, "value": self.value}
+
     @classmethod
     def find_param_value(cls, p_values: list["ParameterValue"], key: str) -> "ParameterValue":
         # Helper function to find parameter value based on key

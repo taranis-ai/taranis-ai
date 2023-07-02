@@ -38,12 +38,15 @@ COPY ./docker/gunicorn_conf.py /gunicorn_conf.py
 
 COPY ./src/bots/. /app/
 
-EXPOSE 80
-
 # setup environment variables
 ENV PYTHONPATH=/app
 ENV APP_MODULE run:app
 ENV GUNICORN_CMD_ARGS --timeout 600
 ENV WORKERS_PER_CORE 4
+
+# bake spacy modell into Image
+RUN python -c 'from bots.bots.nlp_bot import NLPBot; n = NLPBot(parameters=None, refresh=False)'
+
+EXPOSE 80
 
 ENTRYPOINT ["/entrypoint.sh"]

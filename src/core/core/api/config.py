@@ -325,7 +325,10 @@ class Bots(Resource):
         return bot.Bot.get_all_json(search)
 
     def put(self, bot_id):
-        return bot.Bot.update(bot_id, request.json)
+        if updated_bot := bot.Bot.update(bot_id, request.json):
+            return f"Successfully upated {updated_bot.id}", 200
+        else:
+            return "Error updateing", 500
 
 
 class Parameters(Resource):

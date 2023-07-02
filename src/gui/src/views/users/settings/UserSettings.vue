@@ -93,7 +93,7 @@ export default {
       storeToRefs(settingsStore)
 
     const locale_descriptions = computed(() => [
-      { value: 'en', text: 'English' },
+      { value: 'en-GB', text: 'English' },
       { value: 'de', text: 'Deutsch' },
       { value: 'sk', text: 'Slovensky' }
     ])

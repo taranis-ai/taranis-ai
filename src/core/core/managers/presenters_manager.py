@@ -22,6 +22,8 @@ def get_presenters_info(node: PresentersNode):
 
 def update_presenters_node(node_id, data):
     node = PresentersNode.get(node_id)
+    if not node:
+        return
     presenters, status_code = get_presenters_info(node)
 
     if status_code != 200:
@@ -38,6 +40,8 @@ def update_presenters_node(node_id, data):
 
 def generate_product(product_id):
     product = Product.get(product_id)
+    if not product:
+        return
     presenter = product.product_type.presenter
     node = presenter.node
 

@@ -1,12 +1,3 @@
-FROM python:3-slim AS build_shared
-
-WORKDIR /build_shared/
-
-RUN pip install --no-cache-dir build
-COPY ./src/shared/. .
-RUN python -m build
-
-
 FROM python:3-slim
 
 WORKDIR /app/
@@ -21,10 +12,6 @@ RUN apt-get update && apt-get upgrade -y && apt-get install --no-install-recomme
     openssl
 
 COPY ./src/core/setup.cfg ./src/core/setup.py /app/
-
-# install dependencies
-COPY --from=build_shared /build_shared/dist/taranis_ng_shared-*.whl custom_packages/
-RUN pip install --no-cache-dir ./custom_packages/taranis_ng_shared-*.whl && rm -rf ./custom_packages/
 
 RUN apt-get install --no-install-recommends -y \
       build-essential \

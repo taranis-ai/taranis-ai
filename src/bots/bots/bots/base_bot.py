@@ -10,11 +10,12 @@ class BaseBot:
     name = "Base Bot"
     description = "Base abstract type for all bots"
 
-    def __init__(self, parameters: dict):
+    def __init__(self, parameters: dict, refresh: bool = True):
         self.core_api = CoreApi()
         self.parameters = parameters
         self.bot_setup()
-        self.refresh()
+        if refresh:
+            self.refresh()
 
     def bot_setup(self):
         pass

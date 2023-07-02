@@ -84,7 +84,7 @@ def refresh_collectors():
 def export_osint_sources():
     data = OSINTSource.get_all()
     data = cleanup_paramaters(data)
-    export_data = {"version": 2, "data": [osint_source.to_json() for osint_source in data]}
+    export_data = {"version": 2, "data": [osint_source.to_export_dict() for osint_source in data]}
     return json.dumps(export_data).encode("utf-8")
 
 
