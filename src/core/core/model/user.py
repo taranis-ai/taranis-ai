@@ -32,9 +32,9 @@ class User(BaseModel):
         self.name = name
         if password:
             self.password = generate_password_hash(password)
-        self.organization = Organization.get(organization["id"]) if isinstance(organization, dict) else Organization.get(organization)
-        self.roles = [Role.get(role["id"]) for role in roles]
-        self.permissions = [Permission.get(permission["id"]) for permission in permissions]
+        self.organization = Organization.get(organization)
+        self.roles = [Role.get(role) for role in roles]
+        self.permissions = [Permission.get(permission) for permission in permissions]
         self.profile = UserProfile(True, False, [], "en")
 
     @classmethod
@@ -103,7 +103,8 @@ class User(BaseModel):
         organization = Organization.get(data.pop("organization"))
         profile = UserProfile.get(data.pop("profile_id"))
         roles = [Role.get(role_id) for role_id in data.pop("roles")]
-        logger.debug(f"Organization: {organization}")
+        permissions = [Permission.get(permission_id) for permission_id in data.pop("permissions")]
+        logger.debug(f"roles: {roles}")
         user.username = data["username"]
         user.name = data["name"]
         if password := data.get("password"):
@@ -111,6 +112,7 @@ class User(BaseModel):
         user.organization = organization
         user.profile = profile
         user.roles = roles
+        user.permissions = permissions
         db.session.commit()
         return f"User {user_id} updated", 200
 

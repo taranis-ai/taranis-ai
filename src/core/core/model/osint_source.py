@@ -1,8 +1,7 @@
 import uuid
 from datetime import datetime
 from typing import Any
-
-from sqlalchemy import or_, and_, nulls_first
+from sqlalchemy import or_, and_
 
 from core.managers.db_manager import db
 from core.managers.log_manager import logger
@@ -19,7 +18,7 @@ class OSINTSource(BaseModel):
     description = db.Column(db.String())
 
     collector_id = db.Column(db.String, db.ForeignKey("collector.id"))
-    parameter_values = db.relationship("ParameterValue", secondary="osint_source_parameter_value", cascade="all,delete")
+    parameter_values = db.relationship("ParameterValue", secondary="osint_source_parameter_value", cascade="all, delete")
 
     word_lists = db.relationship("WordList", secondary="osint_source_word_list")
 
@@ -113,7 +112,7 @@ class OSINTSource(BaseModel):
     @classmethod
     def get_all_by_type(cls, collector_type: str):
         query = cls.query.join(Collector, OSINTSource.collector_id == Collector.id).filter(Collector.type == collector_type)
-        sources = query.order_by(nulls_first(db.asc(OSINTSource.last_collected)), nulls_first(db.asc(OSINTSource.last_attempted))).all()
+        sources = query.order_by(db.nulls_first(db.asc(OSINTSource.last_collected)), db.nulls_first(db.asc(OSINTSource.last_attempted))).all()
         return [source.to_collector_dict() for source in sources]
 
     @classmethod
@@ -160,7 +159,7 @@ class OSINTSource(BaseModel):
 
 class OSINTSourceParameterValue(BaseModel):
     osint_source_id = db.Column(db.String, db.ForeignKey("osint_source.id", ondelete="CASCADE"), primary_key=True)
-    parameter_value_id = db.Column(db.Integer, db.ForeignKey("parameter_value.id"), primary_key=True)
+    parameter_value_id = db.Column(db.Integer, db.ForeignKey("parameter_value.id", ondelete="CASCADE"), primary_key=True)
 
 
 class OSINTSourceWordList(BaseModel):

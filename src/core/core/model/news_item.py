@@ -1,4 +1,3 @@
-import base64
 import uuid
 from datetime import datetime, timedelta
 from typing import Any
@@ -9,7 +8,7 @@ from core.model.base_model import BaseModel
 from core.managers.log_manager import logger
 from core.model.user import User
 from core.model.acl_entry import ACLEntry, ItemType
-from core.model.osint_source import OSINTSourceGroup, OSINTSource
+from core.model.osint_source import OSINTSourceGroup, OSINTSource, OSINTSourceGroupOSINTSource
 
 
 class NewsItemData(BaseModel):
@@ -425,14 +424,6 @@ class NewsItemVote(BaseModel):
         for vote in votes:
             db.session.delete(vote)
 
-    @classmethod
-    def delete_for_remote_node(cls, news_item_id, remote_node_id):
-        vote = cls.query.filter_by(news_item_id=news_item_id, remote_node_id=remote_node_id).first()
-        if vote is None:
-            return 0
-        db.session.delete(vote)
-        return 1 if vote.like else -1
-
 
 class NewsItemAggregate(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
@@ -487,8 +478,14 @@ class NewsItemAggregate(BaseModel):
 
     @classmethod
     def _add_filters_to_query(cls, filter_args: dict, query):
+        if filter_args.get("source") or filter_args.get("group"):
+            query = query.join(NewsItem, NewsItem.news_item_aggregate_id == NewsItemAggregate.id)
+            query = query.join(NewsItemData, NewsItem.news_item_data_id == NewsItemData.id)
+            query = query.outerjoin(OSINTSource, NewsItemData.osint_source_id == OSINTSource.id)
+            query = query.join(OSINTSourceGroupOSINTSource, OSINTSourceGroupOSINTSource.osint_source_id == OSINTSource.id)
+
         if group := filter_args.get("group"):
-            query = query.filter(NewsItemAggregate.osint_source_group_id == group)
+            query = query.filter(OSINTSourceGroupOSINTSource.osint_source_group_id == group)
 
         if source := filter_args.get("source"):
             query = query.filter(OSINTSource.id == source)
@@ -580,9 +577,6 @@ class NewsItemAggregate(BaseModel):
         if not ACLEntry.has_rows() or not user:
             return query
 
-        query = query.join(NewsItem, NewsItem.news_item_aggregate_id == NewsItemAggregate.id)
-        query = query.join(NewsItemData, NewsItem.news_item_data_id == NewsItemData.id)
-        query = query.outerjoin(OSINTSource, NewsItemData.osint_source_id == OSINTSource.id)
         query = query.outerjoin(
             ACLEntry,
             or_(
@@ -603,10 +597,11 @@ class NewsItemAggregate(BaseModel):
     def get_by_filter(cls, filter_args: dict, user: User | None = None):
         query = cls.query.distinct().group_by(NewsItemAggregate.id)
 
+        query = cls._add_filters_to_query(filter_args, query)
+
         if user:
             query = cls._add_ACL_check(query, user)
 
-        query = cls._add_filters_to_query(filter_args, query)
         query = cls._add_sorting_to_query(filter_args, query)
         paged_query = cls._add_paging_to_query(filter_args, query)
 

@@ -40,7 +40,7 @@ class Collector(BaseModel):
     def get_by_filter(cls, search):
         query = cls.query
 
-        if search is not None:
+        if search:
             query = query.filter(
                 or_(
                     Collector.name.ilike(f"%{search}%"),

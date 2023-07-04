@@ -86,7 +86,7 @@ class RSSCollector(BaseCollector):
 
             published = str(response.headers.get("Last-Modified", ""))
         try:
-            return dateparser.parse(published) if published else datetime.datetime.now()
+            return dateparser.parse(published, ignoretz=True) if published else datetime.datetime.now()
         except Exception:
             return datetime.datetime.now()
 
@@ -135,6 +135,13 @@ class RSSCollector(BaseCollector):
         if not feed_content:
             logger.log_collector_activity("rss", source['id'], "RSS returned no content")
             raise ValueError("RSS returned no content")
+        if source["last_attempted"]:
+            if last_modified := feed_content.headers.get("Last-Modified"):
+                last_modified = dateparser.parse(last_modified, ignoretz=True)
+                last_attempted = dateparser.parse(source["last_attempted"], ignoretz=True)
+                if last_modified < last_attempted:
+                    logger.debug(f"Last-Modified: {last_modified} < Last-Attempted {last_attempted} skipping")
+                    return
         feed = feedparser.parse(feed_content.content)
 
         logger.log_collector_activity("rss", source["id"], f'RSS returned feed with {len(feed["entries"])} entries')

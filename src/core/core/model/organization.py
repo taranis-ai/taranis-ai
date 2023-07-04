@@ -15,7 +15,7 @@ class Organization(BaseModel):
     address_id = db.Column(db.Integer, db.ForeignKey("address.id"))
     address = db.relationship("Address", cascade="all")
 
-    def __init__(self, name, description, address, id=None):
+    def __init__(self, name, description, address=None, id=None):
         self.id = id
         self.name = name
         self.description = description
