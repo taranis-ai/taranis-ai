@@ -106,5 +106,10 @@ def parse_version_1(data: list) -> list:
 def import_osint_sources(file):
     file_data = file.read()
     json_data = json.loads(file_data.decode("utf8"))
-    data = parse_version_1(json_data["data"]) if json_data["version"] == 1 else json_data["data"]
+    if json_data["version"] == 1:
+        data = parse_version_1(json_data["data"])
+    elif json_data["version"] == 2:
+        data = json_data["data"]
+    else:
+        raise ValueError("Unsupported version")
     return OSINTSource.add_multiple(data)

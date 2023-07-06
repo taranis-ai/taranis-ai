@@ -22,6 +22,6 @@ def initialize(app):
         db.create_all()
         stamp(migrate.directory, "head")
     else:
-        upgrade()
+        print("Please call `flask db upgrade` for database migrations")
 
     pre_seed(db)

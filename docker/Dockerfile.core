@@ -28,8 +28,6 @@ COPY ./docker/gunicorn_conf.py /gunicorn_conf.py
 
 COPY ./src/core/. /app/
 
-RUN chmod +x /app/manage.py
-
 EXPOSE 80
 
 # setup environment variables

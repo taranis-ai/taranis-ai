@@ -37,6 +37,13 @@ class Collector(BaseModel):
         return cls.query.first()
 
     @classmethod
+    def get_type(cls, id) -> "Collector":
+        if collector := cls.get(id):
+            return collector.type
+        else:
+            raise ValueError
+
+    @classmethod
     def get_by_filter(cls, search):
         query = cls.query
 

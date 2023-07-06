@@ -69,8 +69,12 @@ class OSINTSource(BaseModel):
     def from_dict(cls, data: dict[str, Any]) -> "OSINTSource":
         parameter_values = [ParameterValue.from_dict(parameter_value) for parameter_value in data.pop("parameter_values", [])]
         word_lists = [WordList.get(word_list_id) for word_list_id in data.pop("word_lists", [])]
+        collector_type = None
         if "collector" in data:
             collector_type = data.pop("collector")["type"]
+        elif "collector_type" in data:
+            collector_type = data.pop("collector_type")
+        if collector_type:
             collector = Collector.find_by_type(collector_type)
             if not collector:
                 logger.error(f"Collector {collector_type} not found")
@@ -91,7 +95,7 @@ class OSINTSource(BaseModel):
         return {
             "name": self.name,
             "description": self.description,
-            "collector_id": self.collector_id,
+            "collector_type": Collector.get_type(self.collector_id),
             "parameter_values": [parameter_value.to_export_dict() for parameter_value in self.parameter_values],
         }
 
