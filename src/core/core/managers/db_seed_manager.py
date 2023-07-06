@@ -488,16 +488,15 @@ def pre_seed_roles():
     from core.model.permission import Permission
 
     admin_permissions = Permission.get_all_ids()
-    if not Role.get(1):
+    if not Role.filter_by_name("Admin"):
         Role.add(
             {
-                "id": "1",
                 "name": "Admin",
                 "description": "Administrator role",
                 "permissions": admin_permissions,
             }
         )
-    if not Role.get(2):
+    if not Role.filter_by_name("User"):
         default_user_permissions = [
             "ASSESS_ACCESS",
             "ASSESS_CREATE",
@@ -515,7 +514,6 @@ def pre_seed_roles():
         ]
         Role.add(
             {
-                "id": "2",
                 "name": "User",
                 "description": "Basic user role",
                 "permissions": default_user_permissions,
@@ -1098,6 +1096,7 @@ def pre_seed_wordlists():
 def pre_seed_default_user():
     from core.model.organization import Organization
     from core.model.user import User
+    from core.model.role import Role
 
     user_count = User.get_all_json()["total_count"]
     if user_count > 0:
@@ -1107,21 +1106,21 @@ def pre_seed_default_user():
     if not admin_organization:
         Organization.add(
             {
-                "id": 1,
                 "name": "The Earth",
                 "description": "Earth is the third planet from the Sun and the only astronomical object known to harbor life.",
                 "address": {"street": "29 Arlington Avenue", "city": "Islington, London", "zip": "N1 7BE", "country": "United Kingdom"},
             }
         )
 
-    if not User.find_by_name(username="admin") and not User.find_by_role(1):
+    if not User.find_by_name(username="admin") and not User.find_by_role_name(role_name="Admin"):
+        admin_role = Role.filter_by_name("Admin").id
         User.add(
             {
                 "username": "admin",
                 "name": "Arthur Dent",
                 "roles": [
                     {
-                        "id": "1",
+                        "id": admin_role,
                     },
                 ],
                 "permissions": [],
@@ -1133,7 +1132,6 @@ def pre_seed_default_user():
     if not Organization.get(2):
         Organization.add(
             {
-                "id": 2,
                 "name": "The Clacks",
                 "description": "A network infrastructure of Semaphore Towers, that operate in a similar fashion to telegraph.",
                 "address": {
@@ -1146,13 +1144,14 @@ def pre_seed_default_user():
         )
 
     if not User.find_by_name(username="user"):
+        user_role = Role.filter_by_name("User").id
         User.add(
             {
                 "username": "user",
                 "name": "Terry Pratchett",
                 "roles": [
                     {
-                        "id": "2",
+                        "id": user_role,
                     },
                 ],
                 "permissions": [],

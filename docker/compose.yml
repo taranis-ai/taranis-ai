@@ -176,8 +176,25 @@ services:
         max-size: "200k"
         max-file: "10"
 
+  rabbitmq: 
+    image: "rabbitmq:${RABBITMQ_TAG:-3-management-alpine}"
+    ports:
+      - 5672:5672
+      - 15672:15672
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq/
+    environment:
+      - "RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-taranis}"
+      - "RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD}"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
 volumes:
   database_data:
   core_data:
   presenters_templates:
   collector_storage:
+  rabbitmq_data:

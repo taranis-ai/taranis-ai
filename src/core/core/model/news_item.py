@@ -689,22 +689,6 @@ class NewsItemAggregate(BaseModel):
         return f"Added news item {news_item_data.id}", 201
 
     @classmethod
-    def reassign_to_new_groups(cls, osint_source_id, default_group_id):
-        time_limit = datetime.now() - timedelta(days=7)
-        news_items_query = NewsItem.get_all_by_group_and_source_query(default_group_id, osint_source_id, time_limit)
-        for news_item in news_items_query:
-            news_item_data = news_item.news_item_data
-            aggregate = NewsItemAggregate.get(news_item.news_item_aggregate_id)
-            if not aggregate:
-                continue
-            aggregate.news_items.remove(news_item)
-            NewsItemVote.delete_all(news_item.id)
-            db.session.delete(news_item)
-            NewsItemAggregate.update_status(aggregate.id)
-            cls.create_new_for_all_groups(news_item_data)
-            db.session.commit()
-
-    @classmethod
     def add_remote_news_items(cls, news_items_data_list, remote_node, osint_source_group_id):
         news_items_data = cls.load_multiple(news_items_data_list)
         news_item_data_ids = set()

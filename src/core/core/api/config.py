@@ -384,9 +384,7 @@ class OSINTSource(Resource):
 
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def put(self, source_id):
-        updated_osint_source, default_group = collectors_manager.update_osint_source(source_id, request.json)
-        if default_group is not None:
-            NewsItemAggregate.reassign_to_new_groups(updated_osint_source.id, default_group.id)
+        return collectors_manager.update_osint_source(source_id, request.json)
 
     @auth_required("CONFIG_OSINT_SOURCE_DELETE")
     def delete(self, source_id):

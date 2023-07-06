@@ -4,7 +4,7 @@ import {
   getOSINTSourcesList
 } from '@/api/assess'
 import { defineStore } from 'pinia'
-import { xorConcat } from '@/utils/helpers'
+import { xorConcat, notifyFailure } from '@/utils/helpers'
 
 import { useFilterStore } from './FilterStore'
 
@@ -46,10 +46,14 @@ export const useAssessStore = defineStore('assess', {
   },
   actions: {
     async updateNewsItems() {
-      const filter = useFilterStore()
-      const response = await getNewsItemsAggregates(filter.newsItemsFilter)
-      this.newsItems = response.data
-      // this.updateMaxItem()
+      try {
+        const filter = useFilterStore()
+        const response = await getNewsItemsAggregates(filter.newsItemsFilter)
+        this.newsItems = response.data
+        // this.updateMaxItem()
+      } catch (error) {
+        notifyFailure(error.message)
+      }
     },
     async updateOSINTSources() {
       const response = await getOSINTSourcesList()

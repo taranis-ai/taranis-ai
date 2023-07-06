@@ -45,9 +45,9 @@ def add_osint_source(data):
 
 
 def update_osint_source(osint_source_id, data):
-    osint_source, default_group = OSINTSource.update(osint_source_id, data)
+    osint_source = OSINTSource.update(osint_source_id, data)
     refresh_collector(osint_source.collector_id)
-    return osint_source, default_group
+    return f"OSINT Source {osint_source.name} updated", 200
 
 
 def delete_osint_source(osint_source_id):

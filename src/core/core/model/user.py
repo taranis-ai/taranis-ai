@@ -50,6 +50,10 @@ class User(BaseModel):
         return cls.query.join(Role, Role.id == role_id).all()
 
     @classmethod
+    def find_by_role_name(cls, role_name: str):
+        return cls.query.join(Role, Role.name == role_name).all()
+
+    @classmethod
     def get_all(cls):
         return cls.query.order_by(db.asc(User.name)).all()
 

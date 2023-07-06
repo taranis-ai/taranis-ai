@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { getDashboardData, getTrendingClusters } from '@/api/dashboard'
+import { notifyFailure } from '@/utils/helpers'
 
 export const useDashboardStore = defineStore('dashboard', {
   state: () => ({
@@ -16,12 +17,20 @@ export const useDashboardStore = defineStore('dashboard', {
   }),
   actions: {
     async loadDashboardData() {
-      const response = await getDashboardData()
-      this.dashboard_data = response.data
+      try {
+        const response = await getDashboardData()
+        this.dashboard_data = response.data
+      } catch (error) {
+        notifyFailure(error.message)
+      }
     },
     async loadClusters() {
-      const response = await getTrendingClusters()
-      this.clusters = response.data
+      try {
+        const response = await getTrendingClusters()
+        this.clusters = response.data
+      } catch (error) {
+        notifyFailure(error.message)
+      }
     }
   }
 })

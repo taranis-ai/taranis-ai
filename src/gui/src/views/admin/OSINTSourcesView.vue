@@ -17,7 +17,7 @@
       </template>
     </DataTable>
     <EditConfig
-      v-if="formData && Object.keys(formData).length > 0"
+      v-if="showForm"
       :config-data="formData"
       :form-format="formFormat"
       @submit="handleSubmit"
@@ -67,6 +67,7 @@ export default {
     const selected = ref([])
     const formData = ref({})
     const edit = ref(false)
+    const showForm = ref(false)
 
     const formFormat = computed(() => {
       let base = [
@@ -91,8 +92,7 @@ export default {
         {
           name: 'description',
           label: 'Description',
-          type: 'textarea',
-          rules: [(v) => !!v || 'Required']
+          type: 'textarea'
         },
         {
           name: 'collector_id',
@@ -150,11 +150,13 @@ export default {
     const addItem = () => {
       formData.value = objectFromFormat(formFormat.value)
       edit.value = false
+      showForm.value = true
     }
 
     const editItem = (item) => {
       formData.value = item
       edit.value = true
+      showForm.value = true
     }
 
     const handleSubmit = (submittedData) => {
@@ -162,12 +164,13 @@ export default {
       const parameter_list = parameters.value[formData.value.collector_id].map(
         (item) => item.name
       )
-      const updateItem = createParameterValues(parameter_list, submittedData)
+      const updateData = createParameterValues(parameter_list, submittedData)
       if (edit.value) {
-        updateItem(updateItem)
+        updateItem(updateData)
       } else {
-        createItem(updateItem)
+        createItem(updateData)
       }
+      showForm.value = false
     }
 
     const deleteItem = (item) => {
@@ -233,6 +236,7 @@ export default {
       selected,
       formData,
       edit,
+      showForm,
       formFormat,
       updateData,
       addItem,

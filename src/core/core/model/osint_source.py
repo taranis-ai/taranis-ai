@@ -67,6 +67,9 @@ class OSINTSource(BaseModel):
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "OSINTSource":
+        drop_keys = ["tag", "modified", "last_collected", "last_attempted", "state", "last_error_message"]
+        [data.pop(key, None) for key in drop_keys if key in data]
+
         parameter_values = [ParameterValue.from_dict(parameter_value) for parameter_value in data.pop("parameter_values", [])]
         word_lists = [WordList.get(word_list_id) for word_list_id in data.pop("word_lists", [])]
         collector_type = None

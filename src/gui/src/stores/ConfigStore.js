@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { notifyFailure } from '@/utils/helpers'
 import {
   getAllACLEntries,
   getAllAttributes,
@@ -24,6 +25,7 @@ import {
   getAllParameters
 } from '@/api/config'
 import { getAllUserProductTypes } from '@/api/user'
+import { Logger } from 'sass'
 
 export const useConfigStore = defineStore('config', {
   state: () => ({
@@ -83,119 +85,211 @@ export const useConfigStore = defineStore('config', {
   },
   actions: {
     loadAttributes(data) {
-      return getAllAttributes(data).then((response) => {
-        this.attributes = response.data
-      })
+      return getAllAttributes(data)
+        .then((response) => {
+          this.attributes = response.data
+        })
+        .catch((error) => {
+          notifyFailure(error.message)
+        })
     },
     loadReportTypesConfig(data) {
-      return getAllReportTypes(data).then((response) => {
-        this.report_item_types_config = response.data
-      })
+      return getAllReportTypes(data)
+        .then((response) => {
+          this.report_item_types_config = response.data
+        })
+        .catch((error) => {
+          notifyFailure(error.message)
+        })
     },
     loadProductTypes(data) {
-      return getAllProductTypes(data).then((response) => {
-        this.product_types = response.data
-      })
+      return getAllProductTypes(data)
+        .then((response) => {
+          this.product_types = response.data
+        })
+        .catch((error) => {
+          notifyFailure(error.message)
+        })
     },
     loadUserProductTypes(data) {
-      return getAllUserProductTypes(data).then((response) => {
-        this.product_types = response.data
-      })
+      return getAllUserProductTypes(data)
+        .then((response) => {
+          this.product_types = response.data
+        })
+        .catch((error) => {
+          notifyFailure(error.message)
+        })
     },
     loadPermissions(data) {
-      return getAllPermissions(data).then((response) => {
-        this.permissions = response.data
-      })
+      return getAllPermissions(data)
+        .then((response) => {
+          this.permissions = response.data
+        })
+        .catch((error) => {
+          notifyFailure(error.message)
+        })
     },
     loadExternalPermissions(data) {
-      return getAllExternalPermissions(data).then((response) => {
-        this.permissions = response.data
-      })
+      return getAllExternalPermissions(data)
+        .then((response) => {
+          this.permissions = response.data
+        })
+        .catch((error) => {
+          notifyFailure(error.message)
+        })
     },
     loadRoles(data) {
-      return getAllRoles(data).then((response) => {
-        this.roles = response.data
-      })
+      return getAllRoles(data)
+        .then((response) => {
+          this.roles = response.data
+        })
+        .catch((error) => {
+          notifyFailure(error.message)
+        })
     },
     loadACLEntries(data) {
-      return getAllACLEntries(data).then((response) => {
-        this.acls = response.data
-      })
+      return getAllACLEntries(data)
+        .then((response) => {
+          this.acls = response.data
+        })
+        .catch((error) => {
+          notifyFailure(error.message)
+        })
     },
     loadOrganizations(data) {
-      return getAllOrganizations(data).then((response) => {
-        this.organizations = response.data
-      })
+      return getAllOrganizations(data)
+        .then((response) => {
+          this.organizations = response.data
+        })
+        .catch((error) => {
+          notifyFailure(error.message)
+        })
     },
     loadUsers(data) {
-      return getAllUsers(data).then((response) => {
-        this.users = response.data
-      })
+      return getAllUsers(data)
+        .then((response) => {
+          this.users = response.data
+        })
+        .catch((error) => {
+          notifyFailure(error.message)
+        })
     },
     loadExternalUsers(data) {
-      return getAllExternalUsers(data).then((response) => {
-        this.users = response.data
-      })
+      return getAllExternalUsers(data)
+        .then((response) => {
+          this.users = response.data
+        })
+        .catch((error) => {
+          notifyFailure(error.message)
+        })
     },
     loadWordLists(data) {
-      return getAllWordLists(data).then((response) => {
-        this.word_lists = response.data
-      })
+      return getAllWordLists(data)
+        .then((response) => {
+          this.word_lists = response.data
+        })
+        .catch((error) => {
+          notifyFailure(error.message)
+        })
     },
     loadRemoteAccesses(data) {
-      return getAllRemoteAccesses(data).then((response) => {
-        this.remote_access = response.data
-      })
+      return getAllRemoteAccesses(data)
+        .then((response) => {
+          this.remote_access = response.data
+        })
+        .catch((error) => {
+          notifyFailure(error.message)
+        })
     },
     loadRemoteNodes(data) {
-      return getAllRemoteNodes(data).then((response) => {
-        this.remote_nodes = response.data
-      })
+      return getAllRemoteNodes(data)
+        .then((response) => {
+          this.remote_nodes = response.data
+        })
+        .catch((error) => {
+          notifyFailure(error.message)
+        })
     },
     loadNodes(data) {
-      return getAllNodes(data).then((response) => {
-        this.nodes = response.data
-      })
+      return getAllNodes(data)
+        .then((response) => {
+          this.nodes = response.data
+        })
+        .catch((error) => {
+          notifyFailure(error.message)
+        })
     },
     loadOSINTSources(data) {
-      return getAllOSINTSources(data).then((response) => {
-        this.osint_sources = response.data
-      })
+      return getAllOSINTSources(data)
+        .then((response) => {
+          this.osint_sources = response.data
+        })
+        .catch((error) => {
+          notifyFailure(error.message)
+        })
     },
     loadCollectors(data) {
-      return getAllCollectors(data).then((response) => {
-        this.collectors = response.data
-      })
+      return getAllCollectors(data)
+        .then((response) => {
+          this.collectors = response.data
+        })
+        .catch((error) => {
+          notifyFailure(error.message)
+        })
     },
     loadBots(data) {
-      return getAllBots(data).then((response) => {
-        this.bots = response.data
-      })
+      return getAllBots(data)
+        .then((response) => {
+          this.bots = response.data
+        })
+        .catch((error) => {
+          notifyFailure(error.message)
+        })
     },
     loadPresenters(data) {
-      return getAllPresenters(data).then((response) => {
-        this.presenters = response.data
-      })
+      return getAllPresenters(data)
+        .then((response) => {
+          this.presenters = response.data
+        })
+        .catch((error) => {
+          notifyFailure(error.message)
+        })
     },
     loadPublishers(data) {
-      return getAllPublishers(data).then((response) => {
-        this.publishers = response.data
-      })
+      return getAllPublishers(data)
+        .then((response) => {
+          this.publishers = response.data
+        })
+        .catch((error) => {
+          notifyFailure(error.message)
+        })
     },
     loadOSINTSourceGroups(filter) {
-      return getAllOSINTSourceGroups(filter).then((response) => {
-        this.osint_source_groups = response.data
-      })
+      return getAllOSINTSourceGroups(filter)
+        .then((response) => {
+          this.osint_source_groups = response.data
+        })
+        .catch((error) => {
+          notifyFailure(error.message)
+        })
     },
     loadPublisherPresets(data) {
-      return getAllPublisherPresets(data).then((response) => {
-        this.publisher_presets = response.data
-      })
+      return getAllPublisherPresets(data)
+        .then((response) => {
+          this.publisher_presets = response.data
+        })
+        .catch((error) => {
+          notifyFailure(error.message)
+        })
     },
     loadParameters(data) {
-      return getAllParameters(data).then((response) => {
-        this.parameters = response.data
-      })
+      return getAllParameters(data)
+        .then((response) => {
+          this.parameters = response.data
+        })
+        .catch((error) => {
+          notifyFailure(error.message)
+        })
     }
   }
 })
