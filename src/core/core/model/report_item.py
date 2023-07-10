@@ -25,7 +25,7 @@ class ReportItemAttribute(BaseModel):
     binary_data = orm.deferred(db.Column(db.LargeBinary))
     binary_description = db.Column(db.String())
 
-    attribute_group_item_id = db.Column(db.Integer, db.ForeignKey("attribute_group_item.id"))
+    attribute_group_item_id = db.Column(db.Integer, db.ForeignKey("attribute_group_item.id", ondelete="CASCADE"))
     attribute_group_item = db.relationship("AttributeGroupItem")
 
     report_item_id = db.Column(db.Integer, db.ForeignKey("report_item.id"), nullable=True)
@@ -496,7 +496,9 @@ class ReportItem(BaseModel):
 class ReportItemCpe(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     value = db.Column(db.String())
-    report_item_id = db.Column(db.Integer, db.ForeignKey('report_item.id'))
+
+    report_item_id = db.Column(db.Integer, db.ForeignKey("report_item.id", ondelete="CASCADE"))
+    report_item = db.relationship("ReportItem")
 
     def __init__(self, value):
         self.id = None

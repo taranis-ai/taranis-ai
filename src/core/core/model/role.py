@@ -79,5 +79,5 @@ class Role(BaseModel):
 
 
 class RolePermission(BaseModel):
-    role_id = db.Column(db.Integer, db.ForeignKey("role.id"), primary_key=True)
-    permission_id = db.Column(db.String, db.ForeignKey("permission.id"), primary_key=True)
+    role_id = db.Column(db.Integer, db.ForeignKey("role.id", ondelete="CASCADE"), primary_key=True)
+    permission_id = db.Column(db.String, db.ForeignKey("permission.id", ondelete="CASCADE"), primary_key=True)

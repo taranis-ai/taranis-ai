@@ -171,7 +171,7 @@ class OSINTSourceParameterValue(BaseModel):
 
 class OSINTSourceWordList(BaseModel):
     osint_source_id = db.Column(db.String, db.ForeignKey("osint_source.id", ondelete="CASCADE"), primary_key=True)
-    word_list_id = db.Column(db.Integer, db.ForeignKey("word_list.id"), primary_key=True)
+    word_list_id = db.Column(db.Integer, db.ForeignKey("word_list.id", ondelete="CASCADE"), primary_key=True)
 
 
 class OSINTSourceGroup(BaseModel):
