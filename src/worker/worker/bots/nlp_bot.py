@@ -3,46 +3,30 @@ from worker.log import logger
 import datetime
 import spacy, spacy.cli
 import py3langid
-
-from transformers import (
-    BartTokenizer,
-    BartForConditionalGeneration,
-    AutoTokenizer,
-    AutoModelForSeq2SeqLM,
-)
-
+from nltk.stem import WordNetLemmatizer
+from polyfuzz import PolyFuzz
+from polyfuzz.models import TFIDF
+from sentence_transformers import SentenceTransformer
+from keybert import KeyBERT
+import numpy
+import nltk
+import torch
 
 class NLPBot(BaseBot):
     type = "NLP_BOT"
     name = "NLP Bot"
     description = "Bot for naturale language processing of news items"
-    """
-    summary_threshold: int
-        if content is larger than summary_threshold it will be summarized
-    """
-    summary_threshold = 750
-
 
     def __init__(self):
         super().__init__()
-        logger.debug("Setup Summarization Model...")
-        self.set_summarization_model()
         logger.debug("Setup NER Model...")
         self.ner_model = spacy.load("xx_ent_wiki_sm")
-
-        # logger.debug("Setup KeyWord Model...")
-        # self.kw_model_en = KeyBERT("all-MiniLM-L6-v2")
-        # self.kw_model_de = KeyBERT("paraphrase-mpnet-base-v2")
-
-    def set_summarization_model(self) -> None:
-        self.sum_model_name_en = "facebook/bart-large-cnn"
-        self.sum_model_en = BartForConditionalGeneration.from_pretrained(self.sum_model_name_en)
-        self.sum_tokenizer_en = BartTokenizer.from_pretrained(self.sum_model_name_en)
-        self.sum_model_name_de = "T-Systems-onsite/mt5-small-sum-de-en-v2"
-        self.sum_model_de = AutoModelForSeq2SeqLM.from_pretrained(self.sum_model_name_de)
-        self.sum_tokenizer_de = AutoTokenizer.from_pretrained(self.sum_model_name_de, use_fast=False)
-
-
+        torch.set_num_threads(1) # https://github.com/pytorch/pytorch/issues/36191
+        self.polyfuzz_model = PolyFuzz(TFIDF(model_id="TF-IDF", clean_string=False, n_gram_range=(3, 3), min_similarity=0))
+        self.keybert_model = KeyBERT(model=SentenceTransformer("basel/ATTACK-BERT"))
+        self.wordnet_lemmatizer = WordNetLemmatizer()
+        nltk.download('wordnet')
+        self.language = ""
 
     def execute(self, parameters=None):
         if not parameters:
@@ -63,124 +47,76 @@ class NLPBot(BaseBot):
                 logger.critical("Error getting news items")
                 return
 
+            all_keywords = []
             for aggregate in data:
                 existing_tags = aggregate.get("tags", [])
-                keywords = []
-                content_to_summarize = ""
+                aggregate_content = ""
 
-                if aggregate.get("summary", None) and aggregate.get("tags", None):
-                    logger.debug(f"Skipping aggregate: {aggregate['id']}")
+                if len(existing_tags) > 1:
+                    all_keywords += existing_tags
                     continue
-
-                logger.debug(f"NLP processing aggregate: {aggregate['id']}")
 
                 for news_item in aggregate["news_items"]:
                     content = (
                         news_item["news_item_data"]["content"] + news_item["news_item_data"]["review"] + news_item["news_item_data"]["title"]
                     )
-                    content_to_summarize += content
+                    aggregate_content += content
 
-                    if "language" in news_item["news_item_data"] and news_item["news_item_data"]["language"] != "":
+                    language = news_item["news_item_data"]["language"]
+                    if language == "":
                         self.language = self.detect_language(content)
                         self.core_api.update_news_item_data(news_item["news_item_data"]["id"], {"language": self.language})
+                    else:
+                        self.language = language
 
-                    if len(existing_tags) == 0:
-                        current_keywords = self.extract_ner(content)
-                        logger.debug(f"NER for {aggregate['id']}: {current_keywords}")
-                        keywords.extend([keyword for keyword in current_keywords[:10] if keyword["name"] not in existing_tags])
-
-                    # Disabled for now, as it is not working well
-                    # current_keywords = self.generateKeywords(content)
-                    # keywords.extend(keyword[0] for keyword in current_keywords[:10])
-
-                if keywords:
+                current_keywords = self.extract_ner(aggregate_content)
+                current_keywords += self.generateKeywords(aggregate_content)
+                current_keywords = self.lemmatize(current_keywords)
+                #logger.debug(f"Polyfuzzing keywords from aggregate: {aggregate['id']}")
+                #logger.debug(self.polyfuzz(all_keywords, current_keywords))
+                all_keywords += current_keywords
+                logger.debug(current_keywords)
+                if keywords := list(current_keywords[:20]):
                     self.core_api.update_news_item_tags(aggregate["id"], keywords)
 
-                # if not aggregate.get("summary"):
-                #     try:
-                #         if summary := self.predict_summary(content_to_summarize[:self.summary_threshold]):
-                #             logger.debug(f"Generated summary for {aggregate['id']}: {summary}")
-                #             self.core_api.update_news_items_aggregate_summary(aggregate["id"], summary)
-                #     except Exception:
-                #         logger.log_debug_trace(f"Could not generate summary for {aggregate['id']}")
-
-                logger.debug(f"NLP processing aggregate: {aggregate['id']} finished")
 
         except Exception:
             logger.log_debug_trace(f"Error running Bot: {self.type}")
-
-
 
     def extract_ner(self, text) -> list:
         ner_model = self.ner_model
         doc = ner_model(text)
         seen = set()
         return [
-            {"name": ent.text, "type": ent.label_}
+            {"name": ent.text, "type": ent.label_, "sub_forms": []}
             for ent in doc.ents
-            if len(ent.text) > 2
-            and ent.text not in seen
-            and not seen.add(ent.text)
-        ]
+            if 16 > len(ent.text) > 2 and ent.text not in seen and not seen.add(ent.text)
+        ][:10]
+
+    def lemmatize(self, keywords: dict) -> dict:
+        for keyword in keywords:
+            baseform = self.wordnet_lemmatizer.lemmatize(keyword["name"])
+            if baseform != keyword["name"]:
+                keyword["sub_forms"].append(keyword["name"])
+                keyword["name"] = baseform
+        return keywords
+
+
+    def polyfuzz(self, existing_keywords: list, keywords: list) -> list:
+        from_list = [k["name"] for k in existing_keywords]
+        to_list = [k["name"] for k in keywords]
+        if not from_list or not to_list:
+            return []
+        self.polyfuzz_model.match(from_list, to_list)
+        df = self.polyfuzz_model.get_matches()
+        values = df[df['Similarity'] >=0.65].max()
+        values = values.replace(numpy.nan, None)
+        return values['From']
+
 
     def generateKeywords(self, text):
-        stop_words = "german" if self.language == "de" else "english"
-        kw_model = self.kw_model_de if self.language == "de" else self.kw_model_en
-        return kw_model.extract_keywords(
-            text,
-            keyphrase_ngram_range=(1, 1),
-            stop_words=stop_words,
-            top_n=10,
-        )
+        keywords = self.keybert_model.extract_keywords(docs=text, keyphrase_ngram_range=(1, 1), use_mmr=True, top_n=10, diversity=0.5, stop_words="english")
+        return [{"name": keyword, "type": "CySec", "sub_forms": []} for keyword, distance in keywords if 16 > len(keyword) > 2 and distance > 0.1]
 
     def detect_language(self, text) -> str:
         return py3langid.classify(text)[0]
-
-    def predict_summary(self, text_to_summarize: str, pct_min_length: float = 0.2) -> str:
-        nb_tokens = len(text_to_summarize.split(" "))
-        min_length = int(nb_tokens * pct_min_length)
-        max_length = nb_tokens
-        sum_model = None
-        sum_tokenizer = None
-
-        if self.language == "de":
-            sum_model = self.sum_model_de
-            sum_tokenizer = self.sum_tokenizer_de
-
-        elif self.language == "en":
-            sum_model = self.sum_model_en
-            sum_tokenizer = self.sum_tokenizer_en
-
-        if not sum_model or not sum_tokenizer:
-            return ""
-
-        logger.debug(
-            f"Summarizing {max_length} tokens with min_length={min_length} and max_length={max_length}"
-        )
-
-        input_ids = sum_tokenizer(
-            text_to_summarize,
-            max_length=1024,
-            padding=True,
-            truncation=True,
-            return_tensors="pt",
-        )["input_ids"]
-
-        if input_ids is None:
-            return ""
-
-        summary_ids = sum_model.generate(  # type: ignore
-            input_ids=input_ids,
-            min_length=min_length,
-            max_length=max_length,
-            no_repeat_ngram_size=2,
-            num_beams=6,
-        )
-
-        logger.debug(f"summary_ids: {summary_ids}")
-
-        return sum_tokenizer.batch_decode(
-            summary_ids,
-            skip_special_tokens=True,
-            clean_up_tokenization_spaces=False,
-        )[0]

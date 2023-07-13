@@ -26,7 +26,7 @@ def collect(source_id: str):
         return collectors.RSSCollector().collect(source)
     return "Not implemented"
 
-@shared_task(time_limit=60)
+@shared_task(time_limit=180)
 def execute_bot(bot_id: str, filter: dict | None = None):
 
     core_api = CoreApi()

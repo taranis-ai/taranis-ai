@@ -1,4 +1,5 @@
 import uuid
+import base64
 from datetime import datetime, timedelta
 from typing import Any
 from sqlalchemy import orm, and_, or_, func
@@ -714,19 +715,18 @@ class NewsItemAggregate(BaseModel):
                 logger.error(f"News Item Aggregate {news_item_aggregate_id} not found")
                 return {"error": "not_found"}, 404
 
-            new_tags = []
-
             for tag in tags:
                 if type(tag) is dict:
                     tag_name = tag["name"]
                     tag_type = tag["type"]
+                    sub_forms = tag.get("sub_forms", None)
                 else:
                     tag_name = tag
                     tag_type = "misc"
-                if tag_name not in [tag.name for tag in n_i_a.tags]:
-                    new_tags.append(NewsItemTag(name=tag_name, tag_type=tag_type))
-            n_i_a.tags = new_tags
-
+                    sub_forms = None
+                existing_tags = [form for tag in n_i_a.tags for form in tag.get_forms()]
+                if tag_name not in existing_tags:
+                    n_i_a.tags.append(NewsItemTag(name=tag_name, tag_type=tag_type, sub_forms=sub_forms))
             db.session.commit()
             return {"message": "success"}, 200
         except Exception:
@@ -972,13 +972,22 @@ class NewsItemTag(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255))
     tag_type = db.Column(db.String(255))
+    sub_forms = db.Column(db.Text)
     n_i_a_id = db.Column(db.ForeignKey(NewsItemAggregate.id))
     n_i_a = db.relationship(NewsItemAggregate, backref=orm.backref("tags", cascade="all, delete-orphan"))
 
-    def __init__(self, name, tag_type):
+    def __init__(self, name, tag_type, sub_forms=None):
         self.id = None
         self.name = name
         self.tag_type = tag_type
+        if sub_forms:
+            if type(sub_forms) == list:
+                self.sub_forms = ",".join(sub_forms)
+            elif type(sub_forms) == str:
+                self.sub_forms = sub_forms
+            else:
+                self.sub_forms = ""
+                logger.debug(f"wrong type for sub_forms {type(sub_forms)}")
 
     @classmethod
     def find_largest_tag_clusters(cls, days: int = 7, limit: int = 12, min_count: int = 2):
@@ -1067,13 +1076,15 @@ class NewsItemTag(BaseModel):
             db.session.delete(tag)
         db.session.commit()
 
-    @classmethod
-    def get_tag_counts(cls):
-        tag_counts = db.session.query(cls.name, func.count(cls.name)).group_by(cls.name).all()
-        return dict(tag_counts)
+    def get_forms(self) -> list[str]:
+        tags = [self.name]
+        if self.sub_forms:
+            tags.append(self.sub_forms.split(","))
+        return tags
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "tag_type": self.tag_type,
+            "sub_forms": self.sub_forms.split(",") if self.sub_forms else "",
         }
