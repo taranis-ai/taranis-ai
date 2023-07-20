@@ -4,7 +4,6 @@ __all__ = [
     "audit_manager",
     "auth_manager",
     "bots_manager",
-    "collectors_manager",
     "db_manager",
     "external_auth_manager",
     "log_manager",

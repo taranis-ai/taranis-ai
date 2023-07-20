@@ -3,7 +3,7 @@ FROM python:3-slim
 WORKDIR /app/
 
 # upgrade pip
-RUN python -m pip install --upgrade pip
+RUN python -m pip install --upgrade pip wheel
 
 # install common packages
 RUN apt-get update && apt-get upgrade -y && apt-get install --no-install-recommends -y \

@@ -52,8 +52,10 @@ services:
       WORKERS_PER_CORE: "1"
       WEB_CONCURRENCY: "1"
 
-      CVE_UPDATE_FILE: "${CVE_UPDATE_FILE:-/data/cve_dictionary.xml}"
-      CPE_UPDATE_FILE: "${CPE_UPDATE_FILE:-/data/cpe_dictionary.xml}"
+      QUEUE_BROKER_HOST: "rabbitmq"
+      QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
+      QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD}"
+
       PRE_SEED_PASSWORD_ADMIN: "${PRE_SEED_PASSWORD_ADMIN:-admin}"
       PRE_SEED_PASSWORD_USER: "${PRE_SEED_PASSWORD_USER:-user}"
       SECRET_KEY: "${API_KEY}"
@@ -67,66 +69,22 @@ services:
         max-size: "200k"
         max-file: "10"
 
-  bots:
-    depends_on:
-      core:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: on-failure
-        max_attempts: 3
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-bots:${TARANIS_NG_TAG}"
-    environment:
-      API_KEY: "${API_KEY}"
-      TARANIS_NG_CORE_URL: "http://core"
-      TARANIS_NG_CORE_SSE: "http://core/sse"
-      WORKERS_PER_CORE: "1"
-      WEB_CONCURRENCY: "1"
-      DEBUG: "${DEBUG:-False}"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "200k"
-        max-file: "10"
-
-  collectors:
-    depends_on:
-      core:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: on-failure
-        max_attempts: 3
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-collectors:${TARANIS_NG_TAG}"
-    environment:
-      TARANIS_NG_CORE_URL: "http://core"
-      API_KEY: "${API_KEY}"
-      WORKERS_PER_CORE: "1"
-      WEB_CONCURRENCY: "1"
-      DEBUG: "${DEBUG:-False}"
-    volumes:
-      - "collector_storage:/app/storage"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "200k"
-        max-file: "10"
-
   beat:
     depends_on:
-      rabbitmq:
+      - rabbitmq
     deploy:
       restart_policy:
         condition: on-failure
         max_attempts: 3
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-worker:${TARANIS_NG_TAG}"
-    command: "beat"
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-worker:${TARANIS_NG_TAG:-latest}"
+    command: "--app worker beat"
     environment:
       TARANIS_NG_CORE_URL: "http://core"
       API_KEY: "${API_KEY}"
+      QUEUE_BROKER_HOST: "rabbitmq"
+      QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
+      QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD}"
       DEBUG: "${DEBUG:-False}"
-    volumes:
-      - "beat_storage:/app/storage"
     logging:
       driver: "json-file"
       options:
@@ -135,16 +93,19 @@ services:
 
   worker:
     depends_on:
-      rabbitmq:
+      - rabbitmq
     deploy:
       restart_policy:
         condition: on-failure
         max_attempts: 3
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-worker:${TARANIS_NG_TAG}"
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-worker:${TARANIS_NG_TAG:-latest}"
     environment:
       TARANIS_NG_CORE_URL: "http://core"
       API_KEY: "${API_KEY}"
-      LOGLEVEL: "${WORKER_LOGLEVEL:-INFO}"
+      QUEUE_BROKER_HOST: "rabbitmq"
+      QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
+      QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD}"
+      DEBUG: "${DEBUG:-False}"
     logging:
       driver: "json-file"
       options:
@@ -156,7 +117,7 @@ services:
       restart_policy:
         condition: on-failure
         max_attempts: 3
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-gui:${TARANIS_NG_TAG}"
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-gui:${TARANIS_NG_TAG:-latest}"
     ports:
       - "${TARANIS_NG_PORT:-8080}:80"
     environment:
@@ -172,8 +133,8 @@ services:
   rabbitmq:
     image: "rabbitmq:${RABBITMQ_TAG:-3-management-alpine}"
     ports:
-      - 5672:5672
-      - 15672:15672
+      - "${TARANIS_RABBITMQ_PORT:-5672}:5672"
+      - "${TARANIS_RABBITMQ_MGMT_PORT:-15672}:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq/
     environment:
@@ -188,6 +149,4 @@ services:
 volumes:
   database_data:
   core_data:
-  collector_storage:
   rabbitmq_data:
-  beat_storage:

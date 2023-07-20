@@ -1,11 +1,10 @@
 from flask import request
 from flask_restx import Resource, Namespace
 
-from core.managers import collectors_manager
 from core.managers.sse_manager import sse_manager
 from core.managers.auth_manager import api_key_required
 from core.managers.log_manager import logger
-from core.model import osint_source, news_item, collectors_node
+from core.model import osint_source, news_item
 
 
 class OSINTSourcesForCollectors(Resource):
@@ -24,25 +23,6 @@ class AddNewsItems(Resource):
         result, status = news_item.NewsItemAggregate.add_news_items(json_data)
         sse_manager.news_items_updated()
         return result, status
-
-
-class CollectorsNode(Resource):
-    @api_key_required
-    def get(self, node_id):
-        return collectors_node.CollectorsNode.get_json_by_id(node_id)
-
-    @api_key_required
-    def put(self, node_id):
-        return collectors_manager.update_collectors_node(node_id, request.json)
-
-    @api_key_required
-    def post(self):
-        node = collectors_node.CollectorsNode.add(request.json)
-        return {"id": node.id, "message": "Successful added"}, 201
-
-    @api_key_required
-    def delete(self, node_id):
-        return collectors_node.CollectorsNode.delete(node_id)
 
 
 class OSINTSourceStatusUpdate(Resource):
@@ -73,5 +53,4 @@ def initialize(api):
     )
 
     namespace.add_resource(AddNewsItems, "/news-items")
-    namespace.add_resource(CollectorsNode, "/node/<string:node_id>", "/node")
     api.add_namespace(namespace)

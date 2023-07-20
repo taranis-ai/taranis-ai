@@ -60,12 +60,6 @@ parameters = [
         "type": "STRING",
     },
     {
-        "name": "Slack API token",
-        "description": "API token for Slack authentication.",
-        "key": "SLACK_API_TOKEN",
-        "type": "STRING",
-    },
-    {
         "name": "Collected workspaces channels ID",
         "description": "Channels which will be collected.",
         "key": "WORKSPACE_CHANNELS_ID",
@@ -225,12 +219,6 @@ parameters = [
         "description": "OPTIONAL: Selector of an additional article ID",
         "name": "SELECTOR at ARTICLE: Additional ID selector",
         "key": "ADDITIONAL_ID_SELECTOR",
-        "type": "STRING",
-    },
-    {
-        "description": "Full url for Atom feed",
-        "name": "Atom feed URL",
-        "key": "ATOM_FEED_URL",
         "type": "STRING",
     },
     {
@@ -414,17 +402,6 @@ collectors = [
         "type": "EMAIL_COLLECTOR",
     },
     {
-        "description": "Collector for gathering data from Slack",
-        "name": "Slack Collector",
-        "parameters": [
-            "SLACK_API_TOKEN",
-            "WORKSPACE_CHANNELS_ID",
-            "PROXY_SERVER",
-            "REFRESH_INTERVAL",
-        ],
-        "type": "SLACK_COLLECTOR",
-    },
-    {
         "description": "Collector for gathering data from Twitter",
         "name": "Twitter Collector",
         "parameters": [
@@ -465,17 +442,6 @@ collectors = [
             "ADDITIONAL_ID_SELECTOR",
         ],
         "type": "WEB_COLLECTOR",
-    },
-    {
-        "description": "Collector for gathering data from Atom feeds",
-        "name": "Atom Collector",
-        "parameters": [
-            "ATOM_FEED_URL",
-            "USER_AGENT",
-            "PROXY_SERVER",
-            "REFRESH_INTERVAL",
-        ],
-        "type": "ATOM_COLLECTOR",
     },
     {
         "description": "Collector for manual input of news items",

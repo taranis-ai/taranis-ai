@@ -1,8 +1,0 @@
-#! /bin/sh
-
-export DB_URL={{ taranisng_database_host }}
-export DB_DATABASE={{ taranisng_database_database }}
-export DB_USER={{ taranisng_database_user }}
-export DB_PASSWORD={{ taranisng_database_password }}
-export JWT_SECRET_KEY={{ taranisng_jwt_secret_key }}
-exec python3 ./run.py

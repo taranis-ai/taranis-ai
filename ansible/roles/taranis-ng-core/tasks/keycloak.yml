@@ -1,9 +1,0 @@
-- name: install prerequisites for keycloak
-  package:
-    name:
-    - default-jdk
-    # - pyOpenSSL
-    - unzip
-    state: present
-
--

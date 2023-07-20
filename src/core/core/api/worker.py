@@ -5,6 +5,7 @@ from core.managers.auth_manager import api_key_required
 from core.managers.log_manager import logger
 from core.model.osint_source import OSINTSource
 from core.model.queue import ScheduleEntry
+from core.model.bot import Bot
 
 
 class QueueScheduleEntry(Resource):
@@ -66,6 +67,20 @@ class Sources(Resource):
             logger.log_debug_trace()
 
 
+class BotsInfo(Resource):
+    def get(self):
+        search = request.args.get(key="search", default=None)
+        return Bot.get_all_json(search)
+
+
+class BotInfo(Resource):
+    def get(self, bot_id):
+        return Bot.get_by_filter(bot_id)
+
+    def put(self, bot_id):
+        return Bot.update(bot_id, request.json)
+
+
 def initialize(api):
     worker_namespace = Namespace("Worker", description="Publish Subscribe Worker Endpoints", path="/api/v1/worker")
     beat_namespace = Namespace("Beat", description="Publish Subscribe Beat Endpoints", path="/api/v1/beat")
@@ -85,5 +100,8 @@ def initialize(api):
         Sources,
         "/osint-sources/<string:source_id>",
     )
+    worker_namespace.add_resource(BotsInfo, "/bots")
+    worker_namespace.add_resource(BotInfo, "/bots/<string:bot_id>")
+
     api.add_namespace(beat_namespace)
     api.add_namespace(worker_namespace)

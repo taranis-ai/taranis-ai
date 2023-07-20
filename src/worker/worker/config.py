@@ -1,4 +1,4 @@
-from pydantic_settings import BaseSettings
+from pydantic import BaseSettings
 from typing import Literal, Any
 from pydantic import validator
 

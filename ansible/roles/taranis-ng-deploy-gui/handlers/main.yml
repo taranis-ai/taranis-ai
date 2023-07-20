@@ -1,4 +1,0 @@
-- name: apache2 restart
-  service:
-    name: apache2
-    state: reloaded

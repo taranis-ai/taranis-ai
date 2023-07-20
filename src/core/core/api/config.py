@@ -10,7 +10,6 @@ from core.managers import (
     publishers_manager,
     bots_manager,
     external_auth_manager,
-    collectors_manager,
     queue_manager,
 )
 from core.managers.log_manager import logger
@@ -405,7 +404,7 @@ class OSINTSourceCollect(Resource):
 class OSINTSourcesExport(Resource):
     @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
     def get(self):
-        data = collectors_manager.export_osint_sources()
+        data = osint_source.OSINTSource.export_osint_sources()
         if data is None:
             return "Unable to export", 400
         return send_file(
@@ -420,7 +419,7 @@ class OSINTSourcesImport(Resource):
     @auth_required("CONFIG_OSINT_SOURCE_CREATE")
     def post(self):
         if file := request.files.get("file"):
-            sources = collectors_manager.import_osint_sources(file)
+            sources = osint_source.OSINTSource.import_osint_sources(file)
             if sources is None:
                 return "Unable to import", 400
             return {"sources": [source.id for source in sources], "count": len(sources), "message": "Successfully imported sources"}

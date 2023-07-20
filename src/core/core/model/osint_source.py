@@ -1,4 +1,5 @@
 import uuid
+import json
 from datetime import datetime
 from typing import Any
 from sqlalchemy import or_, and_
@@ -192,6 +193,39 @@ class OSINTSource(BaseModel):
         ScheduleEntry.delete(entry_id)
         logger.info(f"Schedule for source {self.id} removed")
         return {"message": f"Schedule for source {self.id} removed"}, 200
+
+    @classmethod
+    def export_osint_sources(cls):
+        data = cls.get_all()
+        for osint_source in data:
+            osint_source = osint_source.cleanup_paramaters()
+        export_data = {"version": 2, "data": [osint_source.to_export_dict() for osint_source in data]}
+        return json.dumps(export_data).encode("utf-8")
+
+    def cleanup_paramaters(self) -> "OSINTSource":
+        for parameter_value in self.parameter_values:
+            if parameter_value.parameter.key == "PROXY_SERVER":
+                parameter_value.value = ""
+        return self
+
+    @classmethod
+    def parse_version_1(cls, data: list) -> list:
+        for source in data:
+            for parameter in source["parameter_values"]:
+                parameter["parameter"] = parameter["parameter"]["key"]
+        return data
+
+    @classmethod
+    def import_osint_sources(cls, file):
+        file_data = file.read()
+        json_data = json.loads(file_data.decode("utf8"))
+        if json_data["version"] == 1:
+            data = cls.parse_version_1(json_data["data"])
+        elif json_data["version"] == 2:
+            data = json_data["data"]
+        else:
+            raise ValueError("Unsupported version")
+        return cls.add_multiple(data)
 
 
 class OSINTSourceParameterValue(BaseModel):

@@ -2,24 +2,29 @@ FROM python:3-slim
 
 WORKDIR /app/
 
-RUN python -m pip install --upgrade pip
+RUN python -m pip install --upgrade pip wheel
 RUN apt-get update && apt-get upgrade -y
+RUN groupadd user && useradd --home-dir /app -g user user
 
 COPY ./src/worker/setup.cfg ./src/worker/setup.py /app/
 
 RUN apt-get install --no-install-recommends -y \
       build-essential \
-      python3-dev && \
+      python3-dev \
+      git && \
+    pip install torch --index-url https://download.pytorch.org/whl/cpu && \
     pip install -e /app/ && \
     apt-get purge -y build-essential python3-dev && \
     apt-get autoremove -y --purge &&\
     apt-get clean
 
+USER user
 COPY ./src/worker/. /app/
 ENV PYTHONPATH=/app
 
-VOLUME ["/app/storage"]
+# bake spacy modell into Image
+RUN python -c 'from worker.bots.nlp_bot import NLPBot; n = NLPBot()'
 
 ENTRYPOINT [ "celery" ]
 
-CMD ["--app worker worker --loglevel=${LOGLEVEL}"]
+CMD ["--app", "worker", "worker"]

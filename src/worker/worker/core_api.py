@@ -18,70 +18,89 @@ class CoreApi:
         return {"Authorization": f"Bearer {self.api_key}", "Content-type": "application/json"}
 
 
-    def parse_osint_source(self, response):
+    def check_response(self, response, url):
         if response.ok:
             return response.json()
-        logger.critical(f"Can't get OSINT Sources: {response.text}")
+        logger.critical(f"Call to {url} failed {response.status}: {response.text}")
         return None
 
+    def api_put(self, url, json_data=None):
+        url = f"{self.api_url}{url}"
+        response = requests.put(url=url, headers=self.headers, verify=self.verify, json=json_data)
+        return self.check_response(response, url)
 
-    def get_news_items_data(self, limit):
+    def api_post(self, url, json_data=None):
+        url = f"{self.api_url}{url}"
+        response = requests.post(url=url, headers=self.headers, verify=self.verify, json=json_data)
+        return self.check_response(response, url)
+
+    def api_get(self, url, params=None):
+        url = f"{self.api_url}{url}{params}"
+        response = requests.get(url=url, headers=self.headers, verify=self.verify)
+        return self.check_response(response, url)
+
+    def api_delete(self, url):
+        url = f"{self.api_url}{url}"
+        response = requests.delete(url=url, headers=self.headers, verify=self.verify)
+        return self.check_response(response, url)
+
+
+
+    def get_bot_config(self, bot_id: str) -> dict | None:
         try:
-            response = requests.get(
-                f"{self.api_url}/api/v1/bots/news-item-data?limit={limit}",
-                headers=self.headers,
-            )
-            return response.json()
+            return self.api_get('/api/v1/worker/bots/', bot_id)
         except Exception:
+            logger.log_debug_trace("Can't get OSINT Sources")
             return None
-
 
     def get_osint_source(self, source_id: str) -> dict | None:
         try:
-            response = requests.get(
-                f"{self.api_url}/api/v1/worker/osint-sources/{source_id}",
-                headers=self.headers,
-                verify=self.verify,
+            return self.api_get(
+                '/api/v1/worker/osint-sources/', source_id
             )
-
-            return self.parse_osint_source(response)
         except Exception:
             logger.log_debug_trace("Can't get OSINT Sources")
             return None
 
-
-    def get_osint_sources(self, collector_type: str) -> dict | None:
+    def get_schedule(self) -> dict | None:
         try:
-            response = requests.get(
-                f"{self.api_url}/api/v1/collectors/osint-sources/{quote(string=collector_type)}",
-                headers=self.headers,
-                verify=self.verify,
-            )
-
-            return self.parse_osint_source(response)
-        except Exception:
-            logger.log_debug_trace("Can't get OSINT Sources")
-            return None
-
-    def get_schedule(self):
-        try:
-            response = requests.get(
-                f"{self.api_url}/api/v1/beat/schedule",
-                headers=self.headers,
-            )
-            return response.json() if response.ok else None
+            return self.api_get(url='/api/v1/beat/schedule',)
         except Exception:
             return None
+
+    def get_categories(self, id) -> dict | None:
+        try:
+            return self.api_get(
+                url='/api/v1/bots/word-list-categories/',
+                params=id,
+            )
+        except Exception:
+            return None
+
+    def get_news_items_data(self, limit) -> dict | None:
+        try:
+            return self.api_get('/api/v1/bots/news-item-data', f'?limit={limit}')
+        except Exception:
+            return None
+
+    def get_news_items_aggregate(self, source_group, limit) -> dict | None:
+        try:
+            return self.api_get('/api/v1/bots/news-item-aggregates', f'?group={source_group}')
+        except Exception:
+            logger.log_debug_trace("get_news_items_aggregate failed")
+            return None
+
 
 
     def update_schedule(self, schedule):
         try:
+            url = f"{self.api_url}/api/v1/beat/schedule"
             response = requests.put(
-                f"{self.api_url}/api/v1/beat/schedule",
+                url=url,
                 json=schedule,
                 headers=self.headers,
             )
-            return response.status_code
+            return self.check_response(response, url)
         except Exception:
             return None
 
@@ -129,15 +148,6 @@ class CoreApi:
         except Exception:
             return None
 
-    def get_categories(self, id):
-        try:
-            response = requests.get(
-                f"{self.api_url}/api/v1/bots/word-list-categories/{id}",
-                headers=self.headers,
-            )
-            return response.json()
-        except Exception:
-            return None
 
     def add_word_list_category(self, id, category):
         try:
@@ -148,17 +158,6 @@ class CoreApi:
             )
             return response.status_code
         except Exception:
-            return None
-
-    def get_news_items_aggregate(self, source_group, limit):
-        try:
-            response = requests.get(
-                f"{self.api_url}/api/v1/bots/news-item-aggregates?group={source_group}",
-                headers=self.headers,
-            )
-            return response.json(), response.status_code
-        except Exception:
-            logger.log_debug_trace("get_news_items_aggregate failed")
             return None
 
     def news_items_grouping(self, data):
@@ -193,16 +192,18 @@ class CoreApi:
 
     def update_next_run_time(self, name: str, next_run_time: datetime):
         try:
-            response = requests.put(f"{self.api_url}/api/v1/beat/next-run-time", headers=self.headers, verify=self.verify, json={name: next_run_time.isoformat()})
-            return response.ok
+            url = f"{self.api_url}/api/v1/beat/next-run-time"
+            response = requests.put(url=url, headers=self.headers, verify=self.verify, json={name: next_run_time.isoformat()})
+            return self.check_response(response, url)
         except Exception:
             logger.log_debug_trace("Cannot update schedule entry")
             return False
 
     def cleanup_token_blacklist(self):
         try:
-            response = requests.post(f"{self.api_url}/api/v1/worker/token-blacklist", headers=self.headers, verify=self.verify)
-            return response.ok
+            url = f"{self.api_url}/api/v1/worker/token-blacklist"
+            response = requests.post(url=url, headers=self.headers, verify=self.verify)
+            return self.check_response(response, url)
         except Exception:
             logger.log_debug_trace("Cannot cleanup token blacklist")
             return False
