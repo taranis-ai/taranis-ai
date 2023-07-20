@@ -11,6 +11,8 @@ from core.managers.log_manager import logger
 def get_collectors_info(node: CollectorsNode):
     try:
         collectors_info, status_code = CollectorsApi(node.api_url, node.api_key).get_collectors_info()
+        if not collectors_info:
+            return None, status_code
     except ConnectionError:
         return f"Connection error: Could not reach {node.api_url}", 500
     except Exception:
@@ -25,6 +27,8 @@ def get_collectors_info(node: CollectorsNode):
 
 def update_collectors_node(node_id, data):
     node = CollectorsNode.get(node_id)
+    if not node:
+        return f"Collector Node with ID: {node_id} not found", 404
     collectors, status_code = get_collectors_info(node)
     if status_code != 200:
         return collectors, status_code
@@ -36,49 +40,6 @@ def update_collectors_node(node_id, data):
         return f"Couldn't add Collector node: {node.name}", 500
 
     return node.id, status_code
-
-
-def add_osint_source(data):
-    osint_source = OSINTSource.add(data)
-    refresh_collector(osint_source.collector_id)
-    return {"id": osint_source.id, "message": "OSINT source created successfully"}, 201
-
-
-def update_osint_source(osint_source_id, data):
-    osint_source = OSINTSource.update(osint_source_id, data)
-    refresh_collector(osint_source.collector_id)
-    return f"OSINT Source {osint_source.name} updated", 200
-
-
-def delete_osint_source(osint_source_id):
-    osint_source = OSINTSource.get(osint_source_id)
-    if not osint_source:
-        return f"OSINT Source with ID: {osint_source_id} not found", 404
-    OSINTSource.delete(osint_source.id)
-    refresh_collector(osint_source.collector_id)
-    return f"OSINT Source {osint_source.name} deleted", 200
-
-
-def refresh_osint_source(osint_source_id):
-    osint_source = OSINTSource.get(osint_source_id)
-    refresh_collector(osint_source.collector_id)
-
-
-def refresh_collector(collector_id):
-    try:
-        collector = Collector.get(collector_id)
-        if node := CollectorsNode.get_first():
-            CollectorsApi(node.api_url, node.api_key).refresh_collector(collector.type)
-    except ConnectionError:
-        logger.critical("Connection error: Could not reach Collector")
-
-
-def refresh_collectors():
-    try:
-        if node := CollectorsNode.get_first():
-            CollectorsApi(node.api_url, node.api_key).refresh_collectors()
-    except ConnectionError:
-        logger.critical("Connection error: Could not reach Collector")
 
 
 def export_osint_sources():

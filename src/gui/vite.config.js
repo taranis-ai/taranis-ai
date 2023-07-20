@@ -16,6 +16,7 @@ export default defineConfig({
   },
   plugins: [vue(), VueI18nPlugin(), vuetify({ autoImport: true })],
   build: {
+    sourcemap: true,
     rollupOptions: {
       // https://rollupjs.org/guide/en/#outputmanualchunks
       output: {

@@ -1,14 +1,10 @@
-name: Bots Docker image
+name: Worker Docker image
 
 on:
   push:
     paths:
-    - 'src/bots/**'
-    - 'docker/Dockerfile.bots'
-    - 'docker/start.sh'
-    - 'docker/prestart.sh'
-    - 'docker/entrypoint.sh'
-    - 'docker/gunicorn_conf.py'
+    - 'src/worker/**'
+    - 'docker/Dockerfile.worker'
     branches:
     - main
 
@@ -29,10 +25,11 @@ jobs:
       - name: get ghcr owner repository
         run: |
           echo "GHCR_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >>${GITHUB_ENV}
-      - name: Build and push bots
+      - name: Build and push worker image
         uses: docker/build-push-action@v3
         with:
-          file: docker/Dockerfile.bots
+          file: docker/Dockerfile.worker
           push: true
           tags: |
-            ghcr.io/${{ env.GHCR_OWNER }}/taranis-ng-bots:${{ github.ref_name }}
+            ghcr.io/${{ env.GHCR_OWNER }}/taranis-ng-worker:latest
+            ghcr.io/${{ env.GHCR_OWNER }}/taranis-ng-worker:${{ github.ref_name }}

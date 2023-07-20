@@ -11,7 +11,7 @@ from flask_jwt_extended import (
 )
 from flask_jwt_extended.exceptions import JWTExtendedException
 
-# from core.managers import time_manager
+# from core.managers import queue_manager
 from core.managers.log_manager import logger
 from core.auth.keycloak_authenticator import KeycloakAuthenticator
 from core.auth.openid_authenticator import OpenIDAuthenticator
@@ -55,7 +55,7 @@ def initialize(app):
     with app.app_context():
         current_authenticator.initialize(app)
 
-    # time_manager.schedule_job_every_day("00:00", cleanup_token_blacklist)
+    # queue_manager.schedule_job_every_day("00:00", cleanup_token_blacklist)
 
 
 def get_required_credentials():

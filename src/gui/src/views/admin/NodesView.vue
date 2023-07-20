@@ -1,5 +1,6 @@
 <template>
   <div>
+    <DeprecationWarning />
     <DataTable
       v-model:items="nodes.items"
       :add-button="false"
@@ -12,8 +13,14 @@
       @selection-change="selectionChange"
     >
       <template #titlebar>
-        <v-btn color="blue-grey" dark class="ml-4" @click="triggerWorkers">
-          <v-icon>mdi-run</v-icon>Trigger Workers
+        <v-btn
+          color="blue-grey"
+          dark
+          class="ml-4"
+          prepend-icon="mdi-run"
+          @click="triggerWorkers"
+        >
+          Trigger Workers
         </v-btn>
       </template>
     </DataTable>
@@ -28,6 +35,7 @@
 
 <script>
 import DataTable from '@/components/common/DataTable.vue'
+import DeprecationWarning from '@/components/common/DeprecationWarning.vue'
 import EditConfig from '@/components/config/EditConfig.vue'
 import { deleteNode, createNode, updateNode, triggerNode } from '@/api/config'
 import { useConfigStore } from '@/stores/ConfigStore'
@@ -39,6 +47,7 @@ import { storeToRefs } from 'pinia'
 export default {
   name: 'NodesView',
   components: {
+    DeprecationWarning,
     DataTable,
     EditConfig
   },

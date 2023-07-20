@@ -6,9 +6,9 @@ export const i18n = createI18n({
   legacy: false,
   locale:
     typeof import.meta.env.VITE_TARANIS_NG_LOCALE === 'undefined'
-      ? 'en-GB'
+      ? 'en'
       : import.meta.env.VITE_TARANIS_NG_LOCALE,
-  fallbackLocale: 'en-GB',
+  fallbackLocale: 'en',
   messages,
   datetimeFormats
 })

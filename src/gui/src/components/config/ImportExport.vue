@@ -1,10 +1,22 @@
 <template>
   <div>
-    <v-btn color="blue-grey" dark class="ml-4" @click="importClick">
-      <v-icon>mdi-import</v-icon>Import
+    <v-btn
+      color="green-darken-3"
+      dark
+      class="ml-4"
+      prepend-icon="mdi-import"
+      @click="importClick"
+    >
+      Import
     </v-btn>
-    <v-btn color="blue-grey" dark class="ml-4" @click="exportFile">
-      <v-icon>mdi-export</v-icon>Export
+    <v-btn
+      color="teal-darken-4"
+      dark
+      class="ml-4"
+      prepend-icon="mdi-export"
+      @click="exportFile"
+    >
+      Export
     </v-btn>
     <input
       ref="fileInput"
@@ -19,10 +31,7 @@
 <script>
 export default {
   name: 'ImportExport',
-  components: {},
   emits: ['import', 'export'],
-  data: () => ({}),
-  computed: {},
   methods: {
     importClick() {
       this.$refs.fileInput.click()

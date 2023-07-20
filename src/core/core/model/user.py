@@ -38,7 +38,7 @@ class User(BaseModel):
         self.profile = UserProfile(True, False, [], "en")
 
     @classmethod
-    def find_by_name(cls, username):
+    def find_by_name(cls, username: str):
         return cls.query.filter_by(username=username).first()
 
     @classmethod
@@ -83,8 +83,8 @@ class User(BaseModel):
     def to_dict(self):
         data = {c.name: getattr(self, c.name) for c in self.__table__.columns if c.name != "password"}
         data["organization"] = data.pop("organization_id")
-        data["roles"] = [role.id for role in self.roles]
-        data["permissions"] = [permission.id for permission in self.permissions]
+        data["roles"] = [role.id for role in self.roles if role]
+        data["permissions"] = [permission.id for permission in self.permissions if permission]
         data["tag"] = "mdi-account"
         return data
 
@@ -121,10 +121,11 @@ class User(BaseModel):
         return f"User {user_id} updated", 200
 
     def get_permissions(self):
-        all_permissions = {permission.id for permission in self.permissions}
+        all_permissions = {permission.id for permission in self.permissions if permission}
 
         for role in self.roles:
-            all_permissions.update(role.get_permissions())
+            if role:
+                all_permissions.update(role.get_permissions())
         return list(all_permissions)
 
     def get_current_organization_name(self):
@@ -148,7 +149,7 @@ class User(BaseModel):
 
     @classmethod
     def get_all_external_json(cls, user, search):
-        users, count = cls.get(search, user.organization)
+        users, count = cls.get_by_filter(search, user.organization)
         items = [user.to_dict() for user in users]
         return {"total_count": count, "items": items}
 
@@ -178,7 +179,7 @@ class User(BaseModel):
         user.name = updated_user.name
 
         for permission in updated_user.permissions:
-            if permission.id not in permissions:
+            if permission and permission.id not in permissions:
                 updated_user.permissions.remove(permission)
 
         user.permissions = updated_user.permissions

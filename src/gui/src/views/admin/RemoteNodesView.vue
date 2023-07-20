@@ -1,5 +1,6 @@
 <template>
   <div>
+    <DeprecationWarning />
     <DataTable
       v-model:items="remote_nodes.items"
       :add-button="true"
@@ -20,6 +21,7 @@
 </template>
 
 <script>
+import DeprecationWarning from '@/components/common/DeprecationWarning.vue'
 import DataTable from '@/components/common/DataTable.vue'
 import EditConfig from '@/components/config/EditConfig.vue'
 import { deleteNode, createNode, updateNode } from '@/api/config'
@@ -32,6 +34,7 @@ import { useMainStore } from '@/stores/MainStore'
 export default {
   name: 'RemoteNodes',
   components: {
+    DeprecationWarning,
     DataTable,
     EditConfig
   },

@@ -80,6 +80,7 @@ export const messages_de = {
     bots: 'Bots',
     user: 'Benutzer',
     nodes: 'Knoten',
+    workers: 'Arbeiter',
     organizations: 'Organisationen',
     word_lists: 'Wortlisten',
     asset_groups: 'Asset-Gruppen',

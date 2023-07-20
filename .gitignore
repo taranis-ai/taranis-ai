@@ -11,6 +11,7 @@ build/
 .installed.cfg
 *.egg
 .pytest_cache/
+celerybeat-schedule
 
 # temporary files of editors
 .DS_Store

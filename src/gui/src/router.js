@@ -193,6 +193,18 @@ export const router = createRouter({
       }
     },
     {
+      path: '/config/workers',
+      name: 'workers',
+      components: {
+        default: () => import('@/views/admin/WorkersView.vue'),
+        nav: () => import('@/views/nav/ConfigNav.vue')
+      },
+      meta: {
+        requiresAuth: true,
+        requiresPerm: [Permissions.CONFIG_NODE_ACCESS]
+      }
+    },
+    {
       path: '/config/nodes',
       name: 'nodes',
       components: {

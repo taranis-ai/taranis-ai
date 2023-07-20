@@ -5,5 +5,6 @@ import { messages_de } from '@/i18n/de/messages'
 export const messages = {
   de: messages_de,
   en: messages_en,
+  'en-GB': messages_en,
   sk: messages_sk
 }

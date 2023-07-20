@@ -7,21 +7,23 @@
     :permanent="true"
   >
     <v-list nav>
-      <v-list-item
-        v-for="link in filteredLinks"
-        :key="link.route"
-        :to="link.route"
-        class="d-flex justify-center"
-      >
-        <v-list-item-title class="d-flex justify-center">
-          <v-icon :icon="link.icon" />
-        </v-list-item-title>
+      <div v-for="link in filteredLinks" :key="link.route">
+        <v-list-item :to="link.route" class="d-flex justify-center">
+          <v-list-item-title class="d-flex justify-center">
+            <v-icon
+              v-if="link.deprecated"
+              color="yellow-accent-4"
+              icon="mdi-alert-outline"
+            />
+            <v-icon :icon="link.icon" />
+          </v-list-item-title>
 
-        <v-list-item-subtitle class="d-flex text-center text-caption">
-          {{ $t(link.title) }}
-        </v-list-item-subtitle>
-      </v-list-item>
-      <v-divider />
+          <v-list-item-subtitle class="d-flex text-center text-caption">
+            {{ $t(link.title) }}
+          </v-list-item-subtitle>
+        </v-list-item>
+        <v-divider v-if="link.divider" />
+      </div>
     </v-list>
   </v-navigation-drawer>
 </template>

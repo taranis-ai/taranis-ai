@@ -12,5 +12,5 @@ __all__ = [
     "publishers_manager",
     "remote_manager",
     "sse_manager",
-    "time_manager",
+    "queue_manager",
 ]

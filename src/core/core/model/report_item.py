@@ -28,7 +28,7 @@ class ReportItemAttribute(BaseModel):
     attribute_group_item_id = db.Column(db.Integer, db.ForeignKey("attribute_group_item.id", ondelete="CASCADE"))
     attribute_group_item = db.relationship("AttributeGroupItem")
 
-    report_item_id = db.Column(db.Integer, db.ForeignKey("report_item.id"), nullable=True)
+    report_item_id = db.Column(db.Integer, db.ForeignKey("report_item.id", ondelete="CASCADE"), nullable=True)
     report_item = db.relationship("ReportItem")
 
     def __init__(

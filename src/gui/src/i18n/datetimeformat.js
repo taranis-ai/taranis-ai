@@ -1,48 +1,35 @@
+// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat
+
+const defaultShort = {
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit'
+}
+
+const defaultLong = {
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false
+}
+
 export const datetimeFormats = {
-  'en-GB': {
+  en: {
     short: {
       year: 'numeric',
-      month: '2-digit',
+      month: 'long',
       day: '2-digit'
     },
-    long: {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    }
+    long: defaultLong
   },
   de: {
-    short: {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    },
-    long: {
-      year: 'numeric',
-      month: '2-digit',
-      weekday: 'long',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    }
+    short: defaultShort,
+    long: defaultLong
   },
   sk: {
-    short: {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    },
-    long: {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    }
+    short: defaultShort,
+    long: defaultLong
   }
 }

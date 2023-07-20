@@ -1,0 +1,25 @@
+FROM python:3-slim
+
+WORKDIR /app/
+
+RUN python -m pip install --upgrade pip
+RUN apt-get update && apt-get upgrade -y
+
+COPY ./src/worker/setup.cfg ./src/worker/setup.py /app/
+
+RUN apt-get install --no-install-recommends -y \
+      build-essential \
+      python3-dev && \
+    pip install -e /app/ && \
+    apt-get purge -y build-essential python3-dev && \
+    apt-get autoremove -y --purge &&\
+    apt-get clean
+
+COPY ./src/worker/. /app/
+ENV PYTHONPATH=/app
+
+VOLUME ["/app/storage"]
+
+ENTRYPOINT [ "celery" ]
+
+CMD ["--app worker worker --loglevel=${LOGLEVEL}"]

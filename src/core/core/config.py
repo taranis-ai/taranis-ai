@@ -1,5 +1,6 @@
 from pydantic import validator
 from pydantic_settings import BaseSettings
+from typing import Any, Literal
 
 
 class Settings(BaseSettings):
@@ -53,7 +54,24 @@ class Settings(BaseSettings):
     PRE_SEED_PASSWORD_ADMIN: str = "admin"
     PRE_SEED_PASSWORD_USER: str = "user"
 
-    CELERY: dict | None = {"broker_url": "amqp://localhost", "result_persistent": False}
+    QUEUE_BROKER_SCHEME: Literal["amqp", "amqps"] = "amqp"
+    QUEUE_BROKER_HOST: str = "localhost"
+    QUEUE_BROKER_PORT: int = 5672
+    QUEUE_BROKER_USER: str = "guest"
+    QUEUE_BROKER_PASSWORD: str = "guest"
+    QUEUE_BROKER_VHOST: str = "/"
+    CELERY: dict[str, Any] | None = None
+
+    @validator("CELERY", pre=True, always=True)
+    def set_celery(cls, value, values):
+        if value and len(value) > 1:
+            return value
+        return {
+            "broker_url": f"{values['QUEUE_BROKER_SCHEME']}://{values['QUEUE_BROKER_USER']}:{values['QUEUE_BROKER_PASSWORD']}@{values['QUEUE_BROKER_HOST']}:{values['QUEUE_BROKER_PORT']}/{values['QUEUE_BROKER_VHOST']}",
+            "ignore_result": True,
+            "broker_connection_retry_on_startup": True,
+            "broker_connection_retry": False,  # To suppress deprecation warning
+        }
 
 
 Config = Settings()

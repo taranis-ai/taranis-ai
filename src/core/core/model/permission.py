@@ -52,17 +52,3 @@ class Permission(BaseModel):
         permissions, count = cls.get_by_filter(search)
         items = [permission.to_dict() for permission in permissions]
         return {"total_count": count, "items": items}
-
-    @staticmethod
-    def get_external_permissions_ids():
-        return ["MY_ASSETS_ACCESS", "MY_ASSETS_CREATE", "MY_ASSETS_CONFIG"]
-
-    @classmethod
-    def get_external_permissions(cls):
-        return [cls.get(permission_id) for permission_id in cls.get_external_permissions_ids()]
-
-    @classmethod
-    def get_external_permissions_json(cls):
-        permissions = cls.get_external_permissions()
-        items = [permission.to_dict() if permission else None for permission in permissions]
-        return {"total_count": len(items), "items": items}

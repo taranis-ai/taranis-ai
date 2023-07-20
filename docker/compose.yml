@@ -112,44 +112,39 @@ services:
         max-size: "200k"
         max-file: "10"
 
-  presenters:
+  beat:
     depends_on:
-      core:
-        condition: service_healthy
+      rabbitmq:
     deploy:
       restart_policy:
         condition: on-failure
         max_attempts: 3
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-presenters:${TARANIS_NG_TAG}"
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-worker:${TARANIS_NG_TAG}"
+    command: "beat"
     environment:
       TARANIS_NG_CORE_URL: "http://core"
       API_KEY: "${API_KEY}"
-      WORKERS_PER_CORE: "1"
-      WEB_CONCURRENCY: "1"
       DEBUG: "${DEBUG:-False}"
     volumes:
-      - "presenters_templates:/app/templates"
+      - "beat_storage:/app/storage"
     logging:
       driver: "json-file"
       options:
         max-size: "200k"
         max-file: "10"
 
-  publishers:
+  worker:
     depends_on:
-      core:
-        condition: service_healthy
+      rabbitmq:
     deploy:
       restart_policy:
         condition: on-failure
         max_attempts: 3
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-publishers:${TARANIS_NG_TAG}"
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-worker:${TARANIS_NG_TAG}"
     environment:
       TARANIS_NG_CORE_URL: "http://core"
       API_KEY: "${API_KEY}"
-      WORKERS_PER_CORE: "1"
-      WEB_CONCURRENCY: "1"
-      DEBUG: "${DEBUG:-False}"
+      LOGLEVEL: "${WORKER_LOGLEVEL:-INFO}"
     logging:
       driver: "json-file"
       options:
@@ -157,8 +152,6 @@ services:
         max-file: "10"
 
   gui:
-    depends_on:
-      - "core"
     deploy:
       restart_policy:
         condition: on-failure
@@ -176,7 +169,7 @@ services:
         max-size: "200k"
         max-file: "10"
 
-  rabbitmq: 
+  rabbitmq:
     image: "rabbitmq:${RABBITMQ_TAG:-3-management-alpine}"
     ports:
       - 5672:5672
@@ -195,6 +188,6 @@ services:
 volumes:
   database_data:
   core_data:
-  presenters_templates:
   collector_storage:
   rabbitmq_data:
+  beat_storage:

@@ -106,6 +106,7 @@ export const messages_en = {
     bots: 'Bots',
     user: 'User',
     nodes: 'Nodes',
+    workers: 'Workers',
     openapi: 'OpenAPI',
     organizations: 'Organizations',
     word_lists: 'Word Lists',

@@ -24,3 +24,4 @@ def initialize(app):
     core_api.publish.initialize(api)
     core_api.user.initialize(api)
     core_api.remote.initialize(api)
+    core_api.worker.initialize(api)

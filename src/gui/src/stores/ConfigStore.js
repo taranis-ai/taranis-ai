@@ -5,7 +5,6 @@ import {
   getAllAttributes,
   getAllBots,
   getAllCollectors,
-  getAllExternalPermissions,
   getAllExternalUsers,
   getAllOrganizations,
   getAllOSINTSourceGroups,
@@ -22,10 +21,11 @@ import {
   getAllUsers,
   getAllNodes,
   getAllWordLists,
-  getAllParameters
+  getAllParameters,
+  getAllSchedule,
+  getAllWorkers
 } from '@/api/config'
 import { getAllUserProductTypes } from '@/api/user'
-import { Logger } from 'sass'
 
 export const useConfigStore = defineStore('config', {
   state: () => ({
@@ -48,39 +48,13 @@ export const useConfigStore = defineStore('config', {
     report_item_types_config: { total_count: 0, items: [] },
     roles: { total_count: 0, items: [] },
     users: { total_count: 0, items: [] },
-    word_lists: { total_count: 0, items: [] }
+    word_lists: { total_count: 0, items: [] },
+    schedule: [],
+    workers: []
   }),
   getters: {
     getUserByID: (state) => (user_id) => {
       return state.users.items.find((user) => user.id === user_id) || null
-    },
-    getCollectorsNodes() {
-      return this.nodes.items.map(function (item) {
-        if (item.type === 'Collector') {
-          return item
-        }
-      })
-    },
-    getPresentersNodes() {
-      return this.nodes.items.map(function (item) {
-        if (item.type === 'Presenter') {
-          return item
-        }
-      })
-    },
-    getPublishersNodes() {
-      return this.nodes.items.map(function (item) {
-        if (item.type === 'Publisher') {
-          return item
-        }
-      })
-    },
-    getBotsNodes() {
-      return this.nodes.items.map(function (item) {
-        if (item.type === 'Bot') {
-          return item
-        }
-      })
     }
   },
   actions: {
@@ -122,15 +96,6 @@ export const useConfigStore = defineStore('config', {
     },
     loadPermissions(data) {
       return getAllPermissions(data)
-        .then((response) => {
-          this.permissions = response.data
-        })
-        .catch((error) => {
-          notifyFailure(error.message)
-        })
-    },
-    loadExternalPermissions(data) {
-      return getAllExternalPermissions(data)
         .then((response) => {
           this.permissions = response.data
         })
@@ -286,6 +251,24 @@ export const useConfigStore = defineStore('config', {
       return getAllParameters(data)
         .then((response) => {
           this.parameters = response.data
+        })
+        .catch((error) => {
+          notifyFailure(error.message)
+        })
+    },
+    loadSchedule(data) {
+      return getAllSchedule(data)
+        .then((response) => {
+          this.schedule = response.data
+        })
+        .catch((error) => {
+          notifyFailure(error.message)
+        })
+    },
+    loadWorkers(data) {
+      return getAllWorkers(data)
+        .then((response) => {
+          this.workers = response.data
         })
         .catch((error) => {
           notifyFailure(error.message)

@@ -89,11 +89,6 @@ export function getAllPermissions(filter_data) {
   return ApiService.get(`/config/permissions?${filter}`)
 }
 
-export function getAllExternalPermissions(filter_data) {
-  const filter = ApiService.getQueryStringFromNestedObject(filter_data)
-  return ApiService.get(`/config/external-permissions?${filter}`)
-}
-
 export function getAllRoles(filter_data) {
   const filter = ApiService.getQueryStringFromNestedObject(filter_data)
   return ApiService.get(`/config/roles?${filter}`)
@@ -286,10 +281,15 @@ export function triggerNode() {
   return ApiService.post('/config/workers/refresh')
 }
 
+export function getAllSchedule() {
+  return ApiService.get('/config/workers/schedule')
+}
+
+export function getAllWorkers() {
+  return ApiService.get('/config/workers')
+}
+
 export function updateNode(node) {
-  if (node.type === 'collector') {
-    return ApiService.put(`/config/collectors-nodes/${node.id}`, node)
-  }
   if (node.type === 'bot') {
     return ApiService.put(`/config/bots-nodes/${node.id}`, node)
   }
@@ -302,9 +302,6 @@ export function updateNode(node) {
 }
 
 export function createNode(node) {
-  if (node.type === 'collector') {
-    return ApiService.post('/config/collectors-nodes', node)
-  }
   if (node.type === 'bot') {
     return ApiService.post('/config/bots-nodes', node)
   }
@@ -317,9 +314,6 @@ export function createNode(node) {
 }
 
 export function deleteNode(node) {
-  if (node.type === 'collector') {
-    return ApiService.delete(`/config/collectors-nodes/${node.id}`, node)
-  }
   if (node.type === 'bot') {
     return ApiService.delete(`/config/bots-nodes/${node.id}`, node)
   }
@@ -338,6 +332,14 @@ export function getAllOSINTSources(filter_data) {
 
 export function createOSINTSource(source) {
   return ApiService.post('/config/osint-sources', source)
+}
+
+export function collectOSINTSSource(source_id) {
+  return ApiService.post(`/config/osint-sources/${source_id}/collect`)
+}
+
+export function collectAllOSINTSSources() {
+  return ApiService.post('/config/collect-osint-sources')
 }
 
 export function updateOSINTSource(source) {

@@ -13,6 +13,9 @@ class BaseModel(db.Model):
     def __str__(self) -> str:
         return f"{self.__class__.__name__} {self.to_json()}"
 
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__} {self.to_json()}"
+
     @classmethod
     def delete(cls: Type[T], id) -> tuple[str, int]:
         if cls.query.filter_by(id=id).delete():

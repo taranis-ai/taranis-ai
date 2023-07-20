@@ -11,6 +11,7 @@ from core.managers import (
     bots_manager,
     external_auth_manager,
     collectors_manager,
+    queue_manager,
 )
 from core.managers.log_manager import logger
 from core.managers.auth_manager import auth_required, get_user_from_jwt
@@ -35,8 +36,8 @@ from core.model import (
     role,
     user,
     word_list,
+    queue,
 )
-from core.model.news_item import NewsItemAggregate
 from core.model.permission import Permission
 
 
@@ -151,12 +152,6 @@ class Permissions(Resource):
     def get(self):
         search = request.args.get(key="search", default=None)
         return Permission.get_all_json(search)
-
-
-class ExternalPermissions(Resource):
-    @auth_required("MY_ASSETS_CONFIG")
-    def get(self):
-        return Permission.get_external_permissions_json()
 
 
 class Roles(Resource):
@@ -336,42 +331,46 @@ class Parameters(Resource):
         return parameter.Parameter.get_all_json()
 
 
-class CollectorsNodes(Resource):
-    @auth_required("CONFIG_COLLECTORS_NODE_ACCESS")
-    def get(self):
-        search = request.args.get(key="search", default=None)
-        return collectors_node.CollectorsNode.get_all_json(search)
-
-    @auth_required("CONFIG_COLLECTORS_NODE_CREATE")
-    def post(self):
-        node = collectors_node.CollectorsNode.add(request.json)
-        return {"id": node.id, "message": "Node created successfully"}, 200
-
-    @auth_required("CONFIG_COLLECTORS_NODE_UPDATE")
-    def put(self, node_id):
-        collectors_manager.update_collectors_node(node_id, request.json)
-
-    @auth_required("CONFIG_COLLECTORS_NODE_DELETE")
-    def delete(self, node_id):
-        collectors_node.CollectorsNode.delete(node_id)
-
-
 class RefreshWorkers(Resource):
-    @auth_required("CONFIG_COLLECTORS_NODE_UPDATE")
     def post(self):
-        collectors_manager.refresh_collectors()
         bots_manager.refresh_bots()
+
+
+class QueueSchedule(Resource):
+    @auth_required("CONFIG_WORKER_ACCESS")
+    def get(self):
+        try:
+            if schedules := queue.ScheduleEntry.get_all():
+                return [sched.to_dict() for sched in schedules], 200
+            return {"message": "No schedules found"}, 404
+        except Exception:
+            logger.log_debug_trace()
+
+
+class Workers(Resource):
+    @auth_required("CONFIG_WORKER_ACCESS")
+    def get(self):
+        try:
+            return queue_manager.queue_manager.ping_workers()
+        except Exception:
+            logger.log_debug_trace()
 
 
 class OSINTSources(Resource):
     @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
     def get(self):
         search = request.args.get(key="search", default=None)
-        return osint_source.OSINTSource.get_all_json(search)
+        result_dict = osint_source.OSINTSource.get_all_json(search)
+        if result_dict["total_count"] == 0:
+            return result_dict, 404
+        return result_dict, 200
 
     @auth_required("CONFIG_OSINT_SOURCE_CREATE")
     def post(self):
-        return collectors_manager.add_osint_source(request.json)
+        source = osint_source.OSINTSource.add(request.json)
+        if not source:
+            return "OSINT source could not be created", 400
+        return {"id": source.id, "message": "OSINT source created successfully"}, 201
 
 
 class OSINTSource(Resource):
@@ -379,22 +378,28 @@ class OSINTSource(Resource):
     def get(self, source_id):
         if source := osint_source.OSINTSource.get(source_id):
             return source.to_dict(), 200
-        else:
-            return "OSINT source not found", 404
+        return "OSINT source not found", 404
 
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def put(self, source_id):
-        return collectors_manager.update_osint_source(source_id, request.json)
+        source = osint_source.OSINTSource.update(source_id, request.json)
+        if not source:
+            return f"OSINT Source with ID: {source_id} not found", 404
+        return f"OSINT Source {source.name} updated", 200
 
     @auth_required("CONFIG_OSINT_SOURCE_DELETE")
     def delete(self, source_id):
-        return collectors_manager.delete_osint_source(source_id)
+        source = osint_source.OSINTSource.get(source_id)
+        if not source:
+            return f"OSINT Source with ID: {source_id} not found", 404
+        osint_source.OSINTSource.delete(source_id)
+        return f"OSINT Source {source.name} deleted", 200
 
 
-class OSINTSourceRefresh(Resource):
+class OSINTSourceCollect(Resource):
     @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
-    def put(self, source_id):
-        return collectors_manager.refresh_osint_source(source_id)
+    def post(self, source_id):
+        return queue_manager.collect_osint_source(source_id)
 
 
 class OSINTSourcesExport(Resource):
@@ -625,7 +630,6 @@ def initialize(api):
     namespace.add_resource(ProductType, "/product-types/<int:type_id>")
 
     namespace.add_resource(Permissions, "/permissions")
-    namespace.add_resource(ExternalPermissions, "/external-permissions")
     namespace.add_resource(Roles, "/roles")
     namespace.add_resource(Role, "/roles/<int:role_id>")
     namespace.add_resource(ACLEntries, "/acls")
@@ -643,15 +647,16 @@ def initialize(api):
     namespace.add_resource(WordLists, "/word-lists")
     namespace.add_resource(WordList, "/word-lists/<int:word_list_id>")
 
-    namespace.add_resource(CollectorsNodes, "/collectors-nodes", "/collectors-nodes/<string:node_id>")
     namespace.add_resource(RefreshWorkers, "/workers/refresh")
+    namespace.add_resource(QueueSchedule, "/workers/schedule")
+    namespace.add_resource(Workers, "/workers")
     namespace.add_resource(Collectors, "/collectors", "/collectors/<string:collector_type>")
     namespace.add_resource(Bots, "/bots", "/bots/<string:bot_id>")
     namespace.add_resource(Parameters, "/parameters")
 
     namespace.add_resource(OSINTSources, "/osint-sources")
     namespace.add_resource(OSINTSource, "/osint-sources/<string:source_id>")
-    namespace.add_resource(OSINTSourceRefresh, "/osint-sources/<string:source_id>/refresh")
+    namespace.add_resource(OSINTSourceCollect, "/osint-sources/<string:source_id>/collect")
     namespace.add_resource(OSINTSourcesExport, "/export-osint-sources")
     namespace.add_resource(OSINTSourcesImport, "/import-osint-sources")
     namespace.add_resource(OSINTSourceGroups, "/osint-source-groups")

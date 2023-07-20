@@ -39,14 +39,21 @@ export default {
         icon: 'mdi-lock-check',
         title: 'nav_menu.acls',
         route: '/config/acls',
-        permission: 'CONFIG_ACL_ACCESS'
+        permission: 'CONFIG_ACL_ACCESS',
+        divider: true
       },
       {
-        icon: 'mdi-server-network',
-        title: 'nav_menu.nodes',
-        route: '/config/nodes',
+        icon: 'mdi-account-hard-hat',
+        title: 'nav_menu.workers',
+        route: '/config/workers',
+        permission: 'CONFIG_WORKER_ACCESS'
+      },
+      {
+        icon: 'mdi-robot',
+        title: 'nav_menu.bots',
+        route: '/config/bots',
         permission: 'CONFIG_NODE_ACCESS',
-        separator: '1'
+        divider: true
       },
       {
         icon: 'mdi-animation-outline',
@@ -59,21 +66,19 @@ export default {
         title: 'nav_menu.osint_source_groups',
         route: '/config/collectors/groups',
         permission: 'CONFIG_OSINT_SOURCE_GROUP_ACCESS',
-        separator: '1'
+        divider: true
       },
       {
         icon: 'mdi-file-document-outline',
         title: 'nav_menu.product_types',
         route: '/config/product/types',
-        permission: 'CONFIG_PRODUCT_TYPE_ACCESS',
-        separator: '1'
+        permission: 'CONFIG_PRODUCT_TYPE_ACCESS'
       },
       {
         icon: 'mdi-file-star-outline',
         title: 'nav_menu.publisher_presets',
         route: '/config/publishers/presets',
-        permission: 'CONFIG_PUBLISHER_PRESET_ACCESS',
-        separator: '1'
+        permission: 'CONFIG_PUBLISHER_PRESET_ACCESS'
       },
       {
         icon: 'mdi-application-variable-outline',
@@ -85,33 +90,36 @@ export default {
         icon: 'mdi-file-table-outline',
         title: 'nav_menu.report_types',
         route: '/config/reportitems/types',
-        permission: 'CONFIG_REPORT_TYPE_ACCESS',
-        separator: '1'
+        permission: 'CONFIG_REPORT_TYPE_ACCESS'
       },
       {
         icon: 'mdi-format-list-text',
         title: 'nav_menu.word_lists',
         route: '/config/wordlists',
         permission: 'CONFIG_WORD_LIST_ACCESS',
-        separator: '1'
+        divider: true
       },
       {
         icon: 'mdi-remote-desktop',
         title: 'nav_menu.remote_access',
         route: '/config/remote/access',
-        permission: 'CONFIG_REMOTE_ACCESS_ACCESS'
+        permission: 'CONFIG_REMOTE_ACCESS_ACCESS',
+        deprecated: true
       },
       {
         icon: 'mdi-share-variant',
         title: 'nav_menu.remote_nodes',
         route: '/config/remote/nodes',
-        permission: 'CONFIG_REMOTE_NODE_ACCESS'
+        permission: 'CONFIG_REMOTE_NODE_ACCESS',
+        deprecated: true
       },
       {
-        icon: 'mdi-robot',
-        title: 'nav_menu.bots',
-        route: '/config/bots',
-        permission: 'CONFIG_NODE_ACCESS'
+        icon: 'mdi-server-network',
+        title: 'nav_menu.nodes',
+        route: '/config/nodes',
+        permission: 'CONFIG_NODE_ACCESS',
+        deprecated: true,
+        divider: true
       },
       { icon: 'mdi-api', title: 'nav_menu.openapi', route: '/config/openapi' }
     ]
