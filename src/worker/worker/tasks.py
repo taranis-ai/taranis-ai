@@ -21,7 +21,7 @@ def collect(source_id: str):
     return "Not implemented"
 
 @shared_task
-def execute_bot(bot_id: str):
+def execute_bot(bot_id: str, filter: dict | None = None):
     import worker.bots as bots
 
     core_api = CoreApi()
