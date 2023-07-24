@@ -87,9 +87,11 @@
           class="pa-5 taranis-ng-vertical-view"
         >
           <card-story
-            v-for="newsItem in report_item.news_item_aggregates"
-            :key="newsItem.id"
-            :story="newsItem"
+            v-for="story in report_item.news_item_aggregates"
+            :key="story.id"
+            :story="story"
+            :report-view="true"
+            @remove-from-report="removeFromReport(story.id)"
           ></card-story>
         </v-col>
       </v-row>
@@ -104,6 +106,7 @@ import { createReportItem, updateReportItem } from '@/api/analyze'
 import AttributeItem from '@/components/analyze/AttributeItem.vue'
 import CardStory from '@/components/assess/CardStory.vue'
 import { notifyFailure, notifySuccess } from '@/utils/helpers'
+import { setAggregatesToReportItem } from '@/api/analyze'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
@@ -187,6 +190,24 @@ export default {
       }
     }
 
+    const removeFromReport = (story_id) => {
+      console.debug(`Removing story ${story_id} from report`)
+      report_item.value.news_item_aggregates =
+        report_item.value.news_item_aggregates.filter(
+          (story) => story.id !== story_id
+        )
+      const aggregate_ids = report_item.value.news_item_aggregates.map(
+        (story) => story.id
+      )
+      setAggregatesToReportItem(report_item.value.id, aggregate_ids)
+        .then(() => {
+          notifySuccess('Removed from report')
+        })
+        .catch(() => {
+          notifyFailure('Failed to remove from report')
+        })
+    }
+
     return {
       verticalView,
       expand_panel_groups,
@@ -198,7 +219,8 @@ export default {
       report_type,
       container_title,
       updateAttributeValues,
-      saveReportItem
+      saveReportItem,
+      removeFromReport
     }
   }
 }

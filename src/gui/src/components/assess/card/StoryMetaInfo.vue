@@ -48,7 +48,7 @@
         :class="detailView ? 'detailView' : ''"
       >
         <week-chart
-          v-if="!published_date_outdated && lgAndUp"
+          v-if="!published_date_outdated && lgAndUp && !reportView"
           :chart-height="detailView ? 300 : 250"
           :chart-width="detailView ? 800 : 600"
           :story="story"
@@ -79,7 +79,8 @@ export default {
     detailView: {
       type: Boolean,
       default: false
-    }
+    },
+    reportView: { type: Boolean, default: false }
   },
   emits: ['selectItem', 'deleteItem'],
   setup(props) {

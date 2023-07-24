@@ -16,8 +16,6 @@ def collect(source_id: str):
 
     if source["type"] == "RSS_COLLECTOR":
         return collectors.RSSCollector().collect(source)
-    if source["type"] == "WEB_COLLECTOR":
-        return collectors.WebCollector().collect(source)
     return "Not implemented"
 
 @shared_task

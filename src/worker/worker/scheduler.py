@@ -7,24 +7,9 @@ from datetime import timedelta
 from worker.core_api import CoreApi
 from worker.log import logger
 
-# class RESTScheduleEntry(ScheduleEntry):
-#     def is_due(self):
-#         return super(RESTScheduleEntry, self).is_due()
-
-#     def next(self):
-#         return super(RESTScheduleEntry, self).next()
-
-
 class RESTScheduleEntry(ScheduleEntry):
     def is_due(self):
         return super(RESTScheduleEntry, self).is_due()
-        # self.due_check_count += 1
-        # if self.due_check_count >= 100:
-        #     self.due_check_count = 0
-        #     next_run_time = datetime.now(timezone.utc) + timedelta(seconds=int(next_time_to_run)) # type: ignore
-        #     logger.debug(f'Task {self.name}: next_run_time={next_run_time}')
-        #     self.core_api.update_next_run_time(next_run_time)
-        # return is_due, next_time_to_run
 
     def next(self):
         return super(RESTScheduleEntry, self).next()

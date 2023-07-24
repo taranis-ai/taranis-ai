@@ -3576,6 +3576,12 @@ paths:
         '404':
           $ref: "#/components/schemas/notFound"
   /config/remote-nodes/{remote_node_id}/connect:
+    parameters:
+      - name: remote_node_id
+        in: path
+        required: true
+        schema:
+          type: integer
     get:
       tags: [config]
       summary: connect to a remote node

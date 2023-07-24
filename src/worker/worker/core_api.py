@@ -1,5 +1,5 @@
 import requests
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 from datetime import datetime
 
 from worker.log import logger
@@ -35,7 +35,9 @@ class CoreApi:
         return self.check_response(response, url)
 
     def api_get(self, url, params=None):
-        url = f"{self.api_url}{url}{params}"
+        url = f"{self.api_url}{url}"
+        if params:
+            url += f'?{urlencode(params)}'
         response = requests.get(url=url, headers=self.headers, verify=self.verify)
         return self.check_response(response, url)
 
@@ -48,7 +50,7 @@ class CoreApi:
 
     def get_bot_config(self, bot_id: str) -> dict | None:
         try:
-            return self.api_get('/api/v1/worker/bots/', bot_id)
+            return self.api_get(f'/api/v1/worker/bots/{bot_id}')
         except Exception:
             logger.log_debug_trace("Can't get OSINT Sources")
             return None
@@ -56,7 +58,7 @@ class CoreApi:
     def get_osint_source(self, source_id: str) -> dict | None:
         try:
             return self.api_get(
-                '/api/v1/worker/osint-sources/', source_id
+                f'/api/v1/worker/osint-sources/{source_id}'
             )
         except Exception:
             logger.log_debug_trace("Can't get OSINT Sources")
@@ -64,28 +66,27 @@ class CoreApi:
 
     def get_schedule(self) -> dict | None:
         try:
-            return self.api_get(url='/api/v1/beat/schedule',)
+            return self.api_get(url='/api/v1/beat/schedule')
         except Exception:
             return None
 
     def get_categories(self, id) -> dict | None:
         try:
             return self.api_get(
-                url='/api/v1/bots/word-list-categories/',
-                params=id,
+                url=f'/api/v1/bots/word-list-categories/{id}',
             )
         except Exception:
             return None
 
     def get_news_items_data(self, limit) -> dict | None:
         try:
-            return self.api_get('/api/v1/bots/news-item-data', f'?limit={limit}')
+            return self.api_get('/api/v1/bots/news-item-data', params={"limit": limit})
         except Exception:
             return None
 
     def get_news_items_aggregate(self, source_group, limit) -> dict | None:
         try:
-            return self.api_get('/api/v1/bots/news-item-aggregates', f'?group={source_group}')
+            return self.api_get('/api/v1/bots/news-item-aggregates', params={"group": source_group})
         except Exception:
             logger.log_debug_trace("get_news_items_aggregate failed")
             return None

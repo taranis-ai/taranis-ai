@@ -71,6 +71,13 @@ export function updateReportItem(report_item_id, data) {
 }
 
 export function addAggregatesToReportItem(report_item_id, data) {
+  return ApiService.post(
+    `/analyze/report-items/${report_item_id}/aggregates`,
+    data
+  )
+}
+
+export function setAggregatesToReportItem(report_item_id, data) {
   return ApiService.put(
     `/analyze/report-items/${report_item_id}/aggregates`,
     data

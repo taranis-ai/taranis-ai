@@ -56,6 +56,14 @@ class ReportItemAggregates(Resource):
         if not request_data:
             logger.debug("No data in request")
             return "No data in request", 400
+        return report_item.ReportItem.set_aggregates(report_item_id, request_data, auth_manager.get_user_from_jwt())
+
+    @auth_required("ANALYZE_UPDATE", ACLCheck.REPORT_ITEM_MODIFY)
+    def post(self, report_item_id):
+        request_data = request.json
+        if not request_data:
+            logger.debug("No data in request")
+            return "No data in request", 400
         return report_item.ReportItem.add_aggregates(report_item_id, request_data, auth_manager.get_user_from_jwt())
 
 

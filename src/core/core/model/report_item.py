@@ -172,7 +172,7 @@ class ReportItem(BaseModel):
     def to_detail_dict(self):
         data = self.to_dict()
         data["attributes"] = [attribute.to_dict() for attribute in self.attributes]
-        data["news_item_aggregates"] = [aggregate.id for aggregate in self.news_item_aggregates]
+        data["news_item_aggregates"] = [aggregate.to_dict() for aggregate in self.news_item_aggregates]
         return data
 
     @classmethod
@@ -341,6 +341,40 @@ class ReportItem(BaseModel):
         db.session.commit()
 
         return f"Successfully added {aggregate_ids} to {report_item.id}", 200
+
+    @classmethod
+    def set_aggregates(cls, id: int, aggregate_ids: list, user: User) -> tuple[Any, int]:
+        report_item = cls.query.get(id)
+        if report_item is None:
+            return None, 404
+
+        if not ReportItemType.allowed_with_acl(report_item.report_item_type_id, user, False, False, True):
+            return f"User {user.id} is not allowed to update Report {report_item.id}", 401
+
+        logger.info(f"Setting aggregates: {aggregate_ids} for {report_item.id}")
+        aggregates = [NewsItemAggregate.get(aggregate_id) for aggregate_id in aggregate_ids]
+        report_item.news_item_aggregates = aggregates
+
+        db.session.commit()
+
+        return f"Successfully added {aggregate_ids} to {report_item.id}", 200
+
+    @classmethod
+    def remove_aggregates(cls, id: int, aggregate_ids: list, user: User) -> tuple[Any, int]:
+        logger.debug(f"Removing {aggregate_ids} from {id}")
+        report_item = cls.query.get(id)
+        if report_item is None:
+            return None, 404
+
+        if not ReportItemType.allowed_with_acl(report_item.report_item_type_id, user, False, False, True):
+            return f"User {user.id} is not allowed to update Report {report_item.id}", 401
+
+        for aggregate_id in aggregate_ids:
+            report_item.news_item_aggregates.pop(NewsItemAggregate.get(aggregate_id))
+
+        db.session.commit()
+
+        return f"Successfully removed {aggregate_ids} to {report_item.id}", 200
 
     @classmethod
     def update_report_item(cls, id: int, data: dict, user: User) -> tuple[Any, int]:
