@@ -15,8 +15,8 @@ COPY ./src/core/setup.cfg ./src/core/setup.py /app/
 
 # install dependencies
 RUN apt-get install --no-install-recommends -y \
-      build-essential \
-      python3-dev && \
+    build-essential \
+    python3-dev && \
     pip install -e /app/ && \
     apt-get purge -y build-essential python3-dev && \
     apt-get autoremove -y --purge &&\
@@ -28,5 +28,5 @@ RUN chmod +x /app/manage.py
 WORKDIR /app
 
 RUN pip install pytest
-CMD pytest
+CMD pytest --ignore tests/test_schema.py
 

@@ -105,8 +105,19 @@ paths:
           schema:
             type: string
       responses:
+        '200':
+          description: successful authentication
         '302':
           description: redirection to the URL requested before authentication
+        '404':
+          $ref: "#/components/schemas/notFound"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+
   /auth/refresh:
     get:
       tags:
@@ -125,6 +136,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/resp.auth.error'
+        '404':
+          $ref: "#/components/schemas/notFound"
         '500':
           description: Internal server error
           content:
@@ -179,7 +192,8 @@ paths:
                   isalive:
                     type: boolean
                     example: True
-
+        '404':
+          $ref: "#/components/schemas/notFound"
   /users/profile:
     get:
       tags: [users]
@@ -2175,7 +2189,7 @@ paths:
                   items:
                     type: array
                     items:
-                      $ref: '#/components/schemas/attribute.presentation'
+                      $ref: '#/components/schemas/attribute'
         '401':
           description: authorization error
           content:
@@ -2609,7 +2623,7 @@ paths:
                   items:
                     type: array
                     items:
-                      $ref: '#/components/schemas/role.presentation'
+                      $ref: '#/components/schemas/role'
         '401':
           description: authorization error
           content:
@@ -2625,7 +2639,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/role.new'
+              $ref: '#/components/schemas/role'
       responses:
         '200':
           description: success
@@ -2651,7 +2665,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/role.new'
+              $ref: '#/components/schemas/role'
       responses:
         '200':
           description: success
@@ -3271,6 +3285,26 @@ paths:
                   format: json
                 collectors_node_id:
                   type: integer
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/osint_source'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+        '404':
+          $ref: "#/components/schemas/notFound"
+        '405':
+          description: method not allowed
+          content:
+            'application/json': { }
+            'application/xml': { }
   /config/osint-source-groups:
     get:
       tags: [config]
@@ -3848,7 +3882,7 @@ paths:
                   items:
                     type: array
                     items:
-                      $ref: '#/components/schemas/bots_node.presentation'
+                      $ref: '#/components/schemas/bots_node'
         '401':
           description: authorization error
           content:
@@ -3940,8 +3974,8 @@ paths:
                     items:
                       anyOf:
                         - $ref: '#/components/schemas/publishers_node.presentation'
-                        - $ref: '#/components/schemas/bots_node.presentation'
-                        - $ref: '#/components/schemas/collectors_node.presentation'
+                        - $ref: '#/components/schemas/bots_node'
+                        - $ref: '#/components/schemas/collectors_node'
                         - $ref: '#/components/schemas/presenters_node.presentation'
         '401':
           description: authorization error
@@ -4563,6 +4597,28 @@ paths:
               properties:
                 last_sync_time:
                   $ref: '#/components/schemas/date_time_full'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  last_sync_time:
+                    type: string
+                  news_items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/news_item_remote'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+        '404':
+          $ref: "#/components/schemas/notFound"
   /remote/sync-report-items:
     get:
       tags: [remote]
@@ -4600,6 +4656,28 @@ paths:
               properties:
                 last_sync_time:
                   $ref: '#/components/schemas/date_time_full'
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  last_sync_time:
+                    type: string
+                  report_items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/report_item_remote'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+        '404':
+          $ref: "#/components/schemas/notFound"
 
 
 components:
@@ -4791,28 +4869,18 @@ components:
       properties:
         id:
           type: string
-    role.base:
-      type: object
-      properties:
-        id:
-          type: string
-        name:
-          type: string
-        description:
-          type: string
     role:
       allOf:
-        - $ref: '#/components/schemas/role.base'
         - type: object
           properties:
+            id:
+              type: string
+            name:
+              type: string
+            description:
+              type: string
             permissions:
               type: array
-              items:
-                $ref: '#/components/schemas/permission'
-    role.presentation:
-      allOf:
-        - $ref: '#/components/schemas/role'
-        - $ref: '#/components/schemas/presentation'
     role.id:
       type: object
       properties:
@@ -6175,7 +6243,7 @@ components:
         bots:
           type: array
           items:
-            $ref: '#/components/schemas/bot'
+            $ref: '#/components/schemas/bots_node'
 
     publisher.new:
       allOf:
