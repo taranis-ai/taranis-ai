@@ -1,4 +1,5 @@
 import re
+import datetime
 from .base_bot import BaseBot
 from worker.log import logger
 from collections import defaultdict
@@ -14,17 +15,17 @@ class GroupingBot(BaseBot):
         if not parameters:
             return
         try:
-            source_group = parameters.get("SOURCE_GROUP", None) or "default"
+            source_group = parameters.get("SOURCE_GROUP", None)
             regexp = parameters.get("REGULAR_EXPRESSION", None)
 
-            if not source_group or not regexp:
+            if not regexp:
                 return
 
             limit = (datetime.datetime.now() - datetime.timedelta(days=7)).isoformat()
-            import datetime
-
-            limit = (datetime.datetime.now() - datetime.timedelta(days=30)).isoformat()
-            data = self.core_api.get_news_items_aggregate(source_group, limit)
+            filter_dict = {"timestamp": limit}
+            if source_group:
+                filter_dict["source_group"] = source_group
+            data = self.core_api.get_news_items_aggregate(filter_dict)
             if not data:
                 return
 

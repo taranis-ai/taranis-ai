@@ -94,28 +94,6 @@ class UpdateNewsItemsAggregateSummary(Resource):
         news_item.NewsItemAggregate.update_news_items_aggregate_summary(aggregate_id, request.json)
 
 
-class BotNewsItemAggregates(Resource):
-    @api_key_required
-    def get(self):
-        try:
-            filter_args = {
-                "group": request.args.get("group", default=osint_source.OSINTSourceGroup.get_default().id),
-                "timestamp": datetime.fromisoformat(request.args.get("timestamp", datetime.now().isoformat())),
-            }
-
-            return news_item.NewsItemAggregate.get_by_timestamp_json(filter_args)
-        except Exception:
-            logger.exception("Failed to get Stories")
-            return "Failed to get Stories", 400
-
-
-class GetDefaultNewsItemsAggregate(Resource):
-    @api_key_required
-    def get(self):
-        limit = request.args.get("limit", "")
-        return news_item.NewsItemAggregate.get_for_worker(limit), 200
-
-
 class WordListEntries(Resource):
     @api_key_required
     def delete(self, word_list_id, entry_name):
@@ -161,14 +139,9 @@ def initialize(api):
     namespace.add_resource(BotUnGroupAction, "/news-item-aggregates/ungroup")
 
     namespace.add_resource(
-        BotNewsItemAggregates,
-        "/news-item-aggregates",
-    )
-    namespace.add_resource(
         UpdateNewsItemsAggregateSummary,
         "/news-items-aggregate/<string:aggregate_id>/summary",
     )
-    namespace.add_resource(GetDefaultNewsItemsAggregate, "/news-item-aggregates")
     namespace.add_resource(
         WordListEntries,
         "/word-list/<int:word_list_id>/entries/<string:entry_name>",

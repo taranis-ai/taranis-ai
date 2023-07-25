@@ -63,10 +63,9 @@ class NewsItemAggregates(Resource):
     @auth_required("ASSESS_ACCESS")
     def get(self):
         try:
-            filter_keys = ["search", "read", "unread", "important", "relevant", "in_report", "range", "sort", "source"]
+            filter_keys = ["search", "read", "unread", "important", "relevant", "in_report", "range", "sort", "source", "group"]
             filter_args: dict[str, str | int | list] = {k: v for k, v in request.args.items() if k in filter_keys}
 
-            filter_args["group"] = request.args.get("group", osint_source.OSINTSourceGroup.get_default().id) or "default"
             filter_args["limit"] = min(int(request.args.get("limit", 20)), 200)
             filter_args["tags"] = request.args.getlist("tags")
             page = int(request.args.get("page", 0))

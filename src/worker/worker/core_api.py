@@ -1,6 +1,5 @@
 import requests
-from urllib.parse import quote, urlencode
-from datetime import datetime
+from urllib.parse import urlencode
 
 from worker.log import logger
 from worker.config import Config
@@ -84,65 +83,67 @@ class CoreApi:
         except Exception:
             return None
 
-    def get_news_items_aggregate(self, source_group, limit) -> dict | None:
+    def get_news_items_aggregate(self, filter_dict: dict) -> dict | None:
         try:
-            return self.api_get('/api/v1/bots/news-item-aggregates', params={"group": source_group})
+            return self.api_get('/api/v1/worker/news-item-aggregates', params=filter_dict)
         except Exception:
             logger.log_debug_trace("get_news_items_aggregate failed")
             return None
 
 
-
-    def update_schedule(self, schedule):
+    def update_news_item_data(self, id, data) -> dict | None:
         try:
-            url = f"{self.api_url}/api/v1/beat/schedule"
-            response = requests.put(
-                url=url,
-                json=schedule,
-                headers=self.headers,
-            )
-            return self.check_response(response, url)
+            return self.api_put(urf=f'/api/v1/bots/news-item-data/{id}', json_data=data)
         except Exception:
             return None
 
-    def update_news_item_attributes(self, id, attributes):
+    def update_news_items_aggregate_summary(self, id, summary) -> dict | None:
         try:
-            response = requests.put(
-                f"{self.api_url}/api/v1/bots/news-item-data/{id}/attributes",
-                json=attributes,
-                headers=self.headers,
-            )
-            return response.status_code
+            return self.api_put(url=f'/api/v1/bots/news-items-aggregate/{id}/summary', json_data=summary)
         except Exception:
             return None
 
-    def update_news_item_tags(self, id, tags):
+    def update_schedule(self, schedule) -> dict | None:
         try:
-            response = requests.put(
-                f"{self.api_url}/api/v1/bots/news-item-data/{id}/tags",
-                json=tags,
-                headers=self.headers,
-            )
-            return response.status_code
+            return self.api_put(url='/api/v1/beat/schedule', json_data=schedule)
+        except Exception:
+            return None
+
+    def update_news_item_attributes(self, id, attributes) -> dict | None:
+        try:
+            return self.api_put(url=f'/api/v1/bots/news-item-data/{id}/attributes', json_data=attributes)
+        except Exception:
+            return None
+
+    def update_news_item_tags(self, id, tags) -> dict | None:
+        try:
+            return self.api_put(url=f'/api/v1/bots/news-item-data/{id}/tags', json_data=tags)
         except Exception:
             logger.log_debug_trace("update_news_item_tags failed")
+            return None
+
+    def update_word_list_category_entries(self, id, name, entries) -> dict | None:
+        try:
+            return self.api_put(url=f'/api/v1/bots/word-list-categories/{id}/entries/{name}', json_data=entries)
+        except Exception:
+            return None
+
+    def update_osintsource_status(self, osint_source_id, status) -> dict | None:
+        try:
+            return self.api_put(url=f'/api/v1/worker/osint-sources/{osint_source_id}', json_data={"error": status})
+        except Exception:
+            return None
+
+    def update_next_run_time(self, next_run_times: dict) -> dict | None:
+        try:
+            return self.api_put(url='/api/v1/beat/next-run-time', json_data=next_run_times)
+        except Exception:
             return None
 
     def delete_word_list_category_entries(self, id, name):
         try:
             response = requests.delete(
                 f"{self.api_url}/api/v1/bots/word-list-categories/{id}/entries/{name}",
-                headers=self.headers,
-            )
-            return response.status_code
-        except Exception:
-            return None
-
-    def update_word_list_category_entries(self, id, name, entries):
-        try:
-            response = requests.put(
-                f"{self.api_url}/api/v1/bots/word-list-categories/{id}/entries/{name}",
-                json=entries,
                 headers=self.headers,
             )
             return response.status_code
@@ -181,23 +182,6 @@ class CoreApi:
             return response.ok
         except Exception:
             logger.log_debug_trace("Cannot add Newsitem")
-            return False
-
-    def update_osintsource_status(self, osint_source_id, status):
-        try:
-            response = requests.put(f"{self.api_url}/api/v1/collectors/osint-source/{osint_source_id}", headers=self.headers, verify=self.verify, json={"error": status})
-            return response.ok
-        except Exception:
-            logger.log_debug_trace("Cannot update OSINT Source status")
-            return False
-
-    def update_next_run_time(self, name: str, next_run_time: datetime):
-        try:
-            url = f"{self.api_url}/api/v1/beat/next-run-time"
-            response = requests.put(url=url, headers=self.headers, verify=self.verify, json={name: next_run_time.isoformat()})
-            return self.check_response(response, url)
-        except Exception:
-            logger.log_debug_trace("Cannot update schedule entry")
             return False
 
     def cleanup_token_blacklist(self):

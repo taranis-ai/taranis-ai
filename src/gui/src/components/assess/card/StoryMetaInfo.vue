@@ -92,6 +92,11 @@ export default {
         .map((item) => item.news_item_data.published)
         .sort()
 
+      if (pub_dates.length === 0) {
+        console.warn('No published dates found for story', props.story.title)
+        return [null, null]
+      }
+
       return [pub_dates[pub_dates.length - 1], pub_dates[0]]
     })
 

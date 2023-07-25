@@ -544,6 +544,9 @@ class NewsItemAggregate(BaseModel):
 
             query = query.filter(NewsItemAggregate.created >= date_limit)
 
+        if timestamp := filter_args.get("timestamp"):
+            query = query.filter(NewsItemAggregate.created >= datetime.fromisoformat(timestamp))
+
         return query
 
     @classmethod
@@ -608,19 +611,6 @@ class NewsItemAggregate(BaseModel):
         return paged_query.all(), query.count()
 
     @classmethod
-    def get_by_timestamp(cls, filter_args: dict):
-        logger.debug(f"Getting NewsItems Filtered: {filter_args}")
-        query = cls.query.distinct().group_by(NewsItemAggregate.id)
-
-        if group := filter_args.get("group"):
-            query = query.filter(NewsItemAggregate.osint_source_group_id == group)
-
-        if timestamp := filter_args.get("timestamp"):
-            query = query.filter(NewsItemAggregate.created >= timestamp)
-
-        return query.all()
-
-    @classmethod
     def get_by_filter_json(cls, filter_args, user):
         news_item_aggregates, count = cls.get_by_filter(filter_args=filter_args, user=user)
         for news_item_aggregate in news_item_aggregates:
@@ -630,13 +620,8 @@ class NewsItemAggregate(BaseModel):
         return {"total_count": count, "items": items}
 
     @classmethod
-    def get_by_timestamp_json(cls, filter_args):
-        news_item_aggregates = cls.get_by_timestamp(filter_args=filter_args)
-        return [news_item_aggregate.to_dict() for news_item_aggregate in news_item_aggregates]
-
-    @classmethod
-    def get_for_worker(cls, limit: str):
-        news_item_aggregates, _ = cls.get_by_filter(filter_args={"limit": limit})
+    def get_for_worker(cls, filter_args: dict):
+        news_item_aggregates, _ = cls.get_by_filter(filter_args=filter_args)
         return [news_item_aggregate.to_dict() for news_item_aggregate in news_item_aggregates]
 
     @classmethod

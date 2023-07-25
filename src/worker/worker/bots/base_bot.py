@@ -1,5 +1,3 @@
-import datetime
-
 from worker.log import logger
 from worker.core_api import CoreApi
 

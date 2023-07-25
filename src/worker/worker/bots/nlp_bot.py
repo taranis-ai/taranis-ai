@@ -1,5 +1,6 @@
 from .base_bot import BaseBot
 from worker.log import logger
+import datetime
 import spacy, spacy.cli
 import py3langid
 
@@ -21,15 +22,9 @@ class NLPBot(BaseBot):
     """
     summary_threshold = 750
 
-    def set_summarization_model(self) -> None:
-        self.sum_model_name_en = "facebook/bart-large-cnn"
-        self.sum_model_en = BartForConditionalGeneration.from_pretrained(self.sum_model_name_en)
-        self.sum_tokenizer_en = BartTokenizer.from_pretrained(self.sum_model_name_en)
-        self.sum_model_name_de = "T-Systems-onsite/mt5-small-sum-de-en-v2"
-        self.sum_model_de = AutoModelForSeq2SeqLM.from_pretrained(self.sum_model_name_de)
-        self.sum_tokenizer_de = AutoTokenizer.from_pretrained(self.sum_model_name_de, use_fast=False)
 
-    def bot_setup(self):
+    def __init__(self):
+        super().__init__()
         logger.debug("Setup Summarization Model...")
         self.set_summarization_model()
         logger.debug("Setup NER Model...")
@@ -39,15 +34,23 @@ class NLPBot(BaseBot):
         # self.kw_model_en = KeyBERT("all-MiniLM-L6-v2")
         # self.kw_model_de = KeyBERT("paraphrase-mpnet-base-v2")
 
+
+
     def execute(self, parameters=None):
         if not parameters:
             return
         try:
-            source_group = parameters.get("SOURCE_GROUP", None)
+            source_group = parameters.get("SOURCE_GROUP")
+            source = parameters.get("SOURCE")
 
             limit = (datetime.datetime.now() - datetime.timedelta(days=7)).isoformat()
+            filter_dict = {"timestamp": limit}
+            if source_group:
+                filter_dict["source_group"] = source_group
+            if source:
+                filter_dict["source"] = source
 
-            data = self.core_api.get_news_items_aggregate(source_group, limit)
+            data = self.core_api.get_news_items_aggregate(filter_dict)
             if not data:
                 logger.critical("Error getting news items")
                 return
@@ -55,7 +58,7 @@ class NLPBot(BaseBot):
             for aggregate in data:
                 existing_tags = aggregate.get("tags", [])
                 keywords = []
-                content_list = []
+                content_to_summarize = ""
 
                 if aggregate.get("summary", None) and aggregate.get("tags", None):
                     logger.debug(f"Skipping aggregate: {aggregate['id']}")
@@ -67,8 +70,7 @@ class NLPBot(BaseBot):
                     content = (
                         news_item["news_item_data"]["content"] + news_item["news_item_data"]["review"] + news_item["news_item_data"]["title"]
                     )
-                    if len(content) > self.summary_threshold:
-                        content_list.append(content)
+                    content_to_summarize += content
 
                     if "language" in news_item["news_item_data"] and news_item["news_item_data"]["language"] != "":
                         self.language = self.detect_language(content)
@@ -84,15 +86,29 @@ class NLPBot(BaseBot):
 
                 if not aggregate.get("summary"):
                     try:
-                        if summary := self.predict_summary(content_list):
+                        if summary := self.predict_summary(content_to_summarize[:self.summary_threshold]):
+                            logger.debug(f"Generated summary for {aggregate['id']}: {summary}")
                             self.core_api.update_news_items_aggregate_summary(aggregate["id"], summary)
                     except Exception:
                         logger.log_debug_trace(f"Could not generate summary for {aggregate['id']}")
                 if keywords:
                     self.core_api.update_news_item_tags(aggregate["id"], keywords)
 
+                logger.debug(f"NLP processing aggregate: {aggregate['id']} finished")
+
         except Exception:
             logger.log_debug_trace(f"Error running Bot: {self.type}")
+
+
+
+
+    def set_summarization_model(self) -> None:
+        self.sum_model_name_en = "facebook/bart-large-cnn"
+        self.sum_model_en = BartForConditionalGeneration.from_pretrained(self.sum_model_name_en)
+        self.sum_tokenizer_en = BartTokenizer.from_pretrained(self.sum_model_name_en)
+        self.sum_model_name_de = "T-Systems-onsite/mt5-small-sum-de-en-v2"
+        self.sum_model_de = AutoModelForSeq2SeqLM.from_pretrained(self.sum_model_name_de)
+        self.sum_tokenizer_de = AutoTokenizer.from_pretrained(self.sum_model_name_de, use_fast=False)
 
     def extract_ner(self, text):
         ner_model = self.ner_model
@@ -112,10 +128,7 @@ class NLPBot(BaseBot):
     def detect_language(self, text) -> str:
         return py3langid.classify(text)[0]
 
-    def predict_summary(self, texts: list, pct_min_length: float = 0.2) -> str:
-        text_to_summarize = "".join(f" {t}" for t in texts)
-        if not text_to_summarize:
-            return ""
+    def predict_summary(self, text_to_summarize: str, pct_min_length: float = 0.2) -> str:
         nb_tokens = len(text_to_summarize.split(" "))
         min_length = int(nb_tokens * pct_min_length)
         max_length = nb_tokens
@@ -133,6 +146,10 @@ class NLPBot(BaseBot):
         if not sum_model or not sum_tokenizer:
             return ""
 
+        logger.debug(
+            f"Summarizing {max_length} tokens with min_length={min_length} and max_length={max_length}"
+        )
+
         input_ids = sum_tokenizer(
             text_to_summarize,
             max_length=1024,
@@ -140,6 +157,7 @@ class NLPBot(BaseBot):
             truncation=True,
             return_tensors="pt",
         )["input_ids"]
+
         if input_ids is None:
             return ""
 
@@ -150,6 +168,9 @@ class NLPBot(BaseBot):
             no_repeat_ngram_size=2,
             num_beams=6,
         )
+
+        logger.debug(f"summary_ids: {summary_ids}")
+
         return sum_tokenizer.batch_decode(
             summary_ids,
             skip_special_tokens=True,

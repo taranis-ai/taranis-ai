@@ -15,14 +15,15 @@ class TaggingBot(BaseBot):
             return
         try:
             source_group = parameters.get("SOURCE_GROUP", None)
-            regexp = parameters.get("REGULAR_EXPRESSION", None)
-
-            if not regexp or not source_group:
-                return
+            regexp = parameters.get("REGULAR_EXPRESSION", r"CVE-\d{4}-\d{4,7}")
 
             limit = (datetime.datetime.now() - datetime.timedelta(days=7)).isoformat()
 
-            data = self.core_api.get_news_items_aggregate(source_group, limit)
+            filter_dict = {"timestamp": limit}
+            if source_group:
+                filter_dict["source_group"] = source_group
+
+            data = self.core_api.get_news_items_aggregate(filter_dict=filter_dict)
             if not data:
                 return
 
