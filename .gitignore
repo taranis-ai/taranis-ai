@@ -12,6 +12,7 @@ build/
 *.egg
 .pytest_cache/
 celerybeat-schedule
+.hypothesis
 
 # temporary files of editors
 .DS_Store

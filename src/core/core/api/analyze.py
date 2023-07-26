@@ -70,7 +70,8 @@ class ReportItemAggregates(Resource):
 class ReportItem(Resource):
     @auth_required("ANALYZE_ACCESS", ACLCheck.REPORT_ITEM_ACCESS)
     def get(self, report_item_id):
-        return report_item.ReportItem.get_detail_json(report_item_id)
+        result_json = report_item.ReportItem.get_detail_json(report_item_id)
+        return (result_json, 200) if result_json else ("Could not get report item", 404)
 
     @auth_required("ANALYZE_UPDATE", ACLCheck.REPORT_ITEM_MODIFY)
     def put(self, report_item_id):
