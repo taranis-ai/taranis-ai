@@ -11,7 +11,7 @@ bots = {
     "TAGGING_BOT": worker.bots.TaggingBot()
 }
 
-@shared_task
+@shared_task(time_limit=60)
 def collect(source_id: str):
     import worker.collectors as collectors
 
@@ -25,7 +25,7 @@ def collect(source_id: str):
         return collectors.RSSCollector().collect(source)
     return "Not implemented"
 
-@shared_task
+@shared_task(time_limit=60)
 def execute_bot(bot_id: str, filter: dict | None = None):
 
     core_api = CoreApi()
@@ -34,15 +34,25 @@ def execute_bot(bot_id: str, filter: dict | None = None):
         logger.error(f"Bot with id {bot_id} not found")
         return
 
-    if bot := bots.get(bot_config["type"]):
-        bot_params : dict = bot_config[bot_config["type"]]
-        bot_params |= filter
-        return bot.execute(bot_params)
+    bot_type = bot_config.get("type")
+    if not bot_type:
+        logger.error(f"Bot with id {bot_id} has no type")
+        return
 
-    return "Not implemented"
+    bot = bots.get(bot_type)
+    if not bot:
+        return "Not implemented"
+
+    bot_params = bot_config.get(bot_type)
+    if not bot_params:
+        logger.error(f"Bot with id {bot_id} has no params")
+        return
+
+    bot_params |= filter
+    return bot.execute(bot_params)
 
 
-@shared_task
+@shared_task(time_limit=10)
 def cleanup_token_blacklist():
     core_api = CoreApi()
     core_api.cleanup_token_blacklist()

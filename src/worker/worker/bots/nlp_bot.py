@@ -34,6 +34,14 @@ class NLPBot(BaseBot):
         # self.kw_model_en = KeyBERT("all-MiniLM-L6-v2")
         # self.kw_model_de = KeyBERT("paraphrase-mpnet-base-v2")
 
+    def set_summarization_model(self) -> None:
+        self.sum_model_name_en = "facebook/bart-large-cnn"
+        self.sum_model_en = BartForConditionalGeneration.from_pretrained(self.sum_model_name_en)
+        self.sum_tokenizer_en = BartTokenizer.from_pretrained(self.sum_model_name_en)
+        self.sum_model_name_de = "T-Systems-onsite/mt5-small-sum-de-en-v2"
+        self.sum_model_de = AutoModelForSeq2SeqLM.from_pretrained(self.sum_model_name_de)
+        self.sum_tokenizer_de = AutoTokenizer.from_pretrained(self.sum_model_name_de, use_fast=False)
+
 
 
     def execute(self, parameters=None):
@@ -101,14 +109,6 @@ class NLPBot(BaseBot):
 
 
 
-
-    def set_summarization_model(self) -> None:
-        self.sum_model_name_en = "facebook/bart-large-cnn"
-        self.sum_model_en = BartForConditionalGeneration.from_pretrained(self.sum_model_name_en)
-        self.sum_tokenizer_en = BartTokenizer.from_pretrained(self.sum_model_name_en)
-        self.sum_model_name_de = "T-Systems-onsite/mt5-small-sum-de-en-v2"
-        self.sum_model_de = AutoModelForSeq2SeqLM.from_pretrained(self.sum_model_name_de)
-        self.sum_tokenizer_de = AutoTokenizer.from_pretrained(self.sum_model_name_de, use_fast=False)
 
     def extract_ner(self, text):
         ner_model = self.ner_model
