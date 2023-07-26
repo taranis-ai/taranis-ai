@@ -90,6 +90,33 @@ def auth_header(access_token):
     return {"Authorization": f"Bearer {access_token}", "Content-type": "application/json"}
 
 
+
+
+@pytest.fixture(scope="session")
+def access_token_no_permissions(app):
+    from flask_jwt_extended import create_access_token
+
+    with app.app_context():
+        return create_access_token(
+            identity="admin",
+            additional_claims={
+                "user_claims": {
+                    "id": "admin",
+                    "name": "admin",
+                    "organization_name": "TestOrg",
+                    "permissions": [],
+                }
+            },
+        )
+
+
+@pytest.fixture
+def auth_header_no_permissions(access_token_no_permissions):
+    return {"Authorization": f"Bearer {access_token_no_permissions}", "Content-type": "application/json"}
+
+
+
+
 @pytest.fixture(scope="session")
 def permissions():
     yield [
