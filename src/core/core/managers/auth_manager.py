@@ -116,7 +116,6 @@ def check_acl(item_id, acl_check, user):
 def no_auth(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
-        logger.store_activity("API_ACCESS", None)
         return fn(*args, **kwargs)
 
     return wrapper

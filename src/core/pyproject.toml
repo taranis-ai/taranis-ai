@@ -11,5 +11,6 @@ target-version = ["py38","py310"]
 
 [tool.pytest.ini_options]
 filterwarnings = [
-    "ignore:.*_app_ctx_stack.*:DeprecationWarning"
+    "ignore:.*_app_ctx_stack.*:DeprecationWarning",
+    "ignore::DeprecationWarning"
 ]

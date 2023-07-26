@@ -378,9 +378,9 @@ class ReportItem(BaseModel):
 
     @classmethod
     def update_report_item(cls, id: int, data: dict, user: User) -> tuple[Any, int]:
-        report_item = cls.query.get(id)
+        report_item = cls.get(id)
         if report_item is None:
-            return None, 404
+            return {"error": f"No Report with id '{id}' found"}, 404
 
         if not ReportItemType.allowed_with_acl(report_item.report_item_type_id, user, False, False, True):
             return report_item, 401

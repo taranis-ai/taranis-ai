@@ -93,13 +93,13 @@ class CoreApi:
 
     def update_news_item_data(self, id, data) -> dict | None:
         try:
-            return self.api_put(urf=f'/api/v1/bots/news-item-data/{id}', json_data=data)
+            return self.api_put(url=f'/api/v1/bots/news-item-data/{id}', json_data=data)
         except Exception:
             return None
 
     def update_news_items_aggregate_summary(self, id, summary) -> dict | None:
         try:
-            return self.api_put(url=f'/api/v1/bots/news-items-aggregate/{id}/summary', json_data=summary)
+            return self.api_put(url=f'/api/v1/bots/aggregate/{id}/summary', json_data=summary)
         except Exception:
             return None
 
@@ -117,7 +117,7 @@ class CoreApi:
 
     def update_news_item_tags(self, id, tags) -> dict | None:
         try:
-            return self.api_put(url=f'/api/v1/bots/news-item-data/{id}/tags', json_data=tags)
+            return self.api_put(url=f'/api/v1/bots/aggregate/{id}/tags', json_data=tags)
         except Exception:
             logger.log_debug_trace("update_news_item_tags failed")
             return None

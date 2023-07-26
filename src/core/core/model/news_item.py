@@ -756,6 +756,7 @@ class NewsItemAggregate(BaseModel):
         try:
             n_i_a = cls.get(news_item_aggregate_id)
             if not n_i_a:
+                logger.error(f"News Item Aggregate {news_item_aggregate_id} not found")
                 return "not_found", 404
             for tag in tags:
                 if type(tag) is dict:

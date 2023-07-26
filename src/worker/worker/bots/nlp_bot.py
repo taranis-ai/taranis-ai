@@ -92,15 +92,16 @@ class NLPBot(BaseBot):
                     # current_keywords = self.generateKeywords(content)
                     # keywords.extend(keyword[0] for keyword in current_keywords[:10])
 
-                if not aggregate.get("summary"):
-                    try:
-                        if summary := self.predict_summary(content_to_summarize[:self.summary_threshold]):
-                            logger.debug(f"Generated summary for {aggregate['id']}: {summary}")
-                            self.core_api.update_news_items_aggregate_summary(aggregate["id"], summary)
-                    except Exception:
-                        logger.log_debug_trace(f"Could not generate summary for {aggregate['id']}")
                 if keywords:
                     self.core_api.update_news_item_tags(aggregate["id"], keywords)
+
+                # if not aggregate.get("summary"):
+                #     try:
+                #         if summary := self.predict_summary(content_to_summarize[:self.summary_threshold]):
+                #             logger.debug(f"Generated summary for {aggregate['id']}: {summary}")
+                #             self.core_api.update_news_items_aggregate_summary(aggregate["id"], summary)
+                #     except Exception:
+                #         logger.log_debug_trace(f"Could not generate summary for {aggregate['id']}")
 
                 logger.debug(f"NLP processing aggregate: {aggregate['id']} finished")
 

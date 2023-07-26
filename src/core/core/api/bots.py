@@ -86,6 +86,7 @@ class UpdateNewsItemTags(Resource):
     def put(self, aggregate_id):
         if data := request.json:
             return news_item.NewsItemAggregate.update_tags(aggregate_id, data)
+        return {"No data provided"}, 400
 
 
 class UpdateNewsItemsAggregateSummary(Resource):
@@ -125,7 +126,7 @@ def initialize(api):
     namespace.add_resource(NewsItemData, "/news-item-data")
     namespace.add_resource(
         UpdateNewsItemTags,
-        "/news-items-aggregate/<string:aggregate_id>/tags",
+        "/aggregate/<string:aggregate_id>/tags",
     )
     namespace.add_resource(
         UpdateNewsItemData,
@@ -140,7 +141,7 @@ def initialize(api):
 
     namespace.add_resource(
         UpdateNewsItemsAggregateSummary,
-        "/news-items-aggregate/<string:aggregate_id>/summary",
+        "/aggregate/<string:aggregate_id>/summary",
     )
     namespace.add_resource(
         WordListEntries,

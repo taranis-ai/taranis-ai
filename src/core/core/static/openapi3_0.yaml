@@ -49,6 +49,7 @@ tags:
     description: connect/disconnect and sync news/report items
 security:
   - API_key: []
+  - user_auth: []
 
 paths:
   /auth/login:
@@ -109,6 +110,8 @@ paths:
           description: successful authentication
         '302':
           description: redirection to the URL requested before authentication
+        '400':
+          description: invalid goto url
         '404':
           $ref: "#/components/schemas/notFound"
         '500':
@@ -166,6 +169,8 @@ paths:
           description: successfully logged-out
         '302':
           description: redirection to the specified URL
+        '400':
+          description: invalid goto url
         '404':
           $ref: "#/components/schemas/notFound"
         '500':
@@ -464,6 +469,7 @@ paths:
         required: true
         schema:
           type: integer
+          minimum: 1
     get:
       tags: [analyze]
       summary: get a specific report item
@@ -1809,6 +1815,134 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
         '404':
           $ref: "#/components/schemas/notFound"
+
+
+  /worker/osint-sources/{source_id}:
+    get:
+      summary: Get OSINT source by ID
+      parameters:
+        - name: source_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the OSINT source to retrieve
+      responses:
+        '200':
+          description: OK
+        '404':
+          description: Not found
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+
+  /worker/bots:
+    get:
+      summary: Get all bots
+      responses:
+        '200':
+          description: OK
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+
+  /worker/news-item-aggregates:
+    get:
+      summary: Get news item aggregates
+      responses:
+        '200':
+          description: OK
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+
+  /beat/schedule:
+    get:
+      summary: Get all schedule entries
+      responses:
+        '200':
+          description: OK
+        '404':
+          description: Not found
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+
+    put:
+      summary: Sync schedule entries
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/ScheduleEntry'
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Bad request
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /beat/schedule/{schedule_id}:
+    get:
+      summary: Get schedule entry by ID
+      parameters:
+        - name: schedule_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the schedule entry to retrieve
+      responses:
+        '200':
+          description: OK
+        '404':
+          description: Not found
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /beat/next-run-time:
+    put:
+      summary: Update next run time
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NextRunTime'
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Bad request
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+
   /bots/news-item-data:
     get:
       tags: [bots]
@@ -1816,7 +1950,9 @@ paths:
       parameters:
         - name: limit
           in: query
-          type: string
+          schema:
+            type: string
+            format: date
       responses:
         '200':
           description: the news items
@@ -1834,9 +1970,9 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
         '404':
           $ref: "#/components/schemas/notFound"
-  /bots/news-item-data/{news_item_data_id}/tags:
+  /bots/news-item-aggregate/{news_item_aggregate_id}/tags:
     parameters:
-      - name: news_item_data_id
+      - name: news_item_aggregate_id
         in: path
         required: true
         schema:
@@ -1859,6 +1995,8 @@ paths:
               schema:
                 type: string
                 example:
+        '400':
+          description: invalid tag or no tag provided
         '401':
           description: authorization error
           content:
@@ -1930,36 +2068,6 @@ paths:
         '404':
           $ref: "#/components/schemas/notFound"
 
-  /bots/news-item-aggregates:
-    parameters:
-      - name: group
-        in: query
-        schema:
-          type: string
-      - name: timestamp
-        in: query
-        schema:
-          type: string
-    get:
-      tags: [bots]
-      summary: get news items aggregate
-      responses:
-        '200':
-          description: the IDs of the OSINT sources
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/news_item_aggregate'
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
   /bots/word-list/{word_list_id}/entries/{entry_name}:
     parameters:
       - name: word_list_id
@@ -3378,8 +3486,6 @@ paths:
                 file:
                   type: string
                   format: json
-                collectors_node_id:
-                  type: integer
       responses:
         '200':
           description: success
@@ -4186,10 +4292,7 @@ paths:
 
 
 components:
-
   schemas:
-
-
     #requests
 
     req.auth.username_password:
@@ -5063,47 +5166,14 @@ components:
           type: integer
 
     modify_report_item:
-      oneOf:
-        - type: object
-          properties:
-            update:
-              type: string
-            title:
-              type: string
-            title_prefix:
-              type: string
-            completed:
-              type: boolean
-            attribute_id:
-              type: integer
-            attribute_value:
-              type: string
-        - type: object
-          properties:
-            add:
-              type: string
-            attribute_id:
-              type: integer
-            attribute_group_item_id:
-              type: integer
-            aggregate_ids:
-              type: array
-              items:
-                type: integer
-            remote_report_ids:
-              type: array
-              items:
-                type: integer
-        - type: object
-          properties:
-            delete:
-              type: string
-            attribute_id:
-              type: integer
-            aggregate_id:
-              type: integer
-            remote_report_item_id:
-              type: integer
+      type: object
+      properties:
+        title:
+          type: string
+        title_prefix:
+          type: string
+        completed:
+          type: boolean
     modify_report_item.response:
       allOf:
         - $ref: '#/components/schemas/modify_report_item'
@@ -5155,6 +5225,48 @@ components:
               $ref: '#/components/schemas/date_time'
             attribute_user:
               type: string
+
+
+    ScheduleEntry:
+      type: object
+      properties:
+        id:
+          type: string
+        bot_id:
+          type: string
+        source_id:
+          type: string
+        frequency:
+          type: string
+        next_run_time:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - bot_id
+        - source_id
+        - frequency
+        - next_run_time
+    NextRunTime:
+      type: object
+      properties:
+        bot_id:
+          type: string
+        source_id:
+          type: string
+        next_run_time:
+          type: string
+          format: date-time
+      required:
+        - bot_id
+        - source_id
+        - next_run_time
 
     osint_source.new:
       allOf:
@@ -5728,28 +5840,6 @@ components:
         - $ref: '#/components/schemas/publishers_node'
         - $ref: '#/components/schemas/presentation'
 
-    bots_node.new:
-      allOf:
-        - $ref: '#/components/schemas/bots_node'
-
-    bots_node:
-      type: object
-      properties:
-        id:
-          type: string
-        name:
-          type: string
-        description:
-          type: string
-        api_url:
-          type: string
-        api_key:
-          type: string
-        bots:
-          type: array
-          items:
-            $ref: '#/components/schemas/bots_node'
-
     publisher.new:
       allOf:
         - $ref: '#/components/schemas/publisher'
@@ -5915,4 +6005,9 @@ components:
     API_key:
       type: http
       scheme: bearer
+      bearerFormat: APIKEY
+    user_auth:
+      type: http
+      schema: bearer
       bearerFormat: JWT
+

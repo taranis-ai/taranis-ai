@@ -74,6 +74,9 @@ class PublisherPreset(BaseModel):
     @classmethod
     def update(cls, preset_id, data):
         preset = cls.get(preset_id)
+        if not preset:
+            logger.error(f"Could not find preset with id {preset_id}")
+            return None
         updated_preset = cls.from_dict(data)
         preset.name = updated_preset.name
         preset.description = updated_preset.description
@@ -84,6 +87,7 @@ class PublisherPreset(BaseModel):
             else:
                 preset.parameter_values.append(update_pv)
         db.session.commit()
+        return preset.id
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()

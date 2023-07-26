@@ -1,4 +1,4 @@
-from pydantic import validator
+from pydantic import model_validator
 from pydantic_settings import BaseSettings
 from typing import Any, Literal
 
@@ -27,11 +27,12 @@ class Settings(BaseSettings):
     COLORED_LOGS: bool = True
     OpenAPI: str = "static/"
 
-    @validator("SQLALCHEMY_DATABASE_URI", pre=True, always=True)
-    def set_sqlalchemy_uri(cls, value, values):
-        if value and len(value) > 1:
-            return value
-        return f"{values['SQLALCHEMY_SCHEMA']}://{values['DB_USER']}:{values['DB_PASSWORD']}@{values['DB_URL']}/{values['DB_DATABASE']}"
+    @model_validator(mode="after")
+    def set_sqlalchemy_uri(self) -> "Settings":
+        if self.SQLALCHEMY_DATABASE_URI and len(self.SQLALCHEMY_DATABASE_URI) > 1:
+            return self
+        self.SQLALCHEMY_DATABASE_URI = f"{self.SQLALCHEMY_SCHEMA}://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_URL}/{self.DB_DATABASE}"
+        return self
 
     # if "postgresql" in SQLALCHEMY_DATABASE_URI:
     #     DB_POOL_SIZE: int = 10
@@ -62,16 +63,17 @@ class Settings(BaseSettings):
     QUEUE_BROKER_VHOST: str = "/"
     CELERY: dict[str, Any] | None = None
 
-    @validator("CELERY", pre=True, always=True)
-    def set_celery(cls, value, values):
-        if value and len(value) > 1:
-            return value
-        return {
-            "broker_url": f"{values['QUEUE_BROKER_SCHEME']}://{values['QUEUE_BROKER_USER']}:{values['QUEUE_BROKER_PASSWORD']}@{values['QUEUE_BROKER_HOST']}:{values['QUEUE_BROKER_PORT']}/{values['QUEUE_BROKER_VHOST']}",
+    @model_validator(mode="after")
+    def set_celery(self):
+        if self.CELERY and len(self.CELERY) > 1:
+            return self
+        self.CELERY = {
+            "broker_url": f"{self.QUEUE_BROKER_SCHEME}://{self.QUEUE_BROKER_USER}:{self.QUEUE_BROKER_PASSWORD}@{self.QUEUE_BROKER_HOST}:{self.QUEUE_BROKER_PORT}/{self.QUEUE_BROKER_VHOST}",
             "ignore_result": True,
             "broker_connection_retry_on_startup": True,
             "broker_connection_retry": False,  # To suppress deprecation warning
         }
+        return self
 
 
 Config = Settings()

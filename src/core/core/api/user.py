@@ -15,7 +15,13 @@ class UserProfile(Resource):
         return {"message": "User not found"}, 404
 
     def put(self):
+        # sourcery skip: assign-if-exp, reintroduce-else, swap-if-else-branches, use-named-expression
         user = auth_manager.get_user_from_jwt()
+        if not user:
+            return {"message": "User not found"}, 404
+        json_data = request.json
+        if not json_data:
+            return {"message": "No input data provided"}, 400
         return User.update_profile(user, request.json)
 
 

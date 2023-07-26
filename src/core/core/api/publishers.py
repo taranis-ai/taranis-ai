@@ -1,9 +1,8 @@
 from flask_restx import Resource, reqparse, Namespace
 from flask import request
 
-from core.managers import publishers_manager
 from core.managers.auth_manager import auth_required, api_key_required
-from core.model import publishers_node, publisher_preset
+from core.model import publisher_preset
 
 
 class PublisherPresets(Resource):
@@ -35,35 +34,17 @@ class PublisherPreset(Resource):
     @auth_required("CONFIG_PUBLISHER_PRESET_UPDATE")
     def put(self, id):
         pub_result = publisher_preset.PublisherPreset.update(id, request.json)
-        return {"id": pub_result.id, "message": "Publisher preset updated successfully"}, 200
+        if not pub_result:
+            return {"message": "Publisher preset not found"}, 404
+        return {"id": pub_result, "message": "Publisher preset updated successfully"}, 200
 
     @auth_required("CONFIG_PUBLISHER_PRESET_DELETE")
     def delete(self, id):
         return publisher_preset.PublisherPreset.delete(id)
 
 
-class PublishersNode(Resource):
-    @auth_required("CONFIG_PUBLISHERS_NODE_ACCESS")
-    def get(self):
-        search = request.args.get(key="search", default=None)
-        return publishers_node.PublishersNode.get_all_json(search)
-
-    @auth_required("CONFIG_PUBLISHERS_NODE_CREATE")
-    def post(self):
-        return "", publishers_manager.add_publishers_node(request.json)
-
-    @auth_required("CONFIG_PUBLISHERS_NODE_UPDATE")
-    def put(self, id):
-        publishers_manager.update_publishers_node(id, request.json)
-
-    @auth_required("CONFIG_PUBLISHERS_NODE_DELETE")
-    def delete(self, id):
-        return publishers_node.PublishersNode.delete(id)
-
-
 def initialize(api):
     namespace = Namespace("publishers", description="Publishers API", path="/api/v1/publishers")
-    namespace.add_resource(PublishersNode, "/nodes", "/node", "/node/<id>")
     namespace.add_resource(PublisherPresets, "/presets")
     namespace.add_resource(PublisherPreset, "/preset", "/preset/<id>")
     api.add_namespace(namespace)
