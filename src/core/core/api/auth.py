@@ -9,6 +9,7 @@ from core.managers.log_manager import logger
 
 
 class Login(Resource):
+    @jwt_required()
     def get(self):
         return make_response(redirect(quote(request.args.get(key="gotoUrl", default="/"))))
 

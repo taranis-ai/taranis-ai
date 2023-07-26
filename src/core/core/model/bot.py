@@ -74,7 +74,7 @@ class Bot(BaseModel):
         return cls.query.first()
 
     @classmethod
-    def filter_by_type(cls, type):
+    def filter_by_type(cls, type) -> "Bot | None":
         return cls.query.filter_by(type=type).first()
 
     @classmethod

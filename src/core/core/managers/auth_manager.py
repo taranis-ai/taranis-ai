@@ -74,45 +74,6 @@ def logout(token):
     return current_authenticator.logout(token)
 
 
-class ACLCheck(Enum):
-    OSINT_SOURCE_GROUP_ACCESS = auto()
-    NEWS_ITEM_ACCESS = auto()
-    NEWS_ITEM_MODIFY = auto()
-    REPORT_ITEM_ACCESS = auto()
-    REPORT_ITEM_MODIFY = auto()
-    PRODUCT_TYPE_ACCESS = auto()
-    PRODUCT_TYPE_MODIFY = auto()
-
-
-def check_acl(item_id, acl_check, user):
-    check_see = "SEE" in str(acl_check)
-    check_access = "ACCESS" in str(acl_check)
-    check_modify = "MODIFY" in str(acl_check)
-    allowed = False
-    item_type = "UNKNOWN"
-
-    if acl_check == ACLCheck.OSINT_SOURCE_GROUP_ACCESS:
-        item_type = "OSINT Source Group"
-        allowed = OSINTSourceGroup.allowed_with_acl(item_id, user, check_see, check_access, check_modify)
-
-    if acl_check in [ACLCheck.NEWS_ITEM_ACCESS, ACLCheck.NEWS_ITEM_MODIFY]:
-        item_type = "News Item"
-        allowed = NewsItem.allowed_with_acl(item_id, user, check_see, check_access, check_modify)
-
-    if acl_check in [ACLCheck.REPORT_ITEM_ACCESS, ACLCheck.REPORT_ITEM_MODIFY]:
-        item_type = "Report Item"
-        allowed = ReportItem.allowed_with_acl(item_id, user, check_see, check_access, check_modify)
-
-    if acl_check in [ACLCheck.PRODUCT_TYPE_ACCESS, ACLCheck.PRODUCT_TYPE_MODIFY]:
-        item_type = "Product Type"
-        allowed = ProductType.allowed_with_acl(item_id, user, check_see, check_access, check_modify)
-
-    if not allowed:
-        logger.log_debug(f"Unauthorized '{check_access or check_modify}' attempt to {item_type}: {item_id}")
-
-    return allowed
-
-
 def no_auth(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
@@ -121,19 +82,7 @@ def no_auth(fn):
     return wrapper
 
 
-def get_id_name_by_acl(acl) -> str | None:
-    if "NEWS_ITEM" in acl.name:
-        return "item_id"
-    elif "REPORT_ITEM" in acl.name:
-        return "report_item_id"
-    elif "OSINT_SOURCE_GROUP" in acl.name:
-        return "group_id"
-    elif "PRODUCT" in acl.name:
-        return "product_id"
-    return None
-
-
-def auth_required(permissions: list | str, acl=None):
+def auth_required(permissions: list | str):
     def auth_required_wrap(fn):
         @wraps(fn)
         def wrapper(*args, **kwargs):
@@ -153,13 +102,11 @@ def auth_required(permissions: list | str, acl=None):
                 logger.store_auth_error_activity(f"Missing identity in JWT: {get_jwt()}")
                 return error
 
-            user = User.find_by_name(identity)
-
             # does it include permissions?
             claims = get_jwt()
             user_claims = claims.get("user_claims")
             if not user_claims:
-                logger.store_user_auth_error_activity(user, "", f"Missing permissions in JWT for identity: {identity}")
+                logger.store_user_auth_error_activity(identity, "", "Missing permissions in JWT for identity")
                 return error
 
             permission_claims = set(user_claims.get("permissions"))
@@ -167,25 +114,11 @@ def auth_required(permissions: list | str, acl=None):
             # is there at least one match with the permissions required by the call?
             if not permissions_set.intersection(permission_claims):
                 logger.store_user_auth_error_activity(
-                    user,
+                    identity,
                     "",
-                    f"Insufficient permissions in JWT for identity: {identity}",
+                    "Insufficient permissions in JWT for identity",
                 )
                 return error
-
-            # if the object does have an ACL, do we match it?
-            if acl:
-                id_name = get_id_name_by_acl(acl)
-                if not id_name:
-                    return fn(*args, **kwargs)
-
-                if not check_acl(kwargs[id_name], acl, user):
-                    logger.store_user_auth_error_activity(
-                        user,
-                        "",
-                        f"Access denied by ACL in JWT for identity: {identity}",
-                    )
-                    return error
 
             return fn(*args, **kwargs)
 
@@ -199,7 +132,6 @@ def api_key_required(fn):
     def wrapper(*args, **kwargs):
         error = ({"error": "not authorized"}, 401)
 
-        # do we have the authorization header?
         auth_header = request.headers.get("Authorization", None)
         if not auth_header:
             logger.store_auth_error_activity("Missing Authorization header")
@@ -211,8 +143,7 @@ def api_key_required(fn):
 
         api_key = auth_header.replace("Bearer ", "")
 
-        # does it match some of our collector's keys?
-        if not CollectorsNode.exists_by_api_key(api_key) and Config.API_KEY != api_key:
+        if Config.API_KEY != api_key:
             logger.store_auth_error_activity(f"Incorrect api key: {api_key}")
             return error
 

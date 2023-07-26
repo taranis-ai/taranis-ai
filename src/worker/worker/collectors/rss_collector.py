@@ -3,6 +3,7 @@ import hashlib
 import uuid
 import feedparser
 import requests
+import logging
 from bs4 import BeautifulSoup
 import dateutil.parser as dateparser
 from trafilatura import extract
@@ -22,6 +23,8 @@ class RSSCollector(BaseCollector):
         self.news_items = []
         self.proxies = None
         self.headers = {}
+        logger_trafilatura = logging.getLogger('trafilatura')
+        logger_trafilatura.setLevel(logging.WARNING)
 
 
     def collect(self, source):

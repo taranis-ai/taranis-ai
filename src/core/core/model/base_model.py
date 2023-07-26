@@ -55,6 +55,8 @@ class BaseModel(db.Model):
 
     @classmethod
     def get(cls: Type[T], id) -> T | None:
+        if isinstance(id, int) and (id < 0 or id > 2**63 - 1):
+            return None
         return cls.query.get(id)
 
     @classmethod

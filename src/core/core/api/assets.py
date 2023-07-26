@@ -109,24 +109,33 @@ class AttributeCPEEnums(Resource):
 
 
 def initialize(api):
-    namespace = Namespace("Assets", description="Assets related operations", path="/api/v1")
-    namespace.add_resource(AssetGroups, "/asset-groups")
-    namespace.add_resource(AssetGroup, "/asset-groups/<string:group_id>")
-
-    namespace.add_resource(NotificationTemplates, "/asset-notification-templates")
-    namespace.add_resource(
-        NotificationTemplate,
-        "/asset-notification-templates/<int:template_id>",
+    asset_namespace = Namespace("Assets", description="Assets related operations", path="/api/v1/assets")
+    asset_groups_namespace = Namespace("AssetGroups", description="Assets related operations", path="/api/v1/asset-groups")
+    asset_attributes_namespace = Namespace("AssetAttributes", description="Assets related operations", path="/api/v1/asset-attributes")
+    notification_template_namespace = Namespace(
+        "NotificationTemplates", description="Assets related operations", path="/api/v1/asset-notification-templates"
     )
 
-    namespace.add_resource(Assets, "/assets")
-    namespace.add_resource(Asset, "/assets/<int:asset_id>")
+    asset_groups_namespace.add_resource(AssetGroups, "/")
+    asset_groups_namespace.add_resource(AssetGroup, "/<string:group_id>")
 
-    namespace.add_resource(
+    asset_namespace.add_resource(Assets, "/")
+    asset_namespace.add_resource(Asset, "/<int:asset_id>")
+
+    asset_namespace.add_resource(
         AssetVulnerability,
-        "/assets/<int:asset_id>/vulnerabilities/<int:vulnerability_id>",
+        "/<int:asset_id>/vulnerabilities/<int:vulnerability_id>",
     )
 
-    namespace.add_resource(GetAttributeCPE, "/asset-attributes/cpe")
-    namespace.add_resource(AttributeCPEEnums, "/asset-attributes/cpe/enums")
-    api.add_namespace(namespace)
+    notification_template_namespace.add_resource(NotificationTemplates, "/")
+    notification_template_namespace.add_resource(
+        NotificationTemplate,
+        "/<int:template_id>",
+    )
+
+    asset_attributes_namespace.add_resource(GetAttributeCPE, "/cpe")
+    asset_attributes_namespace.add_resource(AttributeCPEEnums, "/cpe/enums")
+    api.add_namespace(asset_namespace)
+    api.add_namespace(asset_groups_namespace)
+    api.add_namespace(asset_attributes_namespace)
+    api.add_namespace(notification_template_namespace)

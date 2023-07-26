@@ -69,6 +69,7 @@ class Sources(Resource):
 
 
 class BotsInfo(Resource):
+    @api_key_required
     def get(self):
         search = request.args.get(key="search", default=None)
         return Bot.get_all_json(search)
@@ -84,12 +85,16 @@ class NewsItemsAggregates(Resource):
 
 
 class BotInfo(Resource):
+    @api_key_required
     def get(self, bot_id):
         # return Bot.get(bot_id)
         # TODO: This is a hack to get the bot info by it's Type, not ID
         # depending on how the worker is triggered we might not have the bot ID
-        return Bot.filter_by_type(bot_id).to_bot_info_dict()
+        if result := Bot.filter_by_type(bot_id):
+            return result.to_bot_info_dict(), 200
+        return {"message": f"Bot with id {bot_id} not found"}, 404
 
+    @api_key_required
     def put(self, bot_id):
         return Bot.update(bot_id, request.json)
 

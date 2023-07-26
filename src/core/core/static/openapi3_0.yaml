@@ -404,15 +404,19 @@ paths:
         - name: group
           in: query
           schema:
-            type: integer
+            type: string
         - name: offset
           in: query
           schema:
             type: integer
+            minimum: 0
+            format: int32
         - name: limit
           in: query
           schema:
             type: integer
+            minimum: 1
+            maximum: 200
       responses:
         '200':
           description: the report items
@@ -470,6 +474,7 @@ paths:
         schema:
           type: integer
           minimum: 1
+          format: int32
     get:
       tags: [analyze]
       summary: get a specific report item
@@ -539,6 +544,8 @@ paths:
         required: true
         schema:
           type: integer
+          minimum: 1
+          format: int32
     get:
       tags: [analyze]
       summary: get suitable the report item data
@@ -597,6 +604,8 @@ paths:
         required: true
         schema:
           type: integer
+          minimum: 1
+          format: int32
     get:
       tags: [analyze]
       summary: get a report item's field locks
@@ -622,11 +631,15 @@ paths:
         required: true
         schema:
           type: integer
+          minimum: 1
+          format: int32
       - name: field_id
         in: path
         required: true
         schema:
           type: integer
+          minimum: 1
+          format: int32
     put:
       tags: [analyze]
       summary: lock the specified field
@@ -652,11 +665,15 @@ paths:
         required: true
         schema:
           type: integer
+          minimum: 1
+          format: int32
       - name: field_id
         in: path
         required: true
         schema:
           type: integer
+          minimum: 1
+          format: int32
     put:
       tags: [analyze]
       summary: unlock the specified field
@@ -682,11 +699,15 @@ paths:
         required: true
         schema:
           type: integer
+          minimum: 1
+          format: int32
       - name: field_id
         in: path
         required: true
         schema:
           type: integer
+          minimum: 1
+          format: int32
     put:
       tags: [analyze]
       summary: hold a lock on the specified field
@@ -712,6 +733,8 @@ paths:
         required: true
         schema:
           type: integer
+          minimum: 1
+          format: int32
     get:
       tags: [analyze]
       summary: get the report item attribute's enums
@@ -757,6 +780,8 @@ paths:
         required: true
         schema:
           type: integer
+          minimum: 1
+          format: int32
     post:
       tags: [analyze]
       summary: attach a file to the report item
@@ -805,11 +830,15 @@ paths:
         required: true
         schema:
           type: integer
+          minimum: 1
+          format: int32
       - name: attribute_id
         in: path
         required: true
         schema:
           type: integer
+          minimum: 1
+          format: int32
     delete:
       tags: [analyze]
       summary: remove an attachment from the report item
@@ -845,11 +874,15 @@ paths:
         required: true
         schema:
           type: integer
+          minimum: 1
+          format: int32
       - name: attribute_id
         in: path
         required: true
         schema:
           type: integer
+          minimum: 1
+          format: int32
     get:
       tags: [analyze]
       summary: download a report item's specified attachment
@@ -931,9 +964,12 @@ paths:
           content:
             application/json:
               schema:
-                type: array
+                total_count:
+                  type: integer
                 items:
-                  $ref: '#/components/schemas/osint_source.presentation'
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/osint_source.presentation'
         '401':
           description: authorization error
           content:
@@ -950,7 +986,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/news_item_data.new'
+              $ref: '#/components/schemas/news_item_data'
       responses:
         '200':
           description: the OSINT source ID of the created news item as SSEs
@@ -958,6 +994,8 @@ paths:
             text/event-stream:
               schema:
                 type: object
+        '400':
+          description: failed to decode the request body
         '401':
           description: authorization error
           content:
@@ -966,75 +1004,12 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
         '404':
           $ref: "#/components/schemas/notFound"
-  /assess/news-item-aggregates-by-group/{group_id}:
-    parameters:
-      - name: group_id
-        in: path
-        required: true
-        schema:
-          type: string
-    get:
-      tags: [assess]
-      summary: get news items of a specific group
-      parameters:
-        - name: search
-          in: query
-          schema:
-            type: string
-        - name: read
-          in: query
-          schema:
-            type: string
-        - name: important
-          in: query
-          schema:
-            type: string
-        - name: relevant
-          in: query
-          schema:
-            type: string
-        - name: in_analyze
-          in: query
-          schema:
-            type: string
-        - name: range
-          in: query
-          schema:
-            type: integer
-        - name: sort
-          in: query
-          schema:
-            type: string
-        - name: offset
-          in: query
-          schema:
-            type: integer
-        - name: limit
-          in: query
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: the news items of the specified group
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  total_count:
-                    type: integer
-                  items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/news_item_aggregate'
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
+        '409':
+          description: news item already exists
+        '422':
+          description: Unprocessable Entity
+        '500':
+          description: Adding news item failed
   /assess/news-item-aggregates:
     get:
       tags: [assess]
@@ -1090,11 +1065,15 @@ paths:
           description: Offset for the results.
           schema:
             type: integer
+            minimum: 0
+            format: int32
         - name: limit
           description: Limit results to a specific number.
           in: query
           schema:
             type: integer
+            minimum: 1
+            format: int32
       responses:
         '200':
           description: the news items of the specified group
@@ -1109,6 +1088,8 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/news_item_aggregate'
+        '400':
+          description: erronous input data
         '401':
           description: authorization error
           content:
@@ -1124,6 +1105,8 @@ paths:
         required: true
         schema:
           type: integer
+          minimum: 1
+          format: int32
     get:
       tags: [assess]
       summary: get the specified news item
@@ -1165,6 +1148,8 @@ paths:
               schema:
                 type: string
                 example: success
+        '400':
+          description: erronous input data
         '401':
           description: authorization error
           content:
@@ -1207,6 +1192,8 @@ paths:
         required: true
         schema:
           type: integer
+          minimum: 1
+          format: int32
     get:
       tags: [assess]
       summary: get the specified news item aggregate
@@ -1217,6 +1204,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/news_item_aggregate'
+        '400':
+          description: invalid aggregate_id
         '401':
           description: authorization error
           content:
@@ -1255,12 +1244,17 @@ paths:
                 type: array
                 items:
                   type: string
+        '400':
+          description: invalid aggregate_id
+
         '401':
           description: authorization error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/resp.auth.error'
+        '400':
+          description: erronous input data
         '404':
           $ref: "#/components/schemas/notFound"
     delete:
@@ -1274,6 +1268,9 @@ paths:
               schema:
                 type: string
                 example: success
+        '400':
+          description: invalid aggregate_id
+
         '401':
           description: authorization error
           content:
@@ -1312,6 +1309,8 @@ paths:
               schema:
                 items:
                   type: string
+        '400':
+          description: no newsitem_ids provided
         '401':
           description: authorization error
           content:
@@ -1329,13 +1328,9 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                newsitem_ids:
-                  type: array
-                  items:
-                    type: integer
-
+              type: array
+              items:
+                type: integer
       responses:
         '200':
           description: successfully removed news items from an aggregate
@@ -1344,6 +1339,8 @@ paths:
               schema:
                 items:
                   type: string
+        '400':
+          description: no newsitem_ids provided
         '401':
           description: authorization error
           content:
@@ -1365,6 +1362,8 @@ paths:
         required: true
         schema:
           type: integer
+          minimum: 1
+          format: int32
     get:
       tags: [assess]
       summary: download attachment
@@ -1376,6 +1375,8 @@ paths:
               schema:
                 type: string
                 format: binary
+        '400':
+          description: erronous input data
         '401':
           description: authorization error
           content:
@@ -1788,7 +1789,9 @@ paths:
         - name: offset
           in: query
           schema:
-            type: string
+            type: integer
+            minimum: 0
+            format: int32
         - name: limit
           in: query
           schema:
@@ -1832,12 +1835,6 @@ paths:
           description: OK
         '404':
           description: Not found
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
 
   /worker/bots:
     get:
@@ -2044,12 +2041,9 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                aggregate_ids:
-                  type: array
-                  items:
-                    type: integer
+              type: array
+              items:
+                type: integer
 
       responses:
         '200':
@@ -3823,7 +3817,8 @@ paths:
                   total_database_items:
                     type: integer
                   latest_collected:
-                    $ref: '#/components/schemas/date_time'
+                    type: string
+                    format: date-time
         '401':
           description: authorization error
           content:
@@ -4207,7 +4202,8 @@ paths:
               type: object
               properties:
                 last_sync_time:
-                  $ref: '#/components/schemas/date_time_full'
+                  type: string
+                  format: date-time
       responses:
         '200':
           description: success
@@ -4266,7 +4262,8 @@ paths:
               type: object
               properties:
                 last_sync_time:
-                  $ref: '#/components/schemas/date_time_full'
+                  type: string
+                  format: date-time
       responses:
         '200':
           description: success
@@ -4780,9 +4777,11 @@ components:
         - type: object
           properties:
             created:
-              $ref: '#/components/schemas/date_time'
+              type: string
+              format: date-time
             last_updated:
-              $ref: '#/components/schemas/date_time'
+              type: string
+              format: date-time
             version:
               type: integer
             current:
@@ -4801,9 +4800,11 @@ components:
         title_prefix:
           type: string
         created:
-          $ref: '#/components/schemas/date_time'
+          type: string
+          format: date-time
         last_updated:
-          $ref: '#/components/schemas/date_time'
+          type: string
+          format: date-time
         completed:
           type: boolean
         report_item_type_id:
@@ -4979,16 +4980,6 @@ components:
     news_item_attribute.new:
       allOf:
         - $ref: '#/components/schemas/news_item_attribute'
-    news_item_data.new:
-      allOf:
-        - $ref: '#/components/schemas/news_item_data'
-        - type: object
-          properties:
-            attributes:
-              type: array
-              items:
-                $ref: '#/components/schemas/news_item_attribute'
-
     news_item_attribute.base:
       type: object
       properties:
@@ -5007,11 +4998,9 @@ components:
           properties:
             binary_value:
               type: string
-    news_item_data.base:
+    news_item_data:
       type: object
       properties:
-        id:
-          type: string
         hash:
           type: string
         title:
@@ -5027,24 +5016,24 @@ components:
         author:
           type: string
         collected:
-          $ref: '#/components/schemas/date_time'
+          type: string
+          format: date-time
         osint_source_id:
           type: string
-        tags:
+        attributes:
           type: array
           items:
-            type: string
-    news_item_data:
-      allOf:
-        - $ref: '#/components/schemas/news_item_data.base'
-        - type: object
-          properties:
-            content:
-              type: string
-            attributes:
-              type: array
-              items:
-                $ref: '#/components/schemas/news_item_attribute'
+            $ref: '#/components/schemas/news_item_attribute'
+      required:
+        - hash
+        - title
+        - review
+        - source
+        - link
+        - published
+        - author
+        - collected
+        - osint_source_id
     news_item_remote:
       type: object
       properties:
@@ -5063,7 +5052,8 @@ components:
         author:
           type: string
         collected:
-          $ref: '#/components/schemas/date_time'
+          type: string
+          format: date-time
         content:
           type: string
         attributes:
@@ -5072,15 +5062,6 @@ components:
             $ref: '#/components/schemas/news_item_attribute'
         relevance:
           type: integer
-    news_item_data.presentation:
-      allOf:
-        - $ref: '#/components/schemas/news_item_data.base'
-        - type: object
-          properties:
-            remote_source:
-              type: string
-            attributes:
-              $ref: '#/components/schemas/news_item_attribute.base'
     news_item.base:
       type: object
       properties:
@@ -5123,7 +5104,7 @@ components:
         - type: object
           properties:
             news_item_data:
-              $ref: '#/components/schemas/news_item_data.presentation'
+              $ref: '#/components/schemas/news_item_data'
     news_item_aggregate:
       type: object
       properties:
@@ -5134,7 +5115,8 @@ components:
         description:
           type: string
         created:
-          $ref: '#/components/schemas/date_time'
+          type: string
+          format: date-time
         comments:
           type: string
         likes:
@@ -5200,7 +5182,8 @@ components:
             attribute_value:
               type: string
             attribute_last_updated:
-              $ref: '#/components/schemas/date_time'
+              type: string
+              format: date-time
             attribute_user:
               type: string
         - type: object
@@ -5222,7 +5205,8 @@ components:
             binary_description:
               type: string
             attribute_last_updated:
-              $ref: '#/components/schemas/date_time'
+              type: string
+              format: date-time
             attribute_user:
               type: string
 
@@ -5330,9 +5314,11 @@ components:
       type: object
       properties:
         last_collected:
-          $ref: '#/components/schemas/date_time_seconds'
+          type: string
+          format: date-time
         last_attempted:
-          $ref: '#/components/schemas/date_time_seconds'
+          type: string
+          format: date-time
         last_error_message:
           type: string
         last_data:
@@ -5646,9 +5632,11 @@ components:
         status:
           type: string
         created:
-          $ref: '#/components/schemas/date_time'
+          type: string
+          format: date-time
         last_seen:
-          $ref: '#/components/schemas/date_time'
+          type: string
+          format: date-time
 
     acl_entry.new:
       allOf:
@@ -5753,7 +5741,8 @@ components:
         - type: object
           properties:
             last_synced:
-              $ref: '#/components/schemas/date_time_seconds'
+              type: string
+              format: date-time
     remote_node:
       type: object
       properties:
@@ -5784,7 +5773,8 @@ components:
         - type: object
           properties:
             last_synced:
-              $ref: '#/components/schemas/date_time_seconds'
+              type: string
+              format: date-time
             event_id:
               type: string
 
@@ -5982,15 +5972,6 @@ components:
     date:
       type: string
       example: '%d.%m.%Y'
-    date_time:
-      type: string
-      example: '%d.%m.%Y - %H:%M'
-    date_time_seconds:
-      type: string
-      example: '%d.%m.%Y - %H:%M:%s'
-    date_time_full:
-      type: string
-      example: '%Y-%m-%d %H:%M:%S.%f'
     report_item_lock:
       type: object
       properties:

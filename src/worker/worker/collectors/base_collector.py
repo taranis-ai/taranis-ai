@@ -73,4 +73,4 @@ class BaseCollector:
         if "word_lists" in source:
             news_items = self.filter_by_word_list(news_items, source)
         self.core_api.add_news_items(news_items)
-        execute_bot.delay("NLP_BOT", {"SOURCE": source["id"]})
+        execute_bot.delay("NLP_BOT", {"SOURCE": source["id"]}) # type: ignore
