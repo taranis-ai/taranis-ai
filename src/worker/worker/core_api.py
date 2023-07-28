@@ -69,10 +69,10 @@ class CoreApi:
         except Exception:
             return None
 
-    def get_categories(self, id) -> dict | None:
+    def get_word_list(self, word_list_id: int) -> dict | None:
         try:
             return self.api_get(
-                url=f'/api/v1/bots/word-list-categories/{id}',
+                url=f'/api/v1/worker/word-list/{word_list_id}',
             )
         except Exception:
             return None
@@ -129,9 +129,9 @@ class CoreApi:
             logger.log_debug_trace("update_news_item_tags failed")
             return None
 
-    def update_word_list_category_entries(self, id, name, entries) -> dict | None:
+    def update_word_list(self, id, entries) -> dict | None:
         try:
-            return self.api_put(url=f'/api/v1/bots/word-list-categories/{id}/entries/{name}', json_data=entries)
+            return self.api_put(url=f'/api/v1/bots/word-list/{id}', json_data=entries)
         except Exception:
             return None
 

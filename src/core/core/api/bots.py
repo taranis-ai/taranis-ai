@@ -97,12 +97,8 @@ class UpdateNewsItemsAggregateSummary(Resource):
 
 class WordListEntries(Resource):
     @api_key_required
-    def delete(self, word_list_id, entry_name):
-        return word_list.WordListEntry.delete_entries(word_list_id, entry_name)
-
-    @api_key_required
-    def put(self, word_list_id, entry_name):
-        return word_list.WordListEntry.update_word_list_entries(word_list_id, request.json)
+    def put(self, word_list_id):
+        return word_list.WordList.update(word_list_id, request.json)
 
 
 class BotsInfo(Resource):
@@ -145,7 +141,7 @@ def initialize(api: Api):
     )
     namespace.add_resource(
         WordListEntries,
-        "/word-list/<int:word_list_id>/entries/<string:entry_name>",
+        "/word-list/<int:word_list_id>",
     )
     namespace.add_resource(BotsNode, "/node/<string:node_id>", "/node")
     api.add_namespace(namespace)

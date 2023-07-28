@@ -100,13 +100,15 @@ class WordList(BaseModel):
 class WordListEntry(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     value = db.Column(db.String(), nullable=False)
+    category = db.Column(db.String(), nullable=True)
     description = db.Column(db.String(), nullable=False)
 
     word_list_id = db.Column(db.Integer, db.ForeignKey("word_list.id"))
 
-    def __init__(self, value, description=""):
+    def __init__(self, value, category="", description=""):
         self.id = None
         self.value = value
+        self.category = category
         self.description = description
 
     @classmethod
@@ -135,3 +137,8 @@ class WordListEntry(BaseModel):
                 word_list.entries.append(entry)
                 db.session.commit()
         return "WordList entries updated", 200
+
+    def to_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
+        data.pop("id")
+        return data

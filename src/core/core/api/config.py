@@ -307,6 +307,12 @@ class WordList(Resource):
         word_list.WordList.update(word_list_id, request.json)
 
 
+class WordListGather(Resource):
+    @auth_required("CONFIG_WORD_LIST_UPDATE")
+    def put(self, word_list_id):
+        return queue_manager.gather_word_list(word_list_id)
+
+
 class Collectors(Resource):
     def get(self):
         search = request.args.get(key="search", default=None)
@@ -645,6 +651,7 @@ def initialize(api: Api):
 
     namespace.add_resource(WordLists, "/word-lists")
     namespace.add_resource(WordList, "/word-lists/<int:word_list_id>")
+    namespace.add_resource(WordListGather, "/gather-word-list-entries/<int:word_list_id>")
 
     namespace.add_resource(RefreshWorkers, "/workers/refresh")
     namespace.add_resource(QueueSchedule, "/workers/schedule")

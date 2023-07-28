@@ -50,3 +50,9 @@ def collect_osint_source(source_id: str):
     queue_manager.celery.send_task("worker.tasks.collect", args=[source_id])
     logger.info(f"Collect for source {source_id} scheduled")
     return {"message": f"Refresh for source {source_id} scheduled"}, 200
+
+
+def gather_word_list(word_list_id: int):
+    queue_manager.celery.send_task("worker.tasks.gather_word_list", args=[word_list_id])
+    logger.info(f"Gathering for WordList {word_list_id} scheduled")
+    return {"message": f"Gathering for WordList {word_list_id} scheduled"}, 200

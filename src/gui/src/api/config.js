@@ -223,6 +223,13 @@ export function importWordList(form_data) {
   return ApiService.upload('/config/import-word-lists', form_data)
 }
 
+export function gatherWordListEntries(word_list) {
+  return ApiService.put(
+    `/config/gather-word-list-entries/${word_list.id}`,
+    word_list
+  )
+}
+
 export function exportWordList(filter_data) {
   const filter = ApiService.getQueryStringFromNestedObject(filter_data)
   return ApiService.download(

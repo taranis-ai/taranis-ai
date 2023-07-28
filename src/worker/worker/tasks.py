@@ -8,7 +8,8 @@ bots = {
     "ANALYST_BOT": worker.bots.AnalystBot(),
     "GROUPING_BOT": worker.bots.GroupingBot(),
     "NLP_BOT": worker.bots.NLPBot(),
-    "TAGGING_BOT": worker.bots.TaggingBot()
+    "TAGGING_BOT": worker.bots.TaggingBot(),
+    "WORDLIST_UPDATER_BOT": worker.bots.WordlistUpdaterBot(),
 }
 
 @shared_task(time_limit=60)
@@ -57,3 +58,14 @@ def cleanup_token_blacklist():
     core_api = CoreApi()
     core_api.cleanup_token_blacklist()
     return "Token blacklist cleaned up"
+
+@shared_task(time_limit=30)
+def gather_word_list(word_list_id: int):
+    core_api = CoreApi()
+    word_list = core_api.get_word_list(word_list_id)
+    if not word_list:
+        logger.error(f"Word list with id {word_list_id} not found")
+        return
+    bots["WORDLIST_UPDATER_BOT"].execute(word_list)
+    return "Word list updated"
+

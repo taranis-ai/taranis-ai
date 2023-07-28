@@ -15,6 +15,19 @@
       <template #titlebar>
         <ImportExport @import="importData" @export="exportData"></ImportExport>
       </template>
+      <template #actionColumn="source">
+        <v-tooltip left>
+          <template #activator="{ props }">
+            <v-icon
+              v-bind="props"
+              color="secondary"
+              icon="mdi-update"
+              @click.stop="updateWordListEntries(source.item)"
+            />
+          </template>
+          <span>Update Wordlist</span>
+        </v-tooltip>
+      </template>
     </DataTable>
     <EditConfig
       v-if="formData && Object.keys(formData).length > 0"
@@ -35,7 +48,8 @@ import {
   createWordList,
   updateWordList,
   exportWordList,
-  importWordList
+  importWordList,
+  gatherWordListEntries
 } from '@/api/config'
 import { notifySuccess, objectFromFormat, notifyFailure } from '@/utils/helpers'
 import { useConfigStore } from '@/stores/ConfigStore'
@@ -87,6 +101,11 @@ export default {
         name: 'use_for_stop_words',
         label: 'Use for stop words',
         type: 'switch'
+      },
+      {
+        name: 'entries',
+        label: 'Words',
+        type: 'list'
       }
     ])
 
@@ -161,6 +180,10 @@ export default {
       selected.value = selected.map((item) => item.id)
     }
 
+    const updateWordListEntries = (item) => {
+      gatherWordListEntries(item)
+    }
+
     onMounted(() => {
       updateData()
     })
@@ -180,7 +203,8 @@ export default {
       updateItem,
       importData,
       exportData,
-      selectionChange
+      selectionChange,
+      updateWordListEntries
     }
   }
 }

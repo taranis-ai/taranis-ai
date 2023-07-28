@@ -55,6 +55,12 @@
           true-value="true"
           false-value="false"
         />
+        <v-list
+          v-if="item.type === 'list'"
+          :items="formData[item.name]"
+          :label="item.label"
+          :disabled="true"
+        />
 
         <v-col
           v-if="item.type === 'table' && item.items !== undefined"

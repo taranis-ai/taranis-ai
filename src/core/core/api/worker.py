@@ -4,7 +4,9 @@ from flask_restx import Resource, Namespace, Api
 from core.managers.auth_manager import api_key_required
 from core.managers.log_manager import logger
 from core.model.osint_source import OSINTSource
+from core.model.osint_source import OSINTSourceGroup
 from core.model.queue import ScheduleEntry
+from core.model.word_list import WordList
 from core.model.news_item import NewsItemAggregate
 from core.model.bot import Bot
 
@@ -99,6 +101,18 @@ class BotInfo(Resource):
         return Bot.update(bot_id, request.json)
 
 
+class WordListBySourceGroup(Resource):
+    @api_key_required
+    def get(self, source_group: str):
+        return OSINTSourceGroup.get(source_group).to_word_list_dict()
+
+
+class WordListByID(Resource):
+    @api_key_required
+    def get(self, word_list_id: int):
+        return WordList.get(word_list_id).to_dict()
+
+
 def initialize(api: Api):
     worker_namespace = Namespace("Worker", description="Publish Subscribe Worker Endpoints", path="/api/v1/worker")
     beat_namespace = Namespace("Beat", description="Publish Subscribe Beat Endpoints", path="/api/v1/beat")
@@ -121,6 +135,8 @@ def initialize(api: Api):
     worker_namespace.add_resource(BotsInfo, "/bots")
     worker_namespace.add_resource(BotInfo, "/bots/<string:bot_id>")
     worker_namespace.add_resource(NewsItemsAggregates, "/news-item-aggregates")
+    worker_namespace.add_resource(WordListBySourceGroup, "/word-lists-by-source-group/<string:source_group>")
+    worker_namespace.add_resource(WordListByID, "/word-list/<int:word_list_id>")
 
     api.add_namespace(beat_namespace)
     api.add_namespace(worker_namespace)

@@ -38,6 +38,7 @@ class TaggingBot(BaseBot):
                     review = news_item["news_item_data"]["review"]
 
                     analyzed_content = set((title + review + content).split())
+                    analyzed_content = analyzed_content.difference(existing_tags)
                     findings.add(analyzed_content.intersection(word_list_entries))
                 self.core_api.update_news_item_tags(aggregate["id"], list(findings))
 

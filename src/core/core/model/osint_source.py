@@ -266,6 +266,13 @@ class OSINTSourceGroup(BaseModel):
             ),
         ).all()
 
+    def to_word_list_dict(self):
+        flat_entry_list = []
+        word_list_entries = [word_list.entries for word_list in self.word_lists]
+        for sublist in word_list_entries:
+            flat_entry_list.extend(sublist)
+        return flat_entry_list, 200
+
     @classmethod
     def get_default(cls):
         return cls.query.filter(OSINTSourceGroup.default).first()
