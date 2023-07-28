@@ -12,6 +12,16 @@
       {{ button.label }}
     </v-btn>
     <v-spacer />
+    <v-tooltip text="deselect" location="top">
+      <template #activator="{ props }">
+        <v-btn
+          v-bind="props"
+          icon="mdi-selection-remove"
+          size="small"
+          @click.stop="deselect()"
+        />
+      </template>
+    </v-tooltip>
     <span class="my-auto mr-5">
       selected: <strong>{{ selection.length }}</strong>
     </span>
@@ -27,7 +37,7 @@ import PopupShareItems from '@/components/popups/PopupShareItems.vue'
 import { useAssessStore } from '@/stores/AssessStore'
 
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
-import { mapActions } from 'pinia'
+import { ref } from 'vue'
 
 export default {
   name: 'AssessSelectionToolbar',
@@ -40,8 +50,9 @@ export default {
       default: () => []
     }
   },
-  data: () => ({
-    actionButtons: [
+  setup(props) {
+    const assessStore = useAssessStore()
+    const actionButtons = ref([
       {
         label: 'merge',
         icon: 'mdi-merge',
@@ -52,30 +63,36 @@ export default {
         icon: 'mdi-google-circles-communities',
         action: 'addToReport'
       }
-    ],
-    sharingDialog: false
-  }),
-  methods: {
-    ...mapActions(useAssessStore, [
-      'clearNewsItemSelection',
-      'updateNewsItems'
-    ]),
+    ])
 
-    actionClicked(action) {
+    const sharingDialog = ref(false)
+
+    const actionClicked = (action) => {
       if (action === 'merge') {
-        groupAction(this.selection)
+        groupAction(props.selection)
           .then(() => {
             notifySuccess('Items merged')
-            this.clearNewsItemSelection()
-            this.updateNewsItems()
+            assessStore.clearNewsItemSelection()
+            assessStore.updateNewsItems()
           })
           .catch((err) => {
             notifyFailure('Failed to merge items')
             console.log(err)
           })
       } else if (action === 'addToReport') {
-        this.sharingDialog = true
+        sharingDialog.value = true
       }
+    }
+
+    const deselect = () => {
+      assessStore.clearNewsItemSelection()
+    }
+
+    return {
+      actionButtons,
+      sharingDialog,
+      actionClicked,
+      deselect
     }
   }
 }

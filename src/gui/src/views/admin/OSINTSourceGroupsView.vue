@@ -3,7 +3,7 @@
     <DataTable
       v-model:items="osint_source_groups.items"
       :add-button="true"
-      :header-filter="['tag', 'default', 'name', 'description']"
+      :header-filter="['default', 'name', 'description']"
       sort-by-item="id"
       :action-column="true"
       @delete-item="deleteItem"
@@ -43,9 +43,10 @@ export default {
     EditConfig
   },
   setup() {
-    const store = useConfigStore()
+    const configStore = useConfigStore()
     const mainStore = useMainStore()
-    const { osint_source_groups, osint_sources } = storeToRefs(store)
+    const { osint_source_groups, osint_sources, word_lists } =
+      storeToRefs(configStore)
     const selected = ref([])
     const formData = ref({})
     const edit = ref(false)
@@ -78,15 +79,27 @@ export default {
           { title: 'Description', key: 'description' }
         ],
         items: osint_sources.value.items
+      },
+      {
+        name: 'word_lists',
+        label: 'Word Lists',
+        type: 'table',
+        headers: [
+          { title: 'Name', key: 'name' },
+          { title: 'Description', key: 'description' },
+          { title: 'ID', key: 'id' }
+        ],
+        items: word_lists.value.items
       }
     ])
 
     const updateData = () => {
-      store.loadOSINTSourceGroups().then(() => {
+      configStore.loadOSINTSourceGroups().then(() => {
         mainStore.itemCountTotal = osint_source_groups.value.total_count
         mainStore.itemCountFiltered = osint_source_groups.value.items.length
       })
-      store.loadOSINTSources().then()
+      configStore.loadOSINTSources()
+      configStore.loadWordLists()
     }
 
     const addItem = () => {
@@ -156,6 +169,7 @@ export default {
       selected,
       formData,
       edit,
+      word_lists,
       formFormat,
       addItem,
       editItem,

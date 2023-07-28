@@ -36,10 +36,7 @@ class OSINTSource(BaseModel):
         self.description = description
         self.collector_id = collector_id
         self.parameter_values = parameter_values
-
-        self.word_lists = []
-        if word_lists:
-            self.word_lists.extend(WordList.get(word_list.id) for word_list in word_lists)
+        self.word_lists = [WordList.get(word_list) for word_list in word_lists] if word_lists else []
 
     @classmethod
     def get_all(cls) -> list["OSINTSource"]:
@@ -253,7 +250,7 @@ class OSINTSourceGroup(BaseModel):
         self.description = description
         self.default = default
         self.osint_sources = [OSINTSource.get(osint_source) for osint_source in osint_sources] if osint_sources else []
-        self.word_lists = [WordList.get(word_list.id) for word_list in word_lists] if word_lists else []
+        self.word_lists = [WordList.get(word_list) for word_list in word_lists] if word_lists else []
 
     @classmethod
     def get_all(cls):

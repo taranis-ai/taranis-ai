@@ -83,7 +83,7 @@ export default {
     const configStore = useConfigStore()
     const mainStore = useMainStore()
 
-    const { collectors, osint_sources } = storeToRefs(configStore)
+    const { collectors, osint_sources, word_lists } = storeToRefs(configStore)
 
     const sources = ref([])
     const parameters = ref({})
@@ -137,8 +137,21 @@ export default {
         ].concat(base)
       }
       if (parameters.value[formData.value.collector_id]) {
-        return base.concat(parameters.value[formData.value.collector_id])
+        base = base.concat(parameters.value[formData.value.collector_id])
       }
+      base = base.concat([
+        {
+          name: 'word_lists',
+          label: 'Word Lists',
+          type: 'table',
+          headers: [
+            { title: 'Name', key: 'name' },
+            { title: 'Description', key: 'description' },
+            { title: 'ID', key: 'id' }
+          ],
+          items: word_lists.value.items
+        }
+      ])
       return base
     })
 
@@ -165,6 +178,7 @@ export default {
           }
         })
       })
+      configStore.loadWordLists()
     }
 
     onMounted(() => {

@@ -74,13 +74,10 @@
           size="small"
           class="item-action-btn"
           variant="tonal"
-          :append-icon="
-            !newsItem.read ? 'mdi-eye-outline' : 'mdi-eye-off-outline'
-          "
-          :title="!newsItem.read ? 'mark as read' : 'unmark as read'"
-          @click.stop="markAsRead()"
+          append-icon="mdi-card-remove"
+          @click.stop="removeFromStory()"
         >
-          <span>{{ !newsItem.read ? 'read' : 'unread' }}</span>
+          <span>Remove</span>
         </v-btn>
 
         <v-dialog v-model="deleteDialog" width="auto">
@@ -165,7 +162,8 @@ import { notifySuccess, notifyFailure } from '@/utils/helpers.js'
 import {
   deleteNewsItemAggregate,
   importantNewsItemAggregate,
-  readNewsItemAggregate
+  readNewsItemAggregate,
+  unGroupAction
 } from '@/api/assess'
 import { ref, computed } from 'vue'
 
@@ -191,10 +189,6 @@ export default {
     const openSummary = ref(props.detailView)
     const sharingDialog = ref(false)
     const deleteDialog = ref(false)
-
-    const item_important = computed(() =>
-      'important' in props.newsItem ? props.newsItem.important : false
-    )
 
     const news_item_summary_text = computed(() =>
       openSummary.value ? 'Close' : 'Open'
@@ -247,7 +241,6 @@ export default {
       openSummary,
       sharingDialog,
       deleteDialog,
-      item_important,
       news_item_summary_text,
       description,
       openCard,

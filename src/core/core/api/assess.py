@@ -114,7 +114,7 @@ class NewsItem(Resource):
     @auth_required("ASSESS_ACCESS")
     def get(self, item_id):
         item = news_item.NewsItem.get(item_id)
-        return item.to_json() if item else ("NewsItem not found", 404)
+        return item.to_dict() if item else ("NewsItem not found", 404)
 
     @auth_required("ASSESS_UPDATE")
     def put(self, item_id):

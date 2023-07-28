@@ -1,7 +1,9 @@
 import {
   getNewsItemsAggregates,
   getOSINTSourceGroupsList,
-  getOSINTSourcesList
+  getOSINTSourcesList,
+  readNewsItemAggregate,
+  importantNewsItemAggregate
 } from '@/api/assess'
 import { defineStore } from 'pinia'
 import { xorConcat, notifyFailure } from '@/utils/helpers'
@@ -95,6 +97,18 @@ export const useAssessStore = defineStore('assess', {
     multiSelect(data) {
       this.multi_select = data
       this.selection = []
+    },
+
+    readNewsItemAggregate(id) {
+      const item = this.newsItems.items.find((item) => item.id === id)
+      item.read = !item.read
+      readNewsItemAggregate(id)
+    },
+
+    importantNewsItemAggregate(id) {
+      const item = this.newsItems.items.find((item) => item.id === id)
+      item.important = !item.important
+      importantNewsItemAggregate(id)
     },
 
     select(data) {
