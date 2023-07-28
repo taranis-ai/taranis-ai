@@ -1,4 +1,4 @@
-from flask_restx import Resource, reqparse, Namespace
+from flask_restx import Resource, reqparse, Namespace, Api
 from flask import request
 
 from core.managers.auth_manager import auth_required, api_key_required
@@ -43,7 +43,7 @@ class PublisherPreset(Resource):
         return publisher_preset.PublisherPreset.delete(id)
 
 
-def initialize(api):
+def initialize(api: Api):
     namespace = Namespace("publishers", description="Publishers API", path="/api/v1/publishers")
     namespace.add_resource(PublisherPresets, "/presets")
     namespace.add_resource(PublisherPreset, "/preset", "/preset/<id>")

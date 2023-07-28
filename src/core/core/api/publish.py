@@ -1,7 +1,6 @@
 import base64
-from flask import Response
-from flask import request
-from flask_restx import Resource, Namespace
+from flask import Response, request
+from flask_restx import Resource, Namespace, Api
 
 from core.managers import auth_manager, presenters_manager, publishers_manager
 from core.managers.log_manager import logger
@@ -70,7 +69,7 @@ class ProductsOverview(Resource):
         return "Failed to generate product", status_code
 
 
-def initialize(api):
+def initialize(api: Api):
     namespace = Namespace("publish", description="Publish API", path="/api/v1/publish")
     namespace.add_resource(Products, "/products")
     namespace.add_resource(Product, "/products/<int:product_id>")

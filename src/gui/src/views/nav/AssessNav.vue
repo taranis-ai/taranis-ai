@@ -9,12 +9,12 @@
   >
     <template #navdrawer>
       <!-- scope -->
-      <v-row class="my-2 mr-0 px-2">
+      <v-row no-gutters class="my-2 mr-0 px-2">
         <v-col cols="12" class="pb-0">
           <h4>Source</h4>
         </v-col>
 
-        <v-col cols="12" class="pt-0">
+        <v-col cols="12" class="pt-1">
           <v-select
             v-model="newsItemsFilter.group"
             :items="getOSINTSourceGroupsList"
@@ -28,7 +28,7 @@
           ></v-select>
         </v-col>
 
-        <v-col cols="12" class="pt-0">
+        <v-col cols="12" class="pt-2">
           <v-select
             v-model="newsItemsFilter.source"
             :items="getOSINTSourcesList"
@@ -45,23 +45,23 @@
 
       <v-divider class="mt-0 mb-0"></v-divider>
 
-      <v-row class="my-2 mr-0 px-2">
+      <v-row no-gutters class="my-2 mr-0 px-2">
         <v-col cols="12" class="py-0">
           <h4>Filter</h4>
         </v-col>
 
-        <v-col cols="12" class="pb-0">
+        <v-col cols="12" class="pt-1">
           <date-chips v-model="newsItemsFilter.range" />
         </v-col>
 
-        <v-col cols="12" class="pr-0">
+        <v-col cols="12" class="pt-1">
           <tag-filter v-model="newsItemsFilter.tags" />
         </v-col>
       </v-row>
 
       <v-divider class="mt-0 mb-0"></v-divider>
 
-      <v-row class="my-2 mr-0 px-2">
+      <v-row no-gutters class="my-2 mr-0 px-2">
         <v-col cols="12" class="pt-1">
           <filter-select-list
             v-model="filterAttribute"
@@ -71,7 +71,7 @@
       </v-row>
       <v-divider class="mt-0 mb-0"></v-divider>
 
-      <v-row class="my-2 mr-0 px-2">
+      <v-row no-gutters class="my-2 mr-0 px-2">
         <v-col cols="12" class="py-0">
           <h4>Sort</h4>
         </v-col>
@@ -82,25 +82,22 @@
       </v-row>
 
       <v-divider class="mt-1 mb-0"></v-divider>
-      <v-row class="my-2 mr-0 px-2">
+      <v-row no-gutters class="my-2 mr-0 px-2">
         <v-col cols="12" class="py-0">
-          <h4>Chart Properties</h4>
+          <h4>Debug</h4>
         </v-col>
-        <v-col cols="4" class="pt-2">threshold:</v-col>
-        <v-col cols="8" class="pt-2">
+        <v-col cols="8" class="pt-2">chart threshold:</v-col>
+        <v-col cols="4" class="pt-2">
           <input v-model="chartFilter.threshold" type="number" min="0"
         /></v-col>
-        <v-col cols="4" class="pt-2">y2 Max:</v-col>
-        <v-col cols="8" class="pt-2">
+        <v-col cols="8" class="pt-2">chart y2 Max:</v-col>
+        <v-col cols="4" class="pt-2">
           <input v-model="chartFilter.y2max" type="number" min="0" />
         </v-col>
       </v-row>
 
       <v-divider class="mt-2 mb-0"></v-divider>
-      <v-row class="my-2 mr-0 px-2 pb-5">
-        <v-col cols="12" class="py-0">
-          <h4>Debug</h4>
-        </v-col>
+      <v-row no-gutters class="my-2 mr-0 px-2 pb-5">
         <v-col cols="12" class="py-2">
           <v-btn color="primary" block @click="updateNewsItems()">
             Reload

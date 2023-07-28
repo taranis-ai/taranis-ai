@@ -4,10 +4,11 @@
     density="compact"
     divided
     selected-class="text-primary"
+    class="d-flex flex-row"
   >
-    <v-btn variant="outlined" value="all">all</v-btn>
-    <v-btn variant="outlined" value="day">day</v-btn>
-    <v-btn variant="outlined" value="week">week</v-btn>
+    <v-btn class="flex-grow-1" variant="outlined" value="all">all</v-btn>
+    <v-btn class="flex-grow-1" variant="outlined" value="day">day</v-btn>
+    <v-btn class="flex-grow-1" variant="outlined" value="week">week</v-btn>
   </v-btn-toggle>
 </template>
 

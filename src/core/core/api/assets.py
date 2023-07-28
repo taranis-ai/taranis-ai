@@ -1,5 +1,5 @@
 from flask import request
-from flask_restx import Resource, Namespace
+from flask_restx import Resource, Namespace, Api
 
 from core.managers import auth_manager
 from core.managers.auth_manager import auth_required
@@ -108,7 +108,7 @@ class AttributeCPEEnums(Resource):
         return attribute.AttributeEnum.get_for_attribute_json(cpe.id, search, offset, limit)
 
 
-def initialize(api):
+def initialize(api: Api):
     asset_namespace = Namespace("Assets", description="Assets related operations", path="/api/v1/assets")
     asset_groups_namespace = Namespace("AssetGroups", description="Assets related operations", path="/api/v1/asset-groups")
     asset_attributes_namespace = Namespace("AssetAttributes", description="Assets related operations", path="/api/v1/asset-attributes")

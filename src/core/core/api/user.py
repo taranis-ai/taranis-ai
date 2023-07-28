@@ -1,4 +1,4 @@
-from flask_restx import Resource, Namespace
+from flask_restx import Resource, Namespace, Api
 from flask import request
 
 from core.managers import auth_manager
@@ -43,7 +43,7 @@ class UserPublisherPresets(Resource):
         return publisher_preset.PublisherPreset.get_all_json(None)
 
 
-def initialize(api):
+def initialize(api: Api):
     namespace = Namespace("users", description="User API", path="/api/v1/users")
 
     namespace.add_resource(UserProfile, "/profile")

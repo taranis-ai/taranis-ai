@@ -1,5 +1,5 @@
 from flask import request
-from flask_restx import Resource, Namespace
+from flask_restx import Resource, Namespace, Api
 
 from core.managers.sse_manager import sse_manager
 from core.managers.auth_manager import api_key_required
@@ -41,7 +41,7 @@ class OSINTSourceStatusUpdate(Resource):
             return {"error": "Could not update status"}, 500
 
 
-def initialize(api):
+def initialize(api: Api):
     namespace = Namespace("Collectors", description="Collectors related operations", path="/api/v1/collectors")
     namespace.add_resource(
         OSINTSourcesForCollectors,

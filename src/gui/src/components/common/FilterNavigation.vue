@@ -52,8 +52,8 @@
         <v-divider class="mt-0 mb-0"></v-divider>
 
         <!-- scope -->
-        <v-row class="my-2 mr-0 px-2">
-          <v-col cols="6" class="pb-0">
+        <v-row no-gutters class="my-2 mr-0 px-2">
+          <v-col cols="6" class="mr-2">
             <v-select
               v-model="limit_state"
               :items="items_per_page"
@@ -62,7 +62,7 @@
               density="compact"
             ></v-select>
           </v-col>
-          <v-col cols="6" class="pb-0">
+          <v-col cols="5" class="pb-0">
             <v-select
               v-model="offset_state"
               :items="offsetRange"

@@ -1,5 +1,5 @@
 from flask import request
-from flask_restx import Resource, Namespace
+from flask_restx import Resource, Namespace, Api
 
 from core.managers.auth_manager import api_key_required
 from core.managers.log_manager import logger
@@ -99,7 +99,7 @@ class BotInfo(Resource):
         return Bot.update(bot_id, request.json)
 
 
-def initialize(api):
+def initialize(api: Api):
     worker_namespace = Namespace("Worker", description="Publish Subscribe Worker Endpoints", path="/api/v1/worker")
     beat_namespace = Namespace("Beat", description="Publish Subscribe Beat Endpoints", path="/api/v1/beat")
     beat_namespace.add_resource(

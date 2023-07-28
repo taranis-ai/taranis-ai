@@ -1,5 +1,4 @@
-from flask_restx import Resource
-from flask import request
+from flask_restx import Resource, Api
 from flask_jwt_extended import jwt_required
 
 from core.managers.sse_manager import sse_manager
@@ -11,5 +10,5 @@ class SSE(Resource):
         return sse_manager.sse.listeners
 
 
-def initialize(api):
+def initialize(api: Api):
     api.add_resource(SSE, "/sse")

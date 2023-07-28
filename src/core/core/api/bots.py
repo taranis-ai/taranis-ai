@@ -1,12 +1,12 @@
 from flask import request
-from flask_restx import Resource, Namespace
+from flask_restx import Resource, Namespace, Api
 from datetime import datetime, timedelta
 
 from core.managers import bots_manager
 from core.managers.sse_manager import sse_manager
 from core.managers.log_manager import logger
 from core.managers.auth_manager import api_key_required
-from core.model import news_item, word_list, bots_node, bot, osint_source
+from core.model import news_item, word_list, bots_node, bot
 
 
 class BotGroupAction(Resource):
@@ -119,7 +119,7 @@ class BotInfo(Resource):
         return bot.Bot.update(bot_id, request.json)
 
 
-def initialize(api):
+def initialize(api: Api):
     namespace = Namespace("bots", description="Bots related operations", path="/api/v1/bots")
     namespace.add_resource(BotsInfo, "/")
     namespace.add_resource(BotInfo, "/<string:bot_id>")

@@ -1,7 +1,7 @@
 import io
 
 from flask import request, send_file, jsonify
-from flask_restx import Resource, Namespace
+from flask_restx import Resource, Namespace, Api
 
 from core.managers import (
     auth_manager,
@@ -608,7 +608,7 @@ class BotNodes(Resource):
         return bots_node.BotsNode.delete(node_id)
 
 
-def initialize(api):
+def initialize(api: Api):
     namespace = Namespace("config", description="Configuration operations", path="/api/v1/config")
     namespace.add_resource(
         DictionariesReload,

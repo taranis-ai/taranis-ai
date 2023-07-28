@@ -1,6 +1,6 @@
 import io
 from flask import request, jsonify, send_file
-from flask_restx import Resource, Namespace
+from flask_restx import Resource, Namespace, Api
 
 from core.managers import asset_manager, auth_manager
 from core.managers.sse_manager import sse_manager
@@ -190,7 +190,7 @@ class ReportItemDownloadAttachment(Resource):
         )
 
 
-def initialize(api):
+def initialize(api: Api):
     namespace = Namespace("analyze", description="Analyze API", path="/api/v1/analyze")
     namespace.add_resource(ReportTypes, "/report-types")
     namespace.add_resource(ReportItemGroups, "/report-item-groups")

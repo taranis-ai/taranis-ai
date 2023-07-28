@@ -1,6 +1,6 @@
 from urllib.parse import quote
 from flask import redirect, make_response, request
-from flask_restx import Resource, reqparse, Namespace
+from flask_restx import Resource, reqparse, Namespace, Api
 from flask_jwt_extended import jwt_required
 
 from core.config import Config
@@ -40,7 +40,7 @@ class Logout(Resource):
         return response
 
 
-def initialize(api):
+def initialize(api: Api):
     namespace = Namespace("Auth", description="Authentication related operations", path="/api/v1/auth")
     namespace.add_resource(Login, "/login")
     namespace.add_resource(Refresh, "/refresh")

@@ -90,6 +90,13 @@ class CoreApi:
             logger.log_debug_trace("get_news_items_aggregate failed")
             return None
 
+    def get_words_by_source_group(self, source_group_id: str) -> dict | None:
+        try:
+            return self.api_get(
+                url=f'/api/v1/worker/word-lists-by-source-group/{source_group_id}',
+            )
+        except Exception:
+            return None
 
     def update_news_item_data(self, id, data) -> dict | None:
         try:
