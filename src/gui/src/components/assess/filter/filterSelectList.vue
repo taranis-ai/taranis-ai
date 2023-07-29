@@ -8,7 +8,7 @@
     <v-btn
       v-for="button in filterAttributeOptions"
       :key="button.value"
-      class="vertical-button mb-5"
+      class="vertical-button mb-2"
       :value="button.value"
       :prepend-icon="button.icon"
       :append-icon="

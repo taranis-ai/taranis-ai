@@ -3,7 +3,7 @@
     :ripple="false"
     elevation="3"
     :rounded="false"
-    class="no-gutters align-self-stretch mb-3 mt-2"
+    class="no-gutters align-self-stretch mb-3 mt-2 ml-2 mr-2"
     :class="[
       {
         selected: selected

@@ -11,7 +11,7 @@
       <!-- scope -->
       <v-row no-gutters class="my-2 mr-0 px-2">
         <v-col cols="12" class="pb-0">
-          <h4>Source</h4>
+          <h4 class="text-center">Source</h4>
         </v-col>
 
         <v-col cols="12" class="pt-1">
@@ -47,7 +47,7 @@
 
       <v-row no-gutters class="my-2 mr-0 px-2">
         <v-col cols="12" class="py-0">
-          <h4>Filter</h4>
+          <h4 class="text-center">Filter</h4>
         </v-col>
 
         <v-col cols="12" class="pt-1">
@@ -73,7 +73,7 @@
 
       <v-row no-gutters class="my-2 mr-0 px-2">
         <v-col cols="12" class="py-0">
-          <h4>Sort</h4>
+          <h4 class="text-center">Sort</h4>
         </v-col>
 
         <v-col cols="12" class="pt-2">
@@ -84,7 +84,7 @@
       <v-divider class="mt-1 mb-0"></v-divider>
       <v-row no-gutters class="my-2 mr-0 px-2">
         <v-col cols="12" class="py-0">
-          <h4>Debug</h4>
+          <h4 class="text-center">Debug</h4>
         </v-col>
         <v-col cols="8" class="pt-2">chart threshold:</v-col>
         <v-col cols="4" class="pt-2">
@@ -99,8 +99,8 @@
       <v-divider class="mt-2 mb-0"></v-divider>
       <v-row no-gutters class="my-2 mr-0 px-2 pb-5">
         <v-col cols="12" class="py-2">
-          <v-btn color="primary" block @click="updateNewsItems()">
-            Reload
+          <v-btn color="primary" block @click="resetFilter()">
+            Reset Filter
             <v-icon right dark> mdi-reload </v-icon>
           </v-btn>
         </v-col>
@@ -183,17 +183,26 @@ export default {
       }
     })
 
-    onBeforeMount(() => {
+    const updateQuery = () => {
       const query = Object.fromEntries(
         Object.entries(route.query).filter(([, v]) => v != null)
       )
-      updateFilter(query)
+      setFilter(query)
       console.debug('loaded with query', query)
+    }
+
+    onBeforeMount(() => {
+      updateQuery()
     })
 
     onUnmounted(() => {
       setFilter({})
     })
+
+    const resetFilter = () => {
+      filterStore.$reset()
+      updateNewsItems()
+    }
 
     watch(
       newsItemsFilter,
@@ -212,7 +221,8 @@ export default {
       newsItemsFilter,
       filterAttribute,
       filterAttributeOptions,
-      updateNewsItems
+      updateNewsItems,
+      resetFilter
     }
   }
 }

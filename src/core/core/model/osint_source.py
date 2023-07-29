@@ -35,7 +35,9 @@ class OSINTSource(BaseModel):
         self.name = name
         self.description = description
         self.collector_id = collector_id
-        self.parameter_values = parameter_values
+        self.parameter_values = (
+            [ParameterValue.from_dict(parameter_value) for parameter_value in parameter_values] if parameter_values else []
+        )
         self.word_lists = [WordList.get(word_list) for word_list in word_lists] if word_lists else []
 
     @classmethod
@@ -71,7 +73,6 @@ class OSINTSource(BaseModel):
         drop_keys = ["tag", "modified", "last_collected", "last_attempted", "state", "last_error_message"]
         [data.pop(key, None) for key in drop_keys if key in data]
 
-        parameter_values = [ParameterValue.from_dict(parameter_value) for parameter_value in data.pop("parameter_values", [])]
         collector_type = None
         if "collector" in data:
             collector_type = data.pop("collector")["type"]
@@ -85,7 +86,7 @@ class OSINTSource(BaseModel):
             collector_id = collector.id
         else:
             collector_id = data.pop("collector_id")
-        return cls(parameter_values=parameter_values, collector_id=collector_id, **data)
+        return cls(collector_id=collector_id, **data)
 
     def to_dict(self):
         data = super().to_dict()
@@ -98,7 +99,8 @@ class OSINTSource(BaseModel):
         return f"osint_source_{self.id}_{self.collector.type}"
 
     def get_schedule(self):
-        return ParameterValue.find_param_value(self.parameter_values, "REFRESH_INTERVAL") or "60"
+        refresh_interval = [param_value.value for param_value in self.parameter_values if param_value.parameter.key == "REFRESH_INTERVAL"]
+        return refresh_interval[0] if len(refresh_interval) == 1 else "60"
 
     def to_task_dict(self):
         return {"id": self.to_task_id(), "task": "worker.tasks.collect", "schedule": self.get_schedule(), "args": [self.id]}
@@ -222,6 +224,7 @@ class OSINTSource(BaseModel):
             data = json_data["data"]
         else:
             raise ValueError("Unsupported version")
+        logger.debug(data)
         return cls.add_multiple(data)
 
 

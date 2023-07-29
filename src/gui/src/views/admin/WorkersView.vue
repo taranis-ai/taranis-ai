@@ -61,7 +61,7 @@ export default {
       configStore.loadSchedule()
     }
 
-    const deleteItem = (item) => {
+    const deleteItem = () => {
       notifyFailure('Not implemented yet')
     }
 

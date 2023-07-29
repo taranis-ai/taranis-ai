@@ -1,36 +1,25 @@
 <template>
   <div>
-    <v-container fluid class="flex-column">
-      <v-row v-if="!items">
-        <v-col cols="12" class="empty-list-notification">
-          <v-icon x-large> mdi-circle-off-outline </v-icon>
-          <span v-if="items.total_count">
-            The currently selected filters do not yield any results. Try
-            changing the filters.
-          </span>
-          <span v-else> No elements to display. </span>
-        </v-col>
-      </v-row>
+    <v-infinite-scroll
+      v-if="newsItems.items.length > 0"
+      :on-load="displayMore"
+      empty-text="All items loaded"
+    >
+      <template v-for="item in newsItems.items" :key="item">
+        <card-story
+          :story="item"
+          :selected="newsItemsSelection.includes(item.id)"
+          @delete-item="removeAndDeleteNewsItem(item.id)"
+          @select-item="selectNewsItem(item.id)"
+        />
+      </template>
+    </v-infinite-scroll>
 
-      <card-story
-        v-for="newsItem in items"
-        :key="newsItem.id"
-        :story="newsItem"
-        :selected="newsItemsSelection.includes(newsItem.id)"
-        @delete-item="removeAndDeleteNewsItem(newsItem.id)"
-        @select-item="selectNewsItem(newsItem.id)"
-      />
-    </v-container>
-
-    <!-- TODO: Loader not working -->
-    <div class="text-subtitle-1 text-center dark-grey--text mt-3">
-      <div v-if="moreToLoad">
-        <v-btn @click="nextPage">Next Page</v-btn>
-      </div>
-      <div v-else>
-        <v-icon left color="primary">mdi-checkbox-marked-circle-outline</v-icon>
-        All items loaded.
-      </div>
+    <div
+      v-if="newsItems.items.length == 0"
+      class="text-subtitle-1 text-center dark-grey--text mt-3"
+    >
+      <v-btn @click="resetFilter()">Reset Filter</v-btn>
     </div>
 
     <assess-selection-toolbar
@@ -45,14 +34,7 @@ import CardStory from '@/components/assess/CardStory.vue'
 import AssessSelectionToolbar from '@/components/assess/AssessSelectionToolbar.vue'
 import { storeToRefs } from 'pinia'
 import { useAssessStore } from '@/stores/AssessStore'
-import {
-  watch,
-  defineComponent,
-  computed,
-  ref,
-  onMounted,
-  onUnmounted
-} from 'vue'
+import { defineComponent, computed, ref, onUnmounted, onUpdated } from 'vue'
 import { useFilterStore } from '@/stores/FilterStore'
 import { useMainStore } from '@/stores/MainStore'
 
@@ -64,24 +46,18 @@ export default defineComponent({
   },
   setup() {
     const reloading = ref(false)
-    const items = ref([])
     const assessStore = useAssessStore()
     const filterStore = useFilterStore()
     const mainStore = useMainStore()
     const { newsItems, newsItemsSelection } = storeToRefs(assessStore)
-    const {
-      updateNewsItems,
-      selectNewsItem,
-      updateOSINTSourceGroupsList,
-      updateOSINTSources,
-      clearNewsItemSelection
-    } = assessStore
+    const { updateNewsItems, selectNewsItem, clearNewsItemSelection } =
+      assessStore
 
     const moreToLoad = computed(() => {
       const offset = filterStore.newsItemsFilter.offset
         ? parseInt(filterStore.newsItemsFilter.offset)
         : 0
-      const length = offset + items.value.length
+      const length = offset + newsItems.value.items.length
       return length < newsItems.value.total_count
     })
 
@@ -89,15 +65,21 @@ export default defineComponent({
       return newsItemsSelection.value.length > 0
     })
 
-    const removeAndDeleteNewsItem = (id) => {
-      items.value = items.value.filter((x) => x.id !== id)
+    const removeAndDeleteNewsItem = () => {
+      updateNewsItems()
     }
 
     const displayMore = ({ done }) => {
-      console.debug('loadMore')
-      filterStore.displayMore()
-      updateNewsItems()
-      done('ok')
+      setTimeout(() => {
+        if (!moreToLoad.value) {
+          done('empty')
+          return
+        }
+        console.debug('loading more items')
+        filterStore.displayMore()
+        window.scrollBy(0, -300)
+        done('ok')
+      }, 500)
     }
 
     const nextPage = () => {
@@ -106,20 +88,14 @@ export default defineComponent({
       updateNewsItems()
     }
 
-    const getNewsItemsFromStore = () => {
-      items.value = newsItems.value.items
-      mainStore.itemCountTotal = newsItems.value.total_count
-      mainStore.itemCountFiltered = items.value.length
-      console.debug('number of newsitems: ' + newsItems.value.total_count)
+    const resetFilter = () => {
+      filterStore.$reset()
+      updateNewsItems()
     }
 
-    onMounted(() => {
-      updateOSINTSourceGroupsList()
-      updateOSINTSources()
-      updateNewsItems()
-      watch(newsItems, () => {
-        getNewsItemsFromStore()
-      })
+    onUpdated(() => {
+      mainStore.itemCountTotal = newsItems.value.total_count
+      mainStore.itemCountFiltered = newsItems.value.items.length
     })
 
     onUnmounted(() => {
@@ -130,12 +106,13 @@ export default defineComponent({
 
     return {
       reloading,
-      items,
+      newsItems,
       newsItemsSelection,
       moreToLoad,
       activeSelection,
       removeAndDeleteNewsItem,
       nextPage,
+      resetFilter,
       selectNewsItem,
       displayMore
     }

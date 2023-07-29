@@ -5,6 +5,7 @@ export const useFilterStore = defineStore('filter', {
     newsItemsFilter: {
       offset: undefined,
       limit: undefined,
+      page: undefined,
       search: undefined,
       sort: undefined,
       range: undefined,
