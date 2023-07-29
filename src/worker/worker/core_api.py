@@ -129,9 +129,9 @@ class CoreApi:
             logger.log_debug_trace("update_news_item_tags failed")
             return None
 
-    def update_word_list(self, id, entries) -> dict | None:
+    def update_word_list(self, word_list: dict) -> dict | None:
         try:
-            return self.api_put(url=f'/api/v1/bots/word-list/{id}', json_data=entries)
+            return self.api_put(url=f'/api/v1/bots/word-list/{word_list["id"]}', json_data=word_list)
         except Exception:
             return None
 

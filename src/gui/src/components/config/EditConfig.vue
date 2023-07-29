@@ -58,6 +58,8 @@
         <v-list
           v-if="item.type === 'list'"
           :items="formData[item.name]"
+          item-title="value"
+          item-value="value"
           :label="item.label"
           :disabled="true"
         />
