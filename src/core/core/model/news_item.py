@@ -268,17 +268,17 @@ class NewsItem(BaseModel):
 
         return query.scalar() is not None
 
-    def vote(self, vote_data, user_id):
-        vote = NewsItemVote.find_by_user(self.id, user_id)
-        if vote is None:
+    def vote(self, vote_data, user_id) -> "NewsItemVote":
+        if vote := NewsItemVote.find_by_user(self.id, user_id):
+            if vote_data > 0:
+                self.update_like_vote(vote)
+            else:
+                self.update_dislike_vote(vote)
+        else:
             vote = self.create_new_vote(vote, user_id)
 
-        if vote_data > 0:
-            self.update_like_vote(vote)
-        else:
-            self.update_dislike_vote(vote)
-
         self.news_item_data.updated = datetime.now()
+        return vote
 
     def create_new_vote(self, vote, user_id):
         vote = NewsItemVote(self.id, user_id)
@@ -286,34 +286,14 @@ class NewsItem(BaseModel):
         return vote
 
     def update_like_vote(self, vote):
-        self.increment_likes()
-        self.increment_relevance()
-        vote.like = True
-        vote.dislike = False
+        self.likes -= 1
+        self.relevance -= 1
+        vote.like = ~vote.like
 
     def update_dislike_vote(self, vote):
-        self.increment_dislikes()
-        self.decrement_relevance()
-        vote.dislike = True
-        vote.like = False
-
-    def increment_likes(self):
-        self.likes += 1
-
-    def decrement_likes(self):
-        self.likes -= 1
-
-    def increment_dislikes(self):
-        self.dislikes += 1
-
-    def decrement_dislikes(self):
         self.dislikes -= 1
-
-    def increment_relevance(self):
         self.relevance += 1
-
-    def decrement_relevance(self):
-        self.relevance -= 1
+        vote.dislike = ~vote.dislike
 
     @classmethod
     def update(cls, news_item_id, data, user_id):
@@ -733,6 +713,9 @@ class NewsItemAggregate(BaseModel):
             if not n_i_a:
                 logger.error(f"News Item Aggregate {news_item_aggregate_id} not found")
                 return {"error": "not_found"}, 404
+
+            new_tags = []
+
             for tag in tags:
                 if type(tag) is dict:
                     tag_name = tag["name"]
@@ -741,7 +724,9 @@ class NewsItemAggregate(BaseModel):
                     tag_name = tag
                     tag_type = "misc"
                 if tag_name not in [tag.name for tag in n_i_a.tags]:
-                    n_i_a.tags.append(NewsItemTag(name=tag_name, tag_type=tag_type))
+                    new_tags.append(NewsItemTag(name=tag_name, tag_type=tag_type))
+            n_i_a.tags = new_tags
+
             db.session.commit()
             return {"message": "success"}, 200
         except Exception:
@@ -863,6 +848,33 @@ class NewsItemAggregate(BaseModel):
         aggregate.summary = summary
         db.session.commit()
         return {"message": "success"}, 200
+
+    def vote(self, vote_data, user_id) -> "NewsItemVote":
+        if vote := NewsItemVote.find_by_user(self.id, user_id):
+            if vote_data > 0:
+                self.update_like_vote(vote)
+            else:
+                self.update_dislike_vote(vote)
+        else:
+            vote = self.create_new_vote(vote, user_id)
+
+        self.news_item_data.updated = datetime.now()
+        return vote
+
+    def create_new_vote(self, vote, user_id):
+        vote = NewsItemVote(self.id, user_id)
+        db.session.add(vote)
+        return vote
+
+    def update_like_vote(self, vote):
+        self.likes -= 1
+        self.relevance -= 1
+        vote.like = ~vote.like
+
+    def update_dislike_vote(self, vote):
+        self.dislikes -= 1
+        self.relevance += 1
+        vote.dislike = ~vote.dislike
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
@@ -1021,9 +1033,12 @@ class NewsItemTag(BaseModel):
         if tag_type := filter_args.get("tag_type"):
             query = query.filter(cls.tag_type == tag_type)
 
-        if min_size := filter_args.get("min_size", 2):
+        if min_size := filter_args.get("min_size", 4):
+            logger.debug(f"min_size: {min_size}")
             # returns only tags where the name appears at least min_size times in the database
             query = query.group_by(cls.name, cls.tag_type).having(func.count(cls.name) >= min_size)
+            # order by size
+            query = query.order_by(func.count(cls.name).desc())
 
         rows = cls.get_rows(query, filter_args)
         return [cls(name=row[0], tag_type=row[1]) for row in rows]
@@ -1051,6 +1066,11 @@ class NewsItemTag(BaseModel):
         for tag in tags:
             db.session.delete(tag)
         db.session.commit()
+
+    @classmethod
+    def get_tag_counts(cls):
+        tag_counts = db.session.query(cls.name, func.count(cls.name)).group_by(cls.name).all()
+        return dict(tag_counts)
 
     def to_dict(self) -> dict[str, Any]:
         return {

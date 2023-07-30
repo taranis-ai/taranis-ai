@@ -58,13 +58,13 @@ export default {
       {
         icon: 'mdi-animation-outline',
         title: 'nav_menu.osint_sources',
-        route: '/config/collectors/sources',
+        route: '/config/sources',
         permission: 'CONFIG_OSINT_SOURCE_ACCESS'
       },
       {
         icon: 'mdi-folder-multiple',
         title: 'nav_menu.osint_source_groups',
-        route: '/config/collectors/groups',
+        route: '/config/sourcegroups',
         permission: 'CONFIG_OSINT_SOURCE_GROUP_ACCESS',
         divider: true
       },

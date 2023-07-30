@@ -224,7 +224,6 @@ class OSINTSource(BaseModel):
             data = json_data["data"]
         else:
             raise ValueError("Unsupported version")
-        logger.debug(data)
         return cls.add_multiple(data)
 
 

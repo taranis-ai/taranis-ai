@@ -20,7 +20,7 @@ class CoreApi:
     def check_response(self, response, url):
         if response.ok:
             return response.json()
-        logger.critical(f"Call to {url} failed {response.status}: {response.text}")
+        logger.critical(f"Call to {url} failed {response.status_code}: {response.text}")
         return None
 
     def api_put(self, url, json_data=None):

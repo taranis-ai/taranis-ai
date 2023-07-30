@@ -88,7 +88,7 @@ class NewsItemAggregateTags(Resource):
             search = request.args.get("search", None)
             limit = min(int(request.args.get("limit", 20)), 200)
             offset = min(int(request.args.get("offset", 0)), (2**31) - 1)
-            min_size = int(request.args.get("min_size", 2))
+            min_size = int(request.args.get("min_size", 3))
             filter_args = {"limit": limit, "offset": offset, "search": search, "min_size": min_size}
             return news_item.NewsItemTag.get_json(filter_args)
         except Exception as ex:

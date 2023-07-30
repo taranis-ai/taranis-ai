@@ -1,5 +1,6 @@
 <template>
   <div>
+    <DeprecationWarning />
     <DataTable
       v-model:items="roles"
       :add-button="true"
@@ -23,6 +24,7 @@
 <script>
 import DataTable from '@/components/common/DataTable.vue'
 import EditConfig from '@/components/config/EditConfig.vue'
+import DeprecationWarning from '@/components/common/DeprecationWarning.vue'
 import {
   deleteNotificationTemplate,
   createNotificationTemplate,
@@ -37,7 +39,8 @@ export default {
   name: 'NotificationTemplatesView',
   components: {
     DataTable,
-    EditConfig
+    EditConfig,
+    DeprecationWarning
   },
   data: () => ({
     roles: [],

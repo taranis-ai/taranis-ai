@@ -86,6 +86,7 @@ class NLPBot(BaseBot):
 
                     if len(existing_tags) == 0:
                         current_keywords = self.extract_ner(content)
+                        logger.debug(f"NER for {aggregate['id']}: {current_keywords}")
                         keywords.extend([keyword for keyword in current_keywords[:10] if keyword["name"] not in existing_tags])
 
                     # Disabled for now, as it is not working well
@@ -110,11 +111,17 @@ class NLPBot(BaseBot):
 
 
 
-
-    def extract_ner(self, text):
+    def extract_ner(self, text) -> list:
         ner_model = self.ner_model
         doc = ner_model(text)
-        return [{"name": ent.text, "type": ent.label_} for ent in doc.ents if len(ent.text) > 2]
+        seen = set()
+        return [
+            {"name": ent.text, "type": ent.label_}
+            for ent in doc.ents
+            if len(ent.text) > 2
+            and ent.text not in seen
+            and not seen.add(ent.text)
+        ]
 
     def generateKeywords(self, text):
         stop_words = "german" if self.language == "de" else "english"

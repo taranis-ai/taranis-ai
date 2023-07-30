@@ -217,7 +217,7 @@ export const router = createRouter({
       }
     },
     {
-      path: '/config/collectors/sources',
+      path: '/config/sources',
       name: 'osint_sources',
       components: {
         default: () => import('@/views/admin/OSINTSourcesView.vue'),
@@ -229,7 +229,7 @@ export const router = createRouter({
       }
     },
     {
-      path: '/config/collectors/groups',
+      path: '/config/sourcegroups',
       name: 'osint_source_groups',
       components: {
         default: () => import('@/views/admin/OSINTSourceGroupsView.vue'),
