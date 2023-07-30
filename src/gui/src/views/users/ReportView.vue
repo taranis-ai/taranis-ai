@@ -2,8 +2,8 @@
   <v-container fluid style="min-height: 100vh">
     <report-item
       v-if="readyToRender"
-      :report-item-prop="report_item"
       :edit="edit"
+      :report-item-prop="report_item"
       @reportcreated="reportCreated"
     />
   </v-container>
@@ -40,7 +40,6 @@ export default {
       console.debug('Loading report item', route.params.id)
       if (route.params.id && route.params.id !== '0') {
         const response = await getReportItem(route.params.id)
-        console.debug('Loaded report item', response.data)
         return response.data
       }
       edit.value = false

@@ -26,17 +26,17 @@
       :readonly="readOnly"
       item-title="value"
       item-value="value"
-      :items="attributeItem.attribute_enums"
+      :items="attributeItem.attribute.attribute_enums"
       :label="attributeItem.title"
     />
     <v-radio-group
       v-if="attributeItem.attribute.type === 'RADIO'"
       v-model="input"
       :disabled="readOnly"
-      row
+      :label="attributeItem.title"
     >
       <v-radio
-        v-for="attr_enum in attributeItem.attribute_enums"
+        v-for="attr_enum in attributeItem.attribute.attribute_enums"
         :key="attr_enum.id"
         :label="attr_enum.value"
         :value="attr_enum.value"
@@ -51,7 +51,6 @@
       v-if="attributeItem.attribute.type === 'TLP'"
       v-model="input"
       :disabled="readOnly"
-      row
       :label="attributeItem.title"
     >
       <v-radio
@@ -101,8 +100,15 @@
       :rules="[rules.cve]"
       :readonly="readOnly"
       :label="attributeItem.title"
-    >
-    </v-text-field>
+    />
+    <v-text-field
+      v-if="attributeItem.attribute.type === 'CVSS'"
+      v-model="input"
+      :readonly="readOnly"
+      :label="attributeItem.title"
+      hint="Use https://nvd.nist.gov/vuln-metrics/cvss/v3-calculator to calculate CVSS score"
+      persistent-hint
+    />
     <v-autocomplete
       v-if="attributeItem.attribute.type === 'CPE'"
       v-model="input"
@@ -143,7 +149,7 @@ export default {
       cve: (val) =>
         val.match(/^$|CVE-\d{4}-\d{4,7}/)
           ? true
-          : 'Input is is not a CVE reference'
+          : 'Input is is not a CVE reference - CVE-YYYY-NNNN[NNN]'
     })
 
     const input = computed({

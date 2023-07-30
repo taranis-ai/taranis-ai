@@ -1,8 +1,8 @@
 <template>
   <v-container fluid style="min-height: 100vh">
     <asset
-      v-if="asset"
-      v-model:edit="edit"
+      v-if="readyToRender"
+      :edit="edit"
       :asset-prop="asset"
       @assetcreated="assetcreated"
     />
@@ -10,44 +10,56 @@
 </template>
 
 <script>
+import { ref, onMounted } from 'vue'
 import { getAsset } from '@/api/assets'
 import { notifySuccess } from '@/utils/helpers'
 import Asset from '@/components/assets/Asset.vue'
+import { useRoute } from 'vue-router'
 
 export default {
   name: 'AssetView',
   components: {
     Asset
   },
-  data: function () {
-    return {
-      default_asset: {
-        name: '',
-        serial: '',
-        description: '',
-        asset_cpes: [],
-        asset_group_id: ''
-      },
-      asset: undefined,
-      edit: true
-    }
-  },
-  async created() {
-    this.asset = await this.loadAsset()
-  },
-  methods: {
-    async loadAsset() {
-      if (this.$route.params.id && this.$route.params.id !== '0') {
-        return await getAsset(this.$route.params.id).then((response) => {
-          return response.data
-        })
+  setup() {
+    const route = useRoute()
+
+    const default_asset = ref({
+      name: '',
+      serial: '',
+      description: '',
+      asset_cpes: [],
+      asset_group_id: ''
+    })
+    const asset = ref(default_asset.value)
+    const edit = ref(true)
+    const readyToRender = ref(false)
+
+    const loadAsset = async () => {
+      if (route.params.id && route.params.id !== '0') {
+        const response = await getAsset(this.$route.params.id)
+        return response.data
+      } else {
+        edit.value = false
+        return default_asset.value
       }
-      this.edit = false
-      return this.default_asset
-    },
-    assetcreated(asset) {
+    }
+
+    const assetcreated = (asset) => {
       notifySuccess(`Asset with ID ${asset} created`)
-      this.edit = true
+      edit.value = true
+    }
+
+    onMounted(async () => {
+      asset.value = await loadAsset()
+      readyToRender.value = true
+    })
+
+    return {
+      asset,
+      edit,
+      readyToRender,
+      assetcreated
     }
   }
 }

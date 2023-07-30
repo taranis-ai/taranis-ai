@@ -192,6 +192,8 @@ export default {
     }
 
     onBeforeMount(() => {
+      assessStore.updateOSINTSourceGroupsList()
+      assessStore.updateOSINTSources()
       updateQuery()
     })
 

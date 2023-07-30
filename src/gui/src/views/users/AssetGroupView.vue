@@ -1,6 +1,6 @@
 <template>
   <v-container fluid style="min-height: 100vh">
-    <asset
+    <asset-group
       v-if="asset"
       v-model:edit="edit"
       :asset-prop="asset"
@@ -12,12 +12,12 @@
 <script>
 import { getAssetGroup } from '@/api/assets'
 import { notifySuccess } from '@/utils/helpers'
-import Asset from '@/components/assets/Asset.vue'
+import AssetGroup from '@/components/assets/AssetGroup.vue'
 
 export default {
   name: 'AssetGroupView',
   components: {
-    Asset
+    AssetGroup
   },
   data: function () {
     return {

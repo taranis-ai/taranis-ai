@@ -8,7 +8,7 @@
     @update:offset="(value) => (reportFilter.offset = value)"
   >
     <template #navdrawer>
-      <v-row class="my-2 mr-0 px-2 pb-5">
+      <v-row no-gutters class="px-2">
         <v-col cols="12" align-self="center" class="py-1">
           <v-btn color="primary" block @click="addReport()">
             <v-icon left dark> mdi-file-document-plus-outline </v-icon>
@@ -17,10 +17,9 @@
         </v-col>
       </v-row>
 
-      <v-divider class="mt-0 mb-0"></v-divider>
-      <v-row class="my-2 mr-0 px-2">
+      <v-row no-gutters class="my-2 mr-0 px-2">
         <v-col cols="12" class="py-0">
-          <h4>Filter</h4>
+          <h4 class="text-center">Filter</h4>
         </v-col>
 
         <v-col cols="12" class="pb-0">

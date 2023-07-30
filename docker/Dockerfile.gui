@@ -10,6 +10,8 @@ COPY ./src/gui/ /app/
 ENV NODE_OPTIONS=--openssl-legacy-provider
 RUN npm run build
 
+RUN gzip -k -9 /app/dist/assets/*
+
 FROM nginx:stable-alpine
 
 COPY ./src/gui/extras/30-envsubst-on-javascript.sh /docker-entrypoint.d/

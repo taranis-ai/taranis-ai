@@ -2,8 +2,8 @@
   <div>
     <v-infinite-scroll
       v-if="newsItems.items.length > 0"
-      :on-load="displayMore"
       empty-text="All items loaded"
+      @load="displayMore"
     >
       <template v-for="item in newsItems.items" :key="item">
         <card-story

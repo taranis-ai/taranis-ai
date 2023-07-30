@@ -19,7 +19,9 @@
             <strong>{{ $t('assess.source') }}:</strong>
           </v-col>
           <v-col class="py-0">
-            {{ source?.name }}
+            <a :href="source?.link" target="_blank">
+              {{ source?.name }}
+            </a>
           </v-col>
         </v-row>
         <v-row>

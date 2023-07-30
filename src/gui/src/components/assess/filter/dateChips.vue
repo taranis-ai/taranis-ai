@@ -6,9 +6,9 @@
     selected-class="text-primary"
     class="d-flex flex-row"
   >
-    <v-btn class="flex-grow-1" variant="outlined" value="all">all</v-btn>
     <v-btn class="flex-grow-1" variant="outlined" value="day">day</v-btn>
     <v-btn class="flex-grow-1" variant="outlined" value="week">week</v-btn>
+    <v-btn class="flex-grow-1" variant="outlined" value="month">month</v-btn>
   </v-btn-toggle>
 </template>
 

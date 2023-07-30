@@ -3,46 +3,38 @@
     <v-toolbar density="compact">
       <v-toolbar-title>{{ container_title }}</v-toolbar-title>
       <v-btn
+        v-if="!edit"
+        prepend-icon="mdi-delete"
+        color="error"
+        variant="flat"
+        @click="deleteAssetGroup"
+      >
+        {{ $t('button.delete') }}
+      </v-btn>
+      <v-btn
         prepend-icon="mdi-content-save"
         color="success"
         variant="flat"
-        @click="saveAsset"
+        class="ml-3"
+        @click="saveAssetGroup"
       >
         {{ $t('button.save') }}
       </v-btn>
     </v-toolbar>
     <v-card-text>
       <v-row no-gutters>
-        <v-col cols="6">
+        <v-col cols="12">
           <v-text-field
             v-model="asset.name"
             :label="$t('form.name')"
             :rules="required"
           />
         </v-col>
-        <v-col cols="5" offset="1">
-          <v-text-field v-model="asset.serial" :label="$t('asset.serial')" />
-        </v-col>
         <v-col cols="12">
           <v-textarea
             v-model="asset.description"
             :label="$t('asset.description')"
           />
-        </v-col>
-        <v-col cols="12">
-          <v-select
-            v-model="asset.group"
-            :label="$t('asset.group')"
-            :items="['foo', 'bar', 'fizz', 'buzz']"
-          />
-        </v-col>
-      </v-row>
-      <v-row no-gutters>
-        <v-col cols="12">
-          {{ asset.asset_cpes }}
-        </v-col>
-        <v-col cols="12">
-          {{ vulnerabilities }}
         </v-col>
       </v-row>
     </v-card-text>
@@ -55,10 +47,9 @@ import { createAsset, updateAsset } from '@/api/assets'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
 
 import { useI18n } from 'vue-i18n'
-import { useSettingsStore } from '@/stores/SettingsStore'
 
 export default {
-  name: 'AssetView',
+  name: 'AssetGroupView',
   props: {
     assetProp: { type: Object, required: true },
     edit: { type: Boolean, default: false }
@@ -66,18 +57,17 @@ export default {
   setup(props) {
     const { t } = useI18n()
 
-    const settingsStore = useSettingsStore()
     const required = ref([(v) => !!v || 'Required'])
     const vulnerabilities = ref([])
     const asset = ref(props.assetProp)
 
     const container_title = computed(() => {
       return props.edit
-        ? `${t('button.edit')} asset`
-        : `${t('button.add_new')} asset`
+        ? `${t('button.edit')} Asset Group`
+        : `${t('button.add_new')} Asset Group`
     })
 
-    const saveAsset = () => {
+    const saveAssetGroup = () => {
       if (props.edit) {
         updateAsset(asset.value)
           .then(() => {
@@ -97,6 +87,10 @@ export default {
       }
     }
 
+    const deleteAssetGroup = () => {
+      notifyFailure('NOT IMPLEMENTED')
+    }
+
     const update = (cpes) => {
       asset.value.asset_cpes = cpes
     }
@@ -106,7 +100,8 @@ export default {
       vulnerabilities,
       asset,
       container_title,
-      saveAsset,
+      saveAssetGroup,
+      deleteAssetGroup,
       update
     }
   }
