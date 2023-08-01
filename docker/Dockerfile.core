@@ -10,7 +10,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install --no-install-recomme
     build-essential \
     python3-dev
 
-COPY ./src/core/setup.cfg ./src/core/setup.py /app/
+COPY ./src/core/pyproject.toml /app/
 
 RUN python3 -m venv /app/.venv && \
     export PATH="/app/.venv/bin:$PATH" && \

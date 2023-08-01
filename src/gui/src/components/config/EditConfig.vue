@@ -31,6 +31,15 @@
             :bg-color="item.color"
           />
         </v-col>
+        <!-- <v-text-field
+          v-if="item.type === 'date'"
+          v-model="t(formData[item.name])"
+          :label="item.label"
+          :rules="item.rules"
+          :disabled="item['disabled']"
+          :type="item.type"
+          :bg-color="item.color"
+        /> -->
         <v-textarea
           v-if="item.type === 'textarea'"
           v-model="formData[item.name]"

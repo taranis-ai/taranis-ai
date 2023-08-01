@@ -32,7 +32,9 @@ dependencies = [
     "psycogreen",
     "psycopg2",
     "swagger-ui-py @ https://github.com/b3n4kh/swagger-ui-py/releases/download/23.6.15/swagger-ui-py-23.6.15.tar.gz",
-    "requests"
+    "requests",
+    "authlib",
+    "sseclient",
 ]
 
 [tool.setuptools]

@@ -7,5 +7,3 @@ def test_initalize_bots():
     bots.NLPBot(),
     bots.TaggingBot(),
     bots.WordlistUpdaterBot(),
-
-

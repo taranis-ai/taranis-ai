@@ -9,7 +9,6 @@ from core.managers import (
     presenters_manager,
     publishers_manager,
     bots_manager,
-    external_auth_manager,
     queue_manager,
 )
 from core.managers.log_manager import logger
@@ -239,9 +238,6 @@ class User(Resource):
     @auth_required("CONFIG_USER_UPDATE")
     def put(self, user_id):
         try:
-            if external_auth_manager.keycloak_user_management_enabled():
-                original_username = user.User.find_by_id(user_id).username
-                return external_auth_manager.update_user(request.json, original_username), 200
             return user.User.update(user_id, request.json), 200
         except Exception:
             logger.exception()
@@ -252,10 +248,6 @@ class User(Resource):
     def delete(self, user_id):
         try:
             original_user = user.User.find_by_id(user_id)
-            original_username = original_user.username
-            if external_auth_manager.keycloak_user_management_enabled():
-                return external_auth_manager.delete_user(original_username), 200
-
             return user.User.delete(user_id), 200
 
         except Exception as ex:

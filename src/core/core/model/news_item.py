@@ -715,18 +715,15 @@ class NewsItemAggregate(BaseModel):
                 logger.error(f"News Item Aggregate {news_item_aggregate_id} not found")
                 return {"error": "not_found"}, 404
 
-            for tag in tags:
-                if type(tag) is dict:
-                    tag_name = tag["name"]
-                    tag_type = tag["type"]
+            if type(tags) is dict:
+                for name, tag in tags.items():
+                    tag_name = name
+                    tag_type = tag["tag_type"]
                     sub_forms = tag.get("sub_forms", None)
-                else:
-                    tag_name = tag
-                    tag_type = "misc"
-                    sub_forms = None
-                existing_tags = [form for tag in n_i_a.tags for form in tag.get_forms()]
-                if tag_name not in existing_tags:
                     n_i_a.tags.append(NewsItemTag(name=tag_name, tag_type=tag_type, sub_forms=sub_forms))
+            else:
+                for tag in tags:
+                    n_i_a.tags.append(NewsItemTag(name=tag, tag_type="misc", sub_forms=None))
             db.session.commit()
             return {"message": "success"}, 200
         except Exception:
@@ -1051,7 +1048,6 @@ class NewsItemTag(BaseModel):
             query = query.filter(cls.tag_type == tag_type)
 
         if min_size := filter_args.get("min_size", 4):
-            logger.debug(f"min_size: {min_size}")
             # returns only tags where the name appears at least min_size times in the database
             query = query.group_by(cls.name, cls.tag_type).having(func.count(cls.name) >= min_size)
             # order by size

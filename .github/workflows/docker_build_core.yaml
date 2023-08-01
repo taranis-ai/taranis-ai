@@ -28,8 +28,7 @@ jobs:
       - name: test
         working-directory: src/core
         run: |
-          python -m pip install --upgrade -r ../../dev_requirements.txt
-          pip install -e .
+          pip install -e .[dev]
           echo "Starting Pytest"
           pytest --ignore tests/test_schema.py
 

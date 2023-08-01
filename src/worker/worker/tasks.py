@@ -23,7 +23,10 @@ def collect(source_id: str):
         return
 
     if source["type"] == "RSS_COLLECTOR":
-        return collectors.RSSCollector().collect(source)
+        err = collectors.RSSCollector().collect(source)
+
+    if err:
+        core_api.update_osintsource_status(source_id, {"error": err})
     return "Not implemented"
 
 @shared_task(time_limit=180)

@@ -69,6 +69,24 @@ class Sources(Resource):
         except Exception:
             logger.log_debug_trace()
 
+    @api_key_required
+    def put(self, source_id: str):
+        try:
+            source = OSINTSource.get(source_id)
+            if not source:
+                return {"error": f"OSINTSource with ID: {source_id} not found"}, 404
+
+            error_msg = None
+            if request.is_json:
+                if request_json := request.json:
+                    error_msg = request_json.get("error", None)
+
+            source.update_status(error_msg)
+            return {"message": "Status updated"}
+        except Exception:
+            logger.log_debug_trace()
+            return {"error": "Could not update status"}, 500
+
 
 class BotsInfo(Resource):
     @api_key_required

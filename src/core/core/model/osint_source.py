@@ -172,12 +172,12 @@ class OSINTSource(BaseModel):
 
     def update_status(self, error_message=None):
         self.last_attempted = datetime.now()
-        if error_message is None:
-            self.last_collected = datetime.now()
-            self.state = 0
-        else:
+        if error_message:
             logger.error(f"Updating status for {self.id} with error message {error_message}")
             self.state = 1
+        else:
+            self.last_collected = datetime.now()
+            self.state = 0
         self.last_error_message = error_message
         db.session.commit()
 

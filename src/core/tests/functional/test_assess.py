@@ -305,19 +305,21 @@ class TestAssessApi(object):
         nia1, nia2 = news_item_aggregates
         response = nia1.update_tags(nia1.id, ["foo", "bar", "baz"])
         assert response[1] == 200
-        response = nia2.update_tags(nia2.id, [{"name": "foo", "type": "misc"}, {"name": "bar", "type": "misc"}])
+        response = nia2.update_tags(nia2.id, {"foo": {"type": "misc"}, "bar": {"type": "misc"}})
         assert response[1] == 200
 
         response = client.get("/api/v1/assess/tags", headers=auth_header)
         assert response
         assert response.data
         print(response.get_json())
-        assert len(response.get_json()) == 2
+        assert len(response.get_json()) == 0
         assert response.content_type == "application/json"
         assert response.status_code == 200
-        response = client.get("/api/v1/assess/tags?search=fo", headers=auth_header)
+        response = client.get("/api/v1/assess/tags?min_size=1", headers=auth_header)
+        assert len(response.get_json()) == 3
+        response = client.get("/api/v1/assess/tags?search=fo&min_size=1", headers=auth_header)
         assert len(response.get_json()) == 1
-        response = client.get("/api/v1/assess/tags?limit=1", headers=auth_header)
+        response = client.get("/api/v1/assess/tags?limit=1&min_size=1", headers=auth_header)
         assert len(response.get_json()) == 1
-        response = client.get("/api/v1/assess/tags?offset=1", headers=auth_header)
-        assert len(response.get_json()) == 1
+        response = client.get("/api/v1/assess/tags?offset=1&min_size=1", headers=auth_header)
+        assert len(response.get_json()) == 2

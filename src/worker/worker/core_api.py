@@ -25,11 +25,15 @@ class CoreApi:
 
     def api_put(self, url, json_data=None):
         url = f"{self.api_url}{url}"
+        if not json_data:
+            json_data = {}
         response = requests.put(url=url, headers=self.headers, verify=self.verify, json=json_data)
         return self.check_response(response, url)
 
     def api_post(self, url, json_data=None):
         url = f"{self.api_url}{url}"
+        if not json_data:
+            json_data = {}
         response = requests.post(url=url, headers=self.headers, verify=self.verify, json=json_data)
         return self.check_response(response, url)
 
@@ -135,9 +139,9 @@ class CoreApi:
         except Exception:
             return None
 
-    def update_osintsource_status(self, osint_source_id, status) -> dict | None:
+    def update_osintsource_status(self, osint_source_id: str, error_msg: dict | None = None) -> dict | None:
         try:
-            return self.api_put(url=f'/api/v1/worker/osint-sources/{osint_source_id}', json_data={"error": status})
+            return self.api_put(url=f'/api/v1/worker/osint-sources/{osint_source_id}', json_data=error_msg)
         except Exception:
             return None
 

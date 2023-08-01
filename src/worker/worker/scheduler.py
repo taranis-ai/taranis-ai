@@ -28,13 +28,11 @@ class RESTScheduler(Scheduler):
 
     def get_schedule_from_core(self):
         if schedule := self.core_api.get_schedule():
-            logger.debug(f"Got schedule: {schedule}")
             schedule_dict = {}
             next_run_times = {}
             for entry in schedule:
                 entry['app'] = self.app
                 schedule_dict[entry['name']] = self.Entry(**entry)
-                logger.debug(f'Added task {entry} to schedule')
                 _, next_time_to_run = schedule_dict[entry["name"]].is_due()
                 next_run_times[entry["name"]] = (datetime.now(timezone.utc) + timedelta(seconds=int(next_time_to_run))).isoformat()
             self.core_api.update_next_run_time(next_run_times)
