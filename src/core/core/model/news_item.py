@@ -574,7 +574,7 @@ class NewsItemAggregate(BaseModel):
     @classmethod
     def get_for_worker(cls, filter_args: dict):
         news_item_aggregates, _ = cls.get_by_filter(filter_args=filter_args)
-        return [news_item_aggregate.to_dict() for news_item_aggregate in news_item_aggregates]
+        return [news_item_aggregate.to_worker_dict() for news_item_aggregate in news_item_aggregates]
 
     @classmethod
     def create_new_for_all_groups(cls, news_item_data):
@@ -880,6 +880,14 @@ class NewsItemAggregate(BaseModel):
         data = super().to_dict()
         data["news_items"] = [news_item.to_dict() for news_item in self.news_items]
         data["tags"] = [tag.to_dict() for tag in self.tags]
+        if news_item_attributes := self.news_item_attributes:
+            data["news_item_attributes"] = [news_item_attribute.to_dict() for news_item_attribute in news_item_attributes]
+        return data
+
+    def to_worker_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
+        data["news_items"] = [news_item.to_dict() for news_item in self.news_items]
+        data["tags"] = {tag.name: tag.to_dict() for tag in self.tags}
         if news_item_attributes := self.news_item_attributes:
             data["news_item_attributes"] = [news_item_attribute.to_dict() for news_item_attribute in news_item_attributes]
         return data

@@ -498,6 +498,26 @@ bots = [
         ],
         "description": "Bot for tagging news items",
     },
+    {
+        "type": "STORY_BOT",
+        "name": "Story Clustering Bot",
+        "parameter_values": [
+            {"value": "", "parameter": "SOURCE_GROUP"},
+        ],
+        "description": "Bot for Story Clustering",
+    },
+    {
+        "type": "SUMMARY_BOT",
+        "name": "Summary generation Bot",
+        "parameter_values": [{"value": "", "parameter": "SOURCE_GROUP"}],
+        "description": "Bot for summarizing news items aggregates",
+    },
+    {
+        "type": "WORDLIST_BOT",
+        "name": "Wordlist Bot",
+        "parameter_values": [{"value": "", "parameter": "SOURCE_GROUP"}],
+        "description": "Bot for tagging news items by wordlist",
+    },
 ]
 
 

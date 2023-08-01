@@ -1,3 +1,60 @@
+[project]
+name = "taranis-ng_worker"
+description = "Taranis-NG Queue Worker"
+version = "0.1.0"
+readme = "README.md"
+license = {file = "LICENSE.md"}
+maintainers = [{ name = "AIT", email = "benjamin.akhras@ait.ac.at" }]
+classifiers = [
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Framework :: Celery",
+    "Topic :: Security",
+]
+requires-python = ">=3.10"
+dependencies = [
+    # Core
+    "celery==5.3.1",
+    "click==8.1.6",
+    "python-dotenv==1.0.0",
+    "pydantic",
+    "requests==2.31.0",
+    # Collector
+    "beautifulsoup4==4.12.2",
+    "trafilatura==1.6.1",
+    "feedparser==6.0.10",
+
+    # Publisher
+    "pymisp==2.4.173",
+    "paramiko==3.2.0",
+    "python-gnupg==0.5.1",
+    "tweepy==4.14.0",
+
+    # Presenters
+    "weasyprint==59.0",
+
+    # Bots
+    "torch",
+    "spacy==3.6.0",
+    "transformers==4.31.0",
+    "sentencepiece==0.1.99",
+    "py3langid==0.2.2",
+    "polyfuzz==0.4.0",
+    "nltk==3.8.1",
+    "sentence-transformers==2.2.2",
+    "keybert==0.7.0",
+    "xx_ent_wiki_sm @ https://github.com/explosion/spacy-models/releases/download/xx_ent_wiki_sm-3.6.0/xx_ent_wiki_sm-3.6.0-py3-none-any.whl",
+]
+
+[project.optional-dependencies]
+dev = ["black", "pytest", "pytest-celery"]
+
+[project.urls]
+"Source Code" = "https://github.com/ait-cs-IaaS/Taranis-NG"
+
+
 [build-system]
 requires = [
     "setuptools>=42",
@@ -6,5 +63,12 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [tool.black]
-line-length = 142
-target-version = ["py38","py310"]
+line-length = "142"
+target-version = ["py311"]
+
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore:.*_app_ctx_stack.*:DeprecationWarning",
+    "ignore::DeprecationWarning"
+]
