@@ -121,14 +121,14 @@ export default {
   },
   emits: ['submit'],
   setup(props, { emit }) {
-    const configForm = ref(null)
+    const config_form = ref(null)
     const formData = ref(props.configData)
 
     console.log(props.configData)
     const { d } = useI18n()
 
     const handleSubmit = () => {
-      if (!configForm.value.validate()) {
+      if (!config_form.value.validate()) {
         return
       }
       emit('submit', formData.value)
@@ -186,7 +186,7 @@ export default {
 
     return {
       d,
-      configForm,
+      config_form,
       formData,
       format,
       addItem,

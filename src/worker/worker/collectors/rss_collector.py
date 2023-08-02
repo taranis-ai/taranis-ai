@@ -13,7 +13,6 @@ from worker.log import logger
 
 
 class RSSCollector(BaseCollector):
-
     def __init__(self):
         super().__init__()
         self.type = "RSS_COLLECTOR"
@@ -23,9 +22,8 @@ class RSSCollector(BaseCollector):
         self.news_items = []
         self.proxies = None
         self.headers = {}
-        logger_trafilatura = logging.getLogger('trafilatura')
+        logger_trafilatura = logging.getLogger("trafilatura")
         logger_trafilatura.setLevel(logging.WARNING)
-
 
     def collect(self, source):
         feed_url = source["parameter_values"].get("FEED_URL", None)
@@ -82,7 +80,15 @@ class RSSCollector(BaseCollector):
         return False, content_location
 
     def get_published_date(self, feed_entry: feedparser.FeedParserDict) -> datetime.datetime:
-        published: str | datetime.datetime = str(feed_entry.get("published")) or str(feed_entry.get("pubDate")) or ""
+        published: str | datetime.datetime = (
+            str(feed_entry.get("published"))
+            or str(feed_entry.get("pubDate"))
+            or str(feed_entry.get("created"))
+            or str(feed_entry.get("updated"))
+            or str(feed_entry.get("modified"))
+            or str(feed_entry.get("dc:date"))
+            or ""
+        )
         if not published:
             link: str = str(feed_entry.get("link", ""))
             if not link:
@@ -116,6 +122,8 @@ class RSSCollector(BaseCollector):
                 content = self.parse_article_content(html_content, content_location)
             else:
                 content = "The article is older than 90 days - skipping"
+        elif description:
+            content = description
         else:
             content = "No content found in feed or article - please check your CONTENT_LOCATION parameter"
 
