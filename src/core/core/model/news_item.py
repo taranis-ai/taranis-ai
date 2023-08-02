@@ -991,7 +991,7 @@ class NewsItemTag(BaseModel):
         self.tag_type = tag_type
         if sub_forms:
             if type(sub_forms) == list:
-                self.sub_forms = ",".join(sub_forms)
+                self.sub_forms = ",".join([s.replace(",", "") for s in sub_forms])
             elif type(sub_forms) == str:
                 self.sub_forms = sub_forms
             else:

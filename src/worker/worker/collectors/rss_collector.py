@@ -80,14 +80,13 @@ class RSSCollector(BaseCollector):
         return False, content_location
 
     def get_published_date(self, feed_entry: feedparser.FeedParserDict) -> datetime.datetime:
-        published: str | datetime.datetime = (
-            str(feed_entry.get("published"))
-            or str(feed_entry.get("pubDate"))
-            or str(feed_entry.get("created"))
-            or str(feed_entry.get("updated"))
-            or str(feed_entry.get("modified"))
-            or str(feed_entry.get("dc:date"))
-            or ""
+        published: str | datetime.datetime = str(
+            feed_entry.get(
+                "published",
+                feed_entry.get(
+                    "pubDate", feed_entry.get("created", feed_entry.get("updated", feed_entry.get("modified", feed_entry.get("dc:date", ""))))
+                ),
+            )
         )
         if not published:
             link: str = str(feed_entry.get("link", ""))
@@ -101,6 +100,7 @@ class RSSCollector(BaseCollector):
         try:
             return dateparser.parse(published, ignoretz=True) if published else datetime.datetime.now()
         except Exception:
+            logger.info("Could not parse date - falling back to current date")
             return datetime.datetime.now()
 
     def parse_feed(self, feed_entry: feedparser.FeedParserDict, feed_url, source) -> dict[str, str | datetime.datetime | list]:
