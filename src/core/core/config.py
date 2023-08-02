@@ -58,8 +58,8 @@ class Settings(BaseSettings):
     QUEUE_BROKER_SCHEME: Literal["amqp", "amqps"] = "amqp"
     QUEUE_BROKER_HOST: str = "localhost"
     QUEUE_BROKER_PORT: int = 5672
-    QUEUE_BROKER_USER: str = "guest"
-    QUEUE_BROKER_PASSWORD: str = "guest"
+    QUEUE_BROKER_USER: str = "taranis"
+    QUEUE_BROKER_PASSWORD: str = "supersecret"
     QUEUE_BROKER_VHOST: str = "/"
     CELERY: dict[str, Any] | None = None
 
