@@ -379,10 +379,9 @@ class OSINTSource(Resource):
 
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def put(self, source_id):
-        source = osint_source.OSINTSource.update(source_id, request.json)
-        if not source:
-            return f"OSINT Source with ID: {source_id} not found", 404
-        return f"OSINT Source {source.name} updated", 200
+        if source := osint_source.OSINTSource.update(source_id, request.json):
+            return f"OSINT Source {source.name} updated", 200
+        return f"OSINT Source with ID: {source_id} not found", 404
 
     @auth_required("CONFIG_OSINT_SOURCE_DELETE")
     def delete(self, source_id):
@@ -397,6 +396,12 @@ class OSINTSourceCollect(Resource):
     @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
     def post(self, source_id):
         return queue_manager.collect_osint_source(source_id)
+
+
+class OSINTSourceCollectAll(Resource):
+    @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
+    def post(self):
+        return queue_manager.collect_all_osint_sources()
 
 
 class OSINTSourcesExport(Resource):
@@ -654,6 +659,7 @@ def initialize(api: Api):
 
     namespace.add_resource(OSINTSources, "/osint-sources")
     namespace.add_resource(OSINTSource, "/osint-sources/<string:source_id>")
+    namespace.add_resource(OSINTSourceCollectAll, "/osint-sources/collect")
     namespace.add_resource(OSINTSourceCollect, "/osint-sources/<string:source_id>/collect")
     namespace.add_resource(OSINTSourcesExport, "/export-osint-sources")
     namespace.add_resource(OSINTSourcesImport, "/import-osint-sources")

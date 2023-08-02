@@ -7,7 +7,7 @@ from core.model.osint_source import OSINTSource
 from core.model.osint_source import OSINTSourceGroup
 from core.model.queue import ScheduleEntry
 from core.model.word_list import WordList
-from core.model.news_item import NewsItemAggregate
+from core.model.news_item import NewsItemAggregate, NewsItemTag
 from core.model.bot import Bot
 
 
@@ -17,7 +17,7 @@ class QueueScheduleEntry(Resource):
         try:
             if schedule := ScheduleEntry.get(schedule_id):
                 return schedule.to_worker_dict(), 200
-            return {"message": f"Schedule with id {schedule_id} not found"}, 404
+            return {"error": f"Schedule with id {schedule_id} not found"}, 404
         except Exception:
             logger.log_debug_trace()
 
@@ -28,7 +28,7 @@ class NextRunTime(Resource):
         try:
             data = request.json
             if not data:
-                return {"message": "No data provided"}, 400
+                return {"error": "No data provided"}, 400
             ScheduleEntry.update_next_run_time(data)
             return {"message": "Next run time updated"}, 200
         except Exception:
@@ -41,7 +41,7 @@ class QueueSchedule(Resource):
         try:
             if schedules := ScheduleEntry.get_all():
                 return [sched.to_worker_dict() for sched in schedules], 200
-            return {"message": "No schedules found"}, 404
+            return {"error": "No schedules found"}, 404
         except Exception:
             logger.log_debug_trace()
 
@@ -50,10 +50,10 @@ class QueueSchedule(Resource):
         try:
             data = request.json
             if not data:
-                return {"message": "No data provided"}, 400
+                return {"error": "No data provided"}, 400
             entries = [ScheduleEntry.from_dict(entry) for entry in data]
             if not entries:
-                return {"message": "No entries provided"}, 400
+                return {"error": "No entries provided"}, 400
             return ScheduleEntry.sync(entries), 200
         except Exception:
             logger.log_debug_trace()
@@ -65,7 +65,7 @@ class Sources(Resource):
         try:
             if source := OSINTSource.get(source_id):
                 return source.to_collector_dict(), 200
-            return {"message": f"Source with id {source_id} not found"}, 404
+            return {"error": f"Source with id {source_id} not found"}, 404
         except Exception:
             logger.log_debug_trace()
 
@@ -101,7 +101,17 @@ class NewsItemsAggregates(Resource):
         filter_keys = ["search", "in_report", "timestamp", "sort", "source", "group"]
         filter_args: dict[str, str | int | list] = {k: v for k, v in request.args.items() if k in filter_keys}
 
-        return NewsItemAggregate.get_for_worker(filter_args)
+        if aggregates := NewsItemAggregate.get_for_worker(filter_args):
+            return aggregates, 200
+        return {"error": "No news item aggregates found"}, 404
+
+
+class Tags(Resource):
+    @api_key_required
+    def get(self):
+        if tags := NewsItemTag.get_all():
+            return {tag.name: tag.to_dict() for tag in tags}, 200
+        return {"error": "No tags found"}, 404
 
 
 class BotInfo(Resource):
@@ -112,7 +122,7 @@ class BotInfo(Resource):
         # depending on how the worker is triggered we might not have the bot ID
         if result := Bot.filter_by_type(bot_id):
             return result.to_bot_info_dict(), 200
-        return {"message": f"Bot with id {bot_id} not found"}, 404
+        return {"error": f"Bot with id {bot_id} not found"}, 404
 
     @api_key_required
     def put(self, bot_id):
@@ -122,13 +132,17 @@ class BotInfo(Resource):
 class WordListBySourceGroup(Resource):
     @api_key_required
     def get(self, source_group: str):
-        return OSINTSourceGroup.get(source_group).to_word_list_dict()
+        if osint_source_group := OSINTSourceGroup.get(source_group):
+            return osint_source_group.to_word_list_dict()
+        return {"error": f"Source group {source_group} not found"}, 404
 
 
 class WordListByID(Resource):
     @api_key_required
     def get(self, word_list_id: int):
-        return WordList.get(word_list_id).to_dict()
+        if word_list := WordList.get(word_list_id):
+            return word_list.to_dict()
+        return {"error": f"Word list with id {word_list_id} not found"}, 404
 
 
 def initialize(api: Api):
@@ -151,6 +165,7 @@ def initialize(api: Api):
         "/osint-sources/<string:source_id>",
     )
     worker_namespace.add_resource(BotsInfo, "/bots")
+    worker_namespace.add_resource(Tags, "/tags")
     worker_namespace.add_resource(BotInfo, "/bots/<string:bot_id>")
     worker_namespace.add_resource(NewsItemsAggregates, "/news-item-aggregates")
     worker_namespace.add_resource(WordListBySourceGroup, "/word-lists-by-source-group/<string:source_group>")

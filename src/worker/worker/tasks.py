@@ -3,6 +3,7 @@ from celery import shared_task
 from worker.log import logger
 from worker.core_api import CoreApi
 import worker.bots
+from requests.exceptions import ConnectionError
 
 bots = {
     "ANALYST_BOT": worker.bots.AnalystBot(),
@@ -12,26 +13,37 @@ bots = {
     "WORDLIST_UPDATER_BOT": worker.bots.WordlistUpdaterBot(),
 }
 
+
 @shared_task(time_limit=60)
 def collect(source_id: str):
     import worker.collectors as collectors
 
     core_api = CoreApi()
-    source = core_api.get_osint_source(source_id)
+    err = None
+    try:
+        source = core_api.get_osint_source(source_id)
+    except ConnectionError as e:
+        logger.critical(e)
+        return str(e)
+
     if not source:
         logger.error(f"Source with id {source_id} not found")
-        return
+        return f"Source with id {source_id} not found"
 
     if source["type"] == "RSS_COLLECTOR":
         err = collectors.RSSCollector().collect(source)
+    else:
+        return f"Collector {source['type']} not implemented"
 
     if err:
         core_api.update_osintsource_status(source_id, {"error": err})
-    return "Not implemented"
+        return err
+
+    return f"Succesfully collected source {source_id}"
+
 
 @shared_task(time_limit=180)
 def execute_bot(bot_id: str, filter: dict | None = None):
-
     core_api = CoreApi()
     bot_config = core_api.get_bot_config(bot_id)
     if not bot_config:
@@ -45,7 +57,7 @@ def execute_bot(bot_id: str, filter: dict | None = None):
 
     bot = bots.get(bot_type)
     if not bot:
-        return "Not implemented"
+        return f"Bot {bot_type} not implemented"
 
     bot_params = bot_config.get(bot_type)
     if not bot_params:
@@ -62,6 +74,7 @@ def cleanup_token_blacklist():
     core_api.cleanup_token_blacklist()
     return "Token blacklist cleaned up"
 
+
 @shared_task(time_limit=30)
 def gather_word_list(word_list_id: int):
     core_api = CoreApi()
@@ -71,4 +84,3 @@ def gather_word_list(word_list_id: int):
         return
     bots["WORDLIST_UPDATER_BOT"].execute(word_list)
     return "Word list updated"
-

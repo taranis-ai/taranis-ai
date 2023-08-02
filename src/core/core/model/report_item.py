@@ -164,15 +164,10 @@ class ReportItem(BaseModel):
         groups = {row[0] for row in result if row[0] is not None}
         return list(groups)
 
-    def to_dict(self) -> dict[str, Any]:
-        data = super().to_dict()
-        data["tag"] = "mdi-file-table-outline"
-        return data
-
     def to_detail_dict(self):
         data = self.to_dict()
         data["attributes"] = [attribute.to_dict() for attribute in self.attributes]
-        data["news_item_aggregates"] = [aggregate.to_dict() for aggregate in self.news_item_aggregates]
+        data["news_item_aggregates"] = [aggregate.to_dict() for aggregate in self.news_item_aggregates if aggregate]
         return data
 
     @classmethod

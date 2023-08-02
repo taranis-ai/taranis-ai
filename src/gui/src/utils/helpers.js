@@ -130,6 +130,9 @@ export function tagIconFromType(tag_type) {
   if (tag_type === 'PER') {
     return 'mdi-account'
   }
+  if (tag_type === 'CySec') {
+    return 'mdi-shield-key'
+  }
   return 'mdi-tag'
 }
 
@@ -142,6 +145,9 @@ export function tagTextFromType(tag_type) {
   }
   if (tag_type === 'PER') {
     return 'Person'
+  }
+  if (tag_type === 'CySec') {
+    return 'Cyber Security'
   }
   return 'Miscellaneous'
 }

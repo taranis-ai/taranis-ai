@@ -8,7 +8,7 @@ const defaultShort = {
 
 const defaultLong = {
   year: 'numeric',
-  month: '2-digit',
+  month: 'short',
   day: '2-digit',
   hour: '2-digit',
   minute: '2-digit',

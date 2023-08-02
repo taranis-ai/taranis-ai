@@ -104,8 +104,8 @@ export default {
         {
           name: 'last_collected',
           label: 'Last Collected',
-          type: 'text',
-          disabled: true
+          disabled: true,
+          type: 'date'
         },
         {
           name: 'name',

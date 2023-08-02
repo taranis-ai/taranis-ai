@@ -125,7 +125,6 @@ class NewsItemData(BaseModel):
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
-        data["tag"] = "mdi-file-table-outline"
         return data
 
 
@@ -708,22 +707,27 @@ class NewsItemAggregate(BaseModel):
         return any(ReportItemNewsItemAggregate.assigned(aggregate_id) for aggregate_id in aggregate_ids)
 
     @classmethod
-    def update_tags(cls, news_item_aggregate_id: int, tags: list) -> tuple[dict, int]:
+    def update_tags(cls, news_item_aggregate_id: int, tags: list | dict) -> tuple[dict, int]:
         try:
             n_i_a = cls.get(news_item_aggregate_id)
             if not n_i_a:
                 logger.error(f"News Item Aggregate {news_item_aggregate_id} not found")
                 return {"error": "not_found"}, 404
 
+            new_tags = {}
             if type(tags) is dict:
                 for name, tag in tags.items():
                     tag_name = name
-                    tag_type = tag["tag_type"]
+                    tag_type = tag.get("tag_type", "misc")
                     sub_forms = tag.get("sub_forms", None)
-                    n_i_a.tags.append(NewsItemTag(name=tag_name, tag_type=tag_type, sub_forms=sub_forms))
+                    new_tags[tag_name] = NewsItemTag(name=tag_name, tag_type=tag_type, sub_forms=sub_forms)
             else:
-                for tag in tags:
-                    n_i_a.tags.append(NewsItemTag(name=tag, tag_type="misc", sub_forms=None))
+                for tag_name in tags:
+                    new_tags[tag_name] = NewsItemTag(name=tag_name, tag_type="misc", sub_forms=None)
+            for tag_name, new_tag in new_tags.items():
+                if tag_name.lower() in [tag.name.lower() for tag in n_i_a.tags]:
+                    continue
+                n_i_a.tags.append(new_tag)
             db.session.commit()
             return {"message": "success"}, 200
         except Exception:
@@ -876,7 +880,7 @@ class NewsItemAggregate(BaseModel):
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data["news_items"] = [news_item.to_dict() for news_item in self.news_items]
-        data["tags"] = [tag.to_dict() for tag in self.tags]
+        data["tags"] = [tag.to_small_dict() for tag in self.tags]
         if news_item_attributes := self.news_item_attributes:
             data["news_item_attributes"] = [news_item_attribute.to_dict() for news_item_attribute in news_item_attributes]
         return data
@@ -1066,7 +1070,7 @@ class NewsItemTag(BaseModel):
     @classmethod
     def get_json(cls, filter_args: dict) -> list[dict[str, Any]]:
         tags = cls.get_filtered_tags(filter_args)
-        return [tag.to_dict() for tag in tags]
+        return [tag.to_small_dict() for tag in tags]
 
     @classmethod
     def get_list(cls, filter_args: dict) -> list[str]:
@@ -1091,4 +1095,10 @@ class NewsItemTag(BaseModel):
             "name": self.name,
             "tag_type": self.tag_type,
             "sub_forms": self.sub_forms.split(",") if self.sub_forms else "",
+        }
+
+    def to_small_dict(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "tag_type": self.tag_type,
         }

@@ -74,7 +74,6 @@ class PresentersNode(BaseModel):
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data["presenters"] = [presenter.to_dict() for presenter in self.presenters]
-        data["tag"] = "mdi-file-table-outline"
         data["type"] = "presenter"
         return data
 

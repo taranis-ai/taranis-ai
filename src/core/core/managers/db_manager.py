@@ -31,8 +31,10 @@ def initialize(app):
         return
 
     if is_db_empty():
+        logger.debug("Create new Database")
         db.create_all()
         flask_migrate_subprocess("stamp")  # stamp(migrate.directory, "head")
         pre_seed(db)
     else:
+        logger.debug("Migrate existing Database")
         flask_migrate_subprocess("upgrade")  # upgrade(migrate.directory, "head")

@@ -31,7 +31,7 @@ class Settings(BaseSettings):
             "broker_url": f"{values['QUEUE_BROKER_SCHEME']}://{values['QUEUE_BROKER_USER']}:{values['QUEUE_BROKER_PASSWORD']}@{values['QUEUE_BROKER_HOST']}:{values['QUEUE_BROKER_PORT']}/{values['QUEUE_BROKER_VHOST']}",
             "ignore_result": True,
             "broker_connection_retry_on_startup": True,
-            "broker_connection_retry": False, # To suppress deprecation warning
+            "broker_connection_retry": False,  # To suppress deprecation warning
             "beat_scheduler": "worker.scheduler:RESTScheduler",
         }
 

@@ -24,10 +24,9 @@ class OSINTSource(BaseModel):
 
     word_lists = db.relationship("WordList", secondary="osint_source_word_list")
 
-    modified = db.Column(db.DateTime, default=datetime.now)
+    state = db.Column(db.SmallInteger, default=0)
     last_collected = db.Column(db.DateTime, default=None)
     last_attempted = db.Column(db.DateTime, default=None)
-    state = db.Column(db.SmallInteger, default=0)
     last_error_message = db.Column(db.String, default=None)
 
     def __init__(self, name, description, collector_id, parameter_values, word_lists=None, id=None):
@@ -70,7 +69,7 @@ class OSINTSource(BaseModel):
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "OSINTSource":
-        drop_keys = ["tag", "modified", "last_collected", "last_attempted", "state", "last_error_message"]
+        drop_keys = ["tag", "last_collected", "last_attempted", "state", "last_error_message"]
         [data.pop(key, None) for key in drop_keys if key in data]
 
         collector_type = None
@@ -90,7 +89,7 @@ class OSINTSource(BaseModel):
 
     def to_dict(self):
         data = super().to_dict()
-        data["word_lists"] = [word_list.id for word_list in self.word_lists]
+        data["word_lists"] = [word_list.id for word_list in self.word_lists if word_list]
         data["parameter_values"] = [parameter_value.to_dict() for parameter_value in self.parameter_values]
         data["tag"] = "mdi-animation-outline"
         return data
@@ -270,7 +269,7 @@ class OSINTSourceGroup(BaseModel):
 
     def to_word_list_dict(self):
         flat_entry_list = []
-        word_list_entries = [word_list.entries for word_list in self.word_lists]
+        word_list_entries = [word_list.entries for word_list in self.word_lists if word_list]
         for sublist in word_list_entries:
             flat_entry_list.extend(sublist)
         return flat_entry_list, 200

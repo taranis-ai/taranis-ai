@@ -24,10 +24,8 @@ def initialize_managers(app):
 
     log_manager.logger.log_info(f"Connecting Database: {app.config.get('SQLALCHEMY_DATABASE_URI')}")
     db_manager.initialize(app)
-    log_manager.logger.log_info("DB Done")
-
     auth_manager.initialize(app)
     api_manager.initialize(app)
     queue_manager.initialize(app)
 
-    log_manager.logger.log_info("All Done")
+    log_manager.logger.log_info("All Managers initialized")

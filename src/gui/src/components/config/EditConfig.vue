@@ -31,15 +31,13 @@
             :bg-color="item.color"
           />
         </v-col>
-        <!-- <v-text-field
-          v-if="item.type === 'date'"
-          v-model="t(formData[item.name])"
-          :label="item.label"
-          :rules="item.rules"
+        <v-text-field
+          v-if="item.type === 'date' && formData[item.name]"
+          :model-value="d(formData[item.name], 'long')"
           :disabled="item['disabled']"
-          :type="item.type"
+          :label="item.label"
           :bg-color="item.color"
-        /> -->
+        />
         <v-textarea
           v-if="item.type === 'textarea'"
           v-model="formData[item.name]"
@@ -104,6 +102,10 @@
 </template>
 
 <script>
+import { watch } from 'vue'
+import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+
 export default {
   name: 'EditConfig',
   props: {
@@ -118,39 +120,36 @@ export default {
     }
   },
   emits: ['submit'],
-  computed: {
-    formData() {
-      return this.configData
-    },
-    format() {
-      if (this.formFormat) {
-        return this.formFormat
-      }
-      return this.flattenObject(this.formData, null)
-    }
-  },
-  methods: {
-    handleSubmit() {
-      if (!this.$refs.config_form.validate()) {
+  setup(props, { emit }) {
+    const configForm = ref(null)
+    const formData = ref(props.configData)
+
+    console.log(props.configData)
+    const { d } = useI18n()
+
+    const handleSubmit = () => {
+      if (!configForm.value.validate()) {
         return
       }
-      this.$emit('submit', this.formData)
-    },
-    addItem(name) {
+      emit('submit', formData.value)
+    }
+
+    const addItem = (name) => {
       const newRow = {}
-      const headers = this.format.find((row) => row.name === name).headers
+      const headers = format.value.find((row) => row.name === name).headers
       headers.forEach((header) => {
         newRow[header.value] =
           header.type === 'number' ? 0 : `new${header.value}`
       })
-      this.formData[name].push(newRow)
-    },
-    flattenObject(obj, parent) {
+      formData.value[name].push(newRow)
+    }
+
+    const flattenObject = (obj, parent) => {
       let result = []
       let flat_obj = {}
       for (const key in obj) {
         if (typeof obj[key] === 'object') {
-          result = result.concat(this.flattenObject(obj[key], key))
+          result = result.concat(flattenObject(obj[key], key))
         } else {
           flat_obj = {
             name: key,
@@ -169,6 +168,29 @@ export default {
         }
       }
       return result
+    }
+
+    const format = computed(() => {
+      if (props.formFormat) {
+        return props.formFormat
+      }
+      return flattenObject(formData.value, null)
+    })
+
+    watch(
+      () => props.configData,
+      (newVal) => {
+        formData.value = newVal
+      }
+    )
+
+    return {
+      d,
+      configForm,
+      formData,
+      format,
+      addItem,
+      handleSubmit
     }
   }
 }

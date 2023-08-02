@@ -44,12 +44,23 @@ class QueueManager:
 def initialize(app: Flask):
     global queue_manager
     queue_manager = QueueManager(app)
+    logger.info(f"QueueManager initialized: {queue_manager.celery.broker_connection().as_uri()}")
 
 
 def collect_osint_source(source_id: str):
     queue_manager.celery.send_task("worker.tasks.collect", args=[source_id])
     logger.info(f"Collect for source {source_id} scheduled")
     return {"message": f"Refresh for source {source_id} scheduled"}, 200
+
+
+def collect_all_osint_sources():
+    from core.model.osint_source import OSINTSource
+
+    sources = OSINTSource.get_all()
+    for source in sources:
+        queue_manager.celery.send_task("worker.tasks.collect", args=[source.id])
+        logger.info(f"Collect for source {source.id} scheduled")
+    return {"message": f"Refresh for source {len(sources)} scheduled"}, 200
 
 
 def gather_word_list(word_list_id: int):
