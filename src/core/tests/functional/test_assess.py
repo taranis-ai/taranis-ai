@@ -305,7 +305,7 @@ class TestAssessApi(object):
         nia1, nia2 = news_item_aggregates
         response = nia1.update_tags(nia1.id, ["foo", "bar", "baz"])
         assert response[1] == 200
-        response = nia2.update_tags(nia2.id, {"foo": {"type": "misc"}, "bar": {"type": "misc"}})
+        response = nia2.update_tags(nia2.id, {"foo": {"tag_type": "misc"}, "bar": {"tag_type": "misc"}})
         assert response[1] == 200
 
         response = client.get("/api/v1/assess/tags", headers=auth_header)
