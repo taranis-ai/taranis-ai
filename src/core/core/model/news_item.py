@@ -1094,7 +1094,7 @@ class NewsItemTag(BaseModel):
         return {
             "name": self.name,
             "tag_type": self.tag_type,
-            "sub_forms": self.sub_forms.split(",") if self.sub_forms else "",
+            "sub_forms": self.sub_forms.split(",") if self.sub_forms else [],
         }
 
     def to_small_dict(self) -> dict[str, Any]:

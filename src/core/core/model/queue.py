@@ -65,7 +65,6 @@ class ScheduleEntry(BaseModel):
 
     @classmethod
     def update_next_run_time(cls, next_run_times: dict):
-        logger.debug(f"Updating next run times: {next_run_times}")
         for entry_id, runtime in next_run_times.items():
             if entry := cls.get(entry_id):
                 entry.next_run_time = runtime
