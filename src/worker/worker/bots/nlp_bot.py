@@ -112,7 +112,7 @@ class NLPBot(BaseBot):
         return {
             keyword: {"tag_type": "CySec", "sub_forms": []}
             for keyword, distance in keywords
-            if 16 > len(keyword) > 2 and distance > 0.1 and self.not_in_stopwords(keyword)  # type: ignore
+            if 16 > len(keyword) > 2 and distance > 0.2 and self.not_in_stopwords(keyword)  # type: ignore
         }
 
     def detect_language(self, text) -> str:

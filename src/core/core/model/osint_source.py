@@ -193,8 +193,11 @@ class OSINTSource(BaseModel):
         return {"message": f"Schedule for source {self.id} removed"}, 200
 
     @classmethod
-    def export_osint_sources(cls):
-        data = cls.get_all()
+    def export_osint_sources(cls, source_ids=None):
+        if source_ids:
+            data = cls.query.filter(cls.id.in_(source_ids)).all()  # type: ignore
+        else:
+            data = cls.get_all()
         for osint_source in data:
             osint_source = osint_source.cleanup_paramaters()
         export_data = {"version": 2, "data": [osint_source.to_export_dict() for osint_source in data]}

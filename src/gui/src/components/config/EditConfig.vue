@@ -64,10 +64,11 @@
         />
         <v-list
           v-if="item.type === 'list'"
+          width="100%"
           :items="formData[item.name]"
-          item-title="value"
-          item-value="value"
           :label="item.label"
+          variant="outlined"
+          density="compact"
           :disabled="true"
         />
 

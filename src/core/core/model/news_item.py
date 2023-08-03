@@ -123,10 +123,6 @@ class NewsItemData(BaseModel):
         items = [news_item.to_dict() for news_item in news_items]
         return items, last_sync_time
 
-    def to_dict(self) -> dict[str, Any]:
-        data = super().to_dict()
-        return data
-
 
 class NewsItem(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
@@ -479,7 +475,7 @@ class NewsItemAggregate(BaseModel):
         if tags := filter_args.get("tags"):
             for tag in tags:
                 alias = orm.aliased(NewsItemTag)
-                query = query.join(alias, NewsItemAggregate.id == alias.n_i_a_id).filter(alias.name == tag)
+                query = query.join(alias, NewsItemAggregate.id == alias.n_i_a_id).filter(alias.name == tag or tag in alias.sub_forms)
 
         filter_range = filter_args.get("range", "").lower()
         if filter_range and filter_range in ["day", "week", "month"]:

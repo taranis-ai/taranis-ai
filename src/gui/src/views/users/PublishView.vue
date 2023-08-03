@@ -62,8 +62,8 @@ export default {
         })
     }
 
-    const selectionChange = (selected) => {
-      selected.value = selected.map((item) => item.id)
+    const selectionChange = (new_selection) => {
+      selected.value = new_selection
     }
 
     onMounted(() => {

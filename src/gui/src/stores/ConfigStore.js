@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { notifyFailure } from '@/utils/helpers'
+import { notifyFailure, parseWordListEntries } from '@/utils/helpers'
 import {
   getAllACLEntries,
   getAllAttributes,
@@ -152,6 +152,9 @@ export const useConfigStore = defineStore('config', {
       return getAllWordLists(data)
         .then((response) => {
           this.word_lists = response.data
+          this.word_lists.items.forEach((word_list) => {
+            word_list.entries = parseWordListEntries(word_list.entries)
+          })
         })
         .catch((error) => {
           notifyFailure(error.message)

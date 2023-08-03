@@ -151,3 +151,41 @@ export function tagTextFromType(tag_type) {
   }
   return 'Miscellaneous'
 }
+
+export function parseWordListEntries(entries) {
+  if (entries.length === 0) {
+    return [
+      {
+        title: 'No entries found',
+        props: {
+          subtitle: 'Please download a wordlist first'
+        }
+      }
+    ]
+  }
+  entries.sort((a, b) => a.category.localeCompare(b.category))
+
+  const output = []
+  let lastCategory = null
+
+  for (const item of entries) {
+    if (item.category !== lastCategory) {
+      output.push({ type: 'divider' })
+      output.push({
+        type: 'subheader',
+        title: item.category,
+        props: { color: 'primary' }
+      })
+      output.push({ type: 'divider' })
+      lastCategory = item.category
+    }
+    output.push({
+      title: item.value,
+      props: {
+        subtitle: item.description
+      }
+    })
+  }
+
+  return output
+}

@@ -2,6 +2,7 @@ import sqlalchemy
 from typing import Any
 from sqlalchemy import func, or_, and_
 from sqlalchemy.sql.expression import cast
+from collections import defaultdict
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
@@ -80,7 +81,7 @@ class WordList(BaseModel):
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
-        data["entries"] = [entry.to_dict() for entry in self.entries if entry]
+        data["entries"] = [entry.to_word_list_dict() for entry in self.entries if entry]
         data["tag"] = "mdi-format-list-bulleted-square"
         return data
 
@@ -105,7 +106,7 @@ class WordListEntry(BaseModel):
 
     word_list_id = db.Column(db.Integer, db.ForeignKey("word_list.id"))
 
-    def __init__(self, value, category="", description=""):
+    def __init__(self, value, category="Uncategorized", description=""):
         self.id = None
         self.value = value
         self.category = category
@@ -141,4 +142,10 @@ class WordListEntry(BaseModel):
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data.pop("id")
+        return data
+
+    def to_word_list_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
+        data.pop("id")
+        data.pop("word_list_id")
         return data

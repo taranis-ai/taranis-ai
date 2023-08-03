@@ -64,7 +64,7 @@ export default {
     }
 
     const handleSubmit = (submittedData) => {
-      if (showForm.value) {
+      if (edit.value) {
         updateItem(submittedData)
       } else {
         createItem(submittedData)

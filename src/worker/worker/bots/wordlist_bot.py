@@ -1,4 +1,3 @@
-import re
 import datetime
 
 from .base_bot import BaseBot
@@ -37,7 +36,6 @@ class TaggingBot(BaseBot):
         except Exception as error:
             logger.log_debug_trace(f"Error running Bot: {self.type}")
             return str(error)
-
 
     def find_tags(self, aggregate: dict, word_list_entries: list) -> list:
         findings = set()

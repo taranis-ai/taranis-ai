@@ -299,6 +299,18 @@ class WordList(Resource):
         word_list.WordList.update(word_list_id, request.json)
 
 
+class WordListImport(Resource):
+    @auth_required("CONFIG_WORD_LIST_UPDATE")
+    def put(self, word_list_id):
+        word_list.WordList.update(word_list_id, request.json)
+
+
+class WordListExport(Resource):
+    @auth_required("CONFIG_WORD_LIST_UPDATE")
+    def put(self, word_list_id):
+        word_list.WordList.update(word_list_id, request.json)
+
+
 class WordListGather(Resource):
     @auth_required("CONFIG_WORD_LIST_UPDATE")
     def put(self, word_list_id):
@@ -407,7 +419,8 @@ class OSINTSourceCollectAll(Resource):
 class OSINTSourcesExport(Resource):
     @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
     def get(self):
-        data = osint_source.OSINTSource.export_osint_sources()
+        source_ids = request.args.getlist("ids")
+        data = osint_source.OSINTSource.export_osint_sources(source_ids)
         if data is None:
             return "Unable to export", 400
         return send_file(
@@ -648,6 +661,8 @@ def initialize(api: Api):
 
     namespace.add_resource(WordLists, "/word-lists")
     namespace.add_resource(WordList, "/word-lists/<int:word_list_id>")
+    namespace.add_resource(WordListImport, "/import-word-list")
+    namespace.add_resource(WordListExport, "/export-word-list")
     namespace.add_resource(WordListGather, "/gather-word-list-entries/<int:word_list_id>")
 
     namespace.add_resource(RefreshWorkers, "/workers/refresh")
