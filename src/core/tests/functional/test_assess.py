@@ -76,8 +76,8 @@ def news_item_aggregates(app, request, news_items_data):
         from core.model.user import User
 
         nia = NewsItemAggregate()
-        nia1 = nia.create_new_for_group(news_items_data[0], "default")
-        nia2 = nia.create_new_for_group(news_items_data[1], "default")
+        nia1 = nia.create_new(news_items_data[0])
+        nia2 = nia.create_new(news_items_data[1])
 
         def teardown():
             nia = NewsItemAggregate()
