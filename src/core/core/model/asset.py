@@ -7,7 +7,6 @@ from core.model.base_model import BaseModel
 from core.model.report_item import ReportItem
 from core.model.user import User
 from core.model.organization import Organization
-from core.model.notification_template import NotificationTemplate
 from core.managers.log_manager import logger
 
 
@@ -71,7 +70,7 @@ class Asset(BaseModel):
         self.vulnerabilities_count += 1
 
     def update_vulnerabilities(self):
-        cpes = [cpe.value for cpe in self.asset_cpes]
+        cpes = [cpe.value for cpe in self.asset_cpes if cpe]
         report_item_ids = ReportItem.get_by_cpe(cpes)
 
         solved = [vulnerability.report_item_id for vulnerability in self.vulnerabilities if vulnerability.solved is True]
@@ -102,7 +101,10 @@ class Asset(BaseModel):
 
     @classmethod
     def get_by_filter(cls, group_id, search, sort, vulnerable, organization):
-        query = cls.query.filter(Asset.asset_group_id == group_id)
+        query = cls.query
+
+        if group_id:
+            query = query.filter(Asset.asset_group_id == group_id)
 
         if vulnerable:
             query = query.filter(Asset.vulnerabilities_count > 0)
@@ -129,7 +131,7 @@ class Asset(BaseModel):
         return query.all(), query.count()
 
     @classmethod
-    def get_by_id(cls, asset_id, organization: Organization = None):
+    def get_by_id(cls, asset_id, organization: Organization | None = None):
         query = cls.query.filter(Asset.id == asset_id)
 
         if organization:
@@ -139,7 +141,7 @@ class Asset(BaseModel):
 
     @classmethod
     def get_all_json(cls, user, filter):
-        group_id = filter.get("group", AssetGroup.get_default_group().id)
+        group_id = filter.get("group")
         search = filter.get("search")
         sort = filter.get("sort")
         vulnerable = filter.get("vulnerable")
@@ -158,7 +160,7 @@ class Asset(BaseModel):
 
     def to_dict(self):
         data = {c.name: getattr(self, c.name) for c in self.__table__.columns}
-        data["asset_cpes"] = [asset_cpe.id for asset_cpe in self.asset_cpes]
+        data["asset_cpes"] = [asset_cpe.id for asset_cpe in self.asset_cpes if asset_cpe]
         data["vulnerabilities"] = [vulnerability.id for vulnerability in self.vulnerabilities]
         data["tag"] = "mdi-laptop"
         return data
@@ -230,16 +232,14 @@ class AssetGroup(BaseModel):
     name = db.Column(db.String(), nullable=False)
     description = db.Column(db.String())
 
-    templates = db.relationship("NotificationTemplate", secondary="asset_group_notification_template")
     organization_id = db.Column(db.Integer, db.ForeignKey("organization.id"))
     organization = db.relationship("Organization")
 
-    def __init__(self, name: str, description: str, organization_id: int, templates: list = None, id=None):
+    def __init__(self, name, description, organization, id=None):
         self.id = id or str(uuid.uuid4())
         self.name = name
         self.description = description
-        self.organization = Organization.get(organization_id)
-        self.templates = [NotificationTemplate.get(template_id) for template_id in templates]
+        self.organization = Organization.get(organization) if type(organization) == int else organization
 
     @classmethod
     def access_allowed(cls, user: User, group_id: str):
@@ -274,7 +274,6 @@ class AssetGroup(BaseModel):
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
-        data["templates"] = [template.to_dict() for template in self.templates]
         data["tag"] = "mdi-folder-multiple"
         return data
 
@@ -302,11 +301,5 @@ class AssetGroup(BaseModel):
         group = cls.query.get(group_id)
         group.name = updated_group.name
         group.description = updated_group.description
-        group.templates = [added_template for added_template in updated_group.templates if added_template.organization == group.organization]
         db.session.commit()
         return "Group updated", 200
-
-
-class AssetGroupNotificationTemplate(BaseModel):
-    asset_group_id = db.Column(db.String, db.ForeignKey("asset_group.id"), primary_key=True)
-    notification_template_id = db.Column(db.Integer, db.ForeignKey("notification_template.id"), primary_key=True)

@@ -198,11 +198,12 @@ export default {
     })
 
     onUnmounted(() => {
-      setFilter({})
+      filterStore.$reset()
     })
 
     const resetFilter = () => {
       filterStore.$reset()
+      assessStore.clearNewsItemSelection()
       updateNewsItems()
     }
 
@@ -210,6 +211,7 @@ export default {
       newsItemsFilter,
       (filter, prevFilter) => {
         console.debug('filter changed', filter, prevFilter)
+        assessStore.clearNewsItemSelection()
         updateNewsItems()
       },
       { deep: true }

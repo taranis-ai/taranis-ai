@@ -547,20 +547,6 @@ def upgrade():
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_table(
-        "notification_template",
-        sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("name", sa.String(), nullable=False),
-        sa.Column("description", sa.String(), nullable=True),
-        sa.Column("message_title", sa.String(), nullable=True),
-        sa.Column("message_body", sa.String(), nullable=True),
-        sa.Column("organization_id", sa.Integer(), nullable=True),
-        sa.ForeignKeyConstraint(
-            ["organization_id"],
-            ["organization.id"],
-        ),
-        sa.PrimaryKeyConstraint("id"),
-    )
-    op.create_table(
         "osint_source_group_osint_source",
         sa.Column("osint_source_group_id", sa.String(), nullable=False),
         sa.Column("osint_source_id", sa.String(), nullable=False),
@@ -700,32 +686,6 @@ def upgrade():
         sa.ForeignKeyConstraint(
             ["asset_group_id"],
             ["asset_group.id"],
-        ),
-        sa.PrimaryKeyConstraint("id"),
-    )
-    op.create_table(
-        "asset_group_notification_template",
-        sa.Column("asset_group_id", sa.String(), nullable=False),
-        sa.Column("notification_template_id", sa.Integer(), nullable=False),
-        sa.ForeignKeyConstraint(
-            ["asset_group_id"],
-            ["asset_group.id"],
-        ),
-        sa.ForeignKeyConstraint(
-            ["notification_template_id"],
-            ["notification_template.id"],
-        ),
-        sa.PrimaryKeyConstraint("asset_group_id", "notification_template_id"),
-    )
-    op.create_table(
-        "email_recipient",
-        sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("email", sa.String(), nullable=False),
-        sa.Column("name", sa.String(), nullable=True),
-        sa.Column("notification_template_id", sa.Integer(), nullable=True),
-        sa.ForeignKeyConstraint(
-            ["notification_template_id"],
-            ["notification_template.id"],
         ),
         sa.PrimaryKeyConstraint("id"),
     )
@@ -1017,8 +977,6 @@ def downgrade():
     op.drop_table("news_item_data_news_item_attribute")
     op.drop_table("news_item_aggregate_news_item_attribute")
     op.drop_table("news_item")
-    op.drop_table("email_recipient")
-    op.drop_table("asset_group_notification_template")
     op.drop_table("asset")
     op.drop_table("acl_entry_user")
     op.drop_table("user")
@@ -1030,7 +988,6 @@ def downgrade():
     op.drop_table("osint_source_word_list")
     op.drop_table("osint_source_parameter_value")
     op.drop_table("osint_source_group_osint_source")
-    op.drop_table("notification_template")
     op.drop_table("news_item_tag")
     op.drop_table("news_item_data")
     op.drop_table("news_item_attribute")

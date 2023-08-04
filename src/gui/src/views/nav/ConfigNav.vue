@@ -100,20 +100,6 @@ export default {
         divider: true
       },
       {
-        icon: 'mdi-remote-desktop',
-        title: 'nav_menu.remote_access',
-        route: '/config/remote/access',
-        permission: 'CONFIG_REMOTE_ACCESS_ACCESS',
-        deprecated: true
-      },
-      {
-        icon: 'mdi-share-variant',
-        title: 'nav_menu.remote_nodes',
-        route: '/config/remote/nodes',
-        permission: 'CONFIG_REMOTE_NODE_ACCESS',
-        deprecated: true
-      },
-      {
         icon: 'mdi-server-network',
         title: 'nav_menu.nodes',
         route: '/config/nodes',

@@ -3,7 +3,7 @@
     <asset-group
       v-if="asset"
       v-model:edit="edit"
-      :asset-prop="asset"
+      :asset-group-prop="asset"
       @assetcreated="assetcreated"
     />
   </v-container>

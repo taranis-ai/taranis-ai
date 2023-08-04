@@ -8,7 +8,6 @@ __all__ = [
     "log_manager",
     "presenters_manager",
     "publishers_manager",
-    "remote_manager",
     "sse_manager",
     "queue_manager",
 ]

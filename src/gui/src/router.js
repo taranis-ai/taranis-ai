@@ -125,16 +125,6 @@ export const router = createRouter({
       meta: { requiresAuth: true, requiresPerm: [Permissions.MY_ASSETS_CONFIG] }
     },
     {
-      path: '/user/templates',
-      name: 'user-templates',
-      components: {
-        default: () =>
-          import('@/views/users/settings/NotificationTemplatesView.vue'),
-        nav: () => import('@/views/nav/UserNav.vue')
-      },
-      meta: { requiresAuth: true, requiresPerm: [Permissions.MY_ASSETS_CONFIG] }
-    },
-    {
       path: '/config/dashboard',
       alias: '/config',
       name: 'configDashboard',
@@ -250,30 +240,6 @@ export const router = createRouter({
       meta: {
         requiresAuth: true,
         requiresPerm: [Permissions.CONFIG_PUBLISHER_PRESET_ACCESS]
-      }
-    },
-    {
-      path: '/config/remote/access',
-      name: 'remote-access',
-      components: {
-        default: () => import('@/views/admin/RemoteAccessesView.vue'),
-        nav: () => import('@/views/nav/ConfigNav.vue')
-      },
-      meta: {
-        requiresAuth: true,
-        requiresPerm: [Permissions.CONFIG_REMOTE_ACCESS_ACCESS]
-      }
-    },
-    {
-      path: '/config/remote/nodes',
-      name: 'remote-nodes',
-      components: {
-        default: () => import('@/views/admin/RemoteNodesView.vue'),
-        nav: () => import('@/views/nav/ConfigNav.vue')
-      },
-      meta: {
-        requiresAuth: true,
-        requiresPerm: [Permissions.CONFIG_REMOTE_NODE_ACCESS]
       }
     },
     {

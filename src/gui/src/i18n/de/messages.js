@@ -84,7 +84,6 @@ export const messages_de = {
     organizations: 'Organisationen',
     word_lists: 'Wortlisten',
     asset_groups: 'Asset-Gruppen',
-    notification_templates: 'Benachrichtigungsvorlagen',
     remote_access: 'Fernzugriff',
     remote_nodes: 'Remote-Knoten',
     local: 'Lokal',
@@ -661,7 +660,6 @@ export const messages_de = {
     error: 'Diese Asset-Gruppe konnte nicht gespeichert werden',
     name: 'Name',
     description: 'Beschreibung',
-    notification_templates: 'Benachrichtigungsvorlagen',
     allowed_users:
       'Erlaubte Benutzer (Wenn keiner ausgewählt ist, sind alle Benutzer zugelassen)',
     successful: 'Neue Asset-Gruppe wurde erfolgreich hinzugefügt',
@@ -670,28 +668,6 @@ export const messages_de = {
     removed_error:
       'Asset-Gruppe wird verwendet und konnte nicht gelöscht werden',
     total_count: 'Anzahl der Asset-Gruppen: '
-  },
-  notification_template: {
-    add_new: 'Neue Benachrichtigungsvorlage hinzufügen',
-    edit: 'Benachrichtigungsvorlage bearbeiten',
-    add: 'Neue hinzufügen',
-    cancel: 'Stornieren',
-    save: 'Speichern',
-    validation_error: 'Bitte füllen Sie alle geforderten Felder aus',
-    error: 'Diese Benachrichtigungsvorlage konnte nicht gespeichert werden',
-    name: 'Name',
-    description: 'Beschreibung',
-    message_title: 'Nachrichtentitel',
-    message_body: 'Nachrichtentext',
-    new_recipient: 'Neuer Empfänger',
-    email: 'Email',
-    recipients: 'Empfänger',
-    successful: 'Neue Benachrichtigungsvorlage wurde erfolgreich hinzugefügt',
-    successful_edit: 'Benachrichtigungsvorlage wurde erfolgreich aktualisiert',
-    removed: 'Benachrichtigungsvorlage wurde erfolgreich entfernt',
-    removed_error:
-      'Benachrichtigungsvorlage wird verwendet und konnte nicht gelöscht werden',
-    total_count: 'Benachrichtigungsvorlagen zählen: '
   },
   asset: {
     add_new: 'Neuen Vermögenswert hinzufügen',

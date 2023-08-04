@@ -1,15 +1,10 @@
-import {
-  getAllAssetGroups,
-  getAllAssets,
-  getAllNotificationTemplates
-} from '@/api/assets'
+import { getAllAssetGroups, getAllAssets } from '@/api/assets'
 import { defineStore } from 'pinia'
 import { useFilterStore } from './FilterStore'
 
 export const useAssetsStore = defineStore('assets', {
   state: () => ({
     asset_groups: { total_count: 0, items: [] },
-    notification_templates: { total_count: 0, items: [] },
     assets: { total_count: 0, items: [] }
   }),
   actions: {
@@ -21,11 +16,6 @@ export const useAssetsStore = defineStore('assets', {
     loadAssets(data) {
       return getAllAssets(data).then((response) => {
         this.assets = response.data
-      })
-    },
-    loadNotificationTemplates(data) {
-      return getAllNotificationTemplates(data).then((response) => {
-        this.notification_templates = response.data
       })
     },
     updateFilteredAssets() {

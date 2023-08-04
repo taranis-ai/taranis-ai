@@ -54,7 +54,8 @@ class NLPBot(BaseBot):
                 logger.critical("Error getting news items")
                 return
 
-            all_keywords = self.core_api.get_tags() or {}
+            all_keywords = {k: v for news_item in data for k, v in news_item["tags"].items()}
+
             for aggregate in data:
                 current_keywords = self.extract_keywords(aggregate, all_keywords)
                 self.core_api.update_news_item_tags(aggregate["id"], current_keywords)
@@ -91,7 +92,7 @@ class NLPBot(BaseBot):
         ner_model = self.ner_model
         doc = ner_model(text)
         return {
-            ent.text: {"tag_type": ent.label_, "sub_forms": []}
+            ent.text.lower(): {"tag_type": ent.label_, "sub_forms": []}
             for ent in doc.ents
             if 16 > len(ent.text) > 2 and self.not_in_stopwords(ent.text)
         }
@@ -110,7 +111,7 @@ class NLPBot(BaseBot):
             docs=text, keyphrase_ngram_range=(1, 1), use_mmr=True, top_n=10, diversity=0.5, stop_words="english"
         )
         return {
-            keyword: {"tag_type": "CySec", "sub_forms": []}
+            str(keyword).lower(): {"tag_type": "CySec", "sub_forms": []}
             for keyword, distance in keywords
             if 16 > len(keyword) > 2 and distance > 0.2 and self.not_in_stopwords(keyword)  # type: ignore
         }
@@ -138,17 +139,13 @@ class NLPBot(BaseBot):
         return values["From"].tolist(), values["To"].tolist()
 
     def update_keywords_from_polyfuzz(self, values_from, values_to, all_keywords: dict, current_keywords: dict) -> dict:
-        for i, matching_value in enumerate(values_from):  # "Cyber", "Security"
-            matching_entry = all_keywords[matching_value]  # Cyber": { "cybering", "cyberoo", "CYBÄR"}   ## "Security"
-            if type(matching_entry["sub_forms"]) != list:
-                logger.error(f"sub_forms is not a list: {matching_entry}")
-                matching_entry["sub_forms"] = []
+        for i, matching_value in enumerate(values_from):
+            matching_entry = all_keywords[matching_value]
             if matching_value in current_keywords:  # "Securities"
                 # { "cybering", "cyberk1ller"} += { "cybering", "cyberoo", "CYBÄR"}
                 current_keywords[matching_value]["sub_forms"] += matching_entry["sub_forms"]
                 # { "cybering", "cyberk1ller", "cyberoo", "CYBÄR"}
-                current_keywords[matching_value]["sub_forms"] = list(set(current_keywords[matching_value]["sub_forms"]))
-            if values_to[i] in current_keywords:  # "Securities"
+            if values_to[i] in current_keywords:
                 matching_entry["sub_forms"] += [values_to[i]]
                 current_keywords[values_to[i]] = matching_entry  # Security
 

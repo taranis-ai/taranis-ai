@@ -238,47 +238,6 @@ export function exportWordList(filter_data) {
   )
 }
 
-export function getAllRemoteAccesses(filter_data) {
-  const filter = ApiService.getQueryStringFromNestedObject(filter_data)
-  return ApiService.get(`/config/remote-accesses?${filter}`)
-}
-
-export function createRemoteAccess(remote_access) {
-  return ApiService.post('/config/remote-accesses', remote_access)
-}
-
-export function updateRemoteAccess(remote_access) {
-  return ApiService.put(
-    `/config/remote-accesses/${remote_access.id}`,
-    remote_access
-  )
-}
-
-export function deleteRemoteAccess(remote_access) {
-  return ApiService.delete(`/config/remote-accesses/${remote_access.id}`)
-}
-
-export function getAllRemoteNodes(filter_data) {
-  const filter = ApiService.getQueryStringFromNestedObject(filter_data)
-  return ApiService.get(`/config/remote-nodes?${filter}`)
-}
-
-export function createRemoteNode(remote_node) {
-  return ApiService.post('/config/remote-nodes', remote_node)
-}
-
-export function updateRemoteNode(remote_node) {
-  return ApiService.put(`/config/remote-nodes/${remote_node.id}`, remote_node)
-}
-
-export function deleteRemoteNode(remote_node) {
-  return ApiService.delete(`/config/remote-nodes/${remote_node.id}`)
-}
-
-export function connectRemoteNode(remote_node) {
-  return ApiService.get(`/config/remote-nodes/${remote_node.id}/connect`)
-}
-
 export function getAllNodes(filter_data) {
   const filter = ApiService.getQueryStringFromNestedObject(filter_data)
   return ApiService.get(`/config/nodes?${filter}`)

@@ -1156,8 +1156,7 @@ def pre_seed_assets():
         {
             "name": "Default",
             "description": "Default group for uncategorized assets",
-            "organization_id": users[0].organization.id,
-            "templates": [],
+            "organization": users[0].organization,
             "id": "default",
         }
     )

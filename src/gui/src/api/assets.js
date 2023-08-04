@@ -21,26 +21,6 @@ export function deleteAssetGroup(group) {
   return ApiService.delete(`/asset-groups/${group.id}`)
 }
 
-export function getAllNotificationTemplates(filter_data) {
-  const filter = ApiService.getQueryStringFromNestedObject(filter_data)
-  return ApiService.get(`/asset-notification-templates?${filter}`)
-}
-
-export function createNotificationTemplate(template) {
-  return ApiService.post('/asset-notification-templates', template)
-}
-
-export function updateNotificationTemplate(template) {
-  return ApiService.put(
-    `/asset-notification-templates/${template.id}`,
-    template
-  )
-}
-
-export function deleteNotificationTemplate(template) {
-  return ApiService.delete(`/asset-notification-templates/${template.id}`)
-}
-
 export function getAllAssets(filter_data) {
   const filter = ApiService.getQueryStringFromNestedObject(filter_data)
   return ApiService.get(`/assets?${filter}`)

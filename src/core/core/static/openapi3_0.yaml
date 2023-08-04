@@ -1485,111 +1485,6 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
         '404':
           $ref: "#/components/schemas/notFound"
-  /my-assets/asset-notification-templates:
-    get:
-      tags: [my-assets]
-      summary: get asset notification templates
-      parameters:
-        - name: search
-          in: query
-          schema:
-            type: string
-      responses:
-        '200':
-          description: DESCRIPTION
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  total_count:
-                    type: integer
-                  items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/notification_template.presentation'
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-    post:
-      tags: [my-assets]
-      summary: add asset notification template
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/notification_template.new'
-      responses:
-        '200':
-          description: the template has been added
-          content:
-            application/json:
-              schema:
-                type: string
-                example:
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-  /my-assets/asset-notification-templates/{template_id}:
-    parameters:
-      - name: template_id
-        in: path
-        required: true
-        schema:
-          type: integer
-    put:
-      tags: [my-assets]
-      summary: update notification template
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/notification_template.new'
-      responses:
-        '200':
-          description: the template has been updated
-          content:
-            application/json:
-              schema:
-                type: string
-                example:
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-    delete:
-      tags: [my-assets]
-      summary: delete the notification template
-      responses:
-        '200':
-          description: the template has been deleted
-          content:
-            application/json:
-              schema:
-                type: string
-                example:
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
   /my-assets/asset-groups/{group_id}/assets:
     parameters:
       - name: group_id
@@ -5461,10 +5356,6 @@ components:
           properties:
             users:
               $ref: '#/components/schemas/user.id'
-            templates:
-              type: array
-              items:
-                $ref: '#/components/schemas/notification_template.id'
 
     asset_cpe:
       type: object
@@ -5538,61 +5429,6 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/user.base'
-            templates:
-              type: array
-              items:
-                $ref: '#/components/schemas/notification_template'
-
-    email_recipient.new:
-      allOf:
-        - $ref: '#/components/schemas/email_recipient'
-    notification_template.new:
-      allOf:
-        - $ref: '#/components/schemas/notification_template'
-        - type: object
-          properties:
-            recipients:
-              type: array
-              items:
-                $ref: '#/components/schemas/email_recipient.new'
-
-    email_recipient:
-      type: object
-      properties:
-        id:
-          type: integer
-        email:
-          type: string
-        name:
-          type: string
-    notification_template:
-      type: object
-      properties:
-        id:
-          type: integer
-        name:
-          type: string
-        description:
-          type: string
-        message_title:
-          type: string
-        message_body:
-          type: string
-    notification_template.presentation:
-      allOf:
-        - $ref: '#/components/schemas/notification_template'
-        - $ref: '#/components/schemas/presentation'
-        - type: object
-          properties:
-            recipients:
-              type: array
-              items:
-                $ref: '#/components/schemas/email_recipient'
-    notification_template.id:
-      type: object
-      properties:
-        id:
-          type: integer
 
     modify_group_action:
       type: object

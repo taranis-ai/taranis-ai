@@ -3,11 +3,11 @@
     <v-toolbar density="compact">
       <v-toolbar-title>{{ container_title }}</v-toolbar-title>
       <v-btn
-        v-if="!edit"
+        v-if="edit"
         prepend-icon="mdi-delete"
         color="error"
         variant="flat"
-        @click="deleteAssetGroup"
+        @click="deleteGroup"
       >
         {{ $t('button.delete') }}
       </v-btn>
@@ -43,7 +43,11 @@
 
 <script>
 import { ref, computed } from 'vue'
-import { createAsset, updateAsset } from '@/api/assets'
+import {
+  createAssetGroup,
+  updateAssetGroup,
+  deleteAssetGroup
+} from '@/api/assets'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
 
 import { useI18n } from 'vue-i18n'
@@ -51,7 +55,7 @@ import { useI18n } from 'vue-i18n'
 export default {
   name: 'AssetGroupView',
   props: {
-    assetProp: { type: Object, required: true },
+    assetGroupProp: { type: Object, required: true },
     edit: { type: Boolean, default: false }
   },
   setup(props) {
@@ -59,7 +63,7 @@ export default {
 
     const required = ref([(v) => !!v || 'Required'])
     const vulnerabilities = ref([])
-    const asset = ref(props.assetProp)
+    const asset = ref(props.assetGroupProp)
 
     const container_title = computed(() => {
       return props.edit
@@ -69,7 +73,7 @@ export default {
 
     const saveAssetGroup = () => {
       if (props.edit) {
-        updateAsset(asset.value)
+        updateAssetGroup(asset.value)
           .then(() => {
             notifySuccess('asset.successful_edit')
           })
@@ -77,7 +81,7 @@ export default {
             notifyFailure('asset.failed')
           })
       } else {
-        createAsset(asset.value)
+        createAssetGroup(asset.value)
           .then(() => {
             notifySuccess('asset.successful')
           })
@@ -87,8 +91,14 @@ export default {
       }
     }
 
-    const deleteAssetGroup = () => {
-      notifyFailure('NOT IMPLEMENTED')
+    const deleteGroup = () => {
+      deleteAssetGroup(asset.value)
+        .then(() => {
+          notifySuccess('asset.successful_delete')
+        })
+        .catch(() => {
+          notifyFailure('asset.failed')
+        })
     }
 
     const update = (cpes) => {
@@ -101,7 +111,7 @@ export default {
       asset,
       container_title,
       saveAssetGroup,
-      deleteAssetGroup,
+      deleteGroup,
       update
     }
   }

@@ -63,7 +63,7 @@ export default defineComponent({
       router.push('/asset-group/' + item.id)
     }
 
-    const deleteAsset = (item) => {
+    const deleteItem = (item) => {
       deleteAsset(item)
         .then(() => {
           notifySuccess(`Successfully deleted ${item.name}`)
@@ -74,7 +74,7 @@ export default defineComponent({
         })
     }
 
-    const deleteAssetGroup = (item) => {
+    const deleteItemGroup = (item) => {
       deleteAssetGroup(item)
         .then(() => {
           notifySuccess(`Successfully deleted ${item.name}`)
@@ -101,8 +101,8 @@ export default defineComponent({
       editAsset,
       addAssetGroup,
       editAssetGroup,
-      deleteAsset,
-      deleteAssetGroup,
+      deleteItem,
+      deleteItemGroup,
       selectionChange
     }
   }

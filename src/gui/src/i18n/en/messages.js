@@ -111,7 +111,6 @@ export const messages_en = {
     organizations: 'Organizations',
     word_lists: 'Word Lists',
     asset_groups: 'Asset Groups',
-    notification_templates: 'Notification Templates',
     remote_access: 'Remote Access',
     remote_nodes: 'Remote Nodes',
     local: 'Local',
@@ -320,7 +319,6 @@ export const messages_en = {
     error: 'Could not create this preset.',
     name: 'Name',
     description: 'Description',
-    use_for_notifications: 'Use for all global notifications',
     successful: 'New publisher preset was successfully added',
     successful_edit: 'Publisher preset was successfully updated',
     removed: 'Publisher preset was successfully removed',
@@ -726,30 +724,12 @@ export const messages_en = {
     validation_error: 'Please fill in all required fields',
     error: 'Could not save this asset group',
     description: 'Description',
-    notification_templates: 'Notification Templates',
     allowed_users:
       'Allowed users (If none is selected than all users are allowed)',
     successful: 'New asset group was successfully added',
     successful_edit: 'Asset group was successfully updated',
     removed: 'Asset group was successfully removed',
     removed_error: 'Asset group is in use and could not be deleted'
-  },
-
-  notification_template: {
-    add_new: 'Add new notification template',
-    edit: 'Edit notification template',
-    validation_error: 'Please fill in all required fields',
-    error: 'Could not save this notification template',
-    description: 'Description',
-    message_title: 'Message Title',
-    message_body: 'Message Body',
-    new_recipient: 'New Recipient',
-    email: 'Email',
-    recipients: 'Recipients',
-    successful: 'New notification template was successfully added',
-    successful_edit: 'Notification template was successfully updated',
-    removed: 'Notification template was successfully removed',
-    removed_error: 'Notification template is in use and could not be deleted'
   },
 
   asset: {

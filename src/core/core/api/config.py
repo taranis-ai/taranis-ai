@@ -5,7 +5,6 @@ from flask_restx import Resource, Namespace, Api
 
 from core.managers import (
     auth_manager,
-    remote_manager,
     presenters_manager,
     publishers_manager,
     bots_manager,
@@ -464,58 +463,6 @@ class OSINTSourceGroup(Resource):
         return osint_source.OSINTSourceGroup.delete(group_id)
 
 
-class RemoteAccesses(Resource):
-    @auth_required("CONFIG_REMOTE_ACCESS_ACCESS")
-    def get(self):
-        search = request.args.get(key="search", default=None)
-        return remote.RemoteAccess.get_all_json(search)
-
-    @auth_required("CONFIG_REMOTE_ACCESS_CREATE")
-    def post(self):
-        result = remote.RemoteAccess.add(request.json)
-        return {"id": result.id, "message": "Remote access created successfully"}, 200
-
-
-class RemoteAccess(Resource):
-    @auth_required("CONFIG_REMOTE_ACCESS_UPDATE")
-    def put(self, remote_access_id):
-        return remote.RemoteAccess.update(remote_access_id, request.json)
-
-    @auth_required("CONFIG_REMOTE_ACCESS_DELETE")
-    def delete(self, remote_access_id):
-        return remote.RemoteAccess.delete(remote_access_id)
-
-
-class RemoteNodes(Resource):
-    @auth_required("CONFIG_REMOTE_ACCESS_ACCESS")
-    def get(self):
-        search = request.args.get(key="search", default=None)
-        return remote.RemoteNode.get_all_json(search)
-
-    @auth_required("CONFIG_REMOTE_ACCESS_CREATE")
-    def post(self):
-        result = remote.RemoteNode.add(request.json)
-        return {"id": result.id, "message": "Remote node created successfully"}, 200
-
-
-class RemoteNode(Resource):
-    @auth_required("CONFIG_REMOTE_ACCESS_UPDATE")
-    def put(self, remote_node_id):
-        if remote.RemoteNode.update(id, request.json) is False:
-            remote_manager.disconnect_from_node(remote_node_id)
-
-    @auth_required("CONFIG_REMOTE_ACCESS_DELETE")
-    def delete(self, remote_node_id):
-        remote_manager.disconnect_from_node(remote_node_id)
-        return remote.RemoteNode.delete(id)
-
-
-class RemoteNodeConnect(Resource):
-    @auth_required("CONFIG_REMOTE_ACCESS_ACCESS")
-    def get(self, remote_node_id):
-        return remote_manager.connect_to_node(remote_node_id)
-
-
 class Presenters(Resource):
     def get(self):
         search = request.args.get(key="search", default=None)
@@ -680,13 +627,6 @@ def initialize(api: Api):
     namespace.add_resource(OSINTSourcesImport, "/import-osint-sources")
     namespace.add_resource(OSINTSourceGroups, "/osint-source-groups")
     namespace.add_resource(OSINTSourceGroup, "/osint-source-groups/<string:group_id>")
-
-    namespace.add_resource(RemoteAccesses, "/remote-accesses")
-    namespace.add_resource(RemoteAccess, "/remote-accesses/<int:remote_access_id>")
-
-    namespace.add_resource(RemoteNodes, "/remote-nodes")
-    namespace.add_resource(RemoteNode, "/remote-nodes/<int:remote_node_id>")
-    namespace.add_resource(RemoteNodeConnect, "/remote-nodes/<int:remote_node_id>/connect")
 
     namespace.add_resource(Presenters, "/presenters")
     namespace.add_resource(Publishers, "/publishers")

@@ -17,12 +17,6 @@ export default {
         icon: 'mdi-cog-outline',
         title: 'user_menu.settings',
         route: '/user/settings'
-      },
-      {
-        icon: 'mdi-email-multiple-outline',
-        title: 'nav_menu.notification_templates',
-        route: '/user/templates',
-        deprecated: true
       }
     ]
   })

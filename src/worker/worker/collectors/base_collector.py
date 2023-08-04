@@ -9,6 +9,7 @@ from worker.log import logger
 from worker.core_api import CoreApi
 from worker.tasks import execute_bot
 
+
 class BaseCollector:
     def __init__(self):
         self.type = "BASE_COLLECTOR"
@@ -35,7 +36,6 @@ class BaseCollector:
                     filtered_news_items.append(item)
                     break
         return filtered_news_items
-
 
     def collect(self, source: dict):
         pass
@@ -74,4 +74,4 @@ class BaseCollector:
             news_items = self.filter_by_word_list(news_items, source)
         self.core_api.add_news_items(news_items)
         self.core_api.update_osintsource_status(source["id"], None)
-        execute_bot.delay("NLP_BOT", {"SOURCE": source["id"]}) # type: ignore
+        execute_bot.delay("NLP_BOT", {"SOURCE": source["id"]})  # type: ignore
