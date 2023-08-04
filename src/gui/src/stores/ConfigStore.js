@@ -14,8 +14,6 @@ import {
   getAllPublisherPresets,
   getAllPresenters,
   getAllPublishers,
-  getAllRemoteAccesses,
-  getAllRemoteNodes,
   getAllReportTypes,
   getAllRoles,
   getAllUsers,
@@ -155,24 +153,6 @@ export const useConfigStore = defineStore('config', {
           this.word_lists.items.forEach((word_list) => {
             word_list.entries = parseWordListEntries(word_list.entries)
           })
-        })
-        .catch((error) => {
-          notifyFailure(error.message)
-        })
-    },
-    loadRemoteAccesses(data) {
-      return getAllRemoteAccesses(data)
-        .then((response) => {
-          this.remote_access = response.data
-        })
-        .catch((error) => {
-          notifyFailure(error.message)
-        })
-    },
-    loadRemoteNodes(data) {
-      return getAllRemoteNodes(data)
-        .then((response) => {
-          this.remote_nodes = response.data
         })
         .catch((error) => {
           notifyFailure(error.message)
