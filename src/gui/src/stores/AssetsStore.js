@@ -4,8 +4,8 @@ import { useFilterStore } from './FilterStore'
 
 export const useAssetsStore = defineStore('assets', {
   state: () => ({
-    asset_groups: { total_count: 0, items: [] },
-    assets: { total_count: 0, items: [] }
+    asset_groups: [],
+    assets: []
   }),
   actions: {
     loadAssetGroups(data) {

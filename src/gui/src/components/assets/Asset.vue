@@ -33,7 +33,7 @@
           <v-select
             v-model="asset.group"
             :label="$t('asset.group')"
-            :items="['foo', 'bar', 'fizz', 'buzz']"
+            :items="asset_groups"
           />
         </v-col>
       </v-row>
@@ -50,12 +50,11 @@
 </template>
 
 <script>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { createAsset, updateAsset } from '@/api/assets'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
-
+import { useAssetsStore } from '@/stores/AssetsStore'
 import { useI18n } from 'vue-i18n'
-import { useSettingsStore } from '@/stores/SettingsStore'
 
 export default {
   name: 'AssetView',
@@ -65,8 +64,8 @@ export default {
   },
   setup(props) {
     const { t } = useI18n()
+    const assetsStore = useAssetsStore()
 
-    const settingsStore = useSettingsStore()
     const required = ref([(v) => !!v || 'Required'])
     const vulnerabilities = ref([])
     const asset = ref(props.assetProp)
@@ -75,6 +74,15 @@ export default {
       return props.edit
         ? `${t('button.edit')} asset`
         : `${t('button.add_new')} asset`
+    })
+
+    const asset_groups = computed(() => {
+      return assetsStore.asset_groups.map((item) => {
+        return {
+          title: item.name,
+          value: item.id
+        }
+      })
     })
 
     const saveAsset = () => {
@@ -97,6 +105,10 @@ export default {
       }
     }
 
+    onMounted(() => {
+      assetsStore.loadAssetGroups()
+    })
+
     const update = (cpes) => {
       asset.value.asset_cpes = cpes
     }
@@ -106,6 +118,7 @@ export default {
       vulnerabilities,
       asset,
       container_title,
+      asset_groups,
       saveAsset,
       update
     }

@@ -1,20 +1,35 @@
 <template>
   <v-container fluid>
-    <v-card v-for="asset in assets" :key="asset.id" class="mt-3">
-      <v-card-title>
-        {{ asset.name }}
-      </v-card-title>
-    </v-card>
-    <v-card
-      v-for="asset_group in asset_groups"
-      :key="asset_group.id"
-      class="mt-3"
-    >
-      <v-card-title>
-        {{ asset_group.name }} - {{ asset_group.id }} -
-        {{ asset_group.description }}
-      </v-card-title>
-    </v-card>
+    <v-expansion-panels multiple>
+      <v-expansion-panel v-for="(group, i) in asset_groups" :key="i">
+        <v-expansion-panel-title
+          >{{ group.name }}
+          <v-btn
+            v-if="filterAssets(group.id).length === 0"
+            class="ml-5"
+            prepend-icon="mdi-delete"
+            size="x-small"
+            @click.stop="deleteItemGroup(group.id)"
+          >
+            Delete Empty Group
+          </v-btn>
+
+          <template #actions>
+            <v-icon icon="mdi-menu-down" />
+          </template>
+        </v-expansion-panel-title>
+        <v-expansion-panel-text>
+          <v-list dense>
+            <v-list-item v-for="(asset, j) in filterAssets(group.id)" :key="j">
+              <v-list-item-title>{{ asset.name }}</v-list-item-title>
+              <v-list-item-subtitle>
+                {{ asset.description }}
+              </v-list-item-subtitle>
+            </v-list-item>
+          </v-list>
+        </v-expansion-panel-text>
+      </v-expansion-panel>
+    </v-expansion-panels>
   </v-container>
 </template>
 
@@ -32,7 +47,6 @@ import { storeToRefs } from 'pinia'
 
 export default defineComponent({
   name: 'AssetsView',
-  components: {},
   setup() {
     const selected = ref([])
     const assetsStore = useAssetsStore()
@@ -45,6 +59,10 @@ export default defineComponent({
         mainStore.itemCountFiltered = assets.value.length
       })
       assetsStore.loadAssetGroups()
+    }
+
+    const filterAssets = (groupId) => {
+      return assets.value.filter((asset) => asset.asset_group_id === groupId)
     }
 
     const addAsset = () => {
@@ -102,6 +120,7 @@ export default defineComponent({
       addAssetGroup,
       editAssetGroup,
       deleteItem,
+      filterAssets,
       deleteItemGroup,
       selectionChange
     }

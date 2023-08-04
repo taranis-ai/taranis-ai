@@ -29,7 +29,7 @@ export default {
       serial: '',
       description: '',
       asset_cpes: [],
-      asset_group_id: ''
+      group: null
     })
     const asset = ref(default_asset.value)
     const edit = ref(true)

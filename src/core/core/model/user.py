@@ -89,7 +89,7 @@ class User(BaseModel):
         return data
 
     @classmethod
-    def add(cls: "User", data) -> "User":
+    def add(cls, data) -> "User":
         item = cls.from_dict(data)
         if not item.password:
             raise ValueError("Password is required")

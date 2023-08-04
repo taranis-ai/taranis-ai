@@ -22,7 +22,8 @@ class AssetGroups(Resource):
         if not data:
             return {"error": "No data provided"}, 400
         data["organization"] = user.organization
-        return asset.AssetGroup.add(data)
+        asset_result = asset.AssetGroup.add(data)
+        return {"message": "Asset Group added", "id": asset_result.id}, 201
 
 
 class AssetGroup(Resource):
@@ -45,7 +46,13 @@ class Assets(Resource):
 
     @auth_required("MY_ASSETS_CREATE")
     def post(self):
-        return "", asset.Asset.add(auth_manager.get_user_from_jwt(), request.json)
+        user = auth_manager.get_user_from_jwt()
+        if not user:
+            return {"error": "User not found"}, 404
+        data = request.json
+        if not data:
+            return {"error": "No data provided"}, 400
+        return asset.Asset.add(user, data)
 
 
 class Asset(Resource):
