@@ -66,16 +66,27 @@
               >
                 <v-expansion-panel :title="attribute_group.title">
                   <v-expansion-panel-text>
-                    <attribute-item
-                      v-for="attribute_item in attribute_group.attribute_group_items"
-                      :key="attribute_item.id"
-                      :read-only="!edit"
-                      :attribute-item="attribute_item"
-                      :value="attribute_values[attribute_item.id]"
-                      @update:value="
-                        updateAttributeValues(attribute_item.id, $event)
-                      "
-                    />
+                    <div
+                      v-for="(
+                        attribute, attribute_id
+                      ) in report_item.attributes"
+                      :key="attribute_id"
+                    >
+                      <attribute-item
+                        v-if="
+                          attribute_group.attribute_group_items[
+                            attribute.attribute_group_item_id
+                          ]
+                        "
+                        v-model:value="attribute.value"
+                        :read-only="!edit"
+                        :attribute-item="
+                          attribute_group.attribute_group_items[
+                            attribute.attribute_group_item_id
+                          ]
+                        "
+                      />
+                    </div>
                   </v-expansion-panel-text>
                 </v-expansion-panel>
               </v-expansion-panels>
@@ -129,17 +140,10 @@ export default {
 
     const verticalView = ref(props.edit)
     const expand_panel_groups = ref([])
-    const attributes = ref({})
     const report_item = ref(props.reportItemProp)
     const required = ref([(v) => !!v || 'Required'])
 
     const { report_item_types } = storeToRefs(store)
-    const attribute_values = computed(() =>
-      report_item.value.attributes.reduce((acc, attr) => {
-        acc[attr.attribute_group_item_id] = attr.value
-        return acc
-      }, {})
-    )
 
     const report_type = computed(() =>
       report_item_types.value.items.find(
@@ -158,20 +162,11 @@ export default {
       store.loadReportTypes()
     })
 
-    const updateAttributeValues = (key, values) => {
-      const attribute = report_item.value.attributes.find(
-        (attr) => attr.attribute_group_item_id === parseInt(key)
-      )
-      if (attribute) {
-        attribute.value = values
-      }
-    }
-
     const saveReportItem = () => {
       if (props.edit) {
         updateReportItem(report_item.value.id, report_item.value)
           .then((response) => {
-            notifySuccess(`Report with ID ${response.data} updated`)
+            notifySuccess(`Report with ID ${response.data.id} updated`)
           })
           .catch(() => {
             notifyFailure('Failed to update report item')
@@ -179,10 +174,12 @@ export default {
       } else {
         createReportItem(report_item.value)
           .then((response) => {
-            router.push('/report/' + response.data)
-            emit('reportcreated', response.data)
-            notifySuccess(`Report with ID ${response.data} created`)
-            report_item.value.id = response.data
+            console.debug(`Created report item ${response.data.id}`)
+            console.debug(response.data)
+            router.push('/report/' + response.data.id)
+            emit('reportcreated', response.data.id)
+            notifySuccess(`Report with ID ${response.data.id} created`)
+            report_item.value = response.data
           })
           .catch(() => {
             notifyFailure('Failed to create report item')
@@ -196,9 +193,11 @@ export default {
         report_item.value.news_item_aggregates.filter(
           (story) => story.id !== story_id
         )
+      console.log(report_item.value.news_item_aggregates)
       const aggregate_ids = report_item.value.news_item_aggregates.map(
         (story) => story.id
       )
+      console.log(aggregate_ids)
       setAggregatesToReportItem(report_item.value.id, aggregate_ids)
         .then(() => {
           notifySuccess('Removed from report')
@@ -211,14 +210,11 @@ export default {
     return {
       verticalView,
       expand_panel_groups,
-      attributes,
       report_item,
       required,
       report_item_types,
-      attribute_values,
       report_type,
       container_title,
-      updateAttributeValues,
       saveReportItem,
       removeFromReport
     }

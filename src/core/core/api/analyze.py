@@ -42,7 +42,7 @@ class ReportItems(Resource):
             asset_manager.report_item_changed(new_report_item)
             sse_manager.report_items_updated()
 
-        return new_report_item.id, status
+        return new_report_item.to_detail_dict(), status
 
 
 class ReportItemAggregates(Resource):
@@ -53,7 +53,7 @@ class ReportItemAggregates(Resource):
     @auth_required("ANALYZE_UPDATE")
     def put(self, report_item_id):
         request_data = request.json
-        if not request_data:
+        if type(request_data) != list:
             logger.debug("No data in request")
             return "No data in request", 400
         return report_item.ReportItem.set_aggregates(report_item_id, request_data, auth_manager.get_user_from_jwt())
@@ -61,7 +61,7 @@ class ReportItemAggregates(Resource):
     @auth_required("ANALYZE_UPDATE")
     def post(self, report_item_id):
         request_data = request.json
-        if not request_data:
+        if type(request_data) != list:
             logger.debug("No data in request")
             return "No data in request", 400
         return report_item.ReportItem.add_aggregates(report_item_id, request_data, auth_manager.get_user_from_jwt())
@@ -162,7 +162,6 @@ class ReportItemAddAttachment(Resource):
         updated_report_item = report_item.ReportItem.get(report_item_id)
         asset_manager.report_item_changed(updated_report_item)
         sse_manager.report_item_updated(data)
-        sse_manager.remote_access_report_items_updated(updated_report_item.report_item_type_id)
 
         return data
 
@@ -175,19 +174,20 @@ class ReportItemRemoveAttachment(Resource):
         updated_report_item = report_item.ReportItem.get(report_item_id)
         asset_manager.report_item_changed(updated_report_item)
         sse_manager.report_item_updated(data)
-        sse_manager.remote_access_report_items_updated(updated_report_item.report_item_type_id)
 
 
 class ReportItemDownloadAttachment(Resource):
     @auth_required("ANALYZE_ACCESS")
     def get(self, report_item_id, attribute_id):
-        report_item_attribute = report_item.ReportItemAttribute.get(attribute_id)
-        return send_file(
-            io.BytesIO(report_item_attribute.binary_data),
-            download_name=report_item_attribute.value,
-            mimetype=report_item_attribute.binary_mime_type,
-            as_attachment=True,
-        )
+        if report_item_attribute := report_item.ReportItemAttribute.get(attribute_id):
+            return send_file(
+                io.BytesIO(report_item_attribute.binary_data),
+                download_name=report_item_attribute.value,
+                mimetype=report_item_attribute.binary_mime_type,
+                as_attachment=True,
+            )
+
+        return {"Error": "Report Item Attribute Not Found"}, 404
 
 
 def initialize(api: Api):

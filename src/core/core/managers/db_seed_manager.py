@@ -1032,7 +1032,12 @@ def pre_seed_report_items(db):
         ]
 
         group5 = AttributeGroup.from_dict(
-            {"title": "Attribute", "description": "Attribute", "index": 1, "attribute_group_items": attribute_group_items}
+            {
+                "title": "Attribute",
+                "description": "Attribute",
+                "index": 1,
+                "attribute_group_items": attribute_group_items,
+            }
         )
         db.session.add(group4)
         db.session.add(group5)

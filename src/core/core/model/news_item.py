@@ -476,7 +476,9 @@ class NewsItemAggregate(BaseModel):
         if tags := filter_args.get("tags"):
             for tag in tags:
                 alias = orm.aliased(NewsItemTag)
-                query = query.join(alias, NewsItemAggregate.id == alias.n_i_a_id).filter(alias.name == tag or tag in alias.sub_forms)
+                query = query.join(alias, NewsItemAggregate.id == alias.n_i_a_id).filter(
+                    or_(alias.name == tag, alias.sub_forms.contains(tag))
+                )
 
         filter_range = filter_args.get("range", "").lower()
         if filter_range and filter_range in ["day", "week", "month"]:

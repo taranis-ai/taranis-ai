@@ -49,17 +49,36 @@ class ReportItemAttribute(BaseModel):
     def find_by_attribute_group(cls, attribute_group_id, report_item_id=None):
         return cls.query.filter_by(attribute_group_item_id=attribute_group_id).filter_by(report_item_id=report_item_id).first()
 
+    @classmethod
+    def update_values_from_report(cls, report_item_id, attribute_data):
+        for attribute_id, data in attribute_data.items():
+            if report_item_attribute := cls.get(attribute_id):
+                report_item_attribute.value = data["value"]
+
+        db.session.commit()
+
     @staticmethod
     def sort(report_item_attribute):
         return report_item_attribute.last_updated
 
-    def update(self, new_item: dict[str, Any]) -> tuple[str, int]:
+    def update(self, new_item: dict[str, Any]) -> int | None:
         for key, value in new_item.items():
             if hasattr(self, key) and key != "id":
                 setattr(self, key, value)
 
         db.session.commit()
-        return f"Successfully updated {self.id}", 200
+        return self.id or None
+
+    def to_report_dict(self):
+        data = {
+            "value": self.value,
+            "attribute_group_item_id": self.attribute_group_item_id,
+        }
+        if self.binary_mime_type:
+            data["binary_mime_type"] = self.binary_mime_type
+        if self.binary_description:
+            data["binary_description"] = self.binary_description
+        return data
 
 
 class ReportItemRemoteReportItem(BaseModel):
@@ -166,7 +185,7 @@ class ReportItem(BaseModel):
 
     def to_detail_dict(self):
         data = self.to_dict()
-        data["attributes"] = [attribute.to_dict() for attribute in self.attributes]
+        data["attributes"] = {attribute.id: attribute.to_report_dict() for attribute in self.attributes}
         data["news_item_aggregates"] = [aggregate.to_dict() for aggregate in self.news_item_aggregates if aggregate]
         return data
 
@@ -198,7 +217,10 @@ class ReportItem(BaseModel):
 
     def add_attributes(self):
         """Adds attributes based on the report item type to the report item."""
-        attribute_groups = ReportItemType.get(self.report_item_type_id).attribute_groups
+        report_item_type = ReportItemType.get(self.report_item_type_id)
+        if not report_item_type:
+            return
+        attribute_groups = report_item_type.attribute_groups
         for attribute_group in attribute_groups:
             for attribute_group_item in attribute_group.attribute_group_items:
                 self.attributes.append(ReportItemAttribute(attribute_group_item_id=attribute_group_item.id, value=""))
@@ -372,7 +394,7 @@ class ReportItem(BaseModel):
         return f"Successfully removed {aggregate_ids} to {report_item.id}", 200
 
     @classmethod
-    def update_report_item(cls, id: int, data: dict, user: User) -> tuple[Any, int]:
+    def update_report_item(cls, id: int, data: dict, user: User) -> tuple[dict, int]:
         report_item = cls.get(id)
         if report_item is None:
             return {"error": f"No Report with id '{id}' found"}, 404
@@ -385,11 +407,7 @@ class ReportItem(BaseModel):
         report_item.completed = data["completed"]
 
         if attributes_data := data.pop("attributes", None):
-            for attribute_data in attributes_data:
-                attribute = ReportItemAttribute.find_by_attribute_group(
-                    attribute_group_id=attribute_data["attribute_group_item_id"], report_item_id=report_item.id
-                )
-                attribute.value = attribute_data["value"]
+            ReportItemAttribute.update_values_from_report(report_item.id, attributes_data)
 
         if "aggregate_ids" in data:
             for aggregate_id in data["aggregate_ids"]:
@@ -398,7 +416,7 @@ class ReportItem(BaseModel):
 
         db.session.commit()
 
-        return f"Successfully updated: {report_item.id}", 200
+        return {"message": "Successfully updated Report Item", "id": report_item.id}, 200
 
     @classmethod
     def get_updated_data(cls, id, data):
@@ -425,7 +443,8 @@ class ReportItem(BaseModel):
                 if "aggregate_ids" in data:
                     data["news_item_aggregates"] = []
                     for aggregate_id in data["aggregate_ids"]:
-                        data["news_item_aggregates"].append(NewsItemAggregate.get(aggregate_id).to_dict())
+                        if aggregate := NewsItemAggregate.get(aggregate_id):
+                            data["news_item_aggregates"].append(aggregate.to_dict())
 
                 if "remote_report_item_ids" in data:
                     data["remote_report_items"] = []
@@ -500,6 +519,8 @@ class ReportItem(BaseModel):
         if self.completed:
             for attribute in self.attributes:
                 attribute_group = AttributeGroupItem.get(attribute.attribute_group_item_id)
+                if not attribute_group:
+                    continue
                 if attribute_group.attribute.type == AttributeType.CPE:
                     self.report_item_cpes.append(ReportItemCpe(attribute.value))
 

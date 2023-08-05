@@ -309,3 +309,13 @@ class Attribute(BaseModel):
         data["type"] = self.type.name
         data["tag"] = self.get_tag()
         return data
+
+    def to_report_item_dict(self):
+        data = {
+            c.name: getattr(self, c.name).name if isinstance(getattr(self, c.name), Enum) else getattr(self, c.name)
+            for c in self.__table__.columns
+        }
+        attribute_enums = AttributeEnum.get_all_for_attribute(self.id)
+        data["attribute_enums"] = [attribute_enum.to_small_dict() for attribute_enum in attribute_enums]
+        data["type"] = self.type.name
+        return data

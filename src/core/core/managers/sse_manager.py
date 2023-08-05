@@ -1,5 +1,4 @@
 from datetime import datetime
-from core.model.remote import RemoteAccess
 from core.managers.sse import SSE
 
 
@@ -19,22 +18,6 @@ class SSEManager:
 
     def remote_access_disconnect(self, data):
         self.sse.publish(data, event="remote_access_disconnect")
-
-    def remote_access_news_items_updated(self, osint_source_ids):
-        remote_access_event_ids = RemoteAccess.get_relevant_for_news_items(osint_source_ids)
-        data = str(remote_access_event_ids).join(",")
-        self.sse.publish(
-            data,
-            event="remote_access_news_items_updated",
-        )
-
-    def remote_access_report_items_updated(self, report_item_type_id):
-        remote_access_event_ids = RemoteAccess.get_relevant_for_report_item(report_item_type_id)
-        data = str(remote_access_event_ids).join(",")
-        self.sse.publish(
-            data,
-            event="remote_access_report_items_updated",
-        )
 
     def report_item_lock(self, report_item_id: int, user_id):
         if report_item_id in self.report_item_locks:
