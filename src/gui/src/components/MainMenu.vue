@@ -38,6 +38,9 @@
           />
         </g>
       </svg>
+      <span v-if="buildDate" class="ml-3 font-weight-thin text-body-2">
+        Build Date: {{ d(buildDate, 'long') }}
+      </span>
     </v-toolbar-title>
 
     <div v-if="showItemCount" class="mr-10">
@@ -71,14 +74,18 @@ import UserMenu from '@/components/UserMenu.vue'
 import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/MainStore'
 import { defineComponent, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 export default defineComponent({
   name: 'MainMenu',
   components: { UserMenu },
   setup() {
     const store = useMainStore()
+    const { d } = useI18n()
 
-    const { drawerVisible, itemCountTotal, itemCountFiltered } =
+    store.updateFromLocalConfig()
+
+    const { drawerVisible, itemCountTotal, itemCountFiltered, buildDate } =
       storeToRefs(store)
 
     const showItemCount = computed(() => {
@@ -154,6 +161,8 @@ export default defineComponent({
     })
 
     return {
+      d,
+      buildDate,
       isFiltered,
       showItemCount,
       itemCountFiltered,

@@ -7,16 +7,10 @@ import DatePicker from 'vue-datepicker-next'
 import { i18n } from '@/i18n/i18n'
 import { vuetify } from '@/plugins/vuetify'
 import { createPinia } from 'pinia'
-import { getLocalConfig } from '@/services/config'
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 import 'vue-datepicker-next/index.css'
 
 export const app = createApp(App)
-getLocalConfig().then((data) => {
-  console.log(data)
-  app.provide('$config', data)
-})
-
 app.use(DatePicker)
 
 app.use(i18n)

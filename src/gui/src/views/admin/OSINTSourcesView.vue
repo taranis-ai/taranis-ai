@@ -260,15 +260,7 @@ export default {
       if (selected.value.length > 0) {
         queryString = 'ids=' + selected.value.join('&ids=')
       }
-      console.debug(queryString)
-      console.debug(selected.value)
       exportOSINTSources(queryString)
-        .then(() => {
-          notifySuccess('Successfully exported')
-        })
-        .catch(() => {
-          notifyFailure('Failed to export')
-        })
     }
 
     const selectionChange = (new_selection) => {

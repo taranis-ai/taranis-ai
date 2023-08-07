@@ -2,7 +2,7 @@ import axios from 'axios'
 
 export async function getLocalConfig() {
   try {
-    const response = await axios.get('/config.json')
+    const response = await axios.get('/config.json', { baseURL: '' })
     return response.data
   } catch (error) {
     if (error.response && error.response.status === 404) {

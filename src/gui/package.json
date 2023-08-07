@@ -4,11 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && npm run patch_config",
     "preview": "vite preview",
     "lint": "eslint --ext .js,.vue --fix src",
     "format": "prettier --write \"src/**/*.{js,vue}\"",
     "lint_and_format": "npm run lint && npm run format",
+    "patch_config": "node ./extras/patch_config_json.js",
     "test": "npm run lint && npm run format"
   },
   "dependencies": {
