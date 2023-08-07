@@ -20,11 +20,11 @@ class User(BaseModel):
     organization_id = db.Column(db.Integer, db.ForeignKey("organization.id"))
     organization = db.relationship("Organization")
 
-    roles = db.relationship(Role, secondary="user_role")
-    permissions = db.relationship(Permission, secondary="user_permission")
+    roles = db.relationship(Role, secondary="user_role", cascade="all, delete")
+    permissions = db.relationship(Permission, secondary="user_permission", cascade="all, delete")
 
-    profile_id = db.Column(db.Integer, db.ForeignKey("user_profile.id"))
-    profile = db.relationship("UserProfile", cascade="all")
+    profile_id = db.Column(db.Integer, db.ForeignKey("user_profile.id", ondelete="CASCADE"))
+    profile = db.relationship("UserProfile", cascade="all, delete")
 
     def __init__(self, username, name, organization, roles, permissions, password=None, id=None):
         self.id = id
@@ -198,12 +198,12 @@ class User(BaseModel):
 
 class UserRole(BaseModel):
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), primary_key=True)
-    role_id = db.Column(db.Integer, db.ForeignKey("role.id"), primary_key=True)
+    role_id = db.Column(db.Integer, db.ForeignKey("role.id", ondelete="CASCADE"), primary_key=True)
 
 
 class UserPermission(BaseModel):
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), primary_key=True)
-    permission_id = db.Column(db.String, db.ForeignKey("permission.id"), primary_key=True)
+    permission_id = db.Column(db.String, db.ForeignKey("permission.id", ondelete="CASCADE"), primary_key=True)
 
 
 class UserProfile(BaseModel):

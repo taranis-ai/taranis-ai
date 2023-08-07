@@ -1,5 +1,5 @@
 <template>
-  <div class="ml-0 pl-0 d-flex flex-wrap">
+  <div v-if="tags" class="ml-0 pl-0 d-flex flex-wrap">
     <v-tooltip v-for="(tag, i) in tags.slice(0, limit)" :key="i">
       <template #activator="{ props }">
         <v-chip

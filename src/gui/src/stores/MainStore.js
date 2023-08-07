@@ -39,6 +39,16 @@ export const useMainStore = defineStore(
       itemCountTotal.value = 0
       itemCountFiltered.value = 0
     }
+
+    const reset_user = () => {
+      user.value = {
+        id: '',
+        name: '',
+        organization_name: '',
+        permissions: []
+      }
+    }
+
     return {
       user,
       vertical_view,
@@ -51,7 +61,8 @@ export const useMainStore = defineStore(
       getItemCount,
       updateFromLocalConfig,
       toggleDrawer,
-      resetItemCount
+      resetItemCount,
+      reset_user
     }
   },
   {

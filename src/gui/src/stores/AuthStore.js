@@ -48,7 +48,7 @@ export const useAuthStore = defineStore('authenticator', {
       this.clearJwtToken()
       this.$reset()
       const store = useMainStore()
-      store.$reset()
+      store.reset_user()
     },
     async refresh() {
       try {

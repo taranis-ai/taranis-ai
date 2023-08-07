@@ -486,7 +486,7 @@ bots = [
     {
         "type": "NLP_BOT",
         "name": "NLP Bot",
-        "parameter_values": [{"value": "", "parameter": "SOURCE_GROUP"}],
+        "parameter_values": [{"value": "default", "parameter": "SOURCE_GROUP"}],
         "description": "Bot for naturale language processing of news items",
     },
     {
@@ -509,13 +509,13 @@ bots = [
     {
         "type": "SUMMARY_BOT",
         "name": "Summary generation Bot",
-        "parameter_values": [{"value": "", "parameter": "SOURCE_GROUP"}],
+        "parameter_values": [{"value": "default", "parameter": "SOURCE_GROUP"}],
         "description": "Bot for summarizing news items aggregates",
     },
     {
         "type": "WORDLIST_BOT",
         "name": "Wordlist Bot",
-        "parameter_values": [{"value": "", "parameter": "SOURCE_GROUP"}],
+        "parameter_values": [{"value": "default", "parameter": "SOURCE_GROUP"}],
         "description": "Bot for tagging news items by wordlist",
     },
 ]
