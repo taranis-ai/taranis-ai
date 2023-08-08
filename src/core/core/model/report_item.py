@@ -97,7 +97,7 @@ class ReportItem(BaseModel):
     last_updated = db.Column(db.DateTime, default=datetime.now)
     completed = db.Column(db.Boolean, default=False)
 
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
     user = db.relationship("User")
     remote_user = db.Column(db.String())
 

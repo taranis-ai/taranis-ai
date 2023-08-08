@@ -353,7 +353,7 @@ class NewsItemVote(BaseModel):
     like = db.Column(db.Boolean)
     dislike = db.Column(db.Boolean)
     news_item_id = db.Column(db.Integer, db.ForeignKey("news_item.id"))
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=True)
 
     remote_node_id = db.Column(db.Integer, db.ForeignKey("remote_node.id"), nullable=True)
     remote_user = db.Column(db.String())

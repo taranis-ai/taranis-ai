@@ -19,7 +19,7 @@ class Product(BaseModel):
     product_type_id = db.Column(db.Integer, db.ForeignKey("product_type.id"))
     product_type = db.relationship("ProductType")
 
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"))
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"))
     user = db.relationship("User")
 
     report_items = db.relationship("ReportItem", secondary="product_report_item")
