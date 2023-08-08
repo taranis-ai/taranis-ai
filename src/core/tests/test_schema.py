@@ -19,7 +19,7 @@ def test_analyze(case, auth_header):
     case.validate_response(response)
 
 
-@schema.parametrize(endpoint="^/api/v1/assess/news-items")
+@schema.parametrize(endpoint="^/api/v1/assess/")
 @settings(verbosity=Verbosity.debug, suppress_health_check=(HealthCheck.function_scoped_fixture,))
 def test_assess(case, auth_header):
     response = case.call_wsgi(headers=auth_header)
