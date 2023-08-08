@@ -86,11 +86,11 @@
         <v-col cols="12" class="py-0">
           <h4 class="text-center">Debug</h4>
         </v-col>
-        <v-col cols="8" class="pt-2">chart threshold:</v-col>
+        <v-col cols="5" class="pt-2">chart threshold:</v-col>
         <v-col cols="4" class="pt-2">
           <input v-model="chartFilter.threshold" type="number" min="0"
         /></v-col>
-        <v-col cols="8" class="pt-2">chart y2 Max:</v-col>
+        <v-col cols="5" class="pt-2">chart y2 Max:</v-col>
         <v-col cols="4" class="pt-2">
           <input v-model="chartFilter.y2max" type="number" min="0" />
         </v-col>

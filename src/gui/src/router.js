@@ -195,18 +195,6 @@ export const router = createRouter({
       }
     },
     {
-      path: '/config/nodes',
-      name: 'nodes',
-      components: {
-        default: () => import('@/views/admin/NodesView.vue'),
-        nav: () => import('@/views/nav/ConfigNav.vue')
-      },
-      meta: {
-        requiresAuth: true,
-        requiresPerm: [Permissions.CONFIG_NODE_ACCESS]
-      }
-    },
-    {
       path: '/config/sources',
       name: 'osint_sources',
       components: {

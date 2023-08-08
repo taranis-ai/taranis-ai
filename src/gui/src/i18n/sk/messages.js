@@ -55,27 +55,11 @@ export const messages_sk = {
     popular: 'Populárne',
     favourites: 'Obľúbené',
     configuration: 'Konfigurácia',
-    collectors_nodes: 'Server zberačov údajov',
     osint_sources: 'OSINT zdroje',
     collectors: 'Zberače údajov'
   },
-
-  collectors_node: {
-    add_new: 'Pridať nový server zberača údajov',
-    add: 'Pridať',
-    cancel: 'Zrušiť',
-    validation_error: 'Prosím vyplňte všetky povinné polia',
-    error: 'Nepodarilo sa pripojiť na zadaný server.',
-    name: 'Meno',
-    description: 'Popis',
-    url: 'URL',
-    key: 'Kľúč',
-    successful: 'Nový server zberača údajov bol úspešne pridaný'
-  },
-
   osint_source: {
     add_new: 'Pridať nový OSINT zdroj',
-    node: 'Server zberača údajov',
     collector: 'Zberač údajov',
     add: 'Pridať',
     cancel: 'Zrušiť',

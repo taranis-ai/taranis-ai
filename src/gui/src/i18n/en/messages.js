@@ -27,9 +27,6 @@ export const messages_en = {
         required: 'Password is required',
         confirmed: 'Passwords are not identical'
       },
-      collector_node: {
-        required: 'Select Collector Node'
-      },
       file: {
         required: 'File required'
       }
@@ -105,34 +102,14 @@ export const messages_en = {
     users: 'Users',
     bots: 'Bots',
     user: 'User',
-    nodes: 'Nodes',
     workers: 'Workers',
     openapi: 'OpenAPI',
     organizations: 'Organizations',
     word_lists: 'Word Lists',
     asset_groups: 'Asset Groups',
     remote_access: 'Remote Access',
-    remote_nodes: 'Remote Nodes',
     local: 'Local',
     dashboard: 'Dashboard'
-  },
-
-  nodes: {
-    add_new: 'Add node',
-    edit: 'Edit node',
-    save: 'Save',
-    add_btn: 'Add New',
-    cancel: 'Cancel',
-    validation_error: 'Please fill in all required fields',
-    error: 'Could not connect to node',
-    name: 'Name',
-    description: 'Description',
-    url: 'URL',
-    key: 'Key',
-    successful: 'node added',
-    successful_edit: 'node updated',
-    removed: 'node removed',
-    removed_error: 'node is in use and could not be deleted'
   },
 
   notification: {
@@ -163,7 +140,6 @@ export const messages_en = {
     published: 'Published',
     source: 'Source',
     status: 'Status',
-    node: 'Node',
     description: 'Description',
     in_analyze: 'In Analyze',
     url: 'Url',
@@ -216,7 +192,6 @@ export const messages_en = {
   osint_source: {
     add_new: 'Add new OSINT source',
     edit: 'Edit OSINT source',
-    node: 'Collectors Node',
     collector: 'Collector',
     validation_error: 'Please fill in all required fields',
     error: 'Could not save this OSINT source',
@@ -309,7 +284,6 @@ export const messages_en = {
   publisher_preset: {
     add_new: 'Add new publisher preset',
     edit: 'Edit publisher preset',
-    node: 'Publishers Node',
     publisher: 'Publisher',
     add: 'Add',
     save: 'Save',
@@ -329,7 +303,6 @@ export const messages_en = {
   product_type: {
     add_new: 'Add new product type',
     edit: 'Edit new product type',
-    node: 'Presenters Node',
     presenter: 'Presenter',
     add: 'Add',
     save: 'Save',
@@ -506,7 +479,6 @@ export const messages_en = {
     removed: 'Report item was successfully removed',
     removed_error: 'Report item is in use and could not be deleted',
     select: 'Select Report Items',
-    select_remote: 'Select Report Items from Remote Nodes',
     attributes: 'Attributes',
     import_csv: 'Import CSV',
     import_from_csv: 'Import CVE/CPE from CSV',
@@ -764,26 +736,6 @@ export const messages_en = {
     removed_error: 'Remote access is in use and could not be deleted',
     osint_sources: 'OSINT Sources to share',
     report_item_types: 'Report Item Types to share'
-  },
-
-  remote_node: {
-    error: 'Could not save this remote node',
-    description: 'Description',
-    remote_url: 'Remote node URL',
-    event_url: 'Remote event source URL',
-    access_key: 'Access Key',
-    enabled: 'Enabled',
-    connect: 'Connect to remote node',
-    connect_error:
-      'Connection to remote node failed. Incorrect access key provided or node is not running.',
-    connect_info: 'Successfully connected to the remote node.',
-    sync_news_items: 'Synchronize news items',
-    sync_report_items: 'Synchronize report items',
-    osint_source_group: 'Synchronize to OSINT source group',
-    successful: 'New remote node was successfully added',
-    successful_edit: 'Remote node was successfully updated',
-    removed: 'Remote node was successfully removed',
-    removed_error: 'Remote node is in use and could not be deleted'
   },
 
   drop_zone: {

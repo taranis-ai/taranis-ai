@@ -17,7 +17,6 @@ import {
   getAllReportTypes,
   getAllRoles,
   getAllUsers,
-  getAllNodes,
   getAllWordLists,
   getAllParameters,
   getAllSchedule,
@@ -31,7 +30,6 @@ export const useConfigStore = defineStore('config', {
     attributes: { total_count: 0, items: [] },
     bots: { total_count: 0, items: [] },
     collectors: { total_count: 0, items: [] },
-    nodes: { total_count: 0, items: [] },
     organizations: { total_count: 0, items: [] },
     osint_sources: { total_count: 0, items: [] },
     osint_source_groups: { total_count: 0, items: [] },
@@ -41,8 +39,6 @@ export const useConfigStore = defineStore('config', {
     publisher_presets: { total_count: 0, items: [] },
     presenters: { total_count: 0, items: [] },
     publishers: { total_count: 0, items: [] },
-    remote_access: { total_count: 0, items: [] },
-    remote_nodes: { total_count: 0, items: [] },
     report_item_types_config: { total_count: 0, items: [] },
     roles: { total_count: 0, items: [] },
     users: { total_count: 0, items: [] },
@@ -153,15 +149,6 @@ export const useConfigStore = defineStore('config', {
           this.word_lists.items.forEach((word_list) => {
             word_list.entries = parseWordListEntries(word_list.entries)
           })
-        })
-        .catch((error) => {
-          notifyFailure(error.message)
-        })
-    },
-    loadNodes(data) {
-      return getAllNodes(data)
-        .then((response) => {
-          this.nodes = response.data
         })
         .catch((error) => {
           notifyFailure(error.message)

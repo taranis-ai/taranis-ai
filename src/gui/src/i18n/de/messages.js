@@ -26,9 +26,6 @@ export const messages_de = {
         required: 'Passwort wird benötigt',
         confirmed: 'Passwörter sind nicht identisch'
       },
-      collector_node: {
-        required: 'Wählen Sie Collector-Knoten aus'
-      },
       file: {
         required: 'Datei erforderlich'
       }
@@ -79,32 +76,12 @@ export const messages_de = {
     users: 'Benutzer',
     bots: 'Bots',
     user: 'Benutzer',
-    nodes: 'Knoten',
     workers: 'Arbeiter',
     organizations: 'Organisationen',
     word_lists: 'Wortlisten',
     asset_groups: 'Asset-Gruppen',
-    remote_access: 'Fernzugriff',
-    remote_nodes: 'Remote-Knoten',
     local: 'Lokal',
     dashboard: 'Dashboard'
-  },
-  nodes: {
-    add_new: 'Knoten hinzufügen',
-    edit: 'Knoten bearbeiten',
-    save: 'Speichern',
-    add_btn: 'Neue hinzufügen',
-    cancel: 'Stornieren',
-    validation_error: 'Bitte füllen Sie alle geforderten Felder aus',
-    error: 'Es konnte keine Verbindung zum Knoten hergestellt werden',
-    name: 'Name',
-    description: 'Beschreibung',
-    url: 'URL',
-    key: 'Taste',
-    successful: 'Knoten hinzugefügt',
-    successful_edit: 'Knoten aktualisiert',
-    removed: 'Knoten entfernt',
-    removed_error: 'Knoten wird verwendet und konnte nicht gelöscht werden'
   },
   notification: {
     close: 'Schließen'
@@ -126,7 +103,6 @@ export const messages_de = {
     published: 'Veröffentlicht',
     source: 'Quelle',
     status: 'Status',
-    node: 'Knoten',
     description: 'Beschreibung',
     in_analyze: 'Im Analysieren',
     url: 'URL',
@@ -181,7 +157,6 @@ export const messages_de = {
   osint_source: {
     add_new: 'Neue OSINT-Quelle hinzufügen',
     edit: 'OSINT-Quelle bearbeiten',
-    node: 'Collectors-Knoten',
     collector: 'Kollektor',
     save: 'Speichern',
     add_btn: 'Neue hinzufügen',
@@ -289,7 +264,6 @@ export const messages_de = {
   publisher_preset: {
     add_new: 'Neue Publisher-Voreinstellung hinzufügen',
     edit: 'Publisher-Voreinstellung bearbeiten',
-    node: 'Publisher-Knoten',
     publisher: 'Herausgeber',
     add: 'Hinzufügen',
     save: 'Speichern',
@@ -311,7 +285,6 @@ export const messages_de = {
   product_type: {
     add_new: 'Neuen Produkttyp hinzufügen',
     edit: 'Neuen Produkttyp bearbeiten',
-    node: 'Presenter-Knoten',
     presenter: 'Moderator',
     add: 'Hinzufügen',
     save: 'Speichern',
@@ -699,54 +672,6 @@ export const messages_de = {
     load_csv_file: 'CSV-Datei laden',
     import: 'Importieren',
     close: 'Schließen'
-  },
-  remote_access: {
-    add_new: 'Neuen Fernzugriff hinzufügen',
-    edit: 'Fernzugriff bearbeiten',
-    add: 'Neue hinzufügen',
-    cancel: 'Stornieren',
-    save: 'Speichern',
-    validation_error: 'Bitte füllen Sie alle geforderten Felder aus',
-    error: 'Dieser Fernzugriff konnte nicht gespeichert werden',
-    name: 'Name',
-    description: 'Beschreibung',
-    access_key: 'Zugangsschlüssel',
-    enabled: 'Ermöglicht',
-    successful: 'Der neue Fernzugriff wurde erfolgreich hinzugefügt',
-    successful_edit: 'Der Fernzugriff wurde erfolgreich aktualisiert',
-    removed: 'Der Fernzugriff wurde erfolgreich entfernt',
-    removed_error:
-      'Der Fernzugriff wird verwendet und konnte nicht gelöscht werden',
-    osint_sources: 'OSINT Quellen zum Teilen',
-    report_item_types: 'Melden Sie zu teilende Elementtypen',
-    total_count: 'Anzahl der Fernzugriffe: '
-  },
-  remote_node: {
-    add_new: 'Neuen Remote-Knoten hinzufügen',
-    edit: 'Remote-Knoten bearbeiten',
-    add: 'Neue hinzufügen',
-    cancel: 'Stornieren',
-    save: 'Speichern',
-    validation_error: 'Bitte füllen Sie alle geforderten Felder aus',
-    error: 'Dieser Remote-Knoten konnte nicht gespeichert werden',
-    name: 'Name',
-    description: 'Beschreibung',
-    remote_url: 'Remote-Knoten-URL',
-    event_url: 'URL der Remote-Ereignisquelle',
-    access_key: 'Zugangsschlüssel',
-    enabled: 'Ermöglicht',
-    connect: 'Mit Remote-Knoten verbinden',
-    connect_error: 'Verbindung zum Remote-Knoten fehlgeschlagen. ',
-    connect_info: 'Erfolgreich mit dem Remote-Knoten verbunden.',
-    sync_news_items: 'Nachrichten synchronisieren',
-    sync_report_items: 'Berichtselemente synchronisieren',
-    osint_source_group: 'Mit OSINT-Quellgruppe synchronisieren',
-    successful: 'Neuer Remote-Knoten wurde erfolgreich hinzugefügt',
-    successful_edit: 'Remote-Knoten wurde erfolgreich aktualisiert',
-    removed: 'Remote-Knoten wurde erfolgreich entfernt',
-    removed_error:
-      'Remote-Knoten wird verwendet und konnte nicht gelöscht werden',
-    total_count: 'Anzahl der Remote-Knoten: '
   },
   drop_zone: {
     default_message:

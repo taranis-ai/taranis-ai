@@ -99,14 +99,6 @@ export default {
         permission: 'CONFIG_WORD_LIST_ACCESS',
         divider: true
       },
-      {
-        icon: 'mdi-server-network',
-        title: 'nav_menu.nodes',
-        route: '/config/nodes',
-        permission: 'CONFIG_NODE_ACCESS',
-        deprecated: true,
-        divider: true
-      },
       { icon: 'mdi-api', title: 'nav_menu.openapi', route: '/config/openapi' }
     ]
   })
