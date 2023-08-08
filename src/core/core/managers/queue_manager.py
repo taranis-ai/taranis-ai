@@ -67,3 +67,9 @@ def gather_word_list(word_list_id: int):
     queue_manager.celery.send_task("worker.tasks.gather_word_list", args=[word_list_id])
     logger.info(f"Gathering for WordList {word_list_id} scheduled")
     return {"message": f"Gathering for WordList {word_list_id} scheduled"}, 200
+
+
+def execute_bot_task(bot_id: int):
+    queue_manager.celery.send_task("worker.tasks.execute_bot", args=[bot_id])
+    logger.info(f"Executing Bot {bot_id} scheduled")
+    return {"message": f"Executing Bot {bot_id} scheduled"}, 200

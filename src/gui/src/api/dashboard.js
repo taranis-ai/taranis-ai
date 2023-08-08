@@ -7,3 +7,7 @@ export function getDashboardData() {
 export function getTrendingClusters() {
   return ApiService.get('/trending-clusters')
 }
+
+export function getCoreBuildDate() {
+  return ApiService.get('/build-date')
+}

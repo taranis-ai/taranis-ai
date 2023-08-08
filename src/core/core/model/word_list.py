@@ -85,6 +85,9 @@ class WordList(BaseModel):
         data["tag"] = "mdi-format-list-bulleted-square"
         return data
 
+    def to_entry_dict(self) -> list[dict[str, Any]]:
+        return [entry.to_entry_dict() for entry in self.entries if entry]
+
     @classmethod
     def update(cls, word_list_id, data) -> tuple[str, int]:
         word_list = cls.get(word_list_id)
@@ -149,3 +152,6 @@ class WordListEntry(BaseModel):
         data.pop("id")
         data.pop("word_list_id")
         return data
+
+    def to_entry_dict(self) -> dict[str, Any]:
+        return {"value": self.value, "category": self.category}

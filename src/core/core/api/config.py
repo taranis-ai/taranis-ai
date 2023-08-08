@@ -334,6 +334,11 @@ class Bots(Resource):
             return "Error updateing", 500
 
 
+class BotExecute(Resource):
+    def post(self, bot_id):
+        return queue_manager.execute_bot_task(bot_id)
+
+
 class Parameters(Resource):
     def get(self):
         return parameter.Parameter.get_all_json()
@@ -588,9 +593,6 @@ def initialize(api: Api):
     namespace.add_resource(ReportItemTypesConfig, "/report-item-types")
     namespace.add_resource(ReportItemType, "/report-item-types/<int:type_id>")
 
-    namespace.add_resource(ProductTypes, "/product-types")
-    namespace.add_resource(ProductType, "/product-types/<int:type_id>")
-
     namespace.add_resource(Permissions, "/permissions")
     namespace.add_resource(Roles, "/roles")
     namespace.add_resource(Role, "/roles/<int:role_id>")
@@ -617,6 +619,7 @@ def initialize(api: Api):
     namespace.add_resource(Workers, "/workers")
     namespace.add_resource(Collectors, "/collectors", "/collectors/<string:collector_type>")
     namespace.add_resource(Bots, "/bots", "/bots/<string:bot_id>")
+    namespace.add_resource(BotExecute, "/bots/<string:bot_id>/execute")
     namespace.add_resource(Parameters, "/parameters")
 
     namespace.add_resource(OSINTSources, "/osint-sources")

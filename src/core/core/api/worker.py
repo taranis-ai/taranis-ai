@@ -119,7 +119,9 @@ class BotInfo(Resource):
     def get(self, bot_id):
         # return Bot.get(bot_id)
         # TODO: This is a hack to get the bot info by it's Type, not ID
-        # depending on how the worker is triggered we might not have the bot ID
+        # depending on how the worker is triggered we might not have the bot I
+        if result := Bot.get(bot_id):
+            return result.to_bot_info_dict(), 200
         if result := Bot.filter_by_type(bot_id):
             return result.to_bot_info_dict(), 200
         return {"error": f"Bot with id {bot_id} not found"}, 404

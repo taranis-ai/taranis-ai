@@ -272,7 +272,7 @@ class OSINTSourceGroup(BaseModel):
 
     def to_word_list_dict(self):
         flat_entry_list = []
-        word_list_entries = [word_list.entries for word_list in self.word_lists if word_list]
+        word_list_entries = [word_list.to_entry_dict() for word_list in self.word_lists if word_list]
         for sublist in word_list_entries:
             flat_entry_list.extend(sublist)
         return flat_entry_list, 200

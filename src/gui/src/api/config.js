@@ -134,6 +134,10 @@ export function updateBot(bot) {
   return ApiService.put(`/config/bots/${bot.id}`, bot)
 }
 
+export function executeBotTask(bot_id) {
+  return ApiService.post(`/config/bots/${bot_id}/execute`)
+}
+
 export function getAllACLEntries(filter_data) {
   const filter = ApiService.getQueryStringFromNestedObject(filter_data)
   return ApiService.get(`/config/acls?${filter}`)

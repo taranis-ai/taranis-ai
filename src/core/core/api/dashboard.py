@@ -1,12 +1,14 @@
 from flask import request
 from flask_jwt_extended import jwt_required
 from flask_restx import Resource, Api
+import datetime
 
 from core.managers.log_manager import logger
 from core.model.news_item import NewsItemData, NewsItemTag, NewsItemAggregate
 from core.model.product import Product
 from core.model.report_item import ReportItem
 from core.model.tag_cloud import TagCloud
+from core.config import Config
 
 
 class Dashboard(Resource):
@@ -66,9 +68,16 @@ class Tagcloud(Resource):
         return TagCloud.get_grouped_words(tag_cloud_day)
 
 
+class BuildDate(Resource):
+    @jwt_required()
+    def get(self):
+        return Config.BUILD_DATE.isoformat()
+
+
 def initialize(api: Api):
     # namespace = Namespace("dashboard", description="Dashboard related operations")
     api.add_resource(Dashboard, "/api/v1/dashboard-data")
     api.add_resource(Tagcloud, "/api/v1/tagcloud")
     api.add_resource(TrendingClusters, "/api/v1/trending-clusters")
     api.add_resource(StoryClusters, "/api/v1/story-clusters")
+    api.add_resource(BuildDate, "/api/v1/build-date")

@@ -86,7 +86,7 @@ class UpdateNewsItemTags(Resource):
     def put(self, aggregate_id):
         if data := request.json:
             return news_item.NewsItemAggregate.update_tags(aggregate_id, data)
-        return {"No data provided"}, 400
+        return {"error": "No data provided"}, 400
 
 
 class UpdateNewsItemsAggregateSummary(Resource):

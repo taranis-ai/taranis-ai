@@ -10,6 +10,7 @@ bots = {
     "GROUPING_BOT": worker.bots.GroupingBot(),
     "NLP_BOT": worker.bots.NLPBot(),
     "TAGGING_BOT": worker.bots.TaggingBot(),
+    "WORDLIST_BOT": worker.bots.WordlistBot(),
     "WORDLIST_UPDATER_BOT": worker.bots.WordlistUpdaterBot(),
 }
 
@@ -64,7 +65,8 @@ def execute_bot(bot_id: str, filter: dict | None = None):
         logger.error(f"Bot with id {bot_id} has no params")
         return
 
-    bot_params |= filter
+    if filter:
+        bot_params |= filter
     return bot.execute(bot_params)
 
 

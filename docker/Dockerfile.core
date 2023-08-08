@@ -43,6 +43,7 @@ ENV PYTHONPATH=/app
 ENV APP_MODULE run:app
 ENV GUNICORN_CMD_ARGS --timeout 120
 ENV WORKERS_PER_CORE 4
+RUN echo BUILD_DATE=$(date --iso-8601=minutes) > .env
 
 VOLUME ["/data"]
 

@@ -74,4 +74,5 @@ class BaseCollector:
             news_items = self.filter_by_word_list(news_items, source)
         self.core_api.add_news_items(news_items)
         self.core_api.update_osintsource_status(source["id"], None)
+        execute_bot.delay("WORDLIST_BOT", {"SOURCE": source["id"]})  # type: ignore
         execute_bot.delay("NLP_BOT", {"SOURCE": source["id"]})  # type: ignore

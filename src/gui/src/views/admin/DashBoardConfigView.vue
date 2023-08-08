@@ -39,17 +39,20 @@
           </span>
         </template>
       </dash-board-card>
-      <dash-board-card link-to="/config/nodes" link-text="Nodes">
+      <dash-board-card link-to="/config/workers" link-text="Workers">
         <template #content>
           <v-icon class="mr-2" color="green">
             mdi-lightbulb-off-outline
           </v-icon>
-          <span class="caption">Collectors are pending</span>
+          <span class="caption"
+            >Tasks are scheduled
+            <b>{{ schedule_length }}</b>
+          </span>
           <v-divider inset></v-divider>
 
           <v-icon class="mr-2"> mdi-clock-check-outline </v-icon>
           <span class="caption"
-            >Last successful run ended at
+            >Last successful run
             <b>{{ dashboard_data.latest_collected }}</b></span
           >
         </template>
@@ -67,16 +70,35 @@
           <span class="caption">There are <b>0</b> archived items.</span>
         </template>
       </dash-board-card>
+      <dash-board-card link-to="#" link-text="Build Info" cols="12">
+        <template #content>
+          <v-row no-gutters>
+            <v-col cols="2"> Core Build Time </v-col>
+            <v-col cols="8" offset="1">
+              <b>{{ d(coreBuildDate, 'long') }}</b>
+            </v-col>
+            <v-divider inset></v-divider>
+            <v-col cols="2"> GUI Build Time </v-col>
+            <v-col cols="8" offset="1">
+              <b>{{ d(buildDate, 'long') }}</b>
+            </v-col>
+          </v-row>
+        </template>
+      </dash-board-card>
     </v-row>
   </v-container>
 </template>
 
 <script>
-import { onMounted } from 'vue'
+import { onMounted, ref, computed } from 'vue'
 import { useDashboardStore } from '@/stores/DashboardStore'
 import { useMainStore } from '@/stores/MainStore'
-import DashBoardCard from '@/components/common/DashBoardCard.vue'
+import { useConfigStore } from '@/stores/ConfigStore'
 import { storeToRefs } from 'pinia'
+import { useI18n } from 'vue-i18n'
+import { getCoreBuildDate } from '@/api/dashboard'
+import { notifyFailure } from '@/utils/helpers'
+import DashBoardCard from '@/components/common/DashBoardCard.vue'
 
 export default {
   name: 'DashBoardConfig',
@@ -84,16 +106,38 @@ export default {
   setup() {
     const mainStore = useMainStore()
     const dashboardStore = useDashboardStore()
+    const configStore = useConfigStore()
+    const { d } = useI18n()
 
+    mainStore.updateFromLocalConfig()
+
+    const { buildDate } = storeToRefs(mainStore)
     const { dashboard_data } = storeToRefs(dashboardStore)
+    const schedule_length = computed(() => configStore.schedule.length ?? 0)
+
+    const coreBuildDate = ref(new Date().toISOString())
+
+    getCoreBuildDate().then(
+      (response) => {
+        coreBuildDate.value = response.data
+      },
+      (error) => {
+        notifyFailure(error)
+      }
+    )
 
     onMounted(() => {
       dashboardStore.loadDashboardData()
+      configStore.loadSchedule()
       mainStore.resetItemCount()
     })
 
     return {
-      dashboard_data
+      coreBuildDate,
+      dashboard_data,
+      buildDate,
+      schedule_length,
+      d
     }
   }
 }

@@ -1,6 +1,7 @@
 from pydantic import model_validator
 from pydantic_settings import BaseSettings
 from typing import Any, Literal
+from datetime import datetime
 
 
 class Settings(BaseSettings):
@@ -26,6 +27,7 @@ class Settings(BaseSettings):
     SQLALCHEMY_DATABASE_URI: str | None = None
     COLORED_LOGS: bool = True
     OpenAPI: str = "static/"
+    BUILD_DATE: datetime = datetime.now()
 
     @model_validator(mode="after")
     def set_sqlalchemy_uri(self) -> "Settings":
