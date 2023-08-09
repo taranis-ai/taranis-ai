@@ -95,8 +95,7 @@ export default {
       {
         name: 'link',
         label: 'Link',
-        type: 'text',
-        rules: [(v) => !!v || 'Required']
+        type: 'text'
       },
       {
         name: 'use_for_stop_words',

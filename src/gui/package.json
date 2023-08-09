@@ -15,6 +15,8 @@
   "dependencies": {
     "@intlify/unplugin-vue-i18n": "^0.12.2",
     "@mdi/font": "^7.2.96",
+    "@sentry/vue": "^7.61.1",
+    "@vueup/vue-quill": "^1.2.0",
     "axios": "^1.4.0",
     "js-base64": "^3.7.5",
     "pinia": "^2.1.6",
@@ -27,7 +29,6 @@
     "vue-router": "^4.2.4",
     "vue-shortkey": "^3.1.7",
     "vue2-dropzone-vue3": "^1.1.0",
-    "@vueup/vue-quill": "^1.2.0",
     "vuetify": "^3.3.11"
   },
   "devDependencies": {

@@ -123,7 +123,8 @@ services:
     environment:
       NGINX_WORKERS: "4"
       NGINX_CONNECTIONS: "16"
-      VITE_TARANIS_NG_URL: "${TARANIS_NG_HTTPS_URI:-taranis}"
+      TARANIS_NG_CORE_UPSTREAM: "${TARANIS_NG_CORE_UPSTREAM:-core}"
+      TARANIS_NG_SENTRY_DSN: "${TARANIS_NG_SENTRY_DSN:-}"
     logging:
       driver: "json-file"
       options:

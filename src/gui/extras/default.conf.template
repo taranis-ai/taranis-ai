@@ -1,5 +1,5 @@
 upstream core {
-  server core;
+  server ${TARANIS_NG_CORE_UPSTREAM};
 }
 
 

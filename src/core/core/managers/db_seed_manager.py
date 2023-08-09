@@ -1057,7 +1057,6 @@ def pre_seed_wordlists():
                 "name": "Default EN stop list",
                 "description": "English stop-word list packed with the standard Taranis NG installation.",
                 "link": "https://raw.githubusercontent.com/SK-CERT/Taranis-NG/main/resources/wordlists/en_complete.csv",
-                "use_for_stop_words": True,
             }
         )
 
@@ -1067,7 +1066,6 @@ def pre_seed_wordlists():
                 "name": "Default SK stop list",
                 "description": "Slovak stop-word list packed with the standard Taranis NG installation.",
                 "link": "https://raw.githubusercontent.com/SK-CERT/Taranis-NG/main/resources/wordlists/sk_complete.csv",
-                "use_for_stop_words": True,
             }
         )
 
@@ -1077,7 +1075,6 @@ def pre_seed_wordlists():
                 "name": "Default highlighting wordlist",
                 "description": "Default highlighting list packed with the standard Taranis NG installation.",
                 "link": "https://raw.githubusercontent.com/SK-CERT/Taranis-NG/main/resources/wordlists/highlighting.csv",
-                "use_for_stop_words": True,
             }
         )
 

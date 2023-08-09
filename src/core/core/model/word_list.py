@@ -1,33 +1,49 @@
+import json
 import sqlalchemy
 from typing import Any
-from sqlalchemy import func, or_, and_
+from enum import IntEnum
+from sqlalchemy import or_, and_
 from sqlalchemy.sql.expression import cast
-from collections import defaultdict
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.model.acl_entry import ACLEntry, ItemType
 
 
+class WordListUsage(IntEnum):
+    COLLECTOR_WHITELIST = 1  # 2^0
+    COLLECTOR_BLACKLIST = 2  # 2^1
+    TAGGING_BOT = 4  # 2^2
+
+
 class WordList(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(), nullable=False)
     description = db.Column(db.String(), default=None)
-    use_for_stop_words = db.Column(db.Boolean, default=False)
+    usage = db.Column(db.Integer, default=0)
     link = db.Column(db.String(), nullable=True, default=None)
     entries = db.relationship("WordListEntry", cascade="all, delete-orphan")
 
-    def __init__(self, name, description=None, use_for_stop_words=False, link=None, entries=None, id=None):
+    def __init__(self, name, description=None, usage=0, link=None, entries=None, id=None):
         self.id = id
         self.name = name
         self.description = description
-        self.use_for_stop_words = use_for_stop_words
+        self.usage = usage
         self.link = link
         self.entries = [WordListEntry.get(entry) for entry in entries] if entries else []
 
     @classmethod
     def find_by_name(cls, name):
         return cls.query.filter_by(name=name).first()
+
+    def add_usage(self, usage_type):
+        self.usage |= usage_type
+
+    def remove_usage(self, usage_type):
+        self.usage &= ~usage_type
+
+    def has_usage(self, usage_type):
+        return (self.usage & usage_type) == usage_type
 
     @classmethod
     def allowed_with_acl(cls, word_list_id, user, see, access, modify):
@@ -85,6 +101,15 @@ class WordList(BaseModel):
         data["tag"] = "mdi-format-list-bulleted-square"
         return data
 
+    def to_export_dict(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "description": self.description,
+            "use_for_stop_words": self.use_for_stop_words,
+            "link": self.link,
+            "entries": [entry.to_word_list_dict() for entry in self.entries if entry],
+        }
+
     def to_entry_dict(self) -> list[dict[str, Any]]:
         return [entry.to_entry_dict() for entry in self.entries if entry]
 
@@ -99,6 +124,25 @@ class WordList(BaseModel):
                 setattr(word_list, key, value)
         db.session.commit()
         return "Word list updated", 200
+
+    @classmethod
+    def export(cls, source_ids=None):
+        if source_ids:
+            data = cls.query.filter(cls.id.in_(source_ids)).all()  # type: ignore
+        else:
+            data = cls.get_all()
+        export_data = {"version": 1, "data": [word_list.to_export_dict() for word_list in data]}
+        return json.dumps(export_data).encode("utf-8")
+
+    @classmethod
+    def import_word_lists(cls, file):
+        file_data = file.read()
+        json_data = json.loads(file_data.decode("utf8"))
+        if json_data["version"] == 1:
+            data = json_data["data"]
+        else:
+            raise ValueError("Unsupported version")
+        return cls.add_multiple(data)
 
 
 class WordListEntry(BaseModel):

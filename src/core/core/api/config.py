@@ -301,13 +301,22 @@ class WordList(Resource):
 class WordListImport(Resource):
     @auth_required("CONFIG_WORD_LIST_UPDATE")
     def put(self, word_list_id):
-        word_list.WordList.update(word_list_id, request.json)
+        word_list.WordList.import_word_list(word_list_id, request.json)
 
 
 class WordListExport(Resource):
     @auth_required("CONFIG_WORD_LIST_UPDATE")
-    def put(self, word_list_id):
-        word_list.WordList.update(word_list_id, request.json)
+    def get(self):
+        source_ids = request.args.getlist("ids")
+        data = word_list.WordList.export(source_ids)
+        if data is None:
+            return "Unable to export", 400
+        return send_file(
+            io.BytesIO(data),
+            download_name="word_list_export.json",
+            mimetype="application/json",
+            as_attachment=True,
+        )
 
 
 class WordListGather(Resource):
@@ -480,45 +489,6 @@ class Publishers(Resource):
         return publisher.Publisher.get_all_json(search)
 
 
-class PresentersNodes(Resource):
-    @auth_required("CONFIG_PRESENTERS_NODE_ACCESS")
-    def get(self):
-        search = request.args.get(key="search", default=None)
-        return presenters_node.PresentersNode.get_all_json(search)
-
-    @auth_required("CONFIG_PRESENTERS_NODE_CREATE")
-    def post(self):
-        presenter = presenters_node.PresentersNode.add(request.json)
-        return {"id": presenter.id, "message": "Presenters node created successfully"}, 200
-
-    @auth_required("CONFIG_PRESENTERS_NODE_UPDATE")
-    def put(self, node_id):
-        presenters_manager.update_presenters_node(node_id, request.json)
-
-    @auth_required("CONFIG_PRESENTERS_NODE_DELETE")
-    def delete(self, node_id):
-        return presenters_node.PresentersNode.delete(node_id)
-
-
-class PublisherNodes(Resource):
-    @auth_required("CONFIG_PUBLISHERS_NODE_ACCESS")
-    def get(self):
-        search = request.args.get(key="search", default=None)
-        return publishers_node.PublishersNode.get_all_json(search)
-
-    @auth_required("CONFIG_PUBLISHERS_NODE_CREATE")
-    def post(self):
-        return publishers_manager.add_publishers_node(request.json)
-
-    @auth_required("CONFIG_PUBLISHERS_NODE_UPDATE")
-    def put(self, node_id):
-        publishers_manager.update_publishers_node(node_id, request.json)
-
-    @auth_required("CONFIG_PUBLISHERS_NODE_DELETE")
-    def delete(self, node_id):
-        return publishers_node.PublishersNode.delete(node_id)
-
-
 class PublisherPresets(Resource):
     @auth_required("CONFIG_PUBLISHER_PRESET_ACCESS")
     def get(self):
@@ -578,67 +548,52 @@ class BotNodes(Resource):
 
 def initialize(api: Api):
     namespace = Namespace("config", description="Configuration operations", path="/api/v1/config")
-    namespace.add_resource(
-        DictionariesReload,
-        "/reload-enum-dictionaries/<string:dictionary_type>",
-    )
-    namespace.add_resource(Attributes, "/attributes")
-    namespace.add_resource(Attribute, "/attributes/<int:attribute_id>")
-    namespace.add_resource(AttributeEnums, "/attributes/<int:attribute_id>/enums")
-    namespace.add_resource(
-        AttributeEnum,
-        "/attributes/<int:attribute_id>/enums/<int:enum_id>",
-    )
 
-    namespace.add_resource(ReportItemTypesConfig, "/report-item-types")
-    namespace.add_resource(ReportItemType, "/report-item-types/<int:type_id>")
-
-    namespace.add_resource(Permissions, "/permissions")
-    namespace.add_resource(Roles, "/roles")
-    namespace.add_resource(Role, "/roles/<int:role_id>")
     namespace.add_resource(ACLEntries, "/acls")
     namespace.add_resource(ACLEntry, "/acls/<int:acl_id>")
-
-    namespace.add_resource(Organizations, "/organizations")
-    namespace.add_resource(Organization, "/organizations/<int:organization_id>")
-
-    namespace.add_resource(Users, "/users")
-    namespace.add_resource(User, "/users/<int:user_id>")
-
-    namespace.add_resource(ExternalUsers, "/external-users")
-    namespace.add_resource(ExternalUser, "/external-users/<int:user_id>")
-
-    namespace.add_resource(WordLists, "/word-lists")
-    namespace.add_resource(WordList, "/word-lists/<int:word_list_id>")
-    namespace.add_resource(WordListImport, "/import-word-list")
-    namespace.add_resource(WordListExport, "/export-word-list")
-    namespace.add_resource(WordListGather, "/gather-word-list-entries/<int:word_list_id>")
-
-    namespace.add_resource(RefreshWorkers, "/workers/refresh")
-    namespace.add_resource(QueueSchedule, "/workers/schedule")
-    namespace.add_resource(Workers, "/workers")
-    namespace.add_resource(Collectors, "/collectors", "/collectors/<string:collector_type>")
-    namespace.add_resource(Bots, "/bots", "/bots/<string:bot_id>")
+    namespace.add_resource(Attribute, "/attributes/<int:attribute_id>")
+    namespace.add_resource(Attributes, "/attributes")
+    namespace.add_resource(AttributeEnum, "/attributes/<int:attribute_id>/enums/<int:enum_id>")
+    namespace.add_resource(AttributeEnums, "/attributes/<int:attribute_id>/enums")
     namespace.add_resource(BotExecute, "/bots/<string:bot_id>/execute")
-    namespace.add_resource(Parameters, "/parameters")
-
-    namespace.add_resource(OSINTSources, "/osint-sources")
+    namespace.add_resource(Bots, "/bots", "/bots/<string:bot_id>")
+    namespace.add_resource(BotNodes, "/bots-nodes", "/bots-nodes/<string:node_id>")
+    namespace.add_resource(Collectors, "/collectors", "/collectors/<string:collector_type>")
+    namespace.add_resource(DictionariesReload, "/reload-enum-dictionaries/<string:dictionary_type>")
+    namespace.add_resource(ExternalUser, "/external-users/<int:user_id>")
+    namespace.add_resource(ExternalUsers, "/external-users")
+    namespace.add_resource(Nodes, "/nodes", "/nodes/<string:node_id>")
+    namespace.add_resource(Organization, "/organizations/<int:organization_id>")
+    namespace.add_resource(Organizations, "/organizations")
     namespace.add_resource(OSINTSource, "/osint-sources/<string:source_id>")
-    namespace.add_resource(OSINTSourceCollectAll, "/osint-sources/collect")
+    namespace.add_resource(OSINTSources, "/osint-sources")
     namespace.add_resource(OSINTSourceCollect, "/osint-sources/<string:source_id>/collect")
+    namespace.add_resource(OSINTSourceCollectAll, "/osint-sources/collect")
+    namespace.add_resource(OSINTSourceGroup, "/osint-source-groups/<string:group_id>")
+    namespace.add_resource(OSINTSourceGroups, "/osint-source-groups")
     namespace.add_resource(OSINTSourcesExport, "/export-osint-sources")
     namespace.add_resource(OSINTSourcesImport, "/import-osint-sources")
-    namespace.add_resource(OSINTSourceGroups, "/osint-source-groups")
-    namespace.add_resource(OSINTSourceGroup, "/osint-source-groups/<string:group_id>")
-
+    namespace.add_resource(Parameters, "/parameters")
+    namespace.add_resource(Permissions, "/permissions")
     namespace.add_resource(Presenters, "/presenters")
-    namespace.add_resource(Publishers, "/publishers")
-    namespace.add_resource(PresentersNodes, "/presenters-nodes", "/presenters-nodes/<string:node_id>")
-    namespace.add_resource(PublisherNodes, "/publishers-nodes", "/publishers-nodes/<string:node_id>")
-    namespace.add_resource(PublisherPresets, "/publishers-presets")
+    namespace.add_resource(ProductType, "/product-types/<int:type_id>")
+    namespace.add_resource(ProductTypes, "/product-types")
     namespace.add_resource(PublisherPreset, "/publishers-presets/<string:preset_id>")
+    namespace.add_resource(PublisherPresets, "/publishers-presets")
+    namespace.add_resource(Publishers, "/publishers")
+    namespace.add_resource(QueueSchedule, "/workers/schedule")
+    namespace.add_resource(RefreshWorkers, "/workers/refresh")
+    namespace.add_resource(ReportItemType, "/report-item-types/<int:type_id>")
+    namespace.add_resource(ReportItemTypesConfig, "/report-item-types")
+    namespace.add_resource(Role, "/roles/<int:role_id>")
+    namespace.add_resource(Roles, "/roles")
+    namespace.add_resource(User, "/users/<int:user_id>")
+    namespace.add_resource(Users, "/users")
+    namespace.add_resource(WordList, "/word-lists/<int:word_list_id>")
+    namespace.add_resource(WordListExport, "/export-word-lists")
+    namespace.add_resource(WordListGather, "/gather-word-list-entries/<int:word_list_id>")
+    namespace.add_resource(WordListImport, "/import-word-lists")
+    namespace.add_resource(WordLists, "/word-lists")
+    namespace.add_resource(Workers, "/workers")
 
-    namespace.add_resource(BotNodes, "/bots-nodes", "/bots-nodes/<string:node_id>")
-
-    namespace.add_resource(Nodes, "/nodes", "/nodes/<string:node_id>")
     api.add_namespace(namespace)

@@ -9,19 +9,11 @@ import { vuetify } from '@/plugins/vuetify'
 import { createPinia } from 'pinia'
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 import 'vue-datepicker-next/index.css'
+import * as Sentry from '@sentry/vue'
 
 export const app = createApp(App)
 app.use(DatePicker)
-
 app.use(i18n)
-
-const coreAPIURL =
-  typeof import.meta.env.VITE_TARANIS_NG_CORE_API === 'undefined'
-    ? '/api'
-    : import.meta.env.VITE_TARANIS_NG_CORE_API
-
-ApiService.init(coreAPIURL)
-app.provide('$coreAPIURL', coreAPIURL)
 
 const pinia = createPinia()
 pinia.use(piniaPluginPersistedstate)
@@ -29,4 +21,28 @@ pinia.use(piniaPluginPersistedstate)
 app.use(router)
 app.use(pinia)
 app.use(vuetify)
+
+import { useMainStore } from './stores/MainStore'
+const mainStore = useMainStore()
+const { coreAPIURL, sentryDSN } = mainStore
+
+ApiService.init(coreAPIURL)
+app.provide('$coreAPIURL', coreAPIURL)
+
+if (sentryDSN) {
+  Sentry.init({
+    app,
+    dsn: sentryDSN,
+    autoSessionTracking: true,
+    integrations: [
+      new Sentry.BrowserTracing({
+        routingInstrumentation: Sentry.vueRouterInstrumentation(router)
+      }),
+      new Sentry.Replay()
+    ],
+    environment: import.meta.env.DEV ? 'development' : 'production',
+    tracesSampleRate: 1.0
+  })
+}
+
 app.mount('#app')
