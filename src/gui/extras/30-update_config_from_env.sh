@@ -22,7 +22,12 @@ sub add_to_json {
     if ($content =~ /"$key"/) {
         $content =~ s/("$key"\s*:\s*)".*?"/$1"$value"/;
     } else {
-        $content =~ s/}\s*$/,"$key":"$value"}/;
+        # Check if the content ends with "}" after optional spaces or newlines
+        if ($content =~ m/}\s*$/) {
+            $content =~ s/}\s*$/,\n  "$key":"$value"\n}/;
+        } else {
+            $content .= "{\n  \"$key\":\"$value\"\n}\n";
+        }
     }
 
     # Write the modified content back to the file

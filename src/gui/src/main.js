@@ -26,6 +26,7 @@ import { useMainStore } from './stores/MainStore'
 const mainStore = useMainStore()
 const { coreAPIURL, sentryDSN } = mainStore
 
+console.log('coreAPIURL', coreAPIURL)
 ApiService.init(coreAPIURL)
 app.provide('$coreAPIURL', coreAPIURL)
 
@@ -43,6 +44,9 @@ if (sentryDSN) {
     environment: import.meta.env.DEV ? 'development' : 'production',
     tracesSampleRate: 1.0
   })
+  console.log('Sentry set up')
+} else {
+  console.warn('Sentry DSN not set')
 }
 
 app.mount('#app')

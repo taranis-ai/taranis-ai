@@ -53,7 +53,7 @@
 <script>
 import { useAuthStore } from '@/stores/AuthStore'
 import { useSettingsStore } from '@/stores/SettingsStore'
-import { defineComponent, ref, computed, inject, onMounted } from 'vue'
+import { defineComponent, ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 
@@ -64,10 +64,8 @@ export default defineComponent({
     const username = ref('')
     const password = ref('')
     const login_error = ref(undefined)
-    const coreAPIURL = inject('$coreAPIURL')
     const router = useRouter()
     const authStore = useAuthStore()
-    console.debug('coreAPIURL', coreAPIURL)
 
     const acceptPassword = computed(() =>
       password.value.length > 0 ? true : 'Please enter a password'

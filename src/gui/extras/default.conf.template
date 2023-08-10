@@ -2,7 +2,6 @@ upstream core {
   server ${TARANIS_NG_CORE_UPSTREAM};
 }
 
-
 server {
     listen       80;
     server_name  _;
@@ -21,6 +20,8 @@ server {
         try_files $uri /index.html =404;
     }
 
+    proxy_set_header Host ${TARANIS_NG_CORE_UPSTREAM};
+
     location /api {
         proxy_pass http://core/api/v1;
     }
@@ -30,7 +31,7 @@ server {
     }
 
     location /sse {
-        proxy_pass http://core/api/v1;
+        proxy_pass http://core/sse;
     }
 
     error_page   500 502 503 504  /50x.html;
