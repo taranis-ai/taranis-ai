@@ -23,8 +23,7 @@
         </v-tooltip>
       </template>
     </DataTable>
-    // TODO: https://github.com/SortableJS/vue.draggable.next for reordering
-    bots
+    <!-- // TODO: https://github.com/SortableJS/vue.draggable.next for reordering -->
     <EditConfig
       v-if="formData && Object.keys(formData).length > 0"
       :config-data="formData"

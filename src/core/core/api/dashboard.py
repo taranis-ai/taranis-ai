@@ -68,10 +68,13 @@ class Tagcloud(Resource):
         return TagCloud.get_grouped_words(tag_cloud_day)
 
 
-class BuildDate(Resource):
+class BuildInfo(Resource):
     @jwt_required()
     def get(self):
-        return Config.BUILD_DATE.isoformat()
+        result = {"build_date": Config.BUILD_DATE.isoformat()}
+        if Config.GIT_INFO:
+            result |= Config.GIT_INFO
+        return result
 
 
 def initialize(api: Api):
@@ -80,4 +83,4 @@ def initialize(api: Api):
     api.add_resource(Tagcloud, "/api/v1/tagcloud")
     api.add_resource(TrendingClusters, "/api/v1/trending-clusters")
     api.add_resource(StoryClusters, "/api/v1/story-clusters")
-    api.add_resource(BuildDate, "/api/v1/build-date")
+    api.add_resource(BuildInfo, "/api/v1/build-info")

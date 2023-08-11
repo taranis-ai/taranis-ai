@@ -74,13 +74,19 @@
         <template #content>
           <v-row no-gutters>
             <v-col cols="2"> Core Build Time </v-col>
-            <v-col cols="8" offset="1">
+            <v-col cols="2" offset="1">
               <b>{{ d(coreBuildDate, 'long') }}</b>
+            </v-col>
+            <v-col cols="2" offset="1">
+              <b>{{ coreGitInfo }}</b>
             </v-col>
             <v-divider inset></v-divider>
             <v-col cols="2"> GUI Build Time </v-col>
-            <v-col cols="8" offset="1">
+            <v-col cols="2" offset="1">
               <b>{{ d(buildDate, 'long') }}</b>
+            </v-col>
+            <v-col cols="2" offset="1">
+              <b>{{ gitInfo }}</b>
             </v-col>
           </v-row>
         </template>
@@ -96,7 +102,7 @@ import { useMainStore } from '@/stores/MainStore'
 import { useConfigStore } from '@/stores/ConfigStore'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
-import { getCoreBuildDate } from '@/api/dashboard'
+import { getCoreBuildInfo } from '@/api/dashboard'
 import { notifyFailure } from '@/utils/helpers'
 import DashBoardCard from '@/components/common/DashBoardCard.vue'
 
@@ -111,15 +117,17 @@ export default {
 
     mainStore.updateFromLocalConfig()
 
-    const { buildDate } = storeToRefs(mainStore)
+    const { buildDate, gitInfo } = storeToRefs(mainStore)
     const { dashboard_data } = storeToRefs(dashboardStore)
     const schedule_length = computed(() => configStore.schedule.length ?? 0)
 
     const coreBuildDate = ref(new Date().toISOString())
+    const coreGitInfo = ref('')
 
-    getCoreBuildDate().then(
+    getCoreBuildInfo().then(
       (response) => {
-        coreBuildDate.value = response.data
+        coreBuildDate.value = response.data.build_date
+        coreGitInfo.value = response.data.git_info
       },
       (error) => {
         notifyFailure(error)
@@ -134,8 +142,10 @@ export default {
 
     return {
       coreBuildDate,
+      coreGitInfo,
       dashboard_data,
       buildDate,
+      gitInfo,
       schedule_length,
       d
     }

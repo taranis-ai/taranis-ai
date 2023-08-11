@@ -6,6 +6,8 @@ WORKDIR /app
 COPY ./src/gui/package*.json ./
 RUN npm ci
 COPY ./src/gui/ /app/
+ARG git_info
+ENV GIT_INFO=$git_info
 
 ENV NODE_OPTIONS=--openssl-legacy-provider
 RUN npm run build

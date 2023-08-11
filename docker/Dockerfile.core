@@ -30,7 +30,8 @@ RUN apt-get update && apt-get upgrade -y && apt-get install --no-install-recomme
 USER user
 COPY --from=builder --chown=user:user /app/.venv /app/.venv
 
-COPY --chown=user:user ./docker/entrypoint.sh /entrypoint.sh
+
+COPY --chown=user:user ./docker/entrypoint.sh /
 RUN chmod +x /entrypoint.sh
 COPY --chown=user:user ./docker/gunicorn_conf.py /gunicorn_conf.py
 COPY --chown=user:user ./src/core/. /app/
@@ -43,6 +44,8 @@ ENV PYTHONPATH=/app
 ENV APP_MODULE run:app
 ENV GUNICORN_CMD_ARGS --timeout 120
 ENV WORKERS_PER_CORE 4
+ARG git_info
+ENV GIT_INFO=$git_info
 RUN echo BUILD_DATE=$(date --iso-8601=minutes) > .env
 
 VOLUME ["/data"]

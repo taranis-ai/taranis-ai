@@ -24,6 +24,7 @@ app.use(vuetify)
 
 import { useMainStore } from './stores/MainStore'
 const mainStore = useMainStore()
+mainStore.updateFromLocalConfig()
 const { coreAPIURL, sentryDSN } = mainStore
 
 console.log('coreAPIURL', coreAPIURL)

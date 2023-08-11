@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     COLORED_LOGS: bool = True
     OpenAPI: str = "static/"
     BUILD_DATE: datetime = datetime.now()
+    GIT_INFO: dict[str, str] | None = None
 
     @model_validator(mode="after")
     def set_sqlalchemy_uri(self) -> "Settings":

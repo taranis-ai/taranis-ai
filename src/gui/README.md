@@ -22,11 +22,24 @@ You can run the GUI on the local machine, and edit it with your favorite IDE or 
 # env variables
 env variables can be adapted in .env file
 
+
+to run the applicaiton locally add `VITE_TARANIS_NG_CONFIG_JSON = "/config.json.local"`  to .env file and add a `/config.json.local` file in the public folder. This can look like:
+
+```
+
+{
+"TARANIS_NG_CORE_API": "http://localhost:5000/api/v1"
+}
+
+```
+
+
+
 # map taranis
 Add `127.0.0.1   taranis` to your local `/etc/hosts` file
 
 # run the development server
-npm run serve
+npm run dev
 ```
 
 ### Building the static version

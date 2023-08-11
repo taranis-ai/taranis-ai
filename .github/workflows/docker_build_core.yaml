@@ -58,21 +58,23 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           password: ${{ secrets.PYPI_API_TOKEN_CORE }}
-          packages_dir: src/core/dist/
+          packages-dir: src/core/dist/
 
   build_docker:
     name: build docker
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v3
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v2
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: get ghcr owner repository
+      - name: set build env
         run: |
           echo "GHCR_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >>${GITHUB_ENV}
+          echo "GIT_INFO=$(./docker/git_info.sh)" >>${GITHUB_ENV}
       - name: Build and push core
         uses: docker/build-push-action@v4
         with:
@@ -80,3 +82,5 @@ jobs:
           push: true
           tags: |
             ghcr.io/${{ env.GHCR_OWNER }}/taranis-ng-core:${{ github.ref_name }}
+          build-args: |
+            git_info=${{ env.GIT_INFO }}
