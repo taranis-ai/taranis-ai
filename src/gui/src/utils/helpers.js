@@ -189,3 +189,10 @@ export function parseWordListEntries(entries) {
 
   return output
 }
+
+export function getMessageFromError(error) {
+  if (error.response && error.response.data && error.response.data.error) {
+    return error.response.data.error
+  }
+  return error.message
+}

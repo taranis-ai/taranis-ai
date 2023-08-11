@@ -44,9 +44,9 @@ if (sentryDSN) {
     environment: import.meta.env.DEV ? 'development' : 'production',
     tracesSampleRate: 1.0
   })
-  console.log('Sentry set up')
+  console.debug('Sentry set up')
 } else {
-  console.warn('Sentry DSN not set')
+  console.debug('Sentry DSN not set')
 }
 
 app.mount('#app')

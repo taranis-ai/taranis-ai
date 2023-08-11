@@ -52,6 +52,12 @@ export default {
         icon: 'mdi-robot',
         title: 'nav_menu.bots',
         route: '/config/bots',
+        permission: 'CONFIG_NODE_ACCESS'
+      },
+      {
+        icon: 'mdi-arrow-collapse-all',
+        title: 'nav_menu.collectors',
+        route: '/config/collectors',
         permission: 'CONFIG_NODE_ACCESS',
         divider: true
       },

@@ -1,39 +1,42 @@
 <template>
-  <div>
-    <DataTable
-      :items="workers"
-      :add-button="false"
-      :header-filter="['name', 'status']"
-    >
-      <template #titlebar>
-        <v-col cols="12" class="mt-3">
-          <h1>Workers</h1>
-        </v-col>
-      </template>
-    </DataTable>
-
-    <DataTable
-      :items="schedule"
-      :add-button="false"
-      :header-filter="[
-        'task',
-        'schedule',
-        'args',
-        'last_run_at',
-        'next_run_time',
-        'total_run_count'
-      ]"
-      :action-column="true"
-      @delete-item="deleteItem"
-      @selection-change="selectionChange"
-    >
-      <template #titlebar>
-        <v-col cols="12" class="mt-3">
-          <h1>Schedule</h1>
-        </v-col>
-      </template>
-    </DataTable>
-  </div>
+  <v-container fluid>
+    <v-row>
+      <DataTable
+        :items="workers"
+        :add-button="false"
+        :header-filter="['name', 'status']"
+      >
+        <template #titlebar>
+          <v-col cols="12" class="mt-3">
+            <h1>Workers</h1>
+          </v-col>
+        </template>
+      </DataTable>
+    </v-row>
+    <v-row class="mt-5">
+      <DataTable
+        :items="schedule"
+        :add-button="false"
+        :header-filter="[
+          'task',
+          'schedule',
+          'args',
+          'last_run_at',
+          'next_run_time',
+          'total_run_count'
+        ]"
+        :action-column="true"
+        @delete-item="deleteItem"
+        @selection-change="selectionChange"
+      >
+        <template #titlebar>
+          <v-col cols="12" class="mt-3">
+            <h1>Schedule</h1>
+          </v-col>
+        </template>
+      </DataTable>
+    </v-row>
+  </v-container>
 </template>
 
 <script>
@@ -57,8 +60,7 @@ export default {
     const { schedule, workers } = storeToRefs(configStore)
 
     const updateData = () => {
-      configStore.loadWorkers()
-      configStore.loadSchedule()
+      Promise.all([configStore.loadSchedule(), configStore.loadWorkers()])
     }
 
     const deleteItem = () => {

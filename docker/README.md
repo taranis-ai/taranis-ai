@@ -67,18 +67,6 @@ docker-compose -f docker/docker-compose.yml pull
 docker-compose -f docker/docker-compose.yml up --no-build
 ```
 
-or, alternatively, build and run the containers with:
-
-```bash
-TARANIS_NG_TAG=build docker-compose -f docker/docker-compose.yml up --build
-```
-
-**Voila, Taranis NG is up and running. Visit your instance by navigating to
-[https://localhost:4443/](https://localhost:4443/) using your web browser**.
-
-Your Taranis NG instance now needs to be configured.  Continue
-[here](https://github.com/SK-CERT/Taranis-NG#connecting-to-collectors-presenters-and-publishers).
-
 **The default credentials are `user` / `user` and `admin` / `admin`.**
 
 
@@ -89,35 +77,29 @@ Your Taranis NG instance now needs to be configured.  Continue
 To build the Docker images individually, you need to clone the source code repository.
 
 ```bash
-git clone https://github.com/SK-CERT/Taranis-NG.git
+git clone https://github.com/ait-cs-IaaS/Taranis-NG.git
 ```
 
 Afterwards go to the cloned repository and launch the `docker build` command for the specific container image, like so:
 
 ```bash
 cd Taranis-NG
-docker build -t taranis-ng-bots . -f ./docker/Dockerfile.bots
-docker build -t taranis-ng-collectors . -f ./docker/Dockerfile.collectors
 docker build -t taranis-ng-core . -f ./docker/Dockerfile.core
 docker build -t taranis-ng-gui . -f ./docker/Dockerfile.gui
-docker build -t taranis-ng-presenters . -f ./docker/Dockerfile.presenters
-docker build -t taranis-ng-publishers . -f ./docker/Dockerfile.publishers
+docker build -t taranis-ng-worker . -f ./docker/Dockerfile.worker
 ```
 
 There are several Dockerfiles and each of them builds a different component of the system. These Dockerfiles exist:
 
-- [Dockerfile.bots](Dockerfile.bots)
-- [Dockerfile.collectors](Dockerfile.collectors)
+- [Dockerfile.worker](Dockerfile.worker)
 - [Dockerfile.core](Dockerfile.core)
 - [Dockerfile.gui](Dockerfile.gui)
-- [Dockerfile.presenters](Dockerfile.presenters)
-- [Dockerfile.publishers](Dockerfile.publishers)
 
 # Configuration
 
 ## Container variables
 
-### `redis`
+### `rabbitmq`
 Any configuration options are available at [https://hub.docker.com/_/redis](https://hub.docker.com/_/redis).
 
 ### `database`
@@ -142,7 +124,7 @@ Any configuration options are available at [https://hub.docker.com/_/postgres](h
 
 Taranis NG can use [connection pooling](https://docs.sqlalchemy.org/en/14/core/pooling.html) to maintain multiple active connections to the database server. Connection pooling is required when your deployment serves hundreds of customers from one instance. To enable connection pooling, set the `DB_POOL_SIZE`, `DB_POOL_RECYCLE`, and `DB_POOL_TIMEOUT` environment variables.
 
-### `bots`, `collectors`, `presenters`, `publishers`
+### `worker`, `beat`
 
 | Environment variable        | Description | Example |
 |-----------------------------|-------------|----------|
@@ -160,113 +142,9 @@ Taranis NG can use [connection pooling](https://docs.sqlalchemy.org/en/14/core/p
 | `NGINX_WORKERS`               | Number of NginX worker threads to spawn. | `4` |
 | `NGINX_CONNECTIONS`           | Maximum number of allowed connections per one worker thread. | `16` |
 
-## Management script how-to
-
-Taranis NG core container comes with a simple management script that may be used to set up and configure the instance without manual interaction with the database.
-
-To run the management script, launch a shell inside of the docker container for the core component with this command:
-
-```bash
-docker exec -it [CONTAINER] python manage.py [COMMAND] [PARAMETERS]
-```
-
-Currently, you may manage the following:
-
-| Command     | Description | Parameters |
-|-------------|-------------|------------|
-| `account`     | (WIP) List, create, edit and delete user accounts. | `--list`, `-l` : list all user accounts<br /> `--create`, `-c` : create a new user account<br /> `--edit`, `-e` : edit an existing user account<br /> `--delete`, `-d` : delete a user account<br /> `--username` : specify the username<br /> `--name` : specify the user's name<br /> `--password` : specify the user's password<br /> `--roles` : specify a list of roles, divided by a comma (`,`), that the user belongs to |
-| `role`     | (WIP) List, create, edit and delete user roles. | `--list`, `-l` : list all roles<br /> `--filter`, `-f` : filter roles by their name or description<br /> `--create`, `-c` : create a new role<br /> `--edit`, `-e` : edit an existing role<br /> `--delete`, `-d` : delete a role<br /> `--id` : specify the role id (in combination with `--edit` or `--delete`)<br /> `--name` : specify the role name<br /> `--description` : specify the role description (default is `""`)<br /> `--permissions` : specify a list of permissions, divided with a comma (`,`), that the role would allow |
-| `collector`     | (WIP) List, create, edit, delete and update collector nodes. | `--list`, `-l` : list all collector nodes<br /> `--create`, `-c` : create a new node<br /> `--edit`, `-e` : edit an existing node<br /> `--delete`, `-d` : delete a node<br /> `--update`, `-u` : re-initialize collector node<br /> `--all`, `-a` : update all collector nodes (in combination with `--update`)<br /> `--show-api-key` : show API key in plaintext (in combination with `--list`)<br /> `--id` : specify the node id (in combination with `--edit`, `--delete` or `--update`)<br /> `--name` : specify the node name<br /> `--description` : specify the collector description (default is `""`)<br /> `--api-url` : specify the collector node API url<br /> `--api-key` : specify the collector node API key |
-| `dictionary`     | Update CPE and CVE dictionaries. | `--upload-cpe` and `--upload-cve`: upload the CPE and CVE dictionary the path set by the `CPE_UPDATE_FILE` and `CVE_UPDATE_FILE` environment variables. If a url is passed as an option it will be downloaded and unpacked if necessary. Database is then updated from these files. |
-
 
 #### Example usage
 
-##### Create a new role with a set of permissions
-
-```bash
-manage.py role \
-    --create \
-    --name "Custom role 1" \
-    --description "Custom role with analysis and assessment access" \
-    --permissions "ANALYZE_ACCESS, ANALYZE_CREATE, ANALYZE_UPDATE, \
-    ANALYZE_DELETE, ASSESS_ACCESS, ASSESS_CREATE, ASSESS_UPDATE, \
-    ASSESS_DELETE, MY_ASSETS_ACCESS, MY_ASSETS_CREATE, MY_ASSETS_CONFIG"
-```
-
-Command output:
-
-```
-Role 'Custom role 1' with id 3 created.
-```
-
-##### Role filter
-
-```bash
-manage.py role \
-    --list \
-    --filter "Custom role 1"
-```
-
-Command output:
-
-```
-Id: 3
-	Name: Custom role 1
-	Description: Custom role with analysis and assessment access
-	Permissions: ['ANALYZE_ACCESS', 'ANALYZE_CREATE', 'ANALYZE_UPDATE', 'ANALYZE_DELETE', 'ASSESS_ACCESS', 'ASSESS_CREATE', 'ASSESS_UPDATE', 'ASSESS_DELETE', 'MY_ASSETS_ACCESS', 'MY_ASSETS_CREATE', 'MY_ASSETS_CONFIG']
-```
-
-##### Create a new collector node
-
-```bash
-manage.py collector \
-    --create \
-    --name "Docker collector" \
-    --description "A simple collector hosted in a Docker container" \
-    --api-url "http://collector.example.com" \
-    --api-key "supersecret"
-```
-
-Command output:
-
-```
-Collector node 'Docker collector' with id 1 created.
-```
-
-##### Re-initialize a collector node
-
-```bash
-manage.py collector \
-    --update \
-    --name "Docker"
-```
-
-Command output:
-
-```
-Collector node 1 updated.
-Collector node 2 updated.
-Unable to update collector node 3.
-    Response: [401] ""
-```
-
-##### Create a new user account
-
-```bash
-manage.py account \
-    --create \
-    --name "John Doe" \
-    --username "test_user" \
-    --password "supersecret" \
-    --roles 3
-```
-
-Command output:
-
-```
-User 'test_user' created.
-```
 
 ##### Upload a CPE dictionary
 

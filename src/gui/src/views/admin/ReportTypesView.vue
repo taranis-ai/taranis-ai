@@ -3,7 +3,7 @@
     <data-table
       v-model:items="report_item_types_config.items"
       :add-button="true"
-      :header-filter="['tag', 'id', 'title', 'description']"
+      :header-filter="['id', 'title', 'description']"
       sort-by-item="id"
       :action-column="true"
       @delete-item="deleteItem"

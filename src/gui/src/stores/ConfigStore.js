@@ -1,5 +1,9 @@
 import { defineStore } from 'pinia'
-import { notifyFailure, parseWordListEntries } from '@/utils/helpers'
+import {
+  notifyFailure,
+  parseWordListEntries,
+  getMessageFromError
+} from '@/utils/helpers'
 import {
   getAllACLEntries,
   getAllAttributes,
@@ -58,7 +62,7 @@ export const useConfigStore = defineStore('config', {
           this.attributes = response.data
         })
         .catch((error) => {
-          notifyFailure(error.message)
+          notifyFailure(getMessageFromError(error))
         })
     },
     loadReportTypesConfig(data) {
@@ -67,7 +71,7 @@ export const useConfigStore = defineStore('config', {
           this.report_item_types_config = response.data
         })
         .catch((error) => {
-          notifyFailure(error.message)
+          notifyFailure(getMessageFromError(error))
         })
     },
     loadProductTypes(data) {
@@ -76,7 +80,7 @@ export const useConfigStore = defineStore('config', {
           this.product_types = response.data
         })
         .catch((error) => {
-          notifyFailure(error.message)
+          notifyFailure(getMessageFromError(error))
         })
     },
     loadUserProductTypes(data) {
@@ -85,7 +89,7 @@ export const useConfigStore = defineStore('config', {
           this.product_types = response.data
         })
         .catch((error) => {
-          notifyFailure(error.message)
+          notifyFailure(getMessageFromError(error))
         })
     },
     loadPermissions(data) {
@@ -94,7 +98,7 @@ export const useConfigStore = defineStore('config', {
           this.permissions = response.data
         })
         .catch((error) => {
-          notifyFailure(error.message)
+          notifyFailure(getMessageFromError(error))
         })
     },
     loadRoles(data) {
@@ -103,7 +107,7 @@ export const useConfigStore = defineStore('config', {
           this.roles = response.data
         })
         .catch((error) => {
-          notifyFailure(error.message)
+          notifyFailure(getMessageFromError(error))
         })
     },
     loadACLEntries(data) {
@@ -112,7 +116,7 @@ export const useConfigStore = defineStore('config', {
           this.acls = response.data
         })
         .catch((error) => {
-          notifyFailure(error.message)
+          notifyFailure(getMessageFromError(error))
         })
     },
     loadOrganizations(data) {
@@ -121,7 +125,7 @@ export const useConfigStore = defineStore('config', {
           this.organizations = response.data
         })
         .catch((error) => {
-          notifyFailure(error.message)
+          notifyFailure(getMessageFromError(error))
         })
     },
     loadUsers(data) {
@@ -130,7 +134,7 @@ export const useConfigStore = defineStore('config', {
           this.users = response.data
         })
         .catch((error) => {
-          notifyFailure(error.message)
+          notifyFailure(getMessageFromError(error))
         })
     },
     loadExternalUsers(data) {
@@ -139,7 +143,7 @@ export const useConfigStore = defineStore('config', {
           this.users = response.data
         })
         .catch((error) => {
-          notifyFailure(error.message)
+          notifyFailure(getMessageFromError(error))
         })
     },
     loadWordLists(data) {
@@ -151,7 +155,7 @@ export const useConfigStore = defineStore('config', {
           })
         })
         .catch((error) => {
-          notifyFailure(error.message)
+          notifyFailure(getMessageFromError(error))
         })
     },
     loadOSINTSources(data) {
@@ -160,7 +164,7 @@ export const useConfigStore = defineStore('config', {
           this.osint_sources = response.data
         })
         .catch((error) => {
-          notifyFailure(error.message)
+          notifyFailure(getMessageFromError(error))
         })
     },
     loadCollectors(data) {
@@ -169,7 +173,7 @@ export const useConfigStore = defineStore('config', {
           this.collectors = response.data
         })
         .catch((error) => {
-          notifyFailure(error.message)
+          notifyFailure(getMessageFromError(error))
         })
     },
     loadBots(data) {
@@ -178,7 +182,7 @@ export const useConfigStore = defineStore('config', {
           this.bots = response.data
         })
         .catch((error) => {
-          notifyFailure(error.message)
+          notifyFailure(getMessageFromError(error))
         })
     },
     loadPresenters(data) {
@@ -187,7 +191,7 @@ export const useConfigStore = defineStore('config', {
           this.presenters = response.data
         })
         .catch((error) => {
-          notifyFailure(error.message)
+          notifyFailure(getMessageFromError(error))
         })
     },
     loadPublishers(data) {
@@ -196,7 +200,7 @@ export const useConfigStore = defineStore('config', {
           this.publishers = response.data
         })
         .catch((error) => {
-          notifyFailure(error.message)
+          notifyFailure(getMessageFromError(error))
         })
     },
     loadOSINTSourceGroups(filter) {
@@ -205,7 +209,7 @@ export const useConfigStore = defineStore('config', {
           this.osint_source_groups = response.data
         })
         .catch((error) => {
-          notifyFailure(error.message)
+          notifyFailure(getMessageFromError(error))
         })
     },
     loadPublisherPresets(data) {
@@ -214,7 +218,7 @@ export const useConfigStore = defineStore('config', {
           this.publisher_presets = response.data
         })
         .catch((error) => {
-          notifyFailure(error.message)
+          notifyFailure(getMessageFromError(error))
         })
     },
     loadParameters(data) {
@@ -223,25 +227,25 @@ export const useConfigStore = defineStore('config', {
           this.parameters = response.data
         })
         .catch((error) => {
-          notifyFailure(error.message)
+          notifyFailure(getMessageFromError(error))
         })
     },
-    loadSchedule(data) {
+    async loadSchedule(data) {
       return getAllSchedule(data)
         .then((response) => {
           this.schedule = response.data
         })
         .catch((error) => {
-          notifyFailure(error.message)
+          notifyFailure(getMessageFromError(error))
         })
     },
-    loadWorkers(data) {
+    async loadWorkers(data) {
       return getAllWorkers(data)
         .then((response) => {
           this.workers = response.data
         })
         .catch((error) => {
-          notifyFailure(error.message)
+          notifyFailure(getMessageFromError(error))
         })
     }
   }

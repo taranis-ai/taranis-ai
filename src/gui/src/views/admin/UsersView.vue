@@ -6,6 +6,7 @@
       :header-filter="['tag', 'id', 'username', 'name']"
       sort-by-item="id"
       :action-column="true"
+      tag-icon="mdi-account"
       @delete-item="deleteItem"
       @edit-item="editItem"
       @add-item="addItem"

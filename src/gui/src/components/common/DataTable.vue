@@ -67,7 +67,7 @@
     </template>
 
     <template #item.tag="{ item }">
-      <v-icon small class="mr-1" :icon="item.raw.tag" />
+      <v-icon small class="mr-1" :icon="tagIcon || item.raw.tag" />
     </template>
 
     <template #item.actions="{ item }">
@@ -129,6 +129,10 @@ export default defineComponent({
     searchBar: {
       type: Boolean,
       default: true
+    },
+    tagIcon: {
+      type: String,
+      default: ''
     }
   },
   emits: [

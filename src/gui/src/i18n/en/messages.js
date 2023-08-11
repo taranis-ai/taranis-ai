@@ -205,9 +205,6 @@ export const messages_en = {
     type: 'Type',
     total_count: 'OSINT Sources count: ',
     osint_source_groups: 'OSINT Source Groups',
-    notification: {
-      success: 'Collectors successfully added'
-    },
     dialog_import: 'Import OSINT Sources',
     import: 'Import',
     export: 'Export'

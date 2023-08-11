@@ -289,13 +289,20 @@ class WordLists(Resource):
 
 
 class WordList(Resource):
+    @auth_required("CONFIG_WORD_LIST_ACCESS")
+    def get(self, word_list_id):
+        word_list_result = word_list.WordList.get(word_list_id)
+        if not word_list_result:
+            return {"error": "Word list not found"}, 404
+        return word_list_result.to_dict(), 200
+
     @auth_required("CONFIG_WORD_LIST_DELETE")
     def delete(self, word_list_id):
         return word_list.WordList.delete(word_list_id)
 
     @auth_required("CONFIG_WORD_LIST_UPDATE")
     def put(self, word_list_id):
-        word_list.WordList.update(word_list_id, request.json)
+        return word_list.WordList.update(word_list_id, request.json)
 
 
 class WordListImport(Resource):
@@ -372,10 +379,7 @@ class QueueSchedule(Resource):
 class Workers(Resource):
     @auth_required("CONFIG_WORKER_ACCESS")
     def get(self):
-        try:
-            return queue_manager.queue_manager.ping_workers()
-        except Exception:
-            logger.log_debug_trace()
+        return queue_manager.queue_manager.ping_workers()
 
 
 class OSINTSources(Resource):

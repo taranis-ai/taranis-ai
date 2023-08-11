@@ -6,6 +6,7 @@
       :header-filter="['tag', 'name', 'description']"
       sort-by-item="id"
       :action-column="true"
+      tag-icon="mdi-format-list-bulleted-square"
       @delete-item="deleteItem"
       @edit-item="editItem"
       @add-item="addItem"
@@ -98,9 +99,14 @@ export default {
         type: 'text'
       },
       {
-        name: 'use_for_stop_words',
-        label: 'Use for stop words',
-        type: 'switch'
+        name: 'usage',
+        label: 'Usage',
+        type: 'checkbox',
+        items: [
+          { value: 'COLLECTOR_WHITELIST', label: 'Collector Whitelist' },
+          { value: 'COLLECTOR_BLACKLIST', label: 'Collector Blacklist' },
+          { value: 'TAGGING_BOT', label: 'Tagging Bot' }
+        ]
       },
       {
         name: 'entries',
@@ -129,6 +135,7 @@ export default {
     }
 
     const handleSubmit = (submittedData) => {
+      delete submittedData.entries
       console.log(submittedData)
       if (edit.value) {
         updateItem(submittedData)

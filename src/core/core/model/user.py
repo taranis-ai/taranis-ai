@@ -85,7 +85,6 @@ class User(BaseModel):
         data["organization"] = data.pop("organization_id")
         data["roles"] = [role.id for role in self.roles if role]
         data["permissions"] = [permission.id for permission in self.permissions if permission]
-        data["tag"] = "mdi-account"
         return data
 
     @classmethod

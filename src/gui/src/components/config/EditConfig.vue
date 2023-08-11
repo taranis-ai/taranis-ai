@@ -71,7 +71,18 @@
           density="compact"
           :disabled="true"
         />
-
+        <v-row
+          v-if="item.type === 'checkbox' && item.items !== undefined"
+          no-gutters
+        >
+          <v-col v-for="checkbox in item.items" :key="checkbox.label" cols="3">
+            <v-checkbox
+              v-model="formData[item.name]"
+              :label="checkbox.label"
+              :value="checkbox.value"
+            />
+          </v-col>
+        </v-row>
         <v-col
           v-if="item.type === 'table' && item.items !== undefined"
           cols="12"

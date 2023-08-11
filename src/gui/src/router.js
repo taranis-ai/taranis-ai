@@ -291,6 +291,18 @@ export const router = createRouter({
       }
     },
     {
+      path: '/config/collectors',
+      name: 'collectors',
+      components: {
+        default: () => import('@/views/admin/CollectorsView.vue'),
+        nav: () => import('@/views/nav/ConfigNav.vue')
+      },
+      meta: {
+        requiresAuth: true,
+        requiresPerm: [Permissions.CONFIG_BOT_PRESET_ACCESS]
+      }
+    },
+    {
       path: '/config/openapi',
       name: 'openapi',
       components: {

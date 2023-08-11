@@ -35,10 +35,13 @@ class QueueManager:
             ScheduleEntry.add_or_update(source.to_task_dict())
 
     def ping_workers(self):
-        result = self.celery.control.ping()
-        workers = [{"name": list(worker.keys())[0], "status": list(list(worker.values())[0].keys())[0]} for worker in result]
-        logger.info(f"Workers: {workers}")
-        return workers
+        try:
+            result = self.celery.control.ping()
+            workers = [{"name": list(worker.keys())[0], "status": list(list(worker.values())[0].keys())[0]} for worker in result]
+            logger.info(f"Workers: {workers}")
+            return workers
+        except Exception as e:
+            return {"error": f"{str(e)} - Could not reach rabbitmq"}, 500
 
 
 def initialize(app: Flask):

@@ -59,7 +59,6 @@ class Role(BaseModel):
     def to_dict(self):
         data = {c.name: getattr(self, c.name) for c in self.__table__.columns}
         data["permissions"] = [permission.id for permission in self.permissions]
-        data["tag"] = "mdi-account-arrow-right"
         return data
 
     def get_permissions(self):

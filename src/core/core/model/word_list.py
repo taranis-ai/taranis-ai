@@ -33,7 +33,7 @@ class WordList(BaseModel):
         self.entries = [WordListEntry.get(entry) for entry in entries] if entries else []
 
     @classmethod
-    def find_by_name(cls, name):
+    def find_by_name(cls, name: str) -> "WordList":
         return cls.query.filter_by(name=name).first()
 
     def add_usage(self, usage_type):
@@ -42,8 +42,20 @@ class WordList(BaseModel):
     def remove_usage(self, usage_type):
         self.usage &= ~usage_type
 
-    def has_usage(self, usage_type):
+    def has_usage(self, usage_type) -> bool:
         return (self.usage & usage_type) == usage_type
+
+    def get_usage_list(self) -> list[str]:
+        return [usage.name for usage in WordListUsage if self.has_usage(usage)]
+
+    def from_usage_list(self, usage_list: list[str]):
+        self.usage = 0
+        for usage in usage_list:
+            self.add_usage(WordListUsage[usage])
+
+    @classmethod
+    def is_valid_usage(cls, usage: int) -> bool:
+        return usage < (2 ** len(WordListUsage))
 
     @classmethod
     def allowed_with_acl(cls, word_list_id, user, see, access, modify):
@@ -97,15 +109,15 @@ class WordList(BaseModel):
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
+        data["usage"] = self.get_usage_list()
         data["entries"] = [entry.to_word_list_dict() for entry in self.entries if entry]
-        data["tag"] = "mdi-format-list-bulleted-square"
         return data
 
     def to_export_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "description": self.description,
-            "use_for_stop_words": self.use_for_stop_words,
+            "usage": self.usage,
             "link": self.link,
             "entries": [entry.to_word_list_dict() for entry in self.entries if entry],
         }
@@ -114,16 +126,22 @@ class WordList(BaseModel):
         return [entry.to_entry_dict() for entry in self.entries if entry]
 
     @classmethod
-    def update(cls, word_list_id, data) -> tuple[str, int]:
+    def update(cls, word_list_id, data) -> tuple[dict, int]:
         word_list = cls.get(word_list_id)
         if word_list is None:
-            return "WordList not found", 404
-        word_list.entries = [WordListEntry.from_dict(entry) for entry in data.pop("entries")]
+            return {"error": "WordList not found"}, 404
+        word_list.entries = [WordListEntry.from_dict(entry) for entry in data.pop("entries", [])]
+        usage = data.pop("usage", [])
+        if type(usage) == list:
+            word_list.from_usage_list(usage)
+        elif type(usage) == int and cls.is_valid_usage(usage):
+            word_list.usage = usage
+
         for key, value in data.items():
-            if hasattr(word_list, key) and key != "id" and key != "entries":
+            if hasattr(word_list, key) and key != "id":
                 setattr(word_list, key, value)
         db.session.commit()
-        return "Word list updated", 200
+        return {"message": "Word list updated"}, 200
 
     @classmethod
     def export(cls, source_ids=None):
