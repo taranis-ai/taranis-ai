@@ -136,5 +136,5 @@ class Product(BaseModel):
 
 
 class ProductReportItem(BaseModel):
-    product_id = db.Column(db.Integer, db.ForeignKey("product.id", ondelete="CASCADE"), primary_key=True)
+    product_id = db.Column(db.Integer, db.ForeignKey("product.id"), primary_key=True)
     report_item_id = db.Column(db.Integer, db.ForeignKey("report_item.id", ondelete="CASCADE"), primary_key=True)

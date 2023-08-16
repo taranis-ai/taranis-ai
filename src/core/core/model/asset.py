@@ -211,8 +211,11 @@ class Asset(BaseModel):
 class AssetVulnerability(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     solved = db.Column(db.Boolean, default=False)
-    asset_id = db.Column(db.Integer, db.ForeignKey('asset.id'))
-    report_item_id = db.Column(db.Integer, db.ForeignKey('report_item.id'))
+
+    asset_id = db.Column(db.Integer, db.ForeignKey("asset.id"))
+    asset = db.relationship("Asset", back_populates="vulnerabilities")
+
+    report_item_id = db.Column(db.Integer, db.ForeignKey("report_item.id", ondelete="CASCADE"))
     report_item = db.relationship("ReportItem")
 
     def __init__(self, asset_id, report_item_id):

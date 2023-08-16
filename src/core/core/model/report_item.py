@@ -82,8 +82,8 @@ class ReportItemAttribute(BaseModel):
 
 
 class ReportItemRemoteReportItem(BaseModel):
-    report_item_id = db.Column(db.Integer, db.ForeignKey("report_item.id"), primary_key=True)
-    remote_report_item_id = db.Column(db.Integer, db.ForeignKey("report_item.id"), primary_key=True)
+    report_item_id = db.Column(db.Integer, db.ForeignKey("report_item.id", ondelete="CASCADE"), primary_key=True)
+    remote_report_item_id = db.Column(db.Integer, db.ForeignKey("report_item.id", ondelete="CASCADE"), primary_key=True)
 
 
 class ReportItem(BaseModel):
