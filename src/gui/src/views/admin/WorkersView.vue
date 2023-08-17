@@ -1,6 +1,18 @@
 <template>
   <v-container fluid>
     <v-row>
+      <v-card
+        title="RabbitMQ"
+        class="mt-2 mb-2"
+        width="100%"
+        :subtitle="queue_status.url"
+      >
+        <v-card-text>
+          {{ queue_status.status }}
+        </v-card-text>
+      </v-card>
+    </v-row>
+    <v-row>
       <DataTable
         :items="workers"
         :add-button="false"
@@ -57,10 +69,14 @@ export default {
     const selected = ref([])
     const configStore = useConfigStore()
 
-    const { schedule, workers } = storeToRefs(configStore)
+    const { schedule, workers, queue_status } = storeToRefs(configStore)
 
     const updateData = () => {
-      Promise.all([configStore.loadSchedule(), configStore.loadWorkers()])
+      Promise.all([
+        configStore.loadSchedule(),
+        configStore.loadWorkers(),
+        configStore.loadQueueStatus()
+      ])
     }
 
     const deleteItem = () => {
@@ -81,6 +97,7 @@ export default {
       selected,
       schedule,
       workers,
+      queue_status,
       updateData,
       deleteItem,
       selectionChange

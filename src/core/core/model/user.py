@@ -101,8 +101,8 @@ class User(BaseModel):
         user = cls.get(user_id)
         if not user:
             return f"User {user_id} not found", 404
-        data.pop("id")
-        data.pop("tag")
+        data.pop("id", None)
+        data.pop("tag", None)
         organization = Organization.get(data.pop("organization"))
         profile = UserProfile.get(data.pop("profile_id"))
         roles = [Role.get(role_id) for role_id in data.pop("roles")]

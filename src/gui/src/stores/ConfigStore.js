@@ -24,7 +24,8 @@ import {
   getAllWordLists,
   getAllParameters,
   getAllSchedule,
-  getAllWorkers
+  getAllWorkers,
+  getQueueStatus
 } from '@/api/config'
 import { getAllUserProductTypes } from '@/api/user'
 
@@ -48,7 +49,8 @@ export const useConfigStore = defineStore('config', {
     users: { total_count: 0, items: [] },
     word_lists: { total_count: 0, items: [] },
     schedule: [],
-    workers: []
+    workers: [],
+    queue_status: {}
   }),
   getters: {
     getUserByID: (state) => (user_id) => {
@@ -234,6 +236,15 @@ export const useConfigStore = defineStore('config', {
       return getAllSchedule(data)
         .then((response) => {
           this.schedule = response.data
+        })
+        .catch((error) => {
+          notifyFailure(getMessageFromError(error))
+        })
+    },
+    async loadQueueStatus(data) {
+      return getQueueStatus(data)
+        .then((response) => {
+          this.queue_status = response.data
         })
         .catch((error) => {
           notifyFailure(getMessageFromError(error))
