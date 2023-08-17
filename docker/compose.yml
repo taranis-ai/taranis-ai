@@ -113,6 +113,8 @@ services:
         max-file: "10"
 
   gui:
+    depends_on:
+      - core
     deploy:
       restart_policy:
         condition: on-failure
