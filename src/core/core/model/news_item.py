@@ -475,6 +475,7 @@ class NewsItemAggregate(BaseModel):
 
         if tags := filter_args.get("tags"):
             for tag in tags:
+                logger.debug(f"Filtering by tag: {tag}")
                 alias = orm.aliased(NewsItemTag)
                 query = query.join(alias, NewsItemAggregate.id == alias.n_i_a_id).filter(
                     or_(alias.name == tag, alias.sub_forms.contains(tag))

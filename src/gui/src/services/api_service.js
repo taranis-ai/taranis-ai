@@ -21,6 +21,10 @@ const ApiService = {
       .join('&')
   },
 
+  encodeAmpersand(value) {
+    return value.replace(/&/g, '%2526')
+  },
+
   getQueryStringFromNestedObject(filterObject) {
     if (filterObject == null) {
       return ''
@@ -29,7 +33,9 @@ const ApiService = {
       .filter(([, val]) => val != null)
       .map(function ([key, val]) {
         if (Array.isArray(val)) {
-          return val.map((v) => `${key}=${v}`).join('&')
+          return val
+            .map((v) => `${key}=${ApiService.encodeAmpersand(v)}`)
+            .join('&')
         }
         if (typeof val === 'object') {
           return ApiService.getQueryStringFromObject(val)

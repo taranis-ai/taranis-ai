@@ -1,6 +1,7 @@
 import io
 from flask import request, send_file
 from flask_restx import Resource, Namespace
+from urllib.parse import unquote
 
 from core.managers import auth_manager
 from core.managers.sse_manager import sse_manager
@@ -71,7 +72,8 @@ class NewsItemAggregates(Resource):
             filter_args: dict[str, str | int | list] = {k: v for k, v in request.args.items() if k in filter_keys}
 
             filter_args["limit"] = min(int(request.args.get("limit", 20)), 200)
-            filter_args["tags"] = request.args.getlist("tags")
+            tags = request.args.getlist("tags")
+            filter_args["tags"] = [unquote(t) for t in tags]
             page = int(request.args.get("page", 0))
             filter_args["offset"] = min(int(request.args.get("offset", page * filter_args["limit"])), (2**31) - 1)
 

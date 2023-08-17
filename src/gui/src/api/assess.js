@@ -14,6 +14,7 @@ export function getManualOSINTSources() {
 }
 
 export function getNewsItemsAggregates(filter_data) {
+  console.debug('getNewsItemsAggregates', filter_data)
   const filter = ApiService.getQueryStringFromNestedObject(filter_data)
   router.push({ query: filter_data })
   return ApiService.get(`/assess/news-item-aggregates?${filter}`)
