@@ -162,3 +162,50 @@ def cleanup_role(app, request):
         request.addfinalizer(teardown)
 
         yield role_data
+
+
+@pytest.fixture(scope="session")
+def cleanup_organization(app, request):
+    with app.app_context():
+        from core.model.organization import Organization
+
+        organization_data = {
+            "id": 42,
+            "name": "testOrg",
+            "description": "Test Organization",
+            "address": {"street": "testStreet", "city": "testCity"},
+        }
+
+        def teardown():
+            with app.app_context():
+                if Organization.get(42):
+                    print("Deleting test org 42")
+                    Organization.delete(42)
+
+        request.addfinalizer(teardown)
+
+        yield organization_data
+
+
+@pytest.fixture(scope="session")
+def cleanup_bot(app, request):
+    with app.app_context():
+        from core.model.bot import Bot
+
+        bot_data = {
+            "id": "42",
+            "name": "testBot",
+            "description": "test Bot",
+            "type": "nlp_bot",
+            "parameters": {"SOURCE_GROUP": "default", "RUN_AFTER_COLLECTOR": "true"},
+        }
+
+        def teardown():
+            with app.app_context():
+                if Bot.get("42"):
+                    print("Deleting test bot 42")
+                    Bot.delete("42")
+
+        request.addfinalizer(teardown)
+
+        yield bot_data

@@ -68,12 +68,16 @@
                 :label="$t('report_type.section_title')"
                 name="section_title"
               ></v-text-field>
-              <AttributeTable
-                v-model:attributes="
-                  report_type.attribute_groups[index].attribute_group_items
+              <!-- <AttributeTable
+                v-for="(attribute_items, items_key) in report_type
+                  .attribute_groups[index].attribute_group_items"
+                :key="items_key + index"
+                :attributes="attribute_items"
+                @update="
+                  (update_items) =>
+                    updateAttributeGroupItems(index, update_items)
                 "
-                @update="(items) => updateAttributeGroupItems(index, items)"
-              />
+              /> -->
             </v-card-text>
           </v-card>
         </v-col>
@@ -85,13 +89,13 @@
 <script>
 import { ref } from 'vue'
 import { createReportItemType, updateReportItemType } from '@/api/config'
-import AttributeTable from './AttributeTable.vue'
+// import AttributeTable from './AttributeTable.vue'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
 
 export default {
   name: 'ReportTypeForm',
   components: {
-    AttributeTable
+    //    AttributeTable
   },
   props: {
     reportTypeData: {
@@ -110,7 +114,6 @@ export default {
     const report_type = ref(props.reportTypeData)
 
     const updateAttributeGroupItems = (index, items) => {
-      console.debug('RECEIVED')
       report_type.value.attribute_groups[index].attribute_group_items = items
     }
 

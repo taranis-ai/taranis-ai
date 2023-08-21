@@ -205,7 +205,7 @@ class Organizations(Resource):
 class Organization(Resource):
     @auth_required("CONFIG_ORGANIZATION_UPDATE")
     def put(self, organization_id):
-        organization.Organization.update(organization_id, request.json)
+        return organization.Organization.update(organization_id, request.json)
 
     @auth_required("CONFIG_ORGANIZATION_DELETE")
     def delete(self, organization_id):
@@ -247,19 +247,23 @@ class User(Resource):
 
 
 class Bots(Resource):
+    @auth_required("CONFIG_BOT_ACCESS")
     def get(self):
         search = request.args.get(key="search", default=None)
         return bot.Bot.get_all_json(search)
 
+    @auth_required("CONFIG_BOT_UPDATE")
     def put(self, bot_id):
         if updated_bot := bot.Bot.update(bot_id, request.json):
             logger.debug(f"Successfully updated {updated_bot}")
             return {"message": f"Successfully upated {updated_bot.name}", "id": f"{updated_bot.id}"}, 200
         return {"error": f"Error updateing {bot_id}"}, 500
 
+    @auth_required("CONFIG_BOT_CREATE")
     def post(self):
-        return bot.Bot.add(request.json), 201
+        return bot.Bot.add(request.json)
 
+    @auth_required("CONFIG_BOT_DELETE")
     def delete(self, bot_id):
         return bot.Bot.delete(bot_id)
 

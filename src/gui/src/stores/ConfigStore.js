@@ -39,7 +39,7 @@ export const useConfigStore = defineStore('config', {
     permissions: { total_count: 0, items: [] },
     product_types: { total_count: 0, items: [] },
     publisher_presets: { total_count: 0, items: [] },
-    report_item_types_config: { total_count: 0, items: [] },
+    report_item_types: { total_count: 0, items: [] },
     roles: { total_count: 0, items: [] },
     users: { total_count: 0, items: [] },
     word_lists: { total_count: 0, items: [] },
@@ -95,7 +95,7 @@ export const useConfigStore = defineStore('config', {
     loadReportTypesConfig(data) {
       return getAllReportTypes(data)
         .then((response) => {
-          this.report_item_types_config = response.data
+          this.report_item_types = response.data
         })
         .catch((error) => {
           notifyFailure(getMessageFromError(error))

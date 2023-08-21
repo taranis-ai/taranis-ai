@@ -58,7 +58,7 @@ class Organization(BaseModel):
 
     @classmethod
     def update(cls, organization_id, data) -> tuple[dict, int]:
-        organization = cls.query.get(organization_id)
+        organization = cls.get(organization_id)
         if organization is None:
             return {"error": f"Organization {organization_id} not found"}, 404
 

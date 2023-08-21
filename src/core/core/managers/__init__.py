@@ -1,9 +1,7 @@
 __all__ = [
     "api_manager",
     "asset_manager",
-    "audit_manager",
     "auth_manager",
-    "bots_manager",
     "db_manager",
     "log_manager",
     "presenters_manager",

@@ -1,5 +1,5 @@
 class BaseTest:
-    base_uri = "/api/v1/"
+    base_uri = "/api/v1"
 
     def assert_get_ok(self, client, uri, auth_header):
         response = client.get(f"{self.base_uri}/{uri}", headers=auth_header)

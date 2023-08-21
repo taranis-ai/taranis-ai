@@ -63,6 +63,7 @@ class Settings(BaseSettings):
     QUEUE_BROKER_PORT: int = 5672
     QUEUE_BROKER_USER: str = "taranis"
     QUEUE_BROKER_PASSWORD: str = "supersecret"
+    QUEUE_BROKER_URL: str | None = None
     QUEUE_BROKER_VHOST: str = "/"
     CELERY: dict[str, Any] | None = None
 
@@ -70,8 +71,12 @@ class Settings(BaseSettings):
     def set_celery(self):
         if self.CELERY and len(self.CELERY) > 1:
             return self
+        if self.QUEUE_BROKER_URL:
+            broker_url = self.QUEUE_BROKER_URL
+        else:
+            broker_url = f"{self.QUEUE_BROKER_SCHEME}://{self.QUEUE_BROKER_USER}:{self.QUEUE_BROKER_PASSWORD}@{self.QUEUE_BROKER_HOST}:{self.QUEUE_BROKER_PORT}/{self.QUEUE_BROKER_VHOST}"
         self.CELERY = {
-            "broker_url": f"{self.QUEUE_BROKER_SCHEME}://{self.QUEUE_BROKER_USER}:{self.QUEUE_BROKER_PASSWORD}@{self.QUEUE_BROKER_HOST}:{self.QUEUE_BROKER_PORT}/{self.QUEUE_BROKER_VHOST}",
+            "broker_url": broker_url,
             "ignore_result": True,
             "broker_connection_retry_on_startup": True,
             "broker_connection_retry": False,  # To suppress deprecation warning

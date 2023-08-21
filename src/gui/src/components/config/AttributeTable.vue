@@ -36,7 +36,6 @@
             <v-text-field
               v-model="edited_attribute.description"
               :label="$t('attribute.description')"
-              :spellcheck="spellcheck"
             />
 
             <v-row>
@@ -111,15 +110,14 @@
 
 <script>
 import { mapActions, mapState } from 'pinia'
-import { useSettingsStore } from '@/stores/SettingsStore'
 import { useConfigStore } from '@/stores/ConfigStore'
 
 export default {
   name: 'AttributeTable',
   props: {
     attributes: {
-      type: Array,
-      default: () => []
+      type: Object,
+      default: () => ({})
     },
     disabled: Boolean
   },
@@ -151,10 +149,9 @@ export default {
     }
   }),
   computed: {
-    ...mapState(useSettingsStore, ['spellcheck']),
     ...mapState(useConfigStore, { store_attributes: 'attributes' }),
     attribute_contents() {
-      return this.attributes || []
+      return this.attributes
     },
     headers() {
       return [

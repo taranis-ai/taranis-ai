@@ -10,12 +10,11 @@
       @update-items="updateData"
     >
     </DataTable>
-    <!-- // TODO: https://github.com/SortableJS/vue.draggable.next for reordering -->
     <EditConfig
-      v-if="formData && Object.keys(formData).length > 0"
+      v-if="showForm"
       :config-data="formData"
       :form-format="formFormat"
-      :parameters="parameters"
+      :parameters="disabledParameters"
       @submit="handleSubmit"
     ></EditConfig>
   </div>
@@ -24,11 +23,10 @@
 <script>
 import DataTable from '@/components/common/DataTable.vue'
 import EditConfig from '@/components/config/EditConfig.vue'
-import { updateBot } from '@/api/config'
 import { ref, computed, onMounted } from 'vue'
 import { useConfigStore } from '@/stores/ConfigStore'
 import { useMainStore } from '@/stores/MainStore'
-import { notifySuccess, notifyFailure, baseFormat } from '@/utils/helpers'
+import { notifyFailure, baseFormat } from '@/utils/helpers'
 import { storeToRefs } from 'pinia'
 
 export default {
@@ -44,6 +42,7 @@ export default {
     // data
     const { worker_types, parameters } = storeToRefs(configStore)
     const formData = ref({})
+    const showForm = ref(false)
 
     // computed
     const formFormat = computed(() => {
@@ -58,6 +57,19 @@ export default {
       return [...baseFormat, ...additionalFormat]
     })
 
+    const disabledParameters = computed(() => {
+      const result = {}
+      for (const key in parameters.value) {
+        result[key] = parameters.value[key].map((param) => {
+          return {
+            ...param,
+            disabled: true
+          }
+        })
+      }
+      return result
+    })
+
     // methods
     const updateData = () => {
       configStore.loadWorkerTypes().then(() => {
@@ -69,22 +81,11 @@ export default {
 
     const editItem = (item) => {
       formData.value = item
+      showForm.value = true
     }
 
-    const handleSubmit = (submittedData) => {
-      console.debug(submittedData)
-      updateItem(submittedData)
-    }
-
-    const updateItem = (item) => {
-      updateBot(item)
-        .then(() => {
-          notifySuccess(`Successfully updated ${item.id}`)
-          updateData()
-        })
-        .catch(() => {
-          notifyFailure(`Failed to update ${item.id}`)
-        })
+    const handleSubmit = () => {
+      notifyFailure('Worker Types cannot be edited')
     }
 
     onMounted(() => {
@@ -95,16 +96,16 @@ export default {
       // data
       worker_types,
       formData,
+      showForm,
 
       // computed
       formFormat,
-      parameters,
+      disabledParameters,
 
       // methods
       updateData,
       editItem,
-      handleSubmit,
-      updateItem
+      handleSubmit
     }
   }
 }

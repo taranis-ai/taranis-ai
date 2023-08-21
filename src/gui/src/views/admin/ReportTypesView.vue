@@ -1,7 +1,7 @@
 <template>
   <div>
     <data-table
-      v-model:items="report_item_types_config.items"
+      v-model:items="report_item_types.items"
       :add-button="true"
       :header-filter="['id', 'title', 'description']"
       sort-by-item="id"
@@ -45,13 +45,12 @@ export default defineComponent({
     const edit = ref(false)
     const showForm = ref(false)
 
-    const { report_item_types_config } = storeToRefs(configStore)
+    const { report_item_types } = storeToRefs(configStore)
 
     const updateData = () => {
       configStore.loadReportTypesConfig().then(() => {
-        mainStore.itemCountTotal = report_item_types_config.value.total_count
-        mainStore.itemCountFiltered =
-          report_item_types_config.value.items.length
+        mainStore.itemCountTotal = report_item_types.value.total_count
+        mainStore.itemCountFiltered = report_item_types.value.items.length
       })
     }
 
@@ -104,7 +103,7 @@ export default defineComponent({
       formData,
       showForm,
       edit,
-      report_item_types_config,
+      report_item_types,
       addItem,
       editItem,
       deleteItem,
