@@ -26,14 +26,14 @@ class RSSCollector(BaseCollector):
         logger_trafilatura.setLevel(logging.WARNING)
 
     def collect(self, source):
-        feed_url = source["parameter_values"].get("FEED_URL", None)
+        feed_url = source["parameters"].get("FEED_URL", None)
         if not feed_url:
             logger.warning("No FEED_URL set")
             return "No FEED_URL set"
 
         logger.info(f"RSS-Feed {source['id']} Starting collector for url: {feed_url}")
 
-        if user_agent := source["parameter_values"].get("USER_AGENT", None):
+        if user_agent := source["parameters"].get("USER_AGENT", None):
             self.headers = {"User-Agent": user_agent}
 
         try:
@@ -109,7 +109,7 @@ class RSSCollector(BaseCollector):
 
         published = self.get_published_date(feed_entry)
 
-        content_location = source["parameter_values"].get("CONTENT_LOCATION", None)
+        content_location = source["parameters"].get("CONTENT_LOCATION", None)
         content_from_feed, content_location = self.content_from_feed(feed_entry, content_location)
         if content_from_feed:
             content = str(feed_entry[content_location])

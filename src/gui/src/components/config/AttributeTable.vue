@@ -23,10 +23,18 @@
           <v-card-text>
             <v-combobox
               v-model="attribute_type"
-              :items="attribute_templates"
+              :items="attributeTemplates"
               item-title="name"
               :label="$t('attribute.attribute')"
-            />
+            >
+              <template #item="{ item, props }">
+                <v-list-item v-bind="props">
+                  <template #prepend>
+                    <v-icon :icon="item.value.tag"></v-icon>
+                  </template>
+                </v-list-item>
+              </template>
+            </v-combobox>
 
             <v-text-field
               v-model="edited_attribute.title"
@@ -67,9 +75,9 @@
 
           <v-card-actions>
             <v-spacer></v-spacer>
-            <v-btn color="primary" dark @click="save">{{
-              $t('attribute.save')
-            }}</v-btn>
+            <v-btn color="primary" dark @click="save">
+              {{ $t('attribute.save') }}
+            </v-btn>
             <v-btn color="primary" text @click="close">{{
               $t('attribute.cancel')
             }}</v-btn>
@@ -103,31 +111,37 @@
           </v-tooltip>
         </div>
       </template>
+      <template #item.attribute_name="{ item }">
+        <v-icon :icon="item.raw.attribute.tag" />
+        {{ item.raw.attribute.name }}
+      </template>
+
       <template v-if="attribute_contents.length < 10" #bottom />
     </v-data-table>
   </v-container>
 </template>
 
 <script>
-import { mapActions, mapState } from 'pinia'
-import { useConfigStore } from '@/stores/ConfigStore'
+import { ref, computed } from 'vue'
 
 export default {
   name: 'AttributeTable',
   props: {
     attributes: {
-      type: Object,
-      default: () => ({})
+      type: Array,
+      default: () => []
     },
-    disabled: Boolean
+    attributeTemplates: {
+      type: Array,
+      default: () => []
+    }
   },
   emits: ['update'],
-  data: () => ({
-    dialog: false,
-    attribute_type: null,
-    edited_index: -1,
-    attribute_templates: [],
-    edited_attribute: {
+  setup(props, { emit }) {
+    const dialog = ref(false)
+    const attribute_type = ref(null)
+    const edited_index = ref(-1)
+    const edited_attribute = ref({
       index: 0,
       id: -1,
       attribute_id: -1,
@@ -136,89 +150,89 @@ export default {
       description: '',
       min_occurrence: 0,
       max_occurrence: 1
-    },
-    default_attribute: {
-      index: 0,
-      id: -1,
-      attribute_id: -1,
-      attribute_name: '',
-      title: '',
-      description: '',
-      min_occurrence: 0,
-      max_occurrence: 1
-    }
-  }),
-  computed: {
-    ...mapState(useConfigStore, { store_attributes: 'attributes' }),
-    attribute_contents() {
-      return this.attributes
-    },
-    headers() {
-      return [
-        {
-          title: 'Type',
-          key: 'attribute_name',
-          align: 'left',
-          sortable: false
-        },
-        { title: 'Name', key: 'title', sortable: false },
-        { title: 'Description', key: 'description', sortable: false },
-        { title: 'Min Occurence', key: 'min_occurrence', sortable: false },
-        { title: 'Max Occurence', key: 'max_occurrence', sortable: false },
-        { title: 'Actions', key: 'actions', align: 'right', sortable: false }
-      ]
-    },
-
-    formTitle() {
-      return this.edited_index === -1 ? 'Add Attribute' : 'Edit Attribute'
-    }
-  },
-  mounted() {
-    this.loadAttributes().then(() => {
-      this.attribute_templates = this.store_attributes.items
     })
-    this.edited_attribute.index = this.attribute_contents.length
-  },
-  methods: {
-    ...mapActions(useConfigStore, ['loadAttributes']),
-    close() {
-      this.dialog = false
-      this.$nextTick(() => {
-        this.edited_attribute = Object.assign({}, this.default_attribute)
-        this.edited_attribute.index = this.attribute_contents.length
-        this.edited_index = -1
-      })
-    },
+    const default_attribute = ref({
+      index: 0,
+      id: -1,
+      attribute_id: -1,
+      attribute_name: '',
+      title: '',
+      description: '',
+      min_occurrence: 0,
+      max_occurrence: 1
+    })
 
-    save() {
-      this.edited_attribute.attribute_id = this.attribute_type.id
-      this.edited_attribute.attribute_name = this.attribute_type.name
-      if (this.edited_index > -1) {
+    const attribute_contents = ref(props.attributes)
+
+    const headers = computed(() => [
+      {
+        title: 'Type',
+        key: 'attribute_name',
+        align: 'left',
+        sortable: false
+      },
+      { title: 'Name', key: 'title', sortable: false },
+      { title: 'Description', key: 'description', sortable: false },
+      { title: 'Min Occurence', key: 'min_occurrence', sortable: false },
+      { title: 'Max Occurence', key: 'max_occurrence', sortable: false },
+      { title: 'Actions', key: 'actions', align: 'right', sortable: false }
+    ])
+
+    const formTitle = computed(() =>
+      edited_index.value === -1 ? 'Add Attribute' : 'Edit Attribute'
+    )
+
+    const close = () => {
+      dialog.value = false
+      edited_attribute.value = Object.assign({}, default_attribute.value)
+      edited_attribute.value.index = attribute_contents.value.length
+      edited_index.value = -1
+    }
+
+    const save = () => {
+      edited_attribute.value.attribute_id = attribute_type.value.id
+      edited_attribute.value.attribute_name = attribute_type.value.name
+      if (edited_index.value > -1) {
         Object.assign(
-          this.attribute_contents[this.edited_index],
-          this.edited_attribute
+          attribute_contents.value[edited_index.value],
+          edited_attribute.value
         )
       } else {
-        this.attribute_contents.push(this.edited_attribute)
+        attribute_contents.value.push(edited_attribute.value)
       }
-      this.attribute_type = null
-      this.$emit('update', this.attribute_contents)
-      this.close()
-    },
+      attribute_type.value = null
+      emit('update', attribute_contents.value)
+      close()
+    }
 
-    deleteItem(item) {
-      const index = this.attribute_contents.indexOf(item)
-      this.attribute_contents.splice(index, 1)
-    },
+    const deleteItem = (item) => {
+      const index = attribute_contents.value.indexOf(item)
+      attribute_contents.value.splice(index, 1)
+    }
 
-    editItem(item) {
-      this.edited_index = this.attribute_contents.indexOf(item)
-      this.edited_attribute = Object.assign({}, item)
-      this.dialog = true
-      this.attribute_type = this.attribute_templates.find(
+    const editItem = (item) => {
+      edited_index.value = attribute_contents.value.indexOf(item)
+      edited_attribute.value = Object.assign({}, item)
+      dialog.value = true
+      attribute_type.value = props.attributeTemplates.find(
         (attribute_template) =>
-          attribute_template.id === this.edited_attribute.attribute_id
+          attribute_template.id === edited_attribute.value.attribute_id
       )
+    }
+
+    return {
+      dialog,
+      attribute_type,
+      edited_index,
+      edited_attribute,
+      default_attribute,
+      attribute_contents,
+      headers,
+      formTitle,
+      close,
+      save,
+      deleteItem,
+      editItem
     }
   }
 }

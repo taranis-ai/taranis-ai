@@ -140,6 +140,15 @@ export default {
 
     const handleSubmit = (submittedData) => {
       delete submittedData.entries
+      if (submittedData.usage) {
+        if (
+          submittedData.usage.includes('COLLECTOR_WHITELIST') &&
+          submittedData.usage.includes('COLLECTOR_BLACKLIST')
+        ) {
+          notifyFailure('Whitelist and Blacklist are mutually exclusive')
+          return
+        }
+      }
       if (edit.value) {
         updateItem(submittedData)
       } else {

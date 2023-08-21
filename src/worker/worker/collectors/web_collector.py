@@ -174,11 +174,11 @@ class WebCollector(BaseCollector):
     def __parse_settings(self):
         """Loads the collector settings to instance variables"""
 
-        self.auth_username = self.source["parameter_values"]["AUTH_USERNAME"]
-        self.auth_password = self.source["parameter_values"]["AUTH_PASSWORD"]
+        self.auth_username = self.source["parameters"]["AUTH_USERNAME"]
+        self.auth_password = self.source["parameters"]["AUTH_PASSWORD"]
 
         # parse the URL
-        web_url = self.source["parameter_values"]["WEB_URL"]
+        web_url = self.source["parameters"]["WEB_URL"]
 
         if web_url.lower().startswith("file://"):
             file_part = web_url[7:]
@@ -221,13 +221,13 @@ class WebCollector(BaseCollector):
             )
 
         # parse other arguments
-        self.user_agent = self.source["parameter_values"]["USER_AGENT"]
-        self.tor_service = self.source["parameter_values"]["TOR"]
+        self.user_agent = self.source["parameters"]["USER_AGENT"]
+        self.tor_service = self.source["parameters"]["TOR"]
 
-        # self.interval = self.source["parameter_values"]['REFRESH_INTERVAL']
+        # self.interval = self.source["parameters"]['REFRESH_INTERVAL']
 
         try:
-            self.pagination_limit = int(self.source["parameter_values"]["PAGINATION_LIMIT"])
+            self.pagination_limit = int(self.source["parameters"]["PAGINATION_LIMIT"])
         except Exception:
             self.pagination_limit = 1
         if self.pagination_limit <= 0:
@@ -235,32 +235,32 @@ class WebCollector(BaseCollector):
 
         self.selectors = {}
 
-        self.selectors["popup_close"] = self.source["parameter_values"]["POPUP_CLOSE_SELECTOR"]
-        self.selectors["next_page"] = self.source["parameter_values"]["NEXT_BUTTON_SELECTOR"]
-        self.selectors["load_more"] = self.source["parameter_values"]["LOAD_MORE_BUTTON_SELECTOR"]
-        self.selectors["single_article_link"] = self.source["parameter_values"]["SINGLE_ARTICLE_LINK_SELECTOR"]
+        self.selectors["popup_close"] = self.source["parameters"]["POPUP_CLOSE_SELECTOR"]
+        self.selectors["next_page"] = self.source["parameters"]["NEXT_BUTTON_SELECTOR"]
+        self.selectors["load_more"] = self.source["parameters"]["LOAD_MORE_BUTTON_SELECTOR"]
+        self.selectors["single_article_link"] = self.source["parameters"]["SINGLE_ARTICLE_LINK_SELECTOR"]
 
-        self.selectors["title"] = self.source["parameter_values"]["TITLE_SELECTOR"]
-        self.selectors["article_description"] = self.source["parameter_values"]["ARTICLE_DESCRIPTION_SELECTOR"]
-        self.selectors["article_full_text"] = self.source["parameter_values"]["ARTICLE_FULL_TEXT_SELECTOR"]
-        self.selectors["published"] = self.source["parameter_values"]["PUBLISHED_SELECTOR"]
-        self.selectors["author"] = self.source["parameter_values"]["AUTHOR_SELECTOR"]
-        self.selectors["attachment"] = self.source["parameter_values"]["ATTACHMENT_SELECTOR"]
-        self.selectors["additional_id"] = self.source["parameter_values"]["ADDITIONAL_ID_SELECTOR"]
+        self.selectors["title"] = self.source["parameters"]["TITLE_SELECTOR"]
+        self.selectors["article_description"] = self.source["parameters"]["ARTICLE_DESCRIPTION_SELECTOR"]
+        self.selectors["article_full_text"] = self.source["parameters"]["ARTICLE_FULL_TEXT_SELECTOR"]
+        self.selectors["published"] = self.source["parameters"]["PUBLISHED_SELECTOR"]
+        self.selectors["author"] = self.source["parameters"]["AUTHOR_SELECTOR"]
+        self.selectors["attachment"] = self.source["parameters"]["ATTACHMENT_SELECTOR"]
+        self.selectors["additional_id"] = self.source["parameters"]["ADDITIONAL_ID_SELECTOR"]
 
         try:
-            self.word_limit = int(self.source["parameter_values"]["WORD_LIMIT"])
+            self.word_limit = int(self.source["parameters"]["WORD_LIMIT"])
             if self.word_limit < 0:
                 self.word_limit = 0
         except Exception:
             self.word_limit = 0
 
-        self.web_driver_type = self.source["parameter_values"]["WEBDRIVER"]
-        self.client_cert_directory = self.source["parameter_values"]["CLIENT_CERT_DIR"]
+        self.web_driver_type = self.source["parameters"]["WEBDRIVER"]
+        self.client_cert_directory = self.source["parameters"]["CLIENT_CERT_DIR"]
 
         set_proxy = False
         self.proxy = ""
-        param_proxy = self.source["parameter_values"]["PROXY_SERVER"]
+        param_proxy = self.source["parameters"]["PROXY_SERVER"]
         if re.search(r"^(https?|socks[45])://", param_proxy.lower()):
             set_proxy = True
             self.proxy = param_proxy

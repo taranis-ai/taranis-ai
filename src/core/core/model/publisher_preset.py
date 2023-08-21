@@ -12,25 +12,22 @@ class PublisherPreset(BaseModel):
     id = db.Column(db.String(64), primary_key=True)
     name = db.Column(db.String(), nullable=False)
     description = db.Column(db.String())
-
-    publisher_type = db.Column(db.Enum(PUBLISHER_TYPES))
-    parameter_values = db.relationship("ParameterValue", secondary="publisher_preset_parameter_value", cascade="all")
+    type = db.Column(db.Enum(PUBLISHER_TYPES))
+    parameters = db.relationship("ParameterValue", secondary="publisher_preset_parameter_value", cascade="all")
 
     def __init__(
         self,
         name,
         description,
-        publisher_type,
-        parameter_values=None,
+        type,
+        parameters=None,
         id=None,
     ):
         self.id = id or str(uuid.uuid4())
         self.name = name
         self.description = description
-        self.publisher_type = publisher_type
-        self.parameter_values = (
-            ParameterValue.get_or_create_from_list(parameter_values) if parameter_values else Worker.get_parameters(publisher_type)
-        )
+        self.type = type
+        self.parameters = ParameterValue.get_or_create_from_list(parameters) if parameters else Worker.get_parameters(type)
 
     @classmethod
     def get_all(cls):
@@ -57,12 +54,6 @@ class PublisherPreset(BaseModel):
         return {"total_count": count, "items": items}
 
     @classmethod
-    def get_all_for_publisher_json(cls, parameters):
-        for publisher in cls.publisher.query.all():
-            if publisher.type == parameters.publisher_type:
-                return [preset.to_dict() for preset in publisher.sources]
-
-    @classmethod
     def update(cls, preset_id, data):
         preset = cls.get(preset_id)
         if not preset:
@@ -71,13 +62,13 @@ class PublisherPreset(BaseModel):
         updated_preset = cls.from_dict(data)
         preset.name = updated_preset.name
         preset.description = updated_preset.description
-        preset.parameter_values = updated_preset.parameter_values
+        preset.parameters = updated_preset.parameters
         db.session.commit()
         return preset.id
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
-        data["parameter_values"] = {value.parameter: value.value for value in self.parameter_values}
+        data["parameters"] = {value.parameter: value.value for value in self.parameters}
         data["tag"] = "mdi-file-star-outline"
         return data
 

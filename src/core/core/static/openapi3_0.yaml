@@ -3996,8 +3996,8 @@ components:
           type: string
         description:
           type: string
-        use_for_stop_words:
-          type: boolean
+        usage:
+          type: integer
         link:
           type: string
         entries:
@@ -4019,7 +4019,7 @@ components:
         - $ref: '#/components/schemas/product_type'
         - type: object
           properties:
-            parameter_values:
+            parameters:
               $ref: '#/components/schemas/parameter_value.new'
 
     product_type:
@@ -4033,7 +4033,7 @@ components:
           type: string
         presenter_id:
           type: string
-        parameter_values:
+        parameters:
           type: array
           items:
             $ref: '#/components/schemas/parameter_value'
@@ -4047,7 +4047,7 @@ components:
         - $ref: '#/components/schemas/publisher_preset'
         - type: object
           properties:
-            parameter_values:
+            parameters:
               type: array
               items:
                 $ref: '#/components/schemas/parameter_value.new'
@@ -4059,7 +4059,7 @@ components:
           type: integer
         name:
           type: string
-        parameter_values:
+        parameters:
           type: array
           items:
             $ref: '#/components/schemas/parameter_value'
@@ -4118,8 +4118,8 @@ components:
         report_item_type_id:
           type: integer
         attribute_group_items:
-          type: object
-          additionalProperties:
+          type: array
+          items:
             $ref: '#/components/schemas/attribute_group_item'
     report_item_type:
       allOf:
@@ -4621,7 +4621,7 @@ components:
         - $ref: '#/components/schemas/osint_source'
         - type: object
           properties:
-            parameter_values:
+            parameters:
               type: array
               items:
                 $ref: '#/components/schemas/parameter_value.new'
@@ -4666,7 +4666,7 @@ components:
           type: string
         name:
           type: string
-        parameter_values:
+        parameters:
           type: array
           items:
             $ref: '#/components/schemas/parameter_value'
@@ -4750,7 +4750,7 @@ components:
           type: string
         collector:
           $ref: '#/components/schemas/collector.export'
-        parameter_values:
+        parameters:
           type: array
           items:
             $ref: '#/components/schemas/parameter_value.export'
@@ -4996,7 +4996,7 @@ components:
       properties:
         type:
           type: string
-        parameter_values:
+        parameters:
           type: array
           items:
             $ref: '#/components/schemas/parameter_value'

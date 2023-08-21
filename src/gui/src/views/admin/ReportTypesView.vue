@@ -14,6 +14,7 @@
     <report-type-form
       v-if="showForm"
       :report-type-data="formData"
+      :attributes="attributes.items"
       :edit="edit"
       @updated="formUpdated"
     />
@@ -45,13 +46,14 @@ export default defineComponent({
     const edit = ref(false)
     const showForm = ref(false)
 
-    const { report_item_types } = storeToRefs(configStore)
+    const { report_item_types, attributes } = storeToRefs(configStore)
 
     const updateData = () => {
-      configStore.loadReportTypesConfig().then(() => {
+      configStore.loadReportTypes().then(() => {
         mainStore.itemCountTotal = report_item_types.value.total_count
         mainStore.itemCountFiltered = report_item_types.value.items.length
       })
+      configStore.loadAttributes()
     }
 
     const formUpdated = () => {
@@ -104,6 +106,7 @@ export default defineComponent({
       showForm,
       edit,
       report_item_types,
+      attributes,
       addItem,
       editItem,
       deleteItem,

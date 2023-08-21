@@ -6,6 +6,7 @@
       :header-filter="['tag', 'state', 'name']"
       sort-by-item="id"
       :action-column="true"
+      tag-icon="mdi-animation-outline"
       @delete-item="deleteItem"
       @edit-item="editItem"
       @add-item="addItem"
@@ -42,6 +43,7 @@
       v-if="showForm"
       :config-data="formData"
       :form-format="formFormat"
+      :parameters="parameters"
       @submit="handleSubmit"
     ></EditConfig>
   </div>
@@ -77,11 +79,10 @@ export default {
     const configStore = useConfigStore()
     const mainStore = useMainStore()
 
-    const { collector_types, osint_sources, word_lists } =
+    const { collector_types, osint_sources, word_lists, parameters } =
       storeToRefs(configStore)
 
     const sources = ref([])
-    const parameters = ref({})
     const collector_options = ref([])
     const selected = ref([])
     const formData = ref({})
@@ -114,7 +115,18 @@ export default {
           type: 'textarea'
         },
         {
-          name: 'collector_type',
+          name: 'word_lists',
+          label: 'Word Lists',
+          type: 'table',
+          headers: [
+            { title: 'Name', key: 'name' },
+            { title: 'Description', key: 'description' },
+            { title: 'ID', key: 'id' }
+          ],
+          items: word_lists.value.items
+        },
+        {
+          name: 'type',
           label: 'Collector',
           type: 'select',
           items: collector_options.value
@@ -131,22 +143,6 @@ export default {
           }
         ].concat(base)
       }
-      if (parameters.value[formData.value.collector_type]) {
-        base = base.concat(parameters.value[formData.value.collector_type])
-      }
-      base = base.concat([
-        {
-          name: 'word_lists',
-          label: 'Word Lists',
-          type: 'table',
-          headers: [
-            { title: 'Name', key: 'name' },
-            { title: 'Description', key: 'description' },
-            { title: 'ID', key: 'id' }
-          ],
-          items: word_lists.value.items
-        }
-      ])
       return base
     })
 
@@ -158,15 +154,6 @@ export default {
       })
       configStore.loadWorkerTypes().then(() => {
         collector_options.value = collector_types.value.map((collector) => {
-          parameters.value[collector.type] = Object.keys(
-            collector.parameters
-          ).map((key) => ({
-            name: key,
-            label: key,
-            parent: 'parameter_values',
-            type: 'text'
-          }))
-
           return {
             value: collector.type,
             title: collector.name
@@ -174,6 +161,7 @@ export default {
         })
       })
       configStore.loadWordLists()
+      configStore.loadParameters()
     }
 
     onMounted(() => {

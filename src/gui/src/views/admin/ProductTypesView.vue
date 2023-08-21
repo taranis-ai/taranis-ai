@@ -12,9 +12,10 @@
       @update-items="updateData"
     />
     <EditConfig
-      v-if="formData && Object.keys(formData).length > 0"
+      v-if="showForm"
       :form-format="formFormat"
       :config-data="formData"
+      :parameters="parameters"
       @submit="handleSubmit"
     ></EditConfig>
   </div>
@@ -28,7 +29,7 @@ import {
   createProductType,
   updateProductType
 } from '@/api/config'
-import { notifySuccess, notifyFailure, objectFromFormat } from '@/utils/helpers'
+import { notifySuccess, notifyFailure, baseFormat } from '@/utils/helpers'
 import { useConfigStore } from '@/stores/ConfigStore'
 import { useMainStore } from '@/stores/MainStore'
 import { ref, computed, onMounted } from 'vue'
@@ -46,44 +47,22 @@ export default {
 
     const formData = ref({})
     const edit = ref(false)
-    const parameters = ref({})
     const presenterList = ref([])
+    const showForm = ref(false)
 
-    const { product_types, presenter_types } = storeToRefs(configStore)
+    const { product_types, presenter_types, parameters } =
+      storeToRefs(configStore)
 
     const formFormat = computed(() => {
-      const base = [
+      const additionalFormat = [
         {
-          name: 'id',
-          label: 'ID',
-          type: 'number',
-          disabled: true
-        },
-        {
-          name: 'title',
-          label: 'Title',
-          type: 'text',
-          rules: [(v) => !!v || 'Required']
-        },
-        {
-          name: 'description',
-          label: 'Description',
-          type: 'textarea',
-          rules: [(v) => !!v || 'Required']
-        },
-        {
-          name: 'presenter_id',
-          label: 'Presenter',
-          type: 'list',
-          rules: [(v) => !!v || 'Required'],
-          items: presenterList.value,
-          disabled: edit.value
+          name: 'type',
+          label: 'Type',
+          type: 'select',
+          items: bot_options.value
         }
       ]
-      if (parameters.value[formData.value.presenter_id]) {
-        return base.concat(parameters.value[formData.value.presenter_id])
-      }
-      return base
+      return [...baseFormat, ...additionalFormat]
     })
 
     const updateData = () => {
@@ -94,32 +73,25 @@ export default {
 
       configStore.loadWorkerTypes().then(() => {
         presenterList.value = presenter_types.value.map((presenter) => {
-          parameters.value[presenter.type] = Object.keys(
-            presenter.parameters
-          ).map((key) => ({
-            name: key,
-            label: key,
-            parent: 'parameter_values',
-            type: 'text'
-          }))
-
           return {
             value: presenter.type,
             title: presenter.name
           }
         })
       })
+      configStore.loadParameters()
     }
 
     const addItem = () => {
-      formData.value = objectFromFormat(formFormat.value)
-      formData.value.parameter_values = {}
+      formData.value = {}
       edit.value = false
+      showForm.value = true
     }
 
     const editItem = (item) => {
       formData.value = item
       edit.value = true
+      showForm.value = true
     }
 
     const handleSubmit = (submittedData) => {
@@ -130,6 +102,7 @@ export default {
       } else {
         createItem(submittedData)
       }
+      showForm.value = false
     }
 
     const createItem = (item) => {
@@ -176,6 +149,8 @@ export default {
       formData,
       formFormat,
       edit,
+      showForm,
+      parameters,
       addItem,
       editItem,
       handleSubmit,

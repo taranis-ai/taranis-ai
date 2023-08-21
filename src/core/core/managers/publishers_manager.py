@@ -13,7 +13,7 @@ def publish(preset, data, message_title, message_body, recipients):
 
     input_data = {
         "type": publisher.type,
-        "parameter_values": preset.parameter_values,
+        "parameters": preset.parameters,
         "mime_type": data_mime,
         "data": data_data,
         "message_title": message_title,

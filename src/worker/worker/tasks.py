@@ -38,7 +38,7 @@ def cleanup_token_blacklist():
 def gather_word_list(word_list_id: int):
     core_api = CoreApi()
     if word_list := core_api.get_word_list(word_list_id):
-        return bot_tasks.execute_by_type("wordlist_bot", word_list)
+        return bot_tasks.execute_by_type("wordlist_updater_bot", word_list)
 
     logger.error(f"Word list with id {word_list_id} not found")
     return f"Word list with id {word_list_id} not found"

@@ -53,7 +53,8 @@ class WordList(BaseModel):
     def from_usage_list(self, usage_list: list[str]):
         self.usage = 0
         for usage in usage_list:
-            self.add_usage(WordListUsage[usage])
+            if self.is_valid_usage(WordListUsage[usage]):
+                self.add_usage(WordListUsage[usage])
 
     def update_usage(self, usage: list[str] | int):
         if type(usage) == list:
@@ -61,8 +62,11 @@ class WordList(BaseModel):
         elif type(usage) == int and self.is_valid_usage(usage):
             self.usage = usage
 
-    @classmethod
-    def is_valid_usage(cls, usage: int) -> bool:
+    def is_valid_usage(self, usage: int) -> bool:
+        if usage == WordListUsage.COLLECTOR_WHITELIST and self.usage & WordListUsage.COLLECTOR_BLACKLIST:
+            return False
+        if usage == WordListUsage.COLLECTOR_BLACKLIST and self.usage & WordListUsage.COLLECTOR_WHITELIST:
+            return False
         return usage < (2 ** len(WordListUsage))
 
     @classmethod

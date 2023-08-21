@@ -10,13 +10,13 @@ def fake_source(app, request):
             "id": "fake-source-id",
             "description": "",
             "name": "Some Bind",
-            "parameter_values": [
+            "parameters": [
                 {
                     "value": "https://www.some.bind.it/SiteGlobals/Functions/RSSFeed/RSSNewsfeed/RSSNewsfeed.xml",
                     "parameter": "FEED_URL",
                 },
             ],
-            "collector_type": "RSS_COLLECTOR",
+            "type": "RSS_COLLECTOR",
         }
 
         OSINTSource.add(ossi)

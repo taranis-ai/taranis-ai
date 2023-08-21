@@ -20,20 +20,29 @@ class BaseCollector:
     def filter_by_word_list(self, news_items, source):
         if not source["word_lists"]:
             return news_items
-        one_word_list = set()
+        white_list = set()
+        black_list = set()
         for word_list in source["word_lists"]:
-            if not word_list.use_for_stop_words:
-                for category in word_list.categories:
-                    for entry in category.entries:
-                        one_word_list.add(entry.value.lower())
-        if not one_word_list:
+            if "COLLECTOR_WHITELIST" in word_list.usage:
+                for entry in word_list.entries:
+                    white_list.add(entry.value)
+            if "COLLECTOR_BLACKLIST" in word_list.usage:
+                for entry in word_list.entries:
+                    black_list.add(entry.value)
+        if not white_list and not black_list:
             return news_items
         filtered_news_items = []
         for item in news_items:
-            for word in one_word_list:
-                if word in item["title"].lower() or word in item["review"].lower() or word in item["content"].lower():
+            analyzed_content = set((item["title"] + item["review"] + item["content"]).split())
+            for word in black_list:
+                if word in analyzed_content:
+                    break
+
+            for word in white_list:
+                if word in analyzed_content:
                     filtered_news_items.append(item)
                     break
+
         return filtered_news_items
 
     def collect(self, source: dict):

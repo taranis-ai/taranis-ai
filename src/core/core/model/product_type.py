@@ -19,16 +19,14 @@ class ProductType(BaseModel):
     description = db.Column(db.String(), nullable=False)
     presenter_type = db.Column(db.Enum(PRESENTER_TYPES))
 
-    parameter_values = db.relationship("ParameterValue", secondary="product_type_parameter_value", cascade="all")
+    parameters = db.relationship("ParameterValue", secondary="product_type_parameter_value", cascade="all")
 
-    def __init__(self, title, description, presenter_type, parameter_values=None, id=None):
+    def __init__(self, title, description, presenter_type, parameters=None, id=None):
         self.id = id
         self.title = title
         self.description = description
         self.presenter_type = presenter_type
-        self.parameter_values = (
-            ParameterValue.get_or_create_from_list(parameter_values) if parameter_values else Worker.get_parameters(presenter_type)
-        )
+        self.parameters = ParameterValue.get_or_create_from_list(parameters) if parameters else Worker.get_parameters(presenter_type)
 
     @classmethod
     def get_all(cls):
@@ -90,23 +88,23 @@ class ProductType(BaseModel):
         updated_product_type = cls.from_dict(data)
         product_type.title = updated_product_type.title
         product_type.description = updated_product_type.description
-        product_type.parameter_values = updated_product_type.parameter_values
+        product_type.parameters = updated_product_type.parameters
         db.session.commit()
         return product_type.id
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
-        data["parameter_values"] = {value.parameter: value.value for value in self.parameter_values}
+        data["parameters"] = {value.parameter: value.value for value in self.parameters}
         data["tag"] = "mdi-file-document-outline"
         return data
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "ProductType":
         logger.debug(data)
-        if parameter_values := data.pop("parameter_values", None):
-            data["parameter_values"] = [ParameterValue(parameter=param, value=val) for param, val in parameter_values.items()]
+        if parameters := data.pop("parameters", None):
+            data["parameters"] = [ParameterValue(parameter=param, value=val) for param, val in parameters.items()]
         else:
-            data["parameter_values"] = []
+            data["parameters"] = []
 
         return cls(**data)
 

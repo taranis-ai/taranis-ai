@@ -3,8 +3,7 @@ from flask_restx import Resource, Namespace, Api
 
 from core.managers.auth_manager import api_key_required
 from core.managers.log_manager import logger
-from core.model.osint_source import OSINTSource
-from core.model.osint_source import OSINTSourceGroup
+from core.model.osint_source import OSINTSource, OSINTSourceGroup
 from core.model.queue import ScheduleEntry
 from core.model.word_list import WordList
 from core.model.news_item import NewsItemAggregate, NewsItemTag
@@ -64,7 +63,7 @@ class Sources(Resource):
     def get(self, source_id: str):
         try:
             if source := OSINTSource.get(source_id):
-                return source.to_dict(), 200
+                return source.to_worker_dict(), 200
             return {"error": f"Source with id {source_id} not found"}, 404
         except Exception:
             logger.log_debug_trace()

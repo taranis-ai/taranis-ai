@@ -69,6 +69,7 @@
               v-model="formData[item.flatKey]"
               :label="checkbox.label"
               :value="checkbox.value"
+              :rules="item.rules"
             />
           </v-col>
         </v-row>
@@ -76,6 +77,7 @@
         <v-col
           v-if="item.type === 'table' && item.items !== undefined"
           cols="12"
+          class="mt-1 mb-2"
         >
           <v-data-table
             v-model="formData[item.flatKey]"

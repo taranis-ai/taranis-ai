@@ -131,7 +131,7 @@ def upgrade():
         sa.Column("name", sa.String(), nullable=False),
         sa.Column("description", sa.String(), nullable=True),
         sa.Column(
-            "collector_type",
+            "type",
             sa.Enum(
                 "RSS_COLLECTOR", "EMAIL_COLLECTOR", "TWITTER_COLLECTOR", "WEB_COLLECTOR", "SELENIUM_WEB_COLLECTOR", name="collector_types"
             ),
@@ -190,7 +190,7 @@ def upgrade():
         sa.Column("name", sa.String(), nullable=False),
         sa.Column("description", sa.String(), nullable=True),
         sa.Column(
-            "publisher_type",
+            "type",
             sa.Enum("FTP_PUBLISHER", "EMAIL_PUBLISHER", "TWITTER_PUBLISHER", "WORDPRESS_PUBLISHER", "MISP_PUBLISHER", name="publisher_types"),
             nullable=True,
         ),

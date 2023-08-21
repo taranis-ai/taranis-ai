@@ -19,11 +19,13 @@ def collect_by_source_id(source_id: str):
         logger.critical(e)
         return str(e)
 
+    logger.debug(f"Source: {source}")
+
     if not source:
         logger.error(f"Source with id {source_id} not found")
         return f"Source with id {source_id} not found"
 
-    collector_type = source.get("collector_type")
+    collector_type = source.get("type")
     if not collector_type:
         logger.error(f"Source {source_id} has no collector_type")
         return f"Source {source_id} has no collector_type"

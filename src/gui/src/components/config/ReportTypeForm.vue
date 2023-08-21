@@ -55,29 +55,23 @@
               <v-text-field
                 v-model="group.title"
                 :label="$t('report_type.name')"
-                name="group_title"
                 type="text"
               ></v-text-field>
               <v-textarea
                 v-model="group.description"
                 :label="$t('report_type.description')"
-                name="group_description"
               ></v-textarea>
               <v-text-field
                 v-model="group.section_title"
                 :label="$t('report_type.section_title')"
-                name="section_title"
               ></v-text-field>
-              <!-- <AttributeTable
-                v-for="(attribute_items, items_key) in report_type
-                  .attribute_groups[index].attribute_group_items"
-                :key="items_key + index"
-                :attributes="attribute_items"
-                @update="
-                  (update_items) =>
-                    updateAttributeGroupItems(index, update_items)
+              <AttributeTable
+                :attributes="
+                  report_type.attribute_groups[index].attribute_group_items
                 "
-              /> -->
+                :attribute-templates="attributes"
+                @update="(items) => updateAttributeGroupItems(index, items)"
+              />
             </v-card-text>
           </v-card>
         </v-col>
@@ -89,13 +83,13 @@
 <script>
 import { ref } from 'vue'
 import { createReportItemType, updateReportItemType } from '@/api/config'
-// import AttributeTable from './AttributeTable.vue'
+import AttributeTable from './AttributeTable.vue'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
 
 export default {
   name: 'ReportTypeForm',
   components: {
-    //    AttributeTable
+    AttributeTable
   },
   props: {
     reportTypeData: {
@@ -107,6 +101,11 @@ export default {
       type: Boolean,
       required: false,
       default: false
+    },
+    attributes: {
+      type: Array,
+      required: false,
+      default: () => []
     }
   },
   emits: ['updated'],
@@ -152,7 +151,6 @@ export default {
     }
 
     const add = () => {
-      console.debug('Submitting: ')
       console.debug(report_type.value.attribute_groups)
       for (let x = 0; x < report_type.value.attribute_groups.length; x++) {
         report_type.value.attribute_groups[x].index = x

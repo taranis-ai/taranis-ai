@@ -92,7 +92,7 @@ export const useConfigStore = defineStore('config', {
           notifyFailure(getMessageFromError(error))
         })
     },
-    loadReportTypesConfig(data) {
+    loadReportTypes(data) {
       return getAllReportTypes(data)
         .then((response) => {
           this.report_item_types = response.data

@@ -19,24 +19,23 @@ class OSINTSource(BaseModel):
     name = db.Column(db.String(), nullable=False)
     description = db.Column(db.String())
 
-    collector_type = db.Column(db.Enum(COLLECTOR_TYPES))
-    parameter_values = db.relationship("ParameterValue", secondary="osint_source_parameter_value", cascade="all, delete")
+    type = db.Column(db.Enum(COLLECTOR_TYPES))
+    parameters = db.relationship("ParameterValue", secondary="osint_source_parameter_value", cascade="all, delete")
 
     word_lists = db.relationship("WordList", secondary="osint_source_word_list")
+    groups = db.relationship("OSINTSourceGroup", secondary="osint_source_group_osint_source")
 
     state = db.Column(db.SmallInteger, default=0)
     last_collected = db.Column(db.DateTime, default=None)
     last_attempted = db.Column(db.DateTime, default=None)
     last_error_message = db.Column(db.String, default=None)
 
-    def __init__(self, name, description, collector_type, parameter_values=None, word_lists=None, id=None):
+    def __init__(self, name, description, type, parameters=None, word_lists=None, id=None):
         self.id = id or str(uuid.uuid4())
         self.name = name
         self.description = description
-        self.collector_type = collector_type
-        self.parameter_values = (
-            ParameterValue.get_or_create_from_list(parameters=parameter_values) if parameter_values else Worker.get_parameters(collector_type)
-        )
+        self.type = type
+        self.parameters = ParameterValue.get_or_create_from_list(parameters=parameters) if parameters else Worker.get_parameters(type)
         self.word_lists = [WordList.get(word_list) for word_list in word_lists] if word_lists else []
 
     @classmethod
@@ -55,7 +54,7 @@ class OSINTSource(BaseModel):
                 or_(
                     OSINTSource.name.ilike(search_string),
                     OSINTSource.description.ilike(search_string),
-                    OSINTSource.collector_type.ilike(search_string),
+                    OSINTSource.type.ilike(search_string),
                 )
             )
 
@@ -69,22 +68,31 @@ class OSINTSource(BaseModel):
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "OSINTSource":
-        drop_keys = ["tag", "last_collected", "last_attempted", "state", "last_error_message"]
+        drop_keys = ["last_collected", "last_attempted", "state", "last_error_message"]
         [data.pop(key, None) for key in drop_keys if key in data]
         return cls(**data)
 
     def to_dict(self):
         data = super().to_dict()
         data["word_lists"] = [word_list.id for word_list in self.word_lists if word_list]
-        data["parameter_values"] = {parameter_value.parameter: parameter_value.value for parameter_value in self.parameter_values}
-        data["tag"] = "mdi-animation-outline"
+        for group in self.groups:
+            data["word_lists"].extend([word_list.id for word_list in group.word_lists])
+        data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters}
+        return data
+
+    def to_worker_dict(self):
+        data = super().to_dict()
+        data["word_lists"] = [word_list.to_dict() for word_list in self.word_lists if word_list]
+        for group in self.groups:
+            data["word_lists"].extend([word_list.to_dict() for word_list in group.word_lists])
+        data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters}
         return data
 
     def to_task_id(self):
-        return f"osint_source_{self.id}_{self.collector_type}"
+        return f"osint_source_{self.id}_{self.type}"
 
     def get_schedule(self):
-        refresh_interval = [param_value.value for param_value in self.parameter_values if param_value.parameter == "REFRESH_INTERVAL"]
+        refresh_interval = [parameter.value for parameter in self.parameters if parameter.parameter == "REFRESH_INTERVAL"]
         return refresh_interval[0] if len(refresh_interval) == 1 else "60"
 
     def to_task_dict(self):
@@ -94,8 +102,8 @@ class OSINTSource(BaseModel):
         return {
             "name": self.name,
             "description": self.description,
-            "collector_type": self.collector_type,
-            "parameter_values": [parameter_value.to_dict() for parameter_value in self.parameter_values],
+            "type": self.type,
+            "parameters": [parameter.to_dict() for parameter in self.parameters],
         }
 
     @classmethod
@@ -105,11 +113,11 @@ class OSINTSource(BaseModel):
         return {"total_count": count, "items": items}
 
     def to_list(self):
-        return {"id": self.id, "name": self.name, "description": self.description, "collector_type": self.collector_type}
+        return {"id": self.id, "name": self.name, "description": self.description, "type": self.type}
 
     @classmethod
     def get_all_by_type(cls, collector_type: str):
-        query = cls.query.filter(OSINTSource.collector_type == collector_type)
+        query = cls.query.filter(OSINTSource.type == collector_type)
         sources = query.order_by(db.nulls_first(db.asc(OSINTSource.last_collected)), db.nulls_first(db.asc(OSINTSource.last_attempted))).all()
         return [source.to_dict() for source in sources]
 
@@ -128,7 +136,7 @@ class OSINTSource(BaseModel):
         updated_osint_source = cls.from_dict(data)
         osint_source.name = updated_osint_source.name
         osint_source.description = updated_osint_source.description
-        osint_source.parameter_values = updated_osint_source.parameter_values
+        osint_source.parameters = updated_osint_source.parameters
         osint_source.word_lists = updated_osint_source.word_lists
         db.session.commit()
         osint_source.schedule_osint_source()
@@ -179,17 +187,22 @@ class OSINTSource(BaseModel):
         return json.dumps(export_data).encode("utf-8")
 
     def cleanup_paramaters(self) -> "OSINTSource":
-        for parameter_value in self.parameter_values:
-            if parameter_value.parameter == "PROXY_SERVER":
-                parameter_value.value = ""
+        for parameter in self.parameters:
+            if parameter.parameter == "PROXY_SERVER":
+                parameter.value = ""
         return self
 
     @classmethod
     def parse_version_1(cls, data: list) -> list:
         for source in data:
-            for parameter in source["parameter_values"]:
-                parameter["parameter"] = parameter["parameter"]["key"]
-            source["collector_type"] = source.pop("collector")["type"]
+            source["parameters"] = []
+            for parameter in source.pop("parameter_values", []):
+                source["parameters"].append(
+                    {
+                        parameter["parameter"]["key"]: parameter["value"],
+                    }
+                )
+            source["type"] = source.pop("collector")["type"]
         return data
 
     @classmethod
@@ -221,7 +234,7 @@ class OSINTSourceGroup(BaseModel):
     description = db.Column(db.String())
     default = db.Column(db.Boolean(), default=False)
 
-    osint_sources = db.relationship("OSINTSource", secondary="osint_source_group_osint_source")
+    osint_sources = db.relationship("OSINTSource", secondary="osint_source_group_osint_source", back_populates="groups")
     word_lists = db.relationship("WordList", secondary="osint_source_group_word_list")
 
     def __init__(self, name, description, osint_sources=None, default=False, word_lists=None, id=None):

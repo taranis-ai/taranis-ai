@@ -12,7 +12,7 @@ def generate_product(product_id):
 
     input_data = {
         "type": presenter.type,
-        "parameter_values": product.product_type.parameter_values,
+        "parameters": product.product_type.parameters,
         "report_items": product.report_items,
         "report_type": product.report_items[0].report_item_type,
     }
