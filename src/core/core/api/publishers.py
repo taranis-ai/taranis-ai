@@ -14,7 +14,6 @@ class PublisherPresets(Resource):
     @api_key_required
     def post(self):
         parser = reqparse.RequestParser()
-        parser.add_argument("api_key")
         parser.add_argument("collector_type")
         parameters = parser.parse_args()
         return publisher_preset.PublisherPreset.get_all_for_publisher_json(parameters)

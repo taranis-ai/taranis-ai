@@ -14,7 +14,11 @@
       @update-items="updateData"
     >
       <template #titlebar>
-        <ImportExport @import="importData" @export="exportData"></ImportExport>
+        <ImportExport
+          accepts="application/json, text/csv"
+          @import="importData"
+          @export="exportData"
+        ></ImportExport>
       </template>
       <template #actionColumn="source">
         <v-tooltip left>
@@ -136,12 +140,12 @@ export default {
 
     const handleSubmit = (submittedData) => {
       delete submittedData.entries
-      console.log(submittedData)
       if (edit.value) {
         updateItem(submittedData)
       } else {
         createItem(submittedData)
       }
+      showForm.value = false
     }
 
     const deleteItem = (item) => {
@@ -179,6 +183,7 @@ export default {
 
     const importData = (data) => {
       importWordList(data)
+      updateData()
     }
 
     const exportData = () => {

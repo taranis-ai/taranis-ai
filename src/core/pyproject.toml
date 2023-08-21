@@ -9,12 +9,11 @@ maintainers = [{ name = "AIT", email = "benjamin.akhras@ait.ac.at" }]
 classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Framework :: Flask",
     "Topic :: Security",
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "Flask",
     "Flask-Cors",
@@ -44,7 +43,7 @@ include-package-data = true
 where = ["core", "."]
 
 [project.optional-dependencies]
-dev = ["black", "pytest", "pytest-celery", "sqlalchemy-stubs", "schemathesis"]
+dev = ["black", "flake8", "pytest", "pytest-celery", "sqlalchemy-stubs", "schemathesis", "build", "wheel", "setuptools"]
 
 [project.urls]
 "Source Code" = "https://github.com/ait-cs-IaaS/Taranis-NG"
@@ -58,7 +57,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.black]
 line-length = "142"
-target-version = ["py38","py310"]
+target-version = ["py311"]
 
 [tool.pytest.ini_options]
 filterwarnings = [

@@ -7,7 +7,6 @@ from core.managers.log_manager import logger
 from core.model.news_item import NewsItemData, NewsItemTag, NewsItemAggregate
 from core.model.product import Product
 from core.model.report_item import ReportItem
-from core.model.tag_cloud import TagCloud
 from core.config import Config
 
 
@@ -57,15 +56,8 @@ class StoryClusters(Resource):
 class Tagcloud(Resource):
     @jwt_required()
     def get(self):
-        try:
-            tag_cloud_day = 0
-            if "tag_cloud_day" in request.args and request.args["tag_cloud_day"]:
-                tag_cloud_day = min(int(request.args["tag_cloud_days"]), 7)
-        except Exception as ex:
-            logger.log_debug(ex)
-            return "", 400
-
-        return TagCloud.get_grouped_words(tag_cloud_day)
+        # TODO: should be just a list of tags and their counts
+        return {"message": "Not implemented"}, 501
 
 
 class BuildInfo(Resource):

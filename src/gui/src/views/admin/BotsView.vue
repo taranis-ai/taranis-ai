@@ -2,21 +2,25 @@
   <div>
     <DataTable
       v-model:items="bots.items"
-      :add-button="false"
-      :header-filter="['name', 'description']"
-      sort-by-item="name"
+      :add-button="true"
+      :header-filter="['tag', 'name', 'description', 'type']"
+      sort-by-item="id"
       :action-column="true"
+      tag-icon="mdi-robot"
+      @delete-item="deleteItem"
       @edit-item="editItem"
+      @add-item="addItem"
+      @selection-change="selectionChange"
       @update-items="updateData"
     >
-      <template #actionColumn="source">
+      <template #actionColumn="bot">
         <v-tooltip left>
           <template #activator="{ props }">
             <v-icon
               v-bind="props"
               color="secondary"
               icon="mdi-run"
-              @click.stop="executeBot(source.item)"
+              @click.stop="executeBot(bot.item)"
             />
           </template>
           <span>Execute Bot</span>
@@ -24,22 +28,22 @@
       </template>
     </DataTable>
     <EditConfig
-      v-if="formData && Object.keys(formData).length > 0"
+      v-if="showForm"
       :config-data="formData"
       :form-format="formFormat"
+      :parameters="parameters"
       @submit="handleSubmit"
     ></EditConfig>
   </div>
 </template>
-
 <script>
 import DataTable from '@/components/common/DataTable.vue'
 import EditConfig from '@/components/config/EditConfig.vue'
-import { updateBot, executeBotTask } from '@/api/config'
+import { createBot, deleteBot, updateBot, executeBotTask } from '@/api/config'
 import { ref, computed, onMounted } from 'vue'
+import { notifySuccess, notifyFailure, baseFormat } from '@/utils/helpers'
 import { useConfigStore } from '@/stores/ConfigStore'
 import { useMainStore } from '@/stores/MainStore'
-import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import { storeToRefs } from 'pinia'
 
 export default {
@@ -49,87 +53,99 @@ export default {
     EditConfig
   },
   setup() {
-    const mainStore = useMainStore()
     const configStore = useConfigStore()
-
-    // data
-    const { bots } = storeToRefs(configStore)
+    const mainStore = useMainStore()
+    const { bots, bot_types, parameters } = storeToRefs(configStore)
+    const selected = ref([])
     const formData = ref({})
-    const parameters = ref({})
-    const bot_types = ref([])
+    const edit = ref(false)
+    const bot_options = ref([])
+    const showForm = ref(false)
 
-    // computed
     const formFormat = computed(() => {
-      const base = [
-        {
-          name: 'id',
-          label: 'ID',
-          type: 'text',
-          disabled: true
-        },
-        {
-          name: 'name',
-          label: 'Name',
-          type: 'text',
-          rules: [(v) => !!v || 'Required']
-        },
-        {
-          name: 'description',
-          label: 'Description',
-          type: 'textarea',
-          rules: [(v) => !!v || 'Required']
-        },
+      const additionalFormat = [
         {
           name: 'type',
           label: 'Type',
-          type: 'text',
-          disabled: true
+          type: 'select',
+          items: bot_options.value
         }
       ]
-      if (parameters.value[formData.value.type]) {
-        return base.concat(parameters.value[formData.value.type])
-      }
-      return base
+      return [...baseFormat, ...additionalFormat]
     })
 
-    // methods
     const updateData = () => {
       configStore.loadBots().then(() => {
         mainStore.itemCountTotal = bots.value.total_count
         mainStore.itemCountFiltered = bots.value.items.length
-        bots.value.items.forEach((item) => {
-          parameters.value[item.type] = Object.keys(item[item.type]).map(
-            (key) => {
-              return {
-                name: key,
-                label: key,
-                parent: item.type,
-                type: 'text'
-              }
-            }
-          )
+      })
+      configStore.loadWorkerTypes().then(() => {
+        bot_options.value = bot_types.value.map((bot) => {
+          return {
+            value: bot.type,
+            title: bot.name
+          }
         })
       })
+      configStore.loadParameters()
+    }
+
+    const addItem = () => {
+      formData.value = {}
+      edit.value = false
+      showForm.value = true
     }
 
     const editItem = (item) => {
       formData.value = item
+      edit.value = true
+      showForm.value = true
     }
 
     const handleSubmit = (submittedData) => {
-      console.debug(submittedData)
-      updateItem(submittedData)
+      if (edit.value) {
+        updateItem(submittedData)
+      } else {
+        createItem(submittedData)
+      }
+      showForm.value = false
+    }
+
+    const deleteItem = (item) => {
+      deleteBot(item)
+        .then(() => {
+          notifySuccess(`Successfully deleted ${item.name}`)
+          updateData()
+        })
+        .catch(() => {
+          notifyFailure(`Failed to delete ${item.name}`)
+        })
+    }
+
+    const createItem = (item) => {
+      createBot(item)
+        .then(() => {
+          notifySuccess(`Successfully created ${item.name}`)
+          updateData()
+        })
+        .catch(() => {
+          notifyFailure(`Failed to create ${item.name}`)
+        })
     }
 
     const updateItem = (item) => {
       updateBot(item)
         .then(() => {
-          notifySuccess(`Successfully updated ${item.id}`)
+          notifySuccess(`Successfully updated ${item.name}`)
           updateData()
         })
         .catch(() => {
-          notifyFailure(`Failed to update ${item.id}`)
+          notifyFailure(`Failed to update ${item.name}`)
         })
+    }
+
+    const selectionChange = (new_selection) => {
+      selected.value = new_selection
     }
 
     const executeBot = (item) => {
@@ -147,20 +163,21 @@ export default {
     })
 
     return {
-      // data
       bots,
+      selected,
       formData,
-      parameters,
-      bot_types,
-
-      // computed
+      edit,
       formFormat,
-
-      // methods
-      updateData,
+      showForm,
+      parameters,
+      addItem,
       editItem,
       handleSubmit,
+      updateData,
+      deleteItem,
+      createItem,
       updateItem,
+      selectionChange,
       executeBot
     }
   }

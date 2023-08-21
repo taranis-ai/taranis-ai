@@ -1,35 +1,53 @@
 from typing import Any
 from core.managers.log_manager import logger
+from enum import StrEnum, auto
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
-from core.model.parameter import Parameter
+
+
+class PARAMETER_TYPES(StrEnum):
+    TEXT = auto()
+    TEXTAREA = auto()
+    NUMBER = auto()
+    SWITCH = auto()
+    CHECKBOX = auto()
+    SELECT = auto()
+    LIST = auto()
+    DATE = auto()
 
 
 class ParameterValue(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
-    value = db.Column(db.String(), nullable=False, default="")
+    parameter = db.Column(db.String, nullable=False)
+    value = db.Column(db.String, nullable=False, default="")
+    type = db.Column(db.Enum(PARAMETER_TYPES), nullable=False, default="text")
 
-    parameter_key = db.Column(db.String(), db.ForeignKey("parameter.key"))
-    parameter = db.relationship("Parameter")
-
-    def __init__(self, value, parameter):
-        self.id = None
+    def __init__(self, parameter, value="", type="text", id=None):
+        self.id = id
+        self.parameter = parameter
         self.value = value
-        self.parameter_key = parameter
+        self.type = type
 
-    def to_dict(self) -> dict[str, Any]:
-        data = super().to_dict()
-        data["parameter"] = Parameter.find_by_key(data.pop("parameter_key")).to_dict()
-        return data
-
-    def to_simple_dict(self) -> dict[str, Any]:
-        return {self.parameter_key: self.value}
-
-    def to_export_dict(self) -> dict[str, Any]:
-        return {"parameter": self.parameter_key, "value": self.value}
+    def to_dict(self) -> dict[int, Any]:
+        return {self.parameter: self.value}
 
     @classmethod
-    def find_param_value(cls, p_values: list["ParameterValue"], key: str) -> "ParameterValue":
-        # Helper function to find parameter value based on key
-        return next((pv for pv in p_values if pv.parameter.key == key), None)
+    def get_or_create(cls, data: dict[str, Any]) -> "ParameterValue":
+        if "id" in data:
+            return cls.get(data["id"])
+        if "parameter" in data:
+            return cls.from_dict(data)
+        return cls.from_dict({"parameter": list(data.keys())[0], "value": list(data.values())[0]})
+
+    @classmethod
+    def get_or_create_from_list(cls, parameters: dict[str, Any] | list[str] | list[dict[str, Any]]) -> list["ParameterValue"]:
+        if parameters and isinstance(parameters, list):
+            if isinstance(parameters[0], dict):
+                return [cls.get_or_create(parameter) for parameter in parameters]  # type: ignore
+            return cls.from_parameter_list(parameters)  # type: ignore
+        return [cls.get_or_create({"parameter": key, "value": val}) for key, val in parameters.items()]  # type: ignore
+
+    @classmethod
+    def from_parameter_list(cls, parameters: list[str]) -> list["ParameterValue"]:
+        return [cls(parameter=parameter) for parameter in parameters]

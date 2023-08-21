@@ -10,26 +10,25 @@ from core.model.product import Product
 from core.model.base_model import BaseModel
 from core.model.acl_entry import ACLEntry, ItemType
 from core.model.parameter_value import ParameterValue
+from core.model.worker import PRESENTER_TYPES, Worker
 
 
 class ProductType(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(64), unique=True, nullable=False)
     description = db.Column(db.String(), nullable=False)
-
-    created = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-
-    presenter_id = db.Column(db.String, db.ForeignKey("presenter.id"))
-    presenter = db.relationship("Presenter")
+    presenter_type = db.Column(db.Enum(PRESENTER_TYPES))
 
     parameter_values = db.relationship("ParameterValue", secondary="product_type_parameter_value", cascade="all")
 
-    def __init__(self, title, description, presenter_id, parameter_values, id=None):
+    def __init__(self, title, description, presenter_type, parameter_values=None, id=None):
         self.id = id
         self.title = title
         self.description = description
-        self.presenter_id = presenter_id
-        self.parameter_values = parameter_values
+        self.presenter_type = presenter_type
+        self.parameter_values = (
+            ParameterValue.get_or_create_from_list(parameter_values) if parameter_values else Worker.get_parameters(presenter_type)
+        )
 
     @classmethod
     def get_all(cls):
@@ -91,18 +90,13 @@ class ProductType(BaseModel):
         updated_product_type = cls.from_dict(data)
         product_type.title = updated_product_type.title
         product_type.description = updated_product_type.description
-
-        for value in product_type.parameter_values:
-            for updated_value in updated_product_type.parameter_values:
-                if value.parameter_key == updated_value.parameter_key:
-                    value.value = updated_value.value
-
+        product_type.parameter_values = updated_product_type.parameter_values
         db.session.commit()
         return product_type.id
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
-        data["parameter_values"] = [value.to_dict() for value in self.parameter_values]
+        data["parameter_values"] = {value.parameter: value.value for value in self.parameter_values}
         data["tag"] = "mdi-file-document-outline"
         return data
 

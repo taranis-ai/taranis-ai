@@ -49,17 +49,10 @@ export default {
         permission: 'CONFIG_WORKER_ACCESS'
       },
       {
-        icon: 'mdi-robot',
-        title: 'nav_menu.bots',
-        route: '/config/bots',
-        permission: 'CONFIG_NODE_ACCESS'
-      },
-      {
-        icon: 'mdi-arrow-collapse-all',
-        title: 'nav_menu.collectors',
-        route: '/config/collectors',
-        permission: 'CONFIG_NODE_ACCESS',
-        divider: true
+        icon: 'mdi-progress-wrench',
+        title: 'nav_menu.worker_types',
+        route: '/config/workertypes',
+        permission: 'CONFIG_WORKER_ACCESS'
       },
       {
         icon: 'mdi-animation-outline',
@@ -85,6 +78,12 @@ export default {
         title: 'nav_menu.publisher_presets',
         route: '/config/publishers/presets',
         permission: 'CONFIG_PUBLISHER_PRESET_ACCESS'
+      },
+      {
+        icon: 'mdi-robot',
+        title: 'nav_menu.bots',
+        route: '/config/bots',
+        permission: 'CONFIG_BOT_ACCESS'
       },
       {
         icon: 'mdi-application-variable-outline',

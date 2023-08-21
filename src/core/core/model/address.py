@@ -12,7 +12,7 @@ class Address(BaseModel):
     zip = db.Column(db.String())
     country = db.Column(db.String())
 
-    def __init__(self, street, city, zip, country, id=None):
+    def __init__(self, street=None, city=None, zip=None, country=None, id=None):
         self.id = id
         self.street = street
         self.city = city

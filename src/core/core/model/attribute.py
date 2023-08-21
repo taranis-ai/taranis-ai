@@ -100,21 +100,21 @@ class AttributeEnum(BaseModel):
         db.session.commit()
 
     @classmethod
-    def update(cls, enum_id, data) -> tuple[str, int]:
+    def update(cls, enum_id, data) -> tuple[dict, int]:
         attribute_enum = cls.query.get(enum_id)
         if not attribute_enum:
-            return "Attribute Enum not found", 404
+            return {"error": "Attribute Enum not found"}, 404
         for key, value in data.items():
             if hasattr(attribute_enum, key) and key != "id":
                 setattr(attribute_enum, key, value)
         db.session.commit()
-        return f"Attribute Enum {attribute_enum.id} updated", 200
+        return {"message": f"Attribute Enum {attribute_enum.id} updated", "id": attribute_enum.id}, 200
 
     @classmethod
-    def delete(cls, attribute_enum_id) -> tuple[str, int]:
+    def delete(cls, attribute_enum_id) -> tuple[dict, int]:
         cls.query.get(attribute_enum_id).delete()
         db.session.commit()
-        return f"Attribute Enum {attribute_enum_id} deleted", 200
+        return {"message": f"Attribute Enum {attribute_enum_id} deleted", "id": attribute_enum_id}, 200
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "AttributeEnum":

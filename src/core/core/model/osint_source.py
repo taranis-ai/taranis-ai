@@ -7,11 +7,11 @@ from sqlalchemy import or_, and_
 from core.managers.db_manager import db
 from core.managers.log_manager import logger
 from core.model.acl_entry import ACLEntry, ItemType
-from core.model.collector import Collector
 from core.model.parameter_value import ParameterValue
 from core.model.word_list import WordList
 from core.model.base_model import BaseModel
 from core.model.queue import ScheduleEntry
+from core.model.worker import COLLECTOR_TYPES, Worker
 
 
 class OSINTSource(BaseModel):
@@ -19,7 +19,7 @@ class OSINTSource(BaseModel):
     name = db.Column(db.String(), nullable=False)
     description = db.Column(db.String())
 
-    collector_id = db.Column(db.String, db.ForeignKey("collector.id"))
+    collector_type = db.Column(db.Enum(COLLECTOR_TYPES))
     parameter_values = db.relationship("ParameterValue", secondary="osint_source_parameter_value", cascade="all, delete")
 
     word_lists = db.relationship("WordList", secondary="osint_source_word_list")
@@ -29,13 +29,13 @@ class OSINTSource(BaseModel):
     last_attempted = db.Column(db.DateTime, default=None)
     last_error_message = db.Column(db.String, default=None)
 
-    def __init__(self, name, description, collector_id, parameter_values, word_lists=None, id=None):
+    def __init__(self, name, description, collector_type, parameter_values=None, word_lists=None, id=None):
         self.id = id or str(uuid.uuid4())
         self.name = name
         self.description = description
-        self.collector_id = collector_id
+        self.collector_type = collector_type
         self.parameter_values = (
-            [ParameterValue.from_dict(parameter_value) for parameter_value in parameter_values] if parameter_values else []
+            ParameterValue.get_or_create_from_list(parameters=parameter_values) if parameter_values else Worker.get_parameters(collector_type)
         )
         self.word_lists = [WordList.get(word_list) for word_list in word_lists] if word_lists else []
 
@@ -51,11 +51,11 @@ class OSINTSource(BaseModel):
 
         if search:
             search_string = f"%{search}%"
-            query = query.join(Collector, OSINTSource.collector_id == Collector.id).filter(
+            query = query.filter(
                 or_(
                     OSINTSource.name.ilike(search_string),
                     OSINTSource.description.ilike(search_string),
-                    Collector.type.ilike(search_string),
+                    OSINTSource.collector_type.ilike(search_string),
                 )
             )
 
@@ -71,34 +71,20 @@ class OSINTSource(BaseModel):
     def from_dict(cls, data: dict[str, Any]) -> "OSINTSource":
         drop_keys = ["tag", "last_collected", "last_attempted", "state", "last_error_message"]
         [data.pop(key, None) for key in drop_keys if key in data]
-
-        collector_type = None
-        if "collector" in data:
-            collector_type = data.pop("collector")["type"]
-        elif "collector_type" in data:
-            collector_type = data.pop("collector_type")
-        if collector_type:
-            collector = Collector.find_by_type(collector_type)
-            if not collector:
-                logger.error(f"Collector {collector_type} not found")
-                raise ValueError(f"Collector {collector_type} not found")
-            collector_id = collector.id
-        else:
-            collector_id = data.pop("collector_id")
-        return cls(collector_id=collector_id, **data)
+        return cls(**data)
 
     def to_dict(self):
         data = super().to_dict()
         data["word_lists"] = [word_list.id for word_list in self.word_lists if word_list]
-        data["parameter_values"] = [parameter_value.to_dict() for parameter_value in self.parameter_values]
+        data["parameter_values"] = {parameter_value.parameter: parameter_value.value for parameter_value in self.parameter_values}
         data["tag"] = "mdi-animation-outline"
         return data
 
     def to_task_id(self):
-        return f"osint_source_{self.id}_{self.collector.type}"
+        return f"osint_source_{self.id}_{self.collector_type}"
 
     def get_schedule(self):
-        refresh_interval = [param_value.value for param_value in self.parameter_values if param_value.parameter.key == "REFRESH_INTERVAL"]
+        refresh_interval = [param_value.value for param_value in self.parameter_values if param_value.parameter == "REFRESH_INTERVAL"]
         return refresh_interval[0] if len(refresh_interval) == 1 else "60"
 
     def to_task_dict(self):
@@ -108,8 +94,8 @@ class OSINTSource(BaseModel):
         return {
             "name": self.name,
             "description": self.description,
-            "collector_type": self.collector.type,
-            "parameter_values": [parameter_value.to_export_dict() for parameter_value in self.parameter_values],
+            "collector_type": self.collector_type,
+            "parameter_values": [parameter_value.to_dict() for parameter_value in self.parameter_values],
         }
 
     @classmethod
@@ -119,19 +105,13 @@ class OSINTSource(BaseModel):
         return {"total_count": count, "items": items}
 
     def to_list(self):
-        return {"id": self.id, "name": self.name, "description": self.description, "collector_type": self.collector.type}
-
-    def to_collector_dict(self):
-        data = super().to_dict()
-        data["parameter_values"] = {parameter_value.parameter.key: parameter_value.value for parameter_value in self.parameter_values}
-        data["type"] = Collector.get_type(self.collector_id)
-        return data
+        return {"id": self.id, "name": self.name, "description": self.description, "collector_type": self.collector_type}
 
     @classmethod
     def get_all_by_type(cls, collector_type: str):
-        query = cls.query.join(Collector, OSINTSource.collector_id == Collector.id).filter(Collector.type == collector_type)
+        query = cls.query.filter(OSINTSource.collector_type == collector_type)
         sources = query.order_by(db.nulls_first(db.asc(OSINTSource.last_collected)), db.nulls_first(db.asc(OSINTSource.last_attempted))).all()
-        return [source.to_collector_dict() for source in sources]
+        return [source.to_dict() for source in sources]
 
     @classmethod
     def add(cls, data):
@@ -148,12 +128,7 @@ class OSINTSource(BaseModel):
         updated_osint_source = cls.from_dict(data)
         osint_source.name = updated_osint_source.name
         osint_source.description = updated_osint_source.description
-
-        for value in osint_source.parameter_values:
-            for updated_value in updated_osint_source.parameter_values:
-                if value.parameter_key == updated_value.parameter_key:
-                    value.value = updated_value.value
-
+        osint_source.parameter_values = updated_osint_source.parameter_values
         osint_source.word_lists = updated_osint_source.word_lists
         db.session.commit()
         osint_source.schedule_osint_source()
@@ -205,7 +180,7 @@ class OSINTSource(BaseModel):
 
     def cleanup_paramaters(self) -> "OSINTSource":
         for parameter_value in self.parameter_values:
-            if parameter_value.parameter.key == "PROXY_SERVER":
+            if parameter_value.parameter == "PROXY_SERVER":
                 parameter_value.value = ""
         return self
 
@@ -214,6 +189,7 @@ class OSINTSource(BaseModel):
         for source in data:
             for parameter in source["parameter_values"]:
                 parameter["parameter"] = parameter["parameter"]["key"]
+            source["collector_type"] = source.pop("collector")["type"]
         return data
 
     @classmethod

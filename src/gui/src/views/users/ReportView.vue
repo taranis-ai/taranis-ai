@@ -29,7 +29,6 @@ export default {
       completed: false,
       report_item_type_id: null,
       news_item_aggregates: [],
-      remote_report_items: [],
       attributes: []
     })
     const report_item = ref(default_report_item.value)

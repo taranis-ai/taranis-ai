@@ -2,7 +2,10 @@
   <v-col :cols="cols" class="pa-2 mb-8">
     <v-card class="mt-4 mx-auto">
       <v-card-title>
-        <router-link :to="linkTo" class="title">{{ linkText }}</router-link>
+        <router-link v-if="linkTo != '#'" :to="linkTo">
+          {{ linkText }}
+        </router-link>
+        <span v-else class="title">{{ linkText }}</span>
         <v-divider class="my-2"></v-divider>
       </v-card-title>
       <slot name="card">
@@ -18,7 +21,7 @@
 export default {
   name: 'DashBoardCard',
   props: {
-    linkTo: { type: String, default: '/' },
+    linkTo: { type: String, default: '#' },
     linkText: { type: String, default: '/' },
     cols: { type: String, default: '4' }
   }

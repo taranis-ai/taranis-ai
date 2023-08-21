@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta
-from enum import Enum, auto
 from functools import wraps
 from flask import request
 from typing import Any
@@ -17,12 +16,6 @@ from core.auth.keycloak_authenticator import KeycloakAuthenticator
 from core.auth.openid_authenticator import OpenIDAuthenticator
 from core.auth.test_authenticator import TestAuthenticator
 from core.auth.database_authenticator import DatabaseAuthenticator
-from core.model.collectors_node import CollectorsNode
-from core.model.news_item import NewsItem
-from core.model.osint_source import OSINTSourceGroup
-from core.model.product_type import ProductType
-from core.model.remote import RemoteAccess
-from core.model.report_item import ReportItem
 from core.model.token_blacklist import TokenBlacklist
 from core.model.user import User
 from core.config import Config
@@ -145,31 +138,6 @@ def api_key_required(fn):
 
         if Config.API_KEY != api_key:
             logger.store_auth_error_activity(f"Incorrect api key: {api_key}")
-            return error
-
-        # allow
-        return fn(*args, **kwargs)
-
-    return wrapper
-
-
-def access_key_required(fn):
-    @wraps(fn)
-    def wrapper(*args, **kwargs):
-        error = ({"error": "not authorized"}, 401)
-
-        auth_header = request.headers.get("Authorization", None)
-        if not auth_header:
-            logger.store_auth_error_activity("Missing Authorization header for remote access")
-            return error
-
-        if not auth_header.startswith("Bearer"):
-            logger.store_auth_error_activity("Missing Authorization Bearer for remote access")
-            return error
-
-        # does it match some of our remote peer's access keys?
-        if not RemoteAccess.exists_by_access_key(auth_header.replace("Bearer ", "")):
-            logger.store_auth_error_activity("Incorrect access key: " + auth_header.replace("Bearer ", "") + " for remote access")
             return error
 
         # allow

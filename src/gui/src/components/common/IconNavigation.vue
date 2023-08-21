@@ -29,7 +29,7 @@
 </template>
 
 <script>
-import { mapState } from 'pinia'
+import { computed } from 'vue'
 import { useMainStore } from '@/stores/MainStore'
 
 export default {
@@ -44,17 +44,19 @@ export default {
       default: 142
     }
   },
-  data: () => ({}),
-  computed: {
-    ...mapState(useMainStore, ['drawerVisible', 'user']),
+  setup(props) {
+    const { drawerVisible, user } = useMainStore()
 
-    filteredLinks() {
-      return this.links.filter(
-        (link) =>
-          !link.permission || this.user.permissions.includes(link.permission)
+    const filteredLinks = computed(() => {
+      return props.links.filter(
+        (link) => !link.permission || user.permissions.includes(link.permission)
       )
+    })
+
+    return {
+      drawerVisible,
+      filteredLinks
     }
-  },
-  methods: {}
+  }
 }
 </script>

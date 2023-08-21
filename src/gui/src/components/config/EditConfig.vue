@@ -9,54 +9,43 @@
       <v-row class="mb-4 grey pt-3 pb-3 rounded">
         <v-btn type="submit" color="success" class="ml-4"> Submit </v-btn>
       </v-row>
+
       <v-row v-for="item in format" :key="item.name" no-gutters>
-        <v-col v-if="item.parent" cols="12">
-          <v-text-field
-            v-if="item.type === 'text' || item.type === 'number'"
-            v-model="formData[item.parent][item.name]"
-            :label="item.label"
-            :rules="item.rules"
-            :disabled="item['disabled']"
-            :type="item.type"
-          />
-        </v-col>
-        <v-col v-else cols="12">
-          <v-text-field
-            v-if="item.type === 'text' || item.type === 'number'"
-            v-model="formData[item.name]"
-            :label="item.label"
-            :rules="item.rules"
-            :disabled="item['disabled']"
-            :type="item.type"
-            :bg-color="item.color"
-          />
-        </v-col>
         <v-text-field
-          v-if="item.type === 'date' && formData[item.name]"
-          :model-value="d(formData[item.name], 'long')"
+          v-if="item.type === 'text' || item.type === 'number'"
+          v-model="formData[item.flatKey]"
+          :label="item.label"
+          :rules="item.rules"
+          :disabled="item['disabled']"
+          :type="item.type"
+          :bg-color="item.color"
+        />
+        <v-text-field
+          v-if="item.type === 'date' && formData[item.flatKey]"
+          :model-value="d(formData[item.flatKey], 'long')"
           :disabled="item['disabled']"
           :label="item.label"
           :bg-color="item.color"
         />
         <v-textarea
           v-if="item.type === 'textarea'"
-          v-model="formData[item.name]"
+          v-model="formData[item.flatKey]"
           :label="item.label"
           :rules="item.rules"
           :disabled="item['disabled']"
           :type="item.type"
         />
         <v-select
-          v-if="item.type === 'select' && item.options"
-          v-model="formData[item.name]"
+          v-if="item.type === 'select' && item.items"
+          v-model="formData[item.flatKey]"
           :label="item.label"
           :rules="item.rules"
           :disabled="item['disabled']"
-          :items="item.options"
+          :items="item.items"
         />
         <v-switch
           v-if="item.type === 'switch'"
-          v-model="formData[item.name]"
+          v-model="formData[item.flatKey]"
           :label="item.label"
           :disabled="item['disabled']"
           true-value="true"
@@ -65,7 +54,7 @@
         <v-list
           v-if="item.type === 'list'"
           width="100%"
-          :items="formData[item.name]"
+          :items="formData[item.flatKey]"
           :label="item.label"
           variant="outlined"
           density="compact"
@@ -77,18 +66,19 @@
         >
           <v-col v-for="checkbox in item.items" :key="checkbox.label" cols="3">
             <v-checkbox
-              v-model="formData[item.name]"
+              v-model="formData[item.flatKey]"
               :label="checkbox.label"
               :value="checkbox.value"
             />
           </v-col>
         </v-row>
+
         <v-col
           v-if="item.type === 'table' && item.items !== undefined"
           cols="12"
         >
           <v-data-table
-            v-model="formData[item.name]"
+            v-model="formData[item.flatKey]"
             :headers="item.headers"
             :show-select="!item['disabled']"
             :items="item.items"
@@ -114,19 +104,29 @@
 </template>
 
 <script>
-import { watch } from 'vue'
-import { ref, computed } from 'vue'
+import { watch, computed } from 'vue'
+import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import {
+  objectFromFormat,
+  reconstructFormData,
+  flattenFormData
+} from '@/utils/helpers'
 
 export default {
   name: 'EditConfig',
   props: {
     configData: {
       type: Object,
-      required: true
+      required: false,
+      default: null
     },
     formFormat: {
       type: Array,
+      required: true
+    },
+    parameters: {
+      type: Object,
       required: false,
       default: null
     }
@@ -134,16 +134,19 @@ export default {
   emits: ['submit'],
   setup(props, { emit }) {
     const config_form = ref(null)
-    const formData = ref(props.configData)
+    const formData = ref(
+      flattenFormData(props.configData, props.formFormat) ||
+        objectFromFormat(props.formFormat)
+    )
 
-    console.log(props.configData)
+    console.log(formData.value)
     const { d } = useI18n()
 
     const handleSubmit = () => {
       if (!config_form.value.validate()) {
         return
       }
-      emit('submit', formData.value)
+      emit('submit', reconstructFormData(formData.value, format.value))
     }
 
     const addItem = (name) => {
@@ -156,43 +159,33 @@ export default {
       formData.value[name].push(newRow)
     }
 
-    const flattenObject = (obj, parent) => {
-      let result = []
-      let flat_obj = {}
-      for (const key in obj) {
-        if (typeof obj[key] === 'object') {
-          result = result.concat(flattenObject(obj[key], key))
-        } else {
-          flat_obj = {
-            name: key,
-            type: typeof obj[key] === 'number' ? 'number' : 'text',
-            label: key
-          }
-          if (parent) {
-            flat_obj.parent = parent
-          }
-          if (key === 'id') {
-            flat_obj.disabled = true
-            result.unshift(flat_obj)
-            continue
-          }
-          result.push(flat_obj)
-        }
+    const selectedParameters = computed(() => {
+      if (!formData.value.type || !props.parameters) {
+        return []
       }
-      return result
-    }
+      return props.parameters[formData.value.type]
+    })
 
     const format = computed(() => {
-      if (props.formFormat) {
-        return props.formFormat
-      }
-      return flattenObject(formData.value, null)
+      const formats = [...props.formFormat, ...selectedParameters.value]
+      return formats.map((item) => {
+        return {
+          ...item,
+          flatKey: item.parent ? `${item.parent}.${item.name}` : item.name
+        }
+      })
     })
+
+    formData.value =
+      flattenFormData(props.configData, format.value) ||
+      objectFromFormat(format.value)
 
     watch(
       () => props.configData,
       (newVal) => {
-        formData.value = newVal
+        formData.value =
+          flattenFormData(newVal, format.value) ||
+          objectFromFormat(format.value)
       }
     )
 

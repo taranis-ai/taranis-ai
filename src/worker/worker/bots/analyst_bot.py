@@ -49,7 +49,12 @@ class AnalystBot(BaseBot):
                                 binary_mime_type = ""
                                 binary_value = ""
 
-                                news_attribute = {"key": key, "value": value, "binary_mime_type": binary_mime_type, "binary_value": binary_value}
+                                news_attribute = {
+                                    "key": key,
+                                    "value": value,
+                                    "binary_mime_type": binary_mime_type,
+                                    "binary_value": binary_value,
+                                }
 
                                 attributes.append(news_attribute)
 

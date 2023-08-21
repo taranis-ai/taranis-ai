@@ -7,6 +7,7 @@ from datetime import timedelta
 from worker.core_api import CoreApi
 from worker.log import logger
 
+
 class RESTScheduleEntry(ScheduleEntry):
     def is_due(self):
         return super(RESTScheduleEntry, self).is_due()
@@ -25,14 +26,13 @@ class RESTScheduler(Scheduler):
         self.last_checked = datetime.now(timezone.utc)
         self.max_interval = 60
 
-
     def get_schedule_from_core(self):
         if schedule := self.core_api.get_schedule():
             schedule_dict = {}
             next_run_times = {}
             for entry in schedule:
-                entry['app'] = self.app
-                schedule_dict[entry['name']] = self.Entry(**entry)
+                entry["app"] = self.app
+                schedule_dict[entry["name"]] = self.Entry(**entry)
                 _, next_time_to_run = schedule_dict[entry["name"]].is_due()
                 next_run_times[entry["name"]] = (datetime.now(timezone.utc) + timedelta(seconds=int(next_time_to_run))).isoformat()
             self.core_api.update_next_run_time(next_run_times)

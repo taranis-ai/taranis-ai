@@ -59,65 +59,77 @@ export function objectFromFormat(format) {
     if (item === undefined || item.disabled) {
       return
     }
-    if (item.type === 'checkbox') {
+    if (item.type === 'switch') {
       newObject[item.name] = false
     } else if (
       item.type === 'text' ||
       item.type === 'textarea' ||
       item.type === 'select'
     ) {
-      if (item.parent) {
-        if (!newObject[item.parent]) {
-          newObject[item.parent] = {}
-        }
-        newObject[item.parent][item.name] = ''
-      } else {
-        newObject[item.name] = ''
-      }
+      newObject[item.name] = ''
     } else if (item.type === 'number') {
       newObject[item.name] = 0
-    } else if (item.type === 'table') {
+    } else if (item.type === 'table' || item.type === 'checkbox') {
       newObject[item.name] = []
     }
   })
-  return newObject
+  return flattenFormData(newObject, format)
 }
 
-export function parseParameterValues(data) {
-  const sources = []
-
-  data.forEach((source) => {
-    const rootLevel = source
-
-    source.parameter_values.forEach((parameter) => {
-      rootLevel[parameter.parameter.key] = parameter.value
-    })
-    sources.push(rootLevel)
-  })
-
-  return sources
-}
-
-export function parseSubmittedParameterValues(unparsed_sources, data) {
-  const result = unparsed_sources.find((item) => item.id === data.id)
-
-  result.parameter_values.forEach((parameter) => {
-    parameter.value = data[parameter.parameter.key]
-  })
-
-  return result
-}
-
-export function createParameterValues(parameters, data) {
-  data.parameter_values = parameters.map((param) => {
-    const value = {
-      parameter: param,
-      value: data[param] || ''
+export function flattenFormData(data, format) {
+  const flattened = {}
+  format.forEach((item) => {
+    const key = item.parent ? `${item.parent}.${item.name}` : item.name
+    if (item.parent) {
+      if (!data[item.parent]) {
+        data[item.parent] = {}
+      }
+      flattened[key] = data[item.parent][item.name]
+    } else {
+      flattened[key] = data[item.name]
     }
-    delete data[param]
-    return value
+  })
+  return flattened
+}
+
+// Reconstruct the data based on format
+export function reconstructFormData(flattened, format) {
+  const data = {}
+  format.forEach((item) => {
+    if (item.parent) {
+      data[item.parent] = data[item.parent] || {}
+      data[item.parent][item.name] = flattened[`${item.parent}.${item.name}`]
+    } else {
+      data[item.name] = flattened[item.name]
+    }
   })
   return data
+}
+
+export function flattenObject(obj, parent) {
+  let result = []
+  let flat_obj = {}
+  for (const key in obj) {
+    if (typeof obj[key] === 'object') {
+      result = result.concat(flattenObject(obj[key], key))
+    } else {
+      flat_obj = {
+        name: key,
+        type: typeof obj[key] === 'number' ? 'number' : 'text',
+        label: key
+      }
+      if (parent) {
+        flat_obj.parent = parent
+      }
+      if (key === 'id') {
+        flat_obj.disabled = true
+        result.unshift(flat_obj)
+        continue
+      }
+      result.push(flat_obj)
+    }
+  }
+  return result
 }
 
 export function tagIconFromType(tag_type) {
@@ -196,3 +208,22 @@ export function getMessageFromError(error) {
   }
   return error.message
 }
+
+export const baseFormat = [
+  {
+    name: 'id',
+    label: 'ID',
+    type: 'text',
+    disabled: true
+  },
+  {
+    name: 'name',
+    label: 'Name',
+    type: 'text'
+  },
+  {
+    name: 'description',
+    label: 'Description',
+    type: 'textarea'
+  }
+]

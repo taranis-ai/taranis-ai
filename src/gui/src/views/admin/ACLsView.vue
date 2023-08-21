@@ -69,6 +69,7 @@ export default {
       } else {
         createItem(submittedData)
       }
+      showForm.value = false
     }
 
     const deleteItem = (item) => {

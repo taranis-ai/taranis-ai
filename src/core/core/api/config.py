@@ -5,9 +5,6 @@ from flask_restx import Resource, Namespace, Api
 
 from core.managers import (
     auth_manager,
-    presenters_manager,
-    publishers_manager,
-    bots_manager,
     queue_manager,
 )
 from core.managers.log_manager import logger
@@ -16,17 +13,8 @@ from core.model import (
     acl_entry,
     attribute,
     bot,
-    bots_node,
-    collector,
-    collectors_node,
-    parameter,
-    presenter,
-    presenters_node,
     product_type,
-    publisher,
     publisher_preset,
-    publishers_node,
-    remote,
     organization,
     osint_source,
     report_item_type,
@@ -34,6 +22,7 @@ from core.model import (
     user,
     word_list,
     queue,
+    worker,
 )
 from core.model.permission import Permission
 
@@ -144,6 +133,12 @@ class ProductType(Resource):
         return product_type.ProductType.delete(type_id)
 
 
+class Parameters(Resource):
+    @auth_required("CONFIG_ACCESS")
+    def get(self):
+        return worker.Worker.get_parameter_map(), 200
+
+
 class Permissions(Resource):
     @auth_required("CONFIG_ACCESS")
     def get(self):
@@ -166,7 +161,7 @@ class Roles(Resource):
 class Role(Resource):
     @auth_required("CONFIG_ROLE_UPDATE")
     def put(self, role_id):
-        role.Role.update(role_id, request.json)
+        return role.Role.update(role_id, request.json)
 
     @auth_required("CONFIG_ROLE_DELETE")
     def delete(self, role_id):
@@ -227,7 +222,7 @@ class Users(Resource):
     def post(self):
         try:
             new_user = user.User.add(request.json)
-            return {"message": "User created", "id": new_user.id}, 201
+            return {"message": f"User {new_user.username} created", "id": new_user.id}, 201
         except Exception:
             logger.exception()
             return "Could not create user", 400
@@ -240,102 +235,15 @@ class User(Resource):
             return user.User.update(user_id, request.json), 200
         except Exception:
             logger.exception()
-            logger.store_data_error_activity(get_user_from_jwt(), "Could not update user")
-            return "Could not update user", 400
+            return {"error": "Could not update user"}, 400
 
     @auth_required("CONFIG_USER_DELETE")
     def delete(self, user_id):
         try:
-            original_user = user.User.find_by_id(user_id)
             return user.User.delete(user_id), 200
-
-        except Exception as ex:
-            logger.exception(ex)
-            logger.store_data_error_activity(get_user_from_jwt(), "Could not delete user")
-            return "Could not delete user", 400
-
-
-class ExternalUsers(Resource):
-    @auth_required("CONFIG_USER_ACCESS")
-    def get(self):
-        search = request.args.get(key="search", default=None)
-        return user.User.get_all_external_json(auth_manager.get_user_from_jwt(), search)
-
-    @auth_required("MY_ASSETS_CONFIG")
-    def post(self):
-        return user.User.add_new_external(auth_manager.get_user_from_jwt(), request.json)
-
-
-class ExternalUser(Resource):
-    @auth_required("CONFIG_USER_ACCESS")
-    def put(self, user_id):
-        user.User.update_external(auth_manager.get_user_from_jwt(), user_id, request.json)
-
-    @auth_required("MY_ASSETS_CONFIG")
-    def delete(self, user_id):
-        return user.User.delete_external(auth_manager.get_user_from_jwt(), user_id)
-
-
-class WordLists(Resource):
-    @auth_required("CONFIG_WORD_LIST_ACCESS")
-    def get(self):
-        search = request.args.get(key="search", default=None)
-        return word_list.WordList.get_all_json(search, auth_manager.get_user_from_jwt(), False)
-
-    @auth_required("CONFIG_WORD_LIST_CREATE")
-    def post(self):
-        wordlist = word_list.WordList.add(request.json)
-        return {"id": wordlist.id, "message": "Word list created successfully"}, 200
-
-
-class WordList(Resource):
-    @auth_required("CONFIG_WORD_LIST_ACCESS")
-    def get(self, word_list_id):
-        word_list_result = word_list.WordList.get(word_list_id)
-        if not word_list_result:
-            return {"error": "Word list not found"}, 404
-        return word_list_result.to_dict(), 200
-
-    @auth_required("CONFIG_WORD_LIST_DELETE")
-    def delete(self, word_list_id):
-        return word_list.WordList.delete(word_list_id)
-
-    @auth_required("CONFIG_WORD_LIST_UPDATE")
-    def put(self, word_list_id):
-        return word_list.WordList.update(word_list_id, request.json)
-
-
-class WordListImport(Resource):
-    @auth_required("CONFIG_WORD_LIST_UPDATE")
-    def put(self, word_list_id):
-        word_list.WordList.import_word_list(word_list_id, request.json)
-
-
-class WordListExport(Resource):
-    @auth_required("CONFIG_WORD_LIST_UPDATE")
-    def get(self):
-        source_ids = request.args.getlist("ids")
-        data = word_list.WordList.export(source_ids)
-        if data is None:
-            return "Unable to export", 400
-        return send_file(
-            io.BytesIO(data),
-            download_name="word_list_export.json",
-            mimetype="application/json",
-            as_attachment=True,
-        )
-
-
-class WordListGather(Resource):
-    @auth_required("CONFIG_WORD_LIST_UPDATE")
-    def put(self, word_list_id):
-        return queue_manager.gather_word_list(word_list_id)
-
-
-class Collectors(Resource):
-    def get(self):
-        search = request.args.get(key="search", default=None)
-        return collector.Collector.get_all_json(search)
+        except Exception:
+            logger.exception()
+            return {"error": "Could not delete user"}, 400
 
 
 class Bots(Resource):
@@ -345,24 +253,20 @@ class Bots(Resource):
 
     def put(self, bot_id):
         if updated_bot := bot.Bot.update(bot_id, request.json):
-            return f"Successfully upated {updated_bot.id}", 200
-        else:
-            return "Error updateing", 500
+            logger.debug(f"Successfully updated {updated_bot}")
+            return {"message": f"Successfully upated {updated_bot.name}", "id": f"{updated_bot.id}"}, 200
+        return {"error": f"Error updateing {bot_id}"}, 500
+
+    def post(self):
+        return bot.Bot.add(request.json), 201
+
+    def delete(self, bot_id):
+        return bot.Bot.delete(bot_id)
 
 
 class BotExecute(Resource):
     def post(self, bot_id):
         return queue_manager.execute_bot_task(bot_id)
-
-
-class Parameters(Resource):
-    def get(self):
-        return parameter.Parameter.get_all_json()
-
-
-class RefreshWorkers(Resource):
-    def post(self):
-        bots_manager.refresh_bots()
 
 
 class QueueStatus(Resource):
@@ -382,12 +286,6 @@ class QueueSchedule(Resource):
             logger.log_debug_trace()
 
 
-class Workers(Resource):
-    @auth_required("CONFIG_WORKER_ACCESS")
-    def get(self):
-        return queue_manager.queue_manager.ping_workers()
-
-
 class OSINTSources(Resource):
     @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
     def get(self):
@@ -399,10 +297,9 @@ class OSINTSources(Resource):
 
     @auth_required("CONFIG_OSINT_SOURCE_CREATE")
     def post(self):
-        source = osint_source.OSINTSource.add(request.json)
-        if not source:
-            return "OSINT source could not be created", 400
-        return {"id": source.id, "message": "OSINT source created successfully"}, 201
+        if source := osint_source.OSINTSource.add(request.json):
+            return {"id": source.id, "message": "OSINT source created successfully"}, 201
+        return "OSINT source could not be created", 400
 
 
 class OSINTSource(Resource):
@@ -460,9 +357,9 @@ class OSINTSourcesImport(Resource):
         if file := request.files.get("file"):
             sources = osint_source.OSINTSource.import_osint_sources(file)
             if sources is None:
-                return "Unable to import", 400
+                return {"error": "Unable to import"}, 400
             return {"sources": [source.id for source in sources], "count": len(sources), "message": "Successfully imported sources"}
-        return "No file provided", 400
+        return {"error": "No file provided"}, 400
 
 
 class OSINTSourceGroups(Resource):
@@ -490,13 +387,13 @@ class OSINTSourceGroup(Resource):
 class Presenters(Resource):
     def get(self):
         search = request.args.get(key="search", default=None)
-        return presenter.Presenter.get_all_json(search)
+        return worker.Worker.get_all_json({"search": search, "category": "presenter"})
 
 
 class Publishers(Resource):
     def get(self):
         search = request.args.get(key="search", default=None)
-        return publisher.Publisher.get_all_json(search)
+        return worker.Worker.get_all_json({"search": search, "category": "publisher"})
 
 
 class PublisherPresets(Resource):
@@ -521,39 +418,78 @@ class PublisherPreset(Resource):
         return publisher_preset.PublisherPreset.delete(preset_id)
 
 
-class Nodes(Resource):
-    @auth_required("CONFIG_NODE_ACCESS")
+class WordLists(Resource):
+    @auth_required("CONFIG_WORD_LIST_ACCESS")
     def get(self):
         search = request.args.get(key="search", default=None)
-        publishers_nodes = publishers_node.PublishersNode.get_all_json(search)
-        bots_nodes = bots_node.BotsNode.get_all_json(search)
-        collectors_nodes = collectors_node.CollectorsNode.get_all_json(search)
-        presenters_nodes = presenters_node.PresentersNode.get_all_json(search)
-        total_count = (
-            publishers_nodes["total_count"] + bots_nodes["total_count"] + collectors_nodes["total_count"] + presenters_nodes["total_count"]
-        )
-        items = publishers_nodes["items"] + bots_nodes["items"] + collectors_nodes["items"] + presenters_nodes["items"]
-        return {"total_count": total_count, "items": items}
+        return word_list.WordList.get_all_json(search, auth_manager.get_user_from_jwt(), False)
 
-
-class BotNodes(Resource):
-    @auth_required("CONFIG_BOTS_NODE_ACCESS")
-    def get(self):
-        search = request.args.get(key="search", default=None)
-        return bots_node.BotsNode.get_all_json(search)
-
-    @auth_required("CONFIG_BOTS_NODE_CREATE")
+    @auth_required("CONFIG_WORD_LIST_CREATE")
     def post(self):
-        bot = bots_node.BotsNode.add(request.json)
-        return {"id": bot.id, "message": "Bots node created successfully"}, 200
+        wordlist = word_list.WordList.add(request.json)
+        return {"id": wordlist.id, "message": "Word list created successfully"}, 200
 
-    @auth_required("CONFIG_BOTS_NODE_UPDATE")
-    def put(self, node_id):
-        return bots_manager.update_bots_node(node_id, request.json)
 
-    @auth_required("CONFIG_BOTS_NODE_DELETE")
-    def delete(self, node_id):
-        return bots_node.BotsNode.delete(node_id)
+class WordList(Resource):
+    @auth_required("CONFIG_WORD_LIST_ACCESS")
+    def get(self, word_list_id):
+        word_list_result = word_list.WordList.get(word_list_id)
+        if not word_list_result:
+            return {"error": "Word list not found"}, 404
+        return word_list_result.to_dict(), 200
+
+    @auth_required("CONFIG_WORD_LIST_DELETE")
+    def delete(self, word_list_id):
+        return word_list.WordList.delete(word_list_id)
+
+    @auth_required("CONFIG_WORD_LIST_UPDATE")
+    def put(self, word_list_id):
+        return word_list.WordList.update(word_list_id, request.json)
+
+
+class WordListImport(Resource):
+    @auth_required("CONFIG_WORD_LIST_UPDATE")
+    def post(self):
+        if file := request.files.get("file"):
+            if wls := word_list.WordList.import_word_lists(file):
+                return {"word_lists": [wl.id for wl in wls], "count": len(wls), "message": "Successfully imported word lists"}
+            return {"error": "Unable to import"}, 400
+        return {"error": "No file provided"}, 400
+
+
+class WordListExport(Resource):
+    @auth_required("CONFIG_WORD_LIST_UPDATE")
+    def get(self):
+        source_ids = request.args.getlist("ids")
+        data = word_list.WordList.export(source_ids)
+        if data is None:
+            return "Unable to export", 400
+        return send_file(
+            io.BytesIO(data),
+            download_name="word_list_export.json",
+            mimetype="application/json",
+            as_attachment=True,
+        )
+
+
+class WordListGather(Resource):
+    @auth_required("CONFIG_WORD_LIST_UPDATE")
+    def put(self, word_list_id):
+        return queue_manager.gather_word_list(word_list_id)
+
+
+class Workers(Resource):
+    @auth_required("CONFIG_WORKER_ACCESS")
+    def get(self):
+        return queue_manager.queue_manager.ping_workers()
+
+
+class WorkerTypes(Resource):
+    @auth_required("CONFIG_WORKER_ACCESS")
+    def get(self):
+        search = request.args.get(key="search", default=None)
+        filter_args = {"search": search}
+        return worker.Worker.get_all_json(filter_args)
 
 
 def initialize(api: Api):
@@ -567,12 +503,7 @@ def initialize(api: Api):
     namespace.add_resource(AttributeEnums, "/attributes/<int:attribute_id>/enums")
     namespace.add_resource(BotExecute, "/bots/<string:bot_id>/execute")
     namespace.add_resource(Bots, "/bots", "/bots/<string:bot_id>")
-    namespace.add_resource(BotNodes, "/bots-nodes", "/bots-nodes/<string:node_id>")
-    namespace.add_resource(Collectors, "/collectors", "/collectors/<string:collector_type>")
     namespace.add_resource(DictionariesReload, "/reload-enum-dictionaries/<string:dictionary_type>")
-    namespace.add_resource(ExternalUser, "/external-users/<int:user_id>")
-    namespace.add_resource(ExternalUsers, "/external-users")
-    namespace.add_resource(Nodes, "/nodes", "/nodes/<string:node_id>")
     namespace.add_resource(Organization, "/organizations/<int:organization_id>")
     namespace.add_resource(Organizations, "/organizations")
     namespace.add_resource(OSINTSource, "/osint-sources/<string:source_id>")
@@ -593,7 +524,6 @@ def initialize(api: Api):
     namespace.add_resource(Publishers, "/publishers")
     namespace.add_resource(QueueStatus, "/workers/queue-status")
     namespace.add_resource(QueueSchedule, "/workers/schedule")
-    namespace.add_resource(RefreshWorkers, "/workers/refresh")
     namespace.add_resource(ReportItemType, "/report-item-types/<int:type_id>")
     namespace.add_resource(ReportItemTypesConfig, "/report-item-types")
     namespace.add_resource(Role, "/roles/<int:role_id>")
@@ -606,5 +536,6 @@ def initialize(api: Api):
     namespace.add_resource(WordListImport, "/import-word-lists")
     namespace.add_resource(WordLists, "/word-lists")
     namespace.add_resource(Workers, "/workers")
+    namespace.add_resource(WorkerTypes, "/worker-types")
 
     api.add_namespace(namespace)

@@ -1,4 +1,5 @@
 import json
+import csv
 import sqlalchemy
 from typing import Any
 from enum import IntEnum
@@ -8,6 +9,7 @@ from sqlalchemy.sql.expression import cast
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.model.acl_entry import ACLEntry, ItemType
+from core.managers.log_manager import logger
 
 
 class WordListUsage(IntEnum):
@@ -22,15 +24,15 @@ class WordList(BaseModel):
     description = db.Column(db.String(), default=None)
     usage = db.Column(db.Integer, default=0)
     link = db.Column(db.String(), nullable=True, default=None)
-    entries = db.relationship("WordListEntry", cascade="all, delete-orphan")
+    entries = db.relationship("WordListEntry", cascade="all, delete")
 
     def __init__(self, name, description=None, usage=0, link=None, entries=None, id=None):
         self.id = id
         self.name = name
         self.description = description
-        self.usage = usage
+        self.update_usage(usage)
         self.link = link
-        self.entries = [WordListEntry.get(entry) for entry in entries] if entries else []
+        self.entries = WordListEntry.add_multiple(entries) if entries else []
 
     @classmethod
     def find_by_name(cls, name: str) -> "WordList":
@@ -52,6 +54,12 @@ class WordList(BaseModel):
         self.usage = 0
         for usage in usage_list:
             self.add_usage(WordListUsage[usage])
+
+    def update_usage(self, usage: list[str] | int):
+        if type(usage) == list:
+            self.from_usage_list(usage)
+        elif type(usage) == int and self.is_valid_usage(usage):
+            self.usage = usage
 
     @classmethod
     def is_valid_usage(cls, usage: int) -> bool:
@@ -76,6 +84,10 @@ class WordList(BaseModel):
     @classmethod
     def get_all(cls):
         return cls.query.order_by(db.asc(WordList.name)).all()
+
+    @classmethod
+    def get_all_empty(cls):
+        return cls.query.filter_by(entries=None).order_by(db.asc(WordList.name)).all()
 
     @classmethod
     def get_by_filter(cls, search, user, acl_check):
@@ -130,18 +142,27 @@ class WordList(BaseModel):
         word_list = cls.get(word_list_id)
         if word_list is None:
             return {"error": "WordList not found"}, 404
-        word_list.entries = [WordListEntry.from_dict(entry) for entry in data.pop("entries", [])]
-        usage = data.pop("usage", [])
-        if type(usage) == list:
-            word_list.from_usage_list(usage)
-        elif type(usage) == int and cls.is_valid_usage(usage):
-            word_list.usage = usage
 
-        for key, value in data.items():
-            if hasattr(word_list, key) and key != "id":
-                setattr(word_list, key, value)
+        update_word_list = cls.from_dict(data)
+        word_list.name = update_word_list.name
+        if update_word_list.description:
+            word_list.description = update_word_list.description
+        if update_word_list.link:
+            word_list.link = update_word_list.link
+        if update_word_list.entries:
+            word_list.entries = update_word_list.entries
+        if update_word_list.usage:
+            word_list.usage = update_word_list.usage
+
         db.session.commit()
         return {"message": "Word list updated"}, 200
+
+    @classmethod
+    def add(cls, data) -> "WordList":
+        item = cls.from_dict(data)
+        db.session.add(item)
+        db.session.commit()
+        return item
 
     @classmethod
     def export(cls, source_ids=None):
@@ -153,14 +174,28 @@ class WordList(BaseModel):
         return json.dumps(export_data).encode("utf-8")
 
     @classmethod
-    def import_word_lists(cls, file):
-        file_data = file.read()
-        json_data = json.loads(file_data.decode("utf8"))
-        if json_data["version"] == 1:
-            data = json_data["data"]
-        else:
-            raise ValueError("Unsupported version")
-        return cls.add_multiple(data)
+    def parse_csv(cls, content) -> list:
+        cr = csv.reader(content.splitlines(), delimiter=";", lineterminator="\n")
+        headers = [header.lower() for header in next(cr)]
+        if len(headers) != 3:
+            raise ValueError("Invalid CSV file")
+        return [dict(zip(headers, row)) for row in cr]
+
+    @classmethod
+    def parse_json(cls, content) -> list | None:
+        file_content = json.loads(content)
+        return file_content["data"] if file_content["version"] == 1 else None
+
+    @classmethod
+    def import_word_lists(cls, file) -> list | None:
+        file_data = file.read().decode("utf8")
+        data = None
+        if file.content_type == "text/csv":
+            data = [{"entries": cls.parse_csv(file_data), "name": file.filename}]
+        elif file.content_type == "application/json":
+            data = cls.parse_json(file_data)
+
+        return None if data is None else cls.add_multiple(data)
 
 
 class WordListEntry(BaseModel):
@@ -169,7 +204,7 @@ class WordListEntry(BaseModel):
     category = db.Column(db.String(), nullable=True)
     description = db.Column(db.String(), nullable=False)
 
-    word_list_id = db.Column(db.Integer, db.ForeignKey("word_list.id"))
+    word_list_id = db.Column(db.Integer, db.ForeignKey("word_list.id", ondelete="CASCADE"))
 
     def __init__(self, value, category="Uncategorized", description=""):
         self.id = None

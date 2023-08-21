@@ -1,389 +1,13 @@
-parameters = [
-    {
-        "name": "Feed URL",
-        "description": "Full url for RSS feed",
-        "key": "FEED_URL",
-        "type": "STRING",
-    },
-    {
-        "name": "User agent",
-        "description": "Type of user agent",
-        "key": "USER_AGENT",
-        "type": "STRING",
-    },
-    {
-        "name": "Content Location",
-        "description": "Location of the content Field",
-        "key": "CONTENT_LOCATION",
-        "type": "STRING",
-    },
-    {
-        "name": "Proxy server",
-        "description": "Type SOCKS5 proxy server as username:password@ip:port or ip:port",
-        "key": "PROXY_SERVER",
-        "type": "STRING",
-    },
-    {
-        "name": "Refresh interval in minutes",
-        "description": "How often this should be triggerd",
-        "key": "REFRESH_INTERVAL",
-        "type": "NUMBER",
-    },
-    {
-        "name": "Email server type",
-        "description": "Server type parameter means IMAP or POP3 email server",
-        "key": "EMAIL_SERVER_TYPE",
-        "type": "STRING",
-    },
-    {
-        "name": "Email server hostname",
-        "description": "Hostname of email server",
-        "key": "EMAIL_SERVER_HOSTNAME",
-        "type": "STRING",
-    },
-    {
-        "name": "Email server port",
-        "description": "Port of email server",
-        "key": "EMAIL_SERVER_PORT",
-        "type": "NUMBER",
-    },
-    {
-        "name": "Username",
-        "description": "Username of email account",
-        "key": "EMAIL_USERNAME",
-        "type": "STRING",
-    },
-    {
-        "name": "Password",
-        "description": "Password of email account",
-        "key": "EMAIL_PASSWORD",
-        "type": "STRING",
-    },
-    {
-        "name": "Collected workspaces channels ID",
-        "description": "Channels which will be collected.",
-        "key": "WORKSPACE_CHANNELS_ID",
-        "type": "STRING",
-    },
-    {
-        "name": "Twitter API key",
-        "description": "API key of Twitter account",
-        "key": "TWITTER_API_KEY",
-        "type": "STRING",
-    },
-    {
-        "name": "Twitter API key secret",
-        "description": "API key secret of Twitter account",
-        "key": "TWITTER_API_KEY_SECRET",
-        "type": "STRING",
-    },
-    {
-        "name": "Twitter access token",
-        "description": "Twitter access token of Twitter account",
-        "key": "TWITTER_ACCESS_TOKEN",
-        "type": "STRING",
-    },
-    {
-        "name": "Twitter access token secret",
-        "description": "Twitter access token secret of Twitter account",
-        "key": "TWITTER_ACCESS_TOKEN_SECRET",
-        "type": "STRING",
-    },
-    {
-        "name": "Search by keywords",
-        "description": "Search tweets bykeywords",
-        "key": "SEARCH_KEYWORDS",
-        "type": "STRING",
-    },
-    {
-        "name": "Search by hashtags",
-        "description": "Search tweets by hashtags",
-        "key": "SEARCH_HASHTAGS",
-        "type": "STRING",
-    },
-    {
-        "description": "How many tweets will be provided",
-        "name": "Number of tweets",
-        "key": "NUMBER_OF_TWEETS",
-        "type": "NUMBER",
-    },
-    {
-        "description": "Full url for web pageor folder of html file",
-        "name": "Web URL",
-        "key": "WEB_URL",
-        "type": "STRING",
-    },
-    {
-        "description": "Name of webdriver for Selenium (chrome|firefox)",
-        "name": "Name of Webdriver",
-        "key": "WEBDRIVER",
-        "type": "STRING",
-    },
-    {
-        "description": "Using Tor service (yes|no)",
-        "name": "Do you want to use Tor service? Enter Yes or No",
-        "key": "TOR",
-        "type": "STRING",
-    },
-    {
-        "description": "Username for authentication with basic auth header",
-        "name": "Username for web page authentication",
-        "key": "AUTH_USERNAME",
-        "type": "STRING",
-    },
-    {
-        "description": "Password for authentication with basic auth header",
-        "name": "Password for web page authentication",
-        "key": "AUTH_PASSWORD",
-        "type": "STRING",
-    },
-    {
-        "description": "PATH to clients certificates directory",
-        "name": "PATH to directory with clients certificates",
-        "key": "CLIENT_CERT_DIR",
-        "type": "STRING",
-    },
-    {
-        "description": "This is a selector of the clickable element to close the popup",
-        "name": "SELECTOR at TITLE PAGE: Popup removal",
-        "key": "POPUP_CLOSE_SELECTOR",
-        "type": "STRING",
-    },
-    {
-        "description": "This is a selector of the clickable element to load the next page",
-        "name": "SELECTOR at TITLE PAGE: Next page",
-        "key": "NEXT_BUTTON_SELECTOR",
-        "type": "STRING",
-    },
-    {
-        "description": "This is a selector of the clickable element to load more content",
-        "name": "SELECTOR at TITLE PAGE: Load more",
-        "key": "LOAD_MORE_BUTTON_SELECTOR",
-        "type": "STRING",
-    },
-    {
-        "description": "If pagination or progressive loading, maximum number of pages to visit. Default: 1",
-        "name": "Pagination limit",
-        "key": "PAGINATION_LIMIT",
-        "type": "NUMBER",
-    },
-    {
-        "description": "Selector that matches the link to the article. Matching results should contain a href attribute.",
-        "name": "SELECTOR at TITLE PAGE: Links to articles",
-        "key": "SINGLE_ARTICLE_LINK_SELECTOR",
-        "type": "STRING",
-    },
-    {
-        "description": "Selector for article title",
-        "name": "SELECTOR at ARTICLE: Article title",
-        "key": "TITLE_SELECTOR",
-        "type": "STRING",
-    },
-    {
-        "description": "OPTIONAL: Selector of article description or summary",
-        "name": "SELECTOR at ARTICLE: short summary",
-        "key": "ARTICLE_DESCRIPTION_SELECTOR",
-        "type": "STRING",
-    },
-    {
-        "description": "Selector for the article content / text of the article",
-        "name": "SELECTOR at ARTICLE: Article content",
-        "key": "ARTICLE_FULL_TEXT_SELECTOR",
-        "type": "STRING",
-    },
-    {
-        "description": "OPTIONAL: Selector to find the author of the post",
-        "name": "SELECTOR at ARTICLE: Author",
-        "key": "AUTHOR_SELECTOR",
-        "type": "STRING",
-    },
-    {
-        "description": "OPTIONAL: Selector of the published date",
-        "name": "SELECTOR at ARTICLE: Date published",
-        "key": "PUBLISHED_SELECTOR",
-        "type": "STRING",
-    },
-    {
-        "description": "OPTIONAL: Selector for links to article attachments",
-        "name": "SELECTOR at ARTICLE: Attachment selector",
-        "key": "ATTACHMENT_SELECTOR",
-        "type": "STRING",
-    },
-    {
-        "description": "Collect only first few words of the article (perhaps for legal reasons)",
-        "name": "Limit article body to this many words",
-        "key": "WORD_LIMIT",
-        "type": "STRING",
-    },
-    {
-        "description": "OPTIONAL: Selector of an additional article ID",
-        "name": "SELECTOR at ARTICLE: Additional ID selector",
-        "key": "ADDITIONAL_ID_SELECTOR",
-        "type": "STRING",
-    },
-    {
-        "name": "Source Group",
-        "key": "SOURCE_GROUP",
-        "description": "OSINT Source group to inspect",
-        "type": "STRING",
-    },
-    {
-        "name": "Keywords",
-        "key": "KEYWORDS",
-        "description": "Keywords to Tag on seperated by ','",
-        "type": "STRING",
-    },
-    {
-        "name": "Regular Expression",
-        "key": "REGULAR_EXPRESSION",
-        "description": "Regular expression for items matching",
-        "type": "STRING",
-    },
-    {
-        "name": "Attribute name",
-        "key": "ATTRIBUTE_NAME",
-        "description": "Name of attribute for extracted data",
-        "type": "STRING",
-    },
-    {
-        "name": "language",
-        "key": "LANGUAGE",
-        "description": "language",
-        "type": "STRING",
-    },
-    {
-        "name": "Header template path",
-        "description": "Path of header template file",
-        "key": "HEADER_TEMPLATE_PATH",
-        "type": "STRING",
-    },
-    {
-        "name": "Body template path",
-        "description": "Path of body template file",
-        "key": "BODY_TEMPLATE_PATH",
-        "type": "STRING",
-    },
-    {
-        "name": "Footer template path",
-        "description": "Path of footer template file",
-        "key": "FOOTER_TEMPLATE_PATH",
-        "type": "STRING",
-    },
-    {
-        "name": "HTML template with its path",
-        "description": "Path of html template file",
-        "key": "HTML_TEMPLATE_PATH",
-        "type": "STRING",
-    },
-    {
-        "name": "TEXT template with its path",
-        "description": "Path of text template file",
-        "key": "TEXT_TEMPLATE_PATH",
-        "type": "STRING",
-    },
-    {
-        "name": "MISP template with its path",
-        "description": "Path of MISP template file",
-        "key": "MISP_TEMPLATE_PATH",
-        "type": "STRING",
-    },
-    {
-        "name": "FTP URL",
-        "description": "FTP server url",
-        "key": "FTP_URL",
-        "type": "STRING",
-    },
-    {
-        "description": "SMTP server for sending emails",
-        "key": "SMTP_SERVER",
-        "name": "SMTP server",
-        "type": "STRING",
-    },
-    {
-        "description": "SMTP server port for sending emails",
-        "key": "SMTP_SERVER_PORT",
-        "name": "SMTP server port",
-        "type": "STRING",
-    },
-    {
-        "description": "Username for email account",
-        "key": "EMAIL_USERNAME",
-        "name": "Email username",
-        "type": "STRING",
-    },
-    {
-        "description": "Password for email account",
-        "key": "EMAIL_PASSWORD",
-        "name": "Email password",
-        "type": "STRING",
-    },
-    {
-        "description": "Email address of recipient",
-        "key": "EMAIL_RECIPIENT",
-        "name": "Email recipient",
-        "type": "STRING",
-    },
-    {
-        "description": "Text of email subject",
-        "key": "EMAIL_SUBJECT",
-        "name": "Email subject",
-        "type": "STRING",
-    },
-    {
-        "name": "Email message",
-        "description": "Text of email message",
-        "key": "EMAIL_MESSAGE",
-        "type": "STRING",
-    },
-    {
-        "name": "Do you want use email encrypt (yes/no)",
-        "description": "Turn ON/OFF email encryption",
-        "key": "EMAIL_ENCRYPTION",
-        "type": "STRING",
-    },
-    {
-        "name": "Wordpress URL address",
-        "description": "URL address of wordpress webpage",
-        "key": "WP_URL",
-        "type": "STRING",
-    },
-    {
-        "name": "Username of wordpress editor",
-        "description": "Post editor's username",
-        "key": "WP_USER",
-        "type": "STRING",
-    },
-    {
-        "name": "Secret key of application",
-        "description": "Secret key created in Wordpress for Python application",
-        "key": "WP_PYTHON_APP_SECRET",
-        "type": "STRING",
-    },
-    {
-        "name": "MISP url",
-        "description": "MISP server https url",
-        "key": "MISP_URL",
-        "type": "STRING",
-    },
-    {
-        "name": "MISP API key",
-        "description": "User MISP API key",
-        "key": "MISP_API_KEY",
-        "type": "STRING",
-    },
-]
-
-
-collectors = [
+workers = [
     {
         "description": "Collector for gathering data from RSS feeds",
         "name": "RSS Collector",
         "parameters": [
-            "FEED_URL",
-            "USER_AGENT",
-            "CONTENT_LOCATION",
-            "PROXY_SERVER",
-            "REFRESH_INTERVAL",
+            {"parameter": "FEED_URL"},
+            {"parameter": "USER_AGENT"},
+            {"parameter": "CONTENT_LOCATION"},
+            {"parameter": "PROXY_SERVER"},
+            {"parameter": "REFRESH_INTERVAL", "type": "number"},
         ],
         "type": "RSS_COLLECTOR",
     },
@@ -391,32 +15,19 @@ collectors = [
         "description": "Collector for gathering data from emails",
         "name": "EMAIL Collector",
         "parameters": [
-            "EMAIL_SERVER_TYPE",
-            "EMAIL_SERVER_HOSTNAME",
-            "EMAIL_SERVER_PORT",
-            "EMAIL_USERNAME",
-            "EMAIL_PASSWORD",
-            "PROXY_SERVER",
-            "REFRESH_INTERVAL",
+            {"parameter": "EMAIL_SERVER_TYPE"},
+            {"parameter": "EMAIL_SERVER_HOSTNAME"},
+            {"parameter": "EMAIL_SERVER_PORT", "type": "number"},
+            {"parameter": "EMAIL_USERNAME"},
+            {"parameter": "EMAIL_PASSWORD"},
+            {"parameter": "PROXY_SERVER"},
+            {"parameter": "REFRESH_INTERVAL", "type": "number"},
         ],
         "type": "EMAIL_COLLECTOR",
     },
     {
-        "description": "Collector for gathering data from Twitter",
-        "name": "Twitter Collector",
-        "parameters": [
-            "TWITTER_API_KEY",
-            "TWITTER_API_KEY_SECRET",
-            "TWITTER_ACCESS_TOKEN",
-            "TWITTER_ACCESS_TOKEN_SECRET",
-            "PROXY_SERVER",
-            "REFRESH_INTERVAL",
-        ],
-        "type": "TWITTER_COLLECTOR",
-    },
-    {
         "description": "Collector for gathering data from web page",
-        "name": "Web Collector",
+        "name": "Selenium Web Collector",
         "parameters": [
             "WEB_URL",
             "WEBDRIVER",
@@ -441,87 +52,82 @@ collectors = [
             "WORD_LIMIT",
             "ADDITIONAL_ID_SELECTOR",
         ],
-        "type": "WEB_COLLECTOR",
+        "type": "SELENIUM_WEB_COLLECTOR",
     },
-    {
-        "description": "Collector for manual input of news items",
-        "name": "Manual Collector",
-        "parameters": [
-            "PROXY_SERVER",
-            "REFRESH_INTERVAL",
-        ],
-        "type": "MANUAL_COLLECTOR",
-    },
-]
-
-bots = [
     {
         "type": "ANALYST_BOT",
         "name": "Analyst Bot",
-        "parameter_values": [
-            {
-                "value": "",
-                "parameter": "REGULAR_EXPRESSION",
-            },
-            {
-                "value": "",
-                "parameter": "ATTRIBUTE_NAME",
-            },
-            {
-                "value": "",
-                "parameter": "SOURCE_GROUP",
-            },
+        "parameters": [
+            {"parameter": "REGULAR_EXPRESSION"},
+            {"parameter": "ATTRIBUTE_NAME"},
+            {"parameter": "SOURCE_GROUP", "type": "select"},
+            {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
+            {"parameter": "REFRESH_INTERVAL", "type": "number"},
         ],
         "description": "Bot for news items analysis",
     },
     {
         "type": "GROUPING_BOT",
         "name": "Grouping Bot",
-        "parameter_values": [
-            {"value": "", "parameter": "SOURCE_GROUP"},
-            {"value": "", "parameter": "REGULAR_EXPRESSION"},
+        "parameters": [
+            {"parameter": "REGULAR_EXPRESSION"},
+            {"parameter": "SOURCE_GROUP", "type": "select"},
+            {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
+            {"parameter": "REFRESH_INTERVAL", "type": "number"},
         ],
         "description": "Bot for grouping news items into aggregates",
     },
     {
         "type": "NLP_BOT",
         "name": "NLP Bot",
-        "parameter_values": [{"value": "default", "parameter": "SOURCE_GROUP"}],
+        "parameters": [
+            {"parameter": "SOURCE_GROUP", "type": "select"},
+            {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
+            {"parameter": "REFRESH_INTERVAL", "type": "number"},
+        ],
         "description": "Bot for naturale language processing of news items",
     },
     {
         "type": "TAGGING_BOT",
         "name": "Tagging Bot",
-        "parameter_values": [
-            {"value": "", "parameter": "SOURCE_GROUP"},
-            {"value": "", "parameter": "KEYWORDS"},
+        "parameters": [
+            {"parameter": "KEYWORDS"},
+            {"parameter": "SOURCE_GROUP", "type": "select"},
+            {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
+            {"parameter": "REFRESH_INTERVAL", "type": "number"},
         ],
         "description": "Bot for tagging news items",
     },
     {
         "type": "STORY_BOT",
         "name": "Story Clustering Bot",
-        "parameter_values": [
-            {"value": "", "parameter": "SOURCE_GROUP"},
+        "parameters": [
+            {"parameter": "SOURCE_GROUP", "type": "select"},
+            {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
+            {"parameter": "REFRESH_INTERVAL", "type": "number"},
         ],
         "description": "Bot for Story Clustering",
     },
     {
         "type": "SUMMARY_BOT",
         "name": "Summary generation Bot",
-        "parameter_values": [{"value": "default", "parameter": "SOURCE_GROUP"}],
+        "parameters": [
+            {"parameter": "SOURCE_GROUP", "type": "select"},
+            {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
+            {"parameter": "REFRESH_INTERVAL", "type": "number"},
+        ],
         "description": "Bot for summarizing news items aggregates",
     },
     {
         "type": "WORDLIST_BOT",
         "name": "Wordlist Bot",
-        "parameter_values": [{"value": "default", "parameter": "SOURCE_GROUP"}],
+        "parameters": [
+            {"parameter": "SOURCE_GROUP", "type": "select"},
+            {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
+            {"parameter": "REFRESH_INTERVAL", "type": "number"},
+        ],
         "description": "Bot for tagging news items by wordlist",
     },
-]
-
-
-presenters = [
     {
         "type": "PDF_PRESENTER",
         "description": "Presenter for generating PDF documents",
@@ -546,9 +152,6 @@ presenters = [
         "description": "Presenter for generating MISP platform",
         "parameters": ["MISP_TEMPLATE_PATH"],
     },
-]
-
-publishers = [
     {
         "type": "FTP_PUBLISHER",
         "name": "FTP Publisher",
@@ -587,5 +190,29 @@ publishers = [
         "name": "MISP Publisher",
         "description": "Publisher for publishing in MISP",
         "parameters": ["MISP_URL", "MISP_API_KEY"],
+    },
+]
+
+
+bots = [
+    {
+        "name": "NLP BOT",
+        "description": "Bot for naturale language processing of news items",
+        "type": "NLP_BOT",
+        "parameters": [
+            {"parameter": "SOURCE_GROUP", "type": "select"},
+            {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch", "value": "true"},
+            {"parameter": "REFRESH_INTERVAL", "type": "number"},
+        ],
+    },
+    {
+        "name": "Wordlist Bot",
+        "description": "Bot for tagging news items by wordlist",
+        "type": "WORDLIST_BOT",
+        "parameters": [
+            {"parameter": "SOURCE_GROUP", "type": "select"},
+            {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch", "value": "true"},
+            {"parameter": "REFRESH_INTERVAL", "type": "number"},
+        ],
     },
 ]

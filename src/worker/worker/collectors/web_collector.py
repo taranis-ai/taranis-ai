@@ -672,6 +672,12 @@ class WebCollector(BaseCollector):
                 key = "Additional_ID"
                 binary_mime_type = ""
                 binary_value = ""
-                attribute = { "id": uuid.uuid4(), "key": key, "value": value, "binary_mime_type": binary_mime_type, "binary_value": binary_value }
+                attribute = {
+                    "id": uuid.uuid4(),
+                    "key": key,
+                    "value": value,
+                    "binary_mime_type": binary_mime_type,
+                    "binary_value": binary_value,
+                }
                 news_item["attributes"].append(attribute)
         return news_item

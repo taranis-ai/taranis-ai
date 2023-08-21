@@ -8,7 +8,6 @@ class BasePresenter:
     name = "Base Presenter"
     description = "Base abstract type for all presenters"
 
-
     def print_exception(self, error):
         logger.log_debug_trace("[{0}] {1}".format(self.name, error))
 

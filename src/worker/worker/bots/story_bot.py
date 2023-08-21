@@ -8,11 +8,9 @@ class NLPBot(BaseBot):
     name = "Story Clustering Bot"
     description = "Bot for clustering NewsItems to stories via naturale language processing"
 
-
     def __init__(self):
         super().__init__()
         logger.error("Story Clustering Bot not implemented yet")
-
 
     def execute(self, parameters=None):
         if not parameters:
@@ -37,6 +35,3 @@ class NLPBot(BaseBot):
 
         except Exception:
             logger.log_debug_trace(f"Error running Bot: {self.type}")
-
-
-

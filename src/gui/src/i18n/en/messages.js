@@ -87,12 +87,9 @@ export const messages_en = {
     newsitems: 'News Items',
     products: 'Products',
     publications: 'Publications',
-    favourites: 'Favourites',
-    configuration: 'Configuration',
     osint_sources: 'OSINTSources',
     osint_source_groups: 'Source Groups',
     publisher_presets: 'Publisher Presets',
-    collectors: 'Collectors',
     report_items: 'Report Items',
     attributes: 'Attributes',
     report_types: 'Report Types',
@@ -101,14 +98,13 @@ export const messages_en = {
     acls: 'ACL',
     users: 'Users',
     bots: 'Bots',
+    worker_types: 'Worker Types',
     user: 'User',
     workers: 'Workers',
     openapi: 'OpenAPI',
     organizations: 'Organizations',
     word_lists: 'Word Lists',
     asset_groups: 'Asset Groups',
-    remote_access: 'Remote Access',
-    local: 'Local',
     dashboard: 'Dashboard'
   },
 
@@ -720,19 +716,6 @@ export const messages_en = {
     vulnerabilities: 'Vulnerabilities',
     vulnerabilities_count: 'Vulnerabilities: ',
     no_vulnerabilities: 'No vulnerabilities'
-  },
-
-  remote_access: {
-    error: 'Could not save this remote access',
-    description: 'Description',
-    access_key: 'Access Key',
-    enabled: 'Enabled',
-    successful: 'New remote access was successfully added',
-    successful_edit: 'Remote access was successfully updated',
-    removed: 'Remote access was successfully removed',
-    removed_error: 'Remote access is in use and could not be deleted',
-    osint_sources: 'OSINT Sources to share',
-    report_item_types: 'Report Item Types to share'
   },
 
   drop_zone: {

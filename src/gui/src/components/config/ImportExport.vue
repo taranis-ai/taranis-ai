@@ -20,7 +20,7 @@
     </v-btn>
     <input
       ref="fileInput"
-      accept="application/json"
+      :accept="accepts"
       type="file"
       hidden
       @change="fileSelected"
@@ -29,21 +29,40 @@
 </template>
 
 <script>
+import { ref } from 'vue'
+
 export default {
   name: 'ImportExport',
+  props: {
+    accepts: {
+      type: String,
+      default: 'application/json'
+    }
+  },
   emits: ['import', 'export'],
-  methods: {
-    importClick() {
-      this.$refs.fileInput.click()
-    },
-    fileSelected(event) {
+  setup(props, { emit }) {
+    const fileInput = ref(null)
+
+    const importClick = () => {
+      fileInput.value.click()
+    }
+
+    const fileSelected = (event) => {
       const file = event.target.files[0]
       const formData = new FormData()
       formData.append('file', file)
-      this.$emit('import', formData)
-    },
-    exportFile() {
-      this.$emit('export')
+      emit('import', formData)
+    }
+
+    const exportFile = () => {
+      emit('export')
+    }
+
+    return {
+      fileInput,
+      importClick,
+      fileSelected,
+      exportFile
     }
   }
 }

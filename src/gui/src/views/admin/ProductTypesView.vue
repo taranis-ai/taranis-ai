@@ -49,7 +49,7 @@ export default {
     const parameters = ref({})
     const presenterList = ref([])
 
-    const { product_types, presenters } = storeToRefs(configStore)
+    const { product_types, presenter_types } = storeToRefs(configStore)
 
     const formFormat = computed(() => {
       const base = [
@@ -74,9 +74,9 @@ export default {
         {
           name: 'presenter_id',
           label: 'Presenter',
-          type: 'select',
+          type: 'list',
           rules: [(v) => !!v || 'Required'],
-          options: presenterList.value,
+          items: presenterList.value,
           disabled: edit.value
         }
       ]
@@ -91,24 +91,22 @@ export default {
         mainStore.itemCountTotal = product_types.value.total_count
         mainStore.itemCountFiltered = product_types.value.length
       })
-      configStore.loadPresenters().then(() => {
-        presenterList.value = presenters.value.items.map((item) => {
+
+      configStore.loadWorkerTypes().then(() => {
+        presenterList.value = presenter_types.value.map((presenter) => {
+          parameters.value[presenter.type] = Object.keys(
+            presenter.parameters
+          ).map((key) => ({
+            name: key,
+            label: key,
+            parent: 'parameter_values',
+            type: 'text'
+          }))
+
           return {
-            title: item.name,
-            value: item.id
+            value: presenter.type,
+            title: presenter.name
           }
-        })
-        presenters.value.items.forEach((presenter) => {
-          parameters.value[presenter.id] = presenter.parameters.map(
-            (parameter) => {
-              return {
-                name: parameter.key,
-                label: parameter.name,
-                parent: 'parameter_values',
-                type: 'text'
-              }
-            }
-          )
         })
       })
     }
@@ -178,7 +176,6 @@ export default {
       formData,
       formFormat,
       edit,
-      presenters,
       addItem,
       editItem,
       handleSubmit,

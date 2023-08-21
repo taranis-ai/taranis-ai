@@ -12,9 +12,10 @@
       @update-items="updateData"
     />
     <EditConfig
-      v-if="formData && Object.keys(formData).length > 0"
-      :form-format="formFormat"
+      v-if="showForm"
       :config-data="formData"
+      :form-format="formFormat"
+      :parameters="parameters"
       @submit="handleSubmit"
     ></EditConfig>
   </div>
@@ -29,7 +30,7 @@ import {
   createPublisherPreset,
   updatePublisherPreset
 } from '@/api/config'
-import { notifySuccess, objectFromFormat, notifyFailure } from '@/utils/helpers'
+import { notifySuccess, notifyFailure, baseFormat } from '@/utils/helpers'
 import { useConfigStore } from '@/stores/ConfigStore'
 import { useMainStore } from '@/stores/MainStore'
 import { storeToRefs } from 'pinia'
@@ -41,97 +42,65 @@ export default defineComponent({
     EditConfig
   },
   setup() {
-    const store = useConfigStore()
+    const configStore = useConfigStore()
     const mainStore = useMainStore()
 
-    const { publisher_presets, publishers } = storeToRefs(store)
+    const { publisher_presets, publisher_types, parameters } =
+      storeToRefs(configStore)
 
     const publishersList = ref([])
     const formData = ref({})
-    const parameters = ref({})
     const edit = ref(false)
+    const showForm = ref(false)
 
     const formFormat = computed(() => {
-      const base = [
+      const additionalFormat = [
         {
-          name: 'id',
-          label: 'ID',
-          type: 'text',
-          disabled: true
-        },
-        {
-          name: 'name',
-          label: 'Name',
-          type: 'text',
-          rules: [(v) => !!v || 'Required']
-        },
-        {
-          name: 'description',
-          label: 'Description',
-          type: 'textarea',
-          rules: [(v) => !!v || 'Required']
-        },
-        {
-          name: 'publisher_id',
+          name: 'type',
           label: 'Type',
           type: 'select',
-          rules: [(v) => !!v || 'Required'],
-          options: publishersList.value,
-          disabled: edit.value
+          items: publishersList.value
         }
       ]
-      if (parameters.value[formData.value.publisher_id]) {
-        return base.concat(parameters.value[formData.value.publisher_id])
-      }
-      return base
+      return [...baseFormat, ...additionalFormat]
     })
 
     const updateData = () => {
-      store.loadPublisherPresets().then(() => {
+      configStore.loadPublisherPresets().then(() => {
         mainStore.itemCountTotal = publisher_presets.value.total_count
         mainStore.itemCountFiltered = publisher_presets.value.items.length
       })
-      store.loadPublishers().then(() => {
-        publishersList.value = publishers.value.items.map((item) => {
+      configStore.loadWorkerTypes().then(() => {
+        publishersList.value = publisher_types.value.map((publisher) => {
           return {
-            title: item.name,
-            value: item.id
+            value: publisher.type,
+            title: publisher.name
           }
         })
-        publishers.value.items.forEach((publisher) => {
-          parameters.value[publisher.id] = publisher.parameters.map(
-            (parameter) => {
-              return {
-                name: parameter.key,
-                label: parameter.name,
-                parent: 'parameter_values',
-                type: 'text'
-              }
-            }
-          )
-        })
       })
+      configStore.loadParameters()
     }
 
     const addItem = () => {
-      formData.value = objectFromFormat(formFormat.value)
-      formData.value.parameter_values = {}
+      formData.value = {}
       edit.value = false
+      showForm.value = true
     }
 
     const editItem = (item) => {
       formData.value = item
-      edit.value = true
+      edit.value = false
+      showForm.value = true
     }
 
     const handleSubmit = (submittedData) => {
       delete submittedData.tag
-      console.debug('submittedData', submittedData)
       if (edit.value) {
         updateItem(submittedData)
       } else {
         createItem(submittedData)
       }
+      showForm.value = false
     }
 
     const deleteItem = (item) => {
@@ -176,11 +145,11 @@ export default defineComponent({
     return {
       publisher_presets,
       publishersList,
-      publishers,
       formData,
       parameters,
       edit,
       formFormat,
+      showForm,
       addItem,
       editItem,
       handleSubmit,

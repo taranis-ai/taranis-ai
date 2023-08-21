@@ -8,12 +8,11 @@ maintainers = [{ name = "AIT", email = "benjamin.akhras@ait.ac.at" }]
 classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Framework :: Celery",
     "Topic :: Security",
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     # Core
     "celery==5.3.1",
@@ -49,7 +48,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["black", "pytest", "pytest-celery"]
+dev = ["black", "pytest", "pytest-celery", "watchdog"]
 
 [project.urls]
 "Source Code" = "https://github.com/ait-cs-IaaS/Taranis-NG"

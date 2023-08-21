@@ -1,5 +1,6 @@
 from typing import Any, TypeVar, Type
 
+from enum import Enum
 from core.managers.db_manager import db
 from datetime import datetime
 import json
@@ -17,12 +18,12 @@ class BaseModel(db.Model):
         return f"{self.__class__.__name__} {self.to_json()}"
 
     @classmethod
-    def delete(cls: Type[T], id) -> tuple[str, int]:
+    def delete(cls: Type[T], id) -> tuple[dict[str, Any], int]:
         if cls.query.filter_by(id=id).delete():
             db.session.commit()
-            return f"{cls.__name__} {id} deleted", 200
+            return {"message": f"{cls.__name__} {id} deleted"}, 200
 
-        return f"{cls.__name__} {id} not found", 404
+        return {"error": f"{cls.__name__} {id} not found"}, 404
 
     @classmethod
     def add(cls: Type[T], data) -> T:
@@ -48,6 +49,8 @@ class BaseModel(db.Model):
         for key, value in data.items():
             if isinstance(value, datetime):
                 data[key] = value.isoformat()
+            elif isinstance(value, Enum):
+                data[key] = value.value
         return data
 
     def to_json(self) -> str:

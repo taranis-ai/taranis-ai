@@ -20,7 +20,7 @@
         align-self="center"
       >
         <v-icon v-if="story_in_report" class="mr-2 my-auto"> mdi-share </v-icon>
-        <h2 class="news-item-title">
+        <h2 :class="news_item_title_class">
           {{ story.title }}
         </h2>
       </v-col>
@@ -32,6 +32,7 @@
         class="d-flex flex-row flex-grow-1 order-lg-2 order-sm-3 justify-space-evenly"
       >
         <v-btn
+          v-if="!detailView"
           v-ripple="false"
           size="small"
           class="item-action-btn"
@@ -40,7 +41,7 @@
           :to="'/story/' + story.id"
           @click.stop
         >
-          <span>Open</span>
+          <span> open </span>
         </v-btn>
 
         <v-btn
@@ -77,7 +78,7 @@
           :style="{ minWidth: minButtonWidth }"
           @click.stop="openCard"
         >
-          <span>{{ news_item_summary_text }}</span>
+          <span> details </span>
           <span v-if="news_item_length > 1" class="primary--text"
             >&nbsp;[{{ news_item_length }}]</span
           >
@@ -231,9 +232,11 @@ export default {
 
     const story_in_report = computed(() => props.story.in_reports_count > 0)
     const news_item_length = computed(() => props.story.news_items.length)
-    const news_item_summary_text = computed(() =>
-      openSummary.value ? 'Close' : 'Details'
-    )
+    const news_item_title_class = computed(() => {
+      return openSummary.value || props.detailView
+        ? 'news-item-title-no-clip'
+        : 'news-item-title'
+    })
     const minButtonWidth = computed(() => {
       const longestText = `${
         news_item_length.value > 1 ? '(' + news_item_length.value + ')' : ''
@@ -291,7 +294,7 @@ export default {
       item_important,
       story_in_report,
       news_item_length,
-      news_item_summary_text,
+      news_item_title_class,
       minButtonWidth,
       story_in_reports,
       is_summarized,
@@ -306,3 +309,20 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+.news-item-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  -webkit-box-orient: vertical;
+  max-height: calc(1.5em * 2);
+  line-height: 1.3;
+}
+.news-item-title-no-clip {
+  max-height: calc(1.5em * 2);
+  line-height: 1.3;
+}
+</style>

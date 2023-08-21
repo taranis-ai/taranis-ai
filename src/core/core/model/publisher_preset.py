@@ -4,8 +4,8 @@ import uuid
 from core.managers.log_manager import logger
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
-from core.model.publishers_node import PublishersNode
 from core.model.parameter_value import ParameterValue
+from core.model.worker import PUBLISHER_TYPES, Worker
 
 
 class PublisherPreset(BaseModel):
@@ -13,24 +13,24 @@ class PublisherPreset(BaseModel):
     name = db.Column(db.String(), nullable=False)
     description = db.Column(db.String())
 
-    publisher_id = db.Column(db.String, db.ForeignKey("publisher.id"))
-    publisher = db.relationship("Publisher", back_populates="presets")
-
+    publisher_type = db.Column(db.Enum(PUBLISHER_TYPES))
     parameter_values = db.relationship("ParameterValue", secondary="publisher_preset_parameter_value", cascade="all")
 
     def __init__(
         self,
         name,
         description,
-        publisher_id,
-        parameter_values,
+        publisher_type,
+        parameter_values=None,
         id=None,
     ):
         self.id = id or str(uuid.uuid4())
         self.name = name
         self.description = description
-        self.publisher_id = publisher_id
-        self.parameter_values = parameter_values
+        self.publisher_type = publisher_type
+        self.parameter_values = (
+            ParameterValue.get_or_create_from_list(parameter_values) if parameter_values else Worker.get_parameters(publisher_type)
+        )
 
     @classmethod
     def get_all(cls):
@@ -58,8 +58,7 @@ class PublisherPreset(BaseModel):
 
     @classmethod
     def get_all_for_publisher_json(cls, parameters):
-        node = PublishersNode.get_by_api_key(parameters.api_key)
-        for publisher in node.publishers:
+        for publisher in cls.publisher.query.all():
             if publisher.type == parameters.publisher_type:
                 return [preset.to_dict() for preset in publisher.sources]
 
@@ -72,29 +71,15 @@ class PublisherPreset(BaseModel):
         updated_preset = cls.from_dict(data)
         preset.name = updated_preset.name
         preset.description = updated_preset.description
-
-        for update_pv in updated_preset.parameter_values:
-            if pv := ParameterValue.find_param_value(preset.parameter_values, update_pv.parameter_key):
-                pv.value = update_pv.value
-            else:
-                preset.parameter_values.append(update_pv)
+        preset.parameter_values = updated_preset.parameter_values
         db.session.commit()
         return preset.id
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
-        data["parameter_values"] = {value.parameter_key: value.value for value in self.parameter_values}
+        data["parameter_values"] = {value.parameter: value.value for value in self.parameter_values}
         data["tag"] = "mdi-file-star-outline"
         return data
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "PublisherPreset":
-        if parameter_values := data.pop("parameter_values", None):
-            data["parameter_values"] = [ParameterValue(parameter=param, value=val) for param, val in parameter_values.items()]
-        else:
-            data["parameter_values"] = []
-
-        return cls(**data)
 
 
 class PublisherPresetParameterValue(BaseModel):

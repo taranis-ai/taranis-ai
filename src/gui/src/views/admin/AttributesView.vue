@@ -66,7 +66,7 @@ export default {
         name: 'type',
         label: 'Type',
         type: 'select',
-        options: [
+        items: [
           'STRING',
           'NUMBER',
           'BOOLEAN',
@@ -90,7 +90,7 @@ export default {
         name: 'validator',
         label: 'Validator',
         type: 'select',
-        options: ['NONE', 'EMAIL', 'NUMBER', 'RANGE', 'REGEXP']
+        items: ['NONE', 'EMAIL', 'NUMBER', 'RANGE', 'REGEXP']
       },
       {
         name: 'validator_parameter',

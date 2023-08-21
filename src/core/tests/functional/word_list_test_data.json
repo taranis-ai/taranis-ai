@@ -1,0 +1,98 @@
+{
+    "version": 1,
+    "data": [
+        {
+            "name": "Test wordlist",
+            "description": "Test wordlist.",
+            "usage": 4,
+            "link": "",
+            "entries": [
+                {
+                    "value": "2fa",
+                    "category": "Security",
+                    "description": "Two-factor Authentication"
+                },
+                {
+                    "value": "adversary",
+                    "category": "Security",
+                    "description": "Attacker/hacker"
+                },
+                {
+                    "value": "adware",
+                    "category": "Security",
+                    "description": "Ads and pop-up windows"
+                },
+                {
+                    "value": "ai",
+                    "category": "MISC",
+                    "description": "Artificial Intelligence"
+                },
+                {
+                    "value": "apt",
+                    "category": "Security",
+                    "description": "Advanced Persistent Threat"
+                },
+                {
+                    "value": "atp",
+                    "category": "Security",
+                    "description": "Advanced Threat Protection"
+                },
+                {
+                    "value": "attack",
+                    "category": "Security",
+                    "description": ""
+                },
+                {
+                    "value": "authentication",
+                    "category": "MISC",
+                    "description": ""
+                },
+                {
+                    "value": "av",
+                    "category": "Security",
+                    "description": "Anti-virus"
+                },
+                {
+                    "value": "backdoor",
+                    "category": "Security",
+                    "description": ""
+                },
+                {
+                    "value": "ransomware",
+                    "category": "Security",
+                    "description": ""
+                },
+                {
+                    "value": "rdp",
+                    "category": "MISC",
+                    "description": "Remote Desktop Protocol"
+                },
+                {
+                    "value": "virus",
+                    "category": "Security",
+                    "description": ""
+                },
+                {
+                    "value": "vpn",
+                    "category": "MISC",
+                    "description": "Virtual Private Network"
+                },
+                {
+                    "value": "vulnerability",
+                    "category": "Security",
+                    "description": ""
+                },
+                {
+                    "value": "zero-day",
+                    "category": "Security",
+                    "description": ""
+                },
+                {
+                    "value": "zombie",
+                    "category": "Uncategorized",
+                    "description": ""
+                }
+            ]
+        }
+    ]
+}

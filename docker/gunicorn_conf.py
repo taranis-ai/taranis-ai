@@ -39,10 +39,9 @@ log_data = {
     "host": host,
     "port": port,
 }
-print(json.dumps(log_data))
+
 
 class CustomGunicornLogger(glogging.Logger):
-
     def setup(self, cfg):
         super().setup(cfg)
 
@@ -50,10 +49,11 @@ class CustomGunicornLogger(glogging.Logger):
         logger = logging.getLogger("gunicorn.access")
         logger.addFilter(HealthCheckFilter())
 
+
 class HealthCheckFilter(logging.Filter):
     def filter(self, record):
-        return 'GET /api/v1/isalive' not in record.getMessage()
+        return "GET /api/v1/isalive" not in record.getMessage()
 
-accesslog = '-'
+
+accesslog = "-"
 logger_class = CustomGunicornLogger
-

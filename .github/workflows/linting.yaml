@@ -12,14 +12,13 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        python-version: ['3.8', '3.10']
+        python-version: ['3.11']
     steps:
       - uses: actions/checkout@v2
       - name: lint with black
         uses: rickstaa/action-black@v1
         with:
           black_args: "src --check"
-          fail_on_error: false
 
   eslint:
     name: eslint

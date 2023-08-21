@@ -120,4 +120,3 @@ def setup_loggers(logger, *args, **kwargs):
     logger.setLevel(logging.INFO)
     if Config.DEBUG:
         logger.setLevel(logging.DEBUG)
-

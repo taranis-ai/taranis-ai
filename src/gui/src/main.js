@@ -27,7 +27,7 @@ const mainStore = useMainStore()
 mainStore.updateFromLocalConfig()
 const { coreAPIURL, sentryDSN } = mainStore
 
-console.log('coreAPIURL', coreAPIURL)
+console.debug('Taranis-NG initialized ', coreAPIURL, sentryDSN)
 ApiService.init(coreAPIURL)
 app.provide('$coreAPIURL', coreAPIURL)
 
@@ -45,9 +45,6 @@ if (sentryDSN) {
     environment: import.meta.env.DEV ? 'development' : 'production',
     tracesSampleRate: 1.0
   })
-  console.debug('Sentry set up')
-} else {
-  console.debug('Sentry DSN not set')
 }
 
 app.mount('#app')

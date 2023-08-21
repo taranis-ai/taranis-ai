@@ -3,7 +3,7 @@
     <DataTable
       :items="sources"
       :add-button="true"
-      :header-filter="['tag', 'state', 'name', 'FEED_URL']"
+      :header-filter="['tag', 'state', 'name']"
       sort-by-item="id"
       :action-column="true"
       @delete-item="deleteItem"
@@ -60,13 +60,7 @@ import {
   collectOSINTSSource,
   collectAllOSINTSSources
 } from '@/api/config'
-import {
-  notifySuccess,
-  objectFromFormat,
-  notifyFailure,
-  parseParameterValues,
-  createParameterValues
-} from '@/utils/helpers'
+import { notifySuccess, objectFromFormat, notifyFailure } from '@/utils/helpers'
 import { storeToRefs } from 'pinia'
 import { useConfigStore } from '@/stores/ConfigStore'
 import { useMainStore } from '@/stores/MainStore'
@@ -83,7 +77,8 @@ export default {
     const configStore = useConfigStore()
     const mainStore = useMainStore()
 
-    const { collectors, osint_sources, word_lists } = storeToRefs(configStore)
+    const { collector_types, osint_sources, word_lists } =
+      storeToRefs(configStore)
 
     const sources = ref([])
     const parameters = ref({})
@@ -119,10 +114,10 @@ export default {
           type: 'textarea'
         },
         {
-          name: 'collector_id',
+          name: 'collector_type',
           label: 'Collector',
           type: 'select',
-          options: collector_options.value
+          items: collector_options.value
         }
       ]
       if (formData.value.last_error_message) {
@@ -136,8 +131,8 @@ export default {
           }
         ].concat(base)
       }
-      if (parameters.value[formData.value.collector_id]) {
-        base = base.concat(parameters.value[formData.value.collector_id])
+      if (parameters.value[formData.value.collector_type]) {
+        base = base.concat(parameters.value[formData.value.collector_type])
       }
       base = base.concat([
         {
@@ -157,23 +152,23 @@ export default {
 
     const updateData = () => {
       configStore.loadOSINTSources().then(() => {
-        sources.value = parseParameterValues(osint_sources.value.items)
+        sources.value = osint_sources.value.items
         mainStore.itemCountFiltered = osint_sources.value.items.length
         mainStore.itemCountTotal = osint_sources.value.total_count
       })
-      configStore.loadCollectors().then(() => {
-        collector_options.value = collectors.value.items.map((collector) => {
-          parameters.value[collector.id] = collector.parameters.map(
-            (parameter) => {
-              return {
-                name: parameter.key,
-                label: parameter.name,
-                type: 'text'
-              }
-            }
-          )
+      configStore.loadWorkerTypes().then(() => {
+        collector_options.value = collector_types.value.map((collector) => {
+          parameters.value[collector.type] = Object.keys(
+            collector.parameters
+          ).map((key) => ({
+            name: key,
+            label: key,
+            parent: 'parameter_values',
+            type: 'text'
+          }))
+
           return {
-            value: collector.id,
+            value: collector.type,
             title: collector.name
           }
         })
@@ -198,15 +193,11 @@ export default {
     }
 
     const handleSubmit = (submittedData) => {
-      delete submittedData.parameter_values
-      const parameter_list = parameters.value[formData.value.collector_id].map(
-        (item) => item.name
-      )
-      const updateData = createParameterValues(parameter_list, submittedData)
+      console.debug('submittedData', submittedData)
       if (edit.value) {
-        updateItem(updateData)
+        updateItem(submittedData)
       } else {
-        createItem(updateData)
+        createItem(submittedData)
       }
       showForm.value = false
     }

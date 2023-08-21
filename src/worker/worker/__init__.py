@@ -6,6 +6,7 @@ from worker.core_api import CoreApi
 
 import worker.tasks
 
+
 class CeleryWorker:
     def __init__(self):
         celery_config = Config.CELERY

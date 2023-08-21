@@ -37,14 +37,11 @@ class RSSCollector(BaseCollector):
             self.headers = {"User-Agent": user_agent}
 
         try:
-            self.rss_collector(feed_url, source)
+            return self.rss_collector(feed_url, source)
         except Exception as e:
             logger.exception()
             logger.error(f"RSS collector for {feed_url} failed with error: {str(e)}")
             return str(e)
-
-        logger.log_debug(f"{self.type} collection finished.")
-        return None
 
     def set_proxies(self, proxy_server: str):
         self.proxies = {"http": proxy_server, "https": proxy_server, "ftp": proxy_server}
@@ -153,7 +150,7 @@ class RSSCollector(BaseCollector):
                 last_attempted = dateparser.parse(source["last_attempted"], ignoretz=True)
                 if last_modified < last_attempted:
                     logger.debug(f"Last-Modified: {last_modified} < Last-Attempted {last_attempted} skipping")
-                    return
+                    return "Last-Modified < Last-Attempted"
         feed = feedparser.parse(feed_content.content)
 
         logger.info(f"RSS-Feed {source['id']} returned feed with {len(feed['entries'])} entries")
@@ -161,3 +158,4 @@ class RSSCollector(BaseCollector):
         news_items = [self.parse_feed(feed_entry, feed_url, source) for feed_entry in feed["entries"][:100]]
 
         self.publish(news_items, source)
+        return None

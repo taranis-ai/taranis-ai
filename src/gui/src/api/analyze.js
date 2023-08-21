@@ -1,9 +1,5 @@
 import ApiService from '@/services/api_service'
 
-export function getAllReportItemGroups() {
-  return ApiService.get('/analyze/report-item-groups')
-}
-
 export function getAllReportItems(filter_data) {
   const filter = ApiService.getQueryStringFromNestedObject(filter_data)
   return ApiService.get(`/analyze/report-items?${filter}`)
@@ -41,16 +37,6 @@ export function getReportItemData(report_item_id, data) {
     }
     aggregate_ids = aggregate_ids.replace('--', '')
     params += `&aggregate_ids=${encodeURIComponent(aggregate_ids)}`
-  }
-  if (data.remote_report_item_ids !== undefined) {
-    let remote_report_item_ids = ''
-    for (const remote_report_item_id in data.remote_report_item_ids) {
-      remote_report_item_ids += '--' + remote_report_item_id
-    }
-    remote_report_item_ids = remote_report_item_ids.replace('--', '')
-    params += `&remote_report_item_ids=${encodeURIComponent(
-      remote_report_item_ids
-    )}`
   }
 
   params = params.replace('&', '?')

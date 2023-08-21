@@ -1,35 +1,28 @@
 from typing import Any
-from sqlalchemy import or_
+from sqlalchemy import or_, and_
+from sqlalchemy.orm import joinedload
 import uuid
 
 from core.managers.db_manager import db
 from core.managers.log_manager import logger
 from core.model.base_model import BaseModel
 from core.model.parameter_value import ParameterValue
+from core.model.worker import BOT_TYPES, Worker
 
 
 class Bot(BaseModel):
     id = db.Column(db.String(64), primary_key=True)
     name = db.Column(db.String(), nullable=False)
     description = db.Column(db.String())
-    type = db.Column(db.String(64), nullable=False)
-    parameter_values = db.relationship("ParameterValue", secondary="bot_parameter_value", cascade="all")
+    type = db.Column(db.Enum(BOT_TYPES))
+    parameters = db.relationship("ParameterValue", secondary="bot_parameter_value", cascade="all, delete")
 
-    def __init__(self, name, description, type, parameter_values):
-        self.id = str(uuid.uuid4())
+    def __init__(self, name, type, description=None, parameters=None, id=None):
+        self.id = id or str(uuid.uuid4())
         self.name = name
         self.description = description
         self.type = type
-        self.parameter_values = parameter_values
-
-    def to_bot_info_dict(self) -> dict[str, Any]:
-        return {
-            "id": self.id,
-            "name": self.name,
-            "description": self.description,
-            "type": self.type,
-            self.type: {parameter_value.parameter.key: parameter_value.value for parameter_value in self.parameter_values},
-        }
+        self.parameters = ParameterValue.get_or_create_from_list(parameters=parameters) if parameters else Worker.get_parameters(type)
 
     @classmethod
     def update(cls, bot_id, data) -> "Bot | None":
@@ -38,11 +31,10 @@ class Bot(BaseModel):
             return None
 
         try:
-            bot.name = data.get("name", bot.name)
-            bot.description = data.get("description", bot.description)
-
-            cls.update_parameters(bot, data)
-
+            updated_bot = cls.from_dict(data)
+            bot.name = updated_bot.name
+            bot.description = updated_bot.description
+            bot.parameters = updated_bot.parameters
             db.session.commit()
             return bot
         except Exception:
@@ -50,32 +42,22 @@ class Bot(BaseModel):
             return None
 
     @classmethod
-    def update_parameters(cls, bot, data):
-        if p_values := data.get("parameter_values"):
-            for updated_value in p_values:
-                if pv := ParameterValue.find_param_value(bot.parameter_values, updated_value["parameter"]):
-                    pv.value = updated_value["value"]
-        elif bot_type_params := data.get(bot.type):
-            for key, value in bot_type_params.items():
-                if pv := ParameterValue.find_param_value(bot.parameter_values, key):
-                    pv.value = value
-
-    @classmethod
-    def add(cls, data) -> tuple[str, int]:
-        if cls.filter_by_type(data["type"]):
-            return f"Bot with type {data['type']} already exists", 409
+    def add(cls, data) -> tuple[dict, int]:
         bot = cls.from_dict(data)
         db.session.add(bot)
         db.session.commit()
-        return f"Bot {bot.name} added", 201
+        return {"message": f"Bot {bot.name} added", "id": f"{bot.id}"}, 201
 
     @classmethod
     def get_first(cls):
         return cls.query.first()
 
     @classmethod
-    def filter_by_type(cls, type) -> "Bot | None":
-        return cls.query.filter_by(type=type).first()
+    def filter_by_type(cls, type: str) -> "Bot | None":
+        filter_type = type.lower()
+        if filter_type not in [types.value for types in BOT_TYPES]:
+            return None
+        return cls.query.filter_by(type=filter_type).first()
 
     @classmethod
     def get_all_by_type(cls, type):
@@ -89,7 +71,7 @@ class Bot(BaseModel):
             query = query.filter(
                 or_(
                     Bot.name.ilike(f"%{search}%"),
-                    Bot.description.ilike(f"%{search}%"),
+                    Bot.description.ilike(f"%{search}%"),  # type: ignore
                 )
             )
 
@@ -98,22 +80,28 @@ class Bot(BaseModel):
     @classmethod
     def get_all_json(cls, search):
         bots, count = cls.get_by_filter(search)
-        items = [bot.to_bot_info_dict() for bot in bots]
+        items = [bot.to_dict() for bot in bots]
         return {"total_count": count, "items": items}
+
+    @classmethod
+    def get_post_collection(cls):
+        # This should return all bots where the parameter with the KEY RUN_AFTER_COLLECTOR has the value True
+        bots = (
+            cls.query.join(BotParameterValue, Bot.id == BotParameterValue.bot_id)
+            .join(ParameterValue, BotParameterValue.parameter_value_id == ParameterValue.id)
+            .filter(and_(ParameterValue.parameter == "RUN_AFTER_COLLECTOR", ParameterValue.value == "true"))
+            .options(joinedload(Bot.parameters))
+            .all()
+        )
+
+        return [bot.to_dict() for bot in bots]
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
-        data["parameter_values"] = [pv.to_dict() for pv in self.parameter_values]
+        data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters}
         return data
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "Bot":
-        if parameter_values := data.pop("parameter_values", None):
-            data["parameter_values"] = [ParameterValue(**pv) for pv in parameter_values]
-
-        return cls(**data)
 
 
 class BotParameterValue(BaseModel):
-    bot_id = db.Column(db.String, db.ForeignKey("bot.id"), primary_key=True)
+    bot_id = db.Column(db.String, db.ForeignKey("bot.id", ondelete="CASCADE"), primary_key=True)
     parameter_value_id = db.Column(db.Integer, db.ForeignKey("parameter_value.id"), primary_key=True)

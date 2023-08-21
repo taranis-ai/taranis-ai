@@ -8,10 +8,8 @@ from core.api import (
     config,
     dashboard,
     isalive,
-    presenters,
     publish,
     publishers,
-    remote,
     user,
     worker,
 )
@@ -26,10 +24,8 @@ __all__ = [
     "config",
     "dashboard",
     "isalive",
-    "presenters",
     "publish",
     "publishers",
-    "remote",
     "user",
     "worker",
 ]

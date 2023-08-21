@@ -6,13 +6,14 @@
       :header-filter="['tag', 'id', 'name', 'description']"
       sort-by-item="id"
       :action-column="true"
+      tag-icon="mdi-office-building"
       @delete-item="deleteItem"
       @edit-item="editItem"
       @add-item="addItem"
       @update-items="updateData"
     />
     <EditConfig
-      v-if="formData && Object.keys(formData).length > 0"
+      v-if="showForm"
       :config-data="formData"
       :form-format="formFormat"
       @submit="handleSubmit"
@@ -46,6 +47,7 @@ export default {
     const { organizations } = storeToRefs(store)
     const formData = ref({})
     const edit = ref(false)
+    const showForm = ref(false)
     const formFormat = computed(() => [
       {
         name: 'id',
@@ -62,8 +64,7 @@ export default {
       {
         name: 'description',
         label: 'Description',
-        type: 'textarea',
-        rules: [(v) => !!v || 'Required']
+        type: 'textarea'
       },
       {
         name: 'street',
@@ -92,6 +93,8 @@ export default {
     ])
 
     const updateData = () => {
+      showForm.value = false
+
       store.loadOrganizations().then(() => {
         mainStore.itemCountTotal = organizations.value.total_count
         mainStore.itemCountFiltered = organizations.value.items.length
@@ -99,13 +102,15 @@ export default {
     }
 
     const addItem = () => {
-      formData.value = objectFromFormat(formFormat.value)
+      formData.value = {}
       edit.value = false
+      showForm.value = true
     }
 
     const editItem = (item) => {
       formData.value = item
       edit.value = true
+      showForm.value = true
     }
 
     const handleSubmit = (submittedData) => {
@@ -118,16 +123,14 @@ export default {
     }
 
     const deleteItem = (item) => {
-      if (!item.default) {
-        deleteOrganization(item)
-          .then(() => {
-            notifySuccess(`Successfully deleted ${item.name}`)
-            updateData()
-          })
-          .catch(() => {
-            notifyFailure(`Failed to delete ${item.name}`)
-          })
-      }
+      deleteOrganization(item)
+        .then(() => {
+          notifySuccess(`Successfully deleted ${item.name}`)
+          updateData()
+        })
+        .catch(() => {
+          notifyFailure(`Failed to delete ${item.name}`)
+        })
     }
 
     const createItem = (item) => {
@@ -161,6 +164,7 @@ export default {
       formFormat,
       formData,
       edit,
+      showForm,
       addItem,
       editItem,
       handleSubmit,

@@ -21,11 +21,10 @@ class NLPBot(BaseBot):
     """
     summary_threshold = 750
 
-
     def __init__(self):
         super().__init__()
         logger.debug("Setup Summarization Model...")
-        torch.set_num_threads(1) # https://github.com/pytorch/pytorch/issues/36191
+        torch.set_num_threads(1)  # https://github.com/pytorch/pytorch/issues/36191
         self.set_summarization_model()
 
     def set_summarization_model(self) -> None:
@@ -35,8 +34,6 @@ class NLPBot(BaseBot):
         self.sum_model_name_de = "T-Systems-onsite/mt5-small-sum-de-en-v2"
         self.sum_model_de = AutoModelForSeq2SeqLM.from_pretrained(self.sum_model_name_de)
         self.sum_tokenizer_de = AutoTokenizer.from_pretrained(self.sum_model_name_de, use_fast=False)
-
-
 
     def execute(self, parameters=None):
         if not parameters:
@@ -70,10 +67,9 @@ class NLPBot(BaseBot):
                     )
                     content_to_summarize += content
 
-
                 if not aggregate.get("summary"):
                     try:
-                        if summary := self.predict_summary(content_to_summarize[:self.summary_threshold]):
+                        if summary := self.predict_summary(content_to_summarize[: self.summary_threshold]):
                             logger.debug(f"Generated summary for {aggregate['id']}: {summary}")
                             self.core_api.update_news_items_aggregate_summary(aggregate["id"], summary)
                     except Exception:
@@ -83,7 +79,6 @@ class NLPBot(BaseBot):
 
         except Exception:
             logger.log_debug_trace(f"Error running Bot: {self.type}")
-
 
     def predict_summary(self, text_to_summarize: str, pct_min_length: float = 0.2) -> str:
         return "SUMMARY NOT IMPLEMENTED"

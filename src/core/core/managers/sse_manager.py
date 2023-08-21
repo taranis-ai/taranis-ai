@@ -1,5 +1,6 @@
 from datetime import datetime
 from core.managers.sse import SSE
+from flask import jsonify
 
 
 class SSEManager:
@@ -16,14 +17,19 @@ class SSEManager:
     def report_item_updated(self, data):
         self.sse.publish(data, event="report-item-updated")
 
-    def remote_access_disconnect(self, data):
-        self.sse.publish(data, event="remote_access_disconnect")
+    def to_json(self, report_item_id: int):
+        return {}
+        if report_item_id not in self.report_item_locks.keys():
+            return jsonify({"report_item_id": report_item_id, "locked": False})
+        return jsonify(
+            {"report_item_id": report_item_id, "locked": True, "lock_time": self.report_item_locks[report_item_id]["lock_time"].isoformat()}
+        )
 
     def report_item_lock(self, report_item_id: int, user_id):
         if report_item_id in self.report_item_locks:
             if self.report_item_locks[report_item_id]["user_id"] == user_id:
                 self.report_item_locks[report_item_id]["lock_time"] = datetime.now()
-            return
+            return self.to_json(report_item_id), 200
         self.report_item_locks[report_item_id] = {"user_id": user_id, "lock_time": datetime.now()}
         self.sse.publish(
             {
@@ -32,9 +38,13 @@ class SSEManager:
             },
             event="report-item-locked",
         )
+        return self.to_json(report_item_id), 200
         # schedule.every(1).minute.do(self.schedule_unlock_report_item, report_item_id, user_id)
 
     def report_item_unlock(self, report_item_id: int, user_id):
+        if report_item_id not in self.report_item_locks.keys():
+            return self.to_json(report_item_id), 200
+
         del self.report_item_locks[report_item_id]
 
         self.sse.publish(
@@ -44,6 +54,7 @@ class SSEManager:
             },
             event="report-item-unlocked",
         )
+        return self.to_json(report_item_id), 200
 
     # def schedule_unlock_report_item(self, report_item_id: int, user_id, time_to_unlock: datetime):
     #     if report_item_id not in self.report_item_locks:

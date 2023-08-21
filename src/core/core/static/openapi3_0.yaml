@@ -45,8 +45,6 @@ tags:
     description: read/update/delete/publish products
   - name: publishers
     description: read/update/delete publisher nodes/presets
-  - name: remote
-    description: connect/disconnect and sync news/report items
 security:
   - API_key: []
   - user_auth: []
@@ -355,27 +353,6 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
         '404':
           $ref: "#/components/schemas/notFound"
-  /analyze/report-item-groups:
-    get:
-      tags: [analyze]
-      summary: get the report item groups
-      responses:
-        '200':
-          description: the report item groups
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/report_item'
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
   /analyze/report-items:
     get:
       tags: [analyze]
@@ -457,6 +434,8 @@ paths:
               schema:
                 type: integer
                 example: 42
+        '400':
+          description: invalid input data
         '401':
           description: authorization error
           content:
@@ -485,6 +464,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/report_item'
+        '400':
+          description: invalid request
         '401':
           description: authorization error
           content:
@@ -510,6 +491,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/modify_report_item.response'
+        '400':
+          description: invalid request
         '401':
           description: authorization error
           content:
@@ -529,6 +512,8 @@ paths:
               schema:
                 type: string
                 example: success
+        '400':
+          description: invalid request
         '401':
           description: authorization error
           content:
@@ -578,10 +563,6 @@ paths:
           in: query
           schema:
             type: string
-        - name: remote_report_item_ids
-          in: query
-          schema:
-            type: string
       responses:
         '200':
           description: the suitable report item data
@@ -589,6 +570,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/report_item_data.response'
+        '400':
+          description: invalid request
         '401':
           description: authorization error
           content:
@@ -597,7 +580,7 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
         '404':
           $ref: "#/components/schemas/notFound"
-  /analyze/report-items/{report_item_id}/field-locks:
+  /analyze/report-items/{report_item_id}/locks:
     parameters:
       - name: report_item_id
         in: path
@@ -616,6 +599,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/report_item_lock'
+        '400':
+          description: invalid request
         '401':
           description: authorization error
           content:
@@ -624,16 +609,9 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
         '404':
           $ref: "#/components/schemas/notFound"
-  /analyze/report-items/{report_item_id}/field-locks/{field_id}/lock:
+  /analyze/report-items/{report_item_id}/lock:
     parameters:
       - name: report_item_id
-        in: path
-        required: true
-        schema:
-          type: integer
-          minimum: 1
-          format: int32
-      - name: field_id
         in: path
         required: true
         schema:
@@ -647,9 +625,11 @@ paths:
         '200':
           description: the locked field as a SSE
           content:
-            text/event-stream:
+            application/json:
               schema:
                 $ref: '#/components/schemas/report_item_lock'
+        '400':
+          description: invalid request
         '401':
           description: authorization error
           content:
@@ -658,16 +638,9 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
         '404':
           $ref: "#/components/schemas/notFound"
-  /analyze/report-items/{report_item_id}/field-locks/{field_id}/unlock:
+  /analyze/report-items/{report_item_id}//unlock:
     parameters:
       - name: report_item_id
-        in: path
-        required: true
-        schema:
-          type: integer
-          minimum: 1
-          format: int32
-      - name: field_id
         in: path
         required: true
         schema:
@@ -681,90 +654,11 @@ paths:
         '200':
           description: the locked field as a SSE
           content:
-            text/event-stream:
+            application/json:
               schema:
                 $ref: '#/components/schemas/report_item_lock'
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-  /analyze/report-items/{report_item_id}/field-locks/{field_id}/hold:
-    parameters:
-      - name: report_item_id
-        in: path
-        required: true
-        schema:
-          type: integer
-          minimum: 1
-          format: int32
-      - name: field_id
-        in: path
-        required: true
-        schema:
-          type: integer
-          minimum: 1
-          format: int32
-    put:
-      tags: [analyze]
-      summary: hold a lock on the specified field
-      responses:
-        '200':
-          description: the locked field as a SSE
-          content:
-            text/event-stream:
-              schema:
-                $ref: '#/components/schemas/report_item_lock'
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-  /analyze/report-item-attributes/{attribute_id}/enums:
-    parameters:
-      - name: attribute_id
-        in: path
-        required: true
-        schema:
-          type: integer
-          minimum: 1
-          format: int32
-    get:
-      tags: [analyze]
-      summary: get the report item attribute's enums
-      parameters:
-        - name: search
-          in: query
-          schema:
-            type: string
-        - name: offset
-          in: query
-          schema:
-            type: integer
-        - name: limit
-          in: query
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: the attribute's enums
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  total_count:
-                    type: integer
-                  items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/attribute_enum'
+        '400':
+          description: invalid request
         '401':
           description: authorization error
           content:
@@ -783,6 +677,7 @@ paths:
           minimum: 1
           format: int32
     post:
+      deprecated: true
       tags: [analyze]
       summary: attach a file to the report item
       requestBody:
@@ -815,6 +710,8 @@ paths:
                     type: integer
                   attribute_id:
                     type: integer
+        '400':
+          description: invalid request
         '401':
           description: authorization error
           content:
@@ -840,6 +737,7 @@ paths:
           minimum: 1
           format: int32
     delete:
+      deprecated: true
       tags: [analyze]
       summary: remove an attachment from the report item
       responses:
@@ -859,6 +757,8 @@ paths:
                     type: integer
                   attribute_id:
                     type: integer
+        '400':
+          description: erronous input data
         '401':
           description: authorization error
           content:
@@ -867,23 +767,8 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
         '404':
           $ref: "#/components/schemas/notFound"
-  /analyze/report-items/{report_item_id}/file-attributes/{attribute_id}/file:
-    parameters:
-      - name: report_item_id
-        in: path
-        required: true
-        schema:
-          type: integer
-          minimum: 1
-          format: int32
-      - name: attribute_id
-        in: path
-        required: true
-        schema:
-          type: integer
-          minimum: 1
-          format: int32
     get:
+      deprecated: true
       tags: [analyze]
       summary: download a report item's specified attachment
       responses:
@@ -894,6 +779,8 @@ paths:
               schema:
                 type: string
                 format: binary
+        '400':
+          description: erronous input data
         '401':
           description: authorization error
           content:
@@ -991,7 +878,7 @@ paths:
         '200':
           description: the OSINT source ID of the created news item as SSEs
           content:
-            text/event-stream:
+            application/json:
               schema:
                 type: object
         '400':
@@ -2128,100 +2015,9 @@ paths:
         '200':
           description: news items updated (as an SSE)
           content:
-            text/event-stream:
+            application/json:
               schema:
                 type: object
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-  /collectors/node:
-    post:
-      tags: [collectors]
-      summary: add collector node
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/collectors_node'
-      responses:
-        '200':
-          description: ID of the added collector node
-          content:
-            application/json:
-              schema:
-                type: integer
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-  /collectors/node/{collector_id}:
-    parameters:
-      - name: collector_id
-        in: path
-        required: true
-        schema:
-          type: string
-    get:
-      tags: [collectors]
-      summary: get specific collectors node
-      responses:
-        '200':
-          description: specific collectors node
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/collectors_node'
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-    put:
-      tags: [collectors]
-      summary: update the collector node
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/collectors_node'
-      responses:
-        '200':
-          description: ID of the updated collector node
-          content:
-            application/json:
-              schema:
-                type: string
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-    delete:
-      tags: [collectors]
-      summary: delete the collector node
-      responses:
-        '200':
-          description: DESCRIPTION
-          content:
-            application/json:
-              schema:
-                type: string
-                example:
         '401':
           description: authorization error
           content:
@@ -2492,7 +2288,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/report_item_type.new'
+              $ref: '#/components/schemas/report_item_type'
       responses:
         '200':
           description: success
@@ -2518,7 +2314,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/report_item_type.new'
+              $ref: '#/components/schemas/report_item_type'
       responses:
         '200':
           description: success
@@ -3485,96 +3281,6 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
         '404':
           $ref: "#/components/schemas/notFound"
-  /config/remote-access:
-    get:
-      tags: [config]
-      summary: get all remote access resources
-      parameters:
-        - name: search
-          in: query
-          schema:
-            type: string
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  total_count:
-                    type: integer
-                  items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/remote_access.presentation'
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-    post:
-      tags: [config]
-      summary: add remote access resource
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/remote_access.new'
-      responses:
-        '200':
-          description: success
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-  /config/remote-access/{remote_access_id}:
-    parameters:
-      - name: remote_access_id
-        in: path
-        required: true
-        schema:
-          type: integer
-    put:
-      tags: [config]
-      summary: update remote access resource
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/remote_access.new'
-      responses:
-        '200':
-          description: success
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-    delete:
-      tags: [config]
-      summary: delete remote access resource
-      responses:
-        '200':
-          description: success
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
   /config/publisher-preset:
     get:
       tags: [config]
@@ -4018,170 +3724,6 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
         '404':
           $ref: "#/components/schemas/notFound"
-  /remote/connect:
-    get:
-      tags: [remote]
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  event_id:
-                    type: string
-                  last_synced_news_items:
-                    type: string
-                  last_synced_report_items:
-                    type: string
-                  news_items_provided:
-                    type: boolean
-                  report_items_provided:
-                    type: boolean
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-  /remote/disconnect:
-    get:
-      tags: [remote]
-      responses:
-        '200':
-          description: success
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-  /remote/sync-news-items:
-    get:
-      tags: [remote]
-      summary: get sync-news items
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  last_sync_time:
-                    type: string
-                  news_items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/news_item_remote'
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-    put:
-      tags: [remote]
-      summary: update news items sync
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                last_sync_time:
-                  type: string
-                  format: date-time
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  last_sync_time:
-                    type: string
-                  news_items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/news_item_remote'
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-  /remote/sync-report-items:
-    get:
-      tags: [remote]
-      summary: get sync-report items
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  last_sync_time:
-                    type: string
-                  report_items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/report_item_remote'
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-    put:
-      tags: [remote]
-      summary: update report items sync
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                last_sync_time:
-                  type: string
-                  format: date-time
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  last_sync_time:
-                    type: string
-                  report_items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/report_item_remote'
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-
 
 components:
   schemas:
@@ -4537,38 +4079,12 @@ components:
         - $ref: '#/components/schemas/publisher_preset'
         - $ref: '#/components/schemas/presentation'
 
-    attribute_group_item.new:
-      allOf:
-        - $ref: '#/components/schemas/attribute_group_item'
-        - type: object
-          properties:
-            attribute_id:
-              type: integer
-    attribute_group.new:
-      allOf:
-        - $ref: '#/components/schemas/attribute_group.base'
-        - type: object
-          properties:
-            attribute_group_items:
-              type: array
-              items:
-                $ref: '#/components/schemas/attribute_group_item.new'
-    report_item_type.new:
-      allOf:
-        - $ref: '#/components/schemas/report_item_type.base'
-        - type: object
-          properties:
-            attribute_groups:
-              type: array
-              items:
-                $ref: '#/components/schemas/attribute_group.new'
-
     attribute_group_item:
       type: object
       properties:
         id:
           type: integer
-        name:
+        title:
           type: string
         description:
           type: string
@@ -4578,9 +4094,13 @@ components:
           type: integer
         max_occurrence:
           type: integer
+        attribute_group_id:
+          type: integer
+        attribute_id:
+          type: integer
         attribute:
           $ref: '#/components/schemas/attribute'
-    attribute_group.base:
+    attribute_group:
       type: object
       properties:
         id:
@@ -4595,29 +4115,22 @@ components:
           type: string
         index:
           type: integer
-    attribute_group:
-      allOf:
-        - $ref: '#/components/schemas/attribute_group.base'
-        - type: object
-          properties:
-            attribute_group_items:
-              type: array
-              items:
-                $ref: '#/components/schemas/attribute_group_item'
-    report_item_type.base:
-      type: object
-      properties:
-        id:
+        report_item_type_id:
           type: integer
-        title:
-          type: string
-        description:
-          type: string
+        attribute_group_items:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/attribute_group_item'
     report_item_type:
       allOf:
-        - $ref: '#/components/schemas/report_item_type.base'
         - type: object
           properties:
+            id:
+              type: integer
+            title:
+              type: string
+            description:
+              type: string
             attribute_groups:
               type: array
               items:
@@ -4641,10 +4154,6 @@ components:
         - type: object
           properties:
             news_item_aggregates:
-              type: array
-              items:
-                type: integer
-            remote_report_items:
               type: array
               items:
                 type: integer
@@ -4704,18 +4213,6 @@ components:
           type: boolean
         report_item_type_id:
           type: integer
-    remote_report_item:
-      allOf:
-        - $ref: '#/components/schemas/report_item.base'
-        - $ref: '#/components/schemas/presentation'
-        - type: object
-          properties:
-            remote_user:
-              type: string
-            attributes:
-              type: array
-              items:
-                $ref: '#/components/schemas/report_item_attribute'
     report_item:
       allOf:
         - $ref: '#/components/schemas/report_item.base'
@@ -4725,45 +4222,15 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/news_item_aggregate'
-            remote_report_items:
-              type: array
-              items:
-                $ref: '#/components/schemas/remote_report_item'
             attributes:
               type: array
               items:
                 $ref: '#/components/schemas/report_item_attribute'
-            remote_user:
-              type: string
-    report_item_attribute_remote:
-      type: object
-      properties:
-        value:
-          type: string
-    report_item_remote:
-      type: object
-      properties:
-        uuid:
-          type: string
-        title:
-          type: string
-        title_prefix:
-          type: string
-        completed:
-          type: boolean
-        attributes:
-          type: array
-          items:
-            $ref: '#/components/schemas/report_item_attribute_remote'
     report_item.presentation:
       allOf:
         - $ref: '#/components/schemas/report_item.base'
         - $ref: '#/components/schemas/acl_entry_status'
         - $ref: '#/components/schemas/presentation'
-        - type: object
-          properties:
-            remote_user:
-              type: string
     report_item.id:
       type: object
       properties:
@@ -4861,6 +4328,8 @@ components:
         validator:
           $ref: '#/components/schemas/attribute_validator'
         validator_parameter:
+          type: string
+        tag:
           type: string
     attribute:
       allOf:
@@ -5445,35 +4914,6 @@ components:
             id:
               type: string
 
-    collectors_node.new:
-      allOf:
-        - $ref: '#/components/schemas/collectors_node'
-    collectors_node:
-      type: object
-      properties:
-        id:
-          type: string
-        name:
-          type: string
-        description:
-          type: string
-        api_url:
-          type: string
-        api_key:
-          type: string
-        collectors:
-          type: array
-          items:
-            $ref: '#/components/schemas/collector'
-        status:
-          type: string
-        created:
-          type: string
-          format: date-time
-        last_seen:
-          type: string
-          format: date-time
-
     acl_entry.new:
       allOf:
         - $ref: '#/components/schemas/acl_entry'
@@ -5531,201 +4971,6 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/user.base'
-
-    remote_access.new:
-      allOf:
-        - $ref: '#/components/schemas/remote_access'
-        - type: object
-          properties:
-            osint_sources:
-              type: array
-              items:
-                $ref: '#/components/schemas/osint_source.id'
-            report_item_types:
-              type: array
-              items:
-                $ref: '#/components/schemas/report_item_type.id'
-    remote_node.new:
-      allOf:
-        - $ref: '#/components/schemas/remote_node'
-
-    remote_access:
-      type: object
-      properties:
-        id:
-          type: integer
-        name:
-          type: string
-        description:
-          type: string
-        access_key:
-          type: string
-        enabled:
-          type: boolean
-        osint_sources:
-          type: array
-          items:
-            $ref: '#/components/schemas/osint_source.presentation'
-        report_item_types:
-          type: array
-          items:
-            $ref: '#/components/schemas/report_item_type.presentation'
-    remote_access.presentation:
-      allOf:
-        - $ref: '#/components/schemas/remote_access'
-        - $ref: '#/components/schemas/presentation'
-        - type: object
-          properties:
-            last_synced:
-              type: string
-              format: date-time
-    remote_node:
-      type: object
-      properties:
-        id:
-          type: integer
-        name:
-          type: string
-        description:
-          type: string
-        remote_url:
-          type: string
-        events_url:
-          type: string
-        access_key:
-          type: string
-        enabled:
-          type: boolean
-        sync_news_items:
-          type: boolean
-        sync_report_items:
-          type: boolean
-        osint_source_group_id:
-          type: string
-    remote_node.presentation:
-      allOf:
-        - $ref: '#/components/schemas/remote_node'
-        - $ref: '#/components/schemas/presentation'
-        - type: object
-          properties:
-            last_synced:
-              type: string
-              format: date-time
-            event_id:
-              type: string
-
-    presenters_node.new:
-      allOf:
-        - $ref: '#/components/schemas/presenters_node'
-
-    presenters_node:
-      type: object
-      properties:
-        id:
-          type: string
-        name:
-          type: string
-        description:
-          type: string
-        api_url:
-          type: string
-        api_key:
-          type: string
-        presenters:
-          type: array
-          items:
-            $ref: '#/components/schemas/presenter'
-    presenters_node.presentation:
-      allOf:
-       - $ref: '#/components/schemas/presenters_node'
-       - $ref: '#/components/schemas/presentation'
-
-    publishers_node.new:
-      allOf:
-        - $ref: '#/components/schemas/publishers_node'
-
-    publishers_node:
-      type: object
-      properties:
-        id:
-          type: string
-        name:
-          type: string
-        description:
-          type: string
-        api_url:
-          type: string
-        api_key:
-          type: string
-        publishers:
-          type: array
-          items:
-            $ref: '#/components/schemas/publisher'
-    publishers_node.presentation:
-      allOf:
-        - $ref: '#/components/schemas/publishers_node'
-        - $ref: '#/components/schemas/presentation'
-
-    publisher.new:
-      allOf:
-        - $ref: '#/components/schemas/publisher'
-
-    publisher:
-      type: object
-      properties:
-        id:
-          type: string
-        type:
-          type: string
-        name:
-          type: string
-        description:
-          type: string
-        parameters:
-          type: array
-          items:
-            $ref: '#/components/schemas/parameter'
-    publisher_input:
-      type: object
-      properties:
-        type:
-          type: string
-        parameter_values:
-          type: array
-          items:
-            $ref: '#/components/schemas/parameter_value'
-        mime_type:
-          type: string
-        data:
-          type: string
-        message_title:
-          type: string
-        message_body:
-          type: string
-        recipients:
-          type: array
-          items:
-            type: string
-
-    tag_cloud.new:
-      allOf:
-        - $ref: '#/components/schemas/tag_cloud'
-
-    tag_cloud.base:
-      type: object
-      properties:
-        word:
-          type: string
-        word_quantity:
-          type: integer
-        collected:
-          $ref: '#/components/schemas/date'
-    tag_cloud:
-      allOf:
-        - $ref: '#/components/schemas/tag_cloud.base'
-    grouped_words:
-      allOf:
-        - $ref: '#/components/schemas/tag_cloud.base'
 
     presenter.new:
       allOf:
@@ -5805,18 +5050,21 @@ components:
         - $ref: '#/components/schemas/acl_entry_status'
         - $ref: '#/components/schemas/presentation'
 
-    date:
-      type: string
-      example: '%d.%m.%Y'
     report_item_lock:
       type: object
       properties:
         report_item_id:
           type: integer
-        field_id:
-          type: integer
-        user_id:
-          type: integer
+        locked:
+          type: boolean
+        lock_time:
+          type: string
+          format: date-time
+
+    report_item_locks:
+      type: array
+      items:
+        $ref: '#/components/schemas/report_item_lock'
 
   securitySchemes:
     API_key:

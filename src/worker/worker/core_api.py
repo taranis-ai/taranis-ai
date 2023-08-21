@@ -47,11 +47,18 @@ class CoreApi:
         response = requests.delete(url=url, headers=self.headers, verify=self.verify)
         return self.check_response(response, url)
 
+    def get_post_collection_bots_config(self) -> list[dict] | None:
+        try:
+            return self.api_get("/api/v1/worker/post-collection-bots")
+        except Exception:
+            logger.log_debug_trace("Can't get Bots Config")
+            return None
+
     def get_bot_config(self, bot_id: str) -> dict | None:
         try:
             return self.api_get(f"/api/v1/worker/bots/{bot_id}")
         except Exception:
-            logger.log_debug_trace("Can't get OSINT Sources")
+            logger.log_debug_trace("Can't get Bot Config")
             return None
 
     def get_osint_source(self, source_id: str) -> dict | None:

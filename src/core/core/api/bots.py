@@ -2,11 +2,10 @@ from flask import request
 from flask_restx import Resource, Namespace, Api
 from datetime import datetime, timedelta
 
-from core.managers import bots_manager
 from core.managers.sse_manager import sse_manager
 from core.managers.log_manager import logger
 from core.managers.auth_manager import api_key_required
-from core.model import news_item, word_list, bots_node, bot
+from core.model import news_item, word_list, bot
 
 
 class BotGroupAction(Resource):
@@ -54,25 +53,6 @@ class UpdateNewsItemData(Resource):
         except Exception:
             logger.log_debug_trace("GET /news-item-data failed")
             return "", 400
-
-
-class BotsNode(Resource):
-    @api_key_required
-    def get(self, node_id):
-        return bots_node.BotsNode.get_json_by_id(node_id)
-
-    @api_key_required
-    def put(self, node_id):
-        return bots_manager.update_bots_node(node_id, request.json)
-
-    @api_key_required
-    def post(self):
-        bots_result = bots_node.BotsNode.add(request.json)
-        return {"id": bots_result.id, "name": bots_result.name}, 201
-
-    @api_key_required
-    def delete(self, node_id):
-        return bots_node.BotsNode.delete(node_id)
 
 
 class UpdateNewsItemAttributes(Resource):
@@ -143,5 +123,4 @@ def initialize(api: Api):
         WordListEntries,
         "/word-list/<int:word_list_id>",
     )
-    namespace.add_resource(BotsNode, "/node/<string:node_id>", "/node")
     api.add_namespace(namespace)

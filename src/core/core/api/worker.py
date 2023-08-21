@@ -64,7 +64,7 @@ class Sources(Resource):
     def get(self, source_id: str):
         try:
             if source := OSINTSource.get(source_id):
-                return source.to_collector_dict(), 200
+                return source.to_dict(), 200
             return {"error": f"Source with id {source_id} not found"}, 404
         except Exception:
             logger.log_debug_trace()
@@ -121,14 +121,20 @@ class BotInfo(Resource):
         # TODO: This is a hack to get the bot info by it's Type, not ID
         # depending on how the worker is triggered we might not have the bot I
         if result := Bot.get(bot_id):
-            return result.to_bot_info_dict(), 200
+            return result.to_dict(), 200
         if result := Bot.filter_by_type(bot_id):
-            return result.to_bot_info_dict(), 200
+            return result.to_dict(), 200
         return {"error": f"Bot with id {bot_id} not found"}, 404
 
     @api_key_required
     def put(self, bot_id):
         return Bot.update(bot_id, request.json)
+
+
+class PostCollectionBots(Resource):
+    @api_key_required
+    def get(self):
+        return Bot.get_post_collection()
 
 
 class WordListBySourceGroup(Resource):
@@ -169,6 +175,7 @@ def initialize(api: Api):
     worker_namespace.add_resource(BotsInfo, "/bots")
     worker_namespace.add_resource(Tags, "/tags")
     worker_namespace.add_resource(BotInfo, "/bots/<string:bot_id>")
+    worker_namespace.add_resource(PostCollectionBots, "/post-collection-bots")
     worker_namespace.add_resource(NewsItemsAggregates, "/news-item-aggregates")
     worker_namespace.add_resource(WordListBySourceGroup, "/word-lists-by-source-group/<string:source_group>")
     worker_namespace.add_resource(WordListByID, "/word-list/<int:word_list_id>")

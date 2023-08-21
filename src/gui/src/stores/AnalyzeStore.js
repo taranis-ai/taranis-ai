@@ -1,8 +1,4 @@
-import {
-  getAllReportItems,
-  getAllReportTypes,
-  getAllReportItemGroups
-} from '@/api/analyze'
+import { getAllReportItems, getAllReportTypes } from '@/api/analyze'
 
 import { defineStore } from 'pinia'
 import { useFilterStore } from './FilterStore'
@@ -12,15 +8,9 @@ export const useAnalyzeStore = defineStore('analyze', {
     report_items: { total_count: 0, items: [] },
     report_item_types: { total_count: 0, items: [] },
     selection_report: [],
-    report_item_groups: [],
     current_report_item_group_id: null
   }),
   actions: {
-    async loadReportItemGroups() {
-      const response = await getAllReportItemGroups()
-      this.report_item_groups = response.data
-    },
-
     async loadReportItems(data) {
       const response = await getAllReportItems(data)
       this.report_items = response.data

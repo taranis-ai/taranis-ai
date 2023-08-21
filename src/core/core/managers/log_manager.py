@@ -140,17 +140,13 @@ class Logger(TaranisLogger):
         # from core.model.log_record import LogRecord
         # LogRecord.store(log_data)
 
-    def store_access_error_activity(self, user, activity_detail):
-        self.store_user_auth_error_activity(user, activity_detail, "TARANIS NG Access Error: (%s)")
-
     def store_data_error_activity(self, user, activity_detail):
         self.store_user_auth_error_activity(user, activity_detail, "TARANIS NG Data Error: (%s)")
 
     def store_data_error_activity_no_user(self, activity_detail):
         log_data = {
             "ip_address": self.resolve_ip_address(),
-            "user_id": None,
-            "user_name": None,
+            "user": None,
             "system_id": None,
             "system_name": None,
             "module_id": self.module,
@@ -162,13 +158,12 @@ class Logger(TaranisLogger):
         }
 
         self.rollback_and_store_to_db(log_data)
-        self.logger.critical("TARANIS NG Public Access Data Error: (%s)", log_data)
+        self.logger.error("TARANIS NG Public Access Data Error: (%s)", log_data)
 
     def store_auth_error_activity(self, activity_detail):
         log_data = {
             "ip_address": self.resolve_ip_address(),
-            "user_id": None,
-            "user_name": None,
+            "user": None,
             "system_id": None,
             "system_name": None,
             "module_id": self.module,
@@ -180,13 +175,12 @@ class Logger(TaranisLogger):
         }
 
         self.rollback_and_store_to_db(log_data)
-        self.logger.critical("TARANIS NG Auth Error: (%s)", log_data)
+        self.logger.error("TARANIS NG Auth Error: (%s)", log_data)
 
     def store_user_auth_error_activity(self, user, activity_detail, message):
         log_data = {
             "ip_address": self.resolve_ip_address(),
-            "user_id": user.id,
-            "user_name": user.name,
+            "user": user,
             "system_id": None,
             "system_name": None,
             "module_id": self.module,
@@ -198,13 +192,12 @@ class Logger(TaranisLogger):
         }
 
         self.rollback_and_store_to_db(log_data)
-        self.logger.critical(message, log_data)
+        self.logger.error(message, log_data)
 
     def store_system_error_activity(self, system_id, system_name, activity_type, activity_detail):
         log_data = {
             "ip_address": self.resolve_ip_address(),
-            "user_id": None,
-            "user_name": None,
+            "user": None,
             "system_id": system_id,
             "system_name": system_name,
             "module_id": self.module,
@@ -216,7 +209,7 @@ class Logger(TaranisLogger):
         }
 
         self.rollback_and_store_to_db(log_data)
-        self.logger.critical("TARANIS NG System Critical: (%s)", log_data)
+        self.logger.error("TARANIS NG System Critical: (%s)", log_data)
 
     def store_system_activity(self, system_id, system_name, activity_type, activity_detail):
         pass

@@ -8,7 +8,6 @@ import {
   getAllACLEntries,
   getAllAttributes,
   getAllBots,
-  getAllCollectors,
   getAllExternalUsers,
   getAllOrganizations,
   getAllOSINTSourceGroups,
@@ -16,8 +15,6 @@ import {
   getAllPermissions,
   getAllProductTypes,
   getAllPublisherPresets,
-  getAllPresenters,
-  getAllPublishers,
   getAllReportTypes,
   getAllRoles,
   getAllUsers,
@@ -25,6 +22,7 @@ import {
   getAllParameters,
   getAllSchedule,
   getAllWorkers,
+  getAllWorkerTypes,
   getQueueStatus
 } from '@/api/config'
 import { getAllUserProductTypes } from '@/api/user'
@@ -34,27 +32,45 @@ export const useConfigStore = defineStore('config', {
     acls: { total_count: 0, items: [] },
     attributes: { total_count: 0, items: [] },
     bots: { total_count: 0, items: [] },
-    collectors: { total_count: 0, items: [] },
     organizations: { total_count: 0, items: [] },
     osint_sources: { total_count: 0, items: [] },
     osint_source_groups: { total_count: 0, items: [] },
-    parameters: { total_count: 0, items: [] },
+    parameters: [],
     permissions: { total_count: 0, items: [] },
     product_types: { total_count: 0, items: [] },
     publisher_presets: { total_count: 0, items: [] },
-    presenters: { total_count: 0, items: [] },
-    publishers: { total_count: 0, items: [] },
     report_item_types_config: { total_count: 0, items: [] },
     roles: { total_count: 0, items: [] },
     users: { total_count: 0, items: [] },
     word_lists: { total_count: 0, items: [] },
     schedule: [],
     workers: [],
+    worker_types: { total_count: 0, items: [] },
     queue_status: {}
   }),
   getters: {
     getUserByID: (state) => (user_id) => {
       return state.users.items.find((user) => user.id === user_id) || null
+    },
+    collector_types: (state) => {
+      return state.worker_types.items.filter((worker_type) =>
+        worker_type.type.endsWith('collector')
+      )
+    },
+    bot_types: (state) => {
+      return state.worker_types.items.filter((worker_type) =>
+        worker_type.type.endsWith('bot')
+      )
+    },
+    publisher_types: (state) => {
+      return state.worker_types.items.filter((worker_type) =>
+        worker_type.type.endsWith('publisher')
+      )
+    },
+    presenter_types: (state) => {
+      return state.worker_types.items.filter((worker_type) =>
+        worker_type.type.endsWith('presenter')
+      )
     }
   },
   actions: {
@@ -62,6 +78,15 @@ export const useConfigStore = defineStore('config', {
       return getAllAttributes(data)
         .then((response) => {
           this.attributes = response.data
+        })
+        .catch((error) => {
+          notifyFailure(getMessageFromError(error))
+        })
+    },
+    loadBots(data) {
+      return getAllBots(data)
+        .then((response) => {
+          this.bots = response.data
         })
         .catch((error) => {
           notifyFailure(getMessageFromError(error))
@@ -169,37 +194,10 @@ export const useConfigStore = defineStore('config', {
           notifyFailure(getMessageFromError(error))
         })
     },
-    loadCollectors(data) {
-      return getAllCollectors(data)
+    loadWorkerTypes(data) {
+      return getAllWorkerTypes(data)
         .then((response) => {
-          this.collectors = response.data
-        })
-        .catch((error) => {
-          notifyFailure(getMessageFromError(error))
-        })
-    },
-    loadBots(data) {
-      return getAllBots(data)
-        .then((response) => {
-          this.bots = response.data
-        })
-        .catch((error) => {
-          notifyFailure(getMessageFromError(error))
-        })
-    },
-    loadPresenters(data) {
-      return getAllPresenters(data)
-        .then((response) => {
-          this.presenters = response.data
-        })
-        .catch((error) => {
-          notifyFailure(getMessageFromError(error))
-        })
-    },
-    loadPublishers(data) {
-      return getAllPublishers(data)
-        .then((response) => {
-          this.publishers = response.data
+          this.worker_types = response.data
         })
         .catch((error) => {
           notifyFailure(getMessageFromError(error))

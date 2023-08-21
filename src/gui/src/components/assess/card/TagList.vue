@@ -29,13 +29,12 @@
 </template>
 
 <script>
-import { mapActions } from 'pinia'
-
+import { computed, defineComponent } from 'vue'
 import { tagIconFromType } from '@/utils/helpers'
 import { useAssessStore } from '@/stores/AssessStore'
 import { useFilterStore } from '@/stores/FilterStore'
 
-export default {
+export default defineComponent({
   name: 'TagList',
   props: {
     tags: {
@@ -55,29 +54,35 @@ export default {
       default: true
     }
   },
-  data: () => ({
-    colorStart: Math.floor(Math.random() * 9)
-  }),
-  methods: {
-    ...mapActions(useAssessStore, ['updateNewsItems']),
-    ...mapActions(useFilterStore, ['appendTag']),
+  setup(props) {
+    const colorStart = computed(() => Math.floor(Math.random() * 9))
 
-    updateTags(tag) {
-      this.appendTag(tag)
-      this.updateNewsItems()
-    },
-    tagIcon(tag_type) {
-      return tagIconFromType(tag_type)
-    },
+    const { appendTag } = useFilterStore()
+    const { updateNewsItems } = useAssessStore()
 
-    labelcolor: function (i) {
-      if (!this.color) {
+    const updateTags = (tag) => {
+      appendTag(tag)
+      updateNewsItems()
+    }
+
+    const labelcolor = (i) => {
+      if (!props.color) {
         return ''
       }
 
       const colorList = ['red', 'blue', 'green', 'black']
-      return colorList[(this.colorStart + i) % colorList.length]
+      return colorList[(colorStart.value + i) % colorList.length]
+    }
+
+    const tagIcon = (tag_type) => {
+      return tagIconFromType(tag_type)
+    }
+
+    return {
+      updateTags,
+      labelcolor,
+      tagIcon
     }
   }
-}
+})
 </script>

@@ -12,9 +12,7 @@ periodic_tasks = [
 
 class QueueManager:
     def __init__(self, app: Flask):
-        self.celery = self.init_app(app)
-        self.add_periodic_tasks()
-        self.update_task_queue_from_osint_sources()
+        self.celery: Celery = self.init_app(app)
 
     def init_app(self, app: Flask):
         celery_app = Celery(app.name)
@@ -22,6 +20,11 @@ class QueueManager:
         celery_app.set_default()
         app.extensions["celery"] = celery_app
         return celery_app
+
+    def post_init(self):
+        self.add_periodic_tasks()
+        self.update_task_queue_from_osint_sources()
+        self.schedule_word_list_gathering()
 
     def add_periodic_tasks(self):
         for task in periodic_tasks:
@@ -34,14 +37,32 @@ class QueueManager:
         for source in sources:
             ScheduleEntry.add_or_update(source.to_task_dict())
 
-    def ping_workers(self) -> tuple[dict | list, int]:
-        try:
-            result = self.celery.control.ping()
-            workers = [{"name": list(worker.keys())[0], "status": list(list(worker.values())[0].keys())[0]} for worker in result]
-            logger.info(f"Workers: {workers}")
-            return workers, 200
-        except Exception as e:
-            return {"error": f"{str(e)} - Could not reach rabbitmq"}, 500
+    def schedule_word_list_gathering(self):
+        from core.model.word_list import WordList
+
+        word_lists = WordList.get_all_empty()
+        for word_list in word_lists:
+            self.celery.send_task("worker.tasks.gather_word_list", args=[word_list.id])
+
+    def ping_workers(self):
+        if not self.celery:
+            logger.error("QueueManager not initialized")
+            return {"error": "QueueManager not initialized"}, 500
+        result = self.celery.control.ping()
+        return [
+            {
+                "name": list(worker.keys())[0],
+                "status": list(list(worker.values())[0].keys())[0],
+            }
+            for worker in result
+        ]
+
+    def send_task(self, *args, **kwargs):
+        if not self.celery:
+            logger.error("QueueManager not initialized")
+            return {"error": "QueueManager not initialized"}, 500
+        self.celery.send_task(*args, **kwargs)
+        return {"message": "Task scheduled"}, 200
 
     def get_queue_status(self) -> tuple[dict, int]:
         if not self.celery:
@@ -53,10 +74,18 @@ def initialize(app: Flask):
     global queue_manager
     queue_manager = QueueManager(app)
     logger.info(f"QueueManager initialized: {queue_manager.celery.broker_connection().as_uri()}")
+    try:
+        with queue_manager.celery.connection() as conn:
+            logger.debug(conn)
+            conn.ensure_connection(max_retries=3)
+        queue_manager.post_init()
+    except Exception:
+        logger.error("Could not reach rabbitmq")
+        logger.exception()
 
 
 def collect_osint_source(source_id: str):
-    queue_manager.celery.send_task("worker.tasks.collect", args=[source_id])
+    queue_manager.send_task("worker.tasks.collect", args=[source_id])
     logger.info(f"Collect for source {source_id} scheduled")
     return {"message": f"Refresh for source {source_id} scheduled"}, 200
 
@@ -66,18 +95,18 @@ def collect_all_osint_sources():
 
     sources = OSINTSource.get_all()
     for source in sources:
-        queue_manager.celery.send_task("worker.tasks.collect", args=[source.id])
+        queue_manager.send_task("worker.tasks.collect", args=[source.id])
         logger.info(f"Collect for source {source.id} scheduled")
     return {"message": f"Refresh for source {len(sources)} scheduled"}, 200
 
 
 def gather_word_list(word_list_id: int):
-    queue_manager.celery.send_task("worker.tasks.gather_word_list", args=[word_list_id])
+    queue_manager.send_task("worker.tasks.gather_word_list", args=[word_list_id])
     logger.info(f"Gathering for WordList {word_list_id} scheduled")
     return {"message": f"Gathering for WordList {word_list_id} scheduled"}, 200
 
 
 def execute_bot_task(bot_id: int):
-    queue_manager.celery.send_task("worker.tasks.execute_bot", args=[bot_id])
+    queue_manager.send_task("worker.tasks.execute_bot", args=[bot_id])
     logger.info(f"Executing Bot {bot_id} scheduled")
     return {"message": f"Executing Bot {bot_id} scheduled"}, 200

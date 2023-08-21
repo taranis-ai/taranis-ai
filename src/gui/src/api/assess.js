@@ -9,10 +9,6 @@ export function getOSINTSourcesList() {
   return ApiService.get('/assess/osint-sources-list')
 }
 
-export function getManualOSINTSources() {
-  return ApiService.get('/assess/manual-osint-sources')
-}
-
 export function getNewsItemsAggregates(filter_data) {
   console.debug('getNewsItemsAggregates', filter_data)
   const filter = ApiService.getQueryStringFromNestedObject(filter_data)

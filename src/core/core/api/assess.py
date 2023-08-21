@@ -8,6 +8,7 @@ from core.managers.sse_manager import sse_manager
 from core.managers.log_manager import logger
 from core.managers.auth_manager import auth_required
 from core.model import news_item, osint_source
+from core.managers.input_validators import validate_id
 
 
 class OSINTSourceGroupsAssess(Resource):
@@ -26,12 +27,6 @@ class OSINTSourcesList(Resource):
     @auth_required("ASSESS_ACCESS")
     def get(self):
         return osint_source.OSINTSource.get_all_with_type()
-
-
-class ManualOSINTSources(Resource):
-    @auth_required(["ASSESS_ACCESS"])
-    def get(self):
-        return osint_source.OSINTSource.get_all_by_type("MANUAL_COLLECTOR")
 
 
 class NewsItems(Resource):
@@ -138,16 +133,13 @@ class NewsItem(Resource):
 
 class NewsItemAggregate(Resource):
     @auth_required("ASSESS_ACCESS")
+    @validate_id("aggregate_id")
     def get(self, aggregate_id):
-        if aggregate_id < 1 or aggregate_id > 2**31:
-            return {"error": "Invalid aggregate id"}, 400
         return news_item.NewsItemAggregate.get_json(aggregate_id)
 
     @auth_required("ASSESS_UPDATE")
+    @validate_id("aggregate_id")
     def put(self, aggregate_id):
-        if aggregate_id < 1 or aggregate_id > 2**31:
-            return {"error": "Invalid aggregate id"}, 400
-
         user = auth_manager.get_user_from_jwt()
         if not request.is_json:
             return {"error": "Missing JSON in request"}, 400
@@ -156,10 +148,8 @@ class NewsItemAggregate(Resource):
         return response, code
 
     @auth_required("ASSESS_DELETE")
+    @validate_id("aggregate_id")
     def delete(self, aggregate_id):
-        if aggregate_id < 1 or aggregate_id > 2**31:
-            return {"error": "Invalid aggregate id"}, 400
-
         user = auth_manager.get_user_from_jwt()
         response, code = news_item.NewsItemAggregate.delete_by_id(aggregate_id, user)
         sse_manager.news_items_updated()
@@ -198,6 +188,8 @@ class GroupAction(Resource):
 
 class DownloadAttachment(Resource):
     @auth_required("ASSESS_ACCESS")
+    @validate_id("item_data_id")
+    @validate_id("attribute_id")
     def get(self, item_data_id, attribute_id):
         user = auth_manager.get_user_from_jwt()
         if attribute := news_item.NewsItemAttribute.get(attribute_id):
@@ -219,7 +211,6 @@ def initialize(api):
     namespace.add_resource(OSINTSourceGroupsAssess, "/osint-source-groups")
     namespace.add_resource(OSINTSourceGroupsList, "/osint-source-group-list")
     namespace.add_resource(OSINTSourcesList, "/osint-sources-list")
-    namespace.add_resource(ManualOSINTSources, "/manual-osint-sources")
     namespace.add_resource(
         NewsItemAggregates,
         "/news-item-aggregates",

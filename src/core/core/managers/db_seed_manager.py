@@ -44,27 +44,15 @@ def pre_seed_source_groups():
 
 
 def pre_seed_workers():
-    from core.managers.workers_pre_seed import collectors, parameters, bots, presenters, publishers
-    from core.model.collector import Collector
-    from core.model.parameter import Parameter
-    from core.model.presenter import Presenter
-    from core.model.publisher import Publisher
+    from core.managers.workers_pre_seed import workers, bots
+    from core.model.worker import Worker
     from core.model.bot import Bot
 
-    for p in parameters:
-        Parameter.add(p)
-
-    for c in collectors:
-        Collector.add(c)
+    for w in workers:
+        Worker.add(w)
 
     for b in bots:
         Bot.add(b)
-
-    for p in presenters:
-        Presenter.add(p)
-
-    for p in publishers:
-        Publisher.add(p)
 
 
 def pre_seed_permissions():
@@ -251,90 +239,6 @@ def pre_seed_permissions():
     )
 
     Permission.add(
-        "CONFIG_REMOTE_ACCESS_ACCESS",
-        "Config remote access access",
-        "Access to remote access configuration",
-    )
-    Permission.add(
-        "CONFIG_REMOTE_ACCESS_CREATE",
-        "Config remote access create",
-        "Create remote access configuration",
-    )
-    Permission.add(
-        "CONFIG_REMOTE_ACCESS_UPDATE",
-        "Config remote access update",
-        "Update remote access configuration",
-    )
-    Permission.add(
-        "CONFIG_REMOTE_ACCESS_DELETE",
-        "Config remote access delete",
-        "Delete remote access configuration",
-    )
-
-    Permission.add(
-        "CONFIG_REMOTE_NODE_ACCESS",
-        "Config remote nodes access",
-        "Access to remote nodes configuration",
-    )
-    Permission.add(
-        "CONFIG_REMOTE_NODE_CREATE",
-        "Config remote node create",
-        "Create remote node configuration",
-    )
-    Permission.add(
-        "CONFIG_REMOTE_NODE_UPDATE",
-        "Config remote node update",
-        "Update remote node configuration",
-    )
-    Permission.add(
-        "CONFIG_REMOTE_NODE_DELETE",
-        "Config remote node delete",
-        "Delete remote node configuration",
-    )
-
-    Permission.add(
-        "CONFIG_PRESENTERS_NODE_ACCESS",
-        "Config presenters nodes access",
-        "Access to presenters nodes configuration",
-    )
-    Permission.add(
-        "CONFIG_PRESENTERS_NODE_CREATE",
-        "Config presenters node create",
-        "Create presenters node configuration",
-    )
-    Permission.add(
-        "CONFIG_PRESENTERS_NODE_UPDATE",
-        "Config presenters node update",
-        "Update presenters node configuration",
-    )
-    Permission.add(
-        "CONFIG_PRESENTERS_NODE_DELETE",
-        "Config presenters node delete",
-        "Delete presenters node configuration",
-    )
-
-    Permission.add(
-        "CONFIG_PUBLISHERS_NODE_ACCESS",
-        "Config publishers nodes access",
-        "Access to publishers nodes configuration",
-    )
-    Permission.add(
-        "CONFIG_PUBLISHERS_NODE_CREATE",
-        "Config publishers node create",
-        "Create publishers node configuration",
-    )
-    Permission.add(
-        "CONFIG_PUBLISHERS_NODE_UPDATE",
-        "Config publishers node update",
-        "Update publishers node configuration",
-    )
-    Permission.add(
-        "CONFIG_PUBLISHERS_NODE_DELETE",
-        "Config publishers node delete",
-        "Delete publishers node configuration",
-    )
-
-    Permission.add(
         "CONFIG_PUBLISHER_PRESET_ACCESS",
         "Config publisher presets access",
         "Access to publisher presets configuration",
@@ -356,45 +260,24 @@ def pre_seed_permissions():
     )
 
     Permission.add(
-        "CONFIG_BOTS_NODE_ACCESS",
-        "Config bots nodes access",
-        "Access to bots nodes configuration",
+        "CONFIG_BOT_ACCESS",
+        "Config bots access",
+        "Access to bots configuration",
     )
     Permission.add(
-        "CONFIG_BOTS_NODE_CREATE",
-        "Config bots node create",
-        "Create bots node configuration",
+        "CONFIG_BOT_CREATE",
+        "Config bot create",
+        "Create bot configuration",
     )
     Permission.add(
-        "CONFIG_BOTS_NODE_UPDATE",
-        "Config bots node update",
-        "Update bots node configuration",
+        "CONFIG_BOT_UPDATE",
+        "Config bot update",
+        "Update bot configuration",
     )
     Permission.add(
-        "CONFIG_BOTS_NODE_DELETE",
-        "Config bots node delete",
-        "Delete bots node configuration",
-    )
-
-    Permission.add(
-        "CONFIG_PUBLISHERS_NODE_ACCESS",
-        "Config publishers nodes access",
-        "Access to publishers nodes configuration",
-    )
-    Permission.add(
-        "CONFIG_PUBLISHERS_NODE_CREATE",
-        "Config publishers node create",
-        "Create publishers node configuration",
-    )
-    Permission.add(
-        "CONFIG_PUBLISHERS_NODE_UPDATE",
-        "Config publishers node update",
-        "Update publishers node configuration",
-    )
-    Permission.add(
-        "CONFIG_PUBLISHERS_NODE_DELETE",
-        "Config publishers node delete",
-        "Delete publishers node configuration",
+        "CONFIG_BOT_DELETE",
+        "Config bot delete",
+        "Delete bot configuration",
     )
 
     Permission.add(
@@ -416,27 +299,6 @@ def pre_seed_permissions():
         "CONFIG_PUBLISHER_PRESET_DELETE",
         "Config publisher preset delete",
         "Delete publisher preset configuration",
-    )
-
-    Permission.add(
-        "CONFIG_PRESENTERS_NODE_ACCESS",
-        "Config presenters nodes access",
-        "Access to presenters nodes configuration",
-    )
-    Permission.add(
-        "CONFIG_PRESENTERS_NODE_CREATE",
-        "Config presenters node create",
-        "Create presenters node configuration",
-    )
-    Permission.add(
-        "CONFIG_PRESENTERS_NODE_UPDATE",
-        "Config presenters node update",
-        "Update presenters node configuration",
-    )
-    Permission.add(
-        "CONFIG_PRESENTERS_NODE_DELETE",
-        "Config presenters node delete",
-        "Delete presenters node configuration",
     )
 
     Permission.add("MY_ASSETS_ACCESS", "My Assets access", "Access to My Assets module")
@@ -449,11 +311,6 @@ def pre_seed_permissions():
         "MY_ASSETS_CONFIG",
         "My Assets config",
         "Configuration of access and groups in My Assets module",
-    )
-    Permission.add(
-        "CONFIG_NODE_ACCESS",
-        "Config nodes access",
-        "Access to all nodes from configuration",
     )
     Permission.add(
         "CONFIG_WORKER_ACCESS",

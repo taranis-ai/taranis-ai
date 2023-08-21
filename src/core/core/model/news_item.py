@@ -31,7 +31,6 @@ class NewsItemData(BaseModel):
 
     osint_source_id = db.Column(db.String, db.ForeignKey("osint_source.id"), nullable=True)
     osint_source = db.relationship("OSINTSource")
-    remote_source = db.Column(db.String())
 
     def __init__(self, hash, title, review, source, link, published, author, collected, content, osint_source_id, attributes, id=None):
         self.id = id or str(uuid.uuid4())
@@ -151,15 +150,9 @@ class NewsItem(BaseModel):
 
         query = query.outerjoin(
             ACLEntry,
-            or_(
-                and_(
-                    NewsItemData.osint_source_id == ACLEntry.item_id,
-                    ACLEntry.item_type == ItemType.OSINT_SOURCE,
-                ),
-                and_(
-                    OSINTSource.collector_id == ACLEntry.item_id,
-                    ACLEntry.item_type == ItemType.COLLECTOR,
-                ),
+            and_(
+                NewsItemData.osint_source_id == ACLEntry.item_id,
+                ACLEntry.item_type == ItemType.OSINT_SOURCE,
             ),
         )
 
@@ -242,8 +235,6 @@ class NewsItem(BaseModel):
         return query
 
     def allowed_with_acl(self, user: User, see, access, modify):
-        if self.news_item_data.remote_source is not None:
-            return True
         query = db.session.query(NewsItem.id).distinct().group_by(NewsItem.id).filter(NewsItem.id == self.id)
 
         query = query.join(NewsItemData, NewsItem.news_item_data_id == NewsItemData.id)
@@ -251,15 +242,9 @@ class NewsItem(BaseModel):
 
         query = query.outerjoin(
             ACLEntry,
-            or_(
-                and_(
-                    NewsItemData.osint_source_id == ACLEntry.item_id,
-                    ACLEntry.item_type == ItemType.OSINT_SOURCE,
-                ),
-                and_(
-                    OSINTSource.collector_id == ACLEntry.item_id,
-                    ACLEntry.item_type == ItemType.COLLECTOR,
-                ),
+            and_(
+                NewsItemData.osint_source_id == ACLEntry.item_id,
+                ACLEntry.item_type == ItemType.OSINT_SOURCE,
             ),
         )
 
@@ -354,9 +339,6 @@ class NewsItemVote(BaseModel):
     dislike = db.Column(db.Boolean)
     news_item_id = db.Column(db.Integer, db.ForeignKey("news_item.id"))
     user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=True)
-
-    remote_node_id = db.Column(db.Integer, db.ForeignKey("remote_node.id"), nullable=True)
-    remote_user = db.Column(db.String())
 
     def __init__(self, news_item_id, user_id):
         self.id = None
@@ -534,15 +516,9 @@ class NewsItemAggregate(BaseModel):
 
         query = query.outerjoin(
             ACLEntry,
-            or_(
-                and_(
-                    NewsItemData.osint_source_id == ACLEntry.item_id,
-                    ACLEntry.item_type == ItemType.OSINT_SOURCE,
-                ),
-                and_(
-                    OSINTSource.collector_id == ACLEntry.item_id,
-                    ACLEntry.item_type == ItemType.COLLECTOR,
-                ),
+            and_(
+                NewsItemData.osint_source_id == ACLEntry.item_id,
+                ACLEntry.item_type == ItemType.OSINT_SOURCE,
             ),
         )
         query = ACLEntry.apply_query(query, user, True, False, False)
@@ -621,23 +597,6 @@ class NewsItemAggregate(BaseModel):
         except Exception:
             logger.exception(f"Add News Item Failed {news_item_data_json}")
             return {"error": "add failed"}, 500
-
-    @classmethod
-    def add_remote_news_items(cls, news_items_data_list, remote_node):
-        news_items_data = cls.load_multiple(news_items_data_list)
-        news_item_data_ids = set()
-        if not news_items_data:
-            return
-        for news_item_data in news_items_data:
-            news_item_data.remote_source = remote_node.name
-            for attribute in news_item_data.attributes:
-                attribute.remote_node_id = remote_node.id
-                attribute.remote_user = remote_node.name
-
-            db.session.add(news_item_data)
-            cls.create_new(news_item_data)
-            news_item_data_ids.add(str(news_item_data.id))
-        db.session.commit()
 
     @classmethod
     def update(cls, id, data, user):
@@ -932,9 +891,6 @@ class NewsItemAttribute(BaseModel):
     binary_mime_type = db.Column(db.String())
     binary_data = orm.deferred(db.Column(db.LargeBinary))
     created = db.Column(db.DateTime, default=datetime.now)
-
-    remote_node_id = db.Column(db.Integer, db.ForeignKey("remote_node.id"), nullable=True)
-    remote_user = db.Column(db.String())
 
     def __init__(self, key, value, binary_mime_type, binary_value):
         self.id = None

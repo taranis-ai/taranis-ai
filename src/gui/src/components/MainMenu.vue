@@ -38,9 +38,6 @@
           />
         </g>
       </svg>
-      <span v-if="buildDate" class="ml-3 font-weight-thin text-body-2">
-        Build Date: {{ d(buildDate, 'long') }}
-      </span>
     </v-toolbar-title>
 
     <div v-if="showItemCount" class="mr-10">

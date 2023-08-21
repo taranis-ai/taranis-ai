@@ -7,6 +7,9 @@ from core.managers.db_seed_manager import pre_seed
 from sqlalchemy.engine import reflection
 from core.managers.log_manager import logger
 
+from sqlalchemy.engine import Engine
+from sqlalchemy import event
+from sqlite3 import Connection as SQLite3Connection
 
 db = SQLAlchemy()
 migrate = Migrate()
@@ -38,3 +41,11 @@ def initialize(app):
     else:
         logger.debug("Migrate existing Database")
         flask_migrate_subprocess("upgrade")  # upgrade(migrate.directory, "head")
+
+
+@event.listens_for(Engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    if isinstance(dbapi_connection, SQLite3Connection):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()

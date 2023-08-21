@@ -13,11 +13,11 @@ class Role(BaseModel):
 
     permissions = db.relationship(Permission, secondary='role_permission')
 
-    def __init__(self, name, description, permissions, id=None):
+    def __init__(self, name, description, permissions=None, id=None):
         self.id = id
         self.name = name
         self.description = description
-        self.permissions = permissions
+        self.permissions = [Permission.get(permission_id) for permission_id in permissions] if permissions else []
 
     @classmethod
     def filter_by_name(cls, role_name):
@@ -51,30 +51,28 @@ class Role(BaseModel):
     def load_multiple(cls, json_data: list[dict[str, Any]]) -> list["Role"]:
         return [cls.from_dict(data) for data in json_data]
 
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "Role":
-        permissions = [Permission.get(permission_id) for permission_id in data.pop("permissions", [])]
-        return cls(permissions=permissions, **data)
-
     def to_dict(self):
         data = {c.name: getattr(self, c.name) for c in self.__table__.columns}
-        data["permissions"] = [permission.id for permission in self.permissions]
+        data["permissions"] = [permission.id for permission in self.permissions if permission]
         return data
 
     def get_permissions(self):
-        return {permission.id for permission in self.permissions}
+        return {permission.id for permission in self.permissions if permission}
 
     @classmethod
-    def update(cls, role_id: int, data) -> tuple[str, int]:
+    def update(cls, role_id: int, data) -> tuple[dict, int]:
         role = cls.query.get(role_id)
         if role is None:
-            return "Role not found", 404
-        permissions = [Permission.get(permission_id) for permission_id in data.pop("permissions", [])]
-        role.name = data["name"]
-        role.description = data["description"]
-        role.permissions = permissions
+            return {"error": "Role not found"}, 404
+
+        if name := data.get("name", None):
+            role.name = name
+        if description := data.get("description", None):
+            role.description = description
+        if permissions := data.pop("permissions", None):
+            role.permissions = permissions
         db.session.commit()
-        return f"Succussfully updated {role.id}", 201
+        return {"message": f"Succussfully updated {role.name}", "id": f"{role.id}"}, 201
 
 
 class RolePermission(BaseModel):
