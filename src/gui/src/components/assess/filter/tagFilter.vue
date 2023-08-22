@@ -73,11 +73,19 @@ export default {
       loading.value = true
       await getTags(filter).then((res) => {
         available_tags.value = res.data
-        selected.value.forEach((tag) => {
-          if (!available_tags.value.includes(tag)) {
-            available_tags.value.unshift(tag)
+        if (typeof selected.value === 'string') {
+          if (!available_tags.value.includes(selected.value)) {
+            available_tags.value.unshift(selected.value)
           }
-        })
+        }
+        // Check if selected.value is an array
+        else if (Array.isArray(selected.value)) {
+          selected.value.forEach((tag) => {
+            if (!available_tags.value.includes(tag)) {
+              available_tags.value.unshift(tag)
+            }
+          })
+        }
         loading.value = false
       })
     }

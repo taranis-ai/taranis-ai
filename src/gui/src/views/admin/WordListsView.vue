@@ -155,6 +155,10 @@ export default {
           notifyFailure('Whitelist and Blacklist are mutually exclusive')
           return
         }
+        if (submittedData.usage.length === 0) {
+          notifyFailure('Usage must contain at least one value')
+          return
+        }
       }
       if (edit.value) {
         updateItem(submittedData)
@@ -198,8 +202,10 @@ export default {
     }
 
     const importData = (data) => {
-      importWordList(data)
-      updateData()
+      importWordList(data).then(() => {
+        notifySuccess('Successfully imported data')
+        updateData()
+      })
     }
 
     const exportData = () => {

@@ -3,7 +3,7 @@
     <DataTable
       :items="sources"
       :add-button="true"
-      :header-filter="['tag', 'state', 'name']"
+      :header-filter="['tag', 'state', 'name', 'parameters.FEED_URL']"
       sort-by-item="id"
       :action-column="true"
       tag-icon="mdi-animation-outline"

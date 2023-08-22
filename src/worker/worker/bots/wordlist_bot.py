@@ -13,20 +13,17 @@ class WordlistBot(BaseBot):
         if not parameters:
             return
         try:
-            source_group = parameters.get("SOURCE_GROUP", None)
-            source = parameters.get("SOURCE")
-
-            if not source_group:
-                return "No source group provided"
-
             limit = (datetime.datetime.now() - datetime.timedelta(days=7)).isoformat(timespec="seconds")
 
-            filter_dict = {"timestamp": limit, "group": source_group}
+            filter_dict = {"timestamp": limit}
 
-            if source:
+            if source_group := parameters.get("SOURCE_GROUP"):
+                filter_dict["group"] = source_group
+
+            if source := parameters.get("SOURCE"):
                 filter_dict["source"] = source
 
-            word_list_entries = self.core_api.get_words_by_source_group(source_group)
+            word_list_entries = self.core_api.get_words_for_tagging_bot()
 
             data = self.core_api.get_news_items_aggregate(filter_dict=filter_dict)
 

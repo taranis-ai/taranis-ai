@@ -42,7 +42,7 @@
           title="View News Item"
           @click.stop
         >
-          <span>Open</span>
+          <span> Open </span>
         </v-btn>
 
         <v-btn
@@ -66,7 +66,7 @@
           :append-icon="openSummary ? 'mdi-chevron-up' : 'mdi-chevron-down'"
           @click.stop="openCard"
         >
-          <span> Details </span>
+          <span> {{ news_item_summary_text }} </span>
         </v-btn>
 
         <v-btn
@@ -191,7 +191,7 @@ export default {
     const deleteDialog = ref(false)
 
     const news_item_summary_text = computed(() =>
-      openSummary.value ? 'Close' : 'Details'
+      openSummary.value ? 'Collapse' : 'Expand'
     )
 
     const description = computed(

@@ -94,11 +94,9 @@ class CoreApi:
     def get_tags(self) -> dict | None:
         return self.api_get("/api/v1/worker/tags")
 
-    def get_words_by_source_group(self, source_group_id: str) -> list | None:
+    def get_words_for_tagging_bot(self) -> list | None:
         try:
-            return self.api_get(
-                url=f"/api/v1/worker/word-lists-by-source-group/{source_group_id}",
-            )
+            return self.api_get(url="/api/v1/worker/word-lists?usage=4")
         except Exception:
             return None
 

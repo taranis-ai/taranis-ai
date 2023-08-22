@@ -19,12 +19,12 @@ class WordListUsage(IntEnum):
 
 
 class WordList(BaseModel):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(), nullable=False)
-    description = db.Column(db.String(), default=None)
-    usage = db.Column(db.Integer, default=0)
-    link = db.Column(db.String(), nullable=True, default=None)
-    entries = db.relationship("WordListEntry", cascade="all, delete")
+    id: Any = db.Column(db.Integer, primary_key=True)
+    name: Any = db.Column(db.String(), nullable=False)
+    description: Any = db.Column(db.String(), default=None)
+    usage: Any = db.Column(db.Integer, default=0)
+    link: Any = db.Column(db.String(), nullable=True, default=None)
+    entries: Any = db.relationship("WordListEntry", cascade="all, delete")
 
     def __init__(self, name, description=None, usage=0, link=None, entries=None, id=None):
         self.id = id
@@ -94,7 +94,7 @@ class WordList(BaseModel):
         return cls.query.filter_by(entries=None).order_by(db.asc(WordList.name)).all()
 
     @classmethod
-    def get_by_filter(cls, search, user, acl_check):
+    def get_by_filter(cls, filter_data, user, acl_check):
         query = cls.query.distinct().group_by(WordList.id)
 
         if acl_check:
@@ -107,19 +107,23 @@ class WordList(BaseModel):
             )
             query = ACLEntry.apply_query(query, user, True, False, False)
 
-        if search:
+        if search := filter_data.get("search"):
+            search_string = f"%{search}%"
             query = query.filter(
                 or_(
-                    WordList.name.ilike(f"%{search}%"),
-                    WordList.description.ilike(f"%{search}%"),  # type: ignore
+                    WordList.name.ilike(search_string),
+                    WordList.description.ilike(search_string),
                 )
             )
+
+        if usage := filter_data.get("usage"):
+            query = query.filter(WordList.usage.op("&")(usage) > 0)
 
         return query.order_by(db.asc(WordList.name)).all(), query.count()
 
     @classmethod
-    def get_all_json(cls, search, user, acl_check):
-        word_lists, count = cls.get_by_filter(search, user, acl_check)
+    def get_all_json(cls, filter_data, user, acl_check):
+        word_lists, count = cls.get_by_filter(filter_data, user, acl_check)
         items = [word_list.to_dict() for word_list in word_lists]
         return {"total_count": count, "items": items}
 

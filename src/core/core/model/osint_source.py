@@ -55,7 +55,7 @@ class OSINTSource(BaseModel):
                     OSINTSource.name.ilike(search_string),
                     OSINTSource.description.ilike(search_string),
                     OSINTSource.type.ilike(search_string),
-                )
+                ).distinct()
             )
 
         return query.order_by(db.asc(OSINTSource.name)).all(), query.count()

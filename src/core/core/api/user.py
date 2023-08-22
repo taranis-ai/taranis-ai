@@ -25,12 +25,6 @@ class UserProfile(Resource):
         return User.update_profile(user, request.json)
 
 
-class UserWordLists(Resource):
-    @auth_required("ASSESS_ACCESS")
-    def get(self):
-        return word_list.WordList.get_all_json(None, auth_manager.get_user_from_jwt(), True)
-
-
 class UserProductTypes(Resource):
     @auth_required("PUBLISH_ACCESS")
     def get(self):
@@ -47,7 +41,6 @@ def initialize(api: Api):
     namespace = Namespace("users", description="User API", path="/api/v1/users")
 
     namespace.add_resource(UserProfile, "/profile")
-    namespace.add_resource(UserWordLists, "/my-word-lists")
     namespace.add_resource(UserProductTypes, "/my-product-types")
     namespace.add_resource(UserPublisherPresets, "/my-publisher-presets")
     api.add_namespace(namespace)

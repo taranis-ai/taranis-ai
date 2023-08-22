@@ -37,7 +37,7 @@
           size="small"
           class="item-action-btn"
           variant="tonal"
-          append-icon="mdi-text-box-search-outline"
+          append-icon="mdi-open-in-app"
           :to="'/story/' + story.id"
           @click.stop
         >
@@ -78,7 +78,7 @@
           :style="{ minWidth: minButtonWidth }"
           @click.stop="openCard"
         >
-          <span> details </span>
+          <span> {{ news_item_summary_text }} </span>
           <span v-if="news_item_length > 1" class="primary--text"
             >&nbsp;[{{ news_item_length }}]</span
           >
@@ -240,6 +240,9 @@ export default {
         ? 'news-item-title-no-clip'
         : 'news-item-title'
     })
+    const news_item_summary_text = computed(() =>
+      openSummary.value ? 'Collapse' : 'Expand'
+    )
     const minButtonWidth = computed(() => {
       const longestText = `${
         news_item_length.value > 1 ? '(' + news_item_length.value + ')' : ''
@@ -298,6 +301,7 @@ export default {
       story_in_report,
       news_item_length,
       news_item_title_class,
+      news_item_summary_text,
       minButtonWidth,
       story_in_reports,
       is_summarized,

@@ -108,7 +108,7 @@
 </template>
 
 <script>
-import { watch, computed } from 'vue'
+import { watch, computed, onMounted } from 'vue'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
@@ -188,6 +188,10 @@ export default {
     formData.value =
       flattenFormData(props.configData, format.value) ||
       objectFromFormat(format.value)
+
+    onMounted(() => {
+      config_form.value.scrollIntoView({ behavior: 'smooth' })
+    })
 
     watch(
       () => props.configData,

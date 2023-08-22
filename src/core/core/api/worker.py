@@ -3,7 +3,7 @@ from flask_restx import Resource, Namespace, Api
 
 from core.managers.auth_manager import api_key_required
 from core.managers.log_manager import logger
-from core.model.osint_source import OSINTSource, OSINTSourceGroup
+from core.model.osint_source import OSINTSource
 from core.model.queue import ScheduleEntry
 from core.model.word_list import WordList
 from core.model.news_item import NewsItemAggregate, NewsItemTag
@@ -136,12 +136,12 @@ class PostCollectionBots(Resource):
         return Bot.get_post_collection()
 
 
-class WordListBySourceGroup(Resource):
+class WordLists(Resource):
     @api_key_required
-    def get(self, source_group: str):
-        if osint_source_group := OSINTSourceGroup.get(source_group):
-            return osint_source_group.to_word_list_dict()
-        return {"error": f"Source group {source_group} not found"}, 404
+    def get(self):
+        search = request.args.get(key="search", default=None)
+        usage = request.args.get(key="usage", default=None, type=int)
+        return WordList.get_all_json({"search": search, "usage": usage}, None, False)
 
 
 class WordListByID(Resource):
@@ -176,7 +176,7 @@ def initialize(api: Api):
     worker_namespace.add_resource(BotInfo, "/bots/<string:bot_id>")
     worker_namespace.add_resource(PostCollectionBots, "/post-collection-bots")
     worker_namespace.add_resource(NewsItemsAggregates, "/news-item-aggregates")
-    worker_namespace.add_resource(WordListBySourceGroup, "/word-lists-by-source-group/<string:source_group>")
+    worker_namespace.add_resource(WordLists, "/word-lists")
     worker_namespace.add_resource(WordListByID, "/word-list/<int:word_list_id>")
 
     api.add_namespace(beat_namespace)

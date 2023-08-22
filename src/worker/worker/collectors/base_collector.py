@@ -23,11 +23,11 @@ class BaseCollector:
         white_list = set()
         black_list = set()
         for word_list in source["word_lists"]:
-            if "COLLECTOR_WHITELIST" in word_list.usage:
-                for entry in word_list.entries:
+            if "COLLECTOR_WHITELIST" in word_list["usage"]:
+                for entry in word_list["entries"]:
                     white_list.add(entry.value)
-            if "COLLECTOR_BLACKLIST" in word_list.usage:
-                for entry in word_list.entries:
+            if "COLLECTOR_BLACKLIST" in word_list["usage"]:
+                for entry in word_list["entries"]:
                     black_list.add(entry.value)
         if not white_list and not black_list:
             return news_items

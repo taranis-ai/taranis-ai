@@ -57,7 +57,7 @@ class AttributeGroup(BaseModel):
     section_title = db.Column(db.String(), default="")
     index = db.Column(db.Integer)
 
-    report_item_type_id = db.Column(db.Integer, db.ForeignKey("report_item_type.id"))
+    report_item_type_id = db.Column(db.Integer, db.ForeignKey("report_item_type.id", ondelete="CASCADE"))
     report_item_type = db.relationship("ReportItemType")
 
     attribute_group_items = db.relationship(

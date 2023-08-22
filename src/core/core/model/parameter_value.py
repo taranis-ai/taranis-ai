@@ -18,10 +18,10 @@ class PARAMETER_TYPES(StrEnum):
 
 
 class ParameterValue(BaseModel):
-    id = db.Column(db.Integer, primary_key=True)
-    parameter = db.Column(db.String, nullable=False)
-    value = db.Column(db.String, nullable=False, default="")
-    type = db.Column(db.Enum(PARAMETER_TYPES), nullable=False, default="text")
+    id: Any = db.Column(db.Integer, primary_key=True)
+    parameter: Any = db.Column(db.String, nullable=False)
+    value: Any = db.Column(db.String, nullable=False, default="")
+    type: Any = db.Column(db.Enum(PARAMETER_TYPES), nullable=False, default="text")
 
     def __init__(self, parameter, value="", type="text", id=None):
         self.id = id

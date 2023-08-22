@@ -424,7 +424,8 @@ class WordLists(Resource):
     @auth_required("CONFIG_WORD_LIST_ACCESS")
     def get(self):
         search = request.args.get(key="search", default=None)
-        return word_list.WordList.get_all_json(search, auth_manager.get_user_from_jwt(), False)
+        usage = request.args.get(key="usage", default=None)
+        return word_list.WordList.get_all_json({"search": search, "usage": usage}, auth_manager.get_user_from_jwt(), False)
 
     @auth_required("CONFIG_WORD_LIST_CREATE")
     def post(self):
