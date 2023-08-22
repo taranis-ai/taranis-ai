@@ -15,6 +15,7 @@
       :config-data="formData"
       :form-format="formFormat"
       :parameters="disabledParameters"
+      title="Worker Type Defaults"
       @submit="handleSubmit"
     ></EditConfig>
   </div>

@@ -362,7 +362,6 @@ class NewsItemAggregate(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String())
     description = db.Column(db.String())
-
     created = db.Column(db.DateTime)
 
     read = db.Column(db.Boolean, default=False)
@@ -373,11 +372,8 @@ class NewsItemAggregate(BaseModel):
     relevance = db.Column(db.Integer, default=0)
 
     comments = db.Column(db.String(), default="")
-
     summary = db.Column(db.Text, default="")
-
     news_items = db.relationship("NewsItem")
-
     news_item_attributes = db.relationship("NewsItemAttribute", secondary="news_item_aggregate_news_item_attribute")
 
     @classmethod

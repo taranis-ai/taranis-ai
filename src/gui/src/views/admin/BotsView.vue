@@ -32,6 +32,7 @@
       :config-data="formData"
       :form-format="formFormat"
       :parameters="parameters"
+      :title="editTitle"
       @submit="handleSubmit"
     ></EditConfig>
   </div>
@@ -111,6 +112,10 @@ export default {
       showForm.value = false
     }
 
+    const editTitle = computed(() => {
+      return edit.value ? `Edit Bot: '${formData.value['name']}'` : 'Add Bot'
+    })
+
     const deleteItem = (item) => {
       deleteBot(item)
         .then(() => {
@@ -166,7 +171,7 @@ export default {
       bots,
       selected,
       formData,
-      edit,
+      editTitle,
       formFormat,
       showForm,
       parameters,

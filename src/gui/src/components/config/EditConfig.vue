@@ -1,14 +1,16 @@
 <template>
-  <v-container fluid class="ma-5 mt-5 pa-5 pt-0">
+  <v-card class="ma-3 mt-5 pa-3 pt-0">
     <v-form
       id="edit_config_form"
       ref="config_form"
       class="px-4"
       @submit.prevent="handleSubmit"
     >
-      <v-row class="mb-4 grey pt-3 pb-3 rounded">
-        <v-btn type="submit" color="success" class="ml-4"> Submit </v-btn>
-      </v-row>
+      <v-card-title class="bg-grey-lighten-2 mb-5">
+        <v-btn type="submit" color="success"> Submit </v-btn>
+        <span v-if="title" class="ml-5"> {{ title }}</span>
+        <slot name="titlebar"></slot>
+      </v-card-title>
 
       <v-row v-for="item in format" :key="item.name" no-gutters>
         <v-text-field
@@ -102,7 +104,7 @@
         </v-col>
       </v-row>
     </v-form>
-  </v-container>
+  </v-card>
 </template>
 
 <script>
@@ -129,6 +131,11 @@ export default {
     },
     parameters: {
       type: Object,
+      required: false,
+      default: null
+    },
+    title: {
+      type: String,
       required: false,
       default: null
     }

@@ -12,22 +12,24 @@
       @update-items="updateData"
     />
     <EditConfig
-      v-if="formData && Object.keys(formData).length > 0"
+      v-if="showForm"
       :config-data="formData"
       :form-format="formFormat"
+      :title="editTitle"
       @submit="handleSubmit"
     ></EditConfig>
   </div>
 </template>
 
 <script>
+import { ref, onMounted, computed } from 'vue'
 import DataTable from '@/components/common/DataTable.vue'
 import EditConfig from '@/components/config/EditConfig.vue'
 import { deleteAttribute, createAttribute, updateAttribute } from '@/api/config'
-import { mapActions, mapState, mapWritableState } from 'pinia'
 import { useConfigStore } from '@/stores/ConfigStore'
-import { notifySuccess, emptyValues, notifyFailure } from '@/utils/helpers'
+import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import { useMainStore } from '@/stores/MainStore'
+import { storeToRefs } from 'pinia'
 
 export default {
   name: 'AttributesView',
@@ -35,10 +37,12 @@ export default {
     DataTable,
     EditConfig
   },
-  data: () => ({
-    formData: {},
-    edit: false,
-    formFormat: [
+  setup() {
+    const formData = ref({})
+    const edit = ref(false)
+    const showForm = ref(false)
+
+    const formFormat = [
       {
         name: 'id',
         label: 'ID',
@@ -98,74 +102,100 @@ export default {
         type: 'text'
       }
     ]
-  }),
-  computed: {
-    ...mapWritableState(useMainStore, ['itemCountTotal', 'itemCountFiltered']),
-    ...mapState(useConfigStore, ['attributes'])
-  },
-  mounted() {
-    this.updateData()
-  },
-  methods: {
-    ...mapActions(useConfigStore, ['loadAttributes']),
-    async updateData() {
-      await this.loadAttributes()
-      this.itemCountTotal = this.attributes.total_count
-      this.itemCountFiltered = this.attributes.items.length
-    },
-    addItem() {
-      this.formData = emptyValues(this.attributes.items[0])
-      delete this.formData.attribute_enums
-      delete this.formData.tag
-      this.edit = false
-    },
-    editItem(item) {
-      this.formData = item
-      this.edit = true
-    },
-    handleSubmit(submittedData) {
+    const configStore = useConfigStore()
+    const mainStore = useMainStore()
+
+    const { attributes } = storeToRefs(configStore)
+
+    const updateData = async () => {
+      configStore.loadAttributes().then(() => {
+        mainStore.itemCountTotal = attributes.value.total_count
+        mainStore.itemCountFiltered = attributes.value.items.length
+      })
+    }
+
+    const editTitle = computed(() => {
+      return edit.value
+        ? `Edit Attribute: '${formData.value['name']}'`
+        : 'Add Attribute'
+    })
+
+    const addItem = () => {
+      formData.value = {}
+      edit.value = false
+      showForm.value = true
+    }
+
+    const editItem = (item) => {
+      console.debug(item)
+      formData.value = item
+      edit.value = true
+      showForm.value = true
+    }
+
+    const handleSubmit = (submittedData) => {
       const nonemptyEntries = Object.entries(submittedData).filter(
-        ([, value]) => value !== ''
+        ([_, value]) => value !== ''
       )
       const nonemptyValues = Object.fromEntries(nonemptyEntries)
-      console.debug('Submitting :', nonemptyValues)
-      if (this.edit) {
-        this.updateItem(nonemptyValues)
+      if (edit.value) {
+        updateItem(nonemptyValues)
       } else {
-        this.createItem(nonemptyValues)
+        createItem(nonemptyValues)
       }
-    },
-    deleteItem(item) {
+      showForm.value = false
+    }
+
+    const deleteItem = (item) => {
       if (!item.default) {
         deleteAttribute(item)
           .then(() => {
             notifySuccess(`Successfully deleted ${item.name}`)
-            this.updateData()
+            updateData()
           })
           .catch(() => {
             notifyFailure(`Failed to delete ${item.name}`)
           })
       }
-    },
-    createItem(item) {
+    }
+
+    const createItem = (item) => {
       createAttribute(item)
         .then(() => {
           notifySuccess(`Successfully created ${item.name}`)
-          this.updateData()
+          updateData()
         })
         .catch(() => {
           notifyFailure(`Failed to create ${item.name}`)
         })
-    },
-    updateItem(item) {
+    }
+
+    const updateItem = (item) => {
       updateAttribute(item)
         .then(() => {
           notifySuccess(`Successfully updated ${item.name}`)
-          this.updateData()
+          updateData()
         })
         .catch(() => {
           notifyFailure(`Failed to update ${item.name}`)
         })
+    }
+
+    onMounted(() => {
+      updateData()
+    })
+
+    return {
+      formData,
+      editTitle,
+      formFormat,
+      attributes,
+      showForm,
+      addItem,
+      editItem,
+      handleSubmit,
+      deleteItem,
+      updateData
     }
   }
 }

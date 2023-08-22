@@ -295,8 +295,6 @@ class OSINTSources(Resource):
     def get(self):
         search = request.args.get(key="search", default=None)
         result_dict = osint_source.OSINTSource.get_all_json(search)
-        if result_dict["total_count"] == 0:
-            return result_dict, 404
         return result_dict, 200
 
     @auth_required("CONFIG_OSINT_SOURCE_CREATE")

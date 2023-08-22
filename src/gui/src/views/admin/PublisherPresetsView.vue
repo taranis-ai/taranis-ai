@@ -16,6 +16,7 @@
       :config-data="formData"
       :form-format="formFormat"
       :parameters="parameters"
+      :title="editTitle"
       @submit="handleSubmit"
     ></EditConfig>
   </div>
@@ -93,6 +94,12 @@ export default defineComponent({
       showForm.value = true
     }
 
+    const editTitle = computed(() => {
+      return edit.value
+        ? `Edit Publisher Preset: '${formData.value['name']}'`
+        : 'Add Publisher Preset'
+    })
+
     const handleSubmit = (submittedData) => {
       delete submittedData.tag
       if (edit.value) {
@@ -147,7 +154,7 @@ export default defineComponent({
       publishersList,
       formData,
       parameters,
-      edit,
+      editTitle,
       formFormat,
       showForm,
       addItem,

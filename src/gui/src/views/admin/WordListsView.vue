@@ -38,6 +38,7 @@
       v-if="showForm"
       :config-data="formData"
       :form-format="formFormat"
+      :title="editTitle"
       @submit="handleSubmit"
     ></EditConfig>
   </div>
@@ -138,6 +139,12 @@ export default {
       showForm.value = true
     }
 
+    const editTitle = computed(() => {
+      return edit.value
+        ? `Edit Wordlist: '${formData.value['name']}'`
+        : 'Add Wordlist'
+    })
+
     const handleSubmit = (submittedData) => {
       delete submittedData.entries
       if (submittedData.usage) {
@@ -221,7 +228,7 @@ export default {
       selected,
       formData,
       formFormat,
-      edit,
+      editTitle,
       word_lists,
       showForm,
       updateData,

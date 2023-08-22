@@ -28,6 +28,7 @@
 </template>
 
 <script>
+import { ref } from 'vue'
 import { voteNewsItemAggregate } from '@/api/assess'
 
 export default {
@@ -38,20 +39,25 @@ export default {
       required: true
     }
   },
-  data: function () {
-    return {
-      likes: this.story.likes,
-      dislikes: this.story.dislikes
+  setup(props) {
+    const likes = ref(props.story.likes)
+    const dislikes = ref(props.story.dislikes)
+
+    const upvote = () => {
+      likes.value += 1
+      voteNewsItemAggregate(props.story.id, 1)
     }
-  },
-  methods: {
-    upvote() {
-      this.likes += 1
-      voteNewsItemAggregate(this.story.id, 1)
-    },
-    downvote() {
-      this.dislikes += 1
-      voteNewsItemAggregate(this.story.id, -1)
+
+    const downvote = () => {
+      dislikes.value += 1
+      voteNewsItemAggregate(props.story.id, -1)
+    }
+
+    return {
+      likes,
+      dislikes,
+      upvote,
+      downvote
     }
   }
 }

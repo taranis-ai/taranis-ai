@@ -134,6 +134,9 @@
               title="mark as read"
               @click.stop="markAsRead()"
             />
+            <v-list-item>
+              <votes v-if="!detailView" :story="story" />
+            </v-list-item>
             <v-list-item
               :prepend-icon="
                 !story.important ? 'mdi-star-check-outline' : 'mdi-star-check'

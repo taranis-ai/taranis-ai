@@ -75,8 +75,6 @@ class OSINTSource(BaseModel):
     def to_dict(self):
         data = super().to_dict()
         data["word_lists"] = [word_list.id for word_list in self.word_lists if word_list]
-        for group in self.groups:
-            data["word_lists"].extend([word_list.id for word_list in group.word_lists])
         data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters}
         return data
 

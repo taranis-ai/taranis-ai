@@ -44,6 +44,7 @@
       :config-data="formData"
       :form-format="formFormat"
       :parameters="parameters"
+      :title="editTitle"
       @submit="handleSubmit"
     ></EditConfig>
   </div>
@@ -180,8 +181,13 @@ export default {
       showForm.value = true
     }
 
+    const editTitle = computed(() => {
+      return edit.value
+        ? `Edit Source: '${formData.value['name']}'`
+        : 'Add Source'
+    })
+
     const handleSubmit = (submittedData) => {
-      console.debug('submittedData', submittedData)
       if (edit.value) {
         updateItem(submittedData)
       } else {
@@ -272,7 +278,7 @@ export default {
       collector_options,
       selected,
       formData,
-      edit,
+      editTitle,
       showForm,
       formFormat,
       updateData,

@@ -13,9 +13,10 @@
       @update-items="updateData"
     />
     <EditConfig
-      v-if="formData && Object.keys(formData).length > 0"
+      v-if="showForm"
       :config-data="formData"
       :form-format="formFormat"
+      :title="editTitle"
       @submit="handleSubmit"
     ></EditConfig>
   </div>
@@ -44,6 +45,7 @@ export default {
     const formData = ref({})
     const selected = ref([])
     const edit = ref(false)
+    const showForm = ref(false)
 
     const formFormat = computed(() => [
       {
@@ -89,20 +91,26 @@ export default {
       formData.value = objectFromFormat(formFormat.value)
       delete formData.value['id']
       edit.value = false
+      showForm.value = true
     }
 
     const editItem = (item) => {
       formData.value = item
       edit.value = true
+      showForm.value = true
     }
 
+    const editTitle = computed(() => {
+      return edit.value ? `Edit Role: '${formData.value['name']}'` : 'Add Role'
+    })
+
     const handleSubmit = (submittedData) => {
-      console.log(submittedData)
       if (edit.value) {
         updateItem(submittedData)
       } else {
         createItem(submittedData)
       }
+      showForm.value = false
     }
 
     const deleteItem = (item) => {
@@ -152,7 +160,7 @@ export default {
       roles,
       formData,
       selected,
-      edit,
+      editTitle,
       permissions,
       formFormat,
       addItem,

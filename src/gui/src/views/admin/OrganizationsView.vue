@@ -16,6 +16,7 @@
       v-if="showForm"
       :config-data="formData"
       :form-format="formFormat"
+      :title="editTitle"
       @submit="handleSubmit"
     ></EditConfig>
   </div>
@@ -30,7 +31,7 @@ import {
   updateOrganization
 } from '@/api/config'
 import { useConfigStore } from '@/stores/ConfigStore'
-import { notifySuccess, objectFromFormat, notifyFailure } from '@/utils/helpers'
+import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import { ref, onMounted, computed } from 'vue'
 import { useMainStore } from '@/stores/MainStore'
 import { storeToRefs } from 'pinia'
@@ -101,6 +102,12 @@ export default {
       })
     }
 
+    const editTitle = computed(() => {
+      return edit.value
+        ? `Edit Organization: '${formData.value['name']}'`
+        : 'Add Organization'
+    })
+
     const addItem = () => {
       formData.value = {}
       edit.value = false
@@ -163,7 +170,7 @@ export default {
       organizations,
       formFormat,
       formData,
-      edit,
+      editTitle,
       showForm,
       addItem,
       editItem,

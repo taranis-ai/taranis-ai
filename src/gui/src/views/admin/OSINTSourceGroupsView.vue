@@ -14,9 +14,10 @@
     >
     </DataTable>
     <EditConfig
-      v-if="formData && Object.keys(formData).length > 0"
+      v-if="showForm"
       :config-data="formData"
       :form-format="formFormat"
+      :title="editTitle"
       @submit="handleSubmit"
     ></EditConfig>
   </div>
@@ -50,6 +51,7 @@ export default {
     const selected = ref([])
     const formData = ref({})
     const edit = ref(false)
+    const showForm = ref(false)
 
     const formFormat = computed(() => [
       {
@@ -105,21 +107,28 @@ export default {
     const addItem = () => {
       formData.value = objectFromFormat(formFormat.value)
       edit.value = false
+      showForm.value = true
     }
 
     const editItem = (item) => {
       formData.value = item
       edit.value = true
+      showForm.value = true
     }
+
+    const editTitle = computed(() => {
+      return edit.value
+        ? `Edit Source Group: '${formData.value['name']}'`
+        : 'Add Source Group'
+    })
 
     const handleSubmit = (submittedData) => {
       if (edit.value) {
-        console.debug(`Update: ${submittedData}`)
         updateItem(submittedData)
       } else {
-        console.debug(`Create: ${submittedData}`)
         createItem(submittedData)
       }
+      showForm.value = false
     }
 
     const deleteItem = (item) => {
@@ -168,9 +177,10 @@ export default {
       osint_sources,
       selected,
       formData,
-      edit,
+      editTitle,
       word_lists,
       formFormat,
+      showForm,
       addItem,
       editItem,
       handleSubmit,

@@ -16,6 +16,7 @@
       :form-format="formFormat"
       :config-data="formData"
       :parameters="parameters"
+      :title="editTitle"
       @submit="handleSubmit"
     ></EditConfig>
   </div>
@@ -59,7 +60,7 @@ export default {
           name: 'type',
           label: 'Type',
           type: 'select',
-          items: bot_options.value
+          items: presenterList.value
         }
       ]
       return [...baseFormat, ...additionalFormat]
@@ -93,6 +94,12 @@ export default {
       edit.value = true
       showForm.value = true
     }
+
+    const editTitle = computed(() => {
+      return edit.value
+        ? `Edit Product Type: ${formData.value['name']}`
+        : 'Add Product Type'
+    })
 
     const handleSubmit = (submittedData) => {
       delete submittedData.tag
@@ -148,7 +155,7 @@ export default {
       product_types,
       formData,
       formFormat,
-      edit,
+      editTitle,
       showForm,
       parameters,
       addItem,
