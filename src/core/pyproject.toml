@@ -1,5 +1,5 @@
 [project]
-name = "taranis-ng_core"
+name = "taranis-ng-core"
 description = "Taranis-NG Core"
 version = "0.2.0"
 readme = "README.md"
@@ -46,14 +46,6 @@ where = ["core", "."]
 dev = ["black", "flake8", "pytest", "pytest-celery", "sqlalchemy-stubs", "schemathesis", "build", "wheel", "setuptools"]
 
 [project.urls]
-"Source Code" = "https://github.com/ait-cs-IaaS/Taranis-NG"
-
-[build-system]
-requires = [
-    "setuptools>=42",
-    "wheel"
-]
-build-backend = "setuptools.build_meta"
 
 [tool.black]
 line-length = "142"

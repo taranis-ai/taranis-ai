@@ -231,8 +231,7 @@ export function gatherWordListEntries(word_list) {
   )
 }
 
-export function exportWordList(filter_data) {
-  const filter = ApiService.getQueryStringFromNestedObject(filter_data)
+export function exportWordList(filter) {
   return ApiService.download(
     `/config/export-word-lists?${filter}`,
     'word_lists_export.json'

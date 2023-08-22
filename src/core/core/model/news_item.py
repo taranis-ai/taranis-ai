@@ -601,11 +601,11 @@ class NewsItemAggregate(BaseModel):
             return {"error": f"Aggregate with id: {id} not found"}, 404
 
         logger.debug(f"Updating aggregate {id} with {data}")
+        if "vote" in data:
+            aggregate.vote(data["vote"], user.id)
+
         for news_item in aggregate.news_items:
             if news_item.allowed_with_acl(user, False, False, True):
-                if "vote" in data:
-                    news_item.vote(data["vote"], user.id)
-
                 if "read" in data:
                     news_item.read = not aggregate.read
 
@@ -798,6 +798,7 @@ class NewsItemAggregate(BaseModel):
         return {"message": "success"}, 200
 
     def vote(self, vote_data, user_id) -> "NewsItemVote":
+        logger.debug(f"Voting {vote_data} for {self.id}")
         if vote := NewsItemVote.find_by_user(self.id, user_id):
             if vote_data > 0:
                 self.update_like_vote(vote)

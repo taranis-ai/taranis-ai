@@ -209,11 +209,16 @@ export default {
     }
 
     const exportData = () => {
-      exportWordList(selected.value)
+      console.debug(`Exporting ${selected.value.join('&ids=')}`)
+      let queryString = ''
+      if (selected.value.length > 0) {
+        queryString = 'ids=' + selected.value.join('&ids=')
+      }
+      exportWordList(queryString)
     }
 
     const selectionChange = (new_selection) => {
-      selected.value = new_selection.map((item) => item.id)
+      selected.value = new_selection
     }
 
     const updateWordListEntries = (item) => {

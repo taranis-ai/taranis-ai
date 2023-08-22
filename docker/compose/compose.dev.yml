@@ -1,0 +1,113 @@
+version: "3.9"
+
+services:
+  database:
+    image: "postgres:${POSTGRES_TAG:-14-alpine}"
+    ports:
+    - 6543:5432
+    environment:
+      POSTGRES_DB: "${DB_DATABASE:-taranis}"
+      POSTGRES_USER: "${DB_USER:-taranis}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+    command: ["postgres", "-c", "shared_buffers=${DB_SHARED_BUFFERS:-64MB}", "-c", "max_connections=${DB_MAX_CONNECTIONS:-1000}"]
+    healthcheck:
+      test: ["CMD-SHELL", "sh -c 'pg_isready -U ${DB_USER:-taranis} -d ${DB_DATABASE:-taranis}'"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    volumes:
+      - "database_data:/var/lib/postgresql/data"
+
+  core:
+    build:
+      context: .
+      dockerfile: Dockerfile.core
+    depends_on:
+      database:
+        condition: service_healthy
+    ports:
+      - "${TARANIS_NG_CORE_PORT:-8081}:80"
+    environment:
+      DB_URL: "${DB_URL:-database}"
+      DB_DATABASE: "${DB_DATABASE:-taranis}"
+      DB_USER: "${DB_USER:-taranis}"
+      DB_PASSWORD: "${POSTGRES_PASSWORD}"
+      DB_POOL_SIZE: 100
+      DB_POOL_RECYCLE: 300
+      DB_POOL_TIMEOUT: 5
+
+      JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
+      TARANIS_NG_AUTHENTICATOR: "${TARANIS_NG_AUTHENTICATOR:-database}"
+      WORKERS_PER_CORE: "1"
+      WEB_CONCURRENCY: "1"
+
+      QUEUE_BROKER_HOST: "rabbitmq"
+      QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
+      QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD}"
+
+      PRE_SEED_PASSWORD_ADMIN: "${PRE_SEED_PASSWORD_ADMIN:-admin}"
+      PRE_SEED_PASSWORD_USER: "${PRE_SEED_PASSWORD_USER:-user}"
+      SECRET_KEY: "${API_KEY}"
+      API_KEY: "${API_KEY}"
+      DEBUG: "${DEBUG:-False}"
+    volumes:
+      - "core_data:/data"
+
+  beat:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    depends_on:
+      - rabbitmq
+    command: "--app worker beat"
+    environment:
+      TARANIS_NG_CORE_URL: "http://core"
+      API_KEY: "${API_KEY}"
+      QUEUE_BROKER_HOST: "rabbitmq"
+      QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
+      QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD}"
+      DEBUG: "${DEBUG:-False}"
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    depends_on:
+      - rabbitmq
+    environment:
+      TARANIS_NG_CORE_URL: "http://core"
+      API_KEY: "${API_KEY}"
+      QUEUE_BROKER_HOST: "rabbitmq"
+      QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
+      QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD}"
+      DEBUG: "${DEBUG:-False}"
+
+  gui:
+    build:
+      context: .
+      dockerfile: Dockerfile.gui
+    depends_on:
+      - core
+    ports:
+      - "${TARANIS_NG_PORT:-8080}:80"
+    environment:
+      NGINX_WORKERS: "4"
+      NGINX_CONNECTIONS: "16"
+      TARANIS_NG_CORE_UPSTREAM: "${TARANIS_NG_CORE_UPSTREAM:-core}"
+      TARANIS_NG_SENTRY_DSN: "${TARANIS_NG_SENTRY_DSN:-}"
+
+  rabbitmq:
+    image: "rabbitmq:${RABBITMQ_TAG:-3-management-alpine}"
+    ports:
+      - "${TARANIS_RABBITMQ_PORT:-5672}:5672"
+      - "${TARANIS_RABBITMQ_MGMT_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq/
+    environment:
+      - "RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-taranis}"
+      - "RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD}"
+
+volumes:
+  database_data:
+  core_data:
+  rabbitmq_data:

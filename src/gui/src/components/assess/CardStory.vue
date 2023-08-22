@@ -184,7 +184,7 @@
         v-for="item in story.news_items"
         :key="item.id"
         :news-item="item"
-        :detail-view="false"
+        :detail-view="detailView"
         class="mt-3"
       />
     </v-col>

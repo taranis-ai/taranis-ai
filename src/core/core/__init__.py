@@ -29,3 +29,7 @@ def initialize_managers(app):
     queue_manager.initialize(app)
 
     log_manager.logger.log_info("All Managers initialized")
+
+
+def post_worker_init(worker):
+    print(worker.pid)

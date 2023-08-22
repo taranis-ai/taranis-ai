@@ -15,6 +15,7 @@ class PARAMETER_TYPES(StrEnum):
     SELECT = auto()
     LIST = auto()
     DATE = auto()
+    TABLE = auto()
 
 
 class ParameterValue(BaseModel):

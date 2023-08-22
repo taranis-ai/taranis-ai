@@ -1,5 +1,5 @@
 [project]
-name = "taranis-ng_worker"
+name = "taranis-ng-worker"
 description = "Taranis-NG Queue Worker"
 version = "0.1.0"
 readme = "README.md"

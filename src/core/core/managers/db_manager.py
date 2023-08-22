@@ -30,7 +30,7 @@ def initialize(app):
     db.init_app(app)
     migrate.init_app(app, db)
 
-    if "db" in sys.argv:
+    if "db" in sys.argv:  # called via flask db
         return
 
     if is_db_empty():

@@ -5,8 +5,7 @@ on:
     paths:
       - "src/core/**"
       - "docker/Dockerfile.core"
-      - "docker/entrypoint.sh"
-      - "docker/gunicorn_conf.py"
+      - "docker/gunicorn.conf.py"
     branches:
       - master
       - awake
