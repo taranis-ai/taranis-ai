@@ -3,19 +3,37 @@
     <v-toolbar density="compact">
       <v-toolbar-title>{{ container_title }}</v-toolbar-title>
       <v-spacer></v-spacer>
-      <v-switch v-model="verticalView" label="Side-by-side"></v-switch>
+      <v-switch
+        v-model="verticalView"
+        label="Side-by-side"
+        hide-details
+        color="success"
+      ></v-switch>
       <v-switch
         v-if="edit"
         v-model="report_item.completed"
+        hide-details
         label="Completed"
+        color="success"
       ></v-switch>
       <v-btn
         prepend-icon="mdi-content-save"
         color="success"
         variant="flat"
+        class="ml-4"
         @click="saveReportItem"
       >
         {{ $t('button.save') }}
+      </v-btn>
+      <v-btn
+        v-if="report_item.news_item_aggregates.length"
+        prepend-icon="mdi-delete-outline"
+        color="error"
+        variant="flat"
+        class="ml-4"
+        @click="removeAllFromReport"
+      >
+        remove all stories
       </v-btn>
     </v-toolbar>
     <v-card-text>
@@ -187,17 +205,29 @@ export default {
       }
     }
 
+    const removeAllFromReport = () => {
+      console.debug('Removing all storys from report')
+      setAggregatesToReportItem(report_item.value.id, [])
+        .then(() => {
+          report_item.value.news_item_aggregates = []
+          notifySuccess('Removed all from report')
+        })
+        .catch(() => {
+          notifyFailure('Failed to remove from report')
+        })
+    }
+
     const removeFromReport = (story_id) => {
       console.debug(`Removing story ${story_id} from report`)
       report_item.value.news_item_aggregates =
         report_item.value.news_item_aggregates.filter(
           (story) => story.id !== story_id
         )
-      console.log(report_item.value.news_item_aggregates)
+
       const aggregate_ids = report_item.value.news_item_aggregates.map(
         (story) => story.id
       )
-      console.log(aggregate_ids)
+
       setAggregatesToReportItem(report_item.value.id, aggregate_ids)
         .then(() => {
           notifySuccess('Removed from report')
@@ -216,6 +246,7 @@ export default {
       report_type,
       container_title,
       saveReportItem,
+      removeAllFromReport,
       removeFromReport
     }
   }

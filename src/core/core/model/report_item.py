@@ -147,7 +147,7 @@ class ReportItem(BaseModel):
     @classmethod
     def get_aggregate_ids(cls, id):
         report_item = cls.query.get(id)
-        return [aggregate.id for aggregate in report_item.aggregates]
+        return [aggregate.id for aggregate in report_item.news_item_aggregates]
 
     @classmethod
     def get_detail_json(cls, id):
