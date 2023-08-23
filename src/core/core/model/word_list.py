@@ -183,7 +183,8 @@ class WordList(BaseModel):
 
     @classmethod
     def parse_csv(cls, content) -> list:
-        cr = csv.reader(content.splitlines(), delimiter=";", lineterminator="\n")
+        dialect = csv.Sniffer().sniff(content)
+        cr = csv.reader(content.splitlines(), dialect)
         headers = [header.lower() for header in next(cr)]
         if len(headers) != 3:
             raise ValueError("Invalid CSV file")

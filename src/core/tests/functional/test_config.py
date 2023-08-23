@@ -44,9 +44,10 @@ class TestConfigApi(BaseTest):
 
     def test_import_word_lists_csv(self, client, auth_header, cleanup_word_lists):
         dir_path = os.path.dirname(os.path.realpath(__file__))
-        file_path = os.path.join(dir_path, "word_list_test_data.csv")
+        file_name = "word_list_test_data.csv"
+        file_path = os.path.join(dir_path, file_name)
         with open(file_path, "rb") as f:
-            file_storage = FileStorage(stream=f, filename="word_list_test_data.csv", content_type="text/csv")
+            file_storage = FileStorage(stream=f, filename=file_name, content_type="text/csv")
             data = {"file": file_storage}
             response = self.assert_post_data_ok(client, "import-word-lists", data, auth_header)
             assert response.json["count"] == 1
@@ -59,9 +60,11 @@ class TestConfigApi(BaseTest):
         with open(file_path, "rb") as f:
             exported_word_lists = response.json
             assert "data" in exported_word_lists
-            # Assert that "Test wordlist" is in any of the dicts "name" key
-            assert any(d["name"] == "Test wordlist" for d in exported_word_lists["data"])
-            assert any(d["name"] == "word_list_test_data.csv" for d in exported_word_lists["data"])
+            print(exported_word_lists["data"])
+            test_word_list = next((word_list for word_list in exported_word_lists["data"] if word_list["name"] == "Test wordlist"), None)
+            assert test_word_list
+            assert test_word_list["description"] == "Test wordlist."
+            assert len(test_word_list["entries"]) == 17
 
     def test_get_word_lists(self, client, auth_header, cleanup_word_lists):
         response = self.assert_get_ok(client, "word-lists", auth_header)

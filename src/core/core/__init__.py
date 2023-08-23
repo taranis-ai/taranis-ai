@@ -11,7 +11,7 @@ from core.managers import (
 )
 
 FLAG_FILENAME = "worker_init.flag"
-FIRST_WORKER = False
+FIRST_WORKER = "gunicorn" not in os.environ.get("SERVER_SOFTWARE", "")
 
 
 def create_app():

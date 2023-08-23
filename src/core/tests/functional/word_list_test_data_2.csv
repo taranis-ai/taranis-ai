@@ -1,0 +1,18 @@
+value,category,description
+2fa,Security,Two-factor Authentication
+adversary,Security,Attacker/hacker
+adware,Security,Ads and pop-up windows
+ai,MISC,Artificial Intelligence
+apt,Security,Advanced Persistent Threat
+atp,Security,Advanced Threat Protection
+attack,Security,
+authentication,MISC,
+av,Security,Anti-virus
+backdoor,Security,
+ransomware,Security,
+rdp,MISC,Remote Desktop Protocol
+virus,Security,
+vpn,MISC,Virtual Private Network
+vulnerability,Security,
+zero-day,Security,
+zombie,Uncategorized,
