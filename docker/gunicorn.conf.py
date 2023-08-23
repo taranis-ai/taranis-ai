@@ -13,6 +13,9 @@ use_loglevel = os.getenv("LOG_LEVEL", "info")
 wsgi_app = os.getenv("APP_MODULE", "run:app")
 use_reload = False
 post_worker_init = "core.post_worker_init"
+on_starting = "core.on_starting_and_exit"
+on_exit = "core.on_starting_and_exit"
+
 
 if os.getenv("DEBUG", "false").lower() == "true":
     use_loglevel = "debug"

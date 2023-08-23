@@ -70,15 +70,15 @@ class QueueManager:
         return {"status": "🚀 Up and running 🏃", "url": f"{queue_manager.celery.broker_connection().as_uri()}"}, 200
 
 
-def initialize(app: Flask):
+def initialize(app: Flask, first_worker: bool):
     global queue_manager
     queue_manager = QueueManager(app)
-    logger.info(f"QueueManager initialized: {queue_manager.celery.broker_connection().as_uri()}")
     try:
         with queue_manager.celery.connection() as conn:
-            logger.debug(conn)
             conn.ensure_connection(max_retries=3)
-        queue_manager.post_init()
+        if first_worker:
+            logger.info(f"QueueManager initialized: {queue_manager.celery.broker_connection().as_uri()}")
+            queue_manager.post_init()
     except Exception:
         logger.error("Could not reach rabbitmq")
         logger.exception()
