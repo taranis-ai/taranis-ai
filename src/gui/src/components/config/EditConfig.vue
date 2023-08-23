@@ -7,7 +7,6 @@
       @submit.prevent="handleSubmit"
     >
       <v-card-title class="bg-grey-lighten-2 mb-5">
-        <v-btn type="submit" color="success"> Submit </v-btn>
         <span v-if="title" class="ml-5"> {{ title }}</span>
         <slot name="titlebar"></slot>
       </v-card-title>
@@ -103,6 +102,7 @@
           </v-data-table>
         </v-col>
       </v-row>
+      <v-btn block type="submit" color="success"> Submit </v-btn>
     </v-form>
   </v-card>
 </template>

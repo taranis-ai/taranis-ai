@@ -23,7 +23,11 @@ class WordlistBot(BaseBot):
             if source := parameters.get("SOURCE"):
                 filter_dict["source"] = source
 
-            word_list_entries = self.core_api.get_words_for_tagging_bot()
+            word_lists = self.core_api.get_words_for_tagging_bot()
+            if not word_lists:
+                return "No word lists found"
+
+            word_list_entries = [entry for word_list in word_lists["items"] for entry in word_list["entries"]]
 
             data = self.core_api.get_news_items_aggregate(filter_dict=filter_dict)
 
@@ -41,7 +45,7 @@ class WordlistBot(BaseBot):
 
     def find_tags(self, aggregate: dict, word_list_entries: list) -> list:
         findings = set()
-        entry_set = {item["value"] for item in word_list_entries}
+        entry_set = set([item["value"] for item in word_list_entries])
         existing_tags = aggregate["tags"] or []
         for news_item in aggregate["news_items"]:
             content = news_item["news_item_data"]["content"]

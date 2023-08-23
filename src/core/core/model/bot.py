@@ -1,5 +1,5 @@
 from typing import Any
-from sqlalchemy import or_, and_
+from sqlalchemy import or_, and_, func
 from sqlalchemy.orm import joinedload
 import uuid
 
@@ -15,6 +15,7 @@ class Bot(BaseModel):
     name = db.Column(db.String(), nullable=False)
     description = db.Column(db.String())
     type = db.Column(db.Enum(BOT_TYPES))
+    index = db.Column(db.Integer, unique=True, nullable=False)
     parameters = db.relationship("ParameterValue", secondary="bot_parameter_value", cascade="all, delete")
 
     def __init__(self, name, type, description=None, parameters=None, id=None):
@@ -22,6 +23,7 @@ class Bot(BaseModel):
         self.name = name
         self.description = description
         self.type = type
+        self.index = Bot.get_highest_index() + 1
         self.parameters = ParameterValue.get_or_create_from_list(parameters=parameters) if parameters else Worker.get_parameters(type)
 
     @classmethod
@@ -31,6 +33,8 @@ class Bot(BaseModel):
             return None
 
         try:
+            if index := data.pop("index"):
+                bot.index = bot.index if Bot.index_exists(index) else index
             updated_bot = cls.from_dict(data)
             bot.name = updated_bot.name
             bot.description = updated_bot.description
@@ -40,6 +44,15 @@ class Bot(BaseModel):
         except Exception:
             logger.log_debug_trace("Update Bot Parameters Failed")
             return None
+
+    @classmethod
+    def get_highest_index(cls):
+        result = db.session.query(func.max(cls.index)).scalar()
+        return result or 0
+
+    @classmethod
+    def index_exists(cls, index):
+        return cls.query.filter_by(index=index).count() > 0
 
     @classmethod
     def add(cls, data) -> tuple[dict, int]:
@@ -91,6 +104,7 @@ class Bot(BaseModel):
             .join(ParameterValue, BotParameterValue.parameter_value_id == ParameterValue.id)
             .filter(and_(ParameterValue.parameter == "RUN_AFTER_COLLECTOR", ParameterValue.value == "true"))
             .options(joinedload(Bot.parameters))
+            .order_by(Bot.index)
             .all()
         )
 

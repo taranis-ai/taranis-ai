@@ -70,6 +70,7 @@
         </v-btn>
 
         <v-btn
+          v-if="story && story.news_items.length > 1"
           v-ripple="false"
           size="small"
           class="item-action-btn"
@@ -180,6 +181,11 @@ export default {
       type: Object,
       required: true
     },
+    story: {
+      type: Object,
+      required: false,
+      default: null
+    },
     selected: Boolean,
     detailView: Boolean
   },
@@ -227,7 +233,6 @@ export default {
       unGroupAction([props.newsItem.id])
         .then(() => {
           notifySuccess('News Item removed from Story')
-
           emit('refresh')
         })
         .catch(() => {

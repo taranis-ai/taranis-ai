@@ -10,7 +10,6 @@ from core.model.base_model import BaseModel
 
 
 class ItemType(Enum):
-    COLLECTOR = auto()
     OSINT_SOURCE = auto()
     OSINT_SOURCE_GROUP = auto()
     WORD_LIST = auto()
@@ -36,7 +35,9 @@ class ACLEntry(BaseModel):
     access = db.Column(db.Boolean)
     modify = db.Column(db.Boolean)
 
-    def __init__(self, name, description, item_type, item_id, everyone, users, see, access, modify, roles, id=None):
+    def __init__(
+        self, name, description, item_type, item_id, everyone=True, see=False, access=False, modify=False, users=None, roles=None, id=None
+    ):
         self.id = id
         self.name = name
         self.description = description
@@ -46,8 +47,8 @@ class ACLEntry(BaseModel):
         self.see = see
         self.access = access
         self.modify = modify
-        self.users = [User.find_by_id(user.id) for user in users]
-        self.roles = [Role.get(role.id) for role in roles]
+        self.users = [User.find_by_id(user.id) for user in users] if users else []
+        self.roles = [Role.get(role.id) for role in roles] if roles else []
 
     @classmethod
     def has_rows(cls) -> bool:
@@ -79,9 +80,8 @@ class ACLEntry(BaseModel):
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
-        data["roles"] = [role.id for role in self.roles]
-        data["users"] = [user.id for user in self.users]
-        data["tag"] = "mdi-lock-check"
+        data["roles"] = [role.id for role in self.roles if role]
+        data["users"] = [user.id for user in self.users if user]
         return data
 
     @classmethod
@@ -97,7 +97,7 @@ class ACLEntry(BaseModel):
 
     @classmethod
     def apply_query(cls, query: query.Query, user: User, see: bool, access: bool, modify: bool) -> query.Query:
-        roles = [role.id for role in user.roles]
+        roles = [role.id for role in user.roles if role]
 
         query = query.outerjoin(
             ACLEntryUser,

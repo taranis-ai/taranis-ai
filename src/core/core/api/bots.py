@@ -19,6 +19,17 @@ class BotGroupAction(Resource):
         return response, code
 
 
+class BotGroupMultipleAction(Resource):
+    @api_key_required
+    def put(self):
+        aggregate_ids = request.json
+        if not aggregate_ids:
+            return {"No aggregate ids provided"}, 400
+        response, code = news_item.NewsItemAggregate.group_multiple_aggregate(aggregate_ids)
+        sse_manager.news_items_updated()
+        return response, code
+
+
 class BotUnGroupAction(Resource):
     @api_key_required
     def put(self):
@@ -113,6 +124,7 @@ def initialize(api: Api):
         "/news-item-data/<string:news_item_data_id>/attributes",
     )
     namespace.add_resource(BotGroupAction, "/news-item-aggregates/group")
+    namespace.add_resource(BotGroupMultipleAction, "/news-item-aggregates/group-multiple")
     namespace.add_resource(BotUnGroupAction, "/news-item-aggregates/ungroup")
 
     namespace.add_resource(

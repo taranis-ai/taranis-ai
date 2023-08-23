@@ -3,7 +3,7 @@
     <DataTable
       v-model:items="bots.items"
       :add-button="true"
-      :header-filter="['tag', 'name', 'description', 'type']"
+      :header-filter="['tag', 'name', 'description', 'type', 'index']"
       sort-by-item="id"
       :action-column="true"
       tag-icon="mdi-robot"
@@ -70,6 +70,11 @@ export default {
           label: 'Type',
           type: 'select',
           items: bot_options.value
+        },
+        {
+          name: 'index',
+          label: 'Index',
+          type: 'number'
         }
       ]
       return [...baseFormat, ...additionalFormat]

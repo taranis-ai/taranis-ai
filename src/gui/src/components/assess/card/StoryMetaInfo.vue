@@ -20,13 +20,12 @@
             />
           </v-col>
         </v-row>
-        <v-row>
+        <v-row v-if="story.tags && !reportView">
           <v-col style="max-width: 110px" class="py-0">
             <strong>Tags:</strong>
           </v-col>
           <v-col class="py-0">
             <tag-list
-              v-if="story.tags"
               :tags="story.tags"
               :truncate="!detailView"
               :limit="tagLimit"

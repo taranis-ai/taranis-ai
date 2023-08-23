@@ -185,7 +185,9 @@
         :key="item.id"
         :news-item="item"
         :detail-view="detailView"
+        :story="story"
         class="mt-3"
+        @refresh="emitRefresh()"
       />
     </v-col>
   </v-row>
@@ -221,7 +223,7 @@ export default {
     detailView: { type: Boolean, default: false },
     reportView: { type: Boolean, default: false }
   },
-  emits: ['selectItem', 'deleteItem', 'removeFromReport'],
+  emits: ['selectItem', 'deleteItem', 'refresh'],
   setup(props, { emit }) {
     const viewDetails = ref(false)
     const openSummary = ref(props.detailView)
@@ -279,9 +281,8 @@ export default {
       emit('deleteItem', props.story.id)
     }
 
-    const removeFromReport = () => {
-      console.debug('remove from report')
-      emit('removeFromReport')
+    const emitRefresh = () => {
+      emit('refresh')
     }
 
     const getDescription = computed(() => {
@@ -311,7 +312,7 @@ export default {
       markAsRead,
       markAsImportant,
       deleteNewsItem,
-      removeFromReport
+      emitRefresh
     }
   }
 }

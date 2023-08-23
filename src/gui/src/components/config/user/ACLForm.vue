@@ -20,14 +20,18 @@
             v-model="acl.description"
             :label="$t('acl.description')"
             name="description"
+            :rules="[rules.required]"
           />
         </v-col>
         <v-col cols="6" class="pa-1">
           <v-combobox
-            v-model="selected_type"
+            v-model="acl.item_type"
             :items="types"
             item-title="title"
+            item-value="id"
+            :return-object="false"
             :label="$t('acl.item_type')"
+            :rules="[rules.required]"
           />
         </v-col>
         <v-col cols="6" class="pa-1">
@@ -36,6 +40,7 @@
             :label="$t('acl.item_id')"
             name="item_id"
             type="text"
+            :rules="[rules.required]"
           />
         </v-col>
       </v-row>
@@ -113,7 +118,7 @@ import { useConfigStore } from '@/stores/ConfigStore'
 import { ref, computed, onMounted } from 'vue'
 
 export default {
-  name: 'NewACL',
+  name: 'ACLForm',
   props: {
     aclProp: {
       type: Object,
@@ -152,7 +157,6 @@ export default {
     ]
 
     const types = [
-      { id: 'COLLECTOR', title: 'Collector' },
       { id: 'DELEGATION', title: 'Delegation' },
       { id: 'OSINT_SOURCE', title: 'OSINT Source' },
       { id: 'OSINT_SOURCE_GROUP', title: 'OSINT Source Group' },
@@ -161,37 +165,34 @@ export default {
       { id: 'REPORT_ITEM_TYPE', title: 'Report Item Type' },
       { id: 'WORD_LIST', title: 'Word List' }
     ]
-    const selected_type = null
 
     const selected_users = []
     const selected_roles = []
 
     const add = () => {
+      if (!form.value.validate()) {
+        return
+      }
+
+      acl.value.users = selected_users.map((user) => ({ id: user.id }))
+      acl.value.roles = selected_roles.map((role) => ({ id: role.id }))
+
       if (props.edit) {
-        if (selected_type !== null) {
-          acl.value.item_type = selected_type.id
-        }
-
-        acl.value.users = selected_users.map((user) => ({ id: user.id }))
-        acl.value.roles = selected_roles.map((role) => ({ id: role.id }))
-
-        if (edit) {
-          updateACLEntry(acl.value)
-            .then(() => {
-              notifySuccess('acl.successful_edit')
-            })
-            .catch(() => {
-              notifyFailure('acl.error_edit')
-            })
-        } else {
-          createACLEntry(acl.value)
-            .then(() => {
-              notifySuccess('acl.successful')
-            })
-            .catch(() => {
-              notifyFailure(roles, 'acl.error')
-            })
-        }
+        updateACLEntry(acl.value)
+          .then(() => {
+            notifySuccess('acl.successful_edit')
+          })
+          .catch(() => {
+            notifyFailure('acl.error_edit')
+          })
+      } else {
+        createACLEntry(acl.value)
+          .then(() => {
+            notifySuccess('acl.successful')
+          })
+          .catch(() => {
+            notifyFailure(roles, 'acl.error')
+          })
       }
     }
 
@@ -208,7 +209,6 @@ export default {
       headers_role,
       selected_roles,
       selected_users,
-      selected_type,
       types,
       roles,
       users,

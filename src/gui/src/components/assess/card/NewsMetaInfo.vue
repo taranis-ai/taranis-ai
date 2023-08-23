@@ -8,10 +8,10 @@
             <strong v-else>{{ $t('assess.collected') }}:</strong>
           </v-col>
           <v-col v-if="published_date" class="py-0">
-            {{ $d(published_date, 'long') }}
+            {{ published_date }}
           </v-col>
           <v-col v-else class="py-0">
-            {{ $d(collected_date, 'long') }}
+            {{ collected_date }}
           </v-col>
         </v-row>
         <v-row>
@@ -40,6 +40,7 @@
 <script>
 import { getCleanHostname } from '@/utils/helpers.js'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 export default {
   name: 'NewsMetaInfo',
@@ -50,20 +51,12 @@ export default {
     }
   },
   setup(props) {
-    const published_date = computed(() => {
-      return props.newsItem.news_item_data.published
-        ? new Date(props.newsItem.news_item_data.published)
-        : null
-    })
+    const { d } = useI18n()
 
-    const published_date_outdated = computed(() => {
-      const pub_date = published_date.value
-      if (!pub_date) {
-        return false
-      }
-      const oneWeekAgo = new Date()
-      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
-      return oneWeekAgo > pub_date
+    const published_date = computed(() => {
+      return props.newsItem.news_item_data?.published
+        ? d(new Date(props.newsItem.news_item_data.published), 'long')
+        : null
     })
 
     const author = computed(() => {
@@ -82,13 +75,12 @@ export default {
 
     const collected_date = computed(() => {
       return props.newsItem.news_item_data?.collected
-        ? new Date(props.newsItem.news_item_data.collected)
+        ? d(new Date(props.newsItem.news_item_data.collected), 'long')
         : null
     })
 
     return {
       published_date,
-      published_date_outdated,
       author,
       source,
       collected_date

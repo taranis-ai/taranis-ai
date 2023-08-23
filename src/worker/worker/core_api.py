@@ -84,7 +84,7 @@ class CoreApi:
         except Exception:
             return None
 
-    def get_news_items_aggregate(self, filter_dict: dict) -> dict | None:
+    def get_news_items_aggregate(self, filter_dict: dict) -> dict | list | None:
         try:
             return self.api_get("/api/v1/worker/news-item-aggregates", params=filter_dict)
         except Exception:
@@ -94,7 +94,7 @@ class CoreApi:
     def get_tags(self) -> dict | None:
         return self.api_get("/api/v1/worker/tags")
 
-    def get_words_for_tagging_bot(self) -> list | None:
+    def get_words_for_tagging_bot(self) -> dict | None:
         try:
             return self.api_get(url="/api/v1/worker/word-lists?usage=4")
         except Exception:
@@ -171,6 +171,17 @@ class CoreApi:
         try:
             response = requests.put(
                 f"{self.api_url}/api/v1/bots/news-item-aggregates/group",
+                json=data,
+                headers=self.headers,
+            )
+            return response.status_code
+        except Exception:
+            return None
+
+    def news_items_grouping_multiple(self, data):
+        try:
+            response = requests.put(
+                f"{self.api_url}/api/v1/bots/news-item-aggregates/group-multiple",
                 json=data,
                 headers=self.headers,
             )

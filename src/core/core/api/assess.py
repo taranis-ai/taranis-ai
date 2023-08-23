@@ -135,7 +135,8 @@ class NewsItemAggregate(Resource):
     @auth_required("ASSESS_ACCESS")
     @validate_id("aggregate_id")
     def get(self, aggregate_id):
-        return news_item.NewsItemAggregate.get_json(aggregate_id)
+        user = auth_manager.get_user_from_jwt()
+        return news_item.NewsItemAggregate.get_json(aggregate_id, user)
 
     @auth_required("ASSESS_UPDATE")
     @validate_id("aggregate_id")

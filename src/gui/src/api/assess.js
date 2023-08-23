@@ -48,9 +48,9 @@ export function voteNewsItemAggregate(aggregate_id, vote) {
   })
 }
 
-export function readNewsItemAggregate(aggregate_id) {
+export function readNewsItemAggregate(aggregate_id, read) {
   return ApiService.put(`/assess/news-item-aggregates/${aggregate_id}`, {
-    read: true
+    read: read
   })
 }
 
@@ -58,9 +58,9 @@ export function deleteNewsItemAggregate(aggregate_id) {
   return ApiService.delete(`/assess/news-item-aggregates/${aggregate_id}`)
 }
 
-export function importantNewsItemAggregate(aggregate_id) {
+export function importantNewsItemAggregate(aggregate_id, important) {
   return ApiService.put(`/assess/news-item-aggregates/${aggregate_id}`, {
-    important: true
+    important: important
   })
 }
 

@@ -92,16 +92,18 @@
                     >
                       <attribute-item
                         v-if="
-                          attribute_group.attribute_group_items[
-                            attribute.attribute_group_item_id
-                          ]
+                          attribute_group.attribute_group_items.find(
+                            (item) =>
+                              item.id === attribute.attribute_group_item_id
+                          )
                         "
                         v-model:value="attribute.value"
                         :read-only="!edit"
                         :attribute-item="
-                          attribute_group.attribute_group_items[
-                            attribute.attribute_group_item_id
-                          ]
+                          attribute_group.attribute_group_items.find(
+                            (item) =>
+                              item.id === attribute.attribute_group_item_id
+                          )
                         "
                       />
                     </div>

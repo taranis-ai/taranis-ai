@@ -44,6 +44,7 @@ def initialize(app, first_worker):
     else:
         logger.debug("Migrate existing Database")
         flask_migrate_subprocess("upgrade")  # upgrade(migrate.directory, "head")
+        db.create_all()
 
 
 @event.listens_for(Engine, "connect")

@@ -5,6 +5,7 @@
       size="small"
       class="item-action-btn"
       variant="tonal"
+      :disabled="voted"
       @click.stop="upvote()"
     >
       <span>{{ likes }}</span>
@@ -17,6 +18,7 @@
       size="small"
       class="item-action-btn"
       variant="tonal"
+      :disabled="voted"
       @click.stop="downvote()"
     >
       <span>{{ dislikes }}</span>
@@ -42,20 +44,24 @@ export default {
   setup(props) {
     const likes = ref(props.story.likes)
     const dislikes = ref(props.story.dislikes)
+    const voted = ref(props.story.user_has_voted)
 
     const upvote = () => {
       likes.value += 1
-      voteNewsItemAggregate(props.story.id, 1)
+      voted.value = true
+      voteNewsItemAggregate(props.story.id, 'like')
     }
 
     const downvote = () => {
       dislikes.value += 1
-      voteNewsItemAggregate(props.story.id, -1)
+      voted.value = true
+      voteNewsItemAggregate(props.story.id, 'dislike')
     }
 
     return {
       likes,
       dislikes,
+      voted,
       upvote,
       downvote
     }

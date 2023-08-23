@@ -11,6 +11,7 @@ bots = {
     "tagging_bot": worker.bots.TaggingBot(),
     "wordlist_bot": worker.bots.WordlistBot(),
     "wordlist_updater_bot": worker.bots.WordlistUpdaterBot(),
+    "story_bot": worker.bots.StoryBot(),
 }
 
 

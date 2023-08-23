@@ -6,44 +6,45 @@
       :header-filter="['tag', 'id', 'name', 'username']"
       sort-by-item="id"
       :action-column="true"
+      tag-icon="mdi-lock-check"
       @delete-item="deleteItem"
       @edit-item="editItem"
       @add-item="addItem"
       @update-items="updateData"
     />
-    <new-ACL v-if="showForm" :acl-prop="acl" :edit="edit"></new-ACL>
+    <ACLForm v-if="showForm" :acl-prop="acl" :edit="edit" />
   </div>
 </template>
 
 <script>
 import { ref, onMounted } from 'vue'
 import DataTable from '@/components/common/DataTable.vue'
-import NewACL from '@/components/config/user/NewACL.vue'
+import ACLForm from '@/components/config/user/ACLForm.vue'
 import { deleteACLEntry, createACLEntry, updateACLEntry } from '@/api/config'
 import { notifySuccess } from '@/utils/helpers'
 import { useConfigStore } from '@/stores/ConfigStore'
 import { useMainStore } from '@/stores/MainStore'
+import { storeToRefs } from 'pinia'
 
 export default {
   name: 'ACLsView',
   components: {
     DataTable,
-    NewACL
+    ACLForm
   },
   setup() {
     const showForm = ref(false)
     const edit = ref(false)
     const acl = ref({})
-    const acls = useConfigStore().acls
+    const configStore = useConfigStore()
+    const { acls } = storeToRefs(configStore)
     const mainStore = useMainStore()
 
     const updateData = () => {
-      useConfigStore()
-        .loadACLEntries()
-        .then(() => {
-          mainStore.itemCountTotal = acls.total_count
-          mainStore.itemCountFiltered = acls.items.length
-        })
+      configStore.loadACLEntries().then(() => {
+        mainStore.itemCountTotal = acls.total_count
+        mainStore.itemCountFiltered = acls.items.length
+      })
     }
 
     const addItem = () => {

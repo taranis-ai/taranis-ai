@@ -24,12 +24,24 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: "3.11"
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/pip
+          key: ${{ hashFiles('src/core/pyproject.toml') }}
+
+      - name: Install dependencies
+        working-directory: src/core
+        run: pip install -e .[dev]
+
       - name: test
         working-directory: src/core
         run: |
           pip install -e .[dev]
           echo "Starting Pytest"
-          pytest --ignore tests/test_schema.py
+          pytest
 
   build_wheel:
     name: build wheel

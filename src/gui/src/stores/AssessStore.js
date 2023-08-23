@@ -102,13 +102,13 @@ export const useAssessStore = defineStore('assess', {
     readNewsItemAggregate(id) {
       const item = this.newsItems.items.find((item) => item.id === id)
       item.read = !item.read
-      readNewsItemAggregate(id)
+      readNewsItemAggregate(id, item.read)
     },
 
     importantNewsItemAggregate(id) {
       const item = this.newsItems.items.find((item) => item.id === id)
       item.important = !item.important
-      importantNewsItemAggregate(id)
+      importantNewsItemAggregate(id, item.important)
     },
 
     select(data) {
