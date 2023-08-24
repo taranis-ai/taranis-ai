@@ -85,7 +85,7 @@ class AttributeEnum(Resource):
         return attribute.AttributeEnum.delete(enum_id)
 
 
-class ReportItemTypesConfig(Resource):
+class ReportItemTypes(Resource):
     @auth_required("CONFIG_REPORT_TYPE_ACCESS")
     def get(self):
         search = request.args.get(key="search", default=None)
@@ -95,16 +95,18 @@ class ReportItemTypesConfig(Resource):
     def post(self):
         try:
             item = report_item_type.ReportItemType.add(request.json)
-            return {"message": "Report item type added", "id": item.id}, 201
+            return {"message": f"ReportItemType {item.title} added", "id": item.id}, 201
         except Exception:
             logger.exception("Failed to add report item type")
-            return {"message": "Failed to add report item type"}, 500
+            return {"error": "Failed to add report item type"}, 500
 
 
 class ReportItemType(Resource):
     @auth_required("CONFIG_REPORT_TYPE_UPDATE")
     def put(self, type_id):
-        report_item_type.ReportItemType.update(type_id, request.json)
+        if item := report_item_type.ReportItemType.update(type_id, request.json):
+            return {"message": f"Report item type {item.title} updated", "id": f"{item.id}"}, 200
+        return {"error": f"Report item type with ID: {type_id} not found"}, 404
 
     @auth_required("CONFIG_REPORT_TYPE_DELETE")
     def delete(self, type_id):
@@ -301,7 +303,7 @@ class OSINTSources(Resource):
     def post(self):
         if source := osint_source.OSINTSource.add(request.json):
             return {"id": source.id, "message": "OSINT source created successfully"}, 201
-        return "OSINT source could not be created", 400
+        return {"error": "OSINT source could not be created"}, 400
 
 
 class OSINTSource(Resource):
@@ -309,21 +311,21 @@ class OSINTSource(Resource):
     def get(self, source_id):
         if source := osint_source.OSINTSource.get(source_id):
             return source.to_dict(), 200
-        return "OSINT source not found", 404
+        return {"error": "OSINT source not found"}, 404
 
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def put(self, source_id):
         if source := osint_source.OSINTSource.update(source_id, request.json):
-            return f"OSINT Source {source.name} updated", 200
-        return f"OSINT Source with ID: {source_id} not found", 404
+            return {"message": f"OSINT Source {source.name} updated", "id": f"{source_id}"}, 200
+        return {"error": f"OSINT Source with ID: {source_id} not found"}, 404
 
     @auth_required("CONFIG_OSINT_SOURCE_DELETE")
     def delete(self, source_id):
         source = osint_source.OSINTSource.get(source_id)
         if not source:
-            return f"OSINT Source with ID: {source_id} not found", 404
+            return {"error": f"OSINT Source with ID: {source_id} not found"}, 404
         osint_source.OSINTSource.delete(source_id)
-        return f"OSINT Source {source.name} deleted", 200
+        return {"message": f"OSINT Source {source.name} deleted", "id": f"{source_id}"}, 200
 
 
 class OSINTSourceCollect(Resource):
@@ -528,7 +530,7 @@ def initialize(api: Api):
     namespace.add_resource(QueueStatus, "/workers/queue-status")
     namespace.add_resource(QueueSchedule, "/workers/schedule")
     namespace.add_resource(ReportItemType, "/report-item-types/<int:type_id>")
-    namespace.add_resource(ReportItemTypesConfig, "/report-item-types")
+    namespace.add_resource(ReportItemTypes, "/report-item-types")
     namespace.add_resource(Role, "/roles/<int:role_id>")
     namespace.add_resource(Roles, "/roles")
     namespace.add_resource(User, "/users/<int:user_id>")

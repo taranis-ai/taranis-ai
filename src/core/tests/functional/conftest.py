@@ -2,32 +2,22 @@ import pytest
 
 
 @pytest.fixture(scope="function")
-def fake_source(app, request):
+def fake_source(app, request, cleanup_sources):
     with app.app_context():
         from core.model.osint_source import OSINTSource
 
-        ossi = {
-            "id": "fake-source-id",
-            "description": "",
-            "name": "Some Bind",
-            "parameters": [
-                {
-                    "value": "https://www.some.bind.it/SiteGlobals/Functions/RSSFeed/RSSNewsfeed/RSSNewsfeed.xml",
-                    "parameter": "FEED_URL",
-                },
-            ],
-            "type": "RSS_COLLECTOR",
-        }
+        source_id = cleanup_sources["id"]
 
-        OSINTSource.add(ossi)
+        if not OSINTSource.get(source_id):
+            OSINTSource.add(cleanup_sources)
 
         def teardown():
             with app.app_context():
-                OSINTSource.delete(ossi["id"])
+                OSINTSource.delete(source_id)
 
         request.addfinalizer(teardown)
 
-        yield ossi["id"]
+        yield source_id
 
 
 @pytest.fixture
@@ -96,11 +86,45 @@ def cleanup_sources(app, request):
     with app.app_context():
         from core.model.osint_source import OSINTSource
 
+        source_data = {
+            "id": "42",
+            "description": "This is a test source",
+            "name": "Test Source",
+            "parameters": [
+                {"FEED_URL": "https://url/feed.xml"},
+            ],
+            "type": "rss_collector",
+        }
+
         def teardown():
             with app.app_context():
                 [OSINTSource.delete(source.id) for source in OSINTSource.get_all()]
 
         request.addfinalizer(teardown)
+
+        yield source_data
+
+
+@pytest.fixture(scope="session")
+def cleanup_source_groups(app, request):
+    with app.app_context():
+        from core.model.osint_source import OSINTSourceGroup
+
+        source_group_data = {
+            "id": "42",
+            "name": "Test Group",
+            "description": "This is a test group",
+        }
+
+        def teardown():
+            with app.app_context():
+                if OSINTSourceGroup.get("42"):
+                    print("Deleting test source group 42")
+                    OSINTSourceGroup.delete("42")
+
+        request.addfinalizer(teardown)
+
+        yield source_group_data
 
 
 @pytest.fixture(scope="session")
@@ -110,7 +134,7 @@ def cleanup_word_lists(app, request):
 
         def teardown():
             with app.app_context():
-                [WordList.delete(source.id) for source in WordList.get_all()]
+                [WordList.delete(source.id) for source in WordList.get_all() if source.name == "Test wordlist"]
 
         request.addfinalizer(teardown)
 
@@ -209,3 +233,21 @@ def cleanup_bot(app, request):
         request.addfinalizer(teardown)
 
         yield bot_data
+
+
+@pytest.fixture(scope="session")
+def cleanup_report_item_type(app, request):
+    with app.app_context():
+        from core.model.report_item_type import ReportItemType
+
+        report_type_data = {"id": 42, "title": "Test Report Type", "description": "This is a test report type", "attribute_groups": []}
+
+        def teardown():
+            with app.app_context():
+                if ReportItemType.get(42):
+                    print("Deleting Report Type 42")
+                    ReportItemType.delete(42)
+
+        request.addfinalizer(teardown)
+
+        yield report_type_data
