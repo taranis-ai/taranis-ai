@@ -27,7 +27,7 @@ class PublisherPreset(BaseModel):
         self.name = name
         self.description = description
         self.type = type
-        self.parameters = ParameterValue.get_or_create_from_list(parameters) if parameters else Worker.get_parameters(type)
+        self.parameters = Worker.parse_parameters(type, parameters)
 
     @classmethod
     def get_all(cls):
@@ -59,17 +59,19 @@ class PublisherPreset(BaseModel):
         if not preset:
             logger.error(f"Could not find preset with id {preset_id}")
             return None
-        updated_preset = cls.from_dict(data)
-        preset.name = updated_preset.name
-        preset.description = updated_preset.description
-        preset.parameters = updated_preset.parameters
+        if name := data.get("name"):
+            preset.name = name
+        if description := data.get("description"):
+            preset.description = description
+        if parameters := data.get("parameters"):
+            updated_preset = ParameterValue.get_or_create_from_list(parameters)
+            preset.parameters = ParameterValue.get_update_values(preset.parameters, updated_preset)
         db.session.commit()
         return preset.id
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
-        data["parameters"] = {value.parameter: value.value for value in self.parameters}
-        data["tag"] = "mdi-file-star-outline"
+        data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters}
         return data
 
 

@@ -33,10 +33,20 @@ class ParameterValue(BaseModel):
     def to_dict(self) -> dict[int, Any]:
         return {self.parameter: self.value}
 
+    def get_copy(self) -> "ParameterValue":
+        return ParameterValue(self.parameter, self.value, self.type)
+
+    def get_value_by_parameter(self, parameter: str) -> str | None:
+        return self.value if self.parameter == parameter else None
+
+    @classmethod
+    def find_value_by_parameter(cls, parameters: list["ParameterValue"], parameter: str) -> str | None:
+        for param in parameters:
+            return param.get_value_by_parameter(parameter)
+        return None
+
     @classmethod
     def get_or_create(cls, data: dict[str, Any]) -> "ParameterValue":
-        if "id" in data:
-            return cls.get(data["id"])
         if "parameter" in data:
             return cls.from_dict(data)
         return cls.from_dict({"parameter": list(data.keys())[0], "value": list(data.values())[0]})
@@ -48,6 +58,13 @@ class ParameterValue(BaseModel):
                 return [cls.get_or_create(parameter) for parameter in parameters]  # type: ignore
             return cls.from_parameter_list(parameters)  # type: ignore
         return [cls.get_or_create({"parameter": key, "value": val}) for key, val in parameters.items()]  # type: ignore
+
+    @classmethod
+    def get_update_values(cls, base_parameters: list["ParameterValue"], update_parameters: list["ParameterValue"]) -> list["ParameterValue"]:
+        for parameter in base_parameters:
+            if parameter.parameter in update_parameters:
+                parameter.value = cls.find_value_by_parameter(update_parameters, parameter.parameter)
+        return base_parameters
 
     @classmethod
     def from_parameter_list(cls, parameters: list[str]) -> list["ParameterValue"]:

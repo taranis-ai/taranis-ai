@@ -35,7 +35,7 @@ class OSINTSource(BaseModel):
         self.name = name
         self.description = description
         self.type = type
-        self.parameters = ParameterValue.get_or_create_from_list(parameters=parameters) if parameters else Worker.get_parameters(type)
+        self.parameters = Worker.parse_parameters(type, parameters)
         self.word_lists = [WordList.get(word_list) for word_list in word_lists] if word_lists else []
 
     @classmethod
@@ -55,7 +55,7 @@ class OSINTSource(BaseModel):
                     OSINTSource.name.ilike(search_string),
                     OSINTSource.description.ilike(search_string),
                     OSINTSource.type.ilike(search_string),
-                ).distinct()
+                )
             )
 
         return query.order_by(db.asc(OSINTSource.name)).all(), query.count()
@@ -75,7 +75,7 @@ class OSINTSource(BaseModel):
     def to_dict(self):
         data = super().to_dict()
         data["word_lists"] = [word_list.id for word_list in self.word_lists if word_list]
-        data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters}
+        data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters if parameter.value}
         return data
 
     def to_worker_dict(self):
@@ -83,7 +83,7 @@ class OSINTSource(BaseModel):
         data["word_lists"] = [word_list.to_dict() for word_list in self.word_lists if word_list]
         for group in self.groups:
             data["word_lists"].extend([word_list.to_dict() for word_list in group.word_lists])
-        data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters}
+        data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters if parameter.value}
         return data
 
     def to_task_id(self):
@@ -101,7 +101,7 @@ class OSINTSource(BaseModel):
             "name": self.name,
             "description": self.description,
             "type": self.type,
-            "parameters": [parameter.to_dict() for parameter in self.parameters],
+            "parameters": [parameter.to_dict() for parameter in self.parameters if parameter.value],
         }
 
     @classmethod
@@ -131,11 +131,15 @@ class OSINTSource(BaseModel):
     @classmethod
     def update(cls, osint_source_id, data):
         osint_source = cls.query.get(osint_source_id)
-        updated_osint_source = cls.from_dict(data)
-        osint_source.name = updated_osint_source.name
-        osint_source.description = updated_osint_source.description
-        osint_source.parameters = updated_osint_source.parameters
-        osint_source.word_lists = updated_osint_source.word_lists
+        if name := data.get("name"):
+            osint_source.name = name
+        if description := data.get("description"):
+            osint_source.description = description
+        if parameters := data.get("parameters"):
+            update_parameter = ParameterValue.get_or_create_from_list(parameters)
+            osint_source.parameters = ParameterValue.get_update_values(osint_source.parameters, update_parameter)
+        if word_lists := data.get("word_lists"):
+            osint_source.word_lists = [WordList.get(word_list) for word_list in word_lists]
         db.session.commit()
         osint_source.schedule_osint_source()
         return osint_source
@@ -222,8 +226,8 @@ class OSINTSourceParameterValue(BaseModel):
 
 
 class OSINTSourceWordList(BaseModel):
-    osint_source_id = db.Column(db.String, db.ForeignKey("osint_source.id", ondelete="CASCADE"), primary_key=True)
-    word_list_id = db.Column(db.Integer, db.ForeignKey("word_list.id", ondelete="CASCADE"), primary_key=True)
+    osint_source_id = db.Column(db.String, db.ForeignKey("osint_source.id", ondelete="SET NULL"), primary_key=True)
+    word_list_id = db.Column(db.Integer, db.ForeignKey("word_list.id", ondelete="SET NULL"), primary_key=True)
 
 
 class OSINTSourceGroup(BaseModel):
@@ -341,13 +345,18 @@ class OSINTSourceGroup(BaseModel):
     def update(cls, osint_source_group_id, data):
         osint_source_group = cls.query.get(osint_source_group_id)
         if osint_source_group is None:
-            return "OSINT Source Group not found", 404
-        osint_source_group.name = data["name"]
-        osint_source_group.description = data["description"]
-        osint_source_group.osint_sources = [OSINTSource.get(osint_source) for osint_source in data.pop("osint_sources", [])]
-        osint_source_group.word_lists = [WordList.get(word_list) for word_list in data.pop("word_lists", [])]
+            return {"error": "OSINT Source Group not found"}, 404
+
+        if name := data.get("name"):
+            osint_source_group.name = name
+        if description := data.get("description"):
+            osint_source_group.description = description
+        if osint_sources := data.get("osint_sources"):
+            osint_source_group.osint_sources = [OSINTSource.get(osint_source) for osint_source in osint_sources]
+        if word_lists := data.get("word_lists"):
+            osint_source_group.word_lists = [WordList.get(word_list) for word_list in word_lists]
         db.session.commit()
-        return f"Succussfully updated {osint_source_group.id}", 201
+        return {"message": f"Succussfully updated {osint_source_group.name}", "id": f"{osint_source_group.id}"}, 201
 
         # TODO: Reassign news items to default group
         # if sources_in_default_group is not None:
@@ -357,10 +366,10 @@ class OSINTSourceGroup(BaseModel):
 
 
 class OSINTSourceGroupOSINTSource(BaseModel):
-    osint_source_group_id = db.Column(db.String, db.ForeignKey("osint_source_group.id", ondelete="CASCADE"), primary_key=True)
-    osint_source_id = db.Column(db.String, db.ForeignKey("osint_source.id", ondelete="CASCADE"), primary_key=True)
+    osint_source_group_id = db.Column(db.String, db.ForeignKey("osint_source_group.id", ondelete="SET NULL"), primary_key=True)
+    osint_source_id = db.Column(db.String, db.ForeignKey("osint_source.id", ondelete="SET NULL"), primary_key=True)
 
 
 class OSINTSourceGroupWordList(BaseModel):
-    osint_source_group_id = db.Column(db.String, db.ForeignKey("osint_source_group.id", ondelete="CASCADE"), primary_key=True)
-    word_list_id = db.Column(db.Integer, db.ForeignKey("word_list.id", ondelete="CASCADE"), primary_key=True)
+    osint_source_group_id = db.Column(db.String, db.ForeignKey("osint_source_group.id", ondelete="SET NULL"), primary_key=True)
+    word_list_id = db.Column(db.Integer, db.ForeignKey("word_list.id", ondelete="SET NULL"), primary_key=True)

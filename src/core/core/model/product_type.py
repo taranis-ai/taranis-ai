@@ -17,16 +17,16 @@ class ProductType(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(64), unique=True, nullable=False)
     description = db.Column(db.String(), nullable=False)
-    presenter_type = db.Column(db.Enum(PRESENTER_TYPES))
+    type = db.Column(db.Enum(PRESENTER_TYPES))
 
     parameters = db.relationship("ParameterValue", secondary="product_type_parameter_value", cascade="all")
 
-    def __init__(self, title, description, presenter_type, parameters=None, id=None):
+    def __init__(self, title, description, type, parameters=None, id=None):
         self.id = id
         self.title = title
         self.description = description
-        self.presenter_type = presenter_type
-        self.parameters = ParameterValue.get_or_create_from_list(parameters) if parameters else Worker.get_parameters(presenter_type)
+        self.type = type
+        self.parameters = Worker.parse_parameters(type, parameters)
 
     @classmethod
     def get_all(cls):
@@ -84,29 +84,24 @@ class ProductType(BaseModel):
 
     @classmethod
     def update(cls, preset_id, data):
-        product_type = cls.query.get(preset_id)
-        updated_product_type = cls.from_dict(data)
-        product_type.title = updated_product_type.title
-        product_type.description = updated_product_type.description
-        product_type.parameters = updated_product_type.parameters
+        product_type = cls.get(preset_id)
+        if not product_type:
+            logger.error(f"Could not find product type with id {preset_id}")
+            return None
+        if title := data.get("title"):
+            product_type.title = title
+        if description := data.get("description"):
+            product_type.description = description
+        if parameters := data.get("parameters"):
+            updated_product_type = ParameterValue.get_or_create_from_list(parameters)
+            product_type.parameters = ParameterValue.get_update_values(product_type.parameters, updated_product_type)
         db.session.commit()
         return product_type.id
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
-        data["parameters"] = {value.parameter: value.value for value in self.parameters}
-        data["tag"] = "mdi-file-document-outline"
+        data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters}
         return data
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "ProductType":
-        logger.debug(data)
-        if parameters := data.pop("parameters", None):
-            data["parameters"] = [ParameterValue(parameter=param, value=val) for param, val in parameters.items()]
-        else:
-            data["parameters"] = []
-
-        return cls(**data)
 
 
 class ProductTypeParameterValue(BaseModel):

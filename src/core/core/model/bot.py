@@ -24,7 +24,7 @@ class Bot(BaseModel):
         self.description = description
         self.type = type
         self.index = Bot.get_highest_index() + 1
-        self.parameters = ParameterValue.get_or_create_from_list(parameters=parameters) if parameters else Worker.get_parameters(type)
+        self.parameters = Worker.parse_parameters(type, parameters)
 
     @classmethod
     def update(cls, bot_id, data) -> "Bot | None":
@@ -33,12 +33,15 @@ class Bot(BaseModel):
             return None
 
         try:
-            if index := data.pop("index"):
+            if name := data.get("name"):
+                bot.name = name
+            if description := data.get("description"):
+                bot.description = description
+            if parameters := data.get("parameters"):
+                update_parameter = ParameterValue.get_or_create_from_list(parameters)
+                bot.parameters = ParameterValue.get_update_values(bot.parameters, update_parameter)
+            if index := data.get("index"):
                 bot.index = bot.index if Bot.index_exists(index) else index
-            updated_bot = cls.from_dict(data)
-            bot.name = updated_bot.name
-            bot.description = updated_bot.description
-            bot.parameters = updated_bot.parameters
             db.session.commit()
             return bot
         except Exception:

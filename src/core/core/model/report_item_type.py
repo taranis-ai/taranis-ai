@@ -209,14 +209,17 @@ class ReportItemType(BaseModel):
         return data
 
     @classmethod
-    def update(cls, report_type_id, data) -> tuple[str, int]:
+    def update(cls, report_type_id, data) -> tuple[dict, int]:
         report_type = cls.get(report_type_id)
         if not report_type:
-            return "Report Type not found", 404
-        report_type.title = data["title"]
-        report_type.description = data["description"]
-        report_type.attribute_groups = [AttributeGroup.from_dict(attribute_group) for attribute_group in data["attribute_groups"]]
+            return {"error": "Report Type not found"}, 404
+        if title := data.get("title"):
+            report_type.title = title
+        if description := data.get("description"):
+            report_type.description = description
+        if attribute_groups := data.get("attribute_groups"):
+            report_type.attribute_groups = [AttributeGroup.from_dict(attribute_group) for attribute_group in attribute_groups]
         for attribute_group in report_type.attribute_groups:
             attribute_group.report_item_type = report_type
         db.session.commit()
-        return f"Report Type {report_type.title} updated", 200
+        return {"message": f"Report Type {report_type.title} updated", "id": f"{report_type.id}"}, 200

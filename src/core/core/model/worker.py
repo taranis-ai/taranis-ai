@@ -154,8 +154,18 @@ class Worker(BaseModel):
         return data
 
     @classmethod
-    def get_parameters(cls, worker_type):
-        return cls.query.filter(cls.type == worker_type).first().parameters
+    def get_parameters(cls, worker_type: str) -> list[ParameterValue]:
+        parameters = cls.query.filter(cls.type == worker_type).first().parameters
+        return [parameter.get_copy() for parameter in parameters]
+
+    @classmethod
+    def parse_parameters(cls, worker_type: str, parameters) -> list[ParameterValue]:
+        worker_parameters = Worker.get_parameters(worker_type)
+        parsed_parameters = ParameterValue.get_or_create_from_list(parameters=parameters)
+        for worker_parameter in worker_parameters:
+            if worker_parameter not in parsed_parameters and worker_parameter.value:
+                parsed_parameters.append(worker_parameter)
+        return parsed_parameters
 
     @classmethod
     def get_parameter_items(cls, parameter):
