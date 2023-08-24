@@ -161,24 +161,13 @@ class Worker(BaseModel):
     @classmethod
     def parse_parameters(cls, worker_type: str, parameters) -> list[ParameterValue]:
         worker_parameters = Worker.get_parameters(worker_type)
+        if not parameters:
+            return worker_parameters
         parsed_parameters = ParameterValue.get_or_create_from_list(parameters=parameters)
         for worker_parameter in worker_parameters:
             if worker_parameter not in parsed_parameters and worker_parameter.value:
                 parsed_parameters.append(worker_parameter)
         return parsed_parameters
-
-    @classmethod
-    def get_parameter_items(cls, parameter):
-        from core.model.osint_source import OSINTSourceGroup, OSINTSource
-
-        if parameter == "SOURCE_GROUP":
-            return [group.id for group in OSINTSourceGroup.get_all()]
-        elif parameter == "SOURCE":
-            return [source.id for source in OSINTSource.get_all()]
-
-    @classmethod
-    def get_parameter_headers(cls, parameter):
-        return [{"title": "ID", "key": "id"}, {"title": "Name", "key": "name"}, {"title": "Description", "key": "description"}]
 
     @classmethod
     def get_parameter_map(cls):
@@ -192,13 +181,22 @@ class Worker(BaseModel):
 
     @classmethod
     def _construct_parameter_data(cls, parameter):
+        from core.model.osint_source import OSINTSourceGroup, OSINTSource
+        from core.model.word_list import WordList
+
         data = {"name": parameter.parameter, "label": parameter.parameter, "parent": "parameters", "type": parameter.type}
 
-        if parameter.type in ["select", "table", "checkbox"]:
-            data["items"] = cls.get_parameter_items(parameter.parameter)
-
-        if parameter.type == "table":
-            data["headers"] = cls.get_parameter_headers(parameter.parameter)
+        if parameter.parameter == "SOURCE_GROUP":
+            data["items"] = [group.id for group in OSINTSourceGroup.get_all()]
+        elif parameter.parameter == "SOURCE":
+            data["items"] = [source.id for source in OSINTSource.get_all()]
+        elif parameter.parameter in ["TAGGING_WORDLISTS"]:
+            data["items"] = [
+                {"name": wordlist.name, "description": wordlist.description} for wordlist in WordList.get_by_filter({"usage": 4})[0]
+            ]
+            data["headers"] = [{"title": "Name", "key": "name"}, {"title": "Description", "key": "description"}]
+            data["value"] = []
+            data["disabled"] = True
 
         return data
 

@@ -21,8 +21,6 @@ class OSINTSource(BaseModel):
 
     type = db.Column(db.Enum(COLLECTOR_TYPES))
     parameters = db.relationship("ParameterValue", secondary="osint_source_parameter_value", cascade="all, delete")
-
-    word_lists = db.relationship("WordList", secondary="osint_source_word_list")
     groups = db.relationship("OSINTSourceGroup", secondary="osint_source_group_osint_source")
 
     state = db.Column(db.SmallInteger, default=0)
@@ -30,13 +28,12 @@ class OSINTSource(BaseModel):
     last_attempted = db.Column(db.DateTime, default=None)
     last_error_message = db.Column(db.String, default=None)
 
-    def __init__(self, name, description, type, parameters=None, word_lists=None, id=None):
+    def __init__(self, name, description, type, parameters=None, id=None):
         self.id = id or str(uuid.uuid4())
         self.name = name
         self.description = description
         self.type = type
         self.parameters = Worker.parse_parameters(type, parameters)
-        self.word_lists = [WordList.get(word_list) for word_list in word_lists] if word_lists else []
 
     @classmethod
     def get_all(cls) -> list["OSINTSource"]:
@@ -74,13 +71,12 @@ class OSINTSource(BaseModel):
 
     def to_dict(self):
         data = super().to_dict()
-        data["word_lists"] = [word_list.id for word_list in self.word_lists if word_list]
         data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters if parameter.value}
         return data
 
     def to_worker_dict(self):
         data = super().to_dict()
-        data["word_lists"] = [word_list.to_dict() for word_list in self.word_lists if word_list]
+        data["word_lists"] = []
         for group in self.groups:
             data["word_lists"].extend([word_list.to_dict() for word_list in group.word_lists])
         data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters if parameter.value}
@@ -138,8 +134,6 @@ class OSINTSource(BaseModel):
         if parameters := data.get("parameters"):
             update_parameter = ParameterValue.get_or_create_from_list(parameters)
             osint_source.parameters = ParameterValue.get_update_values(osint_source.parameters, update_parameter)
-        if word_lists := data.get("word_lists"):
-            osint_source.word_lists = [WordList.get(word_list) for word_list in word_lists]
         db.session.commit()
         osint_source.schedule_osint_source()
         return osint_source
@@ -223,11 +217,6 @@ class OSINTSource(BaseModel):
 class OSINTSourceParameterValue(BaseModel):
     osint_source_id = db.Column(db.String, db.ForeignKey("osint_source.id", ondelete="CASCADE"), primary_key=True)
     parameter_value_id = db.Column(db.Integer, db.ForeignKey("parameter_value.id", ondelete="CASCADE"), primary_key=True)
-
-
-class OSINTSourceWordList(BaseModel):
-    osint_source_id = db.Column(db.String, db.ForeignKey("osint_source.id", ondelete="SET NULL"), primary_key=True)
-    word_list_id = db.Column(db.Integer, db.ForeignKey("word_list.id", ondelete="SET NULL"), primary_key=True)
 
 
 class OSINTSourceGroup(BaseModel):

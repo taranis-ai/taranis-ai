@@ -94,10 +94,10 @@ class WordList(BaseModel):
         return cls.query.filter_by(entries=None).order_by(db.asc(WordList.name)).all()
 
     @classmethod
-    def get_by_filter(cls, filter_data, user, acl_check):
+    def get_by_filter(cls, filter_data, user=None, acl_check=False):
         query = cls.query.distinct().group_by(WordList.id)
 
-        if acl_check:
+        if acl_check and user:
             query = query.outerjoin(
                 ACLEntry,
                 and_(

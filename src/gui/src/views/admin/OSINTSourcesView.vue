@@ -80,7 +80,7 @@ export default {
     const configStore = useConfigStore()
     const mainStore = useMainStore()
 
-    const { collector_types, osint_sources, word_lists, parameters } =
+    const { collector_types, osint_sources, parameters } =
       storeToRefs(configStore)
 
     const sources = ref([])
@@ -114,17 +114,6 @@ export default {
           name: 'description',
           label: 'Description',
           type: 'textarea'
-        },
-        {
-          name: 'word_lists',
-          label: 'Word Lists',
-          type: 'table',
-          headers: [
-            { title: 'Name', key: 'name' },
-            { title: 'Description', key: 'description' },
-            { title: 'ID', key: 'id' }
-          ],
-          items: word_lists.value.items
         },
         {
           name: 'type',
@@ -161,7 +150,6 @@ export default {
           }
         })
       })
-      configStore.loadWordLists()
       configStore.loadParameters()
     }
 

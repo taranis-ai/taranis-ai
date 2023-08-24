@@ -1,9 +1,5 @@
 import { defineStore } from 'pinia'
-import {
-  notifyFailure,
-  parseWordListEntries,
-  getMessageFromError
-} from '@/utils/helpers'
+import { notifyFailure, getMessageFromError } from '@/utils/helpers'
 import {
   getAllACLEntries,
   getAllAttributes,
@@ -70,6 +66,11 @@ export const useConfigStore = defineStore('config', {
     presenter_types: (state) => {
       return state.worker_types.items.filter((worker_type) =>
         worker_type.type.endsWith('presenter')
+      )
+    },
+    collector_word_lists: (state) => {
+      return state.word_lists.items.filter((word_list) =>
+        word_list.usage.some((usage) => usage.includes('COLLECTOR'))
       )
     }
   },
@@ -177,9 +178,6 @@ export const useConfigStore = defineStore('config', {
       return getAllWordLists(data)
         .then((response) => {
           this.word_lists = response.data
-          this.word_lists.items.forEach((word_list) => {
-            word_list.entries = parseWordListEntries(word_list.entries)
-          })
         })
         .catch((error) => {
           notifyFailure(getMessageFromError(error))

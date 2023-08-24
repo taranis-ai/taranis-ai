@@ -116,7 +116,13 @@ export default {
       {
         name: 'entries',
         label: 'Words',
-        type: 'list'
+        type: 'table',
+        headers: [
+          { title: 'Word', key: 'value' },
+          { title: 'Description', key: 'description' }
+        ],
+        groupBy: [{ key: 'category', order: 'asc' }],
+        disabled: true
       }
     ])
 
@@ -145,21 +151,35 @@ export default {
         : 'Add Wordlist'
     })
 
+    const parse_usage = (usage) => {
+      if (!usage || usage.length === 0) {
+        notifyFailure('Usage must contain at least one value')
+        return false
+      }
+
+      if (
+        usage.includes('COLLECTOR_WHITELIST') &&
+        usage.includes('COLLECTOR_BLACKLIST')
+      ) {
+        notifyFailure('Whitelist and Blacklist are mutually exclusive')
+        return false
+      }
+      if (
+        usage.includes('COLLECTOR_BLACKLIST') &&
+        usage.includes('TAGGING_BOT')
+      ) {
+        notifyFailure('Blacklist and Tagging Bot are mutually exclusive')
+        return false
+      }
+      return true
+    }
+
     const handleSubmit = (submittedData) => {
       delete submittedData.entries
-      if (submittedData.usage) {
-        if (
-          submittedData.usage.includes('COLLECTOR_WHITELIST') &&
-          submittedData.usage.includes('COLLECTOR_BLACKLIST')
-        ) {
-          notifyFailure('Whitelist and Blacklist are mutually exclusive')
-          return
-        }
-        if (submittedData.usage.length === 0) {
-          notifyFailure('Usage must contain at least one value')
-          return
-        }
+      if (!parse_usage(submittedData.usage)) {
+        return
       }
+
       if (edit.value) {
         updateItem(submittedData)
       } else {

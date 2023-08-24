@@ -46,7 +46,7 @@ export default {
   setup() {
     const configStore = useConfigStore()
     const mainStore = useMainStore()
-    const { osint_source_groups, osint_sources, word_lists } =
+    const { osint_source_groups, osint_sources, collector_word_lists } =
       storeToRefs(configStore)
     const selected = ref([])
     const formData = ref({})
@@ -89,9 +89,9 @@ export default {
         headers: [
           { title: 'Name', key: 'name' },
           { title: 'Description', key: 'description' },
-          { title: 'ID', key: 'id' }
+          { title: 'Usage', key: 'usage' }
         ],
-        items: word_lists.value.items
+        items: collector_word_lists.value
       }
     ])
 
@@ -178,7 +178,7 @@ export default {
       selected,
       formData,
       editTitle,
-      word_lists,
+      collector_word_lists,
       formFormat,
       showForm,
       addItem,

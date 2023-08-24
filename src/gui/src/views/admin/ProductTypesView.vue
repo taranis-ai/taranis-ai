@@ -30,7 +30,7 @@ import {
   createProductType,
   updateProductType
 } from '@/api/config'
-import { notifySuccess, notifyFailure, baseFormat } from '@/utils/helpers'
+import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import { useConfigStore } from '@/stores/ConfigStore'
 import { useMainStore } from '@/stores/MainStore'
 import { ref, computed, onMounted } from 'vue'
@@ -55,7 +55,23 @@ export default {
       storeToRefs(configStore)
 
     const formFormat = computed(() => {
-      const additionalFormat = [
+      return [
+        {
+          name: 'id',
+          label: 'ID',
+          type: 'text',
+          disabled: true
+        },
+        {
+          name: 'title',
+          label: 'Title',
+          type: 'text'
+        },
+        {
+          name: 'description',
+          label: 'Description',
+          type: 'textarea'
+        },
         {
           name: 'type',
           label: 'Type',
@@ -63,7 +79,6 @@ export default {
           items: presenterList.value
         }
       ]
-      return [...baseFormat, ...additionalFormat]
     })
 
     const updateData = () => {
