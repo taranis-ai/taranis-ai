@@ -908,24 +908,6 @@ def pre_seed_report_items(db):
 def pre_seed_wordlists():
     from core.model.word_list import WordList
 
-    if not WordList.find_by_name(name="Default EN stop list"):
-        WordList.add(
-            {
-                "name": "Default EN stop list",
-                "description": "English stop-word list packed with the standard Taranis NG installation.",
-                "link": "https://raw.githubusercontent.com/SK-CERT/Taranis-NG/main/resources/wordlists/en_complete.csv",
-            }
-        )
-
-    if not WordList.find_by_name(name="Default SK stop list"):
-        WordList.add(
-            {
-                "name": "Default SK stop list",
-                "description": "Slovak stop-word list packed with the standard Taranis NG installation.",
-                "link": "https://raw.githubusercontent.com/SK-CERT/Taranis-NG/main/resources/wordlists/sk_complete.csv",
-            }
-        )
-
     if not WordList.find_by_name(name="Default highlighting wordlist"):
         WordList.add(
             {

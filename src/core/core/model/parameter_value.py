@@ -36,14 +36,9 @@ class ParameterValue(BaseModel):
     def get_copy(self) -> "ParameterValue":
         return ParameterValue(self.parameter, self.value, self.type)
 
-    def get_value_by_parameter(self, parameter: str) -> str | None:
-        return self.value if self.parameter == parameter else None
-
     @classmethod
-    def find_value_by_parameter(cls, parameters: list["ParameterValue"], parameter: str) -> str | None:
-        for param in parameters:
-            return param.get_value_by_parameter(parameter)
-        return None
+    def find_value_by_parameter(cls, parameters: list["ParameterValue"], parameter_key: str) -> str:
+        return next((parameter.value for parameter in parameters if parameter.parameter == parameter_key), "")
 
     @classmethod
     def get_or_create(cls, data: dict[str, Any]) -> "ParameterValue":
@@ -62,7 +57,7 @@ class ParameterValue(BaseModel):
     @classmethod
     def get_update_values(cls, base_parameters: list["ParameterValue"], update_parameters: list["ParameterValue"]) -> list["ParameterValue"]:
         for parameter in base_parameters:
-            if parameter.parameter in update_parameters:
+            if parameter.parameter in [parameter.parameter for parameter in update_parameters]:
                 parameter.value = cls.find_value_by_parameter(update_parameters, parameter.parameter)
         return base_parameters
 

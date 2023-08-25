@@ -5,9 +5,12 @@ on:
     paths:
     - 'src/gui/**'
     - 'docker/Dockerfile.gui'
-    - 'VERSION.md'
     branches:
-    - main
+    - master
+    - awake
+    tags:
+    - "**"
+
 
 permissions:
   packages: write

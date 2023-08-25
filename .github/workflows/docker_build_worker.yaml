@@ -6,7 +6,10 @@ on:
     - 'src/worker/**'
     - 'docker/Dockerfile.worker'
     branches:
-    - main
+    - master
+    - awake
+    tags:
+    - "**"
 
 permissions:
   packages: write

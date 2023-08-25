@@ -31,19 +31,12 @@ class BaseCollector:
                     black_list.add(entry.value)
         if not white_list and not black_list:
             return news_items
-        filtered_news_items = []
-        for item in news_items:
-            analyzed_content = set((item["title"] + item["review"] + item["content"]).split())
-            for word in black_list:
-                if word in analyzed_content:
-                    break
+        all_content = " ".join([item["title"] + item["review"] + item["content"] for item in news_items])
 
-            for word in white_list:
-                if word in analyzed_content:
-                    filtered_news_items.append(item)
-                    break
+        white_list_first = white_list - black_list
+        # black_list_first = black_list - white_list
 
-        return filtered_news_items
+        return [word for word in white_list_first if re.search(r"\b" + re.escape(word) + r"\b", all_content, re.IGNORECASE)]
 
     def collect(self, source: dict):
         pass

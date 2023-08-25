@@ -41,7 +41,8 @@ class Bot(BaseModel):
                 update_parameter = ParameterValue.get_or_create_from_list(parameters)
                 bot.parameters = ParameterValue.get_update_values(bot.parameters, update_parameter)
             if index := data.get("index"):
-                bot.index = bot.index if Bot.index_exists(index) else index
+                if Bot.index_exists(index):
+                    bot.index = index
             db.session.commit()
             return bot
         except Exception:

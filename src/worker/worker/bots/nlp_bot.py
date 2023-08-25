@@ -132,7 +132,7 @@ class NLPBot(BaseBot):
         if len(from_list) < 2 or len(to_list) < 2:
             logger.debug("Not enough keywords to run polyfuzz")
             return [], []
-        self.polyfuzz_model.match(from_list, to_list)
+        self.polyfuzz_model.match(from_list, to_list).group(link_min_similarity=0.75)
         df: DataFrame = DataFrame(self.polyfuzz_model.get_matches())
         values = df[df["Similarity"] >= 0.65]
         values = values.replace(numpy.nan, None)

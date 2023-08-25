@@ -1,4 +1,5 @@
 import datetime
+import re
 
 from .base_bot import BaseBot
 from worker.log import logger
@@ -23,6 +24,8 @@ class WordlistBot(BaseBot):
             if source := parameters.get("SOURCE"):
                 filter_dict["source"] = source
 
+            override_existing_tags = parameters.get("OVERRIDE_EXISTING_TAGS", True)
+
             word_lists = self.core_api.get_words_for_tagging_bot()
             if not word_lists:
                 return "No word lists found"
@@ -35,7 +38,7 @@ class WordlistBot(BaseBot):
                 return "No data or word list entries found"
 
             for aggregate in data:
-                if findings := self.find_tags(aggregate, word_list_entries):
+                if findings := self.find_tags(aggregate, word_list_entries, override_existing_tags):
                     logger.debug(f"Found tags: {findings}")
                     self.core_api.update_news_item_tags(aggregate["id"], findings)
 
@@ -43,16 +46,21 @@ class WordlistBot(BaseBot):
             logger.log_debug_trace(f"Error running Bot: {self.type}")
             return str(error)
 
-    def find_tags(self, aggregate: dict, word_list_entries: list) -> list:
-        findings = set()
-        entry_set = set([item["value"] for item in word_list_entries])
-        existing_tags = aggregate["tags"] or []
-        for news_item in aggregate["news_items"]:
-            content = news_item["news_item_data"]["content"]
-            title = news_item["news_item_data"]["title"]
-            review = news_item["news_item_data"]["review"]
+    def find_tags(self, aggregate: dict, word_list_entries: list, override_existing_tags: bool) -> dict:
+        findings = {}
+        entry_set = {item["value"]: item["category"] for item in word_list_entries}
+        existing_tags = aggregate["tags"] or {}
 
-            analyzed_content = set((title + review + content).split())
-            analyzed_content = analyzed_content.difference(existing_tags)
-            findings.update(analyzed_content.intersection(entry_set))
-        return list(findings)
+        all_content = " ".join(
+            [
+                news_item["news_item_data"]["title"] + news_item["news_item_data"]["review"] + news_item["news_item_data"]["content"]
+                for news_item in aggregate["news_items"]
+            ]
+        )
+
+        for entry, category in entry_set.items():
+            if re.search(r"\b" + re.escape(entry) + r"\b", all_content, re.IGNORECASE):
+                if entry in existing_tags and not override_existing_tags:
+                    continue
+                findings[entry] = {"tag_type": category}
+        return findings

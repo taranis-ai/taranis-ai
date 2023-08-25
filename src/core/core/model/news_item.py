@@ -697,6 +697,20 @@ class NewsItemAggregate(BaseModel):
         return any(ReportItemNewsItemAggregate.assigned(aggregate_id) for aggregate_id in aggregate_ids)
 
     @classmethod
+    def parse_tags(cls, tags: list | dict) -> dict:
+        new_tags = {}
+        if type(tags) is dict:
+            for name, tag in tags.items():
+                tag_name = name
+                tag_type = tag.get("tag_type", "misc")
+                sub_forms = tag.get("sub_forms", None)
+                new_tags[tag_name] = NewsItemTag(name=tag_name, tag_type=tag_type, sub_forms=sub_forms)
+        else:
+            for tag_name in tags:
+                new_tags[tag_name] = NewsItemTag(name=tag_name, tag_type="misc", sub_forms=None)
+        return new_tags
+
+    @classmethod
     def update_tags(cls, news_item_aggregate_id: int, tags: list | dict) -> tuple[dict, int]:
         try:
             n_i_a = cls.get(news_item_aggregate_id)
@@ -704,19 +718,11 @@ class NewsItemAggregate(BaseModel):
                 logger.error(f"News Item Aggregate {news_item_aggregate_id} not found")
                 return {"error": "not_found"}, 404
 
-            new_tags = {}
-            if type(tags) is dict:
-                for name, tag in tags.items():
-                    tag_name = name
-                    tag_type = tag.get("tag_type", "misc")
-                    sub_forms = tag.get("sub_forms", None)
-                    new_tags[tag_name] = NewsItemTag(name=tag_name, tag_type=tag_type, sub_forms=sub_forms)
-            else:
-                for tag_name in tags:
-                    new_tags[tag_name] = NewsItemTag(name=tag_name, tag_type="misc", sub_forms=None)
+            new_tags = cls.parse_tags(tags)
             for tag_name, new_tag in new_tags.items():
-                if tag_name.lower() in [tag.name.lower() for tag in n_i_a.tags]:
-                    continue
+                if existing_tag := NewsItemTag.find_by_name_or_subform(tag_name):
+                    new_tag.name = existing_tag.name
+                    new_tag.tag_type = existing_tag.tag_type
                 n_i_a.tags.append(new_tag)
             db.session.commit()
             return {"message": "success"}, 200
@@ -929,9 +935,9 @@ class ReportItemNewsItemAggregate(BaseModel):
 
 class NewsItemTag(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(255))
-    tag_type = db.Column(db.String(255))
-    sub_forms = db.Column(db.Text)
+    name: Any = db.Column(db.String(255))
+    tag_type: Any = db.Column(db.String(255))
+    sub_forms: Any = db.Column(db.Text)
     n_i_a_id = db.Column(db.ForeignKey(NewsItemAggregate.id))
     n_i_a = db.relationship(NewsItemAggregate, backref=orm.backref("tags", cascade="all, delete-orphan"))
 
@@ -947,49 +953,6 @@ class NewsItemTag(BaseModel):
             else:
                 self.sub_forms = ""
                 logger.debug(f"wrong type for sub_forms {type(sub_forms)}")
-
-    @classmethod
-    def find_largest_tag_clusters(cls, days: int = 7, limit: int = 12, min_count: int = 2):
-        start_date = datetime.now() - timedelta(days=days)
-        subquery = (
-            db.session.query(cls.name, cls.tag_type, NewsItemAggregate.id, NewsItemAggregate.created)
-            .join(cls.n_i_a)
-            .filter(NewsItemAggregate.created >= start_date)
-            .subquery()
-        )
-
-        if db.session.get_bind().dialect.name == "sqlite":
-            group_concat_fn = func.group_concat(subquery.c.created)
-        else:
-            group_concat_fn = func.array_agg(subquery.c.created)
-
-        clusters = (
-            db.session.query(subquery.c.name, subquery.c.tag_type, group_concat_fn, func.count(subquery.c.name).label("count"))
-            .select_from(subquery.join(NewsItemAggregate, subquery.c.id == NewsItemAggregate.id))
-            .group_by(subquery.c.name, subquery.c.tag_type)
-            .having(func.count(subquery.c.name) >= min_count)
-            .order_by(func.count(subquery.c.name).desc())
-            .limit(limit)
-            .all()
-        )
-        if not clusters:
-            return []
-        results = []
-        for cluster in clusters:
-            if db.session.get_bind().dialect.name == "sqlite":
-                published = list(cluster[2].split(","))
-            else:
-                published = [dt.isoformat() for dt in cluster[2]]
-
-            results.append(
-                {
-                    "name": cluster[0],
-                    "tag_type": cluster[1],
-                    "published": published,
-                    "size": cluster[3],
-                }
-            )
-        return results
 
     @classmethod
     def get_filtered_tags(cls, filter_args: dict) -> list["NewsItemTag"]:
@@ -1052,3 +1015,50 @@ class NewsItemTag(BaseModel):
             "name": self.name,
             "tag_type": self.tag_type,
         }
+
+    @classmethod
+    def find_by_name_or_subform(cls, tag_name: str) -> "NewsItemTag | None":
+        return cls.query.filter(or_(cls.name.ilike(tag_name), cls.sub_forms.ilike(f"%{tag_name}%"))).first()
+
+    @classmethod
+    def find_largest_tag_clusters(cls, days: int = 7, limit: int = 12, min_count: int = 2):
+        start_date = datetime.now() - timedelta(days=days)
+        subquery = (
+            db.session.query(cls.name, cls.tag_type, NewsItemAggregate.id, NewsItemAggregate.created)
+            .join(cls.n_i_a)
+            .filter(NewsItemAggregate.created >= start_date)
+            .subquery()
+        )
+
+        if db.session.get_bind().dialect.name == "sqlite":
+            group_concat_fn = func.group_concat(subquery.c.created)
+        else:
+            group_concat_fn = func.array_agg(subquery.c.created)
+
+        clusters = (
+            db.session.query(subquery.c.name, subquery.c.tag_type, group_concat_fn, func.count(subquery.c.name).label("count"))
+            .select_from(subquery.join(NewsItemAggregate, subquery.c.id == NewsItemAggregate.id))
+            .group_by(subquery.c.name, subquery.c.tag_type)
+            .having(func.count(subquery.c.name) >= min_count)
+            .order_by(func.count(subquery.c.name).desc())
+            .limit(limit)
+            .all()
+        )
+        if not clusters:
+            return []
+        results = []
+        for cluster in clusters:
+            if db.session.get_bind().dialect.name == "sqlite":
+                published = list(cluster[2].split(","))
+            else:
+                published = [dt.isoformat() for dt in cluster[2]]
+
+            results.append(
+                {
+                    "name": cluster[0],
+                    "tag_type": cluster[1],
+                    "published": published,
+                    "size": cluster[3],
+                }
+            )
+        return results
