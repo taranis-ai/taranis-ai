@@ -243,7 +243,9 @@ export const useConfigStore = defineStore('config', {
           this.queue_status = response.data
         })
         .catch((error) => {
-          notifyFailure(getMessageFromError(error))
+          const error_message = getMessageFromError(error)
+          this.queue_status = error_message
+          notifyFailure(error_message)
         })
     },
     async loadWorkers(data) {

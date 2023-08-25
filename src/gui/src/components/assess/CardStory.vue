@@ -200,18 +200,17 @@ import StoryMetaInfo from '@/components/assess/card/StoryMetaInfo.vue'
 import votes from '@/components/assess/card/votes.vue'
 import SummarizedContent from '@/components/assess/card/SummarizedContent.vue'
 import CardNewsItem from '@/components/assess/CardNewsItem.vue'
-import { deleteNewsItemAggregate } from '@/api/assess'
 import { ref, computed } from 'vue'
 import { useAssessStore } from '@/stores/AssessStore'
 
 export default {
   name: 'CardStory',
   components: {
+    votes,
     CardNewsItem,
     PopupDeleteItem,
     PopupShareItems,
     StoryMetaInfo,
-    votes,
     SummarizedContent
   },
   props: {
@@ -236,7 +235,9 @@ export default {
     )
 
     const story_in_report = computed(() => props.story.in_reports_count > 0)
-    const news_item_length = computed(() => props.story.news_items.length)
+    const news_item_length = computed(() =>
+      props.story.news_items ? props.story.news_items.length : 0
+    )
     const news_item_title_class = computed(() => {
       return openSummary.value || props.detailView
         ? 'news-item-title-no-clip'
@@ -277,8 +278,7 @@ export default {
     }
 
     const deleteNewsItem = () => {
-      deleteNewsItemAggregate(props.story.id)
-      emit('deleteItem', props.story.id)
+      emit('deleteItem')
     }
 
     const emitRefresh = () => {

@@ -363,6 +363,13 @@ class NewsItemVote(BaseModel):
         cls.query.filter_by(item_id=item_id, item_type=item_type).delete()
         db.session.commit()
 
+    @classmethod
+    def get_user_vote(cls, item_id, user_id, item_type):
+        vote = cls.get_by_filter(item_id, user_id, item_type)
+        if vote:
+            return {"like": vote.like, "dislike": vote.dislike}
+        return {"like": False, "dislike": False}
+
 
 class NewsItemAggregate(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
@@ -391,7 +398,7 @@ class NewsItemAggregate(BaseModel):
 
         data = item.to_dict()
         data["in_reports_count"] = ReportItemNewsItemAggregate.count(item.id)
-        data["user_has_voted"] = NewsItemVote.get_by_filter(item.id, user.id, "AGGREGATE") is not None
+        data["user_vote"] = NewsItemVote.get_user_vote(item.id, user.id, "AGGREGATE")
 
         return data
 
@@ -556,7 +563,7 @@ class NewsItemAggregate(BaseModel):
         for news_item_aggregate in news_item_aggregates:
             item = news_item_aggregate.to_dict()
             item["in_reports_count"] = ReportItemNewsItemAggregate.count(news_item_aggregate.id)
-            item["user_has_voted"] = NewsItemVote.get_by_filter(news_item_aggregate.id, user.id, "AGGREGATE") is not None
+            item["user_vote"] = NewsItemVote.get_user_vote(news_item_aggregate.id, user.id, "AGGREGATE")
             items.append(item)
 
         return {"total_count": count, "items": items}
@@ -644,31 +651,60 @@ class NewsItemAggregate(BaseModel):
 
     def vote(self, vote_data, user_id):
         if not (vote := NewsItemVote.get_by_filter(item_id=self.id, user_id=user_id, item_type="AGGREGATE")):
-            vote = self.create_new_vote(vote, user_id)
+            vote = self.create_new_vote(vote, user_id, vote_data)
 
-        if vote_data == "like":
-            self.update_like_vote(vote)
-        else:
-            self.update_dislike_vote(vote)
+        if vote.like and vote_data == "like":
+            vote = self.remove_like_vote(vote)
+        elif vote.dislike and vote_data == "dislike":
+            vote = self.remove_dislike_vote(vote)
+        elif vote.like and vote_data == "dislike":
+            vote = self.change_like_to_dislike(vote)
+        elif vote.dislike and vote_data == "like":
+            vote = self.change_dislike_to_like(vote)
+        elif vote_data == "like":
+            self.likes = self.likes + 1
+            self.relevance = self.relevance + 1
+            vote.like = True
+        elif vote_data == "dislike":
+            self.dislikes = self.dislikes + 1
+            self.relevance = self.relevance - 1
+            vote.dislike = True
 
         db.session.commit()
+        return vote
 
-    def create_new_vote(self, vote, user_id):
+    def remove_like_vote(self, vote):
+        self.likes = self.likes - 1
+        self.relevance = self.relevance - 1
+        vote.like = False
+        return vote
+
+    def remove_dislike_vote(self, vote):
+        self.dislikes = self.dislikes - 1
+        self.relevance = self.relevance + 1
+        vote.dislike = False
+        return vote
+
+    def change_like_to_dislike(self, vote):
+        self.likes = self.likes - 1
+        self.dislikes = self.dislikes + 1
+        self.relevance = self.relevance - 2
+        vote.like = False
+        vote.dislike = True
+        return vote
+
+    def change_dislike_to_like(self, vote):
+        self.likes = self.likes + 1
+        self.dislikes = self.dislikes - 1
+        self.relevance = self.relevance + 2
+        vote.like = True
+        vote.dislike = False
+        return vote
+
+    def create_new_vote(self, vote, user_id, vote_data):
         vote = NewsItemVote(item_id=self.id, user_id=user_id, item_type="AGGREGATE")
         db.session.add(vote)
         return vote
-
-    def update_like_vote(self, vote):
-        self.likes = self.likes + 1
-        self.relevance = self.relevance + 1
-        vote.like = True
-        vote.dislike = False
-
-    def update_dislike_vote(self, vote):
-        self.dislikes = self.dislikes + 1
-        self.relevance = self.relevance - 1
-        vote.dislike = True
-        vote.like = False
 
     @classmethod
     def delete_by_id(cls, aggregate_id, user):

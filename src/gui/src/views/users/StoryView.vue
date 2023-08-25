@@ -1,33 +1,52 @@
 <template>
   <v-container v-if="story" fluid style="min-height: 100vh">
-    <card-story :story="story" :detail-view="true" />
+    <card-story
+      :story="story"
+      :detail-view="true"
+      @delete-item="deleteNewsItem(story.id)"
+    />
   </v-container>
 </template>
 
 <script>
-import { getNewsItemAggregate } from '@/api/assess'
+import { computed, onMounted } from 'vue'
 import CardStory from '@/components/assess/CardStory.vue'
+import { useRoute } from 'vue-router'
+import { useAssessStore } from '@/stores/AssessStore'
 
 export default {
   name: 'StoryView',
   components: {
     CardStory
   },
-  data: () => ({
-    story: null
-  }),
-  async created() {
-    this.story = await this.loadStories()
-  },
-  methods: {
-    async loadStories() {
-      if (this.$route.params.id) {
-        return await getNewsItemAggregate(this.$route.params.id).then(
-          (response) => {
-            return response.data
-          }
-        )
+  setup() {
+    const assessStore = useAssessStore()
+    const route = useRoute()
+
+    console.debug(assessStore.newsItems.items)
+    const story = computed(() => {
+      return assessStore.newsItems.items.find(
+        (item) => item.id == route.params.id
+      )
+    })
+
+    const loadStories = async () => {
+      if (route.params.id) {
+        assessStore.updateNewsItemByID(route.params.id)
       }
+    }
+
+    const deleteNewsItem = (id) => {
+      assessStore.removeNewsItemByID(id)
+    }
+
+    onMounted(() => {
+      loadStories()
+    })
+
+    return {
+      story,
+      deleteNewsItem
     }
   }
 }

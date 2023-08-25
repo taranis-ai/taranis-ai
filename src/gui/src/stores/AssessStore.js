@@ -1,31 +1,28 @@
 import {
   getNewsItemsAggregates,
+  getNewsItemAggregate,
   getOSINTSourceGroupsList,
   getOSINTSourcesList,
   readNewsItemAggregate,
-  importantNewsItemAggregate
+  importantNewsItemAggregate,
+  voteNewsItemAggregate,
+  deleteNewsItemAggregate
 } from '@/api/assess'
 import { defineStore } from 'pinia'
-import { xorConcat, notifyFailure } from '@/utils/helpers'
+import { xorConcat, notifyFailure, getMessageFromError } from '@/utils/helpers'
 
 import { useFilterStore } from './FilterStore'
 
 export const useAssessStore = defineStore('assess', {
   state: () => ({
-    multi_select: false,
     selection: [],
     osint_sources: [],
     osint_source_groups: [],
-    default_source_group_id: '',
     newsItems: { total_count: 0, items: [] },
     newsItemsSelection: [],
-    top_stories: [],
     max_item: null
   }),
   getters: {
-    getMultiSelect() {
-      return this.multi_select
-    },
     getSelection() {
       return this.selection
     },
@@ -57,6 +54,88 @@ export const useAssessStore = defineStore('assess', {
         notifyFailure(error.message)
       }
     },
+    removeNewsItemByID(id) {
+      deleteNewsItemAggregate(id)
+      this.newsItems.items = this.newsItems.items.filter(
+        (item) => item.id !== id
+      )
+    },
+    async updateNewsItemByID(id) {
+      const response = await getNewsItemAggregate(id)
+      const updated_item = response.data
+      let found = false
+
+      this.newsItems.items = this.newsItems.items.map((item) => {
+        if (item.id === id) {
+          found = true
+          return { ...item, ...updated_item }
+        }
+        return item
+      })
+
+      if (!found) {
+        console.debug('append updateNewsItemByID')
+        this.newsItems.items.push(updated_item)
+      }
+      console.debug('updateNewsItemByID', updated_item)
+    },
+    async voteOnNewsItemAggregate(id, vote) {
+      try {
+        this.newsItems.items = this.newsItems.items.map((item) => {
+          if (item.id === id) {
+            let { likes, dislikes, relevance } = item
+            let voted = { ...item.user_vote }
+
+            if (vote === 'like') {
+              if (voted.like) {
+                likes -= 1
+                relevance -= 1
+                voted.like = false
+              } else if (voted.dislike) {
+                dislikes -= 1
+                likes += 1
+                relevance += 2
+                voted = { like: true, dislike: false }
+              } else {
+                likes += 1
+                relevance += 1
+                voted.like = true
+              }
+            }
+            if (vote === 'dislike') {
+              if (voted.dislike) {
+                dislikes -= 1
+                relevance += 1
+                voted.dislike = false
+              } else if (voted.like) {
+                likes -= 1
+                dislikes += 1
+                relevance -= 2
+                voted = { like: false, dislike: true }
+              } else {
+                dislikes += 1
+                relevance -= 1
+                voted.dislike = true
+              }
+            }
+
+            return {
+              ...item,
+              user_vote: voted,
+              relevance: relevance,
+              likes: likes,
+              dislikes: dislikes
+            }
+          }
+          return item
+        })
+
+        await voteNewsItemAggregate(id, vote)
+        this.updateNewsItemByID(id)
+      } catch (error) {
+        notifyFailure(getMessageFromError(error))
+      }
+    },
     async updateOSINTSources() {
       const response = await getOSINTSourcesList()
       this.osint_sources = response.data
@@ -64,9 +143,6 @@ export const useAssessStore = defineStore('assess', {
     async updateOSINTSourceGroupsList() {
       const response = await getOSINTSourceGroupsList()
       this.osint_source_groups = response.data
-      this.default_source_group_id = response.data.items.filter(
-        (value) => value.default
-      )[0].id
     },
     updateMaxItem() {
       const countsArray = this.newsItems.items.map((item) =>
@@ -93,12 +169,6 @@ export const useAssessStore = defineStore('assess', {
     clearNewsItemSelection() {
       this.newsItemsSelection = []
     },
-
-    multiSelect(data) {
-      this.multi_select = data
-      this.selection = []
-    },
-
     readNewsItemAggregate(id) {
       const item = this.newsItems.items.find((item) => item.id === id)
       item.read = !item.read

@@ -17,10 +17,7 @@ const keyboardMixin = (targetId) => ({
   }),
 
   computed: {
-    ...mapState(useAssessStore, ['getMultiSelect', 'getSelection']),
-    multiSelectActive() {
-      return this.getMultiSelect
-    },
+    ...mapState(useAssessStore, ['getSelection']),
     state() {
       return this.keyboard_state
     }
@@ -65,22 +62,9 @@ const keyboardMixin = (targetId) => ({
 
       this.reindexCardItems()
 
-      if (this.multiSelectActive) {
-        which = '.multiselect button'
-        temp = document.querySelector('.multiselect')
-      } else {
-        which = '.v-card button'
-        temp = this.card_items[this.pos]
-      }
-
       const dialog = this.card_items[this.pos].dataset
         ? this.card_items[this.pos].dataset.type
         : null
-
-      // Multi Select Button
-      card.multi_select = document.querySelector(
-        ".multiselect button[data-btn='multi_select']"
-      )
 
       // - - -
       card.aggregate = this.card_items[this.pos].querySelector(
@@ -255,32 +239,14 @@ const keyboardMixin = (targetId) => ({
             }
 
             case 'selection':
-              if (!this.multiSelectActive) {
-                this.card.multi_select.click()
-                setTimeout(() => {
-                  this.keyRemaper()
-                }, 1)
-
-                setTimeout(() => {
-                  this.card.select.click()
-                }, 155)
-              } else {
+              setTimeout(() => {
                 this.card.select.click()
-                setTimeout(() => {
-                  if (
-                    !document.querySelectorAll(
-                      "#selector_assess input[type='checkbox'][aria-checked='true']"
-                    ).length
-                  ) {
-                    this.card.multi_select.click()
-                  }
-                }, 155)
-              }
+              }, 155)
               break
 
             case 'read_item':
               this.card.read.click()
-              if (this.multiSelectActive && this.getFilter.read) {
+              if (this.getFilter.read) {
                 const selection = this.getSelection
                 // set focus to the next item to read instead of keeping the current position
                 this.setNewsItem(this.pos - selection.length + 1)
@@ -289,7 +255,7 @@ const keyboardMixin = (targetId) => ({
 
             case 'important_item':
               this.card.important.click()
-              if (this.multiSelectActive && this.getFilter.important) {
+              if (this.getFilter.important) {
                 const selection = this.getSelection
                 // set focus to the next item to read instead of keeping the current position
                 this.setNewsItem(this.pos - selection.length + 1)
@@ -302,7 +268,7 @@ const keyboardMixin = (targetId) => ({
 
             case 'dislike_item':
               this.card.unlike.click()
-              if (this.multiSelectActive && this.getFilter.relevant) {
+              if (this.getFilter.relevant) {
                 const selection = this.getSelection
                 // set focus to the next item to read instead of keeping the current position
                 this.setNewsItem(this.pos - selection.length + 1)
@@ -311,11 +277,6 @@ const keyboardMixin = (targetId) => ({
 
             case 'delete_item':
               this.card.delete.click()
-              if (this.multiSelectActive) {
-                const selection = this.getSelection
-                // set focus to the next item to read instead of keeping the current position
-                this.setNewsItem(this.pos - selection.length + 1)
-              }
               break
 
             case 'group':
@@ -335,9 +296,6 @@ const keyboardMixin = (targetId) => ({
             case 'open_item_source':
               console.log('this.card.link:', this.card.link) //eslint-disable-line
               // opening all selected news items' sources is not yet supprted
-              if (!this.multiSelectActive) {
-                this.card.link.click()
-              }
               break
 
             case 'open_search':

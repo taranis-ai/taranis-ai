@@ -88,8 +88,10 @@ export default {
 
     const published_dates = computed(() => {
       const pub_dates = props.story.news_items
-        .map((item) => item.news_item_data.published)
-        .sort()
+        ? props.story.news_items
+            .map((item) => item.news_item_data.published)
+            .sort()
+        : []
 
       if (pub_dates.length === 0) {
         console.warn('No published dates found for story', props.story.title)

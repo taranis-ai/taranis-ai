@@ -8,7 +8,12 @@
         :subtitle="queue_status.url"
       >
         <v-card-text>
-          {{ queue_status.status }}
+          <span v-if="queue_status.status" class="font-weight-bold">
+            Status: {{ queue_status.status }}
+          </span>
+          <span v-else class="text-red-lighten-1">
+            Error: {{ queue_status }}
+          </span>
         </v-card-text>
       </v-card>
     </v-row>
@@ -73,9 +78,9 @@ export default {
 
     const updateData = () => {
       Promise.all([
+        configStore.loadQueueStatus(),
         configStore.loadSchedule(),
-        configStore.loadWorkers(),
-        configStore.loadQueueStatus()
+        configStore.loadWorkers()
       ])
     }
 
