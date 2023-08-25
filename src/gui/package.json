@@ -24,6 +24,7 @@
     "vue": "^3.3.4",
     "vue-chartjs": "5.2.0",
     "vue-datepicker-next": "^1.0.3",
+    "vue-dompurify-html": "^4.1.4",
     "vue-i18n": "^9.2.2",
     "vue-keypress": "^1.4.0",
     "vue-router": "^4.2.4",

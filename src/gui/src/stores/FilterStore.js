@@ -42,7 +42,8 @@ export const useFilterStore = defineStore('filter', {
     chartFilter: {
       threshold: 20,
       y2max: undefined
-    }
+    },
+    highlight: true
   }),
   getters: {
     getFilterTags() {

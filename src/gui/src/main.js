@@ -9,6 +9,7 @@ import { vuetify } from '@/plugins/vuetify'
 import { createPinia } from 'pinia'
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 import 'vue-datepicker-next/index.css'
+import VueDOMPurifyHTML from 'vue-dompurify-html'
 import * as Sentry from '@sentry/vue'
 
 export const app = createApp(App)
@@ -21,6 +22,7 @@ pinia.use(piniaPluginPersistedstate)
 app.use(router)
 app.use(pinia)
 app.use(vuetify)
+app.use(VueDOMPurifyHTML)
 
 import { useMainStore } from './stores/MainStore'
 const mainStore = useMainStore()

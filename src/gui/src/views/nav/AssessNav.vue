@@ -81,6 +81,26 @@
         </v-col>
       </v-row>
 
+      <v-divider class="mt-0 mb-0"></v-divider>
+
+      <v-row no-gutters class="my-2 mr-0 px-2">
+        <v-col cols="12" class="py-0">
+          <h4>
+            Highlight:
+            <v-btn
+              class="ml-4"
+              :prepend-icon="
+                highlight
+                  ? 'mdi-alphabetical-variant'
+                  : 'mdi-alphabetical-variant-off'
+              "
+              variant="text"
+              @click="highlight = !highlight"
+            />
+          </h4>
+        </v-col>
+      </v-row>
+
       <v-divider class="mt-1 mb-0"></v-divider>
       <v-row no-gutters class="my-2 mr-0 px-2">
         <v-col cols="12" class="py-0">
@@ -138,7 +158,7 @@ export default {
     const { getOSINTSourceGroupsList, getOSINTSourcesList } =
       storeToRefs(assessStore)
     const { updateNewsItems } = assessStore
-    const { newsItemsFilter, chartFilter } = storeToRefs(filterStore)
+    const { newsItemsFilter, chartFilter, highlight } = storeToRefs(filterStore)
 
     const { setFilter, updateFilter } = useFilterStore()
 
@@ -220,6 +240,7 @@ export default {
     return {
       search,
       chartFilter,
+      highlight,
       getOSINTSourceGroupsList,
       getOSINTSourcesList,
       newsItemsFilter,

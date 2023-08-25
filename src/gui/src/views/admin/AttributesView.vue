@@ -135,7 +135,7 @@ export default {
 
     const handleSubmit = (submittedData) => {
       const nonemptyEntries = Object.entries(submittedData).filter(
-        ([_, value]) => value !== ''
+        ([, value]) => value !== ''
       )
       const nonemptyValues = Object.fromEntries(nonemptyEntries)
       if (edit.value) {

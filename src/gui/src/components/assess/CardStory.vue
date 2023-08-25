@@ -20,9 +20,10 @@
         align-self="center"
       >
         <v-icon v-if="story_in_report" class="mr-2 my-auto"> mdi-share </v-icon>
-        <h2 :class="news_item_title_class">
-          {{ story.title }}
-        </h2>
+        <h2
+          v-dompurify-html="highlighted_title"
+          :class="news_item_title_class"
+        ></h2>
       </v-col>
 
       <v-col
@@ -202,6 +203,7 @@ import SummarizedContent from '@/components/assess/card/SummarizedContent.vue'
 import CardNewsItem from '@/components/assess/CardNewsItem.vue'
 import { ref, computed } from 'vue'
 import { useAssessStore } from '@/stores/AssessStore'
+import { highlight_text } from '@/utils/helpers'
 
 export default {
   name: 'CardStory',
@@ -261,6 +263,10 @@ export default {
       return props.story.summary !== undefined && props.story.summary !== ''
     })
 
+    const highlighted_title = computed(() => {
+      return highlight_text(props.story.title)
+    })
+
     const openCard = () => {
       openSummary.value = !openSummary.value
     }
@@ -303,6 +309,7 @@ export default {
       news_item_length,
       news_item_title_class,
       news_item_summary_text,
+      highlighted_title,
       minButtonWidth,
       story_in_reports,
       is_summarized,

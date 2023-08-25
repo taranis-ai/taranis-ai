@@ -1,4 +1,5 @@
 import { useMainStore } from '@/stores/MainStore'
+import { useFilterStore } from '@/stores/FilterStore'
 
 export function xorConcat(array, element) {
   const i = array.indexOf(element)
@@ -189,3 +190,27 @@ export const baseFormat = [
     type: 'textarea'
   }
 ]
+
+export function removeRegexSpecialChars(string) {
+  return string.replace(/[.*+?^${}()<>|[\]\\]/g, '')
+}
+export function highlight_text(content) {
+  const filterStore = useFilterStore()
+  if (!content) {
+    return ''
+  }
+  let input = filterStore.newsItemsFilter.search
+  if (filterStore.newsItemsFilter.tags?.length === 1) {
+    input = input || filterStore.newsItemsFilter.tags[0]
+  }
+  if (!filterStore.highlight || !input) {
+    return content
+  }
+  const term = removeRegexSpecialChars(input)
+  let results = content
+  results = results.replace(
+    new RegExp(term, 'gi'),
+    (match) => `<mark>${match}</mark>`
+  )
+  return results
+}

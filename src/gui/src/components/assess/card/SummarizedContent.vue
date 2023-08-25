@@ -1,16 +1,19 @@
 <template>
-  <p :class="news_item_summary_class">
+  <span :class="news_item_summary_class">
     <v-tooltip v-if="isSummarized" top>
       <template #activator="{ props }">
         <v-icon v-bind="props">mdi-text-short</v-icon>
       </template>
       <span>This text is Summarized</span>
     </v-tooltip>
-    {{ content }}
-  </p>
+    <span v-dompurify-html="highlighted"></span>
+  </span>
 </template>
 
 <script>
+import { ref, computed } from 'vue'
+import { highlight_text } from '@/utils/helpers'
+
 export default {
   name: 'SummarizedContent',
   props: {
@@ -27,15 +30,23 @@ export default {
       default: false
     }
   },
-  data: () => ({
-    colorStart: Math.floor(Math.random() * 9)
-  }),
-  computed: {
-    news_item_summary_class() {
-      return this.open ? 'news-item-summary-no-clip' : 'news-item-summary'
+  setup(props) {
+    const colorStart = ref(Math.floor(Math.random() * 9))
+
+    const news_item_summary_class = computed(() => {
+      return props.open ? 'news-item-summary-no-clip' : 'news-item-summary'
+    })
+
+    const highlighted = computed(() => {
+      return highlight_text(props.content)
+    })
+
+    return {
+      colorStart,
+      news_item_summary_class,
+      highlighted
     }
-  },
-  methods: {}
+  }
 }
 </script>
 
