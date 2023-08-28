@@ -1,0 +1,17 @@
+.cache/
+.devcontainer/
+.gitconfig
+.gnupg/
+.local/
+.ssh/
+.vscode-server-insiders/
+.bash_history
+.psql_history
+.python_history
+.env.sentry-build-plugin
+.npm
+venv/
+worker_init.flag
+.envrc
+__pycache__/
+*.pyc

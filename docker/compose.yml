@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   database:
-    image: "postgres:${POSTGRES_TAG:-14-alpine}"
+    image: "docker.io/library/postgres:${POSTGRES_TAG:-14-alpine}"
     # ports:
     # - 6543:5432
     deploy:
@@ -133,7 +133,7 @@ services:
         max-file: "10"
 
   rabbitmq:
-    image: "rabbitmq:${RABBITMQ_TAG:-3-management-alpine}"
+    image: "docker.io/library/rabbitmq:${RABBITMQ_TAG:-3-management-alpine}"
     ports:
       - "${TARANIS_RABBITMQ_PORT:-5672}:5672"
       - "${TARANIS_RABBITMQ_MGMT_PORT:-15672}:15672"

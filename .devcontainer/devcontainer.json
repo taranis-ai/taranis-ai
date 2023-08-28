@@ -1,0 +1,30 @@
+{
+  "name": "Taranis Dev Container",
+  "build": { "dockerfile": "Containerfile" },
+  "workspaceMount": "source=${localWorkspaceFolder}/src,target=/app,type=bind,consistency=cached",
+  "workspaceFolder": "/app",
+  "runArgs": [
+    "--userns=keep-id:uid=1000,gid=1000"
+  ],
+  "overrideCommand": true,
+  "init": true,
+  "customizations": {
+      "vscode": {
+          "extensions": [
+              "ms-python.python",
+              "ms-python.black-formatter",
+              "eamodio.gitlens",
+              "ms-python.vscode-pylance",
+              "sourcery.sourcery",
+              "rangav.vscode-thunder-client",
+              "vue.volar",
+              "esbenp.prettier-vscode"
+          ],
+          "settings": {
+              "terminal.integrated.shell.linux": "/bin/bash"
+          }
+      }
+  },
+  "forwardPorts": [5000, 5432, 5672, 15672, 8081, 9000],
+  "postCreateCommand": "/usr/local/bin/entrypoint.sh && pip install -e core[dev] && /usr/local/bin/start-dev.sh"
+}

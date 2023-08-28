@@ -1,0 +1,52 @@
+FROM debian
+
+WORKDIR /app/
+
+RUN apt-get update && apt-get upgrade -y && apt-get install --no-install-recommends -y \
+    git \
+    curl \
+    sudo \
+    tmux \
+    vim \
+    openssl \
+    python3 \
+    libpq-dev \
+    python3-dev \
+    python3-pip \
+    python3-venv \
+    postgresql-all \
+    build-essential \
+    rabbitmq-server \
+    python-is-python3 \
+    nginx \
+    nodejs \
+    npm
+
+RUN groupadd user && useradd --shell /bin/bash --home-dir /app -g user user && chown -R user:user /app && \
+    /usr/sbin/service postgresql start && \
+    echo "user ALL=NOPASSWD: ALL" > /etc/sudoers.d/user && \
+    chmod 0440 /etc/sudoers.d/user && \
+    su postgres -c "psql -c \"CREATE USER taranis WITH PASSWORD 'supersecret';\"" && \
+    su postgres -c "psql -c 'CREATE DATABASE taranis OWNER taranis;'" && \
+    su postgres -c "psql -c 'GRANT ALL PRIVILEGES ON DATABASE taranis TO taranis;'" && \
+    install -d -o user -g user /venv && \
+    su user -c 'python3 -m venv /venv && /venv/bin/pip install --upgrade pip wheel setuptools Flask celery gunicorn'
+
+
+EXPOSE 5000
+EXPOSE 5432
+EXPOSE 5672
+EXPOSE 15672
+EXPOSE 8080
+EXPOSE 9000
+
+ENV PATH="/venv/bin:$PATH"
+ENV PYTHONPATH=/app
+
+VOLUME ["/app"]
+
+COPY --chmod=0755 entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY --chmod=0755 start-dev.sh /usr/local/bin/start-dev.sh
+COPY nginx.dev.conf /etc/nginx/sites-enabled/default
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
