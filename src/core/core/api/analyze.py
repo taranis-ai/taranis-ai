@@ -1,5 +1,5 @@
 import io
-from flask import request, jsonify, send_file, abort
+from flask import request, send_file, abort
 from flask_restx import Resource, Namespace, Api
 
 from core.managers import asset_manager, auth_manager

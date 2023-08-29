@@ -37,19 +37,7 @@ class Settings(BaseSettings):
         self.SQLALCHEMY_DATABASE_URI = f"{self.SQLALCHEMY_SCHEMA}://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_URL}/{self.DB_DATABASE}"
         return self
 
-    # if "postgresql" in SQLALCHEMY_DATABASE_URI:
-    #     DB_POOL_SIZE: int = 10
-    #     DB_POOL_RECYCLE: int = 300
-    #     DB_POOL_TIMEOUT: int = 5
-
-    #     SQLALCHEMY_ENGINE_OPTIONS: dict = {
-    #         "pool_size": DB_POOL_SIZE,
-    #         "pool_recycle": DB_POOL_RECYCLE,
-    #         "pool_pre_ping": True,
-    #         "pool_timeout": DB_POOL_TIMEOUT,
-    #     }
-
-    TARANIS_NG_AUTHENTICATOR: str | None = None
+    TARANIS_NG_AUTHENTICATOR: str = "database"
 
     OPENID_CLIENT_ID: str | None = None
     OPENID_CLIENT_SECRET: str | None = None

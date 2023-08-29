@@ -41,9 +41,11 @@ def initialize(app):
     elif authenticator == "keycloak":
         current_authenticator = KeycloakAuthenticator()
     elif authenticator == "database":
+        current_authenticator = TestAuthenticator()
+    elif authenticator == "test":
         current_authenticator = DatabaseAuthenticator()
     else:
-        current_authenticator = TestAuthenticator()
+        raise ValueError(f"Unknown authenticator: {authenticator}")
 
     with app.app_context():
         current_authenticator.initialize(app)

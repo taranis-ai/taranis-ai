@@ -22,8 +22,12 @@ export const useAuthStore = defineStore('authenticator', {
       return now < exp
     },
 
+    timeToRefresh() {
+      return this.exp * 1000 - Date.now() - 300 * 1000
+    },
+
     needTokenRefresh() {
-      const exp = new Date((this.exp - 300) * 1000)
+      const exp = this.timeToRefresh()
       const now = new Date()
       return now > exp
     },

@@ -15,7 +15,7 @@
 <script>
 import MainMenu from '@/components/MainMenu.vue'
 import Notification from '@/components/common/Notification.vue'
-import { defineComponent, onMounted, onBeforeUpdate } from 'vue'
+import { defineComponent, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/AuthStore'
 import { connectSSE, reconnectSSE } from '@/utils/sse'
 import { storeToRefs } from 'pinia'
@@ -27,21 +27,8 @@ export default defineComponent({
     Notification
   },
   setup() {
-    const { isAuthenticated, needTokenRefresh, jwt } = storeToRefs(
-      useAuthStore()
-    )
+    const { isAuthenticated, timeToRefresh, jwt } = storeToRefs(useAuthStore())
     const authStore = useAuthStore()
-
-    onBeforeUpdate(() => {
-      if (isAuthenticated.value) {
-        if (needTokenRefresh.value) {
-          authStore.refresh().then(() => {
-            console.debug('Token refreshed')
-            reconnectSSE()
-          })
-        }
-      }
-    })
 
     onMounted(() => {
       if (isAuthenticated.value) {
@@ -51,6 +38,15 @@ export default defineComponent({
         if (jwt) {
           authStore.logout()
         }
+      }
+      if (timeToRefresh.value > 0) {
+        setTimeout(() => {
+          console.debug('Refreshing token')
+          if (isAuthenticated.value) {
+            authStore.refresh()
+            // reconnectSSE() # TODO: Implement see Issue #102
+          }
+        }, timeToRefresh)
       }
     })
 
