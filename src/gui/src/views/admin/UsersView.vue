@@ -3,9 +3,7 @@
     <DataTable
       v-model:items="users.items"
       :add-button="true"
-      :header-filter="['tag', 'id', 'username', 'name']"
-      sort-by-item="id"
-      :action-column="true"
+      :header-filter="['tag', 'id', 'username', 'name', 'actions']"
       tag-icon="mdi-account"
       @delete-item="deleteItem"
       @edit-item="editItem"

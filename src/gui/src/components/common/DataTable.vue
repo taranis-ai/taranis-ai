@@ -3,10 +3,8 @@
     :headers="headers"
     :items="items"
     :search="search"
-    :sort-by="[{ key: sortByItem }]"
     class="elevation-1"
     show-select
-    :custom-filter="customFilter"
     @click:row="rowClick"
     @update:model-value="emitFilterChange"
   >
@@ -78,10 +76,9 @@
             <v-icon
               v-bind="props"
               color="red"
+              icon="mdi-delete"
               @click.stop="deleteItem(item.raw)"
-            >
-              mdi-delete
-            </v-icon>
+            />
           </template>
           <span>Delete</span>
         </v-tooltip>
@@ -90,7 +87,7 @@
     <template v-if="items.length < 10" #bottom />
     <template #no-data>
       <v-btn color="primary" @click.stop="updateItems()">
-        <v-icon class="mr-1">mdi-refresh</v-icon>
+        <v-icon class="mr-1" icon="mdi-refresh" />
         Refresh
       </v-btn>
     </template>
@@ -98,13 +95,11 @@
 </template>
 
 <script>
+import { ref, defineComponent, toRaw } from 'vue'
 import { useMainStore } from '@/stores/MainStore'
-import { mapWritableState } from 'pinia'
-import { defineComponent, toRaw } from 'vue'
 
 export default defineComponent({
   name: 'DataTable',
-  components: {},
   props: {
     items: {
       type: Array,
@@ -122,10 +117,6 @@ export default defineComponent({
       type: Array,
       default: () => []
     },
-    actionColumn: {
-      type: Boolean,
-      default: false
-    },
     searchBar: {
       type: Boolean,
       default: true
@@ -142,82 +133,93 @@ export default defineComponent({
     'selection-change',
     'update-items'
   ],
-  data: () => ({
-    search: '',
-    selected: []
-  }),
-  computed: {
-    ...mapWritableState(useMainStore, ['itemCountFiltered']),
-    headers() {
-      const actionHeader = {
-        title: 'Actions',
-        key: 'actions',
-        sortable: false,
-        width: '30px'
-      }
-      let headers = []
-      if (this.headerFilter.length > 0) {
-        if (typeof this.headerFilter[0] !== 'object') {
-          headers = this.headerFilter.map((key) => this.headerTransform(key))
-        } else {
-          headers = this.headerFilter
-        }
-      } else if (this.items.length > 0) {
-        headers = Object.keys(this.items[0]).map((key) =>
-          this.headerTransform(key)
-        )
-      }
-      if (this.actionColumn) {
-        headers.push(actionHeader)
-      }
-      return headers
-    }
-  },
-  methods: {
-    headerTransform(key) {
+  setup(props, { emit }) {
+    const search = ref('')
+    const selected = ref([])
+
+    const store = useMainStore()
+
+    let headers = []
+
+    function headerTransform(key) {
       if (key === 'tag') {
         return {
-          title: key,
-          key: key,
+          title: 'Tag',
+          key: 'tag',
           sortable: false,
           width: '15px'
         }
+      } else if (key === 'actions') {
+        return {
+          title: 'Actions',
+          key: 'actions',
+          sortable: false,
+          width: '30px'
+        }
       }
+
       return { title: key, key: key }
-    },
-    emitFilterChange(selected) {
-      this.selected = selected
-      this.$emit('selection-change', selected)
-      this.itemCountFiltered = selected.length
-    },
-    customFilter(value, query) {
+    }
+
+    if (props.headerFilter.length > 0) {
+      headers = props.headerFilter.map((key) => headerTransform(key))
+    } else if (props.items.length > 0) {
+      headers = Object.keys(props.items[0]).map((key) => headerTransform(key))
+    }
+
+    function emitFilterChange(selectedItems) {
+      selected.value = selectedItems
+      emit('selection-change', selectedItems)
+      store.itemCountFiltered = selectedItems.length
+    }
+
+    function customFilter(value, query) {
       return (
         value != null &&
         query != null &&
         typeof value === 'string' &&
         value.toString().indexOf(query) !== -1
       )
-    },
+    }
 
-    rowClick(event, value) {
+    function rowClick(event, value) {
       const item = toRaw(value.item.raw)
-      this.$emit('edit-item', item)
-    },
-    addItem() {
-      this.$emit('add-item')
-    },
-    getDefaultColor(defaultgroup) {
+      emit('edit-item', item)
+    }
+
+    function addItem() {
+      emit('add-item')
+    }
+
+    function getDefaultColor(defaultgroup) {
       return defaultgroup ? 'green' : ''
-    },
-    deleteItem(item) {
-      this.$emit('delete-item', item)
-    },
-    deleteItems(items) {
-      items.forEach((item) => this.deleteItem({ id: item }))
-      this.selected = []
-    },
-    updateItems() {
-      this.$emit('update-items')
+    }
+
+    function deleteItem(item) {
+      emit('delete-item', item)
+    }
+
+    function deleteItems(itemsToDelete) {
+      itemsToDelete.forEach((item) => deleteItem({ id: item }))
+      selected.value = []
+    }
+
+    function updateItems() {
+      emit('update-items')
+    }
+
+    return {
+      search,
+      selected,
+      headers,
+      emitFilterChange,
+      customFilter,
+      rowClick,
+      addItem,
+      getDefaultColor,
+      deleteItem,
+      deleteItems,
+      updateItems
     }
   }
 })

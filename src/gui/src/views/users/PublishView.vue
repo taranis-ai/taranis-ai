@@ -3,8 +3,6 @@
     :items="products.items"
     :add-button="false"
     :search-bar="false"
-    sort-by-item="id"
-    :action-column="true"
     @delete-item="deleteItem"
     @edit-item="editItem"
     @add-item="addItem"

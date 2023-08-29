@@ -3,9 +3,7 @@
     <DataTable
       v-model:items="word_lists.items"
       :add-button="true"
-      :header-filter="['tag', 'name', 'description']"
-      sort-by-item="id"
-      :action-column="true"
+      :header-filter="['tag', 'name', 'description', 'usage', 'actions']"
       tag-icon="mdi-format-list-bulleted-square"
       @delete-item="deleteItem"
       @edit-item="editItem"

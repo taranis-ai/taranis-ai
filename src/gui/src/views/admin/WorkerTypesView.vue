@@ -3,9 +3,8 @@
     <DataTable
       v-model:items="worker_types.items"
       :add-button="false"
-      :header-filter="['name', 'description', 'category', 'type']"
+      :header-filter="['name', 'description', 'category', 'type', 'actions']"
       sort-by-item="category"
-      :action-column="true"
       @edit-item="editItem"
       @update-items="updateData"
     >

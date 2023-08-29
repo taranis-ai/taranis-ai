@@ -3,9 +3,7 @@
     <DataTable
       :items="publisher_presets.items"
       :add-button="true"
-      :header-filter="['tag', 'id', 'name', 'description']"
-      sort-by-item="id"
-      :action-column="true"
+      :header-filter="['tag', 'id', 'name', 'description', 'actions']"
       @delete-item="deleteItem"
       @edit-item="editItem"
       @add-item="addItem"

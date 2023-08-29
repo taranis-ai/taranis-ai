@@ -3,9 +3,8 @@
     <DataTable
       v-model:items="acls.items"
       :add-button="true"
-      :header-filter="['tag', 'id', 'name', 'username']"
+      :header-filter="['tag', 'id', 'name', 'username', 'actions']"
       sort-by-item="id"
-      :action-column="true"
       tag-icon="mdi-lock-check"
       @delete-item="deleteItem"
       @edit-item="editItem"

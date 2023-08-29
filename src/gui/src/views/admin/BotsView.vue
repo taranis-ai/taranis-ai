@@ -3,9 +3,15 @@
     <DataTable
       v-model:items="bots.items"
       :add-button="true"
-      :header-filter="['tag', 'name', 'description', 'type', 'index']"
+      :header-filter="[
+        'tag',
+        'name',
+        'description',
+        'type',
+        'index',
+        'actions'
+      ]"
       sort-by-item="id"
-      :action-column="true"
       tag-icon="mdi-robot"
       @delete-item="deleteItem"
       @edit-item="editItem"

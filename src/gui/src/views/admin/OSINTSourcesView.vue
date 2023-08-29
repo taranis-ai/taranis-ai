@@ -1,14 +1,18 @@
 <template>
   <div>
     <DataTable
-      :items="sources"
+      :items="osint_sources.items"
+      :header-filter="[
+        'tag',
+        'state',
+        'name',
+        'parameters.FEED_URL',
+        'actions'
+      ]"
       :add-button="true"
-      :header-filter="['tag', 'state', 'name', 'parameters.FEED_URL']"
-      sort-by-item="id"
-      :action-column="true"
       tag-icon="mdi-animation-outline"
-      @delete-item="deleteItem"
       @edit-item="editItem"
+      @delete-item="deleteItem"
       @add-item="addItem"
       @update-items="updateData"
       @selection-change="selectionChange"
@@ -46,7 +50,7 @@
       :parameters="parameters"
       :title="editTitle"
       @submit="handleSubmit"
-    ></EditConfig>
+    />
   </div>
 </template>
 
@@ -67,7 +71,7 @@ import { notifySuccess, objectFromFormat, notifyFailure } from '@/utils/helpers'
 import { storeToRefs } from 'pinia'
 import { useConfigStore } from '@/stores/ConfigStore'
 import { useMainStore } from '@/stores/MainStore'
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onBeforeMount } from 'vue'
 
 export default {
   name: 'OSINTSourcesView',
@@ -83,7 +87,6 @@ export default {
     const { collector_types, osint_sources, parameters } =
       storeToRefs(configStore)
 
-    const sources = ref([])
     const collector_options = ref([])
     const selected = ref([])
     const formData = ref({})
@@ -138,9 +141,9 @@ export default {
 
     const updateData = () => {
       configStore.loadOSINTSources().then(() => {
-        sources.value = osint_sources.value.items
         mainStore.itemCountFiltered = osint_sources.value.items.length
         mainStore.itemCountTotal = osint_sources.value.total_count
+        Object.freeze(osint_sources)
       })
       configStore.loadWorkerTypes().then(() => {
         collector_options.value = collector_types.value.map((collector) => {
@@ -153,7 +156,7 @@ export default {
       configStore.loadParameters()
     }
 
-    onMounted(() => {
+    onBeforeMount(() => {
       updateData()
     })
 
@@ -164,6 +167,7 @@ export default {
     }
 
     const editItem = (item) => {
+      console.debug(item)
       formData.value = item
       edit.value = true
       showForm.value = true
@@ -261,9 +265,9 @@ export default {
     }
 
     return {
-      sources,
       parameters,
       collector_options,
+      osint_sources,
       selected,
       formData,
       editTitle,

@@ -3,9 +3,8 @@
     <DataTable
       v-model:items="osint_source_groups.items"
       :add-button="true"
-      :header-filter="['default', 'name', 'description']"
-      sort-by-item="id"
-      :action-column="true"
+      :header-filter="['default', 'name', 'description', 'actions']"
+      sort-by-item="name"
       @delete-item="deleteItem"
       @edit-item="editItem"
       @add-item="addItem"

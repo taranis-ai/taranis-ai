@@ -3,9 +3,8 @@
     <DataTable
       v-model:items="attributes.items"
       :add-button="true"
-      :header-filter="['tag', 'id', 'name', 'description']"
+      :header-filter="['tag', 'id', 'name', 'description', 'actions']"
       sort-by-item="id"
-      :action-column="true"
       @delete-item="deleteItem"
       @edit-item="editItem"
       @add-item="addItem"

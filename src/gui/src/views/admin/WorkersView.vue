@@ -40,9 +40,9 @@
           'args',
           'last_run_at',
           'next_run_time',
-          'total_run_count'
+          'total_run_count',
+          'actions'
         ]"
-        :action-column="true"
         @delete-item="deleteItem"
         @selection-change="selectionChange"
       >
