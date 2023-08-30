@@ -1,6 +1,6 @@
+from typing import Any
 from sqlalchemy import or_, and_
 import sqlalchemy
-from typing import Any
 from sqlalchemy.sql.expression import cast
 
 from core.managers.db_manager import db
@@ -18,7 +18,7 @@ class AttributeGroupItem(BaseModel):
     min_occurrence = db.Column(db.Integer, default=1)
     max_occurrence = db.Column(db.Integer, default=1)
 
-    attribute_group_id = db.Column(db.Integer, db.ForeignKey("attribute_group.id"))
+    attribute_group_id = db.Column(db.Integer, db.ForeignKey("attribute_group.id", ondelete="CASCADE"))
     attribute_group = db.relationship("AttributeGroup")
 
     attribute_id = db.Column(db.Integer, db.ForeignKey("attribute.id"))
@@ -41,6 +41,12 @@ class AttributeGroupItem(BaseModel):
         data = {c.name: getattr(self, c.name) for c in self.__table__.columns}
         data["attribute"] = self.attribute.to_dict()
         return data
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "ReportItemType":
+        data.pop("attribute_group_id", None)
+        data.pop("attribute", None)
+        return cls(**data)
 
     def to_dict_with_group(self):
         data = self.to_dict()

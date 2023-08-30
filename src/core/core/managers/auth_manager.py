@@ -35,15 +35,15 @@ def initialize(app):
 
     JWTManager(app)
 
-    authenticator = app.config.get("TARANIS_NG_AUTHENTICATOR", "test")
+    authenticator = app.config.get("TARANIS_NG_AUTHENTICATOR", None)
     if authenticator == "openid":
         current_authenticator = OpenIDAuthenticator()
     elif authenticator == "keycloak":
         current_authenticator = KeycloakAuthenticator()
     elif authenticator == "database":
-        current_authenticator = TestAuthenticator()
-    elif authenticator == "test":
         current_authenticator = DatabaseAuthenticator()
+    elif authenticator == "test":
+        current_authenticator = TestAuthenticator()
     else:
         raise ValueError(f"Unknown authenticator: {authenticator}")
 

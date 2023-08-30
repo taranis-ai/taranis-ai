@@ -111,7 +111,7 @@
           </v-tooltip>
         </div>
       </template>
-      <template #item.attribute_name="{ item }">
+      <template #item.attribute_id="{ item }">
         <v-icon :icon="item.raw.attribute.tag" />
         {{ item.raw.attribute.name }}
       </template>
@@ -141,33 +141,30 @@ export default {
     const dialog = ref(false)
     const attribute_type = ref(null)
     const edited_index = ref(-1)
+    const attribute_contents = ref(props.attributes)
     const edited_attribute = ref({
-      index: 0,
-      id: -1,
+      index: attribute_contents.value.length,
       attribute_id: -1,
-      attribute_name: '',
       title: '',
       description: '',
       min_occurrence: 0,
-      max_occurrence: 1
+      max_occurrence: 1,
+      attribute: []
     })
     const default_attribute = ref({
-      index: 0,
-      id: -1,
+      index: attribute_contents.value.length,
       attribute_id: -1,
-      attribute_name: '',
       title: '',
       description: '',
       min_occurrence: 0,
-      max_occurrence: 1
+      max_occurrence: 1,
+      attribute: []
     })
-
-    const attribute_contents = ref(props.attributes)
 
     const headers = computed(() => [
       {
         title: 'Type',
-        key: 'attribute_name',
+        key: 'attribute_id',
         align: 'left',
         sortable: false
       },
@@ -191,7 +188,7 @@ export default {
 
     const save = () => {
       edited_attribute.value.attribute_id = attribute_type.value.id
-      edited_attribute.value.attribute_name = attribute_type.value.name
+      edited_attribute.value.attribute = attribute_type.value
       if (edited_index.value > -1) {
         Object.assign(
           attribute_contents.value[edited_index.value],

@@ -81,11 +81,11 @@ export default defineComponent({
       if (!item.default) {
         deleteReportItemType(item)
           .then(() => {
-            notifySuccess(`Successfully deleted ${item.name}`)
+            notifySuccess(`Successfully deleted ${item.title}`)
             updateData()
           })
           .catch(() => {
-            notifyFailure(`Failed to delete ${item.name}`)
+            notifyFailure(`Failed to delete ${item.title}`)
           })
       }
     }
