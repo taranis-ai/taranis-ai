@@ -15,7 +15,56 @@ permissions:
   packages: write
 
 jobs:
-  build:
+  test:
+    name: pytest
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/pip
+          key: ${{ hashFiles('src/worker/pyproject.toml') }}
+
+      - name: Install dependencies
+        working-directory: src/worker
+        run: pip install -e .[dev]
+
+      - name: test
+        working-directory: src/worker
+        run: |
+          pip install -e .[dev]
+          echo "Starting Pytest"
+          pytest
+
+  build_wheel:
+    name: build wheel
+    runs-on: ubuntu-22.04
+    needs: test
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+      - name: build
+        working-directory: src/worker
+        run: |
+          python -m pip install --upgrade pip setuptools wheel build
+          python -m build
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          files: |
+            src/worker/dist/taranis_ng_worker-*.whl
+            src/worker/dist/taranis_ng_worker-*.tar.gz
+
+  build_docker:
     name: build docker
     runs-on: ubuntu-latest
     steps:
