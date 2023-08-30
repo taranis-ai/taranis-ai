@@ -14,7 +14,7 @@ def collect(source_id: str):
     return f"Succesfully collected source {source_id}"
 
 
-@shared_task(time_limit=600)
+@shared_task(time_limit=1200)
 def execute_bot(bot_id: str, filter: dict | None = None):
     return bot_tasks.execute_by_id(bot_id, filter)
 

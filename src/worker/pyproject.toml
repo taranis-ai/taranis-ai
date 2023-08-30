@@ -44,7 +44,7 @@ dependencies = [
     "nltk==3.8.1",
     "sentence-transformers==2.2.2",
     "keybert==0.7.0",
-    "taranis-story-clustering==0.2.0",
+    "taranis-story-clustering==0.4.0",
     "xx_ent_wiki_sm @ https://github.com/explosion/spacy-models/releases/download/xx_ent_wiki_sm-3.6.0/xx_ent_wiki_sm-3.6.0-py3-none-any.whl",
 ]
 
