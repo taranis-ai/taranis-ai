@@ -1,7 +1,6 @@
 [project]
 name = "taranis-ng-worker"
 description = "Taranis-NG Queue Worker"
-version = "0.1.0"
 readme = "README.md"
 license = {file = "LICENSE.md"}
 maintainers = [{ name = "AIT", email = "benjamin.akhras@ait.ac.at" }]
@@ -47,20 +46,25 @@ dependencies = [
     "taranis-story-clustering==0.4.0",
     "xx_ent_wiki_sm @ https://github.com/explosion/spacy-models/releases/download/xx_ent_wiki_sm-3.6.0/xx_ent_wiki_sm-3.6.0-py3-none-any.whl",
 ]
+dynamic = ["version"]
 
 [project.optional-dependencies]
-dev = ["black", "pytest", "pytest-celery", "watchdog"]
+dev = ["black", "pytest", "pytest-celery", "watchdog", "build", "wheel", "setuptools", "setuptools_scm"]
 
 [project.urls]
 "Source Code" = "https://github.com/ait-cs-IaaS/Taranis-NG"
 
-
 [build-system]
 requires = [
-    "setuptools>=42",
+    "setuptools>=45",
+    "setuptools_scm[toml]>=6.2",
     "wheel"
 ]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+fallback_version = "0.0.0"
+root = "../.."
 
 [tool.black]
 line-length = "142"

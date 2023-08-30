@@ -3,3 +3,4 @@
 .env.sentry-build-plugin
 /public/config.json.local
 .npm
+*.tgz

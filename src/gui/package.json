@@ -1,12 +1,14 @@
 {
   "name": "taranis-ng-ui",
-  "version": "0.2.0",
   "private": true,
   "scripts": {
     "dev": "vite",
     "build": "vite build && npm run patch_config",
     "preview": "vite preview",
+    "prepack": "node ./extras/update_version.js",
+    "postpack": "node ./extras/remove_version.js",
     "lint": "eslint --ext .js,.vue --fix src",
+    "package": "npm run prepack && npm pack && npm run postpack",
     "format": "prettier --write \"src/**/*.{js,vue}\"",
     "lint_and_format": "npm run lint && npm run format",
     "patch_config": "node ./extras/patch_config_json.js",

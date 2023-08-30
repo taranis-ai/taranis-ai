@@ -1,7 +1,6 @@
 [project]
 name = "taranis-ng-core"
 description = "Taranis-NG Core"
-version = "0.2.0"
 readme = "README.md"
 license = {file = "LICENSE.md"}
 maintainers = [{ name = "AIT", email = "benjamin.akhras@ait.ac.at" }]
@@ -35,6 +34,7 @@ dependencies = [
     "authlib",
     "sseclient",
 ]
+dynamic = ["version"]
 
 [tool.setuptools]
 include-package-data = true
@@ -42,10 +42,23 @@ include-package-data = true
 [tool.setuptools.packages.find]
 where = ["core", "."]
 
+[build-system]
+requires = [
+    "setuptools>=45",
+    "setuptools_scm[toml]>=6.2",
+    "wheel"
+]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+fallback_version = "0.0.0"
+root = "../.."
+
 [project.optional-dependencies]
-dev = ["black", "flake8", "pytest", "pytest-celery", "sqlalchemy-stubs", "schemathesis", "build", "wheel", "setuptools"]
+dev = ["black", "flake8", "pytest", "pytest-celery", "sqlalchemy-stubs", "schemathesis", "build", "wheel", "setuptools", "setuptools_scm"]
 
 [project.urls]
+"Source Code" = "https://github.com/ait-cs-IaaS/Taranis-NG"
 
 [tool.black]
 line-length = "142"

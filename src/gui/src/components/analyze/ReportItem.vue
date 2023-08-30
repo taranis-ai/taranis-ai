@@ -53,6 +53,7 @@
                 item-title="title"
                 item-value="id"
                 :rules="required"
+                no-data-text="No Report Types available - please create one under Admin > Report Types"
                 :items="report_item_types.items"
                 :label="$t('report_item.report_type')"
               />

@@ -163,7 +163,7 @@ class WordList(BaseModel):
             word_list.usage = update_word_list.usage
 
         db.session.commit()
-        return {"message": "Word list updated"}, 200
+        return {"message": "Word list updated", "id": f"{word_list.id}"}, 200
 
     @classmethod
     def add(cls, data) -> "WordList":

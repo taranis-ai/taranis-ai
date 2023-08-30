@@ -8,7 +8,7 @@ from worker.log import logger
 class TaggingBot(BaseBot):
     type = "TAGGING_BOT"
     name = "Tagging Bot"
-    description = "Bot for tagging news items"
+    description = "Bot for tagging news items based on regular expressions"
 
     def execute(self, parameters=None):
         if not parameters:
