@@ -240,7 +240,40 @@ def cleanup_report_item_type(app, request):
     with app.app_context():
         from core.model.report_item_type import ReportItemType
 
-        report_type_data = {"id": 42, "title": "Test Report Type", "description": "This is a test report type", "attribute_groups": []}
+        report_type_data = {
+            "id": 42,
+            "title": "Test Report Type",
+            "description": "This is a test report type",
+            "attribute_groups": [
+                {
+                    "index": 0,
+                    "title": "Test Attribute Group",
+                    "description": "This is a test attribute group",
+                    "section_title": "",
+                    "attribute_group_items": [
+                        {
+                            "index": 0,
+                            "attribute_id": 1,
+                            "title": "Test Attribute Group Item",
+                            "description": "This is a test attribute group item",
+                            "min_occurrence": 0,
+                            "max_occurrence": 1,
+                            "attribute": {
+                                "id": 1,
+                                "name": "Text",
+                                "description": "Simple text box",
+                                "type": "STRING",
+                                "default_value": "",
+                                "validator": "NONE",
+                                "validator_parameter": "",
+                                "attribute_enums": [],
+                                "tag": "mdi-form-textbox",
+                            },
+                        }
+                    ],
+                }
+            ],
+        }
 
         def teardown():
             with app.app_context():
