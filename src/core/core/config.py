@@ -26,9 +26,9 @@ class Settings(BaseSettings):
     SQLALCHEMY_TRACK_MODIFICATIONS: bool = False
     SQLALCHEMY_DATABASE_URI: str | None = None
     COLORED_LOGS: bool = True
-    OpenAPI: str = "static/"
     BUILD_DATE: datetime = datetime.now()
     GIT_INFO: dict[str, str] | None = None
+    DATA_FOLDER: str = "./taranis_data"
 
     @model_validator(mode="after")
     def set_sqlalchemy_uri(self) -> "Settings":
@@ -37,7 +37,7 @@ class Settings(BaseSettings):
         self.SQLALCHEMY_DATABASE_URI = f"{self.SQLALCHEMY_SCHEMA}://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_URL}/{self.DB_DATABASE}"
         return self
 
-    TARANIS_NG_AUTHENTICATOR: str = "database"
+    TARANIS_NG_AUTHENTICATOR: Literal["database", "keycloak", "openid", "test"] = "database"
 
     OPENID_CLIENT_ID: str | None = None
     OPENID_CLIENT_SECRET: str | None = None
@@ -62,7 +62,10 @@ class Settings(BaseSettings):
         if self.QUEUE_BROKER_URL:
             broker_url = self.QUEUE_BROKER_URL
         else:
-            broker_url = f"{self.QUEUE_BROKER_SCHEME}://{self.QUEUE_BROKER_USER}:{self.QUEUE_BROKER_PASSWORD}@{self.QUEUE_BROKER_HOST}:{self.QUEUE_BROKER_PORT}/{self.QUEUE_BROKER_VHOST}"
+            broker_url = (
+                f"{self.QUEUE_BROKER_SCHEME}://{self.QUEUE_BROKER_USER}:{self.QUEUE_BROKER_PASSWORD}"
+                f"@{self.QUEUE_BROKER_HOST}:{self.QUEUE_BROKER_PORT}/{self.QUEUE_BROKER_VHOST}"
+            )
         self.CELERY = {
             "broker_url": broker_url,
             "ignore_result": True,

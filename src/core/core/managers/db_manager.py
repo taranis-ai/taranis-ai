@@ -1,5 +1,4 @@
 import sys
-import subprocess
 
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -21,11 +20,6 @@ def is_db_empty():
     return len(tables) == 0
 
 
-def flask_migrate_subprocess(migrate_command):
-    result = subprocess.run(["flask", "db", migrate_command], stderr=subprocess.PIPE)
-    [logger.debug(line) for line in result.stderr.decode().split("\n") if line]
-
-
 def initialize(app, first_worker):
     db.init_app(app)
     migrate.init_app(app, db)
@@ -39,12 +33,9 @@ def initialize(app, first_worker):
     if is_db_empty():
         logger.debug("Create new Database")
         db.create_all()
-        flask_migrate_subprocess("stamp")  # stamp(migrate.directory, "head")
         pre_seed(db)
     else:
-        logger.debug("Migrate existing Database")
-        flask_migrate_subprocess("upgrade")  # upgrade(migrate.directory, "head")
-        db.create_all()
+        logger.debug("Make sure to call: `flask db upgrade`")
 
 
 @event.listens_for(Engine, "connect")

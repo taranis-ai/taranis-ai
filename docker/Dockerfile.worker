@@ -8,7 +8,7 @@ RUN apt-get update && apt-get upgrade -y && \
       python3-dev \
       git
 
-COPY ./src/worker/pyproject.toml /app/
+COPY ./src/worker/. /app/
 
 RUN python3 -m venv /app/.venv && \
     export PATH="/app/.venv/bin:$PATH" && \

@@ -10,7 +10,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install --no-install-recomme
     build-essential \
     python3-dev
 
-COPY ./src/core/pyproject.toml /app/
+COPY ./src/core/. /app/
 
 RUN python3 -m venv /app/.venv && \
     export PATH="/app/.venv/bin:$PATH" && \
@@ -41,6 +41,7 @@ ENV PYTHONPATH=/app
 ARG git_info
 ENV GIT_INFO=${git_info:-'{}'}
 RUN echo BUILD_DATE=$(date --iso-8601=minutes) > .env
+ENV DATA_FOLDER=/data
 
 VOLUME ["/data"]
 

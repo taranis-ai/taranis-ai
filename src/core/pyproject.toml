@@ -37,10 +37,8 @@ dependencies = [
 dynamic = ["version"]
 
 [tool.setuptools]
+packages = ["core"]
 include-package-data = true
-
-[tool.setuptools.packages.find]
-where = ["core", "."]
 
 [build-system]
 requires = [

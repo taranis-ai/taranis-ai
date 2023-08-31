@@ -132,7 +132,7 @@ workers = [
     {
         "type": "PDF_PRESENTER",
         "description": "Presenter for generating PDF documents",
-        "parameters": ["HEADER_TEMPLATE_PATH", "BODY_TEMPLATE_PATH", "FOOTER_TEMPLATE_PATH"],
+        "parameters": ["PDF_TEMPLATE_PATH"],
         "name": "PDF Presenter",
     },
     {
@@ -220,5 +220,48 @@ bots = [
         "name": "Story BOT",
         "description": "Bot for story clustering",
         "type": "STORY_BOT",
+    },
+]
+
+products = [
+    {
+        "title": "Default PDF Presenter",
+        "description": "Default PDF Presenter",
+        "type": "PDF_PRESENTER",
+        "parameters": [
+            {"parameter": "PDF_TEMPLATE_PATH", "value": "pdf_template.html"},
+        ],
+    },
+    {
+        "title": "Default HTML Presenter",
+        "description": "Default HTML Presenter",
+        "type": "HTML_PRESENTER",
+        "parameters": [
+            {"parameter": "HTML_TEMPLATE_PATH", "value": "html_template.html"},
+        ],
+    },
+    {
+        "title": "Default TEXT Presenter",
+        "description": "Default TEXT Presenter",
+        "type": "TEXT_PRESENTER",
+        "parameters": [
+            {"parameter": "TEXT_TEMPLATE_PATH", "value": "text_template.html"},
+        ],
+    },
+    {
+        "title": "Default MISP Presenter",
+        "description": "Default MISP Presenter",
+        "type": "MISP_PRESENTER",
+        "parameters": [
+            {"parameter": "MISP_TEMPLATE_PATH", "value": "misp_template.html"},
+        ],
+    },
+    {
+        "title": "CERT Daily Report",
+        "description": "cert.at Daily Report",
+        "type": "HTML_PRESENTER",
+        "parameters": [
+            {"parameter": "HTML_TEMPLATE_PATH", "value": "cert_at_daily_report.html"},
+        ],
     },
 ]

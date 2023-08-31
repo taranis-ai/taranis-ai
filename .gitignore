@@ -14,6 +14,7 @@ build/
 celerybeat-schedule
 .hypothesis
 git_info.json
+taranis_data/
 
 # temporary files of editors
 .DS_Store

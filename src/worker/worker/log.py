@@ -3,14 +3,13 @@ import sys
 import socket
 import logging
 import traceback
-from typing import Optional
-from celery.signals import after_setup_logger, after_setup_task_logger
+from celery.signals import after_setup_logger
 
 from worker.config import Config
 
 
 class TaranisLogger:
-    def __init__(self, module: str, debug: bool, colored: bool, gunicorn: bool, syslog_address: Optional[tuple]):
+    def __init__(self, module: str, debug: bool, colored: bool, gunicorn: bool, syslog_address: tuple[str, int] | str | None):
         self.module = module
         stream_handler = logging.StreamHandler(stream=sys.stdout)
         if colored:

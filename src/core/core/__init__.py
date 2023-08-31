@@ -8,6 +8,7 @@ from core.managers import (
     api_manager,
     log_manager,
     queue_manager,
+    data_manager,
 )
 
 FLAG_FILENAME = "worker_init.flag"
@@ -25,26 +26,28 @@ def create_app():
 
 
 def initialize_managers(app):
+    global FIRST_WORKER
     CORS(app)
 
     if FIRST_WORKER:
-        log_manager.logger.log_info(f"Connecting Database: {app.config.get('SQLALCHEMY_DATABASE_URI')}")
+        log_manager.logger.info(f"Connecting Database: {app.config.get('SQLALCHEMY_DATABASE_URI')}")
     db_manager.initialize(app, FIRST_WORKER)
     auth_manager.initialize(app)
     api_manager.initialize(app)
     queue_manager.initialize(app, FIRST_WORKER)
+    data_manager.initialize(FIRST_WORKER)
 
     if FIRST_WORKER:
-        log_manager.logger.log_info("All Managers initialized")
+        log_manager.logger.info("All Managers initialized")
 
 
-def post_worker_init(worker):
+def post_fork(server, worker):
     global FIRST_WORKER
-    if create_flag_file():
-        FIRST_WORKER = True
-        log_manager.logger.log_debug(f"Worker {worker.pid} is the first worker and will perform the one-time tasks.")
-    else:
-        log_manager.logger.log_debug(f"Worker {worker.pid} detected the flag file, so it will not perform the one-time tasks.")
+    if not create_flag_file():
+        FIRST_WORKER = False
+        return
+    FIRST_WORKER = True
+    log_manager.logger.debug(f"Worker {worker.pid} is the first worker and will perform the one-time tasks.")
 
 
 def on_starting_and_exit(server):

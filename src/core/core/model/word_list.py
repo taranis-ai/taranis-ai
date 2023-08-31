@@ -9,7 +9,6 @@ from sqlalchemy.sql.expression import cast
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.model.acl_entry import ACLEntry, ItemType
-from core.managers.log_manager import logger
 
 
 class WordListUsage(IntEnum):

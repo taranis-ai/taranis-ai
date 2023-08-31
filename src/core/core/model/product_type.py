@@ -1,4 +1,3 @@
-import datetime
 from typing import Any
 from sqlalchemy import or_, and_
 import sqlalchemy
@@ -15,13 +14,13 @@ from core.model.worker import PRESENTER_TYPES, Worker
 
 class ProductType(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(64), unique=True, nullable=False)
-    description = db.Column(db.String(), nullable=False)
-    type = db.Column(db.Enum(PRESENTER_TYPES))
+    title: Any = db.Column(db.String(64), unique=True, nullable=False)
+    description: Any = db.Column(db.String(), nullable=False)
+    type: Any = db.Column(db.Enum(PRESENTER_TYPES))
 
     parameters = db.relationship("ParameterValue", secondary="product_type_parameter_value", cascade="all")
 
-    def __init__(self, title, description, type, parameters=None, id=None):
+    def __init__(self, title, type, description="", parameters=None, id=None):
         self.id = id
         self.title = title
         self.description = description

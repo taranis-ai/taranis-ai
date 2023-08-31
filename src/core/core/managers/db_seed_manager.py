@@ -44,7 +44,9 @@ def pre_seed_source_groups():
 
 
 def pre_seed_workers():
-    from core.managers.workers_pre_seed import workers, bots
+    from core.managers.workers_pre_seed import workers, bots, products
+    from core.managers.data_manager import is_file_in_subfolder
+    from core.model.product_type import ProductType
     from core.model.worker import Worker
     from core.model.bot import Bot
 
@@ -53,6 +55,10 @@ def pre_seed_workers():
 
     for b in bots:
         Bot.add(b)
+
+    for p in products:
+        if is_file_in_subfolder("presenter_templates", p["parameters"][0]["value"]):
+            ProductType.add(p)
 
 
 def pre_seed_permissions():
@@ -682,7 +688,6 @@ def pre_seed_attributes(db):
 def pre_seed_report_items(db):
     from core.model.report_item_type import (
         ReportItemType,
-        AttributeGroupItem,
         AttributeGroup,
     )
     from core.model.attribute import Attribute

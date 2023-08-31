@@ -37,7 +37,7 @@ services:
         max_attempts: 3
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-core:${TARANIS_NG_TAG:-latest}"
     ports:
-      - "${TARANIS_NG_CORE_PORT:-8081}:80"
+      - "${TARANIS_NG_CORE_PORT:-8081}:${TARANIS_NG_CORE_LISTEN_PORT:-80}"
     environment:
       DB_URL: "${DB_URL:-database}"
       DB_DATABASE: "${DB_DATABASE:-taranis}"
@@ -60,6 +60,7 @@ services:
       SECRET_KEY: "${API_KEY}"
       API_KEY: "${API_KEY}"
       DEBUG: "${DEBUG:-False}"
+      PORT: "${TARANIS_NG_CORE_LISTEN_PORT:-80}"
     volumes:
       - "core_data:/data"
     logging:
@@ -134,9 +135,9 @@ services:
 
   rabbitmq:
     image: "docker.io/library/rabbitmq:${RABBITMQ_TAG:-3-management-alpine}"
-    ports:
-      - "${TARANIS_RABBITMQ_PORT:-5672}:5672"
-      - "${TARANIS_RABBITMQ_MGMT_PORT:-15672}:15672"
+    # ports:
+    #  - "${TARANIS_RABBITMQ_PORT:-5672}:5672"
+    #  - "${TARANIS_RABBITMQ_MGMT_PORT:-15672}:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq/
     environment:

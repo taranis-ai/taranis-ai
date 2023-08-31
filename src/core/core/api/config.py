@@ -8,7 +8,7 @@ from core.managers import (
     queue_manager,
 )
 from core.managers.log_manager import logger
-from core.managers.auth_manager import auth_required, get_user_from_jwt
+from core.managers.auth_manager import auth_required
 from core.model import (
     acl_entry,
     attribute,
