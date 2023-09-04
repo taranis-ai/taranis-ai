@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     QUEUE_BROKER_PORT: int = 5672
     QUEUE_BROKER_USER: str = "taranis"
     QUEUE_BROKER_PASSWORD: str = "supersecret"
+    QUEUE_BROKER_URL: str | None = None
     QUEUE_BROKER_VHOST: str = "/"
     CELERY: dict[str, Any] | None = None
 
@@ -27,12 +28,22 @@ class Settings(BaseSettings):
     def set_celery(cls, value, values):
         if value and len(value) > 1:
             return value
+
+        if values["QUEUE_BROKER_URL"]:
+            broker_url = values["QUEUE_BROKER_URL"]
+        else:
+            broker_url = (
+                f"{values['QUEUE_BROKER_SCHEME']}://{values['QUEUE_BROKER_USER']}:{values['QUEUE_BROKER_PASSWORD']}"
+                f"@{values['QUEUE_BROKER_HOST']}:{values['QUEUE_BROKER_PORT']}/{values['QUEUE_BROKER_VHOST']}"
+            )
+
         return {
-            "broker_url": f"{values['QUEUE_BROKER_SCHEME']}://{values['QUEUE_BROKER_USER']}:{values['QUEUE_BROKER_PASSWORD']}@{values['QUEUE_BROKER_HOST']}:{values['QUEUE_BROKER_PORT']}/{values['QUEUE_BROKER_VHOST']}",
+            "broker_url": broker_url,
             "ignore_result": True,
             "broker_connection_retry_on_startup": True,
             "broker_connection_retry": False,  # To suppress deprecation warning
             "beat_scheduler": "worker.scheduler:RESTScheduler",
+            "enable_utc": True,
         }
 
 

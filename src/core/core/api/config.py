@@ -272,7 +272,7 @@ class Bots(Resource):
 
 class BotExecute(Resource):
     def post(self, bot_id):
-        return queue_manager.execute_bot_task(bot_id)
+        return queue_manager.queue_manager.execute_bot_task(bot_id)
 
 
 class QueueStatus(Resource):
@@ -331,13 +331,13 @@ class OSINTSource(Resource):
 class OSINTSourceCollect(Resource):
     @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
     def post(self, source_id):
-        return queue_manager.collect_osint_source(source_id)
+        return queue_manager.queue_manager.collect_osint_source(source_id)
 
 
 class OSINTSourceCollectAll(Resource):
     @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
     def post(self):
-        return queue_manager.collect_all_osint_sources()
+        return queue_manager.queue_manager.collect_all_osint_sources()
 
 
 class OSINTSourcesExport(Resource):
@@ -480,7 +480,7 @@ class WordListExport(Resource):
 class WordListGather(Resource):
     @auth_required("CONFIG_WORD_LIST_UPDATE")
     def put(self, word_list_id):
-        return queue_manager.gather_word_list(word_list_id)
+        return queue_manager.queue_manager.gather_word_list(word_list_id)
 
 
 class Workers(Resource):

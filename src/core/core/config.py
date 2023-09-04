@@ -71,6 +71,7 @@ class Settings(BaseSettings):
             "ignore_result": True,
             "broker_connection_retry_on_startup": True,
             "broker_connection_retry": False,  # To suppress deprecation warning
+            "enable_utc": True,
         }
         return self
 

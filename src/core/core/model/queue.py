@@ -1,5 +1,5 @@
-from datetime import datetime
 from typing import Any
+from datetime import datetime
 
 from core.managers.db_manager import db
 from core.managers.log_manager import logger
@@ -67,11 +67,14 @@ class ScheduleEntry(BaseModel):
     def update_next_run_time(cls, next_run_times: dict):
         for entry_id, runtime in next_run_times.items():
             if entry := cls.get(entry_id):
-                entry.next_run_time = runtime
+                if db.session.get_bind().dialect.name == "sqlite":
+                    entry.next_run_time = datetime.fromisoformat(runtime)
+                else:
+                    entry.next_run_time = runtime
                 db.session.commit()
             else:
                 logger.error(f"Schedule entry {entry_id} not found")
-        return "Next run times updated", 200
+        return {"message": "Next run times updated"}, 200
 
     def to_worker_dict(self) -> dict[str, Any]:
         data = super().to_dict()
@@ -80,11 +83,11 @@ class ScheduleEntry(BaseModel):
         data["args"] = data.get("args", "").split(",")
         if schedule := data.get("schedule"):
             if schedule == "hourly":
-                data["schedule"] = 3600 * 60
+                data["schedule"] = 60 * 60
             elif schedule == "daily":
-                data["schedule"] = 86400 * 60
+                data["schedule"] = 1440 * 60
             elif schedule == "weekly":
-                data["schedule"] = 604800 * 60
+                data["schedule"] = 10080 * 60
             elif type(schedule) == int:
                 data["schedule"] = schedule * 60
             elif type(schedule) == str and schedule.isdigit():

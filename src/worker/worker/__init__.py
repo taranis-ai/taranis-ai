@@ -1,10 +1,9 @@
 from celery import Celery
 
 from worker.config import Config
-from worker.log import logger
 from worker.core_api import CoreApi
 
-import worker.tasks
+import worker.tasks  # noqa: F401
 
 
 class CeleryWorker:

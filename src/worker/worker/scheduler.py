@@ -1,68 +1,73 @@
 import time
 from celery.beat import Scheduler, ScheduleEntry
 from datetime import datetime, timezone
-from celery.schedules import crontab
-from datetime import timedelta
+from worker.log import logger
 
 from worker.core_api import CoreApi
-from worker.log import logger
 
 
 class RESTScheduleEntry(ScheduleEntry):
     def is_due(self):
-        return super(RESTScheduleEntry, self).is_due()
+        return super().is_due()
 
     def next(self):
-        return super(RESTScheduleEntry, self).next()
+        return super().next()
 
 
 class RESTScheduler(Scheduler):
     Entry = RESTScheduleEntry
+    schedule_from_core = {}
 
     def __init__(self, *args, **kwargs):
-        super(RESTScheduler, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.core_api = CoreApi()
-        self.schedule = self.get_schedule_from_core()
         self.last_checked = datetime.now(timezone.utc)
         self.max_interval = 60
 
-    def get_schedule_from_core(self):
-        if schedule := self.core_api.get_schedule():
-            schedule_dict = {}
-            next_run_times = {}
-            for entry in schedule:
-                entry["app"] = self.app
-                schedule_dict[entry["name"]] = self.Entry(**entry)
-                _, next_time_to_run = schedule_dict[entry["name"]].is_due()
-                next_run_times[entry["name"]] = (datetime.now(timezone.utc) + timedelta(seconds=int(next_time_to_run))).isoformat()
-            self.core_api.update_next_run_time(next_run_times)
-            return schedule_dict
-        return {}
+    def update_schedule_from_core(self):
+        if not (core_schedule := self.core_api.get_schedule()):
+            return
+        for entry in core_schedule:
+            entry["app"] = self.app
+            if last_run_at := entry.get("last_run_at"):
+                entry["last_run_at"] = datetime.fromisoformat(last_run_at)
+            rest_entry = self.Entry(**entry)
 
-    def set_to_backend(self):
-        self.core_api.update_schedule(self.schedule)
+            if schedule_entry := self.schedule.get(entry["name"]):
+                if rest_entry.schedule != schedule_entry.schedule:
+                    logger.debug(f"Changed schedule of {entry['name']}")
+                    self.schedule[entry["name"]] = rest_entry
+            else:
+                logger.debug(f"Adding new entry: {rest_entry}")
+                self.schedule[entry["name"]] = rest_entry
+        return self.schedule
 
     def sync(self):
-        self.set_to_backend()
-
-    def schedule_changed(self):
-        return self.schedule != self.get_schedule_from_core()
-
-    def reserve(self, entry):
-        new_entry = super(RESTScheduler, self).reserve(entry)
-        new_entry.last_run_at = datetime.now(timezone.utc)
-        new_entry.total_run_count += 1
-        return new_entry
+        current_datetime = datetime.now()
+        estimates = {}
+        for s in self.schedule.values():
+            try:
+                estimate = s.schedule.remaining_estimate(s.last_run_at)
+                next_run_time = current_datetime + estimate
+                estimates[s.name] = next_run_time.isoformat()
+            except Exception:
+                logger.log_debug_trace(f"Failed to sync {s.name}")
+        # logger.debug(f"Updating next run times: {estimates}")
+        self.core_api.update_next_run_time(estimates)
 
     def get_schedule(self):
-        self.schedule = self.get_schedule_from_core()
-        return self.schedule
+        return self.schedule_from_core
+
+    def set_schedule(self, schedule):
+        self.schedule_from_core = schedule
+
+    schedule = property(get_schedule, set_schedule)
 
     def tick(self):
         now = datetime.now(timezone.utc)
         if (now - self.last_checked).total_seconds() >= self.max_interval:
             self.last_checked = now
-            if self.schedule_changed():
-                self.schedule = self.get_schedule()
+            self.update_schedule_from_core()
+            self.sync()
         time.sleep(0.1)
-        super(RESTScheduler, self).tick()
+        super().tick()

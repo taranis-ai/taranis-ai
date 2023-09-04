@@ -455,13 +455,13 @@ class NewsItemAggregate(BaseModel):
             query = query.filter(NewsItemAggregate.read)
 
         if "unread" in filter_args:
-            query = query.filter(NewsItemAggregate.read == False)
+            query = query.filter(NewsItemAggregate.read is False)
 
         if "important" in filter_args:
             query = query.filter(NewsItemAggregate.important)
 
         if "unimportant" in filter_args:
-            query = query.filter(NewsItemAggregate.important == False)
+            query = query.filter(NewsItemAggregate.important is False)
 
         if "relevant" in filter_args:
             query = query.filter(NewsItemAggregate.relevance > 0)
@@ -733,20 +733,6 @@ class NewsItemAggregate(BaseModel):
         return any(ReportItemNewsItemAggregate.assigned(aggregate_id) for aggregate_id in aggregate_ids)
 
     @classmethod
-    def parse_tags(cls, tags: list | dict) -> dict:
-        new_tags = {}
-        if type(tags) is dict:
-            for name, tag in tags.items():
-                tag_name = name
-                tag_type = tag.get("tag_type", "misc")
-                sub_forms = tag.get("sub_forms", None)
-                new_tags[tag_name] = NewsItemTag(name=tag_name, tag_type=tag_type, sub_forms=sub_forms)
-        else:
-            for tag_name in tags:
-                new_tags[tag_name] = NewsItemTag(name=tag_name, tag_type="misc", sub_forms=None)
-        return new_tags
-
-    @classmethod
     def update_tags(cls, news_item_aggregate_id: int, tags: list | dict) -> tuple[dict, int]:
         try:
             n_i_a = cls.get(news_item_aggregate_id)
@@ -754,8 +740,10 @@ class NewsItemAggregate(BaseModel):
                 logger.error(f"News Item Aggregate {news_item_aggregate_id} not found")
                 return {"error": "not_found"}, 404
 
-            new_tags = cls.parse_tags(tags)
+            new_tags = NewsItemTag.parse_tags(tags)
             for tag_name, new_tag in new_tags.items():
+                if tag_name in [tag.name for tag in n_i_a.tags]:
+                    continue
                 if existing_tag := NewsItemTag.find_by_name_or_subform(tag_name):
                     new_tag.name = existing_tag.name
                     new_tag.tag_type = existing_tag.tag_type
@@ -1098,3 +1086,17 @@ class NewsItemTag(BaseModel):
                 }
             )
         return results
+
+    @classmethod
+    def parse_tags(cls, tags: list | dict) -> dict[str, "NewsItemTag"]:
+        new_tags = {}
+        if type(tags) is dict:
+            for name, tag in tags.items():
+                tag_name = name
+                tag_type = tag.get("tag_type", "misc")
+                sub_forms = tag.get("sub_forms", None)
+                new_tags[tag_name] = NewsItemTag(name=tag_name, tag_type=tag_type, sub_forms=sub_forms)
+        else:
+            for tag_name in tags:
+                new_tags[tag_name] = NewsItemTag(name=tag_name, tag_type="misc", sub_forms=None)
+        return new_tags

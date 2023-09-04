@@ -50,6 +50,7 @@ export default defineComponent({
     const assessStore = useAssessStore()
     const filterStore = useFilterStore()
     const mainStore = useMainStore()
+    let lastFilterLimit = filterStore.newsItemsFilter.limit
     const { newsItems, newsItemsSelection } = storeToRefs(assessStore)
     const { updateNewsItems, selectNewsItem, clearNewsItemSelection } =
       assessStore
@@ -75,16 +76,20 @@ export default defineComponent({
     }
 
     const displayMore = ({ done }) => {
-      setTimeout(() => {
+      if (filterStore.newsItemsFilter.limit === lastFilterLimit) {
+        done('empty')
         if (!moreToLoad.value) {
           done('empty')
           return
         }
         console.debug('loading more items')
         filterStore.displayMore()
+        lastFilterLimit = filterStore.newsItemsFilter.limit
         window.scrollBy(0, -300)
         done('ok')
-      }, 500)
+      } else {
+        done('loading')
+      }
     }
 
     const nextPage = () => {

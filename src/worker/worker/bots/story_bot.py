@@ -10,6 +10,8 @@ class StoryBot(BaseBot):
     description = "Bot for clustering NewsItems to stories via naturale language processing"
 
     def __init__(self):
+        import story_clustering  # noqa: F401
+
         super().__init__()
 
     def execute(self, parameters=None):

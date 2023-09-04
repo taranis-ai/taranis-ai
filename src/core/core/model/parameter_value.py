@@ -1,5 +1,4 @@
 from typing import Any
-from core.managers.log_manager import logger
 from enum import StrEnum, auto
 
 from core.managers.db_manager import db

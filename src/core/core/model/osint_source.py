@@ -86,8 +86,8 @@ class OSINTSource(BaseModel):
         return f"osint_source_{self.id}_{self.type}"
 
     def get_schedule(self):
-        refresh_interval = [parameter.value for parameter in self.parameters if parameter.parameter == "REFRESH_INTERVAL"]
-        return refresh_interval[0] if len(refresh_interval) == 1 else "60"
+        refresh_interval = ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL")
+        return refresh_interval or "120"
 
     def to_task_dict(self):
         return {"id": self.to_task_id(), "task": "worker.tasks.collect", "schedule": self.get_schedule(), "args": [self.id]}
@@ -126,7 +126,9 @@ class OSINTSource(BaseModel):
 
     @classmethod
     def update(cls, osint_source_id, data):
-        osint_source = cls.query.get(osint_source_id)
+        osint_source = cls.get(osint_source_id)
+        if not osint_source:
+            return None
         if name := data.get("name"):
             osint_source.name = name
         if description := data.get("description"):
@@ -156,13 +158,15 @@ class OSINTSource(BaseModel):
         else:
             self.last_collected = datetime.now()
             self.state = 0
+            if schedule_entry := ScheduleEntry.get(self.to_task_id()):
+                schedule_entry.last_run_at = datetime.now()
         self.last_error_message = error_message
         db.session.commit()
 
     def schedule_osint_source(self):
         entry = self.to_task_dict()
         ScheduleEntry.add_or_update(entry)
-        logger.info(f"Schedule for source {self.id} updated")
+        logger.info(f"Schedule for source {self.id} updated with - {entry}")
         return {"message": f"Schedule for source {self.id} updated"}, 200
 
     def unschedule_osint_source(self):

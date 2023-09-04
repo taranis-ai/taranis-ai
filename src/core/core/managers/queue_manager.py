@@ -75,6 +75,35 @@ class QueueManager:
             return {"error": "Could not reach rabbitmq", "url": ""}, 500
         return {"status": "🚀 Up and running 🏃", "url": f"{queue_manager.celery.broker_connection().as_uri()}"}, 200
 
+    def collect_osint_source(self, source_id: str):
+        if self.send_task("worker.tasks.collect", args=[source_id]):
+            logger.info(f"Collect for source {source_id} scheduled")
+            return {"message": f"Refresh for source {source_id} scheduled"}, 200
+        return {"error": "Could not reach rabbitmq"}, 500
+
+    def collect_all_osint_sources(self):
+        from core.model.osint_source import OSINTSource
+
+        if self.error:
+            return {"error": "Could not reach rabbitmq"}, 500
+        sources = OSINTSource.get_all()
+        for source in sources:
+            self.send_task("worker.tasks.collect", args=[source.id])
+            logger.info(f"Collect for source {source.id} scheduled")
+        return {"message": f"Refresh for source {len(sources)} scheduled"}, 200
+
+    def gather_word_list(self, word_list_id: int):
+        if self.send_task("worker.tasks.gather_word_list", args=[word_list_id]):
+            logger.info(f"Gathering for WordList {word_list_id} scheduled")
+            return {"message": f"Gathering for WordList {word_list_id} scheduled"}, 200
+        return {"error": "Could not reach rabbitmq"}, 500
+
+    def execute_bot_task(self, bot_id: int):
+        if self.send_task("worker.tasks.execute_bot", args=[bot_id]):
+            logger.info(f"Executing Bot {bot_id} scheduled")
+            return {"message": f"Executing Bot {bot_id} scheduled"}, 200
+        return {"error": "Could not reach rabbitmq"}, 500
+
 
 def initialize(app: Flask, first_worker: bool):
     global queue_manager
@@ -92,36 +121,3 @@ def initialize(app: Flask, first_worker: bool):
     except Exception:
         logger.exception()
         queue_manager.error = "Could not reach rabbitmq"
-
-
-def collect_osint_source(source_id: str):
-    if queue_manager.send_task("worker.tasks.collect", args=[source_id]):
-        logger.info(f"Collect for source {source_id} scheduled")
-        return {"message": f"Refresh for source {source_id} scheduled"}, 200
-    return {"error": "Could not reach rabbitmq"}, 500
-
-
-def collect_all_osint_sources():
-    from core.model.osint_source import OSINTSource
-
-    if queue_manager.error:
-        return {"error": "Could not reach rabbitmq"}, 500
-    sources = OSINTSource.get_all()
-    for source in sources:
-        queue_manager.send_task("worker.tasks.collect", args=[source.id])
-        logger.info(f"Collect for source {source.id} scheduled")
-    return {"message": f"Refresh for source {len(sources)} scheduled"}, 200
-
-
-def gather_word_list(word_list_id: int):
-    if queue_manager.send_task("worker.tasks.gather_word_list", args=[word_list_id]):
-        logger.info(f"Gathering for WordList {word_list_id} scheduled")
-        return {"message": f"Gathering for WordList {word_list_id} scheduled"}, 200
-    return {"error": "Could not reach rabbitmq"}, 500
-
-
-def execute_bot_task(bot_id: int):
-    if queue_manager.send_task("worker.tasks.execute_bot", args=[bot_id]):
-        logger.info(f"Executing Bot {bot_id} scheduled")
-        return {"message": f"Executing Bot {bot_id} scheduled"}, 200
-    return {"error": "Could not reach rabbitmq"}, 500

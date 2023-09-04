@@ -1,8 +1,8 @@
 from .base_bot import BaseBot
 from worker.log import logger
 import datetime
-import spacy, spacy.cli
-from typing import Any
+import spacy
+import spacy.cli
 import py3langid
 from nltk.stem import WordNetLemmatizer
 from nltk.corpus import stopwords
@@ -11,7 +11,6 @@ from polyfuzz.models import TFIDF
 from sentence_transformers import SentenceTransformer
 from keybert import KeyBERT
 from pandas import DataFrame
-import typing
 import numpy
 import nltk
 import torch
@@ -34,6 +33,18 @@ class NLPBot(BaseBot):
         nltk.download("stopwords")
         self.language = ""
         self.extraction_text_limit = 5000
+        self.patch_bert_logger()
+
+    def patch_bert_logger(self):
+        import logging
+
+        bert_logger = logging.getLogger("BERTopic")
+
+        class IgnoreSpecificLogFilter(logging.Filter):
+            def filter(self, record: logging.LogRecord) -> bool:
+                return "Ran model with model id" not in record.getMessage()
+
+        bert_logger.addFilter(IgnoreSpecificLogFilter())
 
     def execute(self, parameters=None):
         if not parameters:
@@ -65,10 +76,12 @@ class NLPBot(BaseBot):
 
     def extract_keywords(self, aggregate: dict, all_keywords: dict) -> dict:
         current_keywords = aggregate.get("tags", {})
+        # drop "name" from current_keywords
+        current_keywords = {k: v for k, v in current_keywords.items() if k != "name"}
         aggregate_content = ""
 
         for news_item in aggregate["news_items"]:
-            content = news_item["news_item_data"]["content"] + news_item["news_item_data"]["review"] + news_item["news_item_data"]["title"]
+            content = news_item["news_item_data"]["content"]
             aggregate_content += content
 
             language = news_item["news_item_data"]["language"]

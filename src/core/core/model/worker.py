@@ -165,7 +165,7 @@ class Worker(BaseModel):
             return worker_parameters
         parsed_parameters = ParameterValue.get_or_create_from_list(parameters=parameters)
         for worker_parameter in worker_parameters:
-            if worker_parameter not in parsed_parameters and worker_parameter.value:
+            if worker_parameter not in parsed_parameters:
                 parsed_parameters.append(worker_parameter)
         return parsed_parameters
 
