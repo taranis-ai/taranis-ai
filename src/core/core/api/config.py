@@ -496,6 +496,10 @@ class WorkerTypes(Resource):
         filter_args = {"search": search}
         return worker.Worker.get_all_json(filter_args)
 
+    @auth_required("CONFIG_WORKER_ACCESS")
+    def post(self):
+        return worker.Worker.add(request.json)
+
 
 def initialize(api: Api):
     namespace = Namespace("config", description="Configuration operations", path="/api/v1/config")

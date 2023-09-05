@@ -921,6 +921,20 @@ def pre_seed_wordlists():
                 "link": "https://raw.githubusercontent.com/SK-CERT/Taranis-NG/main/resources/wordlists/highlighting.csv",
             }
         )
+        WordList.add(
+            {
+                "name": "CVE Vendors",
+                "description": "List of vendors that are known to be affected by a CVE.",
+                "link": "https://raw.githubusercontent.com/ait-cs-IaaS/cve2wordlist/master/output/vendors.json",
+            }
+        )
+        WordList.add(
+            {
+                "name": "CVE Products",
+                "description": "List of products that are known to be affected by a CVE.",
+                "link": "https://raw.githubusercontent.com/ait-cs-IaaS/cve2wordlist/master/output/products.json",
+            }
+        )
 
 
 def pre_seed_default_user():

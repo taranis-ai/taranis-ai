@@ -88,6 +88,16 @@ workers = [
         "description": "Bot for naturale language processing of news items",
     },
     {
+        "type": "IOC_BOT",
+        "name": "IOC Bot",
+        "parameters": [
+            {"parameter": "SOURCE_GROUP", "type": "select"},
+            {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
+            {"parameter": "REFRESH_INTERVAL", "type": "number"},
+        ],
+        "description": "Bot for extracting indicators of compromise from news items",
+    },
+    {
         "type": "TAGGING_BOT",
         "name": "Tagging Bot",
         "parameters": [
@@ -207,9 +217,9 @@ bots = [
         ],
     },
     {
-        "name": "NLP BOT",
-        "description": "Bot for naturale language processing of news items",
-        "type": "NLP_BOT",
+        "name": "IOC BOT",
+        "description": "Bot for Tagging news items",
+        "type": "IOC_BOT",
         "parameters": [
             {"parameter": "SOURCE_GROUP", "type": "select"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch", "value": "true"},

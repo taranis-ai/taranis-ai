@@ -3,8 +3,7 @@ from flask_restx import Resource, Namespace, Api
 
 from core.managers.sse_manager import sse_manager
 from core.managers.auth_manager import api_key_required
-from core.managers.log_manager import logger
-from core.model import osint_source, news_item
+from core.model import news_item
 
 
 class AddNewsItems(Resource):
