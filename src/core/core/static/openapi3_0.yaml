@@ -1,6 +1,9 @@
 openapi: 3.0.3
 info:
   title: Taranis NG
+  contact:
+    name: Benjamin Akhras
+    email: benjamin.akhras@ait.ac.at
   description: |-
     The Taranis NG API provides endpoints for the Taranis NG is an OSINT gathering and analysis tool.
   license:
@@ -46,29 +49,23 @@ tags:
   - name: publishers
     description: read/update/delete publisher nodes/presets
 security:
-  - API_key: []
-  - user_auth: []
+  - APIKey: []
+  - UserAuth: []
 
 paths:
   /auth/login:
     post:
       tags:
         - auth
-      summary: >-
-        authenticate with either
-        username and password,
-        via Keycloak or
-        OpenID Connect
+      operationId: LoginPost
+      description: authenticate with either username and password
       security: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              oneOf:
-                - $ref: '#/components/schemas/req.auth.username_password'
-#                - $ref: '#/components/schemas/req.auth.keycloak'
-#                - $ref: '#/components/schemas/req.auth.oidc'
+              $ref: '#/components/schemas/req.auth.username_password'
       responses:
         '200':
           description: successful authentication
@@ -96,7 +93,8 @@ paths:
     get:
       tags:
         - auth
-      summary: get redirected to the URL requested before authentication
+      operationId: LoginGet
+      description: get redirected to the URL requested before authentication
       parameters:
         - name: gotoUrl
           in: query
@@ -123,7 +121,7 @@ paths:
     get:
       tags:
         - auth
-      summary: refresh an API token
+      description: refresh an API token
       responses:
         '200':
           description: refreshed API token
@@ -150,7 +148,7 @@ paths:
     get:
       tags:
         - auth
-      summary: invalidate API token (i.e. logout)
+      description: invalidate API token (i.e. logout)
       parameters:
         - name: jwt
           in: query
@@ -182,7 +180,7 @@ paths:
     get:
       tags:
         - isalive
-      summary: see whether the Taranis instance is alive
+      description: see whether the Taranis instance is alive
       security: []
       responses:
         '200':
@@ -200,7 +198,7 @@ paths:
   /users/profile:
     get:
       tags: [users]
-      summary: get the user's profile
+      description: get the user's profile
       responses:
         '200':
           description: the user profile
@@ -224,13 +222,13 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
     put:
       tags: [users]
-      summary: update the user's profile
+      description: update the user's profile
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/user_profile.new'
+              $ref: '#/components/schemas/user_profile'
       responses:
         '200':
           description: the updated user profile
@@ -251,7 +249,7 @@ paths:
   /users/my-word-lists:
     get:
       tags: [users]
-      summary: get the user's wordlists
+      description: get the user's wordlists
       responses:
         '200':
           description: the user's wordlists
@@ -277,7 +275,7 @@ paths:
   /users/my-product-types:
     get:
       tags: [users]
-      summary: get the user's product types
+      description: get the user's product types
       responses:
         '200':
           description: the user's product types
@@ -303,7 +301,7 @@ paths:
   /users/my-publisher-presets:
     get:
       tags: [users]
-      summary: get the user's publisher presets
+      description: get the user's publisher presets
       responses:
         '200':
           description: the user's publisher presets
@@ -330,7 +328,7 @@ paths:
   /analyze/report-types:
     get:
       tags: [analyze]
-      summary: get the types of report items
+      description: get the types of report items
       responses:
         '200':
           description: the types of report items
@@ -356,7 +354,7 @@ paths:
   /analyze/report-items:
     get:
       tags: [analyze]
-      summary: get the report items
+      description: get the report items
       parameters:
         - name: search
           in: query
@@ -419,7 +417,7 @@ paths:
 
     post:
       tags: [analyze]
-      summary: add report item
+      description: add report item
       requestBody:
         required: true
         content:
@@ -456,7 +454,7 @@ paths:
           format: int32
     get:
       tags: [analyze]
-      summary: get a specific report item
+      description: get a specific report item
       responses:
         '200':
           description: the report item
@@ -477,7 +475,7 @@ paths:
     put:
       # TODO: this is a very confusing endpoint
       tags: [analyze]
-      summary: modify a specific report item
+      description: modify a specific report item
       requestBody:
         required: true
         content:
@@ -503,7 +501,7 @@ paths:
           $ref: "#/components/schemas/notFound"
     delete:
       tags: [analyze]
-      summary: delete a specific report item
+      description: delete a specific report item
       responses:
         '200':
           description: the report item was deleted
@@ -533,7 +531,7 @@ paths:
           format: int32
     get:
       tags: [analyze]
-      summary: get suitable the report item data
+      description: get suitable the report item data
       parameters:
         - name: update
           in: query
@@ -591,7 +589,8 @@ paths:
           format: int32
     get:
       tags: [analyze]
-      summary: get a report item's field locks
+      operationId: ReportItemLocks
+      description: get a report item's field locks
       responses:
         '200':
           description: the report item's field locks
@@ -620,7 +619,7 @@ paths:
           format: int32
     put:
       tags: [analyze]
-      summary: lock the specified field
+      description: lock the specified field
       responses:
         '200':
           description: the locked field as a SSE
@@ -649,7 +648,7 @@ paths:
           format: int32
     put:
       tags: [analyze]
-      summary: unlock the specified field
+      description: unlock the specified field
       responses:
         '200':
           description: the locked field as a SSE
@@ -679,7 +678,7 @@ paths:
     post:
       deprecated: true
       tags: [analyze]
-      summary: attach a file to the report item
+      description: attach a file to the report item
       requestBody:
         content:
           multipart/form-data:
@@ -739,7 +738,7 @@ paths:
     delete:
       deprecated: true
       tags: [analyze]
-      summary: remove an attachment from the report item
+      description: remove an attachment from the report item
       responses:
         '200':
           description: the attachment has been removed
@@ -770,7 +769,7 @@ paths:
     get:
       deprecated: true
       tags: [analyze]
-      summary: download a report item's specified attachment
+      description: download a report item's specified attachment
       responses:
         '200':
           description: the report item's attachment
@@ -792,7 +791,7 @@ paths:
   /assess/osint-source-groups:
     get:
       tags: [assess]
-      summary: get all OSINT source groups
+      description: get all OSINT source groups
       responses:
         '200':
           description: all OSINT source groups
@@ -818,7 +817,7 @@ paths:
   /assess/osint-source-group-list:
     get:
       tags: [assess]
-      summary: get all the user's OSINT source groups
+      description: get all the user's OSINT source groups
       responses:
         '200':
           description: all the user's OSINT source groups
@@ -844,15 +843,13 @@ paths:
   /assess/osint-sources-list:
     get:
       tags: [assess]
-      summary: get manual OSINT sources
+      description: get manual OSINT sources
       responses:
         '200':
           description: all manual OSINT sources
           content:
             application/json:
               schema:
-                total_count:
-                  type: integer
                 items:
                   type: array
                   items:
@@ -868,7 +865,7 @@ paths:
   /assess/news-items:
     post:
       tags: [assess]
-      summary: add news item
+      description: add news item
       requestBody:
         content:
           application/json:
@@ -900,7 +897,7 @@ paths:
   /assess/news-item-aggregates:
     get:
       tags: [assess]
-      summary: get stories by filters
+      description: get stories by filters
       parameters:
         - name: search
           in: query
@@ -996,7 +993,7 @@ paths:
           format: int32
     get:
       tags: [assess]
-      summary: get the specified news item
+      description: get the specified news item
       responses:
         '200':
           description: the news item
@@ -1014,7 +1011,7 @@ paths:
           $ref: "#/components/schemas/notFound"
     put:
       tags: [assess]
-      summary: modify the specified news item
+      description: modify the specified news item
       requestBody:
         content:
           application/json:
@@ -1047,7 +1044,7 @@ paths:
           $ref: "#/components/schemas/notFound"
     delete:
       tags: [assess]
-      summary: delete the specified news item
+      description: delete the specified news item
       responses:
         '200':
           description: the news item was deleted
@@ -1083,7 +1080,7 @@ paths:
           format: int32
     get:
       tags: [assess]
-      summary: get the specified news item aggregate
+      description: get the specified news item aggregate
       responses:
         '200':
           description: the news item aggregate
@@ -1103,7 +1100,7 @@ paths:
           $ref: "#/components/schemas/notFound"
     put:
       tags: [assess]
-      summary: modify the specified news item aggregate
+      description: modify the specified news item aggregate
       requestBody:
         content:
           application/json:
@@ -1140,13 +1137,11 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/resp.auth.error'
-        '400':
-          description: erronous input data
         '404':
           $ref: "#/components/schemas/notFound"
     delete:
       tags: [assess]
-      summary: delete the specified news item aggregate
+      description: delete the specified news item aggregate
       responses:
         '200':
           description: the news item aggregate was deleted
@@ -1176,7 +1171,7 @@ paths:
   /assess/news-item-aggregates/group:
     put:
       tags: [assess]
-      summary: Group News Items to an Aggregates
+      description: Group News Items to an Aggregates
       requestBody:
         content:
           application/json:
@@ -1210,7 +1205,7 @@ paths:
   /assess/news-item-aggregates/ungroup:
     put:
       tags: [assess]
-      summary: Remove News Items from an Aggregate
+      description: Remove News Items from an Aggregate
       requestBody:
         content:
           application/json:
@@ -1253,7 +1248,7 @@ paths:
           format: int32
     get:
       tags: [assess]
-      summary: download attachment
+      description: download attachment
       responses:
         '200':
           description: the specified attachment
@@ -1275,7 +1270,7 @@ paths:
   /my-assets/asset-groups:
     get:
       tags: [my-assets]
-      summary: get and add to the user's asset groups
+      description: get and add to the user's asset groups
       responses:
         '200':
           description: the user's asset group
@@ -1300,7 +1295,7 @@ paths:
           $ref: "#/components/schemas/notFound"
     post:
       tags: [my-assets]
-      summary: add new asset to the user's asset groups
+      description: add new asset to the user's asset groups
       requestBody:
         content:
           application/json:
@@ -1313,7 +1308,6 @@ paths:
             application/json:
               schema:
                 type: string
-                example:
         '401':
           description: authorization error
           content:
@@ -1331,7 +1325,7 @@ paths:
           type: string
     put:
       tags: [my-assets]
-      summary: update an asset group
+      description: update an asset group
       requestBody:
         content:
           application/json:
@@ -1344,7 +1338,6 @@ paths:
             application/json:
               schema:
                 type: string
-                example:
         '401':
           description: authorization error
           content:
@@ -1355,7 +1348,7 @@ paths:
           $ref: "#/components/schemas/notFound"
     delete:
       tags: [my-assets]
-      summary: delete an asset group
+      description: delete an asset group
       responses:
         '200':
           description: the group has been deleted
@@ -1363,7 +1356,6 @@ paths:
             application/json:
               schema:
                 type: string
-                example:
         '401':
           description: authorization error
           content:
@@ -1381,7 +1373,7 @@ paths:
           type: string
     get:
       tags: [my-assets]
-      summary: get all the group's assets
+      description: get all the group's assets
       parameters:
         - name: search
           in: query
@@ -1419,7 +1411,7 @@ paths:
           $ref: "#/components/schemas/notFound"
     post:
       tags: [my-assets]
-      summary: add an assets to the group
+      description: add an assets to the group
       requestBody:
         content:
           application/json:
@@ -1432,7 +1424,6 @@ paths:
             application/json:
               schema:
                 type: string
-                example:
         '401':
           description: authorization error
           content:
@@ -1455,7 +1446,7 @@ paths:
           type: integer
     put:
       tags: [my-assets]
-      summary: update asset
+      description: update asset
       requestBody:
         content:
           application/json:
@@ -1468,7 +1459,6 @@ paths:
             application/json:
               schema:
                 type: string
-                example:
         '401':
           description: authorization error
           content:
@@ -1479,7 +1469,7 @@ paths:
           $ref: "#/components/schemas/notFound"
     delete:
       tags: [my-assets]
-      summary: delete the asset
+      description: delete the asset
       responses:
         '200':
           description: the asset has been deleted
@@ -1487,7 +1477,6 @@ paths:
             application/json:
               schema:
                 type: string
-                example:
         '401':
           description: authorization error
           content:
@@ -1515,7 +1504,7 @@ paths:
           type: integer
     put:
       tags: [my-assets]
-      summary: update the status of the vulnerability
+      description: update the status of the vulnerability
       requestBody:
         content:
           application/json:
@@ -1531,7 +1520,6 @@ paths:
             application/json:
               schema:
                 type: string
-                example:
         '401':
           description: authorization error
           content:
@@ -1543,7 +1531,7 @@ paths:
   /my-assets/attributes/cpe:
     get:
       tags: [my-assets]
-      summary: get CPE attribute
+      description: get CPE attribute
       responses:
         '200':
           description: the attribute ID
@@ -1562,7 +1550,7 @@ paths:
   /my-assets/attributes/cpe/enums:
     get:
       tags: [my-assets]
-      summary: get CPE attribute enums
+      description: get CPE attribute enums
       parameters:
         - name: search
           in: query
@@ -1604,7 +1592,7 @@ paths:
 
   /worker/osint-sources/{source_id}:
     get:
-      summary: Get OSINT source by ID
+      description: Get OSINT source by ID
       parameters:
         - name: source_id
           in: path
@@ -1620,7 +1608,7 @@ paths:
 
   /worker/bots:
     get:
-      summary: Get all bots
+      description: Get all bots
       responses:
         '200':
           description: OK
@@ -1633,7 +1621,7 @@ paths:
 
   /worker/news-item-aggregates:
     get:
-      summary: Get news item aggregates
+      description: Get news item aggregates
       responses:
         '200':
           description: OK
@@ -1646,7 +1634,7 @@ paths:
 
   /beat/schedule:
     get:
-      summary: Get all schedule entries
+      description: Get all schedule entries
       responses:
         '200':
           description: OK
@@ -1660,7 +1648,7 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
 
     put:
-      summary: Sync schedule entries
+      description: Sync schedule entries
       requestBody:
         required: true
         content:
@@ -1682,7 +1670,7 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
   /beat/schedule/{schedule_id}:
     get:
-      summary: Get schedule entry by ID
+      description: Get schedule entry by ID
       parameters:
         - name: schedule_id
           in: path
@@ -1703,7 +1691,7 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
   /beat/next-run-time:
     put:
-      summary: Update next run time
+      description: Update next run time
       requestBody:
         required: true
         content:
@@ -1725,7 +1713,7 @@ paths:
   /bots/news-item-data:
     get:
       tags: [bots]
-      summary: get all news items
+      description: get all news items
       parameters:
         - name: limit
           in: query
@@ -1758,7 +1746,7 @@ paths:
           type: string
     put:
       tags: [bots]
-      summary: update news item tags
+      description: update news item tags
       requestBody:
         content:
           application/json:
@@ -1773,7 +1761,6 @@ paths:
             application/json:
               schema:
                 type: string
-                example:
         '400':
           description: invalid tag or no tag provided
         '401':
@@ -1793,7 +1780,7 @@ paths:
           type: string
     put:
       tags: [bots]
-      summary: update news item attributes
+      description: update news item attributes
       requestBody:
         content:
           application/json:
@@ -1806,7 +1793,6 @@ paths:
             application/json:
               schema:
                 type: string
-                example:
         '401':
           description: authorization error
           content:
@@ -1818,7 +1804,7 @@ paths:
   /bots/news-item-aggregates/group:
     put:
       tags: [bots]
-      summary: Group News Items to an Aggregates
+      description: Group News Items to an Aggregates
       requestBody:
         content:
           application/json:
@@ -1858,7 +1844,7 @@ paths:
           type: string
     delete:
       tags: [bots]
-      summary: delete an entry
+      description: delete an entry
       responses:
         '200':
           description: successfully deleted entry
@@ -1876,7 +1862,7 @@ paths:
           $ref: "#/components/schemas/notFound"
     put:
       tags: [bots]
-      summary: update wordlist entries
+      description: update wordlist entries
       requestBody:
         content:
           application/json:
@@ -1899,111 +1885,11 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
         '404':
           $ref: "#/components/schemas/notFound"
-  /collectors/osint-sources/{collector_type}:
-    parameters:
-      - name: collector_type
-        in: path
-        required: true
-        schema:
-          type: string
-    get:
-      tags: [collectors]
-      summary: get all OSINT sources of a specific collector type
-      responses:
-        '200':
-          description: OSINT sources of a specific collector type
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/osint_source'
-
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          description: resource not found
-          content:
-            application/json:
-              schema:
-                type: string
-                example:
-  /collectors/osint-sources/{osint_source_id}:
-    parameters:
-      - name: osint_source_id
-        in: path
-        required: true
-        schema:
-          type: string
-    put:
-      tags: [collectors]
-      summary: update source status
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/osint_source_update_status'
-      responses:
-        '200':
-          description: successfully updated
-          content:
-            application/json:
-              schema:
-                type: object
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          description: resource not found
-          content:
-            application/json:
-              schema:
-                type: string
-                example:
-        '405':
-          description: method not allowed
-          content:
-            'application/json': {}
-            'application/xml': {}
-  /collectors/{collector_id}:
-    parameters:
-      - name: collector_id
-        in: path
-        required: true
-        schema:
-          type: string
-    get:
-      tags: [collectors]
-      summary: update the last-seen date/time of a specific collector
-      # TODO: this should be an HTTP POST/PUT request
-      responses:
-        '200':
-          description: successfully updated
-          content:
-            application/json:
-              schema:
-                type: object
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-
 
   /collectors/news-items:
     post:
       tags: [collectors]
-      summary: add news items
+      description: add news items
       requestBody:
         content:
           application/json:
@@ -2035,7 +1921,7 @@ paths:
           type: string
     get:
       tags: [config]
-      summary: reload dictionaries
+      description: reload dictionaries
       # TODO: this should be an HTTP POST/PUT request
       responses:
         '200':
@@ -2056,7 +1942,7 @@ paths:
   /config/attributes:
     get:
       tags: [config]
-      summary: get attributes
+      description: get attributes
       parameters:
         - name: search
           in: query
@@ -2086,7 +1972,7 @@ paths:
           $ref: "#/components/schemas/notFound"
     post:
       tags: [config]
-      summary: add attribute
+      description: add attribute
       requestBody:
         content:
           application/json:
@@ -2112,7 +1998,7 @@ paths:
           type: integer
     put:
       tags: [config]
-      summary: update attribute
+      description: update attribute
       requestBody:
         content:
           application/json:
@@ -2131,7 +2017,7 @@ paths:
           $ref: "#/components/schemas/notFound"
     delete:
       tags: [config]
-      summary: delete attribute
+      description: delete attribute
       responses:
         '200':
           description: success
@@ -2152,7 +2038,7 @@ paths:
           type: integer
     get:
       tags: [config]
-      summary: get attribute enum
+      description: get attribute enum
       parameters:
         - name: search
           in: query
@@ -2179,7 +2065,7 @@ paths:
           $ref: "#/components/schemas/notFound"
     post:
       tags: [config]
-      summary: add attribute enums
+      description: add attribute enums
       requestBody:
         content:
           application/json:
@@ -2217,7 +2103,7 @@ paths:
           type: integer
     put:
       tags: [config]
-      summary: update attribute enum
+      description: update attribute enum
       requestBody:
         content:
           application/json:
@@ -2238,7 +2124,7 @@ paths:
           $ref: "#/components/schemas/notFound"
     delete:
       tags: [config]
-      summary: delete attribute enum
+      description: delete attribute enum
       responses:
         '200':
           description: success
@@ -2253,7 +2139,7 @@ paths:
   /config/report-item-types:
     get:
       tags: [config]
-      summary: get report item types
+      description: get report item types
       parameters:
         - name: search
           in: query
@@ -2283,7 +2169,7 @@ paths:
           $ref: "#/components/schemas/notFound"
     post:
       tags: [config]
-      summary: add report item type
+      description: add report item type
       requestBody:
         content:
           application/json:
@@ -2309,7 +2195,7 @@ paths:
           type: integer
     put:
       tags: [config]
-      summary: update report item type
+      description: update report item type
       requestBody:
         content:
           application/json:
@@ -2328,7 +2214,7 @@ paths:
           $ref: "#/components/schemas/notFound"
     delete:
       tags: [config]
-      summary: delete report item type
+      description: delete report item type
       responses:
         '200':
           description: success
@@ -2343,7 +2229,7 @@ paths:
   /config/product-types:
     get:
       tags: [config]
-      summary: get all product types
+      description: get all product types
       parameters:
         - name: search
           in: query
@@ -2373,7 +2259,7 @@ paths:
           $ref: "#/components/schemas/notFound"
     post:
       tags: [config]
-      summary: add product type
+      description: add product type
       requestBody:
         content:
           application/json:
@@ -2399,7 +2285,7 @@ paths:
           type: integer
     put:
       tags: [config]
-      summary: update product type
+      description: update product type
       requestBody:
         content:
           application/json:
@@ -2418,7 +2304,7 @@ paths:
           $ref: "#/components/schemas/notFound"
     delete:
       tags: [config]
-      summary: delete product type
+      description: delete product type
       responses:
         '200':
           description: success
@@ -2433,7 +2319,7 @@ paths:
   /config/permissions:
     get:
       tags: [config]
-      summary: get all permissions
+      description: get all permissions
       parameters:
         - name: search
           in: query
@@ -2461,36 +2347,10 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
         '404':
           $ref: "#/components/schemas/notFound"
-  /config/external-permissions:
-    get:
-      tags: [config]
-      summary: get all external permissions
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  total_count:
-                    type: integer
-                  items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/permission'
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
   /config/roles:
     get:
       tags: [config]
-      summary: get all roles
+      description: get all roles
       parameters:
         - name: search
           in: query
@@ -2520,7 +2380,7 @@ paths:
           $ref: "#/components/schemas/notFound"
     post:
       tags: [config]
-      summary: add role
+      description: add role
       requestBody:
         content:
           application/json:
@@ -2546,7 +2406,7 @@ paths:
           type: integer
     put:
       tags: [config]
-      summary: update role
+      description: update role
       requestBody:
         content:
           application/json:
@@ -2565,7 +2425,7 @@ paths:
           $ref: "#/components/schemas/notFound"
     delete:
       tags: [config]
-      summary: delete role
+      description: delete role
       responses:
         '200':
           description: success
@@ -2580,7 +2440,7 @@ paths:
   /config/acls:
     get:
       tags: [config]
-      summary: get all ACL entries
+      description: get all ACL entries
       parameters:
         - name: search
           in: query
@@ -2610,7 +2470,7 @@ paths:
           $ref: "#/components/schemas/notFound"
     post:
       tags: [config]
-      summary: add ACL entry
+      description: add ACL entry
       requestBody:
         content:
           application/json:
@@ -2636,7 +2496,7 @@ paths:
           type: integer
     put:
       tags: [config]
-      summary: update ACL entry
+      description: update ACL entry
       requestBody:
         content:
           application/json:
@@ -2655,7 +2515,7 @@ paths:
           $ref: "#/components/schemas/notFound"
     delete:
       tags: [config]
-      summary: delete ACL entry
+      description: delete ACL entry
       responses:
         '200':
           description: success
@@ -2670,7 +2530,7 @@ paths:
   /config/organizations:
     get:
       tags: [config]
-      summary: get all organizations
+      description: get all organizations
       parameters:
         - name: search
           in: query
@@ -2700,7 +2560,7 @@ paths:
           $ref: "#/components/schemas/notFound"
     post:
       tags: [config]
-      summary: add organization
+      description: add organization
       requestBody:
         content:
           application/json:
@@ -2726,7 +2586,7 @@ paths:
           type: integer
     put:
       tags: [config]
-      summary: update organization
+      description: update organization
       requestBody:
         content:
           application/json:
@@ -2745,7 +2605,7 @@ paths:
           $ref: "#/components/schemas/notFound"
     delete:
       tags: [config]
-      summary: delete organization
+      description: delete organization
       responses:
         '200':
           description: success
@@ -2761,7 +2621,7 @@ paths:
   /config/users:
     get:
       tags: [config]
-      summary: get all users
+      description: get all users
       parameters:
         - name: search
           in: query
@@ -2791,7 +2651,7 @@ paths:
           $ref: "#/components/schemas/notFound"
     post:
       tags: [config]
-      summary: add user
+      description: add user
       requestBody:
         content:
           application/json:
@@ -2819,7 +2679,7 @@ paths:
           type: integer
     put:
       tags: [config]
-      summary: update user
+      description: update user
       requestBody:
         content:
           application/json:
@@ -2840,7 +2700,7 @@ paths:
           $ref: "#/components/schemas/notFound"
     delete:
       tags: [config]
-      summary: delete user
+      description: delete user
       responses:
         '200':
           description: success
@@ -2854,45 +2714,55 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
         '404':
           $ref: "#/components/schemas/notFound"
-  /config/external-users:
+  /config/workers:
     get:
       tags: [config]
-      summary: get all external users
-      parameters:
-        - name: search
-          in: query
-          schema:
-            type: string
+      operationId: Workers
+      description: get all workers connected for CELERY (via RabbitMQ)
       responses:
         '200':
           description: success
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  total_count:
-                    type: integer
-                  items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/user.presentation'
+                type: array
+                items:
+                  type: string
         '401':
           description: authorization error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
+        '500':
+          description: could not connect to RabbitMQ
+  /config/worker-types:
+    get:
+      tags: [config]
+      operationId: WorkerTypesGet
+      description: get all worker types
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/worker_type'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
     post:
       tags: [config]
-      summary: add external user
+      operationId: WorkerTypesPut
+      description: create new worker type
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/user.new'
+              $ref: '#/components/schemas/worker_type'
       responses:
         '200':
           description: success
@@ -2902,52 +2772,11 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-  /config/external-users/{user_id}:
-    parameters:
-      - name: user_id
-        in: path
-        required: true
-        schema:
-          type: integer
-    put:
-      tags: [config]
-      summary: update external user
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/user.new'
-      responses:
-        '200':
-          description: success
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-    delete:
-      tags: [config]
-      summary: delete external user
-      responses:
-        '200':
-          description: success
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
+
   /config/word-lists:
     get:
       tags: [config]
-      summary: get all wordlists
+      description: get all wordlists
       parameters:
         - name: search
           in: query
@@ -2977,7 +2806,7 @@ paths:
           $ref: "#/components/schemas/notFound"
     post:
       tags: [config]
-      summary: add wordlist
+      description: add wordlist
       requestBody:
         content:
           application/json:
@@ -3003,7 +2832,7 @@ paths:
           type: integer
     put:
       tags: [config]
-      summary: update wordlist
+      description: update wordlist
       requestBody:
         content:
           application/json:
@@ -3022,7 +2851,7 @@ paths:
           $ref: "#/components/schemas/notFound"
     delete:
       tags: [config]
-      summary: delete wordlist
+      description: delete wordlist
       responses:
         '200':
           description: success
@@ -3037,7 +2866,7 @@ paths:
   /config/osint-sources:
     get:
       tags: [config]
-      summary: get all OSINT sources
+      description: get all OSINT sources
       parameters:
         - name: search
           in: query
@@ -3067,7 +2896,7 @@ paths:
           $ref: "#/components/schemas/notFound"
     post:
       tags: [config]
-      summary: add OSINT source
+      description: add OSINT source
       requestBody:
         content:
           application/json:
@@ -3093,7 +2922,7 @@ paths:
           type: integer
     put:
       tags: [config]
-      summary: update OSINT source
+      description: update OSINT source
       requestBody:
         content:
           application/json:
@@ -3112,7 +2941,7 @@ paths:
           $ref: "#/components/schemas/notFound"
     delete:
       tags: [config]
-      summary: delete OSINT source
+      description: delete OSINT source
       responses:
         '200':
           description: success
@@ -3127,7 +2956,7 @@ paths:
   /config/export-osint-sources:
     post:
       tags: [config]
-      summary: export OSINT sources
+      description: export OSINT sources
       requestBody:
         content:
           application/json:
@@ -3161,7 +2990,7 @@ paths:
   /config/import-osint-sources:
     post:
       tags: [config]
-      summary: import OSINT sources
+      description: import OSINT sources
       requestBody:
         content:
           multipart/form-data:
@@ -3194,7 +3023,7 @@ paths:
   /config/osint-source-groups:
     get:
       tags: [config]
-      summary: get all OSINT source groups
+      description: get all OSINT source groups
       parameters:
         - name: search
           in: query
@@ -3224,7 +3053,7 @@ paths:
           $ref: "#/components/schemas/notFound"
     post:
       tags: [config]
-      summary: add OSINT source group
+      description: add OSINT source group
       requestBody:
         content:
           application/json:
@@ -3250,7 +3079,7 @@ paths:
           type: integer
     put:
       tags: [config]
-      summary: update OSINT source group
+      description: update OSINT source group
       requestBody:
         content:
           application/json:
@@ -3269,7 +3098,7 @@ paths:
           $ref: "#/components/schemas/notFound"
     delete:
       tags: [config]
-      summary: delete OSINT source group
+      description: delete OSINT source group
       responses:
         '200':
           description: success
@@ -3284,7 +3113,7 @@ paths:
   /config/publisher-preset:
     get:
       tags: [config]
-      summary: get all publisher preset
+      description: get all publisher preset
       parameters:
         - name: search
           in: query
@@ -3314,7 +3143,7 @@ paths:
           $ref: "#/components/schemas/notFound"
     post:
       tags: [config]
-      summary: add publisher preset
+      description: add publisher preset
       requestBody:
         content:
           application/json:
@@ -3340,7 +3169,7 @@ paths:
           type: integer
     put:
       tags: [config]
-      summary: update publisher preset
+      description: update publisher preset
       requestBody:
         content:
           application/json:
@@ -3359,7 +3188,7 @@ paths:
           $ref: "#/components/schemas/notFound"
     delete:
       tags: [config]
-      summary: delete publisher preset
+      description: delete publisher preset
       responses:
         '200':
           description: success
@@ -3374,7 +3203,7 @@ paths:
   /trending-clusters:
     get:
       tags: [trending-clusters]
-      summary: get trending clusters
+      description: get trending clusters
       responses:
         '200':
           description: success
@@ -3398,7 +3227,7 @@ paths:
   /dashboard-data:
     get:
       tags: [dashboard-data]
-      summary: get dashboard data
+      description: get dashboard data
       responses:
         '200':
           description: success
@@ -3430,36 +3259,10 @@ paths:
           $ref: "#/components/schemas/notFound"
         '500':
           description: Internal server error
-  /tagcloud:
-    get:
-      tags: [tagcloud]
-      summary: get tagcloud
-      parameters:
-        - name: tag_cloud_days
-          in: query
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/grouped_words'
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-        '500':
-          description: Internal server error
   /publish/products:
     get:
       tags: [publish]
-      summary: get products
+      description: get products
       parameters:
         - name: search
           in: query
@@ -3507,7 +3310,7 @@ paths:
           $ref: "#/components/schemas/notFound"
     post:
       tags: [publish]
-      summary: add product
+      description: add product
       requestBody:
         content:
           application/json:
@@ -3538,7 +3341,7 @@ paths:
           type: integer
     get:
       tags: [publish]
-      summary: get product details
+      description: get product details
       responses:
         '200':
           description: success
@@ -3556,7 +3359,7 @@ paths:
           $ref: "#/components/schemas/notFound"
     put:
       tags: [publish]
-      summary: update product details
+      description: update product details
       requestBody:
         content:
           application/json:
@@ -3575,7 +3378,7 @@ paths:
           $ref: "#/components/schemas/notFound"
     delete:
       tags: [publish]
-      summary: delete product
+      description: delete product
       responses:
         '200':
           description: success
@@ -3596,7 +3399,7 @@ paths:
           type: integer
     get:
       tags: [publish]
-      summary: download an overview of the specific product
+      description: download an overview of the specific product
       responses:
         '200':
           description: the product data as a download
@@ -3622,7 +3425,7 @@ paths:
           type: string
     post:
       tags: [publish]
-      summary: generate a specific product at a specific publisher
+      description: generate a specific product at a specific publisher
       responses:
         '200':
           description: success
@@ -3637,7 +3440,7 @@ paths:
   /publishers/presets:
     get:
       tags: [publishers]
-      summary: get all publisher preset
+      description: get all publisher preset
       parameters:
         - name: search
           in: query
@@ -3667,7 +3470,7 @@ paths:
           $ref: "#/components/schemas/notFound"
     post:
       tags: [publishers]
-      summary: add publisher preset
+      description: add publisher preset
       requestBody:
         content:
           application/json:
@@ -3693,7 +3496,7 @@ paths:
           type: integer
     put:
       tags: [publishers]
-      summary: update publisher preset
+      description: update publisher preset
       requestBody:
         content:
           application/json:
@@ -3712,7 +3515,7 @@ paths:
           $ref: "#/components/schemas/notFound"
     delete:
       tags: [publishers]
-      summary: delete publisher preset
+      description: delete publisher preset
       responses:
         '200':
           description: success
@@ -3741,23 +3544,6 @@ components:
       required:
         - username
         - password
-#    req.auth.keycloak:
-#      type: object
-#      properties:
-#        code:
-#          type: string
-#        session_state:
-#          type: string
-#      required:
-#        - code
-#        - session_state
-    req.auth.oidc:
-      type: object
-      properties:
-        access_token:
-          type: string
-      required:
-        - access_token
 
     #responses
 
@@ -3774,19 +3560,6 @@ components:
       properties:
         error:
           type: string
-    resp.auth.error.keycloak.missing_param:
-      type: object
-      properties:
-        error:
-          type: string
-          example: Missing `code` and/or `session_state` parameter
-    resp.auth.error.keycloak:
-      type: object
-      properties:
-        error:
-          type: string
-          example: Internal server error
-
 
     #general
 
@@ -3817,18 +3590,6 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/organization.id'
-    hotkey.new:
-      allOf:
-        - $ref: '#/components/schemas/hotkey'
-    user_profile.new:
-      allOf:
-        - $ref: '#/components/schemas/user_profile'
-        - type: object
-          properties:
-            hotkeys:
-              type: array
-              items:
-                $ref: '#/components/schemas/hotkey'
 
     user.base:
       type: object
@@ -3923,6 +3684,8 @@ components:
               type: string
             permissions:
               type: array
+              items:
+                type: integer
     role.id:
       type: object
       properties:
@@ -4398,34 +4161,6 @@ components:
         - author
         - collected
         - osint_source_id
-    news_item_remote:
-      type: object
-      properties:
-        hash:
-          type: string
-        title:
-          type: string
-        review:
-          type: string
-        source:
-          type: string
-        link:
-          type: string
-        published:
-          type: string
-        author:
-          type: string
-        collected:
-          type: string
-          format: date-time
-        content:
-          type: string
-        attributes:
-          type: array
-          items:
-            $ref: '#/components/schemas/news_item_attribute'
-        relevance:
-          type: integer
     news_item.base:
       type: object
       properties:
@@ -4914,6 +4649,20 @@ components:
             id:
               type: string
 
+    worker_type:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        worker_type:
+          type: string
+        category:
+          type: string
+
     acl_entry.new:
       allOf:
         - $ref: '#/components/schemas/acl_entry'
@@ -5061,18 +4810,13 @@ components:
           type: string
           format: date-time
 
-    report_item_locks:
-      type: array
-      items:
-        $ref: '#/components/schemas/report_item_lock'
-
   securitySchemes:
-    API_key:
+    APIKey:
       type: http
       scheme: bearer
       bearerFormat: APIKEY
-    user_auth:
+    UserAuth:
       type: http
-      schema: bearer
+      scheme: bearer
       bearerFormat: JWT
 
