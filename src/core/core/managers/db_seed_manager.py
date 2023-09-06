@@ -935,6 +935,20 @@ def pre_seed_wordlists():
                 "link": "https://raw.githubusercontent.com/ait-cs-IaaS/cve2wordlist/master/output/products.json",
             }
         )
+        WordList.add(
+            {
+                "name": "Countries",
+                "description": "List of Countries",
+                "link": "https://raw.githubusercontent.com/ait-cs-IaaS/cve2wordlist/master/output/countries.json",
+            }
+        )
+        WordList.add(
+            {
+                "name": "Austrian Municipalities",
+                "description": "List of Austrian Municipalities",
+                "link": "https://raw.githubusercontent.com/ait-cs-IaaS/cve2wordlist/master/output/austrian_municipalities.json",
+            }
+        )
 
 
 def pre_seed_default_user():

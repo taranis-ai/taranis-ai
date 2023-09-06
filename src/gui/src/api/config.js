@@ -225,10 +225,7 @@ export function importWordList(form_data) {
 }
 
 export function gatherWordListEntries(word_list) {
-  return ApiService.put(
-    `/config/gather-word-list-entries/${word_list.id}`,
-    word_list
-  )
+  return ApiService.put(`/config/word-lists/${word_list.id}/gather`, word_list)
 }
 
 export function exportWordList(filter) {

@@ -9,6 +9,7 @@ from sqlalchemy.sql.expression import cast
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.model.acl_entry import ACLEntry, ItemType
+from core.managers.log_manager import logger
 
 
 class WordListUsage(IntEnum):
@@ -185,7 +186,7 @@ class WordList(BaseModel):
         dialect = csv.Sniffer().sniff(content)
         cr = csv.reader(content.splitlines(), dialect)
         headers = [header.lower() for header in next(cr)]
-        if len(headers) != 3:
+        if len(headers) < 2 or len(headers) > 3:
             raise ValueError("Invalid CSV file")
         return [dict(zip(headers, row)) for row in cr]
 
@@ -195,15 +196,42 @@ class WordList(BaseModel):
         return file_content["data"] if file_content["version"] == 1 else None
 
     @classmethod
+    def update_word_list(cls, content, content_type, word_list_id: int) -> "WordList | None":
+        update_word_list = cls.get(word_list_id)
+        if not update_word_list:
+            return None
+
+        if content_type == "text/csv":
+            data = cls.parse_csv(content)
+            logger.debug(data)
+        elif content_type == "application/json":
+            data = content["data"][0]["entries"]
+        else:
+            return None
+
+        if not data:
+            return None
+
+        update_word_list.entries = WordListEntry.add_multiple(data)
+        db.session.commit()
+
+        return update_word_list
+
+    @classmethod
     def import_word_lists(cls, file) -> list | None:
-        file_data = file.read().decode("utf8")
-        data = None
-        if file.content_type == "text/csv":
-            data = [{"entries": cls.parse_csv(file_data), "name": file.filename}]
-        elif file.content_type == "application/json":
-            data = cls.parse_json(file_data)
+        data = cls.parse_word_list_data(file)
 
         return None if data is None else cls.add_multiple(data)
+
+    @classmethod
+    def parse_word_list_data(cls, file) -> list | None:
+        file_data = file.read().decode("utf8")
+        if file.content_type == "text/csv":
+            return [{"entries": cls.parse_csv(file_data), "name": file.filename}]
+        elif file.content_type == "application/json":
+            return cls.parse_json(file_data)
+
+        return None
 
 
 class WordListEntry(BaseModel):
@@ -260,3 +288,14 @@ class WordListEntry(BaseModel):
 
     def to_entry_dict(self) -> dict[str, Any]:
         return {"value": self.value, "category": self.category}
+
+    @classmethod
+    def add_multiple(cls, json_data) -> list["WordListEntry"]:
+        result = []
+        for data in json_data:
+            item = cls.from_dict(data)
+            db.session.add(item)
+            result.append(item)
+
+        db.session.commit()
+        return result

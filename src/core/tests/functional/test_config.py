@@ -109,16 +109,13 @@ class TestWordListConfigApi(BaseTest):
 
     def test_export_word_lists(self, client, auth_header, cleanup_word_lists):
         response = self.assert_get_ok(client, "export-word-lists", auth_header)
-        dir_path = os.path.dirname(os.path.realpath(__file__))
-        file_path = os.path.join(dir_path, "word_list_test_data.json")
-        with open(file_path, "rb") as f:
-            exported_word_lists = response.json
-            assert "data" in exported_word_lists
-            print(exported_word_lists["data"])
-            test_word_list = next((word_list for word_list in exported_word_lists["data"] if word_list["name"] == "Test wordlist"), None)
-            assert test_word_list
-            assert test_word_list["description"] == "Test wordlist."
-            assert len(test_word_list["entries"]) == 17
+        exported_word_lists = response.json
+        assert "data" in exported_word_lists
+        print(exported_word_lists["data"])
+        test_word_list = next((word_list for word_list in exported_word_lists["data"] if word_list["name"] == "Test wordlist"), None)
+        assert test_word_list
+        assert test_word_list["description"] == "Test wordlist."
+        assert len(test_word_list["entries"]) == 17
 
     def test_get_word_lists(self, client, auth_header, cleanup_word_lists):
         response = self.assert_get_ok(client, "word-lists", auth_header)

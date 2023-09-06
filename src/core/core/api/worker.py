@@ -152,6 +152,24 @@ class WordListByID(Resource):
         return {"error": f"Word list with id {word_list_id} not found"}, 404
 
 
+class WordListUpdate(Resource):
+    @api_key_required
+    def put(self, word_list_id):
+        if request.content_type == "application/json":
+            content = request.json
+        elif request.content_type == "text/csv":
+            content = request.data.decode("utf-8")
+        else:
+            return {"error": "Unsupported content type"}, 400
+
+        if not content:
+            return {"error": "No content provided"}, 400
+
+        if wls := WordList.update_word_list(content=content, content_type=request.content_type, word_list_id=word_list_id):
+            return {"word_lists": f"{wls.id}", "message": "Successfully updated wordlist"}
+        return {"error": "Unable to import"}, 400
+
+
 def initialize(api: Api):
     worker_namespace = Namespace("Worker", description="Publish Subscribe Worker Endpoints", path="/api/v1/worker")
     beat_namespace = Namespace("Beat", description="Publish Subscribe Beat Endpoints", path="/api/v1/beat")
@@ -178,6 +196,7 @@ def initialize(api: Api):
     worker_namespace.add_resource(NewsItemsAggregates, "/news-item-aggregates")
     worker_namespace.add_resource(WordLists, "/word-lists")
     worker_namespace.add_resource(WordListByID, "/word-list/<int:word_list_id>")
+    worker_namespace.add_resource(WordListUpdate, "/word-list/<int:word_list_id>/update")
 
     api.add_namespace(beat_namespace)
     api.add_namespace(worker_namespace)

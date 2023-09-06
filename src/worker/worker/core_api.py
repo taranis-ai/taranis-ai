@@ -131,9 +131,16 @@ class CoreApi:
             logger.log_debug_trace("update_news_item_tags failed")
             return None
 
-    def update_word_list(self, word_list: dict) -> dict | None:
+    def update_word_list(self, word_list_id, content, content_type) -> dict | None:
         try:
-            return self.api_put(url=f'/api/v1/bots/word-list/{word_list["id"]}', json_data=word_list)
+            url = f"{self.api_url}/api/v1/worker/word-list/{word_list_id}/update"
+            headers = self.headers.copy()
+            headers["Content-type"] = content_type
+            # url = "http://127.0.0.1:8888/anything"
+            if content_type == "text/csv":
+                return self.check_response(requests.put(url=url, data=content, headers=headers, verify=self.verify), url)
+            elif content_type == "application/json":
+                return self.check_response(requests.put(url=url, json=content, headers=headers, verify=self.verify), url)
         except Exception:
             return None
 
@@ -143,27 +150,6 @@ class CoreApi:
     def update_next_run_time(self, next_run_times: dict) -> dict | None:
         try:
             return self.api_put(url="/api/v1/beat/next-run-time", json_data=next_run_times)
-        except Exception:
-            return None
-
-    def delete_word_list_category_entries(self, id, name):
-        try:
-            response = requests.delete(
-                f"{self.api_url}/api/v1/bots/word-list-categories/{id}/entries/{name}",
-                headers=self.headers,
-            )
-            return response.status_code
-        except Exception:
-            return None
-
-    def add_word_list_category(self, id, category):
-        try:
-            response = requests.put(
-                f"{self.api_url}/api/v1/bots/word-list-categories/{id}",
-                json=category,
-                headers=self.headers,
-            )
-            return response.status_code
         except Exception:
             return None
 

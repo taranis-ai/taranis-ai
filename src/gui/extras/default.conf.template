@@ -7,6 +7,7 @@ server {
     server_name  _;
 
     root   /usr/share/nginx/html;
+    client_max_body_size 50m;
 
     location /assets {
         add_header Cache-Control "max-age=300, must-revalidate, s-maxage=300";

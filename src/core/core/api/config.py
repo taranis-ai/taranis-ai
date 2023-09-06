@@ -438,10 +438,9 @@ class WordLists(Resource):
 class WordList(Resource):
     @auth_required("CONFIG_WORD_LIST_ACCESS")
     def get(self, word_list_id):
-        word_list_result = word_list.WordList.get(word_list_id)
-        if not word_list_result:
-            return {"error": "Word list not found"}, 404
-        return word_list_result.to_dict(), 200
+        if word_list_result := word_list.WordList.get(word_list_id):
+            return word_list_result.to_dict(), 200
+        return {"error": "Word list not found"}, 404
 
     @auth_required("CONFIG_WORD_LIST_DELETE")
     def delete(self, word_list_id):
@@ -540,8 +539,8 @@ def initialize(api: Api):
     namespace.add_resource(User, "/users/<int:user_id>")
     namespace.add_resource(Users, "/users")
     namespace.add_resource(WordList, "/word-lists/<int:word_list_id>")
+    namespace.add_resource(WordListGather, "/word-lists/<int:word_list_id>/gather")
     namespace.add_resource(WordListExport, "/export-word-lists")
-    namespace.add_resource(WordListGather, "/gather-word-list-entries/<int:word_list_id>")
     namespace.add_resource(WordListImport, "/import-word-lists")
     namespace.add_resource(WordLists, "/word-lists")
     namespace.add_resource(Workers, "/workers")

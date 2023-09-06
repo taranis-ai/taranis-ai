@@ -7,10 +7,10 @@ core_api = CoreApi()
 bots = {
     "analyst_bot": worker.bots.AnalystBot(),
     "grouping_bot": worker.bots.GroupingBot(),
-    "nlp_bot": worker.bots.NLPBot(),
     "tagging_bot": worker.bots.TaggingBot(),
     "wordlist_bot": worker.bots.WordlistBot(),
     "wordlist_updater_bot": worker.bots.WordlistUpdaterBot(),
+    "nlp_bot": worker.bots.NLPBot(),
     "story_bot": worker.bots.StoryBot(),
     "ioc_bot": worker.bots.IOCBot(),
 }
