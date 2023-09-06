@@ -1,7 +1,6 @@
 from flask import request
 from flask_jwt_extended import jwt_required
 from flask_restx import Resource, Api
-import datetime
 
 from core.managers.log_manager import logger
 from core.model.news_item import NewsItemData, NewsItemTag, NewsItemAggregate

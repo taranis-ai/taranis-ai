@@ -5,7 +5,7 @@
         <v-chip
           v-bind="props"
           class="mr-1 mt-1"
-          :color="labelcolor(i)"
+          :color="labelcolor(tag.tag_type)"
           link
           label
           density="compact"
@@ -22,14 +22,14 @@
       </template>
       <span>
         <v-icon start :icon="tagIcon(tag.tag_type)" />
-        {{ tag.name }}
+        {{ tag.name }} - {{ tag.tag_type }}
       </span>
     </v-tooltip>
   </div>
 </template>
 
 <script>
-import { computed, defineComponent } from 'vue'
+import { defineComponent } from 'vue'
 import { tagIconFromType } from '@/utils/helpers'
 import { useAssessStore } from '@/stores/AssessStore'
 import { useFilterStore } from '@/stores/FilterStore'
@@ -55,8 +55,6 @@ export default defineComponent({
     }
   },
   setup(props) {
-    const colorStart = computed(() => Math.floor(Math.random() * 9))
-
     const { appendTag } = useFilterStore()
     const { updateNewsItems } = useAssessStore()
 
@@ -65,13 +63,17 @@ export default defineComponent({
       updateNewsItems()
     }
 
-    const labelcolor = (i) => {
+    function labelcolor(inputString) {
       if (!props.color) {
         return ''
       }
 
       const colorList = ['red', 'blue', 'green', 'black']
-      return colorList[(colorStart.value + i) % colorList.length]
+      const hash = inputString.split('').reduce((acc, char) => {
+        return acc + char.charCodeAt(0)
+      }, 0)
+      const colorIndex = hash % colorList.length
+      return colorList[colorIndex]
     }
 
     const tagIcon = (tag_type) => {

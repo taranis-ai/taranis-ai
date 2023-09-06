@@ -925,28 +925,42 @@ def pre_seed_wordlists():
             {
                 "name": "CVE Vendors",
                 "description": "List of vendors that are known to be affected by a CVE.",
-                "link": "https://raw.githubusercontent.com/ait-cs-IaaS/cve2wordlist/master/output/vendors.json",
+                "link": "https://raw.githubusercontent.com/ait-cs-IaaS/wordlists/master/output/vendors.json",
             }
         )
         WordList.add(
             {
                 "name": "CVE Products",
                 "description": "List of products that are known to be affected by a CVE.",
-                "link": "https://raw.githubusercontent.com/ait-cs-IaaS/cve2wordlist/master/output/products.json",
+                "link": "https://raw.githubusercontent.com/ait-cs-IaaS/wordlists/master/output/products.json",
             }
         )
         WordList.add(
             {
                 "name": "Countries",
                 "description": "List of Countries",
-                "link": "https://raw.githubusercontent.com/ait-cs-IaaS/cve2wordlist/master/output/countries.json",
+                "link": "https://raw.githubusercontent.com/ait-cs-IaaS/wordlists/master/output/countries.json",
             }
         )
         WordList.add(
             {
                 "name": "Austrian Municipalities",
                 "description": "List of Austrian Municipalities",
-                "link": "https://raw.githubusercontent.com/ait-cs-IaaS/cve2wordlist/master/output/austrian_municipalities.json",
+                "link": "https://raw.githubusercontent.com/ait-cs-IaaS/wordlists/master/output/austrian_municipalities.json",
+            }
+        )
+        WordList.add(
+            {
+                "name": "Common Cyber Security Terms",
+                "description": "List of common cyber security terms",
+                "link": "https://raw.githubusercontent.com/ait-cs-IaaS/wordlists/master/output/common.json",
+            }
+        )
+        WordList.add(
+            {
+                "name": "APT Groups",
+                "description": "List of Advanced Persistent Threat Groups",
+                "link": "https://raw.githubusercontent.com/ait-cs-IaaS/wordlists/master/output/apt.json",
             }
         )
 

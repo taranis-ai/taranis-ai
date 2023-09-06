@@ -126,7 +126,8 @@ class CoreApi:
 
     def update_news_item_tags(self, id, tags) -> dict | None:
         try:
-            return self.api_put(url=f"/api/v1/bots/aggregate/{id}/tags", json_data=tags)
+            if tags:
+                return self.api_put(url=f"/api/v1/bots/aggregate/{id}/tags", json_data=tags)
         except Exception:
             logger.log_debug_trace("update_news_item_tags failed")
             return None

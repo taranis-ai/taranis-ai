@@ -134,11 +134,18 @@ export function flattenObject(obj, parent) {
 }
 
 export function tagIconFromType(tag_type) {
-  if (tag_type === 'ORG') {
+  if (tag_type === 'ORG' || tag_type === 'CVE_VENDOR') {
     return 'mdi-domain'
   }
-  if (tag_type === 'LOC') {
+  if (
+    tag_type === 'LOC' ||
+    tag_type === 'Country' ||
+    tag_type === 'Municipality'
+  ) {
     return 'mdi-map-marker'
+  }
+  if (tag_type === 'CVE' || tag_type === 'CVE_PRODUCT') {
+    return 'mdi-security'
   }
   if (tag_type === 'PER') {
     return 'mdi-account'

@@ -474,7 +474,6 @@ class NewsItemAggregate(BaseModel):
 
         if tags := filter_args.get("tags"):
             for tag in tags:
-                logger.debug(f"Filtering by tag: {tag}")
                 alias = orm.aliased(NewsItemTag)
                 query = query.join(alias, NewsItemAggregate.id == alias.n_i_a_id).filter(
                     or_(alias.name == tag, alias.sub_forms.contains(tag))
@@ -764,7 +763,6 @@ class NewsItemAggregate(BaseModel):
     @classmethod
     def group_aggregate(cls, aggregate_ids: list[int], user: User | None = None):
         try:
-            logger.debug(f"Grouping: f{aggregate_ids}")
             if len(aggregate_ids) < 2 or any(type(a_id) is not int for a_id in aggregate_ids):
                 return {"error": "at least two aggregate ids needed"}, 404
             first_aggregate = NewsItemAggregate.get(aggregate_ids.pop(0))
