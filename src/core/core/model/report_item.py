@@ -174,7 +174,7 @@ class ReportItem(BaseModel):
         report_item = cls.from_dict(report_item_data)
 
         if not ReportItemType.allowed_with_acl(report_item.report_item_type_id, user, False, False, True):
-            return report_item, 401
+            return report_item, 403
 
         report_item.user_id = user.id
         report_item.update_cpes()
@@ -260,7 +260,7 @@ class ReportItem(BaseModel):
             query = query.filter(ReportItem.completed)
 
         if "incompleted" in filter and filter["incompleted"].lower() != "false":
-            query = query.filter(ReportItem.completed == False)
+            query = query.filter(ReportItem.completed is False)
 
         if "range" in filter and filter["range"].upper() != "ALL":
             filter_range = filter["range"].upper()
@@ -315,7 +315,7 @@ class ReportItem(BaseModel):
             return None, 404
 
         if not ReportItemType.allowed_with_acl(report_item.report_item_type_id, user, False, False, True):
-            return f"User {user.id} is not allowed to update Report {report_item.id}", 401
+            return f"User {user.id} is not allowed to update Report {report_item.id}", 403
 
         for aggregate_id in aggregate_ids:
             report_item.news_item_aggregates.append(NewsItemAggregate.get(aggregate_id))
@@ -331,7 +331,7 @@ class ReportItem(BaseModel):
             return None, 404
 
         if not ReportItemType.allowed_with_acl(report_item.report_item_type_id, user, False, False, True):
-            return f"User {user.id} is not allowed to update Report {report_item.id}", 401
+            return f"User {user.id} is not allowed to update Report {report_item.id}", 403
 
         logger.info(f"Setting aggregates: {aggregate_ids} for {report_item.id}")
         aggregates = [NewsItemAggregate.get(aggregate_id) for aggregate_id in aggregate_ids]
@@ -349,7 +349,7 @@ class ReportItem(BaseModel):
             return None, 404
 
         if not ReportItemType.allowed_with_acl(report_item.report_item_type_id, user, False, False, True):
-            return f"User {user.id} is not allowed to update Report {report_item.id}", 401
+            return f"User {user.id} is not allowed to update Report {report_item.id}", 403
 
         for aggregate_id in aggregate_ids:
             report_item.news_item_aggregates.pop(NewsItemAggregate.get(aggregate_id))
@@ -365,7 +365,7 @@ class ReportItem(BaseModel):
             return {"error": f"No Report with id '{id}' found"}, 404
 
         if not ReportItemType.allowed_with_acl(report_item.report_item_type_id, user, False, False, True):
-            return report_item, 401
+            return report_item, 403
 
         report_item.title = data["title"]
         report_item.title_prefix = data["title_prefix"]

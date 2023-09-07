@@ -1,17 +1,17 @@
-import ApiService from '@/services/api_service'
+import { apiService } from '@/main'
 
 export function getProfile() {
-  return ApiService.get('/users/profile')
+  return apiService.get('/users/profile')
 }
 
 export function updateProfile(data) {
-  return ApiService.put('/users/profile', data)
+  return apiService.put('/users/profile', data)
 }
 
 export function getAllUserProductTypes() {
-  return ApiService.get('/users/my-product-types')
+  return apiService.get('/users/my-product-types')
 }
 
 export function getAllUserPublishersPresets() {
-  return ApiService.get('/users/my-publisher-presets')
+  return apiService.get('/users/my-publisher-presets')
 }

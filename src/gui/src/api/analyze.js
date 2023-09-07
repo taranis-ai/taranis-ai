@@ -1,12 +1,12 @@
-import ApiService from '@/services/api_service'
+import { apiService } from '@/main'
 
 export function getAllReportItems(filter_data) {
-  const filter = ApiService.getQueryStringFromNestedObject(filter_data)
-  return ApiService.get(`/analyze/report-items?${filter}`)
+  const filter = apiService.getQueryStringFromNestedObject(filter_data)
+  return apiService.get(`/analyze/report-items?${filter}`)
 }
 
 export function getReportItem(report_item_id) {
-  return ApiService.get(`/analyze/report-items/${report_item_id}`)
+  return apiService.get(`/analyze/report-items/${report_item_id}`)
 }
 
 export function getReportItemData(report_item_id, data) {
@@ -41,59 +41,59 @@ export function getReportItemData(report_item_id, data) {
 
   params = params.replace('&', '?')
 
-  return ApiService.get(`/analyze/report-items/${report_item_id}/data${params}`)
+  return apiService.get(`/analyze/report-items/${report_item_id}/data${params}`)
 }
 
 export function createReportItem(data) {
-  return ApiService.post('/analyze/report-items', data)
+  return apiService.post('/analyze/report-items', data)
 }
 
 export function deleteReportItem(report_item) {
-  return ApiService.delete(`/analyze/report-items/${report_item.id}`)
+  return apiService.delete(`/analyze/report-items/${report_item.id}`)
 }
 
 export function updateReportItem(report_item_id, data) {
-  return ApiService.put(`/analyze/report-items/${report_item_id}`, data)
+  return apiService.put(`/analyze/report-items/${report_item_id}`, data)
 }
 
 export function addAggregatesToReportItem(report_item_id, data) {
-  return ApiService.post(
+  return apiService.post(
     `/analyze/report-items/${report_item_id}/aggregates`,
     data
   )
 }
 
 export function setAggregatesToReportItem(report_item_id, data) {
-  return ApiService.put(
+  return apiService.put(
     `/analyze/report-items/${report_item_id}/aggregates`,
     data
   )
 }
 
 export function getReportItemLocks(report_item_id) {
-  return ApiService.get(`/analyze/report-items/${report_item_id}/locks`)
+  return apiService.get(`/analyze/report-items/${report_item_id}/locks`)
 }
 
 export function lockReportItem(report_item_id, data) {
-  return ApiService.put(`/analyze/report-items/${report_item_id}/lock`, data)
+  return apiService.put(`/analyze/report-items/${report_item_id}/lock`, data)
 }
 
 export function unlockReportItem(report_item_id, data) {
-  return ApiService.put(`/analyze/report-items/${report_item_id}/unlock`, data)
+  return apiService.put(`/analyze/report-items/${report_item_id}/unlock`, data)
 }
 
 export function getAllReportTypes() {
-  return ApiService.get('/analyze/report-types')
+  return apiService.get('/analyze/report-types')
 }
 
 export function getAttributeEnums(filter) {
-  return ApiService.get(
+  return apiService.get(
     `/analyze/report-item-attributes/${filter.attribute_id}/enums?search=${filter.search}&offset=${filter.offset}&limit=${filter.limit}`
   )
 }
 
 export function removeAttachment(data) {
-  return ApiService.delete(
+  return apiService.delete(
     `/analyze/report-items/${data.report_item_id}/file-attributes/${data.attribute_id}`
   )
 }

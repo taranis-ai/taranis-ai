@@ -17,7 +17,7 @@ import MainMenu from '@/components/MainMenu.vue'
 import Notification from '@/components/common/Notification.vue'
 import { defineComponent, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/AuthStore'
-import { connectSSE, reconnectSSE } from '@/utils/sse'
+import { connectSSE } from '@/utils/sse'
 import { storeToRefs } from 'pinia'
 
 export default defineComponent({

@@ -1,75 +1,75 @@
 import { router } from '@/router'
-import ApiService from '@/services/api_service'
+import { apiService } from '@/main'
 
 export function getOSINTSourceGroupsList() {
-  return ApiService.get('/assess/osint-source-group-list')
+  return apiService.get('/assess/osint-source-group-list')
 }
 
 export function getOSINTSourcesList() {
-  return ApiService.get('/assess/osint-sources-list')
+  return apiService.get('/assess/osint-sources-list')
 }
 
 export function getNewsItemsAggregates(filter_data) {
   console.debug('getNewsItemsAggregates', filter_data)
-  const filter = ApiService.getQueryStringFromNestedObject(filter_data)
+  const filter = apiService.getQueryStringFromNestedObject(filter_data)
   router.push({ query: filter_data })
-  return ApiService.get(`/assess/news-item-aggregates?${filter}`)
+  return apiService.get(`/assess/news-item-aggregates?${filter}`)
 }
 
 export function getNewsItems(filter_data) {
-  const filter = ApiService.getQueryStringFromNestedObject(filter_data)
-  return ApiService.get(`/assess/news-items?${filter}`)
+  const filter = apiService.getQueryStringFromNestedObject(filter_data)
+  return apiService.get(`/assess/news-items?${filter}`)
 }
 
 export function getTopStories() {
-  return ApiService.get('/assess/top-stories')
+  return apiService.get('/assess/top-stories')
 }
 
 export function getTags(filter_data) {
-  const filter = ApiService.getQueryStringFromNestedObject(filter_data)
-  return ApiService.get(`/assess/tags?${filter}`)
+  const filter = apiService.getQueryStringFromNestedObject(filter_data)
+  return apiService.get(`/assess/tags?${filter}`)
 }
 
 export function addNewsItem(data) {
-  return ApiService.post('/assess/news-items', data)
+  return apiService.post('/assess/news-items', data)
 }
 
 export function getNewsItem(news_item_id) {
-  return ApiService.get(`/assess/news-items/${news_item_id}`)
+  return apiService.get(`/assess/news-items/${news_item_id}`)
 }
 
 export function getNewsItemAggregate(aggregate_id) {
-  return ApiService.get(`/assess/news-item-aggregates/${aggregate_id}`)
+  return apiService.get(`/assess/news-item-aggregates/${aggregate_id}`)
 }
 
 export function voteNewsItemAggregate(aggregate_id, vote) {
-  return ApiService.put(`/assess/news-item-aggregates/${aggregate_id}`, {
+  return apiService.put(`/assess/news-item-aggregates/${aggregate_id}`, {
     vote: vote
   })
 }
 
 export function readNewsItemAggregate(aggregate_id, read) {
-  return ApiService.put(`/assess/news-item-aggregates/${aggregate_id}`, {
+  return apiService.put(`/assess/news-item-aggregates/${aggregate_id}`, {
     read: read
   })
 }
 
 export function deleteNewsItemAggregate(aggregate_id) {
-  return ApiService.delete(`/assess/news-item-aggregates/${aggregate_id}`)
+  return apiService.delete(`/assess/news-item-aggregates/${aggregate_id}`)
 }
 
 export function importantNewsItemAggregate(aggregate_id, important) {
-  return ApiService.put(`/assess/news-item-aggregates/${aggregate_id}`, {
+  return apiService.put(`/assess/news-item-aggregates/${aggregate_id}`, {
     important: important
   })
 }
 
 export function groupAction(data) {
-  return ApiService.put('/assess/news-item-aggregates/group', data)
+  return apiService.put('/assess/news-item-aggregates/group', data)
 }
 
 export function unGroupAction(data) {
-  return ApiService.put('/assess/news-item-aggregates/ungroup', data)
+  return apiService.put('/assess/news-item-aggregates/ungroup', data)
 }
 
 export function saveNewsItemAggregate(
@@ -79,7 +79,7 @@ export function saveNewsItemAggregate(
   description,
   comments
 ) {
-  return ApiService.put(`/assess/news-item-aggregates/${aggregate_id}`, {
+  return apiService.put(`/assess/news-item-aggregates/${aggregate_id}`, {
     group_id: group_id,
     title: title,
     description: description,
@@ -88,25 +88,25 @@ export function saveNewsItemAggregate(
 }
 
 export function voteNewsItem(group_id, news_item_id, vote) {
-  return ApiService.put(`/assess/news-items/${news_item_id}`, {
+  return apiService.put(`/assess/news-items/${news_item_id}`, {
     group_id: group_id,
     vote: vote
   })
 }
 
 export function readNewsItem(group_id, news_item_id) {
-  return ApiService.put(`/assess/news-items/${news_item_id}`, {
+  return apiService.put(`/assess/news-items/${news_item_id}`, {
     group_id: group_id,
     read: true
   })
 }
 
 export function deleteNewsItem(group_id, news_item_id) {
-  return ApiService.delete(`/assess/news-items/${news_item_id}`)
+  return apiService.delete(`/assess/news-items/${news_item_id}`)
 }
 
 export function importantNewsItem(group_id, news_item_id) {
-  return ApiService.put(`/assess/news-items/${news_item_id}`, {
+  return apiService.put(`/assess/news-items/${news_item_id}`, {
     group_id: group_id,
     important: true
   })

@@ -1,9 +1,9 @@
-import ApiService from '@/services/api_service'
+import { apiService } from '@/main'
 
 export function authenticate(userData) {
-  return ApiService.post('/auth/login', userData)
+  return apiService.post('/auth/login', userData)
 }
 
 export function refresh() {
-  return ApiService.get('/auth/refresh')
+  return apiService.get('/auth/refresh')
 }

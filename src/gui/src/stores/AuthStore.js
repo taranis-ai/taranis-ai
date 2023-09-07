@@ -1,8 +1,9 @@
 import { authenticate, refresh } from '@/api/auth'
-import ApiService from '@/services/api_service'
+import { apiService } from '@/main'
 import { Base64 } from 'js-base64'
 import { useMainStore } from './MainStore'
 import { defineStore } from 'pinia'
+import { router } from '@/router'
 
 export const useAuthStore = defineStore('authenticator', {
   state: () => ({
@@ -13,27 +14,14 @@ export const useAuthStore = defineStore('authenticator', {
     external_logout_uri: false,
     user: {},
     sub: '',
-    exp: ''
+    exp: 0
   }),
   getters: {
-    isAuthenticated() {
-      const exp = new Date(this.exp * 1000)
-      const now = new Date()
-      return now < exp
-    },
-
-    timeToRefresh() {
-      return this.exp * 1000 - Date.now() - 300 * 1000
-    },
-
-    needTokenRefresh() {
-      const exp = this.timeToRefresh()
-      const now = new Date()
-      return now > exp
-    },
-    expirationDate() {
-      return new Date(this.exp * 1000)
-    }
+    isAuthenticated: (state) => new Date() < new Date(state.exp * 1000),
+    timeToRefresh: (state) => state.exp * 1000 - Date.now() - 300 * 1000,
+    expirationDate: (state) => new Date(state.exp * 1000),
+    needTokenRefresh: (state) =>
+      new Date() > state.exp * 1000 - Date.now() - 300 * 1000
   },
   actions: {
     async login(userData) {
@@ -44,8 +32,8 @@ export const useAuthStore = defineStore('authenticator', {
         store.user = this.user
       } catch (error) {
         this.clearJwtToken()
-        console.log(error)
-        return error.toJSON()
+        console.error(error)
+        return error
       }
     },
     logout() {
@@ -53,6 +41,7 @@ export const useAuthStore = defineStore('authenticator', {
       this.$reset()
       const store = useMainStore()
       store.reset_user()
+      router.push({ name: 'login' })
     },
     async refresh() {
       try {
@@ -75,7 +64,7 @@ export const useAuthStore = defineStore('authenticator', {
     },
     setJwtToken(access_token) {
       localStorage.ACCESS_TOKEN = access_token
-      ApiService.setHeader()
+      apiService.setHeader()
       this.jwt = access_token
       const data = JSON.parse(Base64.decode(access_token.split('.')[1]))
       this.user = data.user_claims

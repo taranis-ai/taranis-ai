@@ -148,8 +148,6 @@ export default {
     ...mapState(useConfigStore, ['users'])
   },
   async mounted() {
-    await this.getAllExternalUsers({ search: '' })
-
     this.getAllNotificationTemplates({ search: '' }).then(() => {
       this.templates = this.notification_templates.items
     })
@@ -166,10 +164,7 @@ export default {
     })
   },
   methods: {
-    ...mapActions(useConfigStore, [
-      'getAllNotificationTemplates',
-      'getAllExternalUsers'
-    ]),
+    ...mapActions(useConfigStore, ['getAllNotificationTemplates']),
     addGroup() {
       this.visible = true
       this.edit = false

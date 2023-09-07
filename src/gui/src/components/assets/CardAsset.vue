@@ -76,12 +76,10 @@
 </template>
 
 <script>
-import AuthMixin from '@/services/auth/auth_mixin'
 import Permissions from '@/services/auth/permissions'
 
 export default {
   name: 'CardAsset',
-  mixins: [AuthMixin],
   props: {
     card: {
       type: Object,

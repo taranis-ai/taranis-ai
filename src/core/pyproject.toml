@@ -33,6 +33,7 @@ dependencies = [
     "requests",
     "authlib",
     "sseclient",
+    "PyYAML==5.3.1"
 ]
 dynamic = ["version"]
 

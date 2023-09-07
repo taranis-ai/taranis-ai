@@ -113,6 +113,13 @@ class Tags(Resource):
         return {"error": "No tags found"}, 404
 
 
+class DropTags(Resource):
+    @api_key_required
+    def post(self):
+        NewsItemTag.delete_all_tags()
+        return {"message": "deleted all tags"}, 200
+
+
 class BotInfo(Resource):
     @api_key_required
     def get(self, bot_id):
@@ -191,6 +198,7 @@ def initialize(api: Api):
     )
     worker_namespace.add_resource(BotsInfo, "/bots")
     worker_namespace.add_resource(Tags, "/tags")
+    worker_namespace.add_resource(DropTags, "/tags/drop")
     worker_namespace.add_resource(BotInfo, "/bots/<string:bot_id>")
     worker_namespace.add_resource(PostCollectionBots, "/post-collection-bots")
     worker_namespace.add_resource(NewsItemsAggregates, "/news-item-aggregates")

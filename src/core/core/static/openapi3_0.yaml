@@ -2689,7 +2689,7 @@ paths:
         '200':
           description: success
         '400':
-          description: could not update user in external auth system
+          description: could not update user
         '401':
           description: authorization error
           content:
@@ -2705,7 +2705,7 @@ paths:
         '200':
           description: success
         '400':
-          description: could not delete user in external auth system
+          description: could not delete user
         '401':
           description: authorization error
           content:

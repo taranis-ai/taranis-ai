@@ -977,6 +977,13 @@ class NewsItemTag(BaseModel):
                 logger.debug(f"wrong type for sub_forms {type(sub_forms)}")
 
     @classmethod
+    def delete_all_tags(cls):
+        tags = cls.query.all()
+        for tag in tags:
+            db.session.delete(tag)
+        db.session.commit()
+
+    @classmethod
     def get_filtered_tags(cls, filter_args: dict) -> list["NewsItemTag"]:
         query = cls.query.with_entities(cls.name, cls.tag_type)
 

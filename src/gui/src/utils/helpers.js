@@ -157,6 +157,12 @@ export function tagIconFromType(tag_type) {
 }
 
 export function tagTextFromType(tag_type) {
+  if (tag_type === 'CVE_PRODUCT') {
+    return 'Product'
+  }
+  if (tag_type === 'CVE_VENDOR') {
+    return 'Vendor'
+  }
   if (tag_type === 'ORG') {
     return 'Organization'
   }
@@ -169,7 +175,7 @@ export function tagTextFromType(tag_type) {
   if (tag_type === 'CySec') {
     return 'Cyber Security'
   }
-  return 'Miscellaneous'
+  return tag_type
 }
 
 export function getMessageFromError(error) {

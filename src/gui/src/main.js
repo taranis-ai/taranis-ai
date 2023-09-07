@@ -2,7 +2,7 @@ import '@mdi/font/css/materialdesignicons.css'
 import { createApp } from 'vue'
 import App from './App.vue'
 import { router } from './router'
-import ApiService from '@/services/api_service'
+import { ApiService } from '@/services/api_service'
 import DatePicker from 'vue-datepicker-next'
 import { i18n } from '@/i18n/i18n'
 import { vuetify } from '@/plugins/vuetify'
@@ -30,7 +30,7 @@ mainStore.updateFromLocalConfig()
 const { coreAPIURL, sentryDSN } = mainStore
 
 console.debug('Taranis-NG initialized ', coreAPIURL, sentryDSN)
-ApiService.init(coreAPIURL)
+export const apiService = new ApiService(coreAPIURL)
 app.provide('$coreAPIURL', coreAPIURL)
 
 if (sentryDSN) {

@@ -105,7 +105,6 @@
 </template>
 
 <script>
-import AuthMixin from '@/services/auth/auth_mixin'
 import Permissions from '@/services/auth/permissions'
 import EnumSelector from '@/components/common/EnumSelector.vue'
 import { findAttributeCPE } from '@/api/assets'
@@ -121,7 +120,6 @@ export default {
     VueCsvImport,
     EnumSelector
   },
-  mixins: [AuthMixin],
   props: {
     assetCpes: {
       type: Array,

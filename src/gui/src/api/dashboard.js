@@ -1,13 +1,13 @@
-import ApiService from '@/services/api_service'
+import { apiService } from '@/main'
 
 export function getDashboardData() {
-  return ApiService.get('/dashboard-data')
+  return apiService.get('/dashboard-data')
 }
 
 export function getTrendingClusters() {
-  return ApiService.get('/trending-clusters')
+  return apiService.get('/trending-clusters')
 }
 
 export function getCoreBuildInfo() {
-  return ApiService.get('/build-info')
+  return apiService.get('/build-info')
 }

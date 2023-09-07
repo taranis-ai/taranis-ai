@@ -4,7 +4,6 @@ import {
   getAllACLEntries,
   getAllAttributes,
   getAllBots,
-  getAllExternalUsers,
   getAllOrganizations,
   getAllOSINTSourceGroups,
   getAllOSINTSources,
@@ -158,15 +157,6 @@ export const useConfigStore = defineStore('config', {
     },
     loadUsers(data) {
       return getAllUsers(data)
-        .then((response) => {
-          this.users = response.data
-        })
-        .catch((error) => {
-          notifyFailure(getMessageFromError(error))
-        })
-    },
-    loadExternalUsers(data) {
-      return getAllExternalUsers(data)
         .then((response) => {
           this.users = response.data
         })
