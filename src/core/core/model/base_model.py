@@ -34,7 +34,14 @@ class BaseModel(db.Model):
 
     @classmethod
     def add_multiple(cls: Type[T], json_data) -> list[T]:
-        return [cls.add(data) for data in json_data]
+        result = []
+        for data in json_data:
+            item = cls.from_dict(data)
+            db.session.add(item)
+            result.append(item)
+
+        db.session.commit()
+        return result
 
     @classmethod
     def from_dict(cls: Type[T], data: dict[str, Any]) -> T:

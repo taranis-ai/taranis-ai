@@ -40,8 +40,8 @@ news_item_aggregate_1 = {
         }
     ],
     "tags": {
-        "CVE-2020-1234": {"name": "CVE-2020-1234", "tag_type": "CVE", "sub_forms": ["CVE"]},
-        "Security": {"name": "Security", "tag_type": "MISC", "sub_forms": ["securities"]},
+        "CVE-2020-1234": {"name": "CVE-2020-1234", "tag_type": "CVE"},
+        "Security": {"name": "Security", "tag_type": "MISC"},
     },
 }
 
@@ -130,9 +130,9 @@ news_item_aggregate_3 = (
             }
         ],
         "tags": {
-            "Azure": {"name": "Azure", "tag_type": "MISC", "sub_forms": []},
-            "Europe": {"name": "Mein Highlight", "tag_type": "LOC", "sub_forms": []},
-            "Microsoft": {"name": "Microsoft", "tag_type": "ORG", "sub_forms": []},
+            "Azure": {"name": "Azure", "tag_type": "MISC"},
+            "Europe": {"name": "Mein Highlight", "tag_type": "LOC"},
+            "Microsoft": {"name": "Microsoft", "tag_type": "ORG"},
         },
     },
 )
@@ -140,8 +140,8 @@ news_item_aggregate_3 = (
 news_item_list = [news_item_aggregate_1, news_item_aggregate_2, news_item_aggregate_3]
 
 
-news_item_tags_1 = {"Cyber": {"name": "Cyber", "tag_type": "CySec", "sub_forms": ["CyberSecurity"]}}
-news_item_tags_2 = {"Security": {"name": "Security", "tag_type": "Misc", "sub_forms": ["securities"]}}
-news_item_tags_3 = {"New Orleans": {"name": "New Orleans", "tag_type": "LOC", "sub_forms": []}}
-news_item_tags_4 = {"CVE": {"name": "CVE", "tag_type": "CySec", "sub_forms": ["cves"]}}
-news_item_tags_5 = {"CVE-2021-1234": {"name": "CVE-2021-1234", "tag_type": "CVE", "sub_forms": []}}
+news_item_tags_1 = {"Cyber": {"name": "Cyber", "tag_type": "CySec"}}
+news_item_tags_2 = {"Security": {"name": "Security", "tag_type": "Misc"}}
+news_item_tags_3 = {"New Orleans": {"name": "New Orleans", "tag_type": "LOC"}}
+news_item_tags_4 = {"CVE": {"name": "CVE", "tag_type": "CySec"}}
+news_item_tags_5 = {"CVE-2021-1234": {"name": "CVE-2021-1234", "tag_type": "CVE"}}

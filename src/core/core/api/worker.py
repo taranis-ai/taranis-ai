@@ -1,5 +1,6 @@
 from flask import request
 from flask_restx import Resource, Namespace, Api
+from werkzeug.datastructures import FileStorage
 
 from core.managers.auth_manager import api_key_required
 from core.managers.log_manager import logger
@@ -7,7 +8,17 @@ from core.model.osint_source import OSINTSource
 from core.model.queue import ScheduleEntry
 from core.model.word_list import WordList
 from core.model.news_item import NewsItemAggregate, NewsItemTag
+from core.managers.sse_manager import sse_manager
 from core.model.bot import Bot
+
+
+class AddNewsItems(Resource):
+    @api_key_required
+    def post(self):
+        json_data = request.json
+        result, status = NewsItemAggregate.add_news_items(json_data)
+        sse_manager.news_items_updated()
+        return result, status
 
 
 class QueueScheduleEntry(Resource):
@@ -87,6 +98,18 @@ class Sources(Resource):
             return {"error": "Could not update status"}, 500
 
 
+class SourceIcon(Resource):
+    def put(self, source_id: str):
+        try:
+            if source := OSINTSource.get(source_id):
+                file: FileStorage = request.files["file"]
+                source.update_icon(file.read())
+                return {"message": "Icon uploaded"}, 200
+            return {"error": f"Source with id {source_id} not found"}, 404
+        except Exception:
+            logger.log_debug_trace()
+
+
 class BotsInfo(Resource):
     @api_key_required
     def get(self):
@@ -97,8 +120,11 @@ class BotsInfo(Resource):
 class NewsItemsAggregates(Resource):
     @api_key_required
     def get(self):
-        filter_keys = ["search", "in_report", "timestamp", "sort", "source", "group"]
+        filter_keys = ["search", "in_report", "timestamp", "sort", "range"]
         filter_args: dict[str, str | int | list] = {k: v for k, v in request.args.items() if k in filter_keys}
+        filter_list_keys = ["source", "group"]
+        for key in filter_list_keys:
+            filter_args[key] = request.args.getlist(key)
 
         if aggregates := NewsItemAggregate.get_for_worker(filter_args):
             return aggregates, 200
@@ -111,6 +137,19 @@ class Tags(Resource):
         if tags := NewsItemTag.get_all():
             return {tag.name: tag.to_dict() for tag in tags}, 200
         return {"error": "No tags found"}, 404
+
+    @api_key_required
+    def put(self):
+        if not (data := request.json):
+            return {"error": "No data provided"}, 400
+        errors = {}
+        for aggregate_id, tags in data.items():
+            _, status = NewsItemAggregate.update_tags(aggregate_id, tags)
+            if status != 200:
+                errors[aggregate_id] = status
+        if errors:
+            return {"message": "Some tags failed to update", "errors": errors}, 207
+        return {"message": "Tags updated"}, 200
 
 
 class DropTags(Resource):
@@ -196,6 +235,11 @@ def initialize(api: Api):
         Sources,
         "/osint-sources/<string:source_id>",
     )
+    worker_namespace.add_resource(
+        SourceIcon,
+        "/osint-sources/<string:source_id>/icon",
+    )
+    worker_namespace.add_resource(AddNewsItems, "/news-items")
     worker_namespace.add_resource(BotsInfo, "/bots")
     worker_namespace.add_resource(Tags, "/tags")
     worker_namespace.add_resource(DropTags, "/tags/drop")

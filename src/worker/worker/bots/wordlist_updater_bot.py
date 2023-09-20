@@ -28,6 +28,8 @@ class WordlistUpdaterBot(BaseBot):
             logger.error("Could not determine content type.")
             return
 
+        logger.debug(f"Updating word list {word_list['name']} with {len(content)} entries - {content_type}")
+
         response = self.core_api.update_word_list(word_list["id"], content, content_type)
 
         if not response:

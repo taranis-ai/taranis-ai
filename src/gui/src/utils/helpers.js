@@ -150,7 +150,7 @@ export function tagIconFromType(tag_type) {
   if (tag_type === 'PER') {
     return 'mdi-account'
   }
-  if (tag_type === 'CySec') {
+  if (tag_type === 'Cybersecurity') {
     return 'mdi-shield-key'
   }
   return 'mdi-tag'
@@ -174,6 +174,30 @@ export function tagTextFromType(tag_type) {
   }
   if (tag_type === 'CySec') {
     return 'Cyber Security'
+  }
+  if (tag_type === 'cves') {
+    return 'CVE'
+  }
+  if (tag_type === 'sha256s') {
+    return 'SHA256'
+  }
+  if (tag_type === 'sha1s') {
+    return 'SHA1'
+  }
+  if (tag_type === 'md5s') {
+    return 'MD5'
+  }
+  if (tag_type === 'registry_key_paths') {
+    return 'Registry Key Path'
+  }
+  if (tag_type === 'bitcoin_addresses') {
+    return 'Bitcoin Address'
+  }
+  if (tag_type === 'MISC') {
+    return 'Misc from NER'
+  }
+  if (tag_type === 'Cybersecurity') {
+    return 'Various Cybersecurity from WordList'
   }
   return tag_type
 }

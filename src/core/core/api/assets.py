@@ -107,10 +107,10 @@ def initialize(api: Api):
     asset_namespace = Namespace("Assets", description="Assets related operations", path="/api/v1/assets")
     asset_groups_namespace = Namespace("AssetGroups", description="Assets related operations", path="/api/v1/asset-groups")
     asset_attributes_namespace = Namespace("AssetAttributes", description="Assets related operations", path="/api/v1/asset-attributes")
-    asset_groups_namespace.add_resource(AssetGroups, "/")
+    asset_groups_namespace.add_resource(AssetGroups, "/", "")
     asset_groups_namespace.add_resource(AssetGroup, "/<string:group_id>")
 
-    asset_namespace.add_resource(Assets, "/")
+    asset_namespace.add_resource(Assets, "/", "")
     asset_namespace.add_resource(Asset, "/<int:asset_id>")
 
     asset_namespace.add_resource(

@@ -64,7 +64,7 @@
           class="item-action-btn"
           variant="tonal"
           append-icon="mdi-trash-can"
-          @click.stop="removeFromReport()"
+          @click.stop="$emit('remove-from-report')"
         >
           <span>Remove from Report</span>
         </v-btn>
@@ -224,7 +224,7 @@ export default {
     detailView: { type: Boolean, default: false },
     reportView: { type: Boolean, default: false }
   },
-  emits: ['selectItem', 'deleteItem', 'refresh'],
+  emits: ['selectItem', 'deleteItem', 'refresh', 'remove-from-report'],
   setup(props, { emit }) {
     const viewDetails = ref(false)
     const openSummary = ref(props.detailView)

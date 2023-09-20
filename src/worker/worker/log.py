@@ -3,6 +3,7 @@ import sys
 import socket
 import logging
 import traceback
+import datetime
 from celery.signals import after_setup_logger
 
 from worker.config import Config
@@ -90,7 +91,7 @@ class TaranisLogFormatter(logging.Formatter):
         bold_red = "\x1b[31;1m"
         reset = "\x1b[0m"
         self.module = module
-        self.format_string = f"[{self.module}] [%(levelname)s] - %(message)s"
+        self.format_string = "[%(asctime)s] [%(levelname)s] - %(message)s"
         self.FORMATS = {
             logging.DEBUG: grey + self.format_string + reset,
             logging.INFO: blue + self.format_string + reset,
@@ -98,6 +99,9 @@ class TaranisLogFormatter(logging.Formatter):
             logging.ERROR: red + self.format_string + reset,
             logging.CRITICAL: bold_red + self.format_string + reset,
         }
+
+    def formatTime(self, record, datefmt=None):
+        return datetime.datetime.now().isoformat()
 
     def format(self, record):
         log_fmt = self.FORMATS.get(record.levelno)
@@ -111,7 +115,9 @@ class Logger(TaranisLogger):
         self.log_info(log_text)
 
 
-logger = Logger(module=Config.MODULE_ID, colored=Config.COLORED_LOGS, debug=Config.DEBUG, gunicorn=False, syslog_address=None)
+class IgnoreHeartbeatTickFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        return "heartbeat_tick" not in record.getMessage()
 
 
 @after_setup_logger.connect
@@ -119,3 +125,8 @@ def setup_loggers(logger, *args, **kwargs):
     logger.setLevel(logging.INFO)
     if Config.DEBUG:
         logger.setLevel(logging.DEBUG)
+    ampq_logger = logging.getLogger("amqp.connection.Connection.heartbeat_tick")
+    ampq_logger.addFilter(IgnoreHeartbeatTickFilter())
+
+
+logger = Logger(module=Config.MODULE_ID, colored=Config.COLORED_LOGS, debug=Config.DEBUG, gunicorn=False, syslog_address=None)

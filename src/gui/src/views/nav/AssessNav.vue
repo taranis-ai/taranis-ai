@@ -15,7 +15,7 @@
         </v-col>
 
         <v-col cols="12" class="pt-1">
-          <v-select
+          <v-autocomplete
             v-model="newsItemsFilter.group"
             :items="getOSINTSourceGroupsList"
             item-title="title"
@@ -24,12 +24,13 @@
             :hide-details="true"
             variant="solo"
             clearable
+            multiple
             density="compact"
-          ></v-select>
+          />
         </v-col>
 
         <v-col cols="12" class="pt-2">
-          <v-select
+          <v-autocomplete
             v-model="newsItemsFilter.source"
             :items="getOSINTSourcesList"
             item-title="title"
@@ -38,8 +39,9 @@
             :hide-details="true"
             variant="solo"
             clearable
+            multiple
             density="compact"
-          ></v-select>
+          />
         </v-col>
       </v-row>
 
@@ -84,20 +86,39 @@
       <v-divider class="mt-0 mb-0"></v-divider>
 
       <v-row no-gutters class="my-2 mr-0 px-2">
-        <v-col cols="12" class="py-0">
-          <h4>
-            Highlight:
-            <v-btn
-              class="ml-4"
-              :prepend-icon="
-                highlight
-                  ? 'mdi-alphabetical-variant'
-                  : 'mdi-alphabetical-variant-off'
-              "
-              variant="text"
-              @click="highlight = !highlight"
-            />
-          </h4>
+        <v-col cols="4">
+          <h4>Highlight:</h4>
+        </v-col>
+        <v-col cols="2">
+          <v-btn
+            class="ml-4 mb-1"
+            size="small"
+            density="compact"
+            :prepend-icon="
+              highlight
+                ? 'mdi-alphabetical-variant'
+                : 'mdi-alphabetical-variant-off'
+            "
+            variant="text"
+            @click="highlight = !highlight"
+          />
+        </v-col>
+      </v-row>
+      <v-row no-gutters class="mr-0 px-2">
+        <v-col cols="4">
+          <h4>Show Charts:</h4>
+        </v-col>
+        <v-col cols="2">
+          <v-btn
+            class="ml-4 mb-1"
+            size="small"
+            density="compact"
+            :prepend-icon="
+              showWeekChart ? 'mdi-chart-box' : 'mdi-chart-box-outline'
+            "
+            variant="text"
+            @click="showWeekChart = !showWeekChart"
+          />
         </v-col>
       </v-row>
 
@@ -158,7 +179,8 @@ export default {
     const { getOSINTSourceGroupsList, getOSINTSourcesList } =
       storeToRefs(assessStore)
     const { updateNewsItems } = assessStore
-    const { newsItemsFilter, chartFilter, highlight } = storeToRefs(filterStore)
+    const { newsItemsFilter, chartFilter, highlight, showWeekChart } =
+      storeToRefs(filterStore)
 
     const { setFilter, updateFilter } = useFilterStore()
 
@@ -222,9 +244,8 @@ export default {
     })
 
     const resetFilter = () => {
+      assessStore.$reset()
       filterStore.$reset()
-      assessStore.clearNewsItemSelection()
-      updateNewsItems()
     }
 
     watch(
@@ -241,12 +262,12 @@ export default {
       search,
       chartFilter,
       highlight,
+      showWeekChart,
       getOSINTSourceGroupsList,
       getOSINTSourcesList,
       newsItemsFilter,
       filterAttribute,
       filterAttributeOptions,
-      updateNewsItems,
       resetFilter
     }
   }

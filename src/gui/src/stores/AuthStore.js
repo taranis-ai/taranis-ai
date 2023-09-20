@@ -2,6 +2,7 @@ import { authenticate, refresh } from '@/api/auth'
 import { apiService } from '@/main'
 import { Base64 } from 'js-base64'
 import { useMainStore } from './MainStore'
+import { useAssessStore } from './AssessStore'
 import { defineStore } from 'pinia'
 import { router } from '@/router'
 
@@ -21,7 +22,7 @@ export const useAuthStore = defineStore('authenticator', {
     timeToRefresh: (state) => state.exp * 1000 - Date.now() - 300 * 1000,
     expirationDate: (state) => new Date(state.exp * 1000),
     needTokenRefresh: (state) =>
-      new Date() > state.exp * 1000 - Date.now() - 300 * 1000
+      new Date() > new Date(state.exp * 1000 - 300 * 1000)
   },
   actions: {
     async login(userData) {
@@ -39,8 +40,10 @@ export const useAuthStore = defineStore('authenticator', {
     logout() {
       this.clearJwtToken()
       this.$reset()
-      const store = useMainStore()
-      store.reset_user()
+      const mainStore = useMainStore()
+      mainStore.reset_user()
+      const assessStore = useAssessStore()
+      assessStore.$reset()
       router.push({ name: 'login' })
     },
     async refresh() {

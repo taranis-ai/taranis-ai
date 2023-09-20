@@ -1886,32 +1886,6 @@ paths:
         '404':
           $ref: "#/components/schemas/notFound"
 
-  /collectors/news-items:
-    post:
-      tags: [collectors]
-      description: add news items
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: array
-              items:
-                $ref: '#/components/schemas/news_item_data'
-      responses:
-        '200':
-          description: news items updated (as an SSE)
-          content:
-            application/json:
-              schema:
-                type: object
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
   /config/reload-enum-dictionaries/{dictionary_type}:
     parameters:
       - name: dictionary_type
@@ -3200,7 +3174,7 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
         '404':
           $ref: "#/components/schemas/notFound"
-  /trending-clusters:
+  /dashboard/trending-clusters:
     get:
       tags: [trending-clusters]
       description: get trending clusters
@@ -3224,7 +3198,7 @@ paths:
           $ref: "#/components/schemas/notFound"
         '500':
           description: Internal server error
-  /dashboard-data:
+  /dashboard:
     get:
       tags: [dashboard-data]
       description: get dashboard data
@@ -4494,10 +4468,12 @@ components:
       properties:
         version:
           type: integer
-        data:
+        sources:
           type: array
           items:
             $ref: '#/components/schemas/osint_source.export'
+        groups:
+          type: array
 
     collector.new:
       allOf:

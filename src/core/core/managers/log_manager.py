@@ -12,7 +12,7 @@ from core.config import Config
 
 
 class TaranisLogger:
-    def __init__(self, module: str, debug: bool, colored: bool, gunicorn: bool, syslog_address: Optional[tuple]):
+    def __init__(self, module: str, debug: bool, colored: bool, gunicorn: bool, syslog_address: Optional[tuple[str, int]]):
         self.module = module
         stream_handler = logging.StreamHandler(stream=sys.stdout)
         if colored:

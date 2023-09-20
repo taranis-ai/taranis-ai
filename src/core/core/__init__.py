@@ -2,6 +2,7 @@ import os
 import contextlib
 from flask import Flask
 from flask_cors import CORS
+
 from core.managers import (
     db_manager,
     auth_manager,

@@ -1,6 +1,6 @@
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings
 from typing import Literal, Any
-from pydantic import validator
+from pydantic import model_validator
 
 
 class Settings(BaseSettings):
@@ -24,27 +24,27 @@ class Settings(BaseSettings):
     QUEUE_BROKER_VHOST: str = "/"
     CELERY: dict[str, Any] | None = None
 
-    @validator("CELERY", pre=True, always=True)
-    def set_celery(cls, value, values):
-        if value and len(value) > 1:
-            return value
-
-        if values["QUEUE_BROKER_URL"]:
-            broker_url = values["QUEUE_BROKER_URL"]
+    @model_validator(mode="after")
+    def set_celery(self):
+        if self.CELERY and len(self.CELERY) > 1:
+            return self
+        if self.QUEUE_BROKER_URL:
+            broker_url = self.QUEUE_BROKER_URL
         else:
             broker_url = (
-                f"{values['QUEUE_BROKER_SCHEME']}://{values['QUEUE_BROKER_USER']}:{values['QUEUE_BROKER_PASSWORD']}"
-                f"@{values['QUEUE_BROKER_HOST']}:{values['QUEUE_BROKER_PORT']}/{values['QUEUE_BROKER_VHOST']}"
+                f"{self.QUEUE_BROKER_SCHEME}://{self.QUEUE_BROKER_USER}:{self.QUEUE_BROKER_PASSWORD}"
+                f"@{self.QUEUE_BROKER_HOST}:{self.QUEUE_BROKER_PORT}/{self.QUEUE_BROKER_VHOST}"
             )
-
-        return {
+        self.CELERY = {
             "broker_url": broker_url,
             "ignore_result": True,
             "broker_connection_retry_on_startup": True,
             "broker_connection_retry": False,  # To suppress deprecation warning
             "beat_scheduler": "worker.scheduler:RESTScheduler",
             "enable_utc": True,
+            "worker_hijack_root_logger": False,
         }
+        return self
 
 
 Config = Settings()

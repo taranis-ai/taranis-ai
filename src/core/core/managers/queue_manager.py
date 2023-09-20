@@ -44,6 +44,7 @@ class QueueManager:
 
         word_lists = WordList.get_all_empty()
         for word_list in word_lists:
+            logger.debug(f"Schedule gathering for WordList {word_list.id}")
             self.celery.send_task("worker.tasks.gather_word_list", args=[word_list.id], task_id=f"gather_word_list_{word_list.id}")
 
     def ping_workers(self):

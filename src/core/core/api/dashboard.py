@@ -1,6 +1,6 @@
 from flask import request
 from flask_jwt_extended import jwt_required
-from flask_restx import Resource, Api
+from flask_restx import Resource, Namespace, Api
 
 from core.managers.log_manager import logger
 from core.model.news_item import NewsItemData, NewsItemTag, NewsItemAggregate
@@ -32,9 +32,8 @@ class TrendingClusters(Resource):
     @jwt_required()
     def get(self):
         try:
-            days = int(request.args.get("days", 7))
-            limit = int(request.args.get("limit", 12))
-            return NewsItemTag.find_largest_tag_clusters(days, limit)
+            return NewsItemTag.get_largest_tag_types()
+            # return NewsItemTag.find_largest_tag_clusters(days, limit)
         except Exception:
             logger.log_debug_trace()
             return "", 400
@@ -69,9 +68,10 @@ class BuildInfo(Resource):
 
 
 def initialize(api: Api):
-    # namespace = Namespace("dashboard", description="Dashboard related operations")
-    api.add_resource(Dashboard, "/api/v1/dashboard-data")
-    api.add_resource(Tagcloud, "/api/v1/tagcloud")
-    api.add_resource(TrendingClusters, "/api/v1/trending-clusters")
-    api.add_resource(StoryClusters, "/api/v1/story-clusters")
-    api.add_resource(BuildInfo, "/api/v1/build-info")
+    namespace = Namespace("dashboard", description="Dashboard related operations", path="/api/v1/dashboard")
+    namespace.add_resource(Dashboard, "/", "")
+    namespace.add_resource(Tagcloud, "/tagcloud")
+    namespace.add_resource(TrendingClusters, "/trending-clusters")
+    namespace.add_resource(StoryClusters, "/story-clusters")
+    namespace.add_resource(BuildInfo, "/build-info")
+    api.add_namespace(namespace)

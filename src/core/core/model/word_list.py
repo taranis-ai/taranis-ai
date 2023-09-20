@@ -32,7 +32,7 @@ class WordList(BaseModel):
         self.description = description
         self.update_usage(usage)
         self.link = link
-        self.entries = WordListEntry.add_multiple(entries) if entries else []
+        self.entries = WordListEntry.load_multiple(entries) if entries else []
 
     @classmethod
     def find_by_name(cls, name: str) -> "WordList":
@@ -151,26 +151,17 @@ class WordList(BaseModel):
         if word_list is None:
             return {"error": "WordList not found"}, 404
 
-        update_word_list = cls.from_dict(data)
-        word_list.name = update_word_list.name
-        if update_word_list.description:
-            word_list.description = update_word_list.description
-        if update_word_list.link:
-            word_list.link = update_word_list.link
-        if update_word_list.entries:
-            word_list.entries = update_word_list.entries
-        if update_word_list.usage:
-            word_list.usage = update_word_list.usage
+        if name := data.get("name"):
+            word_list.name = name
+        if description := data.get("description"):
+            word_list.description = description
+        if link := data.get("link"):
+            word_list.link = link
+        if usage := data.get("usage"):
+            word_list.update_usage(usage)
 
         db.session.commit()
         return {"message": "Word list updated", "id": f"{word_list.id}"}, 200
-
-    @classmethod
-    def add(cls, data) -> "WordList":
-        item = cls.from_dict(data)
-        db.session.add(item)
-        db.session.commit()
-        return item
 
     @classmethod
     def export(cls, source_ids=None):
@@ -193,7 +184,15 @@ class WordList(BaseModel):
     @classmethod
     def parse_json(cls, content) -> list | None:
         file_content = json.loads(content)
-        return file_content["data"] if file_content["version"] == 1 else None
+        return cls.load_json_content(content=file_content)
+
+    @classmethod
+    def load_json_content(cls, content) -> list:
+        if content.get("version") != 1:
+            raise ValueError("Invalid JSON file")
+        if not content.get("data"):
+            raise ValueError("No data found")
+        return content["data"]
 
     @classmethod
     def update_word_list(cls, content, content_type, word_list_id: int) -> "WordList | None":
@@ -203,16 +202,18 @@ class WordList(BaseModel):
 
         if content_type == "text/csv":
             data = cls.parse_csv(content)
-            logger.debug(data)
         elif content_type == "application/json":
-            data = content["data"][0]["entries"]
+            data = cls.load_json_content(content=content)[0]["entries"]
         else:
             return None
 
         if not data:
             return None
 
-        update_word_list.entries = WordListEntry.add_multiple(data)
+        old_entry_length = len(update_word_list.entries)
+        update_word_list.entries.clear()
+        update_word_list.entries = WordListEntry.load_multiple(data)
+        logger.debug(f"Updated WordList {update_word_list.name} from {old_entry_length} to {len(update_word_list.entries)} entries")
         db.session.commit()
 
         return update_word_list
@@ -288,14 +289,3 @@ class WordListEntry(BaseModel):
 
     def to_entry_dict(self) -> dict[str, Any]:
         return {"value": self.value, "category": self.category}
-
-    @classmethod
-    def add_multiple(cls, json_data) -> list["WordListEntry"]:
-        result = []
-        for data in json_data:
-            item = cls.from_dict(data)
-            db.session.add(item)
-            result.append(item)
-
-        db.session.commit()
-        return result

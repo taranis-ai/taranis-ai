@@ -1,5 +1,4 @@
 import re
-import datetime
 
 from .base_bot import BaseBot
 from worker.log import logger
@@ -14,15 +13,9 @@ class TaggingBot(BaseBot):
         if not parameters:
             return
         try:
-            source_group = parameters.get("SOURCE_GROUP", None)
             regexp = parameters.get("REGULAR_EXPRESSION", r"CVE-\d{4}-\d{4,7}")
 
-            limit = (datetime.datetime.now() - datetime.timedelta(days=7)).isoformat()
-
-            filter_dict = {"timestamp": limit}
-            if source_group:
-                filter_dict["source_group"] = source_group
-
+            filter_dict = self.get_filter_dict(parameters)
             data = self.core_api.get_news_items_aggregate(filter_dict=filter_dict)
             if not data:
                 return
@@ -43,5 +36,5 @@ class TaggingBot(BaseBot):
                                 findings.add(finding[1])
                 self.core_api.update_news_item_tags(aggregate["id"], list(findings))
 
-        except Exception as error:
+        except Exception:
             logger.log_debug_trace(f"Error running Bot: {self.type}")

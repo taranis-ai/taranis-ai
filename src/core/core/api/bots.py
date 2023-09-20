@@ -103,12 +103,14 @@ class BotInfo(Resource):
         return bot.Bot.get_by_filter(bot_id)
 
     def put(self, bot_id):
-        return bot.Bot.update(bot_id, request.json)
+        if bot_result := bot.Bot.update(bot_id, request.json):
+            return {"message": f"Bot {bot_result['name']} updated", "id": bot_result["id"]}, 200
+        return {"message": f"Bot {bot_id} not found"}, 404
 
 
 def initialize(api: Api):
     namespace = Namespace("bots", description="Bots related operations", path="/api/v1/bots")
-    namespace.add_resource(BotsInfo, "/")
+    namespace.add_resource(BotsInfo, "/", "")
     namespace.add_resource(BotInfo, "/<string:bot_id>")
     namespace.add_resource(NewsItemData, "/news-item-data")
     namespace.add_resource(

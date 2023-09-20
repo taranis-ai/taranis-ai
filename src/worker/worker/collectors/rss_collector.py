@@ -5,6 +5,7 @@ import feedparser
 import requests
 import logging
 from bs4 import BeautifulSoup
+from urllib.parse import urlparse
 import dateutil.parser as dateparser
 from trafilatura import extract
 
@@ -76,7 +77,7 @@ class RSSCollector(BaseCollector):
                 return True, location
         return False, content_location
 
-    def get_published_date(self, feed_entry: feedparser.FeedParserDict) -> datetime.datetime:
+    def get_published_date(self, feed_entry: feedparser.FeedParserDict, link: str) -> datetime.datetime:
         published: str | datetime.datetime = str(
             feed_entry.get(
                 "published",
@@ -86,19 +87,24 @@ class RSSCollector(BaseCollector):
             )
         )
         if not published:
-            link: str = str(feed_entry.get("link", ""))
             if not link:
-                return datetime.datetime.now()
+                return self.last_modified or datetime.datetime.now()
             response = requests.head(link, headers=self.headers, proxies=self.proxies)
             if not response.ok:
-                return datetime.datetime.now()
+                return self.last_modified or datetime.datetime.now()
 
             published = str(response.headers.get("Last-Modified", ""))
         try:
             return dateparser.parse(published, ignoretz=True) if published else datetime.datetime.now()
         except Exception:
             logger.info("Could not parse date - falling back to current date")
-            return datetime.datetime.now()
+            return self.last_modified or datetime.datetime.now()
+
+    def link_transformer(self, link: str, transform_str: str) -> str:
+        parsed_url = urlparse(link)
+        segments = [parsed_url.netloc] + parsed_url.path.strip("/").split("/")
+        transformed_segments = [operation.replace("{}", segment) for segment, operation in zip(segments, transform_str.split("/"))]
+        return f"{parsed_url.scheme}://{'/'.join(transformed_segments)}"
 
     def parse_feed(self, feed_entry: feedparser.FeedParserDict, feed_url, source) -> dict[str, str | datetime.datetime | list]:
         author: str = str(feed_entry.get("author", ""))
@@ -107,7 +113,13 @@ class RSSCollector(BaseCollector):
         link: str = str(feed_entry.get("link", ""))
         for_hash: str = author + title + link
 
-        published = self.get_published_date(feed_entry)
+        if "redteam-pentesting.de" in link:  # TODO: Remove this once the the source schema is updated
+            source["parameters"]["LINK_TRANSFORMER"] = "{}/{}/{}/{}.txt"
+
+        if link_transformer := source["parameters"].get("LINK_TRANSFORMER", None):
+            link = self.link_transformer(link, link_transformer)
+
+        published = self.get_published_date(feed_entry, link)
 
         content_location = source["parameters"].get("CONTENT_LOCATION", None)
         content_from_feed, content_location = self.content_from_feed(feed_entry, content_location)
@@ -139,23 +151,65 @@ class RSSCollector(BaseCollector):
             "attributes": [],
         }
 
+    def get_last_modified(self, feed_content: requests.Response, feed: feedparser.FeedParserDict) -> datetime.datetime | None:
+        feed = feedparser.parse(feed_content.content)
+        if last_modified := feed_content.headers.get("Last-Modified"):
+            return dateparser.parse(last_modified, ignoretz=True)
+        elif last_modified := feed.get(
+            "updated", feed.get("modified", feed.get("created", feed.get("pubDate", feed.get("lastBuildDate", None))))
+        ):
+            try:
+                return dateparser.parse(str(last_modified), ignoretz=True)
+            except Exception:
+                return None
+        return None
+
+    def get_last_attempted(self, source: dict) -> datetime.datetime | None:
+        if last_attempted := source.get("last_attempted"):
+            try:
+                return dateparser.parse(last_attempted, ignoretz=True)
+            except Exception:
+                return None
+        return None
+
+    def initial_gather(self, feed: feedparser.FeedParserDict, feed_url: str, source_id: str):
+        logger.info(f"RSS-Feed {feed_url} initial gather, get meta info about source like image icon and language")
+        icon_url = f"{urlparse(feed_url).scheme}://{urlparse(feed_url).netloc}/favicon.ico"
+        if icon := feed.get("icon", feed.get("image")):
+            if type(icon) == feedparser.FeedParserDict:
+                icon_url = str(icon.get("href"))
+            elif type(icon) == str:
+                icon_url = str(icon)
+            elif type(icon) == list:
+                icon_url = str(icon[0].get("href"))
+        r = requests.get(icon_url, headers=self.headers, proxies=self.proxies)
+        if not r.ok:
+            return None
+
+        icon_content = {"file": (r.headers.get("content-disposition", "file"), r.content)}
+        self.core_api.update_osint_source_icon(source_id, icon_content)
+        return None
+
     def rss_collector(self, feed_url: str, source):
         feed_content = self.make_request(feed_url)
         if not feed_content:
             logger.info(f"RSS-Feed {source['id']} returned no content")
             raise ValueError("RSS returned no content")
-        if source["last_attempted"]:
-            if last_modified := feed_content.headers.get("Last-Modified"):
-                last_modified = dateparser.parse(last_modified, ignoretz=True)
-                last_attempted = dateparser.parse(source["last_attempted"], ignoretz=True)
-                if last_modified < last_attempted:
-                    logger.debug(f"Last-Modified: {last_modified} < Last-Attempted {last_attempted} skipping")
-                    return "Last-Modified < Last-Attempted"
+
         feed = feedparser.parse(feed_content.content)
+
+        last_attempted = self.get_last_attempted(source)
+        if not last_attempted:
+            self.initial_gather(feed.feed, feed_url, source["id"])
+        last_modified = self.get_last_modified(feed_content, feed)
+        self.last_modified = last_modified
+        if last_modified and last_attempted and last_modified < last_attempted:
+            logger.debug(f"Last-Modified: {last_modified} < Last-Attempted {last_attempted} skipping")
+            return "Last-Modified < Last-Attempted"
 
         logger.info(f"RSS-Feed {source['id']} returned feed with {len(feed['entries'])} entries")
 
-        news_items = [self.parse_feed(feed_entry, feed_url, source) for feed_entry in feed["entries"][:100]]
+        news_items = [self.parse_feed(feed_entry, feed_url, source) for feed_entry in feed["entries"][:42]]
 
         self.publish(news_items, source)
         return None

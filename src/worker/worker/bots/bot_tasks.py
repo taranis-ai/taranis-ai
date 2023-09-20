@@ -13,6 +13,7 @@ bots = {
     "nlp_bot": worker.bots.NLPBot(),
     "story_bot": worker.bots.StoryBot(),
     "ioc_bot": worker.bots.IOCBot(),
+    "summary_bot": worker.bots.SummaryBot(),
 }
 
 

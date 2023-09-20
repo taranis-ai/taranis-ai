@@ -18,7 +18,7 @@ class CoreApi:
     def check_response(self, response, url):
         if response.ok:
             return response.json()
-        logger.critical(f"Call to {url} failed {response.status_code}: {response.text}")
+        logger.error(f"Call to {url} failed {response.status_code}: {response.text}")
         return None
 
     def api_put(self, url, json_data=None):
@@ -132,6 +132,14 @@ class CoreApi:
             logger.log_debug_trace("update_news_item_tags failed")
             return None
 
+    def update_tags(self, tags) -> dict | None:
+        try:
+            if tags:
+                return self.api_put(url="/api/v1/worker/tags", json_data=tags)
+        except Exception:
+            logger.log_debug_trace("update_tags failed")
+            return None
+
     def update_word_list(self, word_list_id, content, content_type) -> dict | None:
         try:
             url = f"{self.api_url}/api/v1/worker/word-list/{word_list_id}/update"
@@ -147,6 +155,15 @@ class CoreApi:
 
     def update_osintsource_status(self, osint_source_id: str, error_msg: dict | None = None) -> dict | None:
         return self.api_put(url=f"/api/v1/worker/osint-sources/{osint_source_id}", json_data=error_msg)
+
+    def update_osint_source_icon(self, osint_source_id: str, icon) -> dict | None:
+        try:
+            url = f"{self.api_url}/api/v1/worker/osint-sources/{osint_source_id}/icon"
+            headers = self.headers.copy()
+            headers.pop("Content-type", None)
+            return self.check_response(requests.put(url=url, files=icon, headers=headers, verify=self.verify), url)
+        except Exception:
+            return None
 
     def update_next_run_time(self, next_run_times: dict) -> dict | None:
         try:
@@ -178,9 +195,7 @@ class CoreApi:
 
     def add_news_items(self, news_items) -> bool:
         try:
-            response = requests.post(
-                f"{self.api_url}/api/v1/collectors/news-items", json=news_items, headers=self.headers, verify=self.verify
-            )
+            response = requests.post(f"{self.api_url}/api/v1/worker/news-items", json=news_items, headers=self.headers, verify=self.verify)
 
             return response.ok
         except Exception:

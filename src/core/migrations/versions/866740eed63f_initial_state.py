@@ -397,7 +397,6 @@ def upgrade():
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("name", sa.String(length=255), nullable=True),
         sa.Column("tag_type", sa.String(length=255), nullable=True),
-        sa.Column("sub_forms", sa.Text(), nullable=True),
         sa.Column("n_i_a_id", sa.Integer(), nullable=True),
         sa.ForeignKeyConstraint(
             ["n_i_a_id"],

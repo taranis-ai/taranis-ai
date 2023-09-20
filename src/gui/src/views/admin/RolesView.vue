@@ -161,6 +161,7 @@ export default {
       editTitle,
       permissions,
       formFormat,
+      showForm,
       addItem,
       editItem,
       handleSubmit,

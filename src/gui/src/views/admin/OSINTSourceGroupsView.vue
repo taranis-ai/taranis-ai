@@ -51,6 +51,7 @@ export default {
     const formData = ref({})
     const edit = ref(false)
     const showForm = ref(false)
+    const sorted_osint_sources = ref([])
 
     const formFormat = computed(() => [
       {
@@ -79,7 +80,7 @@ export default {
           { title: 'Name', key: 'name' },
           { title: 'Description', key: 'description' }
         ],
-        items: osint_sources.value.items
+        items: sorted_osint_sources.value
       },
       {
         name: 'word_lists',
@@ -105,12 +106,17 @@ export default {
 
     const addItem = () => {
       formData.value = objectFromFormat(formFormat.value)
+      sorted_osint_sources.value = [...osint_sources.value.items]
       edit.value = false
       showForm.value = true
     }
 
     const editItem = (item) => {
       formData.value = item
+      sorted_osint_sources.value = [...osint_sources.value.items].sort(
+        (a, b) =>
+          item.osint_sources.indexOf(b.id) - item.osint_sources.indexOf(a.id)
+      )
       edit.value = true
       showForm.value = true
     }

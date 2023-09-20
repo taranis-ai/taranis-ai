@@ -362,7 +362,7 @@ class OSINTSourcesImport(Resource):
             sources = osint_source.OSINTSource.import_osint_sources(file)
             if sources is None:
                 return {"error": "Unable to import"}, 400
-            return {"sources": [source.id for source in sources], "count": len(sources), "message": "Successfully imported sources"}
+            return {"sources": sources, "count": len(sources), "message": "Successfully imported sources"}
         return {"error": "No file provided"}, 400
 
 

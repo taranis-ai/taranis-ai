@@ -43,7 +43,8 @@ export const useFilterStore = defineStore('filter', {
       threshold: 20,
       y2max: undefined
     },
-    highlight: true
+    highlight: true,
+    showWeekChart: false
   }),
   getters: {
     getFilterTags() {
@@ -55,6 +56,15 @@ export const useFilterStore = defineStore('filter', {
   },
   actions: {
     setFilter(filter) {
+      if (filter.tags && typeof filter.tags === 'string') {
+        filter.tags = [filter.tags]
+      }
+      if (filter.offset && typeof filter.offset === 'string') {
+        filter.offset = parseInt(filter.offset)
+      }
+      if (filter.limit && typeof filter.limit === 'string') {
+        filter.limit = parseInt(filter.limit)
+      }
       this.newsItemsFilter = filter
     },
     appendTag(tag) {
@@ -69,19 +79,9 @@ export const useFilterStore = defineStore('filter', {
         this.newsItemsFilter.tags = [tag]
       }
     },
-    displayMore() {
-      const limit = this.newsItemsFilter.limit
-        ? parseInt(this.newsItemsFilter.limit)
-        : 20
-      this.newsItemsFilter.limit = limit + 20
-    },
     nextPage() {
-      const offset = this.newsItemsFilter.offset
-        ? parseInt(this.newsItemsFilter.offset)
-        : 0
-      const limit = this.newsItemsFilter.limit
-        ? parseInt(this.newsItemsFilter.limit)
-        : 20
+      const offset = this.newsItemsFilter.offset || 0
+      const limit = this.newsItemsFilter.limit || 20
 
       this.newsItemsFilter.offset = offset + limit
     },

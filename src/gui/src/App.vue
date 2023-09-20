@@ -17,6 +17,7 @@ import MainMenu from '@/components/MainMenu.vue'
 import Notification from '@/components/common/Notification.vue'
 import { defineComponent, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/AuthStore'
+import { useAssessStore } from '@/stores/AssessStore'
 import { connectSSE } from '@/utils/sse'
 import { storeToRefs } from 'pinia'
 
@@ -27,17 +28,17 @@ export default defineComponent({
     Notification
   },
   setup() {
-    const { isAuthenticated, timeToRefresh, jwt } = storeToRefs(useAuthStore())
+    const { isAuthenticated, timeToRefresh } = storeToRefs(useAuthStore())
     const authStore = useAuthStore()
+    const assessStore = useAssessStore()
 
     onMounted(() => {
+      console.debug('App mounted')
+      assessStore.$reset()
       if (isAuthenticated.value) {
-        authStore.setAuthURLs()
         connectSSE()
       } else {
-        if (jwt) {
-          authStore.logout()
-        }
+        authStore.logout()
       }
       if (timeToRefresh.value > 0) {
         setTimeout(() => {
@@ -46,7 +47,7 @@ export default defineComponent({
             authStore.refresh()
             // reconnectSSE() # TODO: Implement see Issue #102
           }
-        }, timeToRefresh)
+        }, timeToRefresh.value)
       }
     })
 

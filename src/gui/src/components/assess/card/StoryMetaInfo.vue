@@ -47,7 +47,9 @@
         :class="detailView ? 'detailView' : ''"
       >
         <week-chart
-          v-if="!published_date_outdated && lgAndUp && !reportView"
+          v-if="
+            !published_date_outdated && lgAndUp && !reportView && showWeekChart
+          "
           :chart-height="detailView ? 300 : 250"
           :chart-width="detailView ? 800 : 600"
           :story="story"
@@ -60,9 +62,11 @@
 <script>
 import TagList from '@/components/assess/card/TagList.vue'
 import WeekChart from '@/components/assess/card/WeekChart.vue'
+import { useFilterStore } from '@/stores/FilterStore'
 import { useI18n } from 'vue-i18n'
 import { computed } from 'vue'
 import { useDisplay } from 'vuetify'
+import { storeToRefs } from 'pinia'
 
 export default {
   name: 'StoryMetaInfo',
@@ -85,6 +89,7 @@ export default {
   setup(props) {
     const { d, t } = useI18n()
     const { xlAndUp, lgAndUp, mdAndUp, name } = useDisplay()
+    const { showWeekChart } = storeToRefs(useFilterStore())
 
     const published_dates = computed(() => {
       const pub_dates = props.story.news_items
@@ -132,6 +137,7 @@ export default {
     })
 
     return {
+      showWeekChart,
       published_dates,
       published_date_outdated,
       getPublishedDate,

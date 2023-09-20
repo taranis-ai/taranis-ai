@@ -1,6 +1,5 @@
 from .base_bot import BaseBot
 from worker.log import logger
-import datetime
 from story_clustering.clustering import initial_clustering, incremental_clustering
 
 
@@ -18,15 +17,7 @@ class StoryBot(BaseBot):
         if not parameters:
             return
         try:
-            source_group = parameters.get("SOURCE_GROUP")
-            source = parameters.get("SOURCE")
-
-            limit = (datetime.datetime.now() - datetime.timedelta(days=7)).isoformat()
-            filter_dict = {"timestamp": limit}
-            if source_group:
-                filter_dict["source_group"] = source_group
-            if source:
-                filter_dict["source"] = source
+            filter_dict = self.get_filter_dict(parameters)
 
             data = self.core_api.get_news_items_aggregate(filter_dict)
             if not data or type(data) != list:

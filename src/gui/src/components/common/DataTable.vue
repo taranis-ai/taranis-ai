@@ -67,6 +67,13 @@
     <template #item.tag="{ item }">
       <v-icon small class="mr-1" :icon="tagIcon || item.raw.tag" />
     </template>
+    <template #item.icon="{ item }">
+      <v-img
+        :src="'data:image/png;base64,' + item.raw.icon"
+        width="32"
+        height="32"
+      />
+    </template>
 
     <template #item.actions="{ item }">
       <div class="d-inline-flex">

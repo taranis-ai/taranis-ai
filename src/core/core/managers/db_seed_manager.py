@@ -916,16 +916,10 @@ def pre_seed_wordlists():
     if not WordList.find_by_name(name="Default highlighting wordlist"):
         WordList.add(
             {
-                "name": "Default highlighting wordlist",
-                "description": "Default highlighting list packed with the standard Taranis NG installation.",
-                "link": "https://raw.githubusercontent.com/SK-CERT/Taranis-NG/main/resources/wordlists/highlighting.csv",
-            }
-        )
-        WordList.add(
-            {
                 "name": "CVE Vendors",
                 "description": "List of vendors that are known to be affected by a CVE.",
                 "link": "https://raw.githubusercontent.com/ait-cs-IaaS/wordlists/master/output/vendors.json",
+                "usage": 4,
             }
         )
         WordList.add(
@@ -933,6 +927,7 @@ def pre_seed_wordlists():
                 "name": "CVE Products",
                 "description": "List of products that are known to be affected by a CVE.",
                 "link": "https://raw.githubusercontent.com/ait-cs-IaaS/wordlists/master/output/products.json",
+                "usage": 4,
             }
         )
         WordList.add(
@@ -940,6 +935,7 @@ def pre_seed_wordlists():
                 "name": "Countries",
                 "description": "List of Countries",
                 "link": "https://raw.githubusercontent.com/ait-cs-IaaS/wordlists/master/output/countries.json",
+                "usage": 4,
             }
         )
         WordList.add(
@@ -954,6 +950,7 @@ def pre_seed_wordlists():
                 "name": "Common Cyber Security Terms",
                 "description": "List of common cyber security terms",
                 "link": "https://raw.githubusercontent.com/ait-cs-IaaS/wordlists/master/output/common.json",
+                "usage": 4,
             }
         )
         WordList.add(
@@ -961,6 +958,31 @@ def pre_seed_wordlists():
                 "name": "APT Groups",
                 "description": "List of Advanced Persistent Threat Groups",
                 "link": "https://raw.githubusercontent.com/ait-cs-IaaS/wordlists/master/output/apt.json",
+                "usage": 4,
+            }
+        )
+        WordList.add(
+            {
+                "name": "Länder",
+                "description": "Liste aller Länder",
+                "link": "https://raw.githubusercontent.com/ait-cs-IaaS/wordlists/master/output/countries_german.json",
+                "usage": 4,
+            }
+        )
+        WordList.add(
+            {
+                "name": "Internationale Organisationen",
+                "description": "Wichtigsten internationalen Organisationen",
+                "link": "https://raw.githubusercontent.com/ait-cs-IaaS/wordlists/master/output/ngos_german.json",
+                "usage": 4,
+            }
+        )
+        WordList.add(
+            {
+                "name": "Unternehmen Österreich",
+                "description": "Größten Unternehmen in Österreich",
+                "link": "https://raw.githubusercontent.com/ait-cs-IaaS/wordlists/master/output/companies_austria.json",
+                "usage": 4,
             }
         )
 

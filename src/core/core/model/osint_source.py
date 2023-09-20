@@ -1,8 +1,10 @@
 import uuid
 import json
+import base64
 from datetime import datetime
 from typing import Any
 from sqlalchemy import or_, and_
+from sqlalchemy.orm import deferred
 
 from core.managers.db_manager import db
 from core.managers.log_manager import logger
@@ -15,14 +17,15 @@ from core.model.worker import COLLECTOR_TYPES, Worker
 
 
 class OSINTSource(BaseModel):
-    id = db.Column(db.String(64), primary_key=True)
-    name = db.Column(db.String(), nullable=False)
-    description = db.Column(db.String())
+    id: Any = db.Column(db.String(64), primary_key=True)
+    name: Any = db.Column(db.String(), nullable=False)
+    description: Any = db.Column(db.String())
 
     type = db.Column(db.Enum(COLLECTOR_TYPES))
     parameters = db.relationship("ParameterValue", secondary="osint_source_parameter_value", cascade="all, delete")
     groups = db.relationship("OSINTSourceGroup", secondary="osint_source_group_osint_source")
 
+    icon = deferred(db.Column(db.LargeBinary))
     state = db.Column(db.SmallInteger, default=0)
     last_collected = db.Column(db.DateTime, default=None)
     last_attempted = db.Column(db.DateTime, default=None)
@@ -57,6 +60,10 @@ class OSINTSource(BaseModel):
 
         return query.order_by(db.asc(OSINTSource.name)).all(), query.count()
 
+    def update_icon(self, icon):
+        self.icon = icon
+        db.session.commit()
+
     @classmethod
     def get_all_json(cls, search):
         sources, count = cls.get_by_filter(search)
@@ -72,10 +79,12 @@ class OSINTSource(BaseModel):
     def to_dict(self):
         data = super().to_dict()
         data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters if parameter.value}
+        data["icon"] = base64.b64encode(self.icon).decode("utf-8") if self.icon else None
         return data
 
     def to_worker_dict(self):
         data = super().to_dict()
+        data.pop("icon", None)
         data["word_lists"] = []
         for group in self.groups:
             data["word_lists"].extend([word_list.to_dict() for word_list in group.word_lists])
@@ -91,14 +100,6 @@ class OSINTSource(BaseModel):
 
     def to_task_dict(self):
         return {"id": self.to_task_id(), "task": "worker.tasks.collect", "schedule": self.get_schedule(), "args": [self.id]}
-
-    def to_export_dict(self):
-        return {
-            "name": self.name,
-            "description": self.description,
-            "type": self.type,
-            "parameters": [parameter.to_dict() for parameter in self.parameters if parameter.value],
-        }
 
     @classmethod
     def get_all_with_type(cls):
@@ -175,15 +176,36 @@ class OSINTSource(BaseModel):
         logger.info(f"Schedule for source {self.id} removed")
         return {"message": f"Schedule for source {self.id} removed"}, 200
 
+    def to_export_dict(self, id_to_index_map: dict):
+        export_dict = {
+            "name": self.name,
+            "description": self.description,
+            "type": self.type,
+            "parameters": [parameter.to_dict() for parameter in self.parameters if parameter.value],
+        }
+        # test if source is in a group that is not default
+        if any(group for group in self.groups if not group.default):
+            export_dict["group_idx"] = id_to_index_map.get(self.id)
+        return export_dict
+
     @classmethod
     def export_osint_sources(cls, source_ids=None):
         if source_ids:
             data = cls.query.filter(cls.id.in_(source_ids)).all()  # type: ignore
         else:
             data = cls.get_all()
-        for osint_source in data:
-            osint_source = osint_source.cleanup_paramaters()
-        export_data = {"version": 2, "data": [osint_source.to_export_dict() for osint_source in data]}
+
+        id_to_index_map = {}
+        for idx, osint_source in enumerate(data, 1):
+            osint_source.cleanup_paramaters()
+            id_to_index_map[osint_source.id] = idx
+
+        export_data = {
+            "version": 3,
+            "sources": [osint_source.to_export_dict(id_to_index_map) for osint_source in data],
+            "groups": [group.to_export_dict(id_to_index_map) for group in OSINTSourceGroup.get_all_without_default()],
+        }
+        logger.debug(f"Exporting {len(export_data['sources'])} sources")
         return json.dumps(export_data).encode("utf-8")
 
     def cleanup_paramaters(self) -> "OSINTSource":
@@ -206,16 +228,40 @@ class OSINTSource(BaseModel):
         return data
 
     @classmethod
+    def add_multiple_with_group(cls, sources, groups) -> list:
+        index_to_id_mapping = {}
+        for data in sources:
+            idx = data.pop("group_idx", None)
+            item = cls.from_dict(data)
+            db.session.add(item)
+            OSINTSourceGroup.add_source_to_default(item)
+            index_to_id_mapping[idx or item.id] = item.id
+
+        for group in groups:
+            group["osint_sources"] = [index_to_id_mapping.get(idx) for idx in group["osint_sources"] if idx]
+            OSINTSourceGroup.add(group)
+
+        db.session.commit()
+        return list(index_to_id_mapping.values())
+
+    @classmethod
     def import_osint_sources(cls, file):
         file_data = file.read()
         json_data = json.loads(file_data.decode("utf8"))
+        groups = []
         if json_data["version"] == 1:
             data = cls.parse_version_1(json_data["data"])
         elif json_data["version"] == 2:
             data = json_data["data"]
+        elif json_data["version"] == 3:
+            data = json_data["sources"]
+            groups = json_data["groups"]
         else:
             raise ValueError("Unsupported version")
-        return cls.add_multiple(data)
+
+        ids = cls.add_multiple_with_group(data, groups)
+        logger.debug(f"Imported {len(ids)} sources")
+        return ids
 
 
 class OSINTSourceParameterValue(BaseModel):
@@ -224,15 +270,15 @@ class OSINTSourceParameterValue(BaseModel):
 
 
 class OSINTSourceGroup(BaseModel):
-    id = db.Column(db.String(64), primary_key=True)
-    name = db.Column(db.String(), nullable=False)
-    description = db.Column(db.String())
-    default = db.Column(db.Boolean(), default=False)
+    id: Any = db.Column(db.String(64), primary_key=True)
+    name: Any = db.Column(db.String(), nullable=False)
+    description: Any = db.Column(db.String())
+    default: Any = db.Column(db.Boolean(), default=False)
 
     osint_sources = db.relationship("OSINTSource", secondary="osint_source_group_osint_source", back_populates="groups")
     word_lists = db.relationship("WordList", secondary="osint_source_group_word_list")
 
-    def __init__(self, name, description, osint_sources=None, default=False, word_lists=None, id=None):
+    def __init__(self, name, description="", osint_sources=None, default=False, word_lists=None, id=None):
         self.id = id or str(uuid.uuid4())
         self.name = name
         self.description = description
@@ -243,6 +289,10 @@ class OSINTSourceGroup(BaseModel):
     @classmethod
     def get_all(cls):
         return cls.query.order_by(db.asc(OSINTSourceGroup.name)).all()
+
+    @classmethod
+    def get_all_without_default(cls):
+        return cls.query.filter(OSINTSourceGroup.default.is_(False)).order_by(db.asc(OSINTSourceGroup.name)).all()
 
     @classmethod
     def get_for_osint_source(cls, osint_source_id):
@@ -270,6 +320,13 @@ class OSINTSourceGroup(BaseModel):
         default_group = cls.get_default()
         default_group.osint_sources.append(osint_source)
         db.session.commit()
+
+    def to_export_dict(self, source_mapping: dict) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "description": self.description,
+            "osint_sources": [source_mapping[osint_source.id] for osint_source in self.osint_sources if osint_source],
+        }
 
     @classmethod
     def allowed_with_acl(cls, group_id, user, see: bool, access: bool, modify: bool) -> bool:

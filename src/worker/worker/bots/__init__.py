@@ -6,5 +6,6 @@ from worker.bots.wordlist_bot import WordlistBot
 from worker.bots.nlp_bot import NLPBot
 from worker.bots.story_bot import StoryBot
 from worker.bots.ioc_bot import IOCBot
+from worker.bots.summary_bot import SummaryBot
 
-__all__ = ["AnalystBot", "GroupingBot", "NLPBot", "TaggingBot", "WordlistBot", "WordlistUpdaterBot", "StoryBot", "IOCBot"]
+__all__ = ["AnalystBot", "GroupingBot", "NLPBot", "TaggingBot", "WordlistBot", "WordlistUpdaterBot", "StoryBot", "IOCBot", "SummaryBot"]

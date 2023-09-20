@@ -63,8 +63,11 @@ class NewsItemAggregates(Resource):
     @auth_required("ASSESS_ACCESS")
     def get(self):
         try:
-            filter_keys = ["search", "read", "unread", "important", "relevant", "in_report", "range", "sort", "source", "group"]
+            filter_keys = ["search", "read", "unread", "important", "relevant", "in_report", "range", "sort"]
             filter_args: dict[str, str | int | list] = {k: v for k, v in request.args.items() if k in filter_keys}
+            filter_list_keys = ["source", "group"]
+            for key in filter_list_keys:
+                filter_args[key] = request.args.getlist(key)
 
             filter_args["limit"] = min(int(request.args.get("limit", 20)), 200)
             tags = request.args.getlist("tags")
@@ -72,6 +75,7 @@ class NewsItemAggregates(Resource):
             page = int(request.args.get("page", 0))
             filter_args["offset"] = min(int(request.args.get("offset", page * filter_args["limit"])), (2**31) - 1)
 
+            logger.debug(filter_args)
             return news_item.NewsItemAggregate.get_by_filter_json(filter_args, auth_manager.get_user_from_jwt())
         except Exception:
             logger.exception("Failed to get Stories")

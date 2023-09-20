@@ -46,13 +46,11 @@ export default defineComponent({
     AssessSelectionToolbar
   },
   setup() {
-    const reloading = ref(false)
     const assessStore = useAssessStore()
     const filterStore = useFilterStore()
     const mainStore = useMainStore()
-    let lastFilterLimit = filterStore.newsItemsFilter.limit
-    const { newsItems, newsItemsSelection } = storeToRefs(assessStore)
-    const { updateNewsItems, selectNewsItem, clearNewsItemSelection } =
+    const { newsItems, newsItemsSelection, loading } = storeToRefs(assessStore)
+    const { appendNewsItems, selectNewsItem, clearNewsItemSelection } =
       assessStore
 
     const moreToLoad = computed(() => {
@@ -75,32 +73,25 @@ export default defineComponent({
       assessStore.removeNewsItemByID(id)
     }
 
-    const displayMore = ({ done }) => {
-      if (filterStore.newsItemsFilter.limit === lastFilterLimit) {
+    const displayMore = async ({ done }) => {
+      console.debug('displayMore')
+      if (!moreToLoad.value) {
         done('empty')
-        if (!moreToLoad.value) {
-          done('empty')
-          return
-        }
-        console.debug('loading more items')
-        filterStore.displayMore()
-        lastFilterLimit = filterStore.newsItemsFilter.limit
-        window.scrollBy(0, -300)
-        done('ok')
-      } else {
-        done('loading')
+        return
       }
+      if (loading.value) {
+        return
+      }
+      await appendNewsItems()
+      done('ok')
     }
-
     const nextPage = () => {
       console.debug('loadNext')
       filterStore.nextPage()
-      updateNewsItems()
     }
 
     const resetFilter = () => {
       filterStore.$reset()
-      updateNewsItems()
     }
 
     onUpdated(() => {
@@ -115,7 +106,6 @@ export default defineComponent({
     })
 
     return {
-      reloading,
       newsItems,
       newsItemsSelection,
       moreToLoad,

@@ -1,19 +1,9 @@
 from .base_bot import BaseBot
 from worker.log import logger
-import datetime
-import spacy
-import spacy.cli
 import py3langid
-from nltk.stem import WordNetLemmatizer
-from nltk.corpus import stopwords
-from polyfuzz import PolyFuzz
-from polyfuzz.models import TFIDF
-from sentence_transformers import SentenceTransformer
-from keybert import KeyBERT
-from pandas import DataFrame
-import numpy
-import nltk
 import torch
+from flair.data import Sentence
+from flair.nn import Classifier
 
 
 class NLPBot(BaseBot):
@@ -24,41 +14,17 @@ class NLPBot(BaseBot):
     def __init__(self):
         super().__init__()
         logger.debug("Setup NER Model...")
-        self.ner_model = spacy.load("xx_ent_wiki_sm")
+        # self.ner_english = Classifier.load("flair/ner-english-fast")
+        # self.ner_german = Classifier.load("flair/ner-german")
+        self.ner_multi = Classifier.load("flair/ner-multi")
         torch.set_num_threads(1)  # https://github.com/pytorch/pytorch/issues/36191
-        self.polyfuzz_model = PolyFuzz(TFIDF(model_id="TF-IDF", clean_string=False, n_gram_range=(3, 3), min_similarity=0))  # type: ignore
-        self.keybert_model = KeyBERT(model=SentenceTransformer("basel/ATTACK-BERT"))  # type: ignore
-        self.wordnet_lemmatizer = WordNetLemmatizer()
-        nltk.download("wordnet")
-        nltk.download("stopwords")
-        self.language = ""
         self.extraction_text_limit = 5000
-        self.patch_bert_logger()
-
-    def patch_bert_logger(self):
-        import logging
-
-        bert_logger = logging.getLogger("BERTopic")
-
-        class IgnoreSpecificLogFilter(logging.Filter):
-            def filter(self, record: logging.LogRecord) -> bool:
-                return "Ran model with model id" not in record.getMessage()
-
-        bert_logger.addFilter(IgnoreSpecificLogFilter())
 
     def execute(self, parameters=None):
         if not parameters:
             return
         try:
-            source_group = parameters.get("SOURCE_GROUP")
-            source = parameters.get("SOURCE")
-
-            limit = (datetime.datetime.now() - datetime.timedelta(days=7)).isoformat()
-            filter_dict = {"timestamp": limit}
-            if source_group:
-                filter_dict["source_group"] = source_group
-            if source:
-                filter_dict["source"] = source
+            filter_dict = self.get_filter_dict(parameters)
 
             data = self.core_api.get_news_items_aggregate(filter_dict)
             if not data:
@@ -67,9 +33,18 @@ class NLPBot(BaseBot):
 
             all_keywords = {k: v for news_item in data for k, v in news_item["tags"].items()}
 
-            for aggregate in data:
+            update_result = {}
+
+            for i, aggregate in enumerate(data):
+                if i % max(len(data) // 10, 1) == 0:
+                    logger.debug(f"Extracting NER from {aggregate['id']}: {i}/{len(data)}")
+                    self.core_api.update_tags(update_result)
+                    update_result = {}
+
                 current_keywords = self.extract_keywords(aggregate, all_keywords)
-                self.core_api.update_news_item_tags(aggregate["id"], current_keywords)
+                all_keywords |= current_keywords
+                update_result[aggregate["id"]] = current_keywords
+            self.core_api.update_tags(update_result)
 
         except Exception:
             logger.log_debug_trace(f"Error running Bot: {self.type}")
@@ -78,88 +53,43 @@ class NLPBot(BaseBot):
         current_keywords = aggregate.get("tags", {})
         # drop "name" from current_keywords
         current_keywords = {k: v for k, v in current_keywords.items() if k != "name"}
-        aggregate_content = ""
-
-        for news_item in aggregate["news_items"]:
-            content = news_item["news_item_data"]["content"]
-            aggregate_content += content
-
-            language = news_item["news_item_data"]["language"]
-            if language == "":
-                self.language = self.detect_language(content)
-                self.core_api.update_news_item_data(news_item["news_item_data"]["id"], {"language": self.language})
-            else:
-                self.language = language
-
-        current_keywords.update(self.extract_ner(aggregate_content[: self.extraction_text_limit]))
-        current_keywords.update(self.generateKeywords(aggregate_content[: self.extraction_text_limit]))
-        current_keywords.update(self.lemmatize(current_keywords))
-
-        from_list, to_list = self.polyfuzz(list(all_keywords.keys()), list(current_keywords.keys()))
-        current_keywords = self.update_keywords_from_polyfuzz(from_list, to_list, all_keywords, current_keywords)
-        current_keywords = self.cleanup_keywords(current_keywords)
-        logger.debug(current_keywords)
+        aggregate_content = "\n".join(news_item["news_item_data"]["content"] for news_item in aggregate["news_items"])
+        lines = self.get_first_and_last_20_lines(aggregate_content)
+        ner_model = self.get_ner_model(aggregate_content)
+        for line in lines:
+            current_keywords |= self.extract_ner(line, all_keywords, ner_model)
         return current_keywords
 
-    def extract_ner(self, text: str) -> dict:
-        ner_model = self.ner_model
-        doc = ner_model(text)
-        return {
-            ent.text.lower(): {"tag_type": ent.label_, "sub_forms": []}
-            for ent in doc.ents
-            if 16 > len(ent.text) > 2 and self.not_in_stopwords(ent.text)
-        }
+    def get_ner_model(self, text: str) -> Classifier:
+        return self.ner_multi
+        # language = self.detect_language(text)
+        # if language == "en":
+        #     return self.ner_english
+        # elif language == "de":
+        #     return self.ner_german
+        # else:
+        #     return self.ner_multi
 
-    def lemmatize(self, keywords: dict) -> dict:
-        result = {}
-        for keyword in keywords:
-            baseform = self.wordnet_lemmatizer.lemmatize(keyword)
-            result[baseform] = keywords[keyword]
-            if baseform != keyword:
-                result[baseform]["sub_forms"].append(keyword)
-        return result
+    def get_first_and_last_20_lines(self, content: str) -> list:
+        lines = [line for line in content.split("\n") if line]
+        if len(lines) <= 40:
+            return lines[:20] + lines[20:]
+        return lines[:20] + lines[-20:]
 
-    def generateKeywords(self, text: str) -> dict:
-        keywords = self.keybert_model.extract_keywords(
-            docs=text, keyphrase_ngram_range=(1, 1), use_mmr=True, top_n=10, diversity=0.5, stop_words="english"
-        )
-        return {
-            str(keyword).lower(): {"tag_type": "CySec", "sub_forms": []}
-            for keyword, distance in keywords
-            if 16 > len(keyword) > 2 and distance > 0.2 and self.not_in_stopwords(keyword)  # type: ignore
-        }
+    def extract_ner(self, text: str, all_keywords, ner_model) -> dict:
+        sentence = Sentence(text)
+        ner_model.predict(sentence)
+        current_keywords = {}
+        for ent in sentence.get_labels():
+            tag = ent.data_point.text
+            if len(tag) > 2 and ent.score > 0.97:
+                tag_type = all_keywords[tag]["tag_type"] if tag in all_keywords else ent.value
+                current_keywords[tag] = {"tag_type": tag_type}
+
+        return current_keywords
 
     def detect_language(self, text) -> str:
         return py3langid.classify(text)[0]
 
-    def not_in_stopwords(self, keyword: str) -> bool:
-        return keyword not in stopwords.words(self.language)
-
-    def cleanup_keywords(self, keywords: dict) -> dict:
-        keyword_names = set(keywords.keys())
-        for keyword in keywords.values():
-            keyword["sub_forms"] = list({sub_form for sub_form in keyword["sub_forms"] if sub_form not in keyword_names})
-        return keywords
-
-    def polyfuzz(self, from_list: list[str], to_list: list[str]) -> tuple[list, list]:
-        if len(from_list) < 2 or len(to_list) < 2:
-            logger.debug("Not enough keywords to run polyfuzz")
-            return [], []
-        self.polyfuzz_model.match(from_list, to_list).group(link_min_similarity=0.75)
-        df: DataFrame = DataFrame(self.polyfuzz_model.get_matches())
-        values = df[df["Similarity"] >= 0.65]
-        values = values.replace(numpy.nan, None)
-        return values["From"].tolist(), values["To"].tolist()
-
-    def update_keywords_from_polyfuzz(self, values_from, values_to, all_keywords: dict, current_keywords: dict) -> dict:
-        for i, matching_value in enumerate(values_from):
-            matching_entry = all_keywords[matching_value]
-            if matching_value in current_keywords:  # "Securities"
-                # { "cybering", "cyberk1ller"} += { "cybering", "cyberoo", "CYBÄR"}
-                current_keywords[matching_value]["sub_forms"] += matching_entry["sub_forms"]
-                # { "cybering", "cyberk1ller", "cyberoo", "CYBÄR"}
-            if values_to[i] in current_keywords:
-                matching_entry["sub_forms"] += [values_to[i]]
-                current_keywords[values_to[i]] = matching_entry  # Security
-
-        return current_keywords  # ["Cyber": { "cybering", "cyberk1ller", "cyberoo", "CYBÄR"}, "Security": {"Securities"}, "whatever"]
+    # def not_in_stopwords(self, keyword: str) -> bool:
+    #    return keyword not in stopwords.words(self.language)

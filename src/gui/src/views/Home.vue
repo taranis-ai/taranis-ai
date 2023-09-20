@@ -1,12 +1,12 @@
 <template>
   <v-container fluid>
     <v-row no-gutters>
-      <dash-board-card
-        v-for="cluster in clusters"
-        :key="cluster.name"
-        :link-to="`/assess?tags=${cluster.name}`"
-        :link-text="cluster.name"
-      >
+      <dash-board-card v-for="cluster in clusters" :key="cluster.name">
+        <template #title>
+          <v-card-title>
+            <v-divider />
+          </v-card-title>
+        </template>
         <template #card>
           <trending-card :cluster="cluster" />
         </template>

@@ -3,14 +3,13 @@
     <DataTable
       :items="osint_sources.items"
       :header-filter="[
-        'tag',
+        'icon',
         'state',
         'name',
         'parameters.FEED_URL',
         'actions'
       ]"
       :add-button="true"
-      tag-icon="mdi-animation-outline"
       @edit-item="editItem"
       @delete-item="deleteItem"
       @add-item="addItem"

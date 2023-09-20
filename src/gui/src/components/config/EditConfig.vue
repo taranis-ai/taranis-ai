@@ -79,6 +79,7 @@
           <v-data-table
             v-model="formData[item.flatKey]"
             :headers="item.headers"
+            :search="search[item.flatKey]"
             :show-select="!item['disabled']"
             :group-by="item.groupBy"
             :items="item.items || formData[item.flatKey]"
@@ -93,6 +94,17 @@
                     Add
                   </v-btn>
                 </v-col>
+              </v-row>
+              <v-row no-gutters>
+                <v-text-field
+                  v-model="search[item.flatKey]"
+                  append-inner-icon="mdi-magnify"
+                  density="compact"
+                  label="Search"
+                  single-line
+                  class="mr-4"
+                  hide-details
+                />
               </v-row>
             </template>
             <template
@@ -143,12 +155,12 @@ export default {
   emits: ['submit'],
   setup(props, { emit }) {
     const config_form = ref(null)
+    const search = ref({})
     const formData = ref(
       flattenFormData(props.configData, props.formFormat) ||
         objectFromFormat(props.formFormat)
     )
 
-    console.log(formData.value)
     const { d } = useI18n()
 
     const handleSubmit = () => {
@@ -210,6 +222,7 @@ export default {
       config_form,
       formData,
       format,
+      search,
       addItem,
       handleSubmit
     }

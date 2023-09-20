@@ -56,11 +56,9 @@ export default defineComponent({
   },
   setup(props) {
     const { appendTag } = useFilterStore()
-    const { updateNewsItems } = useAssessStore()
 
     const updateTags = (tag) => {
       appendTag(tag)
-      updateNewsItems()
     }
 
     function labelcolor(inputString) {

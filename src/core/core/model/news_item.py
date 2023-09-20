@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from typing import Any
 from sqlalchemy import orm, and_, or_, func
 from enum import StrEnum, auto
+from collections import Counter
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
@@ -365,8 +366,7 @@ class NewsItemVote(BaseModel):
 
     @classmethod
     def get_user_vote(cls, item_id, user_id, item_type):
-        vote = cls.get_by_filter(item_id, user_id, item_type)
-        if vote:
+        if vote := cls.get_by_filter(item_id, user_id, item_type):
             return {"like": vote.like, "dislike": vote.dislike}
         return {"like": False, "dislike": False}
 
@@ -430,13 +430,14 @@ class NewsItemAggregate(BaseModel):
             query = query.join(NewsItem, NewsItem.news_item_aggregate_id == NewsItemAggregate.id)
             query = query.join(NewsItemData, NewsItem.news_item_data_id == NewsItemData.id)
             query = query.outerjoin(OSINTSource, NewsItemData.osint_source_id == OSINTSource.id)
-            query = query.join(OSINTSourceGroupOSINTSource, OSINTSourceGroupOSINTSource.osint_source_id == OSINTSource.id)
+            query = query.outerjoin(OSINTSourceGroupOSINTSource, OSINTSource.id == OSINTSourceGroupOSINTSource.osint_source_id)
+            query = query.outerjoin(OSINTSourceGroup, OSINTSourceGroupOSINTSource.osint_source_group_id == OSINTSourceGroup.id)
 
         if group := filter_args.get("group"):
-            query = query.filter(OSINTSourceGroupOSINTSource.osint_source_group_id == group)
+            query = query.filter(OSINTSourceGroup.id.in_(group))
 
         if source := filter_args.get("source"):
-            query = query.filter(OSINTSource.id == source)
+            query = query.filter(OSINTSource.id.in_(source))
 
         if search := filter_args.get("search"):
             search = search.strip()
@@ -475,22 +476,23 @@ class NewsItemAggregate(BaseModel):
         if tags := filter_args.get("tags"):
             for tag in tags:
                 alias = orm.aliased(NewsItemTag)
-                query = query.join(alias, NewsItemAggregate.id == alias.n_i_a_id).filter(
-                    or_(alias.name == tag, alias.sub_forms.contains(tag))
-                )
+                query = query.join(alias, NewsItemAggregate.id == alias.n_i_a_id).filter(or_(alias.name == tag, alias.tag_type == tag))
 
-        filter_range = filter_args.get("range", "").lower()
-        if filter_range and filter_range in ["day", "week", "month"]:
+        if filter_range := filter_args.get("range", "").lower():
             date_limit = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            if filter_range in ["day", "week", "month"]:
+                if filter_range == "day":
+                    date_limit -= timedelta(days=1)
 
-            if filter_range == "day":
-                date_limit -= timedelta(days=1)
+                elif filter_range == "week":
+                    date_limit -= timedelta(days=date_limit.weekday())
 
-            elif filter_range == "week":
-                date_limit -= timedelta(days=date_limit.weekday())
+                elif filter_range == "month":
+                    date_limit = date_limit.replace(day=1)
 
-            elif filter_range == "month":
-                date_limit = date_limit.replace(day=1)
+            elif filter_range.startswith("last") and filter_range[4:].isdigit():
+                days = int(filter_range[4:])
+                date_limit -= timedelta(days=days)
 
             query = query.filter(NewsItemAggregate.created >= date_limit)
 
@@ -556,16 +558,36 @@ class NewsItemAggregate(BaseModel):
         return paged_query.all(), query.count()
 
     @classmethod
+    def get_date_counts(cls, news_items: list[dict[str, Any]]) -> Counter:
+        return Counter(datetime.fromisoformat(news_item["news_item_data"]["published"]).strftime("%d-%m") for news_item in news_items)
+
+    @classmethod
+    def get_max_item_count(cls, news_items: list[dict[str, Any]]) -> int:
+        date_counts = cls.get_date_counts(news_items)
+        return max(date_counts.values(), default=0)
+
+    @classmethod
+    def get_item_dict(cls, news_item_aggregate: Any, user: Any) -> dict[str, Any]:
+        item = news_item_aggregate.to_dict()
+        item["in_reports_count"] = ReportItemNewsItemAggregate.count(news_item_aggregate.id)
+        item["user_vote"] = NewsItemVote.get_user_vote(news_item_aggregate.id, user.id, "AGGREGATE")
+        return item
+
+    @classmethod
     def get_by_filter_json(cls, filter_args, user):
         news_item_aggregates, count = cls.get_by_filter(filter_args=filter_args, user=user)
         items = []
+        max_item_count = 0
+
         for news_item_aggregate in news_item_aggregates:
-            item = news_item_aggregate.to_dict()
-            item["in_reports_count"] = ReportItemNewsItemAggregate.count(news_item_aggregate.id)
-            item["user_vote"] = NewsItemVote.get_user_vote(news_item_aggregate.id, user.id, "AGGREGATE")
+            item = cls.get_item_dict(news_item_aggregate, user)
+
+            current_max_item = cls.get_max_item_count(item["news_items"])
+            max_item_count = max(max_item_count, current_max_item)
+
             items.append(item)
 
-        return {"total_count": count, "items": items}
+        return {"total_count": count, "items": items, "max_item": max_item_count}
 
     @classmethod
     def get_for_worker(cls, filter_args: dict):
@@ -743,7 +765,7 @@ class NewsItemAggregate(BaseModel):
             for tag_name, new_tag in new_tags.items():
                 if tag_name in [tag.name for tag in n_i_a.tags]:
                     continue
-                if existing_tag := NewsItemTag.find_by_name_or_subform(tag_name):
+                if existing_tag := NewsItemTag.find_by_name(tag_name):
                     new_tag.name = existing_tag.name
                     new_tag.tag_type = existing_tag.tag_type
                 n_i_a.tags.append(new_tag)
@@ -752,6 +774,30 @@ class NewsItemAggregate(BaseModel):
         except Exception:
             logger.log_debug_trace("Update News Item Tags Failed")
             return {"error": "update failed"}, 500
+
+    @classmethod
+    def check_tags_by_source(cls, source_id: int) -> tuple[dict, int]:
+        try:
+            query = cls._add_filters_to_query({"source": source_id}, cls.query)
+            items = query.all()
+
+            if not items:
+                return {"error": "no items found"}, 404
+
+            common_tags = {tag.name for tag in items[0].tags}
+
+            for item in items[1:]:
+                item_tags = {tag.name for tag in item.tags}
+                common_tags.intersection_update(item_tags)
+
+                if not common_tags:
+                    break
+
+            return {"common_tags": list(common_tags)}, 200
+
+        except Exception:
+            logger.log_debug_trace("Get News Item Tags Failed")
+            return {"error": "get failed"}, 500
 
     @classmethod
     def group_multiple_aggregate(cls, aggregate_id_list: list[list[int]]):
@@ -773,6 +819,8 @@ class NewsItemAggregate(BaseModel):
                 aggregate = NewsItemAggregate.get(item)
                 if not aggregate:
                     continue
+                # append tags if not already present
+                first_aggregate.tags = list({tag.name: tag for tag in first_aggregate.tags + aggregate.tags}.values())
                 for news_item in aggregate.news_items[:]:
                     if user is None or news_item.allowed_with_acl(user, False, False, True):
                         first_aggregate.news_items.append(news_item)
@@ -959,22 +1007,13 @@ class NewsItemTag(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     name: Any = db.Column(db.String(255))
     tag_type: Any = db.Column(db.String(255))
-    sub_forms: Any = db.Column(db.Text)
     n_i_a_id = db.Column(db.ForeignKey(NewsItemAggregate.id))
     n_i_a = db.relationship(NewsItemAggregate, backref=orm.backref("tags", cascade="all, delete-orphan"))
 
-    def __init__(self, name, tag_type, sub_forms=None):
+    def __init__(self, name, tag_type):
         self.id = None
         self.name = name
         self.tag_type = tag_type
-        if sub_forms:
-            if type(sub_forms) == list:
-                self.sub_forms = ",".join([s.replace(",", "") for s in sub_forms])
-            elif type(sub_forms) == str:
-                self.sub_forms = sub_forms
-            else:
-                self.sub_forms = ""
-                logger.debug(f"wrong type for sub_forms {type(sub_forms)}")
 
     @classmethod
     def delete_all_tags(cls):
@@ -1026,18 +1065,8 @@ class NewsItemTag(BaseModel):
             db.session.delete(tag)
         db.session.commit()
 
-    def get_forms(self) -> list[str]:
-        tags = [self.name]
-        if self.sub_forms:
-            tags.append(self.sub_forms.split(","))
-        return tags
-
     def to_dict(self) -> dict[str, Any]:
-        return {
-            "name": self.name,
-            "tag_type": self.tag_type,
-            "sub_forms": self.sub_forms.split(",") if self.sub_forms else [],
-        }
+        return {"name": self.name, "tag_type": self.tag_type}
 
     def to_small_dict(self) -> dict[str, Any]:
         return {
@@ -1046,8 +1075,8 @@ class NewsItemTag(BaseModel):
         }
 
     @classmethod
-    def find_by_name_or_subform(cls, tag_name: str) -> "NewsItemTag | None":
-        return cls.query.filter(or_(cls.name.ilike(tag_name), cls.sub_forms.ilike(f"%{tag_name}%"))).first()
+    def find_by_name(cls, tag_name: str) -> "NewsItemTag | None":
+        return cls.query.filter(cls.name.ilike(tag_name)).first()
 
     @classmethod
     def find_largest_tag_clusters(cls, days: int = 7, limit: int = 12, min_count: int = 2):
@@ -1093,15 +1122,44 @@ class NewsItemTag(BaseModel):
         return results
 
     @classmethod
+    def get_n_biggest_tags_by_type(cls, tag_type: str, n: int) -> dict[str, dict]:
+        query = (
+            cls.query.with_entities(cls.name, func.count(cls.name).label("name_count"))
+            .filter(cls.tag_type == tag_type)
+            .group_by(cls.name)
+            .order_by(db.desc("name_count"))
+            .limit(n)
+            .all()
+        )
+        return {row[0]: {"name": row[0], "size": row[1]} for row in query}
+
+    @classmethod
+    def get_tag_types(cls) -> list[tuple[str, int]]:
+        query = (
+            cls.query.with_entities(cls.tag_type, func.count(cls.name).label("type_count"))
+            .group_by(cls.tag_type)
+            .order_by(db.desc("type_count"))
+            .all()
+        )
+        return [(row[0], row[1]) for row in query]
+
+    @classmethod
+    def get_largest_tag_types(cls) -> dict:
+        tag_types_with_count = cls.get_tag_types()
+        return {
+            tag_type: {"size": count, "name": tag_type, "tags": cls.get_n_biggest_tags_by_type(tag_type, 5)}
+            for tag_type, count in tag_types_with_count
+        }
+
+    @classmethod
     def parse_tags(cls, tags: list | dict) -> dict[str, "NewsItemTag"]:
         new_tags = {}
         if type(tags) is dict:
             for name, tag in tags.items():
                 tag_name = name
                 tag_type = tag.get("tag_type", "misc")
-                sub_forms = tag.get("sub_forms", None)
-                new_tags[tag_name] = NewsItemTag(name=tag_name, tag_type=tag_type, sub_forms=sub_forms)
+                new_tags[tag_name] = NewsItemTag(name=tag_name, tag_type=tag_type)
         else:
             for tag_name in tags:
-                new_tags[tag_name] = NewsItemTag(name=tag_name, tag_type="misc", sub_forms=None)
+                new_tags[tag_name] = NewsItemTag(name=tag_name, tag_type="misc")
         return new_tags

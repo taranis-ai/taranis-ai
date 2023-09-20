@@ -13,19 +13,19 @@ class TestSourcesConfigApi(BaseTest):
         with open(file_path, "rb") as f:
             file_storage = FileStorage(stream=f, filename="osint_sources_test_data_v1.json", content_type="application/json")
             data = {"file": file_storage}
-            response = self.assert_post_data_ok(client, "import-osint-sources", data, auth_header)
+            response = self.assert_post_data_ok(client, uri="import-osint-sources", data=data, auth_header=auth_header)
             assert response.json["count"] == 6
             assert response.json["message"] == "Successfully imported sources"
 
     def test_export_osint_sources(self, client, auth_header, cleanup_sources):
-        response = self.assert_get_ok(client, "export-osint-sources", auth_header)
+        response = self.assert_get_ok(client, uri="export-osint-sources", auth_header=auth_header)
         dir_path = os.path.dirname(os.path.realpath(__file__))
         file_path = os.path.join(dir_path, "osint_sources_test_data_v2.json")
         with open(file_path, "rb") as f:
             test_data = json.load(f)
             test_result = response.json
             for source in test_data["data"]:
-                assert source in test_result["data"]
+                assert source in test_result["sources"]
 
     def test_create_source(self, client, auth_header, cleanup_sources):
         response = self.assert_post_ok(client, uri="osint-sources", json_data=cleanup_sources, auth_header=auth_header)

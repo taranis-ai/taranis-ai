@@ -14,6 +14,7 @@ class COLLECTOR_TYPES(StrEnum):
     TWITTER_COLLECTOR = auto()
     WEB_COLLECTOR = auto()
     SELENIUM_WEB_COLLECTOR = auto()
+    SIMPLE_WEB_COLLECTOR = auto()
 
 
 class BOT_TYPES(StrEnum):
@@ -48,6 +49,7 @@ class WORKER_TYPES(StrEnum):
     TWITTER_COLLECTOR = auto()
     WEB_COLLECTOR = auto()
     SELENIUM_WEB_COLLECTOR = auto()
+    SIMPLE_WEB_COLLECTOR = auto()
     ANALYST_BOT = auto()
     GROUPING_BOT = auto()
     NLP_BOT = auto()
@@ -162,14 +164,24 @@ class Worker(BaseModel):
 
     @classmethod
     def parse_parameters(cls, worker_type: str, parameters) -> list[ParameterValue]:
-        worker_parameters = Worker.get_parameters(worker_type)
+        default_parameters = Worker.get_parameters(worker_type)
+
         if not parameters:
-            return worker_parameters
-        parsed_parameters = ParameterValue.get_or_create_from_list(parameters=parameters)
-        for worker_parameter in worker_parameters:
-            if worker_parameter not in parsed_parameters:
-                parsed_parameters.append(worker_parameter)
-        return parsed_parameters
+            return default_parameters
+
+        parsed_parameters = cls._get_or_create_parameters(parameters)
+        missing_parameters = cls._get_missing_parameters(default_parameters, parsed_parameters)
+
+        return parsed_parameters + missing_parameters
+
+    @classmethod
+    def _get_or_create_parameters(cls, parameters) -> list[ParameterValue]:
+        return ParameterValue.get_or_create_from_list(parameters=parameters)
+
+    @classmethod
+    def _get_missing_parameters(cls, default_parameters, parsed_parameters) -> list[ParameterValue]:
+        parsed_parameter_names = {pp.parameter for pp in parsed_parameters}
+        return [wp for wp in default_parameters if wp.parameter not in parsed_parameter_names]
 
     @classmethod
     def get_parameter_map(cls):
