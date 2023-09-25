@@ -63,8 +63,8 @@ class SimpleWebCollector(BaseCollector):
         extract_document = bare_extraction(html_content, with_metadata=True, include_comments=False, url=web_url)
         author = extract_document["author"] or ""
         title = extract_document["title"] or ""
-        for_hash: str = author + title + web_url
         content = extract_document["text"] or ""
+        for_hash: str = author + title + web_url
 
         return {
             "id": str(uuid.uuid4()),

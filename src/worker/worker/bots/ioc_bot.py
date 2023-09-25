@@ -17,11 +17,8 @@ class IOCBot(BaseBot):
         if not parameters:
             return
         try:
-            filter_dict = self.get_filter_dict(parameters)
-            data = self.core_api.get_news_items_aggregate(filter_dict)
-            if not data:
-                logger.critical("Error getting news items")
-                return
+            if not (data := self.get_stories(parameters)):
+                return "Error getting news items"
 
             extracted_keywords = {}
 

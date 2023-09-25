@@ -590,7 +590,7 @@ class NewsItemAggregate(BaseModel):
         return {"total_count": count, "items": items, "max_item": max_item_count}
 
     @classmethod
-    def get_for_worker(cls, filter_args: dict):
+    def get_for_worker(cls, filter_args: dict) -> list[dict[str, Any]]:
         news_item_aggregates, _ = cls.get_by_filter(filter_args=filter_args)
         return [news_item_aggregate.to_worker_dict() for news_item_aggregate in news_item_aggregates]
 

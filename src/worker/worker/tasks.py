@@ -1,6 +1,5 @@
 from celery import shared_task
 
-from worker.log import logger
 from worker.core_api import CoreApi
 from worker.bots import bot_tasks
 from worker.collectors import collector_tasks
@@ -36,9 +35,5 @@ def cleanup_token_blacklist():
 
 @shared_task(time_limit=30)
 def gather_word_list(word_list_id: int):
-    core_api = CoreApi()
-    if word_list := core_api.get_word_list(word_list_id):
-        return bot_tasks.execute_by_type("wordlist_updater_bot", word_list)
-
-    logger.error(f"Word list with id {word_list_id} not found")
-    return f"Word list with id {word_list_id} not found"
+    config = {"type": "wordlist_updater_bot", "parameters": {"WORD_LIST_ID": word_list_id}}
+    return bot_tasks.execute_by_config(config)

@@ -15,10 +15,8 @@ class TaggingBot(BaseBot):
         try:
             regexp = parameters.get("REGULAR_EXPRESSION", r"CVE-\d{4}-\d{4,7}")
 
-            filter_dict = self.get_filter_dict(parameters)
-            data = self.core_api.get_news_items_aggregate(filter_dict=filter_dict)
-            if not data:
-                return
+            if not (data := self.get_stories(parameters)):
+                return "Error getting news items"
 
             for aggregate in data:
                 findings = set()

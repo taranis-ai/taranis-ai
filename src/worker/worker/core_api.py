@@ -84,12 +84,12 @@ class CoreApi:
         except Exception:
             return None
 
-    def get_news_items_aggregate(self, filter_dict: dict) -> dict | list | None:
+    def get_news_items_aggregate(self, filter_dict: dict) -> list:
         try:
-            return self.api_get("/api/v1/worker/news-item-aggregates", params=filter_dict)
+            return self.api_get("/api/v1/worker/news-item-aggregates", params=filter_dict) or []
         except Exception:
             logger.log_debug_trace("get_news_items_aggregate failed")
-            return None
+            return []
 
     def get_tags(self) -> dict | None:
         return self.api_get("/api/v1/worker/tags")

@@ -9,7 +9,19 @@ class WordlistUpdaterBot(BaseBot):
     name = "Wordlist Updater Bot"
     description = "Bot for updating word lists"
 
-    def execute(self, word_list):
+    def execute(self, parameters: dict):
+        word_list_id = parameters.get("WORD_LIST_ID")
+
+        if not word_list_id:
+            logger.error("No word list id provided")
+            return "No word list id provided"
+
+        word_list = self.core_api.get_word_list(word_list_id)
+
+        if not word_list:
+            logger.error(f"Word list with id {word_list_id} not found")
+            return f"Word list with id {word_list_id} not found"
+
         url = word_list["link"]
         logger.info(f"Updating word list {word_list['name']} from {url}")
         response = requests.get(url=url)

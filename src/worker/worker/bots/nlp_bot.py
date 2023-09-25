@@ -14,8 +14,6 @@ class NLPBot(BaseBot):
     def __init__(self):
         super().__init__()
         logger.debug("Setup NER Model...")
-        # self.ner_english = Classifier.load("flair/ner-english-fast")
-        # self.ner_german = Classifier.load("flair/ner-german")
         self.ner_multi = Classifier.load("flair/ner-multi")
         torch.set_num_threads(1)  # https://github.com/pytorch/pytorch/issues/36191
         self.extraction_text_limit = 5000
@@ -24,12 +22,8 @@ class NLPBot(BaseBot):
         if not parameters:
             return
         try:
-            filter_dict = self.get_filter_dict(parameters)
-
-            data = self.core_api.get_news_items_aggregate(filter_dict)
-            if not data:
-                logger.critical("Error getting news items")
-                return
+            if not (data := self.get_stories(parameters)):
+                return "Error getting news items"
 
             all_keywords = {k: v for news_item in data for k, v in news_item["tags"].items()}
 
@@ -55,20 +49,9 @@ class NLPBot(BaseBot):
         current_keywords = {k: v for k, v in current_keywords.items() if k != "name"}
         aggregate_content = "\n".join(news_item["news_item_data"]["content"] for news_item in aggregate["news_items"])
         lines = self.get_first_and_last_20_lines(aggregate_content)
-        ner_model = self.get_ner_model(aggregate_content)
         for line in lines:
-            current_keywords |= self.extract_ner(line, all_keywords, ner_model)
+            current_keywords |= self.extract_ner(line, all_keywords, self.ner_multi)
         return current_keywords
-
-    def get_ner_model(self, text: str) -> Classifier:
-        return self.ner_multi
-        # language = self.detect_language(text)
-        # if language == "en":
-        #     return self.ner_english
-        # elif language == "de":
-        #     return self.ner_german
-        # else:
-        #     return self.ner_multi
 
     def get_first_and_last_20_lines(self, content: str) -> list:
         lines = [line for line in content.split("\n") if line]

@@ -18,10 +18,8 @@ class GroupingBot(BaseBot):
             if not regexp:
                 return
 
-            filter_dict = self.get_filter_dict(parameters)
-            data = self.core_api.get_news_items_aggregate(filter_dict)
-            if not data:
-                return
+            if not (data := self.get_stories(parameters)):
+                return "Error getting news items"
 
             findings = defaultdict(list)
             for aggregate in data:

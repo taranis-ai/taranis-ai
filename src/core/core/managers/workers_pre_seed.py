@@ -240,11 +240,21 @@ bots = [
         "name": "NLP Tagging BOT",
         "description": "Bot for Tagging Items via NLP",
         "type": "NLP_BOT",
+        "parameters": [
+            {"parameter": "ITEM_FILTER"},
+            {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch", "value": "true"},
+            {"parameter": "REFRESH_INTERVAL", "type": "number"},
+        ],
     },
     {
         "name": "Story BOT",
         "description": "Bot for story clustering",
         "type": "STORY_BOT",
+    },
+    {
+        "name": "Summary BOT",
+        "description": "Bot for summarizing stories",
+        "type": "SUMMARY_BOT",
     },
 ]
 

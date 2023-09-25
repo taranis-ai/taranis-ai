@@ -48,8 +48,3 @@ def execute_by_id(bot_id: str, filter: dict | None = None):
 
 def execute_by_configs(bot_configs: list[dict], filter: dict | None = None):
     return [execute_by_config(bot_config, filter=filter) for bot_config in bot_configs]
-
-
-def execute_by_type(bot_type: str, *args, **kwargs):
-    if bot := bots.get(bot_type):
-        return bot.execute(*args, **kwargs)

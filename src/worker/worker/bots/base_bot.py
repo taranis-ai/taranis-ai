@@ -27,6 +27,21 @@ class BaseBot:
 
         return filter_dict
 
+    def update_filter_for_pagination(self, filter_dict, limit=100):
+        filter_dict["limit"] = limit
+        if "offset" in filter_dict:
+            filter_dict["offset"] += limit
+        else:
+            filter_dict["offset"] = limit
+        return filter_dict
+
+    def get_stories(self, parameters) -> list:
+        filter_dict = self.get_filter_dict(parameters)
+        data = self.core_api.get_news_items_aggregate(filter_dict)
+        if not data:
+            logger.error("Error getting news items")
+        return data
+
     def refresh(self):
         logger.info(f"Refreshing Bot: {self.type} ...")
 

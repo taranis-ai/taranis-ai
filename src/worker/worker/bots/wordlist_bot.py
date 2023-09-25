@@ -13,7 +13,6 @@ class WordlistBot(BaseBot):
             return
 
         try:
-            filter_dict = self.get_filter_dict(parameters)
             ignore_case = self._set_ignore_case_flag(parameters)
             override_existing_tags = parameters.get("OVERRIDE_EXISTING_TAGS", True)
 
@@ -21,9 +20,8 @@ class WordlistBot(BaseBot):
             if not word_list_entries:
                 return "No word lists found"
 
-            data = self.core_api.get_news_items_aggregate(filter_dict=filter_dict)
-            if not data:
-                return "No data found"
+            if not (data := self.get_stories(parameters)):
+                return "Error getting news items"
 
             found_tags = self._find_tags_for_aggregates(data, word_list_entries, override_existing_tags, ignore_case)
             logger.debug(found_tags)

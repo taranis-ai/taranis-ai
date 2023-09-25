@@ -17,12 +17,8 @@ class StoryBot(BaseBot):
         if not parameters:
             return
         try:
-            filter_dict = self.get_filter_dict(parameters)
-
-            data = self.core_api.get_news_items_aggregate(filter_dict)
-            if not data or type(data) != list:
-                logger.critical("Error getting news items")
-                return
+            if not (data := self.get_stories(parameters)):
+                return "Error getting news items"
 
             logger.info(f"Clustering {len(data)} news items")
             if all(len(aggregate["news_items"]) == 1 for aggregate in data):
