@@ -18,7 +18,7 @@ class ProductType(BaseModel):
     description: Any = db.Column(db.String(), nullable=False)
     type: Any = db.Column(db.Enum(PRESENTER_TYPES))
 
-    parameters = db.relationship("ParameterValue", secondary="product_type_parameter_value", cascade="all")
+    parameters = db.relationship("ParameterValue", secondary="product_type_parameter_value", cascade="all, delete")
 
     def __init__(self, title, type, description="", parameters=None, id=None):
         self.id = id
@@ -104,5 +104,5 @@ class ProductType(BaseModel):
 
 
 class ProductTypeParameterValue(BaseModel):
-    product_type_id = db.Column(db.Integer, db.ForeignKey("product_type.id"), primary_key=True)
+    product_type_id = db.Column(db.Integer, db.ForeignKey("product_type.id", ondelete="CASCADE"), primary_key=True)
     parameter_value_id = db.Column(db.Integer, db.ForeignKey("parameter_value.id"), primary_key=True)

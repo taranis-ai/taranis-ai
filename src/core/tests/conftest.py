@@ -1,5 +1,4 @@
 import pytest
-import os
 from dotenv import load_dotenv
 from sqlalchemy.orm import scoped_session, sessionmaker
 

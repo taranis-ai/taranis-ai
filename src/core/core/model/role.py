@@ -70,7 +70,7 @@ class Role(BaseModel):
         if description := data.get("description", None):
             role.description = description
         if permissions := data.pop("permissions", None):
-            role.permissions = permissions
+            role.permissions = [Permission.get(permission_id) for permission_id in permissions]
         db.session.commit()
         return {"message": f"Succussfully updated {role.name}", "id": f"{role.id}"}, 201
 

@@ -32,13 +32,6 @@ to run the applicaiton locally add `VITE_TARANIS_NG_CONFIG_JSON = "/config.json.
 }
 
 ```
-
-
-
-# map taranis
-Add `127.0.0.1   taranis` to your local `/etc/hosts` file
-
-# run the development server
 npm run dev
 ```
 

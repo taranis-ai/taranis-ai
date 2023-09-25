@@ -35,22 +35,19 @@ class DictionariesReload(Resource):
 
 
 class Attributes(Resource):
-    @auth_required(["CONFIG_ATTRIBUTE_ACCESS", "ANALYZE_ACCESS"])
-    def get(self):
-        search = request.args.get(key="search", default=None)
-        return attribute.Attribute.get_all_json(search)
-
     @auth_required("CONFIG_ATTRIBUTE_CREATE")
     def post(self):
         attribute_result = attribute.Attribute.add(request.json)
         return {"message": "Attribute added", "id": attribute_result.id}, 201
 
-
-class Attribute(Resource):
     @auth_required(["CONFIG_ATTRIBUTE_ACCESS", "ANALYZE_ACCESS"])
-    def get(self, attribute_id):
-        result = attribute.Attribute.get(attribute_id)
-        return result.to_json() if result else ("Attribute not found", 404)
+    def get(self, attribute_id=None):
+        if attribute_id:
+            result = attribute.Attribute.get(attribute_id)
+            return result.to_json() if result else ("Attribute not found", 404)
+
+        search = request.args.get(key="search", default=None)
+        return attribute.Attribute.get_all_json(search)
 
     @auth_required("CONFIG_ATTRIBUTE_UPDATE")
     def put(self, attribute_id):
@@ -74,8 +71,6 @@ class AttributeEnums(Resource):
         result = attribute.AttributeEnum.add(request.json)
         return {"message": "Attribute enum added", "id": result.id}, 201
 
-
-class AttributeEnum(Resource):
     @auth_required("CONFIG_ATTRIBUTE_UPDATE")
     def put(self, attribute_id, enum_id):
         attribute.AttributeEnum.update(enum_id, request.json)
@@ -100,8 +95,6 @@ class ReportItemTypes(Resource):
             logger.exception("Failed to add report item type")
             return {"error": "Failed to add report item type"}, 500
 
-
-class ReportItemType(Resource):
     @auth_required("CONFIG_REPORT_TYPE_UPDATE")
     def put(self, type_id):
         if item := report_item_type.ReportItemType.update(type_id, request.json):
@@ -124,8 +117,6 @@ class ProductTypes(Resource):
         product = product_type.ProductType.add(request.json)
         return {"message": "Product type created", "id": product.id}, 201
 
-
-class ProductType(Resource):
     @auth_required("CONFIG_PRODUCT_TYPE_UPDATE")
     def put(self, type_id):
         return product_type.ProductType.update(type_id, request.json)
@@ -159,8 +150,6 @@ class Roles(Resource):
         new_role = role.Role.add(request.json)
         return {"message": "Role created", "id": new_role.id}, 201
 
-
-class Role(Resource):
     @auth_required("CONFIG_ROLE_UPDATE")
     def put(self, role_id):
         return role.Role.update(role_id, request.json)
@@ -181,8 +170,6 @@ class ACLEntries(Resource):
         acl = acl_entry.ACLEntry.add(request.json)
         return {"message": "ACL created", "id": acl.id}, 201
 
-
-class ACLEntry(Resource):
     @auth_required("CONFIG_ACL_UPDATE")
     def put(self, acl_id):
         acl_entry.ACLEntry.update(acl_id, request.json)
@@ -203,8 +190,6 @@ class Organizations(Resource):
         org = organization.Organization.add(request.json)
         return {"message": "Organization created", "id": org.id}, 201
 
-
-class Organization(Resource):
     @auth_required("CONFIG_ORGANIZATION_UPDATE")
     def put(self, organization_id):
         return organization.Organization.update(organization_id, request.json)
@@ -229,8 +214,6 @@ class Users(Resource):
             logger.exception()
             return "Could not create user", 400
 
-
-class User(Resource):
     @auth_required("CONFIG_USER_UPDATE")
     def put(self, user_id):
         try:
@@ -294,7 +277,10 @@ class QueueSchedule(Resource):
 
 class OSINTSources(Resource):
     @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
-    def get(self):
+    def get(self, source_id=None):
+        if source_id:
+            source = osint_source.OSINTSource.get(source_id)
+            return source.to_dict() if source else ("OSINT source not found", 404)
         search = request.args.get(key="search", default=None)
         result_dict = osint_source.OSINTSource.get_all_json(search)
         return result_dict, 200
@@ -304,14 +290,6 @@ class OSINTSources(Resource):
         if source := osint_source.OSINTSource.add(request.json):
             return {"id": source.id, "message": "OSINT source created successfully"}, 201
         return {"error": "OSINT source could not be created"}, 400
-
-
-class OSINTSource(Resource):
-    @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
-    def get(self, source_id):
-        if source := osint_source.OSINTSource.get(source_id):
-            return source.to_dict(), 200
-        return {"error": "OSINT source not found"}, 404
 
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def put(self, source_id):
@@ -377,8 +355,6 @@ class OSINTSourceGroups(Resource):
         source_group = osint_source.OSINTSourceGroup.add(request.json)
         return {"id": source_group.id, "message": "OSINT source group created successfully"}, 200
 
-
-class OSINTSourceGroup(Resource):
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_UPDATE")
     def put(self, group_id):
         return osint_source.OSINTSourceGroup.update(group_id, request.json)
@@ -424,7 +400,10 @@ class PublisherPreset(Resource):
 
 class WordLists(Resource):
     @auth_required("CONFIG_WORD_LIST_ACCESS")
-    def get(self):
+    def get(self, word_list_id=None):
+        if word_list_id:
+            word_list_result = word_list.WordList.get(word_list_id)
+            return word_list_result.to_dict() if word_list_result else ({"error": "Word list not found"}, 404)
         search = request.args.get(key="search", default=None)
         usage = request.args.get(key="usage", default=None)
         return word_list.WordList.get_all_json({"search": search, "usage": usage}, auth_manager.get_user_from_jwt(), False)
@@ -433,14 +412,6 @@ class WordLists(Resource):
     def post(self):
         wordlist = word_list.WordList.add(request.json)
         return {"id": wordlist.id, "message": "Word list created successfully"}, 200
-
-
-class WordList(Resource):
-    @auth_required("CONFIG_WORD_LIST_ACCESS")
-    def get(self, word_list_id):
-        if word_list_result := word_list.WordList.get(word_list_id):
-            return word_list_result.to_dict(), 200
-        return {"error": "Word list not found"}, 404
 
     @auth_required("CONFIG_WORD_LIST_DELETE")
     def delete(self, word_list_id):
@@ -503,46 +474,35 @@ class WorkerTypes(Resource):
 def initialize(api: Api):
     namespace = Namespace("config", description="Configuration operations", path="/api/v1/config")
 
-    namespace.add_resource(ACLEntries, "/acls")
-    namespace.add_resource(ACLEntry, "/acls/<int:acl_id>")
-    namespace.add_resource(Attribute, "/attributes/<int:attribute_id>")
-    namespace.add_resource(Attributes, "/attributes")
-    namespace.add_resource(AttributeEnum, "/attributes/<int:attribute_id>/enums/<int:enum_id>")
-    namespace.add_resource(AttributeEnums, "/attributes/<int:attribute_id>/enums")
+    namespace.add_resource(ACLEntries, "/acls/<int:acl_id>", "/acls")
+    namespace.add_resource(Attributes, "/attributes/<int:attribute_id>", "/attributes")
+    namespace.add_resource(AttributeEnums, "/attributes/<int:attribute_id>/enums/<int:enum_id>", "/attributes/<int:attribute_id>/enums")
     namespace.add_resource(BotExecute, "/bots/<string:bot_id>/execute")
     namespace.add_resource(Bots, "/bots", "/bots/<string:bot_id>")
     namespace.add_resource(DictionariesReload, "/reload-enum-dictionaries/<string:dictionary_type>")
-    namespace.add_resource(Organization, "/organizations/<int:organization_id>")
-    namespace.add_resource(Organizations, "/organizations")
-    namespace.add_resource(OSINTSource, "/osint-sources/<string:source_id>")
-    namespace.add_resource(OSINTSources, "/osint-sources")
+    namespace.add_resource(Organizations, "/organizations/<int:organization_id>", "/organizations")
+    namespace.add_resource(OSINTSources, "/osint-sources/<string:source_id>", "/osint-sources")
     namespace.add_resource(OSINTSourceCollect, "/osint-sources/<string:source_id>/collect")
     namespace.add_resource(OSINTSourceCollectAll, "/osint-sources/collect")
-    namespace.add_resource(OSINTSourceGroup, "/osint-source-groups/<string:group_id>")
-    namespace.add_resource(OSINTSourceGroups, "/osint-source-groups")
+    namespace.add_resource(OSINTSourceGroups, "/osint-source-groups/<string:group_id>", "/osint-source-groups")
     namespace.add_resource(OSINTSourcesExport, "/export-osint-sources")
     namespace.add_resource(OSINTSourcesImport, "/import-osint-sources")
     namespace.add_resource(Parameters, "/parameters")
     namespace.add_resource(Permissions, "/permissions")
     namespace.add_resource(Presenters, "/presenters")
-    namespace.add_resource(ProductType, "/product-types/<int:type_id>")
-    namespace.add_resource(ProductTypes, "/product-types")
+    namespace.add_resource(ProductTypes, "/product-types/<int:type_id>", "/product-types")
     namespace.add_resource(PublisherPreset, "/publishers-presets/<string:preset_id>")
     namespace.add_resource(PublisherPresets, "/publishers-presets")
     namespace.add_resource(Publishers, "/publishers")
     namespace.add_resource(QueueStatus, "/workers/queue-status")
     namespace.add_resource(QueueSchedule, "/workers/schedule")
-    namespace.add_resource(ReportItemType, "/report-item-types/<int:type_id>")
-    namespace.add_resource(ReportItemTypes, "/report-item-types")
-    namespace.add_resource(Role, "/roles/<int:role_id>")
-    namespace.add_resource(Roles, "/roles")
-    namespace.add_resource(User, "/users/<int:user_id>")
-    namespace.add_resource(Users, "/users")
-    namespace.add_resource(WordList, "/word-lists/<int:word_list_id>")
+    namespace.add_resource(ReportItemTypes, "/report-item-types/<int:type_id>", "/report-item-types")
+    namespace.add_resource(Roles, "/roles/<int:role_id>", "/roles")
+    namespace.add_resource(Users, "/users/<int:user_id>", "/users")
     namespace.add_resource(WordListGather, "/word-lists/<int:word_list_id>/gather")
     namespace.add_resource(WordListExport, "/export-word-lists")
     namespace.add_resource(WordListImport, "/import-word-lists")
-    namespace.add_resource(WordLists, "/word-lists")
+    namespace.add_resource(WordLists, "/word-lists/<int:word_list_id>", "/word-lists")
     namespace.add_resource(Workers, "/workers")
     namespace.add_resource(WorkerTypes, "/worker-types")
 
