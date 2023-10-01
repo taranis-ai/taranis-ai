@@ -8,13 +8,12 @@
     <v-btn
       v-for="button in filterAttributeOptions"
       :key="button.value"
-      class="vertical-button mb-2"
+      class="vertical-button toggle-button py-2 px-4 mb-1"
       :value="button.value"
       :prepend-icon="button.icon"
       :append-icon="
         filterAttribute.includes(button.value) ? 'mdi-check-bold' : undefined
       "
-      size="large"
     >
       {{ button.label }}
     </v-btn>
@@ -63,15 +62,8 @@ export default {
 }
 </script>
 
-<style scoped>
-.vertical-button-group {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-.vertical-button {
-  justify-content: flex-start;
-  text-transform: unset !important;
+<style lang="scss">
+.toggle-button {
+  border-radius: 4px !important;
 }
 </style>

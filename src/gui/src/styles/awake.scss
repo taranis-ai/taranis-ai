@@ -1,5 +1,3 @@
-// $app-bar-height: 48px;
-
 $primary: #7468e8;
 $secondary: #34a5e8;
 $accent: #6daed9;
@@ -24,24 +22,9 @@ $light-grey-2: #c8c8c8;
 $dark-grey: #575757;
 $very-dark-grey: #313131;
 
-$story-selected-bg: #f4f3fb;
-$story-hot: #dbe868;
-$story-header-bg: #edeac2;
 $awake-green-color: #77bb70;
 $awake-yellow-color: #e9c645;
 $awake-red-color: #d18e8e;
-
-.v-application {
-  font-size: 14px;
-  letter-spacing: normal;
-  h2 {
-    font-size: 1.3rem;
-  }
-  p {
-    font-size: 0.95rem;
-    font-weight: 300;
-  }
-}
 
 // $status-important: #dbe868;
 // $status-unread: #7468e8;
@@ -603,12 +586,6 @@ $awake-red-color: #d18e8e;
 //       font-size: 70%;
 //     }
 //   }
-
-.v-card.selected {
-  background-color: lighten($primary, 30);
-  border: 2px solid $primary;
-  margin: -2px;
-}
 
 //   &.status-important:not(.selected) {
 //     background-color: #f3f1d2 !important;

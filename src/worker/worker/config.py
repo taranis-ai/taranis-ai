@@ -9,7 +9,7 @@ class Settings(BaseSettings):
         env_file_encoding = "utf-8"
 
     API_KEY: str = "supersecret"
-    TARANIS_NG_CORE_URL: str = "http://taranis"
+    TARANIS_NG_CORE_URL: str = "http://taranis/api"
     MODULE_ID: str = "Workers"
     COLORED_LOGS: bool = True
     DEBUG: bool = False

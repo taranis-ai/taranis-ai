@@ -1,52 +1,63 @@
 <template>
-  <v-container fluid class="login-screen" fill-height>
-    <v-row no-gutters justify="center" align-content="center">
-      <img
-        :width="400"
-        src="@/assets/taranis-logo-login.svg"
-        alt="taranis logo"
-      />
-    </v-row>
-    <v-form id="form" ref="form" @submit.prevent="authenticate">
-      <v-row no-gutters justify="center" align-content="center">
-        <v-col cols="3">
-          <v-text-field
-            v-model="username"
-            :placeholder="$t('login.username')"
-            name="username"
-            prepend-icon="person"
-            type="text"
-            :rules="[acceptUser]"
-            autocomplete="username"
-            required
-          />
-        </v-col>
-        <v-col cols="3">
-          <v-text-field
-            v-model="password"
-            :placeholder="$t('login.password')"
-            name="password"
-            prepend-icon="lock"
-            type="password"
-            :rules="[acceptPassword]"
-            autocomplete="password"
-            required
-          />
-        </v-col>
-        <v-col cols="1">
-          <v-btn
-            icon="mdi-login-variant"
-            type="submit"
-            color="primary"
-            :disabled="loginButtonDisabled"
-            @click="authenticate"
-          />
-        </v-col>
+  <v-container class="login-container flex-column">
+    <div class="ma-auto" style="max-width: 900px">
+      <v-row
+        no-gutters
+        justify="center"
+        align-content="center"
+        style="margin-bottom: 4rem"
+      >
+        <img
+          src="@/assets/taranis-logo-login.svg"
+          alt="taranis logo"
+          class="ma-5"
+          style="max-width: 360px"
+        />
       </v-row>
-    </v-form>
-    <v-alert v-if="login_error !== undefined" dense type="error" text>{{
-      $t(login_error)
-    }}</v-alert>
+      <v-form id="form" ref="form" @submit.prevent="authenticate">
+        <v-row no-gutters justify="center" align-content="center">
+          <v-col cols="12" sm="6">
+            <v-text-field
+              v-model="username"
+              class="mx-2"
+              :placeholder="$t('login.username')"
+              name="username"
+              prepend-icon="mdi-account-outline"
+              type="text"
+              :rules="[acceptUser]"
+              autocomplete="username"
+              required
+            />
+          </v-col>
+          <v-col cols="12" sm="6">
+            <v-text-field
+              v-model="password"
+              class="mx-2"
+              :placeholder="$t('login.password')"
+              name="password"
+              prepend-icon="mdi-lock-outline"
+              type="password"
+              :rules="[acceptPassword]"
+              autocomplete="password"
+              required
+            />
+          </v-col>
+          <v-col cols="12" class="d-flex">
+            <v-btn
+              class="ma-auto"
+              icon="mdi-login-variant"
+              type="submit"
+              color="primary"
+              :disabled="loginButtonDisabled"
+              @click="authenticate"
+            />
+          </v-col>
+        </v-row>
+      </v-form>
+      <v-alert v-if="login_error !== undefined" dense type="error" text>{{
+        $t(login_error)
+      }}</v-alert>
+    </div>
   </v-container>
 </template>
 
@@ -118,3 +129,9 @@ export default defineComponent({
   }
 })
 </script>
+
+<style scoped>
+.login-container {
+  margin-top: 10%;
+}
+</style>

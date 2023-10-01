@@ -1,5 +1,9 @@
 import { defineStore } from 'pinia'
-import { getDashboardData, getTrendingClusters } from '@/api/dashboard'
+import {
+  getDashboardData,
+  getTrendingClusters,
+  getCluster
+} from '@/api/dashboard'
 import { notifyFailure } from '@/utils/helpers'
 
 export const useDashboardStore = defineStore('dashboard', {
@@ -13,7 +17,7 @@ export const useDashboardStore = defineStore('dashboard', {
       latest_collected: '',
       tag_cloud: {}
     },
-    clusters: []
+    clusters: {}
   }),
   actions: {
     async loadDashboardData() {
@@ -28,6 +32,14 @@ export const useDashboardStore = defineStore('dashboard', {
       try {
         const response = await getTrendingClusters()
         this.clusters = response.data
+      } catch (error) {
+        notifyFailure(error.message)
+      }
+    },
+    async getCluster(tag_type, filter_data) {
+      try {
+        const response = await getCluster(tag_type, filter_data)
+        return response.data
       } catch (error) {
         notifyFailure(error.message)
       }

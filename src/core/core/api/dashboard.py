@@ -34,9 +34,9 @@ class TrendingClusters(Resource):
         try:
             return NewsItemTag.get_largest_tag_types()
             # return NewsItemTag.find_largest_tag_clusters(days, limit)
-        except Exception:
+        except Exception as e:
             logger.log_debug_trace()
-            return "", 400
+            return {"error": str(e)}, 400
 
 
 class StoryClusters(Resource):
@@ -46,9 +46,23 @@ class StoryClusters(Resource):
             days = int(request.args.get("days", 7))
             limit = int(request.args.get("limit", 12))
             return NewsItemAggregate.get_story_clusters(days, limit)
-        except Exception:
+        except Exception as e:
             logger.log_debug_trace()
-            return "", 400
+            return {"error": str(e)}, 400
+
+
+class ClusterByType(Resource):
+    @jwt_required()
+    def get(self, tag_type: str):
+        try:
+            per_page = min(int(request.args.get("per_page", 50)), 100)
+            page = int(request.args.get("page", 0))
+            offset = min(((page - 1) * per_page), (2**31) - 1)
+            filter_args = {"tag_type": tag_type, "limit": per_page, "offset": offset}
+            return NewsItemTag.get_cluster_by_filter(filter_args)
+        except Exception as e:
+            logger.log_debug_trace()
+            return {"error": str(e)}, 400
 
 
 class Tagcloud(Resource):
@@ -68,10 +82,11 @@ class BuildInfo(Resource):
 
 
 def initialize(api: Api):
-    namespace = Namespace("dashboard", description="Dashboard related operations", path="/api/v1/dashboard")
+    namespace = Namespace("dashboard", description="Dashboard related operations")
     namespace.add_resource(Dashboard, "/", "")
     namespace.add_resource(Tagcloud, "/tagcloud")
     namespace.add_resource(TrendingClusters, "/trending-clusters")
     namespace.add_resource(StoryClusters, "/story-clusters")
+    namespace.add_resource(ClusterByType, "/cluster/<string:tag_type>")
     namespace.add_resource(BuildInfo, "/build-info")
-    api.add_namespace(namespace)
+    api.add_namespace(namespace, path="/dashboard")

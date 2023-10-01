@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <v-container fluid>
     <DataTable
       :items="roles.items"
       :add-button="true"
@@ -17,7 +17,7 @@
       :title="editTitle"
       @submit="handleSubmit"
     ></EditConfig>
-  </div>
+  </v-container>
 </template>
 
 <script>

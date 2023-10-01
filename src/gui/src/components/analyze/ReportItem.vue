@@ -1,21 +1,25 @@
 <template>
   <v-card>
     <v-toolbar density="compact">
-      <v-toolbar-title>{{ container_title }}</v-toolbar-title>
-      <v-spacer></v-spacer>
+      <v-toolbar-title :text="container_title" />
+      <v-spacer />
       <v-switch
         v-model="verticalView"
+        style="max-width: 150px"
         label="Side-by-side"
         hide-details
         color="success"
-      ></v-switch>
+        density="compact"
+      />
       <v-switch
         v-if="edit"
         v-model="report_item.completed"
+        style="max-width: 120px"
         hide-details
         label="Completed"
         color="success"
-      ></v-switch>
+        density="compact"
+      />
       <v-btn
         prepend-icon="mdi-content-save"
         color="success"
@@ -37,7 +41,7 @@
       </v-btn>
     </v-toolbar>
     <v-card-text>
-      <v-row>
+      <v-row no-gutters>
         <v-col
           :cols="verticalView ? 6 : 12"
           :class="verticalView ? 'taranis-ng-vertical-view' : ''"
@@ -58,14 +62,7 @@
                 :label="$t('report_item.report_type')"
               />
             </v-col>
-            <v-col cols="4" class="pr-3">
-              <v-text-field
-                v-model="report_item.title_prefix"
-                :label="$t('report_item.title_prefix')"
-                name="title_prefix"
-              />
-            </v-col>
-            <v-col cols="4" class="pr-3">
+            <v-col cols="8" class="pr-3">
               <v-text-field
                 v-model="report_item.title"
                 :label="$t('report_item.title')"
@@ -77,6 +74,13 @@
           </v-row>
           <v-row>
             <v-col v-if="edit && report_type" cols="12" class="pa-0 ma-0">
+              <v-col cols="4">
+                <v-text-field
+                  v-model="report_item.title_prefix"
+                  :label="$t('report_item.title_prefix')"
+                  name="title_prefix"
+                />
+              </v-col>
               <v-expansion-panels
                 v-for="attribute_group in report_type.attribute_groups"
                 :key="attribute_group.id"

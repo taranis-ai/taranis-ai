@@ -487,25 +487,13 @@ export const messages_en = {
   },
 
   product: {
-    add_new: 'New product',
-    add_btn: 'Add New',
-    edit: 'Edit product',
-    save: 'Save',
-    cancel: 'Cancel',
-    validation_error: 'Please fill in all required fields',
-    error: 'Could not create this product',
     title: 'Title',
-    name: 'Name',
     description: 'Description',
     product_type: 'Product Type',
     publisher: 'Publisher',
-    successful: 'New product was successfully added',
-    successful_edit: 'Product was successfully saved',
-    removed: 'Product was successfully removed',
-    removed_error: 'Product is in use and could not be deleted',
-    preview: 'Show product preview',
-    publish: 'Publish product',
-    total_count: 'Products count: '
+    render: 'Render Product',
+    preview: 'Show preview',
+    publish: 'Publish product'
   },
 
   analyze: {
@@ -649,7 +637,6 @@ export const messages_en = {
     selection: 'Selection',
     group: 'Group',
     ungroup: 'Ungroup',
-    new_product: 'New Product',
     story_open: 'Open Story',
     open_search: 'Open Search',
     end: 'End',

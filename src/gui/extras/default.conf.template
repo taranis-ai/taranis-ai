@@ -27,11 +27,11 @@ server {
     proxy_set_header X-Forwarded-Proto $scheme;
 
     location /api {
-        proxy_pass http://core/api/v1;
+        proxy_pass http://core/api;
     }
 
     location /api/v1 {
-        proxy_pass http://core/api/v1;
+        proxy_pass http://core/api;
     }
 
     location /sse {

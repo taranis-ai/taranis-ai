@@ -38,9 +38,9 @@ class UserPublisherPresets(Resource):
 
 
 def initialize(api: Api):
-    namespace = Namespace("users", description="User API", path="/api/v1/users")
+    namespace = Namespace("users", description="User API")
 
     namespace.add_resource(UserProfile, "/profile")
     namespace.add_resource(UserProductTypes, "/my-product-types")
     namespace.add_resource(UserPublisherPresets, "/my-publisher-presets")
-    api.add_namespace(namespace)
+    api.add_namespace(namespace, path="/users")

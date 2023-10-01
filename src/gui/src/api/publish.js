@@ -14,7 +14,15 @@ export function updateProduct(data) {
 }
 
 export function getProduct(product) {
-  return apiService.get(`/publish/products/${product.id}`)
+  return apiService.get(`/publish/products/${product}`)
+}
+
+export function getRenderdProduct(product) {
+  return apiService.get(`/publish/products/${product}/render`)
+}
+
+export function triggerRenderProduct(product) {
+  return apiService.post(`/publish/products/${product}/render`)
 }
 
 export function deleteProduct(product) {

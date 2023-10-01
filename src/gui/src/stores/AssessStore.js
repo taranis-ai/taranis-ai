@@ -15,18 +15,15 @@ import { useFilterStore } from './FilterStore'
 
 export const useAssessStore = defineStore('assess', {
   state: () => ({
-    selection: [],
     osint_sources: { total_count: 0, items: [] },
     osint_source_groups: { total_count: 0, items: [] },
     newsItems: { total_count: 0, items: [] },
-    newsItemsSelection: [],
+    newsItemSelection: [],
+    storySelection: [],
     max_item: 0,
     loading: false
   }),
   getters: {
-    getSelection() {
-      return this.selection
-    },
     getOSINTSourceGroupsList() {
       return Array.isArray(this.osint_source_groups.items)
         ? this.osint_source_groups.items.map((value) => ({
@@ -42,6 +39,9 @@ export const useAssessStore = defineStore('assess', {
             title: value.name
           }))
         : []
+    },
+    activeSelection() {
+      return this.newsItemSelection.length > 0 || this.storySelection.length > 0
     }
   },
   actions: {
@@ -178,10 +178,20 @@ export const useAssessStore = defineStore('assess', {
       this.osint_source_groups = response.data
     },
     selectNewsItem(id) {
-      this.newsItemsSelection = xorConcat(this.newsItemsSelection, id)
+      this.newsItemSelection = xorConcat(this.newsItemSelection, id)
+    },
+    clearSelection() {
+      this.newsItemSelection = []
+      this.storySelection = []
     },
     clearNewsItemSelection() {
-      this.newsItemsSelection = []
+      this.newsItemSelection = []
+    },
+    selectStory(id) {
+      this.storySelection = xorConcat(this.storySelection, id)
+    },
+    clearStorySelection() {
+      this.storySelection = []
     },
     readNewsItemAggregate(id) {
       const item = this.newsItems.items.find((item) => item.id === id)
@@ -193,22 +203,6 @@ export const useAssessStore = defineStore('assess', {
       const item = this.newsItems.items.find((item) => item.id === id)
       item.important = !item.important
       importantNewsItemAggregate(id, item.important)
-    },
-
-    select(data) {
-      this.selection.push(data)
-    },
-
-    deselect(data) {
-      for (let i = 0; i < this.selection.length; i++) {
-        if (
-          this.selection[i].type === data.type &&
-          this.selection[i].id === data.id
-        ) {
-          this.selection.splice(i, 1)
-          break
-        }
-      }
     }
   },
   persist: {

@@ -5,7 +5,7 @@ from werkzeug.datastructures import FileStorage
 
 
 class TestSourcesConfigApi(BaseTest):
-    base_uri = "/api/v1/config"
+    base_uri = "/api/config"
 
     def test_import_osint_sources(self, client, auth_header, cleanup_sources):
         dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -84,7 +84,7 @@ class TestSourcesConfigApi(BaseTest):
 
 
 class TestWordListConfigApi(BaseTest):
-    base_uri = "/api/v1/config"
+    base_uri = "/api/config"
 
     def test_import_word_lists_json(self, client, auth_header, cleanup_word_lists):
         dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -127,7 +127,7 @@ class TestWordListConfigApi(BaseTest):
 
 
 class TestUserConfigApi(BaseTest):
-    base_uri = "/api/v1/config"
+    base_uri = "/api/config"
 
     def test_create_user(self, client, auth_header, cleanup_user):
         response = self.assert_post_ok(client, uri="users", json_data=cleanup_user, auth_header=auth_header)
@@ -211,7 +211,7 @@ class TestUserConfigApi(BaseTest):
 
 
 class TestBotConfigApi(BaseTest):
-    base_uri = "/api/v1/config"
+    base_uri = "/api/config"
 
     def test_create_bot(self, client, auth_header, cleanup_bot):
         response = self.assert_post_ok(client, uri="bots", json_data=cleanup_bot, auth_header=auth_header)
@@ -243,7 +243,7 @@ class TestBotConfigApi(BaseTest):
 
 
 class TestReportTypeConfigApi(BaseTest):
-    base_uri = "/api/v1/config"
+    base_uri = "/api/config"
 
     def test_create_report_item_type(self, client, auth_header, cleanup_report_item_type):
         response = self.assert_post_ok(client, uri="report-item-types", json_data=cleanup_report_item_type, auth_header=auth_header)

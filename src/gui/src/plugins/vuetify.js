@@ -3,7 +3,7 @@ import 'vuetify/lib/styles/main.sass'
 import { aliases, mdi } from 'vuetify/iconsets/mdi'
 import * as components from 'vuetify/components'
 import * as directives from 'vuetify/directives'
-import { VDataTable } from 'vuetify/labs/VDataTable'
+import { VDataTable, VDataTableServer } from 'vuetify/labs/VDataTable'
 import { VInfiniteScroll } from 'vuetify/labs/VInfiniteScroll'
 
 const dark = {
@@ -78,6 +78,7 @@ export const vuetify = createVuetify({
   components: {
     ...components,
     VDataTable,
+    VDataTableServer,
     VInfiniteScroll
   },
   directives,

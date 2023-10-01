@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <v-container fluid>
     <DataTable
       v-model:items="osint_source_groups.items"
       :add-button="true"
@@ -19,7 +19,7 @@
       :title="editTitle"
       @submit="handleSubmit"
     ></EditConfig>
-  </div>
+  </v-container>
 </template>
 
 <script>

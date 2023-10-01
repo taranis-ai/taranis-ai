@@ -6,10 +6,10 @@
     class="no-gutters align-self-stretch mb-3 mt-2"
     :class="[
       {
-        selected: selected
+        newsitemselected: selected
       }
     ]"
-    @click="detailView ? null : { click: toggleSelection }"
+    @click="toggleSelection"
   >
     <v-row>
       <v-col
@@ -19,7 +19,6 @@
         class="d-flex flex-grow-1 mt-3 px-5 py-3 order-first"
         align-self="center"
       >
-        <!-- <v-icon v-if="story_in_report" class="mr-2 my-auto"> mdi-share </v-icon> -->
         <h2 class="news-item-title">
           {{ title }}
         </h2>
@@ -43,18 +42,6 @@
           @click.stop
         >
           <span> Open </span>
-        </v-btn>
-
-        <v-btn
-          v-ripple="false"
-          size="small"
-          class="item-action-btn"
-          variant="tonal"
-          append-icon="mdi-google-circles-communities"
-          title="Add to Report"
-          @click.stop="sharingDialog = true"
-        >
-          <span>Add to Report</span>
         </v-btn>
 
         <v-btn
@@ -159,12 +146,13 @@ import PopupDeleteItem from '@/components/popups/PopupDeleteItem.vue'
 import SummarizedContent from '@/components/assess/card/SummarizedContent.vue'
 import NewsMetaInfo from '@/components/assess/card/NewsMetaInfo.vue'
 import PopupShareItems from '@/components/popups/PopupShareItems.vue'
+import { useAssessStore } from '@/stores/AssessStore'
 import { notifySuccess, notifyFailure } from '@/utils/helpers.js'
 import {
   deleteNewsItemAggregate,
   importantNewsItemAggregate,
   readNewsItemAggregate,
-  unGroupAction
+  unGroupNewsItems
 } from '@/api/assess'
 import { ref, computed } from 'vue'
 
@@ -186,15 +174,18 @@ export default {
       required: false,
       default: null
     },
-    selected: Boolean,
     detailView: Boolean
   },
-  emits: ['selectItem', 'deleteItem', 'refresh'],
+  emits: ['deleteItem', 'refresh'],
   setup(props, { emit }) {
     const viewDetails = ref(false)
     const openSummary = ref(props.detailView)
     const sharingDialog = ref(false)
     const deleteDialog = ref(false)
+    const assessStore = useAssessStore()
+    const selected = computed(() =>
+      assessStore.newsItemSelection.includes(props.newsItem.id)
+    )
 
     const news_item_summary_text = computed(() =>
       openSummary.value ? 'Collapse' : 'Expand'
@@ -213,7 +204,7 @@ export default {
     const title = computed(() => props.newsItem.news_item_data?.title)
 
     const toggleSelection = () => {
-      emit('selectItem', props.newsItem.id)
+      assessStore.selectNewsItem(props.newsItem.id)
     }
 
     const markAsRead = () => {
@@ -230,7 +221,7 @@ export default {
     }
 
     const removeFromStory = () => {
-      unGroupAction([props.newsItem.id])
+      unGroupNewsItems([props.newsItem.id])
         .then(() => {
           notifySuccess('News Item removed from Story')
           emit('refresh')
@@ -242,6 +233,7 @@ export default {
 
     return {
       title,
+      selected,
       viewDetails,
       openSummary,
       sharingDialog,
@@ -260,6 +252,11 @@ export default {
 </script>
 
 <style scoped>
+.newsitemselected {
+  background-color: lighten(#fc3c3c, 30);
+  border: 2px solid #fc3c3c;
+  margin: -2px;
+}
 .news-item-title {
   overflow: hidden;
   text-overflow: ellipsis;

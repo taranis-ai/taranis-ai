@@ -109,36 +109,26 @@ class NewsItemData(BaseModel):
 
         return "Attributes updated", 200
 
-    @classmethod
-    def get_for_sync(cls, last_synced, osint_sources):
-        osint_source_ids = {osint_source.id for osint_source in osint_sources}
-        last_sync_time = datetime.now()
-
-        query = cls.query.filter(
-            NewsItemData.updated >= last_synced,
-            NewsItemData.updated <= last_sync_time,
-            NewsItemData.osint_source_id.in_(osint_source_ids),
-        )
-
-        news_items = query.all()
-        items = [news_item.to_dict() for news_item in news_items]
-        return items, last_sync_time
-
 
 class NewsItem(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
 
-    read = db.Column(db.Boolean, default=False)
-    important = db.Column(db.Boolean, default=False)
+    read: Any = db.Column(db.Boolean, default=False)
+    important: Any = db.Column(db.Boolean, default=False)
 
-    likes = db.Column(db.Integer, default=0)
-    dislikes = db.Column(db.Integer, default=0)
-    relevance = db.Column(db.Integer, default=0)
+    likes: Any = db.Column(db.Integer, default=0)
+    dislikes: Any = db.Column(db.Integer, default=0)
+    relevance: Any = db.Column(db.Integer, default=0)
 
     news_item_data_id = db.Column(db.String, db.ForeignKey("news_item_data.id"))
-    news_item_data = db.relationship("NewsItemData", cascade="all, delete")
+    news_item_data: Any = db.relationship("NewsItemData", cascade="all, delete")
 
     news_item_aggregate_id = db.Column(db.Integer, db.ForeignKey("news_item_aggregate.id"))
+
+    def __init__(self, read=False, important=False, news_item_data=None):
+        self.read = read
+        self.important = important
+        self.news_item_data = news_item_data
 
     @classmethod
     def get_all_with_data(cls, news_item_data_id):
@@ -373,21 +363,31 @@ class NewsItemVote(BaseModel):
 
 class NewsItemAggregate(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String())
-    description = db.Column(db.String())
-    created = db.Column(db.DateTime)
+    title: Any = db.Column(db.String())
+    description: Any = db.Column(db.String())
+    created: Any = db.Column(db.DateTime)
 
-    read = db.Column(db.Boolean, default=False)
-    important = db.Column(db.Boolean, default=False)
+    read: Any = db.Column(db.Boolean, default=False)
+    important: Any = db.Column(db.Boolean, default=False)
 
-    likes = db.Column(db.Integer, default=0)
-    dislikes = db.Column(db.Integer, default=0)
-    relevance = db.Column(db.Integer, default=0)
+    likes: Any = db.Column(db.Integer, default=0)
+    dislikes: Any = db.Column(db.Integer, default=0)
+    relevance: Any = db.Column(db.Integer, default=0)
 
-    comments = db.Column(db.String(), default="")
-    summary = db.Column(db.Text, default="")
-    news_items = db.relationship("NewsItem")
-    news_item_attributes = db.relationship("NewsItemAttribute", secondary="news_item_aggregate_news_item_attribute")
+    comments: Any = db.Column(db.String(), default="")
+    summary: Any = db.Column(db.Text, default="")
+    news_items: Any = db.relationship("NewsItem")
+    news_item_attributes: Any = db.relationship("NewsItemAttribute", secondary="news_item_aggregate_news_item_attribute")
+
+    def __init__(self, title, description="", created=datetime.now(), read=False, important=False, summary="", comments="", news_items=None):
+        self.title = title
+        self.description = description
+        self.created = created
+        self.read = read
+        self.important = important
+        self.summary = summary
+        self.comments = comments
+        self.news_items = [NewsItem.get(item_id) for item_id in news_items] if news_items else []
 
     @classmethod
     def get_json(cls, aggregate_id: int, user: User):
@@ -600,7 +600,7 @@ class NewsItemAggregate(BaseModel):
         news_item.news_item_data = news_item_data
         db.session.add(news_item)
 
-        aggregate = NewsItemAggregate()
+        aggregate = NewsItemAggregate(title=news_item_data.title, created=news_item_data.published)
         aggregate.title = news_item_data.title
         aggregate.description = news_item_data.review
         aggregate.created = news_item_data.published
@@ -807,8 +807,31 @@ class NewsItemAggregate(BaseModel):
         return {"message": "success"}, 200
 
     @classmethod
+    def move_items_to_aggregate(cls, aggregate_id: int, news_item_ids: list[int], user: User | None = None):
+        try:
+            aggregate = cls.get(aggregate_id)
+            if not aggregate:
+                return {"error": "not_found"}, 404
+            for item in news_item_ids:
+                news_item = NewsItem.get(item)
+                if not news_item:
+                    continue
+                if user is None or news_item.allowed_with_acl(user, False, False, True):
+                    aggregate.news_items.append(news_item)
+                    aggregate.relevance += news_item.relevance + 1
+                    aggregate.add(aggregate)
+                    NewsItemAggregate.update_status(aggregate.id)
+            cls.update_aggregates(aggregate)
+            db.session.commit()
+            return {"message": "success"}, 200
+        except Exception:
+            logger.log_debug_trace("Grouping News Item Aggregates Failed")
+            return {"error": "grouping failed"}, 500
+
+    @classmethod
     def group_aggregate(cls, aggregate_ids: list[int], user: User | None = None):
         try:
+            logger.debug(f"grouping: {aggregate_ids}")
             if len(aggregate_ids) < 2 or any(type(a_id) is not int for a_id in aggregate_ids):
                 return {"error": "at least two aggregate ids needed"}, 404
             first_aggregate = NewsItemAggregate.get(aggregate_ids.pop(0))
@@ -819,24 +842,47 @@ class NewsItemAggregate(BaseModel):
                 aggregate = NewsItemAggregate.get(item)
                 if not aggregate:
                     continue
-                # append tags if not already present
+
                 first_aggregate.tags = list({tag.name: tag for tag in first_aggregate.tags + aggregate.tags}.values())
                 for news_item in aggregate.news_items[:]:
                     if user is None or news_item.allowed_with_acl(user, False, False, True):
                         first_aggregate.news_items.append(news_item)
-                        first_aggregate.relevance += news_item.relevance + 1
+                        first_aggregate.relevance += 1
                         aggregate.news_items.remove(news_item)
                 processed_aggregates.add(aggregate)
 
-            db.session.commit()
             cls.update_aggregates(processed_aggregates)
+            db.session.commit()
             return {"message": "success"}, 200
         except Exception:
             logger.log_debug_trace("Grouping News Item Aggregates Failed")
             return {"error": "grouping failed"}, 500
 
     @classmethod
-    def ungroup_aggregate(cls, newsitem_ids: list, user: User | None = None):
+    def ungroup_multiple_stories(cls, story_ids: list[int], user: User | None = None):
+        results = [cls.ungroup_story(story_id, user) for story_id in story_ids]
+        if any(result[1] == 500 for result in results):
+            return {"error": "grouping failed"}, 500
+        return {"message": "success"}, 200
+
+    @classmethod
+    def ungroup_story(cls, story_id: int, user: User | None = None):
+        try:
+            story = NewsItemAggregate.get(story_id)
+            if not story:
+                return {"error": "not_found"}, 404
+            for news_item in story.news_items[:]:
+                if user is None or news_item.allowed_with_acl(user, False, False, True):
+                    cls.create_single_aggregate(news_item)
+            cls.update_aggregates({story})
+            db.session.commit()
+            return {"message": "success"}, 200
+        except Exception:
+            logger.log_debug_trace("Grouping News Item Aggregates Failed")
+            return {"error": "ungroup failed"}, 500
+
+    @classmethod
+    def remove_news_items_from_story(cls, newsitem_ids: list, user: User | None = None):
         try:
             processed_aggregates = set()
             for item in newsitem_ids:
@@ -875,11 +921,12 @@ class NewsItemAggregate(BaseModel):
 
     @classmethod
     def create_single_aggregate(cls, news_item):
-        new_aggregate = NewsItemAggregate()
-        new_aggregate.title = news_item.news_item_data.title
-        new_aggregate.description = news_item.news_item_data.review
-        new_aggregate.created = news_item.news_item_data.collected
-        new_aggregate.news_items.append(news_item)
+        new_aggregate = NewsItemAggregate(
+            title=news_item.news_item_data.title,
+            created=news_item.news_item_data.published,
+            description=news_item.news_item_data.review,
+            news_items=[news_item.id],
+        )
         db.session.add(new_aggregate)
         db.session.commit()
 
@@ -1122,16 +1169,36 @@ class NewsItemTag(BaseModel):
         return results
 
     @classmethod
-    def get_n_biggest_tags_by_type(cls, tag_type: str, n: int) -> dict[str, dict]:
+    def get_n_biggest_tags_by_type(cls, tag_type: str, n: int, offset: int = 0) -> dict[str, dict]:
         query = (
             cls.query.with_entities(cls.name, func.count(cls.name).label("name_count"))
             .filter(cls.tag_type == tag_type)
             .group_by(cls.name)
             .order_by(db.desc("name_count"))
+            .offset(offset)
             .limit(n)
             .all()
         )
         return {row[0]: {"name": row[0], "size": row[1]} for row in query}
+
+    @classmethod
+    def get_cluster_by_filter(cls, filter):
+        query = cls.query.with_entities(cls.name, func.count(cls.name).label("name_count"))
+        if tag_type := filter.get("tag_type"):
+            query = query.filter(cls.tag_type == tag_type).group_by(cls.name).order_by(db.desc("name_count"))
+
+        count = query.count()
+
+        if search := filter.get("search"):
+            query = query.filter(cls.name.ilike(f"%{search}%"))
+        if offset := filter.get("offset"):
+            query = query.offset(offset)
+        if limit := filter.get("limit"):
+            query = query.limit(limit)
+
+        items = {row[0]: {"name": row[0], "size": row[1]} for row in query.all()}
+
+        return {"total_count": count, "items": list(items.values())}
 
     @classmethod
     def get_tag_types(cls) -> list[tuple[str, int]]:

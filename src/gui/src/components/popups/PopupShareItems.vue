@@ -51,18 +51,11 @@ export default {
   emits: ['close'],
   setup(props, { emit }) {
     const reportItemSelection = ref(null)
-    const store = useAnalyzeStore()
+    const analyzeStore = useAnalyzeStore()
 
-    const { loadReportItems } = store
+    const { loadReportItems } = analyzeStore
 
-    const reportItems = computed(() =>
-      store.report_items.items.map((item) => {
-        return {
-          title: item.title,
-          value: item.id
-        }
-      })
-    )
+    const reportItems = computed(() => analyzeStore.getReportItemsList)
 
     const share = () => {
       addAggregatesToReportItem(reportItemSelection.value, props.itemIds)

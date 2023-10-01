@@ -10,4 +10,4 @@ class IsAlive(Resource):
 
 
 def initialize(api: Api):
-    api.add_resource(IsAlive, "/api/v1/isalive", "/")
+    api.add_resource(IsAlive, "/isalive", "/")

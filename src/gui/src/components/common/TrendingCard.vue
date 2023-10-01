@@ -2,7 +2,9 @@
   <v-card-title>
     <span>
       <v-icon :icon="tagIcon" />
-      {{ tagText }}
+      <router-link :to="`/cluster/${tagType}`">
+        {{ tagText }}
+      </router-link>
     </span>
     <span class="ml-5"> Cluster size: {{ cluster.size }}</span>
     <v-divider class="mt-2 mb-2" />

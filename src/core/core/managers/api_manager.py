@@ -7,14 +7,14 @@ import core.api as core_api
 
 
 def initialize(app):
-    api = Api(app, version="1", title="Taranis NG API")
+    api = Api(app, version="1", title="Taranis NG API", doc="/api/swagger", prefix="/api")
 
     app.register_error_handler(400, handle_bad_request)
     app.register_error_handler(401, handle_unauthorized)
     app.register_error_handler(404, handle_not_found)
 
     openapi_yaml = Path(__file__).parent.parent / "static" / "openapi3_0.yaml"
-    api_doc(app, config_path=openapi_yaml, url_prefix="/api/v1/doc", editor=False)
+    api_doc(app, config_path=openapi_yaml, url_prefix="/api/doc", editor=False)
 
     core_api.analyze.initialize(api)
     core_api.assess.initialize(api)

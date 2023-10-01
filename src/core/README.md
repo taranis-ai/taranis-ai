@@ -4,7 +4,7 @@ The Tarins-NG Core could be called the "backend" of TaranisNG.
 
 It offers API Endpoints to the Frontend, is the sole persistence layer (via SQLAlchemy) and schedules tasks via Celery.
 
-Furthermore it offers SSE to the Frontend and acts as celery scheduler backend. 
+Furthermore it offers SSE to the Frontend and acts as celery scheduler backend.
 
 
 ## Requirements

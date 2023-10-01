@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <v-container fluid>
     <DataTable
       v-model:items="worker_types.items"
       :add-button="false"
@@ -17,7 +17,7 @@
       title="Worker Type Defaults"
       @submit="handleSubmit"
     ></EditConfig>
-  </div>
+  </v-container>
 </template>
 
 <script>

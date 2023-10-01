@@ -67,8 +67,12 @@ export function groupAction(data) {
   return apiService.put('/assess/news-item-aggregates/group', data)
 }
 
-export function unGroupAction(data) {
+export function unGroupStories(data) {
   return apiService.put('/assess/news-item-aggregates/ungroup', data)
+}
+
+export function unGroupNewsItems(data) {
+  return apiService.put('/assess/news-items/ungroup', data)
 }
 
 export function saveNewsItemAggregate(

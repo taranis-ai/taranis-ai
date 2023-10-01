@@ -30,6 +30,7 @@
               :truncate="!detailView"
               :limit="tagLimit"
               :color="detailView"
+              :wrap="showWeekChart || detailView"
             />
           </v-col>
         </v-row>

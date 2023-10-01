@@ -79,7 +79,7 @@ services:
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-worker:${TARANIS_NG_TAG:-latest}"
     command: "--app worker beat"
     environment:
-      TARANIS_NG_CORE_URL: "http://core"
+      TARANIS_NG_CORE_URL: "http://core/api"
       API_KEY: "${API_KEY}"
       QUEUE_BROKER_HOST: "rabbitmq"
       QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
@@ -100,7 +100,7 @@ services:
         max_attempts: 3
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-ng-worker:${TARANIS_NG_TAG:-latest}"
     environment:
-      TARANIS_NG_CORE_URL: "http://core"
+      TARANIS_NG_CORE_URL: "http://core/api"
       API_KEY: "${API_KEY}"
       QUEUE_BROKER_HOST: "rabbitmq"
       QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"

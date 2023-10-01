@@ -35,6 +35,11 @@ def sync_presenter_templates_to_data() -> None:
             copy(file, dest_path)
 
 
+def get_presenter_template_path(presenter_template: str) -> str:
+    path = Path(Config.DATA_FOLDER) / "presenter_templates" / presenter_template
+    return path.absolute().as_posix()
+
+
 def initialize(first_worker: bool) -> None:
     if first_worker:
         sync_presenter_templates_to_data()

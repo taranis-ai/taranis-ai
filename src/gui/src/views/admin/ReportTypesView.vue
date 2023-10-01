@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <v-container fluid>
     <data-table
       v-model:items="report_item_types.items"
       :add-button="true"
@@ -16,7 +16,7 @@
       :edit="edit"
       @updated="formUpdated"
     />
-  </div>
+  </v-container>
 </template>
 
 <script>

@@ -2,42 +2,38 @@
   <head>
     <meta charset="utf-8">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
-    <title>CERT.at  - Show</title>
+    <title>CERT Report</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="https://cert.at/css/app.css">
   </head>
 <body>
 <div id="content-section">
   <div class="row">
     <div class="col-sm-12">
       <h1>
-        Tageszusammenfassung - 10.10.2022
+        Tageszusammenfassung - {{ data.current_date }}
       </h1>
       <div class="block">
         <h2>End-of-Day report</h2>
-        <h2>      News       </h2>
+        <h2>Report Items</h2>
         {% for report_item in data.report_items %}
-        {% if report_item.attrs.cert_report_group != 'Vulnerabilities' %}
-        <h3>HEADLINE</h3>
+        <h3>{{ report_item.title }}</h3>
 
-        {{ report_item }}
+        {{ report_item.attributes }}
         <p />
         <a href="url">https://url/</a>
         <hr>
-        {% endif %}
-        {% endfor %}
 
-        <h2> Vulnerabilities </h2>
-        {% for report_item in data.report_items %}
-        {% if report_item.attrs.cert_report_group == 'Vulnerabilities' %}
-        <h3>HEADLINE</h3>
+        <h3> Stories </h3>
+        {% for story in report_item.news_item_aggregates %}
+        <h4>{{ story.title }}</h4>
 
-        {{ report_item }}
+        {{ story }}
         <p />
         <a href="url">https://url/</a>
         <hr>
-        {% endif %}
         {% endfor %}
+        {% endfor %}
+
       </div>
     </div>
   </div>

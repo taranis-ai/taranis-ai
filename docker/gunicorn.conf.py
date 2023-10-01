@@ -56,7 +56,7 @@ class CustomGunicornLogger(glogging.Logger):
 
 class HealthCheckFilter(logging.Filter):
     def filter(self, record):
-        return "GET /api/v1/isalive" not in record.getMessage()
+        return "GET /api/isalive" not in record.getMessage()
 
 
 accesslog = "-"

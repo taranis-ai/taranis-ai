@@ -16,36 +16,6 @@ class ReportTypes(Resource):
         return report_item_type.ReportItemType.get_all_json(None, auth_manager.get_user_from_jwt(), True)
 
 
-class ReportItems(Resource):
-    @auth_required("ANALYZE_ACCESS")
-    def get(self):
-        try:
-            filter_keys = ["search", "completed", "incompleted", "range", "sort", "group"]
-            filter_args: dict[str, str | int] = {k: v for k, v in request.args.items() if k in filter_keys}
-
-            filter_args["offset"] = min(int(request.args.get("offset", 0)), (2**31) - 1)
-            filter_args["limit"] = min(int(request.args.get("limit", 20)), 200)
-            return report_item.ReportItem.get_json(filter_args, auth_manager.get_user_from_jwt())
-        except Exception as ex:
-            logger.log_debug(ex)
-            return "Could not get report items", 400
-
-    @auth_required("ANALYZE_CREATE")
-    def post(self):
-        try:
-            new_report_item, status = report_item.ReportItem.add(request.json, auth_manager.get_user_from_jwt())
-        except Exception as ex:
-            logger.exception()
-            abort(400, f"Error adding report item: {ex}")
-        if status == 401:
-            abort(401, "Unauthorized")
-        if status == 200 and new_report_item:
-            asset_manager.report_item_changed(new_report_item)
-            sse_manager.report_items_updated()
-
-        return new_report_item.to_detail_dict(), status
-
-
 class ReportItemAggregates(Resource):
     @auth_required("ANALYZE_ACCESS")
     def get(self, report_item_id):
@@ -70,10 +40,31 @@ class ReportItemAggregates(Resource):
 
 class ReportItem(Resource):
     @auth_required("ANALYZE_ACCESS")
-    @validate_id("report_item_id")
-    def get(self, report_item_id):
-        result_json = report_item.ReportItem.get_detail_json(report_item_id)
-        return (result_json, 200) if result_json else ("Could not get report item", 404)
+    def get(self, report_item_id=None):
+        if report_item_id:
+            result_json = report_item.ReportItem.get_detail_json(report_item_id)
+            return (result_json, 200) if result_json else ("Could not get report item", 404)
+        filter_keys = ["search", "completed", "incompleted", "range", "sort", "group"]
+        filter_args: dict[str, str | int] = {k: v for k, v in request.args.items() if k in filter_keys}
+
+        filter_args["offset"] = min(int(request.args.get("offset", 0)), (2**31) - 1)
+        filter_args["limit"] = min(int(request.args.get("limit", 20)), 200)
+        return report_item.ReportItem.get_json(filter_args, auth_manager.get_user_from_jwt())
+
+    @auth_required("ANALYZE_CREATE")
+    def post(self):
+        try:
+            new_report_item, status = report_item.ReportItem.add(request.json, auth_manager.get_user_from_jwt())
+        except Exception as ex:
+            logger.exception()
+            abort(400, f"Error adding report item: {ex}")
+        if status == 401:
+            abort(401, "Unauthorized")
+        if status == 200 and new_report_item:
+            asset_manager.report_item_changed(new_report_item)
+            sse_manager.report_items_updated()
+
+        return new_report_item.to_detail_dict(), status
 
     @auth_required("ANALYZE_UPDATE")
     @validate_id("report_item_id")
@@ -91,33 +82,6 @@ class ReportItem(Resource):
         if code == 200:
             sse_manager.report_items_updated()
         return result, code
-
-
-class ReportItemData(Resource):
-    @auth_required("ANALYZE_ACCESS")
-    @validate_id("report_item_id")
-    def get(self, report_item_id):
-        try:
-            data = {}
-            if "update" in request.args and request.args["update"]:
-                data["update"] = request.args["update"]
-            if "add" in request.args and request.args["add"]:
-                data["add"] = request.args["add"]
-            if "title" in request.args and request.args["title"]:
-                data["title"] = request.args["title"]
-            if "title_prefix" in request.args and request.args["title_prefix"]:
-                data["title_prefix"] = request.args["title_prefix"]
-            if "completed" in request.args and request.args["completed"]:
-                data["completed"] = request.args["completed"]
-            if "attribute_id" in request.args and request.args["attribute_id"]:
-                data["attribute_id"] = request.args["attribute_id"]
-            if "aggregate_ids" in request.args and request.args["aggregate_ids"]:
-                data["aggregate_ids"] = request.args["aggregate_ids"].split("--")
-        except Exception:
-            logger.log_debug_trace("Error getting Report Item Data")
-            abort(400, "Error getting Report Item Data")
-
-        return report_item.ReportItem.get_updated_data(report_item_id, data)
 
 
 class ReportItemLocks(Resource):
@@ -201,12 +165,10 @@ class ReportItemAttachment(Resource):
 
 
 def initialize(api: Api):
-    namespace = Namespace("analyze", description="Analyze API", path="/api/v1/analyze")
+    namespace = Namespace("analyze", description="Analyze API")
     namespace.add_resource(ReportTypes, "/report-types")
-    namespace.add_resource(ReportItems, "/report-items")
-    namespace.add_resource(ReportItem, "/report-items/<int:report_item_id>")
+    namespace.add_resource(ReportItem, "/report-items/<int:report_item_id>", "/report-items")
     namespace.add_resource(ReportItemAggregates, "/report-items/<int:report_item_id>/aggregates")
-    namespace.add_resource(ReportItemData, "/report-items/<int:report_item_id>/data")
     namespace.add_resource(ReportItemLocks, "/report-items/<int:report_item_id>/locks")
     namespace.add_resource(
         ReportItemLock,
@@ -224,4 +186,4 @@ def initialize(api: Api):
         ReportItemAttachment,
         "/report-items/<int:report_item_id>/file-attributes/<int:attribute_id>",
     )
-    api.add_namespace(namespace)
+    api.add_namespace(namespace, path="/analyze")

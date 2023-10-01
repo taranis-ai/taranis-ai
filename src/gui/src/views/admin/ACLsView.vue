@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <v-container fluid>
     <DataTable
       v-model:items="acls.items"
       :add-button="true"
@@ -12,7 +12,7 @@
       @update-items="updateData"
     />
     <ACLForm v-if="showForm" :acl-prop="acl" :edit="edit" />
-  </div>
+  </v-container>
 </template>
 
 <script>

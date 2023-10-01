@@ -2,7 +2,7 @@ from tests.functional.helpers import BaseTest
 
 
 class TestAssessApi(BaseTest):
-    base_uri = "/api/v1/assess"
+    base_uri = "/api/assess"
 
     def test_get_OSINTSourceGroupsAssess_auth(self, client, auth_header):
         """
@@ -68,7 +68,7 @@ class TestAssessApi(BaseTest):
     #         "attributes": [attribs],
     #     }
     #     before = news_item_data.count_all()
-    #     response = client.post("/api/v1/assess/news-items", json=news_item, headers=auth_header)
+    #     response = client.post("/api/assess/news-items", json=news_item, headers=auth_header)
     #     assert response
     #     assert response.content_type == "application/json"
     #     assert response.data
@@ -96,7 +96,7 @@ class TestAssessApi(BaseTest):
             "attributes": [attribs],
         }
         before = len(news_items_data)
-        response = client.post("/api/v1/assess/news-items", json=news_item)
+        response = client.post("/api/assess/news-items", json=news_item)
         assert response
         assert response.content_type == "application/json"
         assert response.get_json()["error"] == "not authorized"
@@ -108,38 +108,38 @@ class TestAssessApi(BaseTest):
         This test queries the NewsItemAggregates authenticated.
         It expects a valid data and a valid status-code
         """
-        response = client.get("/api/v1/assess/news-item-aggregates", headers=auth_header)
+        response = client.get("/api/assess/news-item-aggregates", headers=auth_header)
         assert response
         assert response.data
         assert response.get_json()["total_count"] == 2
         assert response.content_type == "application/json"
         assert response.status_code == 200
 
-        response = client.get("/api/v1/assess/news-item-aggregates?search=notexistent", headers=auth_header)
+        response = client.get("/api/assess/news-item-aggregates?search=notexistent", headers=auth_header)
         assert response.get_json()["total_count"] == 0
 
-        response = client.get("/api/v1/assess/news-item-aggregates?notexistent=notexist", headers=auth_header)
+        response = client.get("/api/assess/news-item-aggregates?notexistent=notexist", headers=auth_header)
         assert response.get_json()["total_count"] > 0
 
-        response = client.get("/api/v1/assess/news-item-aggregates?read", headers=auth_header)
+        response = client.get("/api/assess/news-item-aggregates?read", headers=auth_header)
         assert len(response.get_json()["items"]) == 0
 
-        response = client.get("/api/v1/assess/news-item-aggregates?relevant", headers=auth_header)
+        response = client.get("/api/assess/news-item-aggregates?relevant", headers=auth_header)
         assert len(response.get_json()["items"]) == 0
 
-        response = client.get("/api/v1/assess/news-item-aggregates?in_report", headers=auth_header)
+        response = client.get("/api/assess/news-item-aggregates?in_report", headers=auth_header)
         assert len(response.get_json()["items"]) == 0
 
-        response = client.get("/api/v1/assess/news-item-aggregates?range=DAY", headers=auth_header)
+        response = client.get("/api/assess/news-item-aggregates?range=DAY", headers=auth_header)
         assert response.get_json()["total_count"] == 0
 
-        response = client.get("/api/v1/assess/news-item-aggregates?sort=DATE_DESC", headers=auth_header)
+        response = client.get("/api/assess/news-item-aggregates?sort=DATE_DESC", headers=auth_header)
         assert response.get_json()["total_count"] > 0
 
-        response = client.get("/api/v1/assess/news-item-aggregates?offset=1", headers=auth_header)
+        response = client.get("/api/assess/news-item-aggregates?offset=1", headers=auth_header)
         assert len(response.get_json()["items"]) == 1
 
-        response = client.get("/api/v1/assess/news-item-aggregates?limit=1", headers=auth_header)
+        response = client.get("/api/assess/news-item-aggregates?limit=1", headers=auth_header)
         assert len(response.get_json()["items"]) == 1
 
     def test_get_NewsItem_unauth(self, client):
@@ -147,7 +147,7 @@ class TestAssessApi(BaseTest):
         This test queries the NewsItems UNauthenticated.
         It expects "not authorized"
         """
-        response = client.get("/api/v1/assess/news-items")
+        response = client.get("/api/assess/news-items")
         assert response
         assert response.content_type == "application/json"
         assert response.get_json()["error"] == "not authorized"
@@ -158,7 +158,7 @@ class TestAssessApi(BaseTest):
         This test queries the NewsItems Authenticated.
         It expects valid NewsItems
         """
-        response = client.get("/api/v1/assess/news-items", headers=auth_header)
+        response = client.get("/api/assess/news-items", headers=auth_header)
         assert response
         assert response.data
         assert response.content_type == "application/json"
@@ -170,7 +170,7 @@ class TestAssessApi(BaseTest):
         This test queries the NewsItemsAggregatesTags UNauthenticated.
         It expects "not authorized"
         """
-        response = client.get("/api/v1/assess/tags")
+        response = client.get("/api/assess/tags")
         assert response
         assert response.content_type == "application/json"
         assert response.get_json()["error"] == "not authorized"
@@ -187,17 +187,17 @@ class TestAssessApi(BaseTest):
         response = nia2.update_tags(nia2.id, {"foo": {"tag_type": "misc"}, "bar": {"tag_type": "misc"}})
         assert response[1] == 200
 
-        response = client.get("/api/v1/assess/tags", headers=auth_header)
+        response = client.get("/api/assess/tags", headers=auth_header)
         assert response
         assert response.data
         assert len(response.get_json()) == 0
         assert response.content_type == "application/json"
         assert response.status_code == 200
-        response = client.get("/api/v1/assess/tags?min_size=1", headers=auth_header)
+        response = client.get("/api/assess/tags?min_size=1", headers=auth_header)
         assert len(response.get_json()) == 3
-        response = client.get("/api/v1/assess/tags?search=fo&min_size=1", headers=auth_header)
+        response = client.get("/api/assess/tags?search=fo&min_size=1", headers=auth_header)
         assert len(response.get_json()) == 1
-        response = client.get("/api/v1/assess/tags?limit=1&min_size=1", headers=auth_header)
+        response = client.get("/api/assess/tags?limit=1&min_size=1", headers=auth_header)
         assert len(response.get_json()) == 1
-        response = client.get("/api/v1/assess/tags?offset=1&min_size=1", headers=auth_header)
+        response = client.get("/api/assess/tags?offset=1&min_size=1", headers=auth_header)
         assert len(response.get_json()) == 2

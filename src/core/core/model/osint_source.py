@@ -234,7 +234,9 @@ class OSINTSource(BaseModel):
             idx = data.pop("group_idx", None)
             item = cls.from_dict(data)
             db.session.add(item)
+            item.schedule_osint_source()
             OSINTSourceGroup.add_source_to_default(item)
+
             index_to_id_mapping[idx or item.id] = item.id
 
         for group in groups:
@@ -401,10 +403,10 @@ class OSINTSourceGroup(BaseModel):
             osint_source_group.name = name
         if description := data.get("description"):
             osint_source_group.description = description
-        if osint_sources := data.get("osint_sources"):
-            osint_source_group.osint_sources = [OSINTSource.get(osint_source) for osint_source in osint_sources]
-        if word_lists := data.get("word_lists"):
-            osint_source_group.word_lists = [WordList.get(word_list) for word_list in word_lists]
+        osint_sources = data.get("osint_sources", [])
+        osint_source_group.osint_sources = [OSINTSource.get(osint_source) for osint_source in osint_sources]
+        word_lists = data.get("word_lists", [])
+        osint_source_group.word_lists = [WordList.get(word_list) for word_list in word_lists]
         db.session.commit()
         return {"message": f"Succussfully updated {osint_source_group.name}", "id": f"{osint_source_group.id}"}, 201
 

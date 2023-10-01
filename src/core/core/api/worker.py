@@ -1,11 +1,13 @@
-from flask import request
+from flask import request, send_file
 from flask_restx import Resource, Namespace, Api
 from werkzeug.datastructures import FileStorage
 
 from core.managers.auth_manager import api_key_required
 from core.managers.log_manager import logger
 from core.model.osint_source import OSINTSource
+from core.model.product import Product
 from core.model.queue import ScheduleEntry
+from core.model.product_type import ProductType
 from core.model.word_list import WordList
 from core.model.news_item import NewsItemAggregate, NewsItemTag
 from core.managers.sse_manager import sse_manager
@@ -65,6 +67,49 @@ class QueueSchedule(Resource):
             if not entries:
                 return {"error": "No entries provided"}, 400
             return ScheduleEntry.sync(entries), 200
+        except Exception:
+            logger.log_debug_trace()
+
+
+class Products(Resource):
+    @api_key_required
+    def get(self, product_id: int):
+        try:
+            if prod := Product.get(product_id):
+                return prod.to_worker_dict(), 200
+            return {"error": f"Product with id {product_id} not found"}, 404
+        except Exception:
+            logger.log_debug_trace()
+
+    @api_key_required
+    def post(self, product_id: str):
+        try:
+            if render_result := request.data:
+                return Product.update_render_for_id(product_id, render_result)
+
+            return {"error": "Error reading file"}, 400
+        except Exception:
+            logger.log_debug_trace()
+
+    @api_key_required
+    def put(self, product_id: str):
+        try:
+            if render_result := request.data:
+                return Product.update_render_for_id(product_id, render_result)
+
+            return {"error": "Error reading file"}, 400
+        except Exception:
+            logger.log_debug_trace()
+
+
+class Presenters(Resource):
+    @api_key_required
+    def get(self, presenter: str):
+        try:
+            if pres := ProductType.get(presenter):
+                if tmpl := pres.get_template():
+                    return send_file(tmpl)
+            return {"error": f"Presenter with id {presenter} not found"}, 404
         except Exception:
             logger.log_debug_trace()
 
@@ -217,38 +262,46 @@ class WordListUpdate(Resource):
 
 
 def initialize(api: Api):
-    worker_namespace = Namespace("Worker", description="Publish Subscribe Worker Endpoints", path="/api/v1/worker")
-    beat_namespace = Namespace("Beat", description="Publish Subscribe Beat Endpoints", path="/api/v1/beat")
-    beat_namespace.add_resource(
+    worker_ns = Namespace("Worker", description="Publish Subscribe Worker Endpoints")
+    beat_ns = Namespace("Beat", description="Publish Subscribe Beat Endpoints")
+    beat_ns.add_resource(
         QueueSchedule,
         "/schedule",
     )
-    beat_namespace.add_resource(
+    beat_ns.add_resource(
         QueueScheduleEntry,
         "/schedule/<string:schedule_id>",
     )
-    beat_namespace.add_resource(
+    beat_ns.add_resource(
         NextRunTime,
         "/next-run-time",
     )
-    worker_namespace.add_resource(
+    worker_ns.add_resource(
         Sources,
         "/osint-sources/<string:source_id>",
     )
-    worker_namespace.add_resource(
+    worker_ns.add_resource(
         SourceIcon,
         "/osint-sources/<string:source_id>/icon",
     )
-    worker_namespace.add_resource(AddNewsItems, "/news-items")
-    worker_namespace.add_resource(BotsInfo, "/bots")
-    worker_namespace.add_resource(Tags, "/tags")
-    worker_namespace.add_resource(DropTags, "/tags/drop")
-    worker_namespace.add_resource(BotInfo, "/bots/<string:bot_id>")
-    worker_namespace.add_resource(PostCollectionBots, "/post-collection-bots")
-    worker_namespace.add_resource(NewsItemsAggregates, "/news-item-aggregates")
-    worker_namespace.add_resource(WordLists, "/word-lists")
-    worker_namespace.add_resource(WordListByID, "/word-list/<int:word_list_id>")
-    worker_namespace.add_resource(WordListUpdate, "/word-list/<int:word_list_id>/update")
+    worker_ns.add_resource(
+        Products,
+        "/products/<int:product_id>",
+    )
+    worker_ns.add_resource(
+        Presenters,
+        "/presenters/<string:presenter>",
+    )
+    worker_ns.add_resource(AddNewsItems, "/news-items")
+    worker_ns.add_resource(BotsInfo, "/bots")
+    worker_ns.add_resource(Tags, "/tags")
+    worker_ns.add_resource(DropTags, "/tags/drop")
+    worker_ns.add_resource(BotInfo, "/bots/<string:bot_id>")
+    worker_ns.add_resource(PostCollectionBots, "/post-collection-bots")
+    worker_ns.add_resource(NewsItemsAggregates, "/news-item-aggregates")
+    worker_ns.add_resource(WordLists, "/word-lists")
+    worker_ns.add_resource(WordListByID, "/word-list/<int:word_list_id>")
+    worker_ns.add_resource(WordListUpdate, "/word-list/<int:word_list_id>/update")
 
-    api.add_namespace(beat_namespace)
-    api.add_namespace(worker_namespace)
+    api.add_namespace(beat_ns, path="/beat")
+    api.add_namespace(worker_ns, path="/worker")

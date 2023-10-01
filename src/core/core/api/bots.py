@@ -36,7 +36,7 @@ class BotUnGroupAction(Resource):
         newsitem_ids = request.json
         if not newsitem_ids:
             return {"No aggregate ids provided"}, 400
-        response, code = news_item.NewsItemAggregate.ungroup_aggregate(newsitem_ids)
+        response, code = news_item.NewsItemAggregate.remove_news_items_from_story(newsitem_ids)
         sse_manager.news_items_updated()
         return response, code
 
@@ -109,7 +109,7 @@ class BotInfo(Resource):
 
 
 def initialize(api: Api):
-    namespace = Namespace("bots", description="Bots related operations", path="/api/v1/bots")
+    namespace = Namespace("bots", description="Bots related operations")
     namespace.add_resource(BotsInfo, "/", "")
     namespace.add_resource(BotInfo, "/<string:bot_id>")
     namespace.add_resource(NewsItemData, "/news-item-data")
@@ -137,4 +137,4 @@ def initialize(api: Api):
         WordListEntries,
         "/word-list/<int:word_list_id>",
     )
-    api.add_namespace(namespace)
+    api.add_namespace(namespace, path="/bots")

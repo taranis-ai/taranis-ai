@@ -1,18 +1,17 @@
 import schemathesis
-import pytest
 import logging
 import hypothesis
+from hypothesis import settings, HealthCheck
+from core.__init__ import create_app
 
 logger = logging.getLogger(__file__)
 logger.setLevel(logging.INFO)
-from hypothesis import settings, Verbosity, HealthCheck
-from core.__init__ import create_app
 
 
 logger.debug(f"Hypothesis Settings{hypothesis.settings}")
 
 app = create_app()
-schema = schemathesis.from_wsgi("/api/v1/doc/swagger.json", app, skip_deprecated_operations=True)
+schema = schemathesis.from_wsgi("/api/doc/swagger.json", app, skip_deprecated_operations=True)
 
 
 def check_401(response, case):
@@ -25,21 +24,21 @@ def check_not_401(response, case):
         raise AssertionError(response.text)
 
 
-@schema.parametrize(endpoint="^/api/v1/analyze")
+@schema.parametrize(endpoint="^/api/analyze")
 @settings(max_examples=20, suppress_health_check=(HealthCheck.function_scoped_fixture,))
 def test_analyze(case, auth_header):
     response = case.call_wsgi(headers=auth_header)
     case.validate_response(response, additional_checks=(check_401,))
 
 
-@schema.parametrize(endpoint="^/api/v1/assess")
+@schema.parametrize(endpoint="^/api/assess")
 @settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
 def test_assess(case, auth_header):
     response = case.call_wsgi(headers=auth_header)
     case.validate_response(response, additional_checks=(check_401,))
 
 
-@schema.parametrize(endpoint="^/api/v1/analyze")
+@schema.parametrize(endpoint="^/api/analyze")
 @settings(max_examples=5, suppress_health_check=(HealthCheck.function_scoped_fixture,))
 def test_analyze_no_auth(case, auth_header_no_permissions, caplog):
     with caplog.at_level(logging.CRITICAL):
@@ -47,7 +46,7 @@ def test_analyze_no_auth(case, auth_header_no_permissions, caplog):
         case.validate_response(response, additional_checks=(check_not_401,))
 
 
-@schema.parametrize(endpoint="^/api/v1/assess")
+@schema.parametrize(endpoint="^/api/assess")
 @settings(max_examples=5, suppress_health_check=(HealthCheck.function_scoped_fixture,))
 def test_assess_no_auth(case, auth_header_no_permissions, caplog):
     with caplog.at_level(logging.CRITICAL):
@@ -55,14 +54,14 @@ def test_assess_no_auth(case, auth_header_no_permissions, caplog):
         case.validate_response(response, additional_checks=(check_not_401,))
 
 
-# @schema.parametrize(endpoint="^/api/v1/dashboard")
+# @schema.parametrize(endpoint="^/api/dashboard")
 # @settings(suppress_health_check=(HealthCheck.function_scoped_fixture,))
 # def test_dashboard(case, auth_header):
 #     response = case.call_wsgi(headers=auth_header)
 #     case.validate_response(response)
 
 
-# @schema.parametrize(endpoint="^/api/v1/worker")
+# @schema.parametrize(endpoint="^/api/worker")
 # @settings(suppress_health_check=(HealthCheck.function_scoped_fixture,))
 # def test_worker(case, api_header):
 #     response = case.call_wsgi(headers=api_header)
@@ -70,7 +69,7 @@ def test_assess_no_auth(case, auth_header_no_permissions, caplog):
 
 
 # excluded_endpoints = ["analyze", "assess", "assets", "auth", "worker", "bots", "config"]
-# excluded_endpoints_regex = f"^(?!/api/v1/{'|/api/v1/'.join(excluded_endpoints)}).*$"
+# excluded_endpoints_regex = f"^(?!/api/{'|/api/'.join(excluded_endpoints)}).*$"
 
 
 # @schema.parametrize()
@@ -88,7 +87,7 @@ def test_assess_no_auth(case, auth_header_no_permissions, caplog):
 
 # @pytest.fixture
 # def state_machine(app, auth_header):
-#     s = schemathesis.from_wsgi("/api/v1/doc/swagger.json", app)
+#     s = schemathesis.from_wsgi("/api/doc/swagger.json", app)
 #     s.add_link(
 #         source=s["/assess/news-items"]["POST"],
 #         target=s["/assess/news-items/{item_id}"]["GET"],

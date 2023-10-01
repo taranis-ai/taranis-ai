@@ -152,26 +152,26 @@ workers = [
     {
         "type": "PDF_PRESENTER",
         "description": "Presenter for generating PDF documents",
-        "parameters": ["PDF_TEMPLATE_PATH"],
+        "parameters": ["TEMPLATE_PATH"],
         "name": "PDF Presenter",
     },
     {
         "type": "HTML_PRESENTER",
         "name": "HTML Presenter",
         "description": "Presenter for generating html documents",
-        "parameters": ["HTML_TEMPLATE_PATH"],
+        "parameters": ["TEMPLATE_PATH"],
     },
     {
         "type": "TEXT_PRESENTER",
         "name": "TEXT Presenter",
         "description": "Presenter for generating text documents",
-        "parameters": ["TEXT_TEMPLATE_PATH"],
+        "parameters": ["TEMPLATE_PATH"],
     },
     {
-        "type": "MISP_PRESENTER",
-        "name": "MISP Presenter",
-        "description": "Presenter for generating MISP platform",
-        "parameters": ["MISP_TEMPLATE_PATH"],
+        "type": "JSON_PRESENTER",
+        "name": "JSON Presenter",
+        "description": "Presenter for generating json documents",
+        "parameters": ["TEMPLATE_PATH"],
     },
     {
         "type": "FTP_PUBLISHER",
@@ -264,7 +264,7 @@ products = [
         "description": "Default PDF Presenter",
         "type": "PDF_PRESENTER",
         "parameters": [
-            {"parameter": "PDF_TEMPLATE_PATH", "value": "pdf_template.html"},
+            {"parameter": "TEMPLATE_PATH", "value": "pdf_template.html"},
         ],
     },
     {
@@ -272,7 +272,7 @@ products = [
         "description": "Default HTML Presenter",
         "type": "HTML_PRESENTER",
         "parameters": [
-            {"parameter": "HTML_TEMPLATE_PATH", "value": "html_template.html"},
+            {"parameter": "TEMPLATE_PATH", "value": "html_template.html"},
         ],
     },
     {
@@ -280,15 +280,15 @@ products = [
         "description": "Default TEXT Presenter",
         "type": "TEXT_PRESENTER",
         "parameters": [
-            {"parameter": "TEXT_TEMPLATE_PATH", "value": "text_template.html"},
+            {"parameter": "TEMPLATE_PATH", "value": "text_template.txt"},
         ],
     },
     {
         "title": "Default MISP Presenter",
         "description": "Default MISP Presenter",
-        "type": "MISP_PRESENTER",
+        "type": "JSON_PRESENTER",
         "parameters": [
-            {"parameter": "MISP_TEMPLATE_PATH", "value": "misp_template.html"},
+            {"parameter": "TEMPLATE_PATH", "value": "misp_template.json"},
         ],
     },
     {
@@ -296,7 +296,7 @@ products = [
         "description": "cert.at Daily Report",
         "type": "HTML_PRESENTER",
         "parameters": [
-            {"parameter": "HTML_TEMPLATE_PATH", "value": "cert_at_daily_report.html"},
+            {"parameter": "TEMPLATE_PATH", "value": "cert_at_daily_report.html"},
         ],
     },
 ]

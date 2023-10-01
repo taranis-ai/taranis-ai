@@ -178,7 +178,7 @@ def upgrade():
         sa.Column("description", sa.String(), nullable=False),
         sa.Column(
             "presenter_type",
-            sa.Enum("PDF_PRESENTER", "HTML_PRESENTER", "TEXT_PRESENTER", "MISP_PRESENTER", name="presenter_types"),
+            sa.Enum("PDF_PRESENTER", "HTML_PRESENTER", "TEXT_PRESENTER", "JSON_PRESENTER", name="presenter_types"),
             nullable=True,
         ),
         sa.PrimaryKeyConstraint("id"),
@@ -269,7 +269,7 @@ def upgrade():
                 "PDF_PRESENTER",
                 "HTML_PRESENTER",
                 "TEXT_PRESENTER",
-                "MISP_PRESENTER",
+                "JSON_PRESENTER",
                 "FTP_PUBLISHER",
                 "EMAIL_PUBLISHER",
                 "TWITTER_PUBLISHER",

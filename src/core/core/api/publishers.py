@@ -43,7 +43,7 @@ class PublisherPreset(Resource):
 
 
 def initialize(api: Api):
-    namespace = Namespace("publishers", description="Publishers API", path="/api/v1/publishers")
+    namespace = Namespace("publishers", description="Publishers API")
     namespace.add_resource(PublisherPresets, "/presets")
     namespace.add_resource(PublisherPreset, "/preset", "/preset/<id>")
-    api.add_namespace(namespace)
+    api.add_namespace(namespace, path="/publishers")

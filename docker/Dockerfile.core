@@ -44,6 +44,6 @@ ENV DATA_FOLDER=/app/data
 VOLUME ["/app/data"]
 EXPOSE 80
 
-HEALTHCHECK --interval=60s --timeout=3s --retries=5 CMD curl --fail http://localhost/api/v1/isalive || exit 1
+HEALTHCHECK --interval=60s --timeout=3s --retries=5 CMD curl --fail http://localhost/api/isalive || exit 1
 
 CMD ["gunicorn"]

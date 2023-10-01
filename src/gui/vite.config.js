@@ -14,7 +14,14 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src')
     }
   },
-  plugins: [vue(), VueI18nPlugin(), vuetify({ autoImport: true })],
+  plugins: [
+    vue(),
+    VueI18nPlugin(),
+    vuetify({
+      autoImport: true,
+      styles: { configFile: './src/styles/settings.scss' }
+    })
+  ],
   build: {
     sourcemap: true,
     rollupOptions: {

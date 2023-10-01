@@ -65,7 +65,7 @@ def news_item_aggregates(app, request, news_items_data):
         from core.model.news_item import NewsItemAggregate
         from core.model.user import User
 
-        nia = NewsItemAggregate()
+        nia = NewsItemAggregate(title=news_items_data[0].title)
         nia1 = nia.create_new(news_items_data[0])
         nia2 = nia.create_new(news_items_data[1])
 

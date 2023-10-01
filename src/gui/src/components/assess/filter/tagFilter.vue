@@ -9,6 +9,8 @@
       density="compact"
       deletable-chips
       clearable
+      clear-icon="mdi-close"
+      variant="outlined"
       no-data-text="No tags found"
       item-value="name"
       item-title="name"

@@ -8,10 +8,8 @@
       <template v-for="item in newsItems.items" :key="item">
         <card-story
           :story="item"
-          :selected="newsItemsSelection.includes(item.id)"
           @delete-item="deleteNewsItem(item.id)"
           @refresh="refresh(item.id)"
-          @select-item="selectNewsItem(item.id)"
         />
       </template>
     </v-infinite-scroll>
@@ -23,10 +21,7 @@
       <v-btn @click="resetFilter()">Reset Filter</v-btn>
     </div>
 
-    <assess-selection-toolbar
-      v-if="activeSelection"
-      :selection="newsItemsSelection"
-    ></assess-selection-toolbar>
+    <assess-selection-toolbar v-if="activeSelection" />
   </div>
 </template>
 
@@ -35,7 +30,7 @@ import CardStory from '@/components/assess/CardStory.vue'
 import AssessSelectionToolbar from '@/components/assess/AssessSelectionToolbar.vue'
 import { storeToRefs } from 'pinia'
 import { useAssessStore } from '@/stores/AssessStore'
-import { defineComponent, computed, ref, onUnmounted, onUpdated } from 'vue'
+import { defineComponent, computed, onUnmounted, onUpdated } from 'vue'
 import { useFilterStore } from '@/stores/FilterStore'
 import { useMainStore } from '@/stores/MainStore'
 
@@ -49,9 +44,8 @@ export default defineComponent({
     const assessStore = useAssessStore()
     const filterStore = useFilterStore()
     const mainStore = useMainStore()
-    const { newsItems, newsItemsSelection, loading } = storeToRefs(assessStore)
-    const { appendNewsItems, selectNewsItem, clearNewsItemSelection } =
-      assessStore
+    const { newsItems, activeSelection, loading } = storeToRefs(assessStore)
+    const { appendNewsItems, clearNewsItemSelection } = assessStore
 
     const moreToLoad = computed(() => {
       const offset = filterStore.newsItemsFilter.offset
@@ -59,10 +53,6 @@ export default defineComponent({
         : 0
       const length = offset + newsItems.value.items.length
       return length < newsItems.value.total_count
-    })
-
-    const activeSelection = computed(() => {
-      return newsItemsSelection.value.length > 0
     })
 
     const refresh = (id) => {
@@ -107,13 +97,11 @@ export default defineComponent({
 
     return {
       newsItems,
-      newsItemsSelection,
       moreToLoad,
       activeSelection,
       refresh,
       nextPage,
       resetFilter,
-      selectNewsItem,
       deleteNewsItem,
       displayMore
     }

@@ -107,6 +107,13 @@ export const router = createRouter({
       meta: { requiresAuth: true, requiresPerm: [Permissions.MY_ASSETS_ACCESS] }
     },
     {
+      path: '/cluster/:cluster',
+      name: 'cluster',
+      components: {
+        default: () => import('@/views/users/ClusterView.vue')
+      }
+    },
+    {
       path: '/user',
       name: 'user',
       components: {

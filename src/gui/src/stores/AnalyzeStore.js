@@ -10,6 +10,16 @@ export const useAnalyzeStore = defineStore('analyze', {
     selection_report: [],
     current_report_item_group_id: null
   }),
+  getters: {
+    getReportItemsList() {
+      return this.report_items.items.map((item) => {
+        return {
+          title: item.title,
+          value: item.id
+        }
+      })
+    }
+  },
   actions: {
     async loadReportItems(data) {
       const response = await getAllReportItems(data)

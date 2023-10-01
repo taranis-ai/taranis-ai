@@ -5,6 +5,7 @@
       :detail-view="true"
       @delete-item="deleteNewsItem(story.id)"
     />
+    <assess-selection-toolbar v-if="activeSelection" />
   </v-container>
 </template>
 
@@ -12,15 +13,20 @@
 import { computed, onMounted } from 'vue'
 import CardStory from '@/components/assess/CardStory.vue'
 import { useRoute } from 'vue-router'
+import { storeToRefs } from 'pinia'
 import { useAssessStore } from '@/stores/AssessStore'
+import AssessSelectionToolbar from '@/components/assess/AssessSelectionToolbar.vue'
 
 export default {
   name: 'StoryView',
   components: {
-    CardStory
+    CardStory,
+    AssessSelectionToolbar
   },
   setup() {
     const assessStore = useAssessStore()
+    const { activeSelection } = storeToRefs(assessStore)
+
     const route = useRoute()
 
     console.debug(assessStore.newsItems.items)
@@ -46,6 +52,7 @@ export default {
 
     return {
       story,
+      activeSelection,
       deleteNewsItem
     }
   }

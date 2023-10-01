@@ -105,6 +105,12 @@ class QueueManager:
             return {"message": f"Executing Bot {bot_id} scheduled"}, 200
         return {"error": "Could not reach rabbitmq"}, 500
 
+    def generate_product(self, product_id: int):
+        if self.send_task("worker.tasks.generate_product", args=[product_id]):
+            logger.info(f"Generating Product {product_id} scheduled")
+            return {"message": f"Generating Product {product_id} scheduled"}, 200
+        return {"error": "Could not reach rabbitmq"}, 500
+
 
 def initialize(app: Flask, first_worker: bool):
     global queue_manager

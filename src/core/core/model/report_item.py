@@ -3,12 +3,11 @@ from datetime import datetime, timedelta
 import uuid as uuid_generator
 from sqlalchemy import orm, or_, text, and_
 from sqlalchemy.sql.expression import cast
-from typing import Any
+from typing import Any, Optional
 import sqlalchemy
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
-from core.managers.log_manager import logger
 from core.model.news_item import NewsItemAggregate
 from core.model.report_item_type import AttributeGroupItem
 from core.model.report_item_type import ReportItemType
@@ -218,22 +217,6 @@ class ReportItem(BaseModel):
         return query.scalar() is not None
 
     @classmethod
-    def get_for_sync(cls, last_synced, report_item_types):
-        report_item_type_ids = {report_item_type.id for report_item_type in report_item_types}
-
-        last_sync_time = datetime.now()
-
-        query = cls.query.filter(
-            ReportItem.last_updated >= last_synced,
-            ReportItem.last_updated <= last_sync_time,
-            ReportItem.report_item_type_id.in_(report_item_type_ids),
-        )
-
-        report_items = query.all()
-
-        return [report_item.to_dict() for report_item in report_items], last_sync_time
-
-    @classmethod
     def get_by_filter(cls, filter: dict, user, acl_check: bool):
         query = cls.query
 
@@ -309,117 +292,64 @@ class ReportItem(BaseModel):
         return [row[0] for row in result if row[0] is not None]
 
     @classmethod
-    def add_aggregates(cls, id: int, aggregate_ids: list, user: User) -> tuple[Any, int]:
-        report_item = cls.query.get(id)
-        if report_item is None:
-            return None, 404
+    def get_report_item_and_check_permission(cls, id: int, user: User) -> tuple[Optional["ReportItem"], dict, int]:
+        report_item = cls.get(id)
+        if not report_item:
+            return None, {"error": "Report Item not Found"}, 404
 
         if not ReportItemType.allowed_with_acl(report_item.report_item_type_id, user, False, False, True):
-            return f"User {user.id} is not allowed to update Report {report_item.id}", 403
+            return None, {"error": f"User {user.id} is not allowed to update Report {report_item.id}"}, 403
 
-        for aggregate_id in aggregate_ids:
-            report_item.news_item_aggregates.append(NewsItemAggregate.get(aggregate_id))
-
-        db.session.commit()
-
-        return f"Successfully added {aggregate_ids} to {report_item.id}", 200
+        return report_item, {}, 200
 
     @classmethod
-    def set_aggregates(cls, id: int, aggregate_ids: list, user: User) -> tuple[Any, int]:
-        report_item = cls.query.get(id)
-        if report_item is None:
-            return None, 404
+    def add_aggregates(cls, id: int, item_ids: list[int], user: User) -> tuple[dict, int]:
+        report_item, err, status = cls.get_report_item_and_check_permission(id, user)
+        if err or not report_item:
+            return err, status
 
-        if not ReportItemType.allowed_with_acl(report_item.report_item_type_id, user, False, False, True):
-            return f"User {user.id} is not allowed to update Report {report_item.id}", 403
-
-        logger.info(f"Setting aggregates: {aggregate_ids} for {report_item.id}")
-        aggregates = [NewsItemAggregate.get(aggregate_id) for aggregate_id in aggregate_ids]
-        report_item.news_item_aggregates = aggregates
-
+        items = [NewsItemAggregate.get(item_id) for item_id in item_ids]
+        report_item.news_item_aggregates.extend(items)
         db.session.commit()
 
-        return f"Successfully added {aggregate_ids} to {report_item.id}", 200
+        return {"message": f"Successfully added {item_ids} to {report_item.id}"}, 200
 
     @classmethod
-    def remove_aggregates(cls, id: int, aggregate_ids: list, user: User) -> tuple[Any, int]:
-        logger.debug(f"Removing {aggregate_ids} from {id}")
-        report_item = cls.query.get(id)
-        if report_item is None:
-            return None, 404
+    def remove_aggregates(cls, id: int, aggregate_ids: list[int], user: User) -> tuple[dict, int]:
+        report_item, err, status = cls.get_report_item_and_check_permission(id, user)
+        if err or not report_item:
+            return err, status
 
-        if not ReportItemType.allowed_with_acl(report_item.report_item_type_id, user, False, False, True):
-            return f"User {user.id} is not allowed to update Report {report_item.id}", 403
-
-        for aggregate_id in aggregate_ids:
-            report_item.news_item_aggregates.pop(NewsItemAggregate.get(aggregate_id))
-
+        items = [NewsItemAggregate.get(item_id) for item_id in aggregate_ids]
+        report_item.news_item_aggregates = [item for item in report_item.news_item_aggregates if item not in items]
         db.session.commit()
 
-        return f"Successfully removed {aggregate_ids} to {report_item.id}", 200
+        return {"message": f"Successfully removed {aggregate_ids} from {report_item.id}"}, 200
+
+    @classmethod
+    def set_aggregates(cls, id: int, aggregate_ids: list, user: User) -> tuple[dict, int]:
+        return cls.update_report_item(id, {"aggregate_ids": aggregate_ids}, user)
 
     @classmethod
     def update_report_item(cls, id: int, data: dict, user: User) -> tuple[dict, int]:
-        report_item = cls.get(id)
-        if report_item is None:
-            return {"error": f"No Report with id '{id}' found"}, 404
+        report_item, err, status = cls.get_report_item_and_check_permission(id, user)
+        if err or not report_item:
+            return err, status
 
-        if not ReportItemType.allowed_with_acl(report_item.report_item_type_id, user, False, False, True):
-            return report_item, 403
-
-        report_item.title = data["title"]
-        report_item.title_prefix = data["title_prefix"]
-        report_item.completed = data["completed"]
+        if title := data.get("title"):
+            report_item.title = title
+        if title_prefix := data.get("title_prefix"):
+            report_item.title_prefix = title_prefix
+        if completed := data.get("completed"):
+            report_item.completed = completed
 
         if attributes_data := data.pop("attributes", None):
             ReportItemAttribute.update_values_from_report(report_item.id, attributes_data)
 
-        if "aggregate_ids" in data:
-            for aggregate_id in data["aggregate_ids"]:
-                aggregate = NewsItemAggregate.get(aggregate_id)
-                report_item.news_item_aggregates.append(aggregate)
+        if aggregate_ids := data.get("aggregate_ids"):
+            report_item.news_item_aggregates = [NewsItemAggregate.get(aggregate_id) for aggregate_id in aggregate_ids]
 
         db.session.commit()
-
-        return {"message": "Successfully updated Report Item", "id": report_item.id}, 200
-
-    @classmethod
-    def get_updated_data(cls, report_item_id, data):
-        report_item = cls.get(report_item_id)
-        if not report_item:
-            return {"error": f"No Report Item with id '{report_item_id}' found"}, 404
-        if "update" in data:
-            if "title" in data:
-                data["title"] = report_item.title
-
-            if "title_prefix" in data:
-                data["title_prefix"] = report_item.title_prefix
-
-            if "completed" in data:
-                data["completed"] = report_item.completed
-
-            if "attribute_id" in data:
-                for attribute in report_item.attributes:
-                    if attribute.id == data["attribute_id"]:
-                        data["attribute_value"] = attribute.value
-                        data["attribute_last_updated"] = attribute.last_updated.isoformat()
-                        break
-
-        if "add" in data:
-            if "aggregate_ids" in data:
-                data["news_item_aggregates"] = []
-                for aggregate_id in data["aggregate_ids"]:
-                    if aggregate := NewsItemAggregate.get(aggregate_id):
-                        data["news_item_aggregates"].append(aggregate.to_dict())
-
-            if "attribute_id" in data:
-                for attribute in report_item.attributes:
-                    if attribute.id == data["attribute_id"]:
-                        data["attribute_value"] = attribute.value
-                        data["binary_mime_type"] = attribute.binary_mime_type
-                        data["binary_description"] = attribute.binary_description
-                        data["attribute_last_updated"] = attribute.last_updated.isoformat()
-                        break
 
         return {"message": "Successfully updated Report Item", "id": report_item.id}, 200
 

@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <v-container fluid>
     <DataTable
       v-model:items="word_lists.items"
       :add-button="true"
@@ -39,7 +39,7 @@
       :title="editTitle"
       @submit="handleSubmit"
     ></EditConfig>
-  </div>
+  </v-container>
 </template>
 
 <script>

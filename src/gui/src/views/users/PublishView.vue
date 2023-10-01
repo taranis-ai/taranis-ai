@@ -1,6 +1,7 @@
 <template>
   <DataTable
     :items="products.items"
+    :header-filter="['title', 'created', 'type', 'reports', 'actions']"
     :add-button="false"
     :search-bar="false"
     @delete-item="deleteItem"
@@ -8,8 +9,7 @@
     @add-item="addItem"
     @update-items="updateData"
     @selection-change="selectionChange"
-  >
-  </DataTable>
+  />
 </template>
 
 <script>

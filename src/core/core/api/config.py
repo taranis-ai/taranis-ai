@@ -472,7 +472,7 @@ class WorkerTypes(Resource):
 
 
 def initialize(api: Api):
-    namespace = Namespace("config", description="Configuration operations", path="/api/v1/config")
+    namespace = Namespace("config", description="Configuration operations")
 
     namespace.add_resource(ACLEntries, "/acls/<int:acl_id>", "/acls")
     namespace.add_resource(Attributes, "/attributes/<int:attribute_id>", "/attributes")
@@ -506,4 +506,4 @@ def initialize(api: Api):
     namespace.add_resource(Workers, "/workers")
     namespace.add_resource(WorkerTypes, "/worker-types")
 
-    api.add_namespace(namespace)
+    api.add_namespace(namespace, path="/config")

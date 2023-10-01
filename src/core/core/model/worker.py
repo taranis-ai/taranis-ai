@@ -32,7 +32,7 @@ class PRESENTER_TYPES(StrEnum):
     PDF_PRESENTER = auto()
     HTML_PRESENTER = auto()
     TEXT_PRESENTER = auto()
-    MISP_PRESENTER = auto()
+    JSON_PRESENTER = auto()
 
 
 class PUBLISHER_TYPES(StrEnum):
@@ -61,7 +61,7 @@ class WORKER_TYPES(StrEnum):
     PDF_PRESENTER = auto()
     HTML_PRESENTER = auto()
     TEXT_PRESENTER = auto()
-    MISP_PRESENTER = auto()
+    JSON_PRESENTER = auto()
     FTP_PUBLISHER = auto()
     EMAIL_PUBLISHER = auto()
     TWITTER_PUBLISHER = auto()

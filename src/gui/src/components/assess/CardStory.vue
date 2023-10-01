@@ -1,9 +1,10 @@
 <template>
   <v-card
+    v-if="showStory"
     :ripple="false"
     elevation="3"
     :rounded="false"
-    class="no-gutters align-self-stretch mb-3 mt-2 ml-2 mr-2"
+    class="no-gutters align-self-stretch mb-3 mt-2 mx-4 story-card"
     :class="[
       {
         selected: selected
@@ -66,7 +67,7 @@
           append-icon="mdi-trash-can"
           @click.stop="$emit('remove-from-report')"
         >
-          <span>Remove from Report</span>
+          <span>Remove</span>
         </v-btn>
 
         <v-btn
@@ -148,6 +149,18 @@
               @click.stop="markAsImportant()"
             />
             <v-list-item
+              v-if="!reportView && news_item_length > 1"
+              title="ungroup"
+              prepend-icon="mdi-ungroup"
+              @click.stop="ungroup()"
+            />
+            <v-list-item
+              v-if="!reportView && newsItemSelection.length > 0"
+              title="move selection"
+              prepend-icon="mdi-folder-move"
+              @click.stop="moveSelection()"
+            />
+            <v-list-item
               title="delete"
               prepend-icon="mdi-delete-outline"
               @click.stop="deleteDialog = true"
@@ -160,7 +173,7 @@
         cols="12"
         sm="12"
         lg="6"
-        class="px-5 order-lg-3 order-md-2"
+        class="px-5 pb-5 order-lg-3 order-md-2"
         align-self="stretch"
       >
         <summarized-content
@@ -179,18 +192,20 @@
       </v-col>
     </v-row>
   </v-card>
-  <v-row v-if="openSummary" dense class="ma-0 py-0 px-5">
-    <v-col cols="11" offset="1">
-      <card-news-item
-        v-for="item in story.news_items"
-        :key="item.id"
-        :news-item="item"
-        :detail-view="detailView"
-        :story="story"
-        class="mt-3"
-        @refresh="emitRefresh()"
-      />
-    </v-col>
+  <v-row v-if="openSummary" dense class="ma-0 py-0 px-2">
+    <div class="news-item-container">
+      <div class="mx-5 my-5">
+        <card-news-item
+          v-for="item in story.news_items"
+          :key="item.id"
+          :news-item="item"
+          :detail-view="detailView"
+          :story="story"
+          class="mt-3"
+          @refresh="emitRefresh()"
+        />
+      </div>
+    </div>
   </v-row>
 </template>
 
@@ -204,6 +219,8 @@ import CardNewsItem from '@/components/assess/CardNewsItem.vue'
 import { ref, computed } from 'vue'
 import { useAssessStore } from '@/stores/AssessStore'
 import { highlight_text } from '@/utils/helpers'
+import { unGroupStories } from '@/api/assess'
+import { storeToRefs } from 'pinia'
 
 export default {
   name: 'CardStory',
@@ -220,17 +237,27 @@ export default {
       type: Object,
       required: true
     },
-    selected: { type: Boolean, default: false },
     detailView: { type: Boolean, default: false },
     reportView: { type: Boolean, default: false }
   },
-  emits: ['selectItem', 'deleteItem', 'refresh', 'remove-from-report'],
+  emits: ['deleteItem', 'refresh', 'remove-from-report'],
   setup(props, { emit }) {
     const viewDetails = ref(false)
     const openSummary = ref(props.detailView)
     const sharingDialog = ref(false)
     const deleteDialog = ref(false)
     const assessStore = useAssessStore()
+    const { newsItemSelection } = storeToRefs(assessStore)
+    const selected = computed(() =>
+      assessStore.storySelection.includes(props.story.id)
+    )
+
+    const showStory = computed(() => {
+      return (
+        props.story.news_items.length > 0 &&
+        'news_item_data' in props.story.news_items[0]
+      )
+    })
 
     const item_important = computed(() =>
       'important' in props.story ? props.story.important : false
@@ -272,7 +299,7 @@ export default {
     }
 
     const toggleSelection = () => {
-      emit('selectItem', props.story.id)
+      assessStore.selectStory(props.story.id)
     }
 
     const markAsRead = () => {
@@ -293,15 +320,29 @@ export default {
 
     const getDescription = computed(() => {
       return openSummary.value
-        ? news_item_length.value > 1
-          ? props.story.description
-          : props.story.news_items[0].news_item_data.content
-        : props.story.summary || props.story.description
+        ? props.story.description ||
+            props.story.news_items[0].news_item_data.content
+        : props.story.summary ||
+            props.story.description ||
+            props.story.news_items[0].news_item_data.content
     })
+
+    function ungroup() {
+      unGroupStories([props.story.id]).then(() => {
+        emit('refresh')
+      })
+    }
+
+    function moveSelection() {
+      // assessStore.moveSelectionToStory(props.story.id, newsItemSelection.value)
+      console.debug('move selection to story', newsItemSelection.value)
+    }
 
     return {
       viewDetails,
       openSummary,
+      selected,
+      showStory,
       sharingDialog,
       deleteDialog,
       item_important,
@@ -313,12 +354,15 @@ export default {
       minButtonWidth,
       story_in_reports,
       is_summarized,
+      newsItemSelection,
       getDescription,
       openCard,
+      ungroup,
       toggleSelection,
       markAsRead,
       markAsImportant,
       deleteNewsItem,
+      moveSelection,
       emitRefresh
     }
   }
@@ -326,6 +370,23 @@ export default {
 </script>
 
 <style scoped>
+.story-card {
+  border: 2px solid white;
+  &:hover {
+    border-color: #f6f6f6;
+  }
+  &.selected {
+    background-color: lighten(#7468e8, 30);
+    border-color: #7468e8;
+    margin: -2px;
+  }
+}
+
+.news-item-container {
+  background-color: #f0f0f0;
+  border: 2px dotted #999999;
+}
+
 .news-item-title {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -339,5 +400,9 @@ export default {
 .news-item-title-no-clip {
   max-height: calc(1.5em * 2);
   line-height: 1.3;
+}
+
+.item-action-btn {
+  flex: 1;
 }
 </style>

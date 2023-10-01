@@ -3,6 +3,7 @@ from celery import shared_task
 from worker.core_api import CoreApi
 from worker.bots import bot_tasks
 from worker.collectors import collector_tasks
+from worker.presenters import presenter_tasks
 
 
 @shared_task(time_limit=60)
@@ -37,3 +38,8 @@ def cleanup_token_blacklist():
 def gather_word_list(word_list_id: int):
     config = {"type": "wordlist_updater_bot", "parameters": {"WORD_LIST_ID": word_list_id}}
     return bot_tasks.execute_by_config(config)
+
+
+@shared_task(time_limit=30)
+def generate_product(product_id: int):
+    presenter_tasks.render_product(product_id)

@@ -1,3 +1,4 @@
+import os
 from typing import Any
 from sqlalchemy import or_, and_
 import sqlalchemy
@@ -10,6 +11,7 @@ from core.model.base_model import BaseModel
 from core.model.acl_entry import ACLEntry, ItemType
 from core.model.parameter_value import ParameterValue
 from core.model.worker import PRESENTER_TYPES, Worker
+from core.managers.data_manager import get_presenter_template_path
 
 
 class ProductType(BaseModel):
@@ -101,6 +103,35 @@ class ProductType(BaseModel):
         data = super().to_dict()
         data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters}
         return data
+
+    def get_template_path(self) -> str:
+        # get value of parameter where parameter.parameter == "TEMPLATE_PATH"
+        template_path = next((parameter.value for parameter in self.parameters if parameter.parameter == "TEMPLATE_PATH"), None)
+        if not template_path:
+            logger.error(f"Could not find template path for product type {self.title}")
+            return ""
+        return str(template_path)
+
+    def get_template(self) -> str:
+        full_path = get_presenter_template_path(self.get_template_path())
+        return full_path if os.path.isfile(full_path) else ""
+
+    @classmethod
+    def get_by_type(cls, type) -> "ProductType":
+        return cls.query.filter_by(type=type).first()
+
+    def get_mimetype(self) -> str:
+        if self.type.startswith("image"):
+            return "image/png"
+        if self.type.startswith("pdf"):
+            return "application/pdf"
+        if self.type.startswith("html"):
+            return "text/html"
+        if self.type.startswith("text"):
+            return "text/plain"
+        if self.type.startswith("json"):
+            return "application/json"
+        return "application/octet-stream"
 
 
 class ProductTypeParameterValue(BaseModel):

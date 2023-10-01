@@ -170,8 +170,23 @@ class UnGroupAction(Resource):
 
         newsitem_ids = request.json
         if not newsitem_ids:
-            return {"error": "No aggregate ids provided"}, 400
-        response, code = news_item.NewsItemAggregate.ungroup_aggregate(newsitem_ids, user)
+            return {"error": "No news item ids provided"}, 400
+        response, code = news_item.NewsItemAggregate.remove_news_items_from_story(newsitem_ids, user)
+        sse_manager.news_items_updated()
+        return response, code
+
+
+class UnGroupStories(Resource):
+    @auth_required("ASSESS_UPDATE")
+    def put(self):
+        user = auth_manager.get_user_from_jwt()
+        if not request.is_json:
+            return {"error": "Missing JSON in request"}, 400
+
+        story_ids = request.json
+        if not story_ids:
+            return {"error": "No story ids provided"}, 400
+        response, code = news_item.NewsItemAggregate.ungroup_multiple_stories(story_ids, user)
         sse_manager.news_items_updated()
         return response, code
 
@@ -212,14 +227,11 @@ class DownloadAttachment(Resource):
 
 
 def initialize(api):
-    namespace = Namespace("Assess", description="Assess related operations", path="/api/v1/assess")
+    namespace = Namespace("Assess", description="Assess related operations")
     namespace.add_resource(OSINTSourceGroupsAssess, "/osint-source-groups")
     namespace.add_resource(OSINTSourceGroupsList, "/osint-source-group-list")
     namespace.add_resource(OSINTSourcesList, "/osint-sources-list")
-    namespace.add_resource(
-        NewsItemAggregates,
-        "/news-item-aggregates",
-    )
+    namespace.add_resource(NewsItemAggregates, "/news-item-aggregates", "/stories")
     namespace.add_resource(
         NewsItems,
         "/news-items",
@@ -229,10 +241,11 @@ def initialize(api):
 
     namespace.add_resource(NewsItem, "/news-items/<int:item_id>")
     namespace.add_resource(NewsItemAggregate, "/news-item-aggregates/<int:aggregate_id>")
-    namespace.add_resource(GroupAction, "/news-item-aggregates/group")
-    namespace.add_resource(UnGroupAction, "/news-item-aggregates/ungroup")
+    namespace.add_resource(GroupAction, "/news-item-aggregates/group", "/stories/group")
+    namespace.add_resource(UnGroupStories, "/news-item-aggregates/ungroup", "/stories/ungroup")
+    namespace.add_resource(UnGroupAction, "/news-items/ungroup")
     namespace.add_resource(
         DownloadAttachment,
         "/news-item-data/<string:item_data_id>/attributes/<int:attribute_id>/file",
     )
-    api.add_namespace(namespace)
+    api.add_namespace(namespace, path="/assess")

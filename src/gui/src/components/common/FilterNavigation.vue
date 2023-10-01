@@ -27,48 +27,55 @@
     >
       <v-container class="pa-0 ma-0">
         <!-- search -->
-        <v-row v-if="!showOmniSearch" class="my-2 mr-0 px-2">
+        <v-row v-if="!showOmniSearch" class="mx-2 my-4 px-2">
           <v-text-field
             v-model="search_state"
             placeholder="search"
-            varint="outlined"
+            variant="outlined"
             hide-details
             density="compact"
             prepend-inner-icon="mdi-magnify"
-            class="ml-3"
+            class="search-field"
           >
             <template #append>
               <v-btn
-                class="mb-1"
                 density="compact"
                 color="primary"
-                icon="mdi-chevron-right"
+                variant="tonal"
+                size="small"
+                class="pa-0"
+                style="height: 100%"
                 @click="showOmniSearch = !showOmniSearch"
-              />
+              >
+                <v-icon size="x-large" class="pa-0" icon="mdi-chevron-right">
+                </v-icon>
+              </v-btn>
             </template>
           </v-text-field>
         </v-row>
 
-        <v-divider class="mt-0 mb-0"></v-divider>
+        <v-divider class="my-2"></v-divider>
 
         <!-- scope -->
-        <v-row no-gutters class="my-2 mr-0 px-2">
-          <v-col cols="6" class="mr-2">
+        <v-row no-gutters class="ma-2 my-4 px-2">
+          <v-col cols="6" class="pr-1">
             <v-select
               v-model="limit_state"
               :items="items_per_page"
               label="display"
-              variant="solo"
+              variant="outlined"
               density="compact"
+              hide-details
             ></v-select>
           </v-col>
-          <v-col cols="5" class="pb-0">
+          <v-col cols="6" class="pl-1">
             <v-select
               v-model="offset_state"
               :items="offsetRange"
               label="offset"
-              variant="solo"
+              variant="outlined"
               density="compact"
+              hide-details
             ></v-select>
           </v-col>
         </v-row>
@@ -151,3 +158,9 @@ export default {
   }
 }
 </script>
+
+<style lang="scss">
+.search-field .v-input__append {
+  margin-left: 8px;
+}
+</style>

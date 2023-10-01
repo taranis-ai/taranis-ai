@@ -3,7 +3,7 @@
     <v-btn
       v-for="option in orderOptions"
       :key="option.type"
-      class="vertical-button"
+      class="vertical-button mb-1"
       :color="selectedButton === option.type ? 'primary' : 'default'"
       :prepend-icon="option.icon"
       :append-icon="activeIcon(option.type)"
@@ -35,7 +35,7 @@ export default {
         },
         {
           label: 'relevance',
-          icon: 'mdi-counter',
+          icon: 'mdi-speedometer',
           type: 'RELEVANCE'
         }
       ]
@@ -86,16 +86,3 @@ export default {
   }
 }
 </script>
-
-<style scoped>
-.vertical-button-group {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-.vertical-button {
-  justify-content: flex-start;
-  text-transform: unset !important;
-}
-</style>

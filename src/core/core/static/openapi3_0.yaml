@@ -13,11 +13,11 @@ externalDocs:
   description: GitHub
   url: https://github.com/ait-cs-IaaS/Taranis-NG/
 servers:
-  - url: /api/v1
+  - url: /api
     description: default
-  - url: https://dev.taranis.cyberrange.rocks/api/v1
+  - url: https://dev.taranis.cyberrange.rocks/api
     description: dev
-  - url: https://taranis.cyberrange.rocks/api/v1
+  - url: https://taranis.cyberrange.rocks/api
     description: main
 tags:
   - name: auth
@@ -520,64 +520,6 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
         '404':
           $ref: "#/components/schemas/notFound"
-  /analyze/report-items/{report_item_id}/data:
-    parameters:
-      - name: report_item_id
-        in: path
-        required: true
-        schema:
-          type: integer
-          minimum: 1
-          format: int32
-    get:
-      tags: [analyze]
-      description: get suitable the report item data
-      parameters:
-        - name: update
-          in: query
-          schema:
-            type: string
-        - name: add
-          in: query
-          schema:
-            type: string
-        - name: title
-          in: query
-          schema:
-            type: string
-        - name: title_prefix
-          in: query
-          schema:
-            type: string
-        - name: completed
-          in: query
-          schema:
-            type: string
-        - name: attribute_id
-          in: query
-          schema:
-            type: integer
-        - name: aggregate_ids
-          in: query
-          schema:
-            type: string
-      responses:
-        '200':
-          description: the suitable report item data
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/report_item_data.response'
-        '400':
-          description: invalid request
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
   /analyze/report-items/{report_item_id}/locks:
     parameters:
       - name: report_item_id
@@ -637,7 +579,7 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
         '404':
           $ref: "#/components/schemas/notFound"
-  /analyze/report-items/{report_item_id}//unlock:
+  /analyze/report-items/{report_item_id}/unlock:
     parameters:
       - name: report_item_id
         in: path
@@ -4218,52 +4160,6 @@ components:
               type: integer
             report_item_id:
               type: integer
-    report_item_data.response:
-      oneOf:
-        - type: object
-          properties:
-            update:
-              type: string
-            title:
-              type: string
-            title_prefix:
-              type: string
-            completed:
-              type: boolean
-            attribute_id:
-              type: integer
-            attribute_value:
-              type: string
-            attribute_last_updated:
-              type: string
-              format: date-time
-            attribute_user:
-              type: string
-        - type: object
-          properties:
-            add:
-              type: string
-            news_item_aggregates:
-              type: array
-              items:
-                $ref: '#/components/schemas/news_item_aggregate'
-            remote_report_items:
-              type: array
-              items:
-                $ref: '#/components/schemas/report_item'
-            attribute_value:
-              type: string
-            binary_mime_type:
-              type: string
-            binary_description:
-              type: string
-            attribute_last_updated:
-              type: string
-              format: date-time
-            attribute_user:
-              type: string
-
-
     ScheduleEntry:
       type: object
       properties:

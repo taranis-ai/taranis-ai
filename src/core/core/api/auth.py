@@ -41,8 +41,8 @@ class Logout(Resource):
 
 
 def initialize(api: Api):
-    namespace = Namespace("Auth", description="Authentication related operations", path="/api/v1/auth")
+    namespace = Namespace("Auth", description="Authentication related operations")
     namespace.add_resource(Login, "/login")
     namespace.add_resource(Refresh, "/refresh")
     namespace.add_resource(Logout, "/logout")
-    api.add_namespace(namespace)
+    api.add_namespace(namespace, path="/auth")

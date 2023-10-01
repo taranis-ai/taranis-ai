@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <v-container fluid>
     <DataTable
       v-model:items="users.items"
       :add-button="true"
@@ -16,7 +16,7 @@
       :edit="edit"
       @updated="formUpdated"
     ></UserForm>
-  </div>
+  </v-container>
 </template>
 
 <script>

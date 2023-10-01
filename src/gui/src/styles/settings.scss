@@ -1,0 +1,11 @@
+@use 'vuetify/_settings' with (
+  $typography: (
+    'caption': (
+      'letter-spacing': normal
+    )
+  ),
+  $button-text-transform: none,
+  $button-text-letter-spacing: normal,
+  $button-font-size: 1rem,
+  $icon-margin-end: 100px
+);

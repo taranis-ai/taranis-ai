@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <v-container fluid>
     <DataTable
       :items="osint_sources.items"
       :header-filter="[
@@ -50,7 +50,7 @@
       :title="editTitle"
       @submit="handleSubmit"
     />
-  </div>
+  </v-container>
 </template>
 
 <script>
