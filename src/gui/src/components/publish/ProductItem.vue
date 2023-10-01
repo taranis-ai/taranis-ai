@@ -90,13 +90,11 @@
           :cols="6"
           class="pa-5 taranis-ng-vertical-view"
         >
-          <div v-html="renderedProduct"></div>
-          <!-- <embed
-            v-if="renderedProduct"
-            :src="renderedProduct"
-            width="500"
-            height="800"
-          /> -->
+          <div v-if="render_direct" v-html="renderedProduct" />
+          <vue-pdf-embed
+            v-else
+            :source="'data:application/pdf;base64,' + renderedProduct"
+          />
         </v-col>
       </v-row>
     </v-card-text>
@@ -114,12 +112,16 @@ import {
 import { useI18n } from 'vue-i18n'
 import { useConfigStore } from '@/stores/ConfigStore'
 import { useAnalyzeStore } from '@/stores/AnalyzeStore'
+import VuePdfEmbed from 'vue-pdf-embed'
 
 import { notifyFailure, notifySuccess } from '@/utils/helpers'
 import { useRouter } from 'vue-router'
 
 export default {
   name: 'ProductItem',
+  components: {
+    VuePdfEmbed
+  },
   props: {
     productProp: {
       type: Object,
@@ -136,6 +138,7 @@ export default {
 
     const reportItems = computed(() => analyzeStore.getReportItemsList)
     const renderedProduct = ref(null)
+    const renderedProductMimeType = ref(null)
 
     const product_types = computed(() => {
       return configStore.product_types.items
@@ -147,6 +150,14 @@ export default {
     const preset = ref({ selected: null, name: 'Preset' })
     const required = [(v) => !!v || 'Required']
     const router = useRouter()
+
+    const render_direct = computed(() => {
+      return (
+        renderedProductMimeType.value === 'text/html' ||
+        renderedProductMimeType.value === 'application/json' ||
+        renderedProductMimeType.value === 'text/plain'
+      )
+    })
 
     const container_title = computed(() => {
       return props.edit
@@ -188,8 +199,8 @@ export default {
     function renderProduct() {
       getRenderdProduct(product.value.id)
         .then((blob) => {
-          console.debug(blob.data)
           renderedProduct.value = blob.data
+          renderedProductMimeType.value = blob.headers['content-type']
         })
         .catch(() => {
           console.error('Failed to render product ' + product.value.id)
@@ -213,6 +224,7 @@ export default {
       verticalView,
       reportItems,
       renderedProduct,
+      render_direct,
       saveProduct,
       renderProduct,
       rerenderProduct

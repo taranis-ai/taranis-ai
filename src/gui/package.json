@@ -32,7 +32,8 @@
     "vue-router": "^4.2.4",
     "vue-shortkey": "^3.1.7",
     "vue2-dropzone-vue3": "^1.1.0",
-    "vuetify": "^3.3.13"
+    "vuetify": "^3.3.13",
+    "vue-pdf-embed": "1.2.1"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^4.2.3",

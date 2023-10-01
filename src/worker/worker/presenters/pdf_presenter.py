@@ -12,7 +12,7 @@ class PDFPresenter(BasePresenter):
         try:
             output_text = super().generate(presenter_input, template)
 
-            html = HTML(string=output_text)
+            html = HTML(string=output_text["data"])
 
             if data := html.write_pdf(target=None):
                 return {"mime_type": "application/pdf", "data": data}

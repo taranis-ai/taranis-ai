@@ -148,7 +148,11 @@ class Product(BaseModel):
     def get_render(cls, product_id):
         if product := cls.get(product_id):
             if product.render_result:
-                blob = b64decode(product.render_result).decode("utf-8")
+                mime_type = product.product_type.get_mimetype()
+                if mime_type == "application/pdf":
+                    blob = product.render_result
+                else:
+                    blob = b64decode(product.render_result).decode("utf-8")
                 return {"mime_type": product.product_type.get_mimetype(), "blob": blob}
         return None
 
