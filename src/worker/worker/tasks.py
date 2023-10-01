@@ -19,7 +19,7 @@ def execute_bot(bot_id: str, filter: dict | None = None):
     return bot_tasks.execute_by_id(bot_id, filter)
 
 
-@shared_task(time_limit=3600)
+@shared_task(time_limit=4200)
 def execute_post_collection_bots(filter: dict | None = None):
     core_api = CoreApi()
     if bot_configs := core_api.get_post_collection_bots_config():

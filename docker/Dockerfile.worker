@@ -6,6 +6,9 @@ RUN apt-get update && apt-get upgrade -y && \
     apt-get install --no-install-recommends -y \
       build-essential \
       python3-dev \
+      libglib2.0-0 \
+      libpango-1.0-0 \
+      libpangoft2-1.0-0 \
       git
 
 COPY ./src/worker/. /app/
@@ -23,6 +26,7 @@ WORKDIR /app
 RUN groupadd user && useradd --home-dir /app -g user user && chown -R user:user /app
 USER user
 COPY --from=builder --chown=user:user /app/.venv /app/.venv
+COPY --from=builder /usr/lib/x86_64-linux-gnu/* /usr/lib/x86_64-linux-gnu/
 
 COPY --chown=user:user ./src/worker/. /app/
 ENV PYTHONPATH=/app

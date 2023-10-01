@@ -72,6 +72,7 @@ class ReportItemAttribute(BaseModel):
         data = {
             "value": self.value,
             "attribute_group_item_id": self.attribute_group_item_id,
+            "title": self.attribute_group_item.title,
         }
         if self.binary_mime_type:
             data["binary_mime_type"] = self.binary_mime_type
