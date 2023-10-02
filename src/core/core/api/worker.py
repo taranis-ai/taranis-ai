@@ -188,8 +188,9 @@ class Tags(Resource):
         if not (data := request.json):
             return {"error": "No data provided"}, 400
         errors = {}
+        bot_type = request.args.get("bot_type", default="")
         for aggregate_id, tags in data.items():
-            _, status = NewsItemAggregate.update_tags(aggregate_id, tags)
+            _, status = NewsItemAggregate.update_tags(aggregate_id, tags, bot_type)
             if status != 200:
                 errors[aggregate_id] = status
         if errors:
@@ -298,7 +299,7 @@ def initialize(api: Api):
     worker_ns.add_resource(DropTags, "/tags/drop")
     worker_ns.add_resource(BotInfo, "/bots/<string:bot_id>")
     worker_ns.add_resource(PostCollectionBots, "/post-collection-bots")
-    worker_ns.add_resource(NewsItemsAggregates, "/news-item-aggregates")
+    worker_ns.add_resource(NewsItemsAggregates, "/news-item-aggregates", "/stories")
     worker_ns.add_resource(WordLists, "/word-lists")
     worker_ns.add_resource(WordListByID, "/word-list/<int:word_list_id>")
     worker_ns.add_resource(WordListUpdate, "/word-list/<int:word_list_id>/update")

@@ -754,7 +754,7 @@ class NewsItemAggregate(BaseModel):
         return any(ReportItemNewsItemAggregate.assigned(aggregate_id) for aggregate_id in aggregate_ids)
 
     @classmethod
-    def update_tags(cls, news_item_aggregate_id: int, tags: list | dict) -> tuple[dict, int]:
+    def update_tags(cls, news_item_aggregate_id: int, tags: list | dict, bot_type: str = "") -> tuple[dict, int]:
         try:
             n_i_a = cls.get(news_item_aggregate_id)
             if not n_i_a:
@@ -769,11 +769,13 @@ class NewsItemAggregate(BaseModel):
                     new_tag.name = existing_tag.name
                     new_tag.tag_type = existing_tag.tag_type
                 n_i_a.tags.append(new_tag)
+            if bot_type:
+                n_i_a.news_item_attributes.append(NewsItemAttribute(key=bot_type, value=f"{len(new_tags)}"))
             db.session.commit()
             return {"message": "success"}, 200
-        except Exception:
+        except Exception as e:
             logger.log_debug_trace("Update News Item Tags Failed")
-            return {"error": "update failed"}, 500
+            return {"error": str(e)}, 500
 
     @classmethod
     def check_tags_by_source(cls, source_id: int) -> tuple[dict, int]:
@@ -1017,14 +1019,20 @@ class NewsItemAttribute(BaseModel):
     binary_data = orm.deferred(db.Column(db.LargeBinary))
     created = db.Column(db.DateTime, default=datetime.now)
 
-    def __init__(self, key, value, binary_mime_type, binary_value):
-        self.id = None
+    def __init__(self, key, value, binary_mime_type=None, binary_value=None, id=None):
+        self.id = id
         self.key = key
         self.value = value
         self.binary_mime_type = binary_mime_type
 
         if binary_value:
             self.binary_data = base64.b64decode(binary_value)
+
+    def to_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
+        data.pop("binary_mime_type", None)
+        data.pop("binary_data", None)
+        return data
 
 
 class NewsItemDataNewsItemAttribute(BaseModel):

@@ -47,6 +47,13 @@ export const useConfigStore = defineStore('config', {
     getUserByID: (state) => (user_id) => {
       return state.users.items.find((user) => user.id === user_id) || null
     },
+    getOSINTSourceNameByID: (state) => (osint_source_id) => {
+      return (
+        state.osint_sources.items.find(
+          (osint_source) => osint_source.id === osint_source_id
+        ).name || osint_source_id
+      )
+    },
     collector_types: (state) => {
       return state.worker_types.items.filter((worker_type) =>
         worker_type.type.endsWith('collector')
@@ -247,5 +254,6 @@ export const useConfigStore = defineStore('config', {
           notifyFailure(getMessageFromError(error))
         })
     }
-  }
+  },
+  persist: true
 })

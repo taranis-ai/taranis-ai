@@ -61,23 +61,15 @@ class UpdateNewsItemData(Resource):
             if language := request.json.get("language"):
                 return news_item.NewsItemData.update_news_item_lang(news_item_data_id, language)
             return {"Not implemented"}
-        except Exception:
-            logger.log_debug_trace("GET /news-item-data failed")
-            return "", 400
+        except Exception as e:
+            logger.error(str(e))
+            return {"error": str(e)}, 400
 
 
 class UpdateNewsItemAttributes(Resource):
     @api_key_required
     def put(self, news_item_data_id):
         news_item.NewsItemData.update_news_item_attributes(news_item_data_id, request.json)
-
-
-class UpdateNewsItemTags(Resource):
-    @api_key_required
-    def put(self, aggregate_id):
-        if data := request.json:
-            return news_item.NewsItemAggregate.update_tags(aggregate_id, data)
-        return {"error": "No data provided"}, 400
 
 
 class UpdateNewsItemsAggregateSummary(Resource):
@@ -113,10 +105,6 @@ def initialize(api: Api):
     namespace.add_resource(BotsInfo, "/", "")
     namespace.add_resource(BotInfo, "/<string:bot_id>")
     namespace.add_resource(NewsItemData, "/news-item-data")
-    namespace.add_resource(
-        UpdateNewsItemTags,
-        "/aggregate/<string:aggregate_id>/tags",
-    )
     namespace.add_resource(
         UpdateNewsItemData,
         "/news-item-data/<string:news_item_data_id>",

@@ -23,6 +23,9 @@ class IOCBot(BaseBot):
             extracted_keywords = {}
 
             for i, aggregate in enumerate(data):
+                if attributes := aggregate.get("news_item_attributes", {}):
+                    if self.type in [d["key"] for d in attributes if "key" in d]:
+                        continue
                 if i % max(len(data) // 10, 1) == 0:
                     logger.debug(f"Extracting IOCs from {aggregate['id']}: {i}/{len(data)}")
                 aggregate_content = " ".join(news_item["news_item_data"]["content"] for news_item in aggregate["news_items"])
@@ -30,7 +33,7 @@ class IOCBot(BaseBot):
                     extracted_keywords[aggregate["id"]] = iocs
 
             logger.debug(extracted_keywords)
-            self.core_api.update_tags(extracted_keywords)
+            self.core_api.update_tags(extracted_keywords, self.type)
 
         except Exception:
             logger.log_debug_trace(f"Error running Bot: {self.type}")

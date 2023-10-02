@@ -23,7 +23,7 @@ You can run the GUI on the local machine, and edit it with your favorite IDE or 
 env variables can be adapted in .env file
 
 
-to run the applicaiton locally add `VITE_TARANIS_NG_CONFIG_JSON = "/config.json.local"`  to .env file and add a `/config.json.local` file in the public folder. This can look like:
+to run the applicaiton locally add `VITE_TARANIS_NG_CONFIG_JSON = "/config.local.json"`  to .env file and add a `/config.local.json` file in the public folder. This can look like:
 
 ```
 

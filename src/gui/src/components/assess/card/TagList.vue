@@ -43,7 +43,6 @@
 <script>
 import { defineComponent } from 'vue'
 import { tagIconFromType } from '@/utils/helpers'
-import { useAssessStore } from '@/stores/AssessStore'
 import { useFilterStore } from '@/stores/FilterStore'
 
 export default defineComponent({

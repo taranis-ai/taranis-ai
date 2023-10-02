@@ -45,7 +45,6 @@ def pre_seed_source_groups():
 
 def pre_seed_workers():
     from core.managers.workers_pre_seed import workers, bots, products
-    from core.managers.data_manager import is_file_in_subfolder
     from core.model.product_type import ProductType
     from core.model.worker import Worker
     from core.model.bot import Bot
@@ -57,8 +56,7 @@ def pre_seed_workers():
         Bot.add(b)
 
     for p in products:
-        if is_file_in_subfolder("presenter_templates", p["parameters"][0]["value"]):
-            ProductType.add(p)
+        ProductType.add(p)
 
 
 def pre_seed_permissions():

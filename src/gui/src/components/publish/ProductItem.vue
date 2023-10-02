@@ -25,7 +25,12 @@
         variant="flat"
         @click="saveProduct"
       >
-        {{ $t('button.create') }}
+        <span v-if="edit">
+          {{ $t('button.save') }}
+        </span>
+        <span v-else>
+          {{ $t('button.create') }}
+        </span>
       </v-btn>
     </v-toolbar>
     <v-card-text>
@@ -167,7 +172,7 @@ export default {
 
     const saveProduct = () => {
       if (props.edit) {
-        updateProduct(product.value.id, product.value)
+        updateProduct(product.value)
       } else {
         createProduct(product.value)
           .then((response) => {

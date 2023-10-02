@@ -4,9 +4,9 @@ from worker.log import logger
 
 
 class WordlistBot(BaseBot):
-    TYPE = "WORDLIST_BOT"
-    NAME = "Wordlist Bot"
-    DESCRIPTION = "Bot for tagging news items by wordlist"
+    type = "WORDLIST_BOT"
+    name = "Wordlist Bot"
+    description = "Bot for tagging news items by wordlist"
 
     def execute(self, parameters=None):
         if not parameters:
@@ -25,10 +25,10 @@ class WordlistBot(BaseBot):
 
             found_tags = self._find_tags_for_aggregates(data, word_list_entries, override_existing_tags, ignore_case)
             logger.debug(found_tags)
-            self.core_api.update_tags(found_tags)
+            self.core_api.update_tags(found_tags, self.type)
 
         except Exception as error:
-            logger.log_debug_trace(f"Error running Bot: {self.TYPE}")
+            logger.log_debug_trace(f"Error running Bot: {self.type}")
             return str(error)
 
     @staticmethod

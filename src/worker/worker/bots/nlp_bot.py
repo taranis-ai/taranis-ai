@@ -16,7 +16,7 @@ class NLPBot(BaseBot):
         logger.debug("Setup NER Model...")
         self.ner_multi = Classifier.load("flair/ner-multi")
         torch.set_num_threads(1)  # https://github.com/pytorch/pytorch/issues/36191
-        self.extraction_text_limit = 5000
+        self.extraction_line_limit = 20
 
     def execute(self, parameters=None):
         if not parameters:
@@ -30,15 +30,19 @@ class NLPBot(BaseBot):
             update_result = {}
 
             for i, aggregate in enumerate(data):
+                if attributes := aggregate.get("news_item_attributes", {}):
+                    if self.type in [d["key"] for d in attributes if "key" in d]:
+                        logger.debug(f"Skipping {aggregate['id']} because it has attributes: {attributes}")
+                        continue
                 if i % max(len(data) // 10, 1) == 0:
                     logger.debug(f"Extracting NER from {aggregate['id']}: {i}/{len(data)}")
-                    self.core_api.update_tags(update_result)
+                    self.core_api.update_tags(update_result, self.type)
                     update_result = {}
 
                 current_keywords = self.extract_keywords(aggregate, all_keywords)
                 all_keywords |= current_keywords
                 update_result[aggregate["id"]] = current_keywords
-            self.core_api.update_tags(update_result)
+            self.core_api.update_tags(update_result, self.type)
 
         except Exception:
             logger.log_debug_trace(f"Error running Bot: {self.type}")
@@ -48,16 +52,17 @@ class NLPBot(BaseBot):
         # drop "name" from current_keywords
         current_keywords = {k: v for k, v in current_keywords.items() if k != "name"}
         aggregate_content = "\n".join(news_item["news_item_data"]["content"] for news_item in aggregate["news_items"])
-        lines = self.get_first_and_last_20_lines(aggregate_content)
+        lines = self.get_first_and_last_n_lines(aggregate_content)
         for line in lines:
             current_keywords |= self.extract_ner(line, all_keywords, self.ner_multi)
         return current_keywords
 
-    def get_first_and_last_20_lines(self, content: str) -> list:
+    def get_first_and_last_n_lines(self, content: str) -> list:
+        ll = self.extraction_line_limit
         lines = [line for line in content.split("\n") if line]
-        if len(lines) <= 40:
-            return lines[:20] + lines[20:]
-        return lines[:20] + lines[-20:]
+        if len(lines) <= (ll * 2):
+            return lines[:ll] + lines[ll:]
+        return lines[:ll] + lines[-ll:]
 
     def extract_ner(self, text: str, all_keywords, ner_model) -> dict:
         sentence = Sentence(text)

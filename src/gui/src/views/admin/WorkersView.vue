@@ -32,7 +32,7 @@
     </v-row>
     <v-row class="mt-5">
       <DataTable
-        :items="schedule"
+        :items="schedule_enhanced"
         :add-button="false"
         :header-filter="[
           'task',
@@ -62,6 +62,7 @@ import { useConfigStore } from '@/stores/ConfigStore'
 import { notifyFailure } from '@/utils/helpers'
 import { ref, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
+import { watch } from 'vue'
 
 export default {
   name: 'WorkersView',
@@ -73,6 +74,7 @@ export default {
     const edit = ref(false)
     const selected = ref([])
     const configStore = useConfigStore()
+    const schedule_enhanced = ref([])
 
     const { schedule, workers, queue_status } = storeToRefs(configStore)
 
@@ -96,6 +98,15 @@ export default {
       updateData()
     })
 
+    watch(schedule, () => {
+      schedule_enhanced.value = schedule.value.map((item) => {
+        if (item.task === 'worker.tasks.collect') {
+          item.args = configStore.getOSINTSourceNameByID(item.args)
+        }
+        return item
+      })
+    })
+
     return {
       formData,
       edit,
@@ -103,6 +114,7 @@ export default {
       schedule,
       workers,
       queue_status,
+      schedule_enhanced,
       updateData,
       deleteItem,
       selectionChange

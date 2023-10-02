@@ -18,6 +18,7 @@ class TaggingBot(BaseBot):
             if not (data := self.get_stories(parameters)):
                 return "Error getting news items"
 
+            found_tags = {}
             for aggregate in data:
                 findings = set()
                 existing_tags = aggregate["tags"] or []
@@ -32,7 +33,9 @@ class TaggingBot(BaseBot):
                         if finding := re.search(f"({regexp})", element.strip(".,")):
                             if finding[1] not in existing_tags:
                                 findings.add(finding[1])
-                self.core_api.update_news_item_tags(aggregate["id"], list(findings))
+                found_tags[aggregate["id"]] = findings
+
+            self.core_api.update_tags(found_tags, self.type)
 
         except Exception:
             logger.log_debug_trace(f"Error running Bot: {self.type}")

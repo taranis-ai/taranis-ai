@@ -29,9 +29,9 @@ from core.model.permission import Permission
 
 class DictionariesReload(Resource):
     @auth_required("CONFIG_ATTRIBUTE_UPDATE")
-    def get(self, dictionary_type):
+    def post(self, dictionary_type):
         attribute.Attribute.load_dictionaries(dictionary_type)
-        return "success", 200
+        return {"message": "success"}, 200
 
 
 class Attributes(Resource):

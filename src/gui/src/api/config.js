@@ -1,7 +1,7 @@
 import { apiService } from '@/main'
 
 export function reloadDictionaries(type) {
-  return apiService.get(`/config/reload-enum-dictionaries/${type}`)
+  return apiService.post(`/config/reload-enum-dictionaries/${type}`)
 }
 
 export function getAllAttributes(filter_data) {

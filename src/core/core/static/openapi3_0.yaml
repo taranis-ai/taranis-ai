@@ -1835,18 +1835,13 @@ paths:
         required: true
         schema:
           type: string
-    get:
+    post:
       tags: [config]
       description: reload dictionaries
       # TODO: this should be an HTTP POST/PUT request
       responses:
         '200':
           description: successfully reloaded dictionaries
-          content:
-            application/json:
-              schema:
-                type: string
-                example: success
         '401':
           description: authorization error
           content:

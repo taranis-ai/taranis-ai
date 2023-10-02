@@ -2,5 +2,6 @@
 # Sentry Auth Token
 .env.sentry-build-plugin
 /public/config.json.local
+/public/config.local.json
 .npm
 *.tgz
