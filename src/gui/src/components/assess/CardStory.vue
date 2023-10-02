@@ -137,8 +137,8 @@
               title="mark as read"
               @click.stop="markAsRead()"
             />
-            <v-list-item>
-              <votes v-if="!detailView" :story="story" />
+            <v-list-item v-if="!detailView" style="justify-content: center">
+              <votes :story="story" />
             </v-list-item>
             <v-list-item
               :prepend-icon="

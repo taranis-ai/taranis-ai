@@ -1,5 +1,5 @@
 <template>
-  <v-btn-toggle style="width: 100%" class="py-1">
+  <v-btn-toggle class="py-1 mr-1">
     <v-btn
       v-ripple="false"
       size="small"
@@ -63,6 +63,7 @@ export default {
 <style lang="scss">
 .vote-btn {
   flex: 1;
+  // center element in flex
 }
 .left-vote-btn {
   border-right: 1px solid #e0e0e0 !important;

@@ -18,7 +18,7 @@
           <v-col style="max-width: 110px" class="py-0">
             <strong>{{ $t('assess.source') }}:</strong>
           </v-col>
-          <v-col class="py-0">
+          <v-col class="py-0" @click.stop>
             <a :href="source?.link" target="_blank">
               {{ source?.name }}
             </a>
