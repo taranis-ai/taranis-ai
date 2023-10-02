@@ -95,7 +95,8 @@
           :cols="6"
           class="pa-5 taranis-ng-vertical-view"
         >
-          <div v-if="render_direct" v-html="renderedProduct" />
+          <span v-if="render_direct" v-dompurify-html="renderedProduct"></span>
+
           <vue-pdf-embed
             v-else
             :source="'data:application/pdf;base64,' + renderedProduct"
