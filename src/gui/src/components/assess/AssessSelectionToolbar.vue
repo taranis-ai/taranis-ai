@@ -4,7 +4,7 @@
       <v-col
         v-if="storySelection.length > 0"
         :cols="startCols"
-        class="story-bg toolbar-start"
+        class="story-toolbar toolbar-start"
       >
         <v-btn
           v-for="button in storyButtons"
@@ -13,27 +13,31 @@
           size="small"
           @click.stop="actionClicked(button.action)"
         >
-          <v-icon :icon="button.icon" />
+          <template #prepend>
+            <v-icon :icon="button.icon" size="small" class="mr-2" />
+          </template>
           {{ button.label }}
         </v-btn>
       </v-col>
       <v-col
         v-if="storySelection.length > 0"
         :cols="startCols / 2"
-        class="story-bg toolbar-end"
+        class="story-toolbar toolbar-end"
       >
         <v-btn size="small" @click.stop="deselect">
-          <v-icon icon="mdi-selection-remove" />
+          <template #prepend>
+            <v-icon icon="mdi-selection-remove" size="small" class="mr-2" />
+          </template>
           deselect
         </v-btn>
-        <span class="mr-4">
+        <span class="mx-4">
           Stories selected: <strong>{{ storySelection.length }}</strong>
         </span>
       </v-col>
       <v-col
         v-if="newsItemSelection.length > 0"
         :cols="startCols"
-        class="news-item-bg toolbar-start"
+        class="news-item-toolbar toolbar-start"
       >
         <v-btn
           v-for="button in newsItemButtons"
@@ -42,20 +46,24 @@
           size="small"
           @click.stop="actionClicked(button.action)"
         >
-          <v-icon :icon="button.icon" />
+          <template #prepend>
+            <v-icon :icon="button.icon" size="small" class="mr-2" />
+          </template>
           {{ button.label }}
         </v-btn>
       </v-col>
       <v-col
         v-if="newsItemSelection.length > 0"
         :cols="startCols / 2"
-        class="news-item-bg toolbar-end"
+        class="news-item-toolbar toolbar-end"
       >
         <v-btn size="small" @click.stop="deselect">
-          <v-icon icon="mdi-selection-remove" />
+          <template #prepend>
+            <v-icon icon="mdi-selection-remove" size="small" class="mr-2" />
+          </template>
           deselect
         </v-btn>
-        <span class="mr-4">
+        <span class="mx-4">
           News Items selected: <strong>{{ newsItemSelection.length }}</strong>
         </span>
       </v-col>
@@ -121,7 +129,7 @@ export default {
       const buttons = [
         {
           label: 'remove',
-          icon: 'mdi-card-remove',
+          icon: 'mdi-close-circle-outline',
           action: 'remove'
         }
       ]
@@ -178,10 +186,19 @@ export default {
   align-items: center;
   justify-content: end;
 }
-.story-bg {
-  background-color: #7468e8;
+.story-toolbar {
+  background-color: color-mix(
+    in srgb,
+    rgb(var(--v-theme-primary)) 90%,
+    #ffffff
+  );
+  color: white;
 }
-.news-item-bg {
-  background-color: #fc3c3c;
+.news-item-toolbar {
+  background-color: color-mix(
+    in srgb,
+    rgb(var(--v-theme-secondary)) 80%,
+    #ffffff
+  );
 }
 </style>
