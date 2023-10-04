@@ -3,12 +3,10 @@
     :ripple="false"
     elevation="3"
     :rounded="false"
-    class="no-gutters align-self-stretch mb-3 mt-2"
-    :class="[
-      {
-        newsitemselected: selected
-      }
-    ]"
+    class="no-gutters align-self-stretch mb-3 mt-2 news-item-card"
+    :class="{
+      selected: selected
+    }"
     @click="toggleSelection"
   >
     <v-row>
@@ -36,7 +34,7 @@
           size="small"
           class="item-action-btn"
           variant="tonal"
-          append-icon="mdi-text-box-search-outline"
+          prepend-icon="mdi-text-box-search-outline"
           :to="'/newsitem/' + newsItem.id"
           title="View News Item"
           @click.stop
@@ -50,7 +48,7 @@
           size="small"
           class="item-action-btn"
           variant="tonal"
-          :append-icon="openSummary ? 'mdi-chevron-up' : 'mdi-chevron-down'"
+          :prepend-icon="openSummary ? 'mdi-chevron-up' : 'mdi-chevron-down'"
           @click.stop="openCard"
         >
           <span> {{ news_item_summary_text }} </span>
@@ -62,7 +60,7 @@
           size="small"
           class="item-action-btn"
           variant="tonal"
-          append-icon="mdi-card-remove"
+          prepend-icon="mdi-close-circle-outline"
           @click.stop="removeFromStory()"
         >
           <span>Remove</span>
@@ -125,7 +123,7 @@
         cols="12"
         sm="12"
         lg="6"
-        class="px-5 order-lg-3 order-md-2"
+        class="px-5 pb-5 order-lg-3 order-md-2"
         align-self="stretch"
       >
         <summarized-content
@@ -251,24 +249,25 @@ export default {
 }
 </script>
 
-<style scoped>
-.newsitemselected {
-  background-color: lighten(#fc3c3c, 30);
-  border: 2px solid #fc3c3c;
-  margin: -2px;
-}
-.news-item-title {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 1;
-  line-clamp: 1;
-  -webkit-box-orient: vertical;
-  max-height: calc(1.5em * 2);
-  line-height: 1.3;
-}
-.news-item-title-no-clip {
-  max-height: calc(1.5em * 2);
-  line-height: 1.3;
+<style scoped lang="scss">
+.news-item-card {
+  border: 2px solid white;
+  &:hover {
+    transition: border-color 180ms;
+    border-color: color-mix(
+      in srgb,
+      rgb(var(--v-theme-secondary)) 50%,
+      #ffffff
+    );
+  }
+  &.selected {
+    // background-color: #c3b66c;
+    background-color: color-mix(
+      in srgb,
+      rgb(var(--v-theme-secondary)) 5%,
+      #ffffff
+    );
+    border-color: rgb(var(--v-theme-secondary));
+  }
 }
 </style>

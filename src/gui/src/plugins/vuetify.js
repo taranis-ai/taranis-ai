@@ -40,7 +40,7 @@ const light = {
   dark: false,
   colors: {
     primary: '#7468E8',
-    secondary: '#34a5e8',
+    secondary: '#E9C645',
     accent: '#cfcde5',
     info: '#2196F3',
     error: '#ba3b3b',

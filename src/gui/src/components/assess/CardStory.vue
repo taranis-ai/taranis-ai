@@ -5,11 +5,9 @@
     elevation="3"
     :rounded="false"
     class="no-gutters align-self-stretch mb-3 mt-2 mx-4 story-card"
-    :class="[
-      {
-        selected: selected
-      }
-    ]"
+    :class="{
+      selected: selected
+    }"
     @click="toggleSelection"
   >
     <v-row>
@@ -39,7 +37,7 @@
           size="small"
           class="item-action-btn"
           variant="tonal"
-          append-icon="mdi-open-in-app"
+          prepend-icon="mdi-open-in-app"
           :to="'/story/' + story.id"
           @click.stop
         >
@@ -52,7 +50,7 @@
           size="small"
           class="item-action-btn"
           variant="tonal"
-          append-icon="mdi-google-circles-communities"
+          prepend-icon="mdi-google-circles-communities"
           @click.stop="sharingDialog = true"
         >
           <span>add to Report</span>
@@ -64,7 +62,7 @@
           size="small"
           class="item-action-btn"
           variant="tonal"
-          append-icon="mdi-trash-can"
+          prepend-icon="mdi-trash-can"
           @click.stop="$emit('remove-from-report')"
         >
           <span>Remove</span>
@@ -77,7 +75,7 @@
           class="item-action-btn expand-btn"
           :class="{ 'expanded-card': openSummary }"
           variant="tonal"
-          :append-icon="openSummary ? 'mdi-chevron-up' : 'mdi-chevron-down'"
+          :prepend-icon="openSummary ? 'mdi-chevron-up' : 'mdi-chevron-down'"
           :style="{ minWidth: minButtonWidth }"
           @click.stop="openCard"
         >
@@ -93,7 +91,9 @@
           size="small"
           class="item-action-btn"
           variant="tonal"
-          :append-icon="!story.read ? 'mdi-eye-outline' : 'mdi-eye-off-outline'"
+          :prepend-icon="
+            !story.read ? 'mdi-eye-outline' : 'mdi-eye-off-outline'
+          "
           @click.stop="markAsRead()"
         >
           <span>{{ !story.read ? 'read' : 'unread' }}</span>
@@ -370,19 +370,24 @@ export default {
 }
 </script>
 
-<style scoped lang="scss">
+<style lang="scss">
+.v-card__overlay {
+  background-color: white !important;
+}
+
 .story-card {
   border: 2px solid white;
   &:hover {
-    border-color: #f6f6f6;
+    transition: border-color 180ms;
+    border-color: color-mix(in srgb, rgb(var(--v-theme-primary)) 50%, #ffffff);
   }
   &.selected {
     background-color: color-mix(
       in srgb,
-      rgb(var(--v-theme-primary)) 8%,
+      rgb(var(--v-theme-primary)) 5%,
       #ffffff
     );
-    border-color: #7468e8;
+    border-color: rgb(var(--v-theme-primary));
     margin: -2px;
   }
 }
@@ -390,7 +395,11 @@ export default {
 .news-item-container {
   background-color: #f0f0f0;
   border: 2px dotted rgb(var(--v-theme-primary));
-  background-color: color-mix(in srgb, rgb(var(--v-theme-primary)) 8%, #ffffff);
+  background-color: color-mix(
+    in srgb,
+    rgb(var(--v-theme-primary)) 15%,
+    #eaeaea
+  );
   border-radius: 4px;
 }
 
@@ -411,6 +420,12 @@ export default {
 
 .item-action-btn {
   flex: 1;
+  & .v-btn__append {
+    margin-left: 0.5rem;
+  }
+  & .v-btn__prepend {
+    margin-right: 0.5rem;
+  }
 }
 
 button.item-action-btn.expandable {

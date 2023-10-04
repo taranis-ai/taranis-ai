@@ -37,10 +37,12 @@
     <template #append>
       <v-toolbar color="transparent">
         <div v-for="button in buttonList" :key="button.route">
-          <v-btn variant="text" :ripple="false" :to="button.route">
-            <v-icon left size="small" class="mr-2" color="primary">{{
-              button.icon
-            }}</v-icon>
+          <v-btn
+            variant="text"
+            :ripple="false"
+            :to="button.route"
+            :prepend-icon="button.icon"
+          >
             <span class="main-menu-item">
               {{ $t(button.title) }}
             </span>
@@ -163,5 +165,9 @@ export default defineComponent({
 .v-toolbar-title,
 .v-toolbar-title div {
   height: 100%;
+}
+
+.v-btn--active i {
+  color: #7468e8;
 }
 </style>
