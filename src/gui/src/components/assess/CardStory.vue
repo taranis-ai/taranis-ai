@@ -55,7 +55,7 @@
           append-icon="mdi-google-circles-communities"
           @click.stop="sharingDialog = true"
         >
-          <span>Add to Report</span>
+          <span>add to Report</span>
         </v-btn>
 
         <v-btn
@@ -74,13 +74,14 @@
           v-if="!detailView"
           v-ripple="false"
           size="small"
-          class="item-action-btn"
+          class="item-action-btn expand-btn"
+          :class="{ 'expanded-card': openSummary }"
           variant="tonal"
           :append-icon="openSummary ? 'mdi-chevron-up' : 'mdi-chevron-down'"
           :style="{ minWidth: minButtonWidth }"
           @click.stop="openCard"
         >
-          <span> {{ news_item_summary_text }} </span>
+          <span>{{ news_item_summary_text }} </span>
           <span v-if="news_item_length > 1" class="primary--text"
             >&nbsp;[{{ news_item_length }}]</span
           >
@@ -192,7 +193,7 @@
       </v-col>
     </v-row>
   </v-card>
-  <v-row v-if="openSummary" dense class="ma-0 py-0 px-2">
+  <v-row v-if="openSummary" dense class="ma-0 mx-2 py-0 px-2">
     <div class="news-item-container">
       <div class="mx-5 my-5">
         <card-news-item
@@ -369,14 +370,18 @@ export default {
 }
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .story-card {
   border: 2px solid white;
   &:hover {
     border-color: #f6f6f6;
   }
   &.selected {
-    background-color: lighten(#7468e8, 30);
+    background-color: color-mix(
+      in srgb,
+      rgb(var(--v-theme-primary)) 8%,
+      #ffffff
+    );
     border-color: #7468e8;
     margin: -2px;
   }
@@ -384,7 +389,9 @@ export default {
 
 .news-item-container {
   background-color: #f0f0f0;
-  border: 2px dotted #999999;
+  border: 2px dotted rgb(var(--v-theme-primary));
+  background-color: color-mix(in srgb, rgb(var(--v-theme-primary)) 8%, #ffffff);
+  border-radius: 4px;
 }
 
 .news-item-title {
@@ -404,5 +411,14 @@ export default {
 
 .item-action-btn {
   flex: 1;
+}
+
+button.item-action-btn.expandable {
+  min-width: 34px !important;
+}
+
+.expand-btn.expanded-card {
+  background-color: rgb(var(--v-theme-primary));
+  color: white;
 }
 </style>

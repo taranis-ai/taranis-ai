@@ -1,12 +1,12 @@
 <template>
-  <span :class="news_item_summary_class">
+  <span :class="open ? 'news-item-summary-no-clip' : 'news-item-summary'">
     <v-tooltip v-if="isSummarized" top>
       <template #activator="{ props }">
         <v-icon v-bind="props">mdi-text-short</v-icon>
       </template>
-      <span>This text is Summarized</span>
     </v-tooltip>
     <span v-dompurify-html="highlighted"></span>
+    <span v-if="!open"> ... </span>
   </span>
 </template>
 
@@ -33,17 +33,12 @@ export default {
   setup(props) {
     const colorStart = ref(Math.floor(Math.random() * 9))
 
-    const news_item_summary_class = computed(() => {
-      return props.open ? 'news-item-summary-no-clip' : 'news-item-summary'
-    })
-
     const highlighted = computed(() => {
       return highlight_text(props.content)
     })
 
     return {
       colorStart,
-      news_item_summary_class,
       highlighted
     }
   }
@@ -54,7 +49,6 @@ export default {
 .news-item-summary {
   margin-bottom: 0px !important;
   overflow: hidden;
-  text-overflow: ellipsis;
   display: -webkit-box;
   -webkit-line-clamp: 4;
   line-clamp: 4;
@@ -62,7 +56,6 @@ export default {
   height: calc(1.5em * 4);
 }
 .news-item-summary-no-clip {
-  margin-bottom: 0px !important;
   min-height: 6em;
 }
 </style>
