@@ -38,7 +38,9 @@
       <v-toolbar color="transparent">
         <div v-for="button in buttonList" :key="button.route">
           <v-btn variant="text" :ripple="false" :to="button.route">
-            <v-icon left>{{ button.icon }}</v-icon>
+            <v-icon left size="small" class="mr-2" color="primary">{{
+              button.icon
+            }}</v-icon>
             <span class="main-menu-item">
               {{ $t(button.title) }}
             </span>
