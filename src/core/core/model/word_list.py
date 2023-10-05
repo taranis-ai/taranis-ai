@@ -13,8 +13,8 @@ from core.managers.log_manager import logger
 
 
 class WordListUsage(IntEnum):
-    COLLECTOR_WHITELIST = 1  # 2^0
-    COLLECTOR_BLACKLIST = 2  # 2^1
+    COLLECTOR_INCLUDELIST = 1  # 2^0
+    COLLECTOR_EXCLUDELIST = 2  # 2^1
     TAGGING_BOT = 4  # 2^2
 
 
@@ -63,9 +63,9 @@ class WordList(BaseModel):
             self.usage = usage
 
     def is_valid_usage(self, usage: int) -> bool:
-        if usage == WordListUsage.COLLECTOR_WHITELIST and self.usage & WordListUsage.COLLECTOR_BLACKLIST:
+        if usage == WordListUsage.COLLECTOR_INCLUDELIST and self.usage & WordListUsage.COLLECTOR_EXCLUDELIST:
             return False
-        if usage == WordListUsage.COLLECTOR_BLACKLIST and self.usage & WordListUsage.COLLECTOR_WHITELIST:
+        if usage == WordListUsage.COLLECTOR_EXCLUDELIST and self.usage & WordListUsage.COLLECTOR_INCLUDELIST:
             return False
         return usage < (2 ** len(WordListUsage))
 

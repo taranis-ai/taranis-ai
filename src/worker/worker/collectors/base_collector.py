@@ -20,23 +20,44 @@ class BaseCollector:
     def filter_by_word_list(self, news_items, source):
         if not source["word_lists"]:
             return news_items
-        white_list = set()
-        black_list = set()
+        include_list = set()
+        exclude_list = set()
+
         for word_list in source["word_lists"]:
-            if "COLLECTOR_WHITELIST" in word_list["usage"]:
+            if "COLLECTOR_INCLUDELIST" in word_list["usage"]:
                 for entry in word_list["entries"]:
-                    white_list.add(entry.value)
-            if "COLLECTOR_BLACKLIST" in word_list["usage"]:
+                    include_list.add(entry["value"])
+
+            if "COLLECTOR_EXCLUDELIST" in word_list["usage"]:
                 for entry in word_list["entries"]:
-                    black_list.add(entry.value)
-        if not white_list and not black_list:
-            return news_items
-        all_content = " ".join([item["title"] + item["review"] + item["content"] for item in news_items])
+                    exclude_list.add(entry["value"])
 
-        white_list_first = white_list - black_list
-        # black_list_first = black_list - white_list
+        items = (
+            [
+                item
+                for item in news_items
+                if any(
+                    re.search(r"\b" + re.escape(word) + r"\b", "".join(item["title"] + item["review"] + item["content"]), re.IGNORECASE)
+                    for word in include_list
+                )
+            ]
+            if include_list
+            else news_items
+        )
 
-        return [word for word in white_list_first if re.search(r"\b" + re.escape(word) + r"\b", all_content, re.IGNORECASE)]
+        if exclude_list:
+            items = [
+                item
+                for item in items
+                if not any(
+                    re.search(r"\b" + re.escape(word) + r"\b", "".join(item["title"] + item["review"] + item["content"]), re.IGNORECASE)
+                    for word in exclude_list
+                )
+            ]
+
+        return items
+
+    # Use filtered_items for further processing
 
     def collect(self, source: dict):
         pass

@@ -28,7 +28,7 @@ to run the applicaiton locally add `VITE_TARANIS_NG_CONFIG_JSON = "/config.local
 ```
 
 {
-"TARANIS_NG_CORE_API": "http://localhost:5000/api/v1"
+"TARANIS_NG_CORE_API": "http://localhost:5000/api"
 }
 
 ```

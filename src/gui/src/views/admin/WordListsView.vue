@@ -106,8 +106,8 @@ export default {
         label: 'Usage',
         type: 'checkbox',
         items: [
-          { value: 'COLLECTOR_WHITELIST', label: 'Collector Whitelist' },
-          { value: 'COLLECTOR_BLACKLIST', label: 'Collector Blacklist' },
+          { value: 'COLLECTOR_INCLUDELIST', label: 'Collector Includelist' },
+          { value: 'COLLECTOR_EXCLUDELIST', label: 'Collector Excludelist' },
           { value: 'TAGGING_BOT', label: 'Tagging Bot' }
         ]
       },
@@ -156,17 +156,17 @@ export default {
       }
 
       if (
-        usage.includes('COLLECTOR_WHITELIST') &&
-        usage.includes('COLLECTOR_BLACKLIST')
+        usage.includes('COLLECTOR_INCLUDELIST') &&
+        usage.includes('COLLECTOR_EXCLUDELIST')
       ) {
-        notifyFailure('Whitelist and Blacklist are mutually exclusive')
+        notifyFailure('Includelist and Excludelist are mutually exclusive')
         return false
       }
       if (
-        usage.includes('COLLECTOR_BLACKLIST') &&
+        usage.includes('COLLECTOR_EXCLUDELIST') &&
         usage.includes('TAGGING_BOT')
       ) {
-        notifyFailure('Blacklist and Tagging Bot are mutually exclusive')
+        notifyFailure('Excludelist and Tagging Bot are mutually exclusive')
         return false
       }
       return true
