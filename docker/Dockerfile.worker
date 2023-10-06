@@ -1,4 +1,4 @@
-FROM python:3-slim as builder
+FROM python:3.11-slim as builder
 
 WORKDIR /app/
 
@@ -19,7 +19,7 @@ RUN python3 -m venv /app/.venv && \
     pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch && \
     pip install --no-cache-dir -e /app/
 
-FROM python:3-slim
+FROM python:3.11-slim
 
 WORKDIR /app
 

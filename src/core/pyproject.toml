@@ -14,7 +14,7 @@ classifiers = [
 ]
 requires-python = ">=3.11"
 dependencies = [
-    "Flask",
+    "Flask==2.3.3",
     "Flask-Cors",
     "Flask-JWT-Extended",
     "Flask-Migrate",
