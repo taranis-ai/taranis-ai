@@ -73,7 +73,8 @@ jobs:
 
   build_docker:
     name: build docker
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+    needs: test
     steps:
       - uses: actions/checkout@v3
       - name: Login to GitHub Container Registry
