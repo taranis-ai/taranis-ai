@@ -37,7 +37,7 @@ class Settings(BaseSettings):
         self.SQLALCHEMY_DATABASE_URI = f"{self.SQLALCHEMY_SCHEMA}://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_URL}/{self.DB_DATABASE}"
         return self
 
-    TARANIS_NG_AUTHENTICATOR: Literal["database", "keycloak", "openid", "test"] = "database"
+    TARANIS_NG_AUTHENTICATOR: Literal["database", "openid", "test"] = "database"
 
     OPENID_CLIENT_ID: str | None = None
     OPENID_CLIENT_SECRET: str | None = None

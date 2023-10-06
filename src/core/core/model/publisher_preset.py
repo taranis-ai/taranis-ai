@@ -58,7 +58,7 @@ class PublisherPreset(BaseModel):
         preset = cls.get(preset_id)
         if not preset:
             logger.error(f"Could not find preset with id {preset_id}")
-            return None
+            return {"error": f"Could not find preset with id {preset_id}"}, 404
         if name := data.get("name"):
             preset.name = name
         if description := data.get("description"):
@@ -67,7 +67,7 @@ class PublisherPreset(BaseModel):
             updated_preset = ParameterValue.get_or_create_from_list(parameters)
             preset.parameters = ParameterValue.get_update_values(preset.parameters, updated_preset)
         db.session.commit()
-        return preset.id
+        return {"message": "Successfully updated", "id": preset.id}, 200
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()

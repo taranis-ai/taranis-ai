@@ -1,5 +1,3 @@
-/* COLOR THEMES TARANIS NG */
-
 const defaultDark = Object.freeze({
   // default dark theme for all
   primary: '#4092dd',

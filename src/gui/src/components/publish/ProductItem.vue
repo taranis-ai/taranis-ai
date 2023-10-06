@@ -37,7 +37,7 @@
       <v-row no-gutters>
         <v-col
           :cols="verticalView ? 6 : 12"
-          :class="verticalView ? 'taranis-ng-vertical-view' : ''"
+          :class="verticalView ? 'taranis-vertical-view' : ''"
         >
           <v-form id="form" ref="form" class="px-4">
             <v-row no-gutters>
@@ -90,11 +90,7 @@
             </v-row>
           </v-form>
         </v-col>
-        <v-col
-          v-if="verticalView"
-          :cols="6"
-          class="pa-5 taranis-ng-vertical-view"
-        >
+        <v-col v-if="verticalView" :cols="6" class="pa-5 taranis-vertical-view">
           <span v-if="render_direct" v-dompurify-html="renderedProduct"></span>
 
           <vue-pdf-embed

@@ -85,15 +85,15 @@ class ACLEntry(BaseModel):
         return data
 
     @classmethod
-    def update(cls, acl_id: int, data) -> tuple[str, int]:
-        acl = cls.query.get(acl_id)
-        if acl is None:
-            return "ACL not found", 404
+    def update(cls, acl_id: int, data) -> tuple[dict, int]:
+        acl = cls.get(acl_id)
+        if not acl:
+            return {"error": "ACL not found"}, 404
         for key, value in data.items():
             if hasattr(acl, key) and key != "id":
                 setattr(acl, key, value)
         db.session.commit()
-        return f"Succussfully updated {acl.id}", 201
+        return {"message": f"Succussfully updated {acl.id}", "id": acl.id}, 201
 
     @classmethod
     def apply_query(cls, query: query.Query, user: User, see: bool, access: bool, modify: bool) -> query.Query:

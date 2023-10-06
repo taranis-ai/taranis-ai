@@ -88,9 +88,9 @@ class ScheduleEntry(BaseModel):
                 data["schedule"] = 1440 * 60
             elif schedule == "weekly":
                 data["schedule"] = 10080 * 60
-            elif type(schedule) == int:
+            elif isinstance(schedule, int):
                 data["schedule"] = schedule * 60
-            elif type(schedule) == str and schedule.isdigit():
+            elif isinstance(schedule, str) and schedule.isdigit():
                 data["schedule"] = int(schedule) * 60
             else:
                 data["schedule"] = 600 * 60

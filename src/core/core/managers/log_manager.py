@@ -141,7 +141,7 @@ class Logger(TaranisLogger):
         # LogRecord.store(log_data)
 
     def store_data_error_activity(self, user, activity_detail):
-        self.store_user_auth_error_activity(user, activity_detail, "TARANIS NG Data Error: (%s)")
+        self.store_user_auth_error_activity(user, activity_detail, "Data Error: (%s)")
 
     def store_data_error_activity_no_user(self, activity_detail):
         log_data = {
@@ -158,7 +158,7 @@ class Logger(TaranisLogger):
         }
 
         self.rollback_and_store_to_db(log_data)
-        self.logger.error("TARANIS NG Public Access Data Error: (%s)", log_data)
+        self.logger.error("Public Access Data Error: (%s)", log_data)
 
     def store_auth_error_activity(self, activity_detail):
         log_data = {
@@ -175,7 +175,7 @@ class Logger(TaranisLogger):
         }
 
         self.rollback_and_store_to_db(log_data)
-        self.logger.error("TARANIS NG Auth Error: (%s)", log_data)
+        self.logger.error("Auth Error: (%s)", log_data)
 
     def store_user_auth_error_activity(self, user, activity_detail, message):
         log_data = {
@@ -209,7 +209,7 @@ class Logger(TaranisLogger):
         }
 
         self.rollback_and_store_to_db(log_data)
-        self.logger.error("TARANIS NG System Critical: (%s)", log_data)
+        self.logger.error("System Critical: (%s)", log_data)
 
     def store_system_activity(self, system_id, system_name, activity_type, activity_detail):
         pass

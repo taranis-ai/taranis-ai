@@ -1,21 +1,17 @@
-# Taranis NG
+# Taranis AI
 
-Taranis NG is an OSINT gathering and analysis tool for CSIRT teams and
-organisations. It allows osint gathering, analysis and reporting; team-to-team
-collaboration; and contains a user portal for simple self asset management.
+![Logo](./resources/images/logo.svg)
 
-Taranis crawls various **data sources** such as web sites or tweets to gather
-unstructured **news items**. These are processed by analysts to create
-structured **report items**, which are used to create **products** such as PDF
-files, which are finally **published**.
+Taranis AI is an advanced Open-Source Intelligence (OSINT) tool, leveraging Artificial Intelligence to revolutionize information gathering and situational analysis.
 
-Taranis supports **team-to-team collaboration**, and includes a light weight
-**self service asset management** which automatically links to the advisories
-that mention vulnerabilities in the software.
+Taranis navigates through diverse data sources like websites to collect unstructured news articles, utilizing Natural Language Processing and Artificial Intelligence to enhance content quality.
+Analysts then refine these AI-augmented articles into structured reports that serve as the foundation for deliverables such as PDF files, which are ultimately published.
+
+![Screenshot](./resources/images/screenshot.png)
 
 ## Documentation
 
-See [doc/2023_IKTSichKonf_AWAKE_v2.pdf](ADVANCED OSINT ANALYSIS FOR NIS AUTHORITIES, CSIRT TEAMS AND ORGANISATIONS) for a presentation about the current features.
+See [ADVANCED OSINT ANALYSIS FOR NIS AUTHORITIES, CSIRT TEAMS AND ORGANISATIONS](./doc/2023_IKTSichKonf_AWAKE_v3.pdf) for a presentation about the current features.
 
 See [wiki](https://github.com/ait-cs-IaaS/Taranis-NG/wiki) for documentation of user stories and deployment guides.
 
@@ -29,24 +25,21 @@ See [wiki](https://github.com/ait-cs-IaaS/Taranis-NG/wiki) for documentation of 
 | Worker    | beat      | Celery Beat instance for scheduling tasks |
 
 
-## Support services
+### Support services
 | Type            | Name                 | Description                           |
 | :-------------- | :------------------- | :------------------------------------ |
 | Database        | database             | Supported are PostgreSQL and SQLite with PostgreSQL as our primary citizen |
 | Message-broker  | rabbitmq             | Message Broker for distribution of Workers and Publish Subscribe Queue Management |
 
 
-This is just a taste of its features:
+## Features
 
-- crawl the raw data using various collectors, perhaps located in different environments.
-- process even those javascript-generated web pages with advanced data extraction techniques
-- create different analyses with completely customizable report item types
-- generate many different products with help of product templates
-- easily publish to different channels
-- time is money: collaborate with other teams by sharing interesting data. Each partnership can be configured and customized.
-- split the work responsibilities any way you like, or have multiple teams process partially overlapping data using advanced role and permission system
-- use wordlists for filtering and highlighting
-- publish the self-service asset management portal to your constituency and allow them to set various notification profiles for those times when a vulnerability hits their product.
+* Advanced OSINT Capabilities: Taranis AI scours multiple data sources, such as websites, for unstructured news articles, providing a comprehensive intelligence feed.
+* AI-Enhanced Analysis: Utilizes Artificial Intelligence and Natural Language Processing to automatically enhance and enrich collected articles for higher content quality.
+* Analyst-Friendly Workflow: Offers a streamlined process where analysts can easily convert unstructured news into structured report items, optimizing the data transformation journey.
+* Multi-Format Output: Generates a variety of end products, including structured reports and PDF files, tailored to specific informational needs.
+* Seamless Publishing: Facilitates the effortless publication of finalized intelligence products, ensuring timely dissemination of critical information.
+
 
 ### Hardware requirements
 To use all NLP features make sure to have at least: 16 GB RAM, 4 CPU cores and 50GB of disk storage.
@@ -55,30 +48,19 @@ To use all NLP features make sure to have at least: 16 GB RAM, 4 CPU cores and 5
 Without NLP: 2 GB of RAM, 2 CPU cores and 20 GB of disk storage
 
 
-Taranis NG was developed by [SK-CERT](https://www.sk-cert.sk/) with a help from
-wide CSIRT community, and is released under terms of the [European Union Public
-Licence](https://eupl.eu/1.2/en/).
+### Directory structure
 
-## Directory structure
-
-- src/ - Taranis NG source code:
-  - [Core](src/core/) is the REST API, the central component of Taranis NG
+- src/ - Taranis AI source code:
+  - [Core](src/core/) is the REST API, the central component of Taranis AI
   - [GUI](src/gui/) is the web user interface
   - [Worker](src/worker/) retrieve OSINT information from various sources (such as web, twitter, email, atom, rss, slack, and more) and create **news items**.
 - [docker/](docker/) - Support files for Docker image creation and example docker-compose file
 
-## About...
+## About
 
-This project was inspired by [Taranis3](https://github.com/NCSC-NL/taranis3),
-a great tool made by NCSC-NL. It aims to become a next generation of this
-category of tools. The project was made in collaboration with a wide
-group of European CSIRT teams who are developers and users of Taranis3,
-and would not be possible without their valuable input especially
-during the requirements collection phase. The architecture and design
-of new Taranis NG is a collective brain child of this community.
+This project was inspired by [Taranis3](https://github.com/NCSC-NL/taranis3), as well as by [Taranis-NG](https://github.com/SK-CERT/Taranis-NG/).
+It is released under terms of the [European Union Public Licence](https://eupl.eu/1.2/en/).
 
-This project has been co-funded by European Regional Development Fund as part of [Operational Programme Integrated Infrastructure (OPII)](https://www.opii.gov.sk/opii-en/titulka-en).
+## EU Funding
 
-Further development has been co-funded by “Connecting Europe Facility – Cybersecurity Digital Service Infrastructure Maintenance and Evolution of Core Service Platform Cooperation Mechanism for CSIRTs – MeliCERTes Facility” (SMART 2018/1024).
-
-Further development is being co-funded by European Commission through the Connecting Europe Facility action entitled "Joint Threat Analysis Network", action number 2020-EU-IA-0260.
+![Co-financed by the Connecting Europe Facility of the European Union](https://ec.europa.eu/inea/sites/default/files/ceflogos/en_horizontal_cef_logo_2.png)

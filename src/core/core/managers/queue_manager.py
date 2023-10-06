@@ -102,7 +102,7 @@ class QueueManager:
     def execute_bot_task(self, bot_id: int):
         if self.send_task("worker.tasks.execute_bot", args=[bot_id]):
             logger.info(f"Executing Bot {bot_id} scheduled")
-            return {"message": f"Executing Bot {bot_id} scheduled"}, 200
+            return {"message": f"Executing Bot {bot_id} scheduled", "id": bot_id}, 200
         return {"error": "Could not reach rabbitmq"}, 500
 
     def generate_product(self, product_id: int):

@@ -1,4 +1,4 @@
-# Taranis NG GUI
+# Taranis GUI
 
 The GUI is written in [Vue.js](https://vuejs.org/) with [Vuetify](https://vuetifyjs.com/en/).
 

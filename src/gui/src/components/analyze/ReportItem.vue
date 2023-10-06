@@ -44,7 +44,7 @@
       <v-row no-gutters>
         <v-col
           :cols="verticalView ? 6 : 12"
-          :class="verticalView ? 'taranis-ng-vertical-view' : ''"
+          :class="verticalView ? 'taranis-vertical-view' : ''"
         >
           <v-row no-gutters>
             <v-col v-if="edit" cols="12">
@@ -118,10 +118,7 @@
             </v-col>
           </v-row>
         </v-col>
-        <v-col
-          :cols="verticalView ? 6 : 12"
-          class="pa-5 taranis-ng-vertical-view"
-        >
+        <v-col :cols="verticalView ? 6 : 12" class="pa-5 taranis-vertical-view">
           <card-story
             v-for="story in report_item.news_item_aggregates"
             :key="story.id"

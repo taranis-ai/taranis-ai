@@ -327,7 +327,9 @@ class OSINTSourceGroup(BaseModel):
         return {
             "name": self.name,
             "description": self.description,
-            "osint_sources": [source_mapping[osint_source.id] for osint_source in self.osint_sources if osint_source],
+            "osint_sources": [
+                source_mapping[osint_source.id] for osint_source in self.osint_sources if osint_source and osint_source.id in source_mapping
+            ],
         }
 
     @classmethod

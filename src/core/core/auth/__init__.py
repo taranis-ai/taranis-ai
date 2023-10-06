@@ -1,1 +1,1 @@
-__all__ = ["keycloak_authenticator", "openid_authenticator", "test_authenticator"]
+__all__ = ["database_authenticator", "openid_authenticator", "test_authenticator"]

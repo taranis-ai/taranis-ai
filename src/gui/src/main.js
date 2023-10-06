@@ -29,7 +29,7 @@ const mainStore = useMainStore()
 mainStore.updateFromLocalConfig()
 const { coreAPIURL, sentryDSN } = mainStore
 
-console.debug('Taranis-NG initialized ', coreAPIURL, sentryDSN)
+console.debug('CoreAPI initialized ', coreAPIURL, sentryDSN)
 export const apiService = new ApiService(coreAPIURL)
 app.provide('$coreAPIURL', coreAPIURL)
 

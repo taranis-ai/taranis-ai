@@ -1,8 +1,8 @@
 {
 	"info": {
 		"_postman_id": "a9a3265e-53df-4709-86af-fd115013cd4f",
-		"name": "Taranis NG",
-		"description": "The Taranis NG API provides endpoints for the Taranis NG is an OSINT gathering and analysis tool.\n\nContact Support:\n Name: Benjamin Akhras\n Email: benjamin.akhras@ait.ac.at",
+		"name": "Taranis AI",
+		"description": "The Taranis AI API provides endpoints for the Taranis AI is an OSINT gathering and analysis tool.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "5662627",
 		"_collection_link": "https://www.postman.com/b3n4kh/workspace/taranis/collection/5662627-a9a3265e-53df-4709-86af-fd115013cd4f?action=share&source=collection_link&creator=5662627"

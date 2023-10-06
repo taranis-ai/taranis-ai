@@ -1,4 +1,4 @@
-# Taranis-NG Worker
+# Taranis Worker
 
 This worker is a celery worker
 
@@ -22,4 +22,3 @@ as a scheduler
 ```bash
 celery -A worker beat
 ```
-

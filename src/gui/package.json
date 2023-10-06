@@ -1,5 +1,5 @@
 {
-  "name": "taranis-ng-ui",
+  "name": "taranis-ui",
   "private": true,
   "scripts": {
     "dev": "vite",

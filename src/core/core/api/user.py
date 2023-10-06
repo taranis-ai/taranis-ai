@@ -3,9 +3,8 @@ from flask import request
 
 from core.managers import auth_manager
 from core.managers.auth_manager import auth_required
-from core.model import word_list, product_type, publisher_preset
+from core.model import product_type, publisher_preset
 from core.model.user import User
-from core.managers.log_manager import logger
 
 
 class UserProfile(Resource):

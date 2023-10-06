@@ -12,7 +12,6 @@ from flask_jwt_extended.exceptions import JWTExtendedException
 
 # from core.managers import queue_manager
 from core.managers.log_manager import logger
-from core.auth.keycloak_authenticator import KeycloakAuthenticator
 from core.auth.openid_authenticator import OpenIDAuthenticator
 from core.auth.test_authenticator import TestAuthenticator
 from core.auth.database_authenticator import DatabaseAuthenticator
@@ -38,8 +37,6 @@ def initialize(app):
     authenticator = app.config.get("TARANIS_NG_AUTHENTICATOR", None)
     if authenticator == "openid":
         current_authenticator = OpenIDAuthenticator()
-    elif authenticator == "keycloak":
-        current_authenticator = KeycloakAuthenticator()
     elif authenticator == "database":
         current_authenticator = DatabaseAuthenticator()
     elif authenticator == "test":

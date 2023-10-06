@@ -1,11 +1,11 @@
 openapi: 3.0.3
 info:
-  title: Taranis NG
+  title: Taranis
   contact:
     name: Benjamin Akhras
     email: benjamin.akhras@ait.ac.at
   description: |-
-    The Taranis NG API provides endpoints for the Taranis NG is an OSINT gathering and analysis tool.
+    The Taranis API provides endpoints for the Taranis is an OSINT gathering and analysis tool.
   license:
     name: EUPL-1.2
   version: 0.1.8
@@ -30,7 +30,7 @@ tags:
     description: read/update report items, their types, groups and attributes
   - name: assess
     description: read/update/delete OSINT sources and news items
-  - name: my-assets
+  - name: assets
     description: read/update/delete asset groups, notification templates and attributes
   - name: bots
     description: read/update/delete bots-related information
@@ -246,32 +246,6 @@ paths:
           $ref: "#/components/schemas/notFound"
         '500':
           description: Internal server error
-  /users/my-word-lists:
-    get:
-      tags: [users]
-      description: get the user's wordlists
-      responses:
-        '200':
-          description: the user's wordlists
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  total_count:
-                    type: integer
-                  items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/wordlist'
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
   /users/my-product-types:
     get:
       tags: [users]
@@ -747,7 +721,7 @@ paths:
                   items:
                     type: array
                     items:
-                      $ref: '#/components/schemas/osint_source_group.presentation'
+                      $ref: '#/components/schemas/osint_source_group'
         '401':
           description: authorization error
           content:
@@ -773,7 +747,7 @@ paths:
                   items:
                     type: array
                     items:
-                      $ref: '#/components/schemas/osint_source_group.base'
+                      $ref: '#/components/schemas/osint_source_group'
         '401':
           description: authorization error
           content:
@@ -795,7 +769,7 @@ paths:
                 items:
                   type: array
                   items:
-                    $ref: '#/components/schemas/osint_source.presentation'
+                    $ref: '#/components/schemas/osint_source'
         '401':
           description: authorization error
           content:
@@ -1209,9 +1183,9 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
         '404':
           $ref: "#/components/schemas/notFound"
-  /my-assets/asset-groups:
+  /assets/asset-groups:
     get:
-      tags: [my-assets]
+      tags: [assets]
       description: get and add to the user's asset groups
       responses:
         '200':
@@ -1236,13 +1210,13 @@ paths:
         '404':
           $ref: "#/components/schemas/notFound"
     post:
-      tags: [my-assets]
+      tags: [assets]
       description: add new asset to the user's asset groups
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/asset_group.group.new'
+              $ref: '#/components/schemas/asset_group'
       responses:
         '200':
           description: the group has been added
@@ -1258,7 +1232,7 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
         '404':
           $ref: "#/components/schemas/notFound"
-  /my-assets/asset-groups/{group_id}:
+  /assets/asset-groups/{group_id}:
     parameters:
       - name: group_id
         in: path
@@ -1266,13 +1240,13 @@ paths:
         schema:
           type: string
     put:
-      tags: [my-assets]
+      tags: [assets]
       description: update an asset group
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/asset_group.group.new'
+              $ref: '#/components/schemas/asset_group'
       responses:
         '200':
           description: the group has been updated
@@ -1289,7 +1263,7 @@ paths:
         '404':
           $ref: "#/components/schemas/notFound"
     delete:
-      tags: [my-assets]
+      tags: [assets]
       description: delete an asset group
       responses:
         '200':
@@ -1306,7 +1280,7 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
         '404':
           $ref: "#/components/schemas/notFound"
-  /my-assets/asset-groups/{group_id}/assets:
+  /assets/asset-groups/{group_id}/assets:
     parameters:
       - name: group_id
         in: path
@@ -1314,7 +1288,7 @@ paths:
         schema:
           type: string
     get:
-      tags: [my-assets]
+      tags: [assets]
       description: get all the group's assets
       parameters:
         - name: search
@@ -1352,13 +1326,13 @@ paths:
         '404':
           $ref: "#/components/schemas/notFound"
     post:
-      tags: [my-assets]
+      tags: [assets]
       description: add an assets to the group
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/asset.new'
+              $ref: '#/components/schemas/asset'
       responses:
         '200':
           description: the asset has been added
@@ -1374,7 +1348,7 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
         '404':
           $ref: "#/components/schemas/notFound"
-  /my-assets/asset-groups/{group_id}/assets/{asset_id}:
+  /assets/asset-groups/{group_id}/assets/{asset_id}:
     parameters:
       - name: group_id
         in: path
@@ -1387,13 +1361,13 @@ paths:
         schema:
           type: integer
     put:
-      tags: [my-assets]
+      tags: [assets]
       description: update asset
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/asset.new'
+              $ref: '#/components/schemas/asset'
       responses:
         '200':
           description: the asset has been updated
@@ -1410,7 +1384,7 @@ paths:
         '404':
           $ref: "#/components/schemas/notFound"
     delete:
-      tags: [my-assets]
+      tags: [assets]
       description: delete the asset
       responses:
         '200':
@@ -1427,7 +1401,8 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
         '404':
           $ref: "#/components/schemas/notFound"
-  /my-assets/asset-groups/{group_id}/assets/{asset_id}/vulnerabilities/{vulnerability_id}:
+
+  /assets/asset-groups/{group_id}/assets/{asset_id}/vulnerabilities/{vulnerability_id}:
     parameters:
       - name: group_id
         in: path
@@ -1445,7 +1420,7 @@ paths:
         schema:
           type: integer
     put:
-      tags: [my-assets]
+      tags: [assets]
       description: update the status of the vulnerability
       requestBody:
         content:
@@ -1470,9 +1445,9 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
         '404':
           $ref: "#/components/schemas/notFound"
-  /my-assets/attributes/cpe:
+  /assets/attributes/cpe:
     get:
-      tags: [my-assets]
+      tags: [assets]
       description: get CPE attribute
       responses:
         '200':
@@ -1489,9 +1464,9 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
         '404':
           $ref: "#/components/schemas/notFound"
-  /my-assets/attributes/cpe/enums:
+  /assets/attributes/cpe/enums:
     get:
-      tags: [my-assets]
+      tags: [assets]
       description: get CPE attribute enums
       parameters:
         - name: search
@@ -1888,7 +1863,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/attribute.new'
+              $ref: '#/components/schemas/attribute'
       responses:
         '200':
           description: success
@@ -1914,7 +1889,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/attribute.new'
+              $ref: '#/components/schemas/attribute'
       responses:
         '200':
           description: success
@@ -1988,7 +1963,7 @@ paths:
                 items:
                   type: array
                   items:
-                    $ref: '#/components/schemas/attribute_enum.new'
+                    $ref: '#/components/schemas/attribute_enum'
       responses:
         '200':
           description: success
@@ -2021,7 +1996,7 @@ paths:
             schema:
               type: array
               items:
-                $ref: '#/components/schemas/attribute_enum.new'
+                $ref: '#/components/schemas/attribute_enum'
       responses:
         '200':
           description: success
@@ -2684,6 +2659,335 @@ paths:
               schema:
                 $ref: '#/components/schemas/resp.auth.error'
 
+  /config/export-word-lists:
+    parameters:
+    - name: ids
+      in: query
+      schema:
+        type: array
+        items:
+          type: string
+    get:
+      tags: [config]
+      description: export Wordlists
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/wordlist'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+        '404':
+          $ref: "#/components/schemas/notFound"
+  /config/import-word-lists:
+    post:
+      tags: [config]
+      description: import Wordlists
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: json
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/wordlist'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+        '404':
+          $ref: "#/components/schemas/notFound"
+        '405':
+          description: method not allowed
+          content:
+            'application/json': { }
+            'application/xml': { }
+
+  /config/word-lists/{word_list_id}/gather:
+    parameters:
+      - name: word_list_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      tags: [config]
+      operationId: WordListGather
+      description: gather wordlist entries
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+        '500':
+          description: could not connect to RabbitMQ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
+  /config/workers/queue-status:
+    get:
+      tags: [config]
+      operationId: WorkersQueueStatus
+      description: get queue status for all workers
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  url:
+                    type: string
+        '500':
+          description: could not connect to RabbitMQ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
+  /config/workers/schedule:
+    get:
+      tags: [config]
+      description: get all scheduled tasks
+      operationId: QueueSchedule
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/scheduled_task'
+
+  /config/parameters:
+    get:
+      tags: [config]
+      description: get all parameters
+      operationId: Parameters
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/parameter'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+
+  /config/presenters:
+    get:
+      tags: [config]
+      description: get all presenters
+      operationId: Presenters
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/worker_type'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+
+  /config/publishers:
+    get:
+      tags: [config]
+      description: get all publishers
+      operationId: Publishers
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/worker_type'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /config/bots:
+    get:
+      tags: [config]
+      description: get all bots
+      operationId: BotsGet
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_count:
+                    type: integer
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/bot'
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    post:
+      tags: [config]
+      description: add bot
+      operationId: BotsPost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/bot'
+      responses:
+        '201':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  message:
+                    type: string
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+
+  /config/bots/{bot_id}:
+    parameters:
+      - name: bot_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    delete:
+      tags: [config]
+      description: delete bot
+      operationId: BotsDelete
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+    put:
+      tags: [config]
+      description: update bot
+      operationId: BotsPut
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/bot'
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+
+  /config/bots/{bot_id}/execute:
+    parameters:
+      - name: bot_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    post:
+      tags: [config]
+      description: execute bot
+      operationId: BotExecute
+      responses:
+        '200':
+          description: success
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+
   /config/word-lists:
     get:
       tags: [config]
@@ -2706,7 +3010,7 @@ paths:
                   items:
                     type: array
                     items:
-                      $ref: '#/components/schemas/wordlist.presentation'
+                      $ref: '#/components/schemas/wordlist'
         '401':
           description: authorization error
           content:
@@ -2722,7 +3026,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/wordlist.new'
+              $ref: '#/components/schemas/wordlist'
       responses:
         '200':
           description: success
@@ -2748,7 +3052,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/wordlist.new'
+              $ref: '#/components/schemas/wordlist'
       responses:
         '200':
           description: success
@@ -2796,7 +3100,7 @@ paths:
                   items:
                     type: array
                     items:
-                      $ref: '#/components/schemas/osint_source.presentation'
+                      $ref: '#/components/schemas/osint_source'
         '401':
           description: authorization error
           content:
@@ -2812,7 +3116,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/osint_source.new'
+              $ref: '#/components/schemas/osint_source'
       responses:
         '200':
           description: success
@@ -2830,7 +3134,7 @@ paths:
         in: path
         required: true
         schema:
-          type: integer
+          type: string
     put:
       tags: [config]
       description: update OSINT source
@@ -2838,7 +3142,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/osint_source.new'
+              $ref: '#/components/schemas/osint_source'
       responses:
         '200':
           description: success
@@ -2864,10 +3168,16 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
         '404':
           $ref: "#/components/schemas/notFound"
-  /config/export-osint-sources:
+  /osint-sources/{osint_source_id}/collect:
+    parameters:
+      - name: osint_source_id
+        in: path
+        required: true
+        schema:
+          type: string
     post:
       tags: [config]
-      description: export OSINT sources
+      description: collect OSINT source
       requestBody:
         content:
           application/json:
@@ -2884,7 +3194,59 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/osint_source.export.root'
+                type: object
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+  /osint-sources/collect:
+    post:
+      tags: [config]
+      description: collect all OSINT sources
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                selection:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+
+  /config/export-osint-sources:
+    parameters:
+    - name: ids
+      in: query
+      schema:
+        type: array
+        items:
+          type: string
+    get:
+      tags: [config]
+      description: export OSINT sources
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/osint_source.export'
         '401':
           description: authorization error
           content:
@@ -2893,11 +3255,6 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
         '404':
           $ref: "#/components/schemas/notFound"
-        '405':
-          description: method not allowed
-          content:
-            'application/json': { }
-            'application/xml': { }
   /config/import-osint-sources:
     post:
       tags: [config]
@@ -2953,7 +3310,7 @@ paths:
                   items:
                     type: array
                     items:
-                      $ref: '#/components/schemas/osint_source_group.presentation'
+                      $ref: '#/components/schemas/osint_source_group'
         '401':
           description: authorization error
           content:
@@ -2969,7 +3326,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/osint_source_group.new'
+              $ref: '#/components/schemas/osint_source_group'
       responses:
         '200':
           description: success
@@ -2995,7 +3352,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/osint_source_group.new'
+              $ref: '#/components/schemas/osint_source_group'
       responses:
         '200':
           description: success
@@ -3059,7 +3416,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/publisher_preset.new'
+              $ref: '#/components/schemas/publisher_preset'
       responses:
         '200':
           description: success
@@ -3085,7 +3442,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/publisher_preset.new'
+              $ref: '#/components/schemas/publisher_preset'
       responses:
         '200':
           description: success
@@ -3208,7 +3565,7 @@ paths:
                   items:
                     type: array
                     items:
-                      $ref: '#/components/schemas/product.presentation'
+                      $ref: '#/components/schemas/product'
         '400':
           description: resource not found
         '401':
@@ -3226,7 +3583,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/product.new'
+              $ref: '#/components/schemas/product'
       responses:
         '200':
           description: success
@@ -3259,7 +3616,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/product.presentation'
+                $ref: '#/components/schemas/product'
         '401':
           description: authorization error
           content:
@@ -3275,7 +3632,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/product.new'
+              $ref: '#/components/schemas/product'
       responses:
         '200':
           description: success
@@ -3386,7 +3743,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/publisher_preset.new'
+              $ref: '#/components/schemas/publisher_preset'
       responses:
         '200':
           description: success
@@ -3412,7 +3769,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/publisher_preset.new'
+              $ref: '#/components/schemas/publisher_preset'
       responses:
         '200':
           description: success
@@ -3474,6 +3831,27 @@ components:
 
     #general
 
+
+    scheduled_task:
+      type: object
+      properties:
+        next_run_time:
+          type: string
+          format: date-time
+        last_run_at:
+          type: string
+          format: date-time
+        total_run_count:
+          type: integer
+        task:
+          type: string
+        args:
+          type: array
+          items:
+            type: string
+        schedule:
+          type: string
+
     presentation:
       type: object
       properties:
@@ -3492,7 +3870,7 @@ components:
             roles:
               type: array
               items:
-                $ref: '#/components/schemas/role.id'
+                type: integer
             permissions:
               type: array
               items:
@@ -3584,24 +3962,17 @@ components:
         id:
           type: string
     role:
-      allOf:
-        - type: object
-          properties:
-            id:
-              type: int
-            name:
-              type: string
-            description:
-              type: string
-            permissions:
-              type: array
-              items:
-                type: string
-    role.id:
-      type: object
       properties:
         id:
-          type: int
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        permissions:
+          type: array
+          items:
+            type: string
 
     organization:
       type: object
@@ -3643,9 +4014,6 @@ components:
     wordlist_entry.new:
       allOf:
         - $ref: '#/components/schemas/wordlist_entry'
-    wordlist.new:
-      allOf:
-        - $ref: '#/components/schemas/wordlist'
     wordlist_entry:
       type: object
       properties:
@@ -3670,15 +4038,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/wordlist_entry'
-    wordlist.presentation:
-      allOf:
-        - $ref: '#/components/schemas/wordlist'
-        - $ref: '#/components/schemas/presentation'
-    wordlist.id:
-      type: object
-      properties:
-        id:
-          type: integer
 
     product_type:
       type: object
@@ -3695,16 +4054,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/parameter_value'
-
-    publisher_preset.new:
-      allOf:
-        - $ref: '#/components/schemas/publisher_preset'
-        - type: object
-          properties:
-            parameters:
-              type: array
-              items:
-                $ref: '#/components/schemas/parameter_value.new'
 
     publisher_preset.base:
       type: object
@@ -3891,10 +4240,6 @@ components:
         id:
           type: integer
 
-    parameter_value.new:
-      allOf:
-        - $ref: '#/components/schemas/parameter_value'
-
     parameter_value:
       type: object
       properties:
@@ -3910,13 +4255,10 @@ components:
         parameter:
           $ref: '#/components/schemas/parameter.export'
 
-    parameter.new:
-      allOf:
-        - $ref: '#/components/schemas/parameter'
-
     parameter_type:
       type: string
       enum: [STRING, NUMBER, BOOLEAN]
+
     parameter:
       type: object
       properties:
@@ -3935,19 +4277,6 @@ components:
       properties:
         key:
           type: string
-
-    attribute_enum.new:
-      allOf:
-        - $ref: '#/components/schemas/attribute_enum'
-    attribute.new:
-      allOf:
-        - $ref: '#/components/schemas/attribute.base'
-        - type: object
-          properties:
-            attribute_enums:
-              type: array
-              items:
-                $ref: '#/components/schemas/attribute_enum.new'
 
     attribute_type:
       type: string
@@ -4196,64 +4525,6 @@ components:
         - source_id
         - next_run_time
 
-    osint_source.new:
-      allOf:
-        - $ref: '#/components/schemas/osint_source'
-        - type: object
-          properties:
-            parameters:
-              type: array
-              items:
-                $ref: '#/components/schemas/parameter_value.new'
-            word_lists:
-              type: array
-              items:
-                $ref: '#/components/schemas/wordlist.id'
-            osint_source_groups:
-              type: array
-              items:
-                $ref: '#/components/schemas/osint_source_group.id'
-    osint_source_group.new:
-      allOf:
-        - $ref: '#/components/schemas/osint_source_group'
-        - type: object
-          properties:
-            osint_sources:
-              type: array
-              items:
-                $ref: '#/components/schemas/osint_source.id'
-
-    osint_source_group.base:
-      type: object
-      properties:
-        id:
-          type: string
-        name:
-          type: string
-        description:
-          type: string
-        default:
-          type: boolean
-    osint_source_group.id:
-      type: object
-      properties:
-        id:
-          type: string
-    osint_source.base:
-      type: object
-      properties:
-        id:
-          type: string
-        name:
-          type: string
-        parameters:
-          type: array
-          items:
-            $ref: '#/components/schemas/parameter_value'
-        word_lists:
-          type: array
-          items:
-            $ref: '#/components/schemas/wordlist'
     osint_source_update_status:
       type: object
       properties:
@@ -4268,19 +4539,6 @@ components:
         last_data:
           type: string
     osint_source:
-      allOf:
-        - $ref: '#/components/schemas/osint_source.base'
-        - type: object
-          properties:
-            id:
-              type: string
-            name:
-              type: string
-            description:
-              type: string
-            collector_id:
-              type: string
-    osint_source_collector:
       type: object
       properties:
         id:
@@ -4289,52 +4547,45 @@ components:
           type: string
         description:
           type: string
-        collector_type:
+        type:
           type: string
-    osint_source.presentation:
-      allOf:
-        - $ref: '#/components/schemas/osint_source'
-        - $ref: '#/components/schemas/presentation'
-        - type: object
-          properties:
-            collector:
-              $ref: '#/components/schemas/collector'
-            osint_source_groups:
-              type: array
-              items:
-                $ref: '#/components/schemas/osint_source.base'
-    osint_source.id:
-      type: object
-      properties:
-        id:
-          type: string
-    osint_source_group:
-      allOf:
-        - $ref: '#/components/schemas/osint_source_group.base'
-        - type: object
-          properties:
-            osint_sources:
-              type: array
-              items:
-                $ref: '#/components/schemas/osint_source'
-    osint_source_group.presentation:
-      allOf:
-        - $ref: '#/components/schemas/osint_source_group'
-        - $ref: '#/components/schemas/presentation'
-    osint_source.export:
-      type: object
-      properties:
-        name:
-          type: string
-        description:
-          type: string
-        collector:
-          $ref: '#/components/schemas/collector.export'
         parameters:
           type: array
           items:
-            $ref: '#/components/schemas/parameter_value.export'
-    osint_source.export.root:
+            $ref: '#/components/schemas/parameter_value'
+
+    osint_source_group:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        default:
+          type: boolean
+        osint_sources:
+          type: array
+          items:
+            type: string
+        word_lists:
+          type: array
+          items:
+            type: integer
+
+    osint_source_group.export:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        osint_sources:
+          type: array
+          items:
+            type: string
+    osint_source.export:
       type: object
       properties:
         version:
@@ -4345,74 +4596,9 @@ components:
             $ref: '#/components/schemas/osint_source.export'
         groups:
           type: array
-
-    collector.new:
-      allOf:
-        - $ref: '#/components/schemas/collector'
-        - type: object
-          properties:
-            parameters:
-              type: array
-              items:
-                $ref: '#/components/schemas/parameter.new'
-
-    collector:
-      type: object
-      properties:
-        id:
-          type: string
-        type:
-          type: string
-        name:
-          type: string
-        description:
-          type: string
-        parameters:
-          type: array
           items:
-            $ref: '#/components/schemas/parameter'
-    collector.without_parameters:
-      type: object
-      properties:
-        id:
-          type: string
-        type:
-          type: string
-        name:
-          type: string
-        description:
-          type: string
-    collector.export:
-      type: object
-      properties:
-        type:
-          type: string
+            $ref: '#/components/schemas/osint_source_group.export'
 
-    asset_cpe.new:
-      allOf:
-        - $ref: '#/components/schemas/asset_cpe'
-    asset.new:
-      allOf:
-        - $ref: '#/components/schemas/asset'
-        - type: object
-          properties:
-            asset_cpes:
-              type: array
-              items:
-                $ref: '#/components/schemas/asset_cpe.new'
-    asset_group.group.new:
-      allOf:
-        - $ref: '#/components/schemas/asset_group'
-        - type: object
-          properties:
-            users:
-              $ref: '#/components/schemas/user.id'
-
-    asset_cpe:
-      type: object
-      properties:
-        value:
-          type: string
     asset:
       type: object
       properties:
@@ -4429,7 +4615,7 @@ components:
         asset_cpes:
           type: array
           items:
-            $ref: '#/components/schemas/asset_cpe'
+            type: string
     report_item_vulnerability:
       allOf:
         - $ref: '#/components/schemas/report_item.base'
@@ -4496,6 +4682,24 @@ components:
             id:
               type: string
 
+    bot:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+        index:
+          type: integer
+        parameters:
+          type: array
+          items:
+            $ref: '#/components/schemas/parameter_value'
+
     worker_type:
       type: object
       properties:
@@ -4522,7 +4726,7 @@ components:
             roles:
               type: array
               items:
-                $ref: '#/components/schemas/role.id'
+                type: integer
 
     item_type:
       type: string
@@ -4568,58 +4772,6 @@ components:
               items:
                 $ref: '#/components/schemas/user.base'
 
-    presenter.new:
-      allOf:
-        - $ref: '#/components/schemas/presenter'
-
-    presenter:
-      type: object
-      properties:
-        id:
-          type: string
-        type:
-          type: string
-        name:
-          type: string
-        description:
-          type: string
-        parameters:
-          type: array
-          items:
-            $ref: '#/components/schemas/parameter'
-    presenter_input:
-      type: object
-      properties:
-        type:
-          type: string
-        parameters:
-          type: array
-          items:
-            $ref: '#/components/schemas/parameter_value'
-        reports:
-          type: array
-          items:
-            $ref: '#/components/schemas/report_item'
-        report_type:
-          $ref: '#/components/schemas/report_item_type'
-    presenter_output:
-      type: object
-      properties:
-        mime_type:
-          type: string
-        data:
-          type: string
-
-    product.new:
-      allOf:
-        - $ref: '#/components/schemas/product.base'
-        - type: object
-          properties:
-            report_items:
-              type: array
-              items:
-                $ref: '#/components/schemas/report_item.id'
-
     product.base:
       type: object
       properties:
@@ -4640,11 +4792,6 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/report_item.presentation'
-    product.presentation:
-      allOf:
-        - $ref: '#/components/schemas/product'
-        - $ref: '#/components/schemas/acl_entry_status'
-        - $ref: '#/components/schemas/presentation'
 
     report_item_lock:
       type: object

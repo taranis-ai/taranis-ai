@@ -7,7 +7,7 @@ import core.api as core_api
 
 
 def initialize(app):
-    api = Api(app, version="1", title="Taranis NG API", doc="/api/swagger", prefix="/api")
+    api = Api(app, version="1", title="Taranis API", doc="/api/swagger", prefix="/api")
 
     app.register_error_handler(400, handle_bad_request)
     app.register_error_handler(401, handle_unauthorized)

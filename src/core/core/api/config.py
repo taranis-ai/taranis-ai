@@ -51,7 +51,7 @@ class Attributes(Resource):
 
     @auth_required("CONFIG_ATTRIBUTE_UPDATE")
     def put(self, attribute_id):
-        attribute.Attribute.update(attribute_id, request.json)
+        return attribute.Attribute.update(attribute_id, request.json)
 
     @auth_required("CONFIG_ATTRIBUTE_DELETE")
     def delete(self, attribute_id):
@@ -73,7 +73,7 @@ class AttributeEnums(Resource):
 
     @auth_required("CONFIG_ATTRIBUTE_UPDATE")
     def put(self, attribute_id, enum_id):
-        attribute.AttributeEnum.update(enum_id, request.json)
+        return attribute.AttributeEnum.update(enum_id, request.json)
 
     @auth_required("CONFIG_ATTRIBUTE_UPDATE")
     def delete(self, attribute_id, enum_id):
@@ -172,7 +172,7 @@ class ACLEntries(Resource):
 
     @auth_required("CONFIG_ACL_UPDATE")
     def put(self, acl_id):
-        acl_entry.ACLEntry.update(acl_id, request.json)
+        return acl_entry.ACLEntry.update(acl_id, request.json)
 
     @auth_required("CONFIG_ACL_DELETE")
     def delete(self, acl_id):
@@ -270,7 +270,7 @@ class QueueSchedule(Resource):
         try:
             if schedules := queue.ScheduleEntry.get_all():
                 return [sched.to_dict() for sched in schedules], 200
-            return {"message": "No schedules found"}, 404
+            return {"error": "No schedules found"}, 404
         except Exception:
             logger.log_debug_trace()
 
@@ -309,12 +309,8 @@ class OSINTSources(Resource):
 class OSINTSourceCollect(Resource):
     @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
     def post(self, source_id):
-        return queue_manager.queue_manager.collect_osint_source(source_id)
-
-
-class OSINTSourceCollectAll(Resource):
-    @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
-    def post(self):
+        if source_id:
+            return queue_manager.queue_manager.collect_osint_source(source_id)
         return queue_manager.queue_manager.collect_all_osint_sources()
 
 
@@ -324,7 +320,7 @@ class OSINTSourcesExport(Resource):
         source_ids = request.args.getlist("ids")
         data = osint_source.OSINTSource.export_osint_sources(source_ids)
         if data is None:
-            return "Unable to export", 400
+            return {"error": "Unable to export"}, 400
         return send_file(
             io.BytesIO(data),
             download_name="osint_sources_export.json",
@@ -391,7 +387,7 @@ class PublisherPresets(Resource):
 class PublisherPreset(Resource):
     @auth_required("CONFIG_PUBLISHER_PRESET_UPDATE")
     def put(self, preset_id):
-        publisher_preset.PublisherPreset.update(preset_id, request.json)
+        return publisher_preset.PublisherPreset.update(preset_id, request.json)
 
     @auth_required("CONFIG_PUBLISHER_PRESET_DELETE")
     def delete(self, preset_id):
@@ -438,7 +434,7 @@ class WordListExport(Resource):
         source_ids = request.args.getlist("ids")
         data = word_list.WordList.export(source_ids)
         if data is None:
-            return "Unable to export", 400
+            return {"error": "Unable to export"}, 400
         return send_file(
             io.BytesIO(data),
             download_name="word_list_export.json",
@@ -482,8 +478,7 @@ def initialize(api: Api):
     namespace.add_resource(DictionariesReload, "/reload-enum-dictionaries/<string:dictionary_type>")
     namespace.add_resource(Organizations, "/organizations/<int:organization_id>", "/organizations")
     namespace.add_resource(OSINTSources, "/osint-sources/<string:source_id>", "/osint-sources")
-    namespace.add_resource(OSINTSourceCollect, "/osint-sources/<string:source_id>/collect")
-    namespace.add_resource(OSINTSourceCollectAll, "/osint-sources/collect")
+    namespace.add_resource(OSINTSourceCollect, "/osint-sources/<string:source_id>/collect", "/osint-sources/collect")
     namespace.add_resource(OSINTSourceGroups, "/osint-source-groups/<string:group_id>", "/osint-source-groups")
     namespace.add_resource(OSINTSourcesExport, "/export-osint-sources")
     namespace.add_resource(OSINTSourcesImport, "/import-osint-sources")
