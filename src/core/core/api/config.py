@@ -308,7 +308,7 @@ class OSINTSources(Resource):
 
 class OSINTSourceCollect(Resource):
     @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
-    def post(self, source_id):
+    def post(self, source_id=None):
         if source_id:
             return queue_manager.queue_manager.collect_osint_source(source_id)
         return queue_manager.queue_manager.collect_all_osint_sources()

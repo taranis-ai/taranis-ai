@@ -33,7 +33,7 @@ class WordlistBot(BaseBot):
 
     @staticmethod
     def _set_ignore_case_flag(parameters):
-        return re.IGNORECASE if parameters.get("IGNORECASE", "false").lower() == "true" else re.NOFLAG
+        return re.IGNORECASE if parameters.get("IGNORECASE", "true").lower() == "true" else re.NOFLAG
 
     def _get_word_list_entries(self):
         if word_lists := self.core_api.get_words_for_tagging_bot():

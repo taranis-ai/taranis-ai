@@ -11,7 +11,7 @@
         'index',
         'actions'
       ]"
-      sort-by-item="id"
+      sort-by-item="index"
       tag-icon="mdi-robot"
       @delete-item="deleteItem"
       @edit-item="editItem"
