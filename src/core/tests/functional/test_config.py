@@ -117,13 +117,39 @@ class TestWordListConfigApi(BaseTest):
         assert test_word_list["description"] == "Test wordlist."
         assert len(test_word_list["entries"]) == 17
 
+    def test_create_word_lists(self, client, auth_header, cleanup_word_lists):
+        response = self.assert_post_ok(client, uri="word-lists", json_data=cleanup_word_lists, auth_header=auth_header)
+        assert response.json["message"] == f"Word list created successfully"
+        assert response.json["id"] == cleanup_word_lists["id"]
+
+    def test_modify_word_list(self, client, auth_header, cleanup_word_lists):
+        word_list_data = {
+            "description": "Wordy McWordListyFace",
+        }
+        word_list_id = cleanup_word_lists["id"]
+        response = self.assert_put_ok(client, uri=f"word-lists/{word_list_id}", json_data=word_list_data, auth_header=auth_header)
+        assert response.json["id"] == f"{word_list_id}"
+
     def test_get_word_lists(self, client, auth_header, cleanup_word_lists):
         response = self.assert_get_ok(client, "word-lists", auth_header)
-        totoal_count = response.get_json()["total_count"]
+        total_count = response.get_json()["total_count"]
         word_lists = response.get_json()["items"]
 
-        assert totoal_count > 0
+        assert total_count > 0
         assert len(word_lists) > 0
+
+        response = self.assert_get_ok(client, f"word-lists/{cleanup_word_lists['id']}", auth_header)
+        assert response.json["id"] == cleanup_word_lists["id"]
+        assert response.json["name"] == cleanup_word_lists["name"]
+        assert response.json["description"] == "Wordy McWordListyFace"
+        assert response.json["usage"] == cleanup_word_lists["usage"]
+        assert response.json["link"] == cleanup_word_lists["link"]
+        assert response.json["entries"] == cleanup_word_lists["entries"]
+
+    def test_delete_word_list(self, client, auth_header, cleanup_word_lists):
+        word_list_id = cleanup_word_lists["id"]
+        response = self.assert_delete_ok(client, uri=f"word-lists/{word_list_id}", auth_header=auth_header)
+        assert response.json["message"] == f"WordList {word_list_id} deleted"
 
 
 class TestUserConfigApi(BaseTest):
@@ -272,3 +298,148 @@ class TestReportTypeConfigApi(BaseTest):
         report_item_type_id = cleanup_report_item_type["id"]
         response = self.assert_delete_ok(client, uri=f"report-item-types/{report_item_type_id}", auth_header=auth_header)
         assert response.json["message"] == f"ReportItemType {report_item_type_id} deleted"
+
+
+class TestProductTypes(BaseTest):
+    base_uri = "/api/config"
+
+    def test_create_product_type(self, client, auth_header, cleanup_product_types):
+        response = self.assert_post_ok(client, uri="product-types", json_data=cleanup_product_types, auth_header=auth_header)
+        assert response.json["message"] == f"Product type created"
+        assert response.json["id"] == cleanup_product_types["id"]
+
+    def test_modify_product_type(self, client, auth_header, cleanup_product_types):
+        product_type_data = {"title": "Producty McProductFace"}
+        product_type_id = cleanup_product_types["id"]
+        response = self.assert_put_ok(client, uri=f"product-types/{product_type_id}", json_data=product_type_data, auth_header=auth_header)
+        assert response.json == product_type_id
+
+    def test_get_product_types(self, client, auth_header, cleanup_product_types):
+        product_type_type = cleanup_product_types["type"]
+        response = self.assert_get_ok(client, uri=f"product-types?search={product_type_type}", auth_header=auth_header)
+        # TODO: check why only one search is found when there are more in the DB
+        # assert response.json["total_count"] == 1
+        # assert response.json["items"][0]["title"] == "Test Role"
+        # assert response.json["items"][0]["type"] == "pdf_presenter"
+        # assert response.json["items"][0]["id"] == 42
+
+    def test_delete_product_type(self, client, auth_header, cleanup_product_types):
+        product_type_id = cleanup_product_types["id"]
+        response = self.assert_delete_ok(client, uri=f"product-types/{product_type_id}", auth_header=auth_header)
+        assert response.json["message"] == f"ProductType {product_type_id} deleted"
+
+
+class TestPermissions(BaseTest):
+    base_uri = "/api/config"
+
+    def test_get_permission(self, client, auth_header, permissions):
+        response = self.assert_get_ok(client, uri=f"permissions?search={permissions[0]}", auth_header=auth_header)
+        assert response.json["total_count"] == 1
+        assert response.json["items"][0]["id"] == permissions[0]
+
+
+class TestAcls(BaseTest):
+    base_uri = "/api/config"
+
+    def test_create_acl(self, client, auth_header, cleanup_acls):
+        response = self.assert_post_ok(client, uri="acls", json_data=cleanup_acls, auth_header=auth_header)
+        assert response.json["message"] == "ACL created"
+        assert response.json["id"] == 42
+
+    def test_modify_acl(self, client, auth_header, cleanup_acls):
+        acl_id = cleanup_acls["id"]
+        acl_data = {"description": "new description"}
+        response = self.assert_put_ok(client, uri=f"acls/{acl_id}", json_data=acl_data, auth_header=auth_header)
+        # TODO: add tests after bugfix
+
+    def test_get_acl(self, client, auth_header, cleanup_acls):
+        response = self.assert_get_ok(client, uri=f"acls?search={cleanup_acls['name']}", auth_header=auth_header)
+        assert response.json["items"][0]["name"] == cleanup_acls["name"]
+        assert response.json["items"][0]["description"] == "new description"
+        assert response.json["items"][0]["item_type"] == 3  # Number 3 represents an ENUM type
+        assert response.json["items"][0]["item_id"] == cleanup_acls["item_id"]
+        assert response.json["items"][0]["everyone"] == cleanup_acls["everyone"]
+        assert response.json["items"][0]["see"] == cleanup_acls["see"]
+        assert response.json["items"][0]["access"] == cleanup_acls["access"]
+        assert response.json["items"][0]["modify"] == cleanup_acls["modify"]
+        assert response.json["items"][0]["roles"] == cleanup_acls["roles"]
+        assert response.json["items"][0]["users"] == cleanup_acls["users"]
+
+    def test_delete_acl(self, client, auth_header, cleanup_acls):
+        acl_id = cleanup_acls["id"]
+        response = self.assert_delete_ok(client, uri=f"acls/{acl_id}", auth_header=auth_header)
+        assert response.json["message"] == f"ACLEntry {acl_id} deleted"
+
+
+class TestPublisherPreset(BaseTest):
+    base_uri = "/api/config"
+
+    def test_create_publisher_preset(self, client, auth_header, cleanup_publisher_preset):
+        response = self.assert_post_ok(client, uri="publishers-presets", json_data=cleanup_publisher_preset, auth_header=auth_header)
+        assert response.json["message"] == "Publisher preset created successfully"
+        assert response.json["id"] == "44"
+
+    def test_modify_publisher_preset(self, client, auth_header, cleanup_publisher_preset):
+        publisher_data = {"description": "new description"}
+        publisher_preset_id = cleanup_publisher_preset["id"]
+        response = self.assert_put_ok(
+            client, uri=f"publishers-presets/{publisher_preset_id}", json_data=publisher_data, auth_header=auth_header
+        )
+        # TODO: add tests after bugfix
+
+    def test_get_publisher_preset(self, client, auth_header, cleanup_publisher_preset):
+        response = self.assert_get_ok(client, uri=f"publishers-presets?search={cleanup_publisher_preset['name']}", auth_header=auth_header)
+        assert response.json["items"][0]["name"] == cleanup_publisher_preset["name"]
+        assert response.json["items"][0]["id"] == cleanup_publisher_preset["id"]
+        assert response.json["items"][0]["description"] == "new description"
+        assert response.json["items"][0]["type"] == cleanup_publisher_preset["type"]
+        assert response.json["items"][0]["parameters"]["FTP_URL"] == cleanup_publisher_preset["parameters"]["FTP_URL"]
+
+    def test_delete_publisher_preset(self, client, auth_header, cleanup_publisher_preset):
+        publisher_preset_id = cleanup_publisher_preset["id"]
+        response = self.assert_delete_ok(client, uri=f"publishers-presets/{publisher_preset_id}", auth_header=auth_header)
+        assert response.json["message"] == "PublisherPreset 44 deleted"
+
+
+class TestAttributes(BaseTest):
+    base_uri = "/api/config"
+
+    def test_create_attribute(self, client, auth_header, cleanup_attribute):
+        response = self.assert_post_ok(client, uri="attributes", json_data=cleanup_attribute, auth_header=auth_header)
+        assert response.json["id"] == 42
+        assert response.json["message"] == "Attribute added"
+
+    def test_modify_attribute(self, client, auth_header, cleanup_attribute):
+        attribute_data = {"name": "Attributify McAttributeFace"}
+        attribute_id = cleanup_attribute["id"]
+        response = self.assert_put_ok(client, uri=f"attributes/{attribute_id}", json_data=attribute_data, auth_header=auth_header)
+        # TODO: add tests after bugfix
+
+    def test_get_attribute(self, client, auth_header, cleanup_attribute):
+        attribute_id = cleanup_attribute["id"]
+        response = self.assert_get_ok(client, uri=f"attributes/{attribute_id}", auth_header=auth_header)
+        # TODO: return value is formatted not correctly - see bug issue
+        # TODO: add tests after bugfix
+
+    def test_delete_attribute(self, client, auth_header, cleanup_attribute):
+        attribute_id = cleanup_attribute["id"]
+        response = self.assert_delete_ok(client, uri=f"attributes/{attribute_id}", auth_header=auth_header)
+        assert response.json["message"] == "Attribute 42 deleted"
+
+
+class TestWorkerTypes(BaseTest):
+    base_uri = "/api/config"
+
+    def test_create_worker_types(self, client, auth_header, cleanup_worker_types):
+        response = self.assert_post_ok(client, uri="worker-types", json_data=cleanup_worker_types, auth_header=auth_header)
+        assert response.json["message"] == f"Worker {cleanup_worker_types['name']} added"
+
+    def test_get_worker_types(self, client, cleanup_worker_types, auth_header):
+        response = self.assert_get_ok(client, uri=f"worker-types?search={cleanup_worker_types['name']}", auth_header=auth_header)
+        assert response.json["items"][0]["name"] == cleanup_worker_types["name"]
+        assert response.json["items"][0]["description"] == cleanup_worker_types["description"]
+        assert response.json["items"][0]["type"] == cleanup_worker_types["type"]
+        assert response.json["items"][0]["parameters"]["REGULAR_EXPRESSION"] == cleanup_worker_types["parameters"]["REGULAR_EXPRESSION"]
+        assert response.json["items"][0]["parameters"]["ITEM_FILTER"] == cleanup_worker_types["parameters"]["ITEM_FILTER"]
+        assert response.json["items"][0]["parameters"]["RUN_AFTER_COLLECTOR"] == cleanup_worker_types["parameters"]["RUN_AFTER_COLLECTOR"]
+        assert response.json["items"][0]["parameters"]["REFRESH_INTERVAL"] == cleanup_worker_types["parameters"]["REFRESH_INTERVAL"]

@@ -13,7 +13,7 @@ class PublisherPreset(BaseModel):
     name = db.Column(db.String(), nullable=False)
     description = db.Column(db.String())
     type = db.Column(db.Enum(PUBLISHER_TYPES))
-    parameters = db.relationship("ParameterValue", secondary="publisher_preset_parameter_value", cascade="all")
+    parameters = db.relationship("ParameterValue", secondary="publisher_preset_parameter_value", cascade="all, delete")
 
     def __init__(
         self,
@@ -76,5 +76,5 @@ class PublisherPreset(BaseModel):
 
 
 class PublisherPresetParameterValue(BaseModel):
-    publisher_preset_id = db.Column(db.String, db.ForeignKey("publisher_preset.id"), primary_key=True)
+    publisher_preset_id = db.Column(db.String, db.ForeignKey("publisher_preset.id", ondelete="CASCADE"), primary_key=True)
     parameter_value_id = db.Column(db.Integer, db.ForeignKey("parameter_value.id"), primary_key=True)
