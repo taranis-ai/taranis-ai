@@ -19,7 +19,7 @@ See [wiki](https://github.com/ait-cs-IaaS/Taranis-NG/wiki) for documentation of 
 ## Services
 | Type      | Name      | Description                           |
 | :-------- | :-------- | :------------------------------------ |
-| Backend   | core      | Backend for communication with the Databese and offering REST Endpoints to workers and frontend |
+| Backend   | core      | Backend for communication with the Database and offering REST Endpoints to workers and frontend |
 | Frontend  | gui       | Vuejs3 based Frontend |
 | Woker     | worker    | Celery Worker offering collectors, bots, presenters and publisher features |
 | Worker    | beat      | Celery Beat instance for scheduling tasks |
