@@ -57,9 +57,9 @@ class WordList(BaseModel):
                 self.add_usage(WordListUsage[usage])
 
     def update_usage(self, usage: list[str] | int):
-        if type(usage) == list:
+        if isinstance(usage, list):
             self.from_usage_list(usage)
-        elif type(usage) == int and self.is_valid_usage(usage):
+        elif isinstance(usage, int) and self.is_valid_usage(usage):
             self.usage = usage
 
     def is_valid_usage(self, usage: int) -> bool:

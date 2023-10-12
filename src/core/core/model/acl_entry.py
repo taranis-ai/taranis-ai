@@ -74,10 +74,6 @@ class ACLEntry(BaseModel):
         items = [acl.to_dict() for acl in acls]
         return {"total_count": count, "items": items}
 
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "ACLEntry":
-        return cls(**data)
-
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data["roles"] = [role.id for role in self.roles if role]

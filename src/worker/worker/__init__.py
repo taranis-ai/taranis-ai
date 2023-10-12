@@ -3,7 +3,7 @@ from celery import Celery
 from worker.config import Config
 from worker.core_api import CoreApi
 
-import worker.tasks  # noqa: F401
+from worker.tasks import setup_tasks
 
 
 class CeleryWorker:
@@ -14,6 +14,7 @@ class CeleryWorker:
         self.app.config_from_object(celery_config)
         self.app.set_default()
         self.core_api = CoreApi()
+        setup_tasks(self.app)
 
 
 if __name__ == "worker":

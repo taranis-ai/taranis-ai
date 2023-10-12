@@ -112,7 +112,7 @@ class Bot(BaseModel):
             .all()
         )
 
-        return [bot.to_dict() for bot in bots]
+        return [bot.id for bot in bots]
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()

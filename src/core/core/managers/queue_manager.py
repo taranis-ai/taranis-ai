@@ -7,7 +7,7 @@ from kombu.exceptions import OperationalError
 
 queue_manager: "QueueManager"
 periodic_tasks = [
-    {"id": "cleanup_token_blacklist", "task": "worker.tasks.cleanup_token_blacklist", "schedule": "daily", "args": []},
+    {"id": "cleanup_token_blacklist", "task": "cleanup_token_blacklist", "schedule": "daily", "args": []},
 ]
 
 
@@ -45,7 +45,7 @@ class QueueManager:
         word_lists = WordList.get_all_empty()
         for word_list in word_lists:
             logger.debug(f"Schedule gathering for WordList {word_list.id}")
-            self.celery.send_task("worker.tasks.gather_word_list", args=[word_list.id], task_id=f"gather_word_list_{word_list.id}")
+            self.celery.send_task("gather_word_list", args=[word_list.id], task_id=f"gather_word_list_{word_list.id}")
 
     def ping_workers(self):
         if self.error:
@@ -77,7 +77,7 @@ class QueueManager:
         return {"status": "🚀 Up and running 🏃", "url": f"{queue_manager.celery.broker_connection().as_uri()}"}, 200
 
     def collect_osint_source(self, source_id: str):
-        if self.send_task("worker.tasks.collect", args=[source_id]):
+        if self.send_task("collector_task", args=[source_id]):
             logger.info(f"Collect for source {source_id} scheduled")
             return {"message": f"Refresh for source {source_id} scheduled"}, 200
         return {"error": "Could not reach rabbitmq"}, 500
@@ -89,27 +89,46 @@ class QueueManager:
             return {"error": "Could not reach rabbitmq"}, 500
         sources = OSINTSource.get_all()
         for source in sources:
-            self.send_task("worker.tasks.collect", args=[source.id])
+            self.send_task("collector_task", args=[source.id])
             logger.info(f"Collect for source {source.id} scheduled")
         return {"message": f"Refresh for source {len(sources)} scheduled"}, 200
 
     def gather_word_list(self, word_list_id: int):
-        if self.send_task("worker.tasks.gather_word_list", args=[word_list_id]):
+        if self.send_task("gather_word_list", args=[word_list_id]):
             logger.info(f"Gathering for WordList {word_list_id} scheduled")
             return {"message": f"Gathering for WordList {word_list_id} scheduled"}, 200
         return {"error": "Could not reach rabbitmq"}, 500
 
     def execute_bot_task(self, bot_id: int):
-        if self.send_task("worker.tasks.execute_bot", args=[bot_id]):
+        if self.send_task("bot_task", kwargs={"bot_id": bot_id}):
             logger.info(f"Executing Bot {bot_id} scheduled")
             return {"message": f"Executing Bot {bot_id} scheduled", "id": bot_id}, 200
         return {"error": "Could not reach rabbitmq"}, 500
 
     def generate_product(self, product_id: int):
-        if self.send_task("worker.tasks.generate_product", args=[product_id]):
+        if self.send_task("presenter_task", args=[product_id]):
             logger.info(f"Generating Product {product_id} scheduled")
             return {"message": f"Generating Product {product_id} scheduled"}, 200
         return {"error": "Could not reach rabbitmq"}, 500
+
+    def get_bot_signature(self, bot_id: list, source_id: str):
+        return self.celery.signature("bot_task", kwargs={"bot_id": bot_id, "filter": {"SOURCE": source_id}})
+
+    def post_collection_bots(self, source_id: str):
+        from core.model.bot import Bot
+
+        post_collection_bots = Bot.get_post_collection()
+
+        current_bot = self.get_bot_signature(post_collection_bots.pop(0), source_id)
+
+        try:
+            for bot_id in post_collection_bots:
+                next_bot = self.get_bot_signature(bot_id, source_id)
+                current_bot.apply_async(link=next_bot, link_error=next_bot)
+                current_bot = next_bot
+            return {"message": f"Post collection bots scheduled for source {source_id}"}, 200
+        except Exception as e:
+            return {"error": "Could schedule post collection bots", "details": str(e)}, 500
 
 
 def initialize(app: Flask, first_worker: bool):

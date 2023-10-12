@@ -175,13 +175,13 @@ class RSSCollector(BaseCollector):
     def initial_gather(self, feed: feedparser.FeedParserDict, feed_url: str, source_id: str):
         logger.info(f"RSS-Feed {feed_url} initial gather, get meta info about source like image icon and language")
         icon_url = f"{urlparse(feed_url).scheme}://{urlparse(feed_url).netloc}/favicon.ico"
-        if icon := feed.get("icon", feed.get("image")):
-            if type(icon) == feedparser.FeedParserDict:
-                icon_url = str(icon.get("href"))
-            elif type(icon) == str:
-                icon_url = str(icon)
-            elif type(icon) == list:
-                icon_url = str(icon[0].get("href"))
+        icon = feed.get("icon", feed.get("image"))
+        if isinstance(icon, feedparser.FeedParserDict):
+            icon_url = str(icon.get("href"))
+        elif isinstance(icon, str):
+            icon_url = str(icon)
+        elif isinstance(icon, list):
+            icon_url = str(icon[0].get("href"))
         r = requests.get(icon_url, headers=self.headers, proxies=self.proxies)
         if not r.ok:
             return None

@@ -108,7 +108,10 @@ class ReportItemTypes(Resource):
 
 class ProductTypes(Resource):
     @auth_required("CONFIG_PRODUCT_TYPE_ACCESS")
-    def get(self):
+    def get(self, type_id=None):
+        if type_id:
+            detail_product = product_type.ProductType.get(type_id)
+            return detail_product.get_detail_json() if detail_product else ({"error": "Product type not found"}, 404)
         search = request.args.get(key="search", default=None)
         return jsonify(product_type.ProductType.get_all_json(search, auth_manager.get_user_from_jwt(), False))
 

@@ -100,7 +100,7 @@ export default {
 
     watch(schedule, () => {
       schedule_enhanced.value = schedule.value.map((item) => {
-        if (item.task === 'worker.tasks.collect') {
+        if (item.task === 'collector_task') {
           item.args = configStore.getOSINTSourceNameByID(item.args)
         }
         return item

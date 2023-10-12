@@ -99,7 +99,7 @@ class OSINTSource(BaseModel):
         return refresh_interval or "120"
 
     def to_task_dict(self):
-        return {"id": self.to_task_id(), "task": "worker.tasks.collect", "schedule": self.get_schedule(), "args": [self.id]}
+        return {"id": self.to_task_id(), "task": "collector_task", "schedule": self.get_schedule(), "args": [self.id]}
 
     @classmethod
     def get_all_with_type(cls):

@@ -50,13 +50,6 @@ class CoreApi:
         response = requests.delete(url=url, headers=self.headers, verify=self.verify)
         return self.check_response(response, url)
 
-    def get_post_collection_bots_config(self) -> list[dict] | None:
-        try:
-            return self.api_get("/worker/post-collection-bots")
-        except Exception:
-            logger.log_debug_trace("Can't get Bots Config")
-            return None
-
     def get_bot_config(self, bot_id: str) -> dict | None:
         try:
             return self.api_get(f"/worker/bots/{bot_id}")
@@ -147,6 +140,13 @@ class CoreApi:
                 return self.api_put(url=f"/worker/tags?bot_type={bot_type}", json_data=tags)
         except Exception:
             logger.log_debug_trace("update_tags failed")
+            return None
+
+    def run_post_collection_bots(self, source_id) -> dict | None:
+        try:
+            return self.api_put("/worker/post-collection-bots", json_data={"source_id": source_id})
+        except Exception:
+            logger.log_debug_trace("Can't run Post Collection Bots")
             return None
 
     def update_word_list(self, word_list_id, content, content_type) -> dict | None:

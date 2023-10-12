@@ -40,6 +40,11 @@ def get_presenter_template_path(presenter_template: str) -> str:
     return path.absolute().as_posix()
 
 
+def get_presenter_templates() -> list[str]:
+    path = Path(Config.DATA_FOLDER) / "presenter_templates"
+    return [file.name for file in filter(Path.is_file, path.glob("*"))]
+
+
 def initialize(first_worker: bool) -> None:
     if first_worker:
         sync_presenter_templates_to_data()

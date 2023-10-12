@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     COLORED_LOGS: bool = True
     DEBUG: bool = False
     SSL_VERIFICATION: bool = False
-    WORKER_TYPE: Literal["Bots", "Collectors", "Presenters", "Publishers"] = "Bots"
+    WORKER_TYPES: list[Literal["Bots", "Collectors", "Presenters", "Publishers"]] = ["Bots", "Collectors", "Presenters", "Publishers"]
     QUEUE_BROKER_SCHEME: Literal["amqp", "amqps"] = "amqp"
     QUEUE_BROKER_HOST: str = "localhost"
     QUEUE_BROKER_PORT: int = 5672

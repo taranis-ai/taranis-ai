@@ -4,7 +4,13 @@ from flask_restx import Resource, Namespace, Api
 from core.managers import auth_manager, queue_manager
 from core.managers.log_manager import logger
 from core.managers.auth_manager import auth_required
-from core.model import product, publisher_preset
+from core.model import product, publisher_preset, product_type
+
+
+class ProductTypes(Resource):
+    @auth_required("PUBLISH_ACCESS")
+    def get(self):
+        return product_type.ProductType.get_all_json(None, auth_manager.get_user_from_jwt(), True)
 
 
 class Products(Resource):
@@ -65,6 +71,7 @@ class ProductsRender(Resource):
 def initialize(api: Api):
     namespace = Namespace("publish", description="Publish API")
     namespace.add_resource(Products, "/products", "/products/<int:product_id>")
+    namespace.add_resource(ProductTypes, "/product-types")
     namespace.add_resource(ProductsRender, "/products/<int:product_id>/render")
     namespace.add_resource(
         PublishProduct,
