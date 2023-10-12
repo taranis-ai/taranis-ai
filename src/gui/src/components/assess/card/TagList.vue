@@ -10,15 +10,12 @@
         <v-chip
           v-bind="props"
           class="py-3 mr-1 mt-1"
-          :color="truncate ? 'primary' : labelcolor(tag.tag_type)"
+          :color="labelcolor(tag.tag_type)"
           link
           label
           density="compact"
           :variant="truncate ? 'tonal' : 'elevated'"
           elevation="0"
-          :style="{
-            truncate: `border: 'thin solid ${labelcolor(tag.tag_type)}'`
-          }"
           @click.stop="updateTags(tag.name)"
         >
           <template #prepend>
@@ -93,8 +90,7 @@ export default defineComponent({
       const colorList = [
         '#ddbc42',
         '#d3802b',
-        '#d3802b',
-        '#bb432b',
+        '#d35a2b',
         '#bb432b',
         '#ac004b',
         '#a0062f',
