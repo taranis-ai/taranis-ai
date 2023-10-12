@@ -10,13 +10,13 @@
         <img
           src="@/assets/taranis-logo-login.svg"
           alt="taranis logo"
-          class="ma-5"
-          style="max-width: 360px"
+          class="mb-5 pb-5"
+          style="max-width: 600px"
         />
       </v-row>
       <v-form id="form" ref="form" @submit.prevent="authenticate">
         <v-row no-gutters justify="center" align-content="center">
-          <v-col cols="12" sm="6">
+          <v-col cols="12">
             <v-text-field
               v-model="username"
               class="mx-2"
@@ -29,7 +29,7 @@
               required
             />
           </v-col>
-          <v-col cols="12" sm="6">
+          <v-col cols="12">
             <v-text-field
               v-model="password"
               class="mx-2"

@@ -10,22 +10,31 @@
         <v-chip
           v-bind="props"
           class="py-3 mr-1 mt-1"
-          :color="labelcolor(tag.tag_type)"
+          :color="truncate ? 'primary' : labelcolor(tag.tag_type)"
           link
           label
           density="compact"
-          :variant="truncate ? 'outlined' : 'elevated'"
+          :variant="truncate ? 'tonal' : 'elevated'"
           elevation="0"
+          :style="{
+            truncate: `border: 'thin solid ${labelcolor(tag.tag_type)}'`
+          }"
           @click.stop="updateTags(tag.name)"
         >
           <template #prepend>
-            <v-icon :icon="tagIcon(tag.tag_type)" size="x-small" class="mr-2">
+            <v-icon
+              :icon="tagIcon(tag.tag_type)"
+              size="x-small"
+              class="mr-2"
+              :class="{ truncate: 'text-white' }"
+            >
             </v-icon>
           </template>
 
           <span
             :style="truncate ? 'max-width: 80px' : 'max-width: 120px'"
-            class="d-inline-block text-truncate text-black"
+            class="d-inline-block text-truncate"
+            :class="{ truncate: 'text-white' }"
           >
             {{ tag.name }}
           </span>
@@ -82,22 +91,23 @@ export default defineComponent({
       }
 
       const colorList = [
-        '#f5cab6',
-        '#fef4ce',
-        '#cceccd',
-        '#b8d8e4',
-        '#d1c5e1',
-        '#f5c000',
-        '#f5cfff',
-        '#ffff5c',
-        '#c5f5ff',
-        '#00c5ff',
-        '#ff55cc'
+        '#ddbc42',
+        '#d3802b',
+        '#d3802b',
+        '#bb432b',
+        '#bb432b',
+        '#ac004b',
+        '#a0062f',
+        '#8F1616',
+        '#b0309a',
+        '#9752cb',
+        '#7468e8'
       ]
       const hash = inputString.split('').reduce((acc, char) => {
         return acc + char.charCodeAt(0)
       }, 0)
-      const colorIndex = hash % colorList.length
+
+      const colorIndex = parseInt(hash) % colorList.length
       return colorList[colorIndex]
     }
 

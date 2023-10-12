@@ -142,18 +142,18 @@ export function tagIconFromType(tag_type) {
     tag_type === 'Country' ||
     tag_type === 'Municipality'
   ) {
-    return 'mdi-map-marker'
+    return 'mdi-map-marker-outline'
   }
   if (tag_type === 'CVE' || tag_type === 'CVE_PRODUCT') {
-    return 'mdi-security'
+    return 'mdi-bookmark-outline'
   }
   if (tag_type === 'PER') {
-    return 'mdi-account'
+    return 'mdi-account-outline'
   }
   if (tag_type === 'Cybersecurity') {
-    return 'mdi-shield-key'
+    return 'mdi-alert-outline'
   }
-  return 'mdi-tag'
+  return 'mdi-tag-outline'
 }
 
 export function tagTextFromType(tag_type) {

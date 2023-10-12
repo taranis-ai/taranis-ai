@@ -18,7 +18,7 @@
         src="@/assets/taranis-logo.svg"
         alt="taranis logo"
         style="max-width: 360px; height: 100%"
-        class="py-2"
+        class="py-3"
       />
     </v-toolbar-title>
 

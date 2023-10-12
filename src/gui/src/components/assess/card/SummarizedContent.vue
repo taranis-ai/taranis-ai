@@ -53,9 +53,10 @@ export default {
   -webkit-line-clamp: 4;
   line-clamp: 4;
   -webkit-box-orient: vertical;
-  height: calc(1.5em * 4);
+  min-height: calc(1.5em * 4);
 }
 .news-item-summary-no-clip {
-  min-height: 6em;
+  display: -webkit-box;
+  min-height: calc(1.5em * 4);
 }
 </style>
