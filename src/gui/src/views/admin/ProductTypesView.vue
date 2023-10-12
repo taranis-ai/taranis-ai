@@ -3,7 +3,7 @@
     <DataTable
       v-model:items="product_types.items"
       :add-button="true"
-      :header-filter="['tag', 'id', 'title', 'description', 'actions']"
+      :header-filter="['id', 'title', 'description', 'actions']"
       @delete-item="deleteItem"
       @edit-item="editItem"
       @add-item="addItem"
@@ -13,10 +13,9 @@
       v-if="showForm"
       :form-format="formFormat"
       :config-data="formData"
-      :parameters="parameters"
       :title="editTitle"
       @submit="handleSubmit"
-    ></EditConfig>
+    />
   </v-container>
 </template>
 
@@ -49,8 +48,7 @@ export default {
     const presenterList = ref([])
     const showForm = ref(false)
 
-    const { product_types, presenter_types, parameters } =
-      storeToRefs(configStore)
+    const { product_types, presenter_types } = storeToRefs(configStore)
 
     const formFormat = computed(() => {
       return [
@@ -75,6 +73,13 @@ export default {
           label: 'Type',
           type: 'select',
           items: presenterList.value
+        },
+        {
+          name: 'TEMPLATE_PATH',
+          parent: 'parameters',
+          label: 'Template',
+          type: 'select',
+          items: product_types.value.templates
         }
       ]
     })
@@ -93,7 +98,6 @@ export default {
           }
         })
       })
-      configStore.loadParameters()
     }
 
     const addItem = () => {
@@ -110,7 +114,7 @@ export default {
 
     const editTitle = computed(() => {
       return edit.value
-        ? `Edit Product Type: ${formData.value['name']}`
+        ? `Edit Product Type: ${formData.value['title']}`
         : 'Add Product Type'
     })
 
@@ -170,7 +174,6 @@ export default {
       formFormat,
       editTitle,
       showForm,
-      parameters,
       addItem,
       editItem,
       handleSubmit,

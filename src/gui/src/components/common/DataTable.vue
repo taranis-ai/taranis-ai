@@ -5,8 +5,9 @@
     :search="search"
     class="elevation-1"
     show-select
-    @click:row="rowClick"
+    :model-value="selected"
     @update:model-value="emitFilterChange"
+    @click:row="rowClick"
   >
     <template #top>
       <v-card>
@@ -46,30 +47,30 @@
       </v-card>
     </template>
     <template #item.default="{ item }">
-      <v-chip :color="getDefaultColor(item.raw.default)" variant="outlined">
-        {{ item.raw.default }}
+      <v-chip :color="getDefaultColor(item.default)" variant="outlined">
+        {{ item.default }}
       </v-chip>
     </template>
     <template #item.state="{ item }">
-      <v-chip :color="item.raw.state > 0 ? 'red' : 'green'" variant="outlined">
-        {{ item.raw.state > 0 ? 'error' : 'ok' }}
+      <v-chip :color="item.state > 0 ? 'red' : 'green'" variant="outlined">
+        {{ item.state > 0 ? 'error' : 'ok' }}
       </v-chip>
     </template>
 
     <template #item.completed="{ item }">
       <v-chip
-        :color="item.raw.completed ? 'green' : 'blue'"
+        :color="item.completed ? 'green' : 'blue'"
         variant="outlined"
-        :text="item.raw.completed ? 'true' : 'false'"
+        :text="item.completed ? 'true' : 'false'"
       />
     </template>
 
     <template #item.tag="{ item }">
-      <v-icon small class="mr-1" :icon="tagIcon || item.raw.tag" />
+      <v-icon small class="mr-1" :icon="tagIcon || item.tag" />
     </template>
     <template #item.icon="{ item }">
       <v-img
-        :src="'data:image/png;base64,' + item.raw.icon"
+        :src="'data:image/png;base64,' + item.icon"
         width="32"
         height="32"
       />
@@ -77,14 +78,14 @@
 
     <template #item.actions="{ item }">
       <div class="d-inline-flex">
-        <slot name="actionColumn" :item="item.raw"></slot>
+        <slot name="actionColumn" :item="item"></slot>
         <v-tooltip left>
           <template #activator="{ props }">
             <v-icon
               v-bind="props"
               color="red"
               icon="mdi-delete"
-              @click.stop="deleteItem(item.raw)"
+              @click.stop="deleteItem(item)"
             />
           </template>
           <span>Delete</span>
@@ -103,7 +104,6 @@
 
 <script>
 import { ref, defineComponent, toRaw } from 'vue'
-import { useMainStore } from '@/stores/MainStore'
 
 export default defineComponent({
   name: 'DataTable',
@@ -144,8 +144,6 @@ export default defineComponent({
     const search = ref('')
     const selected = ref([])
 
-    const store = useMainStore()
-
     let headers = []
 
     function headerTransform(key) {
@@ -177,7 +175,6 @@ export default defineComponent({
     function emitFilterChange(selectedItems) {
       selected.value = selectedItems
       emit('selection-change', selectedItems)
-      store.itemCountFiltered = selectedItems.length
     }
 
     function customFilter(value, query) {
@@ -190,7 +187,7 @@ export default defineComponent({
     }
 
     function rowClick(event, value) {
-      const item = toRaw(value.item.raw)
+      const item = toRaw(value.item)
       emit('edit-item', item)
     }
 
@@ -203,12 +200,15 @@ export default defineComponent({
     }
 
     function deleteItem(item) {
+      console.debug('deleteItem', item)
       emit('delete-item', item)
     }
 
     function deleteItems(itemsToDelete) {
+      console.debug(selected.value)
       itemsToDelete.forEach((item) => deleteItem({ id: item }))
       selected.value = []
+      console.debug(selected.value)
     }
 
     function updateItems() {

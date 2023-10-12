@@ -31,6 +31,7 @@
 <script>
 import { computed } from 'vue'
 import { useMainStore } from '@/stores/MainStore'
+import { storeToRefs } from 'pinia'
 
 export default {
   name: 'IconNavigation',
@@ -45,11 +46,12 @@ export default {
     }
   },
   setup(props) {
-    const { drawerVisible, user } = useMainStore()
+    const { drawerVisible, user } = storeToRefs(useMainStore())
 
     const filteredLinks = computed(() => {
       return props.links.filter(
-        (link) => !link.permission || user.permissions.includes(link.permission)
+        (link) =>
+          !link.permission || user.value.permissions.includes(link.permission)
       )
     })
 

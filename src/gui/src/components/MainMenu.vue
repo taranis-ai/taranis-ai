@@ -9,10 +9,7 @@
   >
     <template #prepend>
       <v-btn color="primary" @click.stop="navClicked">
-        <v-icon
-          :class="['menu-icon', { closed: !drawerVisible }]"
-          icon="mdi-menu-open"
-        />
+        <v-icon :icon="drawerVisible ? 'mdi-menu-open' : 'mdi-menu-close'" />
       </v-btn>
     </template>
 
@@ -60,14 +57,12 @@ import UserMenu from '@/components/UserMenu.vue'
 import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/MainStore'
 import { defineComponent, computed } from 'vue'
-import { useI18n } from 'vue-i18n'
 
 export default defineComponent({
   name: 'MainMenu',
   components: { UserMenu },
   setup() {
     const store = useMainStore()
-    const { d } = useI18n()
 
     store.updateFromLocalConfig()
 
@@ -85,6 +80,7 @@ export default defineComponent({
     })
 
     const navClicked = () => {
+      console.debug('navClicked')
       store.toggleDrawer()
     }
     const buttons = [
@@ -147,7 +143,6 @@ export default defineComponent({
     })
 
     return {
-      d,
       buildDate,
       isFiltered,
       showItemCount,

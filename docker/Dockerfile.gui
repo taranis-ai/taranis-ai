@@ -25,4 +25,3 @@ COPY ./src/gui/extras/default.conf.template /etc/nginx/templates/default.conf.te
 RUN envsubst '${TARANIS_NG_CORE_UPSTREAM}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
 
 COPY --from=build-stage /app/dist /usr/share/nginx/html
-COPY ./VERSION.md /usr/share/nginx/html/

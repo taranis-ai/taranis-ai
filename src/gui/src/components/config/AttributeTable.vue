@@ -78,9 +78,9 @@
             <v-btn color="primary" dark @click="save">
               {{ $t('attribute.save') }}
             </v-btn>
-            <v-btn color="primary" text @click="close">{{
-              $t('attribute.cancel')
-            }}</v-btn>
+            <v-btn color="primary" text @click="close">
+              {{ $t('attribute.cancel') }}
+            </v-btn>
           </v-card-actions>
         </v-card>
       </v-dialog>
@@ -91,9 +91,11 @@
         <div class="d-inline-flex">
           <v-tooltip left>
             <template #activator="{ props }">
-              <v-icon v-bind="props" @click.stop="editItem(item.raw)">
-                mdi-pencil
-              </v-icon>
+              <v-icon
+                v-bind="props"
+                icon="mdi-pencil"
+                @click.stop="editItem(item)"
+              />
             </template>
             <span>Edit</span>
           </v-tooltip>
@@ -102,18 +104,17 @@
               <v-icon
                 v-bind="props"
                 color="red"
-                @click.stop="deleteItem(item.raw)"
-              >
-                mdi-delete
-              </v-icon>
+                icon="mdi-delete"
+                @click.stop="deleteItem(item)"
+              />
             </template>
             <span>Delete</span>
           </v-tooltip>
         </div>
       </template>
       <template #item.attribute_id="{ item }">
-        <v-icon :icon="item.raw.attribute.tag" />
-        {{ item.raw.attribute.name }}
+        <v-icon :icon="item.attribute.tag" />
+        {{ item.attribute.name }}
       </template>
 
       <template v-if="attribute_contents.length < 10" #bottom />

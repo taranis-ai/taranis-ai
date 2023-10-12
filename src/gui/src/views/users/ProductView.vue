@@ -1,6 +1,11 @@
 <template>
   <v-container fluid style="min-height: 100vh">
-    <product-item v-if="readyToRender" :product-prop="product" :edit="edit" />
+    <product-item
+      v-if="readyToRender"
+      :product-prop="product"
+      :edit="edit"
+      @productcreated="edit = false"
+    />
   </v-container>
 </template>
 

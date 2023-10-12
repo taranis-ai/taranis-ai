@@ -29,6 +29,10 @@ export function deleteProduct(product) {
   return apiService.delete(`/publish/products/${product.id}`)
 }
 
+export function getAllProductTypes() {
+  return apiService.get('/publish/product-types')
+}
+
 export function publishProduct(product_id, publisher_id) {
   return apiService.post(
     `/publish/products/${product_id}/publishers/${publisher_id}`,

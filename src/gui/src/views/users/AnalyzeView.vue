@@ -40,6 +40,7 @@ import { useMainStore } from '@/stores/MainStore'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { onMounted, ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 export default {
   name: 'AnalyzeView',
@@ -50,6 +51,7 @@ export default {
     const mainStore = useMainStore()
     const analyzeStore = useAnalyzeStore()
     const router = useRouter()
+    const { d } = useI18n()
 
     const { report_item_types, report_items } = storeToRefs(analyzeStore)
     const selected = ref([])
@@ -60,7 +62,7 @@ export default {
           id: item.id,
           completed: item.completed,
           title: item.title,
-          created: item.created,
+          created: d(item.created, 'long'),
           type: report_item_types.value.items.find(
             (type) => type.id === item.report_item_type_id
           )?.title
@@ -81,6 +83,7 @@ export default {
     }
 
     const editItem = (item) => {
+      console.debug('editItem', item)
       router.push('/report/' + item.id)
     }
 

@@ -9,7 +9,7 @@
         @click="showOmniSearch = !showOmniSearch"
       />
       <v-text-field
-        v-model="search_state"
+        v-model="searchState"
         placeholder="search"
         varint="outlined"
         hide-details
@@ -29,7 +29,7 @@
         <!-- search -->
         <v-row v-if="!showOmniSearch" class="mx-2 my-4 px-2">
           <v-text-field
-            v-model="search_state"
+            v-model="searchState"
             placeholder="search"
             variant="outlined"
             hide-details
@@ -60,8 +60,8 @@
         <v-row no-gutters class="ma-2 my-4 px-2">
           <v-col cols="6" class="pr-1">
             <v-select
-              v-model="limit_state"
-              :items="items_per_page"
+              v-model="limitState"
+              :items="itemsPerPage"
               label="display"
               variant="outlined"
               density="compact"
@@ -70,7 +70,7 @@
           </v-col>
           <v-col cols="6" class="pl-1">
             <v-select
-              v-model="offset_state"
+              v-model="offsetState"
               :items="offsetRange"
               label="offset"
               variant="outlined"
@@ -89,8 +89,9 @@
 </template>
 
 <script>
-import { mapState } from 'pinia'
+import { computed, ref, watch } from 'vue'
 import { useMainStore } from '@/stores/MainStore'
+import { storeToRefs } from 'pinia'
 
 export default {
   name: 'FilterNavigation',
@@ -109,51 +110,73 @@ export default {
     }
   },
   emits: ['update:search', 'update:limit', 'update:offset'],
-  data: () => ({
-    showOmniSearch: false,
-    items_per_page: [5, 10, 20, 50, 100],
-    timeout: null
-  }),
-  computed: {
-    ...mapState(useMainStore, ['drawerVisible', 'itemCountTotal']),
-    limit_state: {
-      get() {
-        return this.limit
-      },
-      set(value) {
-        this.$emit('update:limit', value)
-      }
-    },
-    offset_state: {
-      get() {
-        return this.offset
-      },
-      set(value) {
-        this.$emit('update:offset', value)
-      }
-    },
-    search_state: {
-      get() {
-        return this.search
-      },
-      set(value) {
-        clearTimeout(this.timeout)
-        this.timeout = setTimeout(() => {
-          this.$nextTick(() => {
-            this.$emit('update:search', value)
-          })
+  setup(props, { emit }) {
+    const showOmniSearch = ref(false)
+    const itemsPerPage = [5, 10, 20, 50, 100]
+    const timeout = ref(null)
+    const store = useMainStore()
+
+    const { drawerVisible, itemCountTotal } = storeToRefs(store)
+
+    const limitState = computed({
+      get: () => props.limit,
+      set: (value) => emit('update:limit', value)
+    })
+
+    const offsetState = computed({
+      get: () => props.offset,
+      set: (value) => emit('update:offset', value)
+    })
+
+    const searchState = computed({
+      get: () => props.search,
+      set: (value) => {
+        clearTimeout(timeout.value)
+        timeout.value = setTimeout(() => {
+          emit('update:search', value)
         }, 500)
       }
-    },
-    offsetRange() {
-      const list = []
-      for (let i = 0; i <= this.itemCountTotal; i++) {
-        list.push(i)
+    })
+
+    const offsetRange = computed(() =>
+      Array.from({ length: itemCountTotal.value + 1 }, (_, i) => i)
+    )
+
+    const navigationDrawerClass = computed(() => {
+      return showOmniSearch.value ? 'mt-12' : ''
+    })
+
+    watch(
+      () => props.search,
+      () => {
+        searchState.value = props.search
       }
-      return list
-    },
-    navigation_drawer_class() {
-      return this.showOmniSearch ? 'mt-12' : ''
+    )
+
+    watch(
+      () => props.limit,
+      () => {
+        limitState.value = props.limit
+      }
+    )
+
+    watch(
+      () => props.offset,
+      () => {
+        offsetState.value = props.offset
+      }
+    )
+
+    return {
+      showOmniSearch,
+      itemsPerPage,
+      timeout,
+      limitState,
+      offsetState,
+      searchState,
+      offsetRange,
+      drawerVisible,
+      navigationDrawerClass
     }
   }
 }

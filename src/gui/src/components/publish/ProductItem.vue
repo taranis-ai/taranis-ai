@@ -170,6 +170,14 @@ export default {
     const saveProduct = () => {
       if (props.edit) {
         updateProduct(product.value)
+          .then((response) => {
+            console.debug('Updated product', response.data.id)
+            notifySuccess('Product updated ' + response.data.id)
+          })
+          .catch((error) => {
+            console.error(error)
+            notifyFailure("Couldn't update product")
+          })
       } else {
         createProduct(product.value)
           .then((response) => {

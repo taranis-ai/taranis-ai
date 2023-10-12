@@ -115,7 +115,7 @@
           />
         </v-dialog>
 
-        <v-menu bottom offset-y>
+        <v-menu v-if="!reportView" bottom offset-y>
           <template #activator="{ props }">
             <v-btn
               v-ripple="false"

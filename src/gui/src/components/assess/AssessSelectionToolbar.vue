@@ -69,7 +69,10 @@
       </v-col>
     </v-row>
     <v-dialog v-model="sharingDialog" width="auto">
-      <popup-share-items :item-ids="selection" @close="sharingDialog = false" />
+      <popup-share-items
+        :item-ids="storySelection"
+        @close="sharingDialog = false"
+      />
     </v-dialog>
   </v-bottom-navigation>
 </template>

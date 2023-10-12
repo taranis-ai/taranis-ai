@@ -1,13 +1,18 @@
 <template>
   <v-snackbar v-model="notification.show" dark :color="notification.type">
-    <span>{{ notificationContent }}</span>
-    <v-btn
-      variant="text"
-      color="white--text"
-      append-icon="mdi-close"
-      @click="notification.show = false"
-    >
-    </v-btn>
+    <v-row class="fill-height" no-gutters>
+      <v-col class="d-flex align-center">
+        <span class="text-subtitle-1">{{ notificationContent }}</span>
+      </v-col>
+      <v-col class="d-flex justify-end align-center">
+        <v-btn
+          color="black"
+          icon="mdi-close"
+          size="small"
+          @click="notification.show = false"
+        />
+      </v-col>
+    </v-row>
   </v-snackbar>
 </template>
 
