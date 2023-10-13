@@ -161,15 +161,23 @@ class Product(BaseModel):
         product = Product.get(product_id)
         if product is None:
             return {"error": f"Product {product_id} not found"}, 404
-        new_product = cls.from_dict(data)
-        for key, value in vars(new_product).items():
-            if hasattr(product, key) and key != "id":
-                setattr(product, key, value)
+
+        if title := data.get("title"):
+            product.title = title
+
+        if description := data.get("description"):
+            product.description = description
+
+        if product_type_id := data.get("product_type_id"):
+            product.product_type_id = product_type_id
+
+        if report_items := data.get("report_items"):
+            product.report_items = [ReportItem.get(report_item) for report_item in report_items]
 
         db.session.commit()
-        return {"message": f"Product {product_id} updated"}, 200
+        return {"message": f"Product {product_id} updated", "id": product_id}, 200
 
 
 class ProductReportItem(BaseModel):
-    product_id = db.Column(db.Integer, db.ForeignKey("product.id", ondelete="SET NULL"), primary_key=True)
+    product_id = db.Column(db.Integer, db.ForeignKey("product.id", ondelete="CASCADE"), primary_key=True)
     report_item_id = db.Column(db.Integer, db.ForeignKey("report_item.id", ondelete="CASCADE"), primary_key=True)

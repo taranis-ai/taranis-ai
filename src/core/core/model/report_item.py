@@ -86,7 +86,6 @@ class ReportItem(BaseModel):
     uuid = db.Column(db.String(64))
 
     title = db.Column(db.String())
-    title_prefix = db.Column(db.String())
 
     created = db.Column(db.DateTime, default=datetime.now)
     last_updated = db.Column(db.DateTime, default=datetime.now)
@@ -112,7 +111,6 @@ class ReportItem(BaseModel):
         self,
         uuid,
         title,
-        title_prefix,
         report_item_type_id,
         news_item_aggregates,
         attributes=attributes or [],
@@ -122,7 +120,6 @@ class ReportItem(BaseModel):
         self.id = id
         self.uuid = uuid or str(uuid_generator.uuid4())
         self.title = title
-        self.title_prefix = title_prefix
         self.report_item_type_id = report_item_type_id
         self.attributes = attributes
         self.completed = completed
@@ -233,11 +230,7 @@ class ReportItem(BaseModel):
 
         if search := filter.get("search"):
             query = query.join(ReportItemAttribute, ReportItem.id == ReportItemAttribute.report_item_id).filter(
-                or_(
-                    ReportItemAttribute.value.ilike(f"%{search}%"),
-                    ReportItem.title.ilike(f"%{search}%"),
-                    ReportItem.title_prefix.ilike(f"%{search}%"),
-                )
+                or_(ReportItemAttribute.value.ilike(f"%{search}%"), ReportItem.title.ilike(f"%{search}%"))
             )
 
         if "completed" in filter and filter["completed"].lower() != "false":
@@ -339,8 +332,6 @@ class ReportItem(BaseModel):
 
         if title := data.get("title"):
             report_item.title = title
-        if title_prefix := data.get("title_prefix"):
-            report_item.title_prefix = title_prefix
         if completed := data.get("completed"):
             report_item.completed = completed
 

@@ -377,7 +377,10 @@ class Publishers(Resource):
 
 class PublisherPresets(Resource):
     @auth_required("CONFIG_PUBLISHER_PRESET_ACCESS")
-    def get(self):
+    def get(self, preset_id=None):
+        if preset_id:
+            preset = publisher_preset.PublisherPreset.get(preset_id)
+            return preset.to_dict() if preset else ({"error": "Publisher preset not found"}, 404)
         search = request.args.get(key="search", default=None)
         return publisher_preset.PublisherPreset.get_all_json(search)
 
@@ -386,8 +389,6 @@ class PublisherPresets(Resource):
         pub_result = publisher_preset.PublisherPreset.add(request.json)
         return {"id": pub_result.id, "message": "Publisher preset created successfully"}, 200
 
-
-class PublisherPreset(Resource):
     @auth_required("CONFIG_PUBLISHER_PRESET_UPDATE")
     def put(self, preset_id):
         return publisher_preset.PublisherPreset.update(preset_id, request.json)
@@ -489,8 +490,7 @@ def initialize(api: Api):
     namespace.add_resource(Permissions, "/permissions")
     namespace.add_resource(Presenters, "/presenters")
     namespace.add_resource(ProductTypes, "/product-types/<int:type_id>", "/product-types")
-    namespace.add_resource(PublisherPreset, "/publishers-presets/<string:preset_id>")
-    namespace.add_resource(PublisherPresets, "/publishers-presets")
+    namespace.add_resource(PublisherPresets, "/publishers-presets/<string:preset_id>", "/publishers-presets")
     namespace.add_resource(Publishers, "/publishers")
     namespace.add_resource(QueueStatus, "/workers/queue-status")
     namespace.add_resource(QueueSchedule, "/workers/schedule")

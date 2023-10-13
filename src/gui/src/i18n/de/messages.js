@@ -400,7 +400,6 @@ export const messages_de = {
     validation_error: 'Bitte füllen Sie alle geforderten Felder aus',
     error: 'Dieses Berichtselement konnte nicht erstellt werden',
     title: 'Name',
-    title_prefix: 'Namenspräfix',
     report_type: 'Berichtselementtyp',
     successful: 'Neues Berichtselement wurde erfolgreich hinzugefügt',
     successful_edit: 'Berichtselement wurde erfolgreich gespeichert',

@@ -80,12 +80,14 @@
             </v-row>
             <v-row no-gutters>
               <v-col cols="12">
-                <v-autocomplete
+                <v-data-table
                   v-model="product.report_items"
+                  :headers="report_item_headers"
                   :items="reportItems"
-                  :label="$t('nav_menu.report_items')"
-                  multiple
-                />
+                  show-select
+                >
+                  <template v-if="reportItems.length < 10" #bottom />
+                </v-data-table>
               </v-col>
             </v-row>
           </v-form>
@@ -138,7 +140,7 @@ export default {
     const analyzeStore = useAnalyzeStore()
     const verticalView = ref(props.edit)
 
-    const reportItems = computed(() => analyzeStore.getReportItemsList)
+    const reportItems = computed(() => analyzeStore.getReportItemsTableData)
     const renderedProduct = ref(null)
     const renderedProductMimeType = ref(null)
 
@@ -161,6 +163,14 @@ export default {
       )
     })
 
+    const report_item_headers = [
+      { title: 'ID', key: 'id' },
+      { title: 'Title', key: 'title' },
+      { title: 'Type', key: 'type' },
+      { title: 'Created', key: 'created' },
+      { title: 'Completed', key: 'completed' }
+    ]
+
     const container_title = computed(() => {
       return props.edit
         ? `${t('button.edit')} product - ${product.value.title}`
@@ -182,6 +192,7 @@ export default {
         createProduct(product.value)
           .then((response) => {
             const new_id = response.data.id
+            product.value.id = new_id
             router.push('/product/' + new_id)
             console.debug('Created product', new_id)
             emit('productcreated', new_id)
@@ -209,10 +220,12 @@ export default {
     function renderProduct() {
       getRenderdProduct(product.value.id)
         .then((blob) => {
+          if (typeof blob === 'undefined') return
           renderedProduct.value = blob.data
           renderedProductMimeType.value = blob.headers['content-type']
         })
-        .catch(() => {
+        .catch((err) => {
+          console.info(err)
           console.error('Failed to render product ' + product.value.id)
         })
     }
@@ -221,6 +234,7 @@ export default {
       configStore.loadProductTypes()
       configStore.loadPublisherPresets()
       analyzeStore.loadReportItems()
+      analyzeStore.loadReportTypes()
       renderProduct()
     })
 
@@ -234,6 +248,7 @@ export default {
       verticalView,
       reportItems,
       renderedProduct,
+      report_item_headers,
       render_direct,
       saveProduct,
       renderProduct,

@@ -25,7 +25,6 @@ export default {
     const default_report_item = ref({
       uuid: null,
       title: '',
-      title_prefix: '',
       completed: false,
       report_item_type_id: null,
       news_item_aggregates: [],

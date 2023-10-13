@@ -649,7 +649,6 @@ def upgrade():
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("uuid", sa.String(length=64), nullable=True),
         sa.Column("title", sa.String(), nullable=True),
-        sa.Column("title_prefix", sa.String(), nullable=True),
         sa.Column("created", sa.DateTime(), nullable=True),
         sa.Column("last_updated", sa.DateTime(), nullable=True),
         sa.Column("completed", sa.Boolean(), nullable=True),

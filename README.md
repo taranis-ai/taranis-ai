@@ -1,5 +1,8 @@
 # Taranis AI
 
+> [!WARNING]
+> This Software is still in an alpha stage and breaking changes are still common. A stable release is planned for March 2024. See our [Milestones](https://github.com/taranis-ai/taranis-ai/milestones) for details.
+
 ![Logo](./resources/images/logo.svg)
 
 Taranis AI is an advanced Open-Source Intelligence (OSINT) tool, leveraging Artificial Intelligence to revolutionize information gathering and situational analysis.
@@ -13,7 +16,7 @@ Analysts then refine these AI-augmented articles into structured reports that se
 
 See [ADVANCED OSINT ANALYSIS FOR NIS AUTHORITIES, CSIRT TEAMS AND ORGANISATIONS](./doc/2023_IKTSichKonf_AWAKE_v3.pdf) for a presentation about the current features.
 
-See [wiki](https://github.com/ait-cs-IaaS/Taranis-NG/wiki) for documentation of user stories and deployment guides.
+See [taranis.ai](https://taranis.ai/documentation/overview/) for documentation of user stories and deployment guides.
 
 
 ## Services

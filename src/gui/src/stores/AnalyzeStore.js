@@ -2,6 +2,7 @@ import { getAllReportItems, getAllReportTypes } from '@/api/analyze'
 
 import { defineStore } from 'pinia'
 import { useFilterStore } from './FilterStore'
+import { useI18n } from 'vue-i18n'
 
 export const useAnalyzeStore = defineStore('analyze', {
   state: () => ({
@@ -16,6 +17,21 @@ export const useAnalyzeStore = defineStore('analyze', {
         return {
           title: item.title,
           value: item.id
+        }
+      })
+    },
+    getReportItemsTableData() {
+      const { d } = useI18n()
+
+      return this.report_items.items.map((item) => {
+        return {
+          id: item.id,
+          completed: item.completed,
+          title: item.title,
+          created: d(item.created, 'long'),
+          type: this.report_item_types.items.find(
+            (type) => type.id === item.report_item_type_id
+          )?.title
         }
       })
     }

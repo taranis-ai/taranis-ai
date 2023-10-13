@@ -131,7 +131,13 @@ export default {
     const user = ref(props.userProp)
     const roles = computed(() => store.roles.items)
     const organizations = computed(() => store.organizations.items)
-    const permissions = computed(() => store.permissions.items)
+    const permissions = computed(() => {
+      return [...store.permissions.items].sort(
+        (a, b) =>
+          user.value.permissions.indexOf(b.id) -
+          user.value.permissions.indexOf(a.id)
+      )
+    })
 
     const rules = {
       required: (value) => !!value || 'Required.',

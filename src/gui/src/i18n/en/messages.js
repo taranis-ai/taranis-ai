@@ -465,7 +465,6 @@ export const messages_en = {
   report_item: {
     error: 'Could not create this report item',
     title: 'Name',
-    title_prefix: 'Name prefix',
     report_type: 'Report Item Type',
     successful: 'New report item was successfully added',
     successful_edit: 'Report item was successfully saved',

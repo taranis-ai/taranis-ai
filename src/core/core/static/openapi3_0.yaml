@@ -4204,8 +4204,6 @@ components:
           type: string
         title:
           type: string
-        title_prefix:
-          type: string
         created:
           type: string
           format: date-time
@@ -4470,8 +4468,6 @@ components:
       type: object
       properties:
         title:
-          type: string
-        title_prefix:
           type: string
         completed:
           type: boolean

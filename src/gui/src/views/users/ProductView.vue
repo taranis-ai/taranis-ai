@@ -4,7 +4,7 @@
       v-if="readyToRender"
       :product-prop="product"
       :edit="edit"
-      @productcreated="edit = false"
+      @productcreated="productCreated"
     />
   </v-container>
 </template>
@@ -43,7 +43,7 @@ export default {
       return defaultProduct.value
     }
 
-    const reportCreated = () => {
+    const productCreated = () => {
       edit.value = true
     }
 
@@ -52,7 +52,7 @@ export default {
       readyToRender.value = true
     })
 
-    return { product, edit, readyToRender, reportCreated }
+    return { product, edit, readyToRender, productCreated }
   }
 }
 </script>

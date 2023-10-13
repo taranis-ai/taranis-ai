@@ -74,13 +74,6 @@
           </v-row>
           <v-row>
             <v-col v-if="edit && report_type" cols="12" class="pa-0 ma-0">
-              <v-col cols="4">
-                <v-text-field
-                  v-model="report_item.title_prefix"
-                  :label="$t('report_item.title_prefix')"
-                  name="title_prefix"
-                />
-              </v-col>
               <v-expansion-panels
                 v-for="attribute_group in report_type.attribute_groups"
                 :key="attribute_group.id"
