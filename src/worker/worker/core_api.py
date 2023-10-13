@@ -7,7 +7,7 @@ from worker.config import Config
 
 class CoreApi:
     def __init__(self):
-        self.api_url = Config.TARANIS_NG_CORE_URL
+        self.api_url = Config.TARANIS_CORE_URL
         self.api_key = Config.API_KEY
         self.headers = self.get_headers()
         self.verify = Config.SSL_VERIFICATION

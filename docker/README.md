@@ -36,14 +36,14 @@ docker compose up -d
 
 Use the application
 ```
-http://<url>:<TARANIS_NG_PORT>/login
+http://<url>:<TARANIS_PORT>/login
 ```
 
 ## Initial Setup 👤
 
 **The default credentials are `user` / `user` and `admin` / `admin`.**
 
-Open `http://<url>:<TARANIS_NG_PORT>/config/sources` and click [Import] to import json-file with sources (see below)
+Open `http://<url>:<TARANIS_PORT>/config/sources` and click [Import] to import json-file with sources (see below)
 
 
 ## Advanced build methods
@@ -60,9 +60,9 @@ Afterwards go to the cloned repository and launch the `docker build` command for
 
 ```bash
 cd Taranis-NG
-docker build -t taranis-ai-core . -f ./docker/Dockerfile.core
-docker build -t taranis-ai-gui . -f ./docker/Dockerfile.gui
-docker build -t taranis-ai-worker . -f ./docker/Dockerfile.worker
+docker build -t taranis-core . -f ./docker/Dockerfile.core
+docker build -t taranis-gui . -f ./docker/Dockerfile.gui
+docker build -t taranis-worker . -f ./docker/Dockerfile.worker
 ```
 
 There are several Dockerfiles and each of them builds a different component of the system. These Dockerfiles exist:
@@ -85,7 +85,7 @@ Any configuration options are available at [https://hub.docker.com/_/postgres](h
 
 | Environment variable        | Description | Example |
 |-----------------------------|-------------|----------|
-| `TARANIS_NG_AUTHENTICATOR`  | Authentication method for users. | `database` |
+| `TARANIS_AUTHENTICATOR`  | Authentication method for users. | `database` |
 | `QUEUE_BROKER_HOST`         | RabbitMQ Host address | `rabbitmq` |
 | `QUEUE_BROKER_USER`         | RabbitMQ user | `taranis` |
 | `QUEUE_BROKER_PASSWORD`     | RabbitMQ password | `supersecret` |
@@ -94,8 +94,8 @@ Any configuration options are available at [https://hub.docker.com/_/postgres](h
 | `API_KEY`                   | API Key for communication with workers | `changeme` |
 | `DEBUG`                     | Debug logging | `True` |
 | `DB_URL`                    | PostgreSQL database URL. | `127.0.0.1` |
-| `DB_DATABASE`               | PostgreSQL database name. | `taranis-ng` |
-| `DB_USER`                   | PostgreSQL database user. | `taranis-ng` |
+| `DB_DATABASE`               | PostgreSQL database name. | `taranis` |
+| `DB_USER`                   | PostgreSQL database user. | `taranis` |
 | `DB_PASSWORD`               | PostgreSQL database password. | `supersecret` |
 | `DB_POOL_SIZE`              | SQLAlchemy QueuePool number of active connections to the database. | `100` |
 | `DB_POOL_RECYCLE`           | SQLAlchemy QueuePool maximum connection age. | `300` |
@@ -109,7 +109,7 @@ Any configuration options are available at [https://hub.docker.com/_/postgres](h
 
 | Environment variable        | Description | Example |
 |-----------------------------|-------------|----------|
-| `TARANIS_NG_CORE_URL`       | URL of the Taranis NG core API. | `http://127.0.0.1:8080/api` |
+| `TARANIS_CORE_URL`       | URL of the Taranis NG core API. | `http://127.0.0.1:8080/api` |
 | `API_KEY`                   | Shared API key. | `changeme` |
 | `QUEUE_BROKER_HOST`         | RabbitMQ Host address | `rabbitmq` |
 | `QUEUE_BROKER_USER`         | RabbitMQ user | `taranis` |
@@ -121,8 +121,8 @@ Any configuration options are available at [https://hub.docker.com/_/postgres](h
 
 | Environment variable          | Description | Example |
 |-------------------------------|-------------|----------|
-| `TARANIS_NG_CORE_API` | URL of the Taranis NG core API. | `/api/` |
-| `TARANIS_NG_CORE_UPSTREAM` | Nginx upstream for the Taranis-NG Core | `core` |
-| `TARANIS_NG_SENTRY_DSN`    | Sentry DSN | '' |
+| `TARANIS_CORE_API` | URL of the Taranis NG core API. | `/api/` |
+| `TARANIS_CORE_UPSTREAM` | Nginx upstream for the Taranis Core | `core` |
+| `TARANIS_SENTRY_DSN`    | Sentry DSN | '' |
 | `NGINX_WORKERS`               | Number of NginX worker threads to spawn. | `4` |
 | `NGINX_CONNECTIONS`           | Maximum number of allowed connections per one worker thread. | `16` |

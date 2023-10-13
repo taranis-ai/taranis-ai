@@ -8,9 +8,9 @@ class PDFPresenter(BasePresenter):
     name = "PDF Presenter"
     description = "Presenter for generating PDF documents"
 
-    def generate(self, presenter_input, template) -> dict[str, str | bytes]:
+    def generate(self, product, template) -> dict[str, str | bytes]:
         try:
-            output_text = super().generate(presenter_input, template)
+            output_text = super().generate(product, template)
 
             html = HTML(string=output_text["data"])
 

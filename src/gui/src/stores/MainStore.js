@@ -30,8 +30,8 @@ export const useMainStore = defineStore(
       const config = await getLocalConfig()
       buildDate.value = config.BUILD_DATE ?? new Date().toISOString()
       gitInfo.value = config.GIT_INFO ?? ''
-      coreAPIURL.value = config.TARANIS_NG_CORE_API ?? '/api'
-      sentryDSN.value = config.TARANIS_NG_SENTRY_DSN ?? ''
+      coreAPIURL.value = config.TARANIS_CORE_API ?? '/api'
+      sentryDSN.value = config.TARANIS_SENTRY_DSN ?? ''
     }
 
     // Actions

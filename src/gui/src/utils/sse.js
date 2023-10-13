@@ -1,9 +1,9 @@
 export function connectSSE() {
-  if (import.meta.env.VITE_TARANIS_NG_CORE_SSE === undefined) {
+  if (import.meta.env.VITE_TARANIS_CORE_SSE === undefined) {
     return
   }
   // this.$sse(
-  //   `${import.meta.env.VITE_TARANIS_NG_CORE_SSE}?jwt=${this.$store.getters.getJWT}`,
+  //   `${import.meta.env.VITE_TARANIS_CORE_SSE}?jwt=${this.$store.getters.getJWT}`,
   //   { format: 'json' }
   // ).then((sse) => {
   //   sse.subscribe('news-items-updated', (data) => {

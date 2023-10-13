@@ -3,9 +3,9 @@ import axios from 'axios'
 export async function getLocalConfig() {
   try {
     const configJson =
-      typeof import.meta.env.VITE_TARANIS_NG_CONFIG_JSON === 'undefined'
+      typeof import.meta.env.VITE_TARANIS_CONFIG_JSON === 'undefined'
         ? '/config.json'
-        : import.meta.env.VITE_TARANIS_NG_CONFIG_JSON
+        : import.meta.env.VITE_TARANIS_CONFIG_JSON
     const response = await axios.get(configJson, { baseURL: '' })
     return response.data
   } catch (error) {

@@ -34,7 +34,7 @@ def initialize(app):
 
     JWTManager(app)
 
-    authenticator = app.config.get("TARANIS_NG_AUTHENTICATOR", None)
+    authenticator = app.config.get("TARANIS_AUTHENTICATOR", None)
     if authenticator == "openid":
         current_authenticator = OpenIDAuthenticator()
     elif authenticator == "database":

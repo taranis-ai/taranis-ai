@@ -17,11 +17,11 @@ RUN gzip -k -9 /app/dist/assets/*
 FROM nginx:mainline
 
 RUN mkdir -p /etc/nginx/templates
-ENV TARANIS_NG_CORE_UPSTREAM=core
+ENV TARANIS_CORE_UPSTREAM=core
 
 COPY ./src/gui/extras/30-update_config_from_env.sh /docker-entrypoint.d/
 COPY ./src/gui/extras/default.conf.template /etc/nginx/templates/default.conf.template
 
-RUN envsubst '${TARANIS_NG_CORE_UPSTREAM}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
+RUN envsubst '${TARANIS_CORE_UPSTREAM}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
 
 COPY --from=build-stage /app/dist /usr/share/nginx/html

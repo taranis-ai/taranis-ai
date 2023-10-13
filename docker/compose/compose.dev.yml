@@ -26,7 +26,7 @@ services:
       database:
         condition: service_healthy
     ports:
-      - "${TARANIS_NG_CORE_PORT:-8081}:80"
+      - "${TARANIS_CORE_PORT:-8081}:80"
     environment:
       DB_URL: "${DB_URL:-database}"
       DB_DATABASE: "${DB_DATABASE:-taranis}"
@@ -37,7 +37,7 @@ services:
       DB_POOL_TIMEOUT: 5
 
       JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
-      TARANIS_NG_AUTHENTICATOR: "${TARANIS_NG_AUTHENTICATOR:-database}"
+      TARANIS_AUTHENTICATOR: "${TARANIS_AUTHENTICATOR:-database}"
       WORKERS_PER_CORE: "1"
       WEB_CONCURRENCY: "1"
 
@@ -61,7 +61,7 @@ services:
       - rabbitmq
     command: "--app worker beat"
     environment:
-      TARANIS_NG_CORE_URL: "http://core"
+      TARANIS_CORE_URL: "http://core"
       API_KEY: "${API_KEY}"
       QUEUE_BROKER_HOST: "rabbitmq"
       QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
@@ -75,7 +75,7 @@ services:
     depends_on:
       - rabbitmq
     environment:
-      TARANIS_NG_CORE_URL: "http://core"
+      TARANIS_CORE_URL: "http://core"
       API_KEY: "${API_KEY}"
       QUEUE_BROKER_HOST: "rabbitmq"
       QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
@@ -89,12 +89,12 @@ services:
     depends_on:
       - core
     ports:
-      - "${TARANIS_NG_PORT:-8080}:80"
+      - "${TARANIS_PORT:-8080}:80"
     environment:
       NGINX_WORKERS: "4"
       NGINX_CONNECTIONS: "16"
-      TARANIS_NG_CORE_UPSTREAM: "${TARANIS_NG_CORE_UPSTREAM:-core}"
-      TARANIS_NG_SENTRY_DSN: "${TARANIS_NG_SENTRY_DSN:-}"
+      TARANIS_CORE_UPSTREAM: "${TARANIS_CORE_UPSTREAM:-core}"
+      TARANIS_SENTRY_DSN: "${TARANIS_SENTRY_DSN:-}"
 
   rabbitmq:
     image: "rabbitmq:${RABBITMQ_TAG:-3-management-alpine}"

@@ -6,5 +6,5 @@ class TextPresenter(BasePresenter):
     name = "TEXT Presenter"
     description = "Presenter for generating text documents"
 
-    def generate(self, presenter_input, template) -> dict[str, str]:
-        return super().generate(presenter_input, template)
+    def generate(self, product, template) -> dict[str, bytes | str]:
+        return super().generate(product, template)

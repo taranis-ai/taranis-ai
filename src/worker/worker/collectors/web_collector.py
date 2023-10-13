@@ -325,7 +325,7 @@ class WebCollector(BaseCollector):
 
         firefox_driver_executable = os.environ.get("SELENIUM_FIREFOX_DRIVER_PATH", "/usr/local/bin/geckodriver")
 
-        core_url = os.environ.get("TARANIS_NG_CORE_URL", "http://core")
+        core_url = os.environ.get("TARANIS_CORE_URL", "http://core")
         core_url_host = urlparse(core_url).hostname  # get only the hostname from URL
 
         firefox_options = FirefoxOptions()

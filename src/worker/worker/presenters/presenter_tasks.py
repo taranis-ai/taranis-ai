@@ -75,7 +75,7 @@ class PresenterTask(Task):
         if err or not product:
             return err
 
-        logger.info(f"Rendering product {product_id} with presenter {presenter}")
+        logger.info(f"Rendering product {product_id} with presenter {presenter.type}")
 
         rendered_product = presenter.generate(product, template)
         if not rendered_product:

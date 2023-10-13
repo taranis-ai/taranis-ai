@@ -6,47 +6,47 @@ This template cannot be used for item of type "{{ report_item.type }}". It can o
 
 ## Vulnerability
 
-CVSS VECTOR: {% if report_item.attrs.cvss %}{{ report_item.attrs.cvss | default('unspecified') }}{% endif %}
-TLP: {{ report_item.attrs.tlp }}
-CONFIDENTIALITY: {{ report_item.attrs.confidentiality | default('Public') }}
-DESCRIPTION: {{ report_item.attrs.description }}
-FIRST PUBLISHED: {{ report_item.attrs.exposure_date }}
-UPDATED: {{ report_item.attrs.update_date }}
-CVE: {% for cve in report_item.attrs.cve %}{{ cve }}{{ ", " if loop.last else "" }}{% endfor %}
+CVSS VECTOR: {% if report_item.attributes.cvss %}{{ report_item.attributes.cvss | default('unspecified') }}{% endif %}
+TLP: {{ report_item.attributes.tlp }}
+CONFIDENTIALITY: {{ report_item.attributes.confidentiality | default('Public') }}
+DESCRIPTION: {{ report_item.attributes.description }}
+FIRST PUBLISHED: {{ report_item.attributes.exposure_date }}
+UPDATED: {{ report_item.attributes.update_date }}
+CVE: {% for cve in report_item.attributes.cve %}{{ cve }}{{ ", " if loop.last else "" }}{% endfor %}
 IMPACT:
-{% for impact in report_item.attrs.impact -%}
+{% for impact in report_item.attributes.impact -%}
 - {{ impact }}
 {% endfor %}
 
 ## Identify and act
 
-{% if report_item.attrs.ioc is defined and report_item.attrs.ioc|length > 0 -%}
+{% if report_item.attributes.ioc is defined and report_item.attributes.ioc|length > 0 -%}
 
 ### IOC
 
-{% for ioc in report_item.attrs.ioc -%}
+{% for ioc in report_item.attributes.ioc -%}
 - {{ ioc }}
 {% endfor %}
 {%- endif %}
-{% if report_item.attrs.affected_systems is defined and report_item.attrs.affected_systems|length > 0 -%}
+{% if report_item.attributes.affected_systems is defined and report_item.attributes.affected_systems|length > 0 -%}
 
 ### Affected systems
 
-{% for entry in report_item.attrs.affected_systems -%}
+{% for entry in report_item.attributes.affected_systems -%}
 - {{ entry }}
 {% endfor %}
 {%- endif %}
-{% if report_item.attrs.recommendations is defined and report_item.attrs.recommendations != "" -%}
+{% if report_item.attributes.recommendations is defined and report_item.attributes.recommendations != "" -%}
 
 ### Recommendations
 
-{{ report_item.attrs.recommendations }}
+{{ report_item.attributes.recommendations }}
 {% endif %}
-{% if report_item.attrs.links is defined and report_item.attrs.links|length > 1 %}
+{% if report_item.attributes.links is defined and report_item.attributes.links|length > 1 %}
 
 ### Links
 
-{% for entry in report_item.attrs.links %}
+{% for entry in report_item.attributes.links %}
 - {{ entry }}
 {% endfor %}
 {% endif %}

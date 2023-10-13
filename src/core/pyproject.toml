@@ -1,6 +1,6 @@
 [project]
-name = "taranis-ng-core"
-description = "Taranis-NG Core"
+name = "taranis-core"
+description = "Taranis Core"
 readme = "README.md"
 license = {file = "LICENSE.md"}
 maintainers = [{ name = "AIT", email = "benjamin.akhras@ait.ac.at" }]

@@ -1,6 +1,6 @@
 [project]
-name = "taranis-ng-worker"
-description = "Taranis-NG Queue Worker"
+name = "taranis-worker"
+description = "Taranis Queue Worker"
 readme = "README.md"
 license = {file = "LICENSE.md"}
 maintainers = [{ name = "AIT", email = "benjamin.akhras@ait.ac.at" }]

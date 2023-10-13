@@ -9,12 +9,9 @@
       <v-card-text>
         <v-text-field
           v-model="news_item.title"
-          v-validate="'required'"
           :label="$t('enter.title')"
           name="title"
           type="text"
-          data-vv-name="title"
-          :error-messages="errors.collect('title')"
         ></v-text-field>
 
         <v-textarea
@@ -91,25 +88,9 @@ export default {
         if (!this.$validator.errors.any()) {
           this.news_item.content = this.editorData
 
-          const i = window.location.pathname.indexOf('/source/')
-          const len = window.location.pathname.length
-          this.news_item.osint_source_id = window.location.pathname.substring(
-            i + 8,
-            len
-          )
-
           this.news_item.author = this.user.name
           const d = new Date()
-          this.news_item.collected =
-            this.appendLeadingZeroes(d.getDate()) +
-            '.' +
-            this.appendLeadingZeroes(d.getMonth() + 1) +
-            '.' +
-            d.getFullYear() +
-            ' - ' +
-            this.appendLeadingZeroes(d.getHours()) +
-            ':' +
-            this.appendLeadingZeroes(d.getMinutes())
+          this.news_item.collected = d.getDate()
           this.news_item.published = this.news_item.collected
 
           addNewsItem(this.news_item)
@@ -141,13 +122,6 @@ export default {
           this.show_validation_error = true
         }
       })
-    },
-
-    appendLeadingZeroes(n) {
-      if (n <= 9) {
-        return '0' + n
-      }
-      return n
     }
   }
 }
