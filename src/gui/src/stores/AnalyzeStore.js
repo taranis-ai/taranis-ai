@@ -31,7 +31,8 @@ export const useAnalyzeStore = defineStore('analyze', {
           created: d(item.created, 'long'),
           type: this.report_item_types.items.find(
             (type) => type.id === item.report_item_type_id
-          )?.title
+          )?.title,
+          stories: item.stories
         }
       })
     }

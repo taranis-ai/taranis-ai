@@ -3,7 +3,14 @@
     :items="report_items_data"
     :add-button="false"
     :search-bar="false"
-    :header-filter="['completed', 'type', 'title', 'created', 'actions']"
+    :header-filter="[
+      'completed',
+      'type',
+      'title',
+      'created',
+      'stories',
+      'actions'
+    ]"
     @delete-item="deleteItem"
     @edit-item="editItem"
     @add-item="addItem"

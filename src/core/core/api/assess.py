@@ -54,9 +54,9 @@ class NewsItems(Resource):
         if not data_json:
             return {"error": "No data in JSON"}, 422
 
-        ids, status = news_item.NewsItemAggregate.add_news_item(data_json)
+        result, status = news_item.NewsItemAggregate.add_news_items([data_json])
         sse_manager.news_items_updated()
-        return ids, status
+        return result, status
 
 
 class NewsItemAggregates(Resource):

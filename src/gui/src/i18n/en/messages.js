@@ -463,13 +463,9 @@ export const messages_en = {
   },
 
   report_item: {
-    error: 'Could not create this report item',
-    title: 'Name',
+    title: 'Title',
+    no_stories: 'No stories found, please add one from Assess tab',
     report_type: 'Report Item Type',
-    successful: 'New report item was successfully added',
-    successful_edit: 'Report item was successfully saved',
-    removed: 'Report item was successfully removed',
-    removed_error: 'Report item is in use and could not be deleted',
     select: 'Select Report Items',
     attributes: 'Attributes',
     import_csv: 'Import CSV',

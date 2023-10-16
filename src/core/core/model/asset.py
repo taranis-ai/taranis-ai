@@ -13,7 +13,9 @@ from core.managers.log_manager import logger
 class AssetCpe(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     value = db.Column(db.String())
-    asset_id = db.Column(db.Integer, db.ForeignKey('asset.id'))
+
+    asset_id = db.Column(db.Integer, db.ForeignKey("asset.id"))
+    asset = db.relationship("Asset")
 
     def __init__(self, value):
         self.id = None
@@ -28,8 +30,10 @@ class Asset(BaseModel):
 
     asset_group_id = db.Column(db.String, db.ForeignKey("asset_group.id"))
     asset_group = db.relationship("AssetGroup")
-    asset_cpes = db.relationship("AssetCpe", cascade="all, delete-orphan")
-    vulnerabilities = db.relationship("AssetVulnerability", cascade="all, delete-orphan")
+
+    asset_cpes = db.relationship("AssetCpe", cascade="all, delete-orphan", back_populates="asset")
+
+    vulnerabilities = db.relationship("AssetVulnerability", cascade="all, delete-orphan", back_populates="asset")
     vulnerabilities_count = db.Column(db.Integer, default=0)
 
     def __init__(self, name, serial, description, group, asset_cpes=None, id=None):

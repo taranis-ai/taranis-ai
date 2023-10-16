@@ -916,7 +916,8 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/news_item'
+                type: object
+
         '401':
           description: authorization error
           content:
@@ -946,8 +947,7 @@ paths:
           content:
             application/json:
               schema:
-                type: string
-                example: success
+                type: object
         '400':
           description: erronous input data
         '401':
@@ -967,8 +967,9 @@ paths:
           content:
             application/json:
               schema:
-                type: string
-                example: success
+                type: object
+        '400':
+          description: cant delete news item
         '401':
           description: authorization error
           content:
@@ -980,8 +981,7 @@ paths:
           content:
             application/json:
               schema:
-                type: string
-                example: aggregate_in_use
+                type: object
         '404':
           $ref: "#/components/schemas/notFound"
 
@@ -1702,7 +1702,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/news_item_attribute.new'
+              $ref: '#/components/schemas/news_item_attribute'
       responses:
         '200':
           description: attribute has been updated
@@ -4322,11 +4322,9 @@ components:
               items:
                 $ref: '#/components/schemas/attribute_enum'
 
-    news_item_attribute.new:
-      allOf:
-        - $ref: '#/components/schemas/news_item_attribute'
-    news_item_attribute.base:
+    news_item_attribute:
       type: object
+      additionalProperties: false
       properties:
         id:
           type: integer
@@ -4336,16 +4334,18 @@ components:
           type: string
         binary_mime_type:
           type: string
-    news_item_attribute:
-      allOf:
-        - $ref: '#/components/schemas/news_item_attribute.base'
-        - type: object
-          properties:
-            binary_value:
-              type: string
+        binary_value:
+          type: string
+          format: base64
+      required:
+        - key
+        - value
     news_item_data:
       type: object
+      additionalProperties: false
       properties:
+        id:
+          type: string
         hash:
           type: string
         title:
@@ -4358,6 +4358,7 @@ components:
           type: string
         published:
           type: string
+          format: date-time
         author:
           type: string
         collected:
@@ -4365,20 +4366,17 @@ components:
           format: date-time
         osint_source_id:
           type: string
+        content:
+          type: string
         attributes:
           type: array
           items:
             $ref: '#/components/schemas/news_item_attribute'
       required:
-        - hash
         - title
         - review
         - source
-        - link
-        - published
-        - author
-        - collected
-        - osint_source_id
+        - content
     news_item.base:
       type: object
       properties:

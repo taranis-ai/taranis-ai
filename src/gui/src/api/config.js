@@ -84,6 +84,11 @@ export function updateProductType(product_type) {
   )
 }
 
+export function getProductType(product_type_id) {
+  console.debug('product_type', product_type_id)
+  return apiService.get(`/config/product-types/${product_type_id}`)
+}
+
 export function getAllPermissions(filter_data) {
   const filter = apiService.getQueryStringFromNestedObject(filter_data)
   return apiService.get(`/config/permissions?${filter}`)

@@ -14,7 +14,7 @@
       <v-switch
         v-if="edit"
         v-model="report_item.completed"
-        style="max-width: 120px"
+        style="max-width: 150px"
         hide-details
         label="Completed"
         color="success"
@@ -112,13 +112,20 @@
           </v-row>
         </v-col>
         <v-col :cols="verticalView ? 6 : 12" class="pa-5 taranis-vertical-view">
+          <v-alert
+            v-if="report_item.news_item_aggregates.length == 0"
+            dense
+            outlined
+            type="info"
+            :text="$t('report_item.no_stories')"
+          />
           <card-story
             v-for="story in report_item.news_item_aggregates"
             :key="story.id"
             :story="story"
             :report-view="true"
             @remove-from-report="removeFromReport(story.id)"
-          ></card-story>
+          />
         </v-col>
       </v-row>
     </v-card-text>

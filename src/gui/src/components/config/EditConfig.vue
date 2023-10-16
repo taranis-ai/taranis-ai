@@ -114,6 +114,7 @@
           </v-data-table>
         </v-col>
       </v-row>
+      <slot name="additionalData"></slot>
       <v-btn block type="submit" color="success"> Submit </v-btn>
     </v-form>
   </v-card>

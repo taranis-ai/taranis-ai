@@ -105,7 +105,7 @@ class ReportItem(BaseModel):
         cascade="all, delete-orphan",
     )
 
-    report_item_cpes = db.relationship("ReportItemCpe", cascade="all, delete-orphan")
+    report_item_cpes = db.relationship("ReportItemCpe", cascade="all, delete-orphan", back_populates="report_item")
 
     def __init__(
         self,
@@ -151,8 +151,13 @@ class ReportItem(BaseModel):
         report_item = cls.get(id)
         return report_item.to_detail_dict() if report_item else None
 
+    def to_dict(self):
+        data = super().to_dict()
+        data["stories"] = len(self.news_item_aggregates)
+        return data
+
     def to_detail_dict(self):
-        data = self.to_dict()
+        data = super().to_dict()
         data["attributes"] = {attribute.id: attribute.to_report_dict() for attribute in self.attributes} if self.attributes else {}
         data["news_item_aggregates"] = [aggregate.to_dict() for aggregate in self.news_item_aggregates if aggregate]
         return data
@@ -237,7 +242,7 @@ class ReportItem(BaseModel):
             query = query.filter(ReportItem.completed)
 
         if "incompleted" in filter and filter["incompleted"].lower() != "false":
-            query = query.filter(ReportItem.completed is False)
+            query = query.filter(ReportItem.completed == False)  # noqa
 
         if "range" in filter and filter["range"].upper() != "ALL":
             filter_range = filter["range"].upper()
@@ -332,7 +337,9 @@ class ReportItem(BaseModel):
 
         if title := data.get("title"):
             report_item.title = title
-        if completed := data.get("completed"):
+
+        completed = data.get("completed")
+        if completed is not None:
             report_item.completed = completed
 
         if attributes_data := data.pop("attributes", None):

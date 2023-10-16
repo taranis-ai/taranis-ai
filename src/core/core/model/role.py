@@ -10,8 +10,7 @@ class Role(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(64), unique=True, nullable=False)
     description = db.Column(db.String())
-
-    permissions = db.relationship(Permission, secondary='role_permission')
+    permissions = db.relationship(Permission, secondary="role_permission", back_populates="roles")
 
     def __init__(self, name, description, permissions=None, id=None):
         self.id = id

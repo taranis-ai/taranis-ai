@@ -42,7 +42,7 @@
         :value="attr_enum.value"
       />
     </v-radio-group>
-    <quill-editor
+    <code-editor
       v-if="attributeItem.attribute.type === 'RICH_TEXT'"
       v-model:content="input"
       :read-only="readOnly"
@@ -124,12 +124,12 @@
 
 <script>
 import { ref, computed } from 'vue'
-import { QuillEditor } from '@vueup/vue-quill'
+import CodeEditor from '../common/CodeEditor.vue'
 
 export default {
   name: 'AttributeItem',
   components: {
-    QuillEditor
+    CodeEditor
   },
   props: {
     value: {

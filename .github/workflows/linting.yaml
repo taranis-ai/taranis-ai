@@ -4,8 +4,6 @@ on:
   workflow_dispatch:
   pull_request:
 
-# TODO USE SECRET Environment variable to setup CICD pipeline
-
 jobs:
   black:
     name: run black linter
@@ -14,7 +12,7 @@ jobs:
       matrix:
         python-version: ['3.11']
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: lint with black
         uses: rickstaa/action-black@v1
         with:

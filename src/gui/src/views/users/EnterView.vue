@@ -12,31 +12,29 @@
           :label="$t('enter.title')"
           name="title"
           type="text"
-        ></v-text-field>
+        />
 
         <v-textarea
           v-model="news_item.review"
           :label="$t('enter.review')"
           name="review"
-        ></v-textarea>
-
+        />
         <v-text-field
           v-model="news_item.source"
           :label="$t('enter.source')"
           name="source"
           type="text"
-        ></v-text-field>
+        />
 
         <v-text-field
           v-model="news_item.link"
           :label="$t('enter.link')"
           name="link"
           type="text"
-        ></v-text-field>
-
-        <quill-editor
-          v-model:content="editorData"
-          placeholder="insert text here ..."
+        />
+        <code-editor
+          v-model:content="editorContent"
+          :placeholder="placeholder"
         />
       </v-card-text>
     </v-card>
@@ -46,24 +44,22 @@
 </template>
 
 <script>
-import { QuillEditor } from '@vueup/vue-quill'
+import { computed, ref } from 'vue'
 import { addNewsItem } from '@/api/assess'
-import { notifySuccess } from '@/utils/helpers'
-import { mapState } from 'pinia'
+import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import { useMainStore } from '@/stores/MainStore'
+import CodeEditor from '@/components/common/CodeEditor.vue'
 
 export default {
   name: 'EnterView',
   components: {
-    QuillEditor
+    CodeEditor
   },
-  data: () => ({
-    show_error: false,
-    show_validation_error: false,
+  setup() {
+    const mainStore = useMainStore()
+    const user = computed(() => mainStore.user)
 
-    editorData: '',
-
-    news_item: {
+    const news_item = ref({
       id: '',
       title: '',
       review: '',
@@ -71,57 +67,47 @@ export default {
       link: '',
       source: '',
       author: '',
-      language: '',
       hash: '',
       osint_source_id: '',
       published: '',
       collected: '',
       attributes: []
+    })
+
+    const editorContent = ref('')
+
+    const add = async () => {
+      news_item.value.content = editorContent.value
+      news_item.value.author = user.value.name
+      const d = new Date()
+      news_item.value.collected = d.toISOString()
+      news_item.value.published = news_item.value.collected
+
+      try {
+        await addNewsItem(news_item.value)
+
+        // Reset fields
+        Object.keys(news_item.value).forEach((key) => {
+          news_item.value[key] = ''
+        })
+
+        notifySuccess('enter.successful')
+      } catch (e) {
+        notifyFailure('enter.failed')
+      }
     }
-  }),
-  computed: {
-    ...mapState(useMainStore, ['user'])
-  },
-  methods: {
-    add() {
-      this.$validator.validateAll().then(() => {
-        if (!this.$validator.errors.any()) {
-          this.news_item.content = this.editorData
 
-          this.news_item.author = this.user.name
-          const d = new Date()
-          this.news_item.collected = d.getDate()
-          this.news_item.published = this.news_item.collected
+    const placeholder = `Article content here...
 
-          addNewsItem(this.news_item)
-            .then(() => {
-              this.news_item.id = ''
-              this.news_item.title = ''
-              this.news_item.review = ''
-              this.news_item.content = ''
-              this.news_item.link = ''
-              this.news_item.source = ''
-              this.news_item.author = ''
-              this.news_item.language = ''
-              this.news_item.hash = ''
-              this.news_item.osint_source_id = ''
-              this.news_item.published = ''
-              this.news_item.collected = ''
-              this.news_item.attributes = []
 
-              this.$validator.reset()
 
-              this.editorData = '<p></p>'
+    `
 
-              notifySuccess('enter.successful')
-            })
-            .catch(() => {
-              this.show_error = true
-            })
-        } else {
-          this.show_validation_error = true
-        }
-      })
+    return {
+      news_item,
+      editorContent,
+      placeholder,
+      add
     }
   }
 }

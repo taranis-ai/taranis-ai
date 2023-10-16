@@ -10,6 +10,7 @@ import { createPinia } from 'pinia'
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 import 'vue-datepicker-next/index.css'
 import VueDOMPurifyHTML from 'vue-dompurify-html'
+
 import * as Sentry from '@sentry/vue'
 
 export const app = createApp(App)

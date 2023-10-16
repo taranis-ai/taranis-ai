@@ -15,7 +15,15 @@
       :config-data="formData"
       :title="editTitle"
       @submit="handleSubmit"
-    />
+    >
+      <template #additionalData>
+        <code-editor
+          v-if="showForm"
+          v-model:content="templateData"
+          header="Template Content"
+        />
+      </template>
+    </EditConfig>
   </v-container>
 </template>
 
@@ -25,19 +33,22 @@ import EditConfig from '@/components/config/EditConfig.vue'
 import {
   deleteProductType,
   createProductType,
-  updateProductType
+  updateProductType,
+  getProductType
 } from '@/api/config'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import { useConfigStore } from '@/stores/ConfigStore'
 import { useMainStore } from '@/stores/MainStore'
 import { ref, computed, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
+import CodeEditor from '@/components/common/CodeEditor.vue'
 
 export default {
   name: 'ProductTypesView',
   components: {
     DataTable,
-    EditConfig
+    EditConfig,
+    CodeEditor
   },
   setup() {
     const configStore = useConfigStore()
@@ -47,6 +58,8 @@ export default {
     const edit = ref(false)
     const presenterList = ref([])
     const showForm = ref(false)
+
+    const templateData = ref('')
 
     const { product_types, presenter_types } = storeToRefs(configStore)
 
@@ -108,8 +121,12 @@ export default {
 
     const editItem = (item) => {
       formData.value = item
-      edit.value = true
-      showForm.value = true
+      getProductType(item.id).then((response) => {
+        console.debug('response', response)
+        templateData.value = atob(response.data.template)
+        edit.value = true
+        showForm.value = true
+      })
     }
 
     const editTitle = computed(() => {
@@ -174,6 +191,7 @@ export default {
       formFormat,
       editTitle,
       showForm,
+      templateData,
       addItem,
       editItem,
       handleSubmit,

@@ -1,10 +1,12 @@
 import uuid
 import base64
+import contextlib
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, Optional
 from sqlalchemy import orm, and_, or_, func
 from enum import StrEnum, auto
 from collections import Counter
+import hashlib
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
@@ -25,8 +27,8 @@ class NewsItemData(BaseModel):
     link = db.Column(db.String())
     language = db.Column(db.String())
     content = db.Column(db.String())
-    collected = db.Column(db.DateTime)
-    published = db.Column(db.DateTime, default=datetime.now())
+    collected: Any = db.Column(db.DateTime)
+    published: Any = db.Column(db.DateTime, default=datetime.now())
     updated = db.Column(db.DateTime, default=datetime.now())
 
     attributes = db.relationship("NewsItemAttribute", secondary="news_item_data_news_item_attribute", cascade="all, delete")
@@ -34,19 +36,45 @@ class NewsItemData(BaseModel):
     osint_source_id = db.Column(db.String, db.ForeignKey("osint_source.id"), nullable=True)
     osint_source = db.relationship("OSINTSource")
 
-    def __init__(self, hash, title, review, source, link, published, author, collected, content, osint_source_id, attributes, id=None):
+    def __init__(
+        self,
+        title,
+        review,
+        source,
+        content,
+        osint_source_id=None,
+        author=None,
+        link=None,
+        published=datetime.now(),
+        collected=datetime.now(),
+        hash=None,
+        attributes=None,
+        id=None,
+    ):
         self.id = id or str(uuid.uuid4())
-        self.hash = hash
         self.title = title
         self.review = review
-        self.author = author
         self.source = source
-        self.link = link
         self.content = content
-        self.collected = collected if type(collected) is datetime else datetime.fromisoformat(collected)
-        self.published = published if type(published) is datetime else datetime.fromisoformat(published)
-        self.attributes = attributes
-        self.osint_source_id = osint_source_id
+        self.link = link
+        self.author = author
+        self.hash = hash or self.get_hash(author, title, link, content)
+        self.collected = collected if type(collected) is datetime else datetime.fromisoformat(str(collected))
+        self.published = published if type(published) is datetime else datetime.fromisoformat(str(published))
+        self.osint_source_id = osint_source_id if OSINTSource.get(osint_source_id) else None
+        if attributes:
+            self.attributes = NewsItemAttribute.load_multiple(attributes)
+
+    @classmethod
+    def get_hash(
+        cls, author: Optional[str] = None, title: Optional[str] = None, link: Optional[str] = None, content: Optional[str] = None
+    ) -> str:
+        strauthor = author or ""
+        strtitle = title or ""
+        strlink = link or ""
+        strcontent = content or ""
+        combined_str = f"{strauthor}{strtitle}{strlink}{strcontent}"
+        return hashlib.sha256(combined_str.encode()).hexdigest()
 
     @classmethod
     def count_all(cls):
@@ -88,26 +116,26 @@ class NewsItemData(BaseModel):
     def update_news_item_lang(cls, news_item_id, lang):
         news_item = cls.get(news_item_id)
         if news_item is None:
-            return "Invalid news item id", 400
+            return {"error": "Invalid news item id"}, 400
         news_item.language = lang
         db.session.commit()
-        return "Language updated", 200
+        return {"message": "Language updated"}, 200
 
     @classmethod
-    def update_news_item_attributes(cls, news_item_id, attributes) -> tuple[str, int]:
+    def update_news_item_attributes(cls, news_item_id, attributes) -> tuple[dict, int]:
         news_item = cls.get(news_item_id)
         if news_item is None:
-            return "Invalid news item id", 400
+            return {"error": "Invalid news item id"}, 400
 
         attributes = NewsItemAttribute.load_multiple(attributes)
         if attributes is None:
-            return "Invalid attributes", 400
+            return {"error": "Invalid attributes"}, 400
 
         for attribute in attributes:
             if not news_item.has_attribute_value(attribute.value):
                 news_item.attributes.append(attribute)
 
-        return "Attributes updated", 200
+        return {"message": "Attributes updated"}, 200
 
 
 class NewsItem(BaseModel):
@@ -303,8 +331,8 @@ class NewsItem(BaseModel):
         if not aggregate:
             return {"error": f"Aggregate with id: {id} not found"}, 404
 
-        if NewsItemAggregate.is_assigned_to_report([{"type": "AGGREGATE", "id": aggregate_id}]) is False:
-            return {"error": f"aggregate with: {aggregate_id} assigned to a report"}, 500
+        if NewsItemAggregate.is_assigned_to_report([aggregate_id]):
+            return {"error": f"aggregate with: {aggregate_id} assigned to a report"}, 400
 
         aggregate.news_items.remove(news_item)
         cls.delete_item(news_item)
@@ -616,30 +644,17 @@ class NewsItemAggregate(BaseModel):
     @classmethod
     def add_news_items(cls, news_items_data_list):
         news_items_data = NewsItemData.load_multiple(news_items_data_list)
-        for news_item_data in news_items_data:
-            if not NewsItemData.identical(news_item_data.hash):
-                db.session.add(news_item_data)
-                cls.create_new(news_item_data)
-        db.session.commit()
-
-        return f"Added {len(news_items_data)} news items", 200
-
-    @classmethod
-    def add_news_item(cls, news_item_data_json: dict) -> tuple[dict, int]:
+        ids = []
         try:
-            if news_item_data_json.keys() != NewsItemData.__table__.columns.keys():
-                return {"error": "Invalid news item data"}, 422
-            if NewsItemData.identical(news_item_data_json["hash"]):
-                return {"error": "News item already exists"}, 409
-            if news_item_data := NewsItemData.from_dict(news_item_data_json):
-                db.session.add(news_item_data)
-                cls.create_new(news_item_data)
-                db.session.commit()
-                return {"message": "news_item_data created", "id": news_item_data.id}, 201
-            return {"error": "Invalid news item data"}, 422
-        except Exception:
-            logger.exception(f"Add News Item Failed {news_item_data_json}")
-            return {"error": "add failed"}, 500
+            for news_item_data in news_items_data:
+                if not NewsItemData.identical(news_item_data.hash):
+                    db.session.add(news_item_data)
+                    ids.append(cls.create_new(news_item_data).id)
+            db.session.commit()
+        except Exception as e:
+            return {"error": f"Failed to add news items: {e}"}, 400
+
+        return {"message": f"Added {len(news_items_data)} news items", "ids": ids}, 200
 
     @classmethod
     def update(cls, id, data, user):
@@ -1025,8 +1040,9 @@ class NewsItemAttribute(BaseModel):
         self.value = value
         self.binary_mime_type = binary_mime_type
 
-        if binary_value:
-            self.binary_data = base64.b64decode(binary_value)
+        with contextlib.suppress(Exception):
+            if binary_value:
+                self.binary_data = base64.b64decode(binary_value)
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
