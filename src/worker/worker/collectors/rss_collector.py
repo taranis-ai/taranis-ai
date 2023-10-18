@@ -32,6 +32,8 @@ class RSSCollector(BaseCollector):
             logger.warning("No FEED_URL set")
             return "No FEED_URL set"
 
+        self.set_proxies(source["parameters"].get("PROXY_SERVER", None))
+
         logger.info(f"RSS-Feed {source['id']} Starting collector for url: {feed_url}")
 
         if user_agent := source["parameters"].get("USER_AGENT", None):
