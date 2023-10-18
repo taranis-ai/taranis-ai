@@ -23,6 +23,7 @@ class RSSCollector(BaseCollector):
         self.news_items = []
         self.proxies = None
         self.headers = {}
+        self.timeout = 60
         logger_trafilatura = logging.getLogger("trafilatura")
         logger_trafilatura.setLevel(logging.WARNING)
 
@@ -48,7 +49,7 @@ class RSSCollector(BaseCollector):
         self.proxies = {"http": proxy_server, "https": proxy_server, "ftp": proxy_server}
 
     def make_request(self, url: str) -> None | requests.Response:
-        response = requests.get(url, headers=self.headers, proxies=self.proxies, timeout=60)
+        response = requests.get(url, headers=self.headers, proxies=self.proxies, timeout=self.timeout)
         if not response.ok:
             raise RuntimeError(f"Response not ok: {response.status_code}")
         return response
@@ -89,7 +90,7 @@ class RSSCollector(BaseCollector):
         if not published:
             if not link:
                 return self.last_modified or datetime.datetime.now()
-            response = requests.head(link, headers=self.headers, proxies=self.proxies)
+            response = requests.head(link, headers=self.headers, proxies=self.proxies, timeout=self.timeout)
             if not response.ok:
                 return self.last_modified or datetime.datetime.now()
 
@@ -182,7 +183,7 @@ class RSSCollector(BaseCollector):
             icon_url = str(icon)
         elif isinstance(icon, list):
             icon_url = str(icon[0].get("href"))
-        r = requests.get(icon_url, headers=self.headers, proxies=self.proxies)
+        r = requests.get(icon_url, headers=self.headers, proxies=self.proxies, timeout=self.timeout)
         if not r.ok:
             return None
 

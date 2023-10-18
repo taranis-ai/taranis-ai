@@ -19,7 +19,7 @@ def update_wordlist(word_list_id: int):
 
     url = word_list["link"]
     logger.info(f"Updating word list {word_list['name']} from {url}")
-    response = requests.get(url=url)
+    response = requests.get(url=url, timeout=60)
     if not response.ok:
         logger.error(f"Failed to download word list {word_list['name']} - from {url} : {response.status_code}")
         return

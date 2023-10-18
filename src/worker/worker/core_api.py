@@ -11,6 +11,7 @@ class CoreApi:
         self.api_key = Config.API_KEY
         self.headers = self.get_headers()
         self.verify = Config.SSL_VERIFICATION
+        self.timeout = Config.REQUESTS_TIMEOUT
 
     def get_headers(self) -> dict:
         return {"Authorization": f"Bearer {self.api_key}", "Content-type": "application/json"}
@@ -28,26 +29,26 @@ class CoreApi:
         url = f"{self.api_url}{url}"
         if not json_data:
             json_data = {}
-        response = requests.put(url=url, headers=self.headers, verify=self.verify, json=json_data)
+        response = requests.put(url=url, headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout)
         return self.check_response(response, url)
 
     def api_post(self, url, json_data=None):
         url = f"{self.api_url}{url}"
         if not json_data:
             json_data = {}
-        response = requests.post(url=url, headers=self.headers, verify=self.verify, json=json_data)
+        response = requests.post(url=url, headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout)
         return self.check_response(response, url)
 
     def api_get(self, url, params=None):
         url = f"{self.api_url}{url}"
         if params:
             url += f"?{urlencode(params)}"
-        response = requests.get(url=url, headers=self.headers, verify=self.verify)
+        response = requests.get(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
         return self.check_response(response, url)
 
     def api_delete(self, url):
         url = f"{self.api_url}{url}"
-        response = requests.delete(url=url, headers=self.headers, verify=self.verify)
+        response = requests.delete(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
         return self.check_response(response, url)
 
     def get_bot_config(self, bot_id: str) -> dict | None:
@@ -65,14 +66,16 @@ class CoreApi:
 
     def get_template(self, presenter: int) -> str | None:
         url = f"{self.api_url}/worker/presenters/{presenter}"
-        response = requests.get(url=url, headers=self.headers, verify=self.verify)
+        response = requests.get(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
         return response.text if response.ok else None
 
     def upload_rendered_product(self, product_id, product) -> dict | None:
         url = f"{self.api_url}/worker/products/{product_id}"
         headers = self.headers.copy()
         headers["Content-type"] = product["mime_type"]
-        return self.check_response(requests.put(url=url, data=product["data"], headers=headers, verify=self.verify), url)
+        return self.check_response(
+            requests.put(url=url, data=product["data"], headers=headers, verify=self.verify, timeout=self.timeout), url
+        )
 
     def get_schedule(self) -> dict | None:
         try:
@@ -156,9 +159,13 @@ class CoreApi:
             headers["Content-type"] = content_type
             # url = "http://127.0.0.1:8888/anything"
             if content_type == "text/csv":
-                return self.check_response(requests.put(url=url, data=content, headers=headers, verify=self.verify), url)
+                return self.check_response(
+                    requests.put(url=url, data=content, headers=headers, verify=self.verify, timeout=self.timeout), url
+                )
             elif content_type == "application/json":
-                return self.check_response(requests.put(url=url, json=content, headers=headers, verify=self.verify), url)
+                return self.check_response(
+                    requests.put(url=url, json=content, headers=headers, verify=self.verify, timeout=self.timeout), url
+                )
         except Exception:
             return None
 
@@ -170,7 +177,7 @@ class CoreApi:
             url = f"{self.api_url}/worker/osint-sources/{osint_source_id}/icon"
             headers = self.headers.copy()
             headers.pop("Content-type", None)
-            return self.check_response(requests.put(url=url, files=icon, headers=headers, verify=self.verify), url)
+            return self.check_response(requests.put(url=url, files=icon, headers=headers, verify=self.verify, timeout=self.timeout), url)
         except Exception:
             return None
 
@@ -186,6 +193,7 @@ class CoreApi:
                 f"{self.api_url}/bots/news-item-aggregates/group",
                 json=data,
                 headers=self.headers,
+                timeout=self.timeout,
             )
             return response.status_code
         except Exception:
@@ -197,6 +205,7 @@ class CoreApi:
                 f"{self.api_url}/bots/news-item-aggregates/group-multiple",
                 json=data,
                 headers=self.headers,
+                timeout=self.timeout,
             )
             return response.status_code
         except Exception:
@@ -204,7 +213,9 @@ class CoreApi:
 
     def add_news_items(self, news_items) -> bool:
         try:
-            response = requests.post(f"{self.api_url}/worker/news-items", json=news_items, headers=self.headers, verify=self.verify)
+            response = requests.post(
+                f"{self.api_url}/worker/news-items", json=news_items, headers=self.headers, verify=self.verify, timeout=self.timeout
+            )
 
             return response.ok
         except Exception:
@@ -214,7 +225,7 @@ class CoreApi:
     def cleanup_token_blacklist(self):
         try:
             url = f"{self.api_url}/worker/token-blacklist"
-            response = requests.post(url=url, headers=self.headers, verify=self.verify)
+            response = requests.post(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
             return self.check_response(response, url)
         except Exception:
             logger.log_debug_trace("Cannot cleanup token blacklist")

@@ -32,10 +32,6 @@ class WORDPRESSPublisher(BasePublisher):
 
             post = {"title": title, "status": "publish", "content": bytes_data}
 
-            requests.post(
-                f"{main_wp_url}/index.php/wp-json/wp/v2/posts",
-                headers=headers,
-                json=post,
-            )
+            requests.post(f"{main_wp_url}/index.php/wp-json/wp/v2/posts", headers=headers, json=post, timeout=60)
         except Exception as error:
             BasePublisher.print_exception(self, error)
