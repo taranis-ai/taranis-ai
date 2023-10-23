@@ -468,7 +468,7 @@ export const messages_en = {
     render: 'Render Product',
     preview: 'Show preview',
     publish: 'Publish product',
-    download: 'Download product',
+    download: 'Download'
   },
 
   analyze: {

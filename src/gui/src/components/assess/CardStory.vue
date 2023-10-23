@@ -130,6 +130,7 @@
 
           <v-list class="extraActionsList" dense>
             <v-list-item
+              v-if="detailView || reportView"
               :prepend-icon="
                 !story.read ? 'mdi-eye-outline' : 'mdi-eye-off-outline'
               "
