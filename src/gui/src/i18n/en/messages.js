@@ -488,7 +488,8 @@ export const messages_en = {
     publisher: 'Publisher',
     render: 'Render Product',
     preview: 'Show preview',
-    publish: 'Publish product'
+    publish: 'Publish product',
+    download: 'Download',
   },
 
   analyze: {

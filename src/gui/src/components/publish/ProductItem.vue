@@ -12,6 +12,14 @@
         density="compact"
       />
       <v-btn
+        v-if="renderedProduct"
+        variant="outlined"
+        class="ml-3 mr-3"
+        @click="downloadProduct()"
+      >
+        <span>{{ $t('product.download') }}</span>
+      </v-btn>
+      <v-btn
         variant="outlined"
         prepend-icon="mdi-eye-outline"
         @click="rerenderProduct()"
@@ -69,7 +77,7 @@
               <v-col cols="12">
                 <v-select
                   v-model="preset.selected"
-                  :items="publisher_presets"
+                  :items="publisher"
                   item-title="name"
                   item-value="id"
                   :label="$t('product.publisher')"
@@ -147,7 +155,7 @@ export default {
     const product_types = computed(() => {
       return configStore.product_types.items
     })
-    const publisher_presets = computed(() => {
+    const publisher = computed(() => {
       return configStore.publisher_presets.items
     })
     const product = ref(props.productProp)
@@ -208,6 +216,7 @@ export default {
     function rerenderProduct() {
       triggerRenderProduct(product.value.id)
         .then(() => {
+          notifySuccess('Render triggered please refresh the page')
           console.debug('Triggered render for product ' + product.value.id)
         })
         .catch(() => {
@@ -230,6 +239,55 @@ export default {
         })
     }
 
+    function getExtensionFromMimeType(mimeType) {
+      const mimeToExtension = {
+        'text/html': 'html',
+        'application/json': 'json',
+        'text/plain': 'txt',
+        'application/pdf': 'pdf'
+      }
+
+      return mimeToExtension[mimeType] || null
+    }
+
+    function downloadProduct() {
+      let bytes
+      if (render_direct.value) {
+        bytes = new TextEncoder().encode(renderedProduct.value)
+      } else {
+        bytes = base64ToArrayBuffer(renderedProduct.value)
+      }
+      const blob = createBlobFromBytes(bytes, renderedProductMimeType.value)
+      const extension = getExtensionFromMimeType(renderedProductMimeType.value)
+
+      if (extension) {
+        downloadBlobAsFile(blob, `${product.value.title}.${extension}`)
+      }
+    }
+
+    function base64ToArrayBuffer(base64) {
+      const binaryString = window.atob(base64)
+      const len = binaryString.length
+      const bytes = new Uint8Array(len)
+
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i)
+      }
+
+      return bytes.buffer
+    }
+
+    function createBlobFromBytes(bytes, mimeType) {
+      return new Blob([bytes], { type: mimeType })
+    }
+
+    function downloadBlobAsFile(blob, filename) {
+      const link = document.createElement('a')
+      link.href = window.URL.createObjectURL(blob)
+      link.download = filename
+      link.click()
+    }
+
     onMounted(() => {
       configStore.loadProductTypes()
       configStore.loadPublisherPresets()
@@ -244,7 +302,7 @@ export default {
       preset,
       container_title,
       product_types,
-      publisher_presets,
+      publisher,
       verticalView,
       reportItems,
       renderedProduct,
@@ -252,6 +310,7 @@ export default {
       render_direct,
       saveProduct,
       renderProduct,
+      downloadProduct,
       rerenderProduct
     }
   }

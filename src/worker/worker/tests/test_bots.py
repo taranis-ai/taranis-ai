@@ -4,5 +4,4 @@ def test_initalize_bots():
     bots.AnalystBot(),
     bots.GroupingBot(),
     bots.NLPBot(),
-    bots.TaggingBot(),
-    bots.WordlistUpdaterBot(),
+    bots.TaggingBot()

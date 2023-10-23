@@ -68,6 +68,12 @@ export default {
         divider: true
       },
       {
+        icon: 'mdi-file-table-outline',
+        title: 'nav_menu.report_types',
+        route: '/config/reportitems/types',
+        permission: 'CONFIG_REPORT_TYPE_ACCESS'
+      },
+      {
         icon: 'mdi-file-document-outline',
         title: 'nav_menu.product_types',
         route: '/config/product/types',
@@ -90,12 +96,6 @@ export default {
         title: 'nav_menu.attributes',
         route: '/config/reportitems/attributes',
         permission: 'CONFIG_ATTRIBUTE_ACCESS'
-      },
-      {
-        icon: 'mdi-file-table-outline',
-        title: 'nav_menu.report_types',
-        route: '/config/reportitems/types',
-        permission: 'CONFIG_REPORT_TYPE_ACCESS'
       },
       {
         icon: 'mdi-format-list-text',
