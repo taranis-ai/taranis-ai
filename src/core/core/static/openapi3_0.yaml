@@ -4093,10 +4093,8 @@ components:
           type: string
         index:
           type: integer
-        min_occurrence:
-          type: integer
-        max_occurrence:
-          type: integer
+        multiple:
+          type: boolean,
         attribute_group_id:
           type: integer
         attribute_id:
@@ -4111,10 +4109,6 @@ components:
         title:
           type: string
         description:
-          type: string
-        section:
-          type: integer
-        section_title:
           type: string
         index:
           type: integer

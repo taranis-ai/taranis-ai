@@ -9,7 +9,7 @@ import {
   getAllOSINTSources,
   getAllPermissions,
   getAllProductTypes,
-  getAllPublisherPresets,
+  getAllPublisher,
   getAllReportTypes,
   getAllRoles,
   getAllUsers,
@@ -33,7 +33,7 @@ export const useConfigStore = defineStore('config', {
     parameters: [],
     permissions: { total_count: 0, items: [] },
     product_types: { total_count: 0, items: [] },
-    publisher_presets: { total_count: 0, items: [] },
+    publisher: { total_count: 0, items: [] },
     report_item_types: { total_count: 0, items: [] },
     roles: { total_count: 0, items: [] },
     users: { total_count: 0, items: [] },
@@ -207,10 +207,10 @@ export const useConfigStore = defineStore('config', {
           notifyFailure(getMessageFromError(error))
         })
     },
-    loadPublisherPresets(data) {
-      return getAllPublisherPresets(data)
+    loadPublisher(data) {
+      return getAllPublisher(data)
         .then((response) => {
-          this.publisher_presets = response.data
+          this.publisher = response.data
         })
         .catch((error) => {
           notifyFailure(getMessageFromError(error))

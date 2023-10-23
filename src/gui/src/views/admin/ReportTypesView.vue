@@ -8,7 +8,11 @@
       @edit-item="editItem"
       @add-item="addItem"
       @update-items="updateData"
-    />
+    >
+      <template #titlebar>
+        <ImportExport @import="importData" @export="exportData" />
+      </template>
+    </data-table>
     <report-type-form
       v-if="showForm"
       :report-type-data="formData"
@@ -23,7 +27,12 @@
 import { defineComponent, ref, onMounted } from 'vue'
 import DataTable from '@/components/common/DataTable.vue'
 import ReportTypeForm from '@/components/config/ReportTypeForm.vue'
-import { deleteReportItemType } from '@/api/config'
+import ImportExport from '@/components/config/ImportExport.vue'
+import {
+  deleteReportItemType,
+  importReportTypes,
+  exportReportTypes
+} from '@/api/config'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import { storeToRefs } from 'pinia'
 
@@ -34,7 +43,8 @@ export default defineComponent({
   name: 'ReportTypes',
   components: {
     DataTable,
-    ReportTypeForm
+    ReportTypeForm,
+    ImportExport
   },
   setup() {
     const configStore = useConfigStore()
@@ -55,7 +65,6 @@ export default defineComponent({
     }
 
     const formUpdated = () => {
-      console.debug('formUpdated')
       showForm.value = false
       updateData()
     }
@@ -71,8 +80,8 @@ export default defineComponent({
     }
 
     const editItem = (item) => {
+      showForm.value = false
       edit.value = true
-      console.debug('editItem', item)
       formData.value = item
       showForm.value = true
     }
@@ -82,6 +91,7 @@ export default defineComponent({
         deleteReportItemType(item)
           .then(() => {
             notifySuccess(`Successfully deleted ${item.title}`)
+            showForm.value = false
             updateData()
           })
           .catch(() => {
@@ -92,6 +102,24 @@ export default defineComponent({
 
     const selectionChange = (new_selection) => {
       selected.value = new_selection
+    }
+
+    const importData = (data) => {
+      importReportTypes(data).then(() => {
+        notifySuccess('Successfully imported Report Types')
+        updateData()
+      })
+    }
+
+    const exportData = () => {
+      console.debug(`Exporting ${selected.value.join('&ids=')}`)
+      let queryString = ''
+      if (selected.value.length > 0) {
+        queryString = 'ids=' + selected.value.join('&ids=')
+      }
+      exportReportTypes(queryString).then(() => {
+        notifySuccess('Successfully exported Report Types')
+      })
     }
 
     onMounted(() => {
@@ -108,6 +136,8 @@ export default defineComponent({
       addItem,
       editItem,
       deleteItem,
+      importData,
+      exportData,
       selectionChange,
       updateData,
       formUpdated

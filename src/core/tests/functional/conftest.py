@@ -262,15 +262,13 @@ def cleanup_report_item_type(app, request):
                     "index": 0,
                     "title": "Test Attribute Group",
                     "description": "This is a test attribute group",
-                    "section_title": "",
                     "attribute_group_items": [
                         {
                             "index": 0,
                             "attribute_id": 1,
                             "title": "Test Attribute Group Item",
                             "description": "This is a test attribute group item",
-                            "min_occurrence": 0,
-                            "max_occurrence": 1,
+                            "multiple": False,
                             "attribute": {
                                 "id": 1,
                                 "name": "Text",

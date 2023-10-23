@@ -1,12 +1,13 @@
 from typing import Any
 from sqlalchemy import or_, and_
 import sqlalchemy
+import json
 from sqlalchemy.sql.expression import cast
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.model.acl_entry import ACLEntry, ItemType
-from core.managers.log_manager import logger
+from core.model.attribute import Attribute
 
 
 class AttributeGroupItem(BaseModel):
@@ -15,8 +16,7 @@ class AttributeGroupItem(BaseModel):
     description = db.Column(db.String())
 
     index = db.Column(db.Integer)
-    min_occurrence = db.Column(db.Integer, default=1)
-    max_occurrence = db.Column(db.Integer, default=1)
+    multiple = db.Column(db.Boolean, default=False)
 
     attribute_group_id = db.Column(db.Integer, db.ForeignKey("attribute_group.id", ondelete="CASCADE"))
     attribute_group = db.relationship("AttributeGroup")
@@ -24,13 +24,20 @@ class AttributeGroupItem(BaseModel):
     attribute_id = db.Column(db.Integer, db.ForeignKey("attribute.id"))
     attribute = db.relationship("Attribute")
 
-    def __init__(self, title, description, index, attribute_id, min_occurrence=1, max_occurrence=1, id=None):
+    def __init__(self, title, description, index, attribute_id=None, attribute=None, multiple=False, id=None):
         self.id = id
         self.title = title
         self.description = description
         self.index = index
-        self.min_occurrence = min_occurrence
-        self.max_occurrence = max_occurrence
+        self.multiple = multiple
+
+        if attribute:
+            if attr := Attribute.filter_by_name(attribute):
+                attribute_id = attr.id
+
+        if not attribute_id:
+            raise Exception("AttributeGroupItem requires either attribute_id or attribute")
+
         self.attribute_id = attribute_id
 
     @staticmethod
@@ -38,14 +45,13 @@ class AttributeGroupItem(BaseModel):
         return attribute_group_item.index
 
     def to_dict(self):
-        data = {c.name: getattr(self, c.name) for c in self.__table__.columns}
+        data = super().to_dict()
         data["attribute"] = self.attribute.to_dict()
         return data
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "ReportItemType":
         data.pop("attribute_group_id", None)
-        data.pop("attribute", None)
         return cls(**data)
 
     def to_dict_with_group(self):
@@ -59,8 +65,6 @@ class AttributeGroup(BaseModel):
     title = db.Column(db.String())
     description = db.Column(db.String())
 
-    section = db.Column(db.Integer, default=0)
-    section_title = db.Column(db.String(), default="")
     index = db.Column(db.Integer)
 
     report_item_type_id = db.Column(db.Integer, db.ForeignKey("report_item_type.id", ondelete="CASCADE"))
@@ -72,22 +76,17 @@ class AttributeGroup(BaseModel):
         cascade="all, delete-orphan",
     )
 
-    def __init__(self, title, description, index, attribute_group_items, section=0, section_title="", id=None):
+    def __init__(self, title, description, index, attribute_group_items=None, id=None):
         self.id = id
         self.title = title
         self.description = description
-        self.section = section
-        self.section_title = section_title
         self.index = index
-        self.attribute_group_items = attribute_group_items
+        self.attribute_group_items = AttributeGroupItem.load_multiple(attribute_group_items) if attribute_group_items else []
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "AttributeGroup":
-        attribute_group_items = [
-            AttributeGroupItem.from_dict(attribute_group_item) for attribute_group_item in data.pop("attribute_group_items")
-        ]
         data.pop("report_item_type_id", None)
-        return cls(attribute_group_items=attribute_group_items, **data)
+        return cls(**data)
 
     def to_dict(self):
         data = super().to_dict()
@@ -101,8 +100,6 @@ class AttributeGroup(BaseModel):
     def update(self, updated_attribute_group):
         self.title = updated_attribute_group.title
         self.description = updated_attribute_group.description
-        self.section = updated_attribute_group.section
-        self.section_title = updated_attribute_group.section_title
         self.index = updated_attribute_group.index
 
         for updated_attribute_group_item in updated_attribute_group.attribute_group_items:
@@ -112,8 +109,7 @@ class AttributeGroup(BaseModel):
                     attribute_group_item.title = updated_attribute_group_item.title
                     attribute_group_item.description = updated_attribute_group_item.description
                     attribute_group_item.index = updated_attribute_group_item.index
-                    attribute_group_item.min_occurrence = updated_attribute_group_item.min_occurrence
-                    attribute_group_item.max_occurrence = updated_attribute_group_item.max_occurrence
+                    attribute_group_item.multiple = updated_attribute_group_item.multiple
                     attribute_group_item.attribute_id = updated_attribute_group_item.attribute_id
                     found = True
                     break
@@ -142,11 +138,11 @@ class ReportItemType(BaseModel):
         cascade="all, delete-orphan",
     )
 
-    def __init__(self, title, description, attribute_groups, id=None):
+    def __init__(self, title, description, attribute_groups=None, id=None):
         self.id = id
         self.title = title
         self.description = description
-        self.attribute_groups = attribute_groups
+        self.attribute_groups = AttributeGroup.load_multiple(attribute_groups) if attribute_groups else []
 
     @classmethod
     def get_all(cls):
@@ -203,14 +199,8 @@ class ReportItemType(BaseModel):
         items = [report_item_type.to_dict() for report_item_type in report_item_types]
         return {"total_count": count, "items": items}
 
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "ReportItemType":
-        logger.debug(data)
-        attribute_groups = [AttributeGroup.from_dict(attribute_group) for attribute_group in data.pop("attribute_groups")]
-        return cls(attribute_groups=attribute_groups, **data)
-
-    def to_dict(self):
-        data = {c.name: getattr(self, c.name) for c in self.__table__.columns}
+    def to_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
         data["attribute_groups"] = [attribute_group.to_dict() for attribute_group in self.attribute_groups]
         return data
 
@@ -224,8 +214,33 @@ class ReportItemType(BaseModel):
         if description := data.get("description"):
             report_type.description = description
         if attribute_groups := data.get("attribute_groups"):
-            report_type.attribute_groups = [AttributeGroup.from_dict(attribute_group) for attribute_group in attribute_groups]
+            report_type.attribute_groups = AttributeGroup.load_multiple(attribute_groups)
         for attribute_group in report_type.attribute_groups:
             attribute_group.report_item_type = report_type
         db.session.commit()
         return report_type
+
+    @classmethod
+    def export(cls, source_ids=None):
+        if source_ids:
+            data = cls.query.filter(cls.id.in_(source_ids)).all()  # type: ignore
+        else:
+            data = cls.get_all()
+        export_data = {"version": 1, "data": [report_type.to_dict() for report_type in data]}
+        return json.dumps(export_data).encode("utf-8")
+
+    @classmethod
+    def load_json_content(cls, content) -> list:
+        if content.get("version") != 1:
+            raise ValueError("Invalid JSON file")
+        if not content.get("data"):
+            raise ValueError("No data found")
+        return content["data"]
+
+    @classmethod
+    def import_report_type(cls, file) -> list | None:
+        file_data = file.read().decode("utf8")
+        file_content = json.loads(file_data)
+        data = cls.load_json_content(content=file_content)
+
+        return None if data is None else cls.add_multiple(data)

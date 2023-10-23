@@ -78,7 +78,6 @@ export default {
     }
 
     const editItem = (item) => {
-      console.debug('editItem', item)
       router.push('/report/' + item.id)
     }
 

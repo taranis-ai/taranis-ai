@@ -5,4 +5,3 @@ def test_initalize_bots():
     bots.GroupingBot(),
     bots.NLPBot(),
     bots.TaggingBot(),
-    bots.WordlistUpdaterBot(),

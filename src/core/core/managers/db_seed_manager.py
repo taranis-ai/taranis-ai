@@ -243,22 +243,22 @@ def pre_seed_permissions():
     )
 
     Permission.add(
-        "CONFIG_PUBLISHER_PRESET_ACCESS",
+        "CONFIG_PUBLISHER_ACCESS",
         "Config publisher presets access",
         "Access to publisher presets configuration",
     )
     Permission.add(
-        "CONFIG_PUBLISHER_PRESET_CREATE",
+        "CONFIG_PUBLISHER_CREATE",
         "Config publisher preset create",
         "Create publisher preset configuration",
     )
     Permission.add(
-        "CONFIG_PUBLISHER_PRESET_UPDATE",
+        "CONFIG_PUBLISHER_UPDATE",
         "Config publisher preset update",
         "Update publisher preset configuration",
     )
     Permission.add(
-        "CONFIG_PUBLISHER_PRESET_DELETE",
+        "CONFIG_PUBLISHER_DELETE",
         "Config publisher preset delete",
         "Delete publisher preset configuration",
     )
@@ -285,22 +285,22 @@ def pre_seed_permissions():
     )
 
     Permission.add(
-        "CONFIG_PUBLISHER_PRESET_ACCESS",
+        "CONFIG_PUBLISHER_ACCESS",
         "Config publisher presets access",
         "Access to publisher presets configuration",
     )
     Permission.add(
-        "CONFIG_PUBLISHER_PRESET_CREATE",
+        "CONFIG_PUBLISHER_CREATE",
         "Config publisher preset create",
         "Create publisher preset configuration",
     )
     Permission.add(
-        "CONFIG_PUBLISHER_PRESET_UPDATE",
+        "CONFIG_PUBLISHER_UPDATE",
         "Config publisher preset update",
         "Update publisher preset configuration",
     )
     Permission.add(
-        "CONFIG_PUBLISHER_PRESET_DELETE",
+        "CONFIG_PUBLISHER_DELETE",
         "Config publisher preset delete",
         "Delete publisher preset configuration",
     )
@@ -379,11 +379,15 @@ def pre_seed_attributes(db):
     attrs = [
         {"name": "Text", "description": "Simple text box", "type": "STRING"},
         {"name": "Text Area", "description": "Simple text area", "type": "TEXT"},
+        {"name": "Number", "description": "Simple number box", "type": "NUMBER"},
         {"name": "TLP", "description": "Traffic Light Protocol", "type": "TLP"},
         {"name": "CPE", "description": "Common Platform Enumeration", "type": "CPE"},
         {"name": "CVSS", "description": "Common Vulnerability Scoring System", "type": "CVSS"},
         {"name": "CVE", "description": "Common Vulnerabilities and Exposures", "type": "CVE"},
         {"name": "Date", "description": "Date picker", "type": "DATE"},
+        {"name": "Link", "description": "Link", "type": "LINK"},
+        {"name": "Attachment", "description": "Attachment", "type": "ATTACHMENT"},
+        {"name": "Rich Text", "description": "Rich Text", "type": "RICH_TEXT"},
     ]
 
     for attr in attrs:
@@ -424,15 +428,6 @@ def pre_seed_attributes(db):
                     "description": "",
                 },
                 {"index": 6, "value": "Unauthorized change in system", "description": ""},
-            ],
-        },
-        {
-            "name": "Additional Data",
-            "description": "Radio box for MISP additional data",
-            "type": "RADIO",
-            "attribute_enums": [
-                {"index": 0, "value": "For Intrusion Detection System", "description": ""},
-                {"index": 1, "value": "Disable Correlation", "description": ""},
             ],
         },
         {
@@ -675,6 +670,101 @@ def pre_seed_attributes(db):
                 {"index": 4, "value": "Inherit event", "description": ""},
             ],
         },
+        {
+            "name": "NIS Sectors",
+            "description": "Combo box for NIS sectors",
+            "type": "ENUM",
+            "attribute_enums": [
+                {"index": 0, "value": "Energy", "description": ""},
+                {"index": 1, "value": "Energy / Electricity", "description": ""},
+                {"index": 2, "value": "Energy / Oil", "description": ""},
+                {"index": 3, "value": "Energy / Gas", "description": ""},
+                {"index": 4, "value": "Transport", "description": ""},
+                {"index": 5, "value": "Transport / Air", "description": ""},
+                {"index": 6, "value": "Transport / Rail", "description": ""},
+                {"index": 7, "value": "Transport / Water", "description": ""},
+                {"index": 8, "value": "Transport / Road", "description": ""},
+                {"index": 9, "value": "Banking", "description": ""},
+                {"index": 10, "value": "Financial market infrastructures", "description": ""},
+                {"index": 11, "value": "Health", "description": ""},
+                {"index": 12, "value": "Drinking water supply and distribution", "description": ""},
+                {"index": 13, "value": "Digital Infrastructure", "description": ""},
+                {"index": 14, "value": "public administration", "description": ""},
+                {"index": 15, "value": "postal and courier services", "description": ""},
+                {"index": 16, "value": "waste management", "description": ""},
+                {"index": 17, "value": "food", "description": ""},
+                {"index": 18, "value": "processing/manufacturing industry", "description": ""},
+                {"index": 19, "value": "Digital service providers", "description": ""},
+                {"index": 20, "value": "Research", "description": ""},
+                {"index": 21, "value": "Other", "description": ""},
+                {"index": 22, "value": "Unknown", "description": ""},
+            ],
+        },
+        {
+            "name": "Disinfo type",
+            "description": "Types of disinformation",
+            "type": "ENUM",
+            "attribute_enums": [
+                {"index": 0, "value": "Satire or parody", "description": "Presenting humorous but false stores as if they are true"},
+                {"index": 1, "value": "False connection", "description": "Headlines, visuals or captions don't support the content"},
+                {
+                    "index": 2,
+                    "value": "Misleading content",
+                    "description": "Misleading use of information to frame an issue or individual",
+                },
+                {
+                    "index": 3,
+                    "value": "False context",
+                    "description": "Genuine content is shared with false contextual, e.g. images taken out of context",
+                },
+                {
+                    "index": 4,
+                    "value": "Imposter content",
+                    "description": "Genuine sources, e.g. news outlets or government agencies, are impersonated",
+                },
+                {
+                    "index": 5,
+                    "value": "Fabricated content",
+                    "description": "Content is made up and 100% false; designed to deceive and do harm",
+                },
+                {
+                    "index": 6,
+                    "value": "Manipulated content",
+                    "description": "Genuine information manipulated to deceive, e.g. deepfakes",
+                },
+                {"index": 7, "value": "Ukraine", "description": "Disinformation about war in Ukraine"},
+                {"index": 8, "value": "COVID", "description": "Disinformation about COVID-19"},
+                {"index": 9, "value": "Cybesecurity", "description": "Disinformation about Cybesecurity"},
+                {"index": 10, "value": "Electronic signature", "description": "Electronic signature"},
+                {"index": 11, "value": "Classified information", "description": "Classified information"},
+            ],
+        },
+        {
+            "name": "Source Reliability",
+            "description": "Source Reliability",
+            "type": "RADIO",
+            "attribute_enums": [
+                {"index": 0, "value": "Completely reliable", "description": ""},
+                {"index": 1, "value": "Usually reliable", "description": ""},
+                {"index": 2, "value": "Fairly reliable", "description": ""},
+                {"index": 3, "value": "Not usually reliable", "description": ""},
+                {"index": 4, "value": "Unreliable", "description": ""},
+                {"index": 5, "value": "Reliability cannot be judged", "description": ""},
+            ],
+        },
+        {
+            "name": "Information Credibility",
+            "description": "Information Credibility",
+            "type": "RADIO",
+            "attribute_enums": [
+                {"index": 0, "value": "Confirmed by other sources", "description": ""},
+                {"index": 1, "value": "Probably True", "description": ""},
+                {"index": 2, "value": "Possibly True", "description": ""},
+                {"index": 3, "value": "Doubtful", "description": ""},
+                {"index": 4, "value": "Improbable", "description": ""},
+                {"index": 5, "value": "Truth cannot be judged", "description": ""},
+            ],
+        },
     ]
 
     for attr in attrs_with_enum:
@@ -684,228 +774,208 @@ def pre_seed_attributes(db):
 
 
 def pre_seed_report_items(db):
-    from core.model.report_item_type import (
-        ReportItemType,
-        AttributeGroup,
-    )
-    from core.model.attribute import Attribute
+    from core.model.report_item_type import ReportItemType
+
+    if not ReportItemType.get_by_title(title="OSINT Report"):
+        osint_report = {
+            "title": "OSINT Report",
+            "description": "OSINT Report",
+            "attribute_groups": [
+                {
+                    "title": "Summary",
+                    "description": "Summary",
+                    "index": 0,
+                    "attribute_group_items": [
+                        {"title": "Summary", "description": "Summary", "index": 0, "attribute": "Text Area"},
+                        {"title": "Sector trends", "description": "Sector trends", "index": 1, "attribute": "Text Area"},
+                        {"title": "Vulnerabilities trends", "description": "Vulnerabilities trends", "index": 2, "attribute": "Text Area"},
+                        {"title": "Ransomware trends", "description": "Ransomware trends", "index": 3, "attribute": "Text Area"},
+                        {"title": "Date published", "description": "Date published", "index": 4, "attribute": "Date"},
+                        {"title": "Threat level", "description": "Threat level", "index": 5, "attribute": "MISP Event Threat Level"},
+                        {"title": "TLP", "description": "Traffic Light Protocol", "index": 6, "attribute": "TLP"},
+                    ],
+                },
+                {
+                    "title": "Ransomware",
+                    "description": "Ransomware",
+                    "index": 1,
+                    "attribute_group_items": [
+                        {"title": "Ransomware", "description": "Ransomware", "index": 0, "attribute": "Text"},
+                        {"title": "Actor", "description": "Actor", "index": 1, "attribute": "Text"},
+                        {"title": "Sector", "description": "Sector", "index": 2, "attribute": "NIS Sectors"},
+                        {"title": "Comment", "description": "Comment", "index": 3, "attribute": "Text Area"},
+                    ],
+                },
+            ],
+        }
+        ReportItemType.add(osint_report)
+
+    if not ReportItemType.get_by_title(title="Disinformation"):
+        disinformation_report = {
+            "title": "Disinformation",
+            "description": "Disinformation",
+            "attribute_groups": [
+                {
+                    "title": "Summary",
+                    "description": "Summary",
+                    "index": 0,
+                    "attribute_group_items": [
+                        {"title": "Title", "description": "Disinformation campaign", "index": 0, "attribute": "Text"},
+                        {"title": "Quote", "description": "Quote", "index": 1, "attribute": "Text Area"},
+                        {"title": "Reach", "description": "Exposed people", "index": 2, "attribute": "Number"},
+                        {"title": "Date started", "description": "Campaign started", "index": 3, "attribute": "Date"},
+                        {"title": "Proof", "description": "Screenshots, ...", "index": 4, "attribute": "Attachment"},
+                    ],
+                },
+                {
+                    "title": "Ransomware",
+                    "description": "Ransomware",
+                    "index": 1,
+                    "attribute_group_items": [
+                        {"title": "Ransomware", "description": "Ransomware", "index": 0, "attribute": "Text"},
+                        {"title": "Actor", "description": "Actor", "index": 1, "attribute": "Text"},
+                        {"title": "Sector", "description": "Sector", "index": 2, "attribute": "NIS Sectors"},
+                        {"title": "Comment", "description": "Comment", "index": 3, "attribute": "Text Area"},
+                    ],
+                },
+            ],
+        }
+
+        ReportItemType.add(disinformation_report)
 
     if not ReportItemType.get_by_title(title="Vulnerability Report"):
-        vulnerability_attribute_group_items = [
-            {
-                "title": "CVSS",
-                "description": "Common Vulnerability Scoring System",
-                "index": 0,
-                "attribute_id": Attribute.filter_by_name("CVSS").id,
-            },
-            {
-                "title": "TLP",
-                "description": "Traffic Light Protocol",
-                "index": 1,
-                "attribute_id": Attribute.filter_by_name("TLP").id,
-            },
-            {
-                "title": "Confidentiality",
-                "description": "Confidentiality",
-                "index": 2,
-                "attribute_id": Attribute.filter_by_name("Confidentiality").id,
-            },
-            {
-                "title": "Description",
-                "description": "Description",
-                "index": 3,
-                "attribute_id": Attribute.filter_by_name("Text Area").id,
-            },
-            {
-                "title": "Exposure Date",
-                "description": "Exposure Date",
-                "index": 4,
-                "attribute_id": Attribute.filter_by_name("Date").id,
-            },
-            {
-                "title": "Update Date",
-                "description": "Update Date",
-                "index": 5,
-                "attribute_id": Attribute.filter_by_name("Date").id,
-            },
-            {
-                "title": "CVE",
-                "description": "CVE",
-                "index": 6,
-                "attribute_id": Attribute.filter_by_name("CVE").id,
-            },
-            {
-                "title": "Impact",
-                "description": "Impact",
-                "index": 7,
-                "attribute_id": Attribute.filter_by_name("Impact").id,
-            },
-        ]
+        vulnerability_report = {
+            "title": "Vulnerability Report",
+            "description": "Vulnerability Report",
+            "attribute_groups": [
+                {
+                    "title": "Vulnerability",
+                    "description": "Vulnerability",
+                    "index": 0,
+                    "attribute_group_items": [
+                        {
+                            "title": "CVSS",
+                            "description": "Common Vulnerability Scoring System",
+                            "index": 0,
+                            "attribute": "CVSS",
+                        },
+                        {
+                            "title": "TLP",
+                            "description": "Traffic Light Protocol",
+                            "index": 1,
+                            "attribute": "TLP",
+                        },
+                        {
+                            "title": "Confidentiality",
+                            "description": "Confidentiality",
+                            "index": 2,
+                            "attribute": "Confidentiality",
+                        },
+                        {
+                            "title": "Description",
+                            "description": "Description",
+                            "index": 3,
+                            "attribute": "Text Area",
+                        },
+                        {
+                            "title": "Exposure Date",
+                            "description": "Exposure Date",
+                            "index": 4,
+                            "attribute": "Date",
+                        },
+                        {
+                            "title": "Update Date",
+                            "description": "Update Date",
+                            "index": 5,
+                            "attribute": "Date",
+                        },
+                        {
+                            "title": "CVE",
+                            "description": "CVE",
+                            "index": 6,
+                            "attribute": "CVE",
+                        },
+                        {
+                            "title": "Impact",
+                            "description": "Impact",
+                            "index": 7,
+                            "attribute": "Impact",
+                        },
+                        {
+                            "title": "Links",
+                            "description": "Links",
+                            "index": 8,
+                            "multiple": True,
+                            "attribute": "Text",
+                        },
+                    ],
+                },
+                {
+                    "title": "Identify and Act",
+                    "description": "Identify and Act",
+                    "index": 1,
+                    "attribute_group_items": [
+                        {
+                            "title": "Affected Systems",
+                            "description": "Affected Systems",
+                            "index": 0,
+                            "multiple": True,
+                            "attribute": "CPE",
+                        },
+                        {
+                            "title": "IOC",
+                            "description": "IOC",
+                            "index": 1,
+                            "multiple": True,
+                            "attribute": "Text",
+                        },
+                        {
+                            "title": "Recommendations",
+                            "description": "Recommendations",
+                            "index": 2,
+                            "attribute": "Text Area",
+                        },
+                    ],
+                },
+            ],
+        }
 
-        for item in vulnerability_attribute_group_items:
-            if attribute := Attribute.filter_by_name(item["title"]):
-                item["attribute_id"] = attribute.id
-
-        group1 = AttributeGroup.from_dict(
-            {
-                "title": "Vulnerability",
-                "description": "Vulnerability",
-                "index": 0,
-                "attribute_group_items": vulnerability_attribute_group_items,
-            }
-        )
-
-        intify_attribute_group_items = [
-            {
-                "title": "Affected Systems",
-                "description": "Affected Systems",
-                "index": 0,
-                "min_occurrence": 0,
-                "max_occurrence": 1000,
-                "attribute_id": Attribute.filter_by_name("CPE").id,
-            },
-            {
-                "title": "IOC",
-                "description": "IOC",
-                "index": 1,
-                "min_occurrence": 0,
-                "max_occurrence": 1000,
-                "attribute_id": Attribute.filter_by_name("Text").id,
-            },
-            {
-                "title": "Recommendations",
-                "description": "Recommendations",
-                "index": 2,
-                "attribute_id": Attribute.filter_by_name("Text Area").id,
-            },
-        ]
-
-        group2 = AttributeGroup.from_dict(
-            {
-                "title": "Identify and Act",
-                "description": "Identify and Act",
-                "index": 1,
-                "attribute_group_items": intify_attribute_group_items,
-            }
-        )
-
-        links_item = [
-            {
-                "title": "Links",
-                "description": "Links",
-                "index": 0,
-                "min_occurrence": 0,
-                "max_occurrence": 1000,
-                "attribute_id": Attribute.filter_by_name("Text").id,
-            },
-        ]
-        group3 = AttributeGroup.from_dict({"title": "Resources", "description": "Resources", "index": 2, "attribute_group_items": links_item})
-
-        db.session.add(group1)
-        db.session.add(group2)
-        db.session.add(group3)
-        db.session.commit()
-
-        report_item_type = ReportItemType("Vulnerability Report", "Basic report type", [group1, group2, group3])
-        db.session.add(report_item_type)
-        db.session.commit()
+        ReportItemType.add(vulnerability_report)
 
     if not ReportItemType.get_by_title(title="MISP Report"):
-        event_group_items = [
-            {
-                "title": "Event distribution",
-                "description": "Event distribution",
-                "index": 0,
-                "attribute_id": Attribute.filter_by_name("Text").id,
-            },
-            {
-                "title": "Event threat level",
-                "description": "Event threat level",
-                "index": 1,
-                "attribute_id": Attribute.filter_by_name("Text").id,
-            },
-            {
-                "title": "Event analysis",
-                "description": "Event analysis",
-                "index": 2,
-                "attribute_id": Attribute.filter_by_name("Text").id,
-            },
-            {
-                "title": "Event info",
-                "description": "Event info",
-                "index": 3,
-                "attribute_id": Attribute.filter_by_name("Text").id,
-            },
-        ]
+        misp_report = {
+            "title": "MISP Report",
+            "description": "MISP Report",
+            "attribute_groups": [
+                {
+                    "title": "Event",
+                    "description": "Event",
+                    "index": 0,
+                    "attribute_group_items": [
+                        {"title": "Event distribution", "description": "Event distribution", "index": 0, "attribute": "Text"},
+                        {"title": "Event threat level", "description": "Event threat level", "index": 1, "attribute": "Text"},
+                        {"title": "Event analysis", "description": "Event analysis", "index": 2, "attribute": "Text"},
+                        {"title": "Event info", "description": "Event info", "index": 3, "attribute": "Text"},
+                    ],
+                },
+                {
+                    "title": "Attribute",
+                    "description": "Attribute",
+                    "index": 1,
+                    "attribute_group_items": [
+                        {"title": "Category", "description": "Category", "index": 0, "attribute": "Text"},
+                        {"title": "Type", "description": "Attribute type", "index": 1, "attribute": "Text"},
+                        {"title": "Distribution", "description": "Distribution", "index": 2, "attribute": "Text"},
+                        {"title": "Value", "description": "Value", "index": 3, "attribute": "Text Area"},
+                        {"title": "Comment", "description": "Contextual comment", "index": 4, "attribute": "Text"},
+                        {"title": "First seen date", "description": "First seen date", "index": 5, "attribute": "Date"},
+                        {"title": "Last seen date", "description": "Last seen date", "index": 6, "attribute": "Date"},
+                    ],
+                },
+            ],
+        }
 
-        group4 = AttributeGroup.from_dict({"title": "Event", "description": "Event", "index": 0, "attribute_group_items": event_group_items})
-
-        attribute_group_items = [
-            {
-                "title": "Attribute category",
-                "description": "Attribute category",
-                "index": 0,
-                "attribute_id": Attribute.filter_by_name("Text").id,
-            },
-            {
-                "title": "Attribute type",
-                "description": "Attribute type",
-                "index": 1,
-                "attribute_id": Attribute.filter_by_name("Text").id,
-            },
-            {
-                "title": "Attribute distribution",
-                "description": "Attribute distribution",
-                "index": 2,
-                "attribute_id": Attribute.filter_by_name("Text").id,
-            },
-            {
-                "title": "Attribute value",
-                "description": "Attribute value",
-                "index": 3,
-                "attribute_id": Attribute.filter_by_name("Text Area").id,
-            },
-            {
-                "title": "Attribute comment",
-                "description": "Attribute contextual comment",
-                "index": 4,
-                "attribute_id": Attribute.filter_by_name("Text").id,
-            },
-            {
-                "title": "Attribute additional information",
-                "description": "Attribute additional information",
-                "index": 5,
-                "attribute_id": Attribute.filter_by_name("Additional Data").id,
-            },
-            {
-                "title": "First seen date",
-                "description": "First seen date",
-                "index": 6,
-                "attribute_id": Attribute.filter_by_name("Date").id,
-            },
-            {
-                "title": "Last seen date",
-                "description": "Last seen date",
-                "index": 7,
-                "attribute_id": Attribute.filter_by_name("Date").id,
-            },
-        ]
-
-        group5 = AttributeGroup.from_dict(
-            {
-                "title": "Attribute",
-                "description": "Attribute",
-                "index": 1,
-                "attribute_group_items": attribute_group_items,
-            }
-        )
-        db.session.add(group4)
-        db.session.add(group5)
-        db.session.commit()
-
-        report_item_type = ReportItemType("MISP Report", "MISP report type", [group4, group5])
-        db.session.add(report_item_type)
-        db.session.commit()
+        ReportItemType.add(misp_report)
 
 
 def pre_seed_wordlists():

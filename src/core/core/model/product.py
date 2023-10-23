@@ -122,7 +122,7 @@ class Product(BaseModel):
             "type": self.product_type.type,
             "type_id": self.product_type.id,
             "mime_type": self.product_type.get_mimetype(),
-            "report_items": [report_item.to_detail_dict() for report_item in self.report_items if report_item],
+            "report_items": [report_item.to_product_dict() for report_item in self.report_items if report_item],
         }
 
     def update_render(self, render_result):
@@ -171,7 +171,8 @@ class Product(BaseModel):
         if product_type_id := data.get("product_type_id"):
             product.product_type_id = product_type_id
 
-        if report_items := data.get("report_items"):
+        report_items = data.get("report_items", None)
+        if report_items is not None:
             product.report_items = [ReportItem.get(report_item) for report_item in report_items]
 
         db.session.commit()

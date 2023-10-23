@@ -68,6 +68,11 @@ class ReportItemAttribute(BaseModel):
         db.session.commit()
         return self.id or None
 
+    def to_product_dict(self):
+        return {
+            self.attribute_group_item.title: self.value,
+        }
+
     def to_report_dict(self):
         data = {
             "value": self.value,
@@ -159,6 +164,14 @@ class ReportItem(BaseModel):
     def to_detail_dict(self):
         data = super().to_dict()
         data["attributes"] = {attribute.id: attribute.to_report_dict() for attribute in self.attributes} if self.attributes else {}
+        data["news_item_aggregates"] = [aggregate.to_dict() for aggregate in self.news_item_aggregates if aggregate]
+        return data
+
+    def to_product_dict(self):
+        data = super().to_dict()
+        data["attributes"] = (
+            {attribute.attribute_group_item.title: attribute.value for attribute in self.attributes} if self.attributes else {}
+        )
         data["news_item_aggregates"] = [aggregate.to_dict() for aggregate in self.news_item_aggregates if aggregate]
         return data
 

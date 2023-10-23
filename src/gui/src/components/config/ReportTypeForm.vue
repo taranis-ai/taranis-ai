@@ -2,11 +2,8 @@
   <v-container fluid class="ma-5 mt-5 pa-5 pt-0">
     <v-form id="form" ref="form" validate-on="submit" @submit.prevent="add">
       <v-row no-gutters>
-        <v-btn type="submit" color="success" class="mr-4"> Submit </v-btn>
-      </v-row>
-      <v-row no-gutters>
-        <v-col v-if="edit" cols="12" class="cation grey--text">
-          ID:{{ report_type.id }}
+        <v-col cols="12">
+          <v-text-field v-model="report_type.id" label="ID" :disabled="true" />
         </v-col>
         <v-col cols="12">
           <v-text-field
@@ -61,10 +58,6 @@
                 v-model="group.description"
                 :label="$t('report_type.description')"
               ></v-textarea>
-              <v-text-field
-                v-model="group.section_title"
-                :label="$t('report_type.section_title')"
-              ></v-text-field>
               <AttributeTable
                 :attributes="
                   report_type.attribute_groups[index].attribute_group_items
@@ -76,6 +69,7 @@
           </v-card>
         </v-col>
       </v-row>
+      <v-btn block type="submit" color="success" class="mt-3"> Submit </v-btn>
     </v-form>
   </v-container>
 </template>
@@ -121,7 +115,6 @@ export default {
         index: report_type.value.attribute_groups.length,
         title: '',
         description: '',
-        section_title: '',
         attribute_group_items: []
       })
     }

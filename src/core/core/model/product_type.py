@@ -11,6 +11,7 @@ from core.model.product import Product
 from core.model.base_model import BaseModel
 from core.model.acl_entry import ACLEntry, ItemType
 from core.model.parameter_value import ParameterValue
+from core.model.report_item_type import ReportItemType
 from core.model.worker import PRESENTER_TYPES, Worker
 from core.managers.data_manager import get_presenter_template_path, get_presenter_templates
 
@@ -22,13 +23,15 @@ class ProductType(BaseModel):
     type: Any = db.Column(db.Enum(PRESENTER_TYPES))
 
     parameters = db.relationship("ParameterValue", secondary="product_type_parameter_value", cascade="all, delete")
+    report_types = db.relationship("ReportItemType", secondary="product_type_report_type", cascade="all, delete")
 
-    def __init__(self, title, type, description="", parameters=None, id=None):
+    def __init__(self, title, type, description="", parameters=None, report_types=None, id=None):
         self.id = id
         self.title = title
         self.description = description
         self.type = type
         self.parameters = Worker.parse_parameters(type, parameters)
+        self.report_types = [ReportItemType.get(report_type) for report_type in report_types] if report_types else []
 
     @classmethod
     def get_all(cls):
@@ -100,6 +103,8 @@ class ProductType(BaseModel):
         elif parameters := data.get("parameters"):
             updated_product_type = ParameterValue.get_or_create_from_list(parameters)
             product_type.parameters = ParameterValue.get_update_values(product_type.parameters, updated_product_type)
+        if report_types := data.get("report_types"):
+            product_type.report_types = [ReportItemType.get(report_type) for report_type in report_types]
         db.session.commit()
         return product_type.id
 
@@ -156,3 +161,8 @@ class ProductType(BaseModel):
 class ProductTypeParameterValue(BaseModel):
     product_type_id = db.Column(db.Integer, db.ForeignKey("product_type.id", ondelete="CASCADE"), primary_key=True)
     parameter_value_id = db.Column(db.Integer, db.ForeignKey("parameter_value.id"), primary_key=True)
+
+
+class ProductTypeReportType(BaseModel):
+    product_type_id = db.Column(db.Integer, db.ForeignKey("product_type.id", ondelete="CASCADE"), primary_key=True)
+    report_item_type_id = db.Column(db.Integer, db.ForeignKey("report_item_type.id"), primary_key=True)

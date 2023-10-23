@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <style>
+        html {
+            font-family: sans-serif;
+            line-height: 1.15;
+            -webkit-text-size-adjust: 100%;
+            -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+        }
+        body {
+            padding: 0;
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+            font-size: 1rem;
+            font-weight: 400;
+            line-height: 1.5;
+            color: #212529;
+            text-align: left;
+            background-color: #fff;
+        }
+        table {
+            border-collapse: collapse;
+        }
+        .container {
+            width: 100%;
+            padding-right: 15px;
+            padding-left: 15px;
+            margin-right: auto;
+            margin-left: auto;
+        }
+        @media (min-width: 576px) {
+            .container {
+                max-width: 540px;
+            }
+        }
+        @media (min-width: 768px) {
+            .container {
+                max-width: 720px;
+            }
+        }
+        @media (min-width: 992px) {
+            .container {
+                max-width: 960px;
+            }
+        }
+        @media (min-width: 1200px) {
+            .container {
+                max-width: 1140px;
+            }
+        }
+        .table {
+            width: 100%;
+            margin-bottom: 1rem;
+            color: #212529;
+        }
+        .table th,
+        .table td {
+            padding: 0.75rem;
+            vertical-align: top;
+        }
+        .table-borderless th,
+        .table-borderless td {
+            border: 0;
+        }
+        .text-center {
+            text-align: center !important;
+        }
+        .text-justify {
+            text-align: justify !important;
+        }
+        .text-right {
+            text-align: right !important;
+        }
+        .text-bold {
+            font-weight: 700
+        }
+        .align-middle {
+            vertical-align: middle !important;
+        }
+        .py-0 {
+            padding-top: 0 !important;
+        }
+        .title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #2E74C3;
+        }
+        .small_title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #2E74C3;
+        }
+        .w20 {
+            width: 20%
+        }
+        .w30 {
+            width: 30%
+        }
+        .bold {
+            font-weight: 700
+        }
+        .text_in_tab {
+            font-size: 14px
+        }
+        .footer_text {
+            font-size: 12px
+        }
+        .footer_color {
+            background-color: lightgray
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div>
+            <table class="table table-borderless">
+                <tr>
+                    <td class="w20">
+                        <img src="https://github.com/taranis-ai/taranis-ai/blob/master/resources/images/logo.png?raw=true">
+                    </td>
+                    <td class="text-center align-middle title">{{ data.product.title }}</td>
+                </tr>
+            </table>
+            <br>
+        </div>
+        <div>
+            {% set available_category = (data.report_items | map(attribute = "attributes.category")) | unique | list %}
+
+            <h3>Summary</h3>
+            <p>In this week, we reported {{ data.report_items | list | length }} disinformations:</p>
+            <table class="table table-borderless">
+                <tr>
+                    {% for itm in data.report_items %}
+                        <a href="#{{ itm.uuid | e }}">{{ itm.attributes.title | e }}</a><br>
+                    {% endfor %}
+                </tr>
+            </table>
+            <br>
+
+            {% for cat in available_category %}
+                <h3>Disinformation: {{ cat | e }}</h3>
+                {% for itm in data.report_items | selectattr("attributes.category", "equalto", cat) %}
+                    <hr>
+                    <br>
+                    <table class="table table-borderless">
+                    <tr>
+                        <td class="title" id="{{ itm.uuid | e }}">{{ itm.attributes.title | e }}</td>
+                            <td class="text-justify bold">
+                                {% if itm.attributes.reach %}
+                                    <svg fill="#000000" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+                                         height="42" viewBox="0 0 32 32" xml:space="preserve">
+                                    <path d="M23.313 26.102l-6.296-3.488c2.34-1.841 2.976-5.459 2.976-7.488v-4.223c0-2.796-3.715-5.91-7.447-5.91-3.73 0-7.544 3.114-7.544 5.91v4.223c0 1.845 0.78 5.576 3.144 7.472l-6.458 3.503s-1.688 0.752-1.688 1.689v2.534c0 0.933 0.757 1.689 1.688 1.689h21.625c0.931 0 1.688-0.757 1.688-1.689v-2.534c0-0.994-1.689-1.689-1.689-1.689zM23.001 30.015h-21.001v-1.788c0.143-0.105 0.344-0.226 0.502-0.298 0.047-0.021 0.094-0.044 0.139-0.070l6.459-3.503c0.589-0.32 0.979-0.912 1.039-1.579s-0.219-1.32-0.741-1.739c-1.677-1.345-2.396-4.322-2.396-5.911v-4.223c0-1.437 2.708-3.91 5.544-3.91 2.889 0 5.447 2.44 5.447 3.91v4.223c0 1.566-0.486 4.557-2.212 5.915-0.528 0.416-0.813 1.070-0.757 1.739s0.446 1.267 1.035 1.589l6.296 3.488c0.055 0.030 0.126 0.063 0.184 0.089 0.148 0.063 0.329 0.167 0.462 0.259v1.809zM30.312 21.123l-6.39-3.488c2.34-1.841 3.070-5.459 3.070-7.488v-4.223c0-2.796-3.808-5.941-7.54-5.941-2.425 0-4.904 1.319-6.347 3.007 0.823 0.051 1.73 0.052 2.514 0.302 1.054-0.821 2.386-1.308 3.833-1.308 2.889 0 5.54 2.47 5.54 3.941v4.223c0 1.566-0.58 4.557-2.305 5.915-0.529 0.416-0.813 1.070-0.757 1.739 0.056 0.67 0.445 1.267 1.035 1.589l6.39 3.488c0.055 0.030 0.126 0.063 0.184 0.089 0.148 0.063 0.329 0.167 0.462 0.259v1.779h-4.037c0.61 0.46 0.794 1.118 1.031 2h3.319c0.931 0 1.688-0.757 1.688-1.689v-2.503c-0.001-0.995-1.689-1.691-1.689-1.691z"></path>
+                                    <rect id="_Transparent_Rectangle" style="fill:none;" width="32" height="32"/>
+                                    </svg>
+                                    {{ itm.attributes.reach | e }}
+                                {% endif %}
+                            </td>
+                            <td class="text-right bold">{{ itm.attributes.reach_to_date | e }}</td>
+                        </tr>
+                        <tr>
+                            <tr>
+                                <td class="text-justify bold">Quote</td>
+                            </tr>
+                            <td class="text-justify text_in_tab" colspan="3">
+                                {{ itm.attributes.quote|e }}
+                            </td>
+                        </tr>
+                        {% if itm.attributes['source_(link)'] %}
+                            <tr>
+                                <td class="text-justify bold">Source</td>
+                            </tr>
+                            <tr>
+                                <td class="text-justify text_in_tab" colspan="3">
+                                   {{ itm.attributes['source_(link)'] | e }}
+                                </td>
+                            </tr>
+                        {% endif %}
+                        <tr>
+                            <tr>
+                                <td class="text-justify bold">Analysis</td>
+                            </tr>
+                            <td class="text-justify text_in_tab" colspan="3">
+                                {{ itm.attributes['interpretation/evaluation']|e }}
+                            </td>
+                        </tr>
+                        <tr>
+                            <tr>
+                                <td class="text-justify bold">Recommendation</td>
+                            </tr>
+                            <td class="text-justify text_in_tab" colspan="3">
+                                {{ itm.attributes.recommendation|e }}
+                            </td>
+                        </tr>
+                    </table>
+                {% endfor %}
+            {% endfor %}
+        </div>
+        <div>
+            <br>
+            <table class="table table-borderless">
+                <tr class="footer_text footer_color align-middle">
+                    <td class="w30 py-0 text-bold">Created by Taranis NG</td>
+                    <td class="w40 py-0 text-center info">Repo: <a href="https://github.com/SK-CERT/Taranis-NG/">github.com/SK-CERT/Taranis-NG</a></td>
+                    <td class="w30 py-0 text-right text-bold">Company name</td>
+                </tr>
+                <tr class="footer_text">
+                    <td class="w30 py-0">OSINT analysis tool</td>
+                    <td class="w40 py-0 text-center info">E-mail: sk-cert@nbu.gov.sk</td>
+                    <td class="w30 py-0 text-right">Company address</td>
+                </tr>
+                <tr class="footer_text">
+                    <td class="w30 py-0">for CSIRT community</td>
+                    <td class="w40 py-0 text-center info">Web: <a href="https://www.sk-cert.sk">www.sk-cert.sk</a></td>
+                    <td class="w30 py-0 text-right">City name</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+</body>
+</html>

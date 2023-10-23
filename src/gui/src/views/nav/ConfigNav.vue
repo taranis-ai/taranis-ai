@@ -68,6 +68,12 @@ export default {
         divider: true
       },
       {
+        icon: 'mdi-file-table-outline',
+        title: 'nav_menu.report_types',
+        route: '/config/reportitems/types',
+        permission: 'CONFIG_REPORT_TYPE_ACCESS'
+      },
+      {
         icon: 'mdi-file-document-outline',
         title: 'nav_menu.product_types',
         route: '/config/product/types',
@@ -75,9 +81,9 @@ export default {
       },
       {
         icon: 'mdi-file-star-outline',
-        title: 'nav_menu.publisher_presets',
-        route: '/config/publishers/presets',
-        permission: 'CONFIG_PUBLISHER_PRESET_ACCESS'
+        title: 'nav_menu.publisher',
+        route: '/config/publishers',
+        permission: 'CONFIG_PUBLISHER_ACCESS'
       },
       {
         icon: 'mdi-robot',
@@ -90,12 +96,6 @@ export default {
         title: 'nav_menu.attributes',
         route: '/config/reportitems/attributes',
         permission: 'CONFIG_ATTRIBUTE_ACCESS'
-      },
-      {
-        icon: 'mdi-file-table-outline',
-        title: 'nav_menu.report_types',
-        route: '/config/reportitems/types',
-        permission: 'CONFIG_REPORT_TYPE_ACCESS'
       },
       {
         icon: 'mdi-format-list-text',
