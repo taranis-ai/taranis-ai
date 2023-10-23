@@ -269,17 +269,6 @@ def cleanup_report_item_type(app, request):
                             "title": "Test Attribute Group Item",
                             "description": "This is a test attribute group item",
                             "multiple": False,
-                            "attribute": {
-                                "id": 1,
-                                "name": "Text",
-                                "description": "Simple text box",
-                                "type": "STRING",
-                                "default_value": "",
-                                "validator": "NONE",
-                                "validator_parameter": "",
-                                "attribute_enums": [],
-                                "tag": "mdi-form-textbox",
-                            },
                         }
                     ],
                 }

@@ -4094,7 +4094,7 @@ components:
         index:
           type: integer
         multiple:
-          type: boolean,
+          type: boolean
         attribute_group_id:
           type: integer
         attribute_id:

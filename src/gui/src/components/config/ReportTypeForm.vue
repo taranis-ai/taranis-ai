@@ -107,6 +107,8 @@ export default {
     const report_type = ref(props.reportTypeData)
 
     const updateAttributeGroupItems = (index, items) => {
+      console.debug('Update Attribute Group Items')
+      console.debug(items)
       report_type.value.attribute_groups[index].attribute_group_items = items
     }
 
@@ -144,23 +146,25 @@ export default {
     }
 
     const add = () => {
-      console.debug(report_type.value.attribute_groups)
-      for (let x = 0; x < report_type.value.attribute_groups.length; x++) {
-        report_type.value.attribute_groups[x].index = x
+      // make a deep copy of the report_type object
+      const update_report_type = JSON.parse(JSON.stringify(report_type))
+      console.debug(update_report_type.value.attribute_groups)
+      for (let x = 0; x < update_report_type.value.attribute_groups.length; x++) {
+        update_report_type.value.attribute_groups[x].index = x
 
         for (
           let y = 0;
           y <
-          report_type.value.attribute_groups[x].attribute_group_items.length;
+            update_report_type.value.attribute_groups[x].attribute_group_items.length;
           y++
         ) {
-          report_type.value.attribute_groups[x].attribute_group_items[y].index =
-            y
+          update_report_type.value.attribute_groups[x].attribute_group_items[y].index = y
+          delete(update_report_type.value.attribute_groups[x].attribute_group_items[y].attribute)
         }
       }
 
       if (props.edit) {
-        updateReportItemType(report_type.value)
+        updateReportItemType(update_report_type.value)
           .then(() => {
             notifySuccess('report_type.successful_edit')
             emit('updated')
@@ -169,7 +173,7 @@ export default {
             notifyFailure('report_type.error')
           })
       } else {
-        createReportItemType(report_type.value)
+        createReportItemType(update_report_type.value)
           .then(() => {
             notifySuccess('report_type.successful')
             emit('updated')
