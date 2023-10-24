@@ -2,7 +2,6 @@
 
 This worker is a celery worker
 
-
 ## Install
 
 ```bash
@@ -22,3 +21,7 @@ as a scheduler
 ```bash
 celery -A worker beat
 ```
+
+## Architecture
+
+see [docs](https://github.com/taranis-ai/taranis-ai/tree/master/doc)
