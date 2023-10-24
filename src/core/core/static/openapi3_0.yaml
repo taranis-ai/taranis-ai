@@ -11,7 +11,7 @@ info:
   version: 0.1.8
 externalDocs:
   description: GitHub
-  url: https://github.com/ait-cs-IaaS/Taranis-NG/
+  url: https://github.com/taranis-ai/taranis-ai/
 servers:
   - url: /api
     description: default

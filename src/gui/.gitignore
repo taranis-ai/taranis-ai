@@ -4,4 +4,5 @@
 /public/config.json.local
 /public/config.local.json
 .npm
+.env
 *.tgz

@@ -6,7 +6,6 @@ __pycache__/
 node_modules/
 dist/
 build/
-.envrc
 *.egg-info/
 .installed.cfg
 *.egg
