@@ -106,9 +106,17 @@
       v-model="input"
       :readonly="readOnly"
       :label="attributeItem.title"
-      hint="Use https://nvd.nist.gov/vuln-metrics/cvss/v3-calculator to calculate CVSS score"
       persistent-hint
     />
+    <div v-if="attributeItem.attribute.type === 'CVSS'" class="hint-text">
+      Use
+      <a
+        href="https://nvd.nist.gov/vuln-metrics/cvss/v3-calculator"
+        target="_blank"
+        >https://nvd.nist.gov/vuln-metrics/cvss/v3-calculator</a
+      >
+      to calculate CVSS score
+    </div>
     <v-autocomplete
       v-if="attributeItem.attribute.type === 'CPE'"
       v-model="input"
@@ -167,5 +175,10 @@ export default {
 <style>
 .date-picker-style {
   padding-bottom: 15px;
+}
+.hint-text {
+  color: #888;
+  font-size: 0.85rem;
+  margin-bottom: 15px;
 }
 </style>

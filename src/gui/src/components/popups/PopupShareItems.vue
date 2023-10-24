@@ -3,7 +3,6 @@
     <v-card-title> Share Items </v-card-title>
     <v-card-text>
       Select a report to share the item with:
-      {{ reportItemSelection }}
       <v-select
         v-model="reportItemSelection"
         single-line
