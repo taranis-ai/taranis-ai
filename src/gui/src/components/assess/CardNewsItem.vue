@@ -80,7 +80,7 @@
           />
         </v-dialog>
 
-        <v-menu bottom offset-y>
+        <v-menu v-if="!detailView" bottom offset-y>
           <template #activator="{ props }">
             <v-btn
               v-ripple="false"
@@ -112,6 +112,7 @@
               @click.stop="markAsImportant()"
             />
             <v-list-item
+              v-if="story.in_reports_count < 1"
               title="delete"
               prepend-icon="mdi-delete-outline"
               @click.stop="deleteDialog = true"
