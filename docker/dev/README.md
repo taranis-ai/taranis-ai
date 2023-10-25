@@ -3,6 +3,12 @@
 
 ## Easy Mode
 
+Install pre dependencies:
+* git
+* tmux
+* python3
+* nodejs
+* build-essentials
 
 Copy env.dev to worker and core
 
