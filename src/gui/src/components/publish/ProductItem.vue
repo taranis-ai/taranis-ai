@@ -56,6 +56,7 @@
                   item-value="id"
                   no-data-text="No Product Types available - please create one under Admin > Product Types"
                   :label="$t('product.product_type')"
+                  :disabled="edit"
                 />
               </v-col>
               <v-col cols="6" class="pr-3">

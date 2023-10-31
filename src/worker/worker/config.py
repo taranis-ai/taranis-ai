@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+        extra = "ignore"
 
     API_KEY: str = "supersecret"
     TARANIS_CORE_URL: str = "http://taranis/api"

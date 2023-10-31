@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+        extra = "ignore"
 
     API_KEY: str = "supersecret"
     MODULE_ID: str = "Core"

@@ -13,7 +13,7 @@ Please note it is important to use the abovementioned version of
 
 Clone via git
 ```
-git clone --depth 1  https://github.com/ait-cs-IaaS/Taranis-NG
+git clone --depth 1  https://github.com/taranis-ai/taranis-ai
 cd Taranis-NG/docker/
 ```
 
@@ -53,7 +53,7 @@ Open `http://<url>:<TARANIS_PORT>/config/sources` and click [Import] to import j
 To build the Docker images individually, you need to clone the source code repository.
 
 ```bash
-git clone https://github.com/ait-cs-IaaS/Taranis-NG
+git clone https://github.com/taranis-ai/taranis-ai
 ```
 
 Afterwards go to the cloned repository and launch the `docker build` command for the specific container image, like so:
@@ -109,7 +109,7 @@ Any configuration options are available at [https://hub.docker.com/_/postgres](h
 
 | Environment variable        | Description | Example |
 |-----------------------------|-------------|----------|
-| `TARANIS_CORE_URL`       | URL of the Taranis NG core API. | `http://127.0.0.1:8080/api` |
+| `TARANIS_CORE_URL`          | URL of the Taranis NG core API. | `http://127.0.0.1:8080/api` |
 | `API_KEY`                   | Shared API key. | `changeme` |
 | `QUEUE_BROKER_HOST`         | RabbitMQ Host address | `rabbitmq` |
 | `QUEUE_BROKER_USER`         | RabbitMQ user | `taranis` |
@@ -121,8 +121,8 @@ Any configuration options are available at [https://hub.docker.com/_/postgres](h
 
 | Environment variable          | Description | Example |
 |-------------------------------|-------------|----------|
-| `TARANIS_CORE_API` | URL of the Taranis NG core API. | `/api/` |
-| `TARANIS_CORE_UPSTREAM` | Nginx upstream for the Taranis Core | `core` |
+| `TARANIS_CORE_API`      | URL of the Taranis core API. | `/api/` |
+| `TARANIS_CORE_UPSTREAM` | nginx upstream for the Taranis Core | `core` |
 | `TARANIS_SENTRY_DSN`    | Sentry DSN | '' |
-| `NGINX_WORKERS`               | Number of NginX worker threads to spawn. | `4` |
-| `NGINX_CONNECTIONS`           | Maximum number of allowed connections per one worker thread. | `16` |
+| `NGINX_WORKERS`         | Number of nginx worker threads to spawn. | `4` |
+| `NGINX_CONNECTIONS`     | Maximum number of allowed connections per one worker thread. | `16` |

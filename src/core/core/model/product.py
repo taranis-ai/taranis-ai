@@ -5,6 +5,7 @@ from sqlalchemy import orm, func, or_, and_, String as SQLString
 from sqlalchemy.sql.expression import cast
 
 from core.managers.db_manager import db
+from core.managers.log_manager import logger
 from core.model.acl_entry import ACLEntry, ItemType
 from core.model.report_item import ReportItem
 from core.model.base_model import BaseModel
@@ -168,10 +169,10 @@ class Product(BaseModel):
         if description := data.get("description"):
             product.description = description
 
-        if product_type_id := data.get("product_type_id"):
-            product.product_type_id = product_type_id
+        if data.get("product_type_id"):
+            logger.warning("Product type change not supported")
 
-        report_items = data.get("report_items", None)
+        report_items = data.get("report_items")
         if report_items is not None:
             product.report_items = [ReportItem.get(report_item) for report_item in report_items]
 

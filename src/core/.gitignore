@@ -1,5 +1,6 @@
 venv/
 worker_init.flag
 .envrc
+.env
 __pycache__/
 *.pyc
