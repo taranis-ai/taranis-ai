@@ -1,0 +1,83 @@
+name: Playwright Tests
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+env:
+  COMPOSE_PROJECT_NAME: taranis
+  TARANIS_TAG: latest
+  DOCKER_IMAGE_NAMESPACE: ghcr.io/taranis-ai
+  TARANIS_CORE_URL: "http://127.0.0.1:5000/api"
+  VITE_TARANIS_CONFIG_JSON: "/config.local.json"
+  TARANIS_DATABASE_PORT: 5432
+
+jobs:
+  playwright-e2e-tests:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11.5'
+      - name: Install dependencies
+        run: |
+          python -m venv my_venv
+          source my_venv/bin/activate
+          python -m pip install -e .[dev]
+        working-directory: src/core
+      - name: Compose DB and RMQ
+        run: |
+          source env.dev
+          cp env.dev ../../src/core/.env
+          cp env.dev ../../src/worker/.env
+          cp env.dev ../../src/gui/.env
+          echo -e "{\n  \"TARANIS_CORE_API\": \"${TARANIS_CORE_URL}\"\n}" > ../../src/gui/public/config.local.json
+
+          docker compose -f compose.yml up -d
+          sleep 5
+          docker cp ../../resources/e2e_test_db.sql taranis-database-1:/tmp
+          sleep 3
+          docker exec -i --workdir /usr/local/bin taranis-database-1 bash -c "psql -U taranis taranis < /tmp/e2e_test_db.sql"
+        working-directory: docker/dev
+      - name: Set up Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+      - name: Install Node dependencies
+        run: |
+          npm install
+        working-directory: src/gui
+      - name: Start Flask Server
+        run: |
+          source my_venv/bin/activate
+          docker ps
+          flask run &
+        working-directory: src/core
+      - name: Run NPM Development Server
+        run: |
+          npm run dev &
+        working-directory: src/gui
+      - name: Ensure browsers are installed
+        run: |
+          source my_venv/bin/activate
+          playwright install --with-deps
+        working-directory: src/core
+      - name: Run your tests
+        run: |
+          source ../my_venv/bin/activate
+          pytest test_playwright.py
+        working-directory: src/core/tests
+      - uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: playwright-traces
+          path: docker/
+      - name: Stop Flask Server
+        if: always()
+        run: |
+          source my_venv/bin/activate
+          pkill -f 'flask run'
+        working-directory: src/core

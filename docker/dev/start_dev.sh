@@ -18,7 +18,14 @@ fi
 
 echo -e "{\n  \"TARANIS_CORE_API\": \"${TARANIS_CORE_URL}\"\n}" > src/gui/public/config.local.json
 
+# docker compose -f docker/dev/compose.yml up -d database
+
+
 docker compose -f docker/dev/compose.yml up -d
+
+#  psql import dump 
+
+
 
 # Start a new tmux session
 tmux new-session -s taranis -n core -c src/core -d
