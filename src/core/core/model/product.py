@@ -17,6 +17,7 @@ class Product(BaseModel):
     description: Any = db.Column(db.String())
 
     created = db.Column(db.DateTime, default=datetime.now)
+    autopublish = db.Column(db.Boolean, default=False)
 
     product_type_id = db.Column(db.Integer, db.ForeignKey("product_type.id"))
     product_type = db.relationship("ProductType")

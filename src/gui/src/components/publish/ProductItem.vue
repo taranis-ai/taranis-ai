@@ -3,13 +3,18 @@
     <v-toolbar density="compact">
       <v-toolbar-title>{{ container_title }}</v-toolbar-title>
       <v-spacer />
+      <v-checkbox 
+      v-model="product.autopublish" 
+      label="Autopublish"
+      style="max-width: 180px"
+      />
       <v-switch
-        v-model="verticalView"
-        style="max-width: 150px"
-        :label="$t('product.preview')"
-        hide-details
-        color="success"
-        density="compact"
+      v-model="verticalView"
+      style="max-width: 150px"
+      :label="$t('product.preview')"
+      hide-details
+      color="success"
+      density="compact"
       />
       <v-btn
         v-if="renderedProduct"
