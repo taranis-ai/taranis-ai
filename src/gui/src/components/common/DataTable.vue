@@ -1,5 +1,6 @@
 <template>
   <v-data-table
+    :sort-by="sortBy"
     :headers="headers"
     :items="items"
     :search="search"
@@ -131,6 +132,10 @@ export default defineComponent({
     tagIcon: {
       type: String,
       default: ''
+    },
+    sortBy: {
+      type: Array,
+      default: () => []
     }
   },
   emits: [
