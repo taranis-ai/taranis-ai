@@ -1,6 +1,6 @@
 <template>
   <DataTable
-    :sort-by="[{ key: 'created', order: 'dsc' }]"
+    :sort-by="sortBy"
     :items="report_items_data"
     :add-button="false"
     :search-bar="false"
@@ -55,7 +55,7 @@ export default {
     DataTable
   },
   setup() {
-    const sortBy = ref(['created'])
+    const sortBy = ref([{ key: 'created', order: 'desc' }])
 
     const mainStore = useMainStore()
     const analyzeStore = useAnalyzeStore()
