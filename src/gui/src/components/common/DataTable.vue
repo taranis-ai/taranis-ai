@@ -117,10 +117,6 @@ export default defineComponent({
       type: Boolean,
       default: false
     },
-    sortByItem: {
-      type: String,
-      default: null
-    },
     headerFilter: {
       type: Array,
       default: () => []
