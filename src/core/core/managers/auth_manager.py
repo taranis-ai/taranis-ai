@@ -15,7 +15,7 @@ from core.managers.log_manager import logger
 from core.auth.openid_authenticator import OpenIDAuthenticator
 from core.auth.test_authenticator import TestAuthenticator
 from core.auth.database_authenticator import DatabaseAuthenticator
-from core.model.token_blacklist import TokenBlacklist
+from core.model.token_excludelist import TokenExcludelist
 from core.model.user import User
 from core.config import Config
 
@@ -24,9 +24,9 @@ current_authenticator = TestAuthenticator()
 api_key = Config.API_KEY
 
 
-def cleanup_token_blacklist(app):
+def cleanup_token_excludelist(app):
     with app.app_context():
-        TokenBlacklist.delete_older(datetime.now() - timedelta(days=1))
+        TokenExcludelist.delete_older(datetime.now() - timedelta(days=1))
 
 
 def initialize(app):
@@ -47,7 +47,7 @@ def initialize(app):
     with app.app_context():
         current_authenticator.initialize(app)
 
-    # queue_manager.schedule_job_every_day("00:00", cleanup_token_blacklist)
+    # queue_manager.schedule_job_every_day("00:00", cleanup_token_excludelist)
 
 
 def get_required_credentials():

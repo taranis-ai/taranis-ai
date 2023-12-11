@@ -223,7 +223,7 @@ def upgrade():
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_table(
-        "token_blacklist",
+        "token_excludelist",
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("token", sa.String(), nullable=False),
         sa.Column("created", sa.DateTime(), nullable=True),
@@ -792,7 +792,7 @@ def downgrade():
     op.drop_table("worker")
     op.drop_table("word_list")
     op.drop_table("user_profile")
-    op.drop_table("token_blacklist")
+    op.drop_table("token_excludelist")
     op.drop_table("schedule_entry")
     op.drop_table("role")
     op.drop_table("report_item_type")
