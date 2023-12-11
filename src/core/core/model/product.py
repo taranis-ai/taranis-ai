@@ -163,13 +163,16 @@ class Product(BaseModel):
         if product is None:
             return {"error": f"Product {product_id} not found"}, 404
 
-        if title := data.get("title"):
+        title = data.get("title")
+        if title is not None:
             product.title = title
 
-        if description := data.get("description"):
+        description = data.get("description")
+        if description is not None:
             product.description = description
 
-        if data.get("product_type_id"):
+        product_type_id = data.get("product_type_id")
+        if product_type_id is not None:
             logger.warning("Product type change not supported")
 
         report_items = data.get("report_items")
