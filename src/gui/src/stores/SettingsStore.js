@@ -130,6 +130,20 @@ export const useSettingsStore = defineStore('settings', {
 
       i18n.global.locale.value = profile.language
       vuetify.theme.global.name.value = profile.dark_theme ? 'dark' : 'light'
+    },
+    resetUserProfile: async function () {
+      // const settingStore = useSettingsStore()
+      this.spellcheck = true
+      this.dark_theme = false
+      // this.spellcheck = useSettingsStore().spellcheck
+      // console.log(useSettingsStore().spellcheck)
+      // this.dark_theme = useSettingsStore().dark_theme
+      // this.language = useSettingsStore().language
+
+      // i18n.global.locale.value = useSettingsStore().language
+      vuetify.theme.global.name.value = useSettingsStore().dark_theme
+        ? 'dark'
+        : 'light'
     }
   }
 })

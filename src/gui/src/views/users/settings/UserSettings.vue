@@ -10,6 +10,14 @@
           <v-btn
             color="success"
             variant="outlined"
+            prepend-icon="mdi-content-reload"
+            @click="resetDefaults()"
+          >
+            {{ $t('settings.save') }}
+          </v-btn>
+          <v-btn
+            color="success"
+            variant="outlined"
             prepend-icon="mdi-content-save"
             @click="save()"
           >
@@ -114,6 +122,17 @@ export default {
         })
     }
 
+    const resetDefaults = () => {
+      settingsStore
+        .resetUserProfile()
+        .then(() => {
+          notifySuccess('notification.successful_update')
+        })
+        .catch(() => {
+          notifyFailure('notification.failed_update')
+        })
+    }
+
     const pressKeyDialog = (event) => {
       window.addEventListener('keydown', pressKey, false)
 
@@ -168,6 +187,7 @@ export default {
       spellcheck,
       hotkeys,
       save,
+      resetDefaults,
       pressKeyDialog,
       pressKey
     }
