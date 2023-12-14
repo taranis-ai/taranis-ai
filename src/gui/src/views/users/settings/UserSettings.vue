@@ -8,12 +8,14 @@
           </v-toolbar-title>
           <v-spacer></v-spacer>
           <v-btn
-            color="success"
+            class="mr-2"
+            color="red"
             variant="outlined"
-            prepend-icon="mdi-content-reload"
+            prepend-icon="mdi-undo"
             @click="resetDefaults()"
           >
-            {{ $t('settings.save') }}
+            <!-- TODO: here it would need a revisit the translation json   {{ $t('settings.reset') }}-->
+            Reset and apply
           </v-btn>
           <v-btn
             color="success"
@@ -125,6 +127,19 @@ export default {
     const resetDefaults = () => {
       settingsStore
         .resetUserProfile()
+        .then(() => {
+          notifySuccess('notification.successful_update')
+        })
+        .catch(() => {
+          notifyFailure('notification.failed_update')
+        })
+      settingsStore
+        .saveUserProfile({
+          spellcheck: spellcheck.value,
+          dark_theme: dark_theme.value,
+          hotkeys: shortcuts.value,
+          language: language.value
+        })
         .then(() => {
           notifySuccess('notification.successful_update')
         })
