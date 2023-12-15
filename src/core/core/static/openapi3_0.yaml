@@ -2072,6 +2072,15 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
         '404':
           $ref: "#/components/schemas/notFound"
+        '500':
+          description: server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
   /config/report-item-types/{type_id}:
     parameters:
       - name: type_id
@@ -2090,6 +2099,8 @@ paths:
       responses:
         '200':
           description: success
+        '400':
+          description: cant delete a thing
         '401':
           description: authorization error
           content:
@@ -2455,6 +2466,26 @@ paths:
       responses:
         '200':
           description: success
+        '201':
+          description: "Organization created"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  "message":
+                    "type": string
+                  "id":
+                    "type": integer
+        # '400':
+        #   description: Failed to decode JSON object Expecting value line 1 column 1 (char 0)
+        #   content:
+        #     application/json:
+        #       schema:
+        #         type: object
+        #         properties:
+        #           message:
+        #             type: string
         '401':
           description: authorization error
           content:
@@ -2469,7 +2500,7 @@ paths:
         in: path
         required: true
         schema:
-          type: integer
+          type: string
     put:
       tags: [config]
       description: update organization
@@ -2481,6 +2512,15 @@ paths:
       responses:
         '200':
           description: success
+        '400':
+          description: Failed to decode JSON object Expecting value line 1 column 1 (char 0)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
         '401':
           description: authorization error
           content:
@@ -2705,6 +2745,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/wordlist'
+        '400':
+          description: No file provided
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
         '401':
           description: authorization error
           content:
@@ -2746,6 +2795,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/resp.auth.error'
+        '404':
+          description: "Not found"
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    type: string
         '500':
           description: could not connect to RabbitMQ
           content:
@@ -2870,6 +2927,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/resp.auth.error'
+
   /config/bots:
     get:
       tags: [config]
@@ -3011,6 +3069,10 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/wordlist'
+        #        '400':
+        #          description: "Failed to decode JSON object: Expecting value: line 1 column 1 (char 0)"
+        #          content:
+
         '401':
           description: authorization error
           content:
@@ -3101,6 +3163,15 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/osint_source'
+        # '400':
+        #   description: "Failed to decode JSON object: Expecting value: line 1 column 1 (char 0)"
+        #   content:
+        #     application/json:
+        #       schema:
+        #         type: object
+        #         properties:
+        #           message:
+        #             type: string
         '401':
           description: authorization error
           content:
@@ -3110,7 +3181,7 @@ paths:
         '404':
           $ref: "#/components/schemas/notFound"
     post:
-      tags: [config]
+      tags: [ config ]
       description: add OSINT source
       requestBody:
         content:
@@ -3275,6 +3346,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/osint_source'
+        # '400':
+        #   description: No file provided
+        #   content:
+        #     application/json:
+        #       schema:
+        #         type: object
+        #         properties:
+        #           error:
+        #             type: string
         '401':
           description: authorization error
           content:
@@ -4533,6 +4613,7 @@ components:
         last_data:
           type: string
     osint_source:
+      # required: true
       type: object
       properties:
         id:
