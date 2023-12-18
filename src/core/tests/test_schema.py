@@ -39,118 +39,118 @@ def test_assess(case, auth_header):
 
 @schema.parametrize(endpoint="^/api/config/reload-enum-dictionaries")
 @settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
-def test_assess(case, auth_header):
+def test_enum(case, auth_header):
     response = case.call_wsgi(headers=auth_header)
     case.validate_response(response, additional_checks=(check_401,))
 
-
-@schema.parametrize(endpoint="^/api/config/reload-enum-dictionaries")
-@settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
-def test_assess(case, auth_header):
-    response = case.call_wsgi(headers=auth_header)
-    case.validate_response(response, additional_checks=(check_401,))
+#
+# @schema.parametrize(endpoint="^/api/config/reload-enum-dictionaries")
+# @settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
+# def test_(case, auth_header):
+#     response = case.call_wsgi(headers=auth_header)
+#     case.validate_response(response, additional_checks=(check_401,))
 
 
 @schema.parametrize(endpoint="^/api/config/attributes")
 @settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
-def test_assess(case, auth_header):
+def test_attributes(case, auth_header):
     response = case.call_wsgi(headers=auth_header)
     case.validate_response(response, additional_checks=(check_401,))
 
 
 @schema.parametrize(endpoint="^/api/config/report-item-types")
 @settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
-def test_assess(case, auth_header):
+def test_report_items(case, auth_header):
     response = case.call_wsgi(headers=auth_header)
     case.validate_response(response, additional_checks=(check_401,))
 
 
 @schema.parametrize(endpoint="^/api/config/product-types")
 @settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
-def test_assess(case, auth_header):
+def test_product_types(case, auth_header):
     response = case.call_wsgi(headers=auth_header)
     case.validate_response(response, additional_checks=(check_401,))
 
 
 @schema.parametrize(endpoint="^/api/config/permissions")
 @settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
-def test_assess(case, auth_header):
+def test_permissions(case, auth_header):
     response = case.call_wsgi(headers=auth_header)
     case.validate_response(response, additional_checks=(check_401,))
 
 
 @schema.parametrize(endpoint="^/api/config/roles")
 @settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
-def test_assess(case, auth_header):
+def test_roles(case, auth_header):
     response = case.call_wsgi(headers=auth_header)
     case.validate_response(response, additional_checks=(check_401,))
 
 
 @schema.parametrize(endpoint="^/api/config/acls")
 @settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
-def test_assess(case, auth_header):
+def test_acls(case, auth_header):
     response = case.call_wsgi(headers=auth_header)
     case.validate_response(response, additional_checks=(check_401,))
 
 
 @schema.parametrize(endpoint="^/api/config/organizations")
 @settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
-def test_assess(case, auth_header):
+def test_organization(case, auth_header):
     response = case.call_wsgi(headers=auth_header)
     case.validate_response(response, additional_checks=(check_401,))
 
 @schema.parametrize(endpoint="^/api/config/users")
 @settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
-def test_assess(case, auth_header):
+def test_user(case, auth_header):
     response = case.call_wsgi(headers=auth_header)
     case.validate_response(response, additional_checks=(check_401,))
     
     
 @schema.parametrize(endpoint="^/api/config/workers")
 @settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
-def test_assess(case, auth_header):
+def test_workers(case, auth_header):
     response = case.call_wsgi(headers=auth_header)
     case.validate_response(response, additional_checks=(check_401,))
 
 
 @schema.parametrize(endpoint="^/api/config/worker-types")
 @settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
-def test_assess(case, auth_header):
+def test_worker_types(case, auth_header):
     response = case.call_wsgi(headers=auth_header)
     case.validate_response(response, additional_checks=(check_401,))
 
 
 @schema.parametrize(endpoint="^/api/config/export-word-lists")
 @settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
-def test_assess(case, auth_header):
+def test_export_word_list(case, auth_header):
     response = case.call_wsgi(headers=auth_header)
     case.validate_response(response, additional_checks=(check_401,))
 
 
 @schema.parametrize(endpoint="^/api/config/import-word-lists")
 @settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
-def test_assess(case, auth_header):
+def test_import_word_list(case, auth_header):
     response = case.call_wsgi(headers=auth_header)
     case.validate_response(response, additional_checks=(check_401,))
 
 
 @schema.parametrize(endpoint="^/api/config/word-lists")
 @settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
-def test_assess(case, auth_header):
+def test_word_lists(case, auth_header):
     response = case.call_wsgi(headers=auth_header)
     case.validate_response(response, additional_checks=(check_401,))
 
 
 @schema.parametrize(endpoint="^/api/config/osint-source-groups")
 @settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
-def test_assess(case, auth_header):
+def test_source_groups(case, auth_header):
     response = case.call_wsgi(headers=auth_header)
     case.validate_response(response, additional_checks=(check_401,))
 
 
 @schema.parametrize(endpoint="^/api/config/publisher-preset")
 @settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
-def test_assess(case, auth_header):
+def test_publisher_preset(case, auth_header):
     response = case.call_wsgi(headers=auth_header)
     case.validate_response(response, additional_checks=(check_401,))
 
@@ -165,37 +165,37 @@ def test_assess(case, auth_header):
 # TODO: Put off for later
 @schema.parametrize(endpoint="^/api/config/parameters")
 @settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
-def test_assess(case, auth_header):
+def test_parameters(case, auth_header):
     response = case.call_wsgi(headers=auth_header)
     case.validate_response(response, additional_checks=(check_401,))
 
 
 @schema.parametrize(endpoint="^/api/config/presenters")
 @settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
-def test_assess(case, auth_header):
+def test_presenters(case, auth_header):
     response = case.call_wsgi(headers=auth_header)
     case.validate_response(response, additional_checks=(check_401,))
 
 
 @schema.parametrize(endpoint="^/api/config/publishers")
 @settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
-def test_assess(case, auth_header):
+def test_publishers(case, auth_header):
     response = case.call_wsgi(headers=auth_header)
     case.validate_response(response, additional_checks=(check_401,))
 
 
 @schema.parametrize(endpoint="^/api/config/bots")
 @settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
-def test_assess(case, auth_header):
+def test_bots(case, auth_header):
     response = case.call_wsgi(headers=auth_header)
     case.validate_response(response, additional_checks=(check_401,))
 
 
-@schema.parametrize(endpoint="^/api/config/workers")
-@settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
-def test_assess(case, auth_header):
-    response = case.call_wsgi(headers=auth_header)
-    case.validate_response(response, additional_checks=(check_401,))
+# @schema.parametrize(endpoint="^/api/config/workers")
+# @settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
+# def test_workers(case, auth_header):
+#     response = case.call_wsgi(headers=auth_header)
+#     case.validate_response(response, additional_checks=(check_401,))
 
 
 # TODO: needs revisit = AssertionError
@@ -208,30 +208,30 @@ def test_assess(case, auth_header):
 
 @schema.parametrize(endpoint="^/api/config/export-osint-sources")
 @settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
-def test_assess(case, auth_header):
+def test_export_osint_sources(case, auth_header):
     response = case.call_wsgi(headers=auth_header)
     case.validate_response(response, additional_checks=(check_401,))
 
 
 @schema.parametrize(endpoint="^/api/config/import-osint-sources")
 @settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
-def test_assess(case, auth_header):
+def test_import_osint_sources(case, auth_header):
     response = case.call_wsgi(headers=auth_header)
     case.validate_response(response, additional_checks=(check_401,))
 
 
 @schema.parametrize(endpoint="^/api/config/osint-source-groups")
 @settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
-def test_assess(case, auth_header):
+def test_osint_source_groups(case, auth_header):
     response = case.call_wsgi(headers=auth_header)
     case.validate_response(response, additional_checks=(check_401,))
 
 
-@schema.parametrize(endpoint="^/api/config/publisher-preset")
-@settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
-def test_assess(case, auth_header):
-    response = case.call_wsgi(headers=auth_header)
-    case.validate_response(response, additional_checks=(check_401,))
+# @schema.parametrize(endpoint="^/api/config/publisher-preset")
+# @settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
+# def test_publisher_preset(case, auth_header):
+#     response = case.call_wsgi(headers=auth_header)
+#     case.validate_response(response, additional_checks=(check_401,))
 
 
 
@@ -253,7 +253,7 @@ def test_assess_no_auth(case, auth_header_no_permissions, caplog):
 
 @schema.parametrize(endpoint="^/api/config/reload-enum-dictionaries")
 @settings(max_examples=5, suppress_health_check=(HealthCheck.function_scoped_fixture,))
-def test_assess_no_auth(case, auth_header_no_permissions, caplog):
+def test_enum_no_auth(case, auth_header_no_permissions, caplog):
     with caplog.at_level(logging.CRITICAL):
         response = case.call_wsgi(headers=auth_header_no_permissions)
         case.validate_response(response, additional_checks=(check_not_401,))
@@ -261,7 +261,7 @@ def test_assess_no_auth(case, auth_header_no_permissions, caplog):
 
 @schema.parametrize(endpoint="^/api/config/osint-source-groups")
 @settings(max_examples=5, suppress_health_check=(HealthCheck.function_scoped_fixture,))
-def test_assess_no_auth(case, auth_header_no_permissions, caplog):
+def test_source_groups_no_auth(case, auth_header_no_permissions, caplog):
     with caplog.at_level(logging.CRITICAL):
         response = case.call_wsgi(headers=auth_header_no_permissions)
         case.validate_response(response, additional_checks=(check_not_401,))
