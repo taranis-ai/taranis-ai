@@ -1,5 +1,6 @@
 <template>
   <DataTable
+    :sort-by="sortBy"
     :items="report_items_data"
     :add-button="false"
     :search-bar="false"
@@ -54,6 +55,8 @@ export default {
     DataTable
   },
   setup() {
+    const sortBy = ref([{ key: 'created', order: 'desc' }])
+
     const mainStore = useMainStore()
     const analyzeStore = useAnalyzeStore()
     const router = useRouter()
@@ -132,6 +135,7 @@ export default {
       report_items_data,
       report_items,
       selected,
+      sortBy,
       updateData,
       addItem,
       editItem,
