@@ -1822,6 +1822,7 @@ paths:
           content:
             application/json:
               schema:
+                # required: true
                 $ref: '#/components/schemas/resp.auth.error'
         '404':
           $ref: "#/components/schemas/notFound"
@@ -1867,8 +1868,20 @@ paths:
       responses:
         '200':
           description: success
+        '201':
+          description: Attribute added
+          
         '401':
           description: authorization error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  id:
+                    type: integer
           content:
             application/json:
               schema:
@@ -2064,6 +2077,8 @@ paths:
       responses:
         '200':
           description: success
+        '201':
+          description: success
         '401':
           description: authorization error
           content:
@@ -2073,7 +2088,7 @@ paths:
         '404':
           $ref: "#/components/schemas/notFound"
         '500':
-          description: server error
+          description: Failed to add report item type
           content:
             application/json:
               schema:
@@ -2161,10 +2176,21 @@ paths:
         content:
           application/json:
             schema:
+              required: true
+                # - type
+                # - title
+                # - presenter_id
+                # - parameters
               $ref: '#/components/schemas/product_type'
       responses:
         '200':
           description: success
+        '400':
+          description: 'Failed to decode JSON object: Expecting value: line 1 column 1 (char 0)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/failed_to_decode'
         '401':
           description: authorization error
           content:
@@ -2286,6 +2312,12 @@ paths:
       responses:
         '200':
           description: success
+        '400':
+          description: 'Failed to decode JSON object: Expecting value: line 1 column 1 (char 0)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/failed_to_decode'
         '401':
           description: authorization error
           content:
@@ -2376,6 +2408,8 @@ paths:
       responses:
         '200':
           description: success
+        '400':
+          description: failure
         '401':
           description: authorization error
           content:
@@ -2692,12 +2726,34 @@ paths:
       responses:
         '200':
           description: success
+        '201':
+          description: Worker WorkerName added
+          content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                id:
+                  type: string
+        '400':
+          description: 'Failed to decode JSON object: Expecting value: line 1 column 1 (char 0)'
         '401':
           description: authorization error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/resp.auth.error'
+        '409':
+          description: Worker with type web_collector already exists
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
 
   /config/export-word-lists:
     parameters:
@@ -2830,6 +2886,8 @@ paths:
                     type: string
                   url:
                     type: string
+        '401':
+          description: Not authorized
         '500':
           description: could not connect to RabbitMQ
           content:
@@ -2854,6 +2912,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/scheduled_task'
+        '401':
+          description: Not authorized
 
   /config/parameters:
     get:
@@ -2949,7 +3009,7 @@ paths:
                   total_count:
                     type: integer
                   items:
-                    type: array
+                    type: object
                     items:
                       $ref: '#/components/schemas/bot'
         '401':
@@ -3006,6 +3066,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/resp.auth.error'
+        '404':
+          $ref: "#/components/schemas/notFound"
     put:
       tags: [config]
       description: update bot
@@ -3018,6 +3080,12 @@ paths:
       responses:
         '200':
           description: success
+        '400':
+          description: 'Failed to decode JSON object: Expecting value: line 1 column 1 (char 0)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/failed_to_decode'
         '401':
           description: authorization error
           content:
@@ -3069,9 +3137,9 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/wordlist'
-        #        '400':
-        #          description: "Failed to decode JSON object: Expecting value: line 1 column 1 (char 0)"
-        #          content:
+        '400':
+          description: "Failed to decode JSON object: Expecting value: line 1 column 1 (char 0)"
+        #  content:
 
         '401':
           description: authorization error
@@ -3118,6 +3186,8 @@ paths:
       responses:
         '200':
           description: success
+        '400':
+          description: "Failed to decode JSON object: Expecting value: line 1 column 1 (char 0)"
         '401':
           description: authorization error
           content:
@@ -3163,15 +3233,6 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/osint_source'
-        # '400':
-        #   description: "Failed to decode JSON object: Expecting value: line 1 column 1 (char 0)"
-        #   content:
-        #     application/json:
-        #       schema:
-        #         type: object
-        #         properties:
-        #           message:
-        #             type: string
         '401':
           description: authorization error
           content:
@@ -3191,6 +3252,15 @@ paths:
       responses:
         '200':
           description: success
+        '400':
+          description: "Failed to decode JSON object: Expecting value: line 1 column 1 (char 0)"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
         '401':
           description: authorization error
           content:
@@ -3346,15 +3416,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/osint_source'
-        # '400':
-        #   description: No file provided
-        #   content:
-        #     application/json:
-        #       schema:
-        #         type: object
-        #         properties:
-        #           error:
-        #             type: string
+        '400':
+          description: No file provided
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
         '401':
           description: authorization error
           content:
@@ -3410,6 +3480,12 @@ paths:
       responses:
         '200':
           description: success
+        '400':
+          description: 'Failed to decode JSON object: Expecting value: line 1 column 1 (char 0)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/failed_to_decode'
         '401':
           description: authorization error
           content:
@@ -3908,6 +3984,13 @@ components:
       properties:
         error:
           type: string
+    
+    failed_to_decode:
+      type: object
+      properties:
+        message:
+          type: string
+
 
     #general
 
@@ -4111,7 +4194,7 @@ components:
         description:
           type: string
         usage:
-          type: integer
+          type: array
         link:
           type: string
         entries:
@@ -4131,7 +4214,7 @@ components:
         presenter_id:
           type: string
         parameters:
-          type: array
+          # type: array
           items:
             $ref: '#/components/schemas/parameter_value'
 
