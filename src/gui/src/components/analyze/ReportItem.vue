@@ -113,7 +113,7 @@
         </v-col>
         <v-col :cols="verticalView ? 6 : 12" class="pa-5 taranis-vertical-view">
           <v-alert
-            v-if="report_item.news_item_aggregates.length == 0"
+            v-if="edit && report_item.news_item_aggregates.length == 0"
             dense
             outlined
             type="info"

@@ -4,11 +4,11 @@ services:
   database:
     image: "postgres:${POSTGRES_TAG:-14-alpine}"
     ports:
-      - "${TARANIS_DATABASE_PORT:-5432}"
+      - "${TARANIS_DATABASE_PORT:-5432}:5432"
     environment:
       POSTGRES_DB: "${DB_DATABASE:-taranis}"
       POSTGRES_USER: "${DB_USER:-taranis}"
-      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-taranis}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-supersecret}"
     command: ["postgres", "-c", "shared_buffers=${DB_SHARED_BUFFERS:-64MB}", "-c", "max_connections=${DB_MAX_CONNECTIONS:-1000}"]
     healthcheck:
       test: ["CMD-SHELL", "sh -c 'pg_isready -U ${DB_USER:-taranis} -d ${DB_DATABASE:-taranis}'"]
@@ -27,7 +27,7 @@ services:
       - "rabbitmq_data:/var/lib/rabbitmq/"
     environment:
       - "RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-taranis}"
-      - "RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-taranis}"
+      - "RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-supersecret}"
 
 volumes:
   database_data:

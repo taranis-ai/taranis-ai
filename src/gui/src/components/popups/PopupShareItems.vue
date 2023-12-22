@@ -3,7 +3,7 @@
     <v-card-title> Share Items </v-card-title>
     <v-card-text>
       Select a report to share the item with:
-      <v-select
+      <v-autocomplete
         v-model="reportItemSelection"
         single-line
         label="Select Report"
