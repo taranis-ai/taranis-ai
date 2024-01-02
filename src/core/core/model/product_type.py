@@ -105,6 +105,10 @@ class ProductType(BaseModel):
             product_type.parameters = ParameterValue.get_update_values(product_type.parameters, updated_product_type)
         if report_types := data.get("report_types"):
             product_type.report_types = [ReportItemType.get(report_type) for report_type in report_types]
+            logger.debug(f"Updated report types for product type {product_type.title}: {product_type.report_types}")
+        if template_data := data.get("template"):
+            if template_path := product_type.get_template():
+                product_type._base64_to_file(template_data, template_path)
         db.session.commit()
         return product_type.id
 
@@ -134,10 +138,18 @@ class ProductType(BaseModel):
             print(f"An error occurred: {e}")
             return ""
 
+    def _base64_to_file(self, base64_string: str, filepath: str) -> None:
+        try:
+            with open(filepath, "wb") as f:
+                f.write(base64.b64decode(base64_string))
+        except Exception as e:
+            print(f"An error occurred: {e}")
+
     def get_detail_json(self):
         data = self.to_dict()
         if template := self.get_template():
             data["template"] = self._file_to_base64(template)
+        data["report_types"] = [report_type.id for report_type in self.report_types if report_type]
         return data
 
     @classmethod

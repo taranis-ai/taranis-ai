@@ -147,24 +147,26 @@ export default {
 
     const add = () => {
       // make a deep copy of the report_type object
-      const update_report_type = JSON.parse(JSON.stringify(report_type))
-      console.debug(update_report_type.value.attribute_groups)
-      for (let x = 0; x < update_report_type.value.attribute_groups.length; x++) {
-        update_report_type.value.attribute_groups[x].index = x
+      console.debug('Update Report Type')
+
+      const update_report_type = JSON.parse(JSON.stringify(report_type.value))
+      console.debug(update_report_type)
+      for (let x = 0; x < update_report_type.attribute_groups.length; x++) {
+        update_report_type.attribute_groups[x].index = x
 
         for (
           let y = 0;
           y <
-            update_report_type.value.attribute_groups[x].attribute_group_items.length;
+            update_report_type.attribute_groups[x].attribute_group_items.length;
           y++
         ) {
-          update_report_type.value.attribute_groups[x].attribute_group_items[y].index = y
-          delete(update_report_type.value.attribute_groups[x].attribute_group_items[y].attribute)
+          update_report_type.attribute_groups[x].attribute_group_items[y].index = y
+          delete(update_report_type.attribute_groups[x].attribute_group_items[y].attribute)
         }
       }
 
       if (props.edit) {
-        updateReportItemType(update_report_type.value)
+        updateReportItemType(update_report_type)
           .then(() => {
             notifySuccess('report_type.successful_edit')
             emit('updated')
@@ -173,7 +175,7 @@ export default {
             notifyFailure('report_type.error')
           })
       } else {
-        createReportItemType(update_report_type.value)
+        createReportItemType(update_report_type)
           .then(() => {
             notifySuccess('report_type.successful')
             emit('updated')

@@ -61,7 +61,8 @@ export default {
 
     const templateData = ref('')
 
-    const { product_types, presenter_types } = storeToRefs(configStore)
+    const { product_types, presenter_types, report_item_types } =
+      storeToRefs(configStore)
 
     const formFormat = computed(() => {
       return [
@@ -93,6 +94,13 @@ export default {
           label: 'Template',
           type: 'select',
           items: product_types.value.templates
+        },
+        {
+          name: 'report_types',
+          label: 'Report Types',
+          type: 'table',
+          headers: [{ title: 'Name', key: 'title' }],
+          items: report_item_types.value.items
         }
       ]
     })
@@ -101,6 +109,10 @@ export default {
       configStore.loadProductTypes().then(() => {
         mainStore.itemCountTotal = product_types.value.total_count
         mainStore.itemCountFiltered = product_types.value.length
+      })
+
+      configStore.loadReportTypes().then(() => {
+        console.debug('report_item_types', report_item_types.value.items)
       })
 
       configStore.loadWorkerTypes().then(() => {
@@ -122,7 +134,8 @@ export default {
     const editItem = (item) => {
       formData.value = item
       getProductType(item.id).then((response) => {
-        console.debug('response', response)
+        console.debug('REPORT TYPES', response.data.report_types)
+        formData.value['report_types'] = response.data.report_types
         templateData.value = atob(response.data.template)
         edit.value = true
         showForm.value = true
