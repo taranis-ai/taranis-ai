@@ -114,6 +114,7 @@ class ProductType(BaseModel):
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
+        data["report_types"] = [report_type.id for report_type in self.report_types if report_type]
         data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters}
         return data
 
@@ -149,7 +150,6 @@ class ProductType(BaseModel):
         data = self.to_dict()
         if template := self.get_template():
             data["template"] = self._file_to_base64(template)
-        data["report_types"] = [report_type.id for report_type in self.report_types if report_type]
         return data
 
     @classmethod
