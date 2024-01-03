@@ -36,7 +36,11 @@ import {
   updateProductType,
   getProductType
 } from '@/api/config'
-import { notifySuccess, notifyFailure } from '@/utils/helpers'
+import {
+  notifySuccess,
+  notifyFailure,
+  getMessageFromError
+} from '@/utils/helpers'
 import { useConfigStore } from '@/stores/ConfigStore'
 import { useMainStore } from '@/stores/MainStore'
 import { ref, computed, onMounted } from 'vue'
@@ -173,24 +177,24 @@ export default {
     const deleteItem = (item) => {
       if (!item.default) {
         deleteProductType(item)
-          .then(() => {
-            notifySuccess(`Successfully deleted ${item.name}`)
+          .then((response) => {
+            notifySuccess(response.data.message)
             updateData()
           })
-          .catch(() => {
-            notifyFailure(`Failed to delete ${item.name}`)
+          .catch((error) => {
+            notifyFailure(getMessageFromError(error))
           })
       }
     }
 
     const updateItem = (item) => {
       updateProductType(item)
-        .then(() => {
-          notifySuccess(`Successfully updated ${item.name}`)
+        .then((response) => {
+          notifySuccess(response.data.message)
           updateData()
         })
-        .catch(() => {
-          notifyFailure(`Failed to update ${item.name}`)
+        .catch((error) => {
+          notifyFailure(getMessageFromError(error))
         })
     }
 

@@ -83,11 +83,12 @@ class AttributeEnums(Resource):
 class ReportItemTypesImport(Resource):
     @auth_required("CONFIG_REPORT_TYPE_CREATE")
     def post(self):
-        if file := request.files.get("file"):
-            if rts := report_item_type.ReportItemType.import_report_types(file):
-                return {"report_types": [rt.id for rt in rts], "count": len(rts), "message": "Successfully imported report types"}
-            return {"error": "Unable to import"}, 400
-        return {"error": "No file provided"}, 400
+        return {"error": "Not implemented"}, 400
+        # if file := request.files.get("file"):
+        #     if rts := report_item_type.ReportItemType.import_report_types(file):
+        #         return {"report_types": [rt.id for rt in rts], "count": len(rts), "message": "Successfully imported report types"}
+        #     return {"error": "Unable to import"}, 400
+        # return {"error": "No file provided"}, 400
 
 
 class ReportItemTypesExport(Resource):

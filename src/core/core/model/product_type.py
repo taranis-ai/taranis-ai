@@ -92,7 +92,7 @@ class ProductType(BaseModel):
         product_type = cls.get(preset_id)
         if not product_type:
             logger.error(f"Could not find product type with id {preset_id}")
-            return None
+            return {"error": f"Could not find product type with id {preset_id}"}, 404
         if title := data.get("title"):
             product_type.title = title
         if description := data.get("description"):
@@ -103,14 +103,15 @@ class ProductType(BaseModel):
         elif parameters := data.get("parameters"):
             updated_product_type = ParameterValue.get_or_create_from_list(parameters)
             product_type.parameters = ParameterValue.get_update_values(product_type.parameters, updated_product_type)
-        if report_types := data.get("report_types"):
+        report_types = data.get("report_types", None)
+        if report_types is not None:
             product_type.report_types = [ReportItemType.get(report_type) for report_type in report_types]
             logger.debug(f"Updated report types for product type {product_type.title}: {product_type.report_types}")
         if template_data := data.get("template"):
             if template_path := product_type.get_template():
                 product_type._base64_to_file(template_data, template_path)
         db.session.commit()
-        return product_type.id
+        return {"message": f"Updated product type {product_type.title}", "id": product_type.id}, 200
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()

@@ -87,7 +87,7 @@ export const useConfigStore = defineStore('config', {
           this.attributes = response.data
         })
         .catch((error) => {
-          notifyFailure(getMessageFromError(error))
+          notifyFailure(error)
         })
     },
     loadBots(data) {
@@ -96,7 +96,7 @@ export const useConfigStore = defineStore('config', {
           this.bots = response.data
         })
         .catch((error) => {
-          notifyFailure(getMessageFromError(error))
+          notifyFailure(error)
         })
     },
     loadReportTypes(data) {
@@ -105,7 +105,7 @@ export const useConfigStore = defineStore('config', {
           this.report_item_types = response.data
         })
         .catch((error) => {
-          notifyFailure(getMessageFromError(error))
+          notifyFailure(error)
         })
     },
     loadProductTypes(data) {
@@ -114,7 +114,7 @@ export const useConfigStore = defineStore('config', {
           this.product_types = response.data
         })
         .catch((error) => {
-          notifyFailure(getMessageFromError(error))
+          notifyFailure(error)
         })
     },
     loadUserProductTypes(data) {
@@ -123,7 +123,7 @@ export const useConfigStore = defineStore('config', {
           this.product_types = response.data
         })
         .catch((error) => {
-          notifyFailure(getMessageFromError(error))
+          notifyFailure(error)
         })
     },
     loadPermissions(data) {
@@ -132,7 +132,7 @@ export const useConfigStore = defineStore('config', {
           this.permissions = response.data
         })
         .catch((error) => {
-          notifyFailure(getMessageFromError(error))
+          notifyFailure(error)
         })
     },
     loadRoles(data) {
@@ -141,7 +141,7 @@ export const useConfigStore = defineStore('config', {
           this.roles = response.data
         })
         .catch((error) => {
-          notifyFailure(getMessageFromError(error))
+          notifyFailure(error)
         })
     },
     loadACLEntries(data) {
@@ -150,7 +150,7 @@ export const useConfigStore = defineStore('config', {
           this.acls = response.data
         })
         .catch((error) => {
-          notifyFailure(getMessageFromError(error))
+          notifyFailure(error)
         })
     },
     loadOrganizations(data) {
@@ -159,7 +159,7 @@ export const useConfigStore = defineStore('config', {
           this.organizations = response.data
         })
         .catch((error) => {
-          notifyFailure(getMessageFromError(error))
+          notifyFailure(error)
         })
     },
     loadUsers(data) {
@@ -168,7 +168,7 @@ export const useConfigStore = defineStore('config', {
           this.users = response.data
         })
         .catch((error) => {
-          notifyFailure(getMessageFromError(error))
+          notifyFailure(error)
         })
     },
     loadWordLists(data) {
@@ -177,7 +177,7 @@ export const useConfigStore = defineStore('config', {
           this.word_lists = response.data
         })
         .catch((error) => {
-          notifyFailure(getMessageFromError(error))
+          notifyFailure(error)
         })
     },
     loadOSINTSources(data) {
@@ -186,7 +186,7 @@ export const useConfigStore = defineStore('config', {
           this.osint_sources = response.data
         })
         .catch((error) => {
-          notifyFailure(getMessageFromError(error))
+          notifyFailure(error)
         })
     },
     loadWorkerTypes(data) {
@@ -195,7 +195,7 @@ export const useConfigStore = defineStore('config', {
           this.worker_types = response.data
         })
         .catch((error) => {
-          notifyFailure(getMessageFromError(error))
+          notifyFailure(error)
         })
     },
     loadOSINTSourceGroups(filter) {
@@ -204,7 +204,7 @@ export const useConfigStore = defineStore('config', {
           this.osint_source_groups = response.data
         })
         .catch((error) => {
-          notifyFailure(getMessageFromError(error))
+          notifyFailure(error)
         })
     },
     loadPublisher(data) {
@@ -213,7 +213,7 @@ export const useConfigStore = defineStore('config', {
           this.publisher = response.data
         })
         .catch((error) => {
-          notifyFailure(getMessageFromError(error))
+          notifyFailure(error)
         })
     },
     loadParameters(data) {
@@ -222,7 +222,7 @@ export const useConfigStore = defineStore('config', {
           this.parameters = response.data
         })
         .catch((error) => {
-          notifyFailure(getMessageFromError(error))
+          notifyFailure(error)
         })
     },
     async loadSchedule(data) {
@@ -231,7 +231,7 @@ export const useConfigStore = defineStore('config', {
           this.schedule = response.data
         })
         .catch((error) => {
-          notifyFailure(getMessageFromError(error))
+          notifyFailure(error)
         })
     },
     async loadQueueStatus(data) {
@@ -251,7 +251,7 @@ export const useConfigStore = defineStore('config', {
           this.workers = response.data
         })
         .catch((error) => {
-          notifyFailure(getMessageFromError(error))
+          notifyFailure(error)
         })
     }
   },

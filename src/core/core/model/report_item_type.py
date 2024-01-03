@@ -49,6 +49,14 @@ class AttributeGroupItem(BaseModel):
         data["attribute"] = self.attribute.to_dict()
         return data
 
+    def to_export_dict(self):
+        data = super().to_dict()
+        data.pop("id", None)
+        data.pop("attribute_group_id", None)
+        data.pop("attribute_id", None)
+        data["attribute"] = self.attribute.name
+        return data
+
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "ReportItemType":
         data.pop("attribute_group_id", None)
@@ -91,6 +99,13 @@ class AttributeGroup(BaseModel):
     def to_dict(self):
         data = super().to_dict()
         data["attribute_group_items"] = [attribute_group_item.to_dict() for attribute_group_item in self.attribute_group_items]
+        return data
+
+    def to_export_dict(self):
+        data = super().to_dict()
+        data.pop("id", None)
+        data.pop("report_item_type_id", None)
+        data["attribute_group_items"] = [attribute_group_item.to_export_dict() for attribute_group_item in self.attribute_group_items]
         return data
 
     @staticmethod
@@ -204,6 +219,12 @@ class ReportItemType(BaseModel):
         data["attribute_groups"] = [attribute_group.to_dict() for attribute_group in self.attribute_groups]
         return data
 
+    def to_export_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
+        data.pop("id", None)
+        data["attribute_groups"] = [attribute_group.to_export_dict() for attribute_group in self.attribute_groups]
+        return data
+
     @classmethod
     def update(cls, report_type_id, data) -> "ReportItemType | None":
         report_type = cls.get(report_type_id)
@@ -226,7 +247,7 @@ class ReportItemType(BaseModel):
             data = cls.query.filter(cls.id.in_(source_ids)).all()  # type: ignore
         else:
             data = cls.get_all()
-        export_data = {"version": 1, "data": [report_type.to_dict() for report_type in data]}
+        export_data = {"version": 1, "data": [report_type.to_export_dict() for report_type in data]}
         return json.dumps(export_data).encode("utf-8")
 
     @classmethod
@@ -244,3 +265,22 @@ class ReportItemType(BaseModel):
         data = cls.load_json_content(content=file_content)
 
         return None if data is None else cls.add_multiple(data)
+
+    @classmethod
+    def delete(cls, id: int) -> tuple[dict[str, Any], int]:
+        from core.model.report_item import ReportItem
+        from core.model.product_type import ProductType
+
+        report_type = cls.get(id)
+        if not report_type:
+            return {"error": "Report type not found"}, 404
+
+        if ReportItem.query.filter_by(report_item_type_id=id).first():
+            return {"error": "Report type is used in a report"}, 409
+
+        if ProductType.query.filter(ProductType.report_types.any(id=id)).first():  # type: ignore
+            return {"error": "Report is used in a product type"}, 409
+
+        db.session.delete(report_type)
+        db.session.commit()
+        return {"message": "Report type successfully deleted"}, 200

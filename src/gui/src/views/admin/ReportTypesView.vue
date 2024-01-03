@@ -8,6 +8,7 @@
       @edit-item="editItem"
       @add-item="addItem"
       @update-items="updateData"
+      @selection-change="selectionChange"
     >
       <template #titlebar>
         <ImportExport @import="importData" @export="exportData" />
@@ -89,26 +90,31 @@ export default defineComponent({
     const deleteItem = (item) => {
       if (!item.default) {
         deleteReportItemType(item)
-          .then(() => {
-            notifySuccess(`Successfully deleted ${item.title}`)
+          .then((response) => {
+            notifySuccess(response)
             showForm.value = false
             updateData()
           })
-          .catch(() => {
-            notifyFailure(`Failed to delete ${item.title}`)
+          .catch((error) => {
+            notifyFailure(error)
           })
       }
     }
 
     const selectionChange = (new_selection) => {
       selected.value = new_selection
+      console.debug(`Selected: ${selected.value}`)
     }
 
     const importData = (data) => {
-      importReportTypes(data).then(() => {
-        notifySuccess('Successfully imported Report Types')
-        updateData()
-      })
+      importReportTypes(data)
+        .then(() => {
+          notifySuccess('Successfully imported Report Types')
+          updateData()
+        })
+        .catch((error) => {
+          notifyFailure(error)
+        })
     }
 
     const exportData = () => {

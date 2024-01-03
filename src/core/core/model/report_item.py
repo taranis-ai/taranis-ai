@@ -412,6 +412,21 @@ class ReportItem(BaseModel):
                 if attribute_group.attribute.type == AttributeType.CPE:
                     self.report_item_cpes.append(ReportItemCpe(attribute.value))
 
+    @classmethod
+    def delete(cls, id: int) -> tuple[dict[str, Any], int]:
+        from core.model.product import Product
+
+        report = cls.get(id)
+        if not report:
+            return {"error": "Report not found"}, 404
+
+        if Product.query.filter(Product.report_items.any(id=report.id)).first():  # type: ignore
+            return {"error": "Report is used in a product"}, 409
+
+        db.session.delete(report)
+        db.session.commit()
+        return {"message": "Report successfully deleted"}, 200
+
 
 class ReportItemCpe(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
