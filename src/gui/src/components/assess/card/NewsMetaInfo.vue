@@ -14,16 +14,7 @@
             {{ collected_date }}
           </v-col>
         </v-row>
-        <v-row>
-          <v-col style="max-width: 110px" class="py-0">
-            <strong>{{ $t('assess.source') }}:</strong>
-          </v-col>
-          <v-col class="py-0" @click.stop>
-            <a :href="source?.link" target="_blank">
-              {{ source?.name }}
-            </a>
-          </v-col>
-        </v-row>
+        <SourceInfo :news-item="newsItem" />
         <v-row>
           <v-col style="max-width: 110px" class="py-0">
             <strong>{{ $t('assess.author') }}:</strong>
@@ -41,9 +32,11 @@
 import { getCleanHostname } from '@/utils/helpers.js'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import SourceInfo from '@/components/assess/card/SourceInfo.vue'
 
 export default {
   name: 'NewsMetaInfo',
+  components: { SourceInfo },
   props: {
     newsItem: {
       type: Object,

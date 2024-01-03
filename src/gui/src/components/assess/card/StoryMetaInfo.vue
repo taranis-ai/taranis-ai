@@ -42,6 +42,7 @@
             {{ story.relevance }}
           </v-col>
         </v-row>
+        <SourceInfo :news-item="story.news_items[0]" />
       </v-col>
       <v-col
         :cols="detailView ? 10 : 6"
@@ -68,10 +69,12 @@ import { useI18n } from 'vue-i18n'
 import { computed } from 'vue'
 import { useDisplay } from 'vuetify'
 import { storeToRefs } from 'pinia'
+import SourceInfo from '@/components/assess/card/SourceInfo.vue'
 
 export default {
   name: 'StoryMetaInfo',
   components: {
+    SourceInfo,
     TagList,
     WeekChart
   },
