@@ -1,0 +1,53 @@
+name: Playwright Tests
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+jobs:
+  playwright-e2e-tests:
+    if: false
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11.5'
+      - name: Install dependencies
+        run: |
+          python -m venv my_venv
+          source my_venv/bin/activate
+          python -m pip install -e .[dev]
+        working-directory: src/core
+      - name: Compose app
+        run: |
+          docker compose up -d
+          docker cp ../../resources/e2e_test_db.sql dev-database-1:/tmp
+          sleep 3
+          docker exec -i --workdir /usr/local/bin dev-database-1 bash -c "psql -U taranis taranis < /tmp/e2e_test_db.sql"
+          docker compose -f ../compose.yml up -d core
+          docker compose -f ../compose.yml up -d gui
+        working-directory: docker/dev
+      - name: Ensure browsers are installed
+        run: |
+          source my_venv/bin/activate
+          playwright install --with-deps
+        working-directory: src/core
+      - name: Run your tests
+        run: |
+          source ../my_venv/bin/activate
+          pytest test_playwright.py
+        working-directory: src/core/tests
+      - uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: playwright-traces
+          path: test-results/
+      - name: Stop Flask Server
+        if: always()
+        run: |
+          source my_venv/bin/activate
+          pkill -f 'flask run'
+        working-directory: src/core
