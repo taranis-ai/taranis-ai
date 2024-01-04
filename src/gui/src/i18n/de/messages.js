@@ -63,7 +63,7 @@ export const messages_de = {
     popular: 'Beliebt',
     osint_sources: 'OSINT-Quellen',
     osint_source_groups: 'OSINT-Quellgruppen',
-    publisher_presets: 'Publisher-Vorgaben',
+    publisher: 'Publisher',
     report_items: 'Berichte',
     attributes: 'Attribute',
     report_types: 'Berichtstypen',

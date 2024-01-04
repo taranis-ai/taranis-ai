@@ -61,8 +61,8 @@ export default defineComponent({
 
     const updateData = () => {
       configStore.loadPublisher().then(() => {
-        mainStore.itemCountTotal = publisher_presets.value.total_count
-        mainStore.itemCountFiltered = publisher_presets.value.items.length
+        mainStore.itemCountTotal = publisher.value.total_count
+        mainStore.itemCountFiltered = publisher.value.items.length
       })
       configStore.loadWorkerTypes().then(() => {
         publishersList.value = publisher_types.value.map((publisher) => {
