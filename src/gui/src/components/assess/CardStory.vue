@@ -194,7 +194,11 @@
       </v-col>
     </v-row>
   </v-card>
-  <v-row v-if="openSummary" dense class="ma-0 mx-2 py-0 px-2">
+  <v-row
+    v-if="openSummary && story.news_items.length > 1"
+    dense
+    class="ma-0 mx-2 py-0 px-2"
+  >
     <div class="news-item-container">
       <div class="mx-5 my-5">
         <card-news-item
