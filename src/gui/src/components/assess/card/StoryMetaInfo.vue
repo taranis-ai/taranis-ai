@@ -42,6 +42,7 @@
             {{ story.relevance }}
           </v-col>
         </v-row>
+        <SourceInfo :news-item="story.news_items[0]" />
       </v-col>
       <v-col
         :cols="detailView ? 10 : 6"
@@ -68,10 +69,12 @@ import { useI18n } from 'vue-i18n'
 import { computed } from 'vue'
 import { useDisplay } from 'vuetify'
 import { storeToRefs } from 'pinia'
+import SourceInfo from '@/components/assess/card/SourceInfo.vue'
 
 export default {
   name: 'StoryMetaInfo',
   components: {
+    SourceInfo,
     TagList,
     WeekChart
   },
@@ -126,9 +129,9 @@ export default {
 
     const getPublishedDate = computed(() => {
       const pubDateNew = new Date(published_dates.value[0])
-      const pubDateNewStr = d(pubDateNew, 'short')
+      const pubDateNewStr = d(pubDateNew, 'long')
       const pubDateOld = new Date(published_dates.value[1])
-      const pubDateOldStr = d(pubDateOld, 'short')
+      const pubDateOldStr = d(pubDateOld, 'long')
       if (pubDateNew && pubDateOld) {
         return pubDateNewStr === pubDateOldStr
           ? pubDateNewStr

@@ -522,6 +522,7 @@ export const messages_en = {
   },
 
   assess: {
+    article: 'Article',
     source: 'Source',
     comments: 'Comments',
     collected: 'Collected',
