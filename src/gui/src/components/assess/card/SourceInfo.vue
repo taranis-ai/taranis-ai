@@ -1,56 +1,43 @@
 <template>
   <v-row>
     <v-col style="max-width: 110px" class="py-0">
-      <strong>{{ $t('assess.source') }}:</strong>
+      <strong>{{ $t('assess.article') }}:</strong>
     </v-col>
     <v-col class="py-0" @click.stop>
-      <v-tooltip>
-        <template #activator="{ props }">
-          <img v-if="icon" v-bind="props" :src="icon" :alt="source?.name" />
-          <v-icon v-else v-bind="props" :icon="typeIcon" />
-        </template>
-        <span>{{ source?.name }}</span>
-      </v-tooltip>
+      <a :href="source?.link" target="_blank">
+        {{ source?.name }}
+      </a>
     </v-col>
   </v-row>
 </template>
 
 <script>
-import { getSourceInfo } from '@/utils/helpers.js'
+import { getCleanHostname } from '@/utils/helpers.js'
 import { computed } from 'vue'
 
 export default {
-  name: 'ArticleInfo',
+  name: 'SourceInfo',
   props: {
-    newsItemData: {
+    newsItem: {
       type: Object,
       required: true
     }
   },
   setup(props) {
     const source = computed(() => {
-      return props.newsItemData
-        ? getSourceInfo(props.newsItemData.osint_source_id)
+      return props.newsItem.news_item_data
+        ? {
+            name: getCleanHostname(props.newsItem.news_item_data.source),
+            link: props.newsItem.news_item_data.link,
+            type: props.newsItem.news_item_data.osint_source_id
+          }
         : null
     })
 
-    const icon = computed(() => {
-      return source.value?.icon
-    })
-
-    const typeIcon = computed(() => {
-      return source.value?.type === 'rss_collector'
-        ? 'mdi-rss'
-        : source.value?.type === 'web_collector'
-        ? 'mdi-code-block-tags'
-        : 'mdi-note-edit-outline'
-    })
-
     return {
-      source,
-      icon,
-      typeIcon
+      source
     }
   }
 }
 </script>
+

@@ -14,8 +14,7 @@
             {{ collected_date }}
           </v-col>
         </v-row>
-        <ArticleInfo :news-item-data="newsItem.news_item_data" />
-        <source-info :news-item-data="newsItem.news_item_data" />
+        <SourceInfo :news-item="newsItem" />
         <v-row>
           <v-col style="max-width: 110px" class="py-0">
             <strong>{{ $t('assess.author') }}:</strong>
@@ -32,12 +31,11 @@
 <script>
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import ArticleInfo from '@/components/assess/card/ArticleInfo.vue'
 import SourceInfo from '@/components/assess/card/SourceInfo.vue'
 
 export default {
   name: 'NewsMetaInfo',
-  components: { ArticleInfo, SourceInfo },
+  components: { SourceInfo },
   props: {
     newsItem: {
       type: Object,
