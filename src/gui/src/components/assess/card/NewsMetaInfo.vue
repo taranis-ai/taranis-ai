@@ -29,7 +29,6 @@
 </template>
 
 <script>
-import { getCleanHostname } from '@/utils/helpers.js'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import SourceInfo from '@/components/assess/card/SourceInfo.vue'
@@ -56,16 +55,6 @@ export default {
       return props.newsItem.news_item_data?.author
     })
 
-    const source = computed(() => {
-      return props.newsItem.news_item_data
-        ? {
-            name: getCleanHostname(props.newsItem.news_item_data.source),
-            link: props.newsItem.news_item_data.link,
-            type: props.newsItem.news_item_data.osint_source_id
-          }
-        : null
-    })
-
     const collected_date = computed(() => {
       return props.newsItem.news_item_data?.collected
         ? d(new Date(props.newsItem.news_item_data.collected), 'long')
@@ -75,7 +64,6 @@ export default {
     return {
       published_date,
       author,
-      source,
       collected_date
     }
   }

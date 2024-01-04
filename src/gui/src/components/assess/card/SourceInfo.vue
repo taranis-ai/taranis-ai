@@ -1,7 +1,7 @@
 <template>
   <v-row>
     <v-col style="max-width: 110px" class="py-0">
-      <strong>{{ $t('assess.source') }}:</strong>
+      <strong>{{ $t('assess.article') }}:</strong>
     </v-col>
     <v-col class="py-0" @click.stop>
       <a :href="source?.link" target="_blank">
