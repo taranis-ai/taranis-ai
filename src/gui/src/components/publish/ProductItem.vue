@@ -87,7 +87,7 @@
                 </v-select>
               </v-col>
             </v-row>
-            <v-row no-gutters>
+            <v-row v-if="product.product_type_id" no-gutters>
               <v-col cols="12">
                 <v-data-table
                   v-model="product.report_items"
@@ -149,21 +149,32 @@ export default {
     const analyzeStore = useAnalyzeStore()
     const verticalView = ref(props.edit)
 
-    const reportItems = computed(() => analyzeStore.getReportItemsTableData)
+
     const renderedProduct = ref(null)
     const renderedProductMimeType = ref(null)
 
     const product_types = computed(() => {
       return configStore.product_types.items
     })
+
     const publisher = computed(() => {
-      return configStore.publisher_presets.items
+      return configStore.publisher.items
     })
     const product = ref(props.productProp)
     const preset = ref({ selected: null, name: 'Preset' })
     const required = [(v) => !!v || 'Required']
     const router = useRouter()
 
+    const supported_report_types = computed(() => {
+      const p = product_types.value.find(
+        (item) => item.id === product.value.product_type_id
+      )
+      return p ? p.report_types : []
+    })
+
+    const reportItems = computed(() => {
+      return analyzeStore.getReportItemsByIDs(supported_report_types.value)
+    })
     const render_direct = computed(() => {
       return (
         renderedProductMimeType.value === 'text/html' ||
@@ -291,7 +302,7 @@ export default {
 
     onMounted(() => {
       configStore.loadProductTypes()
-      configStore.loadPublisherPresets()
+      configStore.loadPublisher()
       analyzeStore.loadReportItems()
       analyzeStore.loadReportTypes()
       renderProduct()
@@ -308,6 +319,7 @@ export default {
       reportItems,
       renderedProduct,
       report_item_headers,
+      supported_report_types,
       render_direct,
       saveProduct,
       renderProduct,

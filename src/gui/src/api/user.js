@@ -11,7 +11,3 @@ export function updateProfile(data) {
 export function getAllUserProductTypes() {
   return apiService.get('/users/my-product-types')
 }
-
-export function getAllUserPublishersPresets() {
-  return apiService.get('/users/my-publisher-presets')
-}

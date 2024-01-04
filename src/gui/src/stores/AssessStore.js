@@ -9,7 +9,7 @@ import {
   deleteNewsItemAggregate
 } from '@/api/assess'
 import { defineStore } from 'pinia'
-import { xorConcat, notifyFailure, getMessageFromError } from '@/utils/helpers'
+import { xorConcat, notifyFailure } from '@/utils/helpers'
 
 import { useFilterStore } from './FilterStore'
 
@@ -160,7 +160,7 @@ export const useAssessStore = defineStore('assess', {
         await voteNewsItemAggregate(id, vote)
         this.updateNewsItemByID(id)
       } catch (error) {
-        notifyFailure(getMessageFromError(error))
+        notifyFailure(error)
       }
     },
     async updateOSINTSources() {

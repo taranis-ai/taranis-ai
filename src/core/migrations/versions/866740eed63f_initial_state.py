@@ -312,8 +312,6 @@ def upgrade():
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("title", sa.String(), nullable=True),
         sa.Column("description", sa.String(), nullable=True),
-        sa.Column("section", sa.Integer(), nullable=True),
-        sa.Column("section_title", sa.String(), nullable=True),
         sa.Column("index", sa.Integer(), nullable=True),
         sa.Column("report_item_type_id", sa.Integer(), nullable=True),
         sa.ForeignKeyConstraint(
@@ -523,8 +521,7 @@ def upgrade():
         sa.Column("title", sa.String(), nullable=True),
         sa.Column("description", sa.String(), nullable=True),
         sa.Column("index", sa.Integer(), nullable=True),
-        sa.Column("min_occurrence", sa.Integer(), nullable=True),
-        sa.Column("max_occurrence", sa.Integer(), nullable=True),
+        sa.Column("multiple", sa.Boolean(), nullable=True),
         sa.Column("attribute_group_id", sa.Integer(), nullable=True),
         sa.Column("attribute_id", sa.Integer(), nullable=True),
         sa.ForeignKeyConstraint(

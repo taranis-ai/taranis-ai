@@ -4,7 +4,6 @@ from typing import Any
 from core.managers.db_manager import db
 from core.model.address import Address
 from core.model.base_model import BaseModel
-from core.managers.log_manager import logger
 
 
 class Organization(BaseModel):

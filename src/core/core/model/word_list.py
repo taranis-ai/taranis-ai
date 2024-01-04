@@ -164,15 +164,6 @@ class WordList(BaseModel):
         return {"message": "Word list updated", "id": f"{word_list.id}"}, 200
 
     @classmethod
-    def export(cls, source_ids=None):
-        if source_ids:
-            data = cls.query.filter(cls.id.in_(source_ids)).all()  # type: ignore
-        else:
-            data = cls.get_all()
-        export_data = {"version": 1, "data": [word_list.to_export_dict() for word_list in data]}
-        return json.dumps(export_data).encode("utf-8")
-
-    @classmethod
     def parse_csv(cls, content) -> list:
         dialect = csv.Sniffer().sniff(content)
         cr = csv.reader(content.splitlines(), dialect)
@@ -217,6 +208,15 @@ class WordList(BaseModel):
         db.session.commit()
 
         return update_word_list
+
+    @classmethod
+    def export(cls, source_ids=None):
+        if source_ids:
+            data = cls.query.filter(cls.id.in_(source_ids)).all()  # type: ignore
+        else:
+            data = cls.get_all()
+        export_data = {"version": 1, "data": [word_list.to_export_dict() for word_list in data]}
+        return json.dumps(export_data).encode("utf-8")
 
     @classmethod
     def import_word_lists(cls, file) -> list | None:

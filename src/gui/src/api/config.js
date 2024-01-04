@@ -64,6 +64,17 @@ export function updateReportItemType(report_item_type) {
   )
 }
 
+export function importReportTypes(form_data) {
+  return apiService.upload('/config/import-report-item-types', form_data)
+}
+
+export function exportReportTypes(filter) {
+  return apiService.download(
+    `/config/export-report-item-types?${filter}`,
+    'report_types_export.json'
+  )
+}
+
 export function getAllProductTypes(filter_data) {
   const filter = apiService.getQueryStringFromNestedObject(filter_data)
   return apiService.get(`/config/product-types?${filter}`)
@@ -213,15 +224,15 @@ export function importWordList(form_data) {
   return apiService.upload('/config/import-word-lists', form_data)
 }
 
-export function gatherWordListEntries(word_list) {
-  return apiService.put(`/config/word-lists/${word_list.id}/gather`)
-}
-
 export function exportWordList(filter) {
   return apiService.download(
     `/config/export-word-lists?${filter}`,
     'word_lists_export.json'
   )
+}
+
+export function gatherWordListEntries(word_list) {
+  return apiService.put(`/config/word-lists/${word_list.id}/gather`)
 }
 
 export function getQueueStatus() {
@@ -289,19 +300,19 @@ export function deleteOSINTSourceGroup(group) {
   return apiService.delete(`/config/osint-source-groups/${group.id}`)
 }
 
-export function getAllPublisherPresets(filter_data) {
+export function getAllPublisher(filter_data) {
   const filter = apiService.getQueryStringFromNestedObject(filter_data)
   return apiService.get(`/config/publishers-presets?${filter}`)
 }
 
-export function createPublisherPreset(preset) {
+export function createPublisher(preset) {
   return apiService.post('/config/publishers-presets', preset)
 }
 
-export function updatePublisherPreset(node) {
+export function updatePublisher(node) {
   return apiService.put(`/config/publishers-presets/${node.id}`, node)
 }
 
-export function deletePublisherPreset(node) {
+export function deletePublisher(node) {
   return apiService.delete(`/config/publishers-presets/${node.id}`)
 }

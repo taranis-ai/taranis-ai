@@ -20,19 +20,23 @@ export function getCleanHostname(url) {
 }
 
 export function notifySuccess(text) {
+  const successMessage =
+    typeof text !== 'string' ? getMessageFromResponse(text) : text
   const store = useMainStore()
   store.notification = {
     type: 'success',
-    message: text,
+    message: successMessage,
     show: true
   }
 }
 
 export function notifyFailure(text) {
+  const errorMessage =
+    typeof text !== 'string' ? getMessageFromError(text) : text
   const store = useMainStore()
   store.notification = {
     type: 'red',
-    message: text,
+    message: errorMessage,
     show: true
   }
 }
@@ -207,6 +211,13 @@ export function getMessageFromError(error) {
     return error.response.data.error
   }
   return error.message
+}
+
+export function getMessageFromResponse(response) {
+  if (response.data && response.data.message) {
+    return response.data.message
+  }
+  return response.data
 }
 
 export const baseFormat = [

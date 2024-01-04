@@ -81,9 +81,9 @@ export default {
       },
       {
         icon: 'mdi-file-star-outline',
-        title: 'nav_menu.publisher_presets',
-        route: '/config/publishers/presets',
-        permission: 'CONFIG_PUBLISHER_PRESET_ACCESS'
+        title: 'nav_menu.publisher',
+        route: '/config/publishers',
+        permission: 'CONFIG_PUBLISHER_ACCESS'
       },
       {
         icon: 'mdi-robot',

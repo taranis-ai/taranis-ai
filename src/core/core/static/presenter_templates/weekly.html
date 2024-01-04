@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-   <meta charset="UTF-8">
+    <meta charset="UTF-8">
 
     <style>
         html {
@@ -30,6 +30,9 @@
         input[type=checkbox] {
             box-sizing: border-box;
             padding: 0
+        }
+        h1 {
+            border-bottom: solid 1px grey;
         }
         input {
             font-size: 1rem;
@@ -114,6 +117,15 @@
         .text-justify {
             text-align: justify !important;
         }
+        .text-right {
+            text-align: right !important;
+        }
+        .text-center {
+            text-align: center !important;
+        }
+        .text-bold {
+            font-weight: 700
+        }
         .align-middle {
             vertical-align: middle !important;
         }
@@ -122,12 +134,6 @@
         }
         .mt-2 {
             margin-top: 0.5rem !important;
-        }
-        .text-right {
-            text-align: right !important;
-        }
-        .text-center {
-            text-align: center !important;
         }
         .title {
             font-size: 20px;
@@ -201,9 +207,6 @@
         .footer_color {
             background-color: lightgray
         }
-        .text_bold {
-            font-weight: 700
-        }
         .w30 {
             width: 30%
         }
@@ -214,121 +217,155 @@
     </style>
 </head>
 <body>
+<div class="container">
 
-    <div class="container">
+    <div>
+        <table class="table table-borderless">
+            <tr>
+                <td class="w20">
+                    <img src="https://github.com/taranis-ai/taranis-ai/blob/master/resources/images/logo.png?raw=true">
+                </td>
+                <td class="w60 text-center align-middle title">WEEKLY SUMMARY</td>
+                <td class="w20 number">{{ data.product.title }}</td>
+            </tr>
+        </table>
+        <br>
+    </div>
 
-        <div>
-            <table class="table table-borderless">
-                <tr>
-                    <td class="w20">
-                        <img src="https://github.com/taranis-ai/taranis-ai/blob/master/resources/images/logo.png?raw=true">
-                    </td>
-                    <td class="w60 text-center align-middle title">VULNERABILITY REPORT</td>
-                    <td class="w20 number">No: SW1234-ER/2</td>
-                </tr>
-            </table>
-            <br>
-        </div>
+    <h1>Summary</h1>
 
-        <div>
+    <p>{{ data.product.description }}</p>
 
-            {% for report_item in data.report_items %}
+    <p>In this week, we reported {{ data.report_items | selectattr("type", "equalto", "Vulnerability Report") | list | length }} vulnerabilities:</p>
+    <ul>
+        {% for report_item in data.report_items %}
+            {% if report_item.type == "Vulnerability Report" %}
+                <li><a href="#vuln-{{ loop.index }}">{{ report_item.name | e }}</a></li>
+            {% endif %}
+        {% endfor %}
+    </ul>
+
+    {% set available_sectors = (data.report_items | selectattr("type", "equalto", "News by Sector") | map(attribute='attributes.nis_sector') | map('string') | unique | list ) %}
+
+    <p>We also published {{ data.report_items | selectattr("type", "equalto", "News by Sector") | list | length }} news item(s) for {{ available_sectors | length }} sector(s):</p>
+    <ul>
+        {% for sector in available_sectors %}
+            <li><a href="#sect-{{ loop.index }}">{{ sector | e }}</a></li>
+        {% endfor %}
+    </ul>
+
+    <p>If you have any questions or comments, please contact us.</p>
+
+    <h1>News by sectors</h1>
+
+    {% if (available_sectors | length) == 0 %}
+        This week, there were no sector-relevant news items.
+    {% endif %}
+
+    {% for sector in available_sectors %}
+        <a id="sect-{{ loop.index }}"></a><h2>Sector: {{ sector | e }}</h2>
+
+        {% for report_item in data.report_items | selectattr("type", "equalto", "News by Sector") %}
+            {% if report_item.attributes.nis_sector == sector %}
+                <h3>{{ report_item.attributes.headline | e }}</h3>
+                <table class="table table-bordered">
+                    <tr class="table-row"><td>Date</td><td>{{ report_item.attributes.date | e }}</td></tr>
+                    {% if report_item.attributes.date_updated is defined %}
+                        <tr class="table-row"><td>Updated</td><td>{{ report_item.attributes.date_updated | e }}</td></tr>
+                    {% endif %}
+                    <tr class="table-row"><td>Report</td><td>{{ report_item.attributes.article | e }}</td></tr>
+                </table>
+            {% endif %}
+        {% endfor %}
+
+    {% endfor %}
+
+    <h1>Vulnerabilities</h1>
+    <div>
+
+        {% for report_item in data.report_items %}
+            {% if report_item.type == "Vulnerability Report" %}
+                <a id="vuln-{{ loop.index }}"></a><h2>{{ report_item.name | e }}</h2>
 
                 <table class="table table-bordered header_info" style="width: 100%">
-
                     <tr class="table-row">
                         <td class="w25 py-0">
-                            <div class="mt-2 bold">CONFIDENTIALITY</div>
+                            <div class="mt-2 text-bold">Confidentiality</div>
                         </td>
                         <td class="w15 py-0">
                             <div class="mt-2">
-                                <label class="checkbox-button">
-                                    <input type="checkbox" class="checkbox-button__input" id="low" name="low" {% if report_item.attributes.confidentiality == 'UNRESTRICTED' %}checked{% endif %}>
-                                    <span class="checkbox-button__control"></span>
-                                    <span class="checkbox-button__label">Unrestricted</span>
-                                </label>
+                              <label class="checkbox-button">
+                                <input type="checkbox" class="checkbox-button__input" id="low" name="low" {% if report_item.attributes.confidentiality == 'UNRESTRICTED' %}checked{% endif %}>
+                                <span class="checkbox-button__control"></span>
+                                <span class="checkbox-button__label">Unrestricted</span>
+                              </label>
                             </div>
                         </td>
                         <td class="w15 py-0">
                             <div class="mt-2">
-                                <label class="checkbox-button">
-                                    <input type="checkbox" class="checkbox-button__input" id="middle" name="middle" {% if report_item.attributes.confidentiality == 'CLASSIFIED' %}checked{% endif %}>
-                                    <span class="checkbox-button__control"></span>
-                                    <span class="checkbox-button__label">Classified</span>
-                                </label>
+                              <label class="checkbox-button">
+                                <input type="checkbox" class="checkbox-button__input" id="middle" name="middle" {% if report_item.attributes.confidentiality == 'CLASSIFIED' %}checked{% endif %}>
+                                <span class="checkbox-button__control"></span>
+                                <span class="checkbox-button__label">Classified</span>
+                              </label>
                             </div>
                         </td>
                         <td class="w15 py-0">
                             <div class="mt-2">
-                                <label class="checkbox-button">
-                                    <input type="checkbox" class="checkbox-button__input" id="high" name="high" {% if report_item.attributes.confidentiality == 'CONFIDENTIAL' %}checked{% endif %}>
-                                    <span class="checkbox-button__control"></span>
-                                    <span class="checkbox-button__label">Confidential</span>
-                                </label>
+                              <label class="checkbox-button">
+                                <input type="checkbox" class="checkbox-button__input" id="high" name="high" {% if report_item.attributes.confidentiality == 'CONFIDENTIAL' %}checked{% endif %}>
+                                <span class="checkbox-button__control"></span>
+                                <span class="checkbox-button__label">Confidential</span>
+                              </label>
                             </div>
                         </td>
                         <td class="w15 py-0">
                             <div class="mt-2">
-                                <label class="checkbox-button">
-                                    <input type="checkbox" class="checkbox-button__input" id="critical" name="critical" {% if report_item.attributes.confidentiality == 'SECRET' %}checked{% endif %}>
-                                    <span class="checkbox-button__control"></span>
-                                    <span class="checkbox-button__label">Secret</span>
-                                </label>
+                              <label class="checkbox-button">
+                                <input type="checkbox" class="checkbox-button__input" id="critical" name="critical" {% if report_item.attributes.confidentiality == 'SECRET' %}checked{% endif %}>
+                                <span class="checkbox-button__control"></span>
+                                <span class="checkbox-button__label">Secret</span>
+                              </label>
                             </div>
                         </td>
                         <td class="w15 py-0">
                             <div class="mt-2">
-                                <label class="checkbox-button">
-                                    <input type="checkbox" class="checkbox-button__input" id="critical" name="critical" {% if report_item.attributes.confidentiality == 'TOP SECRET' %}checked{% endif %}>
-                                    <span class="checkbox-button__control"></span>
-                                    <span class="checkbox-button__label">Top Secret</span>
-                                </label>
+                              <label class="checkbox-button">
+                                <input type="checkbox" class="checkbox-button__input" id="critical" name="critical" {% if report_item.attributes.confidentiality == 'TOP SECRET' %}checked{% endif %}>
+                                <span class="checkbox-button__control"></span>
+                                <span class="checkbox-button__label">Top Secret</span>
+                              </label>
                             </div>
                         </td>
                     </tr>
-
                     <tr>
                         <td class="w25 py-0">
-                            <div class="mt-2 bold">TLP</div>
+                            <div class="mt-2 text-bold">TLP</div>
                         </td>
-                        <td class="py-0">
-                            <div class="mt-2">
-                                <label class="checkbox-button">
-                                    <input type="checkbox" class="checkbox-button__input" id="public" name="public" {% if report_item.attributes.tlp == 'WHITE' %}checked{% endif %}>
-                                    <span class="checkbox-button__control"></span>
-                                    <span class="checkbox-button__label">TLP:white</span>
-                                </label>
-                            </div>
+                        <td class="mt-2" colspan="5">
+                            {% if report_item.attributes.tlp == 'CLEAR' or report_item.attributes.tlp == 'WHITE' %}
+                            <span style="padding: 4px; background-color: black !important; color:white; font-weight: 700">TLP:CLEAR</span>
+                            {% endif %}
+                            {% if report_item.attributes.tlp == 'GREEN' %}
+                            <span style="padding: 4px; background-color: black !important; color:#33ff00; font-weight: 700">TLP:GREEN</span>
+                            {% endif %}
+                            {% if report_item.attributes.tlp == 'AMBER' %}
+                            <span style="padding: 4px; background-color: black !important; color:#ffc000; font-weight: 700">TLP:AMBER</span>
+                            {% endif %}
+                            {% if report_item.attributes.tlp == 'AMBER+STRICT' %}
+                            <span style="padding: 4px; background-color: black !important; color:#ffc000; font-weight: 700">TLP:AMBER+STRICT</span>
+                            {% endif %}
+                            {% if report_item.attributes.tlp == 'RED' %}
+                            <span style="padding: 4px; background-color: black !important; color:#ff2b2b; font-weight: 700">TLP:RED</span>
+                            {% endif %}
                         </td>
-                        <td class="py-0">
-                            <div class="mt-2">
-                                <label class="checkbox-button">
-                                    <input type="checkbox" class="checkbox-button__input" id="reserved" name="reserved" {% if report_item.attributes.tlp == 'GREEN' %}checked{% endif %}>
-                                    <span class="checkbox-button__control"></span>
-                                    <span class="checkbox-button__label">TLP:green</span>
-                                </label>
-                            </div>
+                    </tr>
+                    <tr>
+                        <td class="w25 py-0">
+                            <div class="mt-2 text-bold">CVSS vector</div>
                         </td>
-                        <td class="py-0">
-                            <div class="mt-2">
-                                <label class="checkbox-button">
-                                    <input type="checkbox" class="checkbox-button__input" id="confidential" name="confidential" {% if report_item.attributes.tlp == 'AMBER' %}checked{% endif %}>
-                                    <span class="checkbox-button__control"></span>
-                                    <span class="checkbox-button__label">TLP:amber</span>
-                                </label>
-                            </div>
-                        </td>
-                        <td class="py-0">
-                            <div class="mt-2">
-                                <label class="checkbox-button">
-                                    <input type="checkbox" class="checkbox-button__input" id="secret" name="secret" {% if report_item.attributes.tlp == 'RED' %}checked{% endif %}>
-                                    <span class="checkbox-button__control"></span>
-                                    <span class="checkbox-button__label">TLP:red</span>
-                                </label>
-                            </div>
-                        </td>
-                        <td class="w15 py-0">
-                            <div class="mt-2 cvss_left">CVSS score: <span class="cvss">{{ report_item.attributes.cvss|e }} </span></div>
+                        <td class="py-0" colspan="5">
+                            <div class="mt-2"><span class="cvss">{{ report_item.attributes.cvss|e }} </span></div>
                         </td>
                     </tr>
 
@@ -408,7 +445,17 @@
                     </tr>
                     <tr>
                         <td class="text-justify text_in_tab">
-                            {% if report_item.attributes.affected_systems %}{{ report_item.attributes.affected_systems[0]|e }}{% endif %}
+                            {% if report_item.attributes.affected_systems_cpe_codes %}
+                                <!-- cpe can be stored also in two layer arrays -->
+                                {% if report_item.attributes.affected_systems_cpe_codes[0] is iterable and report_item.attributes.affected_systems_cpe_codes[0] is not string %}
+                                    {% for c in report_item.attributes.affected_systems_cpe_codes[0] %}
+                                        {{ c | e }} <br>
+                                    {% endfor %}
+                                {% else %}
+                                    {{ report_item.attributes.affected_systems_cpe_codes[0] | e }} <br>
+                                {% endif %}
+                            {% endif %}
+                            {% if report_item.attributes.affected_systems %}{{ report_item.attributes.affected_systems | e }}{% endif %}
                         </td>
                     </tr>
                 </table>
@@ -431,40 +478,42 @@
                     <tr>
                         <td class="text-justify text_in_tab">
                             <ul class="list-unstyled">
-                                {% if report_item.attributes.links %}{{ report_item.attributes.links[0]|e }}{% endif %}
+                                {% if report_item.attributes.links %}
+                                    {% for link in report_item.attributes.links %}
+                                        <li><a href="{{ link }}">{{ link | e }}</a></li>
+                                    {% endfor %}
+                                {% endif %}
                             </ul>
                         </td>
                     </tr>
-
                 </table>
 
-            {% endfor %}
-
-        </div>
-
-        <div>
-            <br>
-            <table class="table table-borderless">
-                <tr class="footer_text footer_color align-middle">
-                    <td class="w30 py-0 text_bold">Created by Taranis NG</td>
-                    <td class="w40 py-0 text-center info">Repo: <a href="https://github.com/SK-CERT/Taranis-NG/">github.com/SK-CERT/Taranis-NG</a></td>
-    sk-cert@nbu.gov.sk</td>
-                    <td class="w30 py-0 text-right text_bold">Company name</td>
-                </tr>
-                <tr class="footer_text">
-                    <td class="w30 py-0">OSINT analysis tool</td>
-                    <td class="w40 py-0 text-center info">E-mail: sk-cert@nbu.gov.sk</td>
-                    <td class="w30 py-0 text-right">Company address</td>
-                </tr>
-                <tr class="footer_text">
-                    <td class="w30 py-0">for CSIRT community</td>
-                    <td class="w40 py-0 text-center info">Web: <a href="https://www.sk-cert.sk">www.sk-cert.sk</a></td>
-                    <td class="w30 py-0 text-right">City name</td>
-                </tr>
-            </table>
-        </div>
+            {% endif %}
+        {% endfor %}
 
     </div>
 
+    <div>
+        <br>
+        <table class="table table-borderless">
+            <tr class="footer_text footer_color align-middle">
+                <td class="w30 py-0 text-bold">Created by Taranis NG</td>
+                <td class="w40 py-0 text-center info">Repo: <a href="https://github.com/SK-CERT/Taranis-NG/">github.com/SK-CERT/Taranis-NG</a></td>
+                <td class="w30 py-0 text-right text-bold">Company name</td>
+            </tr>
+            <tr class="footer_text">
+                <td class="w30 py-0">OSINT analysis tool</td>
+                <td class="w40 py-0 text-center info">E-mail: sk-cert@nbu.gov.sk</td>
+                <td class="w30 py-0 text-right">Company address</td>
+            </tr>
+            <tr class="footer_text">
+                <td class="w30 py-0">for CSIRT community</td>
+                <td class="w40 py-0 text-center info">Web: <a href="https://www.sk-cert.sk">www.sk-cert.sk</a></td>
+                <td class="w30 py-0 text-right">City name</td>
+            </tr>
+        </table>
+    </div>
+
+</div>
 </body>
 </html>

@@ -1,5 +1,5 @@
 <template>
-  <v-container>
+  <v-container fluid>
     <v-toolbar flat color="white">
       <v-toolbar-title>{{ $t('attribute.attributes') }}</v-toolbar-title>
       <v-divider class="mx-4" inset vertical></v-divider>
@@ -14,7 +14,7 @@
         {{ $t('attribute.new_attribute') }}
       </v-btn>
 
-      <v-dialog v-model="dialog" width="auto">
+      <v-dialog v-model="dialog" width="auto" min-width="500px">
         <v-card>
           <v-card-title>
             {{ formTitle }}
@@ -41,25 +41,17 @@
               :label="$t('attribute.name')"
             />
 
-            <v-text-field
+            <v-textarea
               v-model="edited_attribute.description"
               :label="$t('attribute.description')"
             />
 
             <v-row>
               <v-col>
-                <v-text-field
-                  v-model="edited_attribute.min_occurrence"
-                  type="number"
-                  :label="$t('attribute.min_occurrence')"
-                ></v-text-field>
-              </v-col>
-              <v-col>
-                <v-text-field
-                  v-model="edited_attribute.max_occurrence"
-                  type="number"
-                  :label="$t('attribute.max_occurrence')"
-                ></v-text-field>
+                <v-checkbox
+                  v-model="edited_attribute.multiple"
+                  :label="$t('attribute.multiple')"
+                />
               </v-col>
             </v-row>
             <v-row>
@@ -68,17 +60,27 @@
                   v-model="edited_attribute.index"
                   type="number"
                   label="Index"
-                ></v-text-field>
+                />
               </v-col>
             </v-row>
           </v-card-text>
 
           <v-card-actions>
-            <v-spacer></v-spacer>
-            <v-btn color="primary" dark @click="save">
+            <v-btn
+              color="green-darken-3"
+              class="ml-4"
+              variant="flat"
+              @click="save"
+            >
               {{ $t('attribute.save') }}
             </v-btn>
-            <v-btn color="primary" text @click="close">
+            <v-spacer></v-spacer>
+            <v-btn
+              color="red-darken-3"
+              class="mr-4"
+              variant="flat"
+              @click="close"
+            >
               {{ $t('attribute.cancel') }}
             </v-btn>
           </v-card-actions>
@@ -148,8 +150,7 @@ export default {
       attribute_id: -1,
       title: '',
       description: '',
-      min_occurrence: 0,
-      max_occurrence: 1,
+      multiple: false,
       attribute: []
     })
     const default_attribute = ref({
@@ -157,8 +158,7 @@ export default {
       attribute_id: -1,
       title: '',
       description: '',
-      min_occurrence: 0,
-      max_occurrence: 1,
+      multiple: false,
       attribute: []
     })
 
@@ -171,8 +171,7 @@ export default {
       },
       { title: 'Name', key: 'title', sortable: false },
       { title: 'Description', key: 'description', sortable: false },
-      { title: 'Min Occurence', key: 'min_occurrence', sortable: false },
-      { title: 'Max Occurence', key: 'max_occurrence', sortable: false },
+      { title: 'Multiple', key: 'multiple', sortable: false },
       { title: 'Actions', key: 'actions', align: 'right', sortable: false }
     ])
 
@@ -189,7 +188,6 @@ export default {
 
     const save = () => {
       edited_attribute.value.attribute_id = attribute_type.value.id
-      edited_attribute.value.attribute = attribute_type.value
       if (edited_index.value > -1) {
         Object.assign(
           attribute_contents.value[edited_index.value],

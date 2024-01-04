@@ -5,7 +5,6 @@ from flask_jwt_extended import jwt_required
 
 from core.config import Config
 from core.managers import auth_manager
-from core.managers.log_manager import logger
 
 
 class Login(Resource):
@@ -15,7 +14,6 @@ class Login(Resource):
 
     def post(self):
         parser = reqparse.RequestParser()
-        logger.log_debug(auth_manager.get_required_credentials())
         for credential in auth_manager.get_required_credentials():
             parser.add_argument(credential, location=["form", "values", "json"])
         credentials = parser.parse_args()
