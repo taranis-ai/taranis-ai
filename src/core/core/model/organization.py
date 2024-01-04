@@ -64,8 +64,7 @@ class Organization(BaseModel):
 
         update_organization = cls.from_dict(data)
         organization.name = update_organization.name
-        if update_organization.description:
-            organization.description = update_organization.description
+        organization.description = update_organization.description
         if update_organization.address:
             organization.address = update_organization.address
 

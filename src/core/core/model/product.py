@@ -166,8 +166,7 @@ class Product(BaseModel):
         if title := data.get("title"):
             product.title = title
 
-        if description := data.get("description"):
-            product.description = description
+        product.description = data.get("description")
 
         if data.get("product_type_id"):
             logger.warning("Product type change not supported")
