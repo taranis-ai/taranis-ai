@@ -147,10 +147,7 @@ export default {
 
     const add = () => {
       // make a deep copy of the report_type object
-      console.debug('Update Report Type')
-
       const update_report_type = JSON.parse(JSON.stringify(report_type.value))
-      console.debug(update_report_type)
       for (let x = 0; x < update_report_type.attribute_groups.length; x++) {
         update_report_type.attribute_groups[x].index = x
 
