@@ -4,6 +4,7 @@
       id="edit_config_form"
       ref="config_form"
       class="px-4"
+      validate-on="input"
       @submit.prevent="handleSubmit"
     >
       <v-card-title class="bg-grey-lighten-2 mb-5">
@@ -165,10 +166,11 @@ export default {
     const { d } = useI18n()
 
     const handleSubmit = () => {
-      if (!config_form.value.validate()) {
-        return
-      }
-      emit('submit', reconstructFormData(formData.value, format.value))
+      config_form.value.validate().then((success) => {
+        if (success.valid) {
+          emit('submit', reconstructFormData(formData.value, format.value))
+        }
+      })
     }
 
     const addItem = (name) => {
