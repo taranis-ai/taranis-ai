@@ -93,8 +93,7 @@ export default {
       {
         name: 'description',
         label: 'Description',
-        type: 'textarea',
-        rules: [(v) => !!v || 'Required']
+        type: 'textarea'
       },
       {
         name: 'link',
