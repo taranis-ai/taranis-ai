@@ -42,7 +42,11 @@
             {{ story.relevance }}
           </v-col>
         </v-row>
-        <SourceInfo :news-item="story.news_items[0]" />
+        <article-info :news-item-data="story.news_items[0].news_item_data" />
+        <source-info
+          v-if="detailView && story.news_items.length < 2"
+          :news-item-data="story.news_items[0].news_item_data"
+        />
       </v-col>
       <v-col
         :cols="detailView ? 10 : 6"
@@ -69,11 +73,13 @@ import { useI18n } from 'vue-i18n'
 import { computed } from 'vue'
 import { useDisplay } from 'vuetify'
 import { storeToRefs } from 'pinia'
+import ArticleInfo from '@/components/assess/card/ArticleInfo.vue'
 import SourceInfo from '@/components/assess/card/SourceInfo.vue'
 
 export default {
   name: 'StoryMetaInfo',
   components: {
+    ArticleInfo,
     SourceInfo,
     TagList,
     WeekChart
@@ -89,7 +95,6 @@ export default {
     },
     reportView: { type: Boolean, default: false }
   },
-  emits: ['selectItem', 'deleteItem'],
   setup(props) {
     const { d, t } = useI18n()
     const { xlAndUp, lgAndUp, mdAndUp, name } = useDisplay()
