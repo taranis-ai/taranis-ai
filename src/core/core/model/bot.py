@@ -35,8 +35,8 @@ class Bot(BaseModel):
         try:
             if name := data.get("name"):
                 bot.name = name
-            if description := data.get("description"):
-                bot.description = description
+
+            bot.description = data.get("description")
             if parameters := data.get("parameters"):
                 update_parameter = ParameterValue.get_or_create_from_list(parameters)
                 bot.parameters = ParameterValue.get_update_values(bot.parameters, update_parameter)

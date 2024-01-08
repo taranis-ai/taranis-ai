@@ -107,9 +107,13 @@ class User(BaseModel):
             user.organization = Organization.get(update_organization)
         if update_profile := data.pop("profile_id", None):
             user.profile = UserProfile.get(update_profile)
-        if update_roles := data.pop("roles", None):
+        if not (update_roles := data.pop("roles", None)):
+            user.roles = data.get("roles", [])
+        else:
             user.roles = [Role.get(role_id) for role_id in update_roles]
-        if update_permissions := data.pop("permissions", None):
+        if not (update_permissions := data.pop("permissions", None)):
+            user.permissions = data.get("permissions", [])
+        else:
             user.permissions = [Permission.get(permission_id) for permission_id in update_permissions]
         if update_password := data.pop("password", None):
             user.password = generate_password_hash(update_password)
