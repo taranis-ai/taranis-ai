@@ -74,6 +74,9 @@ class BaseCollector:
             return date.isoformat()
         return datetime.datetime.now().isoformat()
 
+# TODO: This is a place where a bad website, when scraped, breaks.
+    #  we probably need more checking the values in the new_items
+    # https://www.bbc.com/news/live/world-middle-east-67906496
     def sanitize_news_item(self, item, source):
         item["id"] = item["id"] or str(uuid.uuid4())
         item["published"] = self.sanitize_date(item["published"])

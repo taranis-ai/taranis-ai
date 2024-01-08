@@ -32,6 +32,7 @@ workers = [
             "WEB_URL",
             "USER_AGENT",
             "PROXY_SERVER",
+            "XPATH",
         ],
         "type": "SIMPLE_WEB_COLLECTOR",
     },

@@ -3,6 +3,7 @@ import hashlib
 import uuid
 import requests
 import logging
+import lxml.html
 from urllib.parse import urlparse
 import dateutil.parser as dateparser
 from trafilatura import bare_extraction
@@ -39,8 +40,16 @@ class SimpleWebCollector(BaseCollector):
             return self.web_collector(web_url, source)
         except Exception as e:
             logger.exception()
-            logger.error(f"RSS collector for {web_url} failed with error: {str(e)}")
+            logger.error(f"Simple Web Collector for {web_url} failed with error: {str(e)}")
             return str(e)
+# /html/body/div[3]/main/div[1]/div/div[3]/div/div/section/div/div[2]/div/div/div/p[2]  https://www.wienernetze.at/stromversorgung
+        if xpath := source["parameters"].get("XPATH", None):
+            try:
+                return self.web_collector(web_url, source, xpath)
+            except Exception as e:
+                logger.exception()
+                logger.error(f"Simple Web Collector for {xpath} failed with error: {str(e)}, this is a huge problem")
+                return str(e)
 
     def set_proxies(self, proxy_server: str):
         self.proxies = {"http": proxy_server, "https": proxy_server, "ftp": proxy_server}
@@ -58,13 +67,20 @@ class SimpleWebCollector(BaseCollector):
         published_date = self.get_last_modified(response)
         return html_content, published_date
 
-    def parse_web_content(self, web_url, source_id: str) -> dict[str, str | datetime.datetime | list]:
+    def parse_web_content(self, web_url, source_id: str, xpath: str = "") -> dict[str, str | datetime.datetime | list]:
         html_content, published_date = self.get_article_content(web_url)
-        extract_document = bare_extraction(html_content, with_metadata=True, include_comments=False, url=web_url)
-        author = extract_document["author"] or ""
-        title = extract_document["title"] or ""
-        content = extract_document["text"] or ""
-        for_hash: str = author + title + web_url
+
+        author, title = self.extract_meta(html_content)
+
+        if xpath:
+            content = self.xpath_extraction(web_url, source_id, xpath)
+        else:
+            extract_document = bare_extraction(html_content, with_metadata=True, include_comments=False, url=web_url)
+            author = extract_document["author"] or ""
+            title = extract_document["title"] or ""
+            content = extract_document["text"] or ""
+
+        for_hash: str = (author + title + web_url)
 
         return {
             "id": str(uuid.uuid4()),
@@ -80,6 +96,35 @@ class SimpleWebCollector(BaseCollector):
             "osint_source_id": source_id,
             "attributes": [],
         }
+
+    def xpath_extraction(self, web_url, source_id: str, xpath: str) -> str:
+        html_content, published_date = self.get_article_content(web_url)
+        document = lxml.html.fromstring(html_content)
+
+        return document.xpath(xpath)[0].text_content() if document.xpath(xpath) else ""
+
+    def extract_meta(self, html_content):
+        author = ""
+        title = ""
+        # TODO: here is a problem with the way we check for elements
+        title_tag = html_content.find('.//title')
+        if title_tag is not None and title_tag.text:
+            title = title_tag.text.strip()
+        else:
+            h1_tag = html_content.find('.//h1')
+            if h1_tag is not None and h1_tag.text:
+                title = h1_tag.text.strip()
+
+        meta_tags = html_content.xpath('//meta')
+        for tag in meta_tags:
+            name = tag.attrib.get('name', '').lower()
+            content = tag.attrib.get('content')
+
+            if name == 'author':
+                author = content
+                break
+
+        return author, title
 
     def get_last_attempted(self, source: dict) -> datetime.datetime | None:
         if last_attempted := source.get("last_attempted"):
@@ -99,7 +144,7 @@ class SimpleWebCollector(BaseCollector):
         self.core_api.update_osint_source_icon(source_id, icon_content)
         return None
 
-    def web_collector(self, web_url: str, source):
+    def web_collector(self, web_url: str, source, xpath: str = ""):
         response = requests.head(web_url, headers=self.headers, proxies=self.proxies)
         if not response or not response.ok:
             logger.info(f"Website {source['id']} returned no content")
@@ -114,7 +159,7 @@ class SimpleWebCollector(BaseCollector):
             logger.debug(f"Last-Modified: {last_modified} < Last-Attempted {last_attempted} skipping")
             return "Last-Modified < Last-Attempted"
 
-        news_items = self.parse_web_content(web_url, source["id"])
+        news_items = self.parse_web_content(web_url, source["id"], xpath)
 
         self.publish(news_items, source)
         return None
