@@ -61,8 +61,9 @@ class PublisherPreset(BaseModel):
             return {"error": f"Could not find preset with id {preset_id}"}, 404
         if name := data.get("name"):
             preset.name = name
-        if description := data.get("description"):
-            preset.description = description
+
+        preset.description = data.get("description")
+
         if parameters := data.get("parameters"):
             updated_preset = ParameterValue.get_or_create_from_list(parameters)
             preset.parameters = ParameterValue.get_update_values(preset.parameters, updated_preset)

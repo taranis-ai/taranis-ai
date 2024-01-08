@@ -471,6 +471,7 @@ export const messages_de = {
     }
   },
   assess: {
+    article: 'Artikel',
     source: 'Quelle',
     comments: 'Kommentare',
     collected: 'Gesammelt',

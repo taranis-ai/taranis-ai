@@ -132,8 +132,7 @@ class OSINTSource(BaseModel):
             return None
         if name := data.get("name"):
             osint_source.name = name
-        if description := data.get("description"):
-            osint_source.description = description
+        osint_source.description = data.get("description")
         if parameters := data.get("parameters"):
             update_parameter = ParameterValue.get_or_create_from_list(parameters)
             osint_source.parameters = ParameterValue.get_update_values(osint_source.parameters, update_parameter)
@@ -197,7 +196,7 @@ class OSINTSource(BaseModel):
 
         id_to_index_map = {}
         for idx, osint_source in enumerate(data, 1):
-            osint_source.cleanup_paramaters()
+            osint_source.cleanup_parameters()
             id_to_index_map[osint_source.id] = idx
 
         export_data = {
@@ -208,7 +207,7 @@ class OSINTSource(BaseModel):
         logger.debug(f"Exporting {len(export_data['sources'])} sources")
         return json.dumps(export_data).encode("utf-8")
 
-    def cleanup_paramaters(self) -> "OSINTSource":
+    def cleanup_parameters(self) -> "OSINTSource":
         for parameter in self.parameters:
             if parameter.parameter == "PROXY_SERVER":
                 parameter.value = ""
@@ -403,14 +402,14 @@ class OSINTSourceGroup(BaseModel):
 
         if name := data.get("name"):
             osint_source_group.name = name
-        if description := data.get("description"):
-            osint_source_group.description = description
+
+        osint_source_group.description = data.get("description")
         osint_sources = data.get("osint_sources", [])
         osint_source_group.osint_sources = [OSINTSource.get(osint_source) for osint_source in osint_sources]
         word_lists = data.get("word_lists", [])
         osint_source_group.word_lists = [WordList.get(word_list) for word_list in word_lists]
         db.session.commit()
-        return {"message": f"Succussfully updated {osint_source_group.name}", "id": f"{osint_source_group.id}"}, 201
+        return {"message": f"Successfully updated {osint_source_group.name}", "id": f"{osint_source_group.id}"}, 201
 
         # TODO: Reassign news items to default group
         # if sources_in_default_group is not None:

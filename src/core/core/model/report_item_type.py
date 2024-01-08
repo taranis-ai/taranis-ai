@@ -12,7 +12,7 @@ from core.model.attribute import Attribute
 
 class AttributeGroupItem(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String())
+    title = db.Column(db.String(), nullable=False)
     description = db.Column(db.String())
 
     index = db.Column(db.Integer)
@@ -232,8 +232,9 @@ class ReportItemType(BaseModel):
             return None
         if title := data.get("title"):
             report_type.title = title
-        if description := data.get("description"):
-            report_type.description = description
+
+        report_type.description = data.get("description")
+
         if attribute_groups := data.get("attribute_groups"):
             report_type.attribute_groups = AttributeGroup.load_multiple(attribute_groups)
         for attribute_group in report_type.attribute_groups:

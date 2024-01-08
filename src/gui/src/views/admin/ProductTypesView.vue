@@ -79,7 +79,8 @@ export default {
         {
           name: 'title',
           label: 'Title',
-          type: 'text'
+          type: 'text',
+          rules: [(v) => !!v || 'Required']
         },
         {
           name: 'description',

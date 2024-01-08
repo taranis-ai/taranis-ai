@@ -1,5 +1,6 @@
 import { useMainStore } from '@/stores/MainStore'
 import { useFilterStore } from '@/stores/FilterStore'
+import { useAssessStore } from '@/stores/AssessStore'
 
 export function xorConcat(array, element) {
   const i = array.indexOf(element)
@@ -17,6 +18,14 @@ export function getCleanHostname(url) {
   } catch (error) {
     return url
   }
+}
+
+export function getSourceInfo(source) {
+  const store = useAssessStore()
+  if (!source) {
+    return {}
+  }
+  return store.osint_sources.items.find((item) => item.id === source)
 }
 
 export function notifySuccess(text) {

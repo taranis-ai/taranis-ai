@@ -42,6 +42,11 @@
             {{ story.relevance }}
           </v-col>
         </v-row>
+        <article-info :news-item-data="story.news_items[0].news_item_data" />
+        <source-info
+          v-if="detailView && story.news_items.length < 2"
+          :news-item-data="story.news_items[0].news_item_data"
+        />
       </v-col>
       <v-col
         :cols="detailView ? 10 : 6"
@@ -68,10 +73,14 @@ import { useI18n } from 'vue-i18n'
 import { computed } from 'vue'
 import { useDisplay } from 'vuetify'
 import { storeToRefs } from 'pinia'
+import ArticleInfo from '@/components/assess/card/ArticleInfo.vue'
+import SourceInfo from '@/components/assess/card/SourceInfo.vue'
 
 export default {
   name: 'StoryMetaInfo',
   components: {
+    ArticleInfo,
+    SourceInfo,
     TagList,
     WeekChart
   },
@@ -86,7 +95,6 @@ export default {
     },
     reportView: { type: Boolean, default: false }
   },
-  emits: ['selectItem', 'deleteItem'],
   setup(props) {
     const { d, t } = useI18n()
     const { xlAndUp, lgAndUp, mdAndUp, name } = useDisplay()
@@ -126,9 +134,9 @@ export default {
 
     const getPublishedDate = computed(() => {
       const pubDateNew = new Date(published_dates.value[0])
-      const pubDateNewStr = d(pubDateNew, 'short')
+      const pubDateNewStr = d(pubDateNew, 'long')
       const pubDateOld = new Date(published_dates.value[1])
-      const pubDateOldStr = d(pubDateOld, 'short')
+      const pubDateOldStr = d(pubDateOld, 'long')
       if (pubDateNew && pubDateOld) {
         return pubDateNewStr === pubDateOldStr
           ? pubDateNewStr

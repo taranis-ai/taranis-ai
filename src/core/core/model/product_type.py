@@ -95,8 +95,9 @@ class ProductType(BaseModel):
             return {"error": f"Could not find product type with id {preset_id}"}, 404
         if title := data.get("title"):
             product_type.title = title
-        if description := data.get("description"):
-            product_type.description = description
+
+        product_type.description = data.get("description")
+
         if type := data.get("type"):
             product_type.type = type
             product_type.parameters = Worker.parse_parameters(type, data.get("parameters", product_type.parameters))
