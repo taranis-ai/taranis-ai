@@ -99,7 +99,7 @@ class SimpleWebCollector(BaseCollector):
     def xpath_extraction(self, html_content, xpath: str) -> str:
         document = lxml.html.fromstring(html_content)
         # TODO: consider a good handling of the else case
-        return document.xpath(xpath)[0].text_content() if document.xpath(xpath) else "No XPATH content possible."
+        return document.xpath(xpath)[0].text_content() if document.xpath(xpath) else ""
 
     def extract_meta(self, html_content):
         html_content = lxml.html.fromstring(html_content)
