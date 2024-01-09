@@ -69,7 +69,7 @@ class BaseCollector:
     def sanitize_url(self, url: str):
         return quote(url, safe="/:?&")
 
-    def sanitize_date(self, date: str):
+    def sanitize_date(self, date: str | None):
         if isinstance(date, datetime.datetime):
             return date.isoformat()
         return datetime.datetime.now().isoformat()
@@ -77,21 +77,21 @@ class BaseCollector:
     # TODO: This is a place where a bad website, when scraped, breaks.
     #  we probably need more checking the values in the new_items
     # https://www.bbc.com/news/live/world-middle-east-67906496
-    def sanitize_news_item(self, item, source):
+    def sanitize_news_item(self, item: dict, source: dict):
         item["id"] = item.get("id", str(uuid.uuid4()))
         item["published"] = self.sanitize_date(item.get("published"))
         item["collected"] = self.sanitize_date(item.get("collected"))
         item["osint_source_id"] = item.get("osint_source_id", source.get("id"))
         item["attributes"] = item.get("attributes", [])
-        item["title"] = self.sanitize_html(item.get("title"))
+        item["title"] = self.sanitize_html(item.get("title", ""))
         item["review"] = self.sanitize_html(item.get("review", ""))
         item["content"] = self.sanitize_html(item.get("content", ""))
         item["author"] = self.sanitize_html(item.get("author", ""))
         item["source"] = self.sanitize_url(item.get("source", ""))
         item["link"] = self.sanitize_url(item.get("link", ""))
-        item["hash"] = item.get("hash", hashlib.sha256(item["author"] + item["title"] + item["link"]).hexdigest())
+        item["hash"] = item.get("hash", hashlib.sha256((item["author"] + item["title"] + item["link"]).encode()).hexdigest())
 
-    def publish(self, news_items, source):
+    def publish(self, news_items: list[dict], source: dict):
         logger.info(f"Publishing {len(news_items)} news items to core api")
         for item in news_items:
             item = self.sanitize_news_item(item, source)

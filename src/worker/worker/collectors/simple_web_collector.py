@@ -79,7 +79,7 @@ class SimpleWebCollector(BaseCollector):
             title = extract_document["title"] or ""
             content = extract_document["text"] or ""
 
-        for_hash: str = (author + title + web_url)
+        for_hash: str = author + title + web_url
 
         return {
             "id": str(uuid.uuid4()),
@@ -106,18 +106,17 @@ class SimpleWebCollector(BaseCollector):
         author = ""
         title = ""
 
-        title_tag = html_content.find('.//title')
+        title_tag = html_content.find(".//title")
         if title_tag is not None:
             title = title_tag.text
 
-        meta_tags = html_content.xpath('//meta[@name]')
+        meta_tags = html_content.xpath("//meta[@name]")
         for tag in meta_tags:
-
-            name = tag.get('name', '').lower()
+            name = tag.get("name", "").lower()
 
             # Only one author possible
-            if name == 'author':
-                author = tag.attrib['content']
+            if name == "author":
+                author = tag.attrib["content"]
                 break
 
         return author, title
@@ -157,5 +156,5 @@ class SimpleWebCollector(BaseCollector):
 
         news_items = self.parse_web_content(web_url, source["id"], xpath)
 
-        self.publish(news_items, source)
+        self.publish([news_items], source)
         return None
