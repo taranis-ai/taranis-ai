@@ -15,38 +15,38 @@
     "test": "npm run lint && npm run format"
   },
   "dependencies": {
-    "@codemirror/lang-html": "^6.4.6",
+    "@codemirror/lang-html": "^6.4.7",
     "@codemirror/lang-json": "^6.0.1",
-    "@intlify/unplugin-vue-i18n": "^1.4.0",
-    "@mdi/font": "^7.3.67",
-    "@sentry/vue": "^7.74.0",
-    "axios": "^1.5.1",
+    "@intlify/unplugin-vue-i18n": "^1.6.0",
+    "@mdi/font": "^7.4.47",
+    "@sentry/vue": "^7.92.0",
+    "axios": "^1.6.5",
     "codemirror": "^6.0.1",
     "js-base64": "^3.7.5",
     "pinia": "^2.1.7",
-    "pinia-plugin-persistedstate": "^3.2.0",
+    "pinia-plugin-persistedstate": "^3.2.1",
     "vue": "^3.3.4",
     "vue-chartjs": "5.2.0",
     "vue-codemirror": "^6.1.1",
     "vue-datepicker-next": "^1.0.3",
     "vue-dompurify-html": "^4.1.4",
-    "vue-i18n": "^9.5.0",
+    "vue-i18n": "^9.9.0",
     "vue-pdf-embed": "1.2.1",
     "vue-router": "^4.2.5",
     "vue-shortkey": "^3.1.7",
     "vue2-dropzone-vue3": "^1.1.0",
     "vue3-keypress": "^4.0.1",
-    "vuetify": "^3.3.21"
+    "vuetify": "^3.4.9"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^4.4.0",
+    "@vitejs/plugin-vue": "^4.6.2",
     "@vue/eslint-config-prettier": "^8.0.0",
     "@vue/eslint-config-typescript": "^12.0.0",
-    "prettier": "^3.0.3",
-    "sass": "^1.69.3",
-    "typescript": "^5.2.2",
-    "vite": "^4.4.11",
+    "prettier": "^3.1.1",
+    "sass": "^1.69.7",
+    "typescript": "^5.3.3",
+    "vite": "^4.5.1",
     "vite-plugin-vuetify": "^1.0.2",
-    "vue-tsc": "^1.8.19"
+    "vue-tsc": "^1.8.27"
   }
 }

@@ -151,6 +151,11 @@
               @click.stop="markAsImportant()"
             />
             <v-list-item
+              title="share"
+              prepend-icon="mdi-share"
+              @click.stop="shareViaMail"
+            />
+            <v-list-item
               v-if="!reportView && news_item_length > 1"
               title="ungroup"
               prepend-icon="mdi-ungroup"
@@ -333,6 +338,12 @@ export default {
             props.story.news_items[0].news_item_data.content
     })
 
+    function shareViaMail() {
+      const subject = encodeURIComponent(props.story.title)
+      const body = encodeURIComponent(props.story.description)
+      window.location.href = `mailto:?subject=${subject}&body=${body}`
+    }
+
     function ungroup() {
       unGroupStories([props.story.id]).then(() => {
         emit('refresh')
@@ -365,6 +376,7 @@ export default {
       openCard,
       ungroup,
       toggleSelection,
+      shareViaMail,
       markAsRead,
       markAsImportant,
       deleteNewsItem,
