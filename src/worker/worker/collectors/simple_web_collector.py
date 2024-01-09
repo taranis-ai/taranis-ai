@@ -42,13 +42,13 @@ class SimpleWebCollector(BaseCollector):
             logger.exception()
             logger.error(f"Simple Web Collector for {web_url} failed with error: {str(e)}")
             return str(e)
-# /html/body/div[3]/main/div[1]/div/div[3]/div/div/section/div/div[2]/div/div/div/p[2]  https://www.wienernetze.at/stromversorgung
+
         if xpath := source["parameters"].get("XPATH", None):
             try:
                 return self.web_collector(web_url, source, xpath)
             except Exception as e:
                 logger.exception()
-                logger.error(f"Simple Web Collector for {xpath} failed with error: {str(e)}, this is a huge problem")
+                logger.error(f"Simple Web Collector for {web_url} and {xpath} failed with error: {str(e)}")
                 return str(e)
 
     def set_proxies(self, proxy_server: str):
@@ -69,11 +69,10 @@ class SimpleWebCollector(BaseCollector):
 
     def parse_web_content(self, web_url, source_id: str, xpath: str = "") -> dict[str, str | datetime.datetime | list]:
         html_content, published_date = self.get_article_content(web_url)
-
         author, title = self.extract_meta(html_content)
 
         if xpath:
-            content = self.xpath_extraction(web_url, source_id, xpath)
+            content = self.xpath_extraction(html_content, xpath)
         else:
             extract_document = bare_extraction(html_content, with_metadata=True, include_comments=False, url=web_url)
             author = extract_document["author"] or ""
@@ -97,31 +96,28 @@ class SimpleWebCollector(BaseCollector):
             "attributes": [],
         }
 
-    def xpath_extraction(self, web_url, source_id: str, xpath: str) -> str:
-        html_content, published_date = self.get_article_content(web_url)
+    def xpath_extraction(self, html_content, xpath: str) -> str:
         document = lxml.html.fromstring(html_content)
-
-        return document.xpath(xpath)[0].text_content() if document.xpath(xpath) else ""
+        # TODO: consider a good handling of the else case
+        return document.xpath(xpath)[0].text_content() if document.xpath(xpath) else "No XPATH content possible."
 
     def extract_meta(self, html_content):
+        html_content = lxml.html.fromstring(html_content)
         author = ""
         title = ""
-        # TODO: here is a problem with the way we check for elements
+
         title_tag = html_content.find('.//title')
-        if title_tag is not None and title_tag.text:
-            title = title_tag.text.strip()
-        else:
-            h1_tag = html_content.find('.//h1')
-            if h1_tag is not None and h1_tag.text:
-                title = h1_tag.text.strip()
+        if title_tag is not None:
+            title = title_tag.text
 
-        meta_tags = html_content.xpath('//meta')
+        meta_tags = html_content.xpath('//meta[@name]')
         for tag in meta_tags:
-            name = tag.attrib.get('name', '').lower()
-            content = tag.attrib.get('content')
 
+            name = tag.get('name', '').lower()
+
+            # Only one author possible
             if name == 'author':
-                author = content
+                author = tag.attrib['content']
                 break
 
         return author, title
