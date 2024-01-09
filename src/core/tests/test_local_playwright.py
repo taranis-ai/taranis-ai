@@ -38,6 +38,7 @@ def test_run(playwright: Playwright) -> None:
         viewport={"width": 1920, "height": 1080},
         record_video_size={"width": 1920, "height": 1080},
     )
+    
     # context.tracing.start(name='trace', screenshots=True, snapshots=True)
     page = context.new_page()
     page.goto("http://localhost:8081/")
