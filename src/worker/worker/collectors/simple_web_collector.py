@@ -154,7 +154,7 @@ class SimpleWebCollector(BaseCollector):
             logger.debug(f"Last-Modified: {last_modified} < Last-Attempted {last_attempted} skipping")
             return "Last-Modified < Last-Attempted"
 
-        news_items = self.parse_web_content(web_url, source["id"], xpath)
+        news_item = self.parse_web_content(web_url, source["id"], xpath)
 
-        self.publish([news_items], source)
+        self.publish([news_item], source)
         return None
