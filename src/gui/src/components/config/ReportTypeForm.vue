@@ -107,8 +107,6 @@ export default {
     const report_type = ref(props.reportTypeData)
 
     const updateAttributeGroupItems = (index, items) => {
-      console.debug('Update Attribute Group Items')
-      console.debug(items)
       report_type.value.attribute_groups[index].attribute_group_items = items
     }
 

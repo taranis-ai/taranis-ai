@@ -107,7 +107,6 @@ class ProductType(BaseModel):
         report_types = data.get("report_types", None)
         if report_types is not None:
             product_type.report_types = [ReportItemType.get(report_type) for report_type in report_types]
-            logger.debug(f"Updated report types for product type {product_type.title}: {product_type.report_types}")
         if template_data := data.get("template"):
             if template_path := product_type.get_template():
                 product_type._base64_to_file(template_data, template_path)

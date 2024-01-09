@@ -42,12 +42,9 @@ export const useAnalyzeStore = defineStore('analyze', {
     getReportItemsByIDs: (state) => (report_item_ids) => {
       const { d } = useI18n()
 
-      const items =
-        report_item_ids.length > 0
-          ? state.report_items.items.filter((item) =>
-              report_item_ids.includes(item.report_item_type_id)
-            )
-          : state.report_items.items
+      const items = state.report_items.items.filter((item) =>
+        report_item_ids.includes(item.report_item_type_id)
+      )
 
       return items.map((item) =>
         mapReportItem(item, d, state.report_item_types.items)

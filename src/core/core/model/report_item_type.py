@@ -265,7 +265,7 @@ class ReportItemType(BaseModel):
         file_content = json.loads(file_data)
         data = cls.load_json_content(content=file_content)
 
-        return None if data is None else cls.add_multiple(data)
+        return cls.add_multiple(data)
 
     @classmethod
     def delete(cls, id: int) -> tuple[dict[str, Any], int]:

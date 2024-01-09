@@ -201,15 +201,12 @@ export default defineComponent({
     }
 
     function deleteItem(item) {
-      console.debug('deleteItem', item)
       emit('delete-item', item)
     }
 
     function deleteItems(itemsToDelete) {
-      console.debug(selected.value)
       itemsToDelete.forEach((item) => deleteItem({ id: item }))
       selected.value = []
-      console.debug(selected.value)
     }
 
     function updateItems() {

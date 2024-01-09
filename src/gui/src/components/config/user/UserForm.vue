@@ -160,7 +160,6 @@ export default {
     const add = async () => {
       const isValid = await form.value.validate()
       if (!isValid.valid) {
-        console.debug('Invalid')
         return
       }
 
@@ -192,7 +191,6 @@ export default {
     }
 
     onMounted(() => {
-      console.debug('Loading User: ' + user.value.id)
       loadOrganizations()
       loadRoles()
       loadPermissions()

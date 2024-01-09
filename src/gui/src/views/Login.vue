@@ -105,7 +105,6 @@ export default defineComponent({
           }
 
           login_error.value = undefined
-          console.debug('login successful')
           loadUserProfile()
           router.push('/')
         })

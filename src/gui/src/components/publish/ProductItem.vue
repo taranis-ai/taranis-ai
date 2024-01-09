@@ -214,7 +214,6 @@ export default {
             const new_id = response.data.id
             product.value.id = new_id
             router.push('/product/' + new_id)
-            console.debug('Created product', new_id)
             emit('productcreated', new_id)
             notifySuccess('Product created ' + new_id)
           })
@@ -305,7 +304,9 @@ export default {
       configStore.loadPublisher()
       analyzeStore.loadReportItems()
       analyzeStore.loadReportTypes()
-      renderProduct()
+      if (props.edit) {
+        renderProduct()
+      }
     })
 
     return {

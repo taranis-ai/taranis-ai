@@ -226,7 +226,6 @@ export default {
     }
 
     const exportData = () => {
-      console.debug(`Exporting ${selected.value.join('&ids=')}`)
       let queryString = ''
       if (selected.value.length > 0) {
         queryString = 'ids=' + selected.value.join('&ids=')
