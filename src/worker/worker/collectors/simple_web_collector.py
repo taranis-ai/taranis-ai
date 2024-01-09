@@ -36,20 +36,13 @@ class SimpleWebCollector(BaseCollector):
         if user_agent := source["parameters"].get("USER_AGENT", None):
             self.headers = {"User-Agent": user_agent}
 
+        xpath = source["parameters"].get("XPATH", "")
         try:
-            return self.web_collector(web_url, source)
+            return self.web_collector(web_url, source, xpath)
         except Exception as e:
             logger.exception()
             logger.error(f"Simple Web Collector for {web_url} failed with error: {str(e)}")
             return str(e)
-
-        if xpath := source["parameters"].get("XPATH", None):
-            try:
-                return self.web_collector(web_url, source, xpath)
-            except Exception as e:
-                logger.exception()
-                logger.error(f"Simple Web Collector for {web_url} and {xpath} failed with error: {str(e)}")
-                return str(e)
 
     def set_proxies(self, proxy_server: str):
         self.proxies = {"http": proxy_server, "https": proxy_server, "ftp": proxy_server}
