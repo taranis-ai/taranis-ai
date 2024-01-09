@@ -2,7 +2,7 @@ from playwright.sync_api import Playwright, sync_playwright, expect
 import time
 
 
-def highlight_element_with_css(page, locator, duration):
+def click_with_highlight(locator, duration=2):
     # Add a style tag to the head of the document with the highlight style
     style_content = """
     .highlight-element { background-color: yellow; outline: 4px solid red; }
@@ -11,18 +11,23 @@ def highlight_element_with_css(page, locator, duration):
     # .highlight-element { outline: 4px solid red; }
     # """
 
-    page.add_style_tag(content=style_content)
-    
+    locator.page.add_style_tag(content=style_content)
+
     # Add the 'highlight-element' class to the element we want to highlight
     locator.evaluate("element => element.classList.add('highlight-element')")
     time.sleep(duration)
-
-
-def click_with_highlight(locator, duration=2):
-
-    highlight_element_with_css(locator.page, locator, duration)
-    
     locator.click()
+
+
+def scroll_to_the_bottom(page):
+    last_height = page.evaluate("document.documentElement.scrollHeight")
+    current = 0
+    while current < last_height:
+        # Scroll down by a certain amount
+        scroll_pixels = 300
+        page.evaluate(f"window.scrollBy(0, {scroll_pixels})")
+        time.sleep(0.5)
+        current += scroll_pixels
 
 
 def test_run(playwright: Playwright) -> None:
@@ -30,8 +35,8 @@ def test_run(playwright: Playwright) -> None:
     context = browser.new_context(
         storage_state="auth.json",
         record_video_dir="videos/",
-        viewport={ 'width': 1920, 'height': 1080 },
-        record_video_size={ 'width': 1920, 'height': 1080 }
+        viewport={"width": 1920, "height": 1080},
+        record_video_size={"width": 1920, "height": 1080},
     )
     # context.tracing.start(name='trace', screenshots=True, snapshots=True)
     page = context.new_page()
@@ -89,10 +94,10 @@ def test_run(playwright: Playwright) -> None:
     # page.get_by_role("button", name="Save").click()
     # page.get_by_role("button", name="Render Product").click()
     # page.reload()
-    click_with_highlight(page.locator('role=button'))
+    click_with_highlight(page.locator("role=button"))
     # page.get_by_role("button").click()
     # page.screenshot(path="screenshot1.png", full_page=True)
-# TODO: next workflow to use
+    # TODO: next workflow to use
     click_with_highlight(page.locator('role=link[name="Assess"]').first)
 
     # page.get_by_role("link", name="Assess").first.click()
@@ -108,18 +113,7 @@ def test_run(playwright: Playwright) -> None:
 
     click_with_highlight(page.locator(".v-col-sm-12 > a").first)
 
-    # Scroll the page to the bottom continueously
-    last_height = page.evaluate("document.documentElement.scrollHeight")
-    current = 0
-    while current < last_height:
-        # Scroll down by a certain amount
-        scroll_pixels = 300
-        page.evaluate(f"window.scrollBy(0, {scroll_pixels})")
-
-        # Scroll smoothly
-        time.sleep(0.5)
-
-        current += scroll_pixels
+    scroll_to_the_bottom(page)
 
     click_with_highlight(page.get_by_role("link", name="Dashboard"))
     click_with_highlight(page.get_by_role("link", name="Lazarus Group"))
