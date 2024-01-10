@@ -10,5 +10,6 @@ export const i18n = createI18n({
       : import.meta.env.VITE_TARANIS_LOCALE,
   fallbackLocale: 'en',
   messages,
+  globalInjection: true,
   datetimeFormats
 })

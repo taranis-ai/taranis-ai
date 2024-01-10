@@ -129,7 +129,7 @@ export default {
       if (props.detailView) {
         return 20
       }
-      return xlAndUp.value ? 6 : 2
+      return xlAndUp.value ? 5 : 2
     })
 
     const getPublishedDate = computed(() => {

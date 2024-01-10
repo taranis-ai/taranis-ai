@@ -16,6 +16,7 @@
           density="compact"
           :variant="truncate ? 'tonal' : 'elevated'"
           elevation="0"
+          size="x-small"
           @click.stop="updateTags(tag.name)"
         >
           <template #prepend>
@@ -60,7 +61,7 @@ export default defineComponent({
     },
     limit: {
       type: Number,
-      default: 6
+      default: 5
     },
     truncate: {
       type: Boolean,

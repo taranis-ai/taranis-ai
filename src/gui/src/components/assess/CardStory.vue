@@ -2,9 +2,9 @@
   <v-card
     v-if="showStory"
     :ripple="false"
-    elevation="3"
+    elevation="0"
     :rounded="false"
-    class="no-gutters align-self-stretch mb-3 mt-2 mx-4 story-card"
+    class="no-gutters align-self-stretch mb-1 mt-2 mx-2 story-card"
     :class="{
       selected: selected
     }"
@@ -14,7 +14,7 @@
       <v-col
         cols="12"
         sm="12"
-        lg="6"
+        :lg="showWeekChart ? 6 : 8"
         class="d-flex flex-grow-1 mt-3 px-5 py-3 order-first"
         align-self="center"
       >
@@ -28,7 +28,7 @@
       <v-col
         cols="12"
         sm="12"
-        lg="6"
+        :lg="showWeekChart ? 6 : 4"
         class="d-flex flex-row flex-grow-1 order-lg-2 order-sm-3 justify-space-evenly"
       >
         <v-btn
@@ -151,8 +151,8 @@
               @click.stop="markAsImportant()"
             />
             <v-list-item
-              title="share"
-              prepend-icon="mdi-share"
+              title="send via mail"
+              prepend-icon="mdi-email-outline"
               @click.stop="shareViaMail"
             />
             <v-list-item
@@ -179,7 +179,7 @@
       <v-col
         cols="12"
         sm="12"
-        lg="6"
+        :lg="showWeekChart ? 6 : 8"
         class="px-5 pb-5 order-lg-3 order-md-2"
         align-self="stretch"
       >
@@ -190,7 +190,12 @@
         />
       </v-col>
       <!-- META INFO -->
-      <v-col class="px-5 pt-2 pb-3 order-4" cols="12" sm="12" lg="6">
+      <v-col
+        class="px-5 pt-2 pb-3 order-4"
+        cols="12"
+        sm="12"
+        :lg="showWeekChart ? 6 : 4"
+      >
         <story-meta-info
           :story="story"
           :detail-view="openSummary"
@@ -229,6 +234,7 @@ import SummarizedContent from '@/components/assess/card/SummarizedContent.vue'
 import CardNewsItem from '@/components/assess/CardNewsItem.vue'
 import { ref, computed } from 'vue'
 import { useAssessStore } from '@/stores/AssessStore'
+import { useFilterStore } from '@/stores/FilterStore'
 import { highlight_text } from '@/utils/helpers'
 import { unGroupStories } from '@/api/assess'
 import { storeToRefs } from 'pinia'
@@ -262,6 +268,8 @@ export default {
     const selected = computed(() =>
       assessStore.storySelection.includes(props.story.id)
     )
+
+    const { showWeekChart } = storeToRefs(useFilterStore())
 
     const showStory = computed(() => {
       return (
@@ -373,6 +381,7 @@ export default {
       is_summarized,
       newsItemSelection,
       getDescription,
+      showWeekChart,
       openCard,
       ungroup,
       toggleSelection,

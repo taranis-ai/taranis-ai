@@ -5,8 +5,7 @@
         <v-icon v-bind="props">mdi-text-short</v-icon>
       </template>
     </v-tooltip>
-    <span v-dompurify-html="highlighted"></span>
-    <span v-if="!open"> ... </span>
+    <span v-dompurify-html="highlighted" />
   </span>
 </template>
 
@@ -58,5 +57,6 @@ export default {
 .news-item-summary-no-clip {
   display: -webkit-box;
   min-height: calc(1.5em * 4);
+  white-space: pre-line;
 }
 </style>

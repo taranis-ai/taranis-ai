@@ -1,5 +1,11 @@
 <template>
-  <v-snackbar v-model="notification.show" dark :color="notification.type">
+  <v-snackbar
+    v-model="notification.show"
+    dark
+    :color="notification.type"
+    :timer="true"
+    :timeout="10000"
+  >
     <v-row class="fill-height" no-gutters>
       <v-col class="d-flex align-center">
         <span class="text-subtitle-1">{{ notificationContent }}</span>
