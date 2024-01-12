@@ -3,8 +3,13 @@
     <DataTable
       :items="roles.items"
       :add-button="true"
-      :header-filter="['tag', 'id', 'name', 'description', 'actions']"
-      tag-icon="mdi-account-arrow-right"
+      :header-filter="[
+        'id',
+        'name',
+        'description',
+        'permissions.length',
+        'actions'
+      ]"
       @delete-item="deleteItem"
       @edit-item="editItem"
       @add-item="addItem"

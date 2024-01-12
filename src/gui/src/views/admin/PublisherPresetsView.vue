@@ -3,7 +3,7 @@
     <DataTable
       :items="publisher_presets.items"
       :add-button="true"
-      :header-filter="['tag', 'id', 'name', 'description', 'actions']"
+      :header-filter="['id', 'name', 'description', 'actions']"
       @delete-item="deleteItem"
       @edit-item="editItem"
       @add-item="addItem"
@@ -58,7 +58,8 @@ export default defineComponent({
           name: 'type',
           label: 'Type',
           type: 'select',
-          items: publishersList.value
+          items: publishersList.value,
+          disabled: edit.value
         }
       ]
       return [...baseFormat, ...additionalFormat]
@@ -88,7 +89,7 @@ export default defineComponent({
 
     const editItem = (item) => {
       formData.value = item
-      edit.value = false
+      edit.value = true
       showForm.value = true
     }
 

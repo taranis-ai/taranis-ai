@@ -3,8 +3,15 @@
     <DataTable
       v-model:items="users.items"
       :add-button="true"
-      :header-filter="['tag', 'id', 'username', 'name', 'actions']"
-      tag-icon="mdi-account"
+      :header-filter="[
+        'id',
+        'username',
+        'name',
+        'roles.length',
+        'permissions.length',
+        'actions'
+      ]"
+      :sort-by="sortBy"
       @delete-item="deleteItem"
       @edit-item="editItem"
       @add-item="addItem"
@@ -43,6 +50,8 @@ export default {
     const selected = ref([])
     const user = ref({})
     const edit = ref(false)
+    const sortBy = ref([{ key: 'username', order: 'desc' }])
+
 
     const updateData = () => {
       store.loadUsers().then(() => {
@@ -127,6 +136,7 @@ export default {
 
     return {
       showForm,
+      sortBy,
       users,
       selected,
       user,
