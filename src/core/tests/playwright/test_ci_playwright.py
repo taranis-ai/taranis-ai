@@ -2,13 +2,13 @@ from playwright.sync_api import Playwright, sync_playwright, expect
 
 
 def test_run(playwright: Playwright) -> None:
-    browser = playwright.webkit.launch(headless=False)
-    context = browser.new_context(storage_state="auth.json", viewport={ "width": 1920, "height": 1080 })
+    browser = playwright.chromium.launch(headless=False)
+    context = browser.new_context(storage_state="codegen_api_conf.json", viewport={"width": 1920, "height": 1080})
     # context.tracing.start(name='trace', screenshots=True, snapshots=True)
     page = context.new_page()
     page.goto("http://localhost:8081/")
     page.goto("http://localhost:8081/login")
-    
+
     page.get_by_placeholder("Username").fill("admin")
     page.get_by_placeholder("Username").press("Tab")
     page.get_by_placeholder("Password").fill("admin")
@@ -56,25 +56,3 @@ def test_run(playwright: Playwright) -> None:
     # ---------------------
     context.close()
     browser.close()
-
-"""
-($ playwright codegen localhost:8081 --save-storage=auth.json)
-It might be also a good idea to get a new API token for the {auth.json} when doing it for CI.
-($ playwright codegen --load-storage=auth.json localhost:8081)
-
-pg_dump -U taranis taranis > /tmp/e2e_test_db.sql
-
-After every e2e test, the db needs to be reinstantiated.
- docker exec -it dev-database-1 /bin/bash
- cd /usr/local/bin/
- dropdb -U taranis taranis
- createdb -U taranis taranis
-
- psql -U taranis taranis < /tmp/e2e_test_db.sql
- OR
- pg_restore -U taranis -d taranis /tmp/iktsih_demo_dump.tar
- 
- 
- 
- src/core/tests/conftest.py "def access_token" to generate a token
-"""

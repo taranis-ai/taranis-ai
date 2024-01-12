@@ -1,0 +1,13 @@
+{
+  "origins": [
+    {
+      "origin": "http://localhost:8081",
+      "localStorage": [
+        {
+          "name": "main",
+          "value": "{\"coreAPIURL\":\"http://127.0.0.1:5000/api\"}"
+        }
+      ]
+    }
+  ]
+}
