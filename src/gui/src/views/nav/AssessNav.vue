@@ -125,6 +125,22 @@
             show charts
           </v-btn>
         </v-col>
+        <v-col cols="12" class="pt-0">
+          <v-btn
+            class="vertical-button toggle-button py-2 px-4 mb-1"
+            :class="
+              compactView ? 'toggle-button-checked' : 'toggle-button-unchecked'
+            "
+            value="compactView"
+            prepend-icon="mdi-view-compact-outline"
+            :append-icon="compactView ? 'mdi-check-bold' : undefined"
+            :variant="compactView ? 'tonal' : 'text'"
+            color="primary"
+            @click="compactView = !compactView"
+          >
+            compact view
+          </v-btn>
+        </v-col>
       </v-row>
 
       <v-divider class="my-2 mt-1 mb-0"></v-divider>
@@ -193,8 +209,13 @@ export default {
     const { getOSINTSourceGroupsList, getOSINTSourcesList } =
       storeToRefs(assessStore)
     const { updateNewsItems } = assessStore
-    const { newsItemsFilter, chartFilter, highlight, showWeekChart } =
-      storeToRefs(filterStore)
+    const {
+      newsItemsFilter,
+      chartFilter,
+      highlight,
+      showWeekChart,
+      compactView
+    } = storeToRefs(filterStore)
 
     const { setFilter, updateFilter } = useFilterStore()
 
@@ -276,6 +297,7 @@ export default {
       chartFilter,
       highlight,
       showWeekChart,
+      compactView,
       getOSINTSourceGroupsList,
       getOSINTSourcesList,
       newsItemsFilter,

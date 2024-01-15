@@ -84,5 +84,14 @@ export const vuetify = createVuetify({
     sets: {
       mdi
     }
+  },
+  display: {
+    thresholds: {
+      xs: 600,
+      sm: 900,
+      md: 1024,
+      lg: 1600,
+      xl: 1920
+    }
   }
 })

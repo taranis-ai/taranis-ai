@@ -12,9 +12,7 @@
   >
     <v-row>
       <v-col
-        cols="12"
-        sm="12"
-        :lg="showWeekChart ? 6 : 8"
+        :cols="content_cols"
         class="d-flex flex-grow-1 mt-3 px-5 py-3 order-first"
         align-self="center"
       >
@@ -22,164 +20,23 @@
         <h2
           v-dompurify-html="highlighted_title"
           :class="news_item_title_class"
-        ></h2>
+        />
       </v-col>
 
-      <v-col
-        cols="12"
-        sm="12"
-        :lg="showWeekChart ? 6 : 4"
-        class="d-flex flex-row flex-grow-1 order-lg-2 order-sm-3 justify-space-evenly"
-      >
-        <v-btn
-          v-if="!detailView"
-          v-ripple="false"
-          size="small"
-          class="item-action-btn"
-          variant="tonal"
-          prepend-icon="mdi-open-in-app"
-          :to="'/story/' + story.id"
-          @click.stop
-        >
-          <span> open </span>
-        </v-btn>
+      <story-actions
+        :story="story"
+        :detail-view="detailView"
+        :report-view="reportView"
+        :action-cols="meta_cols"
+        @open-details="openCard()"
+        @refresh="emitRefresh()"
+        @delete-item="deleteNewsItem()"
+        @remove-from-report="$emit('remove-from-report')"
+      />
 
-        <v-btn
-          v-if="!reportView"
-          v-ripple="false"
-          size="small"
-          class="item-action-btn"
-          variant="tonal"
-          prepend-icon="mdi-google-circles-communities"
-          @click.stop="sharingDialog = true"
-        >
-          <span>add to Report</span>
-        </v-btn>
-
-        <v-btn
-          v-if="reportView"
-          v-ripple="false"
-          size="small"
-          class="item-action-btn"
-          variant="tonal"
-          prepend-icon="mdi-trash-can"
-          @click.stop="$emit('remove-from-report')"
-        >
-          <span>Remove</span>
-        </v-btn>
-
-        <v-btn
-          v-if="!detailView"
-          v-ripple="false"
-          size="small"
-          class="item-action-btn expand-btn"
-          :class="{ 'expanded-card': openSummary }"
-          variant="tonal"
-          :prepend-icon="openSummary ? 'mdi-chevron-up' : 'mdi-chevron-down'"
-          :style="{ minWidth: minButtonWidth }"
-          @click.stop="openCard"
-        >
-          <span>{{ news_item_summary_text }} </span>
-          <span v-if="news_item_length > 1" class="primary--text"
-            >&nbsp;[{{ news_item_length }}]</span
-          >
-        </v-btn>
-
-        <v-btn
-          v-if="!detailView && !reportView"
-          v-ripple="false"
-          size="small"
-          class="item-action-btn"
-          variant="tonal"
-          :prepend-icon="
-            !story.read ? 'mdi-eye-outline' : 'mdi-eye-off-outline'
-          "
-          @click.stop="markAsRead()"
-        >
-          <span>{{ !story.read ? 'read' : 'unread' }}</span>
-        </v-btn>
-
-        <votes v-if="detailView" :story="story" />
-
-        <v-dialog v-model="deleteDialog" width="auto">
-          <popup-delete-item
-            :news-item="story"
-            @delete-item="deleteNewsItem()"
-            @close="deleteDialog = false"
-          />
-        </v-dialog>
-        <v-dialog v-model="sharingDialog" width="auto">
-          <popup-share-items
-            :item-ids="[story.id]"
-            @close="sharingDialog = false"
-          />
-        </v-dialog>
-
-        <v-menu v-if="!reportView" bottom offset-y>
-          <template #activator="{ props }">
-            <v-btn
-              v-ripple="false"
-              size="small"
-              class="item-action-btn expandable"
-              variant="tonal"
-              v-bind="props"
-            >
-              <v-icon>mdi-dots-vertical</v-icon>
-            </v-btn>
-          </template>
-
-          <v-list class="extraActionsList" dense>
-            <v-list-item
-              v-if="detailView || reportView"
-              :prepend-icon="
-                !story.read ? 'mdi-eye-outline' : 'mdi-eye-off-outline'
-              "
-              class="hidden-xl-only"
-              title="mark as read"
-              @click.stop="markAsRead()"
-            />
-            <v-list-item v-if="!detailView" style="justify-content: center">
-              <votes :story="story" />
-            </v-list-item>
-            <v-list-item
-              :prepend-icon="
-                !story.important ? 'mdi-star-check-outline' : 'mdi-star-check'
-              "
-              :title="
-                !story.important ? 'mark as important' : 'unmark as important'
-              "
-              @click.stop="markAsImportant()"
-            />
-            <v-list-item
-              title="send via mail"
-              prepend-icon="mdi-email-outline"
-              @click.stop="shareViaMail"
-            />
-            <v-list-item
-              v-if="!reportView && news_item_length > 1"
-              title="ungroup"
-              prepend-icon="mdi-ungroup"
-              @click.stop="ungroup()"
-            />
-            <v-list-item
-              v-if="!reportView && newsItemSelection.length > 0"
-              title="move selection"
-              prepend-icon="mdi-folder-move"
-              @click.stop="moveSelection()"
-            />
-            <v-list-item
-              title="delete"
-              prepend-icon="mdi-delete-outline"
-              @click.stop="deleteDialog = true"
-            />
-          </v-list>
-        </v-menu>
-      </v-col>
       <!-- DESCRIPTION -->
       <v-col
-        cols="12"
-        sm="12"
-        :lg="showWeekChart ? 6 : 8"
+        :cols="content_cols"
         class="px-5 pb-5 order-lg-3 order-md-2"
         align-self="stretch"
       >
@@ -190,12 +47,7 @@
         />
       </v-col>
       <!-- META INFO -->
-      <v-col
-        class="px-5 pt-2 pb-3 order-4"
-        cols="12"
-        sm="12"
-        :lg="showWeekChart ? 6 : 4"
-      >
+      <v-col class="px-5 pt-2 pb-3 order-4" :cols="meta_cols">
         <story-meta-info
           :story="story"
           :detail-view="openSummary"
@@ -226,10 +78,8 @@
 </template>
 
 <script>
-import PopupDeleteItem from '@/components/popups/PopupDeleteItem.vue'
-import PopupShareItems from '@/components/popups/PopupShareItems.vue'
 import StoryMetaInfo from '@/components/assess/card/StoryMetaInfo.vue'
-import votes from '@/components/assess/card/votes.vue'
+import StoryActions from '@/components/assess/card/StoryActions.vue'
 import SummarizedContent from '@/components/assess/card/SummarizedContent.vue'
 import CardNewsItem from '@/components/assess/CardNewsItem.vue'
 import { ref, computed } from 'vue'
@@ -242,10 +92,8 @@ import { storeToRefs } from 'pinia'
 export default {
   name: 'CardStory',
   components: {
-    votes,
     CardNewsItem,
-    PopupDeleteItem,
-    PopupShareItems,
+    StoryActions,
     StoryMetaInfo,
     SummarizedContent
   },
@@ -264,12 +112,13 @@ export default {
     const sharingDialog = ref(false)
     const deleteDialog = ref(false)
     const assessStore = useAssessStore()
+
     const { newsItemSelection } = storeToRefs(assessStore)
     const selected = computed(() =>
       assessStore.storySelection.includes(props.story.id)
     )
 
-    const { showWeekChart } = storeToRefs(useFilterStore())
+    const { showWeekChart, compactView } = storeToRefs(useFilterStore())
 
     const showStory = computed(() => {
       return (
@@ -282,6 +131,23 @@ export default {
       'important' in props.story ? props.story.important : false
     )
 
+    const content_cols = computed(() => {
+      if (props.detailView) {
+        return 8
+      }
+      if (showWeekChart.value) {
+        return 6
+      }
+      if (props.reportView || compactView.value) {
+        return 10
+      }
+      return 8
+    })
+
+    const meta_cols = computed(() => {
+      return 12 - content_cols.value
+    })
+
     const story_in_report = computed(() => props.story.in_reports_count > 0)
     const news_item_length = computed(() =>
       props.story.news_items ? props.story.news_items.length : 0
@@ -291,9 +157,6 @@ export default {
         ? 'news-item-title-no-clip'
         : 'news-item-title'
     })
-    const news_item_summary_text = computed(() =>
-      openSummary.value ? 'Collapse' : 'Expand'
-    )
     const minButtonWidth = computed(() => {
       const longestText = `${
         news_item_length.value > 1 ? '(' + news_item_length.value + ')' : ''
@@ -346,12 +209,6 @@ export default {
             props.story.news_items[0].news_item_data.content
     })
 
-    function shareViaMail() {
-      const subject = encodeURIComponent(props.story.title)
-      const body = encodeURIComponent(props.story.description)
-      window.location.href = `mailto:?subject=${subject}&body=${body}`
-    }
-
     function ungroup() {
       unGroupStories([props.story.id]).then(() => {
         emit('refresh')
@@ -367,6 +224,8 @@ export default {
       viewDetails,
       openSummary,
       selected,
+      content_cols,
+      meta_cols,
       showStory,
       sharingDialog,
       deleteDialog,
@@ -374,18 +233,15 @@ export default {
       story_in_report,
       news_item_length,
       news_item_title_class,
-      news_item_summary_text,
       highlighted_title,
       minButtonWidth,
       story_in_reports,
       is_summarized,
       newsItemSelection,
       getDescription,
-      showWeekChart,
       openCard,
       ungroup,
       toggleSelection,
-      shareViaMail,
       markAsRead,
       markAsImportant,
       deleteNewsItem,
@@ -444,22 +300,4 @@ export default {
   line-height: 1.3;
 }
 
-.item-action-btn {
-  flex: 1;
-  & .v-btn__append {
-    margin-left: 0.5rem;
-  }
-  & .v-btn__prepend {
-    margin-right: 0.5rem;
-  }
-}
-
-button.item-action-btn.expandable {
-  min-width: 34px !important;
-}
-
-.expand-btn.expanded-card {
-  background-color: rgb(var(--v-theme-primary));
-  color: white;
-}
 </style>

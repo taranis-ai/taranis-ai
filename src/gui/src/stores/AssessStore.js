@@ -48,11 +48,13 @@ export const useAssessStore = defineStore('assess', {
     async updateNewsItems() {
       console.debug('updateNewsItems')
       try {
+        this.loading = true
         const filter = useFilterStore()
         const response = await getNewsItemsAggregates(filter.newsItemsFilter)
         this.newsItems.items = response.data.items
         this.newsItems.total_count = response.data.total_count
         this.max_item = response.data.max_item
+        this.loading = false
       } catch (error) {
         notifyFailure(error.message)
       }

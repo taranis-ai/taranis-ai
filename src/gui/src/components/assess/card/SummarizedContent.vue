@@ -5,7 +5,7 @@
         <v-icon v-bind="props">mdi-text-short</v-icon>
       </template>
     </v-tooltip>
-    <span v-dompurify-html="highlighted" />
+    <span v-dompurify-html="highlighted" style="word-wrap: anywhere" />
   </span>
 </template>
 

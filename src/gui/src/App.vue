@@ -15,11 +15,14 @@
 <script>
 import MainMenu from '@/components/MainMenu.vue'
 import Notification from '@/components/common/Notification.vue'
-import { defineComponent, onMounted } from 'vue'
+import { defineComponent, onMounted, watch } from 'vue'
 import { useAuthStore } from '@/stores/AuthStore'
 import { useAssessStore } from '@/stores/AssessStore'
+import { useFilterStore } from '@/stores/FilterStore'
+import { useMainStore } from '@/stores/MainStore'
 import { connectSSE } from '@/utils/sse'
 import { storeToRefs } from 'pinia'
+import { useDisplay } from 'vuetify'
 
 export default defineComponent({
   name: 'App',
@@ -31,6 +34,10 @@ export default defineComponent({
     const { isAuthenticated, timeToRefresh } = storeToRefs(useAuthStore())
     const authStore = useAuthStore()
     const assessStore = useAssessStore()
+    const { compactView } = storeToRefs(useFilterStore())
+    const { drawerVisible } = storeToRefs(useMainStore())
+
+    const { mdAndDown } = useDisplay()
 
     onMounted(() => {
       console.debug('App mounted')
@@ -50,6 +57,20 @@ export default defineComponent({
         }, timeToRefresh.value)
       }
     })
+
+    watch(
+      () => mdAndDown.value,
+      (newValue) => {
+        console.log('mdAndDown set to: ', newValue)
+        if (newValue) {
+          compactView.value = true
+          drawerVisible.value = false
+        } else {
+          compactView.value = false
+        }
+      },
+      { immediate: true }
+    )
 
     return {
       isAuthenticated

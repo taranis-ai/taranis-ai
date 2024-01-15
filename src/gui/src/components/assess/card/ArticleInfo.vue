@@ -1,6 +1,6 @@
 <template>
   <v-row>
-    <v-col style="max-width: 110px" class="py-0">
+    <v-col v-if="!compactView" style="max-width: 110px" class="py-0">
       <strong>{{ $t('assess.article') }}:</strong>
     </v-col>
     <v-col class="py-0" @click.stop>
@@ -26,6 +26,10 @@ export default {
     newsItemData: {
       type: Object,
       required: true
+    },
+    compactView: {
+      type: Boolean,
+      default: false
     }
   },
   setup(props) {
