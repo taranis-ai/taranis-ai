@@ -255,6 +255,9 @@ class NewsItem(BaseModel):
         return query
 
     def allowed_with_acl(self, user: User, see, access, modify):
+        if not ACLEntry.has_rows() or not user or self.news_item_data.source == "manual":
+            return True
+
         query = db.session.query(NewsItem.id).distinct().group_by(NewsItem.id).filter(NewsItem.id == self.id)
 
         query = query.join(NewsItemData, NewsItem.news_item_data_id == NewsItemData.id)
@@ -744,16 +747,20 @@ class NewsItemAggregate(BaseModel):
 
     @classmethod
     def delete_by_id(cls, aggregate_id, user):
-        if cls.is_assigned_to_report([aggregate_id]):
-            return {"error": f"aggregate with: {aggregate_id} assigned to a report"}, 500
-
         aggregate = cls.get(aggregate_id)
         if not aggregate:
             return {"error": f"Aggregate with id: {aggregate_id} not found"}, 404
+
+        if cls.is_assigned_to_report([aggregate_id]):
+            return {"error": f"aggregate with: {aggregate_id} assigned to a report"}, 500
+
         for news_item in aggregate.news_items:
             if news_item.allowed_with_acl(user, False, False, True):
                 aggregate.news_items.remove(news_item)
                 NewsItem.delete_item(news_item)
+            else:
+                logger.debug(f"User {user.id} not allowed to remove news item {news_item.id}")
+                return {"error": f"User {user.id} not allowed to remove news item {news_item.id}"}, 403
 
         NewsItemAggregate.update_status(aggregate.id)
 
@@ -959,6 +966,7 @@ class NewsItemAggregate(BaseModel):
         if len(aggregate.news_items) == 0:
             NewsItemAggregateSearchIndex.remove(aggregate)
             db.session.delete(aggregate)
+            logger.info(f"Deleting empty aggregate - 'ID': {aggregate_id}")
             return
 
     @classmethod

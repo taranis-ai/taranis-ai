@@ -2,6 +2,7 @@
   <v-form
     id="form"
     ref="form"
+    validate-on="submit"
     style="width: 100%; padding: 8px"
     @submit.prevent="add"
   >
@@ -12,24 +13,21 @@
           :label="$t('enter.title')"
           name="title"
           type="text"
+          :rules="[rules.required]"
         />
 
         <v-textarea
           v-model="news_item.review"
           :label="$t('enter.review')"
           name="review"
-        />
-        <v-text-field
-          v-model="news_item.source"
-          :label="$t('enter.source')"
-          name="source"
-          type="text"
+          :rules="[rules.required]"
         />
 
         <v-text-field
           v-model="news_item.link"
           :label="$t('enter.link')"
           name="link"
+          :rules="[rules.url]"
           type="text"
         />
         <code-editor
@@ -39,7 +37,9 @@
       </v-card-text>
     </v-card>
     <v-spacer class="pt-2"></v-spacer>
-    <v-btn color="primary" @click="add()">{{ $t('enter.create') }}</v-btn>
+    <v-btn block type="submit" color="success">
+      {{ $t('enter.create') }}
+    </v-btn>
   </v-form>
 </template>
 
@@ -57,6 +57,7 @@ export default {
   },
   setup() {
     const mainStore = useMainStore()
+    const form = ref(null)
     const user = computed(() => mainStore.user)
 
     const news_item = ref({
@@ -65,7 +66,7 @@ export default {
       review: '',
       content: '',
       link: '',
-      source: '',
+      source: 'manual',
       author: '',
       hash: '',
       osint_source_id: '',
@@ -76,7 +77,19 @@ export default {
 
     const editorContent = ref('')
 
-    const add = async () => {
+    const rules = {
+      required: (v) => !!v || 'Required',
+      url: (v) =>
+        /^(https?:\/\/)?[\w-]+(\.[\w-]+)+.*$/.test(v) || 'Must be a valid URL'
+    }
+
+    async function add() {
+      const { valid } = await form.value.validate()
+
+      if (!valid) {
+        return
+      }
+
       news_item.value.content = editorContent.value
       news_item.value.author = user.value.name
       const d = new Date()
@@ -85,11 +98,6 @@ export default {
 
       try {
         await addNewsItem(news_item.value)
-
-        // Reset fields
-        Object.keys(news_item.value).forEach((key) => {
-          news_item.value[key] = ''
-        })
 
         notifySuccess('enter.successful')
       } catch (e) {
@@ -105,6 +113,8 @@ export default {
 
     return {
       news_item,
+      form,
+      rules,
       editorContent,
       placeholder,
       add

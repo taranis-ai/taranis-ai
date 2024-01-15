@@ -141,6 +141,12 @@
           @click.stop="moveSelection()"
         />
         <v-list-item
+          v-if="allow_edit"
+          title="edit"
+          prepend-icon="mdi-pencil"
+          :to="'/story/' + story.id"
+        />
+        <v-list-item
           title="delete"
           prepend-icon="mdi-delete-outline"
           @click.stop="deleteDialog = true"
@@ -194,6 +200,11 @@ export default {
       'important' in props.story ? props.story.important : false
     )
 
+    const allow_edit = computed(() =>
+        !props.reportView &&
+        props.story.news_items.length == 1 &&
+        props.story.news_items[0].news_item_data.osint_source_id == 'manual'
+    )
     const news_item_length = computed(() =>
       props.story.news_items ? props.story.news_items.length : 0
     )
@@ -257,6 +268,7 @@ export default {
       viewDetails,
       openSummary,
       selected,
+      allow_edit,
       compactView,
       sharingDialog,
       deleteDialog,

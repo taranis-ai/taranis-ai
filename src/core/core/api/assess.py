@@ -240,7 +240,7 @@ def initialize(api):
     namespace.add_resource(NewsItemAggregateTagList, "/taglist")
 
     namespace.add_resource(NewsItem, "/news-items/<int:item_id>")
-    namespace.add_resource(NewsItemAggregate, "/news-item-aggregates/<int:aggregate_id>")
+    namespace.add_resource(NewsItemAggregate, "/news-item-aggregates/<int:aggregate_id>", "/stories/<int:aggregate_id>")
     namespace.add_resource(GroupAction, "/news-item-aggregates/group", "/stories/group")
     namespace.add_resource(UnGroupStories, "/news-item-aggregates/ungroup", "/stories/ungroup")
     namespace.add_resource(UnGroupAction, "/news-items/ungroup")

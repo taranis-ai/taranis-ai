@@ -16,6 +16,7 @@ class ItemType(Enum):
     REPORT_ITEM = auto()
     REPORT_ITEM_TYPE = auto()
     PRODUCT_TYPE = auto()
+    NEWS_ITEM = auto()
     DELEGATION = auto()
 
 

@@ -12,7 +12,7 @@ export function getOSINTSourcesList() {
 export function getNewsItemsAggregates(filter_data) {
   const filter = apiService.getQueryStringFromNestedObject(filter_data)
   router.push({ query: filter_data })
-  return apiService.get(`/assess/news-item-aggregates?${filter}`)
+  return apiService.get(`/assess/stories?${filter}`)
 }
 
 export function getNewsItems(filter_data) {
@@ -38,37 +38,37 @@ export function getNewsItem(news_item_id) {
 }
 
 export function getNewsItemAggregate(aggregate_id) {
-  return apiService.get(`/assess/news-item-aggregates/${aggregate_id}`)
+  return apiService.get(`/assess/stories/${aggregate_id}`)
 }
 
 export function voteNewsItemAggregate(aggregate_id, vote) {
-  return apiService.put(`/assess/news-item-aggregates/${aggregate_id}`, {
+  return apiService.put(`/assess/stories/${aggregate_id}`, {
     vote: vote
   })
 }
 
 export function readNewsItemAggregate(aggregate_id, read) {
-  return apiService.put(`/assess/news-item-aggregates/${aggregate_id}`, {
+  return apiService.put(`/assess/stories/${aggregate_id}`, {
     read: read
   })
 }
 
 export function deleteNewsItemAggregate(aggregate_id) {
-  return apiService.delete(`/assess/news-item-aggregates/${aggregate_id}`)
+  return apiService.delete(`/assess/stories/${aggregate_id}`)
 }
 
 export function importantNewsItemAggregate(aggregate_id, important) {
-  return apiService.put(`/assess/news-item-aggregates/${aggregate_id}`, {
+  return apiService.put(`/assess/stories/${aggregate_id}`, {
     important: important
   })
 }
 
 export function groupAction(data) {
-  return apiService.put('/assess/news-item-aggregates/group', data)
+  return apiService.put('/assess/stories/group', data)
 }
 
 export function unGroupStories(data) {
-  return apiService.put('/assess/news-item-aggregates/ungroup', data)
+  return apiService.put('/assess/stories/ungroup', data)
 }
 
 export function unGroupNewsItems(data) {
@@ -82,7 +82,7 @@ export function saveNewsItemAggregate(
   description,
   comments
 ) {
-  return apiService.put(`/assess/news-item-aggregates/${aggregate_id}`, {
+  return apiService.put(`/assess/stories/${aggregate_id}`, {
     group_id: group_id,
     title: title,
     description: description,
