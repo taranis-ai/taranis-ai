@@ -2,8 +2,7 @@
   <DataTable
     :sort-by="sortBy"
     :items="report_items_data"
-    :add-button="false"
-    :search-bar="false"
+    :show-top="true"
     :header-filter="[
       'completed',
       'type',
@@ -12,6 +11,7 @@
       'stories',
       'actions'
     ]"
+    :items-per-page="reportFilter.limit"
     @delete-item="deleteItem"
     @edit-item="editItem"
     @add-item="addItem"
@@ -44,6 +44,7 @@ import {
 } from '@/api/analyze'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import { useAnalyzeStore } from '@/stores/AnalyzeStore'
+import { useFilterStore } from '@/stores/FilterStore'
 import { useMainStore } from '@/stores/MainStore'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
@@ -59,7 +60,9 @@ export default {
 
     const mainStore = useMainStore()
     const analyzeStore = useAnalyzeStore()
+    const filterStore = useFilterStore()
     const router = useRouter()
+    const { reportFilter } = storeToRefs(filterStore)
 
     const { report_item_types, report_items } = storeToRefs(analyzeStore)
     const selected = ref([])
@@ -134,6 +137,7 @@ export default {
       report_item_types,
       report_items_data,
       report_items,
+      reportFilter,
       selected,
       sortBy,
       updateData,

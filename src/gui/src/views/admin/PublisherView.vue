@@ -53,7 +53,8 @@ export default defineComponent({
           name: 'type',
           label: 'Type',
           type: 'select',
-          items: publishersList.value
+          items: publishersList.value,
+          disabled: edit.value
         }
       ]
       return [...baseFormat, ...additionalFormat]
@@ -83,7 +84,7 @@ export default defineComponent({
 
     const editItem = (item) => {
       formData.value = item
-      edit.value = false
+      edit.value = true
       showForm.value = true
     }
 

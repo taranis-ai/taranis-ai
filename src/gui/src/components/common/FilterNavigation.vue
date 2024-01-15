@@ -47,40 +47,25 @@
                 style="height: 100%"
                 @click="showOmniSearch = !showOmniSearch"
               >
-                <v-icon size="x-large" class="pa-0" icon="mdi-chevron-right">
-                </v-icon>
+                <v-icon size="x-large" class="pa-0" icon="mdi-chevron-right" />
               </v-btn>
             </template>
           </v-text-field>
         </v-row>
 
-        <v-divider class="my-2"></v-divider>
+        <v-divider class="my-2" />
 
         <!-- scope -->
-        <v-row no-gutters class="ma-2 my-4 px-2">
-          <v-col cols="6" class="pr-1">
-            <v-select
-              v-model="limitState"
-              :items="itemsPerPage"
-              label="display"
-              variant="outlined"
-              density="compact"
-              hide-details
-            ></v-select>
-          </v-col>
-          <v-col cols="6" class="pl-1">
-            <v-select
-              v-model="offsetState"
-              :items="offsetRange"
-              label="offset"
-              variant="outlined"
-              density="compact"
-              hide-details
-            ></v-select>
-          </v-col>
+        <v-row v-if="showPaging" no-gutters class="ma-2 my-4 px-2">
+          <v-select
+            v-model="limitState"
+            :items="itemsPerPage"
+            label="Items per page"
+            variant="outlined"
+            density="compact"
+            hide-details
+          />
         </v-row>
-
-        <v-divider class="mt-0 mb-0"></v-divider>
 
         <slot name="navdrawer"></slot>
       </v-container>
@@ -100,32 +85,27 @@ export default {
       type: String,
       default: ''
     },
+    showPaging: {
+      type: Boolean,
+      default: true
+    },
     limit: {
       type: Number,
       default: 20
-    },
-    offset: {
-      type: Number,
-      default: 0
     }
   },
-  emits: ['update:search', 'update:limit', 'update:offset'],
+  emits: ['update:search', 'update:limit'],
   setup(props, { emit }) {
     const showOmniSearch = ref(false)
-    const itemsPerPage = [5, 10, 20, 50, 100]
+    const itemsPerPage = [25, 50, 100, 500, 1000]
     const timeout = ref(null)
     const store = useMainStore()
 
-    const { drawerVisible, itemCountTotal } = storeToRefs(store)
+    const { drawerVisible } = storeToRefs(store)
 
     const limitState = computed({
       get: () => props.limit,
       set: (value) => emit('update:limit', value)
-    })
-
-    const offsetState = computed({
-      get: () => props.offset,
-      set: (value) => emit('update:offset', value)
     })
 
     const searchState = computed({
@@ -137,10 +117,6 @@ export default {
         }, 500)
       }
     })
-
-    const offsetRange = computed(() =>
-      Array.from({ length: itemCountTotal.value + 1 }, (_, i) => i)
-    )
 
     const navigationDrawerClass = computed(() => {
       return showOmniSearch.value ? 'mt-12' : ''
@@ -160,21 +136,12 @@ export default {
       }
     )
 
-    watch(
-      () => props.offset,
-      () => {
-        offsetState.value = props.offset
-      }
-    )
-
     return {
       showOmniSearch,
       itemsPerPage,
       timeout,
       limitState,
-      offsetState,
       searchState,
-      offsetRange,
       drawerVisible,
       navigationDrawerClass
     }

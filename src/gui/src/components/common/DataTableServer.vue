@@ -1,5 +1,5 @@
 <template>
-  <v-data-table
+  <v-data-table-server
     :sort-by="sortBy"
     :headers="headers"
     :items="items"
@@ -101,14 +101,14 @@
         Refresh
       </v-btn>
     </template>
-  </v-data-table>
+  </v-data-table-server>
 </template>
 
 <script>
 import { ref, defineComponent, toRaw } from 'vue'
 
 export default defineComponent({
-  name: 'DataTable',
+  name: 'DataTableServer',
   props: {
     items: {
       type: Array,

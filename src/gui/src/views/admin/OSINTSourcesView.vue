@@ -121,7 +121,8 @@ export default {
           name: 'type',
           label: 'Collector',
           type: 'select',
-          items: collector_options.value
+          items: collector_options.value,
+          disabled: edit.value
         }
       ]
       if (formData.value.last_error_message) {

@@ -2,10 +2,8 @@
   <filter-navigation
     :search="reportFilter.search"
     :limit="reportFilter.limit"
-    :offset="reportFilter.offset"
     @update:search="(value) => (search = value)"
     @update:limit="(value) => (reportFilter.limit = value)"
-    @update:offset="(value) => (reportFilter.offset = value)"
   >
     <template #navdrawer>
       <v-row no-gutters class="px-2">

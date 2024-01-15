@@ -13,6 +13,9 @@
         />
       </template>
     </v-infinite-scroll>
+    <v-overlay :model-value="loading" class="align-center justify-center">
+      <v-progress-circular color="primary" indeterminate size="64" />
+    </v-overlay>
 
     <div
       v-if="newsItems.items.length == 0"
@@ -97,6 +100,7 @@ export default defineComponent({
       newsItems,
       moreToLoad,
       activeSelection,
+      loading,
       refresh,
       nextPage,
       resetFilter,

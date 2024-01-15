@@ -44,7 +44,8 @@ export const useFilterStore = defineStore('filter', {
       y2max: undefined
     },
     highlight: true,
-    showWeekChart: false
+    showWeekChart: false,
+    compactView: false
   }),
   getters: {
     getFilterTags() {

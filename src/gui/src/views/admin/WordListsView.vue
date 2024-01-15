@@ -108,7 +108,8 @@ export default {
           { value: 'COLLECTOR_INCLUDELIST', label: 'Collector Includelist' },
           { value: 'COLLECTOR_EXCLUDELIST', label: 'Collector Excludelist' },
           { value: 'TAGGING_BOT', label: 'Tagging Bot' }
-        ]
+        ],
+        rules: [(v) => !!v || 'Required']
       },
       {
         name: 'entries',
