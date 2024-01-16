@@ -3,14 +3,6 @@
     <v-toolbar density="compact">
       <v-toolbar-title>{{ container_title }}</v-toolbar-title>
       <v-spacer />
-      <v-switch
-        v-model="showPreview"
-        style="max-width: 150px"
-        :label="$t('product.preview')"
-        hide-details
-        color="success"
-        density="compact"
-      />
       <v-btn
         v-if="renderedProduct"
         variant="outlined"
@@ -113,12 +105,31 @@
           </v-dialog>
         </v-col>
         <v-col v-if="showPreview" :cols="6" class="pa-5 taranis-vertical-view">
-          <span v-if="render_direct" v-dompurify-html="renderedProduct"></span>
+          <div v-if="renderedProduct">
+            <span
+              v-if="render_direct"
+              v-dompurify-html="renderedProduct"
+            ></span>
 
-          <vue-pdf-embed
-            v-else
-            :source="'data:application/pdf;base64,' + renderedProduct"
-          />
+            <vue-pdf-embed
+              v-else
+              :source="'data:application/pdf;base64,' + renderedProduct"
+            />
+          </div>
+          <div v-else>
+            <v-row class="d-flex align-center justify-center mb-4">
+              <h2>No rendered Product Found</h2>
+            </v-row>
+            <v-row class="d-flex align-center justify-center mt-5">
+              <v-btn
+                variant="outlined"
+                prepend-icon="mdi-eye-outline"
+                @click="rerenderProduct()"
+              >
+                <span>{{ $t('product.render') }}</span>
+              </v-btn>
+            </v-row>
+          </div>
         </v-col>
       </v-row>
     </v-card-text>
