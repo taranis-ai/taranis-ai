@@ -137,7 +137,7 @@ export default {
     const roles = computed(() => store.roles.items)
     const users = computed(() => store.users.items)
     const rules = {
-      required: (value) => !!value || 'Required.'
+      required: (v) => Boolean(v) || 'Required.'
     }
 
     const headers_user = [
@@ -169,8 +169,9 @@ export default {
     const selected_users = []
     const selected_roles = []
 
-    const add = () => {
-      if (!form.value.validate()) {
+    const add = async () => {
+      const { valid } = await form.value.validate()
+      if (!valid) {
         return
       }
 

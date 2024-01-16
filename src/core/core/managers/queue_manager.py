@@ -111,6 +111,12 @@ class QueueManager:
             return {"message": f"Generating Product {product_id} scheduled"}, 200
         return {"error": "Could not reach rabbitmq"}, 500
 
+    def publish_product(self, product_id: int, publisher_id: str):
+        if self.send_task("publisher_task", args=[product_id, publisher_id]):
+            logger.info(f"Publishing Product: {product_id} with publisher: {publisher_id} scheduled")
+            return {"message": f"Publishing Product: {product_id} with publisher: {publisher_id} scheduled"}, 200
+        return {"error": "Could not reach rabbitmq"}, 500
+
     def get_bot_signature(self, bot_id: list, source_id: str):
         return self.celery.signature("bot_task", kwargs={"bot_id": bot_id, "filter": {"SOURCE": source_id}})
 

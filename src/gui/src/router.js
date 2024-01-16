@@ -238,15 +238,15 @@ export const router = createRouter({
       }
     },
     {
-      path: '/config/publishers/presets',
-      name: 'publisher_presets',
+      path: '/config/publishers',
+      name: 'publisher',
       components: {
-        default: () => import('@/views/admin/PublisherPresetsView.vue'),
+        default: () => import('@/views/admin/PublisherView.vue'),
         nav: () => import('@/views/nav/ConfigNav.vue')
       },
       meta: {
         requiresAuth: true,
-        requiresPerm: [Permissions.CONFIG_PUBLISHER_PRESET_ACCESS]
+        requiresPerm: [Permissions.CONFIG_PUBLISHER_ACCESS]
       }
     },
     {

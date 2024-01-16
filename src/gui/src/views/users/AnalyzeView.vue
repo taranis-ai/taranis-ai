@@ -84,40 +84,39 @@ export default {
     }
 
     const editItem = (item) => {
-      console.debug('editItem', item)
       router.push('/report/' + item.id)
     }
 
     const deleteItem = (item) => {
       deleteReportItem(item)
-        .then(() => {
-          notifySuccess(`Successfully deleted ${item.title}`)
+        .then((response) => {
+          notifySuccess(response)
           updateData()
         })
-        .catch(() => {
-          notifyFailure(`Failed to delete ${item.title}`)
+        .catch((error) => {
+          notifyFailure(error)
         })
     }
 
     const createItem = (item) => {
       createReportItem(item)
-        .then(() => {
-          notifySuccess(`Successfully created ${item.title}`)
+        .then((response) => {
+          notifySuccess(response)
           updateData()
         })
-        .catch(() => {
-          notifyFailure(`Failed to create ${item.title}`)
+        .catch((error) => {
+          notifyFailure(error)
         })
     }
 
     const updateItem = (item) => {
       updateReportItem(item)
-        .then(() => {
-          notifySuccess(`Successfully updated ${item.title}`)
+        .then((response) => {
+          notifySuccess(response)
           updateData()
         })
-        .catch(() => {
-          notifyFailure(`Failed to update ${item.title}`)
+        .catch((error) => {
+          notifyFailure(error)
         })
     }
 

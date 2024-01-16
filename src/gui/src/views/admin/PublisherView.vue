@@ -1,9 +1,9 @@
 <template>
   <v-container fluid>
     <DataTable
-      :items="publisher_presets.items"
+      :items="publisher.items"
       :add-button="true"
-      :header-filter="['id', 'name', 'description', 'actions']"
+      :header-filter="['name', 'description', 'type', 'actions']"
       @delete-item="deleteItem"
       @edit-item="editItem"
       @add-item="addItem"
@@ -16,7 +16,7 @@
       :parameters="parameters"
       :title="editTitle"
       @submit="handleSubmit"
-    ></EditConfig>
+    />
   </v-container>
 </template>
 
@@ -24,18 +24,14 @@
 import { defineComponent, ref, computed, onMounted } from 'vue'
 import DataTable from '@/components/common/DataTable.vue'
 import EditConfig from '@/components/config/EditConfig.vue'
-import {
-  deletePublisherPreset,
-  createPublisherPreset,
-  updatePublisherPreset
-} from '@/api/config'
+import { deletePublisher, createPublisher, updatePublisher } from '@/api/config'
 import { notifySuccess, notifyFailure, baseFormat } from '@/utils/helpers'
 import { useConfigStore } from '@/stores/ConfigStore'
 import { useMainStore } from '@/stores/MainStore'
 import { storeToRefs } from 'pinia'
 
 export default defineComponent({
-  name: 'PublisherPresetsView',
+  name: 'PublisherView',
   components: {
     DataTable,
     EditConfig
@@ -44,8 +40,7 @@ export default defineComponent({
     const configStore = useConfigStore()
     const mainStore = useMainStore()
 
-    const { publisher_presets, publisher_types, parameters } =
-      storeToRefs(configStore)
+    const { publisher, publisher_types, parameters } = storeToRefs(configStore)
 
     const publishersList = ref([])
     const formData = ref({})
@@ -59,16 +54,17 @@ export default defineComponent({
           label: 'Type',
           type: 'select',
           items: publishersList.value,
-          disabled: edit.value
+          disabled: edit.value,
+          rules: [(v) => Boolean(v) || 'Type is required']
         }
       ]
       return [...baseFormat, ...additionalFormat]
     })
 
     const updateData = () => {
-      configStore.loadPublisherPresets().then(() => {
-        mainStore.itemCountTotal = publisher_presets.value.total_count
-        mainStore.itemCountFiltered = publisher_presets.value.items.length
+      configStore.loadPublisher().then(() => {
+        mainStore.itemCountTotal = publisher.value.total_count
+        mainStore.itemCountFiltered = publisher.value.items.length
       })
       configStore.loadWorkerTypes().then(() => {
         publishersList.value = publisher_types.value.map((publisher) => {
@@ -95,8 +91,8 @@ export default defineComponent({
 
     const editTitle = computed(() => {
       return edit.value
-        ? `Edit Publisher Preset: '${formData.value['name']}'`
-        : 'Add Publisher Preset'
+        ? `Edit Publisher: '${formData.value['name']}'`
+        : 'Add Publisher'
     })
 
     const handleSubmit = (submittedData) => {
@@ -111,7 +107,7 @@ export default defineComponent({
 
     const deleteItem = (item) => {
       if (!item.default) {
-        deletePublisherPreset(item)
+        deletePublisher(item)
           .then(() => {
             notifySuccess(`Successfully deleted ${item.name}`)
             updateData()
@@ -123,7 +119,7 @@ export default defineComponent({
     }
 
     const createItem = (item) => {
-      createPublisherPreset(item)
+      createPublisher(item)
         .then(() => {
           notifySuccess(`Successfully created ${item.name}`)
           updateData()
@@ -134,7 +130,7 @@ export default defineComponent({
     }
 
     const updateItem = (item) => {
-      updatePublisherPreset(item)
+      updatePublisher(item)
         .then(() => {
           notifySuccess(`Successfully updated ${item.name}`)
           updateData()
@@ -149,7 +145,7 @@ export default defineComponent({
     })
 
     return {
-      publisher_presets,
+      publisher,
       publishersList,
       formData,
       parameters,

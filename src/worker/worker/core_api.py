@@ -64,6 +64,9 @@ class CoreApi:
     def get_product(self, product_id: int) -> dict | None:
         return self.api_get(f"/worker/products/{product_id}")
 
+    def get_publisher(self, publisher_id: str) -> dict | None:
+        return self.api_get(f"/worker/publishers/{publisher_id}")
+
     def get_template(self, presenter: int) -> str | None:
         url = f"{self.api_url}/worker/presenters/{presenter}"
         response = requests.get(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)

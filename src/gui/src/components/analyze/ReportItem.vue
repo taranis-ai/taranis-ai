@@ -180,7 +180,6 @@ export default {
     )
 
     onMounted(() => {
-      console.debug(`Loaded REPORT ITEM ${report_item.value.id}`)
       store.loadReportTypes()
     })
 
@@ -196,8 +195,6 @@ export default {
       } else {
         createReportItem(report_item.value)
           .then((response) => {
-            console.debug(`Created report item ${response.data.id}`)
-            console.debug(response.data)
             router.push('/report/' + response.data.id)
             emit('reportcreated', response.data.id)
             notifySuccess(`Report with ID ${response.data.id} created`)
@@ -210,7 +207,6 @@ export default {
     }
 
     const removeAllFromReport = () => {
-      console.debug('Removing all storys from report')
       setAggregatesToReportItem(report_item.value.id, [])
         .then(() => {
           report_item.value.news_item_aggregates = []
@@ -222,7 +218,6 @@ export default {
     }
 
     const removeFromReport = (story_id) => {
-      console.debug(`Removing story ${story_id} from report`)
       report_item.value.news_item_aggregates =
         report_item.value.news_item_aggregates.filter(
           (story) => story.id !== story_id
