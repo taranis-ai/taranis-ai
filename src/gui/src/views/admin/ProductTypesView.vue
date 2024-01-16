@@ -20,6 +20,7 @@
         <code-editor
           v-if="showForm"
           v-model:content="templateData"
+          class="mb-3"
           header="Template Content"
         />
       </template>
@@ -80,7 +81,7 @@ export default {
           name: 'title',
           label: 'Title',
           type: 'text',
-          rules: [(v) => !!v || 'Required']
+          rules: [(v) => Boolean(v) || 'Required']
         },
         {
           name: 'description',
@@ -91,7 +92,8 @@ export default {
           name: 'type',
           label: 'Type',
           type: 'select',
-          items: presenterList.value
+          items: presenterList.value,
+          rules: [(v) => Boolean(v) || 'Required']
         },
         {
           name: 'TEMPLATE_PATH',
@@ -141,7 +143,8 @@ export default {
       getProductType(item.id).then((response) => {
         console.debug('REPORT TYPES', response.data.report_types)
         formData.value['report_types'] = response.data.report_types
-        templateData.value = atob(response.data.template)
+        templateData.value =
+          response.data.template === '' ? atob(response.data.template) : ''
         edit.value = true
         showForm.value = true
       })
@@ -176,16 +179,15 @@ export default {
     }
 
     const deleteItem = (item) => {
-      if (!item.default) {
-        deleteProductType(item)
-          .then((response) => {
-            notifySuccess(response.data.message)
-            updateData()
-          })
-          .catch((error) => {
-            notifyFailure(getMessageFromError(error))
-          })
-      }
+      showForm.value = false
+      deleteProductType(item)
+        .then((response) => {
+          notifySuccess(response.data.message)
+          updateData()
+        })
+        .catch((error) => {
+          notifyFailure(getMessageFromError(error))
+        })
     }
 
     const updateItem = (item) => {

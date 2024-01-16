@@ -90,7 +90,6 @@ export default {
     const deleteItem = (item) => {
       deleteReportItem(item)
         .then((response) => {
-          console.error(response)
           notifySuccess(response)
           updateData()
         })

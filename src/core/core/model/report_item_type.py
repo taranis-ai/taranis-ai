@@ -145,7 +145,7 @@ class AttributeGroup(BaseModel):
 class ReportItemType(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String())
-    description = db.Column(db.String())
+    description: Any = db.Column(db.String())
 
     attribute_groups = db.relationship(
         "AttributeGroup",
@@ -153,8 +153,7 @@ class ReportItemType(BaseModel):
         cascade="all, delete-orphan",
     )
 
-    def __init__(self, title, description, attribute_groups=None, id=None):
-        self.id = id
+    def __init__(self, title, description=None, attribute_groups=None, id=None):
         self.title = title
         self.description = description
         self.attribute_groups = AttributeGroup.load_multiple(attribute_groups) if attribute_groups else []

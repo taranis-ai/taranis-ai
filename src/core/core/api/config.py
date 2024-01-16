@@ -181,7 +181,9 @@ class Roles(Resource):
 
     @auth_required("CONFIG_ROLE_UPDATE")
     def put(self, role_id):
-        return role.Role.update(role_id, request.json)
+        if data := request.json:
+            return role.Role.update(role_id, data)
+        return {"error": "No data provided"}, 400
 
     @auth_required("CONFIG_ROLE_DELETE")
     def delete(self, role_id):

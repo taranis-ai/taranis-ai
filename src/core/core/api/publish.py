@@ -4,7 +4,7 @@ from flask_restx import Resource, Namespace, Api
 from core.managers import auth_manager, queue_manager
 from core.managers.log_manager import logger
 from core.managers.auth_manager import auth_required
-from core.model import product, publisher_preset, product_type
+from core.model import product, product_type
 
 
 class ProductTypes(Resource):
@@ -48,18 +48,13 @@ class Products(Resource):
 class PublishProduct(Resource):
     @auth_required("PUBLISH_PRODUCT")
     def post(self, product_id, publisher_id):
-        product_data, status_code = product.Product.generate_product(product_id)
-        if status_code == 200:
-            return publisher_preset.PublisherPreset.get(publisher_id)
-        return {"error": "Failed to generate product"}, status_code
+        return queue_manager.queue_manager.publish_product(product_id, publisher_id)
 
 
 class ProductsRender(Resource):
     @auth_required("PUBLISH_ACCESS")
     def post(self, product_id):
-        queue_manager.queue_manager.generate_product(product_id)
-
-        return {"message": "Product is being generated"}, 200
+        return queue_manager.queue_manager.generate_product(product_id)
 
     @auth_required("PUBLISH_ACCESS")
     def get(self, product_id):

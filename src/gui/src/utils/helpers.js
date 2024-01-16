@@ -239,7 +239,8 @@ export const baseFormat = [
   {
     name: 'name',
     label: 'Name',
-    type: 'text'
+    type: 'text',
+    rules: [(v) => Boolean(v) || 'Required']
   },
   {
     name: 'description',

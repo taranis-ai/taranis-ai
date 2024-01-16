@@ -5,34 +5,34 @@ from core.config import Config
 def pre_seed(db):
     try:
         pre_seed_permissions()
-        logger.log_debug("Permissions seeded")
+        logger.debug("Permissions seeded")
 
         pre_seed_source_groups()
-        logger.log_debug("Source groups seeded")
+        logger.debug("Source groups seeded")
 
         pre_seed_roles()
-        logger.log_debug("Roles seeded")
+        logger.debug("Roles seeded")
 
         pre_seed_default_user()
-        logger.log_debug("Default users seeded")
+        logger.debug("Default users seeded")
 
         pre_seed_attributes(db)
-        logger.log_debug("Attributes seeded")
+        logger.debug("Attributes seeded")
 
         pre_seed_report_items(db)
-        logger.log_debug("Report items seeded")
+        logger.debug("Report items seeded")
 
         pre_seed_wordlists()
-        logger.log_debug("Wordlists seeded")
+        logger.debug("Wordlists seeded")
 
         pre_seed_workers()
-        logger.log_debug("Workers seeded")
+        logger.debug("Workers seeded")
 
         pre_seed_assets()
-        logger.log_debug("Assets seeded")
+        logger.debug("Assets seeded")
 
     except Exception:
-        logger.log_debug_trace()
+        logger.exception()
         logger.critical("Pre Seed failed")
 
 
@@ -44,7 +44,7 @@ def pre_seed_source_groups():
 
 
 def pre_seed_workers():
-    from core.managers.workers_pre_seed import workers, bots, product_types
+    from core.managers.pre_seed_data import workers, bots, product_types
     from core.model.product_type import ProductType
     from core.model.worker import Worker
     from core.model.bot import Bot
@@ -775,7 +775,7 @@ def pre_seed_attributes(db):
 
 def pre_seed_report_items(db):
     from core.model.report_item_type import ReportItemType
-    from core.managers.workers_pre_seed import report_types
+    from core.managers.pre_seed_data import report_types
 
     for report_type in report_types:
         if not ReportItemType.get_by_title(title=report_type["title"]):
@@ -784,79 +784,11 @@ def pre_seed_report_items(db):
 
 def pre_seed_wordlists():
     from core.model.word_list import WordList
+    from core.managers.pre_seed_data import word_lists
 
-    if not WordList.find_by_name(name="Default highlighting wordlist"):
-        WordList.add(
-            {
-                "name": "CVE Vendors",
-                "description": "List of vendors that are known to be affected by a CVE.",
-                "link": "https://raw.githubusercontent.com/taranis-ai/wordlists/master/output/vendors.json",
-                "usage": 4,
-            }
-        )
-        WordList.add(
-            {
-                "name": "CVE Products",
-                "description": "List of products that are known to be affected by a CVE.",
-                "link": "https://raw.githubusercontent.com/taranis-ai/wordlists/master/output/products.json",
-                "usage": 4,
-            }
-        )
-        WordList.add(
-            {
-                "name": "Countries",
-                "description": "List of Countries",
-                "link": "https://raw.githubusercontent.com/taranis-ai/wordlists/master/output/countries.json",
-                "usage": 4,
-            }
-        )
-        WordList.add(
-            {
-                "name": "Austrian Municipalities",
-                "description": "List of Austrian Municipalities",
-                "link": "https://raw.githubusercontent.com/taranis-ai/wordlists/master/output/austrian_municipalities.json",
-            }
-        )
-        WordList.add(
-            {
-                "name": "Common Cyber Security Terms",
-                "description": "List of common cyber security terms",
-                "link": "https://raw.githubusercontent.com/taranis-ai/wordlists/master/output/common.json",
-                "usage": 4,
-            }
-        )
-        WordList.add(
-            {
-                "name": "APT Groups",
-                "description": "List of Advanced Persistent Threat Groups",
-                "link": "https://raw.githubusercontent.com/taranis-ai/wordlists/master/output/apt.json",
-                "usage": 4,
-            }
-        )
-        WordList.add(
-            {
-                "name": "Länder",
-                "description": "Liste aller Länder",
-                "link": "https://raw.githubusercontent.com/taranis-ai/wordlists/master/output/countries_german.json",
-                "usage": 4,
-            }
-        )
-        WordList.add(
-            {
-                "name": "Internationale Organisationen",
-                "description": "Wichtigsten internationalen Organisationen",
-                "link": "https://raw.githubusercontent.com/taranis-ai/wordlists/master/output/ngos_german.json",
-                "usage": 4,
-            }
-        )
-        WordList.add(
-            {
-                "name": "Unternehmen Österreich",
-                "description": "Größten Unternehmen in Österreich",
-                "link": "https://raw.githubusercontent.com/taranis-ai/wordlists/master/output/companies_austria.json",
-                "usage": 4,
-            }
-        )
+    for word_list in word_lists:
+        if not WordList.find_by_name(name=word_list["name"]):
+            WordList.add(word_list)
 
 
 def pre_seed_default_user():

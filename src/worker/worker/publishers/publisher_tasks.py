@@ -20,6 +20,7 @@ class PublisherTask(Task):
             "twitter_publisher": worker.publishers.TWITTERPublisher(),
             "wordpress_publisher": worker.publishers.WORDPRESSPublisher(),
             "ftp_publisher": worker.publishers.FTPPublisher(),
+            "misp_publisher": worker.publishers.MISPPublisher(),
         }
 
     def get_product(self, product_id: int) -> tuple[dict[str, str] | None, str | None]:
@@ -34,18 +35,19 @@ class PublisherTask(Task):
             return None, f"Product with id {product_id} not found"
         return product, None
 
-    def get_publisher(self, product) -> tuple[BasePublisher | None, str | None]:
-        publisher_type = product.get("type")
-        if not publisher_type:
-            logger.error(f"Product {product['id']} has no publisher_type")
-            return None, f"Product {product['id']} has no publisher_type"
+    def get_publisher(self, publisher_id: str) -> tuple[dict[str, str] | None, str | None]:
+        try:
+            publisher = self.core_api.get_publisher(publisher_id)
+        except ConnectionError as e:
+            logger.critical(e)
+            return None, str(e)
 
-        if publisher := self.publishers.get(publisher_type):
-            return publisher, None
+        if not publisher:
+            logger.error(f"Publisher with id {publisher_id} not found")
+            return None, f"Publisher with id {publisher_id} not found"
+        return publisher, None
 
-        return None, f"Publisher {publisher_type} not implemented"
-
-    def run(self, product_id: int):
+    def run(self, product_id: int, publisher_id: str):
         err = None
 
         product, err = self.get_product(product_id)
@@ -54,11 +56,18 @@ class PublisherTask(Task):
 
         logger.debug(f"Rendering product {product}")
 
-        publisher, err = self.get_publisher(product)
+        publisher, err = self.get_publisher(publisher_id)
         if err or not publisher:
             return err
 
-        published_product = publisher.publish(product)
+        logger.debug(f"Publishing to publisher {publisher}")
+
+        pub_type = publisher.get("type")
+        if pub_type not in self.publishers:
+            return "Publisher type not found"
+        publisher_type: BasePublisher = self.publishers[pub_type]
+
+        published_product = publisher_type.publish(product)
         if not published_product:
             return "Error generating product"
         if "error" in published_product:
