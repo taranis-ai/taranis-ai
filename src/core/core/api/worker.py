@@ -9,6 +9,7 @@ from core.model.osint_source import OSINTSource
 from core.model.product import Product
 from core.model.queue import ScheduleEntry
 from core.model.product_type import ProductType
+from core.model.publisher_preset import PublisherPreset
 from core.model.word_list import WordList
 from core.model.news_item import NewsItemAggregate, NewsItemTag
 from core.managers.sse_manager import sse_manager
@@ -111,6 +112,17 @@ class Presenters(Resource):
                 if tmpl := pres.get_template():
                     return send_file(tmpl)
             return {"error": f"Presenter with id {presenter} not found"}, 404
+        except Exception:
+            logger.log_debug_trace()
+
+
+class Publishers(Resource):
+    @api_key_required
+    def get(self, publisher: str):
+        try:
+            if pub := PublisherPreset.get(publisher):
+                return pub.to_dict(), 200
+            return {"error": f"Publisher with id {publisher} not found"}, 404
         except Exception:
             logger.log_debug_trace()
 
@@ -298,6 +310,10 @@ def initialize(api: Api):
     worker_ns.add_resource(
         Presenters,
         "/presenters/<string:presenter>",
+    )
+    worker_ns.add_resource(
+        Publishers,
+        "/publishers/<string:publisher>",
     )
     worker_ns.add_resource(AddNewsItems, "/news-items")
     worker_ns.add_resource(BotsInfo, "/bots")

@@ -11,6 +11,6 @@ def cleanup_token_blacklist():
     return "Token blacklist cleaned up"
 
 
-@shared_task(time_limit=30, name="gather_word_list")
+@shared_task(time_limit=120, name="gather_word_list")
 def gather_word_list(word_list_id: int):
     return update_wordlist(word_list_id)

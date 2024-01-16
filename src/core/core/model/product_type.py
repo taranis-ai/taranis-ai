@@ -11,6 +11,7 @@ from core.model.product import Product
 from core.model.base_model import BaseModel
 from core.model.acl_entry import ACLEntry, ItemType
 from core.model.parameter_value import ParameterValue
+from core.model.report_item_type import ReportItemType
 from core.model.worker import PRESENTER_TYPES, Worker
 from core.managers.data_manager import get_presenter_template_path, get_presenter_templates
 
@@ -22,13 +23,15 @@ class ProductType(BaseModel):
     type: Any = db.Column(db.Enum(PRESENTER_TYPES))
 
     parameters = db.relationship("ParameterValue", secondary="product_type_parameter_value", cascade="all, delete")
+    report_types = db.relationship("ReportItemType", secondary="product_type_report_type", cascade="all, delete")
 
-    def __init__(self, title, type, description="", parameters=None, id=None):
+    def __init__(self, title, type, description="", parameters=None, report_types=None, id=None):
         self.id = id
         self.title = title
         self.description = description
         self.type = type
         self.parameters = Worker.parse_parameters(type, parameters)
+        self.report_types = [ReportItemType.get(report_type) for report_type in report_types] if report_types else []
 
     @classmethod
     def get_all(cls):
@@ -89,7 +92,7 @@ class ProductType(BaseModel):
         product_type = cls.get(preset_id)
         if not product_type:
             logger.error(f"Could not find product type with id {preset_id}")
-            return None
+            return {"error": f"Could not find product type with id {preset_id}"}, 404
         if title := data.get("title"):
             product_type.title = title
 
@@ -101,11 +104,18 @@ class ProductType(BaseModel):
         elif parameters := data.get("parameters"):
             updated_product_type = ParameterValue.get_or_create_from_list(parameters)
             product_type.parameters = ParameterValue.get_update_values(product_type.parameters, updated_product_type)
+        report_types = data.get("report_types", None)
+        if report_types is not None:
+            product_type.report_types = [ReportItemType.get(report_type) for report_type in report_types]
+        if template_data := data.get("template"):
+            if template_path := product_type.get_template():
+                product_type._base64_to_file(template_data, template_path)
         db.session.commit()
-        return product_type.id
+        return {"message": f"Updated product type {product_type.title}", "id": product_type.id}, 200
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
+        data["report_types"] = [report_type.id for report_type in self.report_types if report_type]
         data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters}
         return data
 
@@ -129,6 +139,13 @@ class ProductType(BaseModel):
         except Exception as e:
             print(f"An error occurred: {e}")
             return ""
+
+    def _base64_to_file(self, base64_string: str, filepath: str) -> None:
+        try:
+            with open(filepath, "wb") as f:
+                f.write(base64.b64decode(base64_string))
+        except Exception as e:
+            print(f"An error occurred: {e}")
 
     def get_detail_json(self):
         data = self.to_dict()
@@ -157,3 +174,8 @@ class ProductType(BaseModel):
 class ProductTypeParameterValue(BaseModel):
     product_type_id = db.Column(db.Integer, db.ForeignKey("product_type.id", ondelete="CASCADE"), primary_key=True)
     parameter_value_id = db.Column(db.Integer, db.ForeignKey("parameter_value.id"), primary_key=True)
+
+
+class ProductTypeReportType(BaseModel):
+    product_type_id = db.Column(db.Integer, db.ForeignKey("product_type.id", ondelete="CASCADE"), primary_key=True)
+    report_item_type_id = db.Column(db.Integer, db.ForeignKey("report_item_type.id"), primary_key=True)

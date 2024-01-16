@@ -115,7 +115,7 @@
         </v-col>
       </v-row>
       <slot name="additionalData"></slot>
-      <v-btn block type="submit" color="success"> Submit </v-btn>
+      <v-btn block class="mt-3" type="submit" color="success"> Submit </v-btn>
     </v-form>
   </v-card>
 </template>
@@ -164,10 +164,12 @@ export default {
 
     const { d } = useI18n()
 
-    const handleSubmit = () => {
-      if (!config_form.value.validate()) {
+    const handleSubmit = async () => {
+      const { valid } = await config_form.value.validate()
+      if (!valid) {
         return
       }
+
       emit('submit', reconstructFormData(formData.value, format.value))
     }
 

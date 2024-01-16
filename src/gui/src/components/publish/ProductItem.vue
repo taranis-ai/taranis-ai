@@ -3,14 +3,6 @@
     <v-toolbar density="compact">
       <v-toolbar-title>{{ container_title }}</v-toolbar-title>
       <v-spacer />
-      <v-switch
-        v-model="verticalView"
-        style="max-width: 150px"
-        :label="$t('product.preview')"
-        hide-details
-        color="success"
-        density="compact"
-      />
       <v-btn
         v-if="renderedProduct"
         variant="outlined"
@@ -44,8 +36,8 @@
     <v-card-text>
       <v-row no-gutters>
         <v-col
-          :cols="verticalView ? 6 : 12"
-          :class="verticalView ? 'taranis-vertical-view' : ''"
+          :cols="showPreview ? 6 : 12"
+          :class="showPreview ? 'taranis-vertical-view' : ''"
         >
           <v-form id="form" ref="form" class="px-4">
             <v-row no-gutters>
@@ -57,6 +49,8 @@
                   no-data-text="No Product Types available - please create one under Admin > Product Types"
                   :label="$t('product.product_type')"
                   :disabled="edit"
+                  :rules="required"
+                  required
                 />
               </v-col>
               <v-col cols="6" class="pr-3">
@@ -64,6 +58,8 @@
                   v-model="product.title"
                   :label="$t('product.title')"
                   name="title"
+                  :rules="required"
+                  required
                 />
               </v-col>
               <v-col cols="12" class="pr-3">
@@ -74,20 +70,7 @@
                 />
               </v-col>
             </v-row>
-            <v-row no-gutters>
-              <v-col cols="12">
-                <v-select
-                  v-model="preset.selected"
-                  :items="publisher"
-                  item-title="name"
-                  item-value="id"
-                  :label="$t('product.publisher')"
-                  multiple
-                >
-                </v-select>
-              </v-col>
-            </v-row>
-            <v-row no-gutters>
+            <v-row v-if="product.product_type_id" no-gutters>
               <v-col cols="12">
                 <v-data-table
                   v-model="product.report_items"
@@ -99,15 +82,54 @@
                 </v-data-table>
               </v-col>
             </v-row>
+            <v-row no-gutters>
+              <v-col cols="12">
+                <v-btn
+                  v-if="edit && renderedProduct"
+                  color="primary"
+                  class="mt-3"
+                  block
+                  @click="publishDialog = true"
+                >
+                  Publish
+                </v-btn>
+              </v-col>
+            </v-row>
           </v-form>
+          <v-dialog v-model="publishDialog" width="auto">
+            <popup-publish-product
+              :product-id="product.id"
+              :dialog="publishDialog"
+              @close="publishDialog = false"
+            />
+          </v-dialog>
         </v-col>
-        <v-col v-if="verticalView" :cols="6" class="pa-5 taranis-vertical-view">
-          <span v-if="render_direct" v-dompurify-html="renderedProduct"></span>
+        <v-col v-if="showPreview" :cols="6" class="pa-5 taranis-vertical-view">
+          <div v-if="renderedProduct">
+            <span
+              v-if="render_direct"
+              v-dompurify-html="renderedProduct"
+            ></span>
 
-          <vue-pdf-embed
-            v-else
-            :source="'data:application/pdf;base64,' + renderedProduct"
-          />
+            <vue-pdf-embed
+              v-else
+              :source="'data:application/pdf;base64,' + renderedProduct"
+            />
+          </div>
+          <div v-else>
+            <v-row class="d-flex align-center justify-center mb-4">
+              <h2>No rendered Product Found</h2>
+            </v-row>
+            <v-row class="d-flex align-center justify-center mt-5">
+              <v-btn
+                variant="outlined"
+                prepend-icon="mdi-eye-outline"
+                @click="rerenderProduct()"
+              >
+                <span>{{ $t('product.render') }}</span>
+              </v-btn>
+            </v-row>
+          </div>
         </v-col>
       </v-row>
     </v-card-text>
@@ -122,6 +144,7 @@ import {
   getRenderdProduct,
   triggerRenderProduct
 } from '@/api/publish'
+import PopupPublishProduct from '../popups/PopupPublishProduct.vue'
 import { useI18n } from 'vue-i18n'
 import { useConfigStore } from '@/stores/ConfigStore'
 import { useAnalyzeStore } from '@/stores/AnalyzeStore'
@@ -133,7 +156,8 @@ import { useRouter } from 'vue-router'
 export default {
   name: 'ProductItem',
   components: {
-    VuePdfEmbed
+    VuePdfEmbed,
+    PopupPublishProduct
   },
   props: {
     productProp: {
@@ -147,23 +171,32 @@ export default {
     const { t } = useI18n()
     const configStore = useConfigStore()
     const analyzeStore = useAnalyzeStore()
-    const verticalView = ref(props.edit)
+    const showPreview = ref(props.edit)
+    const publishDialog = ref(false)
+    const form = ref(null)
 
-    const reportItems = computed(() => analyzeStore.getReportItemsTableData)
     const renderedProduct = ref(null)
     const renderedProductMimeType = ref(null)
 
     const product_types = computed(() => {
       return configStore.product_types.items
     })
-    const publisher = computed(() => {
-      return configStore.publisher_presets.items
-    })
+
     const product = ref(props.productProp)
     const preset = ref({ selected: null, name: 'Preset' })
-    const required = [(v) => !!v || 'Required']
+    const required = [(v) => Boolean(v) || 'Required']
     const router = useRouter()
 
+    const supported_report_types = computed(() => {
+      const p = product_types.value.find(
+        (item) => item.id === product.value.product_type_id
+      )
+      return p ? p.report_types : []
+    })
+
+    const reportItems = computed(() => {
+      return analyzeStore.getReportItemsByIDs(supported_report_types.value)
+    })
     const render_direct = computed(() => {
       return (
         renderedProductMimeType.value === 'text/html' ||
@@ -186,7 +219,9 @@ export default {
         : `${t('button.create')} product`
     })
 
-    const saveProduct = () => {
+    const saveProduct = async () => {
+      const { valid } = await form.value.validate()
+      if (!valid) return
       if (props.edit) {
         updateProduct(product.value)
           .then((response) => {
@@ -203,7 +238,6 @@ export default {
             const new_id = response.data.id
             product.value.id = new_id
             router.push('/product/' + new_id)
-            console.debug('Created product', new_id)
             emit('productcreated', new_id)
             notifySuccess('Product created ' + new_id)
           })
@@ -291,23 +325,26 @@ export default {
 
     onMounted(() => {
       configStore.loadProductTypes()
-      configStore.loadPublisherPresets()
       analyzeStore.loadReportItems()
       analyzeStore.loadReportTypes()
-      renderProduct()
+      if (props.edit) {
+        renderProduct()
+      }
     })
 
     return {
+      form,
       product,
       required,
       preset,
       container_title,
       product_types,
-      publisher,
-      verticalView,
+      publishDialog,
+      showPreview,
       reportItems,
       renderedProduct,
       report_item_headers,
+      supported_report_types,
       render_direct,
       saveProduct,
       renderProduct,

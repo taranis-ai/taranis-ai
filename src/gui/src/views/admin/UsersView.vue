@@ -78,7 +78,6 @@ export default {
     }
 
     const editItem = (item) => {
-      console.debug(item)
       user.value = item
       edit.value = true
       showForm.value = true
@@ -93,7 +92,6 @@ export default {
     }
 
     const deleteItem = (item) => {
-      console.debug('deleteItem', item)
       deleteUser(item)
         .then(() => {
           notifySuccess(`Successfully deleted ${item.name}`)

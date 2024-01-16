@@ -67,7 +67,6 @@ export default defineComponent({
     }
 
     const displayMore = async ({ done }) => {
-      console.debug('displayMore')
       if (!moreToLoad.value) {
         done('empty')
         return
@@ -79,7 +78,6 @@ export default defineComponent({
       done('ok')
     }
     const nextPage = () => {
-      console.debug('loadNext')
       filterStore.nextPage()
     }
 

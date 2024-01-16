@@ -126,7 +126,6 @@ export default {
     }
 
     const editItem = (item) => {
-      console.debug(item)
       formData.value = item
       edit.value = true
       showForm.value = true

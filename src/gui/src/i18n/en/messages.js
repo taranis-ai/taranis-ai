@@ -89,7 +89,7 @@ export const messages_en = {
     publications: 'Publications',
     osint_sources: 'OSINTSources',
     osint_source_groups: 'Source Groups',
-    publisher_presets: 'Publisher Presets',
+    publisher: 'Publisher',
     report_items: 'Report Items',
     attributes: 'Attributes',
     report_types: 'Report Types',
@@ -274,25 +274,6 @@ export const messages_en = {
     total_count: 'ACL count: '
   },
 
-  publisher_preset: {
-    add_new: 'Add new publisher preset',
-    edit: 'Edit publisher preset',
-    publisher: 'Publisher',
-    add: 'Add',
-    save: 'Save',
-    add_btn: 'Add New',
-    cancel: 'Cancel',
-    validation_error: 'Please fill in all required fields',
-    error: 'Could not create this preset.',
-    name: 'Name',
-    description: 'Description',
-    successful: 'New publisher preset was successfully added',
-    successful_edit: 'Publisher preset was successfully updated',
-    removed: 'Publisher preset was successfully removed',
-    removed_error: 'Publisher preset is in use and could not be deleted',
-    total_count: 'Publisher presets count: '
-  },
-
   product_type: {
     add_new: 'Add new product type',
     edit: 'Edit new product type',
@@ -368,8 +349,7 @@ export const messages_en = {
     attribute: 'attribute',
     attributes: 'Attributes',
     new_attribute: 'New Attribute',
-    min_occurrence: 'Min Occurrence',
-    max_occurrence: 'Max Occurrence',
+    multiple: 'Multiple Occurrence',
     total_count: 'Attributes count: ',
     import: 'Import',
     load_csv_file: 'Load CSV File',
@@ -453,7 +433,6 @@ export const messages_en = {
     error: 'Could not save this report item type',
     name: 'Name',
     description: 'Description',
-    section_title: 'Section',
     new_group: 'New Attribute Group',
     successful: 'New report item type was successfully added',
     successful_edit: 'Report item type was successfully updated',
@@ -489,7 +468,7 @@ export const messages_en = {
     render: 'Render Product',
     preview: 'Show preview',
     publish: 'Publish product',
-    download: 'Download',
+    download: 'Download'
   },
 
   analyze: {

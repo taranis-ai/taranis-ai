@@ -20,6 +20,7 @@
         <code-editor
           v-if="showForm"
           v-model:content="templateData"
+          class="mb-3"
           header="Template Content"
         />
       </template>
@@ -36,7 +37,11 @@ import {
   updateProductType,
   getProductType
 } from '@/api/config'
-import { notifySuccess, notifyFailure } from '@/utils/helpers'
+import {
+  notifySuccess,
+  notifyFailure,
+  getMessageFromError
+} from '@/utils/helpers'
 import { useConfigStore } from '@/stores/ConfigStore'
 import { useMainStore } from '@/stores/MainStore'
 import { ref, computed, onMounted } from 'vue'
@@ -61,7 +66,8 @@ export default {
 
     const templateData = ref('')
 
-    const { product_types, presenter_types } = storeToRefs(configStore)
+    const { product_types, presenter_types, report_item_types } =
+      storeToRefs(configStore)
 
     const formFormat = computed(() => {
       return [
@@ -75,7 +81,7 @@ export default {
           name: 'title',
           label: 'Title',
           type: 'text',
-          rules: [(v) => !!v || 'Required']
+          rules: [(v) => Boolean(v) || 'Required']
         },
         {
           name: 'description',
@@ -86,7 +92,8 @@ export default {
           name: 'type',
           label: 'Type',
           type: 'select',
-          items: presenterList.value
+          items: presenterList.value,
+          rules: [(v) => Boolean(v) || 'Required']
         },
         {
           name: 'TEMPLATE_PATH',
@@ -94,6 +101,13 @@ export default {
           label: 'Template',
           type: 'select',
           items: product_types.value.templates
+        },
+        {
+          name: 'report_types',
+          label: 'Report Types',
+          type: 'table',
+          headers: [{ title: 'Name', key: 'title' }],
+          items: report_item_types.value.items
         }
       ]
     })
@@ -102,6 +116,10 @@ export default {
       configStore.loadProductTypes().then(() => {
         mainStore.itemCountTotal = product_types.value.total_count
         mainStore.itemCountFiltered = product_types.value.length
+      })
+
+      configStore.loadReportTypes().then(() => {
+        console.debug('report_item_types', report_item_types.value.items)
       })
 
       configStore.loadWorkerTypes().then(() => {
@@ -123,8 +141,10 @@ export default {
     const editItem = (item) => {
       formData.value = item
       getProductType(item.id).then((response) => {
-        console.debug('response', response)
-        templateData.value = atob(response.data.template)
+        console.debug('REPORT TYPES', response.data.report_types)
+        formData.value['report_types'] = response.data.report_types
+        templateData.value =
+          response.data.template === '' ? atob(response.data.template) : ''
         edit.value = true
         showForm.value = true
       })
@@ -159,26 +179,25 @@ export default {
     }
 
     const deleteItem = (item) => {
-      if (!item.default) {
-        deleteProductType(item)
-          .then(() => {
-            notifySuccess(`Successfully deleted ${item.name}`)
-            updateData()
-          })
-          .catch(() => {
-            notifyFailure(`Failed to delete ${item.name}`)
-          })
-      }
+      showForm.value = false
+      deleteProductType(item)
+        .then((response) => {
+          notifySuccess(response.data.message)
+          updateData()
+        })
+        .catch((error) => {
+          notifyFailure(getMessageFromError(error))
+        })
     }
 
     const updateItem = (item) => {
       updateProductType(item)
-        .then(() => {
-          notifySuccess(`Successfully updated ${item.name}`)
+        .then((response) => {
+          notifySuccess(response.data.message)
           updateData()
         })
-        .catch(() => {
-          notifyFailure(`Failed to update ${item.name}`)
+        .catch((error) => {
+          notifyFailure(getMessageFromError(error))
         })
     }
 
