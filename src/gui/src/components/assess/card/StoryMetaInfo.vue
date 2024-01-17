@@ -63,16 +63,16 @@
         />
       </v-col>
       <v-col
+        v-if="
+          !published_date_outdated &&
+          !reportView &&
+          !detailView &&
+          showWeekChart
+        "
         :cols="detailView ? 10 : 6"
         :class="detailView ? 'detailView' : ''"
       >
         <week-chart
-          v-if="
-            !published_date_outdated &&
-            !reportView &&
-            !detailView &&
-            showWeekChart
-          "
           :chart-height="detailView ? 300 : 250"
           :chart-width="detailView ? 800 : 600"
           :story="story"
@@ -108,7 +108,11 @@
       </v-row>
     </div>
     <v-dialog v-model="showTagDialog" width="auto">
-      <popup-edit-tags :tags="story.tags" @close="showTagDialog = false" />
+      <popup-edit-tags
+        :tags="story.tags"
+        :story-id="story.id"
+        @close="showTagDialog = false"
+      />
     </v-dialog>
   </v-container>
 </template>
@@ -149,7 +153,7 @@ export default {
   },
   setup(props) {
     const { d, t } = useI18n()
-    const { xlAndUp } = useDisplay()
+    const { name: displayName } = useDisplay()
     const { showWeekChart, compactView } = storeToRefs(useFilterStore())
 
     const showTagDialog = ref(false)
@@ -183,7 +187,16 @@ export default {
       if (props.detailView) {
         return 20
       }
-      return xlAndUp.value ? 5 : 2
+      switch (displayName.value) {
+        case 'lg':
+          return 3
+        case 'xl':
+          return 4
+        case 'xxl':
+          return 5
+        default:
+          return 2
+      }
     })
 
     const getPublishedDate = computed(() => {

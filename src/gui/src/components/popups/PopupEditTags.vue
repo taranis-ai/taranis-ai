@@ -4,10 +4,9 @@
     <v-card-text>
       <v-autocomplete
         v-model="updatedTags"
-        :loading="loading"
+        v-model:search="search"
         :items="tags"
         chips
-        menu
         density="compact"
         closable-chips
         clearable
@@ -50,11 +49,16 @@
 </template>
 
 <script>
-import { onMounted, ref } from 'vue'
+import { ref } from 'vue'
+import { updateStoryTags } from '@/api/assess'
 
 export default {
   name: 'PopupEditTags',
   props: {
+    storyId: {
+      type: Number,
+      required: true
+    },
     tags: {
       type: Array,
       default: () => []
@@ -67,10 +71,10 @@ export default {
       emit('close')
     }
     const updatedTags = ref(props.tags)
+    const search = ref('')
 
     function editTags() {
-      alert('TODO: Implement')
-      console.debug('editTags')
+      updateStoryTags(props.storyId, updatedTags.value)
     }
 
     function onKeyDown(event) {
@@ -78,16 +82,14 @@ export default {
         const value = event.target.value
         if (value && !updatedTags.value.includes(value)) {
           updatedTags.value.push(value)
+          search.value = ''
         }
       }
     }
 
-    onMounted(() => {
-      console.debug(updatedTags.value)
-    })
-
     return {
       updatedTags,
+      search,
       onKeyDown,
       editTags,
       close

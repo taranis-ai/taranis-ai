@@ -665,7 +665,6 @@ class NewsItemAggregate(BaseModel):
         if not aggregate:
             return {"error": f"Aggregate with id: {id} not found"}, 404
 
-        logger.debug(f"Updating aggregate {id} with {data}")
         if "vote" in data:
             aggregate.vote(data["vote"], user.id)
 
@@ -678,11 +677,14 @@ class NewsItemAggregate(BaseModel):
         if "title" in data:
             aggregate.title = data["title"]
 
-        # TODO: Here I am not so sure if we want this
-        aggregate.description = data["description"]
+        if "description" in data:
+            aggregate.description = data["description"]
 
         if "comments" in data:
             aggregate.comments = data["comments"]
+
+        if "tags" in data:
+            cls.update_tags(id, data["tags"])
 
         NewsItemAggregate.update_status(aggregate.id)
         db.session.commit()
@@ -776,14 +778,30 @@ class NewsItemAggregate(BaseModel):
         return any(ReportItemNewsItemAggregate.assigned(aggregate_id) for aggregate_id in aggregate_ids)
 
     @classmethod
+    def reset_tags(cls, news_item_aggregate_id: int) -> tuple[dict, int]:
+        try:
+            n_i_a = cls.get(news_item_aggregate_id)
+            if not n_i_a:
+                logger.error(f"Story {news_item_aggregate_id} not found")
+                return {"error": "not_found"}, 404
+
+            n_i_a.tags = []
+            db.session.commit()
+            return {"message": "success"}, 200
+        except Exception as e:
+            logger.log_debug_trace("Reset News Item Tags Failed")
+            return {"error": str(e)}, 500
+
+    @classmethod
     def update_tags(cls, news_item_aggregate_id: int, tags: list | dict, bot_type: str = "") -> tuple[dict, int]:
         try:
             n_i_a = cls.get(news_item_aggregate_id)
             if not n_i_a:
-                logger.error(f"News Item Aggregate {news_item_aggregate_id} not found")
+                logger.error(f"Story {news_item_aggregate_id} not found")
                 return {"error": "not_found"}, 404
 
             new_tags = NewsItemTag.parse_tags(tags)
+            logger.debug(f"Updating tags for {n_i_a.id} with {new_tags}")
             for tag_name, new_tag in new_tags.items():
                 if tag_name in [tag.name for tag in n_i_a.tags]:
                     continue

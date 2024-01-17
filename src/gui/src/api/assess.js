@@ -47,6 +47,12 @@ export function voteNewsItemAggregate(aggregate_id, vote) {
   })
 }
 
+export function updateStoryTags(aggregate_id, tags) {
+  return apiService.patch(`/assess/stories/${aggregate_id}`, {
+    tags: tags
+  })
+}
+
 export function readNewsItemAggregate(aggregate_id, read) {
   return apiService.put(`/assess/stories/${aggregate_id}`, {
     read: read

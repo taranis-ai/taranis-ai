@@ -83,7 +83,7 @@ class NewsItem(Resource):
         return response, code
 
 
-class NewsItemAggregates(Resource):
+class Stories(Resource):
     @auth_required("ASSESS_ACCESS")
     def get(self):
         try:
@@ -106,7 +106,7 @@ class NewsItemAggregates(Resource):
             return {"error": "Failed to get Stories"}, 400
 
 
-class NewsItemAggregateTags(Resource):
+class StoryTags(Resource):
     @auth_required("ASSESS_ACCESS")
     def get(self):
         try:
@@ -121,7 +121,7 @@ class NewsItemAggregateTags(Resource):
             return {"error": "Failed to get Tags"}, 400
 
 
-class NewsItemAggregateTagList(Resource):
+class StoryTagList(Resource):
     @auth_required("ASSESS_ACCESS")
     def get(self):
         try:
@@ -135,7 +135,7 @@ class NewsItemAggregateTagList(Resource):
             return {"error": "Failed to get Tags"}, 400
 
 
-class NewsItemAggregate(Resource):
+class Story(Resource):
     @auth_required("ASSESS_ACCESS")
     @validate_id("aggregate_id")
     def get(self, aggregate_id):
@@ -158,6 +158,15 @@ class NewsItemAggregate(Resource):
         user = auth_manager.get_user_from_jwt()
         response, code = news_item.NewsItemAggregate.delete_by_id(aggregate_id, user)
         sse_manager.news_items_updated()
+        return response, code
+
+    @auth_required("ASSESS_UPDATE")
+    @validate_id("aggregate_id")
+    def patch(self, aggregate_id):
+        user = auth_manager.get_user_from_jwt()
+        if not request.is_json:
+            return {"error": "Missing JSON in request"}, 400
+        response, code = news_item.NewsItemAggregate.update(aggregate_id, request.json, user)
         return response, code
 
 
@@ -231,13 +240,13 @@ def initialize(api):
     namespace.add_resource(OSINTSourceGroupsAssess, "/osint-source-groups")
     namespace.add_resource(OSINTSourceGroupsList, "/osint-source-group-list")
     namespace.add_resource(OSINTSourcesList, "/osint-sources-list")
-    namespace.add_resource(NewsItemAggregates, "/news-item-aggregates", "/stories")
-    namespace.add_resource(NewsItemAggregateTags, "/tags")
-    namespace.add_resource(NewsItemAggregateTagList, "/taglist")
+    namespace.add_resource(Stories, "/news-item-aggregates", "/stories")
+    namespace.add_resource(StoryTags, "/tags")
+    namespace.add_resource(StoryTagList, "/taglist")
 
     namespace.add_resource(NewsItems, "/news-items")
     namespace.add_resource(NewsItem, "/news-items/<int:item_id>")
-    namespace.add_resource(NewsItemAggregate, "/news-item-aggregates/<int:aggregate_id>", "/stories/<int:aggregate_id>")
+    namespace.add_resource(Story, "/news-item-aggregates/<int:aggregate_id>", "/stories/<int:aggregate_id>")
     namespace.add_resource(GroupAction, "/news-item-aggregates/group", "/stories/group")
     namespace.add_resource(UnGroupStories, "/news-item-aggregates/ungroup", "/stories/ungroup")
     namespace.add_resource(UnGroupAction, "/news-items/ungroup")
