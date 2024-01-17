@@ -1240,10 +1240,8 @@ class NewsItemTag(BaseModel):
 
         if search := filter.get("search"):
             query = query.filter(cls.name.ilike(f"%{search}%"))
-        if sort := filter.get("sort"):
+        if sort := filter.get("sort", "sort_desc"):
             query = cls.apply_sort(query, sort)
-        else:
-            query = query.order_by(db.desc("size"))
 
         if offset := filter.get("offset"):
             query = query.offset(offset)

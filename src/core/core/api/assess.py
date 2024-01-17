@@ -59,6 +59,30 @@ class NewsItems(Resource):
         return result, status
 
 
+class NewsItem(Resource):
+    @auth_required("ASSESS_ACCESS")
+    def get(self, item_id):
+        item = news_item.NewsItem.get(item_id)
+        return item.to_dict() if item else ("NewsItem not found", 404)
+
+    @auth_required("ASSESS_UPDATE")
+    def put(self, item_id):
+        user = auth_manager.get_user_from_jwt()
+        if not user:
+            return {"error": "Invalid User"}, 403
+        if not request.is_json:
+            return {"error": "Missing JSON in request"}, 400
+        response, code = news_item.NewsItem.update(item_id, request.json, user.id)
+        sse_manager.news_items_updated()
+        return response, code
+
+    @auth_required("ASSESS_DELETE")
+    def delete(self, item_id):
+        response, code = news_item.NewsItem.delete(item_id)
+        sse_manager.news_items_updated()
+        return response, code
+
+
 class NewsItemAggregates(Resource):
     @auth_required("ASSESS_ACCESS")
     def get(self):
@@ -109,30 +133,6 @@ class NewsItemAggregateTagList(Resource):
         except Exception as ex:
             logger.log_debug(ex)
             return {"error": "Failed to get Tags"}, 400
-
-
-class NewsItem(Resource):
-    @auth_required("ASSESS_ACCESS")
-    def get(self, item_id):
-        item = news_item.NewsItem.get(item_id)
-        return item.to_dict() if item else ("NewsItem not found", 404)
-
-    @auth_required("ASSESS_UPDATE")
-    def put(self, item_id):
-        user = auth_manager.get_user_from_jwt()
-        if not user:
-            return {"error": "Invalid User"}, 403
-        if not request.is_json:
-            return {"error": "Missing JSON in request"}, 400
-        response, code = news_item.NewsItem.update(item_id, request.json, user.id)
-        sse_manager.news_items_updated()
-        return response, code
-
-    @auth_required("ASSESS_DELETE")
-    def delete(self, item_id):
-        response, code = news_item.NewsItem.delete(item_id)
-        sse_manager.news_items_updated()
-        return response, code
 
 
 class NewsItemAggregate(Resource):
@@ -232,13 +232,10 @@ def initialize(api):
     namespace.add_resource(OSINTSourceGroupsList, "/osint-source-group-list")
     namespace.add_resource(OSINTSourcesList, "/osint-sources-list")
     namespace.add_resource(NewsItemAggregates, "/news-item-aggregates", "/stories")
-    namespace.add_resource(
-        NewsItems,
-        "/news-items",
-    )
     namespace.add_resource(NewsItemAggregateTags, "/tags")
     namespace.add_resource(NewsItemAggregateTagList, "/taglist")
 
+    namespace.add_resource(NewsItems, "/news-items")
     namespace.add_resource(NewsItem, "/news-items/<int:item_id>")
     namespace.add_resource(NewsItemAggregate, "/news-item-aggregates/<int:aggregate_id>", "/stories/<int:aggregate_id>")
     namespace.add_resource(GroupAction, "/news-item-aggregates/group", "/stories/group")

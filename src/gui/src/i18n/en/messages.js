@@ -125,6 +125,8 @@ export const messages_en = {
     title: 'Title',
     review: 'Review',
     source: 'Source',
+    content: 'Content',
+    published: 'Published',
     link: 'Link',
     successful: 'News item was successfully created'
   },

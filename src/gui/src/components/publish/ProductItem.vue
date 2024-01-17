@@ -117,10 +117,10 @@
             />
           </div>
           <div v-else>
-            <v-row class="d-flex align-center justify-center mb-4">
+            <v-row class="justify-center mb-4">
               <h2>No rendered Product Found</h2>
             </v-row>
-            <v-row class="d-flex align-center justify-center mt-5">
+            <v-row class="justify-center mt-5">
               <v-btn
                 variant="outlined"
                 prepend-icon="mdi-eye-outline"

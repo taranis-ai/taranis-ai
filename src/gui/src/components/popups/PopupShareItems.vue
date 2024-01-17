@@ -66,8 +66,6 @@ export default {
     }
 
     onMounted(() => {
-      console.debug('PopupShareItems mounted')
-      console.debug(props.itemIds)
       loadReportItems()
     })
 

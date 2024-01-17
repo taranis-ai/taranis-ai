@@ -41,6 +41,9 @@
       prepend-icon="mdi-trash-can"
       @click.stop="$emit('remove-from-report')"
     >
+      <v-tooltip activator="parent" location="start">
+        remove from report
+      </v-tooltip>
       <span>Remove</span>
     </v-btn>
 
@@ -55,6 +58,8 @@
       :style="{ minWidth: minButtonWidth }"
       @click.stop="openCard"
     >
+      <v-tooltip activator="parent" location="start"> show details </v-tooltip>
+
       <span>{{ news_item_summary_text }} </span>
       <span v-if="news_item_length > 1" class="primary--text">
         &nbsp;[{{ news_item_length }}]
@@ -70,6 +75,9 @@
       :prepend-icon="!story.read ? 'mdi-eye-outline' : 'mdi-eye-off-outline'"
       @click.stop="markAsRead()"
     >
+      <v-tooltip activator="parent" location="start">
+        mark story as {{ !story.read ? 'read' : 'unread' }}
+      </v-tooltip>
       <span>{{ !story.read ? 'read' : 'unread' }}</span>
     </v-btn>
 
@@ -133,6 +141,16 @@
           title="ungroup"
           prepend-icon="mdi-ungroup"
           @click.stop="ungroup()"
+        >
+          <v-tooltip activator="parent" location="start">
+            remove all news items from this story
+          </v-tooltip>
+        </v-list-item>
+        <v-list-item
+          v-if="!reportView && news_item_length === 1"
+          title="open news item"
+          prepend-icon="mdi-open-in-app"
+          :to="'/newsitem/' + story.news_items[0].id"
         />
         <v-list-item
           v-if="!reportView && newsItemSelection.length > 0"
@@ -200,7 +218,8 @@ export default {
       'important' in props.story ? props.story.important : false
     )
 
-    const allow_edit = computed(() =>
+    const allow_edit = computed(
+      () =>
         !props.reportView &&
         props.story.news_items.length == 1 &&
         props.story.news_items[0].news_item_data.osint_source_id == 'manual'
@@ -210,7 +229,7 @@ export default {
     )
     const minButtonWidth = computed(() => {
       if (compactView.value) {
-        return '1px'
+        return '0px'
       }
       const longestText = `${
         news_item_length.value > 1 ? '(' + news_item_length.value + ')' : ''

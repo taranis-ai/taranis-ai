@@ -1,5 +1,5 @@
 <template>
-  <div v-if="tags" class="ml-0 pl-0 d-flex" :class="{ 'flex-wrap': wrap }">
+  <div v-if="tags" class="story-tag-list">
     <v-tooltip
       v-for="(tag, i) in [...new Set(tags.slice(0, limit))]"
       :key="i"
@@ -20,27 +20,17 @@
           @click.stop="updateTags(tag.name)"
         >
           <template #prepend>
-            <v-icon
-              :icon="tagIcon(tag.tag_type)"
-              size="x-small"
-              class="mr-2"
-              :class="{ truncate: 'text-white' }"
-            >
-            </v-icon>
+            <v-icon :icon="tagIcon(tag.tag_type)" size="x-small" class="mr-2" />
           </template>
 
-          <span
-            :style="truncate ? 'max-width: 80px' : 'max-width: 120px'"
-            class="d-inline-block text-truncate"
-            :class="{ truncate: 'text-white' }"
-          >
+          <span class="d-inline-block text-truncate tag-content">
             {{ tag.name }}
           </span>
         </v-chip>
       </template>
 
       <span>
-        <v-icon start :icon="tagIcon(tag.tag_type)" />
+        <v-icon start :icon="tagIcon(tag.tag_type)" size="x-small" />
         {{ tag.name }} - {{ tag.tag_type }}
       </span>
     </v-tooltip>
@@ -48,7 +38,7 @@
 </template>
 
 <script>
-import { defineComponent } from 'vue'
+import { defineComponent, computed } from 'vue'
 import { tagIconFromType } from '@/utils/helpers'
 import { useFilterStore } from '@/stores/FilterStore'
 import { useRoute, useRouter } from 'vue-router'
@@ -81,6 +71,10 @@ export default defineComponent({
     const { appendTag } = useFilterStore()
     const route = useRoute()
     const router = useRouter()
+
+    const max_width = computed(() => (props.truncate ? '80px' : '120px'))
+
+    const flex_wrap = computed(() => (props.wrap ? 'wrap' : 'nowrap'))
 
     const updateTags = (tag) => {
       if (route.name !== 'assess') {
@@ -120,6 +114,8 @@ export default defineComponent({
     }
 
     return {
+      max_width,
+      flex_wrap,
       updateTags,
       labelcolor,
       tagIcon
@@ -127,3 +123,14 @@ export default defineComponent({
   }
 })
 </script>
+
+<style scoped>
+.story-tag-list {
+  display: flex;
+  flex-wrap: v-bind(flex_wrap);
+}
+
+.tag-content {
+  max-width: v-bind(max_width);
+}
+</style>

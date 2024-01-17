@@ -103,10 +103,8 @@ export const useAssessStore = defineStore('assess', {
       })
 
       if (!found) {
-        console.debug('append updateNewsItemByID')
         this.newsItems.items.push(updated_item)
       }
-      console.debug('updateNewsItemByID', updated_item)
     },
     async voteOnNewsItemAggregate(id, vote) {
       try {

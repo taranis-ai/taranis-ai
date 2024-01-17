@@ -20,7 +20,7 @@ import { getSourceInfo } from '@/utils/helpers.js'
 import { computed } from 'vue'
 
 export default {
-  name: 'ArticleInfo',
+  name: 'SourceInfo',
   props: {
     newsItemData: {
       type: Object,

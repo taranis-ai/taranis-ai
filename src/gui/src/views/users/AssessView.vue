@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="w-100">
     <v-infinite-scroll
       v-if="newsItems.items.length > 0"
       empty-text="All items loaded"
@@ -19,11 +19,15 @@
 
     <div
       v-if="newsItems.items.length == 0"
-      class="text-subtitle-1 text-center dark-grey--text mt-3"
+      class="d-flex align-center justify-center mt-5 w-100"
     >
+      <v-alert
+        :value="true"
+        type="info"
+        text="No items found. Please change your filter."
+      />
       <v-btn @click="resetFilter()">Reset Filter</v-btn>
     </div>
-
     <assess-selection-toolbar v-if="activeSelection" />
   </div>
 </template>

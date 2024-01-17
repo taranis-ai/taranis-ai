@@ -16,6 +16,18 @@
           :rules="[rules.required]"
         />
 
+        <VueDatePicker
+          v-model="news_item.published"
+          name="published"
+          :config="pub_date_config"
+          :placeholder="$t('enter.published')"
+          :max-date="new Date()"
+          time-picker-inline
+          clearable
+          auto-apply
+          class="mb-5"
+        />
+
         <v-textarea
           v-model="news_item.review"
           :label="$t('enter.review')"
@@ -27,9 +39,9 @@
           v-model="news_item.link"
           :label="$t('enter.link')"
           name="link"
-          :rules="[rules.url]"
           type="text"
         />
+
         <code-editor
           v-model:content="editorContent"
           :placeholder="placeholder"
@@ -37,7 +49,7 @@
       </v-card-text>
     </v-card>
     <v-spacer class="pt-2"></v-spacer>
-    <v-btn block type="submit" color="success">
+    <v-btn block class="mt-5" type="submit" color="success">
       {{ $t('enter.create') }}
     </v-btn>
   </v-form>
@@ -70,7 +82,7 @@ export default {
       author: '',
       hash: '',
       osint_source_id: '',
-      published: '',
+      published: null,
       collected: '',
       attributes: []
     })
@@ -94,7 +106,6 @@ export default {
       news_item.value.author = user.value.name
       const d = new Date()
       news_item.value.collected = d.toISOString()
-      news_item.value.published = news_item.value.collected
 
       try {
         await addNewsItem(news_item.value)

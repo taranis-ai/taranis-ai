@@ -7,9 +7,8 @@
       :items="available_tags"
       chips
       density="compact"
-      deletable-chips
+      closable-chips
       clearable
-      clear-icon="mdi-close"
       variant="outlined"
       no-data-text="No tags found"
       item-value="name"

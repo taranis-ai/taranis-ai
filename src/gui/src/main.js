@@ -3,23 +3,22 @@ import { createApp } from 'vue'
 import App from './App.vue'
 import { router } from './router'
 import { ApiService } from '@/services/api_service'
-import DatePicker from 'vue-datepicker-next'
 import { i18n } from '@/i18n/i18n'
 import { vuetify } from '@/plugins/vuetify'
 import { createPinia } from 'pinia'
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
-import 'vue-datepicker-next/index.css'
 import VueDOMPurifyHTML from 'vue-dompurify-html'
+import VueDatePicker from '@vuepic/vue-datepicker'
+import '@vuepic/vue-datepicker/dist/main.css'
 
 import * as Sentry from '@sentry/vue'
 
 export const app = createApp(App)
-app.use(DatePicker)
 app.use(i18n)
 
 const pinia = createPinia()
 pinia.use(piniaPluginPersistedstate)
-
+app.component('VueDatePicker', VueDatePicker)
 app.use(router)
 app.use(pinia)
 app.use(vuetify)
