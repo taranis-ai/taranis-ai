@@ -1214,15 +1214,37 @@ class NewsItemTag(BaseModel):
         return {row[0]: {"name": row[0], "size": row[1]} for row in query}
 
     @classmethod
+    def apply_sort(cls, query, sort_str: str):
+        if not sort_str:
+            return query
+
+        parts = sort_str.split("_")
+        if len(parts) != 2:
+            return query
+
+        column_name, sort_order = parts
+        column = getattr(cls, column_name, None)
+        if not column:
+            return query
+
+        query = query.order_by(column if sort_order == "asc" else db.desc(column))
+        return query
+
+    @classmethod
     def get_cluster_by_filter(cls, filter):
-        query = cls.query.with_entities(cls.name, func.count(cls.name).label("name_count"))
+        query = cls.query.with_entities(cls.name, func.count(cls.name).label("size"))
         if tag_type := filter.get("tag_type"):
-            query = query.filter(cls.tag_type == tag_type).group_by(cls.name).order_by(db.desc("name_count"))
+            query = query.filter(cls.tag_type == tag_type).group_by(cls.name)
 
         count = query.count()
 
         if search := filter.get("search"):
             query = query.filter(cls.name.ilike(f"%{search}%"))
+        if sort := filter.get("sort"):
+            query = cls.apply_sort(query, sort)
+        else:
+            query = query.order_by(db.desc("size"))
+
         if offset := filter.get("offset"):
             query = query.offset(offset)
         if limit := filter.get("limit"):

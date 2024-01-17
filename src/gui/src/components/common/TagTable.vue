@@ -4,11 +4,16 @@
     :items-length="totalItems"
     :items="clusters"
     :loading="loading"
-    :search="search"
     class="elevation-1"
     item-value="name"
     @update:options="loadItems"
-  />
+  >
+    <template #item.name="{ item }">
+      <router-link :to="'/assess?tags=' + item.name">
+        {{ item.name }}
+      </router-link>
+    </template>
+  </v-data-table-server>
 </template>
 
 <script>
@@ -26,21 +31,22 @@ export default {
       { title: 'Size', key: 'size' }
     ]
     const loading = ref(false)
-    const search = ref('')
-    const totalItems = ref(100)
+    const totalItems = ref(0)
     const clusters = ref([])
     const store = useDashboardStore()
 
-    function loadItems({ page, itemsPerPage }) {
+    function loadItems({ page, itemsPerPage, sortBy }) {
       loading.value = true
       const params = {
         page: page,
-        per_page: itemsPerPage
+        per_page: itemsPerPage,
+        sort_by: sortBy.length > 0 ? `${sortBy[0].key}_${sortBy[0].order}` : null
       }
+      console.debug('loadItems', params)
+
       store
         .getCluster(props.tagType, params)
         .then((cluster) => {
-          console.debug(cluster)
           clusters.value = cluster.items
           totalItems.value = cluster.total_count
         })
@@ -51,7 +57,6 @@ export default {
 
     return {
       loading,
-      search,
       totalItems,
       headers,
       clusters,
