@@ -2,9 +2,8 @@
   <v-card>
     <v-card-title> Edit Tags </v-card-title>
     <v-card-text>
-      <v-autocomplete
+      <v-combobox
         v-model="updatedTags"
-        v-model:search="search"
         :items="tags"
         chips
         density="compact"
@@ -12,11 +11,12 @@
         clearable
         variant="outlined"
         no-data-text="No tags found"
+        hint="Press 'Enter' to add a new tag"
+        persistent-hint
         item-value="name"
         item-title="name"
         label="Tags"
         multiple
-        @keydown="onKeyDown"
       />
     </v-card-text>
     <v-card-actions class="mt-1">
@@ -71,26 +71,13 @@ export default {
       emit('close')
     }
     const updatedTags = ref(props.tags)
-    const search = ref('')
 
     function editTags() {
       updateStoryTags(props.storyId, updatedTags.value)
     }
 
-    function onKeyDown(event) {
-      if (event.key === 'Tab' || event.key === 'Enter') {
-        const value = event.target.value
-        if (value && !updatedTags.value.includes(value)) {
-          updatedTags.value.push(value)
-          search.value = ''
-        }
-      }
-    }
-
     return {
       updatedTags,
-      search,
-      onKeyDown,
       editTags,
       close
     }

@@ -7,7 +7,7 @@ from core.managers import auth_manager
 from core.managers.sse_manager import sse_manager
 from core.managers.log_manager import logger
 from core.managers.auth_manager import auth_required
-from core.model import news_item, osint_source
+from core.model import news_item, osint_source, news_item_tag
 from core.managers.input_validators import validate_id
 
 
@@ -115,7 +115,7 @@ class StoryTags(Resource):
             offset = min(int(request.args.get("offset", 0)), (2**31) - 1)
             min_size = int(request.args.get("min_size", 3))
             filter_args = {"limit": limit, "offset": offset, "search": search, "min_size": min_size}
-            return news_item.NewsItemTag.get_json(filter_args)
+            return news_item_tag.NewsItemTag.get_json(filter_args)
         except Exception as ex:
             logger.log_debug(ex)
             return {"error": "Failed to get Tags"}, 400
@@ -129,7 +129,7 @@ class StoryTagList(Resource):
             limit = min(int(request.args.get("limit", 20)), 200)
             offset = min(int(request.args.get("offset", 0)), (2**31) - 1)
             filter_args = {"limit": limit, "offset": offset, "search": search}
-            return news_item.NewsItemTag.get_list(filter_args)
+            return news_item_tag.NewsItemTag.get_list(filter_args)
         except Exception as ex:
             logger.log_debug(ex)
             return {"error": "Failed to get Tags"}, 400

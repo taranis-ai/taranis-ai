@@ -11,7 +11,8 @@ from core.model.queue import ScheduleEntry
 from core.model.product_type import ProductType
 from core.model.publisher_preset import PublisherPreset
 from core.model.word_list import WordList
-from core.model.news_item import NewsItemAggregate, NewsItemTag
+from core.model.news_item import NewsItemAggregate
+from core.model.news_item_tag import NewsItemTag
 from core.managers.sse_manager import sse_manager
 from core.model.bot import Bot
 

@@ -162,7 +162,7 @@
           v-if="allow_edit"
           title="edit"
           prepend-icon="mdi-pencil"
-          :to="'/story/' + story.id"
+          :to="`/newsitem/${story.news_items[0].id}/edit`"
         />
         <v-list-item
           title="delete"
@@ -185,7 +185,7 @@ import { unGroupStories } from '@/api/assess'
 import { storeToRefs } from 'pinia'
 
 export default {
-  name: 'CardStory',
+  name: 'StoryActions',
   components: {
     votes,
     PopupDeleteItem,
@@ -218,12 +218,14 @@ export default {
       'important' in props.story ? props.story.important : false
     )
 
-    const allow_edit = computed(
-      () =>
+    const allow_edit = computed(() => {
+      return Boolean(
         !props.reportView &&
-        props.story.news_items.length == 1 &&
-        props.story.news_items[0].news_item_data.osint_source_id == 'manual'
-    )
+          props.story.news_items.length === 1 &&
+          props.story.news_items[0].news_item_data.source == 'manual'
+      )
+    })
+
     const news_item_length = computed(() =>
       props.story.news_items ? props.story.news_items.length : 0
     )

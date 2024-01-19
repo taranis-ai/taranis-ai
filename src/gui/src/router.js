@@ -29,6 +29,14 @@ export const router = createRouter({
       meta: { requiresAuth: true, requiresPerm: [Permissions.ASSESS_ACCESS] }
     },
     {
+      path: '/newsitem/:id/edit',
+      name: 'newsitemedit',
+      components: {
+        default: () => import('@/views/users/NewsItemEditView.vue')
+      },
+      meta: { requiresAuth: true, requiresPerm: [Permissions.ASSESS_UPDATE] }
+    },
+    {
       path: '/story/:id',
       name: 'story',
       components: {
