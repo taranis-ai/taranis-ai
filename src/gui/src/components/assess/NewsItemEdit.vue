@@ -42,7 +42,7 @@
         />
 
         <code-editor
-          v-model:content="editorContent"
+          v-model:content="news_item.content"
           :placeholder="placeholder"
         />
       </v-card-text>
@@ -79,21 +79,16 @@ export default {
     const user = computed(() => mainStore.user)
 
     const news_item = ref({
-      id: '',
       title: '',
       review: '',
       content: '',
       link: '',
       source: 'manual',
       author: '',
-      hash: '',
-      osint_source_id: '',
       published: new Date(),
       collected: '',
       attributes: []
     })
-
-    const editorContent = ref('')
 
     const rules = {
       required: (v) => !!v || 'Required',
@@ -108,7 +103,6 @@ export default {
         return
       }
 
-      news_item.value.content = editorContent.value
       news_item.value.author = user.value.name
       const d = new Date()
       news_item.value.collected = d.toISOString()
@@ -131,7 +125,6 @@ export default {
     onMounted(() => {
       if (props.newsItemProp) {
         news_item.value = props.newsItemProp
-        editorContent.value = props.newsItemProp.content
       }
     })
 
@@ -139,7 +132,6 @@ export default {
       news_item,
       form,
       rules,
-      editorContent,
       placeholder,
       submit
     }

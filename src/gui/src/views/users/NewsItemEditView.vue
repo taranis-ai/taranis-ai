@@ -1,13 +1,12 @@
 <template>
-  <NewsItemEdit :news-item-prop="news_item" />
+  <NewsItemEdit v-if="news_item" :news-item-prop="news_item" />
 </template>
 
 <script>
 import NewsItemEdit from '@/components/assess/NewsItemEdit.vue'
-import { computed } from 'vue'
+import { ref, onBeforeMount } from 'vue'
 import { useRoute } from 'vue-router'
-import { useAssessStore } from '@/stores/AssessStore'
-
+import { getNewsItem } from '@/api/assess'
 
 export default {
   name: 'NewsItemEditView',
@@ -16,12 +15,12 @@ export default {
   },
   setup() {
     const route = useRoute()
-    const assessStore = useAssessStore()
 
-    const news_item = computed(() => {
-      return assessStore.newsItems.items.find(
-        (item) => item.id == route.params.id
-      )
+    const news_item = ref(null)
+
+    onBeforeMount(async () => {
+      const response = await getNewsItem(route.params.id)
+      news_item.value = response.data.news_item_data
     })
 
     return {

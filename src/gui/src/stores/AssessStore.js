@@ -83,13 +83,13 @@ export const useAssessStore = defineStore('assess', {
         notifyFailure(error.message)
       }
     },
-    removeNewsItemByID(id) {
+    removeStoryByID(id) {
       deleteNewsItemAggregate(id)
       this.newsItems.items = this.newsItems.items.filter(
         (item) => item.id !== id
       )
     },
-    async updateNewsItemByID(id) {
+    async updateStoryByID(id) {
       const response = await getNewsItemAggregate(id)
       const updated_item = response.data
       let found = false
@@ -158,7 +158,7 @@ export const useAssessStore = defineStore('assess', {
         })
 
         await voteNewsItemAggregate(id, vote)
-        this.updateNewsItemByID(id)
+        this.updateStoryByID(id)
       } catch (error) {
         notifyFailure(error)
       }

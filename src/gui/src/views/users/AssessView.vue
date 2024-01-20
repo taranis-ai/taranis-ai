@@ -63,7 +63,7 @@ export default defineComponent({
     })
 
     const refresh = (id) => {
-      assessStore.updateNewsItemByID(id)
+      assessStore.updateStoryByID(id)
     }
 
     const deleteNewsItem = (id) => {

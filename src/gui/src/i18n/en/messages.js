@@ -124,6 +124,8 @@ export const messages_en = {
     error: 'Could not create news item.',
     title: 'Title',
     review: 'Review',
+    content: 'Content',
+    description: 'Description',
     source: 'Source',
     content: 'Content',
     published: 'Published',

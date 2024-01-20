@@ -37,7 +37,7 @@ export default {
 
     const loadStories = async () => {
       if (route.params.id) {
-        assessStore.updateNewsItemByID(route.params.id)
+        assessStore.updateStoryByID(route.params.id)
       }
     }
 
