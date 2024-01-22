@@ -56,8 +56,8 @@
 
     <v-dialog v-model="deleteDialog" width="auto">
       <popup-delete-item
-        :news-item="newsItem"
-        @delete-item="deleteNewsItem()"
+        :title="newsItem.news_item_data.title"
+        @delete-item="deleteItem()"
         @close="deleteDialog = false"
       />
     </v-dialog>
@@ -113,7 +113,7 @@ import PopupDeleteItem from '@/components/popups/PopupDeleteItem.vue'
 import PopupShareItems from '@/components/popups/PopupShareItems.vue'
 import { notifySuccess, notifyFailure } from '@/utils/helpers.js'
 import {
-  deleteNewsItemAggregate,
+  deleteNewsItem,
   importantNewsItemAggregate,
   readNewsItemAggregate,
   unGroupNewsItems
@@ -165,8 +165,9 @@ export default {
       importantNewsItemAggregate(props.newsItem.id)
     }
 
-    const deleteNewsItem = () => {
-      deleteNewsItemAggregate(props.newsItem.id)
+    const deleteItem = () => {
+      console.debug('deleteItem', props.newsItem.id)
+      deleteNewsItem(props.newsItem.id)
       emit('deleteItem', props.newsItem.id)
     }
 
@@ -191,7 +192,7 @@ export default {
       openCard,
       markAsRead,
       markAsImportant,
-      deleteNewsItem,
+      deleteItem,
       removeFromStory
     }
   }

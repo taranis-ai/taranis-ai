@@ -76,6 +76,17 @@ class NewsItem(Resource):
         sse_manager.news_items_updated()
         return response, code
 
+    @auth_required("ASSESS_UPDATE")
+    def patch(self, item_id):
+        user = auth_manager.get_user_from_jwt()
+        if not user:
+            return {"error": "Invalid User"}, 403
+        if not request.is_json:
+            return {"error": "Missing JSON in request"}, 400
+        response, code = news_item.NewsItem.update(item_id, request.json, user.id)
+        sse_manager.news_items_updated()
+        return response, code
+
     @auth_required("ASSESS_DELETE")
     def delete(self, item_id):
         response, code = news_item.NewsItem.delete(item_id)

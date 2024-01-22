@@ -57,7 +57,7 @@
 
 <script>
 import { computed, ref, onMounted } from 'vue'
-import { addNewsItem } from '@/api/assess'
+import { addNewsItem, patchNewsItem } from '@/api/assess'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import { useMainStore } from '@/stores/MainStore'
 import CodeEditor from '@/components/common/CodeEditor.vue'
@@ -111,7 +111,15 @@ export default {
       }
 
       if (edit.value) {
-        notifyFailure('Not implemented yet')
+        try {
+          const result = await patchNewsItem(
+            props.newsItemProp.id,
+            news_item.value
+          )
+          notifySuccess(result)
+        } catch (e) {
+          notifyFailure(e)
+        }
         return
       }
 

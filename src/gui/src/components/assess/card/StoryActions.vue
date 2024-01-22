@@ -85,7 +85,7 @@
 
     <v-dialog v-model="deleteDialog" width="auto">
       <popup-delete-item
-        :news-item="story"
+        :title="story.title"
         @delete-item="deleteNewsItem()"
         @close="deleteDialog = false"
       />
@@ -200,7 +200,7 @@ export default {
     reportView: { type: Boolean, default: false },
     actionCols: { type: Number, default: 4 }
   },
-  emits: ['deleteItem', 'refresh', 'remove-from-report', 'open-details'],
+  emits: ['refresh', 'remove-from-report', 'open-details'],
   setup(props, { emit }) {
     const viewDetails = ref(false)
     const openSummary = ref(props.detailView)
@@ -261,7 +261,7 @@ export default {
     }
 
     const deleteNewsItem = () => {
-      emit('deleteItem')
+      assessStore.removeStoryByID(props.story.id)
     }
 
     const emitRefresh = () => {

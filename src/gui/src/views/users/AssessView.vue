@@ -6,11 +6,7 @@
       @load="displayMore"
     >
       <template v-for="item in newsItems.items" :key="item">
-        <card-story
-          :story="item"
-          @delete-item="deleteNewsItem(item.id)"
-          @refresh="refresh(item.id)"
-        />
+        <card-story :story="item" @refresh="refresh(item.id)" />
       </template>
     </v-infinite-scroll>
     <v-overlay :model-value="loading" class="align-center justify-center">
@@ -18,7 +14,7 @@
     </v-overlay>
 
     <v-row
-      v-if="newsItems.items.length == 0 && !loading"
+      v-if="newsItems.items.length == 0"
       class="align-center justify-center mt-5"
     >
       <v-col cols="12">
@@ -71,11 +67,8 @@ export default defineComponent({
       assessStore.updateStoryByID(id)
     }
 
-    const deleteNewsItem = (id) => {
-      assessStore.removeNewsItemByID(id)
-    }
-
     const displayMore = async ({ done }) => {
+      console.debug('displayMore', loading.value)
       if (!moreToLoad.value) {
         done('empty')
         return
@@ -113,7 +106,6 @@ export default defineComponent({
       refresh,
       nextPage,
       resetFilter,
-      deleteNewsItem,
       displayMore
     }
   }

@@ -53,6 +53,10 @@ export function updateStoryTags(aggregate_id, tags) {
   })
 }
 
+export function patchNewsItem(news_item_id, data) {
+  return apiService.patch(`/assess/news-items/${news_item_id}`, data)
+}
+
 export function readNewsItemAggregate(aggregate_id, read) {
   return apiService.put(`/assess/stories/${aggregate_id}`, {
     read: read
@@ -81,42 +85,6 @@ export function unGroupNewsItems(data) {
   return apiService.put('/assess/news-items/ungroup', data)
 }
 
-export function saveNewsItemAggregate(
-  group_id,
-  aggregate_id,
-  title,
-  description,
-  comments
-) {
-  return apiService.put(`/assess/stories/${aggregate_id}`, {
-    group_id: group_id,
-    title: title,
-    description: description,
-    comments: comments
-  })
-}
-
-export function voteNewsItem(group_id, news_item_id, vote) {
-  return apiService.put(`/assess/news-items/${news_item_id}`, {
-    group_id: group_id,
-    vote: vote
-  })
-}
-
-export function readNewsItem(group_id, news_item_id) {
-  return apiService.put(`/assess/news-items/${news_item_id}`, {
-    group_id: group_id,
-    read: true
-  })
-}
-
-export function deleteNewsItem(group_id, news_item_id) {
+export function deleteNewsItem(news_item_id) {
   return apiService.delete(`/assess/news-items/${news_item_id}`)
-}
-
-export function importantNewsItem(group_id, news_item_id) {
-  return apiService.put(`/assess/news-items/${news_item_id}`, {
-    group_id: group_id,
-    important: true
-  })
 }

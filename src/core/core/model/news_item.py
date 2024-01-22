@@ -138,6 +138,34 @@ class NewsItemData(BaseModel):
 
         return {"message": "Attributes updated"}, 200
 
+    def update(self, data) -> tuple[dict, int]:
+        if self.source != "manual":
+            return {"error": "Only manual news items can be updated"}, 400
+
+        if title := data.get("title"):
+            self.title = title
+
+        if review := data.get("review"):
+            self.review = review
+
+        if author := data.get("author"):
+            self.author = author
+
+        if link := data.get("link"):
+            self.link = link
+
+        if content := data.get("content"):
+            self.content = content
+
+        if published := data.get("published"):
+            self.published = published
+
+        self.updated = datetime.now()
+        self.hash = self.get_hash(self.author, self.title, self.link, self.content)
+
+        db.session.commit()
+        return {"message": f"News Item {self.id} updated", "id": self.id}, 200
+
 
 class NewsItem(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
@@ -309,6 +337,7 @@ class NewsItem(BaseModel):
         if not news_item:
             return {"error": f"NewsItem with id: {news_item_id} not found"}, 404
         news_item.update_status(data, user_id)
+        news_item.news_item_data.update(data)
 
         NewsItemAggregate.update_status(news_item.news_item_aggregate_id)
         db.session.commit()

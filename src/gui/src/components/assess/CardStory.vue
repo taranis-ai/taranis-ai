@@ -30,7 +30,6 @@
         :action-cols="meta_cols"
         @open-details="openCard()"
         @refresh="emitRefresh()"
-        @delete-item="deleteNewsItem()"
         @remove-from-report="$emit('remove-from-report')"
       />
 
@@ -103,12 +102,10 @@ export default {
     detailView: { type: Boolean, default: false },
     reportView: { type: Boolean, default: false }
   },
-  emits: ['deleteItem', 'refresh', 'remove-from-report'],
+  emits: ['refresh', 'remove-from-report'],
   setup(props, { emit }) {
     const viewDetails = ref(false)
     const openSummary = ref(props.detailView)
-    const sharingDialog = ref(false)
-    const deleteDialog = ref(false)
     const assessStore = useAssessStore()
 
     const { newsItemSelection } = storeToRefs(assessStore)
@@ -190,10 +187,6 @@ export default {
       assessStore.importantNewsItemAggregate(props.story.id)
     }
 
-    const deleteNewsItem = () => {
-      emit('deleteItem')
-    }
-
     const emitRefresh = () => {
       emit('refresh')
     }
@@ -225,8 +218,6 @@ export default {
       content_cols,
       meta_cols,
       showStory,
-      sharingDialog,
-      deleteDialog,
       item_important,
       story_in_report,
       news_item_length,
@@ -242,7 +233,6 @@ export default {
       toggleSelection,
       markAsRead,
       markAsImportant,
-      deleteNewsItem,
       moveSelection,
       emitRefresh
     }

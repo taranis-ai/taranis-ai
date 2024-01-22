@@ -7,9 +7,8 @@
     <v-container>
       <v-row>
         <v-col cols="12">
-          <strong class="pt-3">Item:</strong>
           <h2 class="font-weight-regular dark-grey--text text-capitalize pt-0">
-            "{{ newsItem.title }}"
+            "{{ title }}"
           </h2>
         </v-col>
       </v-row>
@@ -41,9 +40,9 @@
 export default {
   name: 'PopupDeleteItem',
   props: {
-    newsItem: {
-      type: Object,
-      default: () => ({})
+    title: {
+      type: String,
+      required: true
     }
   },
   emits: ['close', 'deleteItem'],
