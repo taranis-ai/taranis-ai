@@ -410,3 +410,8 @@ source_exclude_multiple_list = {
     ],
     "parameters": {"FEED_URL": ""},
 }
+
+
+web_collector_url = "https://raw.githubusercontent.com/taranis-ai/taranis-ai/master/src/worker/worker/tests/testweb.html"
+web_collector_result_content = "This is a test web page for the simple collector test."
+web_collector_result_title = "Test Web Page"

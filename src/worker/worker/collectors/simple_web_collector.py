@@ -104,8 +104,3 @@ class SimpleWebCollector(BaseWebCollector):
 
         self.publish([news_item], source)
         return None
-
-
-if __name__ == "__main__":
-    swc = SimpleWebCollector()
-    swc.parse_web_content("https://www.bbc.com/news/world-europe-57978443", "test")
