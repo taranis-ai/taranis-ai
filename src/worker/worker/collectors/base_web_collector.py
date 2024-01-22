@@ -10,6 +10,7 @@ from worker.collectors.base_collector import BaseCollector
 
 class BaseWebCollector(BaseCollector):
     def __init__(self):
+        super().__init__()
         self.type = "BASE_WEB_COLLECTOR"
         self.name = "Base Web Collector"
         self.description = "Base abstract type for all collectors that use web scraping"
