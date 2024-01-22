@@ -51,6 +51,7 @@
 <script>
 import { ref } from 'vue'
 import { updateStoryTags } from '@/api/assess'
+import { notifySuccess, notifyFailure } from '@/utils/helpers'
 
 export default {
   name: 'PopupEditTags',
@@ -74,6 +75,14 @@ export default {
 
     function editTags() {
       updateStoryTags(props.storyId, updatedTags.value)
+        .then((result) => {
+          notifySuccess(result)
+          close()
+        })
+        .catch((result) => {
+          notifyFailure(result)
+          close()
+        })
     }
 
     return {

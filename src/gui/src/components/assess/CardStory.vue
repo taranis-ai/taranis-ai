@@ -61,18 +61,16 @@
     dense
     class="ma-0 mx-2 py-0 px-2"
   >
-    <div class="news-item-container">
-      <div class="mx-5 my-5">
-        <card-news-item
-          v-for="item in story.news_items"
-          :key="item.id"
-          :news-item="item"
-          :detail-view="detailView"
-          :story="story"
-          class="mt-3"
-          @refresh="emitRefresh()"
-        />
-      </div>
+    <div class="news-item-container w-100">
+      <card-news-item
+        v-for="item in story.news_items"
+        :key="item.id"
+        :news-item="item"
+        :detail-view="detailView"
+        :story="story"
+        class="mt-2 mx-5 my-3"
+        @refresh="emitRefresh()"
+      />
     </div>
   </v-row>
 </template>
@@ -299,5 +297,4 @@ export default {
   max-height: calc(1.5em * 2);
   line-height: 1.3;
 }
-
 </style>

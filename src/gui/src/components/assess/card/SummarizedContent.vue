@@ -52,11 +52,11 @@ export default {
   -webkit-line-clamp: 4;
   line-clamp: 4;
   -webkit-box-orient: vertical;
-  min-height: calc(1.5em * 4);
+  min-height: 1.5em;
 }
 .news-item-summary-no-clip {
   display: -webkit-box;
-  min-height: calc(1.5em * 4);
+  min-height: 1.5em;
   white-space: pre-line;
 }
 </style>

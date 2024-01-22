@@ -50,7 +50,7 @@
     </v-card>
     <v-spacer class="pt-2"></v-spacer>
     <v-btn block class="mt-5" type="submit" color="success">
-      {{ $t('enter.create') }}
+      {{ submitText }}
     </v-btn>
   </v-form>
 </template>
@@ -61,6 +61,7 @@ import { addNewsItem } from '@/api/assess'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import { useMainStore } from '@/stores/MainStore'
 import CodeEditor from '@/components/common/CodeEditor.vue'
+import { useI18n } from 'vue-i18n'
 
 export default {
   name: 'NewsItemEdit',
@@ -78,6 +79,11 @@ export default {
     const mainStore = useMainStore()
     const form = ref(null)
     const user = computed(() => mainStore.user)
+    const edit = ref(props.newsItemProp ? true : false)
+    const { t } = useI18n()
+    const submitText = computed(() => {
+      return edit.value ? t('button.update') : t('button.create')
+    })
 
     const news_item = ref({
       title: '',
@@ -101,6 +107,11 @@ export default {
       const { valid } = await form.value.validate()
 
       if (!valid) {
+        return
+      }
+
+      if (edit.value) {
+        notifyFailure('Not implemented yet')
         return
       }
 
@@ -134,6 +145,7 @@ export default {
       form,
       rules,
       placeholder,
+      submitText,
       submit
     }
   }

@@ -3,7 +3,7 @@
     :ripple="false"
     elevation="3"
     :rounded="false"
-    class="no-gutters align-self-stretch mb-3 mt-2 news-item-card"
+    class="no-gutters align-self-stretch mb-1 news-item-card"
     :class="{
       selected: selected
     }"

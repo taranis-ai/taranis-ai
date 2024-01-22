@@ -1,5 +1,5 @@
 <template>
-  <v-container column class="pa-0 py-0">
+  <v-container class="px-0 mb-1">
     <v-row v-if="!compactView" no-gutters>
       <v-col>
         <v-row>
