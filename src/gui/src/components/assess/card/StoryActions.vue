@@ -29,7 +29,7 @@
       @click.stop="sharingDialog = true"
     >
       <v-tooltip activator="parent" location="start"> add to Report </v-tooltip>
-      <span v-if="!compactView">add to Report</span>
+      <span v-if="!compactView">Report</span>
     </v-btn>
 
     <v-btn
