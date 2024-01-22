@@ -33,8 +33,7 @@ dependencies = [
     "requests",
     "authlib",
     "sseclient",
-    "PyYAML==5.3.1",
-    "lxml.html"
+    "PyYAML==5.3.1"
 ]
 dynamic = ["version"]
 
@@ -55,7 +54,7 @@ fallback_version = "0.0.0"
 root = "../.."
 
 [project.optional-dependencies]
-dev = ["black", "flake8", "pytest", "pytest-celery", "sqlalchemy-stubs", "schemathesis", "build", "wheel", "setuptools", "setuptools_scm", "lxml.html"]
+dev = ["black", "flake8", "pytest", "pytest-celery", "sqlalchemy-stubs", "schemathesis", "build", "wheel", "setuptools", "setuptools_scm"]
 
 [project.urls]
 "Source Code" = "https://github.com/taranis-ai/taranis-ai"

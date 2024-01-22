@@ -2,9 +2,9 @@ import datetime
 import hashlib
 import uuid
 import re
-
 from bs4 import BeautifulSoup
 from urllib.parse import quote
+
 from worker.log import logger
 from worker.core_api import CoreApi
 

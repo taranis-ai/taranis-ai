@@ -4,16 +4,15 @@ import uuid
 import feedparser
 import requests
 import logging
-from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 import dateutil.parser as dateparser
 from trafilatura import extract
 
-from .base_collector import BaseCollector
+from .base_web_collector import BaseWebCollector
 from worker.log import logger
 
 
-class RSSCollector(BaseCollector):
+class RSSCollector(BaseWebCollector):
     def __init__(self):
         super().__init__()
         self.type = "RSS_COLLECTOR"
@@ -21,7 +20,6 @@ class RSSCollector(BaseCollector):
         self.description = "Collector for gathering data from RSS feeds"
 
         self.news_items = []
-        self.proxies = None
         self.headers = {}
         self.timeout = 60
         logger_trafilatura = logging.getLogger("trafilatura")
@@ -47,31 +45,11 @@ class RSSCollector(BaseCollector):
             logger.error(f"RSS collector for {feed_url} failed with error: {str(e)}")
             return str(e)
 
-    def set_proxies(self, proxy_server: str):
-        self.proxies = {"http": proxy_server, "https": proxy_server, "ftp": proxy_server}
-
     def make_request(self, url: str) -> None | requests.Response:
         response = requests.get(url, headers=self.headers, proxies=self.proxies, timeout=self.timeout)
         if not response.ok:
             raise RuntimeError(f"Response not ok: {response.status_code}")
         return response
-
-    def get_article_content(self, link_for_article: str) -> str:
-        html_content = self.make_request(link_for_article)
-
-        return html_content.content.decode("utf-8") if html_content is not None else ""
-
-    def parse_article_content(self, html_content: str, content_location: str | None) -> str:
-        if not html_content:
-            return ""
-
-        if not content_location:
-            content = extract(html_content, include_links=False, include_comments=False, include_formatting=False, with_metadata=False)
-            return content or html_content
-
-        soup = BeautifulSoup(html_content, features="html.parser")
-        content_text = [p.text.strip() for p in soup.findAll(content_location)]
-        return " ".join([w.replace("\xa0", " ") for w in content_text])
 
     def content_from_feed(self, feed_entry, content_location: str) -> tuple[bool, str]:
         content_locations = [content_location, "content", "content:encoded"]
@@ -109,6 +87,19 @@ class RSSCollector(BaseCollector):
         transformed_segments = [operation.replace("{}", segment) for segment, operation in zip(segments, transform_str.split("/"))]
         return f"{parsed_url.scheme}://{'/'.join(transformed_segments)}"
 
+    def get_article_content(self, link_for_article: str) -> str:
+        html_content = self.make_request(link_for_article)
+
+        return html_content.content.decode("utf-8") if html_content is not None else ""
+
+    def content_from_article(self, url: str, xpath: str | None) -> str:
+        html_content = self.get_article_content(url)
+        if not xpath:
+            content = extract(html_content, include_links=False, include_comments=False, include_formatting=False, with_metadata=False)
+            return content or html_content
+        
+        return self.xpath_extraction(html_content, xpath)
+
     def parse_feed(self, feed_entry: feedparser.FeedParserDict, feed_url, source) -> dict[str, str | datetime.datetime | list]:
         author: str = str(feed_entry.get("author", ""))
         title: str = str(feed_entry.get("title", ""))
@@ -130,8 +121,8 @@ class RSSCollector(BaseCollector):
             content = str(feed_entry[content_location])
         elif link:
             if published.date() >= (datetime.date.today() - datetime.timedelta(days=90)):
-                html_content = self.get_article_content(link_for_article=link)
-                content = self.parse_article_content(html_content, content_location)
+                xpath = source["parameters"].get("XPATH", None)
+                content = self.content_from_article(link, xpath)
             else:
                 content = "The article is older than 90 days - skipping"
         elif description:
@@ -167,15 +158,7 @@ class RSSCollector(BaseCollector):
                 return None
         return None
 
-    def get_last_attempted(self, source: dict) -> datetime.datetime | None:
-        if last_attempted := source.get("last_attempted"):
-            try:
-                return dateparser.parse(last_attempted, ignoretz=True)
-            except Exception:
-                return None
-        return None
-
-    def initial_gather(self, feed: feedparser.FeedParserDict, feed_url: str, source_id: str):
+    def update_favicon(self, feed: feedparser.FeedParserDict, feed_url: str, source_id: str):
         logger.info(f"RSS-Feed {feed_url} initial gather, get meta info about source like image icon and language")
         icon_url = f"{urlparse(feed_url).scheme}://{urlparse(feed_url).netloc}/favicon.ico"
         icon = feed.get("icon", feed.get("image"))
@@ -203,7 +186,7 @@ class RSSCollector(BaseCollector):
 
         last_attempted = self.get_last_attempted(source)
         if not last_attempted:
-            self.initial_gather(feed.feed, feed_url, source["id"])
+            self.update_favicon(feed.feed, feed_url, source["id"])
         last_modified = self.get_last_modified(feed_content, feed)
         self.last_modified = last_modified
         if last_modified and last_attempted and last_modified < last_attempted:

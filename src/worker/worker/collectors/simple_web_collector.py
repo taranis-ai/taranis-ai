@@ -4,15 +4,13 @@ import uuid
 import requests
 import logging
 import lxml.html
-from urllib.parse import urlparse
-import dateutil.parser as dateparser
 from trafilatura import bare_extraction
 
-from .base_collector import BaseCollector
 from worker.log import logger
+from .base_web_collector import BaseWebCollector
 
 
-class SimpleWebCollector(BaseCollector):
+class SimpleWebCollector(BaseWebCollector):
     def __init__(self):
         super().__init__()
         self.type = "SIMPLE_WEB_COLLECTOR"
@@ -20,8 +18,6 @@ class SimpleWebCollector(BaseCollector):
         self.description = "Collector for gathering news with Trafilatura"
 
         self.news_items = []
-        self.proxies = None
-        self.headers = {}
         logger_trafilatura = logging.getLogger("trafilatura")
         logger_trafilatura.setLevel(logging.WARNING)
 
@@ -44,24 +40,8 @@ class SimpleWebCollector(BaseCollector):
             logger.error(f"Simple Web Collector for {web_url} failed with error: {str(e)}")
             return str(e)
 
-    def set_proxies(self, proxy_server: str):
-        self.proxies = {"http": proxy_server, "https": proxy_server, "ftp": proxy_server}
-
-    def get_last_modified(self, response: requests.Response) -> datetime.datetime:
-        if last_modified := response.headers.get("Last-Modified", None):
-            return dateparser.parse(last_modified, ignoretz=True)
-        return datetime.datetime.now()
-
-    def get_article_content(self, web_url: str) -> tuple[str, datetime.datetime]:
-        response = requests.get(web_url, headers=self.headers, proxies=self.proxies, timeout=60)
-        if not response or not response.ok:
-            return "", datetime.datetime.now()
-        html_content = response.content.decode("utf-8") if response is not None else ""
-        published_date = self.get_last_modified(response)
-        return html_content, published_date
-
     def parse_web_content(self, web_url, source_id: str, xpath: str = "") -> dict[str, str | datetime.datetime | list]:
-        html_content, published_date = self.get_article_content(web_url)
+        html_content, published_date = self.html_from_article(web_url)
         author, title = self.extract_meta(html_content)
 
         if xpath:
@@ -89,50 +69,15 @@ class SimpleWebCollector(BaseCollector):
             "attributes": [],
         }
 
-    def xpath_extraction(self, html_content, xpath: str) -> str:
-        document = lxml.html.fromstring(html_content)
-        if not document.xpath(xpath):
-            logger.error(f"No content found for XPath: {xpath}")
-            return ""
-        return document.xpath(xpath)[0].text_content()
-
     def extract_meta(self, html_content):
         html_content = lxml.html.fromstring(html_content)
         author = ""
-        title = ""
+        title = html_content.findtext(".//title", default="")
 
-        title_tag = html_content.find(".//title")
-        if title_tag is not None:
-            title = title_tag.text
-
-        meta_tags = html_content.xpath("//meta[@name]")
-        for tag in meta_tags:
-            name = tag.get("name", "").lower()
-
-            # Only one author possible
-            if name == "author":
-                author = tag.attrib["content"]
-                break
+        if meta_tags := html_content.xpath("//meta[@name='author']"):
+            author = meta_tags[0].get("content", "")
 
         return author, title
-
-    def get_last_attempted(self, source: dict) -> datetime.datetime | None:
-        if last_attempted := source.get("last_attempted"):
-            try:
-                return dateparser.parse(last_attempted, ignoretz=True)
-            except Exception:
-                return None
-        return None
-
-    def update_favicon(self, web_url: str, source_id: str):
-        icon_url = f"{urlparse(web_url).scheme}://{urlparse(web_url).netloc}/favicon.ico"
-        r = requests.get(icon_url, headers=self.headers, proxies=self.proxies)
-        if not r.ok:
-            return None
-
-        icon_content = {"file": (r.headers.get("content-disposition", "file"), r.content)}
-        self.core_api.update_osint_source_icon(source_id, icon_content)
-        return None
 
     def web_collector(self, web_url: str, source, xpath: str = ""):
         response = requests.head(web_url, headers=self.headers, proxies=self.proxies)
