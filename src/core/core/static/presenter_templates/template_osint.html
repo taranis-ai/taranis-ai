@@ -1,0 +1,1456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+   <meta charset="UTF-8">
+
+    <style>
+        html {
+            font-family: sans-serif;
+            line-height: 1.15;
+            -webkit-text-size-adjust: 100%;
+            -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+        }
+        body {
+            padding: 0;
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+            font-size: 1rem;
+            font-weight: 400;
+            line-height: 1.5;
+            color: #212529;
+            text-align: left;
+            background-color: #fff;
+        }
+        table {
+            border-collapse: collapse;
+        }
+        h1 {
+            border-bottom: solid 1px grey;
+        }
+        .container {
+            width: 100%;
+            padding-right: 15px;
+            padding-left: 15px;
+            margin-right: auto;
+            margin-left: auto;
+        }
+        @media (min-width: 576px) {
+            .container {
+                max-width: 540px;
+            }
+        }
+        @media (min-width: 768px) {
+            .container {
+                max-width: 720px;
+            }
+        }
+        @media (min-width: 992px) {
+            .container {
+                max-width: 960px;
+            }
+        }
+        @media (min-width: 1200px) {
+            .container {
+                max-width: 1140px;
+            }
+        }
+        .table {
+            width: 100%;
+            margin-bottom: 1rem;
+            color: #212529;
+        }
+        .table th,
+        .table td {
+            padding: 0.75rem;
+            vertical-align: top;
+            border-top: 1px solid #dee2e6;
+        }
+        .table-bordered {
+            border: 1px solid #dee2e6;
+        }
+        .table-bordered th,
+        .table-bordered td {
+            border: 1px solid #dee2e6;
+        }
+        .table-borderless th,
+        .table-borderless td {
+            border: 0;
+        }
+        .table_header_color {
+            background-color: #DEEAF6
+        }
+        .thread_severe {
+            background-color: #BD0100;
+            color: white;
+        }
+        .thread_high {
+            background-color: #FF5000;
+            color: black;
+        }
+        .thread_elevated {
+            background-color: #FFBA00;
+            color: black;
+        }
+        .thread_guarded {
+            background-color: #FFDDAD;
+            color: black;
+        }
+        .thread_low {
+            background-color: #FFF6EF;
+            color: black;
+        }
+        .text-center {
+            text-align: center !important;
+        }
+        .text-justify {
+            text-align: justify !important;
+        }
+        .text-right {
+            text-align: right !important;
+        }
+        .text-bold {
+            font-weight: 700
+        }
+        .align-middle {
+            vertical-align: middle !important;
+        }
+        .py-0 {
+            padding-top: 0 !important;
+        }
+        .title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #2E74C3;
+        }
+        .small_title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #2E74C3;
+        }
+        .w20 {
+            width: 20%
+        }
+        .w30 {
+            width: 30%
+        }
+        .bold {
+            font-weight: 700
+        }
+        .footer_text {
+            font-size: 12px
+        }
+        .footer_color {
+            background-color: lightgray
+        }
+        .expand-column {
+            white-space: nowrap;
+        }    
+    </style>
+</head>
+<body>
+    <svg style="display: none;">
+        <symbol id="svg-dec" width="50" height="50" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12ZM13 8C13 7.44772 12.5523 7 12 7C11.4477 7 11 7.44772 11 8L11 13.5858L9.70711 12.2929C9.31658 11.9024 8.68342 11.9024 8.29289 12.2929C7.90237 12.6834 7.90237 13.3166 8.29289 13.7071L11.2059 16.6201C11.2209 16.6351 11.2363 16.6497 11.252 16.6637C11.4352 16.87 11.7024 17 12 17C12.2976 17 12.5648 16.87 12.748 16.6637C12.7637 16.6497 12.7791 16.6351 12.7941 16.6201L15.7071 13.7071C16.0976 13.3166 16.0976 12.6834 15.7071 12.2929C15.3166 11.9024 14.6834 11.9024 14.2929 12.2929L13 13.5858L13 8Z" fill="#D9D9D9"/>
+        </symbol>
+        <symbol id="svg-lo-dec" width="50" height="50" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2ZM9.70711 8.29289C9.31658 7.90237 8.68342 7.90237 8.29289 8.29289C7.90237 8.68342 7.90237 9.31658 8.29289 9.70711L12.5858 14H10C9.44772 14 9 14.4477 9 15C9 15.5523 9.44772 16 10 16H14.6717C15.4054 16 16 15.4051 16 14.6716V10C16 9.44772 15.5523 9 15 9C14.4477 9 14 9.44772 14 10V12.5858L9.70711 8.29289Z" fill="#FBD084"/>
+        </symbol>
+        <symbol id="svg-sta" width="50" height="50" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12ZM12.2929 14.2929C11.9024 14.6834 11.9024 15.3166 12.2929 15.7071C12.6834 16.0976 13.3166 16.0976 13.7071 15.7071L16.6201 12.7941C16.6351 12.7791 16.6497 12.7637 16.6637 12.748C16.87 12.5648 17 12.2976 17 12C17 11.7024 16.87 11.4352 16.6637 11.252C16.6497 11.2363 16.6351 11.2209 16.6201 11.2059L13.7071 8.29289C13.3166 7.90237 12.6834 7.90237 12.2929 8.29289C11.9024 8.68342 11.9024 9.31658 12.2929 9.70711L13.5858 11H8C7.44772 11 7 11.4477 7 12C7 12.5523 7.44772 13 8 13H13.5858L12.2929 14.2929Z" fill="#F9B233"/>
+        </symbol>    
+        <symbol id="svg-inc" width="50" height="50" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2ZM16 14C16 14.5523 15.5523 15 15 15C14.4477 15 14 14.5523 14 14V11.4142L9.70711 15.7071C9.31658 16.0976 8.68342 16.0976 8.29289 15.7071C7.90237 15.3166 7.90237 14.6834 8.29289 14.2929L12.5858 10H10C9.44772 10 9 9.55228 9 9C9 8.44772 9.44772 8 10 8H14.6717C15.4054 8 16 8.59489 16 9.32837V14Z" fill="#F1803B"/>
+        </symbol>
+        <symbol id="svg-hi-inc" width="50" height="50" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12ZM11 16C11 16.5523 11.4477 17 12 17C12.5523 17 13 16.5523 13 16L13 10.4142L14.2929 11.7071C14.6834 12.0976 15.3166 12.0976 15.7071 11.7071C16.0976 11.3166 16.0976 10.6834 15.7071 10.2929L12.7941 7.37993C12.7791 7.36486 12.7637 7.35031 12.748 7.33627C12.5648 7.12998 12.2976 7 12 7C11.7024 7 11.4352 7.12998 11.252 7.33627C11.2363 7.3503 11.2209 7.36486 11.2059 7.37993L8.29289 10.2929C7.90237 10.6834 7.90237 11.3166 8.29289 11.7071C8.68342 12.0976 9.31658 12.0976 9.70711 11.7071L11 10.4142L11 16Z" fill="#C00000"/>
+        </symbol>
+    </svg>
+    <div class="container">
+        <div>
+            <table class="table table-borderless">
+                <tr>
+                    <td class="w20">
+                        <img src="https://github.com/taranis-ai/taranis-ai/blob/master/resources/images/logo.png?raw=true">
+                    </td>
+                    <td class="text-center align-middle title">{{ data.product.title }}</td>
+                </tr>
+            </table>
+            {% for item in data.report_items %}
+                <table class="table table-borderless">
+                    <td class="text-center">
+                        {% if item.attributes.tlp == 'CLEAR' or item.attributes.tlp == 'WHITE' %}
+                            <span style="padding: 4px; background-color: black !important; color:white; font-weight: 700">
+                        {% endif %}
+                        {% if item.attributes.tlp == 'GREEN' %}
+                            <span style="padding: 4px; background-color: black !important; color:#33ff00; font-weight: 700">
+                        {% endif %}
+                        {% if item.attributes.tlp == 'AMBER' %}
+                            <span style="padding: 4px; background-color: black !important; color:#ffc000; font-weight: 700">
+                        {% endif %}
+                        {% if item.attributes.tlp == 'AMBER+STRICT' %}
+                            <span style="padding: 4px; background-color: black !important; color:#ffc000; font-weight: 700">
+                        {% endif %}
+                        {% if item.attributes.tlp == 'RED' %}
+                            <span style="padding: 4px; background-color: black !important; color:#ff2b2b; font-weight: 700">
+                        {% endif %}
+                        TLP:{{ item.attributes.tlp | e }}</span> - {{ item.attributes.date_published | strfdate }}
+                    </td>
+                    <td class="text-justify">
+                        {% if item.attributes.threat_level == 'SEVERE' %}
+                            <span class="thread_severe" style="padding: 4px; !important; font-weight: 700">
+                        {% endif %}
+                        {% if item.attributes.threat_level == 'HIGH' %}
+                            <span class="thread_high" style="padding: 4px; !important; font-weight: 700">
+                        {% endif %}
+                        {% if item.attributes.threat_level == 'ELEVATED' %}
+                            <span class="thread_elevated" style="padding: 4px; !important; font-weight: 700">
+                        {% endif %}
+                        {% if item.attributes.threat_level == 'GUARDED' %}
+                            <span class="thread_guarded" style="padding: 4px; !important; font-weight: 700">
+                        {% endif %}
+                        {% if item.attributes.threat_level == 'LOW' %}
+                            <span class="thread_low" style="padding: 4px; !important; font-weight: 700">
+                        {% endif %}
+                        {{ item.attributes.threat_level | e }} </span>
+                    </td>
+                </table>
+                <table class="table table-borderless">
+                    <td class="title">Weekly Summary</td>
+                </table>
+                <table class="table table-borderless">
+                    <td class="text-justify">{{ item.attributes.summary | e }}</td>
+                </table>
+            {% endfor %}
+            <br>
+        </div>
+        <div>
+            {% for item in data.report_items %}
+               <table class="table table-bordered">
+                    <tr>
+                        <td class="text-center bold table_header_color">Sector</td>
+                        <td class="text-center bold table_header_color">Comment</td>
+                        <td class="text-center bold table_header_color">Trend</td>
+                    </tr>
+                    <!-- we miss sector type info so we use fixed indexes -->
+                    {% if item.attributes.comment[0] != '' %}
+                        <tr>
+                            <td class="text-center">
+                                <svg fill="#000000" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+                                     height="50" viewBox="0 0 32 32" xml:space="preserve">
+                                <path id="factory_1_" d="M2.5,3.36C1.266,3.36,0.64,2.566,0.64,1c0-0.199,0.161-0.36,0.36-0.36S1.36,0.801,1.36,1
+                                    c0,1.441,0.548,1.64,1.14,1.64c1.078,0,1.86,0.992,1.86,2.36c0,0.199-0.161,0.36-0.36,0.36S3.64,5.199,3.64,5
+                                    C3.64,4.185,3.249,3.36,2.5,3.36z M3.5,1.36c1.3,0,2.14,0.84,2.14,2.14c0,0.199,0.161,0.36,0.36,0.36S6.36,3.699,6.36,3.5
+                                    c0-1.71-1.149-2.859-2.86-2.859c-0.199,0-0.36,0.161-0.36,0.36S3.301,1.36,3.5,1.36z M10,19.64c-0.199,0-0.36,0.161-0.36,0.36v2
+                                    c0,0.199,0.161,0.36,0.36,0.36s0.36-0.161,0.36-0.36v-2C10.36,19.801,10.199,19.64,10,19.64z M31.36,23.194V31
+                                    c0,0.199-0.161,0.36-0.36,0.36H2c-0.199,0-0.36-0.161-0.36-0.36V6c0-0.199,0.161-0.36,0.36-0.36h4c0.199,0,0.36,0.161,0.36,0.36
+                                    v10.356l5.952-3.663c0.111-0.069,0.251-0.071,0.364-0.008C12.79,12.75,12.86,12.87,12.86,13v3.38l6.461-3.692
+                                    c0.112-0.064,0.248-0.063,0.359,0.001s0.18,0.183,0.18,0.312v3.356l5.951-3.663c0.11-0.069,0.251-0.071,0.364-0.008
+                                    C26.289,12.75,26.36,12.87,26.36,13v6.64h1.474c0.476,0,1.68,0.098,2.583,1.003C31.045,21.272,31.362,22.131,31.36,23.194z
+                                     M26.36,21.64h1.375c0.896,0,1.625,0.72,1.625,1.604v7.396h1.279v-7.446c0.002-0.866-0.244-1.553-0.732-2.042
+                                    c-0.494-0.495-1.27-0.791-2.073-0.791H26.36V21.64z M26.36,22.36v8.279h2.279v-7.396c0-0.487-0.405-0.884-0.904-0.884H26.36V22.36z
+                                     M2.36,6.36v6.28h3.28V6.36H2.36z M5.64,30.64V13.36H2.36v17.28H5.64z M6.36,30.64h7.28V25c0-0.199,0.161-0.36,0.36-0.36h4
+                                    c0.199,0,0.36,0.161,0.36,0.36v5.64h7.279V13.644l-5.951,3.663c-0.11,0.067-0.25,0.071-0.364,0.008
+                                    C19.211,17.251,19.14,17.131,19.14,17v-3.38l-6.461,3.692c-0.112,0.062-0.248,0.063-0.359-0.001c-0.112-0.064-0.18-0.183-0.18-0.311
+                                    v-3.356l-5.78,3.557V30.64z M17.64,25.36h-3.28v5.279h3.28V25.36z M14,22.36c0.199,0,0.36-0.161,0.36-0.36v-2
+                                    c0-0.199-0.161-0.36-0.36-0.36s-0.36,0.161-0.36,0.36v2C13.64,22.199,13.801,22.36,14,22.36z M18,22.36
+                                    c0.199,0,0.36-0.161,0.36-0.36v-2c0-0.199-0.161-0.36-0.36-0.36s-0.36,0.161-0.36,0.36v2C17.64,22.199,17.801,22.36,18,22.36z
+                                     M22,22.36c0.199,0,0.36-0.161,0.36-0.36v-2c0-0.199-0.161-0.36-0.36-0.36s-0.36,0.161-0.36,0.36v2
+                                    C21.64,22.199,21.801,22.36,22,22.36z"/>
+                                <rect id="_Transparent_Rectangle" style="fill:none;" width="32" height="32"/>
+                                </svg>
+                                <br>Energy
+                            </td>
+                            <td class="text-justify">{{ item.attributes.comment[0] | e }}</td>
+                            <td class="text-center">
+                                <svg class="text-center" width="50" height="50">
+                                    {% if item.attributes.trend[0] == 'Decrease' %}
+                                        <use xlink:href="#svg-dec"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[0] == 'Low Decrease' %}
+                                        <use xlink:href="#svg-lo-dec"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[0] == 'Stable' %}
+                                        <use xlink:href="#svg-sta"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[0] == 'Increase' %}
+                                        <use xlink:href="#svg-inc"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[0] == 'High Increase' %}
+                                        <use xlink:href="#svg-hi-inc"></use>
+                                    {% endif %}
+                                </svg>
+                            </td>
+                        </tr>
+                    {% endif %}
+                    {% if item.attributes.comment[1] != '' %}
+                        <tr>
+                            <td class="text-center">
+                                <svg fill="#000000" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+                                     height="50" viewBox="0 0 32 32" xml:space="preserve">
+                                <path id="airplane_1_" d="M22,31.36c-0.038,0-0.076-0.007-0.114-0.019L16,29.38l-5.886,1.962c-0.11,0.035-0.231,0.018-0.324-0.05
+                                    C9.696,31.225,9.64,31.115,9.64,31v-2c0-0.104,0.044-0.202,0.123-0.271l3.877-3.393V5.169c0-1.419,0.594-4.529,2.36-4.529
+                                    s2.36,3.11,2.36,4.529v5.166l2.279,1.759V10h0.721v2.65l2.279,1.759V12h0.721v2.965l4.859,3.75c0.089,0.068,0.141,0.174,0.141,0.285
+                                    v4.5c0,0.128-0.068,0.246-0.179,0.311c-0.112,0.066-0.247,0.065-0.359,0.003l-10.458-5.916l-0.004,7.439l3.877,3.393
+                                    c0.078,0.068,0.123,0.167,0.123,0.271v2c0,0.115-0.056,0.225-0.149,0.292C22.148,31.337,22.074,31.36,22,31.36z M16,28.64
+                                    c0.039,0,0.077,0.007,0.114,0.019l5.526,1.843v-1.338l-3.877-3.393c-0.078-0.068-0.123-0.167-0.123-0.271l0.005-8.22
+                                    c0-0.128,0.068-0.246,0.179-0.311c0.112-0.064,0.247-0.065,0.359-0.002l10.457,5.916v-3.706l-10.859-8.38
+                                    c-0.089-0.068-0.141-0.174-0.141-0.285V5.169c0-1.33-0.562-3.81-1.64-3.81c-1.077,0-1.64,2.48-1.64,3.81V25.5
+                                    c0,0.104-0.044,0.202-0.123,0.271l-3.877,3.393v1.338l5.526-1.843C15.923,28.646,15.961,28.64,16,28.64z M3,23.86
+                                    c-0.062,0-0.125-0.017-0.18-0.049c-0.111-0.064-0.18-0.183-0.18-0.312V19c0-0.112,0.052-0.218,0.141-0.286l4.859-3.721V12h0.72
+                                    v2.441l2.28-1.746V10h0.72v2.873c0,0.112-0.052,0.218-0.141,0.286L3.36,19.178v3.699l8.46-4.884l0.36,0.623l-9,5.195
+                                    C3.125,23.844,3.062,23.86,3,23.86z"/>
+                                <rect id="_Transparent_Rectangle" style="fill:none;" width="32" height="32"/>
+                                </svg>
+                                <br>Transport
+                            </td>
+                            <td class="text-justify">{{ item.attributes.comment[1] | e }}</td>
+                            <td class="text-center">
+                                <svg class="text-center" width="50" height="50">
+                                    {% if item.attributes.trend[1] == 'Decrease' %}
+                                        <use xlink:href="#svg-dec"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[1] == 'Low Decrease' %}
+                                        <use xlink:href="#svg-lo-dec"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[1] == 'Stable' %}
+                                        <use xlink:href="#svg-sta"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[1] == 'Increase' %}
+                                        <use xlink:href="#svg-inc"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[1] == 'High Increase' %}
+                                        <use xlink:href="#svg-hi-inc"></use>
+                                    {% endif %}
+                                </svg>
+                            </td>
+                        </tr>
+                    {% endif %}
+                    {% if item.attributes.comment[2] != '' %}
+                        <tr>
+                            <td class="text-center">
+                                <svg fill="#000000" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+                                     height="50" viewBox="0 0 32 32" xml:space="preserve">
+                                <path id="global--currency_1_" d="M31,0.642H1c-0.199,0-0.36,0.161-0.36,0.36v16c0,0.199,0.161,0.36,0.36,0.36h30
+                                    c0.199,0,0.36-0.161,0.36-0.36v-16C31.36,0.803,31.199,0.642,31,0.642z M30.64,4.604c-1.715-0.172-3.07-1.527-3.243-3.242h3.243
+                                    V4.604z M30.64,5.323v7.353c-2.113,0.177-3.788,1.852-3.964,3.966H5.324c-0.175-2.114-1.85-3.789-3.964-3.966V5.323
+                                    c2.112-0.176,3.786-1.85,3.963-3.962h21.353C26.854,3.474,28.528,5.147,30.64,5.323z M4.604,1.362
+                                    C4.431,3.077,3.076,4.432,1.36,4.604V1.362H4.604z M1.36,13.396c1.717,0.172,3.073,1.529,3.244,3.246H1.36V13.396z M27.397,16.642
+                                    c0.171-1.717,1.527-3.074,3.243-3.246v3.246H27.397z M16,2.64c-3.507,0-6.36,2.853-6.36,6.36s2.853,6.36,6.36,6.36
+                                    s6.36-2.853,6.36-6.36S19.507,2.64,16,2.64z M20.519,5.64h-1.656c-0.254-0.784-0.592-1.452-0.997-1.956
+                                    C18.935,4.06,19.854,4.748,20.519,5.64z M10.378,9.36h2.271c0.023,0.814,0.122,1.582,0.286,2.28h-1.916
+                                    C10.653,10.952,10.43,10.179,10.378,9.36z M16.36,5.64V3.421c0.702,0.215,1.324,1.045,1.74,2.219C18.1,5.64,16.36,5.64,16.36,5.64z
+                                     M18.321,6.36c0.177,0.691,0.284,1.466,0.31,2.28H16.36V6.36H18.321z M15.64,3.421V5.64H13.9C14.316,4.466,14.938,3.637,15.64,3.421
+                                    z M15.64,6.36v2.28h-2.271c0.026-0.814,0.133-1.589,0.31-2.28C13.679,6.36,15.64,6.36,15.64,6.36z M12.649,8.64h-2.271
+                                    c0.052-0.819,0.275-1.592,0.641-2.28h1.916C12.771,7.058,12.672,7.826,12.649,8.64z M13.369,9.36h2.271v2.28h-1.961
+                                    C13.502,10.949,13.394,10.174,13.369,9.36z M15.64,12.36v2.219c-0.702-0.215-1.324-1.044-1.741-2.219H15.64z M16.36,14.579V12.36
+                                    h1.74C17.683,13.534,17.062,14.363,16.36,14.579z M16.36,11.64V9.36h2.271c-0.026,0.814-0.133,1.589-0.31,2.28
+                                    C18.321,11.64,16.36,11.64,16.36,11.64z M19.351,9.36h2.27c-0.052,0.819-0.275,1.592-0.641,2.28h-1.916
+                                    C19.229,10.942,19.328,10.174,19.351,9.36z M19.351,8.64c-0.023-0.814-0.122-1.582-0.286-2.28h1.916
+                                    c0.366,0.688,0.589,1.461,0.641,2.28H19.351z M14.134,3.684c-0.405,0.504-0.744,1.172-0.997,1.956h-1.656
+                                    C12.146,4.748,13.065,4.06,14.134,3.684z M11.481,12.36h1.656c0.253,0.784,0.592,1.452,0.997,1.956
+                                    C13.065,13.94,12.146,13.252,11.481,12.36z M17.866,14.316c0.405-0.504,0.744-1.172,0.997-1.956h1.656
+                                    C19.854,13.252,18.935,13.94,17.866,14.316z M5.5,7.14C4.475,7.14,3.64,7.975,3.64,9s0.834,1.86,1.86,1.86S7.36,10.025,7.36,9
+                                    S6.525,7.14,5.5,7.14z M5.5,10.14c-0.628,0-1.14-0.512-1.14-1.14S4.872,7.86,5.5,7.86S6.64,8.372,6.64,9S6.128,10.14,5.5,10.14z
+                                     M26.5,7.14c-1.025,0-1.86,0.834-1.86,1.86s0.835,1.86,1.86,1.86s1.86-0.834,1.86-1.86S27.525,7.14,26.5,7.14z M26.5,10.14
+                                    c-0.629,0-1.14-0.512-1.14-1.14s0.511-1.14,1.14-1.14S27.64,8.372,27.64,9S27.129,10.14,26.5,10.14z M26.841,20.161
+                                    c0.691,0.692,0.69,1.818,0,2.51l-6.066,6.101c-0.37,0.369-0.857,0.607-1.374,0.673l-7.233,0.897l-0.913,0.913l-0.509-0.51l1-1
+                                    c0.057-0.057,0.13-0.093,0.21-0.103l7.356-0.913c0.358-0.045,0.697-0.211,0.954-0.467l6.065-6.101c0.411-0.411,0.411-1.08,0-1.492
+                                    c-0.373-0.371-0.968-0.44-1.513,0.021l-6.286,5.135l-0.022-0.027C18.1,26.144,17.577,26.36,17,26.36h-5v-0.72h5
+                                    c0.904,0,1.64-0.735,1.64-1.64c0-0.353-0.287-0.64-0.64-0.64h-8c-2.559,0-4.64,2.081-4.64,4.64c0,0.096-0.038,0.188-0.105,0.255
+                                    l-3,3l-0.509-0.51l2.896-2.896C4.722,24.963,7.095,22.64,10,22.64h8c0.75,0,1.36,0.61,1.36,1.36c0,0.083-0.016,0.161-0.024,0.241
+                                    l5.022-4.103c0.267-0.226,0.7-0.498,1.228-0.498C26.059,19.64,26.504,19.825,26.841,20.161z"/>
+                                <rect id="_Transparent_Rectangle" style="fill:none;" width="32" height="32"/>
+                                </svg>
+                                <br>Banking
+                            </td>
+                            <td class="text-justify">{{ item.attributes.comment[2] | e }}</td>
+                            <td class="text-center">
+                                <svg class="text-center" width="50" height="50">
+                                    {% if item.attributes.trend[2] == 'Decrease' %}
+                                        <use xlink:href="#svg-dec"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[2] == 'Low Decrease' %}
+                                        <use xlink:href="#svg-lo-dec"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[2] == 'Stable' %}
+                                        <use xlink:href="#svg-sta"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[2] == 'Increase' %}
+                                        <use xlink:href="#svg-inc"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[2] == 'High Increase' %}
+                                        <use xlink:href="#svg-hi-inc"></use>
+                                    {% endif %}
+                                </svg>
+                            </td>
+                        </tr>
+                    {% endif %}
+                    {% if item.attributes.comment[3] != '' %}
+                        <tr>
+                            <td class="text-center">
+                                <svg fill="#000000" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+                                     height="50" viewBox="0 0 32 32" xml:space="preserve">
+                                <path id="university_1_" d="M31,31.36H1c-0.199,0-0.36-0.161-0.36-0.36v-3c0-0.199,0.161-0.36,0.36-0.36h1.64V25
+                                    c0-0.199,0.161-0.36,0.36-0.36h26c0.199,0,0.36,0.161,0.36,0.36v2.64H31c0.199,0,0.36,0.161,0.36,0.36v3
+                                    C31.36,31.199,31.199,31.36,31,31.36z M1.36,30.64h29.28v-2.28H1.36V30.64z M3.36,27.64h25.28v-2.28H3.36V27.64z M27,22.36h-4
+                                    c-0.199,0-0.36-0.161-0.36-0.36v-6c0-0.199,0.161-0.36,0.36-0.36h4c0.199,0,0.36,0.161,0.36,0.36v6
+                                    C27.36,22.199,27.199,22.36,27,22.36z M23.36,21.64h3.279v-5.28H23.36V21.64z M18,22.36h-4c-0.199,0-0.36-0.161-0.36-0.36v-6
+                                    c0-0.199,0.161-0.36,0.36-0.36h4c0.199,0,0.36,0.161,0.36,0.36v6C18.36,22.199,18.199,22.36,18,22.36z M14.36,21.64h3.28v-5.28
+                                    h-3.28V21.64z M9,22.36H5c-0.199,0-0.36-0.161-0.36-0.36v-6c0-0.199,0.161-0.36,0.36-0.36h4c0.199,0,0.36,0.161,0.36,0.36v6
+                                    C9.36,22.199,9.199,22.36,9,22.36z M5.36,21.64h3.28v-5.28H5.36V21.64z M29,13.36H3v-0.72h26V13.36z M31,10.36H1
+                                    c-0.162,0-0.304-0.108-0.347-0.264s0.023-0.322,0.162-0.405l15-9c0.113-0.068,0.257-0.068,0.37,0l15,9
+                                    c0.139,0.083,0.204,0.249,0.161,0.405C31.304,10.252,31.162,10.36,31,10.36z M2.3,9.64h27.4L16,1.42L2.3,9.64z M16,7.86
+                                    c-1.301,0-2.36-1.059-2.36-2.36S14.699,3.14,16,3.14c1.302,0,2.36,1.059,2.36,2.36S17.302,7.86,16,7.86z M16,3.86
+                                    c-0.904,0-1.64,0.736-1.64,1.64S15.096,7.14,16,7.14c0.904,0,1.64-0.736,1.64-1.64S16.904,3.86,16,3.86z"/>
+                                <rect id="_Transparent_Rectangle" style="fill:none;" width="32" height="32"/>
+                                </svg>
+                                <br>Financial market infrastructures
+                            </td>
+                            <td class="text-justify">{{ item.attributes.comment[3] | e }}</td>
+                            <td class="text-center">
+                                <svg class="text-center" width="50" height="50">
+                                    {% if item.attributes.trend[3] == 'Decrease' %}
+                                        <use xlink:href="#svg-dec"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[3] == 'Low Decrease' %}
+                                        <use xlink:href="#svg-lo-dec"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[3] == 'Stable' %}
+                                        <use xlink:href="#svg-sta"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[3] == 'Increase' %}
+                                        <use xlink:href="#svg-inc"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[3] == 'High Increase' %}
+                                        <use xlink:href="#svg-hi-inc"></use>
+                                    {% endif %}
+                                </svg>
+                            </td>
+                        </tr>
+                    {% endif %}
+                    {% if item.attributes.comment[4] != '' %}
+                        <tr>
+                            <td class="text-center">
+                                <svg fill="#000000" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+                                     height="50" viewBox="0 0 32 32" xml:space="preserve">
+                                <path id="doctor-patient_1_" d="M31.36,30h-0.72v-9c0-3.358-2.151-6.289-5.354-7.292c-0.138-0.043-0.236-0.165-0.251-0.308
+                                    c-0.014-0.144,0.059-0.282,0.185-0.351c1.492-0.82,2.42-2.372,2.42-4.049c0-2.559-2.081-4.64-4.64-4.64S18.36,6.441,18.36,9
+                                    c0,1.677,0.928,3.229,2.421,4.049c0.126,0.069,0.198,0.208,0.185,0.351c-0.015,0.144-0.113,0.265-0.251,0.308
+                                    C17.512,14.711,15.36,17.642,15.36,21v9h-0.72v-9c0-1.389,0.336-2.711,0.944-3.877c-0.567-0.963-1.326-1.778-2.224-2.401V17
+                                    c0,2.283-1.764,4.162-4,4.346v2.329c0.854,0.168,1.5,0.923,1.5,1.825c0,1.025-0.834,1.86-1.86,1.86s-1.86-0.835-1.86-1.86
+                                    c0-0.902,0.646-1.657,1.5-1.825v-2.329c-2.236-0.184-4-2.062-4-4.346v-2.281C2.617,16.116,1.36,18.433,1.36,21v9H0.64v-9
+                                    c0-3.426,2.045-6.444,5.161-7.727C4.453,12.269,3.64,10.69,3.64,9c0-2.055,1.173-3.921,3.007-4.817C6.643,4.123,6.64,4.062,6.64,4
+                                    c0-1.301,1.059-2.36,2.36-2.36S11.36,2.699,11.36,4c0,0.062-0.002,0.123-0.007,0.183C13.187,5.079,14.36,6.945,14.36,9
+                                    c0,1.69-0.812,3.269-2.162,4.274c1.555,0.642,2.872,1.732,3.797,3.146c0.903-1.383,2.215-2.491,3.807-3.146
+                                    C18.452,12.269,17.64,10.69,17.64,9c0-2.956,2.405-5.36,5.36-5.36S28.36,6.044,28.36,9c0,1.69-0.812,3.269-2.162,4.273
+                                    c3.116,1.283,5.162,4.302,5.162,7.727V30z M9,24.36c-0.628,0-1.14,0.511-1.14,1.14S8.372,26.64,9,26.64s1.14-0.511,1.14-1.14
+                                    S9.628,24.36,9,24.36z M5.36,14.278V17c0,2.007,1.633,3.64,3.64,3.64s3.64-1.633,3.64-3.64v-2.72
+                                    c-0.429-0.231-0.882-0.423-1.355-0.571c-0.138-0.043-0.236-0.165-0.251-0.308c-0.014-0.144,0.059-0.282,0.185-0.351
+                                    c1.493-0.821,2.421-2.373,2.421-4.05c0-1.725-0.955-3.296-2.459-4.097C10.825,5.757,9.982,6.36,9,6.36S7.175,5.757,6.819,4.903
+                                    C5.314,5.704,4.36,7.275,4.36,9c0,1.677,0.928,3.229,2.421,4.049c0.126,0.069,0.199,0.208,0.185,0.351
+                                    c-0.015,0.144-0.113,0.265-0.251,0.308C6.239,13.857,5.786,14.049,5.36,14.278z M9,2.36C8.096,2.36,7.36,3.096,7.36,4
+                                    S8.096,5.64,9,5.64S10.64,4.904,10.64,4S9.904,2.36,9,2.36z M23,25.36c-0.092,0-0.185-0.035-0.255-0.105l-2.973-2.973
+                                    c-0.4-0.401-0.622-0.934-0.625-1.499c-0.002-0.572,0.22-1.111,0.625-1.518c0.402-0.402,0.937-0.624,1.505-0.626
+                                    c0.002,0,0.003,0,0.005,0c0.569,0,1.105,0.223,1.509,0.625L23,19.475l0.209-0.21c0.807-0.803,2.212-0.805,3.019,0
+                                    c0.413,0.414,0.635,0.963,0.624,1.548c-0.01,0.555-0.231,1.077-0.624,1.47l-2.973,2.973C23.185,25.325,23.092,25.36,23,25.36z
+                                     M21.282,19.36c-0.001,0-0.002,0-0.003,0c-0.377,0-0.731,0.147-0.997,0.414c-0.269,0.269-0.416,0.626-0.414,1.005
+                                    c0.001,0.375,0.148,0.729,0.414,0.993L23,24.491l2.718-2.719c0.261-0.26,0.407-0.605,0.413-0.973
+                                    c0.008-0.388-0.139-0.752-0.413-1.025c-0.534-0.536-1.467-0.535-1.999,0l-0.464,0.464c-0.141,0.141-0.369,0.141-0.51,0l-0.464-0.464
+                                    C22.015,19.507,21.659,19.36,21.282,19.36z"/>
+                                <rect id="_Transparent_Rectangle" style="fill:none;" width="32" height="32"/>
+                                </svg>
+                                <br>Health
+                            </td>
+                            <td class="text-justify">{{ item.attributes.comment[4] | e }}</td>
+                            <td class="text-center">
+                                <svg class="text-center" width="50" height="50">
+                                    {% if item.attributes.trend[4] == 'Decrease' %}
+                                        <use xlink:href="#svg-dec"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[4] == 'Low Decrease' %}
+                                        <use xlink:href="#svg-lo-dec"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[4] == 'Stable' %}
+                                        <use xlink:href="#svg-sta"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[4] == 'Increase' %}
+                                        <use xlink:href="#svg-inc"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[4] == 'High Increase' %}
+                                        <use xlink:href="#svg-hi-inc"></use>
+                                    {% endif %}
+                                </svg>
+                            </td>
+                        </tr>
+                    {% endif %}
+                    {% if item.attributes.comment[5] != '' %}
+                        <tr>
+                            <td class="text-center">
+                                <svg fill="#000000" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+                                     height="50" viewBox="0 0 32 32" xml:space="preserve">
+                                <path id="faucet_1_" d="M4.508,31.36c-0.242,0-0.485-0.048-0.716-0.144c-0.464-0.192-0.824-0.554-1.014-1.016
+                                    c-0.187-0.458-0.185-0.96,0.007-1.414l1.387-3.422c0.055-0.137,0.187-0.226,0.333-0.226l0,0c0.147,0.001,0.279,0.09,0.333,0.226
+                                    l1.378,3.425c0.193,0.466,0.192,0.974-0.004,1.426c-0.182,0.451-0.535,0.809-0.99,1C4.993,31.312,4.75,31.36,4.508,31.36z
+                                     M4.504,26.462L3.451,29.06c0,0.002-0.001,0.004-0.002,0.006c-0.118,0.277-0.119,0.583-0.005,0.862
+                                    c0.116,0.284,0.337,0.505,0.623,0.623c0.286,0.119,0.597,0.118,0.877,0.001c0.277-0.116,0.492-0.334,0.605-0.614
+                                    c0.122-0.28,0.121-0.588,0.002-0.875L4.504,26.462z M31.36,31h-0.72V16.36H15.39c-3.876,0-7.029,3.427-7.029,7.64
+                                    c0,0.199-0.161,0.36-0.36,0.36H1c-0.199,0-0.36-0.161-0.36-0.36c0-7.784,6.421-14.36,14.021-14.36h3.979V6.36H13.5
+                                    c-1.025,0-1.86-0.834-1.86-1.86s0.834-1.86,1.86-1.86h11c1.025,0,1.86,0.834,1.86,1.86s-0.835,1.86-1.86,1.86h-5.14v3.28h11.28V1
+                                    h0.721L31.36,31L31.36,31z M1.365,23.64h6.282c0.176-4.443,3.581-8,7.742-8h15.25v-5.28H14.661
+                                    C7.569,10.36,1.559,16.405,1.365,23.64z M13.5,3.36c-0.628,0-1.14,0.512-1.14,1.14s0.512,1.14,1.14,1.14h11
+                                    c0.629,0,1.14-0.512,1.14-1.14s-0.511-1.14-1.14-1.14C24.5,3.36,13.5,3.36,13.5,3.36z"/>
+                                <rect id="_Transparent_Rectangle" style="fill:none;" width="32" height="32"/>
+                                </svg>
+                                <br>Drinking water
+                            </td>
+                            <td class="text-justify">{{ item.attributes.comment[5] | e }}</td>
+                            <td class="text-center">
+                                <svg class="text-center" width="50" height="50">
+                                    {% if item.attributes.trend[5] == 'Decrease' %}
+                                        <use xlink:href="#svg-dec"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[5] == 'Low Decrease' %}
+                                        <use xlink:href="#svg-lo-dec"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[5] == 'Stable' %}
+                                        <use xlink:href="#svg-sta"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[5] == 'Increase' %}
+                                        <use xlink:href="#svg-inc"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[5] == 'High Increase' %}
+                                        <use xlink:href="#svg-hi-inc"></use>
+                                    {% endif %}
+                                </svg>
+                            </td>
+                        </tr>
+                    {% endif %}
+                    {% if item.attributes.comment[6] != '' %}
+                        <tr>
+                            <td class="text-center">
+                                <svg fill="#000000" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+                                     height="50" viewBox="0 0 32 32" xml:space="preserve">
+                                <path id="humid_1_" d="M31,26.36c-0.898,0-1.645-0.656-2.138-1.09c-0.539-0.474-1.036-0.91-1.612-0.91
+                                    c-0.602,0-1.149,0.481-1.633,0.906C25.054,25.76,24.37,26.36,23.5,26.36c-0.873,0-1.558-0.603-2.107-1.086
+                                    c-0.496-0.435-1.043-0.914-1.643-0.914c-0.602,0-1.149,0.481-1.633,0.906C17.554,25.761,16.871,26.36,16,26.36
+                                    c-0.872,0-1.556-0.601-2.105-1.084c-0.497-0.436-1.044-0.916-1.645-0.916s-1.147,0.48-1.63,0.904
+                                    C10.056,25.76,9.372,26.36,8.5,26.36s-1.556-0.601-2.105-1.084C5.897,24.841,5.351,24.36,4.75,24.36s-1.147,0.48-1.63,0.904
+                                    C2.556,25.76,1.872,26.36,1,26.36v-0.72c0.601,0,1.147-0.48,1.63-0.904c0.564-0.495,1.248-1.096,2.12-1.096s1.556,0.601,2.105,1.084
+                                    C7.353,25.159,7.899,25.64,8.5,25.64s1.147-0.48,1.63-0.904c0.564-0.495,1.248-1.096,2.12-1.096s1.556,0.601,2.105,1.084
+                                    C14.852,25.16,15.399,25.64,16,25.64c0.6,0,1.146-0.479,1.628-0.902c0.564-0.495,1.249-1.098,2.122-1.098
+                                    c0.87,0,1.554,0.6,2.104,1.082c0.497,0.437,1.045,0.918,1.646,0.918c0.6,0,1.146-0.479,1.628-0.902
+                                    c0.564-0.495,1.249-1.098,2.122-1.098c0.848,0,1.502,0.576,2.028,1.038c0.496,0.437,1.095,0.962,1.722,0.962V26.36z M31,20.36
+                                    c-0.898,0-1.645-0.656-2.138-1.09c-0.539-0.474-1.036-0.91-1.612-0.91c-0.602,0-1.149,0.481-1.633,0.906
+                                    C25.054,19.76,24.37,20.36,23.5,20.36c-0.873,0-1.558-0.603-2.107-1.086c-0.496-0.435-1.043-0.914-1.643-0.914
+                                    c-0.602,0-1.149,0.481-1.633,0.906C17.554,19.761,16.871,20.36,16,20.36c-0.872,0-1.556-0.601-2.105-1.084
+                                    c-0.497-0.436-1.044-0.916-1.645-0.916s-1.147,0.48-1.63,0.904C10.056,19.76,9.372,20.36,8.5,20.36s-1.556-0.601-2.105-1.084
+                                    C5.897,18.841,5.351,18.36,4.75,18.36s-1.147,0.48-1.63,0.904C2.556,19.76,1.872,20.36,1,20.36v-0.72c0.601,0,1.147-0.48,1.63-0.904
+                                    c0.564-0.495,1.248-1.096,2.12-1.096s1.556,0.601,2.105,1.084C7.353,19.159,7.899,19.64,8.5,19.64s1.147-0.48,1.63-0.904
+                                    c0.564-0.495,1.248-1.096,2.12-1.096s1.556,0.601,2.105,1.084C14.852,19.16,15.399,19.64,16,19.64c0.6,0,1.146-0.479,1.628-0.902
+                                    c0.564-0.495,1.249-1.098,2.122-1.098c0.87,0,1.554,0.6,2.104,1.082c0.497,0.437,1.045,0.918,1.646,0.918
+                                    c0.6,0,1.146-0.479,1.628-0.902c0.564-0.495,1.249-1.098,2.122-1.098c0.848,0,1.502,0.576,2.028,1.038
+                                    c0.496,0.437,1.095,0.962,1.722,0.962V20.36z M31,14.36c-0.898,0-1.645-0.656-2.138-1.089c-0.539-0.474-1.036-0.911-1.612-0.911
+                                    c-0.602,0-1.149,0.481-1.633,0.906C25.054,13.76,24.37,14.36,23.5,14.36c-0.873,0-1.558-0.602-2.107-1.085
+                                    c-0.496-0.435-1.043-0.915-1.643-0.915c-0.602,0-1.149,0.481-1.633,0.906C17.554,13.76,16.871,14.36,16,14.36
+                                    c-0.872,0-1.556-0.601-2.105-1.083c-0.497-0.437-1.044-0.917-1.645-0.917s-1.147,0.48-1.63,0.904
+                                    c-0.564,0.495-1.248,1.096-2.12,1.096s-1.556-0.601-2.105-1.083C5.897,12.84,5.351,12.36,4.75,12.36s-1.147,0.48-1.63,0.904
+                                    C2.556,13.759,1.872,14.36,1,14.36v-0.72c0.601,0,1.147-0.48,1.63-0.904c0.564-0.495,1.248-1.096,2.12-1.096
+                                    s1.556,0.601,2.105,1.083C7.353,13.16,7.899,13.64,8.5,13.64s1.147-0.48,1.63-0.904c0.564-0.495,1.248-1.096,2.12-1.096
+                                    s1.556,0.601,2.105,1.083C14.853,13.16,15.399,13.64,16,13.64c0.6,0,1.146-0.479,1.628-0.903c0.564-0.496,1.249-1.097,2.122-1.097
+                                    c0.87,0,1.554,0.6,2.104,1.081c0.497,0.438,1.045,0.919,1.646,0.919c0.6,0,1.146-0.479,1.628-0.903
+                                    c0.564-0.496,1.249-1.097,2.122-1.097c0.848,0,1.502,0.576,2.028,1.038c0.496,0.436,1.095,0.962,1.722,0.962V14.36z M31,8.36
+                                    c-0.898,0-1.645-0.656-2.138-1.089C28.323,6.797,27.826,6.36,27.25,6.36c-0.602,0-1.149,0.481-1.633,0.906
+                                    C25.054,7.76,24.37,8.36,23.5,8.36c-0.873,0-1.558-0.602-2.107-1.085C20.896,6.839,20.35,6.36,19.75,6.36
+                                    c-0.602,0-1.149,0.481-1.633,0.906C17.554,7.76,16.871,8.36,16,8.36c-0.872,0-1.556-0.601-2.105-1.083
+                                    C13.397,6.84,12.851,6.36,12.25,6.36s-1.147,0.48-1.63,0.904C10.056,7.759,9.372,8.36,8.5,8.36S6.944,7.759,6.395,7.277
+                                    C5.897,6.84,5.351,6.36,4.75,6.36S3.603,6.84,3.12,7.264C2.556,7.759,1.872,8.36,1,8.36V7.64c0.601,0,1.147-0.48,1.63-0.904
+                                    C3.194,6.241,3.878,5.64,4.75,5.64s1.556,0.601,2.105,1.083C7.353,7.16,7.899,7.64,8.5,7.64s1.147-0.48,1.63-0.904
+                                    c0.564-0.495,1.248-1.096,2.12-1.096s1.556,0.601,2.105,1.083C14.853,7.16,15.399,7.64,16,7.64c0.6,0,1.146-0.479,1.628-0.903
+                                    c0.564-0.496,1.249-1.097,2.122-1.097c0.87,0,1.554,0.6,2.104,1.081C22.351,7.159,22.898,7.64,23.5,7.64
+                                    c0.6,0,1.146-0.479,1.628-0.903c0.564-0.496,1.249-1.097,2.122-1.097c0.848,0,1.502,0.576,2.028,1.038
+                                    C29.774,7.114,30.373,7.64,31,7.64V8.36z"/>
+                                <rect id="_Transparent_Rectangle" style="fill:none;" width="32" height="32"/>
+                                </svg>
+                                <br>Waste water
+                            </td>
+                            <td class="text-justify">{{ item.attributes.comment[6] | e }}</td>
+                            <td class="text-center">
+                                <svg class="text-center" width="50" height="50">
+                                    {% if item.attributes.trend[6] == 'Decrease' %}
+                                        <use xlink:href="#svg-dec"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[6] == 'Low Decrease' %}
+                                        <use xlink:href="#svg-lo-dec"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[6] == 'Stable' %}
+                                        <use xlink:href="#svg-sta"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[6] == 'Increase' %}
+                                        <use xlink:href="#svg-inc"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[6] == 'High Increase' %}
+                                        <use xlink:href="#svg-hi-inc"></use>
+                                    {% endif %}
+                                </svg>
+                            </td>
+                        </tr>
+                    {% endif %}
+                    {% if item.attributes.comment[7] != '' %}
+                        <tr>
+                            <td class="text-center">
+                                <svg fill="#000000" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+                                     height="50" viewBox="0 0 32 32" xml:space="preserve">
+                                <path id="it--infrastructure-software_1_" d="M22.5,4.5C22.5,4.776,22.276,5,22,5s-0.5-0.224-0.5-0.5S21.724,4,22,4
+                                    S22.5,4.224,22.5,4.5z M20,4c-0.276,0-0.5,0.224-0.5,0.5S19.724,5,20,5s0.5-0.224,0.5-0.5S20.276,4,20,4z M18,4
+                                    c-0.276,0-0.5,0.224-0.5,0.5S17.724,5,18,5s0.5-0.224,0.5-0.5S18.276,4,18,4z M30,29.36h-8c-0.199,0-0.36-0.161-0.36-0.36v-4
+                                    c0-0.199,0.161-0.36,0.36-0.36h3.64v-3.28h-9.28v3.279H20c0.199,0,0.36,0.161,0.36,0.36v4c0,0.199-0.161,0.36-0.36,0.36h-8
+                                    c-0.199,0-0.36-0.161-0.36-0.36v-4c0-0.199,0.161-0.36,0.36-0.36h3.64V21.36H6.36v3.279H10c0.199,0,0.36,0.161,0.36,0.36v4
+                                    c0,0.199-0.161,0.36-0.36,0.36H2c-0.199,0-0.36-0.161-0.36-0.36v-4c0-0.199,0.161-0.36,0.36-0.36h3.64V21
+                                    c0-0.199,0.161-0.36,0.36-0.36h9.64v-4.28H8c-0.199,0-0.36-0.161-0.36-0.36V3c0-0.199,0.161-0.36,0.36-0.36h16
+                                    c0.199,0,0.36,0.161,0.36,0.36v13c0,0.199-0.161,0.36-0.36,0.36h-7.64v4.28H26c0.199,0,0.36,0.161,0.36,0.36v3.64H30
+                                    c0.199,0,0.36,0.161,0.36,0.36v4C30.36,29.199,30.199,29.36,30,29.36z M22.36,28.64h7.279v-3.28H22.36V28.64z M12.36,28.64h7.28
+                                    v-3.28h-7.28C12.36,25.36,12.36,28.64,12.36,28.64z M2.36,28.64h7.28v-3.28H2.36V28.64z M8.36,15.64h15.28V6.36H8.36V15.64z
+                                     M8.36,5.64h15.28V3.36H8.36V5.64z M25,27.36h-2v-0.72h2V27.36z M15,27.36h-2v-0.72h2V27.36z M5,27.36H3v-0.72h2V27.36z"/>
+                                <rect id="_Transparent_Rectangle" style="fill:none;" width="32" height="32"/>
+                                </svg>
+                                <br>Digital infrastructure
+                            </td>
+                            <td class="text-justify">{{ item.attributes.comment[7] | e }}</td>
+                            <td class="text-center">
+                                <svg class="text-center" width="50" height="50">
+                                    {% if item.attributes.trend[7] == 'Decrease' %}
+                                        <use xlink:href="#svg-dec"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[7] == 'Low Decrease' %}
+                                        <use xlink:href="#svg-lo-dec"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[7] == 'Stable' %}
+                                        <use xlink:href="#svg-sta"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[7] == 'Increase' %}
+                                        <use xlink:href="#svg-inc"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[7] == 'High Increase' %}
+                                        <use xlink:href="#svg-hi-inc"></use>
+                                    {% endif %}
+                                </svg>
+                            </td>
+                        </tr>
+                    {% endif %}
+                    {% if item.attributes.comment[8] != '' %}
+                        <tr>
+                            <td class="text-center">
+                                <svg fill="#000000" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+                                     height="50" viewBox="0 0 32 32" xml:space="preserve">
+                                <path id="support--services_1_" d="M13,12.64c-0.199,0-0.36,0.161-0.36,0.36v6c0,0.199,0.161,0.36,0.36,0.36h6
+                                    c0.199,0,0.36-0.161,0.36-0.36v-6c0-0.199-0.161-0.36-0.36-0.36H13z M18.64,18.64h-5.28v-5.28h5.28V18.64z M25.5,5.36H11V4.64h14.5
+                                    c3.231,0,5.86,2.628,5.86,5.86s-2.629,5.86-5.86,5.86H21v-0.72h4.5c2.834,0,5.14-2.306,5.14-5.14S28.334,5.36,25.5,5.36z M1.36,9
+                                    H0.64V8.5c0-1.714,1.032-3.264,2.575-3.959C2.848,4.118,2.641,3.574,2.641,3c0-1.301,1.058-2.36,2.359-2.36S7.359,1.699,7.359,3
+                                    c0,0.574-0.208,1.118-0.574,1.541C8.328,5.236,9.36,6.785,9.36,8.5V9H8.64V8.5c0-1.605-1.087-3.038-2.644-3.483
+                                    C5.861,4.978,5.761,4.864,5.739,4.725C5.718,4.585,5.78,4.447,5.897,4.37C6.362,4.064,6.64,3.552,6.64,3
+                                    c0-0.904-0.736-1.64-1.64-1.64S3.36,2.096,3.36,3c0,0.552,0.277,1.064,0.742,1.37c0.118,0.077,0.18,0.215,0.159,0.355
+                                    C4.239,4.864,4.139,4.978,4.004,5.017C2.447,5.462,1.36,6.894,1.36,8.5V9z M31.36,30.499V31h-0.72v-0.501
+                                    c0-1.605-1.087-3.037-2.643-3.483c-0.136-0.038-0.236-0.152-0.257-0.291c-0.021-0.14,0.04-0.278,0.157-0.355
+                                    c0.465-0.306,0.742-0.817,0.742-1.369c0-0.904-0.735-1.64-1.64-1.64s-1.64,0.735-1.64,1.64c0,0.552,0.277,1.063,0.742,1.369
+                                    c0.117,0.077,0.179,0.216,0.157,0.355c-0.021,0.139-0.121,0.253-0.257,0.291c-1.556,0.446-2.643,1.878-2.643,3.483V31H22.64v-0.501
+                                    c0-1.714,1.032-3.264,2.575-3.959c-0.367-0.423-0.575-0.967-0.575-1.54c0-1.302,1.059-2.36,2.36-2.36s2.36,1.059,2.36,2.36
+                                    c0,0.573-0.208,1.117-0.575,1.54C30.328,27.235,31.36,28.785,31.36,30.499z M18.255,23.745L21.509,27l-3.254,3.255l-0.51-0.51
+                                    l2.386-2.385H6.5c-3.231,0-5.86-2.629-5.86-5.86s2.628-5.86,5.86-5.86H11v0.72H6.5c-2.834,0-5.14,2.306-5.14,5.14
+                                    s2.306,5.14,5.14,5.14h13.631l-2.386-2.385L18.255,23.745z"/>
+                                <rect id="_Transparent_Rectangle" style="fill:none;" width="32" height="32"/>
+                                </svg>
+                                <br>ICT service management
+                            </td>
+                            <td class="text-justify">{{ item.attributes.comment[8] | e }}</td>
+                            <td class="text-center">
+                                <svg class="text-center" width="50" height="50">
+                                    {% if item.attributes.trend[8] == 'Decrease' %}
+                                        <use xlink:href="#svg-dec"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[8] == 'Low Decrease' %}
+                                        <use xlink:href="#svg-lo-dec"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[8] == 'Stable' %}
+                                        <use xlink:href="#svg-sta"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[8] == 'Increase' %}
+                                        <use xlink:href="#svg-inc"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[8] == 'High Increase' %}
+                                        <use xlink:href="#svg-hi-inc"></use>
+                                    {% endif %}
+                                </svg>
+                            </td>
+                        </tr>
+                    {% endif %}
+                    {% if item.attributes.comment[9] != '' %}
+                        <tr>
+                            <td class="text-center">
+                                <svg fill="#000000" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+                                     height="50" viewBox="0 0 32 32" xml:space="preserve">
+                                <path id="organization_1_" d="M31.36,30h-0.72v-1.572c0-1.951-1.253-3.703-3.119-4.359c-0.136-0.048-0.229-0.171-0.24-0.314
+                                    c-0.01-0.143,0.065-0.278,0.193-0.345c1.073-0.559,1.74-1.646,1.74-2.838c0-1.771-1.441-3.211-3.214-3.211s-3.214,1.44-3.214,3.211
+                                    c0,1.191,0.667,2.279,1.74,2.838c0.128,0.066,0.203,0.202,0.193,0.345c-0.011,0.144-0.104,0.267-0.24,0.314
+                                    c-1.866,0.656-3.119,2.408-3.119,4.359V30h-0.72v-1.572c0-1.951-1.253-3.703-3.119-4.359c-0.136-0.048-0.229-0.171-0.24-0.314
+                                    c-0.01-0.143,0.065-0.278,0.193-0.345c1.073-0.559,1.74-1.646,1.74-2.838c0-1.771-1.441-3.211-3.214-3.211
+                                    c-1.772,0-3.214,1.44-3.214,3.211c0,1.191,0.667,2.279,1.74,2.838c0.127,0.066,0.203,0.202,0.193,0.345
+                                    c-0.01,0.144-0.104,0.267-0.239,0.314c-1.866,0.656-3.12,2.408-3.12,4.359V30h-0.72v-1.572c0-1.951-1.254-3.703-3.12-4.359
+                                    c-0.135-0.048-0.229-0.171-0.239-0.314c-0.01-0.143,0.065-0.278,0.193-0.345c1.073-0.559,1.74-1.646,1.74-2.838
+                                    c0-1.771-1.442-3.211-3.214-3.211s-3.214,1.44-3.214,3.211c0,1.191,0.667,2.279,1.74,2.838c0.127,0.066,0.203,0.202,0.193,0.345
+                                    c-0.01,0.144-0.104,0.267-0.239,0.314c-1.866,0.656-3.12,2.408-3.12,4.359V30H0.64v-1.572c0-2.022,1.162-3.858,2.954-4.763
+                                    c-0.956-0.737-1.527-1.87-1.527-3.094c0-2.168,1.765-3.931,3.934-3.931s3.934,1.763,3.934,3.931c0,1.224-0.571,2.356-1.527,3.094
+                                    c1.201,0.605,2.119,1.631,2.594,2.85c0.475-1.219,1.393-2.244,2.594-2.85c-0.956-0.737-1.527-1.87-1.527-3.094
+                                    c0-2.168,1.765-3.931,3.934-3.931s3.935,1.763,3.935,3.931c0,1.224-0.572,2.356-1.528,3.094c1.201,0.606,2.119,1.631,2.594,2.85
+                                    c0.475-1.219,1.393-2.243,2.594-2.85c-0.956-0.737-1.528-1.87-1.528-3.094c0-2.168,1.766-3.931,3.935-3.931s3.935,1.763,3.935,3.931
+                                    c0,1.224-0.572,2.356-1.528,3.094c1.792,0.904,2.954,2.74,2.954,4.763V30H31.36z M31.36,15h-0.72v-1.572
+                                    c0-1.951-1.253-3.703-3.119-4.359c-0.136-0.048-0.229-0.171-0.24-0.314c-0.01-0.143,0.066-0.279,0.193-0.345
+                                    c1.073-0.559,1.74-1.646,1.74-2.837c0-1.771-1.441-3.212-3.214-3.212s-3.214,1.441-3.214,3.212c0,1.192,0.667,2.279,1.74,2.837
+                                    c0.127,0.066,0.203,0.202,0.193,0.345c-0.011,0.143-0.104,0.267-0.24,0.314c-1.866,0.656-3.119,2.408-3.119,4.359V15h-0.72v-1.572
+                                    c0-1.951-1.253-3.703-3.119-4.359c-0.136-0.048-0.229-0.171-0.24-0.314c-0.01-0.143,0.066-0.279,0.193-0.345
+                                    c1.073-0.559,1.74-1.646,1.74-2.837c0-1.771-1.441-3.212-3.214-3.212c-1.772,0-3.214,1.441-3.214,3.212
+                                    c0,1.192,0.667,2.279,1.74,2.837c0.127,0.066,0.203,0.202,0.193,0.345c-0.01,0.143-0.104,0.267-0.239,0.314
+                                    c-1.866,0.656-3.12,2.408-3.12,4.359V15h-0.72v-1.572c0-1.952-1.254-3.704-3.12-4.359C7.385,9.021,7.291,8.897,7.281,8.754
+                                    c-0.01-0.143,0.065-0.279,0.193-0.345c1.073-0.558,1.74-1.646,1.74-2.837C9.214,3.801,7.772,2.36,6,2.36S2.786,3.801,2.786,5.572
+                                    c0,1.192,0.667,2.279,1.74,2.837c0.127,0.066,0.203,0.202,0.193,0.345C4.709,8.897,4.615,9.021,4.48,9.068
+                                    c-1.866,0.656-3.12,2.408-3.12,4.359V15H0.64v-1.572c0-2.022,1.162-3.858,2.954-4.763c-0.956-0.737-1.527-1.87-1.527-3.093
+                                    C2.066,3.404,3.831,1.64,6,1.64s3.934,1.764,3.934,3.932c0,1.223-0.571,2.356-1.527,3.093c1.201,0.606,2.119,1.631,2.594,2.85
+                                    c0.475-1.219,1.393-2.244,2.594-2.85c-0.956-0.737-1.527-1.87-1.527-3.093c0-2.168,1.765-3.932,3.934-3.932s3.935,1.764,3.935,3.932
+                                    c0,1.223-0.572,2.356-1.528,3.093c1.201,0.606,2.119,1.631,2.594,2.85c0.475-1.219,1.393-2.244,2.594-2.85
+                                    c-0.956-0.737-1.528-1.87-1.528-3.093c0-2.168,1.766-3.932,3.935-3.932s3.935,1.764,3.935,3.932c0,1.223-0.572,2.356-1.528,3.093
+                                    c1.792,0.905,2.954,2.741,2.954,4.763V15H31.36z"/>
+                                <rect id="_Transparent_Rectangle" style="fill:none;" width="32" height="32"/>
+                                </svg>
+                                <br>Public administration
+                            </td>
+                            <td class="text-justify">{{ item.attributes.comment[9] | e }}</td>
+                            <td class="text-center">
+                                <svg class="text-center" width="50" height="50">
+                                    {% if item.attributes.trend[9] == 'Decrease' %}
+                                        <use xlink:href="#svg-dec"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[9] == 'Low Decrease' %}
+                                        <use xlink:href="#svg-lo-dec"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[9] == 'Stable' %}
+                                        <use xlink:href="#svg-sta"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[9] == 'Increase' %}
+                                        <use xlink:href="#svg-inc"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[9] == 'High Increase' %}
+                                        <use xlink:href="#svg-hi-inc"></use>
+                                    {% endif %}
+                                </svg>
+                            </td>
+                        </tr>
+                    {% endif %}
+                    {% if item.attributes.comment[10] != '' %}
+                        <tr>
+                            <td class="text-center">
+                                <svg fill="#000000" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+                                      height="50" viewBox="0 0 32 32" xml:space="preserve">
+                                <path id="spaceship_1_" d="M19.161,30.415l-0.359-0.623l3.696-2.133l-2.48-4.299c-0.071-0.122-0.063-0.274,0.019-0.39l3.571-4.978
+                                    c1.984-2.764,3.032-6.021,3.032-9.421V2.266c0-0.327-0.169-0.62-0.452-0.783c-0.284-0.163-0.619-0.162-0.902,0l-5.463,3.154
+                                    c-2.945,1.7-5.242,4.236-6.644,7.335l-2.525,5.582c-0.059,0.129-0.187,0.212-0.328,0.212H5.36v4.28H4.64v-4.641
+                                    c0-0.199,0.161-0.36,0.36-0.36h5.093l2.429-5.37c1.464-3.237,3.865-5.887,6.941-7.662l5.463-3.154c0.506-0.293,1.113-0.293,1.621,0
+                                    c0.51,0.293,0.813,0.819,0.813,1.407v6.306c0,3.551-1.096,6.954-3.168,9.841l-3.436,4.789l2.545,4.409
+                                    c0.048,0.082,0.061,0.181,0.036,0.272c-0.024,0.093-0.085,0.171-0.168,0.219L19.161,30.415z M19.749,15.822
+                                    c-0.554,0-1.1-0.145-1.592-0.43c-1.525-0.88-2.049-2.837-1.169-4.363c0.881-1.525,2.841-2.047,4.363-1.169
+                                    c0.739,0.427,1.268,1.116,1.488,1.939c0.221,0.824,0.107,1.685-0.319,2.424l0,0c-0.426,0.739-1.115,1.267-1.938,1.488
+                                    C20.306,15.786,20.026,15.822,19.749,15.822z M19.759,10.154c-0.855,0-1.689,0.444-2.147,1.236
+                                    c-0.682,1.181-0.275,2.697,0.905,3.379c0.573,0.331,1.239,0.418,1.878,0.248c0.638-0.171,1.172-0.581,1.502-1.153l0,0
+                                    c0.33-0.572,0.418-1.239,0.247-1.877s-0.58-1.172-1.152-1.502C20.603,10.261,20.178,10.154,19.759,10.154z M10.961,31.321
+                                    c1.182-0.598,2.455-1.32,2.931-2.146l0.044-0.078c0.424-0.733,0.537-1.589,0.317-2.408c-0.219-0.819-0.745-1.504-1.479-1.927
+                                    c-1.518-0.876-3.462-0.354-4.337,1.161l-0.044,0.078C7.916,26.825,7.927,28.288,8,29.61c0.011,0.199,0.177,0.342,0.379,0.34
+                                    c0.198-0.011,0.351-0.181,0.339-0.379c-0.037-0.673-0.136-2.46,0.297-3.211l0.044-0.078c0.677-1.172,2.182-1.573,3.354-0.897
+                                    c0.567,0.328,0.973,0.856,1.143,1.49c0.169,0.633,0.083,1.294-0.246,1.862l-0.045,0.078c-0.433,0.75-2.031,1.558-2.632,1.862
+                                    c-0.177,0.09-0.249,0.307-0.159,0.483c0.063,0.126,0.19,0.198,0.322,0.198C10.854,31.36,10.909,31.348,10.961,31.321z"/>
+                                <rect id="_Transparent_Rectangle" style="fill:none;" width="32" height="32"/>
+                                </svg>
+                                <br>Space
+                            </td>
+                            <td class="text-justify">{{ item.attributes.comment[10] | e }}</td>
+                            <td class="text-center">
+                                <svg class="text-center" width="50" height="50">
+                                    {% if item.attributes.trend[10] == 'Decrease' %}
+                                        <use xlink:href="#svg-dec"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[10] == 'Low Decrease' %}
+                                        <use xlink:href="#svg-lo-dec"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[10] == 'Stable' %}
+                                        <use xlink:href="#svg-sta"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[10] == 'Increase' %}
+                                        <use xlink:href="#svg-inc"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[10] == 'High Increase' %}
+                                        <use xlink:href="#svg-hi-inc"></use>
+                                    {% endif %}
+                                </svg>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </table>   
+            {% endfor %}
+            <br>
+
+            {% for item in data.report_items %}
+               <table class="table table-bordered">
+                    <tr>
+                        <td class="text-center bold table_header_color">Threat</td>
+                        <td class="text-center bold table_header_color">Comment</td>
+                        <td class="text-center bold table_header_color">Trend</td>
+                    </tr>
+                    <!-- we miss sector type info so we use fixed indexes -->
+                    {% if item.attributes.comment[0] != '' %}
+                        <tr>
+                            <td class="text-center">
+                                <svg fill="#000000" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+                                     height="50" viewBox="0 0 32 32" xml:space="preserve">
+                                <path id="lock--02_1_" d="M17.5,21.5c0,0.704-0.487,1.29-1.14,1.452V25c0,0.199-0.161,0.36-0.36,0.36s-0.36-0.161-0.36-0.36v-2.048
+                                    c-0.654-0.162-1.14-0.748-1.14-1.452c0-0.828,0.672-1.5,1.5-1.5C16.828,20,17.5,20.672,17.5,21.5z M26.355,13v18
+                                    c0,0.196-0.159,0.355-0.355,0.355H6c-0.196,0-0.355-0.159-0.355-0.355V13c0-0.196,0.159-0.355,0.355-0.355h4.64V6
+                                    c0-2.956,2.404-5.36,5.36-5.36c2.955,0,5.36,2.404,5.36,5.36v6.645H26C26.196,12.645,26.355,12.804,26.355,13z M11.359,12.645h9.28
+                                    V6c0-2.559-2.081-4.64-4.64-4.64S11.36,3.441,11.36,6L11.359,12.645z M6.355,13.355v17.289h19.289V13.355H6.355z"/>
+                                <rect id="_Transparent_Rectangle" style="fill:none;" width="32" height="32"/>
+                                </svg>
+                                <br>Ransomware
+                            </td>
+                            <td class="text-justify">{{ item.attributes.comment[0] | e }}</td>
+                            <td class="text-center">
+                                <svg class="text-center" width="50" height="50">
+                                    {% if item.attributes.trend[0] == 'Decrease' %}
+                                        <use xlink:href="#svg-dec"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[0] == 'Low Decrease' %}
+                                        <use xlink:href="#svg-lo-dec"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[0] == 'Stable' %}
+                                        <use xlink:href="#svg-sta"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[0] == 'Increase' %}
+                                        <use xlink:href="#svg-inc"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[0] == 'High Increase' %}
+                                        <use xlink:href="#svg-hi-inc"></use>
+                                    {% endif %}
+                                </svg>
+                            </td>
+                        </tr>
+                    {% endif %}
+                    {% if item.attributes.comment[1] != '' %}
+                        <tr>
+                            <td class="text-center">
+                                <svg fill="#000000" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+                                     height="50" viewBox="0 0 32 32" xml:space="preserve">
+                                <path id="archive_1_" d="M28,31.36H4c-0.75,0-1.36-0.61-1.36-1.36V9.36H1C0.801,9.36,0.64,9.199,0.64,9V1
+                                    c0-0.199,0.161-0.36,0.36-0.36h30c0.199,0,0.36,0.161,0.36,0.36v8c0,0.199-0.161,0.36-0.36,0.36h-1.64V30
+                                    C29.36,30.75,28.75,31.36,28,31.36z M3.36,9.36V30c0,0.353,0.287,0.64,0.64,0.64h24c0.353,0,0.64-0.287,0.64-0.64V9.36H3.36z
+                                     M29,8.64h1.64V1.36H1.36v7.28H29z M19,16.36h-6c-1.301,0-2.36-1.059-2.36-2.36s1.059-2.36,2.36-2.36h6
+                                    c1.302,0,2.36,1.059,2.36,2.36S20.302,16.36,19,16.36z M13,12.36c-0.904,0-1.64,0.736-1.64,1.64s0.736,1.64,1.64,1.64h6
+                                    c0.904,0,1.64-0.736,1.64-1.64s-0.735-1.64-1.64-1.64H13z"/>
+                                <rect id="_Transparent_Rectangle" style="fill:none;" width="32" height="32"/>
+                                </svg>
+                                <br>Data Breach
+                            </td>
+                            <td class="text-justify">{{ item.attributes.comment[1] | e }}</td>
+                            <td class="text-center">
+                                <svg class="text-center" width="50" height="50">
+                                    {% if item.attributes.trend[1] == 'Decrease' %}
+                                        <use xlink:href="#svg-dec"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[1] == 'Low Decrease' %}
+                                        <use xlink:href="#svg-lo-dec"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[1] == 'Stable' %}
+                                        <use xlink:href="#svg-sta"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[1] == 'Increase' %}
+                                        <use xlink:href="#svg-inc"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[1] == 'High Increase' %}
+                                        <use xlink:href="#svg-hi-inc"></use>
+                                    {% endif %}
+                                </svg>
+                            </td>
+                        </tr>
+                    {% endif %}
+                    {% if item.attributes.comment[2] != '' %}
+                        <tr>
+                            <td class="text-center">
+                                <svg fill="#000000" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+                                     height="50" viewBox="0 0 32 32" xml:space="preserve">
+                                <path id="locked--network--02_1_" d="M17,11c0,0.425-0.267,0.782-0.64,0.927V13c0,0.199-0.161,0.36-0.36,0.36s-0.36-0.161-0.36-0.36
+                                    v-1.073C15.267,11.782,15,11.425,15,11c0-0.552,0.448-1,1-1S17,10.448,17,11z M31.36,29c0,1.302-1.059,2.36-2.36,2.36
+                                    s-2.36-1.059-2.36-2.36c0-1.179,0.869-2.159,2-2.333V23.36H16.36v3.316c1.13,0.175,2,1.145,2,2.324c0,1.302-1.059,2.36-2.36,2.36
+                                    s-2.36-1.059-2.36-2.36c0-1.178,0.87-2.149,2-2.324V23.36H3.36v3.316c1.13,0.175,2,1.146,2,2.324c0,1.302-1.059,2.36-2.36,2.36
+                                    S0.64,30.302,0.64,29c0-1.178,0.87-2.149,2-2.324V23c0-0.199,0.161-0.36,0.36-0.36h12.64V19h0.72v3.64H29
+                                    c0.199,0,0.36,0.161,0.36,0.36v3.667C30.491,26.841,31.36,27.821,31.36,29z M3,27.36c-0.904,0-1.64,0.735-1.64,1.64
+                                    S2.096,30.64,3,30.64S4.64,29.904,4.64,29S3.904,27.36,3,27.36z M16,27.36c-0.904,0-1.64,0.735-1.64,1.64s0.736,1.64,1.64,1.64
+                                    c0.904,0,1.64-0.735,1.64-1.64S16.904,27.36,16,27.36z M30.64,29c0-0.904-0.735-1.64-1.64-1.64s-1.64,0.735-1.64,1.64
+                                    s0.735,1.64,1.64,1.64S30.64,29.904,30.64,29z M10.64,17V7c0-0.199,0.161-0.36,0.36-0.36h2.14V3.5c0-1.577,1.283-2.86,2.86-2.86
+                                    s2.86,1.283,2.86,2.86v3.14H21c0.199,0,0.36,0.161,0.36,0.36v10c0,0.199-0.161,0.36-0.36,0.36H11
+                                    C10.801,17.36,10.64,17.199,10.64,17z M13.86,6.64h4.28V3.5c0-1.18-0.96-2.14-2.14-2.14s-2.14,0.96-2.14,2.14
+                                    C13.86,3.5,13.86,6.64,13.86,6.64z M11.36,16.64h9.28V7.36h-9.28V16.64z"/>
+                                <rect id="_Transparent_Rectangle" style="fill:none;" width="32" height="32"/>
+                                </svg>
+                                <br>DoS/DDoS
+                            </td>
+                            <td class="text-justify">{{ item.attributes.comment[2] | e }}</td>
+                            <td class="text-center">
+                                <svg class="text-center" width="50" height="50">
+                                    {% if item.attributes.trend[2] == 'Decrease' %}
+                                        <use xlink:href="#svg-dec"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[2] == 'Low Decrease' %}
+                                        <use xlink:href="#svg-lo-dec"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[2] == 'Stable' %}
+                                        <use xlink:href="#svg-sta"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[2] == 'Increase' %}
+                                        <use xlink:href="#svg-inc"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[2] == 'High Increase' %}
+                                        <use xlink:href="#svg-hi-inc"></use>
+                                    {% endif %}
+                                </svg>
+                            </td>
+                        </tr>
+                    {% endif %}
+                    {% if item.attributes.comment[3] != '' %}
+                        <tr>
+                            <td class="text-center">
+                                <svg fill="#000000" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+                                     height="50" viewBox="0 0 32 32" xml:space="preserve">
+                                <path id="warning--01_1_" d="M31,29.36H1c-0.128,0-0.248-0.069-0.312-0.181c-0.064-0.111-0.064-0.248,0-0.359l15-26
+                                    c0.129-0.224,0.495-0.224,0.624,0l15,26c0.064,0.111,0.064,0.248,0,0.359S31.129,29.36,31,29.36z M1.624,28.64h28.753L16,3.72
+                                    L1.624,28.64z M16.36,20h-0.72V10h0.72V20z M16,23c-0.552,0-1,0.448-1,1s0.448,1,1,1s1-0.448,1-1S16.552,23,16,23z"/>
+                                <rect id="_Transparent_Rectangle" style="fill:none;" width="32" height="32"/>
+                                </svg>
+                                <br>Destruction
+                            </td>
+                            <td class="text-justify">{{ item.attributes.comment[3] | e }}</td>
+                            <td class="text-center">
+                                <svg class="text-center" width="50" height="50">
+                                    {% if item.attributes.trend[3] == 'Decrease' %}
+                                        <use xlink:href="#svg-dec"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[3] == 'Low Decrease' %}
+                                        <use xlink:href="#svg-lo-dec"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[3] == 'Stable' %}
+                                        <use xlink:href="#svg-sta"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[3] == 'Increase' %}
+                                        <use xlink:href="#svg-inc"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[3] == 'High Increase' %}
+                                        <use xlink:href="#svg-hi-inc"></use>
+                                    {% endif %}
+                                </svg>
+                            </td>
+                        </tr>
+                    {% endif %} 
+                    {% if item.attributes.comment[4] != '' %}
+                        <tr>
+                            <td class="text-center">
+                                <svg fill="#000000" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+                                     height="50" viewBox="0 0 32 32" xml:space="preserve">
+                                <path id="threat--management_1_" d="M16,31.36C9.736,31.36,4.64,26.264,4.64,20V6.786L16,0.59l11.36,6.196V20
+                                    C27.36,26.264,22.264,31.36,16,31.36z M5.36,7.214V20c0,5.867,4.773,10.64,10.64,10.64S26.64,25.868,26.64,20V7.214L16,1.41
+                                    L5.36,7.214z M16.36,24h-0.72v-6h0.72V24z M24,16.36h-6v-0.72h6V16.36z M14,16.36H8v-0.72h6V16.36z M16.36,14h-0.72V8h0.72V14z
+                                     M14,22.1c-0.041,0-0.082-0.007-0.122-0.021c-1.824-0.653-3.303-2.133-3.956-3.957c-0.067-0.187,0.03-0.393,0.217-0.46
+                                    c0.189-0.068,0.393,0.03,0.46,0.218c0.581,1.623,1.897,2.939,3.521,3.521c0.187,0.067,0.284,0.273,0.217,0.46
+                                    C14.286,22.008,14.147,22.1,14,22.1z M18,22.1c-0.147,0-0.286-0.092-0.339-0.239c-0.067-0.187,0.03-0.393,0.218-0.46
+                                    c1.623-0.582,2.939-1.898,3.521-3.521c0.066-0.188,0.273-0.287,0.46-0.218c0.188,0.067,0.285,0.273,0.218,0.46
+                                    c-0.653,1.824-2.133,3.304-3.957,3.957C18.081,22.093,18.04,22.1,18,22.1z M10.261,14.36c-0.041,0-0.081-0.006-0.122-0.021
+                                    c-0.187-0.067-0.284-0.273-0.217-0.46c0.653-1.824,2.132-3.303,3.956-3.956c0.188-0.068,0.394,0.03,0.46,0.217
+                                    s-0.03,0.394-0.217,0.46c-1.624,0.582-2.94,1.897-3.521,3.521C10.547,14.269,10.409,14.36,10.261,14.36z M21.739,14.36
+                                    c-0.147,0-0.286-0.091-0.339-0.238c-0.582-1.624-1.898-2.94-3.521-3.521c-0.188-0.067-0.285-0.273-0.218-0.46
+                                    s0.271-0.285,0.46-0.217c1.824,0.653,3.304,2.132,3.957,3.956c0.067,0.188-0.03,0.394-0.218,0.46
+                                    C21.82,14.354,21.779,14.36,21.739,14.36z"/>
+                                <rect id="_Transparent_Rectangle" style="fill:none;" width="32" height="32"/>
+                                </svg>
+                                <br>APT
+                            </td>
+                            <td class="text-justify">{{ item.attributes.comment[4] | e }}</td>
+                            <td class="text-center">
+                                <svg class="text-center" width="50" height="50">
+                                    {% if item.attributes.trend[4] == 'Decrease' %}
+                                        <use xlink:href="#svg-dec"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[4] == 'Low Decrease' %}
+                                        <use xlink:href="#svg-lo-dec"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[4] == 'Stable' %}
+                                        <use xlink:href="#svg-sta"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[4] == 'Increase' %}
+                                        <use xlink:href="#svg-inc"></use>
+                                    {% endif %}
+                                    {% if item.attributes.trend[4] == 'High Increase' %}
+                                        <use xlink:href="#svg-hi-inc"></use>
+                                    {% endif %}
+                                </svg>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </table>
+            {% endfor %}
+            <br>
+            
+            <p class="title">Statistics and Dashboards</p>
+            <table class="table table-bordered">
+                <tr>
+                    <td class="text-center bold table_header_color">Incidents per Sector</td>
+                    <td class="text-center bold table_header_color">Incidents per Threat Type</td>
+                </tr>
+                <tr>
+                    <td>
+                        <div class="chart-container" style="margin:0 auto; height:400px; width:400px">
+                        <canvas id="chart1"></canvas>
+                    </td>
+                    <td>
+                        <div class="chart-container" style="margin:0 auto; height:400px; width:400px">
+                        <canvas id="chart2"></canvas>
+                    </td>
+                </tr>
+            </div>
+
+            {% for item in data.report_items %}
+                <table class="table table-borderless">
+                    <td class="text-justify">{{ item.attributes.sector_trends | e }}</td>
+                </table>
+            {% endfor %}            
+            <br>
+            
+            <p class="title">Recent Known Exploited Vulnerabilities</p>
+            <table class="table table-bordered">
+                <tr>
+                    <td class="text-justify bold table_header_color">CVE</td>
+                    <td class="text-justify bold table_header_color">CVSS v3</td>
+                    <td class="text-justify bold table_header_color">Date</td>
+                    <td class="text-justify bold table_header_color">Affected systems (CPE Codes)</td>
+                </tr>
+                {% for item in data.report_items | selectattr("type", "equalto", "Vulnerability Report") %}
+                    <tr>
+                        <td class="text-justify">
+                            {% for cve in item.attributes.cve %}
+                                {% if cve is iterable and cve is not string %}
+                                    {% for c in cve %}
+                                        {{ c | e }} <br>
+                                    {% endfor %}
+                                {% else %}
+                                    {{ cve | e }} <br>
+                                {% endif %}
+                            {% endfor %}
+                        </td>
+                        <td class="text-justify">{{ item.attributes.cvss | e }}</td>
+                        <td class="text-justify">{{ item.attributes.exposure_date | strfdate }}</td>
+                        <td class="text-justify">
+                            {% if item.attributes.affected_systems != '' %}
+                                {{ item.attributes.affected_systems | e }} <br>
+                            {% endif %} 
+                            <!-- cpe can be stored also in two layer arrays -->
+                            {% for cpe in item.attributes.affected_systems_cpe_codes %}
+                                {% if cpe is iterable and cpe is not string %}
+                                    {% for c in cpe %}
+                                        {{ c | e }} <br>
+                                    {% endfor %}
+                                {% else %}
+                                    {{ cpe | e }} <br>
+                                {% endif %}
+                            {% endfor %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </table>
+            {% for item in data.report_items %}
+                <table class="table table-borderless">
+                    <td class="text-justify">{{ item.attributes.vulnerabilities_trends | e }}</td>
+                </table>
+            {% endfor %}
+            <br>
+
+            <p class="title">Ransomwares</p>
+            <table class="table table-bordered">
+                <tr>
+                    <td class="text-center bold table_header_color">Sector</td>
+                    <td class="text-center bold table_header_color">Actor</td>
+                    <td class="text-center bold table_header_color">Comment</td>
+                </tr>
+                {% for item in data.report_items %}
+                    <tr>
+                        <td class="text-justify">{{ item.attributes.sector | e }}</td>
+                        <td class="text-justify">{{ item.attributes.actor | e }}</td>
+                        <td class="text-justify">{{ item.attributes.comment | e }}</td>
+                    </tr>
+                {% endfor %}
+            </table>
+            <p class="title">Statistics and Dashboards</p>
+            <table class="table table-bordered">
+                <tr>
+                    <td class="text-center bold table_header_color">Sectors impacted by Ransomware</td>
+                </tr>
+                <tr>
+                    <td>
+                        <div class="chart-container" style="margin:0 auto; height:400px; width:400px">
+                        <canvas id="chart3"></canvas>
+                    </td>
+                </tr>
+            </div>            
+            {% for item in data.report_items %}
+                <table class="table table-borderless">
+                    <td class="text-justify">{{ item.attributes.ransomware_trends | e }}</td>
+                </table>
+            {% endfor %}
+            <br>
+            
+            <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+            <script>
+                {% set col_list = ['#4169e1', 'Coral', 'Goldenrod', 'Teal', 'Lavender', '#808000', '#ffcba4', 'Indigo', '#ff007f', '#98ff98'] %}
+                // Create data 1
+                {% for item in data.report_items %}
+                    var data1 = {
+                        labels: ['Energy', 'Transport', 'Banking', 'Financial market infrastructures', 'Health', 'Drinking water', 'Waste water', 'Digital infrastructure', 'ICT service management', 'Public administration', 'Space'],
+                        datasets: [{
+                            data: [{{ item.attributes.incidents[0] | e }},
+                                   {{ item.attributes.incidents[1] | e }},
+                                   {{ item.attributes.incidents[2] | e }},
+                                   {{ item.attributes.incidents[3] | e }},
+                                   {{ item.attributes.incidents[4] | e }},
+                                   {{ item.attributes.incidents[5] | e }},
+                                   {{ item.attributes.incidents[6] | e }},
+                                   {{ item.attributes.incidents[7] | e }},
+                                   {{ item.attributes.incidents[8] | e }},
+                                   {{ item.attributes.incidents[9] | e }},
+                                   {{ item.attributes.incidents[10] | e }}
+                                  ],
+                            backgroundColor: {{ col_list }}
+                        }]
+                    };
+                {% endfor %}
+                // Create data 2
+                {% for item in data.report_items %}
+                    var data2 = {
+                        labels: ['Ransomware', 'Data Breach', 'DoS/DDoS', 'Destruction', 'APT'],
+                        datasets: [{
+                            data: [{{ item.attributes.incidents[0] | e }},
+                                   {{ item.attributes.incidents[1] | e }},
+                                   {{ item.attributes.incidents[2] | e }},
+                                   {{ item.attributes.incidents[3] | e }},
+                                   {{ item.attributes.incidents[4] | e }}
+                                  ],
+                            backgroundColor: {{ col_list }}
+                        }]
+                    };
+                {% endfor %}
+                // Create data 3, little bit tricky due grouping on deep level
+                {% set my_dict = {} %}
+                // put all records to one list to be able group
+                {% for item, item_group in data.report_items | groupby("type") %}
+                    {% for item2, item_group2 in item_group | groupby("attributes.sector") %}
+                        // Jinja SUM is not working due field is not Int but Str type
+                        // it's not possible to directly modify variables declared outside of the loop within the loop itself, we use list variable for this
+                        {% set sum_of_values = [0] %}
+                        {% for item3 in item_group2 %}
+                            {% if item3.attributes.incidents is defined %}
+                                {% set _ = sum_of_values.append(sum_of_values.pop() + item3.attributes.incidents | int) %}
+                            {% endif %}
+                        {% endfor %}
+                        {% set _ = my_dict.update({item2 : sum_of_values[0]}) %}
+                    {% endfor %}
+                {% endfor %}
+                {% set key_list = my_dict.keys() | list %}
+                {% set val_list = my_dict.values() | list %}
+                var data3 = {
+                    labels: {{ key_list }},
+                    datasets:
+                    [{
+                        data: {{ val_list }},
+                        backgroundColor: {{ col_list }}
+                    }]
+                };                 
+                // Create the chart
+                var canvas1 = document.getElementById('chart1');
+                var canvas2 = document.getElementById('chart2');
+                var canvas3 = document.getElementById('chart3');
+                var script = document.createElement('script');
+                script.innerHTML = atob(chartJsBase64);
+                document.head.appendChild(script);
+                var myChart1 = new Chart(canvas1, {type: 'doughnut', data: data1});
+                var myChart2 = new Chart(canvas2, {type: 'doughnut', data: data2});
+                var myChart3 = new Chart(canvas3, {type: 'doughnut', data: data3});
+            </script>
+
+            <p class="title">Latest Cyber Events</p>
+            <table class="table table-borderless">
+                <tr>
+                    {% for item in data.report_items %}
+                        <a href="#{{ item.uuid | e }}">{{ item.name | e }}</a><br>
+                    {% endfor %}
+                </tr>
+            </table>
+            <br>
+
+            {% for item in data.report_items %}
+                <p class="title small_title" id="{{ item.uuid | e }}">{{ item.name | e }}</p>
+                <table class="table table-bordered">
+                    <tr>
+                        <!-- Country -->
+                        <td class="text-justify bold table_header_color">Event noted on</td>
+                        <td class="text-justify bold table_header_color">Sector</td>
+                        <td class="text-justify bold table_header_color">Threat actor</td>
+                        <td class="text-justify bold table_header_color">Threat type</td>
+                        <td class="text-justify bold table_header_color">Severity</td>
+                        <td class="text-justify bold table_header_color">Confidence</td>
+                    </tr>
+                    <tr>
+                        <td class="text-justify">{{ item.attributes.date | strfdate }}</td>
+                        <td class="text-justify">{{ item.attributes.sector | e }}</td>
+                        <td class="text-justify">{{ item.attributes.threat_actor | e }}</td>
+                        <td class="text-justify">{{ item.attributes.threat_type | e }}</td>
+                        <td class="text-justify">{{ item.attributes.severity | e }}</td>
+                        <td class="text-justify">
+                            {% if item.attributes.source_reliability == 'Completely reliable' %}
+                                A
+                            {% endif %}
+                            {% if item.attributes.source_reliability == 'Usually reliable' %}
+                                B
+                            {% endif %}
+                            {% if item.attributes.source_reliability == 'Fairly reliable' %}
+                                C
+                            {% endif %}
+                            {% if item.attributes.source_reliability == 'Not usually reliable' %}
+                                D
+                            {% endif %}
+                            {% if item.attributes.source_reliability == 'Unreliable' %}
+                                E
+                            {% endif %}
+                            {% if item.attributes.source_reliability == 'Reliability cannot be judged' %}
+                                F
+                            {% endif %}
+                            {% if item.attributes.information_credibility == 'Confirmed by other sources' %}
+                                1
+                            {% endif %}
+                            {% if item.attributes.information_credibility == 'Probably True' %}
+                                2
+                            {% endif %}
+                            {% if item.attributes.information_credibility == 'Possibly True' %}
+                                3
+                            {% endif %}
+                            {% if item.attributes.information_credibility == 'Doubtful' %}
+                                4
+                            {% endif %}
+                            {% if item.attributes.information_credibility == 'Improbable' %}
+                                5
+                            {% endif %}
+                            {% if item.attributes.information_credibility == 'Truth cannot be judged' %}
+                                6
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+                <table class="table table-borderless">
+                    <tr>
+                        <td class="text-justify">{{ item.attributes.description | e }}</td>
+                    </tr>
+                    {% if item.attributes.recommendations != '' %}
+                        <tr>
+                            <td class="text-justify bold">Analyst comment</td>
+                        </tr>
+                        <tr>
+                            <td class="text-justify">{{ item.attributes.recommendations | e }}</td>
+                        </tr>
+                    {% endif %}
+                    {% if item.attributes.links %}
+                        <tr>
+                            <td class="text-justify bold">Sources</td>
+                        </tr>
+                        <tr>
+                            <td class="text-justify">
+                                {% for link in item.attributes.links %}
+                                    {% if link is iterable and link is not string %}
+                                        {% for l in link %}
+                                            {{ l | e }} <br>
+                                        {% endfor %}
+                                    {% else %}
+                                        {{ link | e }} <br>
+                                    {% endif %}
+                                {% endfor %}
+                            </td>
+                        </tr>
+                    {% endif %}
+                </table>
+                <br>
+            {% endfor %}
+
+            <p class="title">Terminology</p>
+            <p class="text-justify">Threat level is calculated based on the average of the trends observed. ENISA adopts a 5-level method for describing Threat Levels, which is commonly used by ISACs and working groups. Threat level is on a rolling-month window interval.</p>
+            <table class="table table-bordered">
+                <tr>
+                    <td class="text-justify bold thread_severe">SEVERE</td>
+                    <td class="text-justify">It is almost certain that organisations are being targeted by threat actors. High severity vulnerabilities with no known remediation are being exploited and significant damage and outages are being observed across sectors.</td>
+                </tr>
+                <tr>
+                    <td class="text-justify bold thread_high">HIGH</td>
+                    <td class="text-justify">It is highly likely that entities will be directly targeted by threat actors. Multiple entities will be, or are being, affected. Sector disruption is expected to be widespread, across multiple organisations.</td>
+                </tr>
+                <tr>
+                    <td class="text-justify bold thread_elevated">ELEVATED</td>
+                    <td class="text-justify">It is likely that entities are being directly targeted by threat actors or could be exposed to breaches using recent vulnerabilities. Sector disruption is considered a realistic possibility.</td>
+                </tr>
+                <tr>
+                    <td class="text-justify bold thread_guarded">GUARDED</td>
+                    <td class="text-justify">There is potential for some direct targeted threat actor activity but it is generally considered Unlikely. This activity could lead to some minor disruption.</td>
+                </tr>
+                <tr>
+                    <td class="text-justify bold thread_low">LOW</td>
+                    <td class="text-justify">A low likelihood of threat actor targeting activity that could affect organisations/entities. Disruption is considered highly unlikely.</td>
+                </tr>
+            </table>
+            <br>
+
+            <p class="title">Statistics and dashboards</p>
+            <table class="table table-borderless">
+                <tr>
+                    <td class="text-justify">The displayed data is based on a one-month rolling window. The clustered bar charts on incidents per sector and threat type display the average number of incidents compared to the current week's one.</td>
+                </tr>
+            </table>
+            <br>
+
+            <p class="title">Trends Legend</p>
+            <table class="table table-bordered">
+                <tr>
+                    <td class="text-center expand-column bold table_header_color">Trends</td>
+                    <td class="text-justify bold table_header_color">Description</td>
+                </tr>
+                <tr>
+                    <td class="text-center expand-column bold">
+                        <svg class="text-center" width="50" height="50">
+                            <use xlink:href="#svg-hi-inc"></use>
+                        </svg>
+                        <br>High Increase
+                    </td>
+                    <td class="text-justify">The number of incidents related to this sector/threat, shows a sustained and significant upward movement over time.</td>
+                </tr>
+                <tr>
+                    <td class="text-center expand-column bold">
+                        <svg class="text-center" width="50" height="50">
+                            <use xlink:href="#svg-inc"></use>
+                        </svg>
+                        <br>Increase
+                    </td>
+                    <td class="text-justify">The number of incidents related to this sector/threat, shows a sustained upward movement over time, but at a slower pace than a high increase.</td>
+                </tr>
+                <tr>
+                    <td class="text-center bold">
+                        <svg class="text-center" width="50" height="50">
+                            <use xlink:href="#svg-sta"></use>
+                        </svg>
+                        <br>Stable
+                    </td>
+                    <td class="text-justify">The number of incidents related to this sector/threat shows little to no change over time.</td>
+                </tr>
+                <tr>
+                    <td class="text-center expand-column bold">
+                        <svg class="text-center" width="50" height="50">
+                            <use xlink:href="#svg-lo-dec"></use>
+                        </svg>
+                        <br>Low Decrease
+                    </td>
+                    <td class="text-justify">The number of incidents related to this sector/threat, shows a sustained downward movement over time, but at a slower pace than a decrease.</td>
+                </tr>
+                <tr>
+                    <td class="text-center expand-column bold">
+                        <svg class="text-center" width="50" height="50">
+                            <use xlink:href="#svg-dec"></use>
+                        </svg>
+                        <br>Decrease
+                    </td>
+                    <td class="text-justify">The number of incidents related to this sector/threat, shows a sustained and significant downward movement over time.</td>
+                </tr>
+            </table>
+            <br>
+
+            <p class="title">Event Severity</p>
+            <p class="text-justify">The potential impact that the event has caused/could cause to the organisation, such as physical damage, economic damage, reputational damage, psychological, social/societal. According to the ENISA event taxonomy, the potential impact can be characterised with the following values: Low, Medium, High or Unknown.</p>
+            <table class="table table-bordered">
+                <tr>
+                    <td class="text-justify bold">HIGH</td>
+                    <td class="text-justify">An incident that has the potential to cause significant harm to the system or organization, with high impact on data or services.</td>
+                </tr>
+                <tr>
+                    <td class="text-justify bold">MEDIUM</td>
+                    <td class="text-justify">An incident that has the potential to cause moderate harm to the system or organization, with moderate impact on data or services.</td>
+                </tr>
+                <tr>
+                    <td class="text-justify bold">LOW</td>
+                    <td class="text-justify">An incident that has the potential to cause minimal harm to the system or organization, with low impact on data or services.</td>
+                </tr>
+                <tr>
+                    <td class="text-justify bold">UNKNOWN</td>
+                    <td class="text-justify">An incident where there is not enough information to determine the severity level, or where the incident is still being investigated.</td>
+                </tr>
+            </table>
+            <br>
+
+            <p class="title">Source confidence</p>
+            <p class="text-justify">It defines the level of certainty that the event is genuine and not a false positive. This is based on a two-character notation of the Admiralty system, characterising the reliability of the source and the credibility of the information.</p>
+            <table class="table table-bordered">
+                <tr>
+                    <td class="text-justify bold table_header_color">Source Reliability</td>
+                    <td class="text-justify bold table_header_color">Information Credibility</td>
+                </tr>
+                <tr>
+                    <td class="text-justify">A - Completely reliable</td>
+                    <td class="text-justify">1 - Confirmed by other sources</td>
+                </tr>
+                <tr>
+                    <td class="text-justify">B - Usually reliable</td>
+                    <td class="text-justify">2 - Probably True</td>
+                </tr>
+                <tr>
+                    <td class="text-justify">C - Fairly reliable</td>
+                    <td class="text-justify">3 - Possibly True</td>
+                </tr>
+                <tr>
+                    <td class="text-justify">D - Not usually reliable</td>
+                    <td class="text-justify">4 - Doubtful</td>
+                </tr>
+                <tr>
+                    <td class="text-justify">E - Unreliable</td>
+                    <td class="text-justify">5 - Improbable</td>
+                </tr>
+                <tr>
+                    <td class="text-justify">F - Reliability cannot be judged</td>
+                    <td class="text-justify">6 - Truth cannot be judged</td>
+                </tr>
+            </table>
+            <br>
+        </div>
+        <div>
+            <br>
+            <table class="table table-borderless">
+                <tr class="footer_text footer_color align-middle">
+                    <td class="w30 py-0 text-bold">Created by Taranis NG</td>
+                    <td class="w40 py-0 text-center info">Repo: <a href="https://github.com/SK-CERT/Taranis-NG/">github.com/SK-CERT/Taranis-NG</a></td>
+                    <td class="w30 py-0 text-right text-bold">Company name</td>
+                </tr>
+                <tr class="footer_text">
+                    <td class="w30 py-0">OSINT analysis tool</td>
+                    <td class="w40 py-0 text-center info">E-mail: sk-cert@nbu.gov.sk</td>
+                    <td class="w30 py-0 text-right">Company address</td>
+                </tr>
+                <tr class="footer_text">
+                    <td class="w30 py-0">for CSIRT community</td>
+                    <td class="w40 py-0 text-center info">Web: <a href="https://www.sk-cert.sk">www.sk-cert.sk</a></td>
+                    <td class="w30 py-0 text-right">City name</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+</body>
+</html>

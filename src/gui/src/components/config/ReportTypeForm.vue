@@ -2,11 +2,8 @@
   <v-container fluid class="ma-5 mt-5 pa-5 pt-0">
     <v-form id="form" ref="form" validate-on="submit" @submit.prevent="add">
       <v-row no-gutters>
-        <v-btn type="submit" color="success" class="mr-4"> Submit </v-btn>
-      </v-row>
-      <v-row no-gutters>
-        <v-col v-if="edit" cols="12" class="cation grey--text">
-          ID:{{ report_type.id }}
+        <v-col cols="12">
+          <v-text-field v-model="report_type.id" label="ID" :disabled="true" />
         </v-col>
         <v-col cols="12">
           <v-text-field
@@ -61,10 +58,6 @@
                 v-model="group.description"
                 :label="$t('report_type.description')"
               ></v-textarea>
-              <v-text-field
-                v-model="group.section_title"
-                :label="$t('report_type.section_title')"
-              ></v-text-field>
               <AttributeTable
                 :attributes="
                   report_type.attribute_groups[index].attribute_group_items
@@ -76,6 +69,7 @@
           </v-card>
         </v-col>
       </v-row>
+      <v-btn block type="submit" color="success" class="mt-3"> Submit </v-btn>
     </v-form>
   </v-container>
 </template>
@@ -121,7 +115,6 @@ export default {
         index: report_type.value.attribute_groups.length,
         title: '',
         description: '',
-        section_title: '',
         attribute_group_items: []
       })
     }
@@ -151,23 +144,24 @@ export default {
     }
 
     const add = () => {
-      console.debug(report_type.value.attribute_groups)
-      for (let x = 0; x < report_type.value.attribute_groups.length; x++) {
-        report_type.value.attribute_groups[x].index = x
+      // make a deep copy of the report_type object
+      const update_report_type = JSON.parse(JSON.stringify(report_type.value))
+      for (let x = 0; x < update_report_type.attribute_groups.length; x++) {
+        update_report_type.attribute_groups[x].index = x
 
         for (
           let y = 0;
           y <
-          report_type.value.attribute_groups[x].attribute_group_items.length;
+            update_report_type.attribute_groups[x].attribute_group_items.length;
           y++
         ) {
-          report_type.value.attribute_groups[x].attribute_group_items[y].index =
-            y
+          update_report_type.attribute_groups[x].attribute_group_items[y].index = y
+          delete(update_report_type.attribute_groups[x].attribute_group_items[y].attribute)
         }
       }
 
       if (props.edit) {
-        updateReportItemType(report_type.value)
+        updateReportItemType(update_report_type)
           .then(() => {
             notifySuccess('report_type.successful_edit')
             emit('updated')
@@ -176,7 +170,7 @@ export default {
             notifyFailure('report_type.error')
           })
       } else {
-        createReportItemType(report_type.value)
+        createReportItemType(update_report_type)
           .then(() => {
             notifySuccess('report_type.successful')
             emit('updated')

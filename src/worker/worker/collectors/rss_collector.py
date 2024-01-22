@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 import dateutil.parser as dateparser
 from trafilatura import extract
 
-from .base_web_collector import BaseWebCollector
+from worker.collectors.base_web_collector import BaseWebCollector
 from worker.log import logger
 
 
@@ -97,7 +97,7 @@ class RSSCollector(BaseWebCollector):
         if not xpath:
             content = extract(html_content, include_links=False, include_comments=False, include_formatting=False, with_metadata=False)
             return content or html_content
-        
+
         return self.xpath_extraction(html_content, xpath)
 
     def parse_feed(self, feed_entry: feedparser.FeedParserDict, feed_url, source) -> dict[str, str | datetime.datetime | list]:

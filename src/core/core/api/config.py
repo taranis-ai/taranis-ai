@@ -80,6 +80,32 @@ class AttributeEnums(Resource):
         return attribute.AttributeEnum.delete(enum_id)
 
 
+class ReportItemTypesImport(Resource):
+    @auth_required("CONFIG_REPORT_TYPE_CREATE")
+    def post(self):
+        return {"error": "Not implemented"}, 400
+        # if file := request.files.get("file"):
+        #     if rts := report_item_type.ReportItemType.import_report_types(file):
+        #         return {"report_types": [rt.id for rt in rts], "count": len(rts), "message": "Successfully imported report types"}
+        #     return {"error": "Unable to import"}, 400
+        # return {"error": "No file provided"}, 400
+
+
+class ReportItemTypesExport(Resource):
+    @auth_required("CONFIG_REPORT_TYPE_ACCESS")
+    def get(self):
+        source_ids = request.args.getlist("ids")
+        data = report_item_type.ReportItemType.export(source_ids)
+        if data is None:
+            return {"error": "Unable to export"}, 400
+        return send_file(
+            io.BytesIO(data),
+            download_name="report_types_export.json",
+            mimetype="application/json",
+            as_attachment=True,
+        )
+
+
 class ReportItemTypes(Resource):
     @auth_required("CONFIG_REPORT_TYPE_ACCESS")
     def get(self):
@@ -155,7 +181,9 @@ class Roles(Resource):
 
     @auth_required("CONFIG_ROLE_UPDATE")
     def put(self, role_id):
-        return role.Role.update(role_id, request.json)
+        if data := request.json:
+            return role.Role.update(role_id, data)
+        return {"error": "No data provided"}, 400
 
     @auth_required("CONFIG_ROLE_DELETE")
     def delete(self, role_id):
@@ -376,7 +404,7 @@ class Publishers(Resource):
 
 
 class PublisherPresets(Resource):
-    @auth_required("CONFIG_PUBLISHER_PRESET_ACCESS")
+    @auth_required("CONFIG_PUBLISHER_ACCESS")
     def get(self, preset_id=None):
         if preset_id:
             preset = publisher_preset.PublisherPreset.get(preset_id)
@@ -384,16 +412,16 @@ class PublisherPresets(Resource):
         search = request.args.get(key="search", default=None)
         return publisher_preset.PublisherPreset.get_all_json(search)
 
-    @auth_required("CONFIG_PUBLISHER_PRESET_CREATE")
+    @auth_required("CONFIG_PUBLISHER_CREATE")
     def post(self):
         pub_result = publisher_preset.PublisherPreset.add(request.json)
         return {"id": pub_result.id, "message": "Publisher preset created successfully"}, 200
 
-    @auth_required("CONFIG_PUBLISHER_PRESET_UPDATE")
+    @auth_required("CONFIG_PUBLISHER_UPDATE")
     def put(self, preset_id):
         return publisher_preset.PublisherPreset.update(preset_id, request.json)
 
-    @auth_required("CONFIG_PUBLISHER_PRESET_DELETE")
+    @auth_required("CONFIG_PUBLISHER_DELETE")
     def delete(self, preset_id):
         return publisher_preset.PublisherPreset.delete(preset_id)
 
@@ -495,6 +523,8 @@ def initialize(api: Api):
     namespace.add_resource(QueueStatus, "/workers/queue-status")
     namespace.add_resource(QueueSchedule, "/workers/schedule")
     namespace.add_resource(ReportItemTypes, "/report-item-types/<int:type_id>", "/report-item-types")
+    namespace.add_resource(ReportItemTypesExport, "/export-report-item-types")
+    namespace.add_resource(ReportItemTypesImport, "/import-report-item-types")
     namespace.add_resource(Roles, "/roles/<int:role_id>", "/roles")
     namespace.add_resource(Users, "/users/<int:user_id>", "/users")
     namespace.add_resource(WordListGather, "/word-lists/<int:word_list_id>/gather")

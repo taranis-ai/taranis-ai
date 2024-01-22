@@ -121,7 +121,8 @@ export default {
           name: 'type',
           label: 'Collector',
           type: 'select',
-          items: collector_options.value
+          items: collector_options.value,
+          disabled: edit.value
         }
       ]
       if (formData.value.last_error_message) {
@@ -166,7 +167,6 @@ export default {
     }
 
     const editItem = (item) => {
-      console.debug(item)
       formData.value = item
       edit.value = true
       showForm.value = true

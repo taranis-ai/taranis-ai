@@ -4,7 +4,6 @@
       id="edit_config_form"
       ref="config_form"
       class="px-4"
-      validate-on="input"
       @submit.prevent="handleSubmit"
     >
       <v-card-title class="bg-grey-lighten-2 mb-5">
@@ -116,7 +115,7 @@
         </v-col>
       </v-row>
       <slot name="additionalData"></slot>
-      <v-btn block type="submit" color="success"> Submit </v-btn>
+      <v-btn block class="mt-3" type="submit" color="success"> Submit </v-btn>
     </v-form>
   </v-card>
 </template>
@@ -165,12 +164,13 @@ export default {
 
     const { d } = useI18n()
 
-    const handleSubmit = () => {
-      config_form.value.validate().then((success) => {
-        if (success.valid) {
-          emit('submit', reconstructFormData(formData.value, format.value))
-        }
-      })
+    const handleSubmit = async () => {
+      const { valid } = await config_form.value.validate()
+      if (!valid) {
+        return
+      }
+
+      emit('submit', reconstructFormData(formData.value, format.value))
     }
 
     const addItem = (name) => {

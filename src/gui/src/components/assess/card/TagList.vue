@@ -16,6 +16,7 @@
           density="compact"
           :variant="truncate ? 'tonal' : 'elevated'"
           elevation="0"
+          size="x-small"
           @click.stop="updateTags(tag.name)"
         >
           <template #prepend>
@@ -50,6 +51,7 @@
 import { defineComponent } from 'vue'
 import { tagIconFromType } from '@/utils/helpers'
 import { useFilterStore } from '@/stores/FilterStore'
+import { useRoute, useRouter } from 'vue-router'
 
 export default defineComponent({
   name: 'TagList',
@@ -60,7 +62,7 @@ export default defineComponent({
     },
     limit: {
       type: Number,
-      default: 6
+      default: 5
     },
     truncate: {
       type: Boolean,
@@ -77,9 +79,15 @@ export default defineComponent({
   },
   setup(props) {
     const { appendTag } = useFilterStore()
+    const route = useRoute()
+    const router = useRouter()
 
     const updateTags = (tag) => {
-      appendTag(tag)
+      if (route.name !== 'assess') {
+        router.push({ name: 'assess', query: { tags: tag } })
+      } else {
+        appendTag(tag)
+      }
     }
 
     function labelcolor(inputString) {

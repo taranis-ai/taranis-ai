@@ -5,7 +5,7 @@ import dateutil.parser as dateparser
 from urllib.parse import urlparse
 
 from worker.log import logger
-from .base_collector import BaseCollector
+from worker.collectors.base_collector import BaseCollector
 
 
 class BaseWebCollector(BaseCollector):
@@ -32,7 +32,7 @@ class BaseWebCollector(BaseCollector):
             except Exception:
                 return None
         return None
-    
+
     def update_favicon(self, web_url: str, source_id: str):
         # TODO: Try getting apple-touch-icon first
         icon_url = f"{urlparse(web_url).scheme}://{urlparse(web_url).netloc}/favicon.ico"
@@ -48,7 +48,7 @@ class BaseWebCollector(BaseCollector):
         response = requests.get(web_url, headers=self.headers, proxies=self.proxies, timeout=60)
         if not response or not response.ok:
             return "", datetime.datetime.now()
-        html_content = response.content.decode("utf-8") if response is not None else ""
+        html_content = response.content.decode("utf-8")
         published_date = self.get_last_modified(response)
         return html_content, published_date
 

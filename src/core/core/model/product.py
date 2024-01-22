@@ -123,7 +123,7 @@ class Product(BaseModel):
             "type": self.product_type.type,
             "type_id": self.product_type.id,
             "mime_type": self.product_type.get_mimetype(),
-            "report_items": [report_item.to_detail_dict() for report_item in self.report_items if report_item],
+            "report_items": [report_item.to_product_dict() for report_item in self.report_items if report_item],
         }
 
     def update_render(self, render_result):
@@ -166,8 +166,7 @@ class Product(BaseModel):
         if title := data.get("title"):
             product.title = title
 
-        if description := data.get("description"):
-            product.description = description
+        product.description = data.get("description")
 
         if data.get("product_type_id"):
             logger.warning("Product type change not supported")

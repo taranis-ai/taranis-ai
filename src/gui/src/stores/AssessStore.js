@@ -9,7 +9,7 @@ import {
   deleteNewsItemAggregate
 } from '@/api/assess'
 import { defineStore } from 'pinia'
-import { xorConcat, notifyFailure, getMessageFromError } from '@/utils/helpers'
+import { xorConcat, notifyFailure } from '@/utils/helpers'
 
 import { useFilterStore } from './FilterStore'
 
@@ -48,11 +48,13 @@ export const useAssessStore = defineStore('assess', {
     async updateNewsItems() {
       console.debug('updateNewsItems')
       try {
+        this.loading = true
         const filter = useFilterStore()
         const response = await getNewsItemsAggregates(filter.newsItemsFilter)
         this.newsItems.items = response.data.items
         this.newsItems.total_count = response.data.total_count
         this.max_item = response.data.max_item
+        this.loading = false
       } catch (error) {
         notifyFailure(error.message)
       }
@@ -160,7 +162,7 @@ export const useAssessStore = defineStore('assess', {
         await voteNewsItemAggregate(id, vote)
         this.updateNewsItemByID(id)
       } catch (error) {
-        notifyFailure(getMessageFromError(error))
+        notifyFailure(error)
       }
     },
     async updateOSINTSources() {

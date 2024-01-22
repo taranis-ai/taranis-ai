@@ -29,7 +29,6 @@ export default {
 
     const route = useRoute()
 
-    console.debug(assessStore.newsItems.items)
     const story = computed(() => {
       return assessStore.newsItems.items.find(
         (item) => item.id == route.params.id

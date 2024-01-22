@@ -11,15 +11,15 @@ from core.model.worker import PUBLISHER_TYPES, Worker
 class PublisherPreset(BaseModel):
     id = db.Column(db.String(64), primary_key=True)
     name = db.Column(db.String(), nullable=False)
-    description = db.Column(db.String())
+    description: Any = db.Column(db.String())
     type = db.Column(db.Enum(PUBLISHER_TYPES))
     parameters = db.relationship("ParameterValue", secondary="publisher_preset_parameter_value", cascade="all, delete")
 
     def __init__(
         self,
         name,
-        description,
         type,
+        description=None,
         parameters=None,
         id=None,
     ):
@@ -61,8 +61,9 @@ class PublisherPreset(BaseModel):
             return {"error": f"Could not find preset with id {preset_id}"}, 404
         if name := data.get("name"):
             preset.name = name
-        if description := data.get("description"):
-            preset.description = description
+
+        preset.description = data.get("description")
+
         if parameters := data.get("parameters"):
             updated_preset = ParameterValue.get_or_create_from_list(parameters)
             preset.parameters = ParameterValue.get_update_values(preset.parameters, updated_preset)

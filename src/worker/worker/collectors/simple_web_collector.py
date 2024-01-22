@@ -7,7 +7,7 @@ import lxml.html
 from trafilatura import bare_extraction
 
 from worker.log import logger
-from .base_web_collector import BaseWebCollector
+from worker.collectors.base_web_collector import BaseWebCollector
 
 
 class SimpleWebCollector(BaseWebCollector):
@@ -42,6 +42,8 @@ class SimpleWebCollector(BaseWebCollector):
 
     def parse_web_content(self, web_url, source_id: str, xpath: str = "") -> dict[str, str | datetime.datetime | list]:
         html_content, published_date = self.html_from_article(web_url)
+        if not html_content:
+            raise ValueError("Website returned no content")
         author, title = self.extract_meta(html_content)
 
         if xpath:
@@ -94,7 +96,16 @@ class SimpleWebCollector(BaseWebCollector):
             logger.debug(f"Last-Modified: {last_modified} < Last-Attempted {last_attempted} skipping")
             return "Last-Modified < Last-Attempted"
 
-        news_item = self.parse_web_content(web_url, source["id"], xpath)
+        try:
+            news_item = self.parse_web_content(web_url, source["id"], xpath)
+        except ValueError as e:
+            logger.error(f"Simple Web Collector for {web_url} failed with error: {str(e)}")
+            return str(e)
 
         self.publish([news_item], source)
         return None
+
+
+if __name__ == "__main__":
+    swc = SimpleWebCollector()
+    swc.parse_web_content("https://www.bbc.com/news/world-europe-57978443", "test")

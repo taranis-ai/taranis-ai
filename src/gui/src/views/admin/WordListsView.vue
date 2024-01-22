@@ -93,8 +93,7 @@ export default {
       {
         name: 'description',
         label: 'Description',
-        type: 'textarea',
-        rules: [(v) => !!v || 'Required']
+        type: 'textarea'
       },
       {
         name: 'link',
@@ -109,7 +108,8 @@ export default {
           { value: 'COLLECTOR_INCLUDELIST', label: 'Collector Includelist' },
           { value: 'COLLECTOR_EXCLUDELIST', label: 'Collector Excludelist' },
           { value: 'TAGGING_BOT', label: 'Tagging Bot' }
-        ]
+        ],
+        rules: [(v) => !!v || 'Required']
       },
       {
         name: 'entries',
@@ -227,7 +227,6 @@ export default {
     }
 
     const exportData = () => {
-      console.debug(`Exporting ${selected.value.join('&ids=')}`)
       let queryString = ''
       if (selected.value.length > 0) {
         queryString = 'ids=' + selected.value.join('&ids=')

@@ -13,6 +13,9 @@
         />
       </template>
     </v-infinite-scroll>
+    <v-overlay :model-value="loading" class="align-center justify-center">
+      <v-progress-circular color="primary" indeterminate size="64" />
+    </v-overlay>
 
     <div
       v-if="newsItems.items.length == 0"
@@ -64,7 +67,6 @@ export default defineComponent({
     }
 
     const displayMore = async ({ done }) => {
-      console.debug('displayMore')
       if (!moreToLoad.value) {
         done('empty')
         return
@@ -76,7 +78,6 @@ export default defineComponent({
       done('ok')
     }
     const nextPage = () => {
-      console.debug('loadNext')
       filterStore.nextPage()
     }
 
@@ -99,6 +100,7 @@ export default defineComponent({
       newsItems,
       moreToLoad,
       activeSelection,
+      loading,
       refresh,
       nextPage,
       resetFilter,

@@ -1,22 +1,22 @@
 from typing import Any
 from sqlalchemy import or_, and_
 import sqlalchemy
+import json
 from sqlalchemy.sql.expression import cast
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.model.acl_entry import ACLEntry, ItemType
-from core.managers.log_manager import logger
+from core.model.attribute import Attribute
 
 
 class AttributeGroupItem(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String())
+    title = db.Column(db.String(), nullable=False)
     description = db.Column(db.String())
 
     index = db.Column(db.Integer)
-    min_occurrence = db.Column(db.Integer, default=1)
-    max_occurrence = db.Column(db.Integer, default=1)
+    multiple = db.Column(db.Boolean, default=False)
 
     attribute_group_id = db.Column(db.Integer, db.ForeignKey("attribute_group.id", ondelete="CASCADE"))
     attribute_group = db.relationship("AttributeGroup")
@@ -24,13 +24,20 @@ class AttributeGroupItem(BaseModel):
     attribute_id = db.Column(db.Integer, db.ForeignKey("attribute.id"))
     attribute = db.relationship("Attribute")
 
-    def __init__(self, title, description, index, attribute_id, min_occurrence=1, max_occurrence=1, id=None):
+    def __init__(self, title, description, index, attribute_id=None, attribute=None, multiple=False, id=None):
         self.id = id
         self.title = title
         self.description = description
         self.index = index
-        self.min_occurrence = min_occurrence
-        self.max_occurrence = max_occurrence
+        self.multiple = multiple
+
+        if attribute:
+            if attr := Attribute.filter_by_name(attribute):
+                attribute_id = attr.id
+
+        if not attribute_id:
+            raise Exception("AttributeGroupItem requires either attribute_id or attribute")
+
         self.attribute_id = attribute_id
 
     @staticmethod
@@ -38,14 +45,21 @@ class AttributeGroupItem(BaseModel):
         return attribute_group_item.index
 
     def to_dict(self):
-        data = {c.name: getattr(self, c.name) for c in self.__table__.columns}
+        data = super().to_dict()
         data["attribute"] = self.attribute.to_dict()
+        return data
+
+    def to_export_dict(self):
+        data = super().to_dict()
+        data.pop("id", None)
+        data.pop("attribute_group_id", None)
+        data.pop("attribute_id", None)
+        data["attribute"] = self.attribute.name
         return data
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "ReportItemType":
         data.pop("attribute_group_id", None)
-        data.pop("attribute", None)
         return cls(**data)
 
     def to_dict_with_group(self):
@@ -59,8 +73,6 @@ class AttributeGroup(BaseModel):
     title = db.Column(db.String())
     description = db.Column(db.String())
 
-    section = db.Column(db.Integer, default=0)
-    section_title = db.Column(db.String(), default="")
     index = db.Column(db.Integer)
 
     report_item_type_id = db.Column(db.Integer, db.ForeignKey("report_item_type.id", ondelete="CASCADE"))
@@ -72,26 +84,28 @@ class AttributeGroup(BaseModel):
         cascade="all, delete-orphan",
     )
 
-    def __init__(self, title, description, index, attribute_group_items, section=0, section_title="", id=None):
+    def __init__(self, title, description, index, attribute_group_items=None, id=None):
         self.id = id
         self.title = title
         self.description = description
-        self.section = section
-        self.section_title = section_title
         self.index = index
-        self.attribute_group_items = attribute_group_items
+        self.attribute_group_items = AttributeGroupItem.load_multiple(attribute_group_items) if attribute_group_items else []
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "AttributeGroup":
-        attribute_group_items = [
-            AttributeGroupItem.from_dict(attribute_group_item) for attribute_group_item in data.pop("attribute_group_items")
-        ]
         data.pop("report_item_type_id", None)
-        return cls(attribute_group_items=attribute_group_items, **data)
+        return cls(**data)
 
     def to_dict(self):
         data = super().to_dict()
         data["attribute_group_items"] = [attribute_group_item.to_dict() for attribute_group_item in self.attribute_group_items]
+        return data
+
+    def to_export_dict(self):
+        data = super().to_dict()
+        data.pop("id", None)
+        data.pop("report_item_type_id", None)
+        data["attribute_group_items"] = [attribute_group_item.to_export_dict() for attribute_group_item in self.attribute_group_items]
         return data
 
     @staticmethod
@@ -101,8 +115,6 @@ class AttributeGroup(BaseModel):
     def update(self, updated_attribute_group):
         self.title = updated_attribute_group.title
         self.description = updated_attribute_group.description
-        self.section = updated_attribute_group.section
-        self.section_title = updated_attribute_group.section_title
         self.index = updated_attribute_group.index
 
         for updated_attribute_group_item in updated_attribute_group.attribute_group_items:
@@ -112,8 +124,7 @@ class AttributeGroup(BaseModel):
                     attribute_group_item.title = updated_attribute_group_item.title
                     attribute_group_item.description = updated_attribute_group_item.description
                     attribute_group_item.index = updated_attribute_group_item.index
-                    attribute_group_item.min_occurrence = updated_attribute_group_item.min_occurrence
-                    attribute_group_item.max_occurrence = updated_attribute_group_item.max_occurrence
+                    attribute_group_item.multiple = updated_attribute_group_item.multiple
                     attribute_group_item.attribute_id = updated_attribute_group_item.attribute_id
                     found = True
                     break
@@ -134,7 +145,7 @@ class AttributeGroup(BaseModel):
 class ReportItemType(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String())
-    description = db.Column(db.String())
+    description: Any = db.Column(db.String())
 
     attribute_groups = db.relationship(
         "AttributeGroup",
@@ -142,11 +153,10 @@ class ReportItemType(BaseModel):
         cascade="all, delete-orphan",
     )
 
-    def __init__(self, title, description, attribute_groups, id=None):
-        self.id = id
+    def __init__(self, title, description=None, attribute_groups=None, id=None):
         self.title = title
         self.description = description
-        self.attribute_groups = attribute_groups
+        self.attribute_groups = AttributeGroup.load_multiple(attribute_groups) if attribute_groups else []
 
     @classmethod
     def get_all(cls):
@@ -203,15 +213,15 @@ class ReportItemType(BaseModel):
         items = [report_item_type.to_dict() for report_item_type in report_item_types]
         return {"total_count": count, "items": items}
 
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "ReportItemType":
-        logger.debug(data)
-        attribute_groups = [AttributeGroup.from_dict(attribute_group) for attribute_group in data.pop("attribute_groups")]
-        return cls(attribute_groups=attribute_groups, **data)
-
-    def to_dict(self):
-        data = {c.name: getattr(self, c.name) for c in self.__table__.columns}
+    def to_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
         data["attribute_groups"] = [attribute_group.to_dict() for attribute_group in self.attribute_groups]
+        return data
+
+    def to_export_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
+        data.pop("id", None)
+        data["attribute_groups"] = [attribute_group.to_export_dict() for attribute_group in self.attribute_groups]
         return data
 
     @classmethod
@@ -221,11 +231,56 @@ class ReportItemType(BaseModel):
             return None
         if title := data.get("title"):
             report_type.title = title
-        if description := data.get("description"):
-            report_type.description = description
+
+        report_type.description = data.get("description")
+
         if attribute_groups := data.get("attribute_groups"):
-            report_type.attribute_groups = [AttributeGroup.from_dict(attribute_group) for attribute_group in attribute_groups]
+            report_type.attribute_groups = AttributeGroup.load_multiple(attribute_groups)
         for attribute_group in report_type.attribute_groups:
             attribute_group.report_item_type = report_type
         db.session.commit()
         return report_type
+
+    @classmethod
+    def export(cls, source_ids=None):
+        if source_ids:
+            data = cls.query.filter(cls.id.in_(source_ids)).all()  # type: ignore
+        else:
+            data = cls.get_all()
+        export_data = {"version": 1, "data": [report_type.to_export_dict() for report_type in data]}
+        return json.dumps(export_data).encode("utf-8")
+
+    @classmethod
+    def load_json_content(cls, content) -> list:
+        if content.get("version") != 1:
+            raise ValueError("Invalid JSON file")
+        if not content.get("data"):
+            raise ValueError("No data found")
+        return content["data"]
+
+    @classmethod
+    def import_report_type(cls, file) -> list | None:
+        file_data = file.read().decode("utf8")
+        file_content = json.loads(file_data)
+        data = cls.load_json_content(content=file_content)
+
+        return cls.add_multiple(data)
+
+    @classmethod
+    def delete(cls, id: int) -> tuple[dict[str, Any], int]:
+        from core.model.report_item import ReportItem
+        from core.model.product_type import ProductType
+
+        report_type = cls.get(id)
+        if not report_type:
+            return {"error": "Report type not found"}, 404
+
+        if ReportItem.query.filter_by(report_item_type_id=id).first():
+            return {"error": "Report type is used in a report"}, 409
+
+        if ProductType.query.filter(ProductType.report_types.any(id=id)).first():  # type: ignore
+            return {"error": "Report is used in a product type"}, 409
+
+        db.session.delete(report_type)
+        db.session.commit()
+        return {"message": "Report type successfully deleted"}, 200

@@ -140,10 +140,10 @@ export default {
     })
 
     const rules = {
-      required: (value) => !!value || 'Required.',
+      required: (value) => Boolean(value) || 'Required.',
       matchPassword: (value) => {
         if (!props.edit) {
-          return !!value || 'Required.'
+          return Boolean(value) || 'Required.'
         }
         if (!value && !pwd.value) {
           return true
@@ -158,9 +158,8 @@ export default {
     })
 
     const add = async () => {
-      const isValid = await form.value.validate()
-      if (!isValid.valid) {
-        console.debug('Invalid')
+      const { valid } = await form.value.validate()
+      if (!valid) {
         return
       }
 
@@ -192,7 +191,6 @@ export default {
     }
 
     onMounted(() => {
-      console.debug('Loading User: ' + user.value.id)
       loadOrganizations()
       loadRoles()
       loadPermissions()

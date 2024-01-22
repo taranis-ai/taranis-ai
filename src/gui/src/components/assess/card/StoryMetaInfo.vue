@@ -1,8 +1,7 @@
 <template>
   <v-container column class="pa-0 py-0">
-    <v-row no-gutters>
+    <v-row v-if="!compactView" no-gutters>
       <v-col>
-        <!-- left column -->
         <v-row>
           <v-col style="max-width: 110px" class="py-0">
             <strong>{{ t('assess.published') }}:</strong>
@@ -42,7 +41,14 @@
             {{ story.relevance }}
           </v-col>
         </v-row>
-        <SourceInfo :news-item="story.news_items[0]" />
+        <article-info
+          :news-item-data="story.news_items[0].news_item_data"
+          :compact-view="compactView"
+        />
+        <source-info
+          v-if="detailView && story.news_items.length < 2"
+          :news-item-data="story.news_items[0].news_item_data"
+        />
       </v-col>
       <v-col
         :cols="detailView ? 10 : 6"
@@ -50,7 +56,10 @@
       >
         <week-chart
           v-if="
-            !published_date_outdated && lgAndUp && !reportView && showWeekChart
+            !published_date_outdated &&
+            !reportView &&
+            !detailView &&
+            showWeekChart
           "
           :chart-height="detailView ? 300 : 250"
           :chart-width="detailView ? 800 : 600"
@@ -58,6 +67,34 @@
         />
       </v-col>
     </v-row>
+    <div v-else>
+      <v-row>
+        <span :class="published_date_outdated ? 'error--text' : ''">
+          {{ getPublishedDate }}
+        </span>
+        <v-icon
+          v-if="published_date_outdated"
+          class="ml-1"
+          size="small"
+          color="error"
+          icon="mdi-alert"
+        />
+      </v-row>
+
+      <v-row class="mt-5">
+        <article-info
+          :news-item-data="story.news_items[0].news_item_data"
+          :compact-view="compactView"
+        />
+      </v-row>
+
+      <v-row class="mt-5">
+        <source-info
+          v-if="detailView && story.news_items.length < 2"
+          :news-item-data="story.news_items[0].news_item_data"
+        />
+      </v-row>
+    </div>
   </v-container>
 </template>
 
@@ -69,11 +106,13 @@ import { useI18n } from 'vue-i18n'
 import { computed } from 'vue'
 import { useDisplay } from 'vuetify'
 import { storeToRefs } from 'pinia'
+import ArticleInfo from '@/components/assess/card/ArticleInfo.vue'
 import SourceInfo from '@/components/assess/card/SourceInfo.vue'
 
 export default {
   name: 'StoryMetaInfo',
   components: {
+    ArticleInfo,
     SourceInfo,
     TagList,
     WeekChart
@@ -89,11 +128,10 @@ export default {
     },
     reportView: { type: Boolean, default: false }
   },
-  emits: ['selectItem', 'deleteItem'],
   setup(props) {
     const { d, t } = useI18n()
-    const { xlAndUp, lgAndUp, mdAndUp, name } = useDisplay()
-    const { showWeekChart } = storeToRefs(useFilterStore())
+    const { xlAndUp } = useDisplay()
+    const { showWeekChart, compactView } = storeToRefs(useFilterStore())
 
     const published_dates = computed(() => {
       const pub_dates = props.story.news_items
@@ -124,7 +162,7 @@ export default {
       if (props.detailView) {
         return 20
       }
-      return xlAndUp.value ? 6 : 2
+      return xlAndUp.value ? 5 : 2
     })
 
     const getPublishedDate = computed(() => {
@@ -141,14 +179,12 @@ export default {
     })
 
     return {
+      compactView,
       showWeekChart,
       published_dates,
       published_date_outdated,
       getPublishedDate,
-      lgAndUp,
-      mdAndUp,
       tagLimit,
-      name,
       t
     }
   }

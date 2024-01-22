@@ -80,7 +80,6 @@ export default defineComponent({
     })
 
     const navClicked = () => {
-      console.debug('navClicked')
       store.toggleDrawer()
     }
     const buttons = [

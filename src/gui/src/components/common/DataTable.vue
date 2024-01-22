@@ -7,11 +7,12 @@
     class="elevation-1"
     show-select
     :model-value="selected"
+    :items-per-page="itemsPerPage"
     @update:model-value="emitFilterChange"
     @click:row="rowClick"
   >
     <template #top>
-      <v-card>
+      <v-card v-if="showTop">
         <v-card-title>
           <v-row no-gutters>
             <v-text-field
@@ -93,7 +94,7 @@
         </v-tooltip>
       </div>
     </template>
-    <template v-if="items.length < 10" #bottom />
+    <template v-if="items.length < itemsPerPage" #bottom />
     <template #no-data>
       <v-btn color="primary" @click.stop="updateItems()">
         <v-icon class="mr-1" icon="mdi-refresh" />
@@ -124,6 +125,14 @@ export default defineComponent({
     searchBar: {
       type: Boolean,
       default: true
+    },
+    showTop: {
+      type: Boolean,
+      default: true
+    },
+    itemsPerPage: {
+      type: Number,
+      default: 20
     },
     tagIcon: {
       type: String,
@@ -201,15 +210,12 @@ export default defineComponent({
     }
 
     function deleteItem(item) {
-      console.debug('deleteItem', item)
       emit('delete-item', item)
     }
 
     function deleteItems(itemsToDelete) {
-      console.debug(selected.value)
       itemsToDelete.forEach((item) => deleteItem({ id: item }))
       selected.value = []
-      console.debug(selected.value)
     }
 
     function updateItems() {

@@ -675,8 +675,8 @@ class NewsItemAggregate(BaseModel):
         if "title" in data:
             aggregate.title = data["title"]
 
-        if "description" in data:
-            aggregate.description = data["description"]
+        # TODO: Here I am not so sure if we want this
+        aggregate.description = data["description"]
 
         if "comments" in data:
             aggregate.comments = data["comments"]

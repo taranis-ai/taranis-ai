@@ -38,7 +38,7 @@ class NewsItems(Resource):
             filter_keys = ["search" "read", "important", "relevant", "in_analyze", "range", "sort"]
             filter_args: dict[str, str | int] = {k: v for k, v in request.args.items() if k in filter_keys}
 
-            filter_args["limit"] = min(int(request.args.get("limit", 20)), 200)
+            filter_args["limit"] = min(int(request.args.get("limit", 20)), 1000)
             page = int(request.args.get("page", 0))
             filter_args["offset"] = min(int(request.args.get("offset", page * filter_args["limit"])), (2**31) - 1)
             return news_item.NewsItem.get_by_filter_json(filter_args, user)
@@ -69,7 +69,7 @@ class NewsItemAggregates(Resource):
             for key in filter_list_keys:
                 filter_args[key] = request.args.getlist(key)
 
-            filter_args["limit"] = min(int(request.args.get("limit", 20)), 200)
+            filter_args["limit"] = min(int(request.args.get("limit", 20)), 1000)
             tags = request.args.getlist("tags")
             filter_args["tags"] = [unquote(t) for t in tags]
             page = int(request.args.get("page", 0))
