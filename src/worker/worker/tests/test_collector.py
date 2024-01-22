@@ -19,6 +19,7 @@ def test_simple_web_collector_collect(simple_web_collector):
     result_item = simple_web_collector.parse_web_content(web_collector_url, "test_source")
 
     assert result_item["title"] == web_collector_result_title
+    # assert result_item["author"] == "John Doe"
     assert result_item["content"].startswith(web_collector_result_content)
 
 
