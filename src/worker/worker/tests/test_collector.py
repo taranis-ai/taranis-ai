@@ -8,8 +8,18 @@ def rss_collector():
     return collectors.RSSCollector()
 
 
-def test_initalize_collectors():
-    collectors.RSSCollector()
+@pytest.fixture
+def simple_web_collector():
+    return collectors.SimpleWebCollector()
+
+
+def test_simple_web_collector_collect(simple_web_collector):
+    from testdata import web_collector_url, web_collector_result_title, web_collector_result_content
+
+    result_item = simple_web_collector.parse_web_content(web_collector_url, "test_source")
+
+    assert result_item["title"] == web_collector_result_title
+    assert result_item["content"].startswith(web_collector_result_content)
 
 
 @pytest.mark.parametrize("input_news_items", [news_items, news_items[2:], news_items[:: len(news_items) - 1], [news_items[-1]]])
