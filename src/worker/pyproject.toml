@@ -24,6 +24,7 @@ dependencies = [
     "trafilatura==1.6.1",
     "feedparser==6.0.10",
     "pyopenssl",
+    "lxml==5.1.0",
 
     # Publisher
     "pymisp==2.4.173",
