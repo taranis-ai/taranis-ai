@@ -17,17 +17,22 @@
       <v-progress-circular color="primary" indeterminate size="64" />
     </v-overlay>
 
-    <div
-      v-if="newsItems.items.length == 0"
-      class="d-flex align-center justify-center mt-5 w-100"
+    <v-row
+      v-if="newsItems.items.length == 0 && !loading"
+      class="align-center justify-center mt-5"
     >
-      <v-alert
-        :value="true"
-        type="info"
-        text="No items found. Please change your filter."
-      />
-      <v-btn @click="resetFilter()">Reset Filter</v-btn>
-    </div>
+      <v-col cols="12">
+        <v-alert
+          :value="true"
+          type="info"
+          text="No items found. Please change your filter."
+          class="mx-4 text-center text-h5"
+        />
+      </v-col>
+      <v-col cols="6">
+        <v-btn block class="mx-4" @click="resetFilter()">Reset Filter</v-btn>
+      </v-col>
+    </v-row>
     <assess-selection-toolbar v-if="activeSelection" />
   </div>
 </template>

@@ -13,7 +13,7 @@
     <v-row>
       <v-col
         :cols="content_cols"
-        class="d-flex flex-grow-1 mt-3 px-5 py-3 order-first"
+        class="d-flex flex-grow-1 mt-1 px-5 order-first"
         align-self="center"
       >
         <v-icon v-if="story_in_report" class="mr-2 my-auto"> mdi-share </v-icon>
@@ -37,7 +37,7 @@
       <!-- DESCRIPTION -->
       <v-col
         :cols="content_cols"
-        class="px-5 pb-5 order-lg-3 order-md-2"
+        class="px-5 pb-5 order-3"
         align-self="stretch"
       >
         <summarized-content
@@ -47,7 +47,7 @@
         />
       </v-col>
       <!-- META INFO -->
-      <v-col class="px-5 pt-2 pb-3 order-4" :cols="meta_cols">
+      <v-col class="px-5 pt-1 pb-1 order-4" :cols="meta_cols">
         <story-meta-info
           :story="story"
           :detail-view="openSummary"

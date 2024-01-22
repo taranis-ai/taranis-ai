@@ -16,6 +16,7 @@
           :rules="[rules.required]"
         />
 
+        Published:
         <VueDatePicker
           v-model="news_item.published"
           name="published"

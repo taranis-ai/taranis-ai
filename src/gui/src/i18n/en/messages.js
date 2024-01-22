@@ -130,6 +130,7 @@ export const messages_en = {
     content: 'Content',
     published: 'Published',
     link: 'Link',
+    failed: 'Failed to create or update news item',
     successful: 'News item was successfully created'
   },
 
