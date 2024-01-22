@@ -15,6 +15,7 @@ export const useMainStore = defineStore(
     const itemCountTotal = ref(0)
     const itemCountFiltered = ref(0)
     const drawerVisible = ref(true)
+    const drawerSetByUser = ref(false)
     const coreAPIURL = ref('/api')
     const sentryDSN = ref('')
     const gitInfo = ref('')
@@ -37,6 +38,7 @@ export const useMainStore = defineStore(
     // Actions
     const toggleDrawer = () => {
       drawerVisible.value = !drawerVisible.value
+      drawerSetByUser.value = true
     }
 
     const resetItemCount = () => {
@@ -57,6 +59,7 @@ export const useMainStore = defineStore(
       user,
       vertical_view,
       drawerVisible,
+      drawerSetByUser,
       itemCountTotal,
       itemCountFiltered,
       coreAPIURL,

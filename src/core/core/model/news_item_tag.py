@@ -34,7 +34,7 @@ class NewsItemTag(BaseModel):
         if tag_type := filter_args.get("tag_type"):
             query = query.filter(cls.tag_type == tag_type)
 
-        if min_size := filter_args.get("min_size", 4):
+        if min_size := filter_args.get("min_size"):
             # returns only tags where the name appears at least min_size times in the database
             query = query.group_by(cls.name, cls.tag_type).having(func.count(cls.name) >= min_size)
             # order by size

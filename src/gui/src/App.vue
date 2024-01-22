@@ -34,10 +34,10 @@ export default defineComponent({
     const { isAuthenticated, timeToRefresh } = storeToRefs(useAuthStore())
     const authStore = useAuthStore()
     const assessStore = useAssessStore()
-    const { compactView } = storeToRefs(useFilterStore())
-    const { drawerVisible } = storeToRefs(useMainStore())
+    const { compactView, compactViewSetByUser } = storeToRefs(useFilterStore())
+    const { drawerVisible, drawerSetByUser } = storeToRefs(useMainStore())
 
-    const { mdAndDown } = useDisplay()
+    const { mdAndDown, lgAndDown, name: displayName } = useDisplay()
 
     onMounted(() => {
       console.debug('App mounted')
@@ -60,14 +60,26 @@ export default defineComponent({
 
     watch(
       () => mdAndDown.value,
+      (nv) => {
+        if (compactViewSetByUser.value) return
+        compactView.value = nv
+      },
+      { immediate: true }
+    )
+
+    watch(
+      () => lgAndDown.value,
+      (nv) => {
+        if (drawerSetByUser.value) return
+        drawerVisible.value = !nv
+      },
+      { immediate: true }
+    )
+
+    watch(
+      () => displayName.value,
       (newValue) => {
-        console.log('mdAndDown set to: ', newValue)
-        if (newValue) {
-          compactView.value = true
-          drawerVisible.value = false
-        } else {
-          compactView.value = false
-        }
+        console.debug('Display name changed to', newValue)
       },
       { immediate: true }
     )

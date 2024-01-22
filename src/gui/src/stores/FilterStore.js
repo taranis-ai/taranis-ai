@@ -45,7 +45,8 @@ export const useFilterStore = defineStore('filter', {
     },
     highlight: true,
     showWeekChart: false,
-    compactView: false
+    compactView: false,
+    compactViewSetByUser: false
   }),
   getters: {
     getFilterTags() {

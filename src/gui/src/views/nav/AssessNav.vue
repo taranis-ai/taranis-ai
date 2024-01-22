@@ -136,7 +136,7 @@
             :append-icon="compactView ? 'mdi-check-bold' : undefined"
             :variant="compactView ? 'tonal' : 'text'"
             color="primary"
-            @click="compactView = !compactView"
+            @click="setCompactView"
           >
             compact view
           </v-btn>
@@ -223,7 +223,8 @@ export default {
       chartFilter,
       highlight,
       showWeekChart,
-      compactView
+      compactView,
+      compactViewSetByUser
     } = storeToRefs(filterStore)
 
     const { setFilter, updateFilter } = useFilterStore()
@@ -292,6 +293,11 @@ export default {
       filterStore.$reset()
     }
 
+    function setCompactView() {
+      compactView.value = !compactView.value
+      compactViewSetByUser.value = true
+    }
+
     watch(
       newsItemsFilter,
       (filter, prevFilter) => {
@@ -312,7 +318,8 @@ export default {
       newsItemsFilter,
       filterAttribute,
       filterAttributeOptions,
-      resetFilter
+      resetFilter,
+      setCompactView
     }
   }
 }
