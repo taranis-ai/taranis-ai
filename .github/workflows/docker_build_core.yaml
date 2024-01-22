@@ -21,13 +21,13 @@ jobs:
     name: pytest
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
       - name: Cache pip dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cache/pip
@@ -53,8 +53,8 @@ jobs:
     runs-on: ubuntu-22.04
     needs: test
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
       - name: build
@@ -81,9 +81,9 @@ jobs:
     runs-on: ubuntu-22.04
     needs: test
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -93,7 +93,7 @@ jobs:
           echo "GHCR_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >>${GITHUB_ENV}
           echo "GIT_INFO=$(./docker/git_info.sh)" >>${GITHUB_ENV}
       - name: Build and push core
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
           file: docker/Dockerfile.core
           push: true
