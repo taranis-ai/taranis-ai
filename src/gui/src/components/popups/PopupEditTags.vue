@@ -2,22 +2,7 @@
   <v-card>
     <v-card-title> Edit Tags </v-card-title>
     <v-card-text>
-      <v-combobox
-        v-model="updatedTags"
-        :items="tags"
-        chips
-        density="compact"
-        closable-chips
-        clearable
-        variant="outlined"
-        no-data-text="No tags found"
-        hint="Press 'Enter' to add a new tag"
-        persistent-hint
-        item-value="name"
-        item-title="name"
-        label="Tags"
-        multiple
-      />
+      <edit-tags v-model="updatedTags" />
     </v-card-text>
     <v-card-actions class="mt-1">
       <v-row no-gutters>
@@ -50,11 +35,14 @@
 
 <script>
 import { ref } from 'vue'
-import { updateStoryTags } from '@/api/assess'
-import { notifySuccess, notifyFailure } from '@/utils/helpers'
+import { useAssessStore } from '@/stores/AssessStore'
+import EditTags from '@/components/assess/EditTags.vue'
 
 export default {
   name: 'PopupEditTags',
+  components: {
+    EditTags
+  },
   props: {
     storyId: {
       type: Number,
@@ -68,21 +56,16 @@ export default {
   },
   emits: ['close'],
   setup(props, { emit }) {
+    const assessStore = useAssessStore()
+
     const close = () => {
       emit('close')
     }
     const updatedTags = ref(props.tags)
 
-    function editTags() {
-      updateStoryTags(props.storyId, updatedTags.value)
-        .then((result) => {
-          notifySuccess(result)
-          close()
-        })
-        .catch((result) => {
-          notifyFailure(result)
-          close()
-        })
+    async function editTags() {
+      await assessStore.updateTags(props.storyId, updatedTags.value)
+      close()
     }
 
     return {

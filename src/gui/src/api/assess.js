@@ -37,8 +37,8 @@ export function getNewsItem(news_item_id) {
   return apiService.get(`/assess/news-items/${news_item_id}`)
 }
 
-export function getNewsItemAggregate(aggregate_id) {
-  return apiService.get(`/assess/stories/${aggregate_id}`)
+export function getStory(story_id) {
+  return apiService.get(`/assess/stories/${story_id}`)
 }
 
 export function voteNewsItemAggregate(aggregate_id, vote) {

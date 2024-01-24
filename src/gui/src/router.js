@@ -45,6 +45,14 @@ export const router = createRouter({
       meta: { requiresAuth: true, requiresPerm: [Permissions.ASSESS_ACCESS] }
     },
     {
+      path: '/story/:id/edit',
+      name: 'storyedit',
+      components: {
+        default: () => import('@/views/users/StoryEditView.vue')
+      },
+      meta: { requiresAuth: true, requiresPerm: [Permissions.ASSESS_UPDATE] }
+    },
+    {
       path: '/assess',
       name: 'assess',
       components: {

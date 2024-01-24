@@ -1,5 +1,5 @@
 <template>
-  <v-container class="px-0 mb-1">
+  <v-container class="px-0 mb-1 pb-5">
     <v-row v-if="!compactView" no-gutters>
       <v-col>
         <v-row>

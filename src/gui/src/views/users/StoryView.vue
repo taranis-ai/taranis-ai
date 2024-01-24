@@ -43,8 +43,7 @@ export default {
 
     return {
       story,
-      activeSelection,
-      deleteNewsItem
+      activeSelection
     }
   }
 }

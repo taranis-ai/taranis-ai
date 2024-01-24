@@ -2,7 +2,7 @@
   <span :class="open ? 'news-item-summary-no-clip' : 'news-item-summary'">
     <v-tooltip v-if="isSummarized" top>
       <template #activator="{ props }">
-        <v-icon v-bind="props">mdi-text-short</v-icon>
+        <v-icon v-bind="props" icon="mdi-text-short" />
       </template>
     </v-tooltip>
     <span v-dompurify-html="highlighted" style="word-wrap: anywhere" />

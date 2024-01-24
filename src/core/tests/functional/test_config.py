@@ -119,7 +119,7 @@ class TestWordListConfigApi(BaseTest):
 
     def test_create_word_lists(self, client, auth_header, cleanup_word_lists):
         response = self.assert_post_ok(client, uri="word-lists", json_data=cleanup_word_lists, auth_header=auth_header)
-        assert response.json["message"] == f"Word list created successfully"
+        assert response.json["message"] == "Word list created successfully"
         assert response.json["id"] == cleanup_word_lists["id"]
 
     def test_modify_word_list(self, client, auth_header, cleanup_word_lists):
@@ -305,23 +305,19 @@ class TestProductTypes(BaseTest):
 
     def test_create_product_type(self, client, auth_header, cleanup_product_types):
         response = self.assert_post_ok(client, uri="product-types", json_data=cleanup_product_types, auth_header=auth_header)
-        assert response.json["message"] == f"Product type created"
+        assert response.json["message"] == "Product type created"
         assert response.json["id"] == cleanup_product_types["id"]
 
     def test_modify_product_type(self, client, auth_header, cleanup_product_types):
         product_type_data = {"title": "Producty McProductFace"}
         product_type_id = cleanup_product_types["id"]
         response = self.assert_put_ok(client, uri=f"product-types/{product_type_id}", json_data=product_type_data, auth_header=auth_header)
-        assert response.json == product_type_id
+        assert response.json["message"] == f"Updated product type {product_type_data['title']}"
 
     def test_get_product_types(self, client, auth_header, cleanup_product_types):
         product_type_type = cleanup_product_types["type"]
         response = self.assert_get_ok(client, uri=f"product-types?search={product_type_type}", auth_header=auth_header)
-        # TODO: check why only one search is found when there are more in the DB
-        # assert response.json["total_count"] == 1
-        # assert response.json["items"][0]["title"] == "Test Role"
-        # assert response.json["items"][0]["type"] == "pdf_presenter"
-        # assert response.json["items"][0]["id"] == 42
+        assert response.json["items"][0]["type"] == product_type_type
 
     def test_delete_product_type(self, client, auth_header, cleanup_product_types):
         product_type_id = cleanup_product_types["id"]
@@ -350,6 +346,7 @@ class TestAcls(BaseTest):
         acl_id = cleanup_acls["id"]
         acl_data = {"description": "new description"}
         response = self.assert_put_ok(client, uri=f"acls/{acl_id}", json_data=acl_data, auth_header=auth_header)
+        assert response.json["id"] == acl_id
         # TODO: add tests after bugfix
 
     def test_get_acl(self, client, auth_header, cleanup_acls):
@@ -385,7 +382,7 @@ class TestPublisherPreset(BaseTest):
         response = self.assert_put_ok(
             client, uri=f"publishers-presets/{publisher_preset_id}", json_data=publisher_data, auth_header=auth_header
         )
-        # TODO: add tests after bugfix
+        assert response.json["id"] == publisher_preset_id
 
     def test_get_publisher_preset(self, client, auth_header, cleanup_publisher_preset):
         response = self.assert_get_ok(client, uri=f"publishers-presets?search={cleanup_publisher_preset['name']}", auth_header=auth_header)
@@ -413,13 +410,12 @@ class TestAttributes(BaseTest):
         attribute_data = {"name": "Attributify McAttributeFace"}
         attribute_id = cleanup_attribute["id"]
         response = self.assert_put_ok(client, uri=f"attributes/{attribute_id}", json_data=attribute_data, auth_header=auth_header)
-        # TODO: add tests after bugfix
+        assert response.json["id"] == attribute_id
 
     def test_get_attribute(self, client, auth_header, cleanup_attribute):
         attribute_id = cleanup_attribute["id"]
         response = self.assert_get_ok(client, uri=f"attributes/{attribute_id}", auth_header=auth_header)
-        # TODO: return value is formatted not correctly - see bug issue
-        # TODO: add tests after bugfix
+        assert response.json["id"] == attribute_id
 
     def test_delete_attribute(self, client, auth_header, cleanup_attribute):
         attribute_id = cleanup_attribute["id"]

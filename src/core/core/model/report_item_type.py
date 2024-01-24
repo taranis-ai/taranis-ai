@@ -157,6 +157,8 @@ class ReportItemType(BaseModel):
         self.title = title
         self.description = description
         self.attribute_groups = AttributeGroup.load_multiple(attribute_groups) if attribute_groups else []
+        if id:
+            self.id = id
 
     @classmethod
     def get_all(cls):
@@ -283,4 +285,4 @@ class ReportItemType(BaseModel):
 
         db.session.delete(report_type)
         db.session.commit()
-        return {"message": "Report type successfully deleted"}, 200
+        return {"message": f"ReportItemType {id} deleted"}, 200

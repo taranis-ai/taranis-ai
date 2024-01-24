@@ -448,7 +448,14 @@ class NewsItemAggregate(BaseModel):
         self.important = important
         self.summary = summary
         self.comments = comments
-        self.news_items = [NewsItem.get(item_id) for item_id in news_items] if news_items else []
+        self.news_items = self.load_news_items(news_items)
+
+    def load_news_items(self, news_items):
+        if all(isinstance(item, int) for item in news_items):
+            return [NewsItem.get(item_id) for item_id in news_items]
+        elif all(isinstance(item, NewsItem) for item in news_items):
+            return news_items
+        return []
 
     @classmethod
     def get_json(cls, aggregate_id: int, user: User):
@@ -487,9 +494,10 @@ class NewsItemAggregate(BaseModel):
 
     @classmethod
     def _add_filters_to_query(cls, filter_args: dict, query):
+        query = query.join(NewsItem, NewsItem.news_item_aggregate_id == NewsItemAggregate.id)
+        query = query.join(NewsItemData, NewsItem.news_item_data_id == NewsItemData.id)
+
         if filter_args.get("source") or filter_args.get("group"):
-            query = query.join(NewsItem, NewsItem.news_item_aggregate_id == NewsItemAggregate.id)
-            query = query.join(NewsItemData, NewsItem.news_item_data_id == NewsItemData.id)
             query = query.outerjoin(OSINTSource, NewsItemData.osint_source_id == OSINTSource.id)
             query = query.outerjoin(OSINTSourceGroupOSINTSource, OSINTSource.id == OSINTSourceGroupOSINTSource.osint_source_id)
             query = query.outerjoin(OSINTSourceGroup, OSINTSourceGroupOSINTSource.osint_source_group_id == OSINTSourceGroup.id)
@@ -555,10 +563,10 @@ class NewsItemAggregate(BaseModel):
                 days = int(filter_range[4:])
                 date_limit -= timedelta(days=days)
 
-            query = query.filter(NewsItemAggregate.created >= date_limit)
+            query = query.filter(NewsItemData.published >= date_limit)
 
         if timestamp := filter_args.get("timestamp"):
-            query = query.filter(NewsItemAggregate.created >= datetime.fromisoformat(timestamp))
+            query = query.filter(NewsItemData.published >= datetime.fromisoformat(timestamp))
 
         return query
 
@@ -657,17 +665,9 @@ class NewsItemAggregate(BaseModel):
 
     @classmethod
     def create_new(cls, news_item_data):
-        news_item = NewsItem()
-        news_item.news_item_data = news_item_data
-        db.session.add(news_item)
+        news_item = NewsItem.add({"news_item_data": news_item_data})
 
-        aggregate = NewsItemAggregate(title=news_item_data.title, created=news_item_data.published)
-        aggregate.title = news_item_data.title
-        aggregate.description = news_item_data.review
-        aggregate.created = news_item_data.published
-        aggregate.news_items.append(news_item)
-        db.session.add(aggregate)
-
+        aggregate = NewsItemAggregate.add({"title": news_item_data.title, "description": news_item_data.review, "news_items": [news_item]})
         NewsItemAggregateSearchIndex.prepare(aggregate)
 
         db.session.commit()
@@ -714,12 +714,13 @@ class NewsItemAggregate(BaseModel):
             aggregate.comments = data["comments"]
 
         if "tags" in data:
+            logger.debug(data["tags"])
             cls.reset_tags(id)
             cls.update_tags(id, data["tags"])
 
         NewsItemAggregate.update_status(aggregate.id)
         db.session.commit()
-        return {"message": "success"}, 200
+        return {"message": "Story updated Successful", "id": id}, 200
 
     def vote(self, vote_data, user_id):
         if not (vote := NewsItemVote.get_by_filter(item_id=self.id, user_id=user_id, item_type="AGGREGATE")):

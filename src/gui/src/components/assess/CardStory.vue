@@ -13,10 +13,10 @@
     <v-row>
       <v-col
         :cols="content_cols"
-        class="d-flex flex-grow-1 mt-1 px-5 order-first"
+        class="d-flex flex-grow-1 mt-1 px-5 py-0 order-first"
         align-self="center"
       >
-        <v-icon v-if="story_in_report" class="mr-2 my-auto"> mdi-share </v-icon>
+        <v-icon v-if="story_in_report" class="mr-2 my-auto" icon="mdi-share" />
         <h2
           v-dompurify-html="highlighted_title"
           :class="news_item_title_class"
@@ -36,7 +36,7 @@
       <!-- DESCRIPTION -->
       <v-col
         :cols="content_cols"
-        class="px-5 pb-5 order-3"
+        class="px-5 pb-5 pt-0 order-3"
         align-self="stretch"
       >
         <summarized-content
@@ -286,5 +286,38 @@ export default {
 .news-item-title-no-clip {
   max-height: calc(1.5em * 2);
   line-height: 1.3;
+}
+
+.read::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background-color: green;
+  z-index: 1;
+}
+
+.important::before {
+  content: '';
+  position: absolute;
+  left: 4px; /* Adjust this value based on the number of lines */
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background-color: red;
+  z-index: 1;
+}
+
+.relevant::before {
+  content: '';
+  position: absolute;
+  left: 8px; /* Adjust this value based on the number of lines */
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background-color: blue;
+  z-index: 1;
 }
 </style>

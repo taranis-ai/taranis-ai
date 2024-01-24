@@ -43,8 +43,9 @@ class Attributes(Resource):
     @auth_required(["CONFIG_ATTRIBUTE_ACCESS", "ANALYZE_ACCESS"])
     def get(self, attribute_id=None):
         if attribute_id:
-            result = attribute.Attribute.get(attribute_id)
-            return result.to_json() if result else ("Attribute not found", 404)
+            if result := attribute.Attribute.get(attribute_id):
+                return result.to_dict()
+            return {"error": "Attribute not found"}, 404
 
         search = request.args.get(key="search", default=None)
         return attribute.Attribute.get_all_json(search)
@@ -116,6 +117,7 @@ class ReportItemTypes(Resource):
     def post(self):
         try:
             item = report_item_type.ReportItemType.add(request.json)
+            logger.debug(f"INPUT: {request.json} \n\n OUTPUT: {item}")
             return {"message": f"ReportItemType {item.title} added", "id": item.id}, 201
         except Exception:
             logger.exception("Failed to add report item type")

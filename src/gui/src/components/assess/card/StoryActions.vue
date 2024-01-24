@@ -1,7 +1,7 @@
 <template>
   <v-col
     :cols="actionCols"
-    class="d-flex flex-row flex-grow-1 order-lg-2 order-sm-3 justify-space-evenly"
+    class="d-flex flex-row flex-grow-1 order-lg-2 pb-0 justify-space-evenly"
   >
     <v-btn
       v-if="!detailView"

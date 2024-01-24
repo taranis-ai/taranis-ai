@@ -4,6 +4,7 @@
     class="editor"
     :placeholder="placeholder"
     :extensions="extensions"
+    :style="{ 'min-height': '8em' }"
   />
 </template>
 

@@ -9,42 +9,18 @@
     <v-card>
       <v-card-text>
         <v-text-field
-          v-model="news_item.title"
+          v-model="story.title"
           :label="$t('enter.title')"
           name="title"
           type="text"
           :rules="[rules.required]"
         />
 
-        Published:
-        <VueDatePicker
-          v-model="news_item.published"
-          name="published"
-          :placeholder="$t('enter.published')"
-          :max-date="new Date()"
-          time-picker-inline
-          clearable
-          auto-apply
-          class="mb-5"
-        />
-
-        <v-textarea
-          v-model="news_item.review"
-          :label="$t('enter.review')"
-          name="review"
-          :rules="[rules.required]"
-        />
-
-        <v-text-field
-          v-model="news_item.link"
-          :label="$t('enter.link')"
-          name="link"
-          type="text"
-        />
+        <edit-tags v-model="story.tags" />
 
         <code-editor
-          v-model:content="news_item.content"
-          :placeholder="placeholder"
+          v-model:content="story.comment"
+          placeholder="Story comment"
         />
       </v-card-text>
     </v-card>
@@ -56,24 +32,26 @@
 </template>
 
 <script>
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref } from 'vue'
 import { addNewsItem, patchNewsItem } from '@/api/assess'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import { useMainStore } from '@/stores/MainStore'
 import CodeEditor from '@/components/common/CodeEditor.vue'
+import EditTags from '@/components/assess/EditTags.vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 export default {
-  name: 'NewsItemEdit',
+  name: 'StoryEdit',
   components: {
-    CodeEditor
+    CodeEditor,
+    EditTags
   },
   props: {
-    newsItemProp: {
+    storyProp: {
       type: Object,
       default: () => {},
-      required: false
+      required: true
     }
   },
   setup(props) {
@@ -87,22 +65,10 @@ export default {
       return edit.value ? t('button.update') : t('button.create')
     })
 
-    const news_item = ref({
-      title: '',
-      review: '',
-      content: '',
-      link: '',
-      source: 'manual',
-      author: '',
-      published: new Date(),
-      collected: '',
-      attributes: []
-    })
+    const story = ref(props.storyProp)
 
     const rules = {
-      required: (v) => !!v || 'Required',
-      url: (v) =>
-        /^(https?:\/\/)?[\w-]+(\.[\w-]+)+.*$/.test(v) || 'Must be a valid URL'
+      required: (v) => !!v || 'Required'
     }
 
     async function submit() {
@@ -141,23 +107,10 @@ export default {
       }
     }
 
-    const placeholder = `Article content here...
-
-
-
-    `
-
-    onMounted(() => {
-      if (props.newsItemProp) {
-        news_item.value = props.newsItemProp
-      }
-    })
-
     return {
-      news_item,
+      story,
       form,
       rules,
-      placeholder,
       submitText,
       submit
     }
