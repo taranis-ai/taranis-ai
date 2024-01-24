@@ -5,12 +5,10 @@
     elevation="0"
     :rounded="false"
     class="no-gutters align-self-stretch mb-1 mt-2 mx-2 story-card"
-    :class="{
-      selected: selected
-    }"
+    :class="card_class"
     @click="toggleSelection"
   >
-    <v-row>
+    <v-row class="pl-2">
       <v-col
         :cols="content_cols"
         class="d-flex flex-grow-1 mt-1 px-5 py-0 order-first"
@@ -171,6 +169,15 @@ export default {
       return highlight_text(props.story.title)
     })
 
+    const card_class = computed(() => {
+      return {
+        selected: selected.value,
+        read: props.story.read,
+        important: props.story.important,
+        relevant: props.story.relevance
+      }
+    })
+
     const openCard = () => {
       openSummary.value = !openSummary.value
     }
@@ -218,6 +225,7 @@ export default {
       content_cols,
       meta_cols,
       showStory,
+      card_class,
       item_important,
       story_in_report,
       news_item_length,
@@ -287,7 +295,6 @@ export default {
   max-height: calc(1.5em * 2);
   line-height: 1.3;
 }
-
 .read::before {
   content: '';
   position: absolute;
@@ -295,14 +302,14 @@ export default {
   top: 0;
   bottom: 0;
   width: 4px;
-  background-color: green;
+  background-color: blue;
   z-index: 1;
 }
 
-.important::before {
+.important::after {
   content: '';
   position: absolute;
-  left: 4px; /* Adjust this value based on the number of lines */
+  left: 4px;
   top: 0;
   bottom: 0;
   width: 4px;
@@ -310,14 +317,7 @@ export default {
   z-index: 1;
 }
 
-.relevant::before {
-  content: '';
-  position: absolute;
-  left: 8px; /* Adjust this value based on the number of lines */
-  top: 0;
-  bottom: 0;
-  width: 4px;
-  background-color: blue;
-  z-index: 1;
+.relevant {
+  border-left: 4px solid green;
 }
 </style>
