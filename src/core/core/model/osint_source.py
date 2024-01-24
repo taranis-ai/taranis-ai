@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Any
 from sqlalchemy import or_, and_
 from sqlalchemy.orm import deferred
+from sqlalchemy.exc import IntegrityError
 
 from core.managers.db_manager import db
 from core.managers.log_manager import logger
@@ -143,10 +144,13 @@ class OSINTSource(BaseModel):
     @classmethod
     def delete(cls, id) -> tuple[str, int]:
         if source := cls.get(id):
-            source.unschedule_osint_source()
-            db.session.delete(source)
-            db.session.commit()
-            return f"{cls.__name__} {id} deleted", 200
+            try:
+                source.unschedule_osint_source()
+                db.session.delete(source)
+                db.session.commit()
+                return f"{cls.__name__} {id} deleted", 200
+            except IntegrityError as e:
+                logger.warning(f"IntegrityError: {e.orig}")
 
         return f"{cls.__name__} {id} not found", 404
 

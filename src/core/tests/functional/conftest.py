@@ -65,9 +65,8 @@ def news_item_aggregates(app, request, news_items_data):
         from core.model.news_item import NewsItemAggregate
         from core.model.user import User
 
-        nia = NewsItemAggregate(title=news_items_data[0].title)
-        nia1 = nia.create_new(news_items_data[0])
-        nia2 = nia.create_new(news_items_data[1])
+        nia1 = NewsItemAggregate.create_new(news_items_data[0])
+        nia2 = NewsItemAggregate.create_new(news_items_data[1])
 
         def teardown():
             user = User.find_by_name("admin")

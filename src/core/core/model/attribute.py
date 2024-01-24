@@ -198,15 +198,15 @@ class Attribute(BaseModel):
         db.session.commit()
 
     @classmethod
-    def update(cls, attribute_id, data) -> tuple[str, int]:
+    def update(cls, attribute_id, data) -> tuple[dict, int]:
         attribute = cls.query.get(attribute_id)
         if not attribute:
-            return "Attribute not found", 404
+            return {"error": "Attribute not found"}, 404
         for key, value in data.items():
             if hasattr(attribute, key) and key != "id":
                 setattr(attribute, key, value)
         db.session.commit()
-        return f"Attribute {attribute.name} updated", 200
+        return {"message": f"Attribute {attribute.name} updated", "id": attribute_id}, 200
 
     @classmethod
     def load_cve_from_file(cls, file_path):

@@ -20,7 +20,7 @@ import { getSourceInfo } from '@/utils/helpers.js'
 import { computed } from 'vue'
 
 export default {
-  name: 'ArticleInfo',
+  name: 'SourceInfo',
   props: {
     newsItemData: {
       type: Object,
@@ -42,8 +42,8 @@ export default {
       return source.value?.type === 'rss_collector'
         ? 'mdi-rss'
         : source.value?.type === 'web_collector'
-        ? 'mdi-code-block-tags'
-        : 'mdi-note-edit-outline'
+          ? 'mdi-code-block-tags'
+          : 'mdi-note-edit-outline'
     })
 
     return {

@@ -29,12 +29,28 @@ export const router = createRouter({
       meta: { requiresAuth: true, requiresPerm: [Permissions.ASSESS_ACCESS] }
     },
     {
+      path: '/newsitem/:id/edit',
+      name: 'newsitemedit',
+      components: {
+        default: () => import('@/views/users/NewsItemEditView.vue')
+      },
+      meta: { requiresAuth: true, requiresPerm: [Permissions.ASSESS_UPDATE] }
+    },
+    {
       path: '/story/:id',
       name: 'story',
       components: {
         default: () => import('@/views/users/StoryView.vue')
       },
       meta: { requiresAuth: true, requiresPerm: [Permissions.ASSESS_ACCESS] }
+    },
+    {
+      path: '/story/:id/edit',
+      name: 'storyedit',
+      components: {
+        default: () => import('@/views/users/StoryEditView.vue')
+      },
+      meta: { requiresAuth: true, requiresPerm: [Permissions.ASSESS_UPDATE] }
     },
     {
       path: '/assess',

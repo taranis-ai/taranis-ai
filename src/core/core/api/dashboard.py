@@ -3,7 +3,9 @@ from flask_jwt_extended import jwt_required
 from flask_restx import Resource, Namespace, Api
 
 from core.managers.log_manager import logger
-from core.model.news_item import NewsItemData, NewsItemTag, NewsItemAggregate
+from core.model.news_item import NewsItemData, NewsItemAggregate
+from core.model.news_item_tag import NewsItemTag
+from core.service.news_item_tag import NewsItemTagService
 from core.model.product import Product
 from core.model.report_item import ReportItem
 from core.config import Config
@@ -32,8 +34,7 @@ class TrendingClusters(Resource):
     @jwt_required()
     def get(self):
         try:
-            return NewsItemTag.get_largest_tag_types()
-            # return NewsItemTag.find_largest_tag_clusters(days, limit)
+            return NewsItemTagService.get_largest_tag_types()
         except Exception as e:
             logger.log_debug_trace()
             return {"error": str(e)}, 400
@@ -57,8 +58,9 @@ class ClusterByType(Resource):
         try:
             per_page = min(int(request.args.get("per_page", 50)), 100)
             page = int(request.args.get("page", 0))
+            sort = request.args.get("sort_by")
             offset = min(((page - 1) * per_page), (2**31) - 1)
-            filter_args = {"tag_type": tag_type, "limit": per_page, "offset": offset}
+            filter_args = {"tag_type": tag_type, "limit": per_page, "offset": offset, "sort": sort}
             return NewsItemTag.get_cluster_by_filter(filter_args)
         except Exception as e:
             logger.log_debug_trace()

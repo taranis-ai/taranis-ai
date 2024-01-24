@@ -65,6 +65,10 @@ export class ApiService {
     return this._axios.put(resource, data)
   }
 
+  patch(resource, data) {
+    return this._axios.patch(resource, data)
+  }
+
   delete(resource) {
     return this._axios.delete(resource)
   }

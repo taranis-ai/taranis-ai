@@ -1,10 +1,6 @@
 <template>
   <v-container v-if="story" fluid style="min-height: 100vh">
-    <card-story
-      :story="story"
-      :detail-view="true"
-      @delete-item="deleteNewsItem(story.id)"
-    />
+    <card-story :story="story" :detail-view="true" />
     <assess-selection-toolbar v-if="activeSelection" />
   </v-container>
 </template>
@@ -37,12 +33,8 @@ export default {
 
     const loadStories = async () => {
       if (route.params.id) {
-        assessStore.updateNewsItemByID(route.params.id)
+        assessStore.updateStoryByID(route.params.id)
       }
-    }
-
-    const deleteNewsItem = (id) => {
-      assessStore.removeNewsItemByID(id)
     }
 
     onMounted(() => {
@@ -51,8 +43,7 @@ export default {
 
     return {
       story,
-      activeSelection,
-      deleteNewsItem
+      activeSelection
     }
   }
 }

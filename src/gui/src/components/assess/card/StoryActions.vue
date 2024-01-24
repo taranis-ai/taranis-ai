@@ -1,7 +1,7 @@
 <template>
   <v-col
     :cols="actionCols"
-    class="d-flex flex-row flex-grow-1 order-lg-2 order-sm-3 justify-space-evenly"
+    class="d-flex flex-row flex-grow-1 order-lg-2 pb-0 justify-space-evenly"
   >
     <v-btn
       v-if="!detailView"
@@ -29,7 +29,7 @@
       @click.stop="sharingDialog = true"
     >
       <v-tooltip activator="parent" location="start"> add to Report </v-tooltip>
-      <span v-if="!compactView">add to Report</span>
+      <span v-if="!compactView">Report</span>
     </v-btn>
 
     <v-btn
@@ -41,6 +41,9 @@
       prepend-icon="mdi-trash-can"
       @click.stop="$emit('remove-from-report')"
     >
+      <v-tooltip activator="parent" location="start">
+        remove from report
+      </v-tooltip>
       <span>Remove</span>
     </v-btn>
 
@@ -55,6 +58,8 @@
       :style="{ minWidth: minButtonWidth }"
       @click.stop="openCard"
     >
+      <v-tooltip activator="parent" location="start"> show details </v-tooltip>
+
       <span>{{ news_item_summary_text }} </span>
       <span v-if="news_item_length > 1" class="primary--text">
         &nbsp;[{{ news_item_length }}]
@@ -70,6 +75,9 @@
       :prepend-icon="!story.read ? 'mdi-eye-outline' : 'mdi-eye-off-outline'"
       @click.stop="markAsRead()"
     >
+      <v-tooltip activator="parent" location="start">
+        mark story as {{ !story.read ? 'read' : 'unread' }}
+      </v-tooltip>
       <span>{{ !story.read ? 'read' : 'unread' }}</span>
     </v-btn>
 
@@ -77,7 +85,7 @@
 
     <v-dialog v-model="deleteDialog" width="auto">
       <popup-delete-item
-        :news-item="story"
+        :title="story.title"
         @delete-item="deleteNewsItem()"
         @close="deleteDialog = false"
       />
@@ -133,12 +141,28 @@
           title="ungroup"
           prepend-icon="mdi-ungroup"
           @click.stop="ungroup()"
+        >
+          <v-tooltip activator="parent" location="start">
+            remove all news items from this story
+          </v-tooltip>
+        </v-list-item>
+        <v-list-item
+          v-if="!reportView && news_item_length === 1"
+          title="open news item"
+          prepend-icon="mdi-open-in-app"
+          :to="'/newsitem/' + story.news_items[0].id"
         />
         <v-list-item
           v-if="!reportView && newsItemSelection.length > 0"
           title="move selection"
           prepend-icon="mdi-folder-move"
           @click.stop="moveSelection()"
+        />
+        <v-list-item
+          v-if="allow_edit"
+          title="edit"
+          prepend-icon="mdi-pencil"
+          :to="`/newsitem/${story.news_items[0].id}/edit`"
         />
         <v-list-item
           title="delete"
@@ -161,7 +185,7 @@ import { unGroupStories } from '@/api/assess'
 import { storeToRefs } from 'pinia'
 
 export default {
-  name: 'CardStory',
+  name: 'StoryActions',
   components: {
     votes,
     PopupDeleteItem,
@@ -176,7 +200,7 @@ export default {
     reportView: { type: Boolean, default: false },
     actionCols: { type: Number, default: 4 }
   },
-  emits: ['deleteItem', 'refresh', 'remove-from-report', 'open-details'],
+  emits: ['refresh', 'remove-from-report', 'open-details'],
   setup(props, { emit }) {
     const viewDetails = ref(false)
     const openSummary = ref(props.detailView)
@@ -194,12 +218,20 @@ export default {
       'important' in props.story ? props.story.important : false
     )
 
+    const allow_edit = computed(() => {
+      return Boolean(
+        !props.reportView &&
+          props.story.news_items.length === 1 &&
+          props.story.news_items[0].news_item_data.source == 'manual'
+      )
+    })
+
     const news_item_length = computed(() =>
       props.story.news_items ? props.story.news_items.length : 0
     )
     const minButtonWidth = computed(() => {
       if (compactView.value) {
-        return '1px'
+        return '0px'
       }
       const longestText = `${
         news_item_length.value > 1 ? '(' + news_item_length.value + ')' : ''
@@ -229,7 +261,7 @@ export default {
     }
 
     const deleteNewsItem = () => {
-      emit('deleteItem')
+      assessStore.removeStoryByID(props.story.id)
     }
 
     const emitRefresh = () => {
@@ -257,6 +289,7 @@ export default {
       viewDetails,
       openSummary,
       selected,
+      allow_edit,
       compactView,
       sharingDialog,
       deleteDialog,

@@ -6,9 +6,22 @@
     selected-class="text-primary"
     class="d-flex flex-row"
   >
-    <v-btn class="flex-grow-1" variant="outlined" value="day">day</v-btn>
-    <v-btn class="flex-grow-1" variant="outlined" value="week">week</v-btn>
-    <v-btn class="flex-grow-1" variant="outlined" value="month">month</v-btn>
+    <v-btn class="flex-grow-1" variant="outlined" value="day">
+      <v-tooltip activator="parent" location="top" text="from today 00:00" />
+      day
+    </v-btn>
+    <v-btn class="flex-grow-1" variant="outlined" value="week">
+      <v-tooltip activator="parent" location="top" text="from last monday" />
+      week
+    </v-btn>
+    <v-btn class="flex-grow-1" variant="outlined" value="month">
+      <v-tooltip
+        activator="parent"
+        location="top"
+        text="from 1. of the month"
+      />
+      month
+    </v-btn>
   </v-btn-toggle>
 </template>
 

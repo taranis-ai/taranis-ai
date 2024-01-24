@@ -91,7 +91,7 @@ export const vuetify = createVuetify({
       sm: 900,
       md: 1024,
       lg: 1600,
-      xl: 1920
+      xl: 1900
     }
   }
 })

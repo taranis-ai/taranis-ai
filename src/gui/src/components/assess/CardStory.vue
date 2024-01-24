@@ -5,18 +5,16 @@
     elevation="0"
     :rounded="false"
     class="no-gutters align-self-stretch mb-1 mt-2 mx-2 story-card"
-    :class="{
-      selected: selected
-    }"
+    :class="card_class"
     @click="toggleSelection"
   >
-    <v-row>
+    <v-row class="pl-2">
       <v-col
         :cols="content_cols"
-        class="d-flex flex-grow-1 mt-3 px-5 py-3 order-first"
+        class="d-flex flex-grow-1 mt-1 px-5 py-0 order-first"
         align-self="center"
       >
-        <v-icon v-if="story_in_report" class="mr-2 my-auto"> mdi-share </v-icon>
+        <v-icon v-if="story_in_report" class="mr-2 my-auto" icon="mdi-share" />
         <h2
           v-dompurify-html="highlighted_title"
           :class="news_item_title_class"
@@ -30,14 +28,13 @@
         :action-cols="meta_cols"
         @open-details="openCard()"
         @refresh="emitRefresh()"
-        @delete-item="deleteNewsItem()"
         @remove-from-report="$emit('remove-from-report')"
       />
 
       <!-- DESCRIPTION -->
       <v-col
         :cols="content_cols"
-        class="px-5 pb-5 order-lg-3 order-md-2"
+        class="px-5 pb-5 pt-0 order-3"
         align-self="stretch"
       >
         <summarized-content
@@ -47,7 +44,7 @@
         />
       </v-col>
       <!-- META INFO -->
-      <v-col class="px-5 pt-2 pb-3 order-4" :cols="meta_cols">
+      <v-col class="px-5 pt-1 pb-1 order-4" :cols="meta_cols">
         <story-meta-info
           :story="story"
           :detail-view="openSummary"
@@ -61,18 +58,16 @@
     dense
     class="ma-0 mx-2 py-0 px-2"
   >
-    <div class="news-item-container">
-      <div class="mx-5 my-5">
-        <card-news-item
-          v-for="item in story.news_items"
-          :key="item.id"
-          :news-item="item"
-          :detail-view="detailView"
-          :story="story"
-          class="mt-3"
-          @refresh="emitRefresh()"
-        />
-      </div>
+    <div class="news-item-container w-100">
+      <card-news-item
+        v-for="item in story.news_items"
+        :key="item.id"
+        :news-item="item"
+        :detail-view="detailView"
+        :story="story"
+        class="mt-2 mx-5 my-3"
+        @refresh="emitRefresh()"
+      />
     </div>
   </v-row>
 </template>
@@ -105,12 +100,10 @@ export default {
     detailView: { type: Boolean, default: false },
     reportView: { type: Boolean, default: false }
   },
-  emits: ['deleteItem', 'refresh', 'remove-from-report'],
+  emits: ['refresh', 'remove-from-report'],
   setup(props, { emit }) {
     const viewDetails = ref(false)
     const openSummary = ref(props.detailView)
-    const sharingDialog = ref(false)
-    const deleteDialog = ref(false)
     const assessStore = useAssessStore()
 
     const { newsItemSelection } = storeToRefs(assessStore)
@@ -176,6 +169,15 @@ export default {
       return highlight_text(props.story.title)
     })
 
+    const card_class = computed(() => {
+      return {
+        selected: selected.value,
+        read: props.story.read,
+        important: props.story.important,
+        relevant: props.story.relevance
+      }
+    })
+
     const openCard = () => {
       openSummary.value = !openSummary.value
     }
@@ -190,10 +192,6 @@ export default {
 
     const markAsImportant = () => {
       assessStore.importantNewsItemAggregate(props.story.id)
-    }
-
-    const deleteNewsItem = () => {
-      emit('deleteItem')
     }
 
     const emitRefresh = () => {
@@ -227,8 +225,7 @@ export default {
       content_cols,
       meta_cols,
       showStory,
-      sharingDialog,
-      deleteDialog,
+      card_class,
       item_important,
       story_in_report,
       news_item_length,
@@ -244,7 +241,6 @@ export default {
       toggleSelection,
       markAsRead,
       markAsImportant,
-      deleteNewsItem,
       moveSelection,
       emitRefresh
     }
@@ -299,5 +295,29 @@ export default {
   max-height: calc(1.5em * 2);
   line-height: 1.3;
 }
+.read::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background-color: blue;
+  z-index: 1;
+}
 
+.important::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background-color: red;
+  z-index: 1;
+}
+
+.relevant {
+  border-left: 4px solid green;
+}
 </style>

@@ -19,7 +19,7 @@ from core.managers.data_manager import get_presenter_template_path, get_presente
 class ProductType(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     title: Any = db.Column(db.String(64), unique=True, nullable=False)
-    description: Any = db.Column(db.String(), nullable=False)
+    description: Any = db.Column(db.String())
     type: Any = db.Column(db.Enum(PRESENTER_TYPES))
 
     parameters = db.relationship("ParameterValue", secondary="product_type_parameter_value", cascade="all, delete")

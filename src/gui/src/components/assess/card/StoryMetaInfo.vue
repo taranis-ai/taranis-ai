@@ -1,5 +1,5 @@
 <template>
-  <v-container column class="pa-0 py-0">
+  <v-container class="px-0 mb-1 pb-5">
     <v-row v-if="!compactView" no-gutters>
       <v-col>
         <v-row>
@@ -19,9 +19,17 @@
             />
           </v-col>
         </v-row>
-        <v-row v-if="story.tags && !reportView">
+        <v-row v-if="story.tags && story.tags.length > 0 && !reportView">
           <v-col style="max-width: 110px" class="py-0">
-            <strong>Tags:</strong>
+            <strong>
+              Tags:
+              <v-btn
+                v-if="detailView"
+                icon="mdi-pencil"
+                size="x-small"
+                @click.prevent="editTags()"
+              />
+            </strong>
           </v-col>
           <v-col class="py-0">
             <tag-list
@@ -49,25 +57,29 @@
           v-if="detailView && story.news_items.length < 2"
           :news-item-data="story.news_items[0].news_item_data"
         />
+        <author-info
+          v-if="detailView && story.news_items.length === 1"
+          :news-item-data="story.news_items[0].news_item_data"
+        />
       </v-col>
       <v-col
+        v-if="
+          !published_date_outdated &&
+          !reportView &&
+          !detailView &&
+          showWeekChart
+        "
         :cols="detailView ? 10 : 6"
         :class="detailView ? 'detailView' : ''"
       >
         <week-chart
-          v-if="
-            !published_date_outdated &&
-            !reportView &&
-            !detailView &&
-            showWeekChart
-          "
           :chart-height="detailView ? 300 : 250"
           :chart-width="detailView ? 800 : 600"
           :story="story"
         />
       </v-col>
     </v-row>
-    <div v-else>
+    <div v-else class="ml-5">
       <v-row>
         <span :class="published_date_outdated ? 'error--text' : ''">
           {{ getPublishedDate }}
@@ -90,11 +102,18 @@
 
       <v-row class="mt-5">
         <source-info
-          v-if="detailView && story.news_items.length < 2"
+          v-if="detailView && story.news_items.length === 1"
           :news-item-data="story.news_items[0].news_item_data"
         />
       </v-row>
     </div>
+    <v-dialog v-model="showTagDialog" width="auto">
+      <popup-edit-tags
+        :tags="story.tags"
+        :story-id="story.id"
+        @close="showTagDialog = false"
+      />
+    </v-dialog>
   </v-container>
 </template>
 
@@ -103,17 +122,21 @@ import TagList from '@/components/assess/card/TagList.vue'
 import WeekChart from '@/components/assess/card/WeekChart.vue'
 import { useFilterStore } from '@/stores/FilterStore'
 import { useI18n } from 'vue-i18n'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useDisplay } from 'vuetify'
 import { storeToRefs } from 'pinia'
 import ArticleInfo from '@/components/assess/card/ArticleInfo.vue'
 import SourceInfo from '@/components/assess/card/SourceInfo.vue'
+import AuthorInfo from '@/components/assess/card/AuthorInfo.vue'
+import PopupEditTags from '@/components/popups/PopupEditTags.vue'
 
 export default {
   name: 'StoryMetaInfo',
   components: {
+    PopupEditTags,
     ArticleInfo,
     SourceInfo,
+    AuthorInfo,
     TagList,
     WeekChart
   },
@@ -130,8 +153,10 @@ export default {
   },
   setup(props) {
     const { d, t } = useI18n()
-    const { xlAndUp } = useDisplay()
+    const { name: displayName } = useDisplay()
     const { showWeekChart, compactView } = storeToRefs(useFilterStore())
+
+    const showTagDialog = ref(false)
 
     const published_dates = computed(() => {
       const pub_dates = props.story.news_items
@@ -162,7 +187,16 @@ export default {
       if (props.detailView) {
         return 20
       }
-      return xlAndUp.value ? 5 : 2
+      switch (displayName.value) {
+        case 'lg':
+          return 3
+        case 'xl':
+          return 4
+        case 'xxl':
+          return 5
+        default:
+          return 2
+      }
     })
 
     const getPublishedDate = computed(() => {
@@ -178,13 +212,20 @@ export default {
       return ''
     })
 
+    function editTags() {
+      console.log('edit tags')
+      showTagDialog.value = true
+    }
+
     return {
       compactView,
       showWeekChart,
+      showTagDialog,
       published_dates,
       published_date_outdated,
       getPublishedDate,
       tagLimit,
+      editTags,
       t
     }
   }

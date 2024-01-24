@@ -1,29 +1,34 @@
 <template>
-  <div>
+  <div class="w-100">
     <v-infinite-scroll
       v-if="newsItems.items.length > 0"
       empty-text="All items loaded"
       @load="displayMore"
     >
       <template v-for="item in newsItems.items" :key="item">
-        <card-story
-          :story="item"
-          @delete-item="deleteNewsItem(item.id)"
-          @refresh="refresh(item.id)"
-        />
+        <card-story :story="item" @refresh="refresh(item.id)" />
       </template>
     </v-infinite-scroll>
     <v-overlay :model-value="loading" class="align-center justify-center">
       <v-progress-circular color="primary" indeterminate size="64" />
     </v-overlay>
 
-    <div
+    <v-row
       v-if="newsItems.items.length == 0"
-      class="text-subtitle-1 text-center dark-grey--text mt-3"
+      class="align-center justify-center mt-5"
     >
-      <v-btn @click="resetFilter()">Reset Filter</v-btn>
-    </div>
-
+      <v-col cols="12">
+        <v-alert
+          :value="true"
+          type="info"
+          text="No items found. Please change your filter."
+          class="mx-4 text-center text-h5"
+        />
+      </v-col>
+      <v-col cols="6">
+        <v-btn block class="mx-4" @click="resetFilter()">Reset Filter</v-btn>
+      </v-col>
+    </v-row>
     <assess-selection-toolbar v-if="activeSelection" />
   </div>
 </template>
@@ -59,14 +64,11 @@ export default defineComponent({
     })
 
     const refresh = (id) => {
-      assessStore.updateNewsItemByID(id)
-    }
-
-    const deleteNewsItem = (id) => {
-      assessStore.removeNewsItemByID(id)
+      assessStore.updateStoryByID(id)
     }
 
     const displayMore = async ({ done }) => {
+      console.debug('displayMore', loading.value)
       if (!moreToLoad.value) {
         done('empty')
         return
@@ -104,7 +106,6 @@ export default defineComponent({
       refresh,
       nextPage,
       resetFilter,
-      deleteNewsItem,
       displayMore
     }
   }

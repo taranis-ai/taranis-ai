@@ -14,7 +14,7 @@ classifiers = [
 ]
 requires-python = ">=3.11"
 dependencies = [
-    "Flask==2.3.3",
+    "Flask",
     "Flask-Cors",
     "Flask-JWT-Extended",
     "Flask-Migrate",
@@ -31,8 +31,7 @@ dependencies = [
     "swagger-ui-py",
     "requests",
     "authlib",
-    "sseclient",
-    "PyYAML==5.3.1"
+    "sseclient"
 ]
 dynamic = ["version"]
 

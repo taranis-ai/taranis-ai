@@ -136,7 +136,7 @@
             :append-icon="compactView ? 'mdi-check-bold' : undefined"
             :variant="compactView ? 'tonal' : 'text'"
             color="primary"
-            @click="compactView = !compactView"
+            @click="setCompactView"
           >
             compact view
           </v-btn>
@@ -168,11 +168,20 @@
       </v-row>
 
       <v-divider class="my-2 mt-2 mb-0"></v-divider>
-      <v-row no-gutters class="my-2 mr-0 px-2 pb-5">
+      <v-row no-gutters class="my-2 mr-0 px-2 pb-1">
         <v-col cols="12" class="py-2">
-          <v-btn color="primary" block @click="resetFilter()">
-            <v-icon left dark size="small" class="mr-3"> mdi-reload </v-icon>
+          <v-btn
+            color="primary"
+            prepend-icon="mdi-reload"
+            block
+            @click="resetFilter()"
+          >
             reset filter
+          </v-btn>
+        </v-col>
+        <v-col cols="12" class="py-2">
+          <v-btn color="primary" block to="enter" prepend-icon="mdi-pencil">
+            create new item
           </v-btn>
         </v-col>
       </v-row>
@@ -214,7 +223,8 @@ export default {
       chartFilter,
       highlight,
       showWeekChart,
-      compactView
+      compactView,
+      compactViewSetByUser
     } = storeToRefs(filterStore)
 
     const { setFilter, updateFilter } = useFilterStore()
@@ -283,6 +293,11 @@ export default {
       filterStore.$reset()
     }
 
+    function setCompactView() {
+      compactView.value = !compactView.value
+      compactViewSetByUser.value = true
+    }
+
     watch(
       newsItemsFilter,
       (filter, prevFilter) => {
@@ -303,7 +318,8 @@ export default {
       newsItemsFilter,
       filterAttribute,
       filterAttributeOptions,
-      resetFilter
+      resetFilter,
+      setCompactView
     }
   }
 }

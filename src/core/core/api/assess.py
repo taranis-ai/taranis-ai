@@ -7,7 +7,7 @@ from core.managers import auth_manager
 from core.managers.sse_manager import sse_manager
 from core.managers.log_manager import logger
 from core.managers.auth_manager import auth_required
-from core.model import news_item, osint_source
+from core.model import news_item, osint_source, news_item_tag
 from core.managers.input_validators import validate_id
 
 
@@ -59,7 +59,42 @@ class NewsItems(Resource):
         return result, status
 
 
-class NewsItemAggregates(Resource):
+class NewsItem(Resource):
+    @auth_required("ASSESS_ACCESS")
+    def get(self, item_id):
+        item = news_item.NewsItem.get(item_id)
+        return item.to_dict() if item else ("NewsItem not found", 404)
+
+    @auth_required("ASSESS_UPDATE")
+    def put(self, item_id):
+        user = auth_manager.get_user_from_jwt()
+        if not user:
+            return {"error": "Invalid User"}, 403
+        if not request.is_json:
+            return {"error": "Missing JSON in request"}, 400
+        response, code = news_item.NewsItem.update(item_id, request.json, user.id)
+        sse_manager.news_items_updated()
+        return response, code
+
+    @auth_required("ASSESS_UPDATE")
+    def patch(self, item_id):
+        user = auth_manager.get_user_from_jwt()
+        if not user:
+            return {"error": "Invalid User"}, 403
+        if not request.is_json:
+            return {"error": "Missing JSON in request"}, 400
+        response, code = news_item.NewsItem.update(item_id, request.json, user.id)
+        sse_manager.news_items_updated()
+        return response, code
+
+    @auth_required("ASSESS_DELETE")
+    def delete(self, item_id):
+        response, code = news_item.NewsItem.delete(item_id)
+        sse_manager.news_items_updated()
+        return response, code
+
+
+class Stories(Resource):
     @auth_required("ASSESS_ACCESS")
     def get(self):
         try:
@@ -82,22 +117,23 @@ class NewsItemAggregates(Resource):
             return {"error": "Failed to get Stories"}, 400
 
 
-class NewsItemAggregateTags(Resource):
+class StoryTags(Resource):
     @auth_required("ASSESS_ACCESS")
     def get(self):
         try:
             search = request.args.get("search", None)
             limit = min(int(request.args.get("limit", 20)), 200)
             offset = min(int(request.args.get("offset", 0)), (2**31) - 1)
-            min_size = int(request.args.get("min_size", 3))
+            default_min_size = 0 if search else 3
+            min_size = int(request.args.get("min_size", default_min_size))
             filter_args = {"limit": limit, "offset": offset, "search": search, "min_size": min_size}
-            return news_item.NewsItemTag.get_json(filter_args)
+            return news_item_tag.NewsItemTag.get_json(filter_args)
         except Exception as ex:
             logger.log_debug(ex)
             return {"error": "Failed to get Tags"}, 400
 
 
-class NewsItemAggregateTagList(Resource):
+class StoryTagList(Resource):
     @auth_required("ASSESS_ACCESS")
     def get(self):
         try:
@@ -105,37 +141,13 @@ class NewsItemAggregateTagList(Resource):
             limit = min(int(request.args.get("limit", 20)), 200)
             offset = min(int(request.args.get("offset", 0)), (2**31) - 1)
             filter_args = {"limit": limit, "offset": offset, "search": search}
-            return news_item.NewsItemTag.get_list(filter_args)
+            return news_item_tag.NewsItemTag.get_list(filter_args)
         except Exception as ex:
             logger.log_debug(ex)
             return {"error": "Failed to get Tags"}, 400
 
 
-class NewsItem(Resource):
-    @auth_required("ASSESS_ACCESS")
-    def get(self, item_id):
-        item = news_item.NewsItem.get(item_id)
-        return item.to_dict() if item else ("NewsItem not found", 404)
-
-    @auth_required("ASSESS_UPDATE")
-    def put(self, item_id):
-        user = auth_manager.get_user_from_jwt()
-        if not user:
-            return {"error": "Invalid User"}, 403
-        if not request.is_json:
-            return {"error": "Missing JSON in request"}, 400
-        response, code = news_item.NewsItem.update(item_id, request.json, user.id)
-        sse_manager.news_items_updated()
-        return response, code
-
-    @auth_required("ASSESS_DELETE")
-    def delete(self, item_id):
-        response, code = news_item.NewsItem.delete(item_id)
-        sse_manager.news_items_updated()
-        return response, code
-
-
-class NewsItemAggregate(Resource):
+class Story(Resource):
     @auth_required("ASSESS_ACCESS")
     @validate_id("aggregate_id")
     def get(self, aggregate_id):
@@ -158,6 +170,15 @@ class NewsItemAggregate(Resource):
         user = auth_manager.get_user_from_jwt()
         response, code = news_item.NewsItemAggregate.delete_by_id(aggregate_id, user)
         sse_manager.news_items_updated()
+        return response, code
+
+    @auth_required("ASSESS_UPDATE")
+    @validate_id("aggregate_id")
+    def patch(self, aggregate_id):
+        user = auth_manager.get_user_from_jwt()
+        if not request.is_json:
+            return {"error": "Missing JSON in request"}, 400
+        response, code = news_item.NewsItemAggregate.update(aggregate_id, request.json, user)
         return response, code
 
 
@@ -231,16 +252,13 @@ def initialize(api):
     namespace.add_resource(OSINTSourceGroupsAssess, "/osint-source-groups")
     namespace.add_resource(OSINTSourceGroupsList, "/osint-source-group-list")
     namespace.add_resource(OSINTSourcesList, "/osint-sources-list")
-    namespace.add_resource(NewsItemAggregates, "/news-item-aggregates", "/stories")
-    namespace.add_resource(
-        NewsItems,
-        "/news-items",
-    )
-    namespace.add_resource(NewsItemAggregateTags, "/tags")
-    namespace.add_resource(NewsItemAggregateTagList, "/taglist")
+    namespace.add_resource(Stories, "/news-item-aggregates", "/stories")
+    namespace.add_resource(StoryTags, "/tags")
+    namespace.add_resource(StoryTagList, "/taglist")
 
+    namespace.add_resource(NewsItems, "/news-items")
     namespace.add_resource(NewsItem, "/news-items/<int:item_id>")
-    namespace.add_resource(NewsItemAggregate, "/news-item-aggregates/<int:aggregate_id>")
+    namespace.add_resource(Story, "/news-item-aggregates/<int:aggregate_id>", "/stories/<int:aggregate_id>")
     namespace.add_resource(GroupAction, "/news-item-aggregates/group", "/stories/group")
     namespace.add_resource(UnGroupStories, "/news-item-aggregates/ungroup", "/stories/ungroup")
     namespace.add_resource(UnGroupAction, "/news-items/ungroup")

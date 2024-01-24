@@ -41,6 +41,7 @@ export const messages_en = {
     delete: 'Delete',
     close: 'Close',
     create: 'Create',
+    update: 'Update',
     add_new: 'Add New',
     import: 'Import',
     export: 'Export',
@@ -119,13 +120,16 @@ export const messages_en = {
   },
 
   enter: {
-    create: 'Create',
     validation_error: 'Please fill in all required fields',
     error: 'Could not create news item.',
     title: 'Title',
     review: 'Review',
+    content: 'Content',
+    description: 'Description',
     source: 'Source',
+    published: 'Published',
     link: 'Link',
+    failed: 'Failed to create or update news item',
     successful: 'News item was successfully created'
   },
 
