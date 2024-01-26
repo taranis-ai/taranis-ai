@@ -22,11 +22,11 @@ class ItemType(Enum):
 
 class ACLEntry(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(64), unique=True, nullable=False)
-    description = db.Column(db.String())
+    name: Any = db.Column(db.String(64), unique=True, nullable=False)
+    description: Any = db.Column(db.String())
 
-    item_type = db.Column(db.Enum(ItemType))
-    item_id = db.Column(db.String(64))
+    item_type: Any = db.Column(db.Enum(ItemType))
+    item_id: Any = db.Column(db.String(64))
 
     everyone = db.Column(db.Boolean, default=True)
     users = db.relationship("User", secondary="acl_entry_user")

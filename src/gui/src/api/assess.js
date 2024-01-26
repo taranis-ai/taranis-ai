@@ -9,7 +9,7 @@ export function getOSINTSourcesList() {
   return apiService.get('/assess/osint-sources-list')
 }
 
-export function getNewsItemsAggregates(filter_data) {
+export function getStories(filter_data) {
   const filter = apiService.getQueryStringFromNestedObject(filter_data)
   router.push({ query: filter_data })
   return apiService.get(`/assess/stories?${filter}`)

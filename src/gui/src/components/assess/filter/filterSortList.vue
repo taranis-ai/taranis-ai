@@ -74,8 +74,8 @@ export default {
       return buttonState.value[type] === 'ASC'
         ? 'mdi-arrow-up'
         : buttonState.value[type] === 'DESC'
-        ? 'mdi-arrow-down'
-        : ''
+          ? 'mdi-arrow-down'
+          : ''
     }
 
     return {

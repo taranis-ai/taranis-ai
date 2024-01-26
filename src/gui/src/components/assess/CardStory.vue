@@ -178,34 +178,34 @@ export default {
       }
     })
 
-    const openCard = () => {
+    const getDescription = computed(() => {
+      const { description, summary, news_items } = props.story
+      const defaultContent = news_items[0].news_item_data.content
+
+      return openSummary.value
+        ? defaultContent
+        : summary || description || defaultContent
+    })
+
+    function openCard() {
       openSummary.value = !openSummary.value
     }
 
-    const toggleSelection = () => {
+    function toggleSelection() {
       assessStore.selectStory(props.story.id)
     }
 
-    const markAsRead = () => {
+    function markAsRead() {
       assessStore.readNewsItemAggregate(props.story.id)
     }
 
-    const markAsImportant = () => {
+    function markAsImportant() {
       assessStore.importantNewsItemAggregate(props.story.id)
     }
 
-    const emitRefresh = () => {
+    function emitRefresh() {
       emit('refresh')
     }
-
-    const getDescription = computed(() => {
-      return openSummary.value
-        ? props.story.description ||
-            props.story.news_items[0].news_item_data.content
-        : props.story.summary ||
-            props.story.description ||
-            props.story.news_items[0].news_item_data.content
-    })
 
     function ungroup() {
       unGroupStories([props.story.id]).then(() => {

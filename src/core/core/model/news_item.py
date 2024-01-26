@@ -4,6 +4,8 @@ import contextlib
 from datetime import datetime, timedelta
 from typing import Any, Optional
 from sqlalchemy import orm, and_, or_, func
+from sqlalchemy.sql.expression import false, null
+
 from enum import StrEnum, auto
 from collections import Counter
 import hashlib
@@ -21,13 +23,13 @@ class NewsItemData(BaseModel):
     id = db.Column(db.String(64), primary_key=True)
     hash = db.Column(db.String())
 
-    title = db.Column(db.String())
-    review = db.Column(db.String())
-    author = db.Column(db.String())
-    source = db.Column(db.String())
-    link = db.Column(db.String())
-    language = db.Column(db.String())
-    content = db.Column(db.String())
+    title: Any = db.Column(db.String())
+    review: Any = db.Column(db.String())
+    author: Any = db.Column(db.String())
+    source: Any = db.Column(db.String())
+    link: Any = db.Column(db.String())
+    language: Any = db.Column(db.String())
+    content: Any = db.Column(db.String())
     collected: Any = db.Column(db.DateTime)
     published: Any = db.Column(db.DateTime, default=datetime.now())
     updated = db.Column(db.DateTime, default=datetime.now())
@@ -521,26 +523,36 @@ class NewsItemAggregate(BaseModel):
             for word in words:
                 query = query.filter(NewsItemAggregateSearchIndex.data.ilike(f"%{word}%"))
 
-        if "read" in filter_args:
+        read = filter_args.get("read", "").lower()
+        if read == "true":
             query = query.filter(NewsItemAggregate.read)
+        if read == "false":
+            query = query.filter(NewsItemAggregate.read == false())
 
-        if "unread" in filter_args:
-            query = query.filter(NewsItemAggregate.read is False)
-
-        if "important" in filter_args:
+        important = filter_args.get("important", "").lower()
+        if important == "true":
             query = query.filter(NewsItemAggregate.important)
+        if important == "false":
+            query = query.filter(NewsItemAggregate.important == false())
 
-        if "unimportant" in filter_args:
-            query = query.filter(NewsItemAggregate.important is False)
-
-        if "relevant" in filter_args:
+        relevant = filter_args.get("relevant", "").lower()
+        if relevant == "true":
             query = query.filter(NewsItemAggregate.relevance > 0)
+        if relevant == "false":
+            query = query.filter(NewsItemAggregate.relevance <= 0)
 
-        if "in_report" in filter_args:
+        in_report = filter_args.get("in_report", "").lower()
+        if in_report == "true":
             query = query.join(
                 ReportItemNewsItemAggregate,
                 NewsItemAggregate.id == ReportItemNewsItemAggregate.news_item_aggregate_id,
             )
+        if in_report == "false":
+            query = query.outerjoin(
+                ReportItemNewsItemAggregate,
+                NewsItemAggregate.id == ReportItemNewsItemAggregate.news_item_aggregate_id,
+            )
+            query = query.filter(ReportItemNewsItemAggregate.news_item_aggregate_id == null())
 
         if tags := filter_args.get("tags"):
             for tag in tags:
@@ -1085,8 +1097,8 @@ class NewsItemAggregateSearchIndex(BaseModel):
 
 class NewsItemAttribute(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
-    key = db.Column(db.String(), nullable=False)
-    value = db.Column(db.String(), nullable=False)
+    key: Any = db.Column(db.String(), nullable=False)
+    value: Any = db.Column(db.String(), nullable=False)
     binary_mime_type = db.Column(db.String())
     binary_data = orm.deferred(db.Column(db.LargeBinary))
     created = db.Column(db.DateTime, default=datetime.now)

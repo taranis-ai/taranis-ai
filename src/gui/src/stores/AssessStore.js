@@ -1,5 +1,5 @@
 import {
-  getNewsItemsAggregates,
+  getStories,
   getOSINTSourceGroupsList,
   getOSINTSourcesList,
   readNewsItemAggregate,
@@ -51,7 +51,7 @@ export const useAssessStore = defineStore('assess', {
       try {
         this.loading = true
         const filter = useFilterStore()
-        const response = await getNewsItemsAggregates(filter.newsItemsFilter)
+        const response = await getStories(filter.newsItemsFilter)
         this.newsItems.items = response.data.items
         this.newsItems.total_count = response.data.total_count
         this.max_item = response.data.max_item
@@ -67,7 +67,7 @@ export const useAssessStore = defineStore('assess', {
         // filter should be a copy of the original filter
         const filter = { ...useFilterStore().newsItemsFilter }
         filter.offset = this.newsItems.items.length
-        const response = await getNewsItemsAggregates(filter)
+        const response = await getStories(filter)
         const existingItemIds = new Set(
           this.newsItems.items.map((item) => item.id)
         )

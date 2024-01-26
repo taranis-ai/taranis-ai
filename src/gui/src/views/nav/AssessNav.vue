@@ -63,12 +63,9 @@
         </v-col>
       </v-row>
 
-      <v-row no-gutters class="mt-0 mr-0 px-2">
+      <v-row no-gutters>
         <v-col cols="12">
-          <filter-select-list
-            v-model="filterAttribute"
-            :filter-attribute-options="filterAttributeOptions"
-          />
+          <FilterButtons />
         </v-col>
       </v-row>
 
@@ -192,24 +189,23 @@
 <script>
 import dateChips from '@/components/assess/filter/dateChips.vue'
 import tagFilter from '@/components/assess/filter/tagFilter.vue'
-import filterSelectList from '@/components/assess/filter/filterSelectList.vue'
+import FilterButtons from '@/components/assess/filter/filterButtons.vue'
 import filterSortList from '@/components/assess/filter/filterSortList.vue'
 import FilterNavigation from '@/components/common/FilterNavigation.vue'
-import { computed, onUnmounted, onBeforeMount } from 'vue'
+import { computed, onUnmounted, onBeforeMount, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useFilterStore } from '@/stores/FilterStore'
 import { useAssessStore } from '@/stores/AssessStore'
 import { storeToRefs } from 'pinia'
-import { watch } from 'vue'
 
 export default {
   name: 'AssessNav',
   components: {
     dateChips,
     tagFilter,
-    filterSelectList,
     filterSortList,
-    FilterNavigation
+    FilterNavigation,
+    FilterButtons
   },
   setup() {
     const assessStore = useAssessStore()
@@ -230,36 +226,6 @@ export default {
     const { setFilter, updateFilter } = useFilterStore()
 
     const route = useRoute()
-
-    const filterAttributeOptions = [
-      { value: 'read', label: 'read', icon: 'mdi-eye-check-outline' },
-      {
-        value: 'important',
-        label: 'important',
-        icon: 'mdi-star-check-outline'
-      },
-      {
-        value: 'in_report',
-        label: 'items in reports',
-        icon: 'mdi-google-circles-communities'
-      },
-      {
-        value: 'relevant',
-        label: 'relevant',
-        icon: 'mdi-bullseye-arrow'
-      }
-    ]
-    const filterAttribute = computed({
-      get() {
-        return filterAttributeOptions
-          .filter((option) => newsItemsFilter.value[option.value])
-          .map((option) => option.value)
-      },
-      set(value) {
-        updateFilter(value)
-        console.debug('filterAttributeSelections', value)
-      }
-    })
 
     const search = computed({
       get() {
@@ -316,8 +282,6 @@ export default {
       getOSINTSourceGroupsList,
       getOSINTSourcesList,
       newsItemsFilter,
-      filterAttribute,
-      filterAttributeOptions,
       resetFilter,
       setCompactView
     }

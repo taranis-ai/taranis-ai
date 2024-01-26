@@ -27,85 +27,98 @@
 </template>
 
 <script>
-import { mapActions, mapState } from 'pinia'
-
-import FilterNavigation from '@/components/common/FilterNavigation.vue'
+import { ref, computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useAssetsStore } from '@/stores/AssetsStore'
 import { useFilterStore } from '@/stores/FilterStore'
+import { storeToRefs } from 'pinia'
 
 export default {
   name: 'AssetsNav',
   components: {
     FilterNavigation
   },
-  data: () => ({
-    awaitingSearch: false
-  }),
-  computed: {
-    ...mapState(useFilterStore, ['assetFilter']),
-    limit: {
-      get() {
-        return this.assetFilter.limit
-      },
-      set(value) {
-        this.updateAssetFilter({ limit: value })
-        this.updateFilteredAssets()
-      }
-    },
-    sort: {
-      get() {
-        if (!this.assetFilter.order) return 'DATE_DESC'
-        return this.assetFilter.order
-      },
-      set(value) {
-        this.updateAssetFilter({ sort: value })
-        this.updateFilteredAssets()
-      }
-    },
-    offset: {
-      get() {
-        return this.assetFilter.offset
-      },
-      set(value) {
-        this.updateAssetFilter({ offset: value })
-        this.updateFilteredAssets()
-      }
-    },
-    search: {
-      get() {
-        return this.assetFilter.search
-      },
-      set(value) {
-        this.updateAssetFilter({ search: value })
-        if (!this.awaitingSearch) {
-          setTimeout(() => {
-            this.updateFilteredAssets()
-            this.awaitingSearch = false
-          }, 500)
-        }
+  setup() {
+    const filterStore = useFilterStore()
+    const assetsStore = useAssetsStore()
 
-        this.awaitingSearch = true
+    const { assetFilter } = storeToRefs(filterStore)
+
+    const route = useRoute()
+    const router = useRouter()
+
+    const limit = computed({
+      get() {
+        return assetFilter.value.limit
+      },
+      set(value) {
+        filterStore.updateAssetFilter({ limit: value })
+        assetsStore.updateFilteredAssets()
       }
-    },
-    navigation_drawer_class() {
-      return this.showOmniSearch ? 'mt-12' : ''
+    })
+
+    const sort = computed({
+      get() {
+        if (!assetFilter.value.order) return 'DATE_DESC'
+        return assetFilter.value.order
+      },
+      set(value) {
+        filterStore.updateAssetFilter({ sort: value })
+        assetsStore.updateFilteredAssets()
+      }
+    })
+
+    const offset = computed({
+      get() {
+        return assetFilter.value.offset
+      },
+      set(value) {
+        filterStore.updateAssetFilter({ offset: value })
+        assetsStore.updateFilteredAssets()
+      }
+    })
+
+    const search = ref(assetFilter.value.search)
+    const awaitingSearch = ref(false)
+
+    const addAsset = () => {
+      router.push('/asset/0')
     }
-  },
-  created() {
-    const query = Object.fromEntries(
-      Object.entries(this.$route.query).filter(([, v]) => v != null)
-    )
-    this.updateAssetFilter(query)
-    console.debug('loaded with query', query)
-  },
-  methods: {
-    ...mapActions(useAssetsStore, ['updateFilteredAssets']),
-    ...mapActions(useFilterStore, ['updateAssetFilter']),
-    addAsset() {
-      this.$router.push('/asset/0')
-    },
-    addAssetGroup() {
-      this.$router.push('/asset-group/0')
+
+    const addAssetGroup = () => {
+      router.push('/asset-group/0')
+    }
+
+    const updateSearch = (value) => {
+      search.value = value
+      updateAssetFilter({ search: value })
+      if (!awaitingSearch.value) {
+        setTimeout(() => {
+          updateFilteredAssets()
+          awaitingSearch.value = false
+        }, 500)
+      }
+      awaitingSearch.value = true
+    }
+
+    onMounted(() => {
+      const query = Object.fromEntries(
+        Object.entries(route.query).filter(([, v]) => v != null)
+      )
+      updateAssetFilter(query)
+      console.debug('loaded with query', query)
+    })
+
+    return {
+      assetFilter,
+      limit,
+      sort,
+      offset,
+      search,
+      awaitingSearch,
+      addAsset,
+      addAssetGroup,
+      updateSearch
     }
   }
 }

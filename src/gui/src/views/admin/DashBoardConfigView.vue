@@ -143,6 +143,7 @@ export default {
     )
 
     onMounted(() => {
+      mainStore.drawerVisible = true
       dashboardStore.loadDashboardData()
       configStore.loadSchedule()
       mainStore.resetItemCount()
