@@ -65,7 +65,7 @@
 
       <v-row no-gutters>
         <v-col cols="12">
-          <FilterButtons />
+          <AssessFilterButtons />
         </v-col>
       </v-row>
 
@@ -187,10 +187,10 @@
 </template>
 
 <script>
-import dateChips from '@/components/assess/filter/dateChips.vue'
-import tagFilter from '@/components/assess/filter/tagFilter.vue'
-import FilterButtons from '@/components/assess/filter/filterButtons.vue'
-import filterSortList from '@/components/assess/filter/filterSortList.vue'
+import dateChips from '@/components/common/filter/dateChips.vue'
+import tagFilter from '@/components/common/filter/tagFilter.vue'
+import AssessFilterButtons from '@/components/assess/AssessFilterButtons.vue'
+import filterSortList from '@/components/common/filter/filterSortList.vue'
 import FilterNavigation from '@/components/common/FilterNavigation.vue'
 import { computed, onUnmounted, onBeforeMount, watch } from 'vue'
 import { useRoute } from 'vue-router'
@@ -205,7 +205,7 @@ export default {
     tagFilter,
     filterSortList,
     FilterNavigation,
-    FilterButtons
+    AssessFilterButtons
   },
   setup() {
     const assessStore = useAssessStore()

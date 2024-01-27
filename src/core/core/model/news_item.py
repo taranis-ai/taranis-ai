@@ -577,8 +577,11 @@ class NewsItemAggregate(BaseModel):
 
             query = query.filter(NewsItemData.published >= date_limit)
 
-        if timestamp := filter_args.get("timestamp"):
-            query = query.filter(NewsItemData.published >= datetime.fromisoformat(timestamp))
+        if timefrom := filter_args.get("timefrom"):
+            query = query.filter(NewsItemData.published >= datetime.fromisoformat(timefrom))
+
+        if timeto := filter_args.get("timeto"):
+            query = query.filter(NewsItemData.published <= datetime.fromisoformat(timeto))
 
         return query
 

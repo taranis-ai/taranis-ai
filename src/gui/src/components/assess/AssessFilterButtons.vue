@@ -24,12 +24,12 @@
 </template>
 
 <script>
-import filterButton from './filterButton.vue'
+import filterButton from '@/components/common/filter/filterButton.vue'
 import { useFilterStore } from '@/stores/FilterStore'
 import { storeToRefs } from 'pinia'
 
 export default {
-  name: 'FilterButtons',
+  name: 'AssessFilterButtons',
   components: {
     filterButton
   },
@@ -37,11 +37,9 @@ export default {
   setup() {
     const filterStore = useFilterStore()
     const { newsItemsFilter } = storeToRefs(filterStore)
-    const { updateFilter } = filterStore
 
     return {
-      newsItemsFilter,
-      updateFilter
+      newsItemsFilter
     }
   }
 }

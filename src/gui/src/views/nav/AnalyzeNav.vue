@@ -27,9 +27,10 @@
         <v-divider class="mt-3 mb-3"></v-divider>
 
         <v-col cols="12" class="pt-1">
-          <filter-select-list
-            v-model="filterAttribute"
-            :filter-attribute-options="filterAttributeOptions"
+          <filter-button
+            v-model="reportFilter['completed']"
+            label="completed"
+            icon="mdi-progress-check"
           />
         </v-col>
       </v-row>
@@ -42,8 +43,8 @@ import { computed, onMounted, onUnmounted, watch } from 'vue'
 import { useAnalyzeStore } from '@/stores/AnalyzeStore'
 import { useFilterStore } from '@/stores/FilterStore'
 import FilterNavigation from '@/components/common/FilterNavigation.vue'
-import dateChips from '@/components/assess/filter/dateChips.vue'
-import filterSelectList from '@/components/assess/filter/filterSelectList.vue'
+import dateChips from '@/components/common/filter/dateChips.vue'
+import filterButton from '@/components/common/filter/filterButton.vue'
 import { storeToRefs } from 'pinia'
 import { useRoute } from 'vue-router'
 import { router } from '@/router'
@@ -52,7 +53,7 @@ export default {
   name: 'AnalyzeNav',
   components: {
     dateChips,
-    filterSelectList,
+    filterButton,
     FilterNavigation
   },
   setup() {
@@ -70,22 +71,6 @@ export default {
       },
       set(value) {
         updateReportFilter({ search: value })
-      }
-    })
-    const filterAttributeOptions = [
-      { value: 'completed', label: 'completed', icon: 'mdi-progress-check' },
-      { value: 'incompleted', label: 'incomplete', icon: 'mdi-progress-close' }
-    ]
-
-    const filterAttribute = computed({
-      get() {
-        return filterAttributeOptions
-          .filter((option) => reportFilter.value[option.value])
-          .map((option) => option.value)
-      },
-      set(value) {
-        updateReportFilter(value)
-        console.debug('filterAttributeSelections', value)
       }
     })
 
@@ -119,10 +104,38 @@ export default {
       updateReportFilter,
       updateReportItems,
       search,
-      filterAttributeOptions,
-      filterAttribute,
       addReport
     }
   }
 }
 </script>
+
+<style lang="scss">
+button {
+  display: flex !important;
+}
+
+button.vertical-button .v-btn__append,
+button.vertical-button .v-btn__append i {
+  margin-left: auto;
+  font-size: 100% !important;
+}
+
+.vertical-button-group {
+  display: flex;
+  flex-direction: column;
+  height: 100% !important;
+}
+
+.vertical-button {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.vertical-button-group .v-icon,
+.vertical-button .v-icon {
+  margin-right: 0.6rem;
+  color: rgb(var(--v-theme-primary)) !important;
+  font-size: 1.3rem !important;
+}
+</style>

@@ -121,13 +121,13 @@ class TestAssessApi(BaseTest):
         response = client.get("/api/assess/news-item-aggregates?notexistent=notexist", headers=auth_header)
         assert response.get_json()["total_count"] > 0
 
-        response = client.get("/api/assess/news-item-aggregates?read", headers=auth_header)
+        response = client.get("/api/assess/news-item-aggregates?read=true", headers=auth_header)
         assert len(response.get_json()["items"]) == 0
 
-        response = client.get("/api/assess/news-item-aggregates?relevant", headers=auth_header)
+        response = client.get("/api/assess/news-item-aggregates?relevant=true", headers=auth_header)
         assert len(response.get_json()["items"]) == 0
 
-        response = client.get("/api/assess/news-item-aggregates?in_report", headers=auth_header)
+        response = client.get("/api/assess/news-item-aggregates?in_report=true", headers=auth_header)
         assert len(response.get_json()["items"]) == 0
 
         response = client.get("/api/assess/news-item-aggregates?range=DAY", headers=auth_header)

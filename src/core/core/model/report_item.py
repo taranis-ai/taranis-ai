@@ -2,7 +2,8 @@ from datetime import datetime, timedelta
 
 import uuid as uuid_generator
 from sqlalchemy import orm, or_, text, and_
-from sqlalchemy.sql.expression import cast
+from sqlalchemy.sql.expression import cast, false
+
 from typing import Any, Optional
 import sqlalchemy
 
@@ -19,7 +20,7 @@ from core.model.attribute import AttributeType
 
 class ReportItemAttribute(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
-    value = db.Column(db.String(), nullable=False)
+    value: Any = db.Column(db.String(), nullable=False)
     binary_mime_type = db.Column(db.String())
     binary_data = orm.deferred(db.Column(db.LargeBinary))
     binary_description = db.Column(db.String())
@@ -90,17 +91,17 @@ class ReportItem(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     uuid = db.Column(db.String(64))
 
-    title = db.Column(db.String())
+    title: Any = db.Column(db.String())
 
     created = db.Column(db.DateTime, default=datetime.now)
     last_updated = db.Column(db.DateTime, default=datetime.now)
     completed = db.Column(db.Boolean, default=False)
 
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
-    user = db.relationship("User")
+    user_id: Any = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    user: Any = db.relationship("User")
 
-    report_item_type_id = db.Column(db.Integer, db.ForeignKey("report_item_type.id"), nullable=True)
-    report_item_type = db.relationship("ReportItemType")
+    report_item_type_id: Any = db.Column(db.Integer, db.ForeignKey("report_item_type.id"), nullable=True)
+    report_item_type: Any = db.relationship("ReportItemType")
 
     news_item_aggregates = db.relationship("NewsItemAggregate", secondary="report_item_news_item_aggregate")
 
@@ -251,11 +252,12 @@ class ReportItem(BaseModel):
                 or_(ReportItemAttribute.value.ilike(f"%{search}%"), ReportItem.title.ilike(f"%{search}%"))
             )
 
-        if "completed" in filter and filter["completed"].lower() != "false":
+        completed = filter.get("completed", "").lower()
+        if completed == "true":
             query = query.filter(ReportItem.completed)
 
-        if "incompleted" in filter and filter["incompleted"].lower() != "false":
-            query = query.filter(ReportItem.completed == False)  # noqa
+        if completed == "false":
+            query = query.filter(ReportItem.completed == false())
 
         if "range" in filter and filter["range"].upper() != "ALL":
             filter_range = filter["range"].upper()

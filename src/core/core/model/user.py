@@ -13,15 +13,15 @@ from core.managers.log_manager import logger
 
 class User(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(64), unique=True, nullable=False)
-    name = db.Column(db.String(), nullable=False)
-    password = db.Column(db.String(), nullable=True)
+    username: Any = db.Column(db.String(64), unique=True, nullable=False)
+    name: Any = db.Column(db.String(), nullable=False)
+    password: Any = db.Column(db.String(), nullable=True)
 
     organization_id = db.Column(db.Integer, db.ForeignKey("organization.id"))
-    organization = db.relationship("Organization")
+    organization: Any = db.relationship("Organization")
 
-    roles = db.relationship(Role, secondary="user_role", cascade="all, delete")
-    permissions = db.relationship(Permission, secondary="user_permission", cascade="all, delete")
+    roles: Any = db.relationship(Role, secondary="user_role", cascade="all, delete")
+    permissions: Any = db.relationship(Permission, secondary="user_permission", cascade="all, delete")
 
     profile_id = db.Column(db.Integer, db.ForeignKey("user_profile.id", ondelete="CASCADE"))
     profile = db.relationship("UserProfile", cascade="all, delete")
