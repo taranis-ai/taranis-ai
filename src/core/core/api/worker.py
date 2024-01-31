@@ -179,7 +179,7 @@ class BotsInfo(Resource):
 class NewsItemsAggregates(Resource):
     @api_key_required
     def get(self):
-        filter_keys = ["search", "in_report", "timefrom", "sort", "range"]
+        filter_keys = ["search", "in_report", "timefrom", "sort", "range", "limit"]
         filter_args: dict[str, str | int | list] = {k: v for k, v in request.args.items() if k in filter_keys}
         filter_list_keys = ["source", "group"]
         for key in filter_list_keys:

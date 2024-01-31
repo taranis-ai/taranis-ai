@@ -124,7 +124,9 @@ workers = [
         "type": "STORY_BOT",
         "name": "Story Clustering Bot",
         "parameters": [
-            {"parameter": "ITEM_FILTER"},
+            {
+                "parameter": "ITEM_FILTER",
+            },
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
             {"parameter": "REFRESH_INTERVAL", "type": "number"},
         ],
@@ -252,6 +254,9 @@ bots = [
         "name": "Story BOT",
         "description": "Bot for story clustering",
         "type": "STORY_BOT",
+        "parameters": [
+            {"parameter": "ITEM_FILTER", "value": "limit=666"},
+        ],
     },
     {
         "name": "Summary BOT",
