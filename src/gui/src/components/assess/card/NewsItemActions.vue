@@ -138,7 +138,7 @@ export default {
     },
     detailView: Boolean
   },
-  emits: ['deleteItem', 'refresh'],
+  emits: ['deleteItem', 'refresh', 'openCard'],
   setup(props, { emit }) {
     const viewDetails = ref(false)
     const openSummary = ref(props.detailView)
@@ -151,6 +151,7 @@ export default {
 
     const openCard = () => {
       openSummary.value = !openSummary.value
+      emit('openCard')
     }
 
     const allow_edit = computed(() => {

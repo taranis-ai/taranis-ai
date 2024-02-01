@@ -27,6 +27,7 @@
         :story="story"
         :detail-view="detailView"
         @delete-item="deleteNewsItem"
+        @open-card="openCard()"
       />
       <v-col
         cols="12"
@@ -83,10 +84,6 @@ export default {
       assessStore.newsItemSelection.includes(props.newsItem.id)
     )
 
-    const news_item_summary_text = computed(() =>
-      openSummary.value ? 'Collapse' : 'Expand'
-    )
-
     const description = computed(
       () =>
         props.newsItem.news_item_data?.content ||
@@ -112,7 +109,6 @@ export default {
       selected,
       viewDetails,
       openSummary,
-      news_item_summary_text,
       description,
       openCard,
       toggleSelection,
