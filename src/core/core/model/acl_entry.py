@@ -162,10 +162,10 @@ class ACLEntry(BaseModel):
 
 
 class ACLEntryUser(BaseModel):
-    acl_entry_id = db.Column(db.Integer, db.ForeignKey("acl_entry.id"), primary_key=True)
+    acl_entry_id = db.Column(db.Integer, db.ForeignKey("acl_entry.id", ondelete="CASCADE"), primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), primary_key=True)
 
 
 class ACLEntryRole(BaseModel):
-    acl_entry_id = db.Column(db.Integer, db.ForeignKey("acl_entry.id"), primary_key=True)
-    role_id = db.Column(db.Integer, db.ForeignKey("role.id"), primary_key=True)
+    acl_entry_id = db.Column(db.Integer, db.ForeignKey("acl_entry.id", ondelete="CASCADE"), primary_key=True)
+    role_id = db.Column(db.Integer, db.ForeignKey("role.id", ondelete="CASCADE"), primary_key=True)
