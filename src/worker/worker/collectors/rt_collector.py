@@ -37,7 +37,7 @@ class RTCollector(BaseWebCollector):
             return "No RT_TOKEN set"
         self.headers = {"Authorization": f"token {rt_token}"}
 
-    def collect(self, source):
+    def setup_collector(self, source):
         if err := self.set_base_url(source["parameters"].get("BASE_URL", None)):
             return err
         self.set_api_url()
@@ -45,6 +45,10 @@ class RTCollector(BaseWebCollector):
         logger.info(f"Website {source['id']} Starting collector for url: {self.base_url}")
 
         if err := self.set_headers(source["parameters"].get("RT_TOKEN", None)):
+            return err
+
+    def collect(self, source):
+        if err := self.setup_collector(source):
             return err
 
         try:
@@ -170,5 +174,4 @@ class RTCollector(BaseWebCollector):
 
 if __name__ == "__main__":
     rt_collector = RTCollector()
-    rt_collector.collect({"id": 1, "parameters": {"BASE_URL": "http://localhost:8080",
-                                                  "RT_TOKEN": "1-14-eb1314501df7b5e1c38359fd70ce149f"}})
+    rt_collector.collect({"id": 1, "parameters": {"BASE_URL": "http://localhost:8080", "RT_TOKEN": "1-14-eb1314501df7b5e1c38359fd70ce149f"}})

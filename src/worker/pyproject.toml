@@ -47,7 +47,7 @@ dependencies = [
 dynamic = ["version"]
 
 [project.optional-dependencies]
-dev = ["black", "pytest", "pytest-celery", "watchdog", "build", "wheel", "setuptools", "setuptools_scm"]
+dev = ["black", "pytest", "pytest-celery", "requests-mock", "watchdog", "build", "wheel", "setuptools", "setuptools_scm"]
 
 [project.urls]
 "Source Code" = "https://github.com/taranis-ai/taranis-ai"
