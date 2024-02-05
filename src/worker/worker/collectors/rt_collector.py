@@ -52,7 +52,7 @@ class RTCollector(BaseWebCollector):
         except Exception as e:
             logger.exception()
             logger.error(f"RT Collector for {self.base_url} failed with error: {str(e)}")
-            return str(e)
+            return "RT Collector not available"
 
     def get_ids_from_tickets(self, tickets) -> list:
         return [ticket["id"] for ticket in tickets.get("items", [])]
@@ -79,7 +79,7 @@ class RTCollector(BaseWebCollector):
 
         return attachment_ids
 
-    def get_content_attachment_data(self, transaction: int):
+    def get_content_attachment_data(self, transaction: int) -> tuple[list, str, str]:
         ticket_transaction = requests.get(f"{self.api_url}transaction/{transaction}", headers=self.headers)
         if not ticket_transaction or not ticket_transaction.ok:
             logger.info(f"Ticket transaction returned with {ticket_transaction.status_code}")
@@ -143,7 +143,7 @@ class RTCollector(BaseWebCollector):
             "author": ticket_author,
             "collected": datetime.datetime.now(),
             "content": ticket_content,
-            "osint_source_id": source["id"],
+            "osint_source_id": source.get("id"),
             "attributes": [],
         }
 
@@ -153,8 +153,8 @@ class RTCollector(BaseWebCollector):
     def rt_collector(self, source):
         response = requests.get(f"{self.api_url}tickets?query=*", headers=self.headers)
         if not response or not response.ok:
-            logger.info(f"Website {source['id']} returned no content")
-            raise ValueError("Website returned no content, check your TOKEN")
+            logger.info(f"Website {source.get('id')} returned no content with response: {response}")
+            raise ValueError("Website returned no content, check your RT_TOKEN")
 
         if not (tickets_ids_list := self.get_ids_from_tickets(response.json())):
             raise ValueError("No tickets available")
@@ -166,3 +166,9 @@ class RTCollector(BaseWebCollector):
 
         self.publish(tickets, source)
         return None
+
+
+if __name__ == "__main__":
+    rt_collector = RTCollector()
+    rt_collector.collect({"id": 1, "parameters": {"BASE_URL": "http://localhost:8080",
+                                                  "RT_TOKEN": "1-14-eb1314501df7b5e1c38359fd70ce149f"}})
