@@ -39,6 +39,10 @@ Use the application
 http://<url>:<TARANIS_PORT>/login
 ```
 
+## Development 
+
+See [dev Readme](/dev/README.md) for a quick way to get a development environment running.
+
 ## Initial Setup 👤
 
 **The default credentials are `user` / `user` and `admin` / `admin`.**
