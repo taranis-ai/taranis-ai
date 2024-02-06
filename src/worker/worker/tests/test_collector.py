@@ -30,12 +30,12 @@ def news_item_upload_mock(requests_mock):
 
 
 @pytest.fixture
-def collecotors_mock(osint_source_update_mock, news_item_upload_mock):
+def collectors_mock(osint_source_update_mock, news_item_upload_mock):
     pass
 
 
 @pytest.fixture
-def rt_mock(requests_mock, collecotors_mock):
+def rt_mock(requests_mock, collectors_mock):
     import rt_testdata
 
     requests_mock.get(rt_testdata.rt_ticket_search_url, json=rt_testdata.rt_ticket_search_result)
