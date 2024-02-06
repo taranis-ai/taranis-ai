@@ -10,13 +10,16 @@ class Role(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     name: Any = db.Column(db.String(64), unique=True, nullable=False)
     description: Any = db.Column(db.String())
-    permissions: Any = db.relationship(Permission, secondary="role_permission", back_populates="roles")
+    permissions = db.relationship(Permission, secondary="role_permission", back_populates="roles")
 
     def __init__(self, name, description, permissions=None, id=None):
         self.id = id
         self.name = name
         self.description = description
-        self.permissions = [Permission.get(permission_id) for permission_id in permissions] if permissions else []
+        if permissions:
+            for permission_id in permissions:
+                if permission := Permission.get(permission_id):
+                    self.permissions.append(permission)
 
     @classmethod
     def filter_by_name(cls, role_name):
@@ -51,7 +54,10 @@ class Role(BaseModel):
         return [cls.from_dict(data) for data in json_data]
 
     def to_dict(self):
-        data = {c.name: getattr(self, c.name) for c in self.__table__.columns}
+        table = getattr(self, "__table__", None)
+        if table is None:
+            return {}
+        data = {c.name: getattr(self, c.name) for c in table.columns}
         data["permissions"] = [permission.id for permission in self.permissions if permission]
         return data
 

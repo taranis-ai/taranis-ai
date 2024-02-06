@@ -22,7 +22,7 @@ dependencies = [
     "Flask-SQLAlchemy",
     "click",
     "celery",
-    "SQLAlchemy==1.4.40",
+    "SQLAlchemy==1.4.51",
     "pydantic-settings",
     "python-dotenv",
     "gunicorn",
