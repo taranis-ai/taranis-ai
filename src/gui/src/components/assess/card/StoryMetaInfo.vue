@@ -53,12 +53,12 @@
           :news-item-data="story.news_items[0].news_item_data"
           :compact-view="compactView"
         />
-        <source-info
-          v-if="detailView && story.news_items.length < 2"
-          :news-item-data="story.news_items[0].news_item_data"
-        />
         <author-info
           v-if="detailView && story.news_items.length === 1"
+          :news-item-data="story.news_items[0].news_item_data"
+        />
+        <source-info
+          v-if="detailView && story.news_items.length < 2"
           :news-item-data="story.news_items[0].news_item_data"
         />
       </v-col>
