@@ -107,6 +107,11 @@ export default {
           type: 'date'
         },
         {
+          name: 'icon',
+          label: 'Icon',
+          type: 'text'
+        },
+        {
           name: 'name',
           label: 'Name',
           type: 'text',
