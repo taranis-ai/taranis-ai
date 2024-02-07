@@ -12,6 +12,7 @@
         <span>{{ $t('product.download') }}</span>
       </v-btn>
       <v-btn
+        v-if="edit"
         variant="outlined"
         prepend-icon="mdi-eye-outline"
         @click="rerenderProduct()"
