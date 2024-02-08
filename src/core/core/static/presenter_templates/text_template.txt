@@ -1,14 +1,14 @@
 {% for report_item in data.report_items %}
-{% if true %}
+{% if false %}
 This is a debug line, the report type id is {{report_item.report_item_type_id}} with the report itself {{ report_item }}<br><br><br>
 {% endif %}
-{% if report_item.report_item_type_id == 3 %}
-# VULNERABILITY REPORT: {{ report_item.uuid }}<br>
+{% if report_item.get('report_item_type_id') == 3 %}
+# VULNERABILITY REPORT: {{ report_item.get('uuid') }}<br>
 STATUS: {{ 'Recovered' if report_item.get('completed') else 'Not Completed' }} <br>
 ## Report Details<br>
-TITLE: {{ report_item.title | default('No title provided', true) }}<br>
-DATE REPORTED: {{ report_item.created | default('Not available', true) }}<br>
-LAST UPDATE: {{ report_item.last_updated | default('Not available', true) }}<br>
+TITLE: {{ report_item.get('title') | default('No title provided', true) }}<br>
+DATE REPORTED: {{ report_item.get('created') | default('Not available', true) }}<br>
+LAST UPDATE: {{ report_item.get('last_updated') | default('Not available', true) }}<br>
 EXPOSURE DATE: {{ report_item.get('attributes').get('Exposure Date') | default('Not available', true) }}<br>
 UPDATE DATE: {{ report_item.get('attributes').get('Update Date') | default('Not available', true) }}<br>
 AFFECTED SYSTEMS: {{ report_item.get('attributes').get('Affected Systems') | default('Not available', true) }}<br>
@@ -22,18 +22,18 @@ IMPACT: {{ report_item.get('attributes').get('Impact') | default('Not available'
 IOC: {{ report_item.get('attributes').get('IOC') | default('Not available', true) }}<br>
 RECOMMENDATIONS: {{ report_item.get('attributes').get('Recommendations') | default('Not available', true) }}<br>
 ## News Item Aggregates<br>
-{% if report_item.news_item_aggregates | default([], true) | length > 0 %}
-{% for news_item in report_item.news_item_aggregates %}
-### NEWS ITEM: {{ news_item.title }}<br>
-- Description: {{ news_item.description | default('No description provided', true) }}<br>
-- Link: {{ news_item.link | default('No link available', true) }}<br>
-- Published: {{ news_item.published | default('Not available', true) }}<br>
+{% if report_item.get('news_item_aggregates') | default([], true) | length > 0 %}
+{% for news_item in report_item.get('news_item_aggregates') %}
+### NEWS ITEM: {{  news_item.get('title') }}<br>
+- Published: {{ news_item.get('news_items')[0].get('news_item_data').get('published') | default('Not available', true) }}<br><br>
+- Link: {{ news_item.get('news_items')[0].get('news_item_data').get('link') | default('No link available', true) }}<br>
+- Description:<br> {{ news_item.get('description') | default('No description provided', true) }}<br>
 {% endfor %}
 {% else %}
 ### No news item aggregates related to the missing lunch found.<br>
 {% endif %}<br>
 {% endif %}
-{% if report_item.report_item_type_id == 2 %}
+{% if report_item.get('report_item_type_id') == 2 %}
 # DISINFORMATION REPORT: {{ report_item.get('uuid') }}<br>
 STATUS: {{ 'Completed' if report_item.get('completed') else 'Not Completed' }}<br>
 ## Report Details<br>
@@ -49,24 +49,24 @@ ACTOR: {{ report_item.get('attributes').get('Actor') | default('Unknown', true) 
 SECTOR: {{ report_item.get('attributes').get('Sector') | default('Not specified', true) }}<br>
 COMMENT: {{ report_item.get('attributes').get('Comment') | default('No comment provided', true) }}<br>
 ## News Item Aggregates<br>
-{% if report_item.news_item_aggregates | default([], true) | length > 0 %}
+{% if report_item.get('news_item_aggregates') | default([], true) | length > 0 %}
 {% for news_item in report_item.get('news_item_aggregates') %}
-### NEWS ITEM: {{ news_item.get('title') }}<br>
-- Description: {{ news_item.get('description') | default('No description provided', true) }}<br>
-- Link: {{ news_item.link | default('No link available', true) }}<br>
-- Published: {{ news_item.get('published') | default('Not available', true) }}<br>
+### NEWS ITEM: {{  news_item.get('title') }}<br>
+- Published: {{ news_item.get('news_items')[0].get('news_item_data').get('published') | default('Not available', true) }}<br><br>
+- Link: {{ news_item.get('news_items')[0].get('news_item_data').get('link') | default('No link available', true) }}<br>
+- Description:<br> {{ news_item.get('description') | default('No description provided', true) }}<br>
 {% endfor %}
 {% else %}
-### No news item aggregates found.<br>
+### No news item aggregates related to the missing lunch found.<br>
 {% endif %}<br>
 {% endif %}
-{% if report_item.report_item_type_id == 4 %}
+{% if report_item.get('report_item_type_id') == 4 %}
 # MISP REPORT: {{ report_item.get('uuid') }}<br>
 STATUS: {{ 'Completed' if report_item.get('completed') else 'In Progress' }}<br>
 ## Report Details<br>
-TITLE: {{ report_item.title | default('No title provided', true) }}<br>
-DATE CREATED: {{ report_item.created | default('Not available', true) }}<br>
-LAST UPDATED: {{ report_item.last_updated | default('Not available', true) }}<br>
+TITLE: {{ report_item.get('title') | default('No title provided', true) }}<br>
+DATE CREATED: {{ report_item.get('created') | default('Not available', true) }}<br>
+LAST UPDATED: {{ report_item.get('last_updated') | default('Not available', true) }}<br>
 EVENT DISTRIBUTION: {{ report_item.get('attributes').get('Event distribution') | default('Not specified', true) }}<br>
 EVENT THREAT LEVEL: {{ report_item.get('attributes').get('Event threat level') | default('Not specified', true) }}<br>
 EVENT ANALYSIS: {{ report_item.get('attributes').get('Event analysis') | default('Not specified', true) }}<br>
@@ -79,23 +79,23 @@ COMMENT: {{ report_item.get('attributes').get('Comment') | default('No comment p
 FIRST SEEN DATE: {{ report_item.get('attributes').get('First seen date') | default('Not available', true) }}<br>
 LAST SEEN DATE: {{ report_item.get('attributes').get('Last seen date') | default('Not available', true) }}<br>
 ## News Item Aggregates<br>
-{% if report_item.news_item_aggregates | default([], true) | length > 0 %}
-{% for news_item in report_item.news_item_aggregates %}
-### NEWS ITEM: {{ news_item.title }}<br>
-- Description: {{ news_item.description | default('No description provided', true) }}<br>
-- Link: {{ news_item.link | default('No link available', true) }}<br>
-- Published: {{ news_item.published | default('Not available', true) }}<br>
+{% if report_item.get('news_item_aggregates') | default([], true) | length > 0 %}
+{% for news_item in report_item.get('news_item_aggregates') %}
+### NEWS ITEM: {{  news_item.get('title') }}<br>
+- Published: {{ news_item.get('news_items')[0].get('news_item_data').get('published') | default('Not available', true) }}<br><br>
+- Link: {{ news_item.get('news_items')[0].get('news_item_data').get('link') | default('No link available', true) }}<br>
+- Description:<br> {{ news_item.get('description') | default('No description provided', true) }}<br>
 {% endfor %}
 {% else %}
-### No news item aggregates found.<br>
+### No news item aggregates related to the missing lunch found.<br>
 {% endif %}<br>
 {% endif %}
-{% if report_item.report_item_type_id == 1 %}
-# OSINT REPORT: {{ report_item.uuid }}<br>
-STATUS: {{ 'Completed' if report_item.completed else 'In Progress' }}<br>
+{% if report_item.get('report_item_type_id') == 1 %}
+# OSINT REPORT: {{ report_item.get('uuid') }}<br>
+STATUS: {{ 'Completed' if report_item.get('completed') else 'In Progress' }}<br>
 ## Report Details<br>
-TITLE: {{ report_item.title | default('No title provided', true) }}<br>
-DATE CREATED: {{ report_item.created | default('Not available', true) }}<br>
+TITLE: {{ report_item.get('title') | default('No title provided', true) }}<br>
+DATE CREATED: {{ report_item.get('created') | default('Not available', true) }}<br>
 LAST UPDATED: {{ report_item.last_updated | default('Not available', true) }}<br>
 SUMMARY: {{ report_item.get('attributes').get('Summary') | default('No summary provided', true) }}<br>
 SECTOR TRENDS: {{ report_item.get('attributes').get('Sector trends') | default('Not specified', true) }}<br>
@@ -109,15 +109,15 @@ ACTOR: {{ report_item.get('attributes').get('Actor') | default('Unknown', true) 
 SECTOR: {{ report_item.get('attributes').get('Sector') | default('Not specified', true) }}<br>
 COMMENT: {{ report_item.get('attributes').get('Comment') | default('No comment provided', true) }}<br>
 ## News Item Aggregates<br>
-{% if report_item.news_item_aggregates | default([], true) | length > 0 %}
-{% for news_item in report_item.news_item_aggregates %}
-### NEWS ITEM: {{ news_item.title }}<br>
-- Description: {{ news_item.description | default('No description provided', true) }}<br>
-- Link: {{ news_item.link | default('No link available', true) }}<br>
-- Published: {{ news_item.published | default('Not available', true) }}<br>
+{% if report_item.get('news_item_aggregates') | default([], true) | length > 0 %}
+{% for news_item in report_item.get('news_item_aggregates') %}
+### NEWS ITEM: {{  news_item.get('title') }}<br>
+- Published: {{ news_item.get('news_items')[0].get('news_item_data').get('published') | default('Not available', true) }}<br><br>
+- Link: {{ news_item.get('news_items')[0].get('news_item_data').get('link') | default('No link available', true) }}<br>
+- Description:<br> {{ news_item.get('description') | default('No description provided', true) }}<br>
 {% endfor %}
 {% else %}
-### No news item aggregates found.<br>
+### No news item aggregates related to the missing lunch found.<br>
 {% endif %}<br>
 {% endif %}
 {% endfor %}<br><br>
