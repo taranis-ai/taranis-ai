@@ -6,9 +6,10 @@ from sqlalchemy.sql.expression import cast
 
 from core.managers.db_manager import db
 from core.managers.log_manager import logger
-from core.model.acl_entry import ACLEntry, ItemType
+from core.model.role_based_access import RoleBasedAccess, ItemType
 from core.model.report_item import ReportItem
 from core.model.base_model import BaseModel
+from core.service.role_based_access import RoleBasedAceessService, RBACQuery
 
 
 class Product(BaseModel):
@@ -43,28 +44,7 @@ class Product(BaseModel):
     def get_detail_json(cls, product_id):
         return product.to_dict() if (product := cls.get(product_id)) else None
 
-    @classmethod
-    def get_by_filter(cls, filter, user):
-        query = (
-            db.session.query(
-                Product,
-                func.count().filter(ACLEntry.id is not None).label("acls"),
-                func.count().filter(ACLEntry.access).label("access"),
-                func.count().filter(ACLEntry.modify).label("modify"),
-            )
-            .distinct()
-            .group_by(Product.id)
-        )
-
-        query = query.outerjoin(
-            ACLEntry,
-            and_(
-                cast(Product.product_type_id, SQLString) == ACLEntry.item_id,
-                ACLEntry.item_type == ItemType.PRODUCT_TYPE,
-            ),
-        )
-        query = ACLEntry.apply_query(query, user, True, False, False)
-
+    def add_filter_to_query(self, query, filter: dict):
         search = filter.get("search")
         if search and search != "":
             query = query.filter(
@@ -92,6 +72,16 @@ class Product(BaseModel):
 
             elif filter["sort"] == "DATE_ASC":
                 query = query.order_by(db.asc(Product.created))
+
+        return query
+
+    @classmethod
+    def get_by_filter(cls, filter, user):
+        query = cls.query.distinct().group_by(Product.id)
+        query = cls.add_filter_to_query(query, filter)
+
+        rbac = RBACQuery(user, ItemType.PRODUCT)
+        query = RoleBasedAceessService.filter_query_with_acl(query, rbac)
 
         offset = filter.get("offset", 0)
         limit = filter.get("limit", 20)

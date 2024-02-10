@@ -12,10 +12,11 @@ from core.model.base_model import BaseModel
 from core.model.news_item import NewsItemAggregate
 from core.model.report_item_type import AttributeGroupItem
 from core.model.report_item_type import ReportItemType
-from core.model.acl_entry import ACLEntry
+from core.model.role_based_access import ACLEntry, ACCESS_TYPE
 from core.model.user import User
-from core.model.acl_entry import ItemType
+from core.model.role_based_access import ItemType
 from core.model.attribute import AttributeType
+from core.service.role_based_access import ACLEntryService
 
 
 class ReportItemAttribute(BaseModel):
@@ -189,7 +190,7 @@ class ReportItem(BaseModel):
     def add(cls, report_item_data, user):
         report_item = cls.from_dict(report_item_data)
 
-        if not ReportItemType.allowed_with_acl(report_item.report_item_type_id, user, False, False, True):
+        if not ReportItemType.allowed_with_acl(report_item.report_item_type_id, user, ACCESS_TYPE.MODIFY):
             return report_item, 403
 
         report_item.user_id = user.id
@@ -212,7 +213,7 @@ class ReportItem(BaseModel):
                 self.attributes.append(ReportItemAttribute(attribute_group_item_id=attribute_group_item.id, value=""))
 
     @classmethod
-    def allowed_with_acl(cls, report_item_id, user, see, access, modify):
+    def allowed_with_acl(cls, report_item_id, user, access_type: ACCESS_TYPE):
         query = db.session.query(ReportItem.id).distinct().group_by(ReportItem.id).filter(ReportItem.id == report_item_id)
 
         query = query.outerjoin(
@@ -229,7 +230,7 @@ class ReportItem(BaseModel):
             ),
         )
 
-        query = ACLEntry.apply_query(query, user, see, access, modify)
+        query = ACLEntryService.apply_query(query, user, access_type)
 
         return query.scalar() is not None
 
@@ -311,7 +312,7 @@ class ReportItem(BaseModel):
         if not report_item:
             return None, {"error": "Report Item not Found"}, 404
 
-        if not ReportItemType.allowed_with_acl(report_item.report_item_type_id, user, False, False, True):
+        if not ReportItemType.allowed_with_acl(report_item.report_item_type_id, user, ACCESS_TYPE.MODIFY):
             return None, {"error": f"User {user.id} is not allowed to update Report {report_item.id}"}, 403
 
         return report_item, {}, 200

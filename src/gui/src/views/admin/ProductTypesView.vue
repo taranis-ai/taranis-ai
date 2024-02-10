@@ -112,7 +112,13 @@ export default {
       ]
     })
 
-    const updateData = () => {
+    const editTitle = computed(() => {
+      return edit.value
+        ? `Edit Product Type: ${formData.value['title']}`
+        : 'Add Product Type'
+    })
+
+    function updateData() {
       configStore.loadProductTypes().then(() => {
         mainStore.itemCountTotal = product_types.value.total_count
         mainStore.itemCountFiltered = product_types.value.length
@@ -132,32 +138,25 @@ export default {
       })
     }
 
-    const addItem = () => {
+    function addItem() {
       formData.value = {}
       edit.value = false
       showForm.value = true
     }
 
-    const editItem = (item) => {
+    function editItem(item) {
       formData.value = item
       getProductType(item.id).then((response) => {
-        console.debug('REPORT TYPES', response.data.report_types)
         formData.value['report_types'] = response.data.report_types
         templateData.value =
-          response.data.template === '' ? atob(response.data.template) : ''
+          response.data.template !== '' ? atob(response.data.template) : ''
         edit.value = true
         showForm.value = true
       })
     }
 
-    const editTitle = computed(() => {
-      return edit.value
-        ? `Edit Product Type: ${formData.value['title']}`
-        : 'Add Product Type'
-    })
-
-    const handleSubmit = (submittedData) => {
-      delete submittedData.tag
+    function handleSubmit(submittedData) {
+      submittedData.template = btoa(templateData.value)
       console.debug('submittedData', submittedData)
       if (edit.value) {
         updateItem(submittedData)
@@ -167,7 +166,7 @@ export default {
       showForm.value = false
     }
 
-    const createItem = (item) => {
+    function createItem(item) {
       createProductType(item)
         .then(() => {
           notifySuccess(`Successfully created ${item.name}`)
@@ -178,7 +177,7 @@ export default {
         })
     }
 
-    const deleteItem = (item) => {
+    function deleteItem(item) {
       showForm.value = false
       deleteProductType(item)
         .then((response) => {
@@ -190,7 +189,7 @@ export default {
         })
     }
 
-    const updateItem = (item) => {
+    function updateItem(item) {
       updateProductType(item)
         .then((response) => {
           notifySuccess(response.data.message)

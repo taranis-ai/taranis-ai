@@ -3,9 +3,6 @@
     <span v-if="edit" class="caption">ID: {{ acl.id }}</span>
     <v-form id="form" ref="form" validate-on="submit" @submit.prevent="add">
       <v-row no-gutters>
-        <v-btn type="submit" color="success" class="mr-4"> Submit </v-btn>
-      </v-row>
-      <v-row no-gutters>
         <v-col cols="12" class="pa-1">
           <v-text-field
             v-model="acl.name"
@@ -20,7 +17,6 @@
             v-model="acl.description"
             :label="$t('acl.description')"
             name="description"
-            :rules="[rules.required]"
           />
         </v-col>
         <v-col cols="6" class="pa-1">
@@ -84,9 +80,7 @@
             class="elevation-1"
           >
             <template #top>
-              <v-toolbar flat color="white">
-                <v-toolbar-title>{{ $t('acl.users') }}</v-toolbar-title>
-              </v-toolbar>
+              <h2 class="ml-4 mb-2">{{ $t('acl.users') }}</h2>
             </template>
           </v-data-table>
         </v-col>
@@ -100,12 +94,13 @@
             class="elevation-1"
           >
             <template #top>
-              <v-toolbar flat color="white">
-                <v-toolbar-title>{{ $t('acl.roles') }}</v-toolbar-title>
-              </v-toolbar>
+              <h2 class="ml-4 mb-2">{{ $t('acl.roles') }}</h2>
             </template>
           </v-data-table>
         </v-col>
+      </v-row>
+      <v-row no-gutters>
+        <v-btn type="submit" block color="success" class="mt-5"> Submit </v-btn>
       </v-row>
     </v-form>
   </v-container>
@@ -157,7 +152,7 @@ export default {
     ]
 
     const types = [
-      { id: 'DELEGATION', title: 'Delegation' },
+      { id: 'NEWS_ITEM', title: 'News Item'},
       { id: 'OSINT_SOURCE', title: 'OSINT Source' },
       { id: 'OSINT_SOURCE_GROUP', title: 'OSINT Source Group' },
       { id: 'PRODUCT_TYPE', title: 'Product Type' },

@@ -8,8 +8,9 @@ from sqlalchemy.sql.expression import cast
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
-from core.model.acl_entry import ACLEntry, ItemType
+from core.model.acl_entry import ACLEntry, ItemType, ACCESS_TYPE
 from core.managers.log_manager import logger
+from core.service.acl_entry import ACLEntryService
 
 
 class WordListUsage(IntEnum):
@@ -70,7 +71,7 @@ class WordList(BaseModel):
         return usage < (2 ** len(WordListUsage))
 
     @classmethod
-    def allowed_with_acl(cls, word_list_id, user, see, access, modify):
+    def allowed_with_acl(cls, word_list_id, user, access_type: ACCESS_TYPE) -> bool:
         query = db.session.query(WordList.id).distinct().group_by(WordList.id).filter(WordList.id == word_list_id)
 
         query = query.outerjoin(
@@ -81,7 +82,7 @@ class WordList(BaseModel):
             ),
         )
 
-        query = ACLEntry.apply_query(query, user, see, access, modify)
+        query = ACLEntryService.apply_query(query, user, access_type)
 
         return query.scalar() is not None
 

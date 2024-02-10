@@ -1,4 +1,5 @@
-from sqlalchemy import or_
+from sqlalchemy import or_, Column, String
+from sqlalchemy.orm import Mapped
 from typing import Any
 
 from core.managers.db_manager import db
@@ -8,9 +9,9 @@ from core.model.permission import Permission
 
 class Role(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
-    name: Any = db.Column(db.String(64), unique=True, nullable=False)
-    description: Any = db.Column(db.String())
-    permissions = db.relationship(Permission, secondary="role_permission", back_populates="roles")
+    name: Column[String] = db.Column(db.String(64), unique=True, nullable=False)
+    description: Column[String] = db.Column(db.String())
+    permissions: Mapped[list[Permission]] = db.relationship(Permission, secondary="role_permission", back_populates="roles")  # type: ignore
 
     def __init__(self, name, description, permissions=None, id=None):
         self.id = id

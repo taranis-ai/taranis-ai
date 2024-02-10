@@ -8,6 +8,7 @@ from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.model.acl_entry import ACLEntry, ItemType
 from core.model.attribute import Attribute
+from core.service.acl_entry import ACLEntryService
 
 
 class AttributeGroupItem(BaseModel):
@@ -169,7 +170,7 @@ class ReportItemType(BaseModel):
         return cls.query.filter_by(title=title).first()
 
     @classmethod
-    def allowed_with_acl(cls, report_item_type_id, user, see, access, modify):
+    def allowed_with_acl(cls, report_item_type_id, user, access_type):
         query = db.session.query(ReportItemType.id).distinct().group_by(ReportItemType.id).filter(ReportItemType.id == report_item_type_id)
 
         query = query.outerjoin(
@@ -180,7 +181,7 @@ class ReportItemType(BaseModel):
             ),
         )
 
-        query = ACLEntry.apply_query(query, user, see, access, modify)
+        query = ACLEntryService.apply_query(query, user, access_type)
 
         return query.scalar() is not None
 

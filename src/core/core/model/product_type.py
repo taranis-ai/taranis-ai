@@ -14,6 +14,7 @@ from core.model.parameter_value import ParameterValue
 from core.model.report_item_type import ReportItemType
 from core.model.worker import PRESENTER_TYPES, Worker
 from core.managers.data_manager import get_presenter_template_path, get_presenter_templates
+from core.service.acl_entry import ACLEntryService
 
 
 class ProductType(BaseModel):
@@ -38,7 +39,7 @@ class ProductType(BaseModel):
         return cls.query.order_by(db.asc(ProductType.title)).all()
 
     @classmethod
-    def allowed_with_acl(cls, product_id, user, see, access, modify):
+    def allowed_with_acl(cls, product_id, user, access_type):
         product = db.session.query(Product).filter_by(id=product_id).first()
         if not product:
             return False
@@ -53,7 +54,7 @@ class ProductType(BaseModel):
             ),
         )
 
-        query = ACLEntry.apply_query(query, user, see, access, modify)
+        query = ACLEntryService.apply_query(query, user, access_type)
 
         return query.scalar() is not None
 
