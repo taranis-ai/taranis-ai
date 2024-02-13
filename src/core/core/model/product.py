@@ -1,12 +1,12 @@
 from datetime import datetime, timedelta
 from typing import Any
 from base64 import b64encode, b64decode
-from sqlalchemy import orm, func, or_, and_, String as SQLString
-from sqlalchemy.sql.expression import cast
+from sqlalchemy import or_
+from sqlalchemy.orm import deferred, Mapped
 
 from core.managers.db_manager import db
 from core.managers.log_manager import logger
-from core.model.role_based_access import RoleBasedAccess, ItemType
+from core.model.role_based_access import ItemType
 from core.model.report_item import ReportItem
 from core.model.base_model import BaseModel
 from core.service.role_based_access import RoleBasedAceessService, RBACQuery
@@ -25,9 +25,11 @@ class Product(BaseModel):
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"))
     user = db.relationship("User")
 
-    report_items = db.relationship("ReportItem", secondary="product_report_item", cascade="all, delete")
+    report_items: Mapped[list["ReportItem"]] = db.relationship(
+        "ReportItem", secondary="product_report_item", cascade="all, delete"
+    )  # type: ignore
     last_rendered = db.Column(db.DateTime)
-    render_result = orm.deferred(db.Column(db.Text))
+    render_result = deferred(db.Column(db.Text))
 
     def __init__(self, title, product_type_id, description="", report_items=None, id=None):
         self.id = id
@@ -44,7 +46,8 @@ class Product(BaseModel):
     def get_detail_json(cls, product_id):
         return product.to_dict() if (product := cls.get(product_id)) else None
 
-    def add_filter_to_query(self, query, filter: dict):
+    @classmethod
+    def add_filter_to_query(cls, query, filter: dict):
         search = filter.get("search")
         if search and search != "":
             query = query.filter(
@@ -90,15 +93,8 @@ class Product(BaseModel):
     @classmethod
     def get_json(cls, filter, user):
         results, count = cls.get_by_filter(filter, user)
-        products = []
-        for result in results:
-            product = result.Product
-            product.see = True
-            product.access = result.access > 0 or result.acls == 0
-            product.modify = result.modify > 0 or result.acls == 0
-            products.append(product)
 
-        items = [product.to_dict() for product in products]
+        items = [product.to_dict() for product in results]
         return {"total_count": count, "items": items}
 
     def to_dict(self) -> dict[str, Any]:
@@ -143,7 +139,7 @@ class Product(BaseModel):
                 if mime_type == "application/pdf":
                     blob = product.render_result
                 else:
-                    blob = b64decode(product.render_result).decode("utf-8")
+                    blob = b64decode(product.render_result).decode("utf-8")  # type: ignore
                 return {"mime_type": product.product_type.get_mimetype(), "blob": blob}
         return None
 

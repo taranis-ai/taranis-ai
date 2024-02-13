@@ -1,16 +1,14 @@
 import json
 import csv
-import sqlalchemy
 from typing import Any
 from enum import IntEnum
-from sqlalchemy import or_, and_
-from sqlalchemy.sql.expression import cast
+from sqlalchemy import or_, Column, String
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
-from core.model.acl_entry import ACLEntry, ItemType, ACCESS_TYPE
+from core.model.role_based_access import RoleBasedAccess, ItemType
 from core.managers.log_manager import logger
-from core.service.acl_entry import ACLEntryService
+from core.service.role_based_access import RBACQuery, RoleBasedAceessService
 
 
 class WordListUsage(IntEnum):
@@ -21,8 +19,8 @@ class WordListUsage(IntEnum):
 
 class WordList(BaseModel):
     id: Any = db.Column(db.Integer, primary_key=True)
-    name: Any = db.Column(db.String(), nullable=False)
-    description: Any = db.Column(db.String(), default=None)
+    name: Column[String] = db.Column(db.String(), nullable=False)
+    description: Column[String] = db.Column(db.String(), default=None)
     usage: Any = db.Column(db.Integer, default=0)
     link: Any = db.Column(db.String(), nullable=True, default=None)
     entries: Any = db.relationship("WordListEntry", cascade="all, delete")
@@ -30,7 +28,8 @@ class WordList(BaseModel):
     def __init__(self, name, description=None, usage=0, link=None, entries=None, id=None):
         self.id = id
         self.name = name
-        self.description = description
+        if description:
+            self.description = description
         self.update_usage(usage)
         self.link = link
         self.entries = WordListEntry.load_multiple(entries) if entries else []
@@ -70,21 +69,13 @@ class WordList(BaseModel):
             return False
         return usage < (2 ** len(WordListUsage))
 
-    @classmethod
-    def allowed_with_acl(cls, word_list_id, user, access_type: ACCESS_TYPE) -> bool:
-        query = db.session.query(WordList.id).distinct().group_by(WordList.id).filter(WordList.id == word_list_id)
+    def allowed_with_acl(self, user, require_write_access) -> bool:
+        if not RoleBasedAccess.is_enabled() or not user:
+            return True
 
-        query = query.outerjoin(
-            ACLEntry,
-            and_(
-                cast(WordList.id, sqlalchemy.String) == ACLEntry.item_id,
-                ACLEntry.item_type == ItemType.WORD_LIST,
-            ),
-        )
+        query = RBACQuery(user=user, resource_id=self.group_id, resource_type=ItemType.WORD_LIST, require_write_access=require_write_access)
 
-        query = ACLEntryService.apply_query(query, user, access_type)
-
-        return query.scalar() is not None
+        return RoleBasedAceessService.user_has_access_to_resource(query)
 
     @classmethod
     def get_all(cls):
@@ -98,15 +89,9 @@ class WordList(BaseModel):
     def get_by_filter(cls, filter_data, user=None, acl_check=False):
         query = cls.query.distinct().group_by(WordList.id)
 
-        if acl_check and user:
-            query = query.outerjoin(
-                ACLEntry,
-                and_(
-                    cast(WordList.id, sqlalchemy.String) == ACLEntry.item_id,
-                    ACLEntry.item_type == ItemType.WORD_LIST,
-                ),
-            )
-            query = ACLEntry.apply_query(query, user, True, False, False)
+        if acl_check:
+            rbac = RBACQuery(user=user, resource_type=ItemType.WORD_LIST)
+            query = RoleBasedAceessService.filter_query_with_acl(query, rbac)
 
         if search := filter_data.get("search"):
             search_string = f"%{search}%"
@@ -238,21 +223,23 @@ class WordList(BaseModel):
 
 class WordListEntry(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
-    value = db.Column(db.String(), nullable=False)
-    category = db.Column(db.String(), nullable=True)
-    description = db.Column(db.String(), nullable=False)
+    value: Any = db.Column(db.String(), nullable=False)
+    category: Any = db.Column(db.String(), nullable=True)
+    description: Any = db.Column(db.String(), nullable=True)
 
     word_list_id = db.Column(db.Integer, db.ForeignKey("word_list.id", ondelete="CASCADE"))
 
-    def __init__(self, value, category="Uncategorized", description=""):
-        self.id = None
+    def __init__(self, value, category="Uncategorized", description=None, id=None):
+        self.id = id
         self.value = value
         self.category = category
         self.description = description
 
     @classmethod
     def identical(cls, value, word_list_id):
-        return db.session.query(db.exists().where(WordListEntry.value == value).where(WordListEntry.word_list_id == word_list_id)).scalar()
+        return db.session.query(
+            db.exists().where(WordListEntry.value == value).where(WordListEntry.word_list_id == word_list_id)
+        ).scalar()  # type: ignore
 
     @classmethod
     def delete_entries(cls, id, value):

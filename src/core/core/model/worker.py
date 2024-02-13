@@ -78,11 +78,11 @@ class WORKER_CATEGORY(StrEnum):
 
 class Worker(BaseModel):
     id = db.Column(db.String(64), primary_key=True)
-    name = db.Column(db.String(), nullable=False)
-    description = db.Column(db.String())
-    type = db.Column(db.Enum(WORKER_TYPES), nullable=False)
-    category = db.Column(db.Enum(WORKER_CATEGORY), nullable=False)
-    parameters = db.relationship("ParameterValue", secondary="worker_parameter_value", cascade="all")
+    name: Any = db.Column(db.String(), nullable=False)
+    description: Any = db.Column(db.String())
+    type: Any = db.Column(db.Enum(WORKER_TYPES), nullable=False)
+    category: Any = db.Column(db.Enum(WORKER_CATEGORY), nullable=False)
+    parameters: Any = db.relationship("ParameterValue", secondary="worker_parameter_value", cascade="all")
 
     def __init__(self, name, description, type, parameters):
         self.id = str(uuid.uuid4())

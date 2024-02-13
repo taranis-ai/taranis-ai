@@ -43,47 +43,14 @@
       <v-row no-gutters>
         <v-col cols="12" class="d-flex">
           <v-checkbox
-            v-model="acl.see"
+            v-model="acl.writeable"
             class="pr-8"
-            :label="$t('acl.see')"
-            name="see"
-          />
-          <v-checkbox
-            v-model="acl.access"
-            class="pr-8"
-            :label="$t('acl.access')"
-            name="access"
-          />
-          <v-checkbox
-            v-model="acl.modify"
-            class="pr-8"
-            :label="$t('acl.modify')"
-            name="modify"
+            :label="$t('acl.writeable')"
+            name="writeable"
           />
         </v-col>
       </v-row>
       <v-row no-gutters>
-        <v-col cols="12">
-          <v-checkbox
-            v-model="acl.everyone"
-            :label="$t('acl.everyone')"
-            name="everyone"
-          />
-        </v-col>
-        <v-col cols="12">
-          <v-data-table
-            v-model="selected_users"
-            :headers="headers_user"
-            :items="users"
-            item-key="id"
-            :show-select="true"
-            class="elevation-1"
-          >
-            <template #top>
-              <h2 class="ml-4 mb-2">{{ $t('acl.users') }}</h2>
-            </template>
-          </v-data-table>
-        </v-col>
         <v-col cols="12" class="pt-2">
           <v-data-table
             v-model="selected_roles"
@@ -125,12 +92,10 @@ export default {
     }
   },
   setup(props) {
-    const store = useConfigStore()
-    const { loadUsers, loadRoles } = store
+    const configStore = useConfigStore()
     const form = ref(null)
     const acl = ref(props.aclProp)
-    const roles = computed(() => store.roles.items)
-    const users = computed(() => store.users.items)
+    const roles = computed(() => configStore.roles.items)
     const rules = {
       required: (v) => Boolean(v) || 'Required.'
     }
@@ -161,7 +126,6 @@ export default {
       { id: 'WORD_LIST', title: 'Word List' }
     ]
 
-    const selected_users = []
     const selected_roles = []
 
     const add = async () => {
@@ -170,7 +134,6 @@ export default {
         return
       }
 
-      acl.value.users = selected_users.map((user) => ({ id: user.id }))
       acl.value.roles = selected_roles.map((role) => ({ id: role.id }))
 
       if (props.edit) {
@@ -193,8 +156,7 @@ export default {
     }
 
     onMounted(() => {
-      loadUsers()
-      loadRoles()
+      configStore.loadRoles()
     })
 
     return {
@@ -204,10 +166,8 @@ export default {
       headers_user,
       headers_role,
       selected_roles,
-      selected_users,
       types,
       roles,
-      users,
       add
     }
   }

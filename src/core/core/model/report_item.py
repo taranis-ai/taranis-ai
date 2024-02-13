@@ -1,22 +1,20 @@
 from datetime import datetime, timedelta
 
 import uuid as uuid_generator
-from sqlalchemy import orm, or_, text, and_
-from sqlalchemy.sql.expression import cast, false
+from sqlalchemy import orm, or_, text
+from sqlalchemy.sql.expression import false
 
 from typing import Any, Optional
-import sqlalchemy
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.model.news_item import NewsItemAggregate
 from core.model.report_item_type import AttributeGroupItem
 from core.model.report_item_type import ReportItemType
-from core.model.role_based_access import ACLEntry, ACCESS_TYPE
+from core.model.role_based_access import RoleBasedAccess, ItemType
 from core.model.user import User
-from core.model.role_based_access import ItemType
 from core.model.attribute import AttributeType
-from core.service.role_based_access import ACLEntryService
+from core.service.role_based_access import RBACQuery, RoleBasedAceessService
 
 
 class ReportItemAttribute(BaseModel):
@@ -104,15 +102,15 @@ class ReportItem(BaseModel):
     report_item_type_id: Any = db.Column(db.Integer, db.ForeignKey("report_item_type.id"), nullable=True)
     report_item_type: Any = db.relationship("ReportItemType")
 
-    news_item_aggregates = db.relationship("NewsItemAggregate", secondary="report_item_news_item_aggregate")
+    news_item_aggregates: Any = db.relationship("NewsItemAggregate", secondary="report_item_news_item_aggregate")
 
-    attributes = db.relationship(
+    attributes: Any = db.relationship(
         "ReportItemAttribute",
         back_populates="report_item",
         cascade="all, delete-orphan",
     )
 
-    report_item_cpes = db.relationship("ReportItemCpe", cascade="all, delete-orphan", back_populates="report_item")
+    report_item_cpes: Any = db.relationship("ReportItemCpe", cascade="all, delete-orphan", back_populates="report_item")
 
     def __init__(
         self,
@@ -190,7 +188,7 @@ class ReportItem(BaseModel):
     def add(cls, report_item_data, user):
         report_item = cls.from_dict(report_item_data)
 
-        if not ReportItemType.allowed_with_acl(report_item.report_item_type_id, user, ACCESS_TYPE.MODIFY):
+        if not report_item.report_item_type.allowed_with_acl(user, True):
             return report_item, 403
 
         report_item.user_id = user.id
@@ -212,41 +210,21 @@ class ReportItem(BaseModel):
             for attribute_group_item in attribute_group.attribute_group_items:
                 self.attributes.append(ReportItemAttribute(attribute_group_item_id=attribute_group_item.id, value=""))
 
-    @classmethod
-    def allowed_with_acl(cls, report_item_id, user, access_type: ACCESS_TYPE):
-        query = db.session.query(ReportItem.id).distinct().group_by(ReportItem.id).filter(ReportItem.id == report_item_id)
+    def allowed_with_acl(self, user, require_write_access) -> bool:
+        if not RoleBasedAccess.is_enabled() or not user:
+            return True
 
-        query = query.outerjoin(
-            ACLEntry,
-            or_(
-                and_(
-                    ReportItem.uuid == ACLEntry.item_id,
-                    ACLEntry.item_type == ItemType.REPORT_ITEM,
-                ),
-                and_(
-                    cast(ReportItem.report_item_type_id, sqlalchemy.String) == ACLEntry.item_id,
-                    ACLEntry.item_type == ItemType.REPORT_ITEM_TYPE,
-                ),
-            ),
-        )
+        query = RBACQuery(user=user, resource_id=self.group_id, resource_type=ItemType.REPORT_ITEM, require_write_access=require_write_access)
 
-        query = ACLEntryService.apply_query(query, user, access_type)
-
-        return query.scalar() is not None
+        return RoleBasedAceessService.user_has_access_to_resource(query)
 
     @classmethod
     def get_by_filter(cls, filter: dict, user, acl_check: bool):
         query = cls.query
 
         if acl_check:
-            query = query.outerjoin(
-                ACLEntry,
-                and_(
-                    ReportItem.uuid == ACLEntry.item_id,
-                    ACLEntry.item_type == ItemType.REPORT_ITEM,
-                ),
-            )
-            query = ACLEntry.apply_query(query, user, True, False, False)
+            rbac = RBACQuery(user=user, resource_type=ItemType.REPORT_ITEM)
+            query = RoleBasedAceessService.filter_query_with_acl(query, rbac)
 
         if search := filter.get("search"):
             query = query.join(ReportItemAttribute, ReportItem.id == ReportItemAttribute.report_item_id).filter(
@@ -312,7 +290,7 @@ class ReportItem(BaseModel):
         if not report_item:
             return None, {"error": "Report Item not Found"}, 404
 
-        if not ReportItemType.allowed_with_acl(report_item.report_item_type_id, user, ACCESS_TYPE.MODIFY):
+        if not report_item.report_item_type.allowed_with_acl(user, True):
             return None, {"error": f"User {user.id} is not allowed to update Report {report_item.id}"}, 403
 
         return report_item, {}, 200

@@ -353,14 +353,9 @@ class TestAcls(BaseTest):
         response = self.assert_get_ok(client, uri=f"acls?search={cleanup_acls['name']}", auth_header=auth_header)
         assert response.json["items"][0]["name"] == cleanup_acls["name"]
         assert response.json["items"][0]["description"] == "new description"
-        assert response.json["items"][0]["item_type"] == 3  # Number 3 represents an ENUM type
+        assert response.json["items"][0]["item_type"] == cleanup_acls["item_type"]
         assert response.json["items"][0]["item_id"] == cleanup_acls["item_id"]
-        assert response.json["items"][0]["everyone"] == cleanup_acls["everyone"]
-        assert response.json["items"][0]["see"] == cleanup_acls["see"]
-        assert response.json["items"][0]["access"] == cleanup_acls["access"]
-        assert response.json["items"][0]["modify"] == cleanup_acls["modify"]
         assert response.json["items"][0]["roles"] == cleanup_acls["roles"]
-        assert response.json["items"][0]["users"] == cleanup_acls["users"]
 
     def test_delete_acl(self, client, auth_header, cleanup_acls):
         acl_id = cleanup_acls["id"]

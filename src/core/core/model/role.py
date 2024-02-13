@@ -13,10 +13,11 @@ class Role(BaseModel):
     description: Column[String] = db.Column(db.String())
     permissions: Mapped[list[Permission]] = db.relationship(Permission, secondary="role_permission", back_populates="roles")  # type: ignore
 
-    def __init__(self, name, description, permissions=None, id=None):
+    def __init__(self, name, description=None, permissions=None, id=None):
         self.id = id
         self.name = name
-        self.description = description
+        if description:
+            self.description = description
         if permissions:
             for permission_id in permissions:
                 if permission := Permission.get(permission_id):

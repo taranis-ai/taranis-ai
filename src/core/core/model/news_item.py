@@ -277,7 +277,7 @@ class NewsItem(BaseModel):
         return query
 
     def allowed_with_acl(self, user: User, require_write_access: bool) -> bool:
-        if not RoleBasedAccess.is_enabled() or not user:
+        if not RoleBasedAccess.is_enabled():
             return True
 
         query = RBACQuery(user=user, resource_id=self.item_id, resource_type=ItemType.NEWS_ITEM, require_write_access=require_write_access)
