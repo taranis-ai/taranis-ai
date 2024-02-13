@@ -1,0 +1,43 @@
+<rss xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0">
+<channel>
+<title>CERT.at - Blog</title>
+<link>https://cert.at</link>
+<description>This feed contains the blog from www.CERT.at</description>
+ <item>
+    <title>The AI Regulation Framework Initiative</title>
+    <link>https://ai-policy.eu/blog/2024/1/ai-regulation-framework</link>
+    <description>
+        <p class="block">The EU is spearheading the "AI Regulation Framework" under the Horizon Europe Programme, aimed at ethical AI development.</p>
+        <p class="block">This framework emphasizes the need for ethical guidelines and AI governance, encouraging international cooperation.</p>
+    </description>
+    <pubDate>Mon, 15 Jan 2024 14:30:22 GMT+0100</pubDate>
+    <guid>https://ai-policy.eu/blog/2024/1/ai-regulation-framework</guid>
+    <dc:creator>AI-Policy.eu</dc:creator>
+    <dc:date>2024-01-15T14:30:22Z</dc:date>
+</item>
+<item>
+    <title>Green Tech Innovations in Energy Sector</title>
+    <link>https://greentechnews.org/blog/2024/2/green-tech-energy-sector</link>
+    <description>
+        <p class="block">Launching the "Green Tech Initiative" for sustainable energy, focusing on renewable resources and reducing carbon footprints.</p>
+        <p class="block">This initiative seeks to promote green technology innovations across Europe, targeting zero emissions by 2050.</p>
+    </description>
+    <pubDate>Wed, 07 Feb 2024 09:00:00 GMT+0100</pubDate>
+    <guid>https://greentechnews.org/blog/2024/2/green-tech-energy-sector</guid>
+    <dc:creator>GreenTechNews.org</dc:creator>
+    <dc:date>2024-02-07T09:00:00Z</dc:date>
+</item>
+<item>
+    <title>Advancements in European Space Exploration</title>
+    <link>https://space-eu.org/blog/2024/3/european-space-exploration</link>
+    <description>
+        <p class="block">The EU unveils new projects under the "European Space Strategy" for enhanced exploration and commercial opportunities in outer space.</p>
+        <p class="block">This strategy aims to position Europe as a leading force in space exploration and satellite technology.</p>
+    </description>
+    <pubDate>Thu, 22 Mar 2024 16:45:33 GMT+0100</pubDate>
+    <guid>https://space-eu.org/blog/2024/3/european-space-exploration</guid>
+    <dc:creator>Space-EU.org</dc:creator>
+    <dc:date>2024-03-22T16:45:33Z</dc:date>
+</item>
+</channel>
+</rss>

@@ -413,4 +413,16 @@ source_exclude_multiple_list = {
 
 web_collector_url = "https://raw.githubusercontent.com/taranis-ai/taranis-ai/master/src/worker/worker/tests/testweb.html"
 web_collector_result_content = "In an era where digital security is paramount, the role of National Computer Emergency Response Teams (CERTs) has never been more critical."
+web_collector_fav_icon_url = "https://raw.githubusercontent.com/favicon.ico"
+web_collector_source_data = {"id": 1, "parameters": {"WEB_URL": f"{web_collector_url}"}}
+web_collector_source_xpath = "/html/body/div/div[3]"
 web_collector_result_title = "National CERT Importance"
+
+rss_collector_url = "https://rss.example.com/en/category/security-news/feed/"
+rss_collector_source_data = {"id": 1, "parameters": {"FEED_URL": f"{rss_collector_url}"}}
+rss_collector_fav_icon_url = "https://rss.example.com/favicon.ico"
+rss_collector_targets = [
+    "https://ai-policy.eu/blog/2024/1/ai-regulation-framework",
+    "https://greentechnews.org/blog/2024/2/green-tech-energy-sector",
+    "https://space-eu.org/blog/2024/3/european-space-exploration",
+]
