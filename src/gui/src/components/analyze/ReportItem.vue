@@ -193,7 +193,7 @@ export default {
     const saveReportItem = async () => {
       const isValid = await form.value.validate()
       if (!isValid) {
-        console.debug('Invalid')
+        notifyFailure('Please correct the errors before saving.')
         return
       }
       if (props.edit) {
