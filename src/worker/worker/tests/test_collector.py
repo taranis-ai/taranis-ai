@@ -34,9 +34,79 @@ def collectors_mock(osint_source_update_mock, news_item_upload_mock):
     pass
 
 
+def file_loader(filename):
+    with open(filename, "r") as f:
+        return f.read()
+
+
+@pytest.fixture
+def rss_collector_mock(requests_mock, collectors_mock):
+    from testdata import rss_collector_url, rss_collector_fav_icon_url, rss_collector_targets
+
+    requests_mock.get(rss_collector_targets[0], json={})
+    requests_mock.get(rss_collector_targets[1], json={})
+    requests_mock.get(rss_collector_targets[2], json={})
+    requests_mock.get(rss_collector_fav_icon_url, json={})
+    requests_mock.get(rss_collector_url, text=file_loader("test_rss_feed.xml"))
+
+
+def test_rss_collector(rss_collector_mock, rss_collector):
+    from testdata import rss_collector_source_data
+
+    result = rss_collector.collect(rss_collector_source_data)
+
+    assert result is None
+
+
+@pytest.fixture
+def simple_web_collector_mock(requests_mock, collectors_mock):
+    from testdata import web_collector_url, web_collector_fav_icon_url
+
+    requests_mock.head(web_collector_url, json={})
+    requests_mock.get(web_collector_fav_icon_url, json={})
+    requests_mock.get(web_collector_url, text=file_loader("testweb.html"))
+
+
+def test_simple_web_collector_basic(simple_web_collector_mock, simple_web_collector):
+    from testdata import web_collector_source_data
+
+    result = simple_web_collector.collect(web_collector_source_data)
+
+    assert result is None
+
+
+def test_simple_web_collector_xpath(simple_web_collector_mock, simple_web_collector):
+    from testdata import web_collector_source_data, web_collector_source_xpath
+
+    web_collector_source_data["parameters"]["XPATH"] = web_collector_source_xpath
+    result = simple_web_collector.collect(web_collector_source_data)
+
+    assert result is None
+
+
+def test_rt_collector_collect(rt_mock, rt_collector):
+    import rt_testdata
+
+    result = rt_collector.collect(rt_testdata.rt_collector_source_data)
+
+    assert result is None
+
+
+def test_rt_collector_ticket_transaction(rt_mock, rt_collector):
+    import rt_testdata
+
+    rt_collector.setup_collector(rt_testdata.rt_collector_source_data)
+
+    result = rt_collector.get_ticket_transaction(1)
+
+    assert result == "1"
+
+
 @pytest.fixture
 def rt_mock(requests_mock, collectors_mock):
     import rt_testdata
+
+    requests_mock = requests_mock.Mocker()
 
     requests_mock.get(rt_testdata.rt_ticket_search_url, json=rt_testdata.rt_ticket_search_result)
     requests_mock.get(rt_testdata.rt_ticket_url, json=rt_testdata.rt_ticket_1)
