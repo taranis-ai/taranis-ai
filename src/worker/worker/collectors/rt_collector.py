@@ -70,6 +70,7 @@ class RTCollector(BaseWebCollector):
 
     def check_attach_for_text(self, attachment_items) -> list:
         attachment_ids = [attachment.get("_url").rsplit("/", 1)[1] for attachment in attachment_items]
+        valid_text_attachments = []
         for id in attachment_ids:
             attachment = requests.get(f"{self.api_url}attachment/{id}", headers=self.headers)
             if not attachment or not attachment.ok:
@@ -77,11 +78,9 @@ class RTCollector(BaseWebCollector):
                 raise ValueError("No attachment returned")
             content_type = attachment.json().get("ContentType", "")
             if content_type.startswith("multipart") or content_type.startswith("text"):
-                continue
-            else:
-                attachment_ids.remove(id)
+                valid_text_attachments.append(id)
 
-        return attachment_ids
+        return valid_text_attachments
 
     def get_content_attachment_data(self, transaction: int) -> tuple[list, str, str]:
         ticket_transaction = requests.get(f"{self.api_url}transaction/{transaction}", headers=self.headers)
