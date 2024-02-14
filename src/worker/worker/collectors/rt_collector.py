@@ -169,8 +169,3 @@ class RTCollector(BaseWebCollector):
 
         self.publish(tickets, source)
         return None
-
-
-if __name__ == "__main__":
-    rt_collector = RTCollector()
-    rt_collector.collect({"id": 1, "parameters": {"BASE_URL": "http://localhost:8080", "RT_TOKEN": "1-14-eb1314501df7b5e1c38359fd70ce149f"}})
