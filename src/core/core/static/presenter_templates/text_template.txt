@@ -1,6 +1,12 @@
-{% macro traverse(data) %}
+{% macro traverse(data, ns=None) %}
+    {# Initialize namespace #}
+    {% if ns is none %}
+        {% set ns = namespace(item_list=[]) %}
+    {% endif %}
+
     {% if data is mapping %}
-        {% if 'report_item_type_id' in data%}
+        {% if 'report_item_type_id' in data %}
+        <br><br><br>
             {% if data.get('report_item_type_id') == 1 %}
             # OSINT REPORT
             {% elif data.get('report_item_type_id') == 2 %}
@@ -11,12 +17,21 @@
             # MISP REPORT
             {% endif %}
         {% endif %}
-        {# Handle nested dictionaries or lists #}
+
+        {# Handle omission of keys #}
+        {% if data.get('report_items') and data.get('report_items')[0].get('attributes').get('omission') %}
+            {% set omit_keys = data.get('report_items')[0].get('attributes').get('omission') %}
+            {% set ns.item_list = omit_keys.split(",") | map('trim') | map('lower') | list %}
+            omit_keys: {{ ns.item_list }}
+        {% endif %}
+
+        {# Handle nested dictionaries #}
         {% for key, value in data.items() %}
-            {% if value != "" %}
+            {# if value != "" and key.lower() in ns.item_list #}
+            {% if value != "" and key not in ns.item_list%}
                 {% if value is mapping or (value is iterable and value is not string and value is not mapping) %}
                     <br><div>## {{ key.upper() }}:</div>
-                    {{ traverse(value) }}
+                    {{ traverse(value, ns) }}
                 {% else %}
                     <div>{{ key }}: {{ value }}</div>
                 {% endif %}
@@ -26,7 +41,7 @@
         {# Handle lists #}
         <ul>
         {% for item in data %}
-          <li>{{ traverse(item) }}</li>
+            <li>{{ traverse(item, ns) }}</li>
         {% endfor %}
         </ul>
     {% endif %}
