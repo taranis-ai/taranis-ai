@@ -53,7 +53,7 @@
       <v-row no-gutters>
         <v-col cols="12" class="pt-2">
           <v-data-table
-            v-model="selected_roles"
+            v-model="acl.roles"
             :headers="headers_role"
             :items="roles"
             item-key="id"
@@ -74,10 +74,8 @@
 </template>
 
 <script>
-import { createACLEntry, updateACLEntry } from '@/api/config'
-import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import { useConfigStore } from '@/stores/ConfigStore'
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 
 export default {
   name: 'ACLForm',
@@ -91,7 +89,8 @@ export default {
       default: false
     }
   },
-  setup(props) {
+  emits: ['submit'],
+  setup(props, { emit }) {
     const configStore = useConfigStore()
     const form = ref(null)
     const acl = ref(props.aclProp)
@@ -99,14 +98,6 @@ export default {
     const rules = {
       required: (v) => Boolean(v) || 'Required.'
     }
-
-    const headers_user = [
-      {
-        title: 'Username',
-        key: 'username'
-      },
-      { title: 'Name', key: 'name' }
-    ]
 
     const headers_role = [
       {
@@ -117,7 +108,7 @@ export default {
     ]
 
     const types = [
-      { id: 'NEWS_ITEM', title: 'News Item'},
+      { id: 'NEWS_ITEM', title: 'News Item' },
       { id: 'OSINT_SOURCE', title: 'OSINT Source' },
       { id: 'OSINT_SOURCE_GROUP', title: 'OSINT Source Group' },
       { id: 'PRODUCT_TYPE', title: 'Product Type' },
@@ -126,46 +117,31 @@ export default {
       { id: 'WORD_LIST', title: 'Word List' }
     ]
 
-    const selected_roles = []
-
     const add = async () => {
       const { valid } = await form.value.validate()
       if (!valid) {
         return
       }
 
-      acl.value.roles = selected_roles.map((role) => ({ id: role.id }))
-
-      if (props.edit) {
-        updateACLEntry(acl.value)
-          .then(() => {
-            notifySuccess('acl.successful_edit')
-          })
-          .catch(() => {
-            notifyFailure('acl.error_edit')
-          })
-      } else {
-        createACLEntry(acl.value)
-          .then(() => {
-            notifySuccess('acl.successful')
-          })
-          .catch(() => {
-            notifyFailure(roles, 'acl.error')
-          })
-      }
+      emit('submit', acl.value)
     }
 
     onMounted(() => {
       configStore.loadRoles()
     })
 
+    watch(
+      () => props.aclProp,
+      (newVal) => {
+        acl.value = newVal
+      }
+    )
+
     return {
       acl,
       form,
       rules,
-      headers_user,
       headers_role,
-      selected_roles,
       types,
       roles,
       add

@@ -29,7 +29,7 @@ class RoleBasedAccess(BaseModel):
     item_type: Column = db.Column(db.Enum(ItemType))
     item_id: Column[String] = db.Column(db.String(64))
 
-    roles: Mapped[list[Role]] = db.relationship("Role", secondary="rbac_role", back_populates="acls")  # type: ignore
+    roles: Mapped[list[Role]] = db.relationship(Role, secondary="rbac_role", back_populates="acls")  # type: ignore
 
     read_only: Column[Boolean] = db.Column(db.Boolean, default=True)
     enabled: Column[Boolean] = db.Column(db.Boolean, default=True)
@@ -45,7 +45,7 @@ class RoleBasedAccess(BaseModel):
         if enabled is not None:
             self.enabled = enabled
         if roles:
-            self.roles = roles
+            self.roles = [Role.get(role_id) for role_id in roles]  # TODO: Fix this rbac_role is not getting populated
 
     @classmethod
     def is_enabled(cls) -> bool:

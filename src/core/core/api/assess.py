@@ -11,12 +11,6 @@ from core.model import news_item, osint_source, news_item_tag
 from core.managers.input_validators import validate_id
 
 
-class OSINTSourceGroupsAssess(Resource):
-    @auth_required("ASSESS_ACCESS")
-    def get(self):
-        return osint_source.OSINTSourceGroup.get_all_json(None, auth_manager.get_user_from_jwt(), True)
-
-
 class OSINTSourceGroupsList(Resource):
     @auth_required("ASSESS_ACCESS")
     def get(self):
@@ -237,7 +231,7 @@ class DownloadAttachment(Resource):
             logger.store_user_activity(user, "ASSESS_ACCESS", str({"file": attribute.value}))
             return (
                 send_file(
-                    io.BytesIO(attribute.binary_data),
+                    io.BytesIO(attribute.binary_data),  # type: ignore
                     download_name=attribute.value,
                     mimetype=attribute.binary_mime_type,
                     as_attachment=True,
@@ -249,8 +243,7 @@ class DownloadAttachment(Resource):
 
 def initialize(api):
     namespace = Namespace("Assess", description="Assess related operations")
-    namespace.add_resource(OSINTSourceGroupsAssess, "/osint-source-groups")
-    namespace.add_resource(OSINTSourceGroupsList, "/osint-source-group-list")
+    namespace.add_resource(OSINTSourceGroupsList, "/osint-source-groups", "/osint-source-group-list")
     namespace.add_resource(OSINTSourcesList, "/osint-sources-list")
     namespace.add_resource(Stories, "/news-item-aggregates", "/stories")
     namespace.add_resource(StoryTags, "/tags")

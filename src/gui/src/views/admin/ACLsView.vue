@@ -10,7 +10,12 @@
       @add-item="addItem"
       @update-items="updateData"
     />
-    <ACLForm v-if="showForm" :acl-prop="acl" :edit="edit" />
+    <ACLForm
+      v-if="showForm"
+      :acl-prop="acl"
+      :edit="edit"
+      @submit="handleSubmit"
+    />
   </v-container>
 </template>
 
@@ -40,8 +45,8 @@ export default {
 
     const updateData = () => {
       configStore.loadACLEntries().then(() => {
-        mainStore.itemCountTotal = acls.total_count
-        mainStore.itemCountFiltered = acls.items.length
+        mainStore.itemCountTotal = acls.value.total_count
+        mainStore.itemCountFiltered = acls.value.items.length
       })
     }
 
@@ -49,7 +54,6 @@ export default {
       acl.value = {
         name: '',
         description: '',
-        users: [],
         roles: []
       }
       edit.value = false

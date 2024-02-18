@@ -1,15 +1,11 @@
 from dataclasses import dataclass
+from sqlalchemy.orm import aliased
 from sqlalchemy.orm.query import Query
-from sqlalchemy.sql.expression import true, false
+from sqlalchemy.sql.expression import true
 
+from core.managers.db_manager import db
 from core.model.user import User
-from core.model.role_based_access import RoleBasedAccess
-from core.model.osint_source import OSINTSource, OSINTSourceGroup
-from core.model.word_list import WordList
-from core.model.report_item import ReportItem, ReportItemType
-from core.model.product_type import ProductType
-from core.model.news_item import NewsItem
-from core.model.product import Product
+from core.model.role_based_access import RoleBasedAccess, RBACRole
 
 
 @dataclass
@@ -37,24 +33,29 @@ class RoleBasedAceessService:
         :param rbac_query: An instance of RBACQuery containing user, resource type, and access requirements.
         :return: A modified query that reflects the access control rules.
         """
-        user = rbac_query.user
-        resource_type = rbac_query.resource_type
-        require_write_access = rbac_query.require_write_access
-        model_class = cls.get_model_class(resource_type)
 
-        acl_subquery = (
-            RoleBasedAccess.query.with_entities(RoleBasedAccess.item_id)
-            .join(RoleBasedAccess.roles)
+        role_ids = [role.id for role in rbac_query.user.roles]
+        item_type = rbac_query.resource_type
+        model_class = cls.get_model_class(item_type)
+
+        rbac_role_alias = aliased(RBACRole)
+        role_based_access_alias = aliased(RoleBasedAccess)
+
+        # Subquery to find item_ids accessible by any of the roles
+        accessible_items_subquery = (
+            db.session.query(role_based_access_alias.item_id)
+            .join(rbac_role_alias, role_based_access_alias.id == rbac_role_alias.acl_id)
             .filter(
-                RoleBasedAccess.item_type == resource_type, RoleBasedAccess.enabled == true(), RoleBasedAccess.roles.any(User.id == user.id)
+                role_based_access_alias.item_type == item_type,
+                role_based_access_alias.enabled == true(),
+                rbac_role_alias.role_id.in_(role_ids),  # Check against multiple role IDs
             )
+            .distinct()
+            .subquery()
         )
 
-        if require_write_access:
-            acl_subquery = acl_subquery.filter(RoleBasedAccess.read_only == false())
-
-        if model_class_id := model_class.id:
-            query = query.filter(model_class_id.in_(acl_subquery.subquery()))
+        # Filter the main query to include only items with IDs that match the subquery
+        query = query.filter(model_class.id.in_(accessible_items_subquery))  # type: ignore
 
         return query
 
@@ -68,6 +69,13 @@ class RoleBasedAceessService:
 
     @classmethod
     def get_model_class(cls, resource_type: str):
+        from core.model.osint_source import OSINTSource, OSINTSourceGroup
+        from core.model.word_list import WordList
+        from core.model.report_item import ReportItem, ReportItemType
+        from core.model.product_type import ProductType
+        from core.model.news_item import NewsItem
+        from core.model.product import Product
+
         """
         Get the SQLAlchemy model class for a given resource type.
         """
