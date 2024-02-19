@@ -1,6 +1,7 @@
 from .base_bot import BaseBot
 from worker.log import logger
 from story_clustering.clustering import initial_clustering, incremental_clustering
+from worker.misc.misc_tasks import bot_clustering_1
 
 
 class StoryBot(BaseBot):
@@ -23,6 +24,7 @@ class StoryBot(BaseBot):
             logger.info(f"Clustering {len(data)} news items")
             if all(len(aggregate["news_items"]) == 1 for aggregate in data):
                 clustering_results = initial_clustering(data)
+                bot_clustering_1.delay(clustering_results)
             else:
                 already_clustered, to_cluster = self.separate_data(data)
                 clustering_results = initial_clustering(to_cluster)

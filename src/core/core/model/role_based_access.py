@@ -16,7 +16,6 @@ class ItemType(StrEnum):
     REPORT_ITEM_TYPE = auto()
     PRODUCT = auto()
     PRODUCT_TYPE = auto()
-    NEWS_ITEM = auto()
 
 
 class RoleBasedAccess(BaseModel):

@@ -1,24 +1,35 @@
 from sqlalchemy import or_
 from sqlalchemy.orm import Mapped
 from typing import Any
+from enum import StrEnum
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.model.permission import Permission
 
 
+class TLPLevel(StrEnum):
+    WHITE = "white"
+    GREEN = "green"
+    AMBER = "amber"
+    RED = "red"
+
+
 class Role(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     name: Any = db.Column(db.String(64), unique=True, nullable=False)
     description: Any = db.Column(db.String())
+    tlp_level = db.Column(db.Enum(TLPLevel))
     permissions: Mapped[list[Permission]] = db.relationship(Permission, secondary="role_permission", back_populates="roles")  # type: ignore
     acls = db.relationship("RoleBasedAccess", secondary="rbac_role")  # type: ignore
 
-    def __init__(self, name, description=None, permissions=None, id=None):
+    def __init__(self, name, description=None, tlp_level=None, permissions=None, id=None):
         self.id = id
         self.name = name
         if description:
             self.description = description
+        if tlp_level:
+            self.tlp_level = tlp_level
         if permissions:
             for permission_id in permissions:
                 if permission := Permission.get(permission_id):

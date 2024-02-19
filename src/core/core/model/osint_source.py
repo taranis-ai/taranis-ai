@@ -51,7 +51,7 @@ class OSINTSource(BaseModel):
         ).all()
 
     @classmethod
-    def get_by_filter(cls, search=None):
+    def get_by_filter(cls, search=None, user=None, acl_check=False):
         query = cls.query
 
         if search:
