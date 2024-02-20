@@ -360,7 +360,7 @@ class TestAcls(BaseTest):
     def test_delete_acl(self, client, auth_header, cleanup_acls):
         acl_id = cleanup_acls["id"]
         response = self.assert_delete_ok(client, uri=f"acls/{acl_id}", auth_header=auth_header)
-        assert response.json["message"] == f"ACLEntry {acl_id} deleted"
+        assert response.json["message"] == f"RoleBasedAccess {acl_id} deleted"
 
 
 class TestPublisherPreset(BaseTest):

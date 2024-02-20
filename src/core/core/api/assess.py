@@ -20,7 +20,7 @@ class OSINTSourceGroupsList(Resource):
 class OSINTSourcesList(Resource):
     @auth_required("ASSESS_ACCESS")
     def get(self):
-        return osint_source.OSINTSource.get_all_with_type()
+        return osint_source.OSINTSource.get_all_with_type(search=None, user=auth_manager.get_user_from_jwt(), acl_check=True)
 
 
 class NewsItems(Resource):

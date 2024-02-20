@@ -48,10 +48,11 @@ class RoleBasedAccess(BaseModel):
 
     @classmethod
     def is_enabled(cls) -> bool:
-        """
-        Check if there are any enabled ACLs
-        """
         return cls.query.filter_by(enabled=True).count() > 0
+
+    @classmethod
+    def is_enabled_for_type(cls, item_type) -> bool:
+        return cls.query.filter_by(enabled=True).filter_by(item_type=item_type).count() > 0
 
     @classmethod
     def get_by_filter(cls, filter_params: dict[str, Any]):

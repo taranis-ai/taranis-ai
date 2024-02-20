@@ -54,6 +54,10 @@ class OSINTSource(BaseModel):
     def get_by_filter(cls, search=None, user=None, acl_check=False):
         query = cls.query
 
+        if acl_check:
+            rbac = RBACQuery(user=user, resource_type=ItemType.OSINT_SOURCE)
+            query = RoleBasedAceessService.filter_query_with_acl(query, rbac)
+
         if search:
             search_string = f"%{search}%"
             query = query.filter(
@@ -108,8 +112,8 @@ class OSINTSource(BaseModel):
         return {"id": self.to_task_id(), "task": "collector_task", "schedule": self.get_schedule(), "args": [self.id]}
 
     @classmethod
-    def get_all_with_type(cls):
-        sources, count = cls.get_by_filter(None)
+    def get_all_with_type(cls, search=None, user=None, acl_check=False):
+        sources, count = cls.get_by_filter(search, user, acl_check)
         items = [source.to_list() for source in sources]
         return {"total_count": count, "items": items}
 

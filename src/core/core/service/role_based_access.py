@@ -36,6 +36,8 @@ class RoleBasedAceessService:
     def filter_query_with_acl(cls, query: Query, rbac_query: RBACQuery) -> Query:
         role_ids = [role.id for role in rbac_query.user.roles]
         item_type = rbac_query.resource_type
+        if not RoleBasedAccess.is_enabled_for_type(item_type):
+            return query
         model_class = cls.get_model_class(item_type)
 
         rbac_role_alias = aliased(RBACRole)

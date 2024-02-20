@@ -318,7 +318,7 @@ def cleanup_acls(app, request):
             "id": 42,
             "name": "test_acl_unique",
             "description": "Test ACL",
-            "item_type": "WORD_LIST",
+            "item_type": "word_list",
             "item_id": "acl_id",
             "roles": [],
         }
