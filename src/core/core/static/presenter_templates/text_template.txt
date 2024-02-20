@@ -1,52 +1,43 @@
-{% macro traverse(data, ns=None) %}
-    {# Initialize namespace #}
-    {% if ns is none %}
-        {% set ns = namespace(item_list=[]) %}
-    {% endif %}
-
-    {% if data is mapping %}
-        {% if 'report_item_type_id' in data %}
-        <br><br><br>
-            {% if data.get('report_item_type_id') == 1 %}
-            # OSINT REPORT
-            {% elif data.get('report_item_type_id') == 2 %}
-            # DISINFORMATION REPORT
-            {% elif data.get('report_item_type_id') == 3 %}
-            # VULNERABILITY REPORT
-            {% elif data.get('report_item_type_id') == 4 %}
-            # MISP REPORT
-            {% endif %}
-        {% endif %}
-
-        {# Handle omission of keys #}
-        {% if data.get('report_items') and data.get('report_items')[0].get('attributes').get('omission') %}
-            {% set omit_keys = data.get('report_items')[0].get('attributes').get('omission') %}
-            {% set ns.item_list = omit_keys.split(",") | map('trim') | map('lower') | list %}
-            omit_keys: {{ ns.item_list }}
-        {% endif %}
-
-        {# Handle nested dictionaries #}
-        {% for key, value in data.items() %}
-            {# if value != "" and key.lower() in ns.item_list #}
-            {% if value != "" and key not in ns.item_list%}
-                {% if value is mapping or (value is iterable and value is not string and value is not mapping) %}
-                    <br><div>## {{ key.upper() }}:</div>
-                    {{ traverse(value, ns) }}
-                {% else %}
-                    <div>{{ key }}: {{ value }}</div>
-                {% endif %}
-            {% endif %}
-        {% endfor %}
-    {% elif data is iterable and data is not string and data is not mapping %}
-        {# Handle lists #}
-        <ul>
-        {% for item in data %}
-            <li>{{ traverse(item, ns) }}</li>
-        {% endfor %}
-        </ul>
-    {% endif %}
-{% endmacro %}
-
-<div>
-    {{ traverse(data) }}
-</div>
+{%- macro traverse(report_items, ns=None) %}
+{%- if ns is none -%}
+{%- set ns = namespace(item_list=[]) %}
+{%- endif %}
+{#- Arbitrary section to add a report name to the rendered product -#}
+{%- if report_items is mapping -%}
+{%- if 'report_item_type_id' in report_items %}
+{%- if report_items.get('report_item_type_id') == 1 %}
+# OSINT REPORT
+{%- elif report_items.get('report_item_type_id') == 2 %}
+# DISINFORMATION REPORT
+{%- elif report_items.get('report_item_type_id') == 3 %}
+# VULNERABILITY REPORT
+{%- elif report_items.get('report_item_type_id') == 4 %}
+# MISP REPORT
+{%- endif %}<br>
+{%- endif %}
+{#- Handle omission of keys: Admin needs to create an attribute omit_keys in the Report Types section with the Name "omission" -#}
+{#- This is a text field where specific keys can be entered with comma separated -#}
+{%- if report_items.get('report_items') and report_items.get('report_items')[0].get('attributes').get('omission') %}
+{% set omit_keys = report_items.get('report_items')[0].get('attributes').get('omission') %}
+{% set ns.item_list = omit_keys.split(",") | map('trim') | map('lower') | list %}
+omit_keys: {{ ns.item_list }}
+{%- endif %}
+{#- Handle nested dictionaries -#}
+{% for key, value in report_items.items() %}
+{%- if value != "" and key.lower() not in ns.item_list %}
+{%- if value is mapping or (value is iterable and value is not string and value is not mapping) %}
+<br>## {{ key.upper() }}:<br>
+{{ traverse(value, ns) }}
+{%- else %}
+{{ key.upper() }}: {{ value }}<br>
+{%- endif %}
+{%- endif %}
+{%- endfor %}
+{%- elif report_items is iterable and report_items is not string and report_items is not mapping %}
+{#- Handle lists -#}
+{% for item in report_items %}
+{{- traverse(item, ns) -}}
+{% endfor %}
+{%- endif %}
+{%- endmacro %}
+{{- traverse(data.report_items) -}}
