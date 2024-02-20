@@ -41,12 +41,21 @@
         </v-col>
       </v-row>
       <v-row no-gutters>
-        <v-col cols="12" class="d-flex">
-          <v-checkbox
-            v-model="acl.writeable"
-            class="pr-8"
-            :label="$t('acl.writeable')"
-            name="writeable"
+        <v-col cols="2" offset="3" class="d-flex">
+          <v-btn-toggle v-model="acl.read_only">
+            <v-btn :value="true" :text="$t('acl.readonly')" />
+            <v-btn
+              border-color="red-darken-4"
+              :value="false"
+              :text="$t('acl.writeable')"
+            />
+          </v-btn-toggle>
+        </v-col>
+        <v-col cols="2" offset="3" class="d-flex">
+          <v-switch
+            v-model="acl.enabled"
+            color="success"
+            :label="acl.enabled ? $t('acl.enabled') : $t('acl.disabled')"
           />
         </v-col>
       </v-row>

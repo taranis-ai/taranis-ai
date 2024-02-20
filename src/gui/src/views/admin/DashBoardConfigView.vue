@@ -74,27 +74,31 @@
         <template #content>
           <v-row no-gutters>
             <v-col cols="2"> Core Build Time </v-col>
-            <v-col cols="2" offset="1">
+            <v-col cols="2">
               <b>{{ d(coreBuildDate, 'long') }}</b>
             </v-col>
-            <v-col cols="2" offset="1">
+            <v-col v-if="coreGitInfo?.branch" cols="2">
               <b>Branch: {{ coreGitInfo.branch }}</b>
             </v-col>
-            <v-col cols="2" offset="1">
-              <b v-if="coreGitInfo.TAG">Tag: {{ coreGitInfo.branch }}</b>
-              <b v-else>HEAD: {{ coreGitInfo.HEAD }}</b>
+            <v-col cols="2">
+              HEAD:
+              <a :href="coreUpstreamTreeUrl">
+                {{ coreGitInfo?.HEAD || 'DEV' }}
+              </a>
             </v-col>
             <v-divider inset></v-divider>
             <v-col cols="2"> GUI Build Time </v-col>
-            <v-col cols="2" offset="1">
+            <v-col cols="2">
               <b>{{ d(buildDate, 'long') }}</b>
             </v-col>
-            <v-col cols="2" offset="1">
+            <v-col v-if="gitInfo?.branch" cols="2">
               <b>Branch: {{ gitInfo.branch }}</b>
             </v-col>
-            <v-col cols="2" offset="1">
-              <b v-if="gitInfo.TAG">Tag: {{ gitInfo.branch }}</b>
-              <b v-else>HEAD: {{ gitInfo.HEAD }}</b>
+            <v-col cols="2">
+              HEAD:
+              <a :href="upstreamTreeUrl">
+                {{ gitInfo?.HEAD || 'DEV' }}
+              </a>
             </v-col>
           </v-row>
         </template>
@@ -125,17 +129,19 @@ export default {
 
     mainStore.updateFromLocalConfig()
 
-    const { buildDate, gitInfo } = storeToRefs(mainStore)
+    const { buildDate, gitInfo, upstreamTreeUrl } = storeToRefs(mainStore)
     const { dashboard_data } = storeToRefs(dashboardStore)
     const schedule_length = computed(() => configStore.schedule.length ?? 0)
 
     const coreBuildDate = ref(new Date().toISOString())
-    const coreGitInfo = ref('')
+    const coreGitInfo = ref(null)
+    const coreUpstreamTreeUrl = ref(null)
 
     getCoreBuildInfo().then(
       (response) => {
         coreBuildDate.value = response.data.build_date
         coreGitInfo.value = response.data
+        coreUpstreamTreeUrl.value = mainStore.gitUpstreamTreeUrl(response.data)
       },
       (error) => {
         notifyFailure(error)
@@ -152,9 +158,11 @@ export default {
     return {
       coreBuildDate,
       coreGitInfo,
+      coreUpstreamTreeUrl,
       dashboard_data,
       buildDate,
       gitInfo,
+      upstreamTreeUrl,
       schedule_length,
       d
     }

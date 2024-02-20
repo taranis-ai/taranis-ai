@@ -3,7 +3,7 @@
     <DataTable
       v-model:items="acls.items"
       :add-button="true"
-      :header-filter="['id', 'name', 'username', 'actions']"
+      :header-filter="['id', 'name', 'username', 'enabled', 'actions']"
       sort-by-item="id"
       @delete-item="deleteItem"
       @edit-item="editItem"

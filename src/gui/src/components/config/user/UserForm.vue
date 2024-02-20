@@ -1,10 +1,7 @@
 <template>
   <v-container fluid class="ma-5 mt-5 pa-5 pt-0">
+    <span v-if="edit">ID: {{ user.id }}</span>
     <v-form id="form" ref="form" validate-on="submit" @submit.prevent="add">
-      <v-row no-gutters>
-        <v-btn type="submit" color="success" class="mr-4"> Submit </v-btn>
-        <span v-if="edit">ID: {{ user.id }}</span>
-      </v-row>
       <v-row no-gutters>
         <v-col cols="6" class="pa-1">
           <v-text-field
@@ -57,6 +54,18 @@
           >
           </v-select>
         </v-col>
+        <v-col cols="6" class="pl-1">
+          <v-select
+            v-model="user.tlp_level"
+            item-title="name"
+            item-value="id"
+            :hint="$t('user.tlp_level')"
+            :label="$t('user.tlp_level')"
+            :items="tlpLevels"
+            :rules="[rules.required]"
+          >
+          </v-select>
+        </v-col>
         <v-col cols="12" class="pl-1">
           <v-data-table
             v-model="user.roles"
@@ -87,6 +96,9 @@
             <template v-if="permissions.length < 10" #bottom />
           </v-data-table>
         </v-col>
+      </v-row>
+      <v-row no-gutters>
+        <v-btn type="submit" block color="success" class="mt-5"> Submit </v-btn>
       </v-row>
     </v-form>
   </v-container>
@@ -124,6 +136,13 @@ export default {
         key: 'name'
       },
       { title: 'Description', key: 'description' }
+    ]
+
+    const tlpLevels = [
+      { id: 'white', name: 'White' },
+      { id: 'green', name: 'Green' },
+      { id: 'amber', name: 'Amber' },
+      { id: 'red', name: 'Red' }
     ]
 
     const pwd = ref('')
@@ -206,6 +225,7 @@ export default {
       pwd,
       repwd,
       passwordRules,
+      tlpLevels,
       user,
       add
     }

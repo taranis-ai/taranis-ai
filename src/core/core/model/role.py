@@ -86,6 +86,7 @@ class Role(BaseModel):
         if name := data.get("name"):
             role.name = name
         role.description = data.get("description")
+        role.tlp_level = data.get("tlp_level")
         permissions = data.get("permissions", [])
         role.permissions = [Permission.get(permission_id) for permission_id in permissions]
         db.session.commit()

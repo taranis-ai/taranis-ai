@@ -280,7 +280,12 @@ class NewsItem(BaseModel):
         if not RoleBasedAccess.is_enabled():
             return True
 
-        query = RBACQuery(user=user, resource_id=self.item_id, resource_type=ItemType.NEWS_ITEM, require_write_access=require_write_access)
+        query = RBACQuery(
+            user=user,
+            resource_id=self.news_item_data.osint_source_id,
+            resource_type=ItemType.OSINT_SOURCE,
+            require_write_access=require_write_access,
+        )
 
         return RoleBasedAceessService.user_has_access_to_resource(query)
 
