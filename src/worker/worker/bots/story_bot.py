@@ -1,13 +1,12 @@
 from .base_bot import BaseBot
 from worker.log import logger
-from story_clustering.clustering import initial_clustering, incremental_clustering
-from worker.misc.misc_tasks import bot_clustering_1
+from story_clustering.clustering import initial_clustering, incremental_clustering_v2
 
 
 class StoryBot(BaseBot):
     type = "STORY_BOT"
     name = "Story Clustering Bot"
-    description = "Bot for clustering NewsItems to stories via naturale language processing"
+    description = "Bot for clustering NewsItems to stories via natural language processing"
 
     def __init__(self):
         import story_clustering  # noqa: F401
@@ -24,10 +23,9 @@ class StoryBot(BaseBot):
             logger.info(f"Clustering {len(data)} news items")
             if all(len(aggregate["news_items"]) == 1 for aggregate in data):
                 clustering_results = initial_clustering(data)
-                bot_clustering_1.delay(clustering_results)
             else:
                 already_clustered, to_cluster = self.separate_data(data)
-                clustering_results = initial_clustering(to_cluster)
+                clustering_results = incremental_clustering_v2(to_cluster, already_clustered)
 
             logger.info(f"Clustering results: {clustering_results['event_clusters']}")
             self.core_api.news_items_grouping_multiple(clustering_results["event_clusters"])
