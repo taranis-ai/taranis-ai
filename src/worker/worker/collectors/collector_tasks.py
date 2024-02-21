@@ -18,6 +18,7 @@ class CollectorTask(Task):
         self.collectors = {
             "rss_collector": worker.collectors.RSSCollector(),
             "simple_web_collector": worker.collectors.SimpleWebCollector(),
+            "rt_collector": worker.collectors.RTCollector(),
         }
 
     def run(self, source_id: str):

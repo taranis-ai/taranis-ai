@@ -1,5 +1,6 @@
 import worker.collectors as collectors
 from testdata import news_items
+
 import pytest
 
 
@@ -11,6 +12,55 @@ def rss_collector():
 @pytest.fixture
 def simple_web_collector():
     return collectors.SimpleWebCollector()
+
+
+@pytest.fixture
+def rt_collector():
+    return collectors.RTCollector()
+
+
+@pytest.fixture
+def osint_source_update_mock(requests_mock):
+    requests_mock.put("http://taranis/api/worker/osint-sources/1", json={})
+
+
+@pytest.fixture
+def news_item_upload_mock(requests_mock):
+    requests_mock.post("http://taranis/api/worker/news-items", json={})
+
+
+@pytest.fixture
+def collectors_mock(osint_source_update_mock, news_item_upload_mock):
+    pass
+
+
+@pytest.fixture
+def rt_mock(requests_mock, collectors_mock):
+    import rt_testdata
+
+    requests_mock.get(rt_testdata.rt_ticket_search_url, json=rt_testdata.rt_ticket_search_result)
+    requests_mock.get(rt_testdata.rt_ticket_url, json=rt_testdata.rt_ticket_1)
+    requests_mock.get(rt_testdata.rt_history_url, json=rt_testdata.rt_ticket_history_1)
+    requests_mock.get(rt_testdata.rt_transaction_url, json=rt_testdata.rt_ticket_transaction_1)
+    requests_mock.get(rt_testdata.rt_attachment_url, json=rt_testdata.rt_ticket_attachment_1)
+
+
+def test_rt_collector_collect(rt_mock, rt_collector):
+    import rt_testdata
+
+    result = rt_collector.collect(rt_testdata.rt_collector_source_data)
+
+    assert result is None
+
+
+def test_rt_collector_ticket_transaction(rt_mock, rt_collector):
+    import rt_testdata
+
+    rt_collector.setup_collector(rt_testdata.rt_collector_source_data)
+
+    result = rt_collector.get_ticket_transaction(1)
+
+    assert result == "1"
 
 
 def test_simple_web_collector_collect(simple_web_collector):
