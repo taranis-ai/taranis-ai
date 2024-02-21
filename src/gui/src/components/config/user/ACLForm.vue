@@ -31,20 +31,27 @@
           />
         </v-col>
         <v-col cols="6" class="pa-1">
-          <v-text-field
+          <v-combobox
             v-model="acl.item_id"
+            :items="item_ids"
+            :return-object="false"
+            item-title="title"
+            item-value="id"
             :label="$t('acl.item_id')"
-            name="item_id"
-            type="text"
             :rules="[rules.required]"
           />
         </v-col>
       </v-row>
       <v-row no-gutters>
-        <v-col cols="3" offset="2" class="d-flex">
-          <v-btn-toggle v-model="acl.read_only">
-            <v-btn :value="true" :text="$t('acl.readonly')" />
+        <v-col cols="4" offset="1" class="d-flex">
+          <v-btn-toggle v-model="acl.read_only" class="w-100">
             <v-btn
+              class="flex-grow-1"
+              :value="true"
+              :text="$t('acl.readonly')"
+            />
+            <v-btn
+              class="flex-grow-1"
               border-color="red-darken-4"
               :value="false"
               :text="$t('acl.writeable')"
@@ -108,6 +115,8 @@ export default {
       required: (v) => Boolean(v) || 'Required.'
     }
 
+    const item_ids = ref([])
+
     const headers_role = [
       {
         title: 'Name',
@@ -120,8 +129,7 @@ export default {
       { id: 'osint_source', title: 'OSINT Source' },
       { id: 'osint_source_group', title: 'OSINT Source Group' },
       { id: 'product_type', title: 'Product Type' },
-      { id: 'report_item', title: 'Report Item' },
-      { id: 'report_item_type', title: 'Report Item Type' },
+      { id: 'report_item_type', title: 'Report Type' },
       { id: 'word_list', title: 'Word List' }
     ]
 
@@ -139,6 +147,52 @@ export default {
     })
 
     watch(
+      () => acl.value.item_type,
+      (newVal) => {
+        if (newVal === 'osint_source') {
+          configStore.loadOSINTSources().then(() => {
+            item_ids.value = configStore.osint_sources.items.map((item) => ({
+              id: item.id,
+              title: item.name
+            }))
+          })
+        } else if (newVal === 'osint_source_group') {
+          configStore.loadOSINTSourceGroups().then(() => {
+            item_ids.value = configStore.osint_source_groups.items.map(
+              (item) => ({
+                id: item.id,
+                title: item.name
+              })
+            )
+          })
+        } else if (newVal === 'product_type') {
+          configStore.loadProductTypes().then(() => {
+            item_ids.value = configStore.product_types.items.map((item) => ({
+              id: item.id,
+              title: item.title
+            }))
+          })
+        } else if (newVal === 'report_item_type') {
+          configStore.loadReportTypes().then(() => {
+            item_ids.value = configStore.report_item_types.items.map(
+              (item) => ({
+                id: item.id,
+                title: item.title
+              })
+            )
+          })
+        } else if (newVal === 'word_list') {
+          configStore.loadWordLists().then(() => {
+            item_ids.value = configStore.word_lists.items.map((item) => ({
+              id: item.id,
+              title: item.name
+            }))
+          })
+        }
+      }
+    )
+
+    watch(
       () => props.aclProp,
       (newVal) => {
         acl.value = newVal
@@ -150,6 +204,7 @@ export default {
       form,
       rules,
       headers_role,
+      item_ids,
       types,
       roles,
       add

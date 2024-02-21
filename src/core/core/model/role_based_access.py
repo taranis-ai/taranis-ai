@@ -12,9 +12,7 @@ class ItemType(StrEnum):
     OSINT_SOURCE = auto()
     OSINT_SOURCE_GROUP = auto()
     WORD_LIST = auto()
-    REPORT_ITEM = auto()
     REPORT_ITEM_TYPE = auto()
-    PRODUCT = auto()
     PRODUCT_TYPE = auto()
 
 

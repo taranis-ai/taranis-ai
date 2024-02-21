@@ -1,9 +1,15 @@
 <template>
   <v-container fluid>
+    <v-card title="Important Usage Information" color="#8250DF">
+      <v-card-text>
+        For backwards compatibility ACLs are only active if there is at least on
+        ACL for a specific item_type.
+      </v-card-text>
+    </v-card>
     <DataTable
       v-model:items="acls.items"
       :add-button="true"
-      :header-filter="['id', 'name', 'username', 'enabled', 'actions']"
+      :header-filter="['id', 'name', 'item_type', 'enabled', 'actions']"
       sort-by-item="id"
       @delete-item="deleteItem"
       @edit-item="editItem"
