@@ -107,7 +107,6 @@ export default {
 
     async function submit() {
       const { valid } = await form.value.validate()
-
       if (!valid) {
         return
       }
