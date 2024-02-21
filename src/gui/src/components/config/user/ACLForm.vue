@@ -41,7 +41,7 @@
         </v-col>
       </v-row>
       <v-row no-gutters>
-        <v-col cols="2" offset="3" class="d-flex">
+        <v-col cols="3" offset="2" class="d-flex">
           <v-btn-toggle v-model="acl.read_only">
             <v-btn :value="true" :text="$t('acl.readonly')" />
             <v-btn
@@ -51,7 +51,7 @@
             />
           </v-btn-toggle>
         </v-col>
-        <v-col cols="2" offset="3" class="d-flex">
+        <v-col cols="3" offset="3" class="d-flex">
           <v-switch
             v-model="acl.enabled"
             color="success"
@@ -117,13 +117,12 @@ export default {
     ]
 
     const types = [
-      { id: 'NEWS_ITEM', title: 'News Item' },
-      { id: 'OSINT_SOURCE', title: 'OSINT Source' },
-      { id: 'OSINT_SOURCE_GROUP', title: 'OSINT Source Group' },
-      { id: 'PRODUCT_TYPE', title: 'Product Type' },
-      { id: 'REPORT_ITEM', title: 'Report Item' },
-      { id: 'REPORT_ITEM_TYPE', title: 'Report Item Type' },
-      { id: 'WORD_LIST', title: 'Word List' }
+      { id: 'osint_source', title: 'OSINT Source' },
+      { id: 'osint_source_group', title: 'OSINT Source Group' },
+      { id: 'product_type', title: 'Product Type' },
+      { id: 'report_item', title: 'Report Item' },
+      { id: 'report_item_type', title: 'Report Item Type' },
+      { id: 'word_list', title: 'Word List' }
     ]
 
     const add = async () => {
