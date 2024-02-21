@@ -56,18 +56,20 @@ import UserMenu from '@/components/UserMenu.vue'
 
 import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/MainStore'
+import { useUserStore } from '@/stores/UserStore'
 import { defineComponent, computed } from 'vue'
 
 export default defineComponent({
   name: 'MainMenu',
   components: { UserMenu },
   setup() {
-    const store = useMainStore()
+    const mainStore = useMainStore()
+    const userStore = useUserStore()
 
-    store.updateFromLocalConfig()
+    mainStore.updateFromLocalConfig()
 
     const { drawerVisible, itemCountTotal, itemCountFiltered, buildDate } =
-      storeToRefs(store)
+      storeToRefs(mainStore)
 
     const showItemCount = computed(() => {
       return itemCountTotal.value !== undefined && itemCountTotal.value > 0
@@ -80,7 +82,7 @@ export default defineComponent({
     })
 
     const navClicked = () => {
-      store.toggleDrawer()
+      mainStore.toggleDrawer()
     }
     const buttons = [
       {
@@ -137,7 +139,7 @@ export default defineComponent({
     const buttonList = computed(() => {
       return buttons.filter(
         (button) =>
-          store.user.permissions.includes(button.permission) && button.show
+          userStore.permissions.includes(button.permission) && button.show
       )
     })
 

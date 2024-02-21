@@ -63,7 +63,6 @@
 
 <script>
 import { useAuthStore } from '@/stores/AuthStore'
-import { useSettingsStore } from '@/stores/SettingsStore'
 import { defineComponent, ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
@@ -89,7 +88,6 @@ export default defineComponent({
     )
 
     const { isAuthenticated } = storeToRefs(authStore)
-    const { loadUserProfile } = useSettingsStore()
 
     const authenticate = () => {
       authStore
@@ -105,7 +103,6 @@ export default defineComponent({
           }
 
           login_error.value = undefined
-          loadUserProfile()
           router.push('/')
         })
     }

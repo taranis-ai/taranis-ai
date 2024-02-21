@@ -7,6 +7,13 @@ from core.model import product_type, publisher_preset
 from core.model.user import User
 
 
+class UserInfo(Resource):
+    def get(self):
+        if user := auth_manager.get_user_from_jwt():
+            return user.to_detail_dict(), 200
+        return {"message": "User not found"}, 404
+
+
 class UserProfile(Resource):
     def get(self):
         if user := auth_manager.get_user_from_jwt():
@@ -39,6 +46,7 @@ class UserPublisherPresets(Resource):
 def initialize(api: Api):
     namespace = Namespace("users", description="User API")
 
+    namespace.add_resource(UserInfo, "/")
     namespace.add_resource(UserProfile, "/profile")
     namespace.add_resource(UserProductTypes, "/my-product-types")
     namespace.add_resource(UserPublisherPresets, "/my-publisher-presets")

@@ -12,9 +12,17 @@
       <v-col>
         <v-card>
           <v-card-title>
-            {{ organizationName }}
+            {{ name }}
           </v-card-title>
-          <v-card-subtitle> Organization </v-card-subtitle>
+          <v-card-subtitle> Name </v-card-subtitle>
+        </v-card>
+      </v-col>
+      <v-col>
+        <v-card>
+          <v-card-title>
+            {{ role_list }}
+          </v-card-title>
+          <v-card-subtitle> Roles </v-card-subtitle>
         </v-card>
       </v-col>
     </v-row>
@@ -22,21 +30,20 @@
 </template>
 
 <script>
-import { useMainStore } from '@/stores/MainStore'
-import { mapState } from 'pinia'
+import { useUserStore } from '@/stores/UserStore'
+import { storeToRefs } from 'pinia'
 
 export default {
   name: 'UserView',
-  data: () => ({
-    expanded: false
-  }),
-  computed: {
-    ...mapState(useMainStore, ['user']),
-    username() {
-      return this.user.name || ''
-    },
-    organizationName() {
-      return this.user.organization_name || ''
+  setup() {
+    const { name, username, roles } = storeToRefs(useUserStore())
+
+    const role_list = roles.value.map((role) => role.name).join(', ')
+
+    return {
+      username,
+      role_list,
+      name
     }
   }
 }

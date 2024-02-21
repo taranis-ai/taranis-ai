@@ -85,7 +85,7 @@
 
 <script>
 import { ref, computed } from 'vue'
-import { useSettingsStore } from '@/stores/SettingsStore'
+import { useUserStore } from '@/stores/UserStore'
 import { storeToRefs } from 'pinia'
 import { onMounted } from 'vue'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
@@ -97,10 +97,9 @@ export default {
     const hotkeyAlias = ref('')
     const shortcuts = ref([])
 
-    const settingsStore = useSettingsStore()
+    const userStore = useUserStore()
 
-    const { hotkeys, dark_theme, spellcheck, language } =
-      storeToRefs(settingsStore)
+    const { hotkeys, dark_theme, spellcheck, language } = storeToRefs(userStore)
 
     const locale_descriptions = computed(() => [
       { value: 'en', text: 'English' },
@@ -109,7 +108,7 @@ export default {
     ])
 
     const save = () => {
-      settingsStore
+      userStore
         .saveUserProfile({
           spellcheck: spellcheck.value,
           dark_theme: dark_theme.value,
@@ -125,7 +124,7 @@ export default {
     }
 
     const resetDefaults = () => {
-      settingsStore
+      userStore
         .resetUserProfile()
         .then(() => {
           notifySuccess('notification.successful_update')
@@ -133,7 +132,7 @@ export default {
         .catch(() => {
           notifyFailure('notification.failed_update')
         })
-      settingsStore
+      userStore
         .saveUserProfile({
           spellcheck: spellcheck.value,
           dark_theme: dark_theme.value,
@@ -182,7 +181,7 @@ export default {
     }
 
     onMounted(() => {
-      settingsStore.loadUserProfile()
+      userStore.loadUserProfile()
       shortcuts.value = hotkeys.value.map((shortcut) => {
         return {
           alias: shortcut.alias,
