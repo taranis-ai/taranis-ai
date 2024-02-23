@@ -7,6 +7,7 @@ import logging
 from urllib.parse import urlparse
 import dateutil.parser as dateparser
 from trafilatura import extract
+from bs4 import BeautifulSoup
 
 from worker.collectors.base_web_collector import BaseWebCollector
 from worker.log import logger
@@ -100,6 +101,29 @@ class RSSCollector(BaseWebCollector):
 
         return self.xpath_extraction(html_content, xpath)
 
+    def get_summary_splits(self, summary) -> list[dict]:
+        soup = BeautifulSoup(summary, "html.parser")
+        h3_tags = soup.find_all("h3")
+        digests = []
+        for h3 in h3_tags:
+            # Text of the <h3> tag
+            title = f"{h3.get_text() if h3.get_text() else 'No title'}"
+            summary_sibling = h3.find_next_sibling()
+            # while summary_sibling and summary_sibling.name is not None:
+            #     summary_sibling = summary_sibling.find_next_sibling()
+            # summary = f"{summary_sibling.strip() if summary_sibling else 'No summary'}"
+            print(f"Summary: {h3.find_next_sibling(text=True).strip() if h3.find_next_sibling(text=True) else 'No summary'}")
+            link = f"{h3.find_next('a')['href'] if h3.find_next('a') else 'No link'}"
+            digests.append({"title": title})
+            # "summary": summary,,"link": link
+
+        print(f"Found {digests}")
+        return digests
+
+    def digest_splitting(self, feed_entry) -> list[dict]:
+        summary = feed_entry.get("summary")
+        return self.get_summary_splits(summary)
+
     def parse_feed(self, feed_entry: feedparser.FeedParserDict, feed_url, source) -> dict[str, str | datetime.datetime | list]:
         author: str = str(feed_entry.get("author", ""))
         title: str = str(feed_entry.get("title", ""))
@@ -189,13 +213,37 @@ class RSSCollector(BaseWebCollector):
             self.update_favicon(feed.feed, feed_url, source["id"])
         last_modified = self.get_last_modified(feed_content, feed)
         self.last_modified = last_modified
-        if last_modified and last_attempted and last_modified < last_attempted:
-            logger.debug(f"Last-Modified: {last_modified} < Last-Attempted {last_attempted} skipping")
-            return "Last-Modified < Last-Attempted"
+        # if last_modified and last_attempted and last_modified < last_attempted:
+        #     logger.debug(f"Last-Modified: {last_modified} < Last-Attempted {last_attempted} skipping")
+        #     return "Last-Modified < Last-Attempted"
 
         logger.info(f"RSS-Feed {source['id']} returned feed with {len(feed['entries'])} entries")
 
-        news_items = [self.parse_feed(feed_entry, feed_url, source) for feed_entry in feed["entries"][:42]]
+        news_items = []
+        for feed_entry in feed["entries"][:42]:
+            # print(feed_entry)
+
+            if "zusammenfassung" in feed_entry.get("title", ""):
+                # print("hi")
+                digests = self.digest_splitting(feed_entry)
+                print("this is digests")
+                print(digests)
+                for digest in digests:
+                    print("this is digest")
+                    print(digest)
+                    feed_entry.update(digest)
+                    news_items.append(feed_entry)
+
+            news_items.append(self.parse_feed(feed_entry, feed_url, source))
+            break
+
+        # print(f"News items: {news_items}")
+        print(f"News itemslength: {len(news_items)}")
 
         self.publish(news_items, source)
         return None
+
+
+if __name__ == "__main__":
+    rss_collector = RSSCollector()
+    rss_collector.collect({"id": 1, "parameters": {"FEED_URL": "https://cert.at/cert-at.de.all.rss_2.0.xml", "DIGEST_SPLITTING": True}})

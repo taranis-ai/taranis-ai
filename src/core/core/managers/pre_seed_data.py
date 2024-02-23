@@ -9,6 +9,7 @@ workers = [
             {"parameter": "XPATH"},
             {"parameter": "PROXY_SERVER"},
             {"parameter": "REFRESH_INTERVAL", "type": "number"},
+            {"parameter": "DIGEST_SPLITTING", "type": "switch"},
         ],
         "type": "RSS_COLLECTOR",
     },
