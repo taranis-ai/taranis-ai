@@ -11,8 +11,6 @@ export const useAuthStore = defineStore('authenticator', {
     jwt: '',
     login_uri: '/login',
     logout_uri: '/logout',
-    external_login_uri: false,
-    external_logout_uri: false,
     user: {},
     sub: '',
     exp: 0
@@ -55,6 +53,14 @@ export const useAuthStore = defineStore('authenticator', {
       } catch {
         this.clearJwtToken()
       }
+    },
+    hasAccess(permission) {
+      const userStore = useUserStore()
+      const { permissions } = userStore
+      if (permissions && permissions.length > 0) {
+        return permissions.includes(permission)
+      }
+      return false
     },
     setJwtToken(access_token) {
       localStorage.ACCESS_TOKEN = access_token

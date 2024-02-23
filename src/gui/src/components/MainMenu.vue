@@ -130,7 +130,7 @@ export default defineComponent({
       {
         title: 'main_menu.assets',
         icon: 'mdi-file-multiple-outline',
-        permission: 'MY_ASSETS_ACCESS',
+        permission: 'ASSETS_ACCESS',
         route: '/assets',
         show: true
       }
