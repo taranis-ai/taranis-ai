@@ -20,7 +20,7 @@
     </v-btn>
 
     <v-btn
-      v-if="!reportView"
+      v-if="!reportView && allow_analyze_update"
       v-ripple="false"
       size="small"
       class="item-action-btn"
@@ -33,7 +33,7 @@
     </v-btn>
 
     <v-btn
-      v-if="reportView"
+      v-if="reportView && allow_analyze_update"
       v-ripple="false"
       size="small"
       class="item-action-btn"
@@ -210,7 +210,9 @@ export default {
     const assessStore = useAssessStore()
     const userStore = useUserStore()
 
-    const read_only_user = computed(() => userStore.read_only_user)
+    const allow_analyze_update = computed(() =>
+      userStore.hasPermission('ANALYZE_UPDATE')
+    )
 
     const { newsItemSelection } = storeToRefs(assessStore)
     const selected = computed(() =>
@@ -302,6 +304,7 @@ export default {
       news_item_length,
       minButtonWidth,
       newsItemSelection,
+      allow_analyze_update,
       news_item_summary_text,
       openCard,
       ungroup,

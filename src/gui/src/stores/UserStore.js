@@ -58,6 +58,10 @@ export const useUserStore = defineStore(
       })
     }
 
+    const hasPermission = (permission) => {
+      return permissions.value.includes(permission)
+    }
+
     const setUserProfile = (profile) => {
       spellcheck.value = profile.spellcheck
       dark_theme.value = profile.dark_theme
@@ -80,6 +84,7 @@ export const useUserStore = defineStore(
       language,
       loadUser,
       reset_user,
+      hasPermission,
       loadUserProfile,
       saveUserProfile,
       setUserProfile
