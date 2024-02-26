@@ -109,7 +109,7 @@ def auth_required(permissions: list | str):
                     "",
                     "Insufficient permissions in JWT for identity",
                 )
-                return error
+                return {"error": "forbidden"}, 403
 
             return fn(*args, **kwargs)
 
