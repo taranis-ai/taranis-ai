@@ -1,5 +1,4 @@
 from celery import shared_task
-import worker.bots
 import jsonpickle
 from celery import current_app
 
