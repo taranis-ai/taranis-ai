@@ -1,3 +1,4 @@
+import copy
 import datetime
 import hashlib
 import uuid
@@ -48,6 +49,15 @@ class RSSCollector(BaseWebCollector):
 
     def make_request(self, url: str) -> None | requests.Response:
         response = requests.get(url, headers=self.headers, proxies=self.proxies, timeout=self.timeout)
+        # if response.status_code == 403:
+        #     tmp_headers = copy.deepcopy(self.headers)
+        #     tmp_headers["User-agent"] = "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:123.0) Gecko/20100101 Firefox/123.0"
+        #     response = requests.get(
+        #         url,
+        #         headers=tmp_headers,
+        #         proxies=self.proxies,
+        #         timeout=self.timeout,
+        #     )
         if not response.ok:
             raise RuntimeError(f"Response not ok: {response.status_code}")
         return response
@@ -108,16 +118,12 @@ class RSSCollector(BaseWebCollector):
         for h3 in h3_tags:
             # Text of the <h3> tag
             title = f"{h3.get_text() if h3.get_text() else 'No title'}"
-            summary_sibling = h3.find_next_sibling()
-            # while summary_sibling and summary_sibling.name is not None:
-            #     summary_sibling = summary_sibling.find_next_sibling()
-            # summary = f"{summary_sibling.strip() if summary_sibling else 'No summary'}"
-            print(f"Summary: {h3.find_next_sibling(text=True).strip() if h3.find_next_sibling(text=True) else 'No summary'}")
+            summary = f"{h3.find_next_sibling(string=True).strip() if h3.find_next_sibling(string=True) else 'No summary'}"
             link = f"{h3.find_next('a')['href'] if h3.find_next('a') else 'No link'}"
-            digests.append({"title": title})
-            # "summary": summary,,"link": link
+            # Manual edit to "summary_detail" and "summary" for cleaner digests/report items
+            digests.append({"title": title, "content": summary, "link": link, "summary_detail": {}, "summary": "Digest spliting"})
 
-        print(f"Found {digests}")
+        # print(f"Found digests: {digests}")
         return digests
 
     def digest_splitting(self, feed_entry) -> list[dict]:
@@ -200,6 +206,38 @@ class RSSCollector(BaseWebCollector):
         self.core_api.update_osint_source_icon(source_id, icon_content)
         return None
 
+    def get_news_items(self, feed, source, feed_url):
+        news_items = []
+        for feed_entry in feed["entries"][:42]:
+            # Digest splitting
+            if source.get("parameters").get("DIGEST_SPLITTING") and "zusammenfassung" in feed_entry.get("title", ""):
+                digests = self.digest_splitting(feed_entry)
+                # print("these are digests")
+                # print(digests)
+                for digest in digests:
+                    print("this is a digest")
+                    print(digest)
+                    # print("this is feed entry")
+                    # print(feed_entry)
+                    feed_entry_copy = copy.deepcopy(feed_entry)
+                    feed_entry_copy.update(digest)
+                    # print("updated feed entry copy")
+                    # print(feed_entry_copy)
+                    news_items.append(self.parse_feed(feed_entry_copy, feed_url, source))
+                    print("this is one news item")
+                    print(news_items)
+                    print(f"News itemslength: {len(news_items)}")
+
+                    # break
+                    # print("this is news item")
+                    # print(news_items)
+            else:
+                news_items.append(self.parse_feed(feed_entry, feed_url, source))
+
+        # print(f"News items: {news_items}")
+        # print(f"News itemslength: {len(news_items)}")
+        return news_items
+
     def rss_collector(self, feed_url: str, source):
         feed_content = self.make_request(feed_url)
         if not feed_content:
@@ -213,32 +251,13 @@ class RSSCollector(BaseWebCollector):
             self.update_favicon(feed.feed, feed_url, source["id"])
         last_modified = self.get_last_modified(feed_content, feed)
         self.last_modified = last_modified
-        # if last_modified and last_attempted and last_modified < last_attempted:
-        #     logger.debug(f"Last-Modified: {last_modified} < Last-Attempted {last_attempted} skipping")
-        #     return "Last-Modified < Last-Attempted"
+        if last_modified and last_attempted and last_modified < last_attempted:
+            logger.debug(f"Last-Modified: {last_modified} < Last-Attempted {last_attempted} skipping")
+            return "Last-Modified < Last-Attempted"
 
         logger.info(f"RSS-Feed {source['id']} returned feed with {len(feed['entries'])} entries")
 
-        news_items = []
-        for feed_entry in feed["entries"][:42]:
-            # print(feed_entry)
-
-            if "zusammenfassung" in feed_entry.get("title", ""):
-                # print("hi")
-                digests = self.digest_splitting(feed_entry)
-                print("this is digests")
-                print(digests)
-                for digest in digests:
-                    print("this is digest")
-                    print(digest)
-                    feed_entry.update(digest)
-                    news_items.append(feed_entry)
-
-            news_items.append(self.parse_feed(feed_entry, feed_url, source))
-            break
-
-        # print(f"News items: {news_items}")
-        print(f"News itemslength: {len(news_items)}")
+        news_items = self.get_news_items(feed, source, feed_url)
 
         self.publish(news_items, source)
         return None
@@ -247,3 +266,4 @@ class RSSCollector(BaseWebCollector):
 if __name__ == "__main__":
     rss_collector = RSSCollector()
     rss_collector.collect({"id": 1, "parameters": {"FEED_URL": "https://cert.at/cert-at.de.all.rss_2.0.xml", "DIGEST_SPLITTING": True}})
+    # rss_collector.collect({"id": 1, "parameters": {"FEED_URL": "https://blog.360totalsecurity.com/en/category/security-news/feed/"}})
