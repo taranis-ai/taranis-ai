@@ -67,7 +67,7 @@ def session(db, request):
 
 
 @pytest.fixture(scope="session")
-def access_token(app, permissions):
+def access_token(app):
     from flask_jwt_extended import create_access_token
 
     with app.app_context():
@@ -77,8 +77,7 @@ def access_token(app, permissions):
                 "user_claims": {
                     "id": "admin",
                     "name": "admin",
-                    "organization_name": "TestOrg",
-                    "permissions": permissions,
+                    "roles": [1],
                 }
             },
         )
@@ -95,18 +94,34 @@ def api_header():
 
 
 @pytest.fixture(scope="session")
+def access_token_user_permissions(app):
+    from flask_jwt_extended import create_access_token
+
+    with app.app_context():
+        return create_access_token(
+            identity="user",
+            additional_claims={
+                "user_claims": {
+                    "id": "user",
+                    "name": "user",
+                    "roles": [2],
+                }
+            },
+        )
+
+
+@pytest.fixture(scope="session")
 def access_token_no_permissions(app):
     from flask_jwt_extended import create_access_token
 
     with app.app_context():
         return create_access_token(
-            identity="admin",
+            identity="nobody",
             additional_claims={
                 "user_claims": {
-                    "id": "admin",
-                    "name": "admin",
-                    "organization_name": "TestOrg",
-                    "permissions": [],
+                    "id": "nobody",
+                    "name": "nobody",
+                    "roles": [],
                 }
             },
         )
@@ -117,74 +132,6 @@ def auth_header_no_permissions(access_token_no_permissions):
     return {"Authorization": f"Bearer {access_token_no_permissions}", "Content-type": "application/json"}
 
 
-@pytest.fixture(scope="session")
-def permissions():
-    yield [
-        "ASSESS_ACCESS",
-        "ASSESS_CREATE",
-        "ASSESS_UPDATE",
-        "ASSESS_DELETE",
-        "ANALYZE_ACCESS",
-        "ANALYZE_CREATE",
-        "ANALYZE_UPDATE",
-        "ANALYZE_DELETE",
-        "PUBLISH_ACCESS",
-        "PUBLISH_CREATE",
-        "PUBLISH_UPDATE",
-        "PUBLISH_DELETE",
-        "PUBLISH_PRODUCT",
-        "MY_ASSETS_ACCESS",
-        "MY_ASSETS_CREATE",
-        "MY_ASSETS_CONFIG",
-        "CONFIG_ACCESS",
-        "CONFIG_ORGANIZATION_ACCESS",
-        "CONFIG_ORGANIZATION_CREATE",
-        "CONFIG_ORGANIZATION_UPDATE",
-        "CONFIG_ORGANIZATION_DELETE",
-        "CONFIG_USER_ACCESS",
-        "CONFIG_USER_CREATE",
-        "CONFIG_USER_UPDATE",
-        "CONFIG_USER_DELETE",
-        "CONFIG_ROLE_ACCESS",
-        "CONFIG_ROLE_CREATE",
-        "CONFIG_ROLE_UPDATE",
-        "CONFIG_ROLE_DELETE",
-        "CONFIG_ACL_ACCESS",
-        "CONFIG_ACL_CREATE",
-        "CONFIG_ACL_UPDATE",
-        "CONFIG_ACL_DELETE",
-        "CONFIG_ATTRIBUTE_ACCESS",
-        "CONFIG_ATTRIBUTE_CREATE",
-        "CONFIG_ATTRIBUTE_UPDATE",
-        "CONFIG_ATTRIBUTE_DELETE",
-        "CONFIG_REPORT_TYPE_ACCESS",
-        "CONFIG_REPORT_TYPE_CREATE",
-        "CONFIG_REPORT_TYPE_UPDATE",
-        "CONFIG_REPORT_TYPE_DELETE",
-        "CONFIG_WORD_LIST_ACCESS",
-        "CONFIG_WORD_LIST_CREATE",
-        "CONFIG_WORD_LIST_UPDATE",
-        "CONFIG_WORD_LIST_DELETE",
-        "CONFIG_BOT_ACCESS",
-        "CONFIG_BOT_CREATE",
-        "CONFIG_BOT_UPDATE",
-        "CONFIG_BOT_DELETE",
-        "CONFIG_OSINT_SOURCE_ACCESS",
-        "CONFIG_OSINT_SOURCE_CREATE",
-        "CONFIG_OSINT_SOURCE_UPDATE",
-        "CONFIG_OSINT_SOURCE_DELETE",
-        "CONFIG_OSINT_SOURCE_GROUP_ACCESS",
-        "CONFIG_OSINT_SOURCE_GROUP_CREATE",
-        "CONFIG_OSINT_SOURCE_GROUP_UPDATE",
-        "CONFIG_OSINT_SOURCE_GROUP_DELETE",
-        "CONFIG_PRODUCT_TYPE_ACCESS",
-        "CONFIG_PRODUCT_TYPE_CREATE",
-        "CONFIG_PRODUCT_TYPE_UPDATE",
-        "CONFIG_PRODUCT_TYPE_DELETE",
-        "CONFIG_PUBLISHER_ACCESS",
-        "CONFIG_PUBLISHER_CREATE",
-        "CONFIG_PUBLISHER_UPDATE",
-        "CONFIG_PUBLISHER_DELETE",
-        "CONFIG_WORKER_ACCESS",
-        "CONFIG_API_ACCESS",
-    ]
+@pytest.fixture
+def auth_header_user_permissions(access_token_user_permissions):
+    return {"Authorization": f"Bearer {access_token_user_permissions}", "Content-type": "application/json"}

@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -eu
+
 if [ ! -d "venv" ]; then
     python3 -m venv venv
 fi
@@ -8,7 +10,8 @@ fi
 source venv/bin/activate
 
 # Install requirements
-pip install -e .[dev]
+python -m pip install -e ."[dev]"
 
 # Run the app
-flask run
+python -m flask run
+

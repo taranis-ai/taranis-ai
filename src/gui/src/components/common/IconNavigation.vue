@@ -31,6 +31,7 @@
 <script>
 import { computed } from 'vue'
 import { useMainStore } from '@/stores/MainStore'
+import { useUserStore } from '@/stores/UserStore'
 import { storeToRefs } from 'pinia'
 
 export default {
@@ -46,12 +47,13 @@ export default {
     }
   },
   setup(props) {
-    const { drawerVisible, user } = storeToRefs(useMainStore())
+    const userStore = useUserStore()
+    const { drawerVisible } = storeToRefs(useMainStore())
 
     const filteredLinks = computed(() => {
       return props.links.filter(
         (link) =>
-          !link.permission || user.value.permissions.includes(link.permission)
+          !link.permission || userStore.permissions.includes(link.permission)
       )
     })
 
