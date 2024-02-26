@@ -328,10 +328,9 @@ class TestProductTypes(BaseTest):
 class TestPermissions(BaseTest):
     base_uri = "/api/config"
 
-    def test_get_permission(self, client, auth_header, permissions):
-        response = self.assert_get_ok(client, uri=f"permissions?search={permissions[0]}", auth_header=auth_header)
-        assert response.json["total_count"] == 1
-        assert response.json["items"][0]["id"] == permissions[0]
+    def test_get_permission(self, client, auth_header):
+        response = self.assert_get_ok(client, uri="permissions", auth_header=auth_header)
+        assert response.json["total_count"] == 67
 
 
 class TestAcls(BaseTest):

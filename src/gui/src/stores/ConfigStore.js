@@ -20,7 +20,6 @@ import {
   getAllWorkerTypes,
   getQueueStatus
 } from '@/api/config'
-import { getAllUserProductTypes } from '@/api/user'
 
 export const useConfigStore = defineStore('config', {
   state: () => ({
@@ -110,15 +109,6 @@ export const useConfigStore = defineStore('config', {
     },
     loadProductTypes(data) {
       return getAllProductTypes(data)
-        .then((response) => {
-          this.product_types = response.data
-        })
-        .catch((error) => {
-          notifyFailure(error)
-        })
-    },
-    loadUserProductTypes(data) {
-      return getAllUserProductTypes(data)
         .then((response) => {
           this.product_types = response.data
         })

@@ -147,8 +147,8 @@ import {
 } from '@/api/publish'
 import PopupPublishProduct from '../popups/PopupPublishProduct.vue'
 import { useI18n } from 'vue-i18n'
-import { useConfigStore } from '@/stores/ConfigStore'
 import { useAnalyzeStore } from '@/stores/AnalyzeStore'
+import { usePublishStore } from '@/stores/PublishStore'
 import VuePdfEmbed from 'vue-pdf-embed'
 
 import { notifyFailure, notifySuccess } from '@/utils/helpers'
@@ -170,8 +170,8 @@ export default {
   emits: ['productcreated'],
   setup(props, { emit }) {
     const { t } = useI18n()
-    const configStore = useConfigStore()
     const analyzeStore = useAnalyzeStore()
+    const publishStore = usePublishStore()
     const showPreview = ref(props.edit)
     const publishDialog = ref(false)
     const form = ref(null)
@@ -180,7 +180,7 @@ export default {
     const renderedProductMimeType = ref(null)
 
     const product_types = computed(() => {
-      return configStore.product_types.items
+      return publishStore.product_types.items
     })
 
     const product = ref(props.productProp)
@@ -325,7 +325,7 @@ export default {
     }
 
     onMounted(() => {
-      configStore.loadProductTypes()
+      publishStore.loadProductTypes()
       analyzeStore.loadReportItems()
       analyzeStore.loadReportTypes()
       if (props.edit) {

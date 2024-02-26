@@ -38,7 +38,7 @@
       :form-format="formFormat"
       :title="editTitle"
       @submit="handleSubmit"
-    ></EditConfig>
+    />
   </v-container>
 </template>
 
