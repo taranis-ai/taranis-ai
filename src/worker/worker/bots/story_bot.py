@@ -4,6 +4,7 @@ from story_clustering.clustering import create_corpus, incremental_clustering_v2
 from worker.story_clustering.clustering_tasks import initial_clustering
 import jsonpickle
 
+
 class StoryBot(BaseBot):
     type = "STORY_BOT"
     name = "Story Clustering Bot"

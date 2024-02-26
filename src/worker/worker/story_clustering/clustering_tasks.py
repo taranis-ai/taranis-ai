@@ -3,6 +3,7 @@ import worker.bots
 from worker.log import logger
 import jsonpickle
 
+
 @shared_task(name="initial_clustering")
 def initial_clustering(corpus_encoded):
     corpus = jsonpickle.decode(corpus_encoded)
