@@ -5,7 +5,8 @@
 
 Example:
 ```bash
-pytest test_local_playwright.py
+export TARANIS_URL="http://taranis" # Or wherever your version of Taranis is Running
+python test_local_playwright.py
 ```
 
 ### To use Playwright Codegen tool, use `--save-storage` flag

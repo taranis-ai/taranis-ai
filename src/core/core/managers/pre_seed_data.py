@@ -67,6 +67,15 @@ workers = [
         "type": "SELENIUM_WEB_COLLECTOR",
     },
     {
+        "description": "Collector for gathering data from Request Tracker",
+        "name": "RT Collector",
+        "parameters": [
+            "BASE_URL",
+            "RT_TOKEN",
+        ],
+        "type": "RT_COLLECTOR",
+    },
+    {
         "type": "ANALYST_BOT",
         "name": "Analyst Bot",
         "parameters": [
