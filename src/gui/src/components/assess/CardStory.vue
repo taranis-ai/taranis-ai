@@ -2,56 +2,115 @@
   <v-card
     v-if="showStory"
     :ripple="false"
-    elevation="0"
+    flat
     :rounded="false"
-    class="no-gutters align-self-stretch mb-1 mt-2 mx-2 story-card"
+    class="no-gutters align-self-stretch mb-1 mt-1 mx-2 story-card"
     :class="card_class"
     @click="toggleSelection"
   >
-    <v-row class="pl-2">
-      <v-col
-        :cols="content_cols"
-        class="d-flex flex-grow-1 mt-1 px-5 py-0 order-first"
-        align-self="center"
-      >
-        <v-icon v-if="story_in_report" class="mr-2 my-auto" icon="mdi-share" />
-        <h2
-          v-dompurify-html="highlighted_title"
-          :class="news_item_title_class"
-        />
-      </v-col>
+    <v-container fluid style="min-height: 112px" class="pa-1 pl-2">
+      <v-row class="pl-2">
+        <v-col>
+          <v-row class="py-3 px-1">
+            <v-col cols="12" :lg="showWeekChart && !openSummary ? 7 : 8">
+              <v-container class="d-flex pa-0">
+                <v-icon
+                  v-if="story_in_report"
+                  class="mr-2 my-auto"
+                  icon="mdi-share"
+                />
+                <!-- <v-icon
+                  v-if="story.relevance"
+                  class="float-left mr-1"
+                  color="awake-green-color"
+                >
+                  mdi-arrow-up-circle-outline
+                </v-icon> -->
+                <h2
+                  v-dompurify-html="highlighted_title"
+                  class="mb-3"
+                  :class="{
+                    news_item_title_class: true,
+                    story: news_item_length > 1
+                  }"
+                />
 
-      <story-actions
-        :story="story"
-        :detail-view="detailView"
-        :report-view="reportView"
-        :action-cols="meta_cols"
-        @open-details="openCard()"
-        @refresh="emitRefresh()"
-        @remove-from-report="$emit('remove-from-report')"
-      />
+                <h2
+                  v-if="news_item_length > 1"
+                  class="ml-3 mb-3 d-flex justify-center align-center text-primary"
+                  style="font-size: 1rem"
+                >
+                  <v-icon
+                    class="float-left mr-1"
+                    size="x-small"
+                    color="primary"
+                  >
+                    mdi-file-multiple-outline
+                  </v-icon>
+                  ({{ news_item_length }})
+                </h2>
+                <!-- <h2
+                  v-if="news_item_length > 1"
+                  class="ml-3 mb-3 d-flex justify-center align-center"
+                  style="color: #959595; font-size: 1rem"
+                >
+                  <v-icon
+                    class="float-left mr-1"
+                    size="x-small"
+                    color="#959595"
+                  >
+                    mdi-file-multiple-outline
+                  </v-icon>
+                  ({{ news_item_length }})
+                </h2> -->
+              </v-container>
 
-      <!-- DESCRIPTION -->
-      <v-col
-        :cols="content_cols"
-        class="px-5 pb-5 pt-0 order-3"
-        align-self="stretch"
-      >
-        <summarized-content
-          :open="openSummary"
-          :is-summarized="is_summarized"
-          :content="getDescription"
-        />
-      </v-col>
-      <!-- META INFO -->
-      <v-col class="px-5 pt-1 pb-1 order-4" :cols="meta_cols">
-        <story-meta-info
-          :story="story"
-          :detail-view="openSummary"
-          :report-view="reportView"
-        />
-      </v-col>
-    </v-row>
+              <summarized-content
+                :open="openSummary"
+                :is-summarized="is_summarized"
+                :content="getDescription"
+              />
+            </v-col>
+
+            <v-col
+              cols="12"
+              class="meta-info-col"
+              :lg="showWeekChart && !openSummary ? 3 : 4"
+            >
+              <story-meta-info
+                :story="story"
+                :detail-view="openSummary"
+                :report-view="reportView"
+              />
+              <week-chart
+                v-if="openSummary"
+                class="mt-5"
+                :chart-height="180"
+                :story="story"
+              />
+            </v-col>
+            <v-col v-if="showWeekChart && !openSummary" cols="12" lg="2">
+              <week-chart
+                :chart-height="detailView ? 300 : 100"
+                :chart-width="detailView ? 800 : 200"
+                :story="story"
+              />
+            </v-col>
+          </v-row>
+        </v-col>
+        <v-col class="action-bar mr-2">
+          <story-actions-vertical
+            :story="story"
+            :detail-view="detailView"
+            :report-view="reportView"
+            :action-cols="meta_cols"
+            @open-details="openCard()"
+            @refresh="emitRefresh()"
+            @remove-from-report="$emit('remove-from-report')"
+          />
+        </v-col>
+      </v-row>
+    </v-container>
   </v-card>
   <v-row
     v-if="openSummary && story.news_items.length > 1"
@@ -74,7 +133,7 @@
 
 <script>
 import StoryMetaInfo from '@/components/assess/card/StoryMetaInfo.vue'
-import StoryActions from '@/components/assess/card/StoryActions.vue'
+import StoryActionsVertical from '@/components/assess/card/StoryActionsVertical.vue'
 import SummarizedContent from '@/components/assess/card/SummarizedContent.vue'
 import CardNewsItem from '@/components/assess/CardNewsItem.vue'
 import { ref, computed } from 'vue'
@@ -83,14 +142,16 @@ import { useFilterStore } from '@/stores/FilterStore'
 import { highlight_text } from '@/utils/helpers'
 import { unGroupStories } from '@/api/assess'
 import { storeToRefs } from 'pinia'
+import WeekChart from '@/components/assess/card/WeekChart.vue'
 
 export default {
   name: 'CardStory',
   components: {
     CardNewsItem,
-    StoryActions,
+    StoryActionsVertical,
     StoryMetaInfo,
-    SummarizedContent
+    SummarizedContent,
+    WeekChart
   },
   props: {
     story: {
@@ -173,6 +234,7 @@ export default {
       return {
         selected: selected.value,
         read: props.story.read,
+        unread: !props.story.read,
         important: props.story.important,
         relevant: props.story.relevance
       }
@@ -242,7 +304,8 @@ export default {
       markAsRead,
       markAsImportant,
       moveSelection,
-      emitRefresh
+      emitRefresh,
+      showWeekChart
     }
   }
 }
@@ -255,16 +318,9 @@ export default {
 
 .story-card {
   border: 2px solid white;
-  &:hover {
-    transition: border-color 180ms;
-    border-color: color-mix(in srgb, rgb(var(--v-theme-primary)) 50%, #ffffff);
-  }
+  transition: 180ms;
+  box-shadow: 1px 2px 9px 0px rgba(0, 0, 0, 0.15);
   &.selected {
-    background-color: color-mix(
-      in srgb,
-      rgb(var(--v-theme-primary)) 5%,
-      #ffffff
-    );
     border-color: rgb(var(--v-theme-primary));
     margin: -2px;
   }
@@ -295,29 +351,58 @@ export default {
   max-height: calc(1.5em * 2);
   line-height: 1.3;
 }
-.read::before {
+
+.unread::after {
   content: '';
   position: absolute;
-  left: 0;
+  left: 0px;
   top: 0;
   bottom: 0;
-  width: 4px;
-  background-color: blue;
+  width: 7px;
+  background-color: rgb(var(--v-theme-primary)) !important;
   z-index: 1;
 }
 
-.important::after {
+.unread.important::after {
   content: '';
   position: absolute;
-  left: 4px;
+  left: 0px;
   top: 0;
   bottom: 0;
-  width: 4px;
-  background-color: red;
-  z-index: 1;
+  width: 7px;
+
+  background: rgb(116, 104, 232);
+  background: linear-gradient(
+    rgba(116, 104, 232, 1) 50%,
+    rgba(233, 198, 69, 1) 50%
+  );
+
+  z-index: 2;
 }
 
-.relevant {
-  border-left: 4px solid green;
+.important:not(.unread)::after {
+  content: '';
+  position: absolute;
+  left: 0px;
+  top: 0;
+  bottom: 0;
+  width: 7px;
+  z-index: 2;
+  background: #e9c645 !important;
+}
+
+// h2.story {
+//   color: rgb(var(--v-theme-primary));
+// }
+
+.action-bar {
+  max-width: 45px !important;
+  background-color: #f3f3f3;
+  padding-left: 0px;
+  padding-right: 0px;
+}
+
+.meta-info-col {
+  border-left: 1px solid #c0c0c0;
 }
 </style>
