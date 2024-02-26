@@ -180,6 +180,7 @@ import PopupShareItems from '@/components/popups/PopupShareItems.vue'
 import votes from '@/components/assess/card/votes.vue'
 import { ref, computed } from 'vue'
 import { useAssessStore } from '@/stores/AssessStore'
+import { useUserStore } from '@/stores/UserStore'
 import { useFilterStore } from '@/stores/FilterStore'
 import { unGroupStories } from '@/api/assess'
 import { storeToRefs } from 'pinia'
@@ -207,6 +208,10 @@ export default {
     const sharingDialog = ref(false)
     const deleteDialog = ref(false)
     const assessStore = useAssessStore()
+    const userStore = useUserStore()
+
+    const read_only_user = computed(() => userStore.read_only_user)
+
     const { newsItemSelection } = storeToRefs(assessStore)
     const selected = computed(() =>
       assessStore.storySelection.includes(props.story.id)

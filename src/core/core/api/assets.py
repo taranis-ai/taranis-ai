@@ -86,14 +86,14 @@ class AssetVulnerability(Resource):
 
 
 class GetAttributeCPE(Resource):
-    @auth_required("ASSETS_CREATE")
+    @auth_required("ASSETS_ACCESS")
     def get(self):
         cpe = attribute.Attribute.filter_by_type(AttributeType.CPE)
         return cpe.id
 
 
 class AttributeCPEEnums(Resource):
-    @auth_required("ASSETS_CREATE")
+    @auth_required("ASSETS_ACCESS")
     def get(self):
         cpe = attribute.Attribute.filter_by_type(AttributeType.CPE)
         search = request.args.get("search")
