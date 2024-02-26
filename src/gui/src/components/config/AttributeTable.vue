@@ -15,76 +15,80 @@
       </v-btn>
 
       <v-dialog v-model="dialog" width="auto" min-width="500px">
-        <v-card>
-          <v-card-title>
-            {{ formTitle }}
-          </v-card-title>
+        <v-form ref="form" @submit.prevent="save">
+          <v-card>
+            <v-card-title>
+              {{ formTitle }}
+            </v-card-title>
 
-          <v-card-text>
-            <v-combobox
-              v-model="attribute_type"
-              :items="attributeTemplates"
-              item-title="name"
-              :label="$t('attribute.attribute')"
-            >
-              <template #item="{ item, props }">
-                <v-list-item v-bind="props">
-                  <template #prepend>
-                    <v-icon :icon="item.value.tag"></v-icon>
-                  </template>
-                </v-list-item>
-              </template>
-            </v-combobox>
+            <v-card-text>
+              <v-combobox
+                v-model="attribute_type"
+                :items="attributeTemplates"
+                item-title="name"
+                :label="$t('attribute.attribute')"
+                :rules="required"
+              >
+                <template #item="{ item, props }">
+                  <v-list-item v-bind="props">
+                    <template #prepend>
+                      <v-icon :icon="item.value.tag"></v-icon>
+                    </template>
+                  </v-list-item>
+                </template>
+              </v-combobox>
 
-            <v-text-field
-              v-model="edited_attribute.title"
-              :label="$t('attribute.name')"
-            />
+              <v-text-field
+                v-model="edited_attribute.title"
+                :label="$t('attribute.name')"
+                :rules="required"
+              />
 
-            <v-textarea
-              v-model="edited_attribute.description"
-              :label="$t('attribute.description')"
-            />
+              <v-textarea
+                v-model="edited_attribute.description"
+                :label="$t('attribute.description')"
+              />
 
-            <v-row>
-              <v-col>
-                <v-checkbox
-                  v-model="edited_attribute.multiple"
-                  :label="$t('attribute.multiple')"
-                />
-              </v-col>
-            </v-row>
-            <v-row>
-              <v-col>
-                <v-text-field
-                  v-model="edited_attribute.index"
-                  type="number"
-                  label="Index"
-                />
-              </v-col>
-            </v-row>
-          </v-card-text>
+              <v-row>
+                <v-col>
+                  <v-checkbox
+                    v-model="edited_attribute.multiple"
+                    :label="$t('attribute.multiple')"
+                  />
+                </v-col>
+              </v-row>
+              <v-row>
+                <v-col>
+                  <v-text-field
+                    v-model="edited_attribute.index"
+                    type="number"
+                    label="Index"
+                  />
+                </v-col>
+              </v-row>
+            </v-card-text>
 
-          <v-card-actions>
-            <v-btn
-              color="green-darken-3"
-              class="ml-4"
-              variant="flat"
-              @click="save"
-            >
-              {{ $t('attribute.save') }}
-            </v-btn>
-            <v-spacer></v-spacer>
-            <v-btn
-              color="red-darken-3"
-              class="mr-4"
-              variant="flat"
-              @click="close"
-            >
-              {{ $t('attribute.cancel') }}
-            </v-btn>
-          </v-card-actions>
-        </v-card>
+            <v-card-actions>
+              <v-btn
+                color="green-darken-3"
+                class="ml-4"
+                variant="flat"
+                type="submit"
+              >
+                {{ $t('attribute.save') }}
+              </v-btn>
+              <v-spacer></v-spacer>
+              <v-btn
+                color="red-darken-3"
+                class="mr-4"
+                variant="flat"
+                @click="close"
+              >
+                {{ $t('attribute.cancel') }}
+              </v-btn>
+            </v-card-actions>
+          </v-card>
+        </v-form>
       </v-dialog>
     </v-toolbar>
 
@@ -142,8 +146,11 @@ export default {
   emits: ['update'],
   setup(props, { emit }) {
     const dialog = ref(false)
+    const form = ref(null)
     const attribute_type = ref(null)
     const edited_index = ref(-1)
+    const required = ref([(v) => !!v || 'Required'])
+
     const attribute_contents = ref(props.attributes)
     const edited_attribute = ref({
       index: attribute_contents.value.length,
@@ -186,7 +193,12 @@ export default {
       edited_index.value = -1
     }
 
-    const save = () => {
+    async function save() {
+      const { valid } = await form.value.validate()
+      if (!valid) {
+        return
+      }
+
       edited_attribute.value.attribute_id = attribute_type.value.id
       if (edited_index.value > -1) {
         Object.assign(
@@ -217,7 +229,9 @@ export default {
     }
 
     return {
+      form,
       dialog,
+      required,
       attribute_type,
       edited_index,
       edited_attribute,

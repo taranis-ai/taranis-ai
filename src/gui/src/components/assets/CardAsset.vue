@@ -109,7 +109,7 @@ export default {
       this.$root.$emit('delete-asset', data)
     },
     deleteAllowed() {
-      return this.checkPermission(Permissions.MY_ASSETS_CREATE)
+      return this.checkPermission(Permissions.ASSETS_CREATE)
     },
     cardItemToolbar(action) {
       switch (action) {

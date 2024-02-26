@@ -1,14 +1,15 @@
 from typing import Any, TypeVar, Type
-
-from enum import Enum
-from core.managers.db_manager import db
 from datetime import datetime
+from enum import Enum
 import json
+
+from core.managers.db_manager import db
 
 T = TypeVar("T", bound="BaseModel")
 
 
 class BaseModel(db.Model):
+    __allow_unmapped__ = True
     __abstract__ = True
 
     def __str__(self) -> str:
@@ -52,7 +53,10 @@ class BaseModel(db.Model):
         return [cls.from_dict(data) for data in json_data]
 
     def to_dict(self) -> dict[str, Any]:
-        data = {c.name: getattr(self, c.name) for c in self.__table__.columns}
+        table = getattr(self, "__table__", None)
+        if table is None:
+            return {}
+        data = {c.name: getattr(self, c.name) for c in table.columns}
         for key, value in data.items():
             if isinstance(value, datetime):
                 data[key] = value.isoformat()
@@ -65,7 +69,7 @@ class BaseModel(db.Model):
 
     @classmethod
     def get(cls: Type[T], id) -> T | None:
-        if isinstance(id, int) and (id < 0 or id > 2**63 - 1):
+        if (isinstance(id, int) and (id < 0 or id > 2**63 - 1)) or id is None:
             return None
         return cls.query.get(id)
 

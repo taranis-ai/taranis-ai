@@ -1125,12 +1125,12 @@ class NewsItemAttribute(BaseModel):
 
 class NewsItemDataNewsItemAttribute(BaseModel):
     news_item_data_id = db.Column(db.String, db.ForeignKey("news_item_data.id"), primary_key=True)
-    news_item_attribute_id = db.Column(db.Integer, db.ForeignKey("news_item_attribute.id"), primary_key=True)
+    news_item_attribute_id = db.Column(db.Integer, db.ForeignKey("news_item_attribute.id", ondelete="CASCADE"), primary_key=True)
 
 
 class NewsItemAggregateNewsItemAttribute(BaseModel):
     news_item_aggregate_id = db.Column(db.Integer, db.ForeignKey("news_item_aggregate.id"), primary_key=True)
-    news_item_attribute_id = db.Column(db.Integer, db.ForeignKey("news_item_attribute.id"), primary_key=True)
+    news_item_attribute_id = db.Column(db.Integer, db.ForeignKey("news_item_attribute.id", ondelete="CASCADE"), primary_key=True)
 
 
 class ReportItemNewsItemAggregate(BaseModel):

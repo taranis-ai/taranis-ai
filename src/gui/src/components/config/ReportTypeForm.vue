@@ -23,8 +23,11 @@
 
       <v-row no-gutters>
         <v-col cols="12">
-          <v-btn color="primary" @click="addAttributeGroup">
-            <v-icon icon="mdi-plus" />
+          <v-btn
+            color="primary"
+            @click="addAttributeGroup"
+            prepend-icon="mdi-plus"
+          >
             <span>{{ $t('report_type.new_group') }}</span>
           </v-btn>
         </v-col>
@@ -111,8 +114,8 @@ export default {
     }
 
     const addAttributeGroup = () => {
-      report_type.value.attribute_groups.push({
-        index: report_type.value.attribute_groups.length,
+      report_type.value.attribute_groups.unshift({
+        index: 0,
         title: '',
         description: '',
         attribute_group_items: []
@@ -152,11 +155,14 @@ export default {
         for (
           let y = 0;
           y <
-            update_report_type.attribute_groups[x].attribute_group_items.length;
+          update_report_type.attribute_groups[x].attribute_group_items.length;
           y++
         ) {
-          update_report_type.attribute_groups[x].attribute_group_items[y].index = y
-          delete(update_report_type.attribute_groups[x].attribute_group_items[y].attribute)
+          update_report_type.attribute_groups[x].attribute_group_items[
+            y
+          ].index = y
+          delete update_report_type.attribute_groups[x].attribute_group_items[y]
+            .attribute
         }
       }
 

@@ -1,67 +1,43 @@
-{% for report_item in data.report_items %}
-{% if report_item.type != "Vulnerability Report" %}
-This template cannot be used for item of type "{{ report_item.type }}". It can only handle "Vulnerability Report".
-{% else %}
-# VULNERABILITY REPORT: {{ report_item.name_prefix }}{{ report_item.name }}
-
-## Vulnerability
-
-CVSS VECTOR: {% if report_item.attributes.cvss %}{{ report_item.attributes.cvss | default('unspecified') }}{% endif %}
-TLP: {{ report_item.attributes.tlp }}
-CONFIDENTIALITY: {{ report_item.attributes.confidentiality | default('Public') }}
-DESCRIPTION: {{ report_item.attributes.description }}
-FIRST PUBLISHED: {{ report_item.attributes.exposure_date }}
-UPDATED: {{ report_item.attributes.update_date }}
-CVE: {% for cve in report_item.attributes.cve %}{{ cve }}{{ ", " if loop.last else "" }}{% endfor %}
-IMPACT:
-{% for impact in report_item.attributes.impact -%}
-- {{ impact }}
-{% endfor %}
-
-## Identify and act
-
-{% if report_item.attributes.ioc is defined and report_item.attributes.ioc|length > 0 -%}
-
-### IOC
-
-{% for ioc in report_item.attributes.ioc -%}
-- {{ ioc }}
+{%- macro traverse(report_items, ns=None) %}
+{%- if ns is none -%}
+{%- set ns = namespace(item_list=[]) %}
+{%- endif %}
+{#- Arbitrary section to add a report name to the rendered product -#}
+{%- if report_items is mapping -%}
+{%- if 'report_item_type_id' in report_items %}
+{%- if report_items.get('report_item_type_id') == 1 %}
+# OSINT REPORT
+{%- elif report_items.get('report_item_type_id') == 2 %}
+# DISINFORMATION REPORT
+{%- elif report_items.get('report_item_type_id') == 3 %}
+# VULNERABILITY REPORT
+{%- elif report_items.get('report_item_type_id') == 4 %}
+# MISP REPORT
+{%- endif %}<br>
+{%- endif %}
+{#- Handle omission of keys: Admin needs to create an attribute omit_keys in the Report Types section with the Name "omission" -#}
+{#- This is a text field where specific keys can be entered with comma separated -#}
+{%- if report_items.get('report_items') and report_items.get('report_items')[0].get('attributes').get('omission') %}
+{% set omit_keys = report_items.get('report_items')[0].get('attributes').get('omission') %}
+{% set ns.item_list = omit_keys.split(",") | map('trim') | map('lower') | list %}
+omit_keys: {{ ns.item_list }}
+{%- endif %}
+{#- Handle nested dictionaries -#}
+{% for key, value in report_items.items() %}
+{%- if value != "" and key.lower() not in ns.item_list %}
+{%- if value is mapping or (value is iterable and value is not string and value is not mapping) %}
+<br>## {{ key.upper() }}:<br>
+{{ traverse(value, ns) }}
+{%- else %}
+{{ key.upper() }}: {{ value }}<br>
+{%- endif %}
+{%- endif %}
+{%- endfor %}
+{%- elif report_items is iterable and report_items is not string and report_items is not mapping %}
+{#- Handle lists -#}
+{% for item in report_items %}
+{{- traverse(item, ns) -}}
 {% endfor %}
 {%- endif %}
-{% if report_item.attributes.affected_systems is defined and report_item.attributes.affected_systems|length > 0 -%}
-
-### Affected systems
-
-{% for entry in report_item.attributes.affected_systems -%}
-- {{ entry }}
-{% endfor %}
-{%- endif %}
-{% if report_item.attributes.recommendations is defined and report_item.attributes.recommendations != "" -%}
-
-### Recommendations
-
-{{ report_item.attributes.recommendations }}
-{% endif %}
-{% if report_item.attributes.links is defined and report_item.attributes.links|length > 1 %}
-
-### Links
-
-{% for entry in report_item.attributes.links %}
-- {{ entry }}
-{% endfor %}
-{% endif %}
-{% if false %}
-
-## Associated news items
-
-{% for news_item in report_item.news_items %}
- - Title: {{ news_item.title }}
-   Author:  {{ news_item.author }}
-   Source: {{ news_item.source }}
-   Link: {{ news_item.link }}
-   Published: {{ news_item.published }}
-{% endfor %}
-{% endif %}
-
-{% endif %}
-{% endfor %}
+{%- endmacro %}
+{{- traverse(data.report_items) -}}

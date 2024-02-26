@@ -8,6 +8,6 @@ export function updateProfile(data) {
   return apiService.put('/users/profile', data)
 }
 
-export function getAllUserProductTypes() {
-  return apiService.get('/users/my-product-types')
+export function getUserDetails() {
+  return apiService.get('/users/')
 }

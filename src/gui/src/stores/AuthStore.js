@@ -1,7 +1,7 @@
 import { authenticate, refresh } from '@/api/auth'
 import { apiService } from '@/main'
 import { Base64 } from 'js-base64'
-import { useMainStore } from './MainStore'
+import { useUserStore } from './UserStore'
 import { useAssessStore } from './AssessStore'
 import { defineStore } from 'pinia'
 import { router } from '@/router'
@@ -11,8 +11,6 @@ export const useAuthStore = defineStore('authenticator', {
     jwt: '',
     login_uri: '/login',
     logout_uri: '/logout',
-    external_login_uri: false,
-    external_logout_uri: false,
     user: {},
     sub: '',
     exp: 0
@@ -29,8 +27,8 @@ export const useAuthStore = defineStore('authenticator', {
       try {
         const response = await authenticate(userData)
         this.setJwtToken(response.data.access_token)
-        const store = useMainStore()
-        store.user = this.user
+        const userStore = useUserStore()
+        userStore.loadUser()
       } catch (error) {
         this.clearJwtToken()
         console.error(error)
@@ -40,8 +38,8 @@ export const useAuthStore = defineStore('authenticator', {
     logout() {
       this.clearJwtToken()
       this.$reset()
-      const mainStore = useMainStore()
-      mainStore.reset_user()
+      const userStore = useUserStore()
+      userStore.reset_user()
       const assessStore = useAssessStore()
       assessStore.$reset()
       router.push({ name: 'login' })
@@ -50,20 +48,19 @@ export const useAuthStore = defineStore('authenticator', {
       try {
         const response = await refresh()
         this.setJwtToken(response.data.access_token)
-        const store = useMainStore()
-        store.user = this.user
+        const userStore = useUserStore()
+        userStore.loadUser()
       } catch {
         this.clearJwtToken()
       }
     },
-    setToken(access_token) {
-      this.setJwtToken(access_token)
-      const store = useMainStore()
-      store.user = this.user
-    },
-    setAuthURLs() {
-      this.setLoginURL()
-      this.setLogoutURL()
+    hasAccess(permission) {
+      const userStore = useUserStore()
+      const { permissions } = userStore
+      if (permissions && permissions.length > 0) {
+        return permissions.includes(permission)
+      }
+      return false
     },
     setJwtToken(access_token) {
       localStorage.ACCESS_TOKEN = access_token
@@ -76,21 +73,6 @@ export const useAuthStore = defineStore('authenticator', {
     },
     clearJwtToken() {
       localStorage.ACCESS_TOKEN = ''
-    },
-    setLoginURL() {
-      if (import.meta.env.VITE_TARANIS_LOGIN_URL) {
-        this.login_uri = import.meta.env.VITE_TARANIS_LOGIN_URL
-        this.external_login_uri = true
-      }
-    },
-    setLogoutURL() {
-      if (
-        typeof import.meta.env !== 'undefined' &&
-        import.meta.env.VITE_TARANIS_LOGOUT_URL != null
-      ) {
-        this.logout_uri = import.meta.env.VITE_TARANIS_LOGOUT_URL
-        this.external_logout_uri = true
-      }
     }
   },
   persist: true

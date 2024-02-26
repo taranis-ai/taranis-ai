@@ -3,6 +3,7 @@
     <card-story :story="story" :detail-view="true" />
     <assess-selection-toolbar v-if="activeSelection" />
   </v-container>
+  <not-found-card v-else :item-id="story_id" item-type="Story" />
 </template>
 
 <script>
@@ -12,11 +13,13 @@ import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useAssessStore } from '@/stores/AssessStore'
 import AssessSelectionToolbar from '@/components/assess/AssessSelectionToolbar.vue'
+import NotFoundCard from '@/components/common/NotFoundCard.vue'
 
 export default {
   name: 'StoryView',
   components: {
     CardStory,
+    NotFoundCard,
     AssessSelectionToolbar
   },
   setup() {
@@ -24,16 +27,15 @@ export default {
     const { activeSelection } = storeToRefs(assessStore)
 
     const route = useRoute()
+    const story_id = route.params.id
 
     const story = computed(() => {
-      return assessStore.newsItems.items.find(
-        (item) => item.id == route.params.id
-      )
+      return assessStore.newsItems.items.find((item) => item.id == story_id)
     })
 
     const loadStories = async () => {
-      if (route.params.id) {
-        assessStore.updateStoryByID(route.params.id)
+      if (story_id) {
+        assessStore.updateStoryByID(story_id)
       }
     }
 
@@ -43,6 +45,7 @@ export default {
 
     return {
       story,
+      story_id,
       activeSelection
     }
   }

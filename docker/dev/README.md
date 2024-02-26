@@ -3,12 +3,24 @@
 
 ## Easy Mode
 
+Clone Repository
+
+```bash
+git clone git@github.com:taranis-ai/taranis-ai.git
+cd taranis-ai
+```
+
 Install pre dependencies:
 * git
 * tmux
 * python3
 * nodejs
 * build-essentials
+* [podman](https://podman.io/docs/installation) or [docker](https://docs.docker.com/engine/install/)
+
+If using docker make sure to allow running it as [non-root user](https://docs.docker.com/engine/install/linux-postinstall/)
+if using podman make sure to also install `podman-compose` and `podman-docker`
+
 
 Copy env.dev to worker and core
 
@@ -19,7 +31,7 @@ cp docker/dev/env.dev src/worker/.env
 
 
 ```bash
-./start_dev.sh
+docker/dev/start_dev.sh
 ```
 
 ## Hard Mode

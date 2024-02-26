@@ -42,12 +42,12 @@ dependencies = [
     "transformers==4.37.1",
     "py3langid==0.2.2",
     "nltk==3.8.1",
-    "taranis-story-clustering==0.7.2",
+    "taranis-story-clustering==0.7.3",
 ]
 dynamic = ["version"]
 
 [project.optional-dependencies]
-dev = ["black", "pytest", "pytest-celery", "watchdog", "build", "wheel", "setuptools", "setuptools_scm"]
+dev = ["black", "pytest", "pytest-celery", "requests-mock", "watchdog", "build", "wheel", "setuptools", "setuptools_scm"]
 
 [project.urls]
 "Source Code" = "https://github.com/taranis-ai/taranis-ai"

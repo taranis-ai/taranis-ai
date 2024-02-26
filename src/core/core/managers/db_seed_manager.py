@@ -305,14 +305,14 @@ def pre_seed_permissions():
         "Delete publisher preset configuration",
     )
 
-    Permission.add("MY_ASSETS_ACCESS", "My Assets access", "Access to My Assets module")
+    Permission.add("ASSETS_ACCESS", "My Assets access", "Access to My Assets module")
     Permission.add(
-        "MY_ASSETS_CREATE",
+        "ASSETS_CREATE",
         "My Assets create",
         "Creation of products in My Assets module",
     )
     Permission.add(
-        "MY_ASSETS_CONFIG",
+        "ASSETS_CONFIG",
         "My Assets config",
         "Configuration of access and groups in My Assets module",
     )
@@ -388,6 +388,7 @@ def pre_seed_attributes(db):
         {"name": "Link", "description": "Link", "type": "LINK"},
         {"name": "Attachment", "description": "Attachment", "type": "ATTACHMENT"},
         {"name": "Rich Text", "description": "Rich Text", "type": "RICH_TEXT"},
+        {"name": "Omit Keys", "description": "Attribute to set keys to omit in the rendered product", "type": "STRING"},
     ]
 
     for attr in attrs:

@@ -38,19 +38,19 @@ class User(BaseModel):
         self.profile = UserProfile(id=id)
 
     @classmethod
-    def find_by_name(cls, username: str):
+    def find_by_name(cls, username: str) -> "User":
         return cls.query.filter_by(username=username).first()
 
     @classmethod
-    def find_by_id(cls, user_id):
+    def find_by_id(cls, user_id) -> "User":
         return cls.query.get(user_id)
 
     @classmethod
-    def find_by_role(cls, role_id: int):
+    def find_by_role(cls, role_id: int) -> "User":
         return cls.query.join(Role, Role.id == role_id).all()
 
     @classmethod
-    def find_by_role_name(cls, role_name: str):
+    def find_by_role_name(cls, role_name: str) -> "User":
         return cls.query.join(Role, Role.name == role_name).all()
 
     @classmethod
@@ -86,6 +86,17 @@ class User(BaseModel):
         data["roles"] = [role.id for role in self.roles if role]
         data["permissions"] = [permission.id for permission in self.permissions if permission]
         return data
+
+    def to_detail_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "username": self.username,
+            "organization": self.organization.to_user_dict(),
+            "roles": [role.to_user_dict() for role in self.roles if role],
+            "permissions": self.get_permissions(),
+            "profile": self.profile.to_dict(),
+        }
 
     @classmethod
     def add(cls, data) -> "User":
@@ -133,6 +144,9 @@ class User(BaseModel):
                 all_permissions.update(role.get_permissions())
         return list(all_permissions)
 
+    def get_roles(self):
+        return [role.id for role in self.roles]
+
     def get_current_organization_name(self):
         return self.organization.name if self.organization else ""
 
@@ -153,50 +167,6 @@ class User(BaseModel):
         UserProfile.delete(id)
         return result
 
-    ##
-    # External User Management - TODO: Check if this is still needed
-    ##
-
-    @classmethod
-    def get_all_external_json(cls, user, search):
-        users, count = cls.get_by_filter(search, user.organization)
-        items = [user.to_dict() for user in users]
-        return {"total_count": count, "items": items}
-
-    @classmethod
-    def add_new_external(cls, user, data):
-        permissions = Permission.get_external_permissions_ids()
-        data.pop("roles")
-        for permission in data["permissions"]:
-            if permission["id"] not in permissions:
-                data["permissions"].remove(permission)
-        user = cls.from_dict(data)
-        db.session.add(user)
-        db.session.commit()
-        return f"User {user.id} created", 201
-
-    @classmethod
-    def update_external(cls, user, user_id, data):
-        permissions = Permission.get_external_permissions_ids()
-        user = cls.query.get(user_id)
-        if user is None:
-            return f"User {user_id} not found", 404
-
-        updated_user = cls.from_dict(data)
-        if user.organization != updated_user.organization:
-            return f"User {user_id} could not be updated", 400
-        user.username = updated_user.username
-        user.name = updated_user.name
-
-        for permission in updated_user.permissions:
-            if permission and permission.id not in permissions:
-                updated_user.permissions.remove(permission)
-
-        user.permissions = updated_user.permissions
-
-        db.session.commit()
-        return f"User {user_id} updated", 200
-
 
 class UserRole(BaseModel):
     user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), primary_key=True)
@@ -214,7 +184,7 @@ class UserProfile(BaseModel):
     spellcheck = db.Column(db.Boolean, default=True)
     dark_theme = db.Column(db.Boolean, default=False)
 
-    hotkeys = db.relationship("Hotkey", cascade="all, delete-orphan")
+    hotkeys: Any = db.relationship("Hotkey", cascade="all, delete-orphan")
     language = db.Column(db.String(2), default="en")
 
     def __init__(self, spellcheck=True, dark_theme=False, hotkeys=None, language="en", id=None):

@@ -1,5 +1,10 @@
-from playwright.sync_api import Playwright, sync_playwright, expect
+#!/usr/bin/env python3
+
+from playwright.sync_api import Playwright
 import time
+import os
+
+taranis_url = os.getenv("TARANIS_URL", "http://localhost:8081")
 
 
 def click_with_highlight(locator, duration=2):
@@ -7,9 +12,6 @@ def click_with_highlight(locator, duration=2):
     style_content = """
     .highlight-element { background-color: yellow; outline: 4px solid red; }
     """
-    # style_content = """
-    # .highlight-element { outline: 4px solid red; }
-    # """
 
     locator.page.add_style_tag(content=style_content)
 
@@ -35,12 +37,11 @@ def test_run(playwright: Playwright) -> None:
     context = browser.new_context(
         record_video_dir="videos/",
         viewport={"width": 1920, "height": 1080},
-        record_video_size={"width": 1920, "height": 1080},
+        record_video_size={"width": 1810, "height": 1000},
     )
 
     page = context.new_page()
-    page.goto("http://localhost:8081/")
-    page.goto("http://localhost:8081/login")
+    page.goto(f"{taranis_url}/login")
     click_with_highlight(page.get_by_placeholder("Username"))
 
     page.get_by_placeholder("Username").fill("admin")
@@ -79,3 +80,10 @@ def test_run(playwright: Playwright) -> None:
 
     context.close()
     browser.close()
+
+
+if __name__ == "__main__":
+    from playwright.sync_api import sync_playwright
+
+    with sync_playwright() as p:
+        test_run(p)
