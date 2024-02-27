@@ -8,9 +8,16 @@
     @update:offset="(value) => (newsItemsFilter.offset = value)"
   >
     <template #appbar>
-      <v-btn text="Test" @click="console.log('Test')" />
-      <v-btn text="Test2" @click="console.log('Test2')" />
-      <assess-filter-buttons :vertical="false" />
+      <filter-button
+        v-model="newsItemsFilter['read']"
+        label="read"
+        icon="mdi-eye-check-outline"
+      />
+      <filter-button
+        v-model="newsItemsFilter['in_report']"
+        label="items in reports"
+        icon="mdi-google-circles-communities"
+      />
     </template>
     <template #navdrawer>
       <!-- scope -->
@@ -182,6 +189,7 @@
 import dateChips from '@/components/common/filter/dateChips.vue'
 import dateFilter from '@/components/common/filter/dateFilter.vue'
 import tagFilter from '@/components/common/filter/tagFilter.vue'
+import filterButton from '@/components/common/filter/filterButton.vue'
 import AssessFilterButtons from '@/components/assess/AssessFilterButtons.vue'
 import filterSortList from '@/components/common/filter/filterSortList.vue'
 import FilterNavigation from '@/components/common/FilterNavigation.vue'
@@ -198,6 +206,7 @@ export default {
     dateFilter,
     tagFilter,
     filterSortList,
+    filterButton,
     FilterNavigation,
     AssessFilterButtons
   },
@@ -300,7 +309,7 @@ button.vertical-button .v-btn__append i {
   height: 100% !important;
 }
 
-.vertical-button-group .vertical-button {
+.vertical-button {
   justify-content: flex-start;
 }
 
