@@ -38,15 +38,19 @@ class User(BaseModel):
         self.profile = UserProfile(id=id)
 
     @classmethod
-    def find_by_name(cls, username: str):
+    def find_by_name(cls, username: str) -> "User":
         return cls.query.filter_by(username=username).first()
 
     @classmethod
-    def find_by_role(cls, role_id: int):
+    def find_by_id(cls, user_id) -> "User":
+        return cls.query.get(user_id)
+
+    @classmethod
+    def find_by_role(cls, role_id: int) -> "User":
         return cls.query.join(Role, Role.id == role_id).all()
 
     @classmethod
-    def find_by_role_name(cls, role_name: str):
+    def find_by_role_name(cls, role_name: str) -> "User":
         return cls.query.join(Role, Role.name == role_name).all()
 
     @classmethod
@@ -82,6 +86,17 @@ class User(BaseModel):
         data["roles"] = [role.id for role in self.roles if role]
         data["permissions"] = [permission.id for permission in self.permissions if permission]
         return data
+
+    def to_detail_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "username": self.username,
+            "organization": self.organization.to_user_dict(),
+            "roles": [role.to_user_dict() for role in self.roles if role],
+            "permissions": self.get_permissions(),
+            "profile": self.profile.to_dict(),
+        }
 
     @classmethod
     def add(cls, data) -> "User":
@@ -126,6 +141,9 @@ class User(BaseModel):
                 all_permissions.update(role.get_permissions())
         return list(all_permissions)
 
+    def get_roles(self):
+        return [role.id for role in self.roles]
+
     def get_current_organization_name(self):
         return self.organization.name if self.organization else ""
 
@@ -159,7 +177,7 @@ class UserProfile(BaseModel):
     spellcheck = db.Column(db.Boolean, default=True)
     dark_theme = db.Column(db.Boolean, default=False)
 
-    hotkeys: Mapped[list["Hotkey"]] = db.relationship("Hotkey", cascade="all, delete-orphan")  # type: ignore
+    hotkeys: Any = db.relationship("Hotkey", cascade="all, delete-orphan")
     language = db.Column(db.String(2), default="en")
 
     def __init__(self, spellcheck=True, dark_theme=False, hotkeys=None, language="en", id=None):

@@ -50,8 +50,9 @@ export class ApiService {
   async get(resource) {
     return await this._axios.get(resource).catch((error) => {
       if (error.response.status === 401) {
-        console.error('Redirect to login')
+        this.authStore.logout()
       }
+      throw error
     })
   }
 

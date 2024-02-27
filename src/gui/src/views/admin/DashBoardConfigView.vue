@@ -46,7 +46,7 @@
           </v-icon>
           <span class="caption"
             >Tasks are scheduled
-            <b>{{ schedule_length }}</b>
+            <b>{{ dashboard_data.schedule_length }}</b>
           </span>
           <v-divider inset></v-divider>
 
@@ -108,10 +108,9 @@
 </template>
 
 <script>
-import { onMounted, ref, computed } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useDashboardStore } from '@/stores/DashboardStore'
 import { useMainStore } from '@/stores/MainStore'
-import { useConfigStore } from '@/stores/ConfigStore'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { getCoreBuildInfo } from '@/api/dashboard'
@@ -124,14 +123,12 @@ export default {
   setup() {
     const mainStore = useMainStore()
     const dashboardStore = useDashboardStore()
-    const configStore = useConfigStore()
     const { d } = useI18n()
 
     mainStore.updateFromLocalConfig()
 
     const { buildDate, gitInfo, upstreamTreeUrl } = storeToRefs(mainStore)
     const { dashboard_data } = storeToRefs(dashboardStore)
-    const schedule_length = computed(() => configStore.schedule.length ?? 0)
 
     const coreBuildDate = ref(new Date().toISOString())
     const coreGitInfo = ref(null)
@@ -151,7 +148,6 @@ export default {
     onMounted(() => {
       mainStore.drawerVisible = true
       dashboardStore.loadDashboardData()
-      configStore.loadSchedule()
       mainStore.resetItemCount()
     })
 
@@ -159,11 +155,10 @@ export default {
       coreBuildDate,
       coreGitInfo,
       coreUpstreamTreeUrl,
+      upstreamTreeUrl,
       dashboard_data,
       buildDate,
       gitInfo,
-      upstreamTreeUrl,
-      schedule_length,
       d
     }
   }

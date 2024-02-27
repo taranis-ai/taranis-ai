@@ -68,15 +68,18 @@ class Role(BaseModel):
         return [cls.from_dict(data) for data in json_data]
 
     def to_dict(self):
-        table = getattr(self, "__table__", None)
-        if table is None:
-            return {}
-        data = {c.name: getattr(self, c.name) for c in table.columns}
-        data["permissions"] = [permission.id for permission in self.permissions if permission]
+        data = {c.name: getattr(self, c.name) for c in self.__table__.columns}
+        data["permissions"] = self.get_permissions()
         return data
 
+    def to_user_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+        }
+
     def get_permissions(self):
-        return {permission.id for permission in self.permissions if permission}
+        return [permission.id for permission in self.permissions if permission]  # type: ignore
 
     @classmethod
     def update(cls, role_id: int, data: dict) -> tuple[dict, int]:

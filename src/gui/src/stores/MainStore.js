@@ -5,12 +5,6 @@ import { ref, computed } from 'vue'
 export const useMainStore = defineStore(
   'main',
   () => {
-    const user = ref({
-      id: '',
-      name: '',
-      organization_name: '',
-      permissions: []
-    })
     const vertical_view = ref(false)
     const itemCountTotal = ref(0)
     const itemCountFiltered = ref(0)
@@ -61,17 +55,7 @@ export const useMainStore = defineStore(
       itemCountFiltered.value = 0
     }
 
-    const reset_user = () => {
-      user.value = {
-        id: '',
-        name: '',
-        organization_name: '',
-        permissions: []
-      }
-    }
-
     return {
-      user,
       vertical_view,
       drawerVisible,
       drawerSetByUser,
@@ -88,7 +72,6 @@ export const useMainStore = defineStore(
       updateFromLocalConfig,
       toggleDrawer,
       resetItemCount,
-      reset_user
     }
   },
   {

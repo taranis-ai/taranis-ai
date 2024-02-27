@@ -190,8 +190,8 @@ export default {
     })
 
     const saveReportItem = async () => {
-      const isValid = await form.value.validate()
-      if (!isValid) {
+      const { valid } = await form.value.validate()
+      if (!valid) {
         notifyFailure('Please correct the errors before saving.')
         return
       }

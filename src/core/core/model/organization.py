@@ -27,6 +27,12 @@ class Organization(BaseModel):
         data.pop("address_id")
         return data
 
+    def to_user_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+        }
+
     @classmethod
     def get_all(cls):
         return cls.query.order_by(db.asc(Organization.name)).all()

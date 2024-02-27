@@ -5,32 +5,40 @@
         <v-card :title="username" subtitle="User Name" />
       </v-col>
       <v-col>
-        <v-card :title="organizationName" subtitle="Organization" />
+        <v-card>
+          <v-card-title>
+            {{ name }}
+          </v-card-title>
+          <v-card-subtitle> Name </v-card-subtitle>
+        </v-card>
+      </v-col>
+      <v-col>
+        <v-card>
+          <v-card-title>
+            {{ role_list }}
+          </v-card-title>
+          <v-card-subtitle> Roles </v-card-subtitle>
+        </v-card>
       </v-col>
     </v-row>
   </v-container>
 </template>
 
 <script>
-import { computed } from 'vue'
-import { useMainStore } from '@/stores/MainStore'
+import { useUserStore } from '@/stores/UserStore'
+import { storeToRefs } from 'pinia'
 
 export default {
   name: 'UserView',
   setup() {
-    const mainStore = useMainStore()
+    const { name, username, roles } = storeToRefs(useUserStore())
 
-    const username = computed(() => {
-      return mainStore.user.name || ''
-    })
-
-    const organizationName = computed(() => {
-      return mainStore.user.organization_name || ''
-    })
+    const role_list = roles.value.map((role) => role.name).join(', ')
 
     return {
       username,
-      organizationName
+      role_list,
+      name
     }
   }
 }
