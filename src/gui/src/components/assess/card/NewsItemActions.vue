@@ -45,7 +45,7 @@
     />
 
     <v-btn
-      v-if="story.in_reports_count < 1"
+      v-if="story && story.in_reports_count < 1"
       size="small"
       class="item-action-btn"
       variant="tonal"
