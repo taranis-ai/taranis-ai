@@ -41,93 +41,98 @@
       </v-btn>
     </v-toolbar>
     <v-card-text>
-      <v-row no-gutters>
-        <v-col
-          :cols="verticalView ? 6 : 12"
-          :class="verticalView ? 'taranis-vertical-view' : ''"
-        >
-          <v-row no-gutters>
-            <v-col v-if="edit" cols="12">
-              <span class="caption">ID: {{ report_item.uuid }}</span>
-            </v-col>
-            <v-col cols="4" class="pr-3">
-              <v-select
-                v-model="report_item.report_item_type_id"
-                :disabled="edit"
-                item-title="title"
-                item-value="id"
-                :rules="required"
-                no-data-text="No Report Types available - please create one under Admin > Report Types"
-                :items="report_item_types.items"
-                :label="$t('report_item.report_type')"
-              />
-            </v-col>
-            <v-col cols="8" class="pr-3">
-              <v-text-field
-                v-model="report_item.title"
-                :label="$t('report_item.title')"
-                name="title"
-                type="text"
-                :rules="required"
-              />
-            </v-col>
-          </v-row>
-          <v-row>
-            <v-col v-if="edit && report_type" cols="12" class="pa-0 ma-0">
-              <v-expansion-panels
-                v-for="attribute_group in report_type.attribute_groups"
-                :key="attribute_group.id"
-                class="mb-1"
-                multiple
-              >
-                <v-expansion-panel :title="attribute_group.title">
-                  <v-expansion-panel-text>
-                    <div
-                      v-for="(
-                        attribute, attribute_id
-                      ) in report_item.attributes"
-                      :key="attribute_id"
-                    >
-                      <attribute-item
-                        v-if="
-                          attribute_group.attribute_group_items.find(
-                            (item) =>
-                              item.id === attribute.attribute_group_item_id
-                          )
-                        "
-                        v-model:value="attribute.value"
-                        :read-only="!edit"
-                        :attribute-item="
-                          attribute_group.attribute_group_items.find(
-                            (item) =>
-                              item.id === attribute.attribute_group_item_id
-                          )
-                        "
-                      />
-                    </div>
-                  </v-expansion-panel-text>
-                </v-expansion-panel>
-              </v-expansion-panels>
-            </v-col>
-          </v-row>
-        </v-col>
-        <v-col :cols="verticalView ? 6 : 12" class="pa-5 taranis-vertical-view">
-          <v-alert
-            v-if="edit && report_item.news_item_aggregates.length == 0"
-            dense
-            outlined
-            type="info"
-            :text="$t('report_item.no_stories')"
-          />
-          <card-story
-            v-for="story in report_item.news_item_aggregates"
-            :key="story.id"
-            :story="story"
-            :report-view="true"
-            @remove-from-report="removeFromReport(story.id)"
-          />
-        </v-col>
-      </v-row>
+      <v-form ref="form" @submit.prevent="saveReportItem">
+        <v-row no-gutters>
+          <v-col
+            :cols="verticalView ? 6 : 12"
+            :class="verticalView ? 'taranis-vertical-view' : ''"
+          >
+            <v-row no-gutters>
+              <v-col v-if="edit" cols="12">
+                <span class="caption">ID: {{ report_item.uuid }}</span>
+              </v-col>
+              <v-col cols="4" class="pr-3">
+                <v-select
+                  v-model="report_item.report_item_type_id"
+                  :disabled="edit"
+                  item-title="title"
+                  item-value="id"
+                  :rules="required"
+                  no-data-text="No Report Types available - please create one under Admin > Report Types"
+                  :items="report_item_types.items"
+                  :label="$t('report_item.report_type')"
+                />
+              </v-col>
+              <v-col cols="8" class="pr-3">
+                <v-text-field
+                  v-model="report_item.title"
+                  :label="$t('report_item.title')"
+                  name="title"
+                  type="text"
+                  :rules="required"
+                />
+              </v-col>
+            </v-row>
+            <v-row>
+              <v-col v-if="edit && report_type" cols="12" class="pa-0 ma-0">
+                <v-expansion-panels
+                  v-for="attribute_group in report_type.attribute_groups"
+                  :key="attribute_group.id"
+                  class="mb-1"
+                  multiple
+                >
+                  <v-expansion-panel :title="attribute_group.title">
+                    <v-expansion-panel-text>
+                      <div
+                        v-for="(
+                          attribute, attribute_id
+                        ) in report_item.attributes"
+                        :key="attribute_id"
+                      >
+                        <attribute-item
+                          v-if="
+                            attribute_group.attribute_group_items.find(
+                              (item) =>
+                                item.id === attribute.attribute_group_item_id
+                            )
+                          "
+                          v-model:value="attribute.value"
+                          :read-only="!edit"
+                          :attribute-item="
+                            attribute_group.attribute_group_items.find(
+                              (item) =>
+                                item.id === attribute.attribute_group_item_id
+                            )
+                          "
+                        />
+                      </div>
+                    </v-expansion-panel-text>
+                  </v-expansion-panel>
+                </v-expansion-panels>
+              </v-col>
+            </v-row>
+          </v-col>
+          <v-col
+            :cols="verticalView ? 6 : 12"
+            class="pa-5 taranis-vertical-view"
+          >
+            <v-alert
+              v-if="edit && report_item.news_item_aggregates.length == 0"
+              dense
+              outlined
+              type="info"
+              :text="$t('report_item.no_stories')"
+            />
+            <card-story
+              v-for="story in report_item.news_item_aggregates"
+              :key="story.id"
+              :story="story"
+              :report-view="true"
+              @remove-from-report="removeFromReport(story.id)"
+            />
+          </v-col>
+        </v-row>
+      </v-form>
     </v-card-text>
   </v-card>
 </template>
@@ -159,6 +164,7 @@ export default {
     const { t } = useI18n()
     const router = useRouter()
     const store = useAnalyzeStore()
+    const form = ref(null)
 
     const verticalView = ref(props.edit)
     const expand_panel_groups = ref([])
@@ -183,7 +189,12 @@ export default {
       store.loadReportTypes()
     })
 
-    const saveReportItem = () => {
+    const saveReportItem = async () => {
+      const { valid } = await form.value.validate()
+      if (!valid) {
+        notifyFailure('Please correct the errors before saving.')
+        return
+      }
       if (props.edit) {
         updateReportItem(report_item.value.id, report_item.value)
           .then((response) => {
@@ -240,6 +251,7 @@ export default {
       verticalView,
       expand_panel_groups,
       report_item,
+      form,
       required,
       report_item_types,
       report_type,

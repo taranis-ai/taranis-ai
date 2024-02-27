@@ -10,13 +10,16 @@ class Role(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     name: Any = db.Column(db.String(64), unique=True, nullable=False)
     description: Any = db.Column(db.String())
-    permissions: Any = db.relationship(Permission, secondary="role_permission", back_populates="roles")
+    permissions = db.relationship(Permission, secondary="role_permission", back_populates="roles")
 
     def __init__(self, name, description, permissions=None, id=None):
         self.id = id
         self.name = name
         self.description = description
-        self.permissions = [Permission.get(permission_id) for permission_id in permissions] if permissions else []
+        if permissions:
+            for permission_id in permissions:
+                if permission := Permission.get(permission_id):
+                    self.permissions.append(permission)
 
     @classmethod
     def filter_by_name(cls, role_name):
@@ -52,11 +55,17 @@ class Role(BaseModel):
 
     def to_dict(self):
         data = {c.name: getattr(self, c.name) for c in self.__table__.columns}
-        data["permissions"] = [permission.id for permission in self.permissions if permission]
+        data["permissions"] = self.get_permissions()
         return data
 
+    def to_user_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+        }
+
     def get_permissions(self):
-        return {permission.id for permission in self.permissions if permission}
+        return [permission.id for permission in self.permissions if permission]  # type: ignore
 
     @classmethod
     def update(cls, role_id: int, data: dict) -> tuple[dict, int]:

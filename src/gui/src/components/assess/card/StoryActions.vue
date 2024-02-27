@@ -20,7 +20,7 @@
     </v-btn>
 
     <v-btn
-      v-if="!reportView"
+      v-if="!reportView && allow_analyze_update"
       v-ripple="false"
       size="small"
       class="item-action-btn"
@@ -33,7 +33,7 @@
     </v-btn>
 
     <v-btn
-      v-if="reportView"
+      v-if="reportView && allow_analyze_update"
       v-ripple="false"
       size="small"
       class="item-action-btn"
@@ -180,6 +180,7 @@ import PopupShareItems from '@/components/popups/PopupShareItems.vue'
 import votes from '@/components/assess/card/votes.vue'
 import { ref, computed } from 'vue'
 import { useAssessStore } from '@/stores/AssessStore'
+import { useUserStore } from '@/stores/UserStore'
 import { useFilterStore } from '@/stores/FilterStore'
 import { unGroupStories } from '@/api/assess'
 import { storeToRefs } from 'pinia'
@@ -207,6 +208,12 @@ export default {
     const sharingDialog = ref(false)
     const deleteDialog = ref(false)
     const assessStore = useAssessStore()
+    const userStore = useUserStore()
+
+    const allow_analyze_update = computed(() =>
+      userStore.hasPermission('ANALYZE_UPDATE')
+    )
+
     const { newsItemSelection } = storeToRefs(assessStore)
     const selected = computed(() =>
       assessStore.storySelection.includes(props.story.id)
@@ -297,6 +304,7 @@ export default {
       news_item_length,
       minButtonWidth,
       newsItemSelection,
+      allow_analyze_update,
       news_item_summary_text,
       openCard,
       ungroup,
