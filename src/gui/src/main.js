@@ -24,7 +24,7 @@ app.use(pinia)
 app.use(vuetify)
 app.use(VueDOMPurifyHTML)
 
-import { useMainStore } from './stores/MainStore'
+import { useMainStore } from '@/stores/MainStore'
 const mainStore = useMainStore()
 mainStore.updateFromLocalConfig()
 const { coreAPIURL, sentryDSN } = mainStore

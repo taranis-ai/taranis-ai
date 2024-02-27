@@ -7,6 +7,11 @@
     @update:limit="(value) => (newsItemsFilter.limit = value)"
     @update:offset="(value) => (newsItemsFilter.offset = value)"
   >
+    <template #appbar>
+      <v-btn text="Test" @click="console.log('Test')" />
+      <v-btn text="Test2" @click="console.log('Test2')" />
+      <assess-filter-buttons :vertical="false" />
+    </template>
     <template #navdrawer>
       <!-- scope -->
       <v-row no-gutters class="ma-2 px-2">
@@ -63,7 +68,11 @@
         </v-col>
 
         <v-col cols="12" class="pt-1">
-          <date-filter v-model="newsItemsFilter.timeto" placeholder="Until" :max-date="new Date(newsItemsFilter.timefrom)" />
+          <date-filter
+            v-model="newsItemsFilter.timeto"
+            placeholder="Until"
+            :max-date="new Date(newsItemsFilter.timefrom)"
+          />
         </v-col>
         <v-col cols="12" class="pt-1">
           <tag-filter v-model="newsItemsFilter.tags" />
@@ -291,7 +300,7 @@ button.vertical-button .v-btn__append i {
   height: 100% !important;
 }
 
-.vertical-button {
+.vertical-button-group .vertical-button {
   justify-content: flex-start;
 }
 

@@ -1,5 +1,5 @@
 <template>
-  <div class="vertical-button-group ml-2">
+  <div class="ml-2" :class="vertical ? 'vertical-button-group' : ''">
     <filter-button
       v-model="newsItemsFilter['read']"
       label="read"
@@ -33,7 +33,12 @@ export default {
   components: {
     filterButton
   },
-  props: {},
+  props: {
+    vertical: {
+      type: Boolean,
+      default: true
+    }
+  },
   setup() {
     const filterStore = useFilterStore()
     const { newsItemsFilter } = storeToRefs(filterStore)
