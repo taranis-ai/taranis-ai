@@ -176,13 +176,7 @@
       </v-tooltip>
     </div>
 
-    <v-menu
-      v-if="!reportView && !openSummary"
-      open-on-hover
-      open-delay="100"
-      location="start top"
-      offset-y
-    >
+    <v-menu v-if="!reportView && !openSummary" location="bottom" offset-y>
       <template #activator="{ props }">
         <v-btn
           v-ripple="false"
@@ -195,7 +189,7 @@
         />
       </template>
 
-      <v-list class="extraActionsList" dense>
+      <v-list dense>
         <v-list-item
           v-if="detailView || reportView"
           :prepend-icon="
@@ -205,53 +199,57 @@
           title="mark as read"
           @click.stop="markAsRead()"
         />
-        <v-list-item
-          :prepend-icon="
-            !story.important ? 'mdi-star-check-outline' : 'mdi-star-check'
-          "
-          :title="
-            !story.important ? 'mark as important' : 'unmark as important'
-          "
-          @click.stop="markAsImportant()"
-        />
-        <v-list-item
-          title="send via mail"
-          prepend-icon="mdi-email-outline"
-          @click.stop="shareViaMail"
-        />
+        <v-list-item @click.stop="markAsImportant()">
+          <v-tooltip activator="parent" location="start">
+            {{ story.important ? 'uncheck important' : 'mark as important' }}
+          </v-tooltip>
+          <v-icon
+            :icon="
+              !story.important ? 'mdi-star-check-outline' : 'mdi-star-check'
+            "
+          />
+        </v-list-item>
+        <v-list-item @click.stop="shareViaMail">
+          <v-tooltip activator="parent" location="start">
+            send via mail
+          </v-tooltip>
+          <v-icon icon="mdi-email-outline" title="send via mail" />
+        </v-list-item>
         <v-list-item
           v-if="!reportView && news_item_length > 1"
-          title="ungroup"
-          prepend-icon="mdi-ungroup"
           @click.stop="ungroup()"
         >
           <v-tooltip activator="parent" location="start">
             remove all news items from this story
           </v-tooltip>
+          <v-icon icon="mdi-ungroup" title="ungroup" />
         </v-list-item>
         <v-list-item
           v-if="!reportView && news_item_length === 1"
-          title="open news item"
-          prepend-icon="mdi-open-in-app"
           :to="'/newsitem/' + story.news_items[0].id"
-        />
+        >
+          <v-icon icon="mdi-open-in-app" title="open" />
+          <v-tooltip activator="parent" location="start"> open </v-tooltip>
+        </v-list-item>
         <v-list-item
           v-if="!reportView && newsItemSelection.length > 0"
-          title="move selection"
-          prepend-icon="mdi-folder-move"
           @click.stop="moveSelection()"
-        />
+        >
+          <v-icon icon="mdi-folder-move" title="move selection to story" />
+          <v-tooltip activator="parent" location="start">
+            move selection to story
+          </v-tooltip>
+        </v-list-item>
         <v-list-item
           v-if="allow_edit"
-          title="edit"
-          prepend-icon="mdi-pencil-outline"
           :to="`/newsitem/${story.news_items[0].id}/edit`"
-        />
-        <v-list-item
-          title="delete"
-          prepend-icon="mdi-delete-outline"
-          @click.stop="deleteDialog = true"
-        />
+        >
+          <v-icon icon="mdi-pencil-outline" title="edit" />
+        </v-list-item>
+        <v-list-item @click.stop="deleteDialog = true">
+          <v-icon icon="mdi-delete-outline" title="delete" />
+          <v-tooltip activator="parent" location="start"> delete </v-tooltip>
+        </v-list-item>
       </v-list>
     </v-menu>
 

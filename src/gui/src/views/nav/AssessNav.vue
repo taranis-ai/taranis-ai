@@ -63,7 +63,7 @@
         </v-col>
 
         <v-col cols="12" class="pt-1">
-          <date-filter v-model="newsItemsFilter.timeto" placeholder="Until" />
+          <date-filter v-model="newsItemsFilter.timeto" placeholder="Until" :max-date="new Date(newsItemsFilter.timefrom)" />
         </v-col>
         <v-col cols="12" class="pt-1">
           <tag-filter v-model="newsItemsFilter.tags" />

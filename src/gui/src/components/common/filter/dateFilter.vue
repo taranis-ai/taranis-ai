@@ -3,7 +3,7 @@
     v-model="selected"
     :name="'dateFilter-' + placeholder"
     :placeholder="placeholder"
-    :max-date="new Date()"
+    :max-date="maxDate"
     time-picker-inline
     clearable
     auto-apply
@@ -23,6 +23,10 @@ export default {
     placeholder: {
       type: String,
       default: 'Enter date'
+    },
+    maxDate: {
+      type: Date,
+      default: new Date()
     }
   },
   emits: ['update:modelValue'],
