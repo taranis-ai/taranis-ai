@@ -8,10 +8,10 @@
     :class="card_class"
     @click="toggleSelection"
   >
-    <v-container fluid style="min-height: 112px" class="pa-1 pl-2">
+    <v-container fluid style="min-height: 112px" class="pa-0 pl-2">
       <v-row class="pl-2">
         <v-col>
-          <v-row class="py-3 px-1">
+          <v-row class="py-1 px-1">
             <v-col cols="12" :lg="showWeekChart && !openSummary ? 7 : 8">
               <v-container class="d-flex pa-0">
                 <v-icon
@@ -21,7 +21,7 @@
                 />
                 <h2
                   v-dompurify-html="highlighted_title"
-                  class="mb-3 mt-0"
+                  class="mb-1 mt-0"
                   :class="{
                     news_item_title_class: true,
                     story: news_item_length > 1
@@ -30,7 +30,7 @@
 
                 <h2
                   v-if="news_item_length > 1"
-                  class="ml-3 mb-3 d-flex justify-center align-center text-primary"
+                  class="ml-3 mb-1 d-flex justify-center align-center text-primary"
                   style="font-size: 1rem"
                 >
                   <v-icon
@@ -302,6 +302,12 @@ export default {
   &.selected {
     border-color: rgb(var(--v-theme-primary));
     margin: -2px;
+    // background-color: #f4f3fe;
+    background-color: color-mix(
+      in srgb,
+      rgb(var(--v-theme-primary)) 10%,
+      #ffffff
+    );
   }
 }
 
@@ -369,10 +375,6 @@ export default {
   z-index: 2;
   background: #e9c645 !important;
 }
-
-// h2.story {
-//   color: rgb(var(--v-theme-primary));
-// }
 
 .action-bar {
   max-width: 45px !important;
