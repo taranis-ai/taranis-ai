@@ -47,7 +47,7 @@
       <td><strong>Vote:</strong></td>
       <td>
         <v-list-item class="px-0">
-          <votes :story="story" />
+          <story-votes :story="story" />
         </v-list-item>
       </td>
     </tr>
@@ -87,7 +87,7 @@ import ArticleInfo from '@/components/assess/card/ArticleInfo.vue'
 import SourceInfo from '@/components/assess/card/SourceInfo.vue'
 import AuthorInfo from '@/components/assess/card/AuthorInfo.vue'
 import PopupEditTags from '@/components/popups/PopupEditTags.vue'
-import votes from '@/components/assess/card/votes.vue'
+import StoryVotes from '@/components/assess/card/StoryVotes.vue'
 
 export default {
   name: 'StoryMetaInfo',
@@ -96,7 +96,7 @@ export default {
     ArticleInfo,
     SourceInfo,
     AuthorInfo,
-    votes,
+    StoryVotes,
     TagList
     // WeekChart
   },

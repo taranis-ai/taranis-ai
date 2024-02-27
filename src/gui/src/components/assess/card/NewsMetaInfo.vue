@@ -14,7 +14,7 @@
             {{ collected_date }}
           </v-col>
         </v-row>
-        <ArticleInfo :news-item-data="newsItem.news_item_data" />
+        <article-info :news-item-data="newsItem.news_item_data" />
         <source-info :news-item-data="newsItem.news_item_data" />
         <author-info :news-item-data="newsItem.news_item_data" />
       </v-col>

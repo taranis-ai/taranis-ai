@@ -59,6 +59,13 @@
         </v-col>
 
         <v-col cols="12" class="pt-1">
+          <date-filter v-model="newsItemsFilter.timefrom" placeholder="From" />
+        </v-col>
+
+        <v-col cols="12" class="pt-1">
+          <date-filter v-model="newsItemsFilter.timeto" placeholder="Until" />
+        </v-col>
+        <v-col cols="12" class="pt-1">
           <tag-filter v-model="newsItemsFilter.tags" />
         </v-col>
       </v-row>
@@ -69,7 +76,7 @@
         </v-col>
       </v-row>
 
-      <v-divider class="my-2"></v-divider>
+      <v-divider class="my-2" />
 
       <v-row no-gutters class="ma-2 ml-0 px-2">
         <v-col cols="12" class="ml-2 py-1">
@@ -81,7 +88,7 @@
         </v-col>
       </v-row>
 
-      <v-divider class="my-2"></v-divider>
+      <v-divider class="my-2" />
 
       <v-row no-gutters class="my-2 mb-0 px-2">
         <v-col cols="12" class="mx-2 py-1">
@@ -140,30 +147,6 @@
         </v-col>
       </v-row>
 
-      <v-divider class="my-2 mt-1 mb-0"></v-divider>
-      <v-row no-gutters class="ma-2 px-2">
-        <v-col cols="12" class="py-0">
-          <h4>Debug</h4>
-        </v-col>
-        <v-col cols="6" class="pt-2">chart threshold:</v-col>
-        <v-col cols="6" class="pt-2">
-          <input
-            v-model="chartFilter.threshold"
-            style="width: 100%"
-            type="number"
-            min="0"
-        /></v-col>
-        <v-col cols="6" class="pt-2">chart y2 Max:</v-col>
-        <v-col cols="6" class="pt-2">
-          <input
-            v-model="chartFilter.y2max"
-            style="width: 100%"
-            type="number"
-            min="0"
-          />
-        </v-col>
-      </v-row>
-
       <v-divider class="my-2 mt-2 mb-0"></v-divider>
       <v-row no-gutters class="my-2 mr-0 px-2 pb-1">
         <v-col cols="12" class="py-2">
@@ -188,6 +171,7 @@
 
 <script>
 import dateChips from '@/components/common/filter/dateChips.vue'
+import dateFilter from '@/components/common/filter/dateFilter.vue'
 import tagFilter from '@/components/common/filter/tagFilter.vue'
 import AssessFilterButtons from '@/components/assess/AssessFilterButtons.vue'
 import filterSortList from '@/components/common/filter/filterSortList.vue'
@@ -202,6 +186,7 @@ export default {
   name: 'AssessNav',
   components: {
     dateChips,
+    dateFilter,
     tagFilter,
     filterSortList,
     FilterNavigation,

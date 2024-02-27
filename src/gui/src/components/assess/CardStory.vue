@@ -16,19 +16,12 @@
               <v-container class="d-flex pa-0">
                 <v-icon
                   v-if="story_in_report"
-                  class="mr-2 my-auto"
+                  class="mr-1 mt-1"
                   icon="mdi-share"
                 />
-                <!-- <v-icon
-                  v-if="story.relevance"
-                  class="float-left mr-1"
-                  color="awake-green-color"
-                >
-                  mdi-arrow-up-circle-outline
-                </v-icon> -->
                 <h2
                   v-dompurify-html="highlighted_title"
-                  class="mb-3"
+                  class="mb-3 mt-0"
                   :class="{
                     news_item_title_class: true,
                     story: news_item_length > 1
@@ -49,20 +42,6 @@
                   </v-icon>
                   ({{ news_item_length }})
                 </h2>
-                <!-- <h2
-                  v-if="news_item_length > 1"
-                  class="ml-3 mb-3 d-flex justify-center align-center"
-                  style="color: #959595; font-size: 1rem"
-                >
-                  <v-icon
-                    class="float-left mr-1"
-                    size="x-small"
-                    color="#959595"
-                  >
-                    mdi-file-multiple-outline
-                  </v-icon>
-                  ({{ news_item_length }})
-                </h2> -->
               </v-container>
 
               <summarized-content

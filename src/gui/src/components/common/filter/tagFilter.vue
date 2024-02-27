@@ -1,37 +1,35 @@
 <template>
-  <div>
-    <v-autocomplete
-      v-model="selected"
-      v-model:search="search"
-      :loading="loading"
-      :items="available_tags"
-      chips
-      density="compact"
-      closable-chips
-      clearable
-      variant="outlined"
-      no-data-text="No tags found"
-      item-value="name"
-      item-title="name"
-      label="Tags"
-      multiple
-    >
-      <template #item="{ props, item }">
-        <v-list-item
-          v-bind="props"
-          :prepend-icon="tagIcon(item.raw.tag_type)"
-          :text="shortText(item.raw.name)"
-        />
-      </template>
-      <template #chip="{ props, item }">
-        <v-chip
-          :prepend-icon="tagIcon(item.raw.tag_type)"
-          v-bind="props"
-          :text="shortText(item.raw.name)"
-        />
-      </template>
-    </v-autocomplete>
-  </div>
+  <v-autocomplete
+    v-model="selected"
+    v-model:search="search"
+    :loading="loading"
+    :items="available_tags"
+    chips
+    density="compact"
+    closable-chips
+    clearable
+    variant="outlined"
+    no-data-text="No tags found"
+    item-value="name"
+    item-title="name"
+    label="Tags"
+    multiple
+  >
+    <template #item="{ props, item }">
+      <v-list-item
+        v-bind="props"
+        :prepend-icon="tagIcon(item.raw.tag_type)"
+        :text="shortText(item.raw.name)"
+      />
+    </template>
+    <template #chip="{ props, item }">
+      <v-chip
+        :prepend-icon="tagIcon(item.raw.tag_type)"
+        v-bind="props"
+        :text="shortText(item.raw.name)"
+      />
+    </template>
+  </v-autocomplete>
 </template>
 
 <script>

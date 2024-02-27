@@ -81,7 +81,7 @@
       <span>{{ !story.read ? 'read' : 'unread' }}</span>
     </v-btn>
 
-    <votes v-if="detailView" :story="story" />
+    <story-votes v-if="detailView" :story="story" />
 
     <v-dialog v-model="deleteDialog" width="auto">
       <popup-delete-item
@@ -120,7 +120,7 @@
           @click.stop="markAsRead()"
         />
         <v-list-item v-if="!detailView" style="justify-content: center">
-          <votes :story="story" />
+          <story-votes :story="story" />
         </v-list-item>
         <v-list-item
           :prepend-icon="
@@ -177,7 +177,7 @@
 <script>
 import PopupDeleteItem from '@/components/popups/PopupDeleteItem.vue'
 import PopupShareItems from '@/components/popups/PopupShareItems.vue'
-import votes from '@/components/assess/card/votes.vue'
+import StoryVotes from '@/components/assess/card/StoryVotes.vue'
 import { ref, computed } from 'vue'
 import { useAssessStore } from '@/stores/AssessStore'
 import { useUserStore } from '@/stores/UserStore'
@@ -188,7 +188,7 @@ import { storeToRefs } from 'pinia'
 export default {
   name: 'StoryActions',
   components: {
-    votes,
+    StoryVotes,
     PopupDeleteItem,
     PopupShareItems
   },

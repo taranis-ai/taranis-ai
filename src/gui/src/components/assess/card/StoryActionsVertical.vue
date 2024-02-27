@@ -1,7 +1,5 @@
 <template>
   <div class="ml-auto mr-auto" style="width: fit-content">
-    <!-- BUTTONS -->
-
     <v-tooltip
       v-if="!detailView"
       :text="openSummary ? 'hide details' : 'show details'"
@@ -16,8 +14,7 @@
           :icon="openSummary ? 'mdi-chevron-up' : 'mdi-chevron-down'"
           v-bind="props"
           @click.stop="openCard"
-        >
-        </v-btn>
+        />
       </template>
     </v-tooltip>
 
@@ -34,8 +31,7 @@
           :to="'/story/' + story.id"
           tag="button"
           @click.stop
-        >
-        </v-btn>
+        />
       </template>
     </v-tooltip>
 
@@ -50,8 +46,7 @@
           icon="mdi-google-circles-communities"
           v-bind="props"
           @click.stop="sharingDialog = true"
-        >
-        </v-btn>
+        />
       </template>
     </v-tooltip>
 
@@ -66,8 +61,7 @@
           icon="mdi-trash-can"
           v-bind="props"
           @click.stop="$emit('remove-from-report')"
-        >
-        </v-btn>
+        />
       </template>
     </v-tooltip>
 
@@ -82,8 +76,7 @@
           :icon="story.read ? 'mdi-eye-check-outline' : 'mdi-eye-off-outline'"
           v-bind="props"
           @click.stop="markAsRead()"
-        >
-        </v-btn>
+        />
       </template>
     </v-tooltip>
 
@@ -105,8 +98,7 @@
                 : 'mdi-star-check-outline'
             "
             @click.stop="markAsImportant()"
-          >
-          </v-btn>
+          />
         </template>
       </v-tooltip>
       <v-tooltip text="send via mail">
@@ -120,8 +112,7 @@
             v-bind="props"
             icon="mdi-email-outline"
             @click.stop="shareViaMail"
-          >
-          </v-btn>
+          />
         </template>
       </v-tooltip>
       <v-tooltip
@@ -138,8 +129,7 @@
             v-bind="props"
             icon="mdi-ungroup"
             @click.stop="ungroup()"
-          >
-          </v-btn>
+          />
         </template>
       </v-tooltip>
       <v-tooltip v-if="news_item_length === 1" text="open news item">
@@ -153,8 +143,7 @@
             v-bind="props"
             icon="mdi-open-in-app"
             :to="'/newsitem/' + story.news_items[0].id"
-          >
-          </v-btn>
+          />
         </template>
       </v-tooltip>
       <v-tooltip v-if="allow_edit" text="edit">
@@ -168,8 +157,7 @@
             v-bind="props"
             icon="mdi-pencil-outline"
             :to="`/newsitem/${story.news_items[0].id}/edit`"
-          >
-          </v-btn>
+          />
         </template>
       </v-tooltip>
       <v-tooltip text="delete">
@@ -183,13 +171,10 @@
             v-bind="props"
             icon="mdi-delete-outline"
             @click.stop="deleteDialog = true"
-          >
-          </v-btn>
+          />
         </template>
       </v-tooltip>
     </div>
-
-    <votes v-if="detailView" :story="story" />
 
     <v-menu
       v-if="!reportView && !openSummary"
@@ -291,7 +276,6 @@
 <script>
 import PopupDeleteItem from '@/components/popups/PopupDeleteItem.vue'
 import PopupShareItems from '@/components/popups/PopupShareItems.vue'
-import votes from '@/components/assess/card/votes.vue'
 import { ref, computed } from 'vue'
 import { useAssessStore } from '@/stores/AssessStore'
 import { useFilterStore } from '@/stores/FilterStore'
@@ -301,7 +285,6 @@ import { storeToRefs } from 'pinia'
 export default {
   name: 'StoryActionsVertical',
   components: {
-    votes,
     PopupDeleteItem,
     PopupShareItems
   },

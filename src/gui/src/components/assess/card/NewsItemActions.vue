@@ -7,51 +7,51 @@
   >
     <v-btn
       v-if="!detailView"
-      v-ripple="false"
-      size="small"
       class="item-action-btn"
+      text="Open"
       variant="tonal"
       prepend-icon="mdi-text-box-search-outline"
       :to="'/newsitem/' + newsItem.id"
       title="View News Item"
       @click.stop
-    >
-      <span> Open </span>
-    </v-btn>
+    />
 
     <v-btn
       v-if="!detailView"
-      v-ripple="false"
-      size="small"
       class="item-action-btn"
+      :text="news_item_summary_text"
       variant="tonal"
       :prepend-icon="openSummary ? 'mdi-chevron-up' : 'mdi-chevron-down'"
       @click.stop="openCard"
-    >
-      <span> {{ news_item_summary_text }} </span>
-    </v-btn>
+    />
 
     <v-btn
       v-if="story && story.news_items.length > 1"
-      v-ripple="false"
-      size="small"
+      text="Remove"
       class="item-action-btn"
       variant="tonal"
       prepend-icon="mdi-close-circle-outline"
       @click.stop="removeFromStory()"
-    >
-      <span>Remove</span>
-    </v-btn>
+    />
 
     <v-btn
       v-if="allow_edit"
-      v-ripple="false"
       text="edit"
       size="small"
       class="item-action-btn"
       variant="tonal"
       prepend-icon="mdi-pencil"
       :to="`/newsitem/${newsItem.id}/edit`"
+    />
+
+    <v-btn
+      v-if="story.in_reports_count < 1"
+      size="small"
+      class="item-action-btn"
+      variant="tonal"
+      prepend-icon="mdi-delete-outline"
+      text="Delete"
+      @click.stop="deleteDialog = true"
     />
 
     <v-dialog v-model="deleteDialog" width="auto">
@@ -61,56 +61,11 @@
         @close="deleteDialog = false"
       />
     </v-dialog>
-    <v-dialog v-model="sharingDialog" width="auto">
-      <popup-share-items
-        :item-ids="[newsItem.id]"
-        @close="sharingDialog = false"
-      />
-    </v-dialog>
-
-    <v-menu v-if="!detailView" bottom offset-y>
-      <template #activator="{ props }">
-        <v-btn
-          v-ripple="false"
-          size="small"
-          class="item-action-btn expandable"
-          variant="tonal"
-          v-bind="props"
-        >
-          <v-icon>mdi-dots-vertical</v-icon>
-        </v-btn>
-      </template>
-
-      <v-list class="extraActionsList" dense>
-        <v-list-item
-          :prepend-icon="
-            !newsItem.read ? 'mdi-eye-outline' : 'mdi-eye-off-outline'
-          "
-          class="hidden-xl-only"
-          title="mark as read"
-          @click.stop="markAsRead()"
-        />
-        <v-list-item
-          :prepend-icon="
-            !newsItem.important ? 'mdi-star-check-outline' : 'mdi-star-check'
-          "
-          title="mark as important"
-          @click.stop="markAsImportant()"
-        />
-        <v-list-item
-          v-if="story.in_reports_count < 1"
-          title="delete"
-          prepend-icon="mdi-delete-outline"
-          @click.stop="deleteDialog = true"
-        />
-      </v-list>
-    </v-menu>
   </v-col>
 </template>
 
 <script>
 import PopupDeleteItem from '@/components/popups/PopupDeleteItem.vue'
-import PopupShareItems from '@/components/popups/PopupShareItems.vue'
 import { notifySuccess, notifyFailure } from '@/utils/helpers.js'
 import {
   deleteNewsItem,
@@ -123,8 +78,7 @@ import { ref, computed } from 'vue'
 export default {
   name: 'CardNewsItem',
   components: {
-    PopupDeleteItem,
-    PopupShareItems
+    PopupDeleteItem
   },
   props: {
     newsItem: {
@@ -142,7 +96,6 @@ export default {
   setup(props, { emit }) {
     const viewDetails = ref(false)
     const openSummary = ref(props.detailView)
-    const sharingDialog = ref(false)
     const deleteDialog = ref(false)
 
     const news_item_summary_text = computed(() =>
@@ -187,7 +140,6 @@ export default {
       viewDetails,
       allow_edit,
       openSummary,
-      sharingDialog,
       deleteDialog,
       news_item_summary_text,
       openCard,
