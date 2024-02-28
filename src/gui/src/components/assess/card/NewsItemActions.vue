@@ -1,58 +1,87 @@
 <template>
-  <v-col
-    cols="12"
-    sm="12"
-    lg="6"
-    class="d-flex flex-row flex-grow-1 order-lg-2 order-sm-3 justify-space-evenly"
-  >
-    <v-btn
+  <div class="ml-auto mr-auto" style="width: fit-content">
+    <v-tooltip
       v-if="!detailView"
-      class="item-action-btn"
-      text="Open"
-      variant="tonal"
-      prepend-icon="mdi-text-box-search-outline"
-      :to="'/newsitem/' + newsItem.id"
-      title="View News Item"
-      @click.stop
-    />
+      :text="openSummary ? 'hide details' : 'show details'"
+    >
+      <template #activator="{ props }">
+        <v-btn
+          v-ripple="false"
+          :variant="openSummary ? 'flat' : 'tonal'"
+          :color="openSummary ? 'primary' : '#919191'"
+          class="item-action-btn"
+          density="compact"
+          :icon="openSummary ? 'mdi-chevron-up' : 'mdi-chevron-down'"
+          v-bind="props"
+          @click.stop="openCard"
+        />
+      </template>
+    </v-tooltip>
 
-    <v-btn
-      v-if="!detailView"
-      class="item-action-btn"
-      :text="news_item_summary_text"
-      variant="tonal"
-      :prepend-icon="openSummary ? 'mdi-chevron-up' : 'mdi-chevron-down'"
-      @click.stop="openCard"
-    />
+    <v-tooltip v-if="!detailView" text="open">
+      <template #activator="{ props }">
+        <v-btn
+          v-ripple="false"
+          variant="tonal"
+          class="item-action-btn"
+          density="compact"
+          color="#919191"
+          icon="mdi-magnify"
+          v-bind="props"
+          :to="'/newsitem/' + newsItem.id"
+          tag="button"
+          @click.stop
+        />
+      </template>
+    </v-tooltip>
 
-    <v-btn
-      v-if="story && story.news_items.length > 1"
-      text="Remove"
-      class="item-action-btn"
-      variant="tonal"
-      prepend-icon="mdi-close-circle-outline"
-      @click.stop="removeFromStory()"
-    />
+    <v-tooltip v-if="story && story.news_items.length > 1" text="remove">
+      <template #activator="{ props }">
+        <v-btn
+          v-ripple="false"
+          variant="tonal"
+          class="item-action-btn"
+          density="compact"
+          color="#919191"
+          icon="mdi-close-circle-outline"
+          v-bind="props"
+          tag="button"
+          @click.stop="removeFromStory()"
+        />
+      </template>
+    </v-tooltip>
 
-    <v-btn
-      v-if="allow_edit"
-      text="edit"
-      size="small"
-      class="item-action-btn"
-      variant="tonal"
-      prepend-icon="mdi-pencil"
-      :to="`/newsitem/${newsItem.id}/edit`"
-    />
+    <v-tooltip v-if="allow_edit" text="edit">
+      <template #activator="{ props }">
+        <v-btn
+          v-ripple="false"
+          variant="tonal"
+          class="item-action-btn"
+          density="compact"
+          color="#919191"
+          icon="mdi-pencil-outline"
+          v-bind="props"
+          :to="`/newsitem/${newsItem.id}/edit`"
+          tag="button"
+        />
+      </template>
+    </v-tooltip>
 
-    <v-btn
-      v-if="story && story.in_reports_count < 1"
-      size="small"
-      class="item-action-btn"
-      variant="tonal"
-      prepend-icon="mdi-delete-outline"
-      text="Delete"
-      @click.stop="deleteDialog = true"
-    />
+    <v-tooltip v-if="story && story.in_reports_count < 1" text="delete">
+      <template #activator="{ props }">
+        <v-btn
+          v-ripple="false"
+          variant="tonal"
+          class="item-action-btn"
+          density="compact"
+          color="#919191"
+          icon="mdi-delete-outline"
+          v-bind="props"
+          tag="button"
+          @click.stop="deleteDialog = true"
+        />
+      </template>
+    </v-tooltip>
 
     <v-dialog v-model="deleteDialog" width="auto">
       <popup-delete-item
@@ -61,7 +90,7 @@
         @close="deleteDialog = false"
       />
     </v-dialog>
-  </v-col>
+  </div>
 </template>
 
 <script>
@@ -151,3 +180,34 @@ export default {
   }
 }
 </script>
+
+<style lang="scss">
+.item-action-btn {
+  padding: 8px !important;
+  margin: 1px !important;
+  max-height: 24px;
+  display: flex;
+
+  & i {
+    font-size: 1.15rem;
+  }
+
+  & .v-btn__overlay,
+  & .v-btn__underlay {
+    opacity: 0;
+    transition: all 240ms;
+  }
+  &:hover .v-btn__overlay,
+  &:hover .v-btn__underlay {
+    opacity: 0;
+  }
+}
+button.item-action-btn.expandable {
+  min-width: 34px !important;
+}
+
+.expand-btn.expanded-card {
+  background-color: rgb(var(--v-theme-primary));
+  color: white;
+}
+</style>

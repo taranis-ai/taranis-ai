@@ -1,25 +1,30 @@
 <template>
-  <v-container column class="pa-0 pb-1">
-    <v-row v-if="newsItem">
-      <v-col>
-        <v-row>
-          <v-col class="info-title py-0">
-            <strong v-if="published_date">{{ $t('assess.published') }}:</strong>
-            <strong v-else>{{ $t('assess.collected') }}:</strong>
-          </v-col>
-          <v-col v-if="published_date" class="py-0">
-            {{ published_date }}
-          </v-col>
-          <v-col v-else class="py-0">
-            {{ collected_date }}
-          </v-col>
-        </v-row>
-        <article-info :news-item-data="newsItem.news_item_data" />
-        <source-info :news-item-data="newsItem.news_item_data" />
-        <author-info :news-item-data="newsItem.news_item_data" />
-      </v-col>
-    </v-row>
-  </v-container>
+  <table class="newsitem-meta-info">
+    <tr>
+      <td v-if="!compactView" class="info-title py-0">
+        <strong v-if="published_date">{{ $t('assess.published') }}:</strong>
+        <strong v-else>{{ $t('assess.collected') }}:</strong>
+      </td>
+      <td v-if="published_date" class="py-0">
+        {{ published_date }}
+      </td>
+      <td v-else class="py-0">
+        {{ collected_date }}
+      </td>
+    </tr>
+    <article-info
+      :news-item-data="newsItem.news_item_data"
+      :compact-view="compactView"
+    />
+    <source-info
+      :news-item-data="newsItem.news_item_data"
+      :compact-view="compactView"
+    />
+    <author-info
+      :news-item-data="newsItem.news_item_data"
+      :compact-view="compactView"
+    />
+  </table>
 </template>
 
 <script>
@@ -28,6 +33,8 @@ import { useI18n } from 'vue-i18n'
 import ArticleInfo from '@/components/assess/card/ArticleInfo.vue'
 import SourceInfo from '@/components/assess/card/SourceInfo.vue'
 import AuthorInfo from '@/components/assess/card/AuthorInfo.vue'
+import { storeToRefs } from 'pinia'
+import { useFilterStore } from '@/stores/FilterStore'
 
 export default {
   name: 'NewsMetaInfo',
@@ -47,6 +54,8 @@ export default {
         : null
     })
 
+    const { compactView } = storeToRefs(useFilterStore())
+
     const author = computed(() => {
       return props.newsItem.news_item_data?.author
     })
@@ -60,7 +69,8 @@ export default {
     return {
       published_date,
       author,
-      collected_date
+      collected_date,
+      compactView
     }
   }
 }
@@ -69,5 +79,12 @@ export default {
 <style scoped>
 .info-title {
   max-width: 110px;
+}
+
+.newsitem-meta-info tr td {
+  vertical-align: top;
+}
+.newsitem-meta-info tr td:first-child {
+  padding-right: 10px;
 }
 </style>
