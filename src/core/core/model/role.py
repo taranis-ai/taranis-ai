@@ -9,8 +9,9 @@ from core.model.permission import Permission
 
 
 class TLPLevel(StrEnum):
-    WHITE = "white"
+    CLEAR = "clear"
     GREEN = "green"
+    AMBER_STRICT = "amber+strict"
     AMBER = "amber"
     RED = "red"
 
