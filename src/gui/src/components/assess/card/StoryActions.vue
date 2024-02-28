@@ -1,87 +1,272 @@
 <template>
-  <v-col
-    :cols="actionCols"
-    class="d-flex flex-row flex-grow-1 order-lg-2 pb-0 justify-space-evenly"
-  >
-    <v-btn
+  <div class="ml-auto mr-auto" style="width: fit-content">
+    <v-tooltip
       v-if="!detailView"
-      v-ripple="false"
-      size="small"
-      class="item-action-btn"
-      variant="tonal"
-      prepend-icon="mdi-open-in-app"
-      :to="'/story/' + story.id"
-      @click.stop
+      :text="openSummary ? 'hide details' : 'show details'"
     >
-      <v-tooltip activator="parent" location="start">
-        open detail view
+      <template #activator="{ props }">
+        <v-btn
+          v-ripple="false"
+          :variant="openSummary ? 'flat' : 'tonal'"
+          :color="openSummary ? 'primary' : '#919191'"
+          class="item-action-btn"
+          density="compact"
+          :icon="openSummary ? 'mdi-chevron-up' : 'mdi-chevron-down'"
+          v-bind="props"
+          @click.stop="openCard"
+        />
+      </template>
+    </v-tooltip>
+
+    <v-tooltip v-if="!detailView && !compactView" text="open detail view">
+      <template #activator="{ props }">
+        <v-btn
+          v-ripple="false"
+          variant="tonal"
+          class="item-action-btn"
+          density="compact"
+          color="#919191"
+          icon="mdi-magnify"
+          v-bind="props"
+          :to="'/story/' + story.id"
+          tag="button"
+          @click.stop
+        />
+      </template>
+    </v-tooltip>
+
+    <v-tooltip v-if="!reportView" text="add to report">
+      <template #activator="{ props }">
+        <v-btn
+          v-ripple="false"
+          variant="tonal"
+          class="item-action-btn"
+          density="compact"
+          color="#919191"
+          icon="mdi-google-circles-communities"
+          v-bind="props"
+          @click.stop="sharingDialog = true"
+        />
+      </template>
+    </v-tooltip>
+
+    <v-tooltip v-if="reportView" text="remove from report">
+      <template #activator="{ props }">
+        <v-btn
+          v-ripple="false"
+          variant="tonal"
+          class="item-action-btn"
+          density="compact"
+          color="#919191"
+          icon="mdi-trash-can"
+          v-bind="props"
+          @click.stop="$emit('remove-from-report')"
+        />
+      </template>
+    </v-tooltip>
+
+    <v-tooltip :text="story.read ? 'mark as unread' : 'mark as read'">
+      <template #activator="{ props }">
+        <v-btn
+          v-ripple="false"
+          :color="story.read ? 'primary' : '#919191'"
+          variant="tonal"
+          class="item-action-btn"
+          density="compact"
+          :icon="story.read ? 'mdi-eye-check-outline' : 'mdi-eye-off-outline'"
+          v-bind="props"
+          @click.stop="markAsRead()"
+        />
+      </template>
+    </v-tooltip>
+
+    <div v-if="openSummary">
+      <v-tooltip
+        :text="story.important ? 'uncheck important' : 'mark as important'"
+      >
+        <template #activator="{ props }">
+          <v-btn
+            v-ripple="false"
+            :color="story.important ? 'primary' : '#919191'"
+            variant="tonal"
+            class="item-action-btn"
+            density="compact"
+            v-bind="props"
+            :icon="
+              !story.important
+                ? 'mdi-star-off-outline'
+                : 'mdi-star-check-outline'
+            "
+            @click.stop="markAsImportant()"
+          />
+        </template>
       </v-tooltip>
-      <span v-if="!compactView">open</span>
-    </v-btn>
-
-    <v-btn
-      v-if="!reportView && allow_analyze_update"
-      v-ripple="false"
-      size="small"
-      class="item-action-btn"
-      variant="tonal"
-      prepend-icon="mdi-google-circles-communities"
-      @click.stop="sharingDialog = true"
-    >
-      <v-tooltip activator="parent" location="start"> add to Report </v-tooltip>
-      <span v-if="!compactView">Report</span>
-    </v-btn>
-
-    <v-btn
-      v-if="reportView && allow_analyze_update"
-      v-ripple="false"
-      size="small"
-      class="item-action-btn"
-      variant="tonal"
-      prepend-icon="mdi-trash-can"
-      @click.stop="$emit('remove-from-report')"
-    >
-      <v-tooltip activator="parent" location="start">
-        remove from report
+      <v-tooltip text="send via mail">
+        <template #activator="{ props }">
+          <v-btn
+            v-ripple="false"
+            color="#919191"
+            variant="tonal"
+            class="item-action-btn"
+            density="compact"
+            v-bind="props"
+            icon="mdi-email-outline"
+            @click.stop="shareViaMail"
+          />
+        </template>
       </v-tooltip>
-      <span>Remove</span>
-    </v-btn>
-
-    <v-btn
-      v-if="!detailView"
-      v-ripple="false"
-      size="small"
-      class="item-action-btn expand-btn"
-      :class="{ 'expanded-card': openSummary }"
-      variant="tonal"
-      :prepend-icon="openSummary ? 'mdi-chevron-up' : 'mdi-chevron-down'"
-      :style="{ minWidth: minButtonWidth }"
-      @click.stop="openCard"
-    >
-      <v-tooltip activator="parent" location="start"> show details </v-tooltip>
-
-      <span>{{ news_item_summary_text }} </span>
-      <span v-if="news_item_length > 1" class="primary--text">
-        &nbsp;[{{ news_item_length }}]
-      </span>
-    </v-btn>
-
-    <v-btn
-      v-if="!detailView && !reportView && !compactView"
-      v-ripple="false"
-      size="small"
-      class="item-action-btn"
-      variant="tonal"
-      :prepend-icon="!story.read ? 'mdi-eye-outline' : 'mdi-eye-off-outline'"
-      @click.stop="markAsRead()"
-    >
-      <v-tooltip activator="parent" location="start">
-        mark story as {{ !story.read ? 'read' : 'unread' }}
+      <v-tooltip
+        v-if="news_item_length > 1"
+        text="remove all news items from this story"
+      >
+        <template #activator="{ props }">
+          <v-btn
+            v-ripple="false"
+            color="#919191"
+            variant="tonal"
+            class="item-action-btn"
+            density="compact"
+            v-bind="props"
+            icon="mdi-ungroup"
+            @click.stop="ungroup()"
+          />
+        </template>
       </v-tooltip>
-      <span>{{ !story.read ? 'read' : 'unread' }}</span>
-    </v-btn>
+      <v-tooltip v-if="news_item_length === 1" text="open news item">
+        <template #activator="{ props }">
+          <v-btn
+            v-ripple="false"
+            color="#919191"
+            variant="tonal"
+            class="item-action-btn"
+            density="compact"
+            v-bind="props"
+            icon="mdi-open-in-app"
+            :to="'/newsitem/' + story.news_items[0].id"
+          />
+        </template>
+      </v-tooltip>
+      <v-tooltip v-if="allow_edit" text="edit">
+        <template #activator="{ props }">
+          <v-btn
+            v-ripple="false"
+            color="#919191"
+            variant="tonal"
+            class="item-action-btn"
+            density="compact"
+            v-bind="props"
+            icon="mdi-pencil-outline"
+            :to="`/newsitem/${story.news_items[0].id}/edit`"
+          />
+        </template>
+      </v-tooltip>
+      <v-tooltip text="delete">
+        <template #activator="{ props }">
+          <v-btn
+            v-ripple="false"
+            color="#919191"
+            variant="tonal"
+            class="item-action-btn"
+            density="compact"
+            v-bind="props"
+            icon="mdi-delete-outline"
+            @click.stop="deleteDialog = true"
+          />
+        </template>
+      </v-tooltip>
+    </div>
 
-    <story-votes v-if="detailView" :story="story" />
+    <v-menu v-if="!reportView && !openSummary" location="bottom" offset-y>
+      <template #activator="{ props }">
+        <v-btn
+          v-ripple="false"
+          density="compact"
+          class="item-action-btn"
+          variant="tonal"
+          v-bind="props"
+          color="#919191"
+          icon="mdi-dots-horizontal"
+        />
+      </template>
+
+      <v-list dense>
+        <v-list-item
+          v-if="detailView || reportView"
+          :prepend-icon="
+            !story.read ? 'mdi-eye-outline' : 'mdi-eye-off-outline'
+          "
+          class="hidden-xl-only"
+          title="mark as read"
+          @click.stop="markAsRead()"
+        />
+        <v-list-item @click.stop="markAsImportant()">
+          <v-tooltip
+            activator="parent"
+            location="start"
+            :text="story.important ? 'uncheck important' : 'mark as important'"
+          />
+          <v-icon
+            :icon="
+              !story.important ? 'mdi-star-check-outline' : 'mdi-star-check'
+            "
+          />
+        </v-list-item>
+        <v-list-item v-if="compactView" :to="'/story/' + story.id">
+          <v-tooltip
+            activator="parent"
+            text="open detail view"
+            location="start"
+          />
+          <v-icon icon="mdi-magnify" />
+        </v-list-item>
+
+        <v-list-item @click.stop="shareViaMail">
+          <v-tooltip activator="parent" location="start" text="send via mail" />
+          <v-icon icon="mdi-email-outline" title="send via mail" />
+        </v-list-item>
+        <v-list-item
+          v-if="!reportView && news_item_length > 1"
+          @click.stop="ungroup()"
+        >
+          <v-tooltip
+            activator="parent"
+            location="start"
+            text="remove all news items"
+          />
+          <v-icon icon="mdi-ungroup" title="ungroup" />
+        </v-list-item>
+        <v-list-item
+          v-if="!reportView && news_item_length === 1"
+          :to="'/newsitem/' + story.news_items[0].id"
+        >
+          <v-icon icon="mdi-open-in-app" title="open" />
+          <v-tooltip activator="parent" location="start" text="open" />
+        </v-list-item>
+        <v-list-item
+          v-if="!reportView && newsItemSelection.length > 0"
+          @click.stop="moveSelection()"
+        >
+          <v-icon icon="mdi-folder-move" title="move selection to story" />
+          <v-tooltip
+            activator="parent"
+            location="start"
+            text="move selection to story"
+          />
+        </v-list-item>
+        <v-list-item
+          v-if="allow_edit"
+          :to="`/newsitem/${story.news_items[0].id}/edit`"
+        >
+          <v-icon icon="mdi-pencil-outline" title="edit" />
+        </v-list-item>
+        <v-list-item @click.stop="deleteDialog = true">
+          <v-icon icon="mdi-delete-outline" title="delete" />
+          <v-tooltip activator="parent" location="start" text="delete" />
+        </v-list-item>
+      </v-list>
+    </v-menu>
+
+    <!-- DIALOGS -->
 
     <v-dialog v-model="deleteDialog" width="auto">
       <popup-delete-item
@@ -96,91 +281,14 @@
         @close="sharingDialog = false"
       />
     </v-dialog>
-
-    <v-menu v-if="!reportView" bottom offset-y>
-      <template #activator="{ props }">
-        <v-btn
-          v-ripple="false"
-          size="small"
-          class="item-action-btn expandable"
-          variant="tonal"
-          v-bind="props"
-          icon="mdi-dots-vertical"
-        />
-      </template>
-
-      <v-list class="extraActionsList" dense>
-        <v-list-item
-          v-if="detailView || reportView"
-          :prepend-icon="
-            !story.read ? 'mdi-eye-outline' : 'mdi-eye-off-outline'
-          "
-          class="hidden-xl-only"
-          title="mark as read"
-          @click.stop="markAsRead()"
-        />
-        <v-list-item v-if="!detailView" style="justify-content: center">
-          <story-votes :story="story" />
-        </v-list-item>
-        <v-list-item
-          :prepend-icon="
-            !story.important ? 'mdi-star-check-outline' : 'mdi-star-check'
-          "
-          :title="
-            !story.important ? 'mark as important' : 'unmark as important'
-          "
-          @click.stop="markAsImportant()"
-        />
-        <v-list-item
-          title="send via mail"
-          prepend-icon="mdi-email-outline"
-          @click.stop="shareViaMail"
-        />
-        <v-list-item
-          v-if="!reportView && news_item_length > 1"
-          title="ungroup"
-          prepend-icon="mdi-ungroup"
-          @click.stop="ungroup()"
-        >
-          <v-tooltip activator="parent" location="start">
-            remove all news items from this story
-          </v-tooltip>
-        </v-list-item>
-        <v-list-item
-          v-if="!reportView && news_item_length === 1"
-          title="open news item"
-          prepend-icon="mdi-open-in-app"
-          :to="'/newsitem/' + story.news_items[0].id"
-        />
-        <v-list-item
-          v-if="!reportView && newsItemSelection.length > 0"
-          title="move selection"
-          prepend-icon="mdi-folder-move"
-          @click.stop="moveSelection()"
-        />
-        <v-list-item
-          v-if="allow_edit"
-          title="edit"
-          prepend-icon="mdi-pencil"
-          :to="`/newsitem/${story.news_items[0].id}/edit`"
-        />
-        <v-list-item
-          title="delete"
-          prepend-icon="mdi-delete-outline"
-          @click.stop="deleteDialog = true"
-        />
-      </v-list>
-    </v-menu>
-  </v-col>
+  </div>
 </template>
 
 <script>
 import PopupDeleteItem from '@/components/popups/PopupDeleteItem.vue'
 import PopupShareItems from '@/components/popups/PopupShareItems.vue'
-import StoryVotes from '@/components/assess/card/StoryVotes.vue'
 import { ref, computed } from 'vue'
 import { useAssessStore } from '@/stores/AssessStore'
-import { useUserStore } from '@/stores/UserStore'
 import { useFilterStore } from '@/stores/FilterStore'
 import { unGroupStories } from '@/api/assess'
 import { storeToRefs } from 'pinia'
@@ -188,7 +296,6 @@ import { storeToRefs } from 'pinia'
 export default {
   name: 'StoryActions',
   components: {
-    StoryVotes,
     PopupDeleteItem,
     PopupShareItems
   },
@@ -208,12 +315,6 @@ export default {
     const sharingDialog = ref(false)
     const deleteDialog = ref(false)
     const assessStore = useAssessStore()
-    const userStore = useUserStore()
-
-    const allow_analyze_update = computed(() =>
-      userStore.hasPermission('ANALYZE_UPDATE')
-    )
-
     const { newsItemSelection } = storeToRefs(assessStore)
     const selected = computed(() =>
       assessStore.storySelection.includes(props.story.id)
@@ -304,7 +405,6 @@ export default {
       news_item_length,
       minButtonWidth,
       newsItemSelection,
-      allow_analyze_update,
       news_item_summary_text,
       openCard,
       ungroup,
@@ -322,15 +422,25 @@ export default {
 
 <style lang="scss">
 .item-action-btn {
-  flex: 1;
-  & .v-btn__append {
-    margin-left: 0.5rem;
+  padding: 8px !important;
+  margin: 1px !important;
+  max-height: 24px;
+  display: flex;
+
+  & i {
+    font-size: 1.15rem;
   }
-  & .v-btn__prepend {
-    margin-right: 0.5rem;
+
+  & .v-btn__overlay,
+  & .v-btn__underlay {
+    opacity: 0;
+    transition: all 240ms;
+  }
+  &:hover .v-btn__overlay,
+  &:hover .v-btn__underlay {
+    opacity: 0;
   }
 }
-
 button.item-action-btn.expandable {
   min-width: 34px !important;
 }

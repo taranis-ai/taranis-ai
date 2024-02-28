@@ -11,7 +11,7 @@
 </template>
 
 <script>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 
 export default {
   name: 'DateFilter',
@@ -42,6 +42,13 @@ export default {
       }
       emit('update:modelValue', selected.value)
     }
+
+    watch(
+      () => props.modelValue,
+      (val) => {
+        selected.value = val
+      }
+    )
 
     return {
       selected: computed({

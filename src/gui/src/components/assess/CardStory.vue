@@ -74,7 +74,7 @@
           </v-row>
         </v-col>
         <v-col class="action-bar mr-2">
-          <story-actions-vertical
+          <story-actions
             :story="story"
             :detail-view="detailView"
             :report-view="reportView"
@@ -108,7 +108,7 @@
 
 <script>
 import StoryMetaInfo from '@/components/assess/card/StoryMetaInfo.vue'
-import StoryActionsVertical from '@/components/assess/card/StoryActionsVertical.vue'
+import StoryActions from '@/components/assess/card/StoryActions.vue'
 import SummarizedContent from '@/components/assess/card/SummarizedContent.vue'
 import CardNewsItem from '@/components/assess/CardNewsItem.vue'
 import { ref, computed } from 'vue'
@@ -123,7 +123,7 @@ export default {
   name: 'CardStory',
   components: {
     CardNewsItem,
-    StoryActionsVertical,
+    StoryActions,
     StoryMetaInfo,
     SummarizedContent,
     WeekChart

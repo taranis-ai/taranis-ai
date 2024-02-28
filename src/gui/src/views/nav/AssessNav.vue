@@ -67,7 +67,7 @@
         </v-col>
 
         <v-col cols="12" class="pt-1">
-          <date-chips v-model="newsItemsFilter.range" />
+          <date-chips v-model="filter_range" />
         </v-col>
 
         <v-col cols="12" class="pt-1">
@@ -230,6 +230,36 @@ export default {
 
     const route = useRoute()
 
+    const filter_range = computed({
+      get() {
+        return undefined
+      },
+      set(value) {
+        console.debug('filter_range', value)
+        const now = new Date()
+        switch (value) {
+          case 'day': {
+            now.setHours(0, 0, 0, 0) // Set to today at 00:00
+            newsItemsFilter.value.timefrom = now.toISOString()
+            break
+          }
+          case 'week': {
+            const dayOfWeek = now.getDay()
+            const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+            now.setDate(now.getDate() + diffToMonday)
+            now.setHours(0, 0, 0, 0) // Set hours to 00:00
+            newsItemsFilter.value.timefrom = now.toISOString()
+            break
+          }
+          case '24h': {
+            const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+            newsItemsFilter.value.timefrom = yesterday.toISOString()
+            break
+          }
+        }
+      }
+    })
+
     const search = computed({
       get() {
         return newsItemsFilter.value.search
@@ -282,6 +312,7 @@ export default {
       highlight,
       showWeekChart,
       compactView,
+      filter_range,
       getOSINTSourceGroupsList,
       getOSINTSourcesList,
       newsItemsFilter,
