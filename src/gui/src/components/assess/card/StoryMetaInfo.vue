@@ -2,7 +2,7 @@
   <!-- <div> -->
   <table class="story-meta-info">
     <tr>
-      <td>
+      <td v-if="!compactView">
         <strong>{{ t('assess.published') }}:</strong>
       </td>
       <td>
@@ -19,7 +19,7 @@
       </td>
     </tr>
 
-    <tr>
+    <tr v-if="!compactView">
       <td v-if="story.tags && story.tags.length > 0 && !reportView">
         <strong> Tags: </strong>
       </td>
@@ -36,15 +36,15 @@
       </td>
     </tr>
 
-    <tr>
-      <td><strong>Relevance:</strong></td>
+    <tr v-if="!compactView">
+      <td v-if="!compactView"><strong>Relevance:</strong></td>
       <td>
         {{ story.relevance }}
       </td>
     </tr>
 
     <tr v-if="detailView">
-      <td><strong>Vote:</strong></td>
+      <td v-if="!compactView"><strong>Vote:</strong></td>
       <td>
         <v-list-item class="px-0">
           <story-votes :story="story" />
@@ -199,6 +199,7 @@ export default {
   padding-right: 30px;
   margin-top: 30px;
 }
+
 .story-meta-info tr td {
   vertical-align: top;
 }

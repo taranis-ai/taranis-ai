@@ -10,9 +10,9 @@
   >
     <v-container fluid style="min-height: 112px" class="pa-0 pl-2">
       <v-row class="pl-2">
-        <v-col>
+        <v-col class="d-flex">
           <v-row class="py-1 px-1">
-            <v-col cols="12" :lg="showWeekChart && !openSummary ? 7 : 8">
+            <v-col cols="12" :lg="content_cols">
               <v-container class="d-flex pa-0">
                 <v-icon
                   v-if="story_in_report"
@@ -51,18 +51,14 @@
               />
             </v-col>
 
-            <v-col
-              cols="12"
-              class="meta-info-col"
-              :lg="showWeekChart && !openSummary ? 3 : 4"
-            >
+            <v-col cols="12" class="meta-info-col" :lg="meta_cols">
               <story-meta-info
                 :story="story"
                 :detail-view="openSummary"
                 :report-view="reportView"
               />
               <week-chart
-                v-if="openSummary"
+                v-if="showWeekChart && openSummary"
                 class="mt-5"
                 :chart-height="180"
                 :story="story"
@@ -71,7 +67,7 @@
             <v-col v-if="showWeekChart && !openSummary" cols="12" lg="2">
               <week-chart
                 :chart-height="detailView ? 300 : 100"
-                :chart-width="detailView ? 800 : 200"
+                :chart-width="detailView ? 800 : 100"
                 :story="story"
               />
             </v-col>
@@ -94,16 +90,16 @@
   <v-row
     v-if="openSummary && story.news_items.length > 1"
     dense
-    class="ma-0 mx-2 py-0 px-2"
+    class="ma-0 py-0 px-2"
   >
-    <div class="news-item-container w-100">
+    <div class="news-item-container w-100 pb-2 mb-4">
       <card-news-item
         v-for="item in story.news_items"
         :key="item.id"
         :news-item="item"
         :detail-view="detailView"
+        :open-view="openSummary"
         :story="story"
-        class="mt-2 mx-5 my-3"
         @refresh="emitRefresh()"
       />
     </div>
@@ -169,7 +165,16 @@ export default {
         return 8
       }
       if (showWeekChart.value) {
-        return 6
+        if (compactView.value) {
+          if (openSummary.value) {
+            return 10
+          }
+          return 8
+        }
+        if (openSummary.value) {
+          return 9
+        }
+        return 7
       }
       if (props.reportView || compactView.value) {
         return 10
@@ -178,6 +183,9 @@ export default {
     })
 
     const meta_cols = computed(() => {
+      if (showWeekChart.value && !openSummary.value) {
+        return 12 - content_cols.value - 2
+      }
       return 12 - content_cols.value
     })
 
@@ -302,7 +310,6 @@ export default {
   &.selected {
     border-color: rgb(var(--v-theme-primary));
     margin: -2px;
-    // background-color: #f4f3fe;
     background-color: color-mix(
       in srgb,
       rgb(var(--v-theme-primary)) 10%,
@@ -312,14 +319,7 @@ export default {
 }
 
 .news-item-container {
-  background-color: #f0f0f0;
-  border: 2px dotted rgb(var(--v-theme-primary));
-  background-color: color-mix(
-    in srgb,
-    rgb(var(--v-theme-primary)) 15%,
-    #eaeaea
-  );
-  border-radius: 4px;
+  background-color: color-mix(in srgb, rgb(var(--v-theme-primary)) 40%, white);
 }
 
 .news-item-title {
