@@ -188,7 +188,7 @@ class ReportItem(BaseModel):
     def add(cls, report_item_data, user):
         report_item = cls.from_dict(report_item_data)
 
-        if not report_item.report_item_type.allowed_with_acl(user, True):
+        if not report_item.allowed_with_acl(user, True):
             return report_item, 403
 
         report_item.user_id = user.id
@@ -214,7 +214,12 @@ class ReportItem(BaseModel):
         if not RoleBasedAccess.is_enabled() or not user:
             return True
 
-        query = RBACQuery(user=user, resource_id=self.group_id, resource_type=ItemType.REPORT_ITEM, require_write_access=require_write_access)
+        query = RBACQuery(
+            user=user,
+            resource_id=self.report_item_type_id,
+            resource_type=ItemType.REPORT_ITEM_TYPE,
+            require_write_access=require_write_access,
+        )
 
         return RoleBasedAccessService.user_has_access_to_resource(query)
 
@@ -223,7 +228,7 @@ class ReportItem(BaseModel):
         query = cls.query
 
         if acl_check:
-            rbac = RBACQuery(user=user, resource_type=ItemType.REPORT_ITEM)
+            rbac = RBACQuery(user=user, resource_type=ItemType.REPORT_ITEM_TYPE)
             query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
 
         if search := filter.get("search"):

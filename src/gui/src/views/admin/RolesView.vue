@@ -73,9 +73,10 @@ export default {
         label: 'TLP Level',
         type: 'select',
         items: [
-          { title: 'White', value: 'white' },
+          { title: 'Clear', value: 'clear' },
           { title: 'Green', value: 'green' },
           { title: 'Amber', value: 'amber' },
+          { title: 'Amber+Strict', value: 'amber+strict' },
           { title: 'Red', value: 'red' }
         ]
       },
