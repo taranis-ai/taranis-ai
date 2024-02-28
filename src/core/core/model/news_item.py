@@ -17,7 +17,7 @@ from core.model.user import User
 from core.model.news_item_tag import NewsItemTag
 from core.model.role_based_access import ItemType, RoleBasedAccess
 from core.model.osint_source import OSINTSourceGroup, OSINTSource, OSINTSourceGroupOSINTSource
-from core.service.role_based_access import RBACQuery, RoleBasedAceessService
+from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 
 
 class NewsItemData(BaseModel):
@@ -287,7 +287,7 @@ class NewsItem(BaseModel):
             require_write_access=require_write_access,
         )
 
-        return RoleBasedAceessService.user_has_access_to_resource(query)
+        return RoleBasedAccessService.user_has_access_to_resource(query)
 
     def vote(self, vote_data, user_id) -> "NewsItemVote":
         if vote := NewsItemVote.get_by_filter(item_id=self.id, user_id=user_id, item_type="NEWS_ITEM"):

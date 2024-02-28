@@ -15,7 +15,7 @@ from core.model.word_list import WordList
 from core.model.base_model import BaseModel
 from core.model.queue import ScheduleEntry
 from core.model.worker import COLLECTOR_TYPES, Worker
-from core.service.role_based_access import RoleBasedAceessService, RBACQuery
+from core.service.role_based_access import RoleBasedAccessService, RBACQuery
 
 
 class OSINTSource(BaseModel):
@@ -56,7 +56,7 @@ class OSINTSource(BaseModel):
 
         if acl_check:
             rbac = RBACQuery(user=user, resource_type=ItemType.OSINT_SOURCE)
-            query = RoleBasedAceessService.filter_query_with_acl(query, rbac)
+            query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
 
         if search:
             search_string = f"%{search}%"
@@ -354,7 +354,7 @@ class OSINTSourceGroup(BaseModel):
             user=user, resource_id=self.group_id, resource_type=ItemType.OSINT_SOURCE_GROUP, require_write_access=require_write_access
         )
 
-        return RoleBasedAceessService.user_has_access_to_resource(query)
+        return RoleBasedAccessService.user_has_access_to_resource(query)
 
     @classmethod
     def get_by_filter(cls, search, user, acl_check):
@@ -362,7 +362,7 @@ class OSINTSourceGroup(BaseModel):
 
         if acl_check:
             rbac = RBACQuery(user=user, resource_type=ItemType.OSINT_SOURCE_GROUP)
-            query = RoleBasedAceessService.filter_query_with_acl(query, rbac)
+            query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
 
         if search:
             query = query.filter(

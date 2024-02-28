@@ -12,7 +12,7 @@ from core.model.parameter_value import ParameterValue
 from core.model.report_item_type import ReportItemType
 from core.model.worker import PRESENTER_TYPES, Worker
 from core.managers.data_manager import get_presenter_template_path, get_presenter_templates
-from core.service.role_based_access import RBACQuery, RoleBasedAceessService
+from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 
 
 class ProductType(BaseModel):
@@ -49,7 +49,7 @@ class ProductType(BaseModel):
             user=user, resource_id=self.group_id, resource_type=ItemType.PRODUCT_TYPE, require_write_access=require_write_access
         )
 
-        return RoleBasedAceessService.user_has_access_to_resource(query)
+        return RoleBasedAccessService.user_has_access_to_resource(query)
 
     @classmethod
     def get_by_filter(cls, search, user, acl_check):
@@ -57,7 +57,7 @@ class ProductType(BaseModel):
 
         if acl_check:
             rbac = RBACQuery(user=user, resource_type=ItemType.PRODUCT_TYPE)
-            query = RoleBasedAceessService.filter_query_with_acl(query, rbac)
+            query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
 
         if search:
             query = query.filter(

@@ -14,7 +14,7 @@ from core.model.report_item_type import ReportItemType
 from core.model.role_based_access import RoleBasedAccess, ItemType
 from core.model.user import User
 from core.model.attribute import AttributeType
-from core.service.role_based_access import RBACQuery, RoleBasedAceessService
+from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 
 
 class ReportItemAttribute(BaseModel):
@@ -216,7 +216,7 @@ class ReportItem(BaseModel):
 
         query = RBACQuery(user=user, resource_id=self.group_id, resource_type=ItemType.REPORT_ITEM, require_write_access=require_write_access)
 
-        return RoleBasedAceessService.user_has_access_to_resource(query)
+        return RoleBasedAccessService.user_has_access_to_resource(query)
 
     @classmethod
     def get_by_filter(cls, filter: dict, user, acl_check: bool):
@@ -224,7 +224,7 @@ class ReportItem(BaseModel):
 
         if acl_check:
             rbac = RBACQuery(user=user, resource_type=ItemType.REPORT_ITEM)
-            query = RoleBasedAceessService.filter_query_with_acl(query, rbac)
+            query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
 
         if search := filter.get("search"):
             query = query.join(ReportItemAttribute, ReportItem.id == ReportItemAttribute.report_item_id).filter(

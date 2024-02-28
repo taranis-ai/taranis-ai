@@ -10,7 +10,6 @@ class TestAssessApi(BaseTest):
         It expects a valid data and a valid status-code
         """
         response = self.assert_get_ok(client, "osint-source-groups", auth_header)
-        print(response.get_json())
         assert response.get_json()["total_count"] == 1
         assert response.get_json()["items"][0]["id"] == "default"
 
@@ -27,7 +26,6 @@ class TestAssessApi(BaseTest):
         It expects a valid data and a valid status-code
         """
         response = self.assert_get_ok(client, "osint-sources-list", auth_header)
-        print(response.get_json())
         assert response.get_json()["total_count"] == 0
 
     def test_get_OSINTSourcesList_unauth(self, client):

@@ -9,7 +9,7 @@ from core.managers.log_manager import logger
 from core.model.role_based_access import ItemType
 from core.model.report_item import ReportItem
 from core.model.base_model import BaseModel
-from core.service.role_based_access import RoleBasedAceessService, RBACQuery
+from core.service.role_based_access import RoleBasedAccessService, RBACQuery
 
 
 class Product(BaseModel):
@@ -84,7 +84,7 @@ class Product(BaseModel):
         query = cls.add_filter_to_query(query, filter)
 
         rbac = RBACQuery(user, ItemType.PRODUCT)
-        query = RoleBasedAceessService.filter_query_with_acl(query, rbac)
+        query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
 
         offset = filter.get("offset", 0)
         limit = filter.get("limit", 20)

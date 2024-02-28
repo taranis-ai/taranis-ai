@@ -16,7 +16,7 @@ class RBACQuery:
     require_write_access: bool = False
 
 
-class RoleBasedAceessService:
+class RoleBasedAccessService:
     @classmethod
     def user_has_access_to_resource(cls, rbac_query: RBACQuery) -> bool:
         """

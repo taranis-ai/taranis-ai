@@ -6,7 +6,7 @@ from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.model.role_based_access import RoleBasedAccess, ItemType
 from core.model.attribute import Attribute
-from core.service.role_based_access import RoleBasedAceessService, RBACQuery
+from core.service.role_based_access import RoleBasedAccessService, RBACQuery
 
 
 class AttributeGroupItem(BaseModel):
@@ -175,7 +175,7 @@ class ReportItemType(BaseModel):
             user=user, resource_id=self.group_id, resource_type=ItemType.REPORT_ITEM_TYPE, require_write_access=require_write_access
         )
 
-        return RoleBasedAceessService.user_has_access_to_resource(query)
+        return RoleBasedAccessService.user_has_access_to_resource(query)
 
     @classmethod
     def get_by_filter(cls, search, user, acl_check):
@@ -183,7 +183,7 @@ class ReportItemType(BaseModel):
 
         if acl_check:
             rbac = RBACQuery(user=user, resource_type=ItemType.REPORT_ITEM_TYPE)
-            query = RoleBasedAceessService.filter_query_with_acl(query, rbac)
+            query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
 
         if search:
             search_string = f"%{search}%"
