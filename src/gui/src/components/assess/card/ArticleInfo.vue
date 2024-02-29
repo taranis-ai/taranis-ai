@@ -1,19 +1,27 @@
 <template>
-  <v-row>
-    <v-col v-if="!compactView" style="max-width: 110px" class="py-0">
+  <tr>
+    <td v-if="!compactView" style="max-width: 110px" class="py-0">
       <strong>{{ $t('assess.article') }}:</strong>
-    </v-col>
-    <v-col class="py-0" @click.stop>
+    </td>
+    <td class="py-0" @click.stop>
       <v-tooltip>
         <template #activator="{ props }">
-          <a v-bind="props" :href="article?.link" target="_blank">
+          <a
+            class="text-primary"
+            v-bind="props"
+            :href="article?.link"
+            target="_blank"
+          >
             {{ article?.name }}
+            <v-icon class="ml-2" size="x-small" color="primary"
+              >mdi-open-in-new</v-icon
+            >
           </a>
         </template>
         <span>{{ article?.link }}</span>
       </v-tooltip>
-    </v-col>
-  </v-row>
+    </td>
+  </tr>
 </template>
 
 <script>

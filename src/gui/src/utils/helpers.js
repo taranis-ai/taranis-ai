@@ -252,23 +252,46 @@ export const baseFormat = [
 export function removeRegexSpecialChars(string) {
   return string.replace(/[.*+?^${}()<>|[\]\\]/g, '')
 }
-export function highlight_text(content) {
-  const filterStore = useFilterStore()
-  if (!content) {
-    return ''
-  }
-  let input = filterStore.newsItemsFilter.search
-  if (filterStore.newsItemsFilter.tags?.length === 1) {
-    input = input || filterStore.newsItemsFilter.tags[0]
-  }
-  if (!filterStore.highlight || !input) {
+export function markText(content, search) {
+  if (!search || search.length === 0) {
     return content
   }
-  const term = removeRegexSpecialChars(input)
-  let results = content
-  results = results.replace(
+  const term = removeRegexSpecialChars(search)
+  return content.replace(
     new RegExp(term, 'gi'),
     (match) => `<mark>${match}</mark>`
   )
+}
+
+export function highlight_text(content) {
+  const filterStore = useFilterStore()
+  if (!filterStore.highlight || !content) {
+    return content
+  }
+  const input = []
+
+  if (
+    filterStore.newsItemsFilter.search &&
+    filterStore.newsItemsFilter.search.length > 0
+  ) {
+    filterStore.newsItemsFilter.search.split(' ').forEach((word) => {
+      input.push(word)
+    })
+  }
+  if (
+    filterStore.newsItemsFilter.tags &&
+    filterStore.newsItemsFilter.tags.length > 0
+  ) {
+    filterStore.newsItemsFilter.tags.forEach((tag) => {
+      input.push(tag)
+    })
+  }
+
+  let results = content
+
+  input.forEach((term) => {
+    results = markText(results, term)
+  })
+
   return results
 }

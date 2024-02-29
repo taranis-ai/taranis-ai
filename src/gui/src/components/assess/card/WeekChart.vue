@@ -1,10 +1,12 @@
 <template>
-  <Bar
-    v-if="shouldRender"
-    :options="chartOptions"
-    :data="chart_data"
-    update-mode="active"
-  />
+  <div :style="`height: ${chart_style.height}`">
+    <Bar
+      v-if="shouldRender"
+      :options="chartOptions"
+      :data="chart_data"
+      update-mode="active"
+    />
+  </div>
 </template>
 
 <script>
@@ -58,12 +60,12 @@ export default {
     chartHeight: {
       type: Number,
       required: false,
-      default: 150
+      default: 100
     },
     chartWidth: {
       type: Number,
       required: false,
-      default: 400
+      default: 200
     }
   },
   data: function () {
@@ -108,6 +110,11 @@ export default {
           responsive: true,
           maintainAspectRatio: false,
           scales: {
+            x: {
+              grid: {
+                display: false
+              }
+            },
             y1: {
               position: 'left',
               beginAtZero: true,
@@ -146,23 +153,37 @@ export default {
         responsive: true,
         maintainAspectRatio: false,
         scales: {
+          x: {
+            grid: {
+              color: '#c1c1c1'
+            },
+            border: {
+              dash: [2, 4]
+            }
+          },
           y1: {
             position: 'left',
             beginAtZero: true,
             ticks: {
               stepSize: 1
+            },
+            grid: {
+              display: false
             }
           },
           y2: {
             position: 'right',
             beginAtZero: true,
             max: parseInt(this.max_item),
-            grid: {
-              // display gridlines only for y1
-              drawOnChartArea: false
-            },
+            // grid: {
+            //   // display gridlines only for y1
+            //   drawOnChartArea: false
+            // },
             ticks: {
               stepSize: 1
+            },
+            grid: {
+              display: false
             }
           }
         },
@@ -199,7 +220,7 @@ export default {
         if (item >= this.chartFilter.threshold) {
           return 'rgba(255, 0, 0, 1.0)'
         } else {
-          return 'rgba(127, 116, 234, 1.0)'
+          return 'rgba(233, 198, 69, 0.5)'
         }
       })
     },
@@ -219,8 +240,9 @@ export default {
             label: 'items/day',
             type: 'line',
             data: this.news_items_per_day,
-            borderColor: '#000',
-            backgroundColor: '#000',
+            borderColor: '#666',
+            borderWidth: 2,
+            pointRadius: 0,
             yAxisID: 'y2',
             order: 1
           }
