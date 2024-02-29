@@ -654,7 +654,9 @@ class NewsItemAggregate(BaseModel):
     def create_new(cls, news_item_data):
         news_item = NewsItem.add({"news_item_data": news_item_data})
 
-        aggregate = NewsItemAggregate.add({"title": news_item_data.title, "description": news_item_data.review, "news_items": [news_item]})
+        aggregate = NewsItemAggregate.add(
+            {"title": news_item_data.title, "description": news_item_data.review or news_item_data.content, "news_items": [news_item]}
+        )
         NewsItemAggregateSearchIndex.prepare(aggregate)
 
         db.session.commit()
@@ -674,7 +676,7 @@ class NewsItemAggregate(BaseModel):
         except Exception as e:
             return {"error": f"Failed to add news items: {e}"}, 400
 
-        return {"message": f"Added {len(news_items_data)} news items", "ids": ids}, 200
+        return {"message": f"Added {len(ids)} news items", "ids": ids}, 200
 
     @classmethod
     def update(cls, id, data, user):
@@ -984,7 +986,7 @@ class NewsItemAggregate(BaseModel):
         new_aggregate = NewsItemAggregate(
             title=news_item.news_item_data.title,
             created=news_item.news_item_data.published,
-            description=news_item.news_item_data.review,
+            description=news_item.news_item_data.review or news_item.news_item_data.content,
             news_items=[news_item.id],
         )
         db.session.add(new_aggregate)

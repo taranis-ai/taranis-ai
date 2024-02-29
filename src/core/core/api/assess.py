@@ -92,7 +92,7 @@ class Stories(Resource):
     @auth_required("ASSESS_ACCESS")
     def get(self):
         try:
-            filter_keys = ["search", "read", "unread", "important", "relevant", "in_report", "range", "sort"]
+            filter_keys = ["search", "read", "unread", "important", "relevant", "in_report", "range", "sort", "timefrom", "timeto"]
             filter_args: dict[str, str | int | list] = {k: v for k, v in request.args.items() if k in filter_keys}
             filter_list_keys = ["source", "group"]
             for key in filter_list_keys:
