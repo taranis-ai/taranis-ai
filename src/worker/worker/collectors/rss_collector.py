@@ -118,12 +118,11 @@ class RSSCollector(BaseWebCollector):
         for h3 in h3_tags:
             # Text of the <h3> tag
             title = f"{h3.get_text() if h3.get_text() else 'No title'}"
-            summary = f"{h3.find_next_sibling(string=True).strip() if h3.find_next_sibling(string=True) else 'No summary'}"
+            summary = f"{h3.find_next_sibling(string=True).strip() if h3.find_next_sibling(string=True).strip() else 'No summary'}"
             link = f"{h3.find_next('a')['href'] if h3.find_next('a') else 'No link'}"
-            # Manual edit to "summary_detail" and "summary" for cleaner digests/report items
+            # Manually edit the "summary_detail" and "summary" for cleaner digests/report items
             digests.append({"title": title, "content": summary, "link": link, "summary_detail": {}, "summary": "Digest spliting"})
 
-        # print(f"Found digests: {digests}")
         return digests
 
     def digest_splitting(self, feed_entry) -> list[dict]:
@@ -206,36 +205,21 @@ class RSSCollector(BaseWebCollector):
         self.core_api.update_osint_source_icon(source_id, icon_content)
         return None
 
-    def get_news_items(self, feed, source, feed_url):
+    def get_news_items(self, feed, feed_url, source) -> list:
         news_items = []
         for feed_entry in feed["entries"][:42]:
             # Digest splitting
             if source.get("parameters").get("DIGEST_SPLITTING") and "zusammenfassung" in feed_entry.get("title", ""):
                 digests = self.digest_splitting(feed_entry)
-                # print("these are digests")
-                # print(digests)
                 for digest in digests:
                     print("this is a digest")
                     print(digest)
-                    # print("this is feed entry")
-                    # print(feed_entry)
                     feed_entry_copy = copy.deepcopy(feed_entry)
                     feed_entry_copy.update(digest)
-                    # print("updated feed entry copy")
-                    # print(feed_entry_copy)
                     news_items.append(self.parse_feed(feed_entry_copy, feed_url, source))
-                    print("this is one news item")
-                    print(news_items)
-                    print(f"News itemslength: {len(news_items)}")
-
-                    # break
-                    # print("this is news item")
-                    # print(news_items)
             else:
                 news_items.append(self.parse_feed(feed_entry, feed_url, source))
 
-        # print(f"News items: {news_items}")
-        # print(f"News itemslength: {len(news_items)}")
         return news_items
 
     def rss_collector(self, feed_url: str, source):
@@ -257,7 +241,7 @@ class RSSCollector(BaseWebCollector):
 
         logger.info(f"RSS-Feed {source['id']} returned feed with {len(feed['entries'])} entries")
 
-        news_items = self.get_news_items(feed, source, feed_url)
+        news_items = self.get_news_items(feed, feed_url, source)
 
         self.publish(news_items, source)
         return None
