@@ -42,7 +42,7 @@ class RoleBasedAccess(BaseModel):
         if enabled is not None:
             self.enabled = enabled
         if roles:
-            self.roles = [Role.get(role_id) for role_id in roles]  # TODO: Fix this rbac_role is not getting populated
+            self.roles = [Role.get(role_id) for role_id in roles]
 
     @classmethod
     def is_enabled(cls) -> bool:

@@ -346,7 +346,6 @@ class TestAcls(BaseTest):
         acl_data = {"description": "new description"}
         response = self.assert_put_ok(client, uri=f"acls/{acl_id}", json_data=acl_data, auth_header=auth_header)
         assert response.json["id"] == acl_id
-        # TODO: add tests after bugfix
 
     def test_get_acl(self, client, auth_header, cleanup_acls):
         response = self.assert_get_ok(client, uri=f"acls?search={cleanup_acls['name']}", auth_header=auth_header)

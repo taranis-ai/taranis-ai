@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from sqlalchemy import cast, String, select
 from sqlalchemy.orm import aliased
 from sqlalchemy.orm.query import Query
 from sqlalchemy.sql.expression import true
@@ -58,15 +59,19 @@ class RoleBasedAccessService:
         if db.session.query(db.exists().where(access_check_subquery.c.item_id == "*")).scalar():
             return query
 
-        return query.filter(model_class.id.in_(access_check_subquery))  # type: ignore
+        if item_type in ["report_item_type", "product_type", "word_list"]:
+            id_field = cast(model_class.id, String)  # type: ignore
+        else:
+            id_field = model_class.id
+
+        return query.filter(id_field.in_(select(access_check_subquery)))  # type: ignore
 
     @classmethod
     def get_model_class(cls, resource_type: str):
         from core.model.osint_source import OSINTSource, OSINTSourceGroup
         from core.model.word_list import WordList
-        from core.model.report_item import ReportItem, ReportItemType
+        from core.model.report_item import ReportItemType
         from core.model.product_type import ProductType
-        from core.model.product import Product
 
         """
         Get the SQLAlchemy model class for a given resource type.
@@ -77,13 +82,9 @@ class RoleBasedAccessService:
             return OSINTSourceGroup
         elif resource_type == "word_list":
             return WordList
-        elif resource_type == "report_item":
-            return ReportItem
         elif resource_type == "report_item_type":
             return ReportItemType
         elif resource_type == "product_type":
             return ProductType
-        elif resource_type == "product":
-            return Product
         else:
             raise ValueError(f"Unknown resource type: {resource_type}")

@@ -216,7 +216,7 @@ class ReportItem(BaseModel):
 
         query = RBACQuery(
             user=user,
-            resource_id=self.report_item_type_id,
+            resource_id=str(self.report_item_type_id),
             resource_type=ItemType.REPORT_ITEM_TYPE,
             require_write_access=require_write_access,
         )

@@ -45,9 +45,7 @@ class ProductType(BaseModel):
         if not RoleBasedAccess.is_enabled() or not user:
             return True
 
-        query = RBACQuery(
-            user=user, resource_id=self.group_id, resource_type=ItemType.PRODUCT_TYPE, require_write_access=require_write_access
-        )
+        query = RBACQuery(user=user, resource_id=str(self.id), resource_type=ItemType.PRODUCT_TYPE, require_write_access=require_write_access)
 
         return RoleBasedAccessService.user_has_access_to_resource(query)
 

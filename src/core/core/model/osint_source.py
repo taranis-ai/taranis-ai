@@ -351,7 +351,7 @@ class OSINTSourceGroup(BaseModel):
             return True
 
         query = RBACQuery(
-            user=user, resource_id=self.group_id, resource_type=ItemType.OSINT_SOURCE_GROUP, require_write_access=require_write_access
+            user=user, resource_id=self.id, resource_type=ItemType.OSINT_SOURCE_GROUP, require_write_access=require_write_access
         )
 
         return RoleBasedAccessService.user_has_access_to_resource(query)
