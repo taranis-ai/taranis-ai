@@ -705,7 +705,7 @@ class NewsItemAggregate(BaseModel):
         except Exception as e:
             return {"error": f"Failed to add news items: {e}"}, 400
 
-        return {"message": f"Added {len(news_items_data)} news items", "ids": ids}, 200
+        return {"message": f"Added {len(ids)} news items", "ids": ids}, 200
 
     @classmethod
     def update(cls, id, data, user):

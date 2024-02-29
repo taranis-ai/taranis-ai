@@ -1,7 +1,7 @@
 <template>
   <v-autocomplete
     v-model="selected"
-    v-model:search="search"
+    v-model:search="searchState"
     :loading="loading"
     :items="available_tags"
     chips
@@ -33,7 +33,7 @@
 </template>
 
 <script>
-import { ref, watch, onMounted, computed } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { getTags } from '@/api/assess'
 import { tagIconFromType } from '@/utils/helpers'
 
@@ -59,6 +59,18 @@ export default {
     const available_tags = ref([])
     const search = ref('')
     const loading = ref(false)
+    const timeout = ref(null)
+
+    const searchState = computed({
+      get: () => search.value,
+      set: (value) => {
+        search.value = value
+        clearTimeout(timeout.value)
+        timeout.value = setTimeout(() => {
+          value && querySelections({ search: value })
+        }, 500)
+      }
+    })
 
     const shortText = (item) => {
       return item?.length > 15 ? item.substring(0, 15) + '...' : item
@@ -89,10 +101,6 @@ export default {
       })
     }
 
-    watch(search, (val) => {
-      val && querySelections({ search: val })
-    })
-
     onMounted(() => {
       querySelections({ search: search.value })
     })
@@ -100,7 +108,7 @@ export default {
     return {
       selected,
       available_tags,
-      search,
+      searchState,
       loading,
       shortText,
       tagIcon
