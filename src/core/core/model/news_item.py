@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from typing import Any, Optional
 from sqlalchemy import orm, and_, or_, func
 from sqlalchemy.sql.expression import false, null
+from flask_sqlalchemy.query import Query
 
 from enum import StrEnum, auto
 from collections import Counter
@@ -34,7 +35,7 @@ class NewsItemData(BaseModel):
     published: Any = db.Column(db.DateTime, default=datetime.now())
     updated = db.Column(db.DateTime, default=datetime.now())
 
-    attributes = db.relationship("NewsItemAttribute", secondary="news_item_data_news_item_attribute", cascade="all, delete")
+    attributes: Any = db.relationship("NewsItemAttribute", secondary="news_item_data_news_item_attribute", cascade="all, delete")
 
     osint_source_id = db.Column(db.String, db.ForeignKey("osint_source.id"), nullable=True)
     osint_source = db.relationship("OSINTSource")
@@ -289,7 +290,7 @@ class NewsItem(BaseModel):
         if not ACLEntry.has_rows() or not user or self.news_item_data.source == "manual":
             return True
 
-        query = db.session.query(NewsItem.id).distinct().group_by(NewsItem.id).filter(NewsItem.id == self.id)
+        query: Query = db.session.query(NewsItem.id).distinct().group_by(NewsItem.id).filter(NewsItem.id == self.id)  # type: ignore
 
         query = query.join(NewsItemData, NewsItem.news_item_data_id == NewsItemData.id)
         query = query.join(OSINTSource, NewsItemData.osint_source_id == OSINTSource.id)
@@ -682,7 +683,9 @@ class NewsItemAggregate(BaseModel):
     def create_new(cls, news_item_data):
         news_item = NewsItem.add({"news_item_data": news_item_data})
 
-        aggregate = NewsItemAggregate.add({"title": news_item_data.title, "description": news_item_data.review, "news_items": [news_item]})
+        aggregate = NewsItemAggregate.add(
+            {"title": news_item_data.title, "description": news_item_data.review or news_item_data.content, "news_items": [news_item]}
+        )
         NewsItemAggregateSearchIndex.prepare(aggregate)
 
         db.session.commit()
@@ -702,7 +705,7 @@ class NewsItemAggregate(BaseModel):
         except Exception as e:
             return {"error": f"Failed to add news items: {e}"}, 400
 
-        return {"message": f"Added {len(news_items_data)} news items", "ids": ids}, 200
+        return {"message": f"Added {len(ids)} news items", "ids": ids}, 200
 
     @classmethod
     def update(cls, id, data, user):
@@ -1012,7 +1015,7 @@ class NewsItemAggregate(BaseModel):
         new_aggregate = NewsItemAggregate(
             title=news_item.news_item_data.title,
             created=news_item.news_item_data.published,
-            description=news_item.news_item_data.review,
+            description=news_item.news_item_data.review or news_item.news_item_data.content,
             news_items=[news_item.id],
         )
         db.session.add(new_aggregate)
