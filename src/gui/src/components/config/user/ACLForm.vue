@@ -91,7 +91,7 @@
 
 <script>
 import { useConfigStore } from '@/stores/ConfigStore'
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onBeforeMount, watch } from 'vue'
 
 export default {
   name: 'ACLForm',
@@ -142,53 +142,49 @@ export default {
       emit('submit', acl.value)
     }
 
-    onMounted(() => {
+    const load_item_ids = async (item_type) => {
+      if (item_type === 'osint_source') {
+        await configStore.loadOSINTSources()
+        item_ids.value = configStore.osint_sources.items.map((item) => ({
+          id: item.id.toString(),
+          title: item.name
+        }))
+      } else if (item_type === 'osint_source_group') {
+        await configStore.loadOSINTSourceGroups()
+        item_ids.value = configStore.osint_source_groups.items.map((item) => ({
+          id: item.id.toString(),
+          title: item.name
+        }))
+      } else if (item_type === 'product_type') {
+        await configStore.loadProductTypes()
+        item_ids.value = configStore.product_types.items.map((item) => ({
+          id: item.id.toString(),
+          title: item.title
+        }))
+      } else if (item_type === 'report_item_type') {
+        await configStore.loadReportTypes()
+        item_ids.value = configStore.report_item_types.items.map((item) => ({
+          id: item.id.toString(),
+          title: item.title
+        }))
+      } else if (item_type === 'word_list') {
+        await configStore.loadWordLists()
+        item_ids.value = configStore.word_lists.items.map((item) => ({
+          id: item.id.toString(),
+          title: item.name
+        }))
+      }
+    }
+
+    onBeforeMount(async () => {
+      await load_item_ids(acl.value.item_type)
       configStore.loadRoles()
     })
 
     watch(
       () => acl.value.item_type,
       (newVal) => {
-        if (newVal === 'osint_source') {
-          configStore.loadOSINTSources().then(() => {
-            item_ids.value = configStore.osint_sources.items.map((item) => ({
-              id: item.id,
-              title: item.name
-            }))
-          })
-        } else if (newVal === 'osint_source_group') {
-          configStore.loadOSINTSourceGroups().then(() => {
-            item_ids.value = configStore.osint_source_groups.items.map(
-              (item) => ({
-                id: item.id,
-                title: item.name
-              })
-            )
-          })
-        } else if (newVal === 'product_type') {
-          configStore.loadProductTypes().then(() => {
-            item_ids.value = configStore.product_types.items.map((item) => ({
-              id: item.id,
-              title: item.title
-            }))
-          })
-        } else if (newVal === 'report_item_type') {
-          configStore.loadReportTypes().then(() => {
-            item_ids.value = configStore.report_item_types.items.map(
-              (item) => ({
-                id: item.id,
-                title: item.title
-              })
-            )
-          })
-        } else if (newVal === 'word_list') {
-          configStore.loadWordLists().then(() => {
-            item_ids.value = configStore.word_lists.items.map((item) => ({
-              id: item.id,
-              title: item.name
-            }))
-          })
-        }
+        load_item_ids(newVal)
       }
     )
 

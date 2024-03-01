@@ -36,7 +36,7 @@ class RoleBasedAccess(BaseModel):
         self.name = name
         self.description = description
         self.item_type = item_type
-        self.item_id = item_id
+        self.item_id = str(item_id)  # type: ignore
         if read_only is not None:
             self.read_only = read_only
         if enabled is not None:
@@ -82,7 +82,13 @@ class RoleBasedAccess(BaseModel):
         if not acl:
             return {"error": "ACL not found"}, 404
         for key, value in data.items():
-            if hasattr(acl, key) and key != "id":
+            if not hasattr(acl, key) or key == "id":
+                continue
+            elif key == "roles":
+                acl.roles = [Role.get(role_id) for role_id in value]
+            elif key == "item_id":
+                value = str(value)
+            else:
                 setattr(acl, key, value)
         db.session.commit()
         return {"message": f"Succussfully updated {acl.id}", "id": acl.id}, 201
