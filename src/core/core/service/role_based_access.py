@@ -23,6 +23,8 @@ class RoleBasedAccessService:
         """
         Check if a user has access to a resource based on RBACQuery parameters.
         """
+        if not RoleBasedAccess.is_enabled_for_type(rbac_query.resource_type):
+            return True
         return any(cls._is_authorized(acl_entry, rbac_query) for role in rbac_query.user.roles for acl_entry in role.acls)
 
     @staticmethod

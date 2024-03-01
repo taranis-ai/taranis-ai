@@ -287,7 +287,10 @@ class NewsItem(BaseModel):
             require_write_access=require_write_access,
         )
 
-        return RoleBasedAccessService.user_has_access_to_resource(query)
+        access = RoleBasedAccessService.user_has_access_to_resource(query)
+        if not access:
+            logger.info(f"User {user.id} has no access to resource {self.news_item_data.osint_source_id}")
+        return access
 
     def vote(self, vote_data, user_id) -> "NewsItemVote":
         if vote := NewsItemVote.get_by_filter(item_id=self.id, user_id=user_id, item_type="NEWS_ITEM"):
