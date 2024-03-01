@@ -109,57 +109,7 @@ export const useAssessStore = defineStore('assess', {
     },
     async voteOnNewsItemAggregate(id, vote) {
       try {
-        this.newsItems.items = this.newsItems.items.map((item) => {
-          if (item.id === id) {
-            let { likes, dislikes, relevance } = item
-            let voted = { ...item.user_vote }
-
-            if (vote === 'like') {
-              if (voted.like) {
-                likes -= 1
-                relevance -= 1
-                voted.like = false
-              } else if (voted.dislike) {
-                dislikes -= 1
-                likes += 1
-                relevance += 2
-                voted = { like: true, dislike: false }
-              } else {
-                likes += 1
-                relevance += 1
-                voted.like = true
-              }
-            }
-            if (vote === 'dislike') {
-              if (voted.dislike) {
-                dislikes -= 1
-                relevance += 1
-                voted.dislike = false
-              } else if (voted.like) {
-                likes -= 1
-                dislikes += 1
-                relevance -= 2
-                voted = { like: false, dislike: true }
-              } else {
-                dislikes += 1
-                relevance -= 1
-                voted.dislike = true
-              }
-            }
-
-            return {
-              ...item,
-              user_vote: voted,
-              relevance: relevance,
-              likes: likes,
-              dislikes: dislikes
-            }
-          }
-          return item
-        })
-
         await voteNewsItemAggregate(id, vote)
-        this.updateStoryByID(id)
       } catch (error) {
         notifyFailure(error)
       }

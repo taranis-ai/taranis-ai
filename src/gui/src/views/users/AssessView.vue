@@ -3,15 +3,23 @@
     <v-infinite-scroll
       v-if="newsItems.items.length > 0"
       empty-text="All items loaded"
+      color="primary"
       @load="displayMore"
     >
       <template v-for="item in newsItems.items" :key="item">
         <card-story :story="item" @refresh="refresh(item.id)" />
       </template>
+      <template #loading>
+        <v-progress-circular
+          color="primary"
+          indeterminate
+          size="24"
+          width="4"
+          class="mr-3 mt-3 mb-5"
+        />
+        loading new items ...
+      </template>
     </v-infinite-scroll>
-    <v-overlay :model-value="loading" class="align-center justify-center">
-      <v-progress-circular color="primary" indeterminate size="64" />
-    </v-overlay>
 
     <v-row
       v-if="newsItems.items.length == 0"

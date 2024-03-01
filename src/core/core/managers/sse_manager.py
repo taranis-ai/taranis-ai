@@ -11,11 +11,11 @@ class SSEManager:
     def news_items_updated(self):
         self.sse.publish({}, event="news-items-updated")
 
-    def report_items_updated(self):
-        self.sse.publish({}, event="report-items-updated")
-
     def report_item_updated(self, data):
         self.sse.publish(data, event="report-item-updated")
+
+    def product_rendered(self, data):
+        self.sse.publish(data, event="product-rendered")
 
     def to_json(self, report_item_id: int):
         return {}

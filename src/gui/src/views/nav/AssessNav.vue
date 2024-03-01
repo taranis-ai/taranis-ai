@@ -7,6 +7,18 @@
     @update:limit="(value) => (newsItemsFilter.limit = value)"
     @update:offset="(value) => (newsItemsFilter.offset = value)"
   >
+    <template #appbar>
+      <filter-button
+        v-model="newsItemsFilter['read']"
+        label="read"
+        icon="mdi-eye-check-outline"
+      />
+      <filter-button
+        v-model="newsItemsFilter['in_report']"
+        label="items in reports"
+        icon="mdi-google-circles-communities"
+      />
+    </template>
     <template #navdrawer>
       <!-- scope -->
       <v-row no-gutters class="ma-2 px-2">
@@ -55,9 +67,20 @@
         </v-col>
 
         <v-col cols="12" class="pt-1">
-          <date-chips v-model="newsItemsFilter.range" />
+          <date-chips v-model="filter_range" />
         </v-col>
 
+        <v-col cols="12" class="pt-1">
+          <date-filter v-model="newsItemsFilter.timefrom" placeholder="From" />
+        </v-col>
+
+        <v-col cols="12" class="pt-1">
+          <date-filter
+            v-model="newsItemsFilter.timeto"
+            placeholder="Until"
+            :max-date="new Date(newsItemsFilter.timefrom)"
+          />
+        </v-col>
         <v-col cols="12" class="pt-1">
           <tag-filter v-model="newsItemsFilter.tags" />
         </v-col>
@@ -69,7 +92,7 @@
         </v-col>
       </v-row>
 
-      <v-divider class="my-2"></v-divider>
+      <v-divider class="my-2" />
 
       <v-row no-gutters class="ma-2 ml-0 px-2">
         <v-col cols="12" class="ml-2 py-1">
@@ -81,7 +104,7 @@
         </v-col>
       </v-row>
 
-      <v-divider class="my-2"></v-divider>
+      <v-divider class="my-2" />
 
       <v-row no-gutters class="my-2 mb-0 px-2">
         <v-col cols="12" class="mx-2 py-1">
@@ -140,30 +163,6 @@
         </v-col>
       </v-row>
 
-      <v-divider class="my-2 mt-1 mb-0"></v-divider>
-      <v-row no-gutters class="ma-2 px-2">
-        <v-col cols="12" class="py-0">
-          <h4>Debug</h4>
-        </v-col>
-        <v-col cols="6" class="pt-2">chart threshold:</v-col>
-        <v-col cols="6" class="pt-2">
-          <input
-            v-model="chartFilter.threshold"
-            style="width: 100%"
-            type="number"
-            min="0"
-        /></v-col>
-        <v-col cols="6" class="pt-2">chart y2 Max:</v-col>
-        <v-col cols="6" class="pt-2">
-          <input
-            v-model="chartFilter.y2max"
-            style="width: 100%"
-            type="number"
-            min="0"
-          />
-        </v-col>
-      </v-row>
-
       <v-divider class="my-2 mt-2 mb-0"></v-divider>
       <v-row no-gutters class="my-2 mr-0 px-2 pb-1">
         <v-col cols="12" class="py-2">
@@ -188,7 +187,9 @@
 
 <script>
 import dateChips from '@/components/common/filter/dateChips.vue'
+import dateFilter from '@/components/common/filter/dateFilter.vue'
 import tagFilter from '@/components/common/filter/tagFilter.vue'
+import filterButton from '@/components/common/filter/filterButton.vue'
 import AssessFilterButtons from '@/components/assess/AssessFilterButtons.vue'
 import filterSortList from '@/components/common/filter/filterSortList.vue'
 import FilterNavigation from '@/components/common/FilterNavigation.vue'
@@ -202,8 +203,10 @@ export default {
   name: 'AssessNav',
   components: {
     dateChips,
+    dateFilter,
     tagFilter,
     filterSortList,
+    filterButton,
     FilterNavigation,
     AssessFilterButtons
   },
@@ -226,6 +229,36 @@ export default {
     const { setFilter, updateFilter } = useFilterStore()
 
     const route = useRoute()
+
+    const filter_range = computed({
+      get() {
+        return undefined
+      },
+      set(value) {
+        console.debug('filter_range', value)
+        const now = new Date()
+        switch (value) {
+          case 'day': {
+            now.setHours(0, 0, 0, 0) // Set to today at 00:00
+            newsItemsFilter.value.timefrom = now.toISOString()
+            break
+          }
+          case 'week': {
+            const dayOfWeek = now.getDay()
+            const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+            now.setDate(now.getDate() + diffToMonday)
+            now.setHours(0, 0, 0, 0) // Set hours to 00:00
+            newsItemsFilter.value.timefrom = now.toISOString()
+            break
+          }
+          case '24h': {
+            const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+            newsItemsFilter.value.timefrom = yesterday.toISOString()
+            break
+          }
+        }
+      }
+    })
 
     const search = computed({
       get() {
@@ -279,6 +312,7 @@ export default {
       highlight,
       showWeekChart,
       compactView,
+      filter_range,
       getOSINTSourceGroupsList,
       getOSINTSourcesList,
       newsItemsFilter,
