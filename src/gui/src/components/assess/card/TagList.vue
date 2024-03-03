@@ -91,6 +91,7 @@ export default defineComponent({
       default: false
     }
   },
+  emits: ['edit'],
   setup(props) {
     const { appendTag } = useFilterStore()
     const route = useRoute()

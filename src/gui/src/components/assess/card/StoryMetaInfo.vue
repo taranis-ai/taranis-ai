@@ -19,8 +19,10 @@
       </td>
     </tr>
 
-    <tr v-if="!compactView">
-      <td v-if="story.tags && story.tags.length > 0 && !reportView">
+    <tr
+      v-if="!compactView && story.tags && story.tags.length > 0 && !reportView"
+    >
+      <td>
         <strong> Tags: </strong>
       </td>
       <td>
@@ -36,8 +38,8 @@
       </td>
     </tr>
 
-    <tr v-if="!compactView">
-      <td v-if="!compactView"><strong>Relevance:</strong></td>
+    <tr v-if="!compactView && !reportView">
+      <td><strong>Relevance:</strong></td>
       <td>
         {{ story.relevance }}
       </td>

@@ -4,7 +4,7 @@
       v-if="!detailView"
       :text="openSummary ? 'hide details' : 'show details'"
     >
-      <template #activator="{ props }">
+      <template v-if="!reportView" #activator="{ props }">
         <v-btn
           v-ripple="false"
           :variant="openSummary ? 'flat' : 'tonal'"
@@ -65,7 +65,10 @@
       </template>
     </v-tooltip>
 
-    <v-tooltip :text="story.read ? 'mark as unread' : 'mark as read'">
+    <v-tooltip
+      v-if="!reportView"
+      :text="story.read ? 'mark as unread' : 'mark as read'"
+    >
       <template #activator="{ props }">
         <v-btn
           v-ripple="false"
@@ -191,7 +194,7 @@
 
       <v-list dense>
         <v-list-item
-          v-if="detailView || reportView"
+          v-if="detailView"
           :prepend-icon="
             !story.read ? 'mdi-eye-outline' : 'mdi-eye-off-outline'
           "
@@ -239,8 +242,12 @@
           v-if="!reportView && news_item_length === 1"
           :to="'/newsitem/' + story.news_items[0].id"
         >
-          <v-icon icon="mdi-open-in-app" title="open" />
-          <v-tooltip activator="parent" location="start" text="open" />
+          <v-icon icon="mdi-open-in-app" title="open news item" />
+          <v-tooltip
+            activator="parent"
+            location="start"
+            text="open news item"
+          />
         </v-list-item>
         <v-list-item
           v-if="!reportView && newsItemSelection.length > 0"
@@ -305,8 +312,7 @@ export default {
       required: true
     },
     detailView: { type: Boolean, default: false },
-    reportView: { type: Boolean, default: false },
-    actionCols: { type: Number, default: 4 }
+    reportView: { type: Boolean, default: false }
   },
   emits: ['refresh', 'remove-from-report', 'open-details'],
   setup(props, { emit }) {
