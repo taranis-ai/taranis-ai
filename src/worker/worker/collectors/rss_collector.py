@@ -111,7 +111,24 @@ class RSSCollector(BaseWebCollector):
 
         return self.xpath_extraction(html_content, xpath)
 
-    def get_summary_splits(self, summary) -> list[dict]:
+    def get_summary_splits_us_cert(self, html_content: str) -> list:
+        soup = BeautifulSoup(html_content, "html.parser")
+        tables = soup.find_all("table")  # Find all tables in the content
+        digests = []
+
+        for table in tables:
+            rows = table.find_all("tr")
+            for row in rows[1:]:  # Skip the header row for each table
+                cols = row.find_all("td")
+                row_data = [col.text.strip() for col in cols]
+                product_info = {"title": row_data[0], "content": "<br>".join(row_data), "summary_detail": {}, "summary": "Digest spliting"}
+                row_data.clear()
+                digests.append(product_info)
+                print(digests)
+
+        return digests
+
+    def get_summary_splits_at_cert(self, summary) -> list[dict]:
         soup = BeautifulSoup(summary, "html.parser")
         h3_tags = soup.find_all("h3")
         digests = []
@@ -126,8 +143,11 @@ class RSSCollector(BaseWebCollector):
         return digests
 
     def digest_splitting(self, feed_entry) -> list[dict]:
-        summary = feed_entry.get("summary")
-        return self.get_summary_splits(summary)
+        if "cert.at" in feed_entry.get("link"):
+            return self.get_summary_splits_at_cert(feed_entry.get("summary"))
+        elif "cisa.gov" in feed_entry.get("link"):
+            return self.get_summary_splits_us_cert(feed_entry.get("summary"))
+        return []
 
     def parse_feed(self, feed_entry: feedparser.FeedParserDict, feed_url, source) -> dict[str, str | datetime.datetime | list]:
         author: str = str(feed_entry.get("author", ""))
@@ -208,8 +228,11 @@ class RSSCollector(BaseWebCollector):
     def get_news_items(self, feed, feed_url, source) -> list:
         news_items = []
         for feed_entry in feed["entries"][:42]:
+            print(feed_entry)
             # Digest splitting
-            if source.get("parameters").get("DIGEST_SPLITTING") and "zusammenfassung" in feed_entry.get("title", ""):
+            digest_splitting = source.get("parameters", {}).get("DIGEST_SPLITTING")
+            title = feed_entry.get("title", "").lower()  # Convert title to lowercase for case-insensitive comparison
+            if digest_splitting and ("zusammenfassung" in title or "summary" in title):
                 digests = self.digest_splitting(feed_entry)
                 for digest in digests:
                     print("this is a digest")
@@ -249,5 +272,6 @@ class RSSCollector(BaseWebCollector):
 
 if __name__ == "__main__":
     rss_collector = RSSCollector()
-    rss_collector.collect({"id": 1, "parameters": {"FEED_URL": "https://cert.at/cert-at.de.all.rss_2.0.xml", "DIGEST_SPLITTING": True}})
+    # rss_collector.collect({"id": 1, "parameters": {"FEED_URL": "https://cert.at/cert-at.de.all.rss_2.0.xml", "DIGEST_SPLITTING": True}})
+    rss_collector.collect({"id": 1, "parameters": {"FEED_URL": "https://us-cert.cisa.gov/ncas/bulletins.xml", "DIGEST_SPLITTING": True}})
     # rss_collector.collect({"id": 1, "parameters": {"FEED_URL": "https://blog.360totalsecurity.com/en/category/security-news/feed/"}})
