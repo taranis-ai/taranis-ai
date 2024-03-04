@@ -3,9 +3,9 @@
     <v-card variant="outlined">
       <v-card-title>
         <v-toolbar>
-          <v-toolbar-title>
+          <span class="align-self-center ml-3">
             {{ $t('settings.user_settings') }}
-          </v-toolbar-title>
+          </span>
           <v-spacer></v-spacer>
           <v-btn
             class="mr-2"
@@ -44,7 +44,6 @@
         </v-row>
         <v-row>
           <v-col cols="4">
-            {{ language }}
             <v-autocomplete
               v-model="language"
               :items="locale_descriptions"
@@ -55,6 +54,17 @@
           </v-col>
         </v-row>
         <h1 class="mt-5 mb-5">Hotkeys</h1>
+        <h2 style="background-color: #ffff00">
+          HotKeys are currently not working, see
+          <a
+            href="https://github.com/taranis-ai/taranis-ai/issues/137"
+            target="_blank"
+          >
+            Issue #137
+          </a>
+          for details
+        </h2>
+        <span> Press the button to change the hotkey. </span>
         <v-row no-gutters class="ma-0">
           <v-tooltip v-for="shortcut in hotkeys" :key="shortcut.alias">
             <template #activator="{ props }">
@@ -64,6 +74,7 @@
                 class="blue lighten-5 ma-1"
                 style="width: calc(100% / 3 - 8px)"
                 :prepend-icon="shortcut.icon"
+                :disabled="disableHotkeys"
                 @click.stop="pressKeyDialog(shortcut.alias)"
                 @blur="pressKeyVisible = false"
               >
@@ -99,7 +110,10 @@ export default {
 
     const userStore = useUserStore()
 
-    const { hotkeys, dark_theme, spellcheck, language } = storeToRefs(userStore)
+    const disableHotkeys = true
+
+    const { hotkeys, dark_theme, spellcheck, language } =
+      storeToRefs(settingsStore)
 
     const locale_descriptions = computed(() => [
       { value: 'en', text: 'English' },
@@ -193,6 +207,7 @@ export default {
 
     return {
       pressKeyVisible,
+      disableHotkeys,
       hotkeyAlias,
       shortcuts,
       language,

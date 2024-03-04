@@ -1,4 +1,5 @@
 from sqlalchemy import or_
+from sqlalchemy.orm import Mapped
 from werkzeug.security import generate_password_hash
 from typing import Any
 
@@ -8,7 +9,6 @@ from core.model.permission import Permission
 from core.model.organization import Organization
 
 from core.model.base_model import BaseModel
-from core.managers.log_manager import logger
 
 
 class User(BaseModel):
@@ -113,11 +113,8 @@ class User(BaseModel):
         if not user:
             return {"error": f"User {user_id} not found"}, 404
         data.pop("id", None)
-        data.pop("tag", None)
         if update_organization := data.pop("organization", None):
             user.organization = Organization.get(update_organization)
-        if update_profile := data.pop("profile_id", None):
-            user.profile = UserProfile.get(update_profile)
         if not (update_roles := data.pop("roles", None)):
             user.roles = data.get("roles", [])
         else:
@@ -154,12 +151,8 @@ class User(BaseModel):
         return self.profile.to_dict(), 200
 
     @classmethod
-    def update_profile(cls, user, data):
-        logger.debug(user.profile.from_dict(data))
-        user.profile = user.profile.from_dict(data)
-
-        db.session.commit()
-        return user.profile.to_dict(), 200
+    def update_profile(cls, user: "User", data) -> tuple[dict, int]:
+        return user.profile.update(data)
 
     @classmethod
     def delete(cls, id: int) -> tuple[dict[str, Any], int]:
@@ -207,6 +200,26 @@ class UserProfile(BaseModel):
             "language": self.language,
         }
 
+    def update(self, data) -> tuple[dict[str, Any], int]:
+        spellcheck = data.pop("spellcheck", None)
+        if spellcheck is not None:
+            self.spellcheck = spellcheck
+
+        dark_theme = data.pop("dark_theme", None)
+        if dark_theme is not None:
+            self.dark_theme = dark_theme
+
+        hotkeys = data.pop("hotkeys", None)
+        if hotkeys is not None:
+            self.hotkeys = [Hotkey.from_dict(hotkey) for hotkey in hotkeys]
+
+        language = data.pop("language", None)
+        if language is not None:
+            self.language = language
+
+        db.session.commit()
+        return {"message": "UserProfile updated", "id": f"{self.id}"}, 200
+
 
 class Hotkey(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
@@ -224,5 +237,4 @@ class Hotkey(BaseModel):
 
     @classmethod
     def from_dict(cls, data: dict) -> "Hotkey":
-        logger.debug(data)
         return cls(data["key_code"], data["key"], data["alias"])
