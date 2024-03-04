@@ -118,8 +118,13 @@ class OSINTSource(BaseModel):
         return {"total_count": count, "items": items}
 
     def to_list(self):
-        return {"id": self.id, "name": self.name, "description": self.description, "type": self.type,
-                'icon': base64.b64encode(self.icon).decode("utf-8") if self.icon else None}
+        return {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "type": self.type,
+            "icon": base64.b64encode(self.icon).decode("utf-8") if self.icon else None,
+        }
 
     @classmethod
     def get_all_by_type(cls, collector_type: str):
