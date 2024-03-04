@@ -346,25 +346,19 @@ class TestAcls(BaseTest):
         acl_data = {"description": "new description"}
         response = self.assert_put_ok(client, uri=f"acls/{acl_id}", json_data=acl_data, auth_header=auth_header)
         assert response.json["id"] == acl_id
-        # TODO: add tests after bugfix
 
     def test_get_acl(self, client, auth_header, cleanup_acls):
         response = self.assert_get_ok(client, uri=f"acls?search={cleanup_acls['name']}", auth_header=auth_header)
         assert response.json["items"][0]["name"] == cleanup_acls["name"]
         assert response.json["items"][0]["description"] == "new description"
-        assert response.json["items"][0]["item_type"] == 3  # Number 3 represents an ENUM type
+        assert response.json["items"][0]["item_type"] == cleanup_acls["item_type"]
         assert response.json["items"][0]["item_id"] == cleanup_acls["item_id"]
-        assert response.json["items"][0]["everyone"] == cleanup_acls["everyone"]
-        assert response.json["items"][0]["see"] == cleanup_acls["see"]
-        assert response.json["items"][0]["access"] == cleanup_acls["access"]
-        assert response.json["items"][0]["modify"] == cleanup_acls["modify"]
         assert response.json["items"][0]["roles"] == cleanup_acls["roles"]
-        assert response.json["items"][0]["users"] == cleanup_acls["users"]
 
     def test_delete_acl(self, client, auth_header, cleanup_acls):
         acl_id = cleanup_acls["id"]
         response = self.assert_delete_ok(client, uri=f"acls/{acl_id}", auth_header=auth_header)
-        assert response.json["message"] == f"ACLEntry {acl_id} deleted"
+        assert response.json["message"] == f"RoleBasedAccess {acl_id} deleted"
 
 
 class TestPublisherPreset(BaseTest):

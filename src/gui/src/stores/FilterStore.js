@@ -9,6 +9,8 @@ export const useFilterStore = defineStore('filter', {
       search: undefined,
       sort: undefined,
       range: undefined,
+      timefrom: undefined,
+      timeto: undefined,
       read: undefined,
       tags: undefined,
       group: undefined,

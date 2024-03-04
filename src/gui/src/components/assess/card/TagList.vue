@@ -34,6 +34,26 @@
         {{ tag.name }} - {{ tag.tag_type }}
       </span>
     </v-tooltip>
+    <v-tooltip v-if="editable" text="edit tags" location="bottom">
+      <template #activator="{ props }">
+        <v-chip
+          v-bind="props"
+          class="py-3 mr-1 mt-1"
+          color="primary"
+          link
+          label
+          density="compact"
+          variant="tonal"
+          elevation="0"
+          size="small"
+          icon="mdi-tag-hidden"
+          @click.prevent="$emit('edit')"
+        >
+          <!-- edit -->
+          <v-icon icon="mdi-pencil-outline" size="small" />
+        </v-chip>
+      </template>
+    </v-tooltip>
   </div>
 </template>
 
@@ -58,6 +78,10 @@ export default defineComponent({
       type: Boolean,
       default: true
     },
+    editable: {
+      type: Boolean,
+      default: false
+    },
     color: {
       type: Boolean,
       default: true
@@ -67,6 +91,7 @@ export default defineComponent({
       default: false
     }
   },
+  emits: ['edit'],
   setup(props) {
     const { appendTag } = useFilterStore()
     const route = useRoute()
@@ -129,7 +154,6 @@ export default defineComponent({
   display: flex;
   flex-wrap: v-bind(flex_wrap);
 }
-
 .tag-content {
   max-width: v-bind(max_width);
 }

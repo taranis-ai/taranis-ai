@@ -1,87 +1,12 @@
 <template>
-  <v-container class="px-0 mb-1 pb-5">
-    <v-row v-if="!compactView" no-gutters>
-      <v-col>
-        <v-row>
-          <v-col style="max-width: 110px" class="py-0">
-            <strong>{{ t('assess.published') }}:</strong>
-          </v-col>
-          <v-col class="py-0">
-            <span :class="published_date_outdated ? 'error--text' : ''">
-              {{ getPublishedDate }}
-            </span>
-            <v-icon
-              v-if="published_date_outdated"
-              class="ml-1"
-              size="small"
-              color="error"
-              icon="mdi-alert"
-            />
-          </v-col>
-        </v-row>
-        <v-row v-if="story.tags && story.tags.length > 0 && !reportView">
-          <v-col style="max-width: 110px" class="py-0">
-            <strong>
-              Tags:
-              <v-btn
-                v-if="detailView"
-                icon="mdi-pencil"
-                size="x-small"
-                @click.prevent="editTags()"
-              />
-            </strong>
-          </v-col>
-          <v-col class="py-0">
-            <tag-list
-              :tags="story.tags"
-              :truncate="!detailView"
-              :limit="tagLimit"
-              :color="detailView"
-              :wrap="showWeekChart || detailView"
-            />
-          </v-col>
-        </v-row>
-        <v-row>
-          <v-col style="max-width: 110px" class="py-0">
-            <strong>Relevance:</strong>
-          </v-col>
-          <v-col class="py-0">
-            {{ story.relevance }}
-          </v-col>
-        </v-row>
-        <article-info
-          :news-item-data="story.news_items[0].news_item_data"
-          :compact-view="compactView"
-        />
-        <source-info
-          v-if="detailView && story.news_items.length < 2"
-          :news-item-data="story.news_items[0].news_item_data"
-        />
-        <author-info
-          v-if="detailView && story.news_items.length === 1"
-          :news-item-data="story.news_items[0].news_item_data"
-        />
-      </v-col>
-      <v-col
-        v-if="
-          !published_date_outdated &&
-          !reportView &&
-          !detailView &&
-          showWeekChart
-        "
-        :cols="detailView ? 10 : 6"
-        :class="detailView ? 'detailView' : ''"
-      >
-        <week-chart
-          :chart-height="detailView ? 300 : 250"
-          :chart-width="detailView ? 800 : 600"
-          :story="story"
-        />
-      </v-col>
-    </v-row>
-    <div v-else class="ml-5">
-      <v-row>
-        <span :class="published_date_outdated ? 'error--text' : ''">
+  <!-- <div> -->
+  <table class="story-meta-info">
+    <tr>
+      <td v-if="!compactView">
+        <strong>{{ t('assess.published') }}:</strong>
+      </td>
+      <td>
+        <span :class="published_date_outdated ? 'text-error' : ''">
           {{ getPublishedDate }}
         </span>
         <v-icon
@@ -89,24 +14,58 @@
           class="ml-1"
           size="small"
           color="error"
-          icon="mdi-alert"
+          icon="mdi-alert-outline"
         />
-      </v-row>
+      </td>
+    </tr>
 
-      <v-row class="mt-5">
-        <article-info
-          :news-item-data="story.news_items[0].news_item_data"
-          :compact-view="compactView"
+    <tr
+      v-if="!compactView && story.tags && story.tags.length > 0 && !reportView"
+    >
+      <td>
+        <strong> Tags: </strong>
+      </td>
+      <td>
+        <tag-list
+          :tags="story.tags"
+          :truncate="!detailView"
+          :limit="tagLimit"
+          :color="detailView"
+          :wrap="showWeekChart || detailView"
+          :editable="detailView"
+          @edit="editTags()"
         />
-      </v-row>
+      </td>
+    </tr>
 
-      <v-row class="mt-5">
-        <source-info
-          v-if="detailView && story.news_items.length === 1"
-          :news-item-data="story.news_items[0].news_item_data"
-        />
-      </v-row>
-    </div>
+    <tr v-if="!compactView && !reportView">
+      <td><strong>Relevance:</strong></td>
+      <td>
+        {{ story.relevance }}
+      </td>
+    </tr>
+
+    <tr v-if="detailView">
+      <td v-if="!compactView"><strong>Vote:</strong></td>
+      <td>
+        <v-list-item class="px-0">
+          <story-votes :story="story" />
+        </v-list-item>
+      </td>
+    </tr>
+
+    <article-info
+      :news-item-data="story.news_items[0].news_item_data"
+      :compact-view="compactView"
+    />
+    <source-info
+      v-if="detailView && story.news_items.length < 2"
+      :news-item-data="story.news_items[0].news_item_data"
+    />
+    <author-info
+      v-if="detailView && story.news_items.length === 1"
+      :news-item-data="story.news_items[0].news_item_data"
+    />
     <v-dialog v-model="showTagDialog" width="auto">
       <popup-edit-tags
         :tags="story.tags"
@@ -114,12 +73,13 @@
         @close="showTagDialog = false"
       />
     </v-dialog>
-  </v-container>
+  </table>
+  <!-- </div> -->
 </template>
 
 <script>
 import TagList from '@/components/assess/card/TagList.vue'
-import WeekChart from '@/components/assess/card/WeekChart.vue'
+// import WeekChart from '@/components/assess/card/WeekChart.vue'
 import { useFilterStore } from '@/stores/FilterStore'
 import { useI18n } from 'vue-i18n'
 import { computed, ref } from 'vue'
@@ -129,6 +89,7 @@ import ArticleInfo from '@/components/assess/card/ArticleInfo.vue'
 import SourceInfo from '@/components/assess/card/SourceInfo.vue'
 import AuthorInfo from '@/components/assess/card/AuthorInfo.vue'
 import PopupEditTags from '@/components/popups/PopupEditTags.vue'
+import StoryVotes from '@/components/assess/card/StoryVotes.vue'
 
 export default {
   name: 'StoryMetaInfo',
@@ -137,8 +98,9 @@ export default {
     ArticleInfo,
     SourceInfo,
     AuthorInfo,
-    TagList,
-    WeekChart
+    StoryVotes,
+    TagList
+    // WeekChart
   },
   props: {
     story: {
@@ -238,5 +200,12 @@ export default {
   margin-right: 30px;
   padding-right: 30px;
   margin-top: 30px;
+}
+
+.story-meta-info tr td {
+  vertical-align: top;
+}
+.story-meta-info tr td:first-child {
+  padding-right: 10px;
 }
 </style>

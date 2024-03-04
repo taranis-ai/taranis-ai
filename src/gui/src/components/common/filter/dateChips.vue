@@ -14,13 +14,9 @@
       <v-tooltip activator="parent" location="top" text="from last monday" />
       week
     </v-btn>
-    <v-btn class="flex-grow-1" variant="outlined" value="month">
-      <v-tooltip
-        activator="parent"
-        location="top"
-        text="from 1. of the month"
-      />
-      month
+    <v-btn class="flex-grow-1" variant="outlined" value="24h">
+      <v-tooltip activator="parent" location="top" text="last 24 hours" />
+      24h
     </v-btn>
   </v-btn-toggle>
 </template>

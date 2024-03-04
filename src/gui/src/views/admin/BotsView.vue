@@ -3,16 +3,8 @@
     <DataTable
       v-model:items="bots.items"
       :add-button="true"
-      :header-filter="[
-        'tag',
-        'name',
-        'description',
-        'type',
-        'index',
-        'actions'
-      ]"
+      :header-filter="['name', 'description', 'type', 'index', 'actions']"
       sort-by-item="index"
-      tag-icon="mdi-robot"
       @delete-item="deleteItem"
       @edit-item="editItem"
       @add-item="addItem"
@@ -40,7 +32,7 @@
       :parameters="parameters"
       :title="editTitle"
       @submit="handleSubmit"
-    ></EditConfig>
+    />
   </v-container>
 </template>
 <script>

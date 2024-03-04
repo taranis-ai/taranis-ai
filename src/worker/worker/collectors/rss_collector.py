@@ -58,7 +58,7 @@ class RSSCollector(BaseWebCollector):
                 return True, location
         return False, content_location
 
-    def get_published_date(self, feed_entry: feedparser.FeedParserDict, link: str) -> datetime.datetime:
+    def get_published_date(self, feed_entry: feedparser.FeedParserDict, link: str, collected: datetime.datetime) -> datetime.datetime:
         published: str | datetime.datetime = str(
             feed_entry.get(
                 "published",
@@ -69,17 +69,17 @@ class RSSCollector(BaseWebCollector):
         )
         if not published:
             if not link:
-                return self.last_modified or datetime.datetime.now()
+                return self.last_modified or collected
             response = requests.head(link, headers=self.headers, proxies=self.proxies, timeout=self.timeout)
             if not response.ok:
-                return self.last_modified or datetime.datetime.now()
+                return self.last_modified or collected
 
             published = str(response.headers.get("Last-Modified", ""))
         try:
-            return dateparser.parse(published, ignoretz=True) if published else datetime.datetime.now()
+            return dateparser.parse(published, ignoretz=True) if published else collected
         except Exception:
             logger.info("Could not parse date - falling back to current date")
-            return self.last_modified or datetime.datetime.now()
+            return self.last_modified or collected
 
     def link_transformer(self, link: str, transform_str: str) -> str:
         parsed_url = urlparse(link)
@@ -105,6 +105,7 @@ class RSSCollector(BaseWebCollector):
         title: str = str(feed_entry.get("title", ""))
         description: str = str(feed_entry.get("description", ""))
         link: str = str(feed_entry.get("link", ""))
+        collected: datetime.datetime = datetime.datetime.now()
         for_hash: str = author + title + link
 
         if "redteam-pentesting.de" in link:  # TODO: Remove this once the the source schema is updated
@@ -113,7 +114,7 @@ class RSSCollector(BaseWebCollector):
         if link_transformer := source["parameters"].get("LINK_TRANSFORMER", None):
             link = self.link_transformer(link, link_transformer)
 
-        published = self.get_published_date(feed_entry, link)
+        published = self.get_published_date(feed_entry, link, collected)
 
         content_location = source["parameters"].get("CONTENT_LOCATION", None)
         content_from_feed, content_location = self.content_from_feed(feed_entry, content_location)
@@ -130,6 +131,9 @@ class RSSCollector(BaseWebCollector):
         else:
             content = "No content found in feed or article - please check your CONTENT_LOCATION parameter"
 
+        if content == description:
+            description = ""
+
         return {
             "id": str(uuid.uuid4()),
             "hash": hashlib.sha256(for_hash.encode()).hexdigest(),
@@ -139,7 +143,7 @@ class RSSCollector(BaseWebCollector):
             "link": link,
             "published": published,
             "author": author,
-            "collected": datetime.datetime.now(),
+            "collected": collected,
             "content": content,
             "osint_source_id": source["id"],
             "attributes": [],

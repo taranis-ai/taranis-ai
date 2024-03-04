@@ -13,6 +13,7 @@ export const useMainStore = defineStore(
     const coreAPIURL = ref('/api')
     const sentryDSN = ref('')
     const gitInfo = ref('')
+    const upstreamRepoUrl = ref('')
     const buildDate = ref(new Date().toISOString())
     const notification = ref({ message: '', type: '', show: false })
 
@@ -27,9 +28,23 @@ export const useMainStore = defineStore(
       gitInfo.value = config.GIT_INFO ?? ''
       coreAPIURL.value = config.TARANIS_CORE_API ?? '/api'
       sentryDSN.value = config.TARANIS_SENTRY_DSN ?? ''
+      upstreamRepoUrl.value =
+        config.TARANIS_UPSTREAM_REPO_URL ??
+        'https://github.com/taranis-ai/taranis-ai'
     }
 
+    const upstreamTreeUrl = computed(() => {
+      return gitUpstreamTreeUrl(gitInfo.value)
+    })
+
     // Actions
+    const gitUpstreamTreeUrl = (gitBranchInfo) => {
+      if (gitBranchInfo?.HEAD) {
+        return `${upstreamRepoUrl.value}/tree/${gitBranchInfo.HEAD}`
+      }
+      return upstreamRepoUrl.value
+    }
+
     const toggleDrawer = () => {
       drawerVisible.value = !drawerVisible.value
       drawerSetByUser.value = true
@@ -52,6 +67,8 @@ export const useMainStore = defineStore(
       sentryDSN,
       notification,
       getItemCount,
+      upstreamTreeUrl,
+      gitUpstreamTreeUrl,
       updateFromLocalConfig,
       toggleDrawer,
       resetItemCount
