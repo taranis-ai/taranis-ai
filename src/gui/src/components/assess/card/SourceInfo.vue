@@ -7,7 +7,7 @@
       <v-tooltip>
         <template #activator="{ props }">
           <img v-if="icon" v-bind="props" 
-          :src="'data:image/png;base64,' + icon" :alt="source?.name" height="32" width="32"/> 
+          :src="'data:image/png;base64,' + icon" :alt="source?.name" height="32"/> 
           <v-icon v-else v-bind="props" :icon="typeIcon" 
           />
         </template>

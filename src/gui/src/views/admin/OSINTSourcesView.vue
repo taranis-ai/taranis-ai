@@ -109,7 +109,7 @@ export default {
         {
           name: 'icon',
           label: 'Icon',
-          type: 'text'
+          type: 'icon'
         },
         {
           name: 'name',
