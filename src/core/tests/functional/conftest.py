@@ -312,27 +312,22 @@ def cleanup_product_types(app, request):
 @pytest.fixture(scope="session")
 def cleanup_acls(app, request):
     with app.app_context():
-        from core.model.acl_entry import ACLEntry
+        from core.model.role_based_access import RoleBasedAccess
 
         acl_data = {
             "id": 42,
             "name": "test_acl_unique",
             "description": "Test ACL",
-            "item_type": "WORD_LIST",
+            "item_type": "word_list",
             "item_id": "acl_id",
-            "everyone": True,
-            "see": False,
-            "access": False,
-            "modify": False,
             "roles": [],
-            "users": [],
         }
 
         def teardown():
             with app.app_context():
-                if ACLEntry.get(42):
+                if RoleBasedAccess.get(42):
                     print("Deleting test ACL 42")
-                    ACLEntry.delete(42)
+                    RoleBasedAccess.delete(42)
 
         request.addfinalizer(teardown)
 

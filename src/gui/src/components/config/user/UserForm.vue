@@ -1,10 +1,7 @@
 <template>
-  <v-container fluid class="ma-5 mt-5 pa-5 pt-0">
+  <v-container fluid class="mt-5 pt-0">
+    <span v-if="edit">ID: {{ user.id }}</span>
     <v-form id="form" ref="form" validate-on="submit" @submit.prevent="add">
-      <v-row no-gutters>
-        <v-btn type="submit" color="success" class="mr-4"> Submit </v-btn>
-        <span v-if="edit">ID: {{ user.id }}</span>
-      </v-row>
       <v-row no-gutters>
         <v-col cols="6" class="pa-1">
           <v-text-field
@@ -87,6 +84,9 @@
             <template v-if="permissions.length < 10" #bottom />
           </v-data-table>
         </v-col>
+      </v-row>
+      <v-row no-gutters>
+        <v-btn type="submit" block color="success" class="mt-5"> Submit </v-btn>
       </v-row>
     </v-form>
   </v-container>

@@ -21,7 +21,7 @@
       :form-format="formFormat"
       :title="editTitle"
       @submit="handleSubmit"
-    ></EditConfig>
+    />
   </v-container>
 </template>
 
@@ -67,6 +67,18 @@ export default {
         name: 'description',
         label: 'Description',
         type: 'textarea'
+      },
+      {
+        name: 'tlp_level',
+        label: 'TLP Level',
+        type: 'select',
+        items: [
+          { title: 'Clear', value: 'clear' },
+          { title: 'Green', value: 'green' },
+          { title: 'Amber', value: 'amber' },
+          { title: 'Amber+Strict', value: 'amber+strict' },
+          { title: 'Red', value: 'red' }
+        ]
       },
       {
         name: 'permissions',

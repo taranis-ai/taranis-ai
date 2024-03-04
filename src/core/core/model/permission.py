@@ -1,4 +1,5 @@
 from sqlalchemy import or_
+from typing import Any
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
@@ -6,8 +7,8 @@ from core.model.base_model import BaseModel
 
 class Permission(BaseModel):
     id = db.Column(db.String, primary_key=True)
-    name = db.Column(db.String(), unique=True, nullable=False)
-    description = db.Column(db.String())
+    name: Any = db.Column(db.String(), unique=True, nullable=False)
+    description: Any = db.Column(db.String())
 
     roles = db.relationship("Role", secondary="role_permission")
 

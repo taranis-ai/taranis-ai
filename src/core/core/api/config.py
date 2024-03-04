@@ -10,7 +10,6 @@ from core.managers import (
 from core.managers.log_manager import logger
 from core.managers.auth_manager import auth_required
 from core.model import (
-    acl_entry,
     attribute,
     bot,
     product_type,
@@ -19,6 +18,7 @@ from core.model import (
     osint_source,
     report_item_type,
     role,
+    role_based_access,
     user,
     word_list,
     queue,
@@ -196,20 +196,20 @@ class ACLEntries(Resource):
     @auth_required("CONFIG_ACL_ACCESS")
     def get(self):
         search = request.args.get(key="search", default=None)
-        return acl_entry.ACLEntry.get_all_json(search)
+        return role_based_access.RoleBasedAccess.get_all_json(search)
 
     @auth_required("CONFIG_ACL_CREATE")
     def post(self):
-        acl = acl_entry.ACLEntry.add(request.json)
+        acl = role_based_access.RoleBasedAccess.add(request.json)
         return {"message": "ACL created", "id": acl.id}, 201
 
     @auth_required("CONFIG_ACL_UPDATE")
     def put(self, acl_id):
-        return acl_entry.ACLEntry.update(acl_id, request.json)
+        return role_based_access.RoleBasedAccess.update(acl_id, request.json)
 
     @auth_required("CONFIG_ACL_DELETE")
     def delete(self, acl_id):
-        return acl_entry.ACLEntry.delete(acl_id)
+        return role_based_access.RoleBasedAccess.delete(acl_id)
 
 
 class Organizations(Resource):

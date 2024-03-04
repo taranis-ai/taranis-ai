@@ -2,12 +2,7 @@
   <v-container fluid>
     <v-row justify="center" align="center">
       <v-col>
-        <v-card>
-          <v-card-title>
-            {{ username }}
-          </v-card-title>
-          <v-card-subtitle> User Name </v-card-subtitle>
-        </v-card>
+        <v-card :title="username" subtitle="User Name" />
       </v-col>
       <v-col>
         <v-card>

@@ -253,10 +253,6 @@ export const messages_en = {
 
   acl: {
     full_title: 'Access Control Lists',
-    add_new: 'Add new ACL',
-    edit: 'Edit ACL',
-    add: 'Add',
-    add_btn: 'Add New',
     cancel: 'Cancel',
     save: 'Save',
     validation_error: 'Please fill in all required fields',
@@ -265,17 +261,15 @@ export const messages_en = {
     description: 'Description',
     item_type: 'Item Type',
     item_id: 'Item ID',
-    everyone: 'Everyone',
-    see: 'See',
-    access: 'Access',
-    modify: 'Modify',
+    readonly: 'Readonly',
+    writeable: 'Writeable',
+    enabled: 'Enabled',
+    disabled: 'Disabled',
     successful: 'New ACL was successfully added',
     successful_edit: 'ACL was successfully updated',
     removed: 'ACL was successfully removed',
     removed_error: 'ACL is in use and could not be deleted',
     roles: 'Roles',
-    users: 'Users',
-    total_count: 'ACL count: '
   },
 
   product_type: {

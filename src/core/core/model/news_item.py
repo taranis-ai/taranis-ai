@@ -3,9 +3,8 @@ import base64
 import contextlib
 from datetime import datetime, timedelta
 from typing import Any, Optional
-from sqlalchemy import orm, and_, or_, func
+from sqlalchemy import orm, or_, func
 from sqlalchemy.sql.expression import false, null
-from flask_sqlalchemy.query import Query
 
 from enum import StrEnum, auto
 from collections import Counter
@@ -16,8 +15,9 @@ from core.model.base_model import BaseModel
 from core.managers.log_manager import logger
 from core.model.user import User
 from core.model.news_item_tag import NewsItemTag
-from core.model.acl_entry import ACLEntry, ItemType
+from core.model.role_based_access import ItemType, RoleBasedAccess
 from core.model.osint_source import OSINTSourceGroup, OSINTSource, OSINTSourceGroupOSINTSource
+from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 
 
 class NewsItemData(BaseModel):
@@ -200,16 +200,6 @@ class NewsItem(BaseModel):
         query = query.join(NewsItemData, NewsItem.news_item_data_id == NewsItemData.id)
         query = query.outerjoin(OSINTSource, NewsItemData.osint_source_id == OSINTSource.id)
 
-        query = query.outerjoin(
-            ACLEntry,
-            and_(
-                NewsItemData.osint_source_id == ACLEntry.item_id,
-                ACLEntry.item_type == ItemType.OSINT_SOURCE,
-            ),
-        )
-
-        query = ACLEntry.apply_query(query, user, True, False, False)
-
         if search := filter.get("search"):
             query = query.filter(
                 db.or_(
@@ -286,26 +276,21 @@ class NewsItem(BaseModel):
             query = query.filter(group.id == group_id)
         return query
 
-    def allowed_with_acl(self, user: User, see, access, modify):
-        if not ACLEntry.has_rows() or not user or self.news_item_data.source == "manual":
+    def allowed_with_acl(self, user: User, require_write_access: bool) -> bool:
+        if not RoleBasedAccess.is_enabled():
             return True
 
-        query: Query = db.session.query(NewsItem.id).distinct().group_by(NewsItem.id).filter(NewsItem.id == self.id)  # type: ignore
-
-        query = query.join(NewsItemData, NewsItem.news_item_data_id == NewsItemData.id)
-        query = query.join(OSINTSource, NewsItemData.osint_source_id == OSINTSource.id)
-
-        query = query.outerjoin(
-            ACLEntry,
-            and_(
-                NewsItemData.osint_source_id == ACLEntry.item_id,
-                ACLEntry.item_type == ItemType.OSINT_SOURCE,
-            ),
+        query = RBACQuery(
+            user=user,
+            resource_id=self.news_item_data.osint_source_id,
+            resource_type=ItemType.OSINT_SOURCE,
+            require_write_access=require_write_access,
         )
 
-        query = ACLEntry.apply_query(query, user, see, access, modify)
-
-        return query.scalar() is not None
+        access = RoleBasedAccessService.user_has_access_to_resource(query)
+        if not access:
+            logger.info(f"User {user.id} has no access to resource {self.news_item_data.osint_source_id}")
+        return access
 
     def vote(self, vote_data, user_id) -> "NewsItemVote":
         if vote := NewsItemVote.get_by_filter(item_id=self.id, user_id=user_id, item_type="NEWS_ITEM"):
@@ -616,17 +601,6 @@ class NewsItemAggregate(BaseModel):
 
     @classmethod
     def _add_ACL_check(cls, query, user: User):
-        if not ACLEntry.has_rows() or not user:
-            return query
-
-        query = query.outerjoin(
-            ACLEntry,
-            and_(
-                NewsItemData.osint_source_id == ACLEntry.item_id,
-                ACLEntry.item_type == ItemType.OSINT_SOURCE,
-            ),
-        )
-        query = ACLEntry.apply_query(query, user, True, False, False)
         return query
 
     @classmethod
@@ -807,7 +781,7 @@ class NewsItemAggregate(BaseModel):
             return {"error": f"aggregate with: {aggregate_id} assigned to a report"}, 500
 
         for news_item in aggregate.news_items:
-            if news_item.allowed_with_acl(user, False, False, True):
+            if news_item.allowed_with_acl(user, True):
                 aggregate.news_items.remove(news_item)
                 NewsItem.delete_item(news_item)
             else:
@@ -907,7 +881,7 @@ class NewsItemAggregate(BaseModel):
                 news_item = NewsItem.get(item)
                 if not news_item:
                     continue
-                if user is None or news_item.allowed_with_acl(user, False, False, True):
+                if user is None or news_item.allowed_with_acl(user, True):
                     aggregate.news_items.append(news_item)
                     aggregate.relevance += news_item.relevance + 1
                     aggregate.add(aggregate)
@@ -936,7 +910,7 @@ class NewsItemAggregate(BaseModel):
 
                 first_aggregate.tags = list({tag.name: tag for tag in first_aggregate.tags + aggregate.tags}.values())
                 for news_item in aggregate.news_items[:]:
-                    if user is None or news_item.allowed_with_acl(user, False, False, True):
+                    if user is None or news_item.allowed_with_acl(user, True):
                         first_aggregate.news_items.append(news_item)
                         first_aggregate.relevance += 1
                         aggregate.news_items.remove(news_item)
@@ -963,7 +937,7 @@ class NewsItemAggregate(BaseModel):
             if not story:
                 return {"error": "not_found"}, 404
             for news_item in story.news_items[:]:
-                if user is None or news_item.allowed_with_acl(user, False, False, True):
+                if user is None or news_item.allowed_with_acl(user, True):
                     cls.create_single_aggregate(news_item)
             cls.update_aggregates({story})
             db.session.commit()
@@ -980,7 +954,7 @@ class NewsItemAggregate(BaseModel):
                 news_item = NewsItem.get(item)
                 if not news_item:
                     continue
-                if not news_item.allowed_with_acl(user, False, False, True):
+                if not news_item.allowed_with_acl(user, True):
                     continue
                 aggregate = NewsItemAggregate.get(news_item.news_item_aggregate_id)
                 if not aggregate:
