@@ -62,7 +62,7 @@ class ReportItem(Resource):
             abort(401, "Unauthorized")
         if status == 200 and new_report_item:
             asset_manager.report_item_changed(new_report_item)
-            sse_manager.report_item_updated({"id": new_report_item.id})
+            sse_manager.report_item_updated({"id": new_report_item.id, "action": "add"})
 
         return new_report_item.to_detail_dict(), status
 
@@ -80,7 +80,7 @@ class ReportItem(Resource):
     def delete(self, report_item_id):
         result, code = report_item.ReportItem.delete(report_item_id)
         if code == 200:
-            sse_manager.report_item_updated({"id": report_item_id})
+            sse_manager.report_item_updated({"id": report_item_id, "action": "delete"})
         return result, code
 
 

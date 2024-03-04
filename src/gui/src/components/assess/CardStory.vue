@@ -161,23 +161,11 @@ export default {
     )
 
     const content_cols = computed(() => {
-      if (props.detailView) {
-        return 8
-      }
-      if (showWeekChart.value) {
-        if (compactView.value) {
-          if (openSummary.value) {
-            return 10
-          }
-          return 8
-        }
-        if (openSummary.value) {
-          return 9
-        }
-        return 7
-      }
-      if (props.reportView || compactView.value) {
+      if (compactView.value) {
         return 10
+      }
+      if (props.reportView) {
+        return 6
       }
       return 8
     })
@@ -322,21 +310,6 @@ export default {
   background-color: color-mix(in srgb, rgb(var(--v-theme-primary)) 40%, white);
 }
 
-.news-item-title {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 1;
-  line-clamp: 1;
-  -webkit-box-orient: vertical;
-  max-height: calc(1.5em * 2);
-  line-height: 1.3;
-}
-.news-item-title-no-clip {
-  max-height: calc(1.5em * 2);
-  line-height: 1.3;
-}
-
 .unread::after {
   content: '';
   position: absolute;
@@ -374,16 +347,5 @@ export default {
   width: 7px;
   z-index: 2;
   background: #e9c645 !important;
-}
-
-.action-bar {
-  max-width: 45px !important;
-  background-color: #f3f3f3;
-  padding-left: 0px;
-  padding-right: 0px;
-}
-
-.meta-info-col {
-  border-left: 1px solid #c0c0c0;
 }
 </style>
