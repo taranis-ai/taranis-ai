@@ -237,14 +237,14 @@ class NewsItem(BaseModel):
             elif filter_range == "MONTH":
                 date_limit = date_limit.replace(day=1)
 
-            query = query.filter(NewsItemData.collected >= date_limit)
+            query = query.filter(NewsItemData.published >= date_limit)
 
         if "sort" in filter:
             if filter["sort"] == "DATE_DESC":
-                query = query.order_by(db.desc(NewsItemData.collected), db.desc(NewsItemAggregate.id))
+                query = query.order_by(db.desc(NewsItemData.published), db.desc(NewsItemAggregate.id))
 
             elif filter["sort"] == "DATE_ASC":
-                query = query.order_by(db.asc(NewsItemData.collected), db.asc(NewsItemAggregate.id))
+                query = query.order_by(db.asc(NewsItemData.published), db.asc(NewsItemAggregate.id))
 
             elif filter["sort"] == "RELEVANCE_DESC":
                 query = query.order_by(db.desc(NewsItem.relevance), db.desc(NewsItem.id))
@@ -267,7 +267,7 @@ class NewsItem(BaseModel):
         query = cls.query.join(NewsItemData, NewsItemData.id == NewsItem.news_item_data_id)
         query = query.filter(
             NewsItemData.osint_source_id == source_id,
-            NewsItemData.collected >= time_limit,
+            NewsItemData.published >= time_limit,
         )
         query = query.join(NewsItemAggregate, NewsItemAggregate.id == NewsItem.news_item_aggregate_id)
         groups = OSINTSourceGroup.get_for_osint_source(NewsItemData.osint_source_id)
