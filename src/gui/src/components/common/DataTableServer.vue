@@ -68,7 +68,7 @@
     </template>
 
     <template #item.tag="{ item }">
-      <v-icon small class="mr-1" :icon="tagIcon || item.tag" />
+      <v-icon small class="mr-1" :icon="item.tag" />
     </template>
     <template #item.icon="{ item }">
       <v-img
@@ -133,10 +133,6 @@ export default defineComponent({
     itemsPerPage: {
       type: Number,
       default: 20
-    },
-    tagIcon: {
-      type: String,
-      default: ''
     },
     sortBy: {
       type: Array,

@@ -12,11 +12,11 @@ from core.model.worker import BOT_TYPES, Worker
 
 class Bot(BaseModel):
     id = db.Column(db.String(64), primary_key=True)
-    name = db.Column(db.String(), nullable=False)
-    description = db.Column(db.String())
+    name: Any = db.Column(db.String(), nullable=False)
+    description: Any = db.Column(db.String())
     type = db.Column(db.Enum(BOT_TYPES))
     index = db.Column(db.Integer, unique=True, nullable=False)
-    parameters = db.relationship("ParameterValue", secondary="bot_parameter_value", cascade="all, delete")
+    parameters: Any = db.relationship("ParameterValue", secondary="bot_parameter_value", cascade="all, delete")
 
     def __init__(self, name, type, description=None, parameters=None, id=None):
         self.id = id or str(uuid.uuid4())

@@ -155,7 +155,7 @@ class ReportItemAttachment(Resource):
     def get(self, report_item_id, attribute_id):
         if report_item_attribute := report_item.ReportItemAttribute.get(attribute_id):
             return send_file(
-                io.BytesIO(report_item_attribute.binary_data),
+                io.BytesIO(report_item_attribute.binary_data),  # type: ignore
                 download_name=report_item_attribute.value,
                 mimetype=report_item_attribute.binary_mime_type,
                 as_attachment=True,

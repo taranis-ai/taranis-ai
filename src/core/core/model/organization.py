@@ -12,7 +12,7 @@ class Organization(BaseModel):
     description: Any = db.Column(db.String())
 
     address_id = db.Column(db.Integer, db.ForeignKey("address.id"))
-    address = db.relationship("Address", cascade="all")
+    address: Any = db.relationship("Address", cascade="all")
 
     def __init__(self, name, description=None, address=None, id=None):
         self.id = id

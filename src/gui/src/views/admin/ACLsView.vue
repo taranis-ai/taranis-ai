@@ -1,17 +1,27 @@
 <template>
   <v-container fluid>
+    <v-card title="Important Usage Information" color="#8250DF">
+      <v-card-text>
+        For backwards compatibility ACLs are only active if there is at least on
+        ACL for a specific item_type.
+      </v-card-text>
+    </v-card>
     <DataTable
       v-model:items="acls.items"
       :add-button="true"
-      :header-filter="['tag', 'id', 'name', 'username', 'actions']"
+      :header-filter="['id', 'name', 'item_type', 'enabled', 'actions']"
       sort-by-item="id"
-      tag-icon="mdi-lock-check"
       @delete-item="deleteItem"
       @edit-item="editItem"
       @add-item="addItem"
       @update-items="updateData"
     />
-    <ACLForm v-if="showForm" :acl-prop="acl" :edit="edit" />
+    <ACLForm
+      v-if="showForm"
+      :acl-prop="acl"
+      :edit="edit"
+      @submit="handleSubmit"
+    />
   </v-container>
 </template>
 
@@ -41,8 +51,8 @@ export default {
 
     const updateData = () => {
       configStore.loadACLEntries().then(() => {
-        mainStore.itemCountTotal = acls.total_count
-        mainStore.itemCountFiltered = acls.items.length
+        mainStore.itemCountTotal = acls.value.total_count
+        mainStore.itemCountFiltered = acls.value.items.length
       })
     }
 
@@ -50,7 +60,6 @@ export default {
       acl.value = {
         name: '',
         description: '',
-        users: [],
         roles: []
       }
       edit.value = false
