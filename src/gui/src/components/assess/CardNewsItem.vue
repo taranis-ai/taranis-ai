@@ -112,7 +112,7 @@ export default {
       description,
       openCard,
       toggleSelection,
-      deleteNewsItem,
+      deleteNewsItem
     }
   }
 }

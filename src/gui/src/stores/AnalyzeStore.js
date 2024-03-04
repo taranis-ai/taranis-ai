@@ -33,7 +33,6 @@ export const useAnalyzeStore = defineStore('analyze', {
       })
     },
     getReportItemsTableData() {
-
       return this.report_items.items.map((item) =>
         mapReportItem(item, this.report_item_types.items)
       )

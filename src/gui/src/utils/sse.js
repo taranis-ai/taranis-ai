@@ -1,33 +1,44 @@
 export function connectSSE() {
-  if (import.meta.env.VITE_TARANIS_CORE_SSE === undefined) {
+  const coreAPIURL = import.meta.env.VITE_TARANIS_CORE_SSE
+  if (!coreAPIURL) {
+    console.error('SSE URL is not defined.')
     return
   }
-  // this.$sse(
-  //   `${import.meta.env.VITE_TARANIS_CORE_SSE}?jwt=${this.$store.getters.getJWT}`,
-  //   { format: 'json' }
-  // ).then((sse) => {
-  //   sse.subscribe('news-items-updated', (data) => {
-  //     this.$root.$emit('news-items-updated', data)
-  //   })
-  //   sse.subscribe('report-items-updated', (data) => {
-  //     this.$root.$emit('report-items-updated', data)
-  //   })
-  //   sse.subscribe('report-item-updated', (data) => {
-  //     this.$root.$emit('report-item-updated', data)
-  //   })
-  //   sse.subscribe('report-item-locked', (data) => {
-  //     this.$root.$emit('report-item-locked', data)
-  //   })
-  //   sse.subscribe('report-item-unlocked', (data) => {
-  //     this.$root.$emit('report-item-unlocked', data)
-  //   })
-  // })
+
+  const sseEndpoint = `${coreAPIURL}/sse`
+  const evtSource = new EventSource(sseEndpoint)
+
+  evtSource.onopen = () => console.debug('SSE connection opened.')
+  evtSource.onerror = (event) => console.error('SSE connection error:', event)
+  /*evtSource.onerror = (event) => {
+    console.error('SSE connection error:', event)
+    // Attempt to reconnect
+    evtSource.close(); // Close current connection
+    setTimeout(connectSSE, 5000) // Attempt reconnecting after some delay
+  }*/
+
+  const events = [
+    'news-items-updated',
+    'report-item-updated',
+    'product-rendered',
+    'report-item-locked',
+    'report-item-unlocked'
+  ]
+
+  events.forEach((event) => {
+    evtSource.addEventListener(event, (e) => {
+      console.debug(`Event received - ${event}:`, e.data)
+    })
+  })
+
+  this.sseConnection = evtSource
 }
 
 export function reconnectSSE() {
-  if (this.sseConnection !== null) {
+  if (this.sseConnection) {
     this.sseConnection.close()
-    this.sseConnection = null
+    console.debug('SSE connection closed.')
   }
+
   this.connectSSE()
 }

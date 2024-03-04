@@ -5,7 +5,7 @@ import { defineStore } from 'pinia'
 export const usePublishStore = defineStore('publish', {
   state: () => ({
     products: { total_count: 0, items: [] },
-    product_types: { total_count: 0, items: [] },
+    product_types: { total_count: 0, items: [] }
   }),
   actions: {
     async loadProducts(data) {
@@ -20,7 +20,7 @@ export const usePublishStore = defineStore('publish', {
       const filter = useFilterStore()
       const response = await getAllProducts(filter.productFilter)
       this.products = response.data
-    },
+    }
   },
   persist: {
     paths: ['product_types']

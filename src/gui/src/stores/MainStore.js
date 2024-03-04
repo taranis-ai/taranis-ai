@@ -54,7 +54,7 @@ export const useMainStore = defineStore(
       getItemCount,
       updateFromLocalConfig,
       toggleDrawer,
-      resetItemCount,
+      resetItemCount
     }
   },
   {

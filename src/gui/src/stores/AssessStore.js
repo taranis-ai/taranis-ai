@@ -7,7 +7,7 @@ import {
   voteNewsItemAggregate,
   deleteNewsItemAggregate,
   updateStoryTags,
-  getStory,
+  getStory
 } from '@/api/assess'
 import { defineStore } from 'pinia'
 import { xorConcat, notifyFailure, notifySuccess } from '@/utils/helpers'
