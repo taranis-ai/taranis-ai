@@ -133,7 +133,7 @@ services:
         max-file: "10"
 
   rabbitmq:
-    image: "docker.io/library/rabbitmq:${RABBITMQ_TAG:-3-management-alpine}"
+    image: "${DOCKER_IMAGE_NAMESPACE}/rabbitmq:latest"
     # ports:
     #  - "${TARANIS_RABBITMQ_PORT:-5672}:5672"
     #  - "${TARANIS_RABBITMQ_MGMT_PORT:-15672}:15672"
@@ -142,7 +142,6 @@ services:
     environment:
       - "RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-taranis}"
       - "RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-taranis}"
-      - "RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS='-rabbit consumer_timeout 14400000'"
     logging:
       driver: "json-file"
       options:
