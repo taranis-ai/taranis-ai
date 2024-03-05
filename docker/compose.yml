@@ -142,6 +142,7 @@ services:
     environment:
       - "RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-taranis}"
       - "RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-taranis}"
+      - "RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS='-rabbit consumer_timeout 14400000'"
     logging:
       driver: "json-file"
       options:

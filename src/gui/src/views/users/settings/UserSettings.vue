@@ -8,16 +8,6 @@
           </span>
           <v-spacer></v-spacer>
           <v-btn
-            class="mr-2"
-            color="red"
-            variant="outlined"
-            prepend-icon="mdi-undo"
-            @click="resetDefaults()"
-          >
-            <!-- TODO: here it would need a revisit the translation json   {{ $t('settings.reset') }}-->
-            Reset and apply
-          </v-btn>
-          <v-btn
             color="success"
             variant="outlined"
             prepend-icon="mdi-content-save"
@@ -81,7 +71,7 @@
                 <span v-if="shortcut.key">
                   {{ shortcut.key }}
                 </span>
-                <v-icon v-else color="error">mdi-alert</v-icon>
+                <v-icon v-else color="error" icon="mdi-alert" />
               </v-btn>
             </template>
             <span>
@@ -112,8 +102,7 @@ export default {
 
     const disableHotkeys = true
 
-    const { hotkeys, dark_theme, spellcheck, language } =
-      storeToRefs(settingsStore)
+    const { hotkeys, dark_theme, spellcheck, language } = storeToRefs(userStore)
 
     const locale_descriptions = computed(() => [
       { value: 'en', text: 'English' },
@@ -122,30 +111,6 @@ export default {
     ])
 
     const save = () => {
-      userStore
-        .saveUserProfile({
-          spellcheck: spellcheck.value,
-          dark_theme: dark_theme.value,
-          hotkeys: shortcuts.value,
-          language: language.value
-        })
-        .then(() => {
-          notifySuccess('notification.successful_update')
-        })
-        .catch(() => {
-          notifyFailure('notification.failed_update')
-        })
-    }
-
-    const resetDefaults = () => {
-      userStore
-        .resetUserProfile()
-        .then(() => {
-          notifySuccess('notification.successful_update')
-        })
-        .catch(() => {
-          notifyFailure('notification.failed_update')
-        })
       userStore
         .saveUserProfile({
           spellcheck: spellcheck.value,
@@ -216,7 +181,6 @@ export default {
       spellcheck,
       hotkeys,
       save,
-      resetDefaults,
       pressKeyDialog,
       pressKey
     }
