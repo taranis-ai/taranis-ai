@@ -20,6 +20,9 @@ export const usePublishStore = defineStore('publish', {
       const filter = useFilterStore()
       const response = await getAllProducts(filter.productFilter)
       this.products = response.data
+    },
+    sseProductRendered(data) {
+      console.debug('Triggerd product rendered: ' + data)
     }
   },
   persist: {

@@ -68,6 +68,10 @@ export const useAnalyzeStore = defineStore('analyze', {
       this.selection_report.push(selected_item)
     },
 
+    sseReportItemUpdate(data) {
+      console.debug('Triggerd report item update: ' + data)
+    },
+
     removeSelectionReport(selectedItem) {
       for (let i = 0; i < this.selection_report.length; i++) {
         if (this.selection_report[i].id === selectedItem.id) {

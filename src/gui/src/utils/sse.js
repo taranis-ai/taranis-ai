@@ -1,3 +1,7 @@
+import { useAssessStore } from '@/stores/AssessStore'
+import { useAnalyzeStore } from '@/stores/AnalyzeStore'
+import { usePublishStore } from '@/stores/PublishStore'
+
 export function connectSSE() {
   const coreAPIURL = import.meta.env.VITE_TARANIS_CORE_SSE
   if (!coreAPIURL) {
@@ -7,6 +11,9 @@ export function connectSSE() {
 
   const sseEndpoint = `${coreAPIURL}/sse`
   const evtSource = new EventSource(sseEndpoint)
+  const assessStore = useAssessStore()
+  const analyzeStore = useAnalyzeStore()
+  const publishStore = usePublishStore()
 
   evtSource.onopen = () => console.debug('SSE connection opened.')
   evtSource.onerror = (event) => console.error('SSE connection error:', event)
@@ -27,6 +34,15 @@ export function connectSSE() {
 
   events.forEach((event) => {
     evtSource.addEventListener(event, (e) => {
+      if (event === 'news-items-updated') {
+        assessStore.sseNewsItemsUpdated()
+      }
+      if (event === 'report-item-updated') {
+        analyzeStore.sseReportItemUpdate()
+      }
+      if (event === 'product-rendered') {
+        publishStore.sseProductRendered()
+      }
       console.debug(`Event received - ${event}:`, e.data)
     })
   })
