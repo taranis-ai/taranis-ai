@@ -62,6 +62,8 @@ def pre_seed_workers():
 def pre_seed_permissions():
     from core.model.permission import Permission
 
+    Permission.add("ADMIN_OPERATIONS", "Admin operations", "Admin operations")
+
     Permission.add("ASSESS_ACCESS", "Assess access", "Access to Assess module")
     Permission.add("ASSESS_CREATE", "Assess create", "Create news item")
     Permission.add("ASSESS_UPDATE", "Assess update", "Update news item")

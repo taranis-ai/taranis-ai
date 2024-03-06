@@ -1,0 +1,42 @@
+{
+    "login": {
+        "error": "Nesprávne meno alebo heslo",
+        "password": "Heslo",
+        "submit": "Prihlásiť",
+        "title": "Prihláste sa",
+        "username": "Meno"
+    },
+    "main_menu": {
+        "analyze": "Analyzovať",
+        "assess": "Zistiť",
+        "config": "Konfigurácia",
+        "dashboard": "Dashboard",
+        "publish": "Publikovať"
+    },
+    "nav_menu": {
+        "collectors": "Zberače údajov",
+        "configuration": "Konfigurácia",
+        "favourites": "Obľúbené",
+        "newsitems": "Nové zistenia",
+        "osint_sources": "OSINT zdroje",
+        "popular": "Populárne",
+        "products": "Produkty",
+        "publications": "Publikácie",
+        "recent": "Najnovšie"
+    },
+    "osint_source": {
+        "add": "Pridať",
+        "add_new": "Pridať nový OSINT zdroj",
+        "cancel": "Zrušiť",
+        "collector": "Zberač údajov",
+        "description": "Popis",
+        "error": "Nepodarilo sa vytvoriť zadaný zdroj.",
+        "name": "Meno",
+        "successful": "Nový OSINT zdroj bol úspešne pridaný",
+        "validation_error": "Prosím vyplňte všetky povinné polia"
+    },
+    "user_menu": {
+        "logout": "Odhlásiť sa",
+        "settings": "Nastavenia profilu"
+    }
+}

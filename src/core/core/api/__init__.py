@@ -1,4 +1,5 @@
 from core.api import (
+    admin,
     analyze,
     assess,
     assets,
@@ -14,6 +15,7 @@ from core.api import (
 )
 
 __all__ = [
+    "admin",
     "analyze",
     "assess",
     "assets",

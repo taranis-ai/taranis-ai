@@ -39,10 +39,8 @@ if (sentryDSN) {
     dsn: sentryDSN,
     autoSessionTracking: true,
     integrations: [
-      new Sentry.BrowserTracing({
-        routingInstrumentation: Sentry.vueRouterInstrumentation(router)
-      }),
-      new Sentry.Replay()
+      Sentry.browserTracingIntegration({ router }),
+      Sentry.replayIntegration()
     ],
     environment: import.meta.env.DEV ? 'development' : 'production',
     tracesSampleRate: 1.0

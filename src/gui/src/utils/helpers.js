@@ -306,3 +306,11 @@ export function highlight_text(content) {
 
   return results
 }
+
+export const tlpLevels = [
+  { title: 'Clear', value: 'clear' },
+  { title: 'Green', value: 'green' },
+  { title: 'Amber', value: 'amber' },
+  { title: 'Amber+Strict', value: 'amber+strict' },
+  { title: 'Red', value: 'red' }
+]

@@ -16,6 +16,7 @@ def initialize(app):
     openapi_yaml = Path(__file__).parent.parent / "static" / "openapi3_0.yaml"
     api_doc(app, config_path=openapi_yaml, url_prefix="/api/doc", editor=False)
 
+    core_api.admin.initialize(api)
     core_api.analyze.initialize(api)
     core_api.assess.initialize(api)
     core_api.assets.initialize(api)

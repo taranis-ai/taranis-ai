@@ -22,7 +22,7 @@ class ParameterValue(BaseModel):
     parameter: Any = db.Column(db.String, nullable=False)
     value: Any = db.Column(db.String, nullable=False, default="")
     type: Any = db.Column(db.Enum(PARAMETER_TYPES), nullable=False, default="text")
-    rules: Any = db.Column(db.JSON, nullable=True)
+    rules: Any = db.Column(db.String, nullable=True)
 
     def __init__(self, parameter, value="", type="text", rules=None, id=None):
         self.id = id

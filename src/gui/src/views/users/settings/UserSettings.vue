@@ -13,7 +13,7 @@
             prepend-icon="mdi-content-save"
             @click="save()"
           >
-            {{ $t('settings.save') }}
+            {{ $t('button.save') }}
           </v-btn>
         </v-toolbar>
       </v-card-title>
@@ -75,7 +75,7 @@
               </v-btn>
             </template>
             <span>
-              {{ $t('settings.' + shortcut.alias) }}
+              {{ shortcut.alias }}
             </span>
           </v-tooltip>
         </v-row>

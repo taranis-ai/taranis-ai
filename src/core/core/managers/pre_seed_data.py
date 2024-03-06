@@ -3,7 +3,7 @@ workers = [
         "description": "Collector for gathering data from RSS feeds",
         "name": "RSS Collector",
         "parameters": [
-            {"parameter": "FEED_URL"},
+            {"parameter": "FEED_URL", "rules": "required"},
             {"parameter": "USER_AGENT"},
             {"parameter": "CONTENT_LOCATION"},
             {"parameter": "XPATH"},

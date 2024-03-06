@@ -104,7 +104,8 @@ export default {
         permission: 'CONFIG_WORD_LIST_ACCESS',
         divider: true
       },
-      { icon: 'mdi-api', title: 'nav_menu.openapi', route: '/config/openapi' }
+      { icon: 'mdi-api', title: 'nav_menu.openapi', route: '/config/openapi' },
+      { icon: 'mdi-cog', title: 'nav_menu.settings', route: '/config/settings' }
     ]
   })
 }

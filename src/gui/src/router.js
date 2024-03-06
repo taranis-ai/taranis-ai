@@ -337,6 +337,18 @@ export const router = createRouter({
       }
     },
     {
+      path: '/config/settings',
+      name: 'admin-settings',
+      components: {
+        default: () => import('@/views/admin/Settings.vue'),
+        nav: () => import('@/views/nav/ConfigNav.vue')
+      },
+      meta: {
+        requiresAuth: true,
+        requiresPerm: Permissions.ADMIN_OPERATIONS
+      }
+    },
+    {
       path: '/login',
       name: 'login',
       component: () => import('@/views/Login.vue')
