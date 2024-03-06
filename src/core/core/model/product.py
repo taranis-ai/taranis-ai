@@ -83,7 +83,7 @@ class Product(BaseModel):
         query = cls.query.distinct().group_by(Product.id)
         query = cls.add_filter_to_query(query, filter)
 
-        rbac = RBACQuery(user, ItemType.PRODUCT)
+        rbac = RBACQuery(user, ItemType.PRODUCT_TYPE)
         query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
 
         offset = filter.get("offset", 0)

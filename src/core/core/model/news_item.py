@@ -575,10 +575,10 @@ class NewsItemAggregate(BaseModel):
     def _add_sorting_to_query(cls, filter_args: dict, query):
         if sort := filter_args.get("sort", "date_desc").lower():
             if sort == "date_desc":
-                query = query.order_by(db.desc(cls.created), db.desc(cls.id))
+                query = query.group_by(NewsItemData.published).order_by(db.desc(NewsItemData.published), db.desc(cls.id))
 
             elif sort == "date_asc":
-                query = query.order_by(db.asc(cls.created), db.asc(cls.id))
+                query = query.group_by(NewsItemData.published).order_by(db.asc(NewsItemData.published), db.asc(cls.id))
 
             elif sort == "relevance_desc":
                 query = query.order_by(db.desc(cls.relevance), db.desc(cls.id))
@@ -587,7 +587,7 @@ class NewsItemAggregate(BaseModel):
                 query = query.order_by(db.asc(cls.relevance), db.asc(cls.id))
 
             elif sort == "source":
-                query = query.order_by(db.desc(OSINTSource.name), db.desc(cls.created), db.desc(cls.id))
+                query = query.order_by(db.desc(OSINTSource.name), db.desc(cls.id))
 
         return query
 
@@ -658,7 +658,12 @@ class NewsItemAggregate(BaseModel):
         news_item = NewsItem.add({"news_item_data": news_item_data})
 
         aggregate = NewsItemAggregate.add(
-            {"title": news_item_data.title, "description": news_item_data.review or news_item_data.content, "news_items": [news_item]}
+            {
+                "title": news_item_data.title,
+                "description": news_item_data.review or news_item_data.content,
+                "created": news_item_data.published,
+                "news_items": [news_item],
+            }
         )
         NewsItemAggregateSearchIndex.prepare(aggregate)
 
