@@ -39,7 +39,9 @@ export default {
       }
     }
 
-    onMounted(() => {
+    onMounted( async () => {
+      const assessStore = useAssessStore()
+      assessStore.updateOSINTSources()
       loadStories()
     })
 
