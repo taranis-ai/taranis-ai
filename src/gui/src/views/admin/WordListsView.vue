@@ -87,7 +87,7 @@ export default {
         name: 'name',
         label: 'Name',
         type: 'text',
-        rules: [(v) => !!v || 'Required']
+        rules: ['required']
       },
       {
         name: 'description',
@@ -108,7 +108,7 @@ export default {
           { value: 'COLLECTOR_EXCLUDELIST', label: 'Collector Excludelist' },
           { value: 'TAGGING_BOT', label: 'Tagging Bot' }
         ],
-        rules: [(v) => !!v || 'Required']
+        rules: ['required']
       },
       {
         name: 'entries',

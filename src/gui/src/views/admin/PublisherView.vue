@@ -55,7 +55,7 @@ export default defineComponent({
           type: 'select',
           items: publishersList.value,
           disabled: edit.value,
-          rules: [(v) => Boolean(v) || 'Type is required']
+          rules: ['required']
         }
       ]
       return [...baseFormat, ...additionalFormat]

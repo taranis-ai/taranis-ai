@@ -197,16 +197,17 @@ class Worker(BaseModel):
 
     @classmethod
     def _construct_parameter_data(cls, parameter):
-        from core.model.osint_source import OSINTSourceGroup, OSINTSource
         from core.model.word_list import WordList
 
-        data = {"name": parameter.parameter, "label": parameter.parameter, "parent": "parameters", "type": parameter.type}
+        data = {
+            "name": parameter.parameter,
+            "label": parameter.parameter,
+            "parent": "parameters",
+            "type": parameter.type,
+            "rules": parameter.rules.split(",") if parameter.rules else [],
+        }
 
-        if parameter.parameter == "SOURCE_GROUP":
-            data["items"] = [group.id for group in OSINTSourceGroup.get_all()]
-        elif parameter.parameter == "SOURCE":
-            data["items"] = [source.id for source in OSINTSource.get_all()]
-        elif parameter.parameter in ["TAGGING_WORDLISTS"]:
+        if parameter.parameter in ["TAGGING_WORDLISTS"]:
             data["items"] = [
                 {"name": wordlist.name, "description": wordlist.description} for wordlist in WordList.get_by_filter({"usage": 4})[0]
             ]

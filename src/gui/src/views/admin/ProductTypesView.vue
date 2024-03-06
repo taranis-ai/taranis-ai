@@ -81,7 +81,7 @@ export default {
           name: 'title',
           label: 'Title',
           type: 'text',
-          rules: [(v) => Boolean(v) || 'Required']
+          rules: ['required']
         },
         {
           name: 'description',
@@ -93,7 +93,7 @@ export default {
           label: 'Type',
           type: 'select',
           items: presenterList.value,
-          rules: [(v) => Boolean(v) || 'Required']
+          rules: ['required']
         },
         {
           name: 'TEMPLATE_PATH',

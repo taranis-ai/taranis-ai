@@ -1,5 +1,4 @@
 from sqlalchemy import or_
-from sqlalchemy.orm import Mapped
 from werkzeug.security import generate_password_hash
 from typing import Any
 

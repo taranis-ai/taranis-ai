@@ -121,7 +121,7 @@
 </template>
 
 <script>
-import { watch, computed, onUpdated } from 'vue'
+import { watch, computed, onUpdated, onMounted } from 'vue'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
@@ -162,6 +162,11 @@ export default {
         objectFromFormat(props.formFormat)
     )
 
+    const rulesDict = {
+      required: (v) => Boolean(v) || 'Required',
+      email: (v) => /.+@.+\..+/.test(v) || 'E-mail must be valid'
+    }
+
     const { d } = useI18n()
 
     const handleSubmit = async () => {
@@ -183,6 +188,15 @@ export default {
       formData.value[name].push(newRow)
     }
 
+    const getRules = (rules) => {
+      if (!rules) {
+        return []
+      }
+      return rules
+        .filter((rule) => rulesDict[rule])
+        .map((rule) => rulesDict[rule])
+    }
+
     const selectedParameters = computed(() => {
       if (!formData.value.type || !props.parameters) {
         return []
@@ -198,7 +212,8 @@ export default {
       return formats.map((item) => {
         return {
           ...item,
-          flatKey: item.parent ? `${item.parent}.${item.name}` : item.name
+          flatKey: item.parent ? `${item.parent}.${item.name}` : item.name,
+          rules: getRules(item.rules)
         }
       })
     })
@@ -208,6 +223,10 @@ export default {
       objectFromFormat(format.value)
 
     onUpdated(() => {
+      config_form.value.scrollIntoView({ behavior: 'smooth' })
+    })
+
+    onMounted(() => {
       config_form.value.scrollIntoView({ behavior: 'smooth' })
     })
 

@@ -10,23 +10,30 @@
     @click="toggleSelection"
   >
     <v-container fluid style="min-height: 112px" class="pa-0 pl-0">
-      <v-row>
-        <v-col cols="12" :lg="content_cols" class="mr-1">
-          <h2 v-dompurify-html="title" class="ml-2 mb-1 mt-0 news-item-title" />
+      <v-row class="pl-2">
+        <v-col class="d-flex">
+          <v-row class="py-1 px-1">
+            <v-col cols="12" :lg="content_cols" class="mr-1">
+              <v-container class="d-flex pa-0">
+                <h2
+                  v-dompurify-html="title"
+                  class="mb-1 mt-0 news-item-title"
+                />
+              </v-container>
 
-          <summarized-content
-            class="ml-2"
-            :open="openSummary"
-            :is_summarized="false"
-            :content="description"
-          />
-        </v-col>
+              <summarized-content
+                :open="openSummary"
+                :is_summarized="false"
+                :content="description"
+              />
+            </v-col>
 
-        <v-col cols="auto" class="meta-info-col mr-n1">
-          <news-meta-info :news-item="newsItem" />
+            <v-col cols="12" class="meta-info-col mr-n1" :lg="meta_cols">
+              <news-meta-info :news-item="newsItem" />
+            </v-col>
+          </v-row>
         </v-col>
-        <v-spacer></v-spacer>
-        <v-col class="action-bar" cols="auto">
+        <v-col class="action-bar mr-2">
           <NewsItemActions
             :news-item="newsItem"
             :story="story"

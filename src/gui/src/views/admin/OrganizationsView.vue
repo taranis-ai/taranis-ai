@@ -58,7 +58,7 @@ export default {
         name: 'name',
         label: 'Name',
         type: 'text',
-        rules: [(v) => !!v || 'Required']
+        rules: ['required']
       },
       {
         name: 'description',

@@ -22,12 +22,14 @@ class ParameterValue(BaseModel):
     parameter: Any = db.Column(db.String, nullable=False)
     value: Any = db.Column(db.String, nullable=False, default="")
     type: Any = db.Column(db.Enum(PARAMETER_TYPES), nullable=False, default="text")
+    rules: Any = db.Column(db.JSON, nullable=True)
 
-    def __init__(self, parameter, value="", type="text", id=None):
+    def __init__(self, parameter, value="", type="text", rules=None, id=None):
         self.id = id
         self.parameter = parameter
         self.value = value
         self.type = type
+        self.rules = rules
 
     def to_dict(self) -> dict[int, Any]:
         return {self.parameter: self.value}
