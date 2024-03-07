@@ -7,7 +7,7 @@ import {
   voteNewsItemAggregate,
   deleteNewsItemAggregate,
   updateStoryTags,
-  getStory,
+  getStory
 } from '@/api/assess'
 import { defineStore } from 'pinia'
 import { xorConcat, notifyFailure, notifySuccess } from '@/utils/helpers'
@@ -152,6 +152,18 @@ export const useAssessStore = defineStore('assess', {
     },
     clearStorySelection() {
       this.storySelection = []
+    },
+    markSelectionAsRead() {
+      console.debug('Mark as Read: ', this.storySelection)
+
+      this.storySelection.forEach((id) => {
+        this.readNewsItemAggregate(id)
+      })
+    },
+    markSelectionAsImportant() {
+      this.storySelection.forEach((id) => {
+        this.importantNewsItemAggregate(id)
+      })
     },
     readNewsItemAggregate(id) {
       const item = this.newsItems.items.find((item) => item.id === id)

@@ -7,17 +7,27 @@
         class="story-toolbar toolbar-start"
       >
         <v-btn
-          v-for="button in storyButtons"
-          :key="button.label"
+          text="add to report"
+          prepend-icon="mdi-google-circles-communities"
+          @click.stop="actionClicked('addToReport')"
+        />
+        <v-btn
+          text="merge"
+          prepend-icon="mdi-merge"
+          @click.stop="actionClicked('merge')"
+        />
+        <v-btn
+          text="mark as read"
           :ripple="false"
-          size="small"
-          @click.stop="actionClicked(button.action)"
-        >
-          <template #prepend>
-            <v-icon :icon="button.icon" size="small" class="mr-2" />
-          </template>
-          {{ button.label }}
-        </v-btn>
+          prepend-icon="mdi-eye-check-outline"
+          @click.stop="actionClicked('markAsRead')"
+        />
+        <v-btn
+          text="mark as important"
+          :ripple="false"
+          prepend-icon="mdi-star"
+          @click.stop="actionClicked('markAsImportant')"
+        />
       </v-col>
       <v-col
         v-if="storySelection.length > 0"
@@ -96,28 +106,6 @@ export default {
     const { storySelection, newsItemSelection } = storeToRefs(assessStore)
     const sharingDialog = ref(false)
 
-    const storyButtons = computed(() => {
-      const buttons = [
-        {
-          label: 'add to report',
-          icon: 'mdi-google-circles-communities',
-          action: 'addToReport'
-        }
-      ]
-
-      if (storySelection.value.length > 1) {
-        return [
-          ...buttons,
-          {
-            label: 'merge',
-            icon: 'mdi-merge',
-            action: 'merge'
-          }
-        ]
-      }
-      return buttons
-    })
-
     const startCols = computed(() => {
       if (
         storySelection.value.length > 0 &&
@@ -157,6 +145,10 @@ export default {
         unGroupNewsItems(newsItemSelection.value)
       } else if (action === 'unGroup') {
         unGroupStories(storySelection.value)
+      } else if (action === 'markAsRead') {
+        assessStore.markSelectionAsRead()
+      } else if (action === 'markAsImportant') {
+        assessStore.markSelectionAsImportant()
       }
     }
 
@@ -167,7 +159,6 @@ export default {
     return {
       sharingDialog,
       storySelection,
-      storyButtons,
       newsItemButtons,
       newsItemSelection,
       startCols,

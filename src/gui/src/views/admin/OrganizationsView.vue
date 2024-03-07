@@ -119,7 +119,6 @@ export default {
     }
 
     const handleSubmit = (submittedData) => {
-      console.log(submittedData)
       if (edit.value) {
         updateItem(submittedData)
       } else {
