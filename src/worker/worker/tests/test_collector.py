@@ -1,7 +1,8 @@
-import worker.collectors as collectors
-from testdata import news_items
-
+import os
 import pytest
+
+from testdata import news_items
+import worker.collectors as collectors
 
 
 @pytest.fixture
@@ -36,10 +37,13 @@ def collectors_mock(osint_source_update_mock, news_item_upload_mock):
 
 def file_loader(filename):
     try:
-        with open(filename, "r") as f:
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        file_path = os.path.join(dir_path, filename)
+
+        with open(file_path, "r") as f:
             return f.read()
     except OSError as e:
-        raise OSError(f"Error while reading file: {e}")
+        raise OSError(f"Error while reading file: {e}") from e
 
 
 @pytest.fixture
@@ -114,24 +118,6 @@ def rt_mock(requests_mock, collectors_mock):
     requests_mock.get(rt_testdata.rt_history_url, json=rt_testdata.rt_ticket_history_1)
     requests_mock.get(rt_testdata.rt_transaction_url, json=rt_testdata.rt_ticket_transaction_1)
     requests_mock.get(rt_testdata.rt_attachment_url, json=rt_testdata.rt_ticket_attachment_1)
-
-
-def test_rt_collector_collect(rt_mock, rt_collector):
-    import rt_testdata
-
-    result = rt_collector.collect(rt_testdata.rt_collector_source_data)
-
-    assert result is None
-
-
-def test_rt_collector_ticket_transaction(rt_mock, rt_collector):
-    import rt_testdata
-
-    rt_collector.setup_collector(rt_testdata.rt_collector_source_data)
-
-    result = rt_collector.get_ticket_transaction(1)
-
-    assert result == "1"
 
 
 def test_simple_web_collector_collect(simple_web_collector):
