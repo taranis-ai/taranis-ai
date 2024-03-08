@@ -16,11 +16,11 @@
       :news-item-data="newsItem.news_item_data"
       :compact-view="compactView"
     />
-    <source-info
+    <author-info
       :news-item-data="newsItem.news_item_data"
       :compact-view="compactView"
     />
-    <author-info
+    <source-info
       :news-item-data="newsItem.news_item_data"
       :compact-view="compactView"
     />

@@ -118,7 +118,13 @@ class OSINTSource(BaseModel):
         return {"total_count": count, "items": items}
 
     def to_list(self):
-        return {"id": self.id, "name": self.name, "description": self.description, "type": self.type}
+        return {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "type": self.type,
+            "icon": base64.b64encode(self.icon).decode("utf-8") if self.icon else None,
+        }
 
     @classmethod
     def get_all_by_type(cls, collector_type: str):
@@ -143,6 +149,7 @@ class OSINTSource(BaseModel):
         if name := data.get("name"):
             osint_source.name = name
         osint_source.description = data.get("description")
+        osint_source.icon = base64.b64decode(data.get("icon")) if data.get("icon") else None
         if parameters := data.get("parameters"):
             update_parameter = ParameterValue.get_or_create_from_list(parameters)
             osint_source.parameters = ParameterValue.get_update_values(osint_source.parameters, update_parameter)
