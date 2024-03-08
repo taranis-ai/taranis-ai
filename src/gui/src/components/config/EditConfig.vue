@@ -64,7 +64,7 @@
         <v-file-input
           v-if="item.type === 'icon'"
           @change="handleFileUpload(item.type, $event)"
-          :rules="rules"
+          :rules="[rules.filesize]"
           accept="image/png"
           :label="item.label"
           placeholder="Pick an avatar"
@@ -162,23 +162,7 @@ export default {
       default: null
     }
   },
-  data: () => ({
-      rules: [
-        value => {
-          if (!value || !value.length) {
-            return true; // Pass if no file selected
-          }
-          const isFileTypeValid = ['image/png'].includes(value[0].type);
-          const isFileSizeValid = value[0].size < 2000000;
-          if (!isFileTypeValid) {
-            return 'File type must be image/png!';
-          } else if (!isFileSizeValid) {
-            return 'Avatar size should be less than 2 MB!';
-          }
-          return true;
-        },
-      ],
-    }),
+ 
   emits: ['submit'],
   setup(props, { emit }) {
     const config_form = ref(null)
@@ -198,6 +182,11 @@ export default {
 
       emit('submit', reconstructFormData(formData.value, format.value))
     }
+
+    const rules = {
+      filesize: (file) =>  file.length ? file[0].size <  2 * 1024 * 1024 || 'Avatar size must be less than 2 MB!': true
+    }
+   
 
     const handleFileUpload = async (type, event) => {
       const base64String =  await new Promise((resolve, reject) => {
@@ -266,7 +255,8 @@ export default {
       search,
       addItem,
       handleSubmit,
-      handleFileUpload      
+      handleFileUpload, 
+      rules      
     }
   }
 }
