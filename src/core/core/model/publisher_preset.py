@@ -10,10 +10,10 @@ from core.model.worker import PUBLISHER_TYPES, Worker
 
 class PublisherPreset(BaseModel):
     id = db.Column(db.String(64), primary_key=True)
-    name = db.Column(db.String(), nullable=False)
+    name: Any = db.Column(db.String(), nullable=False)
     description: Any = db.Column(db.String())
     type = db.Column(db.Enum(PUBLISHER_TYPES))
-    parameters = db.relationship("ParameterValue", secondary="publisher_preset_parameter_value", cascade="all, delete")
+    parameters: Any = db.relationship("ParameterValue", secondary="publisher_preset_parameter_value", cascade="all, delete")
 
     def __init__(
         self,

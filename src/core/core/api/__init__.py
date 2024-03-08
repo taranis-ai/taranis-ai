@@ -9,7 +9,6 @@ from core.api import (
     dashboard,
     isalive,
     publish,
-    publishers,
     user,
     worker,
 )
@@ -25,7 +24,6 @@ __all__ = [
     "dashboard",
     "isalive",
     "publish",
-    "publishers",
     "user",
     "worker",
 ]
