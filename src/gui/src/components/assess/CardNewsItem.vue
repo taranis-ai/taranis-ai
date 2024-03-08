@@ -10,30 +10,23 @@
     @click="toggleSelection"
   >
     <v-container fluid style="min-height: 112px" class="pa-0 pl-0">
-      <v-row class="pl-2">
-        <v-col class="d-flex">
-          <v-row class="py-1 px-1">
-            <v-col cols="12" :lg="content_cols" class="mr-1">
-              <v-container class="d-flex pa-0">
-                <h2
-                  v-dompurify-html="title"
-                  class="mb-1 mt-0 news-item-title"
-                />
-              </v-container>
+      <v-row>
+        <v-col cols="12" :lg="content_cols" class="mr-1">
+          <h2 v-dompurify-html="title" class="ml-2 mb-1 mt-0 news-item-title" />
 
-              <summarized-content
-                :open="openSummary"
-                :is_summarized="false"
-                :content="description"
-              />
-            </v-col>
-
-            <v-col cols="12" class="meta-info-col mr-n1" :lg="meta_cols">
-              <news-meta-info :news-item="newsItem" />
-            </v-col>
-          </v-row>
+          <summarized-content
+            class="ml-2"
+            :open="openSummary"
+            :is_summarized="false"
+            :content="description"
+          />
         </v-col>
-        <v-col class="action-bar mr-2">
+
+        <v-col cols="auto" class="meta-info-col mr-n1">
+          <news-meta-info :news-item="newsItem" />
+        </v-col>
+        <v-spacer></v-spacer>
+        <v-col class="action-bar" cols="auto">
           <NewsItemActions
             :news-item="newsItem"
             :story="story"
@@ -84,7 +77,7 @@ export default {
     const selected = computed(() =>
       assessStore.newsItemSelection.includes(props.newsItem.id)
     )
-    const { showWeekChart, compactView } = storeToRefs(useFilterStore())
+    const { compactView } = storeToRefs(useFilterStore())
 
     const description = computed(
       () =>
@@ -93,31 +86,13 @@ export default {
     )
 
     const content_cols = computed(() => {
-      if (props.detailView) {
-        return 8
-      }
-      if (showWeekChart.value) {
-        if (compactView.value) {
-          if (props.openView) {
-            return 10
-          }
-          return 8
-        }
-        if (props.openView) {
-          return 9
-        }
-        return 7
-      }
-      if (props.reportView || compactView.value) {
+      if (props.reportView || compactView.value || props.detailView) {
         return 10
       }
       return 8
     })
 
     const meta_cols = computed(() => {
-      if (showWeekChart.value && !props.openView) {
-        return 12 - content_cols.value - 2
-      }
       return 12 - content_cols.value
     })
 

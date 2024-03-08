@@ -41,3 +41,6 @@ omit_keys: {{ ns.item_list }}
 {%- endif %}
 {%- endmacro %}
 {{- traverse(data.report_items) -}}
+{%- if data.report_items|length == 0 -%}
+No Report Items specified
+{%- endif %}

@@ -1,13 +1,12 @@
 from typing import Any
-from sqlalchemy import or_, and_
-import sqlalchemy
+from sqlalchemy import or_
 import json
-from sqlalchemy.sql.expression import cast
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
-from core.model.acl_entry import ACLEntry, ItemType
+from core.model.role_based_access import RoleBasedAccess, ItemType
 from core.model.attribute import Attribute
+from core.service.role_based_access import RoleBasedAccessService, RBACQuery
 
 
 class AttributeGroupItem(BaseModel):
@@ -78,7 +77,7 @@ class AttributeGroup(BaseModel):
     report_item_type_id = db.Column(db.Integer, db.ForeignKey("report_item_type.id", ondelete="CASCADE"))
     report_item_type = db.relationship("ReportItemType")
 
-    attribute_group_items = db.relationship(
+    attribute_group_items: Any = db.relationship(
         "AttributeGroupItem",
         back_populates="attribute_group",
         cascade="all, delete-orphan",
@@ -144,10 +143,10 @@ class AttributeGroup(BaseModel):
 
 class ReportItemType(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String())
+    title: Any = db.Column(db.String())
     description: Any = db.Column(db.String())
 
-    attribute_groups = db.relationship(
+    attribute_groups: Any = db.relationship(
         "AttributeGroup",
         back_populates="report_item_type",
         cascade="all, delete-orphan",
@@ -168,35 +167,23 @@ class ReportItemType(BaseModel):
     def get_by_title(cls, title):
         return cls.query.filter_by(title=title).first()
 
-    @classmethod
-    def allowed_with_acl(cls, report_item_type_id, user, see, access, modify):
-        query = db.session.query(ReportItemType.id).distinct().group_by(ReportItemType.id).filter(ReportItemType.id == report_item_type_id)
+    def allowed_with_acl(self, user, require_write_access) -> bool:
+        if not RoleBasedAccess.is_enabled() or not user:
+            return True
 
-        query = query.outerjoin(
-            ACLEntry,
-            and_(
-                cast(ReportItemType.id, sqlalchemy.String) == ACLEntry.item_id,
-                ACLEntry.item_type == ItemType.REPORT_ITEM_TYPE,
-            ),
+        query = RBACQuery(
+            user=user, resource_id=str(self.id), resource_type=ItemType.REPORT_ITEM_TYPE, require_write_access=require_write_access
         )
 
-        query = ACLEntry.apply_query(query, user, see, access, modify)
-
-        return query.scalar() is not None
+        return RoleBasedAccessService.user_has_access_to_resource(query)
 
     @classmethod
     def get_by_filter(cls, search, user, acl_check):
         query = cls.query.distinct().group_by(ReportItemType.id)
 
         if acl_check:
-            query = query.outerjoin(
-                ACLEntry,
-                and_(
-                    cast(ReportItemType.id, sqlalchemy.String) == ACLEntry.item_id,
-                    ACLEntry.item_type == ItemType.REPORT_ITEM_TYPE,
-                ),
-            )
-            query = ACLEntry.apply_query(query, user, True, False, False)
+            rbac = RBACQuery(user=user, resource_type=ItemType.REPORT_ITEM_TYPE)
+            query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
 
         if search:
             search_string = f"%{search}%"

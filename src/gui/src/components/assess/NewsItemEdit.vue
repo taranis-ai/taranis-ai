@@ -59,7 +59,7 @@
 import { computed, ref, onMounted } from 'vue'
 import { addNewsItem, patchNewsItem } from '@/api/assess'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
-import { useMainStore } from '@/stores/MainStore'
+import { useUserStore } from '@/stores/UserStore'
 import CodeEditor from '@/components/common/CodeEditor.vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -77,9 +77,8 @@ export default {
     }
   },
   setup(props) {
-    const mainStore = useMainStore()
+    const userStore = useUserStore()
     const form = ref(null)
-    const user = computed(() => mainStore.user)
     const edit = ref(props.newsItemProp ? true : false)
     const router = useRouter()
     const { t } = useI18n()
@@ -125,7 +124,7 @@ export default {
         return
       }
 
-      news_item.value.author = user.value.name
+      news_item.value.author = userStore.name
       const d = new Date()
       news_item.value.collected = d.toISOString()
 

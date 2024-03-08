@@ -10,12 +10,12 @@
     <template #appbar>
       <filter-button
         v-model="newsItemsFilter['read']"
-        label="read"
+        :label="mdAndDown ? '' : 'read'"
         icon="mdi-eye-check-outline"
       />
       <filter-button
         v-model="newsItemsFilter['in_report']"
-        label="items in reports"
+        :label="mdAndDown ? '' : 'items in reports'"
         icon="mdi-google-circles-communities"
       />
     </template>
@@ -198,6 +198,7 @@ import { useRoute } from 'vue-router'
 import { useFilterStore } from '@/stores/FilterStore'
 import { useAssessStore } from '@/stores/AssessStore'
 import { storeToRefs } from 'pinia'
+import { useDisplay } from 'vuetify'
 
 export default {
   name: 'AssessNav',
@@ -217,6 +218,8 @@ export default {
     const { getOSINTSourceGroupsList, getOSINTSourcesList } =
       storeToRefs(assessStore)
     const { updateNewsItems } = assessStore
+    const { mdAndDown } = useDisplay()
+
     const {
       newsItemsFilter,
       chartFilter,
@@ -309,6 +312,7 @@ export default {
     return {
       search,
       chartFilter,
+      mdAndDown,
       highlight,
       showWeekChart,
       compactView,

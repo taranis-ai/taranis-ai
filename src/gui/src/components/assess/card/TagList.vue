@@ -91,12 +91,13 @@ export default defineComponent({
       default: false
     }
   },
+  emits: ['edit'],
   setup(props) {
     const { appendTag } = useFilterStore()
     const route = useRoute()
     const router = useRouter()
 
-    const max_width = computed(() => (props.truncate ? '80px' : '120px'))
+    const max_width = computed(() => (props.truncate ? '60px' : '120px'))
 
     const flex_wrap = computed(() => (props.wrap ? 'wrap' : 'nowrap'))
 
