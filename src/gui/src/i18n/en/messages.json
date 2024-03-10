@@ -5,7 +5,6 @@
         "disabled": "Disabled",
         "enabled": "Enabled",
         "error": "Could not save this ACL.",
-        "full_title": "Access Control Lists",
         "item_id": "Item ID",
         "item_type": "Item Type",
         "name": "Name",
@@ -16,14 +15,11 @@
         "save": "Save",
         "successful": "New ACL was successfully added",
         "successful_edit": "ACL was successfully updated",
-        "validation_error": "Please fill in all required fields",
         "writeable": "Writeable"
     },
     "analyze": {
         "add_new": "Add New",
-        "from": "From",
         "sort": "Sort by",
-        "to": "To",
         "tooltip": {
             "delete_item": "Delete report item",
             "delete_items": "Delete report items",
@@ -44,8 +40,7 @@
                 }
             },
             "toggle_selection": "Toggle report items selection mode"
-        },
-        "total_count": "Report items count: "
+        }
     },
     "assess": {
         "add_news_item": "Add News Items",
@@ -123,7 +118,6 @@
         "serial": "Serial Number",
         "successful": "New asset was successfully added",
         "successful_edit": "Asset was successfully updated",
-        "validation_error": "Please fill in all required fields",
         "value": "Value",
         "vulnerabilities": "Vulnerabilities",
         "vulnerabilities_count": "Vulnerabilities: "
@@ -135,8 +129,7 @@
         "removed": "Asset group was successfully removed",
         "removed_error": "Asset group is in use and could not be deleted",
         "successful": "New asset group was successfully added",
-        "successful_edit": "Asset group was successfully updated",
-        "validation_error": "Please fill in all required fields"
+        "successful_edit": "Asset group was successfully updated"
     },
     "attribute": {
         "add": "Add",
@@ -185,7 +178,6 @@
         "tlp_white": "TLP:WHITE",
         "total_count": "Attributes count: ",
         "type": "Type",
-        "validation_error": "Please fill in all required fields",
         "validator": "Validator",
         "validator_parameter": "Validator Parameter",
         "value": "Value",
@@ -230,8 +222,7 @@
         "review": "Review",
         "source": "Source",
         "successful": "News item was successfully created",
-        "title": "Title",
-        "validation_error": "Please fill in all required fields"
+        "title": "Title"
     },
     "error": {
         "aggregate_in_use": "Some of selected aggregates or news items are already assigned to a report item",
@@ -241,8 +232,7 @@
         "description": "Description",
         "name": "Name",
         "title": "Title",
-        "username": "Username",
-        "validation_error": "Please fill in all required fields"
+        "username": "Username"
     },
     "login": {
         "backend_error": "Taranis Core Backend error",
@@ -259,7 +249,6 @@
         "assets": "Assets",
         "config": "Configuration",
         "dashboard": "Dashboard",
-        "enter": "Enter",
         "publish": "Publish"
     },
     "nav_menu": {
@@ -306,8 +295,6 @@
         "street": "Street",
         "successful": "New organization was successfully added",
         "successful_edit": "Organization was successfully updated",
-        "total_count": "Organizations count: ",
-        "validation_error": "Please fill in all required fields",
         "zip": "ZIP"
     },
     "osint_source": {
@@ -325,9 +312,7 @@
         "removed_error": "OSINT source is in use and could not be deleted",
         "successful": "New OSINT source was successfully added",
         "successful_edit": "OSINT source was successfully updated",
-        "total_count": "OSINT Sources count: ",
         "type": "Type",
-        "validation_error": "Please fill in all required fields",
         "word_lists": "Word Lists"
     },
     "osint_source_group": {
@@ -346,9 +331,7 @@
         "save": "Save",
         "successful": "New OSINT source group was successfully added",
         "successful_edit": "OSINT source group was successfully updated",
-        "title": "Title",
-        "total_count": "OSINT source groups count: ",
-        "validation_error": "Please fill in all required fields"
+        "title": "Title"
     },
     "product": {
         "description": "Description",
@@ -394,9 +377,7 @@
         },
         "save": "Save",
         "successful": "New product type was successfully added",
-        "successful_edit": "Product type was successfully updated",
-        "total_count": "Product types count: ",
-        "validation_error": "Please fill in all required fields"
+        "successful_edit": "Product type was successfully updated"
     },
     "publish": {
         "tooltip": {
@@ -441,8 +422,7 @@
         "removed": "Report item type was successfully removed",
         "removed_error": "Report item type is in use and could not be deleted",
         "successful": "New report item type was successfully added",
-        "successful_edit": "Report item type was successfully updated",
-        "total_count": "Report types count: "
+        "successful_edit": "Report item type was successfully updated"
     },
     "role": {
         "add": "Add",
@@ -459,14 +439,14 @@
         "save": "Save",
         "successful": "New role was successfully added",
         "successful_edit": "Role was successfully updated",
-        "title": "Title",
-        "total_count": "Roles count: ",
-        "validation_error": "Please fill in all required fields"
+        "title": "Title"
     },
     "settings": {
         "dark_theme": "Dark Theme",
+        "split_view": "Split View",
+        "compact_view": "Compact View",
+        "show_charts": "Show Charts",
         "locale": "Language",
-        "spellcheck": "Spellcheck",
         "user_settings": "User settings"
     },
     "toolbar_filter": {
@@ -495,9 +475,7 @@
         "save": "Save",
         "successful": "New user was successfully added",
         "successful_edit": "User was successfully updated",
-        "total_count": "Users count: ",
-        "username": "Username",
-        "validation_error": "Please fill in all required fields"
+        "username": "Username"
     },
     "user_menu": {
         "dark_theme": "Dark Theme",
@@ -511,19 +489,12 @@
         "description": "Description",
         "download_from_link": "Download from URL",
         "error": "Could not save this word list",
-        "file_has_header": "File has header",
         "import": "Import",
-        "import_from_csv": "Import from CSV",
         "link": "URL",
-        "load_csv_file": "Load CSV file",
-        "new_category": "New Category",
-        "new_word": "New Word",
         "remove": "Word list was successfully removed",
         "removed_error": "Word list is in use and could not be deleted",
         "successful": "New word list was successfully added",
         "successful_edit": "Word list was successfully updated",
-        "total_count": "Word lists count: ",
-        "validation_error": "Please fill in all required fields",
         "value": "Value",
         "words": "Words"
     }

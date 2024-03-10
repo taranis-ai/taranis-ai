@@ -14,7 +14,9 @@ export const useUserStore = defineStore(
     const permissions = ref([])
     const organization = ref(null)
     const hotkeys = ref([])
-    const spellcheck = ref(true)
+    const split_view = ref(false)
+    const compact_view = ref(false)
+    const show_charts = ref(false)
     const dark_theme = ref(false)
     const language = ref('en')
 
@@ -26,7 +28,9 @@ export const useUserStore = defineStore(
       permissions.value = []
       organization.value = null
       hotkeys.value = []
-      spellcheck.value = true
+      split_view.value = false
+      compact_view.value = false
+      show_charts.value = false
       dark_theme.value = false
       language.value = 'en'
     }
@@ -40,7 +44,9 @@ export const useUserStore = defineStore(
         permissions.value = response.data.permissions
         organization.value = response.data.organization
         hotkeys.value = response.data.profile.hotkeys
-        spellcheck.value = response.data.profile.spellcheck
+        split_view.value = response.data.profile.split_view
+        compact_view.value = response.data.profile.compact_view
+        show_charts.value = response.data.profile.show_charts
         dark_theme.value = response.data.profile.dark_theme
         language.value = response.data.profile.language
       })
@@ -53,8 +59,8 @@ export const useUserStore = defineStore(
     }
 
     const saveUserProfile = async (data) => {
-      updateProfile(data).then((response) => {
-        setUserProfile(response.data)
+      updateProfile(data).then(() => {
+        setUserProfile(data)
       })
     }
 
@@ -63,7 +69,9 @@ export const useUserStore = defineStore(
     }
 
     const setUserProfile = (profile) => {
-      spellcheck.value = profile.spellcheck
+      split_view.value = profile.split_view
+      compact_view.value = profile.compact_view
+      show_charts.value = profile.show_charts
       dark_theme.value = profile.dark_theme
       language.value = profile.language
 
@@ -79,7 +87,9 @@ export const useUserStore = defineStore(
       permissions,
       organization,
       hotkeys,
-      spellcheck,
+      split_view,
+      compact_view,
+      show_charts,
       dark_theme,
       language,
       loadUser,

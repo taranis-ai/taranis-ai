@@ -3841,16 +3841,18 @@ components:
     user_profile:
       type: object
       properties:
-        spellcheck:
-          type: boolean
-          example: True
         dark_theme:
           type: boolean
           example: False
-        word_lists:
-          type: array
-          items:
-            $ref: '#/components/schemas/wordlist'
+        compact_view:
+          type: boolean
+          example: False
+        show_charts:
+          type: boolean
+          example: True
+        split_view:
+          type: boolean
+          example: False
         hotkeys:
           type: array
           items:

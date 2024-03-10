@@ -173,45 +173,37 @@ class UserPermission(BaseModel):
 class UserProfile(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
 
-    spellcheck = db.Column(db.Boolean, default=True)
     dark_theme = db.Column(db.Boolean, default=False)
-    spilt_view = db.Column(db.Boolean, default=False)
+    split_view = db.Column(db.Boolean, default=False)
     compact_view = db.Column(db.Boolean, default=False)
     show_charts = db.Column(db.Boolean, default=False)
 
     hotkeys: Any = db.relationship("Hotkey", cascade="all, delete-orphan")
     language = db.Column(db.String(2), default="en")
 
-    def __init__(
-        self, spellcheck=True, dark_theme=False, hotkeys=None, split_view=None, compact_view=None, show_charts=None, language="en", id=None
-    ):
+    def __init__(self, dark_theme=False, hotkeys=None, split_view=None, compact_view=None, show_charts=None, language="en", id=None):
         self.id = id
-        self.spellcheck = spellcheck
         self.dark_theme = dark_theme
-        self.spilt_view = split_view
+        self.split_view = split_view
         self.compact_view = compact_view
         self.show_charts = show_charts
-        self.hotkeys = hotkeys or []
+        self.hotkeys = Hotkey.from_dict(hotkeys) if hotkeys else []
         self.language = language
-
-    @classmethod
-    def from_dict(cls, data: dict):
-        hotkeys = [Hotkey.from_dict(hotkey) for hotkey in data["hotkeys"]]
-        return cls(data["spellcheck"], data["dark_theme"], hotkeys, data["language"])
 
     def to_dict(self):
         return {
-            "spellcheck": self.spellcheck,
+            "split_view": self.split_view,
+            "compact_view": self.compact_view,
+            "show_charts": self.show_charts,
             "dark_theme": self.dark_theme,
             "hotkeys": [hotkey.to_dict() for hotkey in self.hotkeys],
             "language": self.language,
         }
 
     def update(self, data) -> tuple[dict[str, Any], int]:
-        self.spellcheck = data.pop("spellcheck", self.spellcheck)
         self.dark_theme = data.pop("dark_theme", self.dark_theme)
         self.language = data.pop("language", self.language)
-        self.spilt_view = data.pop("split_view", self.spilt_view)
+        self.split_view = data.pop("split_view", self.split_view)
         self.compact_view = data.pop("compact_view", self.compact_view)
         self.show_charts = data.pop("show_charts", self.show_charts)
 

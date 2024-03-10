@@ -89,57 +89,43 @@ export default defineComponent({
         title: 'main_menu.dashboard',
         icon: 'mdi-monitor-dashboard',
         permission: 'ASSESS_ACCESS',
-        route: '/',
-        show: true
+        route: '/'
       },
       {
         title: 'main_menu.administration',
         icon: 'mdi-cog-outline',
         permission: 'CONFIG_ACCESS',
-        route: '/config',
-        show: true
-      },
-      {
-        title: 'main_menu.enter',
-        icon: 'mdi-location-enter',
-        permission: 'ASSESS_CREATE',
-        route: '/enter',
-        show: false
+        route: '/config'
       },
       {
         title: 'main_menu.assess',
         icon: 'mdi-google-circles-extended',
         permission: 'ASSESS_ACCESS',
-        route: '/assess',
-        show: true
+        route: '/assess'
       },
       {
         title: 'main_menu.analyze',
         icon: 'mdi-google-circles-communities',
         permission: 'ANALYZE_ACCESS',
-        route: '/analyze',
-        show: true
+        route: '/analyze'
       },
       {
         title: 'main_menu.publish',
         icon: 'mdi-publish',
         permission: 'PUBLISH_ACCESS',
-        route: '/publish',
-        show: true
+        route: '/publish'
       },
       {
         title: 'main_menu.assets',
         icon: 'mdi-file-multiple-outline',
         permission: 'ASSETS_ACCESS',
-        route: '/assets',
-        show: true
+        route: '/assets'
       }
     ]
 
     const buttonList = computed(() => {
-      return buttons.filter(
-        (button) =>
-          userStore.permissions.includes(button.permission) && button.show
+      return buttons.filter((button) =>
+        userStore.permissions.includes(button.permission)
       )
     })
 
