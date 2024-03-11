@@ -18,33 +18,28 @@ export function connectSSE() {
   const publishStore = usePublishStore()
 
   sseConnection.onopen = () => console.debug('SSE connection opened.')
-  sseConnection.onopen = () => console.debug('SSE connection opened.')
+
   sseConnection.onerror = (event) => {
     console.error('SSE connection error:', event)
     sseConnection.close()
     setTimeout(connectSSE, 5000)
   }
 
-  const events = [
-    'news-items-updated',
-    'report-item-updated',
-    'product-rendered',
-    'report-item-locked',
-    'report-item-unlocked'
-  ]
+  const eventHandlers = {
+    'news-items-updated': assessStore.sseNewsItemsUpdated,
+    'report-item-updated': analyzeStore.sseReportItemUpdate,
+    'product-rendered': publishStore.sseProductRendered
+  }
+
+  const events = Object.keys(eventHandlers)
 
   events.forEach((event) => {
     sseConnection.addEventListener(event, (e) => {
-      if (event === 'news-items-updated') {
-        assessStore.sseNewsItemsUpdated()
+      const handler = eventHandlers[event]
+      if (handler) {
+        handler()
+        console.debug(`Event received - ${event}:`, e.data)
       }
-      if (event === 'report-item-updated') {
-        analyzeStore.sseReportItemUpdate()
-      }
-      if (event === 'product-rendered') {
-        publishStore.sseProductRendered()
-      }
-      console.debug(`Event received - ${event}:`, e.data)
     })
   })
 }
