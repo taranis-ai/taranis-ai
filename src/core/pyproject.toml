@@ -27,7 +27,7 @@ dependencies = [
     "python-dotenv",
     "gunicorn",
     "psycogreen",
-    "psycopg2-binary",
+    "psycopg2",
     "swagger-ui-py",
     "requests",
     "authlib",

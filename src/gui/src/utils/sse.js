@@ -2,6 +2,8 @@ import { useAssessStore } from '@/stores/AssessStore'
 import { useAnalyzeStore } from '@/stores/AnalyzeStore'
 import { usePublishStore } from '@/stores/PublishStore'
 
+let sseConnection = null
+
 export function connectSSE() {
   const coreAPIURL = import.meta.env.VITE_TARANIS_CORE_SSE
   if (!coreAPIURL) {
@@ -10,19 +12,18 @@ export function connectSSE() {
   }
 
   const sseEndpoint = `${coreAPIURL}/sse`
-  const evtSource = new EventSource(sseEndpoint)
+  sseConnection = new EventSource(sseEndpoint)
   const assessStore = useAssessStore()
   const analyzeStore = useAnalyzeStore()
   const publishStore = usePublishStore()
 
-  evtSource.onopen = () => console.debug('SSE connection opened.')
-  evtSource.onerror = (event) => console.error('SSE connection error:', event)
-  /*evtSource.onerror = (event) => {
+  sseConnection.onopen = () => console.debug('SSE connection opened.')
+  sseConnection.onopen = () => console.debug('SSE connection opened.')
+  sseConnection.onerror = (event) => {
     console.error('SSE connection error:', event)
-    // Attempt to reconnect
-    evtSource.close(); // Close current connection
-    setTimeout(connectSSE, 5000) // Attempt reconnecting after some delay
-  }*/
+    sseConnection.close()
+    setTimeout(connectSSE, 5000)
+  }
 
   const events = [
     'news-items-updated',
@@ -33,7 +34,7 @@ export function connectSSE() {
   ]
 
   events.forEach((event) => {
-    evtSource.addEventListener(event, (e) => {
+    sseConnection.addEventListener(event, (e) => {
       if (event === 'news-items-updated') {
         assessStore.sseNewsItemsUpdated()
       }
@@ -46,15 +47,12 @@ export function connectSSE() {
       console.debug(`Event received - ${event}:`, e.data)
     })
   })
-
-  this.sseConnection = evtSource
 }
 
 export function reconnectSSE() {
-  if (this.sseConnection) {
-    this.sseConnection.close()
+  if (sseConnection) {
+    sseConnection.close()
     console.debug('SSE connection closed.')
   }
-
-  this.connectSSE()
+  connectSSE()
 }
