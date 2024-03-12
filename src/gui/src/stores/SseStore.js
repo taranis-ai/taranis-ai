@@ -23,14 +23,10 @@ export const useSseStore = defineStore('sse', () => {
     const analyzeStore = useAnalyzeStore()
     const publishStore = usePublishStore()
     const mainStore = useMainStore()
-    const sseEndpoint = `${mainStore.coreAPIURL}/sse?jwt=${localStorage.ACCESS_TOKEN}`
+    const sseEndpoint = `${mainStore.coreSSEURL}?jwt=${localStorage.ACCESS_TOKEN}`
 
     sseConnection = new EventSource(sseEndpoint)
-
-    sseConnection.onopen = () => {
-      isConnected.value = true
-      console.debug('SSE connection opened.')
-    }
+    isConnected.value = true
 
     sseConnection.onerror = (event) => {
       isConnected.value = false
@@ -45,7 +41,8 @@ export const useSseStore = defineStore('sse', () => {
     const eventHandlers = {
       'news-items-updated': assessStore.sseNewsItemsUpdated,
       'report-item-updated': analyzeStore.sseReportItemUpdate,
-      'product-rendered': publishStore.sseProductRendered
+      'product-rendered': publishStore.sseProductRendered,
+      connected: handleConnection
     }
 
     const events = Object.keys(eventHandlers)
@@ -54,11 +51,14 @@ export const useSseStore = defineStore('sse', () => {
       sseConnection.addEventListener(event, (e) => {
         const handler = eventHandlers[event]
         if (handler) {
-          handler()
-          console.debug(`Event received - ${event}:`, e.data)
+          handler(JSON.parse(e.data))
         }
       })
     })
+  }
+
+  const handleConnection = (e) => {
+    console.debug('SSE connection event:', e)
   }
 
   const resetSSE = () => {

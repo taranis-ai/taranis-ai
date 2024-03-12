@@ -22,7 +22,7 @@
       />
     </v-toolbar-title>
 
-    <div v-if="showItemCount" class="mr-10">
+    <div v-if="showItemCount && mdAndUp" class="mr-10">
       <span>
         total items: <strong>{{ itemCountTotal }}</strong>
       </span>
@@ -32,7 +32,26 @@
     </div>
 
     <template #append>
-      <v-toolbar color="transparent">
+      <v-menu v-if="mdAndDown" offset-y class="mx-5">
+        <template #activator="{ props }">
+          <v-btn
+            v-ripple="false"
+            density="compact"
+            v-bind="props"
+            icon="mdi-view-headline"
+          />
+        </template>
+
+        <v-list dense>
+          <v-list-item
+            v-for="button in buttonList"
+            :key="button.route"
+            :to="button.route"
+            :title="$t(button.title)"
+          />
+        </v-list>
+      </v-menu>
+      <v-toolbar v-else color="transparent">
         <div v-for="button in buttonList" :key="button.route">
           <v-btn
             variant="text"
@@ -58,6 +77,7 @@ import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/MainStore'
 import { useUserStore } from '@/stores/UserStore'
 import { defineComponent, computed } from 'vue'
+import { useDisplay } from 'vuetify'
 
 export default defineComponent({
   name: 'MainMenu',
@@ -65,6 +85,7 @@ export default defineComponent({
   setup() {
     const mainStore = useMainStore()
     const userStore = useUserStore()
+    const { mdAndDown, mdAndUp } = useDisplay()
 
     mainStore.updateFromLocalConfig()
 
@@ -131,6 +152,8 @@ export default defineComponent({
 
     return {
       buildDate,
+      mdAndDown,
+      mdAndUp,
       isFiltered,
       showItemCount,
       itemCountFiltered,

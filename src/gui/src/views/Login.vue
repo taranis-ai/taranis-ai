@@ -18,6 +18,7 @@
         <v-row no-gutters justify="center" align-content="center">
           <v-col cols="12">
             <v-text-field
+              ref="userfield"
               v-model="username"
               class="mx-2"
               :placeholder="$t('login.username')"
@@ -75,6 +76,7 @@ export default defineComponent({
     const login_error = ref(undefined)
     const router = useRouter()
     const authStore = useAuthStore()
+    const userfield = ref(null)
 
     const acceptPassword = computed(() =>
       password.value.length > 0 ? true : 'Please enter a password'
@@ -110,11 +112,13 @@ export default defineComponent({
       if (isAuthenticated.value) {
         router.push('/')
       }
+      userfield.value.focus()
     })
 
     return {
       username,
       password,
+      userfield,
       login_error,
       acceptPassword,
       acceptUser,

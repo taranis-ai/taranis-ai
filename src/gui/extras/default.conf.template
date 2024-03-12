@@ -34,8 +34,8 @@ server {
         proxy_pass http://core/api;
     }
 
-    location /api/sse {
-        proxy_pass http://core/api/sse;
+    location /sse {
+        proxy_pass http://core/sse;
         proxy_read_timeout 24h;
     }
 

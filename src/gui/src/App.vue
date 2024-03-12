@@ -35,15 +35,21 @@ export default defineComponent({
     const sseStore = useSseStore()
     const { compactView, compactViewSetByUser } = storeToRefs(useFilterStore())
     const { drawerVisible, drawerSetByUser } = storeToRefs(useMainStore())
+    const { isConnected } = storeToRefs(sseStore)
 
     const { mdAndDown, lgAndDown, name: displayName } = useDisplay()
 
-    onMounted(() => {
-      isAuthenticated.value || authStore.logout()
-
+    if (isConnected.value) {
+      console.debug('SSE already connected')
+    } else {
+      console.debug('Connecting SSE')
       if (isAuthenticated.value) {
         sseStore.connectSSE()
       }
+    }
+
+    onMounted(() => {
+      isAuthenticated.value || authStore.logout()
 
       if (timeToRefresh.value > 0) {
         setTimeout(() => {

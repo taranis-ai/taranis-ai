@@ -8,19 +8,20 @@ class SSE:
         self.listeners = []
 
     def listen(self) -> queue.Queue:
-        logger.debug("Add new SSE listener.")
         q = queue.Queue(maxsize=20)
         self.listeners.append(q)
         return q
 
-    def publish(self, data: str | dict, event=None):
-        logger.debug(f"Publishing SSE: {data}")
+    def publish(self, data: str | dict, event=None, specific_listener=None):
+        logger.debug(f"Publishing SSE Event: {event} with data: {data}")
         msg = self.format_sse(data, event)
-        for i in reversed(range(len(self.listeners))):
+        target_listeners = [specific_listener] if specific_listener else self.listeners
+
+        for listener in target_listeners:
             try:
-                self.listeners[i].put_nowait(msg)
+                listener.put_nowait(msg)
             except queue.Full:
-                del self.listeners[i]
+                self.listeners.remove(listener)
 
     def format_sse(self, data: str | dict, event=None) -> str:
         """Formats a string and an event name in order to follow the event stream convention.

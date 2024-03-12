@@ -154,7 +154,7 @@ class Product(BaseModel):
 
         product.description = data.get("description")
 
-        if data.get("product_type_id"):
+        if data.get("product_type_id") != product.product_type_id:
             logger.warning("Product type change not supported")
 
         report_items = data.get("report_items")

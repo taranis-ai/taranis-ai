@@ -11,6 +11,7 @@ export const useMainStore = defineStore(
     const drawerVisible = ref(true)
     const drawerSetByUser = ref(false)
     const coreAPIURL = ref('/api')
+    const coreSSEURL = ref('/sse')
     const sentryDSN = ref('')
     const gitInfo = ref('')
     const upstreamRepoUrl = ref('')
@@ -27,6 +28,11 @@ export const useMainStore = defineStore(
       buildDate.value = config.BUILD_DATE ?? new Date().toISOString()
       gitInfo.value = config.GIT_INFO ?? ''
       coreAPIURL.value = config.TARANIS_CORE_API ?? '/api'
+      // if config.TARANIS_CORE_API is set replace /api with /sse else just use /sse
+      coreSSEURL.value =
+        config.TARANIS_CORE_API && config.TARANIS_CORE_API !== '/api'
+          ? config.TARANIS_CORE_API.replace('/api', '/sse')
+          : '/sse'
       sentryDSN.value = config.TARANIS_SENTRY_DSN ?? ''
       upstreamRepoUrl.value =
         config.TARANIS_UPSTREAM_REPO_URL ??
@@ -62,6 +68,7 @@ export const useMainStore = defineStore(
       itemCountTotal,
       itemCountFiltered,
       coreAPIURL,
+      coreSSEURL,
       gitInfo,
       buildDate,
       sentryDSN,

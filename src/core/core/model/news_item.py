@@ -282,6 +282,8 @@ class NewsItem(BaseModel):
         return query
 
     def allowed_with_acl(self, user: User, require_write_access: bool) -> bool:
+        if tlp_level := self.attributes.get("TLP"):
+            logger.debug(f"Checking TLP level {tlp_level} for user {user.id}")
         if not RoleBasedAccess.is_enabled():
             return True
 
