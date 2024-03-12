@@ -64,6 +64,14 @@ class CoreApi:
     def get_product(self, product_id: int) -> dict | None:
         return self.api_get(f"/worker/products/{product_id}")
 
+    def get_product_render(self, product_id: int) -> bytes | None:
+        try:
+            url = f"/worker/products/{product_id}/render"
+            response = requests.get(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
+            return response.content if response.ok else None
+        except Exception:
+            return None
+
     def get_publisher(self, publisher_id: str) -> dict | None:
         return self.api_get(f"/worker/publishers/{publisher_id}")
 
@@ -233,3 +241,4 @@ class CoreApi:
         except Exception:
             logger.log_debug_trace("Cannot cleanup token blacklist")
             return False
+
