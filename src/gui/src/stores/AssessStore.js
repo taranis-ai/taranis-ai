@@ -22,7 +22,8 @@ export const useAssessStore = defineStore('assess', {
     newsItemSelection: [],
     storySelection: [],
     max_item: 0,
-    loading: false
+    loading: false,
+    new_news_items: false
   }),
   getters: {
     getOSINTSourceGroupsList() {
@@ -164,6 +165,10 @@ export const useAssessStore = defineStore('assess', {
       this.storySelection.forEach((id) => {
         this.importantNewsItemAggregate(id)
       })
+    },
+    sseNewsItemsUpdated() {
+      console.debug('Triggerd News items update')
+      this.new_news_items = true
     },
     readNewsItemAggregate(id) {
       const item = this.newsItems.items.find((item) => item.id === id)

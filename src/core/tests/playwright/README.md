@@ -1,7 +1,7 @@
 # Playwright guide
 
 ### Run tests and generate a video
-*IMPORTANT: The tests are dependend on the `https://e2e.taranis.ai/e2e_test_db.sql` dump. Please restore it beforhand.* 
+*IMPORTANT: The tests are dependend on the `https://e2e.taranis.ai/e2e_test_db.sql` dump. Please restore it beforhand.*
 
 Example:
 ```bash

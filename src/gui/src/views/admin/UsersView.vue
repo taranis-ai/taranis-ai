@@ -52,7 +52,6 @@ export default {
     const edit = ref(false)
     const sortBy = ref([{ key: 'username', order: 'desc' }])
 
-
     const updateData = () => {
       store.loadUsers().then(() => {
         mainStore.itemCountTotal = users.value.total_count

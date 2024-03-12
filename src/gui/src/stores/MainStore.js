@@ -71,7 +71,7 @@ export const useMainStore = defineStore(
       gitUpstreamTreeUrl,
       updateFromLocalConfig,
       toggleDrawer,
-      resetItemCount,
+      resetItemCount
     }
   },
   {
