@@ -116,6 +116,11 @@ class NewsItemData(BaseModel):
     def has_attribute_value(self, value) -> bool:
         return any(attribute.value == value for attribute in self.attributes)
 
+    def to_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
+        data["attributes"] = [attribute.to_dict() for attribute in self.attributes]
+        return data
+
     @classmethod
     def update_news_item_lang(cls, news_item_id, lang):
         news_item = cls.get(news_item_id)
@@ -277,6 +282,8 @@ class NewsItem(BaseModel):
         return query
 
     def allowed_with_acl(self, user: User, require_write_access: bool) -> bool:
+        if tlp_level := self.attributes.get("TLP"):
+            logger.debug(f"Checking TLP level {tlp_level} for user {user.id}")
         if not RoleBasedAccess.is_enabled():
             return True
 
@@ -289,7 +296,7 @@ class NewsItem(BaseModel):
 
         access = RoleBasedAccessService.user_has_access_to_resource(query)
         if not access:
-            logger.info(f"User {user.id} has no access to resource {self.news_item_data.osint_source_id}")
+            logger.warning(f"User {user.id} has no access to resource {self.news_item_data.osint_source_id}")
         return access
 
     def vote(self, vote_data, user_id) -> "NewsItemVote":
@@ -711,13 +718,27 @@ class NewsItemAggregate(BaseModel):
             aggregate.comments = data["comments"]
 
         if "tags" in data:
-            logger.debug(data["tags"])
             cls.reset_tags(id)
             cls.update_tags(id, data["tags"])
+
+        if "attributes" in data:
+            aggregate.update_attributes(data["attributes"])
 
         NewsItemAggregate.update_status(aggregate.id)
         db.session.commit()
         return {"message": "Story updated Successful", "id": id}, 200
+
+    def update_attributes(self, attributes):
+        self.news_item_attributes = []
+        for attribute in attributes:
+            self.set_atrribute_by_key(key=attribute["key"], value=attribute["value"])
+
+    def set_atrribute_by_key(self, key, value):
+        if not (attribute := NewsItemAttribute.get_by_key(self.news_item_attributes, key)):
+            attribute = NewsItemAttribute(key=key, value=value)
+            self.news_item_attributes.append(attribute)
+        else:
+            attribute.value = value
 
     def vote(self, vote_data, user_id):
         if not (vote := NewsItemVote.get_by_filter(item_id=self.id, user_id=user_id, item_type="AGGREGATE")):
@@ -901,7 +922,6 @@ class NewsItemAggregate(BaseModel):
     @classmethod
     def group_aggregate(cls, aggregate_ids: list[int], user: User | None = None):
         try:
-            logger.debug(f"grouping: {aggregate_ids}")
             if len(aggregate_ids) < 2 or any(type(a_id) is not int for a_id in aggregate_ids):
                 return {"error": "at least two aggregate ids needed"}, 404
             first_aggregate = NewsItemAggregate.get(aggregate_ids.pop(0))
@@ -1103,6 +1123,10 @@ class NewsItemAttribute(BaseModel):
         data.pop("binary_mime_type", None)
         data.pop("binary_data", None)
         return data
+
+    @classmethod
+    def get_by_key(cls, attributes: list["NewsItemAttribute"], key: str) -> "NewsItemAttribute | None":
+        return next((attribute for attribute in attributes if attribute.key == key), None)
 
 
 class NewsItemDataNewsItemAttribute(BaseModel):

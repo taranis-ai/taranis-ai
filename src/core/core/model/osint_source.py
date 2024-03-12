@@ -141,6 +141,12 @@ class OSINTSource(BaseModel):
         osint_source.schedule_osint_source()
         return osint_source
 
+    def is_valid_base64(self, s) -> bytes | None:
+        try:
+            return base64.b64decode(s, validate=True)
+        except Exception:
+            return None
+
     @classmethod
     def update(cls, osint_source_id, data):
         osint_source = cls.get(osint_source_id)
@@ -149,7 +155,9 @@ class OSINTSource(BaseModel):
         if name := data.get("name"):
             osint_source.name = name
         osint_source.description = data.get("description")
-        osint_source.icon = base64.b64decode(data.get("icon")) if data.get("icon") else None
+        icon_str = data.get("icon")
+        if icon_str is not None and (icon := osint_source.is_valid_base64(icon_str)):
+            osint_source.icon = icon
         if parameters := data.get("parameters"):
             update_parameter = ParameterValue.get_or_create_from_list(parameters)
             osint_source.parameters = ParameterValue.get_update_values(osint_source.parameters, update_parameter)

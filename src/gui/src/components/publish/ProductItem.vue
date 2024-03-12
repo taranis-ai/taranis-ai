@@ -142,7 +142,6 @@ import { ref, computed, onMounted } from 'vue'
 import {
   createProduct,
   updateProduct,
-  getRenderdProduct,
   triggerRenderProduct
 } from '@/api/publish'
 import PopupPublishProduct from '../popups/PopupPublishProduct.vue'
@@ -153,6 +152,7 @@ import VuePdfEmbed from 'vue-pdf-embed'
 
 import { notifyFailure, notifySuccess } from '@/utils/helpers'
 import { useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
 
 export default {
   name: 'ProductItem',
@@ -176,8 +176,8 @@ export default {
     const publishDialog = ref(false)
     const form = ref(null)
 
-    const renderedProduct = ref(null)
-    const renderedProductMimeType = ref(null)
+    const { renderedProduct, renderedProductMimeType } =
+      storeToRefs(publishStore)
 
     const product_types = computed(() => {
       return publishStore.product_types.items
@@ -253,25 +253,11 @@ export default {
       triggerRenderProduct(product.value.id)
         .then(() => {
           notifySuccess('Render triggered please refresh the page')
-          console.debug('Triggered render for product ' + product.value.id)
         })
         .catch(() => {
           console.error(
             'Failed to trigger render for product ' + product.value.id
           )
-        })
-    }
-
-    function renderProduct() {
-      getRenderdProduct(product.value.id)
-        .then((blob) => {
-          if (typeof blob === 'undefined') return
-          renderedProduct.value = blob.data
-          renderedProductMimeType.value = blob.headers['content-type']
-        })
-        .catch((err) => {
-          console.info(err)
-          console.error('Failed to render product ' + product.value.id)
         })
     }
 
@@ -329,7 +315,7 @@ export default {
       analyzeStore.loadReportItems()
       analyzeStore.loadReportTypes()
       if (props.edit) {
-        renderProduct()
+        publishStore.loadRenderedProduct(product.value.id)
       }
     })
 
@@ -348,7 +334,6 @@ export default {
       supported_report_types,
       render_direct,
       saveProduct,
-      renderProduct,
       downloadProduct,
       rerenderProduct
     }

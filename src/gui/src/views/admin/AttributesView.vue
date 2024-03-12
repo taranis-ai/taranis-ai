@@ -52,13 +52,13 @@ export default {
         name: 'name',
         label: 'Name',
         type: 'text',
-        rules: [(v) => !!v || 'Required']
+        rules: ['required']
       },
       {
         name: 'description',
         label: 'Description',
         type: 'textarea',
-        rules: [(v) => !!v || 'Required']
+        rules: ['required']
       },
       {
         name: 'default_value',
@@ -87,7 +87,7 @@ export default {
           'CPE',
           'CVSS'
         ],
-        rules: [(v) => !!v || 'Required']
+        rules: ['required']
       },
       {
         name: 'validator',

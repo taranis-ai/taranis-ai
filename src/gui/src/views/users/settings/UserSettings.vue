@@ -8,22 +8,12 @@
           </span>
           <v-spacer></v-spacer>
           <v-btn
-            class="mr-2"
-            color="red"
-            variant="outlined"
-            prepend-icon="mdi-undo"
-            @click="resetDefaults()"
-          >
-            <!-- TODO: here it would need a revisit the translation json   {{ $t('settings.reset') }}-->
-            Reset and apply
-          </v-btn>
-          <v-btn
             color="success"
             variant="outlined"
             prepend-icon="mdi-content-save"
             @click="save()"
           >
-            {{ $t('settings.save') }}
+            {{ $t('button.save') }}
           </v-btn>
         </v-toolbar>
       </v-card-title>
@@ -31,14 +21,32 @@
         <v-row justify="center" align="center">
           <v-col>
             <v-switch
-              v-model="spellcheck"
-              :label="$t('settings.spellcheck')"
+              v-model="split_view"
+              color="success"
+              :label="$t('settings.split_view')"
             ></v-switch>
           </v-col>
           <v-col>
             <v-switch
               v-model="dark_theme"
+              color="success"
               :label="$t('settings.dark_theme')"
+            ></v-switch>
+          </v-col>
+        </v-row>
+        <v-row>
+          <v-col>
+            <v-switch
+              v-model="compact_view"
+              color="success"
+              :label="$t('settings.compact_view')"
+            ></v-switch>
+          </v-col>
+          <v-col>
+            <v-switch
+              v-model="show_charts"
+              color="success"
+              :label="$t('settings.show_charts')"
             ></v-switch>
           </v-col>
         </v-row>
@@ -81,11 +89,11 @@
                 <span v-if="shortcut.key">
                   {{ shortcut.key }}
                 </span>
-                <v-icon v-else color="error">mdi-alert</v-icon>
+                <v-icon v-else color="error" icon="mdi-alert" />
               </v-btn>
             </template>
             <span>
-              {{ $t('settings.' + shortcut.alias) }}
+              {{ shortcut.alias }}
             </span>
           </v-tooltip>
         </v-row>
@@ -112,8 +120,14 @@ export default {
 
     const disableHotkeys = true
 
-    const { hotkeys, dark_theme, spellcheck, language } =
-      storeToRefs(settingsStore)
+    const {
+      hotkeys,
+      dark_theme,
+      split_view,
+      language,
+      compact_view,
+      show_charts
+    } = storeToRefs(userStore)
 
     const locale_descriptions = computed(() => [
       { value: 'en', text: 'English' },
@@ -124,31 +138,9 @@ export default {
     const save = () => {
       userStore
         .saveUserProfile({
-          spellcheck: spellcheck.value,
-          dark_theme: dark_theme.value,
-          hotkeys: shortcuts.value,
-          language: language.value
-        })
-        .then(() => {
-          notifySuccess('notification.successful_update')
-        })
-        .catch(() => {
-          notifyFailure('notification.failed_update')
-        })
-    }
-
-    const resetDefaults = () => {
-      userStore
-        .resetUserProfile()
-        .then(() => {
-          notifySuccess('notification.successful_update')
-        })
-        .catch(() => {
-          notifyFailure('notification.failed_update')
-        })
-      userStore
-        .saveUserProfile({
-          spellcheck: spellcheck.value,
+          split_view: split_view.value,
+          compact_view: compact_view.value,
+          show_charts: show_charts.value,
           dark_theme: dark_theme.value,
           hotkeys: shortcuts.value,
           language: language.value
@@ -213,10 +205,11 @@ export default {
       language,
       locale_descriptions,
       dark_theme,
-      spellcheck,
+      split_view,
+      compact_view,
+      show_charts,
       hotkeys,
       save,
-      resetDefaults,
       pressKeyDialog,
       pressKey
     }

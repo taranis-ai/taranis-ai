@@ -74,7 +74,6 @@ export default {
         Object.entries(route.query).filter(([, v]) => v != null)
       )
       updateProductFilter(query)
-      console.debug('loaded with query', query)
     })
 
     onUnmounted(() => {

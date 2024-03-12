@@ -41,7 +41,7 @@
               class="ml-4"
               @click="addItem"
             >
-              New Item
+              {{ $t('button.new_item') }}
             </v-btn>
             <slot name="titlebar"></slot>
           </v-row>
@@ -90,7 +90,7 @@
               @click.stop="deleteItem(item)"
             />
           </template>
-          <span>Delete</span>
+          <span>{{ $t('button.delete') }}</span>
         </v-tooltip>
       </div>
     </template>

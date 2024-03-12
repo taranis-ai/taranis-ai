@@ -66,33 +66,21 @@
       />
       <v-radio :label="$t('attribute.tlp_red')" color="red" value="RED" />
     </v-radio-group>
-    <date-picker
-      v-if="attributeItem.attribute.type === 'DATE'"
-      v-model:value="input"
+    <VueDatePicker
+      v-if="
+        attributeItem.attribute.type === 'DATE' ||
+        attributeItem.attribute.type === 'DATE_TIME' ||
+        attributeItem.attribute.type === 'TIME'
+      "
+      v-model="input"
+      :name="'dateAttribute-' + attributeItem.title"
       :placeholder="attributeItem.title"
-      :disabled="readOnly"
-      value-type="format"
-      class="date-picker-style"
-    />
-
-    <date-picker
-      v-if="attributeItem.attribute.type === 'DATE_TIME'"
-      v-model:value="input"
-      :placeholder="attributeItem.title"
-      type="datetime"
-      :disabled="readOnly"
-      value-type="format"
-      class="date-picker-style"
-    />
-    <date-picker
-      v-if="attributeItem.attribute.type === 'TIME'"
-      v-model:value="input"
-      :placeholder="attributeItem.title"
-      type="time"
-      :show-second="false"
-      :disabled="readOnly"
-      value-type="format"
-      class="date-picker-style"
+      :time-picker-inline="
+        attributeItem.attribute.type === 'TIME' ||
+        attributeItem.attribute.type === 'DATE_TIME'
+      "
+      clearable
+      auto-apply
     />
     <v-text-field
       v-if="attributeItem.attribute.type === 'CVE'"

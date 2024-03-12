@@ -18,6 +18,8 @@
 
         <edit-tags v-model="story.tags" />
 
+        <attributes-table v-model="story.news_item_attributes" />
+
         <code-editor
           v-model:content="story.comment"
           placeholder="Story comment"
@@ -26,26 +28,26 @@
     </v-card>
     <v-spacer class="pt-2"></v-spacer>
     <v-btn block class="mt-5" type="submit" color="success">
-      {{ submitText }}
+      {{ $t('button.update') }}
     </v-btn>
   </v-form>
 </template>
 
 <script>
-import { computed, ref } from 'vue'
-import { addNewsItem, patchNewsItem } from '@/api/assess'
+import { ref } from 'vue'
+import { patchStory } from '@/api/assess'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
-import { useMainStore } from '@/stores/MainStore'
 import CodeEditor from '@/components/common/CodeEditor.vue'
 import EditTags from '@/components/assess/EditTags.vue'
-import { useI18n } from 'vue-i18n'
+import AttributesTable from '@/components/assess/AttributesTable.vue'
 import { useRouter } from 'vue-router'
 
 export default {
   name: 'StoryEdit',
   components: {
     CodeEditor,
-    EditTags
+    EditTags,
+    AttributesTable
   },
   props: {
     storyProp: {
@@ -55,16 +57,8 @@ export default {
     }
   },
   setup(props) {
-    const mainStore = useMainStore()
     const form = ref(null)
-    const user = computed(() => mainStore.user)
-    const edit = ref(props.newsItemProp ? true : false)
     const router = useRouter()
-    const { t } = useI18n()
-    const submitText = computed(() => {
-      return edit.value ? t('button.update') : t('button.create')
-    })
-
     const story = ref(props.storyProp)
 
     const rules = {
@@ -78,40 +72,24 @@ export default {
         return
       }
 
-      if (edit.value) {
-        try {
-          const result = await patchNewsItem(
-            props.newsItemProp.id,
-            news_item.value
-          )
-          notifySuccess(result)
-        } catch (e) {
-          notifyFailure(e)
-        }
-        router.push('/newsitem/' + props.newsItemProp.id)
-        return
-      }
-
-      news_item.value.author = user.value.name
-      const d = new Date()
-      news_item.value.collected = d.toISOString()
-
       try {
-        const result = await addNewsItem(news_item.value)
-
+        const result = await patchStory(props.storyProp.id, {
+          title: story.value.title,
+          tags: story.value.tags,
+          comment: story.value.comment,
+          attributes: story.value.news_item_attributes
+        })
         notifySuccess(result)
-        console.debug(result.data)
-        router.push('/newsitem/' + result.data.ids[0])
       } catch (e) {
         notifyFailure(e)
       }
+      router.push('/story/' + props.storyProp.id)
     }
 
     return {
       story,
       form,
       rules,
-      submitText,
       submit
     }
   }

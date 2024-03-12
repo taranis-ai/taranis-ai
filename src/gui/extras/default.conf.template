@@ -36,6 +36,7 @@ server {
 
     location /sse {
         proxy_pass http://core/sse;
+        proxy_read_timeout 24h;
     }
 
     error_page   500 502 503 504  /50x.html;

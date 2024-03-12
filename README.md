@@ -1,7 +1,7 @@
 # Taranis AI
 
 > [!WARNING]
-> This Software is still in an alpha stage and breaking changes are still common. A stable release is planned for March 2024. See our [Milestones](https://github.com/taranis-ai/taranis-ai/milestones) for details.
+> This Software is still in an alpha stage and breaking changes are still common. A stable release is planned for April 2nd 2024. See our [Milestones](https://github.com/taranis-ai/taranis-ai/milestones) for details.
 
 ![Logo](./resources/images/logo.svg)
 
@@ -11,6 +11,16 @@ Taranis navigates through diverse data sources like websites to collect unstruct
 Analysts then refine these AI-augmented articles into structured reports that serve as the foundation for deliverables such as PDF files, which are ultimately published.
 
 ![Screenshot](./resources/images/screenshot.png)
+
+
+## Getting Started
+
+
+For production deployments see our [Deployment Guide using docker compose](https://taranis.ai/docs/getting-started/deployment/)
+
+
+For Development read our [Dev Setup Guide](./docker/dev/README.md)
+
 
 ## Documentation
 

@@ -16,6 +16,7 @@ def initialize(app):
     openapi_yaml = Path(__file__).parent.parent / "static" / "openapi3_0.yaml"
     api_doc(app, config_path=openapi_yaml, url_prefix="/api/doc", editor=False)
 
+    core_api.admin.initialize(api)
     core_api.analyze.initialize(api)
     core_api.assess.initialize(api)
     core_api.assets.initialize(api)
@@ -27,6 +28,7 @@ def initialize(app):
     core_api.publish.initialize(api)
     core_api.user.initialize(api)
     core_api.worker.initialize(api)
+    core_api.sse.initialize(app)
 
 
 def handle_bad_request(e):

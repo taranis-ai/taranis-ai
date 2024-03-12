@@ -22,7 +22,7 @@
       />
     </v-toolbar-title>
 
-    <div v-if="showItemCount" class="mr-10">
+    <div v-if="showItemCount && mdAndUp" class="mr-10">
       <span>
         total items: <strong>{{ itemCountTotal }}</strong>
       </span>
@@ -32,7 +32,26 @@
     </div>
 
     <template #append>
-      <v-toolbar color="transparent">
+      <v-menu v-if="mdAndDown" offset-y class="mx-5">
+        <template #activator="{ props }">
+          <v-btn
+            v-ripple="false"
+            density="compact"
+            v-bind="props"
+            icon="mdi-view-headline"
+          />
+        </template>
+
+        <v-list dense>
+          <v-list-item
+            v-for="button in buttonList"
+            :key="button.route"
+            :to="button.route"
+            :title="$t(button.title)"
+          />
+        </v-list>
+      </v-menu>
+      <v-toolbar v-else color="transparent">
         <div v-for="button in buttonList" :key="button.route">
           <v-btn
             variant="text"
@@ -58,6 +77,7 @@ import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/MainStore'
 import { useUserStore } from '@/stores/UserStore'
 import { defineComponent, computed } from 'vue'
+import { useDisplay } from 'vuetify'
 
 export default defineComponent({
   name: 'MainMenu',
@@ -65,6 +85,7 @@ export default defineComponent({
   setup() {
     const mainStore = useMainStore()
     const userStore = useUserStore()
+    const { mdAndDown, mdAndUp } = useDisplay()
 
     mainStore.updateFromLocalConfig()
 
@@ -89,62 +110,50 @@ export default defineComponent({
         title: 'main_menu.dashboard',
         icon: 'mdi-monitor-dashboard',
         permission: 'ASSESS_ACCESS',
-        route: '/',
-        show: true
+        route: '/'
       },
       {
         title: 'main_menu.administration',
         icon: 'mdi-cog-outline',
         permission: 'CONFIG_ACCESS',
-        route: '/config',
-        show: true
-      },
-      {
-        title: 'main_menu.enter',
-        icon: 'mdi-location-enter',
-        permission: 'ASSESS_CREATE',
-        route: '/enter',
-        show: false
+        route: '/config'
       },
       {
         title: 'main_menu.assess',
         icon: 'mdi-google-circles-extended',
         permission: 'ASSESS_ACCESS',
-        route: '/assess',
-        show: true
+        route: '/assess'
       },
       {
         title: 'main_menu.analyze',
         icon: 'mdi-google-circles-communities',
         permission: 'ANALYZE_ACCESS',
-        route: '/analyze',
-        show: true
+        route: '/analyze'
       },
       {
         title: 'main_menu.publish',
         icon: 'mdi-publish',
         permission: 'PUBLISH_ACCESS',
-        route: '/publish',
-        show: true
+        route: '/publish'
       },
       {
         title: 'main_menu.assets',
         icon: 'mdi-file-multiple-outline',
         permission: 'ASSETS_ACCESS',
-        route: '/assets',
-        show: true
+        route: '/assets'
       }
     ]
 
     const buttonList = computed(() => {
-      return buttons.filter(
-        (button) =>
-          userStore.permissions.includes(button.permission) && button.show
+      return buttons.filter((button) =>
+        userStore.permissions.includes(button.permission)
       )
     })
 
     return {
       buildDate,
+      mdAndDown,
+      mdAndUp,
       isFiltered,
       showItemCount,
       itemCountFiltered,
