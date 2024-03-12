@@ -1,4 +1,4 @@
-import { getAllProducts, getAllProductTypes } from '@/api/publish'
+import { getAllProducts, getAllProductTypes, getProduct } from '@/api/publish'
 import { useFilterStore } from './FilterStore'
 import { defineStore } from 'pinia'
 
@@ -16,6 +16,23 @@ export const usePublishStore = defineStore('publish', {
       const response = await getAllProductTypes(data)
       this.product_types = response.data
     },
+    async updateProductByID(product_id) {
+      const response = await getProduct(product_id)
+      const updated_item = response.data
+      let found = false
+
+      this.products.items = this.products.items.map((item) => {
+        if (item.id === product_id) {
+          found = true
+          return { ...item, ...updated_item }
+        }
+        return item
+      })
+
+      if (!found) {
+        this.products.items.push(updated_item)
+      }
+    },
     async updateProducts() {
       const filter = useFilterStore()
       const response = await getAllProducts(filter.productFilter)
@@ -23,6 +40,7 @@ export const usePublishStore = defineStore('publish', {
     },
     sseProductRendered(data) {
       console.debug('Triggerd product rendered: ' + data)
+      this.updateProductByID(data.id)
     }
   },
   persist: {

@@ -19,6 +19,7 @@ import { defineComponent, onMounted, watch } from 'vue'
 import { useAuthStore } from '@/stores/AuthStore'
 import { useFilterStore } from '@/stores/FilterStore'
 import { useMainStore } from '@/stores/MainStore'
+import { useSseStore } from '@/stores/SseStore'
 import { storeToRefs } from 'pinia'
 import { useDisplay } from 'vuetify'
 
@@ -31,6 +32,7 @@ export default defineComponent({
   setup() {
     const { isAuthenticated, timeToRefresh } = storeToRefs(useAuthStore())
     const authStore = useAuthStore()
+    const sseStore = useSseStore()
     const { compactView, compactViewSetByUser } = storeToRefs(useFilterStore())
     const { drawerVisible, drawerSetByUser } = storeToRefs(useMainStore())
 
@@ -38,6 +40,11 @@ export default defineComponent({
 
     onMounted(() => {
       isAuthenticated.value || authStore.logout()
+
+      if (isAuthenticated.value) {
+        sseStore.connectSSE()
+      }
+
       if (timeToRefresh.value > 0) {
         setTimeout(() => {
           console.debug('Refreshing token')

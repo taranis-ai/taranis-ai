@@ -1,4 +1,4 @@
-import { getAllReportItems, getAllReportTypes } from '@/api/analyze'
+import { getAllReportItems, getAllReportTypes, getReportItem } from '@/api/analyze'
 
 import { defineStore } from 'pinia'
 import { useFilterStore } from './FilterStore'
@@ -59,6 +59,24 @@ export const useAnalyzeStore = defineStore('analyze', {
       this.report_items = response.data
     },
 
+    async updateReportByID(report_item_id) {
+      const response = await getReportItem(report_item_id)
+      const updated_item = response.data
+      let found = false
+
+      this.report_items.items = this.report_items.items.map((item) => {
+        if (item.id === report_item_id) {
+          found = true
+          return { ...item, ...updated_item }
+        }
+        return item
+      })
+
+      if (!found) {
+        this.report_items.items.push(updated_item)
+      }
+    },
+
     async loadReportTypes(data) {
       const response = await getAllReportTypes(data)
       this.report_item_types = response.data
@@ -70,6 +88,7 @@ export const useAnalyzeStore = defineStore('analyze', {
 
     sseReportItemUpdate(data) {
       console.debug('Triggerd report item update: ' + data)
+      this.updateReportByID(data.id)
     },
 
     removeSelectionReport(selectedItem) {

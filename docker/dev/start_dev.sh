@@ -1,8 +1,19 @@
 #!/bin/bash
 
+set -eu
+
 cd $(git rev-parse --show-toplevel)
 
 source docker/dev/env.dev
+
+# Check if this is executed on ubuntu
+if [ -f /etc/lsb-release ]; then
+    ./docker/dev/install_dependencies.sh
+else
+    echo "This script is only supported on Ubuntu."
+    echo "See README.md for manual installation instructions."
+    exit 1
+fi
 
 if [ ! -f "src/core/.env" ]; then
     cp docker/dev/env.dev src/core/.env

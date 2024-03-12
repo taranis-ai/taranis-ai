@@ -14,6 +14,7 @@ class SSE:
         return q
 
     def publish(self, data: str | dict, event=None):
+        logger.debug(f"Publishing SSE: {data}")
         msg = self.format_sse(data, event)
         for i in reversed(range(len(self.listeners))):
             try:

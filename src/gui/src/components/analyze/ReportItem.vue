@@ -5,7 +5,8 @@
       <v-spacer />
       <v-switch
         v-model="verticalView"
-        style="max-width: 150px"
+        style="max-width: 250px"
+        class="mr-4"
         label="Side-by-side"
         hide-details
         color="success"
@@ -14,7 +15,7 @@
       <v-switch
         v-if="edit"
         v-model="report_item.completed"
-        style="max-width: 150px"
+        style="max-width: 250px"
         hide-details
         label="Completed"
         color="success"

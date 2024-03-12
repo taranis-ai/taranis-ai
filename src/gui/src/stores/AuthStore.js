@@ -29,8 +29,6 @@ export const useAuthStore = defineStore('authenticator', {
         const response = await authenticate(userData)
         this.setJwtToken(response.data.access_token)
         const userStore = useUserStore()
-        const sseStore = useSseStore()
-        sseStore.connectSSE()
         userStore.loadUser()
       } catch (error) {
         this.clearJwtToken()

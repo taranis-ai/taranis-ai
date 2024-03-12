@@ -12,6 +12,13 @@ export const useSseStore = defineStore('sse', () => {
   let sseConnection = null
 
   const connectSSE = () => {
+    if (sseConnection !== null && isConnected.value) {
+      console.debug(
+        'An SSE connection is already active. Skipping new connection.'
+      )
+      return
+    }
+
     const assessStore = useAssessStore()
     const analyzeStore = useAnalyzeStore()
     const publishStore = usePublishStore()
