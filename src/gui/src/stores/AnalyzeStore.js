@@ -33,7 +33,6 @@ export const useAnalyzeStore = defineStore('analyze', {
       })
     },
     getReportItemsTableData() {
-
       return this.report_items.items.map((item) =>
         mapReportItem(item, this.report_item_types.items)
       )
@@ -67,6 +66,10 @@ export const useAnalyzeStore = defineStore('analyze', {
 
     addSelectionReport(selected_item) {
       this.selection_report.push(selected_item)
+    },
+
+    sseReportItemUpdate(data) {
+      console.debug('Triggerd report item update: ' + data)
     },
 
     removeSelectionReport(selectedItem) {

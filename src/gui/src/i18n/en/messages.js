@@ -269,7 +269,7 @@ export const messages_en = {
     successful_edit: 'ACL was successfully updated',
     removed: 'ACL was successfully removed',
     removed_error: 'ACL is in use and could not be deleted',
-    roles: 'Roles',
+    roles: 'Roles'
   },
 
   product_type: {
