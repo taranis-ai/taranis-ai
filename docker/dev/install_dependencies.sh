@@ -24,14 +24,17 @@ check_if_installed() {
         docker-ce
         docker-compose-plugin
     )
+    local all_installed=true
+
     for pkg in "${packages[@]}"; do
-        if ! dpkg -l | grep -qw "$pkg"; then
-            missing_packages+=("$pkg")
+        if ! dpkg -s "${pkg}" &>/dev/null; then
+            all_installed=false
+            break
         fi
     done
 
-    if [ ${#missing_packages[@]} -eq 0 ]; then
-        echo "All basic utilities are already installed."
+    if $all_installed; then
+        echo "All packages are already installed. Exiting..."
         exit 0
     fi
 }
@@ -72,7 +75,7 @@ setup_nodejs() {
 
 # Install Python 3.11
 install_python() {
-    sudo add-apt-repository ppa:deadsnakes/ppa
+    sudo add-apt-repository -y ppa:deadsnakes/ppa
     sudo apt-get update
     sudo apt-get install -y python3.11 python3.11-dev
 }

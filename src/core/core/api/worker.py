@@ -1,4 +1,4 @@
-from flask import request, send_file
+from flask import request, send_file, Response
 from flask_restx import Resource, Namespace, Api
 from werkzeug.datastructures import FileStorage
 
@@ -94,6 +94,14 @@ class Products(Resource):
             return {"error": "Error reading file"}, 400
         except Exception:
             logger.log_debug_trace()
+
+
+class ProductsRender(Resource):
+    @api_key_required
+    def get(self, product_id):
+        if product_data := Product.get_render(product_id):
+            return Response(product_data["blob"], headers={"Content-Type": product_data["mime_type"]}, status=200)
+        return {"error": f"Product {product_id} not found"}, 404
 
 
 class Presenters(Resource):
@@ -309,8 +317,8 @@ def initialize(api: Api):
     )
     worker_ns.add_resource(AddNewsItems, "/news-items")
     worker_ns.add_resource(BotsInfo, "/bots")
+    worker_ns.add_resource(ProductsRender, "/products/<int:product_id>/render")
     worker_ns.add_resource(Tags, "/tags")
-    worker_ns.add_resource(DropTags, "/tags/drop")
     worker_ns.add_resource(BotInfo, "/bots/<string:bot_id>")
     worker_ns.add_resource(PostCollectionBots, "/post-collection-bots")
     worker_ns.add_resource(NewsItemsAggregates, "/news-item-aggregates", "/stories")
