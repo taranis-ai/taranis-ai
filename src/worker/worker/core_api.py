@@ -64,11 +64,13 @@ class CoreApi:
     def get_product(self, product_id: int) -> dict | None:
         return self.api_get(f"/worker/products/{product_id}")
 
-    def get_product_render(self, product_id: int) -> bytes | None:
+    def get_product_render(self, product_id: int) -> tuple[bytes, str] | None:
         try:
             url = f"/worker/products/{product_id}/render"
             response = requests.get(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
-            return response.content if response.ok else None
+            if not response.ok:
+                return None
+            return response.content, response.headers["Content-Type"]
         except Exception:
             return None
 
