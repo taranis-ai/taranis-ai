@@ -1,12 +1,14 @@
 import queue
 import json
+from core.managers.log_manager import logger
 
 
 class SSE:
     def __init__(self):
         self.listeners = []
 
-    def listen(self):
+    def listen(self) -> queue.Queue:
+        logger.debug("Add new SSE listener.")
         q = queue.Queue(maxsize=20)
         self.listeners.append(q)
         return q

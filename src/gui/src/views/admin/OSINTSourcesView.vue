@@ -109,7 +109,8 @@ export default {
         {
           name: 'icon',
           label: 'Icon',
-          type: 'icon'
+          type: 'icon',
+          rules: ['filesize']
         },
         {
           name: 'name',

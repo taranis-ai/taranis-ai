@@ -63,12 +63,12 @@
         />
         <v-file-input
           v-if="item.type === 'icon'"
-          @change="handleFileUpload(item.type, $event)"
-          :rules="[rules.filesize]"
+          :rules="[item.rules]"
           accept="image/png"
           :label="item.label"
           placeholder="Pick an avatar"
           prepend-icon="mdi-camera"
+          @change="handleFileUpload(item.type, $event)"
         ></v-file-input>
         <v-row
           v-if="item.type === 'checkbox' && item.items !== undefined"
@@ -162,7 +162,6 @@ export default {
       default: null
     }
   },
- 
   emits: ['submit'],
   setup(props, { emit }) {
     const config_form = ref(null)
@@ -174,7 +173,11 @@ export default {
 
     const rulesDict = {
       required: (v) => Boolean(v) || 'Required',
-      email: (v) => /.+@.+\..+/.test(v) || 'E-mail must be valid'
+      email: (v) => /.+@.+\..+/.test(v) || 'E-mail must be valid',
+      filesize: (file) =>
+        file.length
+          ? file[0].size < 2 * 1024 * 1024 || 'Filesize must be less than 2 MB!'
+          : true
     }
 
     const { d } = useI18n()
@@ -188,22 +191,16 @@ export default {
       emit('submit', reconstructFormData(formData.value, format.value))
     }
 
-    const rules = {
-      filesize: (file) =>  file.length ? file[0].size <  2 * 1024 * 1024 || 'Avatar size must be less than 2 MB!': true
-    }
-   
-
     const handleFileUpload = async (type, event) => {
-      const base64String =  await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(event.target.files[0]);
-        reader.onload = () => resolve(reader.result.split(',')[1]);
-        reader.onerror = error => reject(error);
-      });
+      const base64String = await new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.readAsDataURL(event.target.files[0])
+        reader.onload = () => resolve(reader.result.split(',')[1])
+        reader.onerror = (error) => reject(error)
+      })
       formData.value[type] = base64String
-      return base64String; 
+      return base64String
     }
-
 
     const addItem = (name) => {
       const newRow = {}
@@ -229,7 +226,7 @@ export default {
         return []
       }
       if (!props.parameters[formData.value.type]) {
-        return [] 
+        return []
       }
       return props.parameters[formData.value.type]
     })
@@ -274,8 +271,8 @@ export default {
       search,
       addItem,
       handleSubmit,
-      handleFileUpload, 
-      rules      
+      handleFileUpload,
+      rules
     }
   }
 }

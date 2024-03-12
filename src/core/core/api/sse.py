@@ -10,8 +10,7 @@ class SSE(Resource):
         def stream():
             messages = sse_manager.sse.listen()
             while True:
-                msg = messages.get()
-                yield msg
+                yield messages.get()
 
         return Response(stream_with_context(stream()), mimetype="text/event-stream")
 

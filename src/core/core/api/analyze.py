@@ -88,7 +88,7 @@ class ReportItemLocks(Resource):
     @auth_required("ANALYZE_UPDATE")
     @validate_id("report_item_id")
     def get(self, report_item_id):
-        return sse_manager.to_json(report_item_id)
+        return sse_manager.to_report_item_json(report_item_id)
 
 
 class ReportItemLock(Resource):

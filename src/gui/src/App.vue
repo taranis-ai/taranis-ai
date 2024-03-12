@@ -17,10 +17,8 @@ import MainMenu from '@/components/MainMenu.vue'
 import Notification from '@/components/common/Notification.vue'
 import { defineComponent, onMounted, watch } from 'vue'
 import { useAuthStore } from '@/stores/AuthStore'
-import { useAssessStore } from '@/stores/AssessStore'
 import { useFilterStore } from '@/stores/FilterStore'
 import { useMainStore } from '@/stores/MainStore'
-import { connectSSE } from '@/utils/sse'
 import { storeToRefs } from 'pinia'
 import { useDisplay } from 'vuetify'
 
@@ -33,26 +31,18 @@ export default defineComponent({
   setup() {
     const { isAuthenticated, timeToRefresh } = storeToRefs(useAuthStore())
     const authStore = useAuthStore()
-    const assessStore = useAssessStore()
     const { compactView, compactViewSetByUser } = storeToRefs(useFilterStore())
     const { drawerVisible, drawerSetByUser } = storeToRefs(useMainStore())
 
     const { mdAndDown, lgAndDown, name: displayName } = useDisplay()
 
     onMounted(() => {
-      console.debug('App mounted')
-      assessStore.$reset()
-      if (isAuthenticated.value) {
-        connectSSE()
-      } else {
-        authStore.logout()
-      }
+      isAuthenticated.value || authStore.logout()
       if (timeToRefresh.value > 0) {
         setTimeout(() => {
           console.debug('Refreshing token')
           if (isAuthenticated.value) {
             authStore.refresh()
-            // reconnectSSE() # TODO: Implement see Issue #102
           }
         }, timeToRefresh.value)
       }

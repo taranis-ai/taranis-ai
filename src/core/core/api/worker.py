@@ -85,19 +85,10 @@ class Products(Resource):
             logger.log_debug_trace()
 
     @api_key_required
-    def post(self, product_id: str):
-        try:
-            if render_result := request.data:
-                return Product.update_render_for_id(product_id, render_result)
-
-            return {"error": "Error reading file"}, 400
-        except Exception:
-            logger.log_debug_trace()
-
-    @api_key_required
     def put(self, product_id: str):
         try:
             if render_result := request.data:
+                sse_manager.product_rendered(product_id)
                 return Product.update_render_for_id(product_id, render_result)
 
             return {"error": "Error reading file"}, 400

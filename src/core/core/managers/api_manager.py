@@ -28,6 +28,7 @@ def initialize(app):
     core_api.publish.initialize(api)
     core_api.user.initialize(api)
     core_api.worker.initialize(api)
+    core_api.sse.initialize(api)
 
 
 def handle_bad_request(e):

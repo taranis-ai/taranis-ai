@@ -2,6 +2,7 @@ import { authenticate, refresh } from '@/api/auth'
 import { apiService } from '@/main'
 import { Base64 } from 'js-base64'
 import { useUserStore } from './UserStore'
+import { useSseStore } from './SseStore'
 import { useAssessStore } from './AssessStore'
 import { defineStore } from 'pinia'
 import { router } from '@/router'
@@ -28,6 +29,8 @@ export const useAuthStore = defineStore('authenticator', {
         const response = await authenticate(userData)
         this.setJwtToken(response.data.access_token)
         const userStore = useUserStore()
+        const sseStore = useSseStore()
+        sseStore.connectSSE()
         userStore.loadUser()
       } catch (error) {
         this.clearJwtToken()
@@ -41,11 +44,14 @@ export const useAuthStore = defineStore('authenticator', {
       const userStore = useUserStore()
       userStore.reset_user()
       const assessStore = useAssessStore()
+      const sseStore = useSseStore()
+      sseStore.resetSSE()
       assessStore.$reset()
       router.push({ name: 'login' })
     },
     async refresh() {
       try {
+        console.debug('Refreshing token')
         const response = await refresh()
         this.setJwtToken(response.data.access_token)
         const userStore = useUserStore()

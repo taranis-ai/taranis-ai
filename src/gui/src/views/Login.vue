@@ -49,7 +49,6 @@
               type="submit"
               color="primary"
               :disabled="loginButtonDisabled"
-              @click="authenticate"
             />
           </v-col>
         </v-row>
