@@ -46,6 +46,12 @@ class QueueManager:
         for word_list in word_lists:
             self.celery.send_task("gather_word_list", args=[word_list.id], task_id=f"gather_word_list_{word_list.id}", bind=True)
 
+    def get_queued_tasks(self):
+        if self.error:
+            return {"error": "QueueManager not initialized"}, 500
+        tasks = self.celery.control.inspect().scheduled()
+        return {"tasks": tasks}, 200
+
     def ping_workers(self):
         if self.error:
             logger.error("QueueManager not initialized")

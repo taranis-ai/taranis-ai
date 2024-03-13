@@ -271,8 +271,7 @@ export default {
       search,
       addItem,
       handleSubmit,
-      handleFileUpload,
-      rules
+      handleFileUpload
     }
   }
 }

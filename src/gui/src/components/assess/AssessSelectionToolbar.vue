@@ -50,16 +50,12 @@
         class="news-item-toolbar toolbar-start"
       >
         <v-btn
-          v-for="button in newsItemButtons"
-          :key="button.label"
+          text="remove"
           :ripple="false"
-          size="small"
-          @click.stop="actionClicked(button.action)"
+          prepend-icon="mdi-close-circle-outline"
+          @click.stop="actionClicked('remove')"
         >
-          <template #prepend>
-            <v-icon :icon="button.icon" size="small" class="mr-2" />
-          </template>
-          {{ button.label }}
+          <v-tooltip activator="parent" text="remove from story" />
         </v-btn>
       </v-col>
       <v-col
@@ -116,17 +112,6 @@ export default {
       return 8
     })
 
-    const newsItemButtons = computed(() => {
-      const buttons = [
-        {
-          label: 'remove',
-          icon: 'mdi-close-circle-outline',
-          action: 'remove'
-        }
-      ]
-      return buttons
-    })
-
     const actionClicked = (action) => {
       if (action === 'merge') {
         groupAction(storySelection.value)
@@ -159,7 +144,6 @@ export default {
     return {
       sharingDialog,
       storySelection,
-      newsItemButtons,
       newsItemSelection,
       startCols,
       actionClicked,

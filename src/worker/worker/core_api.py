@@ -72,6 +72,7 @@ class CoreApi:
                 return None
             return response.content, response.headers["Content-Type"]
         except Exception:
+            logger.exception("Can't get Product Render")
             return None
 
     def get_publisher(self, publisher_id: str) -> dict | None:

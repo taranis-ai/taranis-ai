@@ -71,6 +71,7 @@ class Settings(BaseSettings):
         self.CELERY = {
             "broker_url": broker_url,
             "ignore_result": True,
+            "create_missing_queues": True,
             "broker_connection_retry_on_startup": True,
             "broker_connection_retry": False,  # To suppress deprecation warning
             "enable_utc": True,
