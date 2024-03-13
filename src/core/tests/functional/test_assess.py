@@ -69,7 +69,6 @@ class TestAssessApi(BaseTest):
         attribs = {"key": "1293", "value": "some value", "binary_mime_type": "dGVzdAo=", "binary_value": "dGVzdAo="}
 
         news_item = {
-            "id": "1337",
             "title": "test title",
             "review": "test review",
             "source": "test source",
@@ -97,7 +96,7 @@ class TestAssessApi(BaseTest):
         response = client.get("/api/assess/news-item-aggregates", headers=auth_header)
         assert response
         assert response.data
-        assert response.get_json()["total_count"] == 3
+        assert response.get_json()["total_count"] == 2
         assert response.content_type == "application/json"
         assert response.status_code == 200
 
@@ -123,7 +122,7 @@ class TestAssessApi(BaseTest):
         assert response.get_json()["total_count"] > 0
 
         response = client.get("/api/assess/news-item-aggregates?offset=1", headers=auth_header)
-        assert len(response.get_json()["items"]) == 2
+        assert len(response.get_json()["items"]) == 1
 
         response = client.get("/api/assess/news-item-aggregates?limit=1", headers=auth_header)
         assert len(response.get_json()["items"]) == 1
@@ -149,7 +148,7 @@ class TestAssessApi(BaseTest):
         assert response.data
         assert response.content_type == "application/json"
         assert response.status_code == 200
-        assert len(response.get_json()["items"]) == 3
+        assert len(response.get_json()["items"]) == 2
 
     def test_get_NewsItemAggregatesTags_unauth(self, client):
         """
