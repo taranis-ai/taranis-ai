@@ -107,7 +107,6 @@ export default {
         Object.entries(route.query).filter(([, v]) => v != null)
       )
       filterStore.updateAssetFilter(query)
-      console.debug('loaded with query', query)
     })
 
     return {

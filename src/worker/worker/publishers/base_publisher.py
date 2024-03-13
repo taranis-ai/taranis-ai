@@ -1,12 +1,13 @@
 from worker.log import logger
+from worker.core_api import CoreApi
 
 
 class BasePublisher:
-    type = "BASE_PUBLISHER"
-    name = "Base Publisher"
-    description = "Base abstract type for all publishers"
-
-    parameters = []
+    def __init__(self):
+        self.type = "BASE_PUBLISHER"
+        self.name = "Base Publisher"
+        self.description = "Base abstract type for all publishers"
+        self.core_api = CoreApi()
 
     def publish(self, publisher_input):
         pass

@@ -70,7 +70,7 @@ def news_item_aggregates(app, request, news_items_data):
 
         def teardown():
             user = User.find_by_name("admin")
-            news_item_aggregates, _ = NewsItemAggregate.get_by_filter({"group": ["default"]}, user)
+            news_item_aggregates, _ = NewsItemAggregate.get_by_filter({})
             for aggregate in news_item_aggregates:
                 aggregate.delete(user)
 

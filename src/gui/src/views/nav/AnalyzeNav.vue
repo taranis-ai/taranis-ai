@@ -83,7 +83,6 @@ export default {
         Object.entries(route.query).filter(([, v]) => v != null)
       )
       updateReportFilter(query)
-      console.debug('loaded with query', query)
     })
 
     onUnmounted(() => {

@@ -7,7 +7,7 @@ import {
   voteNewsItemAggregate,
   deleteNewsItemAggregate,
   updateStoryTags,
-  getStory,
+  getStory
 } from '@/api/assess'
 import { defineStore } from 'pinia'
 import { xorConcat, notifyFailure, notifySuccess } from '@/utils/helpers'
@@ -22,7 +22,8 @@ export const useAssessStore = defineStore('assess', {
     newsItemSelection: [],
     storySelection: [],
     max_item: 0,
-    loading: false
+    loading: false,
+    new_news_items: false
   }),
   getters: {
     getOSINTSourceGroupsList() {
@@ -47,7 +48,6 @@ export const useAssessStore = defineStore('assess', {
   },
   actions: {
     async updateNewsItems() {
-      console.debug('updateNewsItems')
       try {
         this.loading = true
         const filter = useFilterStore()
@@ -60,13 +60,13 @@ export const useAssessStore = defineStore('assess', {
         notifyFailure(error.message)
       }
     },
-    async appendNewsItems() {
-      console.debug('appendNewsItems')
+    async modifyNewsItemsList(action = 'append') {
       try {
         this.loading = true
-        // filter should be a copy of the original filter
+        // Make a copy of the original filter and adjust the offset based on the action
         const filter = { ...useFilterStore().newsItemsFilter }
-        filter.offset = this.newsItems.items.length
+        filter.offset = action === 'prepend' ? 0 : this.newsItems.items.length
+
         const response = await getStories(filter)
         const existingItemIds = new Set(
           this.newsItems.items.map((item) => item.id)
@@ -75,7 +75,12 @@ export const useAssessStore = defineStore('assess', {
           (item) => !existingItemIds.has(item.id)
         )
 
-        this.newsItems.items = [...this.newsItems.items, ...uniqueNewItems]
+        // Adjust the items array based on the action
+        this.newsItems.items =
+          action === 'append'
+            ? [...this.newsItems.items, ...uniqueNewItems]
+            : [...uniqueNewItems, ...this.newsItems.items]
+
         this.newsItems.total_count = response.data.total_count
         this.max_item = response.data.max_item
         this.loading = false
@@ -84,6 +89,14 @@ export const useAssessStore = defineStore('assess', {
         notifyFailure(error.message)
       }
     },
+
+    async appendNewsItems() {
+      await this.modifyNewsItemsList('append')
+    },
+    async prependNewsItems() {
+      await this.modifyNewsItemsList('prepend')
+    },
+
     removeStoryByID(id) {
       deleteNewsItemAggregate(id)
       this.newsItems.items = this.newsItems.items.filter(
@@ -152,6 +165,22 @@ export const useAssessStore = defineStore('assess', {
     },
     clearStorySelection() {
       this.storySelection = []
+    },
+    markSelectionAsRead() {
+      console.debug('Mark as Read: ', this.storySelection)
+
+      this.storySelection.forEach((id) => {
+        this.readNewsItemAggregate(id)
+      })
+    },
+    markSelectionAsImportant() {
+      this.storySelection.forEach((id) => {
+        this.importantNewsItemAggregate(id)
+      })
+    },
+    sseNewsItemsUpdated() {
+      console.debug('Triggerd News items update')
+      this.new_news_items = true
     },
     readNewsItemAggregate(id) {
       const item = this.newsItems.items.find((item) => item.id === id)

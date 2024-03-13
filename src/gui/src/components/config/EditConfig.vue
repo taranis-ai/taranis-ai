@@ -61,6 +61,15 @@
           density="compact"
           :disabled="true"
         />
+        <v-file-input
+          v-if="item.type === 'icon'"
+          :rules="[item.rules]"
+          accept="image/png"
+          :label="item.label"
+          placeholder="Pick an avatar"
+          prepend-icon="mdi-camera"
+          @change="handleFileUpload(item.type, $event)"
+        ></v-file-input>
         <v-row
           v-if="item.type === 'checkbox' && item.items !== undefined"
           no-gutters
@@ -121,7 +130,7 @@
 </template>
 
 <script>
-import { watch, computed, onUpdated } from 'vue'
+import { watch, computed, onUpdated, onMounted } from 'vue'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
@@ -162,6 +171,15 @@ export default {
         objectFromFormat(props.formFormat)
     )
 
+    const rulesDict = {
+      required: (v) => Boolean(v) || 'Required',
+      email: (v) => /.+@.+\..+/.test(v) || 'E-mail must be valid',
+      filesize: (file) =>
+        file.length
+          ? file[0].size < 2 * 1024 * 1024 || 'Filesize must be less than 2 MB!'
+          : true
+    }
+
     const { d } = useI18n()
 
     const handleSubmit = async () => {
@@ -173,6 +191,17 @@ export default {
       emit('submit', reconstructFormData(formData.value, format.value))
     }
 
+    const handleFileUpload = async (type, event) => {
+      const base64String = await new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.readAsDataURL(event.target.files[0])
+        reader.onload = () => resolve(reader.result.split(',')[1])
+        reader.onerror = (error) => reject(error)
+      })
+      formData.value[type] = base64String
+      return base64String
+    }
+
     const addItem = (name) => {
       const newRow = {}
       const headers = format.value.find((row) => row.name === name).headers
@@ -181,6 +210,15 @@ export default {
           header.type === 'number' ? 0 : `new${header.value}`
       })
       formData.value[name].push(newRow)
+    }
+
+    const getRules = (rules) => {
+      if (!rules) {
+        return []
+      }
+      return rules
+        .filter((rule) => rulesDict[rule])
+        .map((rule) => rulesDict[rule])
     }
 
     const selectedParameters = computed(() => {
@@ -198,7 +236,8 @@ export default {
       return formats.map((item) => {
         return {
           ...item,
-          flatKey: item.parent ? `${item.parent}.${item.name}` : item.name
+          flatKey: item.parent ? `${item.parent}.${item.name}` : item.name,
+          rules: getRules(item.rules)
         }
       })
     })
@@ -208,6 +247,10 @@ export default {
       objectFromFormat(format.value)
 
     onUpdated(() => {
+      config_form.value.scrollIntoView({ behavior: 'smooth' })
+    })
+
+    onMounted(() => {
       config_form.value.scrollIntoView({ behavior: 'smooth' })
     })
 
@@ -227,7 +270,8 @@ export default {
       format,
       search,
       addItem,
-      handleSubmit
+      handleSubmit,
+      handleFileUpload
     }
   }
 }

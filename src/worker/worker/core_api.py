@@ -66,12 +66,14 @@ class CoreApi:
 
     def get_product_render(self, product_id: int) -> tuple[bytes, str] | None:
         try:
-            url = f"/worker/products/{product_id}/render"
+            url = f"{self.api_url}/worker/products/{product_id}/render"
             response = requests.get(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
             if not response.ok:
+                logger.error(f"Call to {url} failed {response.status_code}")
                 return None
             return response.content, response.headers["Content-Type"]
         except Exception:
+            logger.exception("Can't get Product Render")
             return None
 
     def get_publisher(self, publisher_id: str) -> dict | None:
@@ -243,4 +245,3 @@ class CoreApi:
         except Exception:
             logger.log_debug_trace("Cannot cleanup token blacklist")
             return False
-

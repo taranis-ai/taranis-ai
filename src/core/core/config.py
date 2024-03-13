@@ -17,6 +17,7 @@ class Settings(BaseSettings):
 
     JWT_IDENTITY_CLAIM: str = "sub"
     JWT_ACCESS_TOKEN_EXPIRES: int = 14400
+    JWT_TOKEN_LOCATION: list = ["headers", "query_string"]
 
     DB_URL: str = "localhost"
     DB_DATABASE: str = "taranis"
@@ -70,6 +71,7 @@ class Settings(BaseSettings):
         self.CELERY = {
             "broker_url": broker_url,
             "ignore_result": True,
+            "create_missing_queues": True,
             "broker_connection_retry_on_startup": True,
             "broker_connection_retry": False,  # To suppress deprecation warning
             "enable_utc": True,

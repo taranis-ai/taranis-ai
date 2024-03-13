@@ -107,10 +107,16 @@ export default {
           type: 'date'
         },
         {
+          name: 'icon',
+          label: 'Icon',
+          type: 'icon',
+          rules: ['filesize']
+        },
+        {
           name: 'name',
           label: 'Name',
           type: 'text',
-          rules: [(v) => !!v || 'Required']
+          rules: ['required']
         },
         {
           name: 'description',
@@ -122,6 +128,7 @@ export default {
           label: 'Collector',
           type: 'select',
           items: collector_options.value,
+          rules: ['required'],
           disabled: edit.value
         }
       ]

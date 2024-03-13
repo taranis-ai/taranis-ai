@@ -42,6 +42,8 @@
           type="text"
         />
 
+        <attributes-table v-model="news_item.attributes" />
+
         <code-editor
           v-model:content="news_item.content"
           :placeholder="placeholder"
@@ -61,13 +63,15 @@ import { addNewsItem, patchNewsItem } from '@/api/assess'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import { useUserStore } from '@/stores/UserStore'
 import CodeEditor from '@/components/common/CodeEditor.vue'
+import AttributesTable from '@/components/assess/AttributesTable.vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 export default {
   name: 'NewsItemEdit',
   components: {
-    CodeEditor
+    CodeEditor,
+    AttributesTable
   },
   props: {
     newsItemProp: {
@@ -132,7 +136,6 @@ export default {
         const result = await addNewsItem(news_item.value)
 
         notifySuccess(result)
-        console.debug(result.data)
         router.push('/newsitem/' + result.data.ids[0])
       } catch (e) {
         notifyFailure(e)

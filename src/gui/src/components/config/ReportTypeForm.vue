@@ -25,8 +25,8 @@
         <v-col cols="12">
           <v-btn
             color="primary"
-            @click="addAttributeGroup"
             prepend-icon="mdi-plus"
+            @click="addAttributeGroup"
           >
             <span>{{ $t('report_type.new_group') }}</span>
           </v-btn>

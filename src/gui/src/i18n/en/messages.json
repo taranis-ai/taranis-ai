@@ -1,0 +1,455 @@
+{
+    "acl": {
+        "description": "Description",
+        "disabled": "Disabled",
+        "enabled": "Enabled",
+        "error": "Could not save this ACL.",
+        "item_id": "Item ID",
+        "item_type": "Item Type",
+        "name": "Name",
+        "readonly": "Readonly",
+        "removed": "ACL was successfully removed",
+        "removed_error": "ACL is in use and could not be deleted",
+        "roles": "Roles",
+        "save": "Save",
+        "successful": "New ACL was successfully added",
+        "successful_edit": "ACL was successfully updated",
+        "writeable": "Writeable"
+    },
+    "analyze": {
+        "sort": "Sort by",
+        "tooltip": {
+            "delete_item": "Delete report item",
+            "delete_items": "Delete report items",
+            "filter_completed": "Show/hide completed report items",
+            "filter_incomplete": "Show/hide incomplete report items",
+            "publish_item": "Create product from report item",
+            "publish_items": "Create product from report items",
+            "range": {
+                "ALL": "Show all report items",
+                "MONTH": "Show report items for the last month",
+                "TODAY": "Show today's report items",
+                "WEEK": "Show report items for the last week"
+            },
+            "sort": {
+                "time": {
+                    "ascending": "Sort report items by creation date ascending",
+                    "descending": "Sort report items by creation date descending"
+                }
+            },
+            "toggle_selection": "Toggle report items selection mode"
+        }
+    },
+    "assess": {
+        "aggregate_description": "Description",
+        "aggregate_detail": "Aggregate Detail",
+        "aggregate_info": "Info",
+        "aggregate_title": "Title",
+        "article": "Article",
+        "attributes": "Attributes",
+        "author": "Author",
+        "collected": "Collected",
+        "comments": "Comments",
+        "description": "Description",
+        "download": "Download",
+        "published": "Published",
+        "select_news_item": "Select News Item",
+        "selected_count": "Selected news items count: ",
+        "shortcuts": {
+            "enter_filter_mode": "Entered filter mode. Exit with Escape."
+        },
+        "source": "Source",
+        "title": "Title",
+        "tooltip": {
+            "analyze_item": "Create analysis report from news item",
+            "analyze_items": "Create analysis report from news items",
+            "delete_item": "Delete news item",
+            "delete_items": "Delete news items",
+            "dislike_item": "Dislike news item",
+            "dislike_items": "Dislike news items",
+            "filter_important": "Show/hide important news items",
+            "filter_in_analyze": "Show/hide news items in analysis",
+            "filter_read": "Show/hide unread news items",
+            "filter_relevant": "Show/hide relevant news items",
+            "group_items": "Group news items into aggregate",
+            "important_item": "Mark news item as important",
+            "important_items": "Mark news items as important",
+            "like_item": "Like news item",
+            "like_items": "Like news items",
+            "open_source": "Open news item's source in a new tab",
+            "range": {
+                "ALL": "Show all news items",
+                "MONTH": "Show news items for the last month",
+                "TODAY": "Show today's news items",
+                "WEEK": "Show news items for the last week"
+            },
+            "read_item": "Mark news item as read",
+            "read_items": "Mark news items as read",
+            "sort": {
+                "relevance": {
+                    "ascending": "Sort news items by relevance ascending",
+                    "descending": "Sort news items by relevance descending"
+                },
+                "time": {
+                    "ascending": "Sort news items by collected date ascending",
+                    "descending": "Sort news items by collected date descending"
+                }
+            },
+            "toggle_selection": "Toggle news items selection mode",
+            "ungroup_item": "Ungroup news item from aggregate",
+            "ungroup_items": "Ungroup news items from aggregate"
+        }
+    },
+    "asset": {
+        "add_group_info": "Please add an asset group",
+        "cpe": "CPE Code",
+        "cpes": "CPE Codes",
+        "description": "Description",
+        "error": "Could not save this asset",
+        "failed": "Failed to manipulate asset",
+        "group": "Asset Group",
+        "new_cpe": "Add CPE Code",
+        "no_vulnerabilities": "No vulnerabilities",
+        "removed": "Asset was successfully removed",
+        "removed_error": "Asset is in use and could not be deleted",
+        "serial": "Serial Number",
+        "successful": "New asset was successfully added",
+        "successful_edit": "Asset was successfully updated",
+        "value": "Value",
+        "vulnerabilities": "Vulnerabilities",
+        "vulnerabilities_count": "Vulnerabilities: "
+    },
+    "asset_group": {
+        "allowed_users": "Allowed users (If none is selected than all users are allowed)",
+        "description": "Description",
+        "error": "Could not save this asset group",
+        "removed": "Asset group was successfully removed",
+        "removed_error": "Asset group is in use and could not be deleted",
+        "successful": "New asset group was successfully added",
+        "successful_edit": "Asset group was successfully updated"
+    },
+    "attribute": {
+        "add_attachment": "Add attachment",
+        "add_value": "Add value",
+        "attribute": "attribute",
+        "attribute_constants": "Attribute Constants",
+        "attribute_parameters": "Attribute Parameters",
+        "attributes": "Attributes",
+        "default_value": "Default Value",
+        "delete_existing": "Delete all existing values",
+        "description": "Description",
+        "edit": "Edit attribute",
+        "error": "Could not create this attribute",
+        "file_has_header": "File has header",
+        "import": "Import",
+        "import_from_csv": "Import from CSV",
+        "load_csv_file": "Load CSV File",
+        "multiple": "Multiple Occurrence",
+        "name": "Name",
+        "new_attribute": "New Attribute",
+        "new_constant": "New Constant",
+        "reload_cpe": "Reload CPE Dictionary",
+        "reload_cve": "Reload CVE Dictionary",
+        "reloading": "Reloading dictionary...",
+        "removed": "Attribute was successfully removed",
+        "removed_error": "Attribute is in use and could not be deleted",
+        "save": "Save",
+        "search": "Search",
+        "select_attachment": "Select attachment",
+        "select_date": "Select Date",
+        "select_datetime": "Select Datetime",
+        "select_enum": "Select Constant Value",
+        "select_file": "Select file",
+        "select_time": "Select Time",
+        "status": "Status",
+        "successful": "New attribute was successfully added",
+        "successful_edit": "Attribute was successfully updated",
+        "tlp_amber": "TLP:AMBER",
+        "tlp_green": "TLP:GREEN",
+        "tlp_red": "TLP:RED",
+        "tlp_white": "TLP:WHITE",
+        "total_count": "Attributes count: ",
+        "type": "Type",
+        "validator": "Validator",
+        "validator_parameter": "Validator Parameter",
+        "value": "Value",
+        "value_text": "Value text"
+    },
+    "button": {
+        "add": "Add",
+        "add_new": "Add New",
+        "cancel": "Cancel",
+        "clear": "Clear",
+        "close": "Close",
+        "create": "Create",
+        "delete": "Delete",
+        "edit": "Edit",
+        "export": "Export",
+        "import": "Import",
+        "new_item": "New Item",
+        "save": "Save",
+        "search": "Search",
+        "update": "Update"
+    },
+    "card_item": {
+        "aggregated_items": "Aggregated News Items",
+        "collected": "Collected",
+        "created": "Created",
+        "description": "Description",
+        "in_analyze": "In Analyze",
+        "name": "Name",
+        "published": "Published",
+        "source": "Source",
+        "status": "Status",
+        "title": "Title",
+        "url": "Url",
+        "username": "Username"
+    },
+    "enter": {
+        "content": "Content",
+        "description": "Description",
+        "error": "Could not create news item.",
+        "failed": "Failed to create or update news item",
+        "link": "Link",
+        "published": "Published",
+        "review": "Review",
+        "source": "Source",
+        "successful": "News item was successfully created",
+        "title": "Title"
+    },
+    "error": {
+        "aggregate_in_use": "Some of selected aggregates or news items are already assigned to a report item",
+        "server_error": "Unknown server error..."
+    },
+    "form": {
+        "description": "Description",
+        "name": "Name",
+        "title": "Title",
+        "username": "Username"
+    },
+    "login": {
+        "backend_error": "Taranis Core Backend error",
+        "error": "Username or password is incorrect",
+        "password": "Password",
+        "submit": "Login",
+        "title": "Please Login",
+        "username": "Username"
+    },
+    "main_menu": {
+        "administration": "Administration",
+        "analyze": "Analyze",
+        "assess": "Assess",
+        "assets": "Assets",
+        "config": "Configuration",
+        "dashboard": "Dashboard",
+        "publish": "Publish"
+    },
+    "nav_menu": {
+        "acls": "ACL",
+        "attributes": "Attributes",
+        "bots": "Bots",
+        "dashboard": "Dashboard",
+        "openapi": "OpenAPI",
+        "organizations": "Organizations",
+        "osint_source_groups": "Source Groups",
+        "osint_sources": "OSINTSources",
+        "product_types": "Product Types",
+        "products": "Products",
+        "publisher": "Publisher",
+        "report_items": "Report Items",
+        "report_types": "Report Types",
+        "roles": "Roles",
+        "settings": "Settings",
+        "user": "User",
+        "users": "Users",
+        "word_lists": "Word Lists",
+        "worker_types": "Worker Types",
+        "workers": "Workers"
+    },
+    "notification": {
+        "close": "Close",
+        "failed_create": "Failed to create",
+        "failed_delete": "Failed to delete",
+        "failed_update": "Failed to update",
+        "successful_create": "Successfully created",
+        "successful_delete": "Successfully deleted",
+        "successful_update": "Successfully updated"
+    },
+    "organization": {
+        "city": "City",
+        "country": "Country",
+        "description": "Description",
+        "edit": "Edit organization",
+        "error": "Could not create this organization",
+        "name": "Name",
+        "removed": "Organization was successfully removed",
+        "removed_error": "Organization is in use and could not be deleted",
+        "street": "Street",
+        "successful": "New organization was successfully added",
+        "successful_edit": "Organization was successfully updated",
+        "zip": "ZIP"
+    },
+    "osint_source": {
+        "collector": "Collector",
+        "description": "Description",
+        "dialog_import": "Import OSINT Sources",
+        "edit": "Edit OSINT source",
+        "error": "Could not save this OSINT source",
+        "export": "Export",
+        "import": "Import",
+        "name": "Name",
+        "osint_source_groups": "OSINT Source Groups",
+        "removed": "OSINT source was successfully removed",
+        "removed_error": "OSINT source is in use and could not be deleted",
+        "successful": "New OSINT source was successfully added",
+        "successful_edit": "OSINT source was successfully updated",
+        "type": "Type",
+        "word_lists": "Word Lists"
+    },
+    "osint_source_group": {
+        "description": "Description",
+        "edit": "Edit OSINT source group",
+        "error": "Could not save this OSINT source group",
+        "name": "Name",
+        "osint_sources": "OSINT Sources",
+        "removed": "OSINT source group was successfully removed",
+        "removed_error": "OSINT source group is in use and could not be deleted",
+        "save": "Save",
+        "successful": "New OSINT source group was successfully added",
+        "successful_edit": "OSINT source group was successfully updated",
+        "title": "Title"
+    },
+    "product": {
+        "description": "Description",
+        "download": "Download",
+        "preview": "Show preview",
+        "product_type": "Product Type",
+        "publish": "Publish product",
+        "publisher": "Publisher",
+        "render": "Render Product",
+        "title": "Title"
+    },
+    "product_type": {
+        "choose_report_type": "Choose report type",
+        "description": "Description",
+        "edit": "Edit new product type",
+        "error": "Could not create this product type.",
+        "help": "Template parameters description",
+        "name": "Name",
+        "news_items": "News Items",
+        "presenter": "Presenter",
+        "removed": "Product type was successfully removed",
+        "removed_error": "Product type is in use and could not be deleted",
+        "report_items": "Report Items",
+        "successful": "New product type was successfully added",
+        "successful_edit": "Product type was successfully updated"
+    },
+    "publish": {
+        "tooltip": {
+            "delete_item": "Delete product",
+            "range": {
+                "ALL": "Show all products",
+                "MONTH": "Show products for the last month",
+                "TODAY": "Show today's products",
+                "WEEK": "Show products for the last week"
+            },
+            "sort": {
+                "time": {
+                    "ascending": "Sort products by creation date ascending",
+                    "descending": "Sort products by creation date descending"
+                }
+            }
+        }
+    },
+    "report_item": {
+        "attributes": "Attributes",
+        "delete_existing_codes": "Delete existing CVE/CPE codes",
+        "import_csv": "Import CSV",
+        "import_from_csv": "Import CVE/CPE from CSV",
+        "no_stories": "No stories found, please add one from Assess tab",
+        "report_type": "Report Item Type",
+        "select": "Select Report Items",
+        "title": "Title",
+        "tooltip": {
+            "add_value": "Add new value to this attribute",
+            "cvss_detail": "Show CVSS calculator definition",
+            "delete_value": "Delete value from this attribute",
+            "enum_selector": "Show value search window",
+            "sort_time": "Sort values from newest",
+            "sort_user": "Show my values first then others"
+        }
+    },
+    "report_type": {
+        "description": "Description",
+        "error": "Could not save this report item type",
+        "name": "Name",
+        "new_group": "New Attribute Group",
+        "removed": "Report item type was successfully removed",
+        "removed_error": "Report item type is in use and could not be deleted",
+        "successful": "New report item type was successfully added",
+        "successful_edit": "Report item type was successfully updated"
+    },
+    "role": {
+        "description": "Description",
+        "edit": "Edit role",
+        "error": "Could not save this role.",
+        "name": "Name",
+        "permissions": "Permissions",
+        "removed": "Role was successfully removed",
+        "removed_error": "Role is in use and could not be deleted",
+        "save": "Save",
+        "successful": "New role was successfully added",
+        "successful_edit": "Role was successfully updated",
+        "title": "Title"
+    },
+    "settings": {
+        "dark_theme": "Dark Theme",
+        "split_view": "Split View",
+        "compact_view": "Compact View",
+        "show_charts": "Show Charts",
+        "locale": "Language",
+        "user_settings": "User settings"
+    },
+    "toolbar_filter": {
+        "all": "All",
+        "custom_filter": "Custom Filter",
+        "search": "Search",
+        "this_month": "This Month",
+        "this_week": "This Week",
+        "today": "Today"
+    },
+    "user": {
+        "edit": "Edit user",
+        "error": "Could not create this user.",
+        "name": "Name",
+        "organization": "Organization",
+        "password": "Password",
+        "password_check": "Retype Password",
+        "permissions": "Permissions",
+        "removed": "User was successfully removed",
+        "removed_error": "User is in use and could not be deleted",
+        "roles": "Roles",
+        "successful": "New user was successfully added",
+        "successful_edit": "User was successfully updated",
+        "username": "Username"
+    },
+    "user_menu": {
+        "logout": "Logout",
+        "settings": "Settings"
+    },
+    "word_list": {
+        "collector_excludelist": "Excludelist during collection",
+        "collector_includelist": "Includelist during collection",
+        "description": "Description",
+        "download_from_link": "Download from URL",
+        "error": "Could not save this word list",
+        "import": "Import",
+        "link": "URL",
+        "remove": "Word list was successfully removed",
+        "removed_error": "Word list is in use and could not be deleted",
+        "successful": "New word list was successfully added",
+        "successful_edit": "Word list was successfully updated",
+        "value": "Value",
+        "words": "Words"
+    }
+}

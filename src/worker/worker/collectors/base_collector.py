@@ -58,6 +58,11 @@ class BaseCollector:
 
         return items
 
+    def add_tlp(self, news_items, tlp_level):
+        for item in news_items:
+            item["attributes"].append({"key": "TLP", "value": tlp_level})
+        return news_items
+
     # Use filtered_items for further processing
 
     def collect(self, source: dict):
@@ -96,6 +101,9 @@ class BaseCollector:
     def publish(self, news_items: list[dict], source: dict):
         if "word_lists" in source:
             news_items = self.filter_by_word_list(news_items, source)
+        if tlp_level := source["parameters"].get("TLP_LEVEL", None):
+            news_items = self.add_tlp(news_items, tlp_level)
+
         for item in news_items:
             item = self.sanitize_news_item(item, source)
         logger.info(f"Publishing {len(news_items)} news items to core api")

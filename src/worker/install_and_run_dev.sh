@@ -14,4 +14,3 @@ python -m pip install -e ."[dev]"
 
 # Run the app
 python ./start_dev_worker.py
-
