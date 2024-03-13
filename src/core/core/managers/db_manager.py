@@ -1,7 +1,6 @@
 import sys
 
 from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
 from core.managers.db_seed_manager import pre_seed
 from sqlalchemy.engine import reflection
 from core.managers.log_manager import logger
@@ -11,7 +10,6 @@ from sqlalchemy import event
 from sqlite3 import Connection as SQLite3Connection
 
 db = SQLAlchemy()
-migrate = Migrate()
 
 
 def is_db_empty():
@@ -22,7 +20,6 @@ def is_db_empty():
 
 def initialize(app, first_worker):
     db.init_app(app)
-    migrate.init_app(app, db)
 
     if "db" in sys.argv:  # called via flask db
         return
