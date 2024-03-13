@@ -8,22 +8,26 @@
       >
         <v-btn
           text="add to report"
+          size="small"
           prepend-icon="mdi-google-circles-communities"
           @click.stop="actionClicked('addToReport')"
         />
         <v-btn
           text="merge"
+          size="small"
           prepend-icon="mdi-merge"
           @click.stop="actionClicked('merge')"
         />
         <v-btn
           text="mark as read"
+          size="small"
           :ripple="false"
           prepend-icon="mdi-eye-check-outline"
           @click.stop="actionClicked('markAsRead')"
         />
         <v-btn
           text="mark as important"
+          size="small"
           :ripple="false"
           prepend-icon="mdi-star"
           @click.stop="actionClicked('markAsImportant')"
@@ -50,11 +54,12 @@
         class="news-item-toolbar toolbar-start"
       >
         <v-btn
-          text="remove"
           :ripple="false"
+          size="small"
           prepend-icon="mdi-close-circle-outline"
           @click.stop="actionClicked('remove')"
         >
+          remove
           <v-tooltip activator="parent" text="remove from story" />
         </v-btn>
       </v-col>

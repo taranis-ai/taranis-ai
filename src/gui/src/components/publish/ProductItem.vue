@@ -107,15 +107,16 @@
         </v-col>
         <v-col v-if="showPreview" :cols="6" class="pa-5 taranis-vertical-view">
           <div v-if="renderedProduct">
-            <span
-              v-if="render_direct"
-              v-dompurify-html="renderedProduct"
-            ></span>
+            <span v-if="render_html" v-dompurify-html="renderedProduct"></span>
 
             <vue-pdf-embed
-              v-else
+              v-if="renderedProductMimeType === 'application/pdf'"
               :source="'data:application/pdf;base64,' + renderedProduct"
             />
+
+            <pre v-if="renderedProductMimeType === 'text/plain'">
+              {{ renderedProduct }}
+            </pre>
           </div>
           <div v-else>
             <v-row class="justify-center mb-4">
@@ -198,11 +199,10 @@ export default {
     const reportItems = computed(() => {
       return analyzeStore.getReportItemsByIDs(supported_report_types.value)
     })
-    const render_direct = computed(() => {
+    const render_html = computed(() => {
       return (
         renderedProductMimeType.value === 'text/html' ||
-        renderedProductMimeType.value === 'application/json' ||
-        renderedProductMimeType.value === 'text/plain'
+        renderedProductMimeType.value === 'application/json'
       )
     })
 
@@ -274,7 +274,7 @@ export default {
 
     function downloadProduct() {
       let bytes
-      if (render_direct.value) {
+      if (render_html.value) {
         bytes = new TextEncoder().encode(renderedProduct.value)
       } else {
         bytes = base64ToArrayBuffer(renderedProduct.value)
@@ -332,7 +332,8 @@ export default {
       renderedProduct,
       report_item_headers,
       supported_report_types,
-      render_direct,
+      renderedProductMimeType,
+      render_html,
       saveProduct,
       downloadProduct,
       rerenderProduct
