@@ -287,12 +287,12 @@ export default {
     })
 
     onUnmounted(() => {
-      filterStore.$reset()
+      filterStore.resetFilter()
     })
 
     const resetFilter = () => {
       assessStore.$reset()
-      filterStore.$reset()
+      filterStore.resetFilter()
     }
 
     function setCompactView() {

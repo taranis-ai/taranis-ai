@@ -1,5 +1,5 @@
 <template>
-  <v-card>
+  <v-card class="h-100">
     <v-toolbar density="compact">
       <v-toolbar-title :text="container_title" />
       <v-spacer />
@@ -44,10 +44,7 @@
     <v-card-text>
       <v-form ref="form" @submit.prevent="saveReportItem">
         <v-row no-gutters>
-          <v-col
-            :cols="verticalView ? 6 : 12"
-            :class="verticalView ? 'taranis-vertical-view' : ''"
-          >
+          <v-col :cols="verticalView ? 6 : 12">
             <v-row no-gutters>
               <v-col v-if="edit" cols="12">
                 <span class="caption">ID: {{ report_item.uuid }}</span>
@@ -113,10 +110,7 @@
               </v-col>
             </v-row>
           </v-col>
-          <v-col
-            :cols="verticalView ? 6 : 12"
-            class="pa-5 taranis-vertical-view"
-          >
+          <v-col :cols="verticalView ? 6 : 12" class="pa-5">
             <v-alert
               v-if="edit && report_item.news_item_aggregates.length == 0"
               dense

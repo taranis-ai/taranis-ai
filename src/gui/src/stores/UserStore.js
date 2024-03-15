@@ -3,6 +3,7 @@ import { getProfile, updateProfile, getUserDetails } from '@/api/user'
 import { i18n } from '@/i18n/i18n'
 import { vuetify } from '@/plugins/vuetify'
 import { ref } from 'vue'
+import { useFilterStore } from './FilterStore'
 
 export const useUserStore = defineStore(
   'user',
@@ -19,6 +20,7 @@ export const useUserStore = defineStore(
     const show_charts = ref(false)
     const dark_theme = ref(false)
     const language = ref('en')
+    const filterStore = useFilterStore()
 
     const reset_user = () => {
       user_id.value = null
@@ -49,6 +51,7 @@ export const useUserStore = defineStore(
         show_charts.value = response.data.profile.show_charts
         dark_theme.value = response.data.profile.dark_theme
         language.value = response.data.profile.language
+        filterStore.setUserFilters(response.data.profile)
       })
     }
 

@@ -1,5 +1,5 @@
 <template>
-  <v-container fluid style="min-height: 100vh">
+  <v-container fluid>
     <asset-group
       v-if="asset"
       v-model:edit="edit"

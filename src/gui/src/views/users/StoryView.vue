@@ -1,5 +1,5 @@
 <template>
-  <v-container v-if="story" fluid style="min-height: 100vh">
+  <v-container v-if="story" fluid>
     <card-story :story="story" :detail-view="true" />
     <assess-selection-toolbar v-if="activeSelection" />
   </v-container>

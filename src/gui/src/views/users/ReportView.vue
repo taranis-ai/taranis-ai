@@ -1,5 +1,5 @@
 <template>
-  <v-container fluid style="min-height: 100vh">
+  <v-container fluid>
     <report-item
       v-if="readyToRender"
       :edit="edit"

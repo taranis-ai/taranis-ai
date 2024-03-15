@@ -1,5 +1,5 @@
 <template>
-  <v-container fluid style="min-height: 100vh">
+  <v-container fluid>
     <product-item
       v-if="readyToRender"
       :product-prop="product"

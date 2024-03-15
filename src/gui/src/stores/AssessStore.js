@@ -11,7 +11,6 @@ import {
 } from '@/api/assess'
 import { defineStore } from 'pinia'
 import { xorConcat, notifyFailure, notifySuccess } from '@/utils/helpers'
-
 import { useFilterStore } from './FilterStore'
 
 export const useAssessStore = defineStore('assess', {
