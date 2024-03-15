@@ -95,7 +95,6 @@ export default defineComponent({
 </script>
 
 <style src="./assets/common.css"></style>
-<style src="./assets/centralize.css"></style>
 
 <style lang="scss">
 @import '@/styles/awake.scss';
@@ -110,11 +109,5 @@ export default defineComponent({
     font-size: 0.95rem;
     font-weight: 300;
   }
-}
-
-mark {
-  background-color: $primary;
-  color: white;
-  padding: 2px 5px;
 }
 </style>

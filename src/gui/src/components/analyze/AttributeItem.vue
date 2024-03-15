@@ -114,7 +114,6 @@
     >
       <!-- TODO: Use MyAssets for Autocomplete -->
     </v-autocomplete>
-    <!-- <AttributeCVSS v-if="attributeItem.attribute.type === 'CVSS'" v-model="input" /> -->
   </div>
 </template>
 
