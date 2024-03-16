@@ -151,6 +151,7 @@ import { usePublishStore } from '@/stores/PublishStore'
 import { notifyFailure, notifySuccess } from '@/utils/helpers'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
+import { useHotkeys } from 'vue-use-hotkeys'
 
 export default {
   name: 'ProductItem',
@@ -172,6 +173,12 @@ export default {
     const showPreview = ref(props.edit)
     const publishDialog = ref(false)
     const form = ref(null)
+
+    useHotkeys('ctrl+p', (event, handler) => {
+      event.preventDefault()
+      console.debug(`You pressed ${handler.key}`)
+      publishDialog.value = true
+    })
 
     const { renderedProduct, renderedProductMimeType } =
       storeToRefs(publishStore)

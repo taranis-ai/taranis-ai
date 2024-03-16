@@ -20,6 +20,8 @@ export const useUserStore = defineStore(
     const show_charts = ref(false)
     const dark_theme = ref(false)
     const language = ref('en')
+    const drawer_visible = ref(true)
+    const drawer_set_by_user = ref(false)
     const filterStore = useFilterStore()
 
     const reset_user = () => {
@@ -34,6 +36,8 @@ export const useUserStore = defineStore(
       compact_view.value = false
       show_charts.value = false
       dark_theme.value = false
+      drawer_set_by_user.value = false
+      drawer_visible.value = true
       language.value = 'en'
     }
 
@@ -89,6 +93,8 @@ export const useUserStore = defineStore(
       roles,
       permissions,
       organization,
+      drawer_visible,
+      drawer_set_by_user,
       hotkeys,
       split_view,
       compact_view,

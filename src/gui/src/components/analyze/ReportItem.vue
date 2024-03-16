@@ -135,6 +135,7 @@
 <script>
 import { ref, computed, onMounted } from 'vue'
 import { useAnalyzeStore } from '@/stores/AnalyzeStore'
+import { useUserStore } from '@/stores/UserStore'
 import { createReportItem, updateReportItem } from '@/api/analyze'
 import AttributeItem from '@/components/analyze/AttributeItem.vue'
 import CardStory from '@/components/assess/CardStory.vue'
@@ -161,7 +162,7 @@ export default {
     const store = useAnalyzeStore()
     const form = ref(null)
 
-    const verticalView = ref(props.edit)
+    const verticalView = ref(useUserStore().split_view)
     const expand_panel_groups = ref([])
     const report_item = ref(props.reportItemProp)
     const required = ref([(v) => !!v || 'Required'])

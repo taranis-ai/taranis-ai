@@ -228,6 +228,7 @@ class ReportItem(BaseModel):
         query = cls.query
 
         if acl_check:
+            query = query.join(ReportItemType, ReportItem.report_item_type_id == ReportItemType.id)
             rbac = RBACQuery(user=user, resource_type=ItemType.REPORT_ITEM_TYPE)
             query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
 

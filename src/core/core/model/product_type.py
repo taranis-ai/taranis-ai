@@ -123,7 +123,7 @@ class ProductType(BaseModel):
                 file_content = f.read()
             return base64.b64encode(file_content).decode("utf-8")
         except Exception as e:
-            print(f"An error occurred: {e}")
+            logger.error(f"An error occurred while converting file: {filepath} to base64: {e}")
             return ""
 
     def _base64_to_file(self, base64_string: str, filepath: str) -> None:
@@ -131,7 +131,7 @@ class ProductType(BaseModel):
             with open(filepath, "wb") as f:
                 f.write(base64.b64decode(base64_string))
         except Exception as e:
-            print(f"An error occurred: {e}")
+            logger.error(f"An error occurred while converting base64 to file {filepath}: {e}")
 
     def get_detail_json(self):
         data = self.to_dict()

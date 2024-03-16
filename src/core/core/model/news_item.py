@@ -422,9 +422,9 @@ class NewsItemAggregate(BaseModel):
     def _add_filters_to_query(cls, filter_args: dict, query):
         query = query.join(NewsItem, NewsItem.news_item_aggregate_id == NewsItemAggregate.id)
         query = query.join(NewsItemData, NewsItem.news_item_data_id == NewsItemData.id)
+        query = query.join(OSINTSource, NewsItemData.osint_source_id == OSINTSource.id)
 
-        if filter_args.get("source") or filter_args.get("group"):
-            query = query.outerjoin(OSINTSource, NewsItemData.osint_source_id == OSINTSource.id)
+        if filter_args.get("group"):
             query = query.outerjoin(OSINTSourceGroupOSINTSource, OSINTSource.id == OSINTSourceGroupOSINTSource.osint_source_id)
             query = query.outerjoin(OSINTSourceGroup, OSINTSourceGroupOSINTSource.osint_source_group_id == OSINTSourceGroup.id)
 
@@ -539,7 +539,8 @@ class NewsItemAggregate(BaseModel):
 
     @classmethod
     def _add_ACL_check(cls, query, user: User):
-        return query
+        rbac = RBACQuery(user=user, resource_type=ItemType.OSINT_SOURCE)
+        return RoleBasedAccessService.filter_query_with_acl(query, rbac)
 
     @classmethod
     def get_by_filter(cls, filter_args: dict, user: User | None = None):

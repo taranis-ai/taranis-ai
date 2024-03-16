@@ -87,8 +87,6 @@ export default defineComponent({
     const userStore = useUserStore()
     const { mdAndDown, mdAndUp } = useDisplay()
 
-    mainStore.updateFromLocalConfig()
-
     const { drawerVisible, itemCountTotal, itemCountFiltered, buildDate } =
       storeToRefs(mainStore)
 

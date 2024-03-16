@@ -4,6 +4,7 @@ import { Base64 } from 'js-base64'
 import { useUserStore } from './UserStore'
 import { useSseStore } from './SseStore'
 import { useAssessStore } from './AssessStore'
+import { useMainStore } from './MainStore'
 import { defineStore } from 'pinia'
 import { router } from '@/router'
 
@@ -43,6 +44,8 @@ export const useAuthStore = defineStore('authenticator', {
       userStore.reset_user()
       const assessStore = useAssessStore()
       const sseStore = useSseStore()
+      const mainStore = useMainStore()
+      mainStore.reset()
       sseStore.resetSSE()
       assessStore.$reset()
       router.push({ name: 'login' })

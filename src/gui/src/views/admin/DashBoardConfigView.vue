@@ -125,8 +125,6 @@ export default {
     const dashboardStore = useDashboardStore()
     const { d } = useI18n()
 
-    mainStore.updateFromLocalConfig()
-
     const { buildDate, gitInfo, upstreamTreeUrl } = storeToRefs(mainStore)
     const { dashboard_data } = storeToRefs(dashboardStore)
 

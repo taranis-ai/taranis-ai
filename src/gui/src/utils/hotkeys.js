@@ -5,7 +5,6 @@ export function assessHotkeys() {
   const assessStore = useAssessStore()
 
   useHotkeys('esc', (event, handler) => {
-    event.preventDefault()
     console.debug(`You pressed ${handler.key}`)
     assessStore.clearSelection()
   })

@@ -177,7 +177,10 @@ export default {
       filesize: (file) =>
         file.length
           ? file[0].size < 2 * 1024 * 1024 || 'Filesize must be less than 2 MB!'
-          : true
+          : true,
+      tlp: (v) =>
+        v in ['red', 'amber', 'amber+strict', 'green', 'clear'] ||
+        'Invalid TLP allowed values: red, amber, amber+strict, green, clear'
     }
 
     const { d } = useI18n()
