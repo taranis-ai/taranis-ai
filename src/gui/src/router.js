@@ -278,6 +278,18 @@ export const router = createRouter({
       }
     },
     {
+      path: '/config/product/templates',
+      name: 'product_templates',
+      components: {
+        default: () => import('@/views/admin/ProductTemplatesView.vue'),
+        nav: () => import('@/views/nav/ConfigNav.vue')
+      },
+      meta: {
+        requiresAuth: true,
+        requiresPerm: Permissions.CONFIG_PRODUCT_TYPE_ACCESS
+      }
+    },
+    {
       path: '/config/reportitems/attributes',
       name: 'attributes',
       components: {

@@ -16,6 +16,7 @@ import {
   getAllWordLists,
   getAllParameters,
   getAllSchedule,
+  getAllTemplates,
   getAllWorkers,
   getAllWorkerTypes,
   getQueueStatus
@@ -36,6 +37,7 @@ export const useConfigStore = defineStore('config', {
     report_item_types: { total_count: 0, items: [] },
     roles: { total_count: 0, items: [] },
     users: { total_count: 0, items: [] },
+    templates: { total_count: 0, items: [] },
     word_lists: { total_count: 0, items: [] },
     schedule: [],
     workers: [],
@@ -210,6 +212,15 @@ export const useConfigStore = defineStore('config', {
       return getAllParameters(data)
         .then((response) => {
           this.parameters = response.data
+        })
+        .catch((error) => {
+          notifyFailure(error)
+        })
+    },
+    async loadTemplates(data) {
+      return getAllTemplates(data)
+        .then((response) => {
+          this.templates = response.data
         })
         .catch((error) => {
           notifyFailure(error)

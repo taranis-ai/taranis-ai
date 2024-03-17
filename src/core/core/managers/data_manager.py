@@ -1,7 +1,20 @@
+import json
+import base64
+import hashlib
 from pathlib import Path
 from werkzeug.datastructures import FileStorage
 from core.config import Config
 from shutil import copy
+
+from core.managers.log_manager import logger
+
+
+def file_hash(file_path):
+    hash_md5 = hashlib.md5()
+    with open(file_path, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            hash_md5.update(chunk)
+    return hash_md5.hexdigest()
 
 
 def get_files_by_suffix(suffix: str) -> list[Path]:
@@ -27,15 +40,31 @@ def is_file_in_subfolder(subfolder: str, file_name: str) -> bool:
 def sync_presenter_templates_to_data() -> None:
     src = Path(__file__).parent.parent / "static" / "presenter_templates"
     dest = Path(Config.DATA_FOLDER) / "presenter_templates"
+    hash_file_path = dest / "template_hashes.json"
+
+    template_hashes = {}
+
+    if hash_file_path.exists():
+        with open(hash_file_path, "r") as f:
+            template_hashes = json.load(f)
+
     dest.mkdir(parents=True, exist_ok=True)
 
     for file in filter(Path.is_file, src.glob("*")):
         dest_path = dest / file.name
-        if not dest_path.exists():
+        current_hash = file_hash(file)
+
+        if not dest_path.exists() or template_hashes.get(file.name) == current_hash:
             copy(file, dest_path)
+            template_hashes[file.name] = current_hash
+
+    with open(hash_file_path, "w") as f:
+        json.dump(template_hashes, f, indent=4)
 
 
 def get_presenter_template_path(presenter_template: str) -> str:
+    if Path.is_absolute(Path(presenter_template)):
+        return Path(presenter_template).absolute().as_posix()
     path = Path(Config.DATA_FOLDER) / "presenter_templates" / presenter_template
     return path.absolute().as_posix()
 
@@ -43,6 +72,38 @@ def get_presenter_template_path(presenter_template: str) -> str:
 def get_presenter_templates() -> list[str]:
     path = Path(Config.DATA_FOLDER) / "presenter_templates"
     return [file.name for file in filter(Path.is_file, path.glob("*"))]
+
+
+def get_template_as_base64(presenter_template: str) -> str:
+    try:
+        filepath = get_presenter_template_path(presenter_template)
+        with open(filepath, "rb") as f:
+            file_content = f.read()
+        return base64.b64encode(file_content).decode("utf-8")
+    except Exception as e:
+        logger.error(f"An error occurred while converting file: {filepath} to base64: {e}")
+        return ""
+
+
+def write_base64_to_file(base64_string: str, presenter_template: str) -> bool:
+    try:
+        filepath = get_presenter_template_path(presenter_template)
+        with open(filepath, "wb") as f:
+            f.write(base64.b64decode(base64_string))
+        return True
+    except Exception as e:
+        logger.error(f"An error occurred while converting base64 to file {filepath}: {e}")
+        return False
+
+
+def delete_template(presenter_template: str) -> bool:
+    try:
+        filepath = get_presenter_template_path(presenter_template)
+        Path(filepath).unlink()
+        return True
+    except Exception as e:
+        logger.error(f"An error occurred while deleting file: {filepath}: {e}")
+        return False
 
 
 def initialize(first_worker: bool) -> None:

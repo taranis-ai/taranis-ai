@@ -9,6 +9,7 @@ from core.managers import (
 )
 from core.managers.log_manager import logger
 from core.managers.auth_manager import auth_required
+from core.managers.data_manager import get_template_as_base64, write_base64_to_file, get_presenter_templates, delete_template
 from core.model import (
     attribute,
     bot,
@@ -32,6 +33,26 @@ class DictionariesReload(Resource):
     def post(self, dictionary_type):
         attribute.Attribute.load_dictionaries(dictionary_type)
         return {"message": "success"}, 200
+
+
+class ACLEntries(Resource):
+    @auth_required("CONFIG_ACL_ACCESS")
+    def get(self):
+        search = request.args.get(key="search", default=None)
+        return role_based_access.RoleBasedAccess.get_all_json(search)
+
+    @auth_required("CONFIG_ACL_CREATE")
+    def post(self):
+        acl = role_based_access.RoleBasedAccess.add(request.json)
+        return {"message": "ACL created", "id": acl.id}, 201
+
+    @auth_required("CONFIG_ACL_UPDATE")
+    def put(self, acl_id):
+        return role_based_access.RoleBasedAccess.update(acl_id, request.json)
+
+    @auth_required("CONFIG_ACL_DELETE")
+    def delete(self, acl_id):
+        return role_based_access.RoleBasedAccess.delete(acl_id)
 
 
 class Attributes(Resource):
@@ -192,24 +213,29 @@ class Roles(Resource):
         return role.Role.delete(role_id)
 
 
-class ACLEntries(Resource):
-    @auth_required("CONFIG_ACL_ACCESS")
-    def get(self):
-        search = request.args.get(key="search", default=None)
-        return role_based_access.RoleBasedAccess.get_all_json(search)
+class Templates(Resource):
+    @auth_required("CONFIG_PRODUCT_TYPE_ACCESS")
+    def get(self, template_path=None):
+        if template_path:
+            template = get_template_as_base64(template_path)
+            return (template, 200) or ({"error": "Product type not found"}, 404)
+        templates = [{"path": t} for t in get_presenter_templates()]
+        return jsonify({"total_count": len(templates), "items": templates})
 
-    @auth_required("CONFIG_ACL_CREATE")
-    def post(self):
-        acl = role_based_access.RoleBasedAccess.add(request.json)
-        return {"message": "ACL created", "id": acl.id}, 201
+    @auth_required("CONFIG_PRODUCT_TYPE_CREATE")
+    def put(self):
+        if not request.json:
+            return {"error": "No data provided"}, 400
+        template_path = request.json.pop("path")
+        if write_base64_to_file(request.json.get("data"), template_path):
+            return {"message": "Template updated or created", "path": template_path}, 200
+        return {"error": "Could not write template to file"}, 500
 
-    @auth_required("CONFIG_ACL_UPDATE")
-    def put(self, acl_id):
-        return role_based_access.RoleBasedAccess.update(acl_id, request.json)
-
-    @auth_required("CONFIG_ACL_DELETE")
-    def delete(self, acl_id):
-        return role_based_access.RoleBasedAccess.delete(acl_id)
+    @auth_required("CONFIG_PRODUCT_TYPE_DELETE")
+    def delete(self, template_path):
+        if delete_template(template_path):
+            return {"message": "Template deleted", "path": template_path}, 200
+        return {"error": "Could not delete template"}, 500
 
 
 class Organizations(Resource):
@@ -520,6 +546,7 @@ def initialize(api: Api):
     namespace.add_resource(Permissions, "/permissions")
     namespace.add_resource(Presenters, "/presenters")
     namespace.add_resource(ProductTypes, "/product-types/<int:type_id>", "/product-types")
+    namespace.add_resource(Templates, "/templates/<string:template_path>", "/templates")
     namespace.add_resource(PublisherPresets, "/publishers-presets/<string:preset_id>", "/publishers-presets")
     namespace.add_resource(Publishers, "/publishers")
     namespace.add_resource(QueueStatus, "/workers/queue-status")

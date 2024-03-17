@@ -1,5 +1,4 @@
 import os
-import base64
 from typing import Any
 from sqlalchemy import or_, Column, String
 from sqlalchemy.orm import Mapped
@@ -11,7 +10,7 @@ from core.model.role_based_access import RoleBasedAccess, ItemType
 from core.model.parameter_value import ParameterValue
 from core.model.report_item_type import ReportItemType
 from core.model.worker import PRESENTER_TYPES, Worker
-from core.managers.data_manager import get_presenter_template_path, get_presenter_templates
+from core.managers.data_manager import get_presenter_template_path, get_presenter_templates, get_template_as_base64, write_base64_to_file
 from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 
 
@@ -95,7 +94,7 @@ class ProductType(BaseModel):
             product_type.report_types = [ReportItemType.get(report_type) for report_type in report_types]
         if template_data := data.get("template"):
             if template_path := product_type.get_template():
-                product_type._base64_to_file(template_data, template_path)
+                write_base64_to_file(template_data, template_path)
         db.session.commit()
         return {"message": f"Updated product type {product_type.title}", "id": product_type.id}, 200
 
@@ -117,26 +116,10 @@ class ProductType(BaseModel):
         full_path = get_presenter_template_path(self._get_template_path())
         return full_path if os.path.isfile(full_path) else ""
 
-    def _file_to_base64(self, filepath: str) -> str:
-        try:
-            with open(filepath, "rb") as f:
-                file_content = f.read()
-            return base64.b64encode(file_content).decode("utf-8")
-        except Exception as e:
-            logger.error(f"An error occurred while converting file: {filepath} to base64: {e}")
-            return ""
-
-    def _base64_to_file(self, base64_string: str, filepath: str) -> None:
-        try:
-            with open(filepath, "wb") as f:
-                f.write(base64.b64decode(base64_string))
-        except Exception as e:
-            logger.error(f"An error occurred while converting base64 to file {filepath}: {e}")
-
     def get_detail_json(self):
         data = self.to_dict()
         if template := self.get_template():
-            data["template"] = self._file_to_base64(template)
+            data["template"] = get_template_as_base64(template)
         return data
 
     @classmethod

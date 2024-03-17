@@ -15,16 +15,7 @@
       :config-data="formData"
       :title="editTitle"
       @submit="handleSubmit"
-    >
-      <template #additionalData>
-        <code-editor
-          v-if="showForm"
-          v-model:content="templateData"
-          class="mb-3"
-          header="Template Content"
-        />
-      </template>
-    </EditConfig>
+    />
   </v-container>
 </template>
 
@@ -46,14 +37,12 @@ import { useConfigStore } from '@/stores/ConfigStore'
 import { useMainStore } from '@/stores/MainStore'
 import { ref, computed, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
-import CodeEditor from '@/components/common/CodeEditor.vue'
 
 export default {
   name: 'ProductTypesView',
   components: {
     DataTable,
-    EditConfig,
-    CodeEditor
+    EditConfig
   },
   setup() {
     const configStore = useConfigStore()
@@ -63,8 +52,6 @@ export default {
     const edit = ref(false)
     const presenterList = ref([])
     const showForm = ref(false)
-
-    const templateData = ref('')
 
     const { product_types, presenter_types, report_item_types } =
       storeToRefs(configStore)
@@ -96,18 +83,18 @@ export default {
           rules: ['required']
         },
         {
-          name: 'TEMPLATE_PATH',
-          parent: 'parameters',
-          label: 'Template',
-          type: 'select',
-          items: product_types.value.templates
-        },
-        {
           name: 'report_types',
           label: 'Report Types',
           type: 'table',
           headers: [{ title: 'Name', key: 'title' }],
           items: report_item_types.value.items
+        },
+        {
+          name: 'TEMPLATE_PATH',
+          parent: 'parameters',
+          label: 'Template',
+          type: 'select',
+          items: product_types.value.templates
         }
       ]
     })
@@ -148,15 +135,12 @@ export default {
       formData.value = item
       getProductType(item.id).then((response) => {
         formData.value['report_types'] = response.data.report_types
-        templateData.value =
-          response.data.template !== '' ? atob(response.data.template) : ''
         edit.value = true
         showForm.value = true
       })
     }
 
     function handleSubmit(submittedData) {
-      submittedData.template = btoa(templateData.value)
       console.debug('submittedData', submittedData)
       if (edit.value) {
         updateItem(submittedData)
@@ -210,7 +194,6 @@ export default {
       formFormat,
       editTitle,
       showForm,
-      templateData,
       addItem,
       editItem,
       handleSubmit,
