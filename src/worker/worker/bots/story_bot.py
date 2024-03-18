@@ -2,7 +2,8 @@ from .base_bot import BaseBot
 from worker.log import logger
 from story_clustering.clustering import create_corpus, incremental_clustering_v2, extract_events_from_corpus, to_json_events
 from worker.story_clustering.clustering_tasks import initial_clustering
-import jsonpickle
+from story_clustering.document_representation import CorpusEncoder
+import json
 
 
 class StoryBot(BaseBot):
@@ -25,7 +26,7 @@ class StoryBot(BaseBot):
             logger.info(f"Clustering {len(data)} news items")
             if all(len(aggregate["news_items"]) == 1 for aggregate in data):
                 corpus = create_corpus(data)
-                initial_clustering.delay(jsonpickle.encode(corpus))
+                initial_clustering.delay(json.dumps(corpus, cls=CorpusEncoder))
             else:
                 already_clustered, to_cluster = self.separate_data(data)
                 clustering_results = incremental_clustering_v2(to_cluster, already_clustered)

@@ -42,8 +42,7 @@ dependencies = [
     "transformers==4.37.1",
     "py3langid==0.2.2",
     "nltk==3.8.1",
-    "taranis-story-clustering==0.7.4",
-    "jsonpickle==3.0.3"
+    "taranis-story-clustering==0.7.6"
 ]
 dynamic = ["version"]
 
