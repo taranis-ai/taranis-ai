@@ -201,14 +201,14 @@ workers = [
         "name": "EMAIL Publisher",
         "description": "Publisher for publishing by email",
         "parameters": [
-            "SMTP_SERVER",
+            "SMTP_SERVER_ADDRESS",
             "SMTP_SERVER_PORT",
+            "SERVER_TLS",
             "EMAIL_USERNAME",
             "EMAIL_PASSWORD",
+            "EMAIL_SENDER",
             "EMAIL_RECIPIENT",
             "EMAIL_SUBJECT",
-            "EMAIL_MESSAGE",
-            "EMAIL_ENCRYPTION",
         ],
     },
     {

@@ -9,7 +9,7 @@ class BasePublisher:
         self.description = "Base abstract type for all publishers"
         self.core_api = CoreApi()
 
-    def publish(self, publisher_input) -> dict[str, str] | None:
+    def publish(self, publisher, publisher_input) -> dict[str, str] | None:
         pass
 
     def print_exception(self, error):
