@@ -9,8 +9,10 @@ from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import gnupg
+import base64
 
 from worker.publishers.base_publisher import BasePublisher
+from worker.types import Product
 
 
 class EMAILPublisher(BasePublisher):
@@ -21,7 +23,7 @@ class EMAILPublisher(BasePublisher):
         self.name = "EMAIL Publisher"
         self.description = "Publisher for publishing by email"
 
-    def publish(self, publisher_input):
+    def publish(self, publisher_input) -> dict[str, str] | None:
         print(publisher_input)
         # smtp_server = publisher_input.parameter_values_map["SMTP_SERVER"]
         # smtp_server_port = publisher_input.parameter_values_map["SMTP_SERVER_PORT"]
@@ -34,22 +36,19 @@ class EMAILPublisher(BasePublisher):
 
         # file = "file_" + datetime.datetime.now().strftime("%d-%m-%Y_%H:%M") + ".pdf"
 
-        if publisher_input is not None:
-            rendered_product = self.get_rendered_product(publisher_input)
-            self.send_email(rendered_product)
-        else:
-            logging.warning("No report items to send")
-            raise ValueError("No report items to send")
+        if publisher_input is None:
+            logger.error("No user input provided")
+            return {"error": "No user input provided"}
 
-    def get_rendered_product(self, publisher_input) -> tuple[bytes, str] | None:
+        if rendered_product := self.get_rendered_product(publisher_input):
+            return self.send_email(rendered_product)
+        logging.warning("Could not get rendered Product")
+        return {"error": "Could not get rendered Product"}
+
+    def get_rendered_product(self, publisher_input) -> Product | None:
         product_id = publisher_input.get("id")
-        logger.info(f"EMAIL Publisher: Getting rendered product for product {product_id}")
-        render = self.core_api.get_product_render(product_id)
-        logger.info(f"EMAIL Publisher: Got rendered product for product {product_id}")
-        if render is None:
-            logger.error(f"EMAIL Publisher: Failed to get rendered product for product {product_id}")
-
-        return render
+        logger.debug(f"EMAIL Publisher: Getting rendered product for product {product_id}")
+        return self.core_api.get_product_render(product_id)
 
     def set_meta_data(self):
         self.msg["Subject"] = "Subject of the email"
@@ -59,16 +58,17 @@ class EMAILPublisher(BasePublisher):
     def set_simple_email(self, rendered_product):
         self.msg = EmailMessage()
         self.set_meta_data()
-        self.msg.set_content(rendered_product[0].decode("utf-8"), subtype=rendered_product[1].split("/")[-1])
+        self.msg.set_content(rendered_product.data.decode("utf-8"))
 
     def attach_file(self, rendered_product):
         self.msg = EmailMessage()
         self.set_meta_data()
 
         file_name = f"product_{datetime.datetime.now().strftime('%d-%m-%Y_%H-%M')}"
-        file_extension = rendered_product[1].split("/")[-1]
-        logger.info(f"EMAIL Publisher: Attaching file {rendered_product[0]}")
-        self.msg.add_attachment(rendered_product[0], subtype=file_extension, maintype="application", filename=f"{file_name}.{file_extension}")
+        maintype, subtype = rendered_product.mime_type.split("/")
+        logger.info("EMAIL Publisher: Creating attachment")
+        attachment_data = base64.b64decode(rendered_product.data)
+        self.msg.add_attachment(attachment_data, maintype=maintype, subtype=subtype, filename=f"{file_name}")
 
         # self.msg = MIMEMultipart("alternative")
         # self.msg["Subject"] = "Subject of the email"
@@ -83,25 +83,29 @@ class EMAILPublisher(BasePublisher):
         # self.msg.attach(attachment)
         # print(attachment)
 
-    def send_email(self, rendered_product):
-        if rendered_product[1] in ["text/plain", "text/html"]:
-            # if rendered_product[1] in [""]:
+    def send_email(self, rendered_product: Product):
+        if rendered_product.mime_type in ["text/plain", "text/html"]:
+            # if rendered_product.mime_type in [""]:
             self.set_simple_email(rendered_product)
         else:
             self.attach_file(rendered_product)
             logger.info("Product attached")
 
-        logger.info("EMAIL Publisher: Sending email...")
+        logger.debug("EMAIL Publisher: Initiate connection to the SMTP sever.")
 
         try:
             s = smtplib.SMTP("localhost", 1025)
             s.set_debuglevel(1)
-            s.sendmail(self.msg.get("From"), self.msg.get("To"), self.msg.as_string())
+            if response := s.sendmail(self.msg.get("From"), self.msg.get("To"), self.msg.as_string()):
+                logger.warning(f"EMAIL Publisher: Response from SMTP server: {response}")
+                return {"error": f"Your SMTP server throws an error: {response}"}
             s.quit()
         except Exception as e:
             logging.error(f"Your SMTP server throws an error: {str(e)}")
-        else:
-            logger.info("EMAIL Publisher: Email sent")
+            return {"error": f"Your SMTP server throws an error: {str(e)}"}
+
+        logger.info("EMAIL Publisher: Email sent")
+        return {"message": "Email sent successfully"}
 
 
 ############################################################################################################
@@ -215,5 +219,5 @@ class EMAILPublisher(BasePublisher):
 if __name__ == "__main__":
     email_publisher = EMAILPublisher()
     email_publisher.publish(
-        {"id": 1, "type": "text_presenter", "type_id": 3, "mime_type": "text/plain", "report_items": [{"title": "test title"}]}
+        {"id": 1, "type": "text_presenter", "type_id": 3, "mime_type": "text/pdf", "report_items": [{"title": "test title"}]}
     )

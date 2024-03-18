@@ -328,4 +328,3 @@ def initialize(api: Api):
 
     api.add_namespace(beat_ns, path="/beat")
     api.add_namespace(worker_ns, path="/worker")
-
