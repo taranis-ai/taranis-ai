@@ -54,9 +54,9 @@
       :label="attributeItem.title"
     >
       <v-radio
-        :label="$t('attribute.tlp_white')"
+        :label="$t('attribute.tlp_clear')"
         color="blue-grey"
-        value="WHITE"
+        value="CLEAR"
       />
       <v-radio :label="$t('attribute.tlp_green')" color="green" value="GREEN" />
       <v-radio
@@ -160,9 +160,6 @@ export default {
 }
 </script>
 <style>
-.date-picker-style {
-  padding-bottom: 15px;
-}
 .hint-text {
   color: #888;
   font-size: 0.85rem;

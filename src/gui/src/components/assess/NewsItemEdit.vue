@@ -10,7 +10,7 @@
       <v-card-text>
         <v-text-field
           v-model="news_item.title"
-          :label="$t('enter.title')"
+          :label="$t('form.title')"
           name="title"
           type="text"
           :rules="[rules.required]"

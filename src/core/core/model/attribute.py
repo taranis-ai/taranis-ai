@@ -26,6 +26,7 @@ class AttributeType(Enum):
     CPE = auto()
     CVE = auto()
     CVSS = auto()
+    STORY = auto()
 
 
 class AttributeValidator(Enum):
@@ -38,13 +39,13 @@ class AttributeValidator(Enum):
 
 class AttributeEnum(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
-    index = db.Column(db.Integer)
-    value = db.Column(db.String(), nullable=False)
-    description = db.Column(db.String())
+    index: Any = db.Column(db.Integer)
+    value: Any = db.Column(db.String(), nullable=False)
+    description: Any = db.Column(db.String())
     imported = db.Column(db.Boolean, default=False)
 
-    attribute_id = db.Column(db.Integer, db.ForeignKey("attribute.id", ondelete="CASCADE"))
-    attribute = db.relationship("Attribute", cascade="all, delete")
+    attribute_id: Any = db.Column(db.Integer, db.ForeignKey("attribute.id", ondelete="CASCADE"))
+    attribute: Any = db.relationship("Attribute", cascade="all, delete")
 
     def __init__(self, index, value, description, id=None):
         self.id = id
@@ -133,8 +134,8 @@ class AttributeEnum(BaseModel):
 
 class Attribute(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(), nullable=False)
-    description = db.Column(db.String())
+    name: Any = db.Column(db.String(), nullable=False)
+    description: Any = db.Column(db.String())
     type = db.Column(db.Enum(AttributeType))
     default_value = db.Column(db.String(), default="")
 
@@ -296,6 +297,7 @@ class Attribute(BaseModel):
             AttributeType.CPE: "mdi-laptop",
             AttributeType.CVE: "mdi-hazard-lights",
             AttributeType.CVSS: "mdi-counter",
+            AttributeType.STORY: "mdi-book-open-outline",
         }
         return switcher.get(self.type, "mdi-textbox")
 
