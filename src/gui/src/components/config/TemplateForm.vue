@@ -1,6 +1,11 @@
 <template>
   <v-container fluid class="mt-3">
-    <v-form id="form" ref="form" validate-on="submit" @submit.prevent="add">
+    <v-form
+      id="form"
+      ref="form"
+      validate-on="submit"
+      @submit.prevent="submitTemplate"
+    >
       <v-row no-gutters>
         <v-col cols="12">
           <v-text-field v-model="name" class="mt-5" label="Template Name" />
@@ -47,7 +52,7 @@ export default {
     const name = ref(props.templateName)
     const edit = ref(false)
 
-    const add = () => {
+    const submitTemplate = () => {
       emit('updated', { templateData: data.value, templateName: name.value })
     }
 
@@ -69,7 +74,7 @@ export default {
       data,
       name,
       edit,
-      add
+      submitTemplate
     }
   }
 }

@@ -162,6 +162,9 @@ export const useAssessStore = defineStore('assess', {
     selectStory(id) {
       this.storySelection = xorConcat(this.storySelection, id)
     },
+    selectAllItems() {
+      this.storySelection = this.newsItems.items.map((item) => item.id)
+    },
     clearStorySelection() {
       this.storySelection = []
     },

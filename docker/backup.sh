@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 backup_dir="/backups/$(date -Im)"
 
 mkdir -p "${backup_dir}"
