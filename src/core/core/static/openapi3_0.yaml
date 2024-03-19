@@ -4183,10 +4183,7 @@ components:
 
     attribute_type:
       type: string
-      enum: [STRING, NUMBER, BOOLEAN, RADIO, ENUM, TEXT, RICH_TEXT, DATE, TIME, DATE_TIME, LINK, ATTACHMENT, TLP, CPE, CVE, CVSS]
-    attribute_validator:
-      type: string
-      enum: [NONE, EMAIL, NUMBER, RANGE, REGEXP]
+      enum: [STRING, NUMBER, BOOLEAN, RADIO, ENUM, TEXT, RICH_TEXT, DATE, TIME, DATE_TIME, LINK, ATTACHMENT, TLP, CPE, CVE, CVSS, STORY]
     attribute_enum:
       type: object
       properties:
@@ -4210,10 +4207,6 @@ components:
         type:
           $ref: '#/components/schemas/attribute_type'
         default_value:
-          type: string
-        validator:
-          $ref: '#/components/schemas/attribute_validator'
-        validator_parameter:
           type: string
         tag:
           type: string

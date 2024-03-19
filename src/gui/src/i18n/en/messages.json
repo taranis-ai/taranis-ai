@@ -145,10 +145,7 @@
         "tlp_green": "TLP:GREEN",
         "tlp_red": "TLP:RED",
         "tlp_clear": "TLP:CLEAR",
-        "total_count": "Attributes count: ",
-        "type": "Type",
-        "validator": "Validator",
-        "validator_parameter": "Validator Parameter"
+        "type": "Type"
     },
     "button": {
         "add": "Add",

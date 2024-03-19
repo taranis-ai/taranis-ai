@@ -166,7 +166,13 @@ export default {
     const expand_panel_groups = ref([])
     const report_item = ref(props.reportItemProp)
     const required = ref([(v) => !!v || 'Required'])
-    provide('report_stories', report_item.value.news_item_aggregates)
+    provide(
+      'report_stories',
+      report_item.value.news_item_aggregates.map((story) => ({
+        value: story.id,
+        title: story.title
+      }))
+    )
 
     const { report_item_types } = storeToRefs(store)
 

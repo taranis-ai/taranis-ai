@@ -85,8 +85,6 @@ def upgrade():
             nullable=True,
         ),
         sa.Column("default_value", sa.String(), nullable=True),
-        sa.Column("validator", sa.Enum("NONE", "EMAIL", "NUMBER", "RANGE", "REGEXP", name="attributevalidator"), nullable=True),
-        sa.Column("validator_parameter", sa.String(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_table(

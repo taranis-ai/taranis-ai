@@ -369,8 +369,6 @@ def cleanup_attribute(app, request):
             "description": "Simple attribute desc",
             "type": "STRING",
             "default_value": "2234",
-            "validator": "NONE",
-            "validator_parameter": "",
         }
 
         def teardown():

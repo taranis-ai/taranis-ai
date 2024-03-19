@@ -39,10 +39,7 @@ export default defineComponent({
 
     const { mdAndDown, lgAndDown, name: displayName } = useDisplay()
 
-    if (isConnected.value) {
-      console.debug('SSE already connected')
-    } else {
-      console.debug('Connecting SSE')
+    if (!isConnected.value) {
       if (isAuthenticated.value) {
         sseStore.connectSSE()
       }

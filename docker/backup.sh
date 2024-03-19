@@ -2,9 +2,9 @@
 
 set -e
 
-backup_dir="/backups/$(date -Im)"
+backup_dir="backups/$(date +%FT%H%M%S)"
 
 mkdir -p "${backup_dir}"
 
-docker compose run --rm -v "$(pwd)"/backups:/backups core tar czvf "${backup_dir}"/core_data.tar.gz /data
-docker compose exec database pg_dumpall -U postgres > "${backup_dir}"/database_backup.sql
+docker compose exec core     tar czv /app/data      > "${backup_dir}/core_data.tar.gz"
+docker compose exec database pg_dumpall -U taranis  > "${backup_dir}/database_backup.sql"

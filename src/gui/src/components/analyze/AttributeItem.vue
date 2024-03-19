@@ -60,8 +60,11 @@
         attributeItem.attribute.type === 'TIME'
       "
       v-model="input"
+      class="mb-5"
       :name="'dateAttribute-' + attributeItem.title"
       :placeholder="attributeItem.title"
+      :readonly="readOnly"
+      position="left"
       :time-picker-inline="
         attributeItem.attribute.type === 'TIME' ||
         attributeItem.attribute.type === 'DATE_TIME'

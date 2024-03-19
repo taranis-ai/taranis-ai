@@ -66,7 +66,7 @@ export default {
     })
 
     function addProduct() {
-      router.push('/product/0')
+      router.push('/product/')
     }
 
     onMounted(() => {

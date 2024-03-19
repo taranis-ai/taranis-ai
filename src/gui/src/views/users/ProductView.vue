@@ -35,7 +35,7 @@ export default {
 
     const loadProducts = async () => {
       console.debug('Loading product', route.params.id)
-      if (route.params.id && route.params.id !== '0') {
+      if (route.params.id) {
         const response = await getProduct(route.params.id)
         return response.data
       }

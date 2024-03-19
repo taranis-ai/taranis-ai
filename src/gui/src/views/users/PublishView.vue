@@ -6,7 +6,6 @@
     :search-bar="false"
     @delete-item="deleteItem"
     @edit-item="editItem"
-    @add-item="addItem"
     @update-items="updateData"
     @selection-change="selectionChange"
   />
@@ -58,10 +57,6 @@ export default {
       mainStore.itemCountFiltered = products.value.items.length
     }
 
-    const addItem = () => {
-      router.push('/report/0')
-    }
-
     const editItem = (item) => {
       router.push('/product/' + item.id)
     }
@@ -90,7 +85,6 @@ export default {
       products,
       products_data,
       updateData,
-      addItem,
       editItem,
       deleteItem,
       selectionChange

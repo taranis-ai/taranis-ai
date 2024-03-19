@@ -85,20 +85,10 @@ export default {
           'TLP',
           'CVE',
           'CPE',
-          'CVSS'
+          'CVSS',
+          'STORY'
         ],
         rules: ['required']
-      },
-      {
-        name: 'validator',
-        label: 'Validator',
-        type: 'select',
-        items: ['NONE', 'EMAIL', 'NUMBER', 'RANGE', 'REGEXP']
-      },
-      {
-        name: 'validator_parameter',
-        label: 'Validator Parameter',
-        type: 'text'
       }
     ]
     const configStore = useConfigStore()
