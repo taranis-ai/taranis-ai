@@ -44,11 +44,12 @@
 <script>
 import CardStory from '@/components/assess/CardStory.vue'
 import AssessSelectionToolbar from '@/components/assess/AssessSelectionToolbar.vue'
-import { storeToRefs } from 'pinia'
-import { useAssessStore } from '@/stores/AssessStore'
 import { defineComponent, computed, onUnmounted, onUpdated } from 'vue'
+import { useAssessStore } from '@/stores/AssessStore'
 import { useFilterStore } from '@/stores/FilterStore'
 import { useMainStore } from '@/stores/MainStore'
+import { storeToRefs } from 'pinia'
+import { assessHotkeys } from '@/utils/hotkeys'
 
 export default defineComponent({
   name: 'AssessView',
@@ -63,6 +64,7 @@ export default defineComponent({
     const { newsItems, activeSelection, loading } = storeToRefs(assessStore)
     const { appendNewsItems, clearNewsItemSelection } = assessStore
 
+    assessHotkeys()
     const moreToLoad = computed(() => {
       const offset = filterStore.newsItemsFilter.offset
         ? parseInt(filterStore.newsItemsFilter.offset)
@@ -92,7 +94,10 @@ export default defineComponent({
     }
 
     const resetFilter = () => {
-      filterStore.$reset()
+      filterStore.resetFilter()
+    }
+    function onTriggeredEventHandler(payload) {
+      console.log(`You have pressed CMD (CTRL) + ${payload.keyString}`)
     }
 
     onUpdated(() => {
@@ -114,7 +119,8 @@ export default defineComponent({
       refresh,
       nextPage,
       resetFilter,
-      displayMore
+      displayMore,
+      onTriggeredEventHandler
     }
   }
 })

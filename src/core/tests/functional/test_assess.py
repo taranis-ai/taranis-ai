@@ -148,7 +148,7 @@ class TestAssessApi(BaseTest):
         assert response.data
         assert response.content_type == "application/json"
         assert response.status_code == 200
-        assert len(response.get_json()["items"]) == 2
+        assert len(response.get_json()["items"]) == 3
 
     def test_get_NewsItemAggregatesTags_unauth(self, client):
         """

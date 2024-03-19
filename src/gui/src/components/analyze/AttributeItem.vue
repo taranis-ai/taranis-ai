@@ -47,25 +47,12 @@
       v-model:content="input"
       :read-only="readOnly"
     />
-    <v-radio-group
+    <AttributeTLP
       v-if="attributeItem.attribute.type === 'TLP'"
       v-model="input"
-      :disabled="readOnly"
-      :label="attributeItem.title"
-    >
-      <v-radio
-        :label="$t('attribute.tlp_white')"
-        color="blue-grey"
-        value="WHITE"
-      />
-      <v-radio :label="$t('attribute.tlp_green')" color="green" value="GREEN" />
-      <v-radio
-        :label="$t('attribute.tlp_amber')"
-        color="orange"
-        value="AMBER"
-      />
-      <v-radio :label="$t('attribute.tlp_red')" color="red" value="RED" />
-    </v-radio-group>
+      :read-only="readOnly"
+      :title="attributeItem.title"
+    />
     <VueDatePicker
       v-if="
         attributeItem.attribute.type === 'DATE' ||
@@ -114,18 +101,27 @@
     >
       <!-- TODO: Use MyAssets for Autocomplete -->
     </v-autocomplete>
-    <!-- <AttributeCVSS v-if="attributeItem.attribute.type === 'CVSS'" v-model="input" /> -->
+    <AttributeStory
+      v-if="attributeItem.attribute.type === 'STORY'"
+      v-model="input"
+      :readonly="readOnly"
+      :title="attributeItem.title"
+    />
   </div>
 </template>
 
 <script>
 import { ref, computed } from 'vue'
 import CodeEditor from '../common/CodeEditor.vue'
+import AttributeTLP from './AttributeTLP.vue'
+import AttributeStory from './AttributeStory.vue'
 
 export default {
   name: 'AttributeItem',
   components: {
-    CodeEditor
+    CodeEditor,
+    AttributeTLP,
+    AttributeStory
   },
   props: {
     value: {
@@ -161,9 +157,6 @@ export default {
 }
 </script>
 <style>
-.date-picker-style {
-  padding-bottom: 15px;
-}
 .hint-text {
   color: #888;
   font-size: 0.85rem;

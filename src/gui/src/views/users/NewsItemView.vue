@@ -1,5 +1,5 @@
 <template>
-  <v-container v-if="news_item" fluid style="min-height: 100vh">
+  <v-container v-if="news_item" fluid>
     <card-news-item :news-item="news_item" :detail-view="true" />
   </v-container>
   <not-found-card v-else :item-id="news_item_id" item-type="News Item" />

@@ -40,13 +40,13 @@
 
               <v-text-field
                 v-model="edited_attribute.title"
-                :label="$t('attribute.name')"
+                :label="$t('form.name')"
                 :rules="required"
               />
 
               <v-textarea
                 v-model="edited_attribute.description"
-                :label="$t('attribute.description')"
+                :label="$t('form.description')"
               />
 
               <v-row>
@@ -75,7 +75,7 @@
                 variant="flat"
                 type="submit"
               >
-                {{ $t('attribute.save') }}
+                {{ $t('button.save') }}
               </v-btn>
               <v-spacer></v-spacer>
               <v-btn
@@ -84,7 +84,7 @@
                 variant="flat"
                 @click="close"
               >
-                {{ $t('attribute.cancel') }}
+                {{ $t('button.cancel') }}
               </v-btn>
             </v-card-actions>
           </v-card>

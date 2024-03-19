@@ -45,11 +45,8 @@ class ReportItemAttribute(BaseModel):
         self.attribute_group_item_id = attribute_group_item_id
 
     @classmethod
-    def find_by_attribute_group(cls, attribute_group_id, report_item_id=None):
-        return cls.query.filter_by(attribute_group_item_id=attribute_group_id).filter_by(report_item_id=report_item_id).first()
-
-    @classmethod
-    def update_values_from_report(cls, report_item_id, attribute_data):
+    def update_values_from_report(cls, attribute_data):
+        # TODO: Add functionality to update multiple attributes at once, if attribute_group_item.muliple is True
         for attribute_id, data in attribute_data.items():
             if report_item_attribute := cls.get(attribute_id):
                 report_item_attribute.value = data["value"]
@@ -228,6 +225,7 @@ class ReportItem(BaseModel):
         query = cls.query
 
         if acl_check:
+            query = query.join(ReportItemType, ReportItem.report_item_type_id == ReportItemType.id)
             rbac = RBACQuery(user=user, resource_type=ItemType.REPORT_ITEM_TYPE)
             query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
 
@@ -342,7 +340,7 @@ class ReportItem(BaseModel):
             report_item.completed = completed
 
         if attributes_data := data.pop("attributes", None):
-            ReportItemAttribute.update_values_from_report(report_item.id, attributes_data)
+            ReportItemAttribute.update_values_from_report(attributes_data)
 
         if aggregate_ids := data.get("aggregate_ids"):
             report_item.news_item_aggregates = [NewsItemAggregate.get(aggregate_id) for aggregate_id in aggregate_ids]

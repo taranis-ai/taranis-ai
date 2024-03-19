@@ -7,10 +7,15 @@
     @submit.prevent="submit"
   >
     <v-card>
+      <v-card-title v-if="readOnly" style="background-color: #ffee00">
+        <h3>
+          Editing is prohibited for news items that are not manually created.
+        </h3>
+      </v-card-title>
       <v-card-text>
         <v-text-field
           v-model="news_item.title"
-          :label="$t('enter.title')"
+          :label="$t('form.title')"
           name="title"
           type="text"
           :rules="[rules.required]"
@@ -51,7 +56,13 @@
       </v-card-text>
     </v-card>
     <v-spacer class="pt-2"></v-spacer>
-    <v-btn block class="mt-5" type="submit" color="success">
+    <v-btn
+      block
+      class="mt-5"
+      type="submit"
+      color="success"
+      :disabled="readOnly"
+    >
       {{ submitText }}
     </v-btn>
   </v-form>
@@ -100,6 +111,10 @@ export default {
       published: new Date(),
       collected: '',
       attributes: []
+    })
+
+    const readOnly = computed(() => {
+      return news_item.value.source !== 'manual'
     })
 
     const rules = {
@@ -159,6 +174,7 @@ export default {
       form,
       rules,
       placeholder,
+      readOnly,
       submitText,
       submit
     }

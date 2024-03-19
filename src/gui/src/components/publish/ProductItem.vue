@@ -1,5 +1,5 @@
 <template>
-  <v-card>
+  <v-card class="h-100">
     <v-toolbar density="compact">
       <v-toolbar-title>{{ container_title }}</v-toolbar-title>
       <v-spacer />
@@ -36,10 +36,7 @@
     </v-toolbar>
     <v-card-text>
       <v-row no-gutters>
-        <v-col
-          :cols="showPreview ? 6 : 12"
-          :class="showPreview ? 'taranis-vertical-view' : ''"
-        >
+        <v-col :cols="showPreview ? 6 : 12">
           <v-form id="form" ref="form" class="px-4">
             <v-row no-gutters>
               <v-col cols="6" class="pr-3">
@@ -105,13 +102,15 @@
             />
           </v-dialog>
         </v-col>
-        <v-col v-if="showPreview" :cols="6" class="pa-5 taranis-vertical-view">
+        <v-col v-if="showPreview" :cols="6" class="pa-5">
           <div v-if="renderedProduct">
             <span v-if="render_html" v-dompurify-html="renderedProduct"></span>
 
-            <vue-pdf-embed
-              v-if="renderedProductMimeType === 'application/pdf'"
-              :source="'data:application/pdf;base64,' + renderedProduct"
+            <object
+              class="pdf-container"
+              :data="'data:application/pdf;base64,' + renderedProduct"
+              type="application/pdf"
+              width="100%"
             />
 
             <pre v-if="renderedProductMimeType === 'text/plain'">
@@ -149,16 +148,14 @@ import PopupPublishProduct from '../popups/PopupPublishProduct.vue'
 import { useI18n } from 'vue-i18n'
 import { useAnalyzeStore } from '@/stores/AnalyzeStore'
 import { usePublishStore } from '@/stores/PublishStore'
-import VuePdfEmbed from 'vue-pdf-embed'
-
 import { notifyFailure, notifySuccess } from '@/utils/helpers'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
+import { useHotkeys } from 'vue-use-hotkeys'
 
 export default {
   name: 'ProductItem',
   components: {
-    VuePdfEmbed,
     PopupPublishProduct
   },
   props: {
@@ -176,6 +173,12 @@ export default {
     const showPreview = ref(props.edit)
     const publishDialog = ref(false)
     const form = ref(null)
+
+    useHotkeys('ctrl+p', (event, handler) => {
+      event.preventDefault()
+      console.debug(`You pressed ${handler.key}`)
+      publishDialog.value = true
+    })
 
     const { renderedProduct, renderedProductMimeType } =
       storeToRefs(publishStore)
@@ -341,3 +344,9 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+.pdf-container {
+  height: 80vh !important;
+}
+</style>

@@ -75,7 +75,7 @@ class UpdateNewsItemAttributes(Resource):
 class UpdateNewsItemsAggregateSummary(Resource):
     @api_key_required
     def put(self, aggregate_id):
-        news_item.NewsItemAggregate.update_news_items_aggregate_summary(aggregate_id, request.json)
+        return news_item.NewsItemAggregate.update(aggregate_id, request.json)
 
 
 class WordListEntries(Resource):

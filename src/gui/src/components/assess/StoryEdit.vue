@@ -18,7 +18,7 @@
 
         <edit-tags v-model="story.tags" />
 
-        <attributes-table v-model="story.news_item_attributes" />
+        <attributes-table v-model="story.attributes" />
 
         <code-editor
           v-model:content="story.comment"
@@ -77,7 +77,7 @@ export default {
           title: story.value.title,
           tags: story.value.tags,
           comment: story.value.comment,
-          attributes: story.value.news_item_attributes
+          attributes: story.value.attributes
         })
         notifySuccess(result)
       } catch (e) {

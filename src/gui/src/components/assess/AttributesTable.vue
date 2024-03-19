@@ -1,4 +1,3 @@
-<!-- KeyValueEditor.vue -->
 <template>
   <v-container class="d-flex mx-0 my-0">
     <v-data-table
@@ -45,9 +44,9 @@
           </td>
           <td>
             <v-tooltip left text="Delete">
-              <template #activator="{ props }">
+              <template #activator="{ props: tprops }">
                 <v-icon
-                  v-bind="props"
+                  v-bind="tprops"
                   color="red"
                   icon="mdi-delete"
                   @click.stop="deleteItem(item)"

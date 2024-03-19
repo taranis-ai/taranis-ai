@@ -9,6 +9,7 @@ from core.managers.log_manager import logger
 from core.model.role_based_access import ItemType
 from core.model.report_item import ReportItem
 from core.model.base_model import BaseModel
+from core.model.product_type import ProductType
 from core.service.role_based_access import RoleBasedAccessService, RBACQuery
 
 
@@ -19,7 +20,7 @@ class Product(BaseModel):
 
     created = db.Column(db.DateTime, default=datetime.now)
 
-    product_type_id = db.Column(db.Integer, db.ForeignKey("product_type.id"))
+    product_type_id: Any = db.Column(db.Integer, db.ForeignKey("product_type.id"))
     product_type = db.relationship("ProductType")
 
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"))
@@ -81,10 +82,12 @@ class Product(BaseModel):
     @classmethod
     def get_by_filter(cls, filter, user):
         query = cls.query.distinct().group_by(Product.id)
-        query = cls.add_filter_to_query(query, filter)
 
+        query = query.join(ProductType, ProductType.id == Product.product_type_id)
         rbac = RBACQuery(user, ItemType.PRODUCT_TYPE)
         query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
+
+        query = cls.add_filter_to_query(query, filter)
 
         offset = filter.get("offset", 0)
         limit = filter.get("limit", 20)

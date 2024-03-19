@@ -15,7 +15,7 @@
       <v-row no-gutters>
         <v-col cols="6">
           <v-text-field
-            v-model="asset.name"
+            v-model="form.name"
             :label="$t('form.name')"
             :rules="required"
           />
@@ -25,7 +25,7 @@
         </v-col>
         <v-col cols="12">
           <v-textarea
-            v-model="asset.description"
+            v-model="form.description"
             :label="$t('asset.description')"
           />
         </v-col>

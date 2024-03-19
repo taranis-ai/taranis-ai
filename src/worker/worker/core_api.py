@@ -134,9 +134,10 @@ class CoreApi:
         except Exception:
             return None
 
-    def update_news_items_aggregate_summary(self, id, summary) -> dict | None:
+    def update_news_items_aggregate_summary(self, id, summary: str) -> dict | None:
         try:
-            return self.api_put(url=f"/bots/aggregate/{id}/summary", json_data=summary)
+            data = {"summary": summary}
+            return self.api_put(url=f"/bots/aggregate/{id}/summary", json_data=data)
         except Exception:
             return None
 

@@ -5,6 +5,7 @@
     :placeholder="placeholder"
     :extensions="extensions"
     :style="{ 'min-height': '8em' }"
+    :disabled="disabled"
   />
 </template>
 
@@ -33,6 +34,10 @@ export default {
     content: {
       type: String,
       default: ''
+    },
+    disabled: {
+      type: Boolean,
+      default: false
     }
   },
   emits: ['update:content'],

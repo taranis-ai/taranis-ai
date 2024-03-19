@@ -80,6 +80,12 @@ export default {
         permission: 'CONFIG_PRODUCT_TYPE_ACCESS'
       },
       {
+        icon: 'mdi-file-document-plus-outline',
+        title: 'nav_menu.templates',
+        route: '/config/product/templates',
+        permission: 'CONFIG_PRODUCT_TYPE_ACCESS'
+      },
+      {
         icon: 'mdi-file-star-outline',
         title: 'nav_menu.publisher',
         route: '/config/publishers',

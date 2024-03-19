@@ -149,7 +149,7 @@
           />
         </template>
       </v-tooltip>
-      <v-tooltip v-if="allow_edit" text="edit">
+      <v-tooltip v-if="allow_edit" text="edit newsitem">
         <template #activator="{ props }">
           <v-btn
             v-ripple="false"
@@ -160,6 +160,20 @@
             v-bind="props"
             icon="mdi-pencil-outline"
             :to="`/newsitem/${story.news_items[0].id}/edit`"
+          />
+        </template>
+      </v-tooltip>
+      <v-tooltip v-if="detailView" text="edit story">
+        <template #activator="{ props }">
+          <v-btn
+            v-ripple="false"
+            color="#919191"
+            variant="tonal"
+            class="item-action-btn"
+            density="compact"
+            v-bind="props"
+            icon="mdi-book-edit-outline"
+            :to="`/story/${story.id}/edit`"
           />
         </template>
       </v-tooltip>
@@ -221,6 +235,11 @@
             location="start"
           />
           <v-icon icon="mdi-magnify" />
+        </v-list-item>
+
+        <v-list-item :to="`/story/${story.id}/edit`">
+          <v-tooltip activator="parent" text="edit story" location="start" />
+          <v-icon icon="mdi-book-edit-outline" />
         </v-list-item>
 
         <v-list-item @click.stop="shareViaMail">

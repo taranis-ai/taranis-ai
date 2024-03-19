@@ -1,4 +1,4 @@
-name: linting
+name: test and lint
 
 on:
   workflow_dispatch:
@@ -17,6 +17,59 @@ jobs:
         uses: rickstaa/action-black@v1
         with:
           black_args: "src --check"
+
+  test_core:
+    name: pytest core
+    needs: black
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+          key: ${{ hashFiles('src/core/pyproject.toml') }}
+
+      - name: Install dependencies
+        working-directory: src/core
+        run: pip install -e .[dev]
+
+      - name: Update playwright
+        working-directory: src/core
+        run: playwright install
+
+      - name: test
+        working-directory: src/core
+        run: pytest
+
+  test_worker:
+    name: pytest worker
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+          key: ${{ hashFiles('src/worker/pyproject.toml') }}
+
+      - name: Install dependencies
+        working-directory: src/worker
+        run: pip install -e .[dev]
+
+      - name: test
+        working-directory: src/worker
+        run: pytest
 
   eslint:
     name: eslint

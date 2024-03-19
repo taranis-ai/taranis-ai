@@ -1,5 +1,5 @@
 <template>
-  <v-container v-if="tag_type" fluid style="min-height: 100vh">
+  <v-container v-if="tag_type" fluid>
     <tag-table :tag-type="tag_type" />
   </v-container>
 </template>

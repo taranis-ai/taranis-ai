@@ -1,5 +1,5 @@
 <template>
-  <v-card>
+  <v-card class="h-100">
     <v-toolbar density="compact">
       <v-toolbar-title :text="container_title" />
       <v-spacer />
@@ -44,10 +44,7 @@
     <v-card-text>
       <v-form ref="form" @submit.prevent="saveReportItem">
         <v-row no-gutters>
-          <v-col
-            :cols="verticalView ? 6 : 12"
-            :class="verticalView ? 'taranis-vertical-view' : ''"
-          >
+          <v-col :cols="verticalView ? 6 : 12">
             <v-row no-gutters>
               <v-col v-if="edit" cols="12">
                 <span class="caption">ID: {{ report_item.uuid }}</span>
@@ -113,10 +110,7 @@
               </v-col>
             </v-row>
           </v-col>
-          <v-col
-            :cols="verticalView ? 6 : 12"
-            class="pa-5 taranis-vertical-view"
-          >
+          <v-col :cols="verticalView ? 6 : 12" class="pa-5">
             <v-alert
               v-if="edit && report_item.news_item_aggregates.length == 0"
               dense
@@ -139,8 +133,9 @@
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, provide } from 'vue'
 import { useAnalyzeStore } from '@/stores/AnalyzeStore'
+import { useUserStore } from '@/stores/UserStore'
 import { createReportItem, updateReportItem } from '@/api/analyze'
 import AttributeItem from '@/components/analyze/AttributeItem.vue'
 import CardStory from '@/components/assess/CardStory.vue'
@@ -167,10 +162,11 @@ export default {
     const store = useAnalyzeStore()
     const form = ref(null)
 
-    const verticalView = ref(props.edit)
+    const verticalView = ref(useUserStore().split_view)
     const expand_panel_groups = ref([])
     const report_item = ref(props.reportItemProp)
     const required = ref([(v) => !!v || 'Required'])
+    provide('report_stories', report_item.value.news_item_aggregates)
 
     const { report_item_types } = storeToRefs(store)
 

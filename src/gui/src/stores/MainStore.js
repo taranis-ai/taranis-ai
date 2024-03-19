@@ -5,7 +5,6 @@ import { ref, computed } from 'vue'
 export const useMainStore = defineStore(
   'main',
   () => {
-    const vertical_view = ref(false)
     const itemCountTotal = ref(0)
     const itemCountFiltered = ref(0)
     const drawerVisible = ref(true)
@@ -61,8 +60,20 @@ export const useMainStore = defineStore(
       itemCountFiltered.value = 0
     }
 
+    const reset = () => {
+      itemCountTotal.value = 0
+      itemCountFiltered.value = 0
+      drawerVisible.value = true
+      drawerSetByUser.value = false
+      coreAPIURL.value = '/api'
+      coreSSEURL.value = '/sse'
+      sentryDSN.value = ''
+      gitInfo.value = ''
+      buildDate.value = new Date().toISOString()
+      notification.value = { message: '', type: '', show: false }
+    }
+
     return {
-      vertical_view,
       drawerVisible,
       drawerSetByUser,
       itemCountTotal,
@@ -78,7 +89,8 @@ export const useMainStore = defineStore(
       gitUpstreamTreeUrl,
       updateFromLocalConfig,
       toggleDrawer,
-      resetItemCount
+      resetItemCount,
+      reset
     }
   },
   {
