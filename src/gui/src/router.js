@@ -72,7 +72,7 @@ export const router = createRouter({
       meta: { requiresAuth: true, requiresPerm: Permissions.ANALYZE_ACCESS }
     },
     {
-      path: '/report/:id',
+      path: '/report/:id?',
       name: 'report',
       components: {
         default: () => import('@/views/users/ReportView.vue')
@@ -90,7 +90,7 @@ export const router = createRouter({
       meta: { requiresAuth: true, requiresPerm: Permissions.PUBLISH_ACCESS }
     },
     {
-      path: '/product/:id',
+      path: '/product/:id?',
       name: 'product',
       components: {
         default: () => import('@/views/users/ProductView.vue')
@@ -107,7 +107,7 @@ export const router = createRouter({
       meta: { requiresAuth: true, requiresPerm: Permissions.ASSETS_ACCESS }
     },
     {
-      path: '/asset/:id',
+      path: '/asset/:id?',
       name: 'asset',
       components: {
         default: () => import('@/views/users/AssetView.vue')
@@ -115,7 +115,7 @@ export const router = createRouter({
       meta: { requiresAuth: true, requiresPerm: Permissions.ASSETS_ACCESS }
     },
     {
-      path: '/asset-group/:id',
+      path: '/asset-group/:id?',
       name: 'asset-group',
       components: {
         default: () => import('@/views/users/AssetGroupView.vue')

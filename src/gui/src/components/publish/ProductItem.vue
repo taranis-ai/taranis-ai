@@ -4,7 +4,7 @@
       <v-toolbar-title>{{ container_title }}</v-toolbar-title>
       <v-spacer />
       <v-btn
-        v-if="renderedProduct"
+        v-if="renderedProduct && edit"
         variant="outlined"
         class="ml-3 mr-3"
         @click="downloadProduct()"
@@ -107,6 +107,7 @@
             <span v-if="render_html" v-dompurify-html="renderedProduct"></span>
 
             <object
+              v-if="renderedProductMimeType === 'application/pdf'"
               class="pdf-container"
               :data="'data:application/pdf;base64,' + renderedProduct"
               type="application/pdf"
@@ -138,7 +139,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import {
   createProduct,
   updateProduct,
@@ -312,6 +313,13 @@ export default {
       link.download = filename
       link.click()
     }
+
+    watch(
+      () => props.edit,
+      (newVal) => {
+        showPreview.value = newVal
+      }
+    )
 
     onMounted(() => {
       publishStore.loadProductTypes()

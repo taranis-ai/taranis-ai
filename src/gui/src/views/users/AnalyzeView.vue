@@ -80,7 +80,7 @@ export default {
     }
 
     const addItem = () => {
-      router.push('/report/0')
+      router.push('/report/')
     }
 
     const editItem = (item) => {

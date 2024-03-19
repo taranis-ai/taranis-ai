@@ -38,6 +38,7 @@ def is_file_in_subfolder(subfolder: str, file_name: str) -> bool:
 
 
 def sync_presenter_templates_to_data() -> None:
+    logger.info("Syncing presenter templates to data folder")
     src = Path(__file__).parent.parent / "static" / "presenter_templates"
     dest = Path(Config.DATA_FOLDER) / "presenter_templates"
     hash_file_path = dest / "template_hashes.json"

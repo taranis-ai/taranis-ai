@@ -83,11 +83,11 @@ export default {
     const awaitingSearch = ref(false)
 
     const addAsset = () => {
-      router.push('/asset/0')
+      router.push('/asset/')
     }
 
     const addAssetGroup = () => {
-      router.push('/asset-group/0')
+      router.push('/asset-group/')
     }
 
     const updateSearch = (value) => {

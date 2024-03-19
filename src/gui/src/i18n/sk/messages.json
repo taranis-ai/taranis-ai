@@ -178,12 +178,7 @@
       "tlp_green": "TLP:ZELENÁ",
       "tlp_red": "TLP: ČERVENÁ",
       "tlp_white": "TLP: BIELA",
-      "total_count": "Počet atribútov: ",
-      "type": "Typ",
-      "validator": "Validátor",
-      "validator_parameter": "Parameter validátora",
-      "value": "Hodnota",
-      "value_text": "Hodnotný text"
+      "type": "Typ"
     },
     "button": {
       "add": "Pridať",

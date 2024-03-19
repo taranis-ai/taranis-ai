@@ -1,12 +1,10 @@
 <template>
   <v-autocomplete
-    v-model="input"
+    v-model="selected"
     :readonly="readOnly"
     :label="title"
     :items="stories"
-    item-text="title"
-    item-value="id"
-    multiple
+    :multiple="multiple"
     closable-chips
     clearable
     variant="outlined"
@@ -15,32 +13,43 @@
 </template>
 
 <script>
-import { computed, inject } from 'vue'
+import { computed, inject, ref } from 'vue'
 
 export default {
   name: 'AttributeStory',
   props: {
     modelValue: {
-      type: Array,
-      default: () => [],
+      type: String,
       required: true
     },
     title: {
       type: String,
       default: 'Stories'
     },
-    readOnly: { type: Boolean, default: false }
+    readOnly: { type: Boolean, default: false },
+    multiple: { type: Boolean, default: true }
   },
   emits: ['update:modelValue'],
   setup(props, { emit }) {
     const stories = inject('report_stories')
-    const input = computed({
-      get: () => props.modelValue,
-      set: (newValue) => emit('update:modelValue', newValue || '')
-    })
+    const selected = ref(
+      props.modelValue
+        .split(',')
+        .filter((v) => v)
+        .map((val) => parseInt(val))
+    )
+
+    const updateSelected = (val) => {
+      selected.value = val
+      console.debug('updateSelected', val)
+      emit('update:modelValue', val.filter((v) => v).join(','))
+    }
 
     return {
-      input,
+      selected: computed({
+        get: () => selected.value,
+        set: updateSelected
+      }),
       stories
     }
   }

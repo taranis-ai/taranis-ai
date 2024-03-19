@@ -29,14 +29,6 @@ class AttributeType(Enum):
     STORY = auto()
 
 
-class AttributeValidator(Enum):
-    NONE = auto()
-    EMAIL = auto()
-    NUMBER = auto()
-    RANGE = auto()
-    REGEXP = auto()
-
-
 class AttributeEnum(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     index: Any = db.Column(db.Integer)
@@ -139,17 +131,12 @@ class Attribute(BaseModel):
     type = db.Column(db.Enum(AttributeType))
     default_value = db.Column(db.String(), default="")
 
-    validator = db.Column(db.Enum(AttributeValidator), default=AttributeValidator.NONE)
-    validator_parameter = db.Column(db.String())
-
-    def __init__(self, name, description, attribute_type, validator_parameter="", default_value="", validator=None, id=None):
+    def __init__(self, name, description, attribute_type, default_value="", id=None):
         self.id = id
         self.name = name
         self.description = description
         self.type = attribute_type
         self.default_value = default_value
-        self.validator = validator
-        self.validator_parameter = validator_parameter
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Attribute":

@@ -112,7 +112,6 @@ def pre_seed_attributes(db):
         "name": "Text",
         "description": "Simple text box",
         "type": "STRING",
-        "validator_parameter": "",
     }
 
     attrs = [

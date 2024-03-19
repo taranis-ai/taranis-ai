@@ -75,7 +75,7 @@ export default {
     })
 
     function addReport() {
-      router.push('/report/0')
+      router.push('/report/')
     }
 
     onMounted(() => {

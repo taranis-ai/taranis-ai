@@ -178,12 +178,7 @@
         "tlp_green": "TLP:GRÜN",
         "tlp_red": "TLP:ROT",
         "tlp_white": "TLP:WEISS",
-        "total_count": "Anzahl der Attribute: ",
-        "type": "Typ",
-        "validator": "Validator",
-        "validator_parameter": "Validierungsparameter",
-        "value": "Wert",
-        "value_text": "Werttext"
+        "type": "Typ"
     },
     "button": {
         "add": "Hinzufügen",

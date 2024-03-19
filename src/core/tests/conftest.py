@@ -12,10 +12,6 @@ load_dotenv(dotenv_path="tests/.env", override=True)
 def app(request):
     from core.__init__ import create_app
 
-    # def teardown():
-    #     os.remove("/var/tmp/taranis_test.db")
-
-    # request.addfinalizer(teardown)
     yield create_app()
 
 
