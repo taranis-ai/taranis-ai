@@ -607,6 +607,7 @@ class NewsItemAggregate(BaseModel):
             }
         )
         NewsItemAggregateSearchIndex.prepare(aggregate)
+        aggregate.update_tlp()
 
         db.session.commit()
 
