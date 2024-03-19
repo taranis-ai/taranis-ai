@@ -133,7 +133,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, provide } from 'vue'
 import { useAnalyzeStore } from '@/stores/AnalyzeStore'
 import { useUserStore } from '@/stores/UserStore'
 import { createReportItem, updateReportItem } from '@/api/analyze'
@@ -166,6 +166,7 @@ export default {
     const expand_panel_groups = ref([])
     const report_item = ref(props.reportItemProp)
     const required = ref([(v) => !!v || 'Required'])
+    provide('report_stories', report_item.value.news_item_aggregates)
 
     const { report_item_types } = storeToRefs(store)
 
