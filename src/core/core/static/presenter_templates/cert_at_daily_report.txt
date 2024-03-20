@@ -2,7 +2,7 @@
 This Template needs excatly one Report
 {% else -%}
 {% set report = data.report_items[0].attributes -%}
-{% set stories = data.report_items[0].news_item_aggregates -%}
+{% set stories = data.report_items[0].news_item_aggregates %}
 
 =====================
 = End-of-Day report =
