@@ -1,0 +1,61 @@
+{% if data.report_items|length != 1 -%}
+This Template needs excatly one Report
+{% else -%}
+{% set report = data.report_items[0].attributes -%}
+{% set stories = data.report_items[0].news_item_aggregates -%}
+
+=====================
+= End-of-Day report =
+=====================
+
+Timeframe:   {{ report.timeframe }}
+Handler:     {{ report.handler }}
+Co-Handler:  {{ report.co_handler }}
+
+
+=====================
+=       News        =
+=====================
+
+{% for group_id in report.news.split(',') -%}
+{% for story in stories -%}
+{% if story.id|string == group_id -%}
+
+∗∗∗ {{ story.title }} ∗∗∗
+---------------------------------------------
+{% if story.summary is defined and story.summary|length -%}
+{{ story.summary }}
+{% else -%}
+{{ story.news_items[0].news_item_data.content }}
+{%- endif %}
+---------------------------------------------
+{{ story.news_items[0].news_item_data.link }}
+
+{%- endif %}
+{%- endfor %}
+{%- endfor %}
+
+
+
+=====================
+=  Vulnerabilities  =
+=====================
+
+{% for group_id in report.vulnerabilities.split(',') -%}
+{% for story in stories -%}
+{% if story.id|string == group_id -%}
+
+∗∗∗ {{ story.title }} ∗∗∗
+---------------------------------------------
+{% if story.summary is defined and story.summary|length -%}
+{{ story.summary }}
+{% else -%}
+{{ story.news_items[0].news_item_data.content }}
+{%- endif %}
+---------------------------------------------
+{{ story.news_items[0].news_item_data.link }}
+
+{%- endif %}
+{%- endfor %}
+{%- endfor %}
+{% endif -%}

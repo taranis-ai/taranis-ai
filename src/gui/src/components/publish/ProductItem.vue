@@ -184,6 +184,8 @@ export default {
     const { renderedProduct, renderedProductMimeType } =
       storeToRefs(publishStore)
 
+    renderedProduct.value = null
+
     const product_types = computed(() => {
       return publishStore.product_types.items
     })

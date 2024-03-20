@@ -282,7 +282,7 @@ report_types = [
     {
         "id": 1,
         "title": "OSINT Report",
-        "description": "OSINT Report",
+        "description": "Example OSINT Report provided by Taranis AI",
         "attribute_groups": [
             {
                 "title": "Summary",
@@ -314,7 +314,7 @@ report_types = [
     {
         "id": 2,
         "title": "Disinformation",
-        "description": "Disinformation",
+        "description": "Example Disinformation Report provided by Taranis AI",
         "attribute_groups": [
             {
                 "title": "Summary",
@@ -344,7 +344,7 @@ report_types = [
     {
         "id": 3,
         "title": "Vulnerability Report",
-        "description": "Vulnerability Report",
+        "description": "Example Vulnerability Report provided by Taranis AI",
         "attribute_groups": [
             {
                 "title": "Vulnerability",
@@ -439,34 +439,22 @@ report_types = [
     },
     {
         "id": 4,
-        "title": "MISP Report",
-        "description": "MISP Report",
+        "title": "CERT Report",
+        "description": "Example CERT Report provided by Taranis AI",
         "attribute_groups": [
             {
-                "title": "Event",
-                "description": "Event",
+                "title": "Data",
+                "description": "Data",
                 "index": 0,
                 "attribute_group_items": [
-                    {"title": "Event distribution", "description": "Event distribution", "index": 0, "attribute": "Text"},
-                    {"title": "Event threat level", "description": "Event threat level", "index": 1, "attribute": "Text"},
-                    {"title": "Event analysis", "description": "Event analysis", "index": 2, "attribute": "Text"},
-                    {"title": "Event info", "description": "Event info", "index": 3, "attribute": "Text"},
+                    {"title": "date", "description": "Date", "index": 0, "attribute": "Text"},
+                    {"title": "timeframe", "description": "Timeframe", "index": 1, "attribute": "Text"},
+                    {"title": "handler", "description": "Handler", "index": 2, "attribute": "Text"},
+                    {"title": "co_handler", "description": "CO-Handler", "index": 3, "attribute": "Text"},
+                    {"title": "news", "description": "News", "index": 4, "attribute": "Story", "multiple": True},
+                    {"title": "vulnerabilities", "description": "Vulnerabilities", "index": 5, "attribute": "Story", "multiple": True},
                 ],
-            },
-            {
-                "title": "Attribute",
-                "description": "Attribute",
-                "index": 1,
-                "attribute_group_items": [
-                    {"title": "Category", "description": "Category", "index": 0, "attribute": "Text"},
-                    {"title": "Type", "description": "Attribute type", "index": 1, "attribute": "Text"},
-                    {"title": "Distribution", "description": "Distribution", "index": 2, "attribute": "Text"},
-                    {"title": "Value", "description": "Value", "index": 3, "attribute": "Text Area"},
-                    {"title": "Comment", "description": "Contextual comment", "index": 4, "attribute": "Text"},
-                    {"title": "First seen date", "description": "First seen date", "index": 5, "attribute": "Date"},
-                    {"title": "Last seen date", "description": "Last seen date", "index": 6, "attribute": "Date"},
-                ],
-            },
+            }
         ],
     },
 ]
@@ -483,39 +471,22 @@ product_types = [
         "report_types": [1, 2, 3, 4],
     },
     {
-        "title": "Default HTML Presenter",
-        "description": "Default HTML Presenter",
-        "type": "HTML_PRESENTER",
-        "parameters": [
-            {"parameter": "TEMPLATE_PATH", "value": "html_template.html"},
-        ],
-        "report_types": [1, 2, 3, 4],
-    },
-    {
         "title": "Default TEXT Presenter",
         "description": "Default TEXT Presenter",
         "type": "TEXT_PRESENTER",
         "parameters": [
             {"parameter": "TEMPLATE_PATH", "value": "text_template.txt"},
         ],
-        "report_types": [3],
-    },
-    {
-        "title": "Default MISP Presenter",
-        "description": "Default MISP Presenter",
-        "type": "JSON_PRESENTER",
-        "parameters": [
-            {"parameter": "TEMPLATE_PATH", "value": "misp_template.json"},
-        ],
-        "report_types": [4],
+        "report_types": [1, 2, 3, 4],
     },
     {
         "title": "CERT Daily Report",
-        "description": "cert.at Daily Report",
+        "description": "cert.at Daily Report HTML",
         "type": "HTML_PRESENTER",
         "parameters": [
             {"parameter": "TEMPLATE_PATH", "value": "cert_at_daily_report.html"},
         ],
+        "report_types": [4],
     },
 ]
 

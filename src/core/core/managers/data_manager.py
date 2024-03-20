@@ -72,7 +72,7 @@ def get_presenter_template_path(presenter_template: str) -> str:
 
 def get_presenter_templates() -> list[str]:
     path = Path(Config.DATA_FOLDER) / "presenter_templates"
-    return [file.name for file in filter(Path.is_file, path.glob("*"))]
+    return [file.name for file in filter(Path.is_file, path.glob("*")) if file.name != "README.md"]
 
 
 def get_template_as_base64(presenter_template: str) -> str:
