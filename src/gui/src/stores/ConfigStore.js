@@ -19,7 +19,8 @@ import {
   getAllTemplates,
   getAllWorkers,
   getAllWorkerTypes,
-  getQueueStatus
+  getQueueStatus,
+  getQueueTasks
 } from '@/api/config'
 
 export const useConfigStore = defineStore('config', {
@@ -42,7 +43,8 @@ export const useConfigStore = defineStore('config', {
     schedule: [],
     workers: [],
     worker_types: { total_count: 0, items: [] },
-    queue_status: {}
+    queue_status: {},
+    queue_tasks: []
   }),
   getters: {
     getUserByID: (state) => (user_id) => {
@@ -244,6 +246,15 @@ export const useConfigStore = defineStore('config', {
           const error_message = getMessageFromError(error)
           this.queue_status = error_message
           notifyFailure(error_message)
+        })
+    },
+    async loadQueueTasks(data) {
+      return getQueueTasks(data)
+        .then((response) => {
+          this.queue_tasks = response.data
+        })
+        .catch((error) => {
+          notifyFailure(error)
         })
     },
     async loadWorkers(data) {

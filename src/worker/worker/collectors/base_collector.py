@@ -98,7 +98,11 @@ class BaseCollector:
         item["hash"] = item.get("hash", hashlib.sha256((item["author"] + item["title"] + item["link"]).encode()).hexdigest())
         return item
 
-    def publish(self, news_items: list[dict], source: dict):
+    def preview(self, news_items: list[dict], source: dict):
+        news_items = self.process_news_items(news_items, source)
+        self.core_api.preview_news_items(news_items)
+
+    def process_news_items(self, news_items: list[dict], source: dict) -> list[dict]:
         if "word_lists" in source:
             news_items = self.filter_by_word_list(news_items, source)
         if tlp_level := source["parameters"].get("TLP_LEVEL", None):
@@ -106,6 +110,10 @@ class BaseCollector:
 
         for item in news_items:
             item = self.sanitize_news_item(item, source)
+        return news_items
+
+    def publish(self, news_items: list[dict], source: dict):
+        news_items = self.process_news_items(news_items, source)
         logger.info(f"Publishing {len(news_items)} news items to core api")
         self.core_api.add_news_items(news_items)
         self.core_api.update_osintsource_status(source["id"], None)

@@ -32,6 +32,19 @@
     </v-row>
     <v-row class="mt-5">
       <DataTable
+        :items="queue_tasks"
+        :add-button="false"
+        :header-filter="['name', 'messages']"
+      >
+        <template #titlebar>
+          <v-col cols="12" class="mt-3">
+            <h1>Tasks</h1>
+          </v-col>
+        </template>
+      </DataTable>
+    </v-row>
+    <v-row class="mt-5">
+      <DataTable
         :items="schedule_enhanced"
         :add-button="false"
         :header-filter="[
@@ -76,13 +89,15 @@ export default {
     const configStore = useConfigStore()
     const schedule_enhanced = ref([])
 
-    const { schedule, workers, queue_status } = storeToRefs(configStore)
+    const { schedule, workers, queue_status, queue_tasks } =
+      storeToRefs(configStore)
 
     const updateData = () => {
       Promise.all([
         configStore.loadQueueStatus(),
         configStore.loadSchedule(),
-        configStore.loadWorkers()
+        configStore.loadWorkers(),
+        configStore.loadQueueTasks()
       ])
     }
 
@@ -114,6 +129,7 @@ export default {
       schedule,
       workers,
       queue_status,
+      queue_tasks,
       schedule_enhanced,
       updateData,
       deleteItem,

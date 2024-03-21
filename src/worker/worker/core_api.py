@@ -55,7 +55,7 @@ class CoreApi:
         try:
             return self.api_get(f"/worker/bots/{bot_id}")
         except Exception:
-            logger.log_debug_trace("Can't get Bot Config")
+            logger.exception("Can't get Bot Config")
             return None
 
     def get_osint_source(self, source_id: str) -> dict | None:
@@ -116,7 +116,7 @@ class CoreApi:
         try:
             return self.api_get("/worker/news-item-aggregates", params=filter_dict) or []
         except Exception:
-            logger.log_debug_trace("get_news_items_aggregate failed")
+            logger.exception("get_news_items_aggregate failed")
             return []
 
     def get_tags(self) -> dict | None:
@@ -158,14 +158,14 @@ class CoreApi:
             if tags:
                 return self.api_put(url=f"/worker/tags?bot_type={bot_type}", json_data=tags)
         except Exception:
-            logger.log_debug_trace("update_tags failed")
+            logger.exception("update_tags failed")
             return None
 
     def run_post_collection_bots(self, source_id) -> dict | None:
         try:
             return self.api_put("/worker/post-collection-bots", json_data={"source_id": source_id})
         except Exception:
-            logger.log_debug_trace("Can't run Post Collection Bots")
+            logger.exception("Can't run Post Collection Bots")
             return None
 
     def update_word_list(self, word_list_id, content, content_type) -> dict | None:
@@ -235,7 +235,18 @@ class CoreApi:
 
             return response.ok
         except Exception:
-            logger.log_debug_trace("Cannot add Newsitem")
+            logger.exception("Cannot add Newsitem")
+            return False
+
+    def preview_news_items(self, news_items) -> bool:
+        try:
+            response = requests.post(
+                f"{self.api_url}/worker/news-items/preview", json=news_items, headers=self.headers, verify=self.verify, timeout=self.timeout
+            )
+
+            return response.ok
+        except Exception:
+            logger.exception("Cannot add Newsitem")
             return False
 
     def cleanup_token_blacklist(self):
@@ -244,5 +255,5 @@ class CoreApi:
             response = requests.post(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
             return self.check_response(response, url)
         except Exception:
-            logger.log_debug_trace("Cannot cleanup token blacklist")
+            logger.exception("Cannot cleanup token blacklist")
             return False

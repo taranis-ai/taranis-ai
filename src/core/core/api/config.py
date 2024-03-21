@@ -323,6 +323,12 @@ class QueueStatus(Resource):
         return queue_manager.queue_manager.get_queue_status()
 
 
+class QueueTasks(Resource):
+    @auth_required("CONFIG_WORKER_ACCESS")
+    def get(self):
+        return queue_manager.queue_manager.get_queued_tasks()
+
+
 class QueueSchedule(Resource):
     @auth_required("CONFIG_WORKER_ACCESS")
     def get(self):
@@ -371,6 +377,12 @@ class OSINTSourceCollect(Resource):
         if source_id:
             return queue_manager.queue_manager.collect_osint_source(source_id)
         return queue_manager.queue_manager.collect_all_osint_sources()
+
+
+class OSINTSourcePreview(Resource):
+    @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
+    def post(self, source_id):
+        return queue_manager.queue_manager.collect_osint_source(source_id)
 
 
 class OSINTSourcesExport(Resource):
@@ -539,6 +551,7 @@ def initialize(api: Api):
     namespace.add_resource(Organizations, "/organizations/<int:organization_id>", "/organizations")
     namespace.add_resource(OSINTSources, "/osint-sources/<string:source_id>", "/osint-sources")
     namespace.add_resource(OSINTSourceCollect, "/osint-sources/<string:source_id>/collect", "/osint-sources/collect")
+    namespace.add_resource(OSINTSourcePreview, "/osint-sources/<string:source_id>/preview")
     namespace.add_resource(OSINTSourceGroups, "/osint-source-groups/<string:group_id>", "/osint-source-groups")
     namespace.add_resource(OSINTSourcesExport, "/export-osint-sources")
     namespace.add_resource(OSINTSourcesImport, "/import-osint-sources")
@@ -551,6 +564,7 @@ def initialize(api: Api):
     namespace.add_resource(Publishers, "/publishers")
     namespace.add_resource(QueueStatus, "/workers/queue-status")
     namespace.add_resource(QueueSchedule, "/workers/schedule")
+    namespace.add_resource(QueueTasks, "/workers/tasks")
     namespace.add_resource(ReportItemTypes, "/report-item-types/<int:type_id>", "/report-item-types")
     namespace.add_resource(ReportItemTypesExport, "/export-report-item-types")
     namespace.add_resource(ReportItemTypesImport, "/import-report-item-types")

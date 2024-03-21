@@ -180,18 +180,27 @@ class RSSCollector(BaseWebCollector):
         self.core_api.update_osint_source_icon(source_id, icon_content)
         return None
 
-    def rss_collector(self, feed_url: str, source):
-        feed_content = self.make_request(feed_url)
-        if not feed_content:
-            logger.info(f"RSS-Feed {source['id']} returned no content")
+    def get_feed(self, feed_url: str) -> feedparser.FeedParserDict:
+        self.feed_content = self.make_request(feed_url)
+        if not self.feed_content:
+            logger.info(f"RSS-Feed {feed_url} returned no content")
             raise ValueError("RSS returned no content")
+        return feedparser.parse(self.feed_content.content)
 
-        feed = feedparser.parse(feed_content.content)
+    def preview_collector(self, feed_url: str, source):
+        feed = self.get_feed(feed_url)
+        news_items = [self.parse_feed(feed_entry, feed_url, source) for feed_entry in feed["entries"][:42]]
+
+        self.preview(news_items, source)
+        return None
+
+    def rss_collector(self, feed_url: str, source):
+        feed = self.get_feed(feed_url)
 
         last_attempted = self.get_last_attempted(source)
         if not last_attempted:
             self.update_favicon(feed.feed, feed_url, source["id"])
-        last_modified = self.get_last_modified(feed_content, feed)
+        last_modified = self.get_last_modified(self.feed_content, feed)
         self.last_modified = last_modified
         if last_modified and last_attempted and last_modified < last_attempted:
             logger.debug(f"Last-Modified: {last_modified} < Last-Attempted {last_attempted} skipping")

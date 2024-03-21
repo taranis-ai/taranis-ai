@@ -1,4 +1,4 @@
-from celery import Task
+from celery import Task, shared_task
 
 import worker.collectors
 from worker.collectors.base_collector import BaseCollector
@@ -73,3 +73,8 @@ class CollectorTask(Task):
             return err
 
         return None
+
+
+@shared_task(time_limit=50, name="collector_preview")
+def collector_preview(source_id: str):
+    pass

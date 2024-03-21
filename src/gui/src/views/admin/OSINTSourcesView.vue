@@ -40,6 +40,17 @@
           </template>
           <span>Collect Source</span>
         </v-tooltip>
+        <v-tooltip left>
+          <template #activator="{ props }">
+            <v-icon
+              v-bind="props"
+              color="secondary"
+              icon="mdi-file-find"
+              @click.stop="previewSource(source.item)"
+            />
+          </template>
+          <span>Preview Source</span>
+        </v-tooltip>
       </template>
     </DataTable>
     <EditConfig
@@ -64,6 +75,7 @@ import {
   exportOSINTSources,
   importOSINTSources,
   collectOSINTSSource,
+  previewOSINTSSource,
   collectAllOSINTSSources
 } from '@/api/config'
 import { notifySuccess, objectFromFormat, notifyFailure } from '@/utils/helpers'
@@ -270,6 +282,16 @@ export default {
         })
     }
 
+    const previewSource = (source) => {
+      previewOSINTSSource(source.id)
+        .then(() => {
+          notifySuccess(`Successfully previewed ${source.name}`)
+        })
+        .catch(() => {
+          notifyFailure(`Failed to preview ${source.name}`)
+        })
+    }
+
     return {
       parameters,
       collector_options,
@@ -289,6 +311,7 @@ export default {
       importData,
       exportData,
       collectSource,
+      previewSource,
       collectAllSources,
       selectionChange
     }

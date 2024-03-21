@@ -1,6 +1,7 @@
 from pydantic_settings import BaseSettings
 from typing import Literal, Any
 from pydantic import model_validator
+from kombu import Queue
 
 
 class Settings(BaseSettings):
@@ -37,6 +38,8 @@ class Settings(BaseSettings):
                 f"{self.QUEUE_BROKER_SCHEME}://{self.QUEUE_BROKER_USER}:{self.QUEUE_BROKER_PASSWORD}"
                 f"@{self.QUEUE_BROKER_HOST}:{self.QUEUE_BROKER_PORT}/{self.QUEUE_BROKER_VHOST}"
             )
+        task_queues = [Queue("misc")]
+        task_queues.extend(Queue(f"{worker_type.lower()}", routing_key=f"{worker_type.lower()}") for worker_type in self.WORKER_TYPES)
         self.CELERY = {
             "broker_url": broker_url,
             "ignore_result": True,
@@ -45,6 +48,7 @@ class Settings(BaseSettings):
             "beat_scheduler": "worker.scheduler:RESTScheduler",
             "enable_utc": True,
             "worker_hijack_root_logger": False,
+            "task_queues": task_queues,
         }
         return self
 

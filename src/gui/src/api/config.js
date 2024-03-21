@@ -255,6 +255,10 @@ export function getQueueStatus() {
   return apiService.get('/config/workers/queue-status')
 }
 
+export function getQueueTasks() {
+  return apiService.get('/config/workers/tasks')
+}
+
 export function getAllSchedule() {
   return apiService.get('/config/workers/schedule')
 }
@@ -274,6 +278,10 @@ export function createOSINTSource(source) {
 
 export function collectOSINTSSource(source_id) {
   return apiService.post(`/config/osint-sources/${source_id}/collect`)
+}
+
+export function previewOSINTSSource(source_id) {
+  return apiService.post(`/config/osint-sources/${source_id}/preview`)
 }
 
 export function collectAllOSINTSSources() {
