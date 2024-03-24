@@ -68,6 +68,9 @@ class BaseCollector:
     def collect(self, source: dict):
         pass
 
+    def preview_collector(self, source: dict):
+        pass
+
     def sanitize_html(self, html: str):
         html = re.sub(r"(?i)(&nbsp;|\xa0)", " ", html, re.DOTALL)
         return BeautifulSoup(html, "lxml").text
@@ -100,7 +103,8 @@ class BaseCollector:
 
     def preview(self, news_items: list[dict], source: dict):
         news_items = self.process_news_items(news_items, source)
-        self.core_api.preview_news_items(news_items)
+        logger.info(f"Previewing {len(news_items)} news items")
+        return news_items
 
     def process_news_items(self, news_items: list[dict], source: dict) -> list[dict]:
         if "word_lists" in source:

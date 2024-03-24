@@ -19,8 +19,8 @@
       <template #titlebar>
         <ImportExport @import="importData" @export="exportData"></ImportExport>
         <v-btn
-          color="blue-grey"
           dark
+          color="blue-grey"
           class="ml-4"
           prepend-icon="mdi-run"
           @click="collectAllSources"

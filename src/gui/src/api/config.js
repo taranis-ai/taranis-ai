@@ -284,6 +284,11 @@ export function previewOSINTSSource(source_id) {
   return apiService.post(`/config/osint-sources/${source_id}/preview`)
 }
 
+export function getOSINTSSourcePreview(source_id) {
+  return apiService.get(`/config/osint-sources/${source_id}/preview`)
+}
+
+
 export function collectAllOSINTSSources() {
   return apiService.post('/config/osint-sources/collect')
 }

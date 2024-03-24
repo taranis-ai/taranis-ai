@@ -22,27 +22,30 @@ class RSSCollector(BaseWebCollector):
         self.news_items = []
         self.headers = {}
         self.timeout = 60
+        self.feed_url = ""
         logger_trafilatura = logging.getLogger("trafilatura")
         logger_trafilatura.setLevel(logging.WARNING)
 
-    def collect(self, source):
-        feed_url = source["parameters"].get("FEED_URL", None)
-        if not feed_url:
+    def parse_source(self, source):
+        self.feed_url = source["parameters"].get("FEED_URL")
+        if not self.feed_url:
             logger.warning("No FEED_URL set")
-            return "No FEED_URL set"
+            return {"error": "No FEED_URL set"}
 
         self.set_proxies(source["parameters"].get("PROXY_SERVER", None))
 
-        logger.info(f"RSS-Feed {source['id']} Starting collector for url: {feed_url}")
+        logger.info(f"RSS-Feed {source['id']} Starting collector for url: {self.feed_url}")
 
         if user_agent := source["parameters"].get("USER_AGENT", None):
             self.headers = {"User-Agent": user_agent}
 
+    def collect(self, source):
+        self.parse_source(source)
         try:
-            return self.rss_collector(feed_url, source)
+            return self.rss_collector(source)
         except Exception as e:
             logger.exception()
-            logger.error(f"RSS collector for {feed_url} failed with error: {str(e)}")
+            logger.error(f"RSS collector failed with error: {str(e)}")
             return str(e)
 
     def make_request(self, url: str) -> None | requests.Response:
@@ -100,7 +103,7 @@ class RSSCollector(BaseWebCollector):
 
         return self.xpath_extraction(html_content, xpath)
 
-    def parse_feed(self, feed_entry: feedparser.FeedParserDict, feed_url, source) -> dict[str, str | datetime.datetime | list]:
+    def parse_feed(self, feed_entry: feedparser.FeedParserDict, source) -> dict[str, str | datetime.datetime | list]:
         author: str = str(feed_entry.get("author", ""))
         title: str = str(feed_entry.get("title", ""))
         description: str = str(feed_entry.get("description", ""))
@@ -139,7 +142,7 @@ class RSSCollector(BaseWebCollector):
             "hash": hashlib.sha256(for_hash.encode()).hexdigest(),
             "title": title,
             "review": description,
-            "source": feed_url,
+            "source": self.feed_url,
             "link": link,
             "published": published,
             "author": author,
@@ -162,9 +165,9 @@ class RSSCollector(BaseWebCollector):
                 return None
         return None
 
-    def update_favicon(self, feed: feedparser.FeedParserDict, feed_url: str, source_id: str):
-        logger.info(f"RSS-Feed {feed_url} initial gather, get meta info about source like image icon and language")
-        icon_url = f"{urlparse(feed_url).scheme}://{urlparse(feed_url).netloc}/favicon.ico"
+    def update_favicon(self, feed: feedparser.FeedParserDict, source_id: str):
+        logger.info(f"RSS-Feed {self.feed_url} initial gather, get meta info about source like image icon and language")
+        icon_url = f"{urlparse(self.feed_url).scheme}://{urlparse(self.feed_url).netloc}/favicon.ico"
         icon = feed.get("icon", feed.get("image"))
         if isinstance(icon, feedparser.FeedParserDict):
             icon_url = str(icon.get("href"))
@@ -180,26 +183,26 @@ class RSSCollector(BaseWebCollector):
         self.core_api.update_osint_source_icon(source_id, icon_content)
         return None
 
-    def get_feed(self, feed_url: str) -> feedparser.FeedParserDict:
-        self.feed_content = self.make_request(feed_url)
+    def get_feed(self) -> feedparser.FeedParserDict:
+        self.feed_content = self.make_request(self.feed_url)
         if not self.feed_content:
-            logger.info(f"RSS-Feed {feed_url} returned no content")
+            logger.info(f"RSS-Feed {self.feed_url} returned no content")
             raise ValueError("RSS returned no content")
         return feedparser.parse(self.feed_content.content)
 
-    def preview_collector(self, feed_url: str, source):
-        feed = self.get_feed(feed_url)
-        news_items = [self.parse_feed(feed_entry, feed_url, source) for feed_entry in feed["entries"][:42]]
+    def preview_collector(self, source):
+        self.parse_source(source)
+        feed = self.get_feed()
+        news_items = [self.parse_feed(feed_entry, source) for feed_entry in feed["entries"][:42]]
 
-        self.preview(news_items, source)
-        return None
+        return self.preview(news_items, source)
 
-    def rss_collector(self, feed_url: str, source):
-        feed = self.get_feed(feed_url)
+    def rss_collector(self, source):
+        feed = self.get_feed()
 
         last_attempted = self.get_last_attempted(source)
         if not last_attempted:
-            self.update_favicon(feed.feed, feed_url, source["id"])
+            self.update_favicon(feed.feed, source["id"])
         last_modified = self.get_last_modified(self.feed_content, feed)
         self.last_modified = last_modified
         if last_modified and last_attempted and last_modified < last_attempted:
@@ -208,7 +211,7 @@ class RSSCollector(BaseWebCollector):
 
         logger.info(f"RSS-Feed {source['id']} returned feed with {len(feed['entries'])} entries")
 
-        news_items = [self.parse_feed(feed_entry, feed_url, source) for feed_entry in feed["entries"][:42]]
+        news_items = [self.parse_feed(feed_entry, source) for feed_entry in feed["entries"][:42]]
 
         self.publish(news_items, source)
         return None

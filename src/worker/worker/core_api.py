@@ -238,17 +238,6 @@ class CoreApi:
             logger.exception("Cannot add Newsitem")
             return False
 
-    def preview_news_items(self, news_items) -> bool:
-        try:
-            response = requests.post(
-                f"{self.api_url}/worker/news-items/preview", json=news_items, headers=self.headers, verify=self.verify, timeout=self.timeout
-            )
-
-            return response.ok
-        except Exception:
-            logger.exception("Cannot add Newsitem")
-            return False
-
     def cleanup_token_blacklist(self):
         try:
             url = f"{self.api_url}/worker/token-blacklist"
