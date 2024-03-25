@@ -13,12 +13,11 @@ from worker.types import Product
 class EMAILPublisher(BasePublisher):
     def __init__(self):
         super().__init__()
-        self.smtp_username = None
         self.smtp_address = None
         self.smtp_port = None
         self.smtp_tls = False
-        self.smtp_password = None
         self.smtp_username = None
+        self.smtp_password = None
         self.sender = None
         self.recipient = None
         self.mail_subject = None
@@ -142,16 +141,16 @@ if __name__ == "__main__":
         #         "EMAIL_RECIPIENT": "",
         #         "EMAIL_SUBJECT": "Test email subject",
         #     },
-            {
-                "parameters": {
-                    "SMTP_SERVER_ADDRESS": "localhost",
-                    "SMTP_SERVER_PORT": 1025,
-                    "SERVER_TLS": False,
-                    "EMAIL_USERNAME": "",
-                    "EMAIL_PASSWORD": "",
-                    "EMAIL_SENDER": "sender@email.com",
-                    "EMAIL_RECIPIENT": "taranis@dev.taranis.ai",
-                    "EMAIL_SUBJECT": "Test email subject",
+        {
+            "parameters": {
+                "SMTP_SERVER_ADDRESS": "localhost",
+                "SMTP_SERVER_PORT": 1025,
+                "SERVER_TLS": False,
+                "EMAIL_USERNAME": "",
+                "EMAIL_PASSWORD": "",
+                "EMAIL_SENDER": "sender@email.com",
+                "EMAIL_RECIPIENT": "taranis@dev.taranis.ai",
+                "EMAIL_SUBJECT": "Test email subject",
             },
         },
         {"id": 1, "type": "text_presenter", "type_id": 3, "mime_type": "text/plain", "report_items": [{"title": "test title"}]},
