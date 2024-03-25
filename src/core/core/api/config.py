@@ -7,7 +7,7 @@ from core.managers import (
     auth_manager,
     queue_manager,
 )
-from core.managers.log_manager import logger
+from core.log import logger
 from core.managers.auth_manager import auth_required
 from core.managers.data_manager import get_template_as_base64, write_base64_to_file, get_presenter_templates, delete_template
 from core.model import (

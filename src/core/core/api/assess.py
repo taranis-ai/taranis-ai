@@ -5,7 +5,7 @@ from urllib.parse import unquote
 
 from core.managers import auth_manager
 from core.managers.sse_manager import sse_manager
-from core.managers.log_manager import logger
+from core.log import logger
 from core.managers.auth_manager import auth_required
 from core.model import news_item, osint_source, news_item_tag
 from core.managers.input_validators import validate_id

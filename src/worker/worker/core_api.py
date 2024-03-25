@@ -168,23 +168,6 @@ class CoreApi:
             logger.exception("Can't run Post Collection Bots")
             return None
 
-    def update_word_list(self, word_list_id, content, content_type) -> dict | None:
-        try:
-            url = f"{self.api_url}/worker/word-list/{word_list_id}/update"
-            headers = self.headers.copy()
-            headers["Content-type"] = content_type
-            # url = "http://127.0.0.1:8888/anything"
-            if content_type == "text/csv":
-                return self.check_response(
-                    requests.put(url=url, data=content, headers=headers, verify=self.verify, timeout=self.timeout), url
-                )
-            elif content_type == "application/json":
-                return self.check_response(
-                    requests.put(url=url, json=content, headers=headers, verify=self.verify, timeout=self.timeout), url
-                )
-        except Exception:
-            return None
-
     def update_osintsource_status(self, osint_source_id: str, error_msg: dict | None = None) -> dict | None:
         return self.api_put(url=f"/worker/osint-sources/{osint_source_id}", json_data=error_msg)
 

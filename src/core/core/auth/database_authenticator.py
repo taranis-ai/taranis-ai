@@ -1,4 +1,4 @@
-from core.managers.log_manager import logger
+from core.log import logger
 from core.auth.base_authenticator import BaseAuthenticator
 from werkzeug.security import check_password_hash
 from core.model.user import User

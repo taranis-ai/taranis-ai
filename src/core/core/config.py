@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     SQLALCHEMY_ECHO: bool = False
     SQLALCHEMY_TRACK_MODIFICATIONS: bool = False
     SQLALCHEMY_DATABASE_URI: str | None = None
+    SQLALCHEMY_ENGINE_OPTIONS: dict[str, Any] | None = {
+        "connect_args": {"timeout": 10},
+    }
     COLORED_LOGS: bool = True
     BUILD_DATE: datetime = datetime.now()
     GIT_INFO: dict[str, str] | None = None

@@ -8,7 +8,7 @@ from sqlalchemy.orm import deferred, Mapped
 from sqlalchemy.exc import IntegrityError
 
 from core.managers.db_manager import db
-from core.managers.log_manager import logger
+from core.log import logger
 from core.model.role_based_access import RoleBasedAccess, ItemType
 from core.model.parameter_value import ParameterValue
 from core.model.word_list import WordList

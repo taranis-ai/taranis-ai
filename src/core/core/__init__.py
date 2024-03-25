@@ -7,10 +7,11 @@ from core.managers import (
     db_manager,
     auth_manager,
     api_manager,
-    log_manager,
     queue_manager,
     data_manager,
 )
+
+from core import log
 
 FLAG_FILENAME = "worker_init.flag"
 FIRST_WORKER = "gunicorn" not in os.environ.get("SERVER_SOFTWARE", "")
@@ -31,7 +32,7 @@ def initialize_managers(app):
     CORS(app)
 
     if FIRST_WORKER:
-        log_manager.logger.info(f"Connecting Database: {app.config.get('SQLALCHEMY_DATABASE_URI')}")
+        log.logger.info(f"Connecting Database: {app.config.get('SQLALCHEMY_DATABASE_URI')}")
     db_manager.initialize(app, FIRST_WORKER)
     auth_manager.initialize(app)
     api_manager.initialize(app)
@@ -39,7 +40,7 @@ def initialize_managers(app):
     data_manager.initialize(FIRST_WORKER)
 
     if FIRST_WORKER:
-        log_manager.logger.info("All Managers initialized")
+        log.logger.info("All Managers initialized")
 
 
 def post_fork(server, worker):
@@ -48,7 +49,7 @@ def post_fork(server, worker):
         FIRST_WORKER = False
         return
     FIRST_WORKER = True
-    log_manager.logger.debug(f"Worker {worker.pid} is the first worker and will perform the one-time tasks.")
+    log.logger.debug(f"Worker {worker.pid} is the first worker and will perform the one-time tasks.")
 
 
 def on_starting_and_exit(server):

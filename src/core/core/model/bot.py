@@ -4,7 +4,7 @@ from sqlalchemy.orm import joinedload
 import uuid
 
 from core.managers.db_manager import db
-from core.managers.log_manager import logger
+from core.log import logger
 from core.model.base_model import BaseModel
 from core.model.parameter_value import ParameterValue
 from core.model.worker import BOT_TYPES, Worker

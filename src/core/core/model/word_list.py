@@ -7,7 +7,7 @@ from sqlalchemy import or_, Column, String
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.model.role_based_access import RoleBasedAccess, ItemType
-from core.managers.log_manager import logger
+from core.log import logger
 from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 
 

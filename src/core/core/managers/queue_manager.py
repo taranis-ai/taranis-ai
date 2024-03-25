@@ -3,7 +3,7 @@ from flask import Flask, session
 import requests
 from requests.auth import HTTPBasicAuth
 
-from core.managers.log_manager import logger
+from core.log import logger
 from core.model.queue import ScheduleEntry
 from kombu.exceptions import OperationalError
 

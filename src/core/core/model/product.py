@@ -5,7 +5,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import deferred, Mapped
 
 from core.managers.db_manager import db
-from core.managers.log_manager import logger
+from core.log import logger
 from core.model.role_based_access import ItemType
 from core.model.report_item import ReportItem
 from core.model.base_model import BaseModel

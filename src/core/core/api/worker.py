@@ -3,7 +3,7 @@ from flask_restx import Resource, Namespace, Api
 from werkzeug.datastructures import FileStorage
 
 from core.managers.auth_manager import api_key_required
-from core.managers.log_manager import logger
+from core.log import logger
 from core.managers import queue_manager
 from core.model.osint_source import OSINTSource
 from core.model.product import Product

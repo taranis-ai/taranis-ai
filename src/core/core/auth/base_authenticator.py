@@ -1,6 +1,6 @@
 from flask_jwt_extended import create_access_token
 
-from core.managers.log_manager import logger
+from core.log import logger
 from core.model.token_blacklist import TokenBlacklist
 from core.model.user import User
 

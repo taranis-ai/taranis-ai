@@ -3,6 +3,8 @@ from flask import request
 
 from core.managers.auth_manager import api_key_required
 from core.model.task import Task as TaskModel
+from core.log import logger
+from core.model.word_list import WordList
 
 
 class Task(Resource):
@@ -18,8 +20,15 @@ class Task(Resource):
         if not data or "task_id" not in data:
             return {"error": "task_id not found"}, 400
 
-        task_data = {"id": data.get("task_id"), "result": data.get("result"), "status": data.get("status")}
-        TaskModel.add_or_update(task_data)
+        task_id = data.get("task_id")
+
+        logger.debug(f"Task ID: {task_id} - {data.get('status')}")
+
+        if task_id.startswith("gather_word_list"):
+            WordList.update_word_list(**data.get("result"))
+        else:
+            task_data = {"id": task_id, "result": data.get("result"), "status": data.get("status")}
+            TaskModel.add_or_update(task_data)
         return {"status": "success"}, 201
 
 

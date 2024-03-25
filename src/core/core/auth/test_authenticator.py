@@ -1,4 +1,4 @@
-from core.managers.log_manager import logger
+from core.log import logger
 from core.auth.base_authenticator import BaseAuthenticator
 
 

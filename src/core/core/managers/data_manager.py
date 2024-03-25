@@ -6,7 +6,7 @@ from werkzeug.datastructures import FileStorage
 from core.config import Config
 from shutil import copy
 
-from core.managers.log_manager import logger
+from core.log import logger
 
 
 def file_hash(file_path):

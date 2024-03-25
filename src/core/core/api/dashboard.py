@@ -2,7 +2,7 @@ from flask import request
 from flask_jwt_extended import jwt_required
 from flask_restx import Resource, Namespace, Api
 
-from core.managers.log_manager import logger
+from core.log import logger
 from core.model.news_item import NewsItemData, NewsItemAggregate
 from core.model.news_item_tag import NewsItemTag
 from core.service.news_item_tag import NewsItemTagService

@@ -2,7 +2,7 @@ from typing import Any
 from datetime import datetime
 
 from core.managers.db_manager import db
-from core.managers.log_manager import logger
+from core.log import logger
 from core.model.base_model import BaseModel
 
 

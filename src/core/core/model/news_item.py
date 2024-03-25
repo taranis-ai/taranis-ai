@@ -11,7 +11,7 @@ import hashlib
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
-from core.managers.log_manager import logger
+from core.log import logger
 from core.model.user import User
 from core.model.role import TLPLevel
 from core.model.news_item_tag import NewsItemTag
