@@ -246,3 +246,16 @@ class CoreApi:
         except Exception:
             logger.exception("Cannot cleanup token blacklist")
             return False
+
+    def store_task_result(self, data) -> dict | None:
+        try:
+            return self.api_post(url="/tasks/", json_data=data)
+        except Exception:
+            return None
+
+    def get_task(self, task_id) -> dict | None:
+        try:
+            url = f"{self.api_url}/tasks/{task_id}"
+            return requests.get(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
+        except Exception:
+            return None

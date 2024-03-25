@@ -2,7 +2,6 @@ import io
 
 from flask import request, send_file, jsonify, session
 from flask_restx import Resource, Namespace, Api
-from celery.result import AsyncResult
 
 from core.managers import (
     auth_manager,
@@ -24,6 +23,7 @@ from core.model import (
     user,
     word_list,
     queue,
+    task,
     worker,
 )
 from core.model.permission import Permission
@@ -391,17 +391,10 @@ class OSINTSourcePreview(Resource):
         if task_id is None:
             return {"error": "No task scheduled or session expired."}, 404
 
-        logger.debug(f"Task ID: {task_id}")
-        task = AsyncResult(task_id)
-
-        logger.debug(task)
-        if task.state == "SUCCESS":
-            result = task.result
-            return {"result": result}, 200
-        elif task.state in ["PENDING", "PROGRESS"]:
-            return {"status": "Processing"}, 202
-
-        return {"error": "Task failed or unknown error occurred."}, 500
+        if result := task.Task.get(task_id):
+            logger.debug(result.to_dict())
+            return result.to_dict(), 200
+        return {"error": "Task not found"}, 404
 
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def post(self, source_id):

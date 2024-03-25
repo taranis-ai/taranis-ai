@@ -34,10 +34,7 @@ class ScheduleEntry(BaseModel):
             entry.update(entry_data)
             db.session.commit()
             return entry, 200
-        entry = cls.from_dict(entry_data)
-        db.session.add(entry)
-        db.session.commit()
-        return entry, 200
+        return cls.add(entry_data), 201
 
     @classmethod
     def sync(cls, entries: list["ScheduleEntry"]):

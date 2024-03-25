@@ -83,6 +83,7 @@ import { storeToRefs } from 'pinia'
 import { useConfigStore } from '@/stores/ConfigStore'
 import { useMainStore } from '@/stores/MainStore'
 import { ref, computed, onBeforeMount } from 'vue'
+import { useRouter } from 'vue-router'
 
 export default {
   name: 'OSINTSourcesView',
@@ -94,6 +95,7 @@ export default {
   setup() {
     const configStore = useConfigStore()
     const mainStore = useMainStore()
+    const router = useRouter()
 
     const { collector_types, osint_sources, parameters } =
       storeToRefs(configStore)
@@ -119,12 +121,6 @@ export default {
           type: 'date'
         },
         {
-          name: 'icon',
-          label: 'Icon',
-          type: 'icon',
-          rules: ['filesize']
-        },
-        {
           name: 'name',
           label: 'Name',
           type: 'text',
@@ -134,6 +130,14 @@ export default {
           name: 'description',
           label: 'Description',
           type: 'textarea'
+        },
+        {
+          name: 'icon',
+          label: 'Icon',
+          type: 'file',
+          icon: 'mdi-camera',
+          rules: ['filesize'],
+          placeholder: 'Pick an icon'
         },
         {
           name: 'type',
@@ -285,7 +289,10 @@ export default {
     const previewSource = (source) => {
       previewOSINTSSource(source.id)
         .then(() => {
-          notifySuccess(`Successfully previewed ${source.name}`)
+          router.push({
+            name: 'osint_sources_preview',
+            params: { source_id: source.id }
+          })
         })
         .catch(() => {
           notifyFailure(`Failed to preview ${source.name}`)

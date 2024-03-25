@@ -91,6 +91,16 @@ class QueueManager:
             return {"error": "Could not reach rabbitmq", "url": ""}, 500
         return {"status": "🚀 Up and running 🏃", "url": f"{queue_manager.celery.broker_connection().as_uri()}"}, 200
 
+    def get_task(self, task_id) -> tuple[dict, int]:
+        if self.error:
+            return {"error": "Could not reach rabbitmq"}, 500
+        task = self.celery.AsyncResult(task_id)
+        if task.state == "SUCCESS":
+            return {"result": task.result}, 200
+        if task.state == "FAILURE":
+            return {"error": task.info}, 500
+        return {"status": task.state}, 202
+
     def collect_osint_source(self, source_id: str):
         if self.send_task("collector_task", args=[source_id], queue="collectors"):
             logger.info(f"Collect for source {source_id} scheduled")

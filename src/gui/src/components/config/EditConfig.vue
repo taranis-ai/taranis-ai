@@ -62,14 +62,15 @@
           :disabled="true"
         />
         <v-file-input
-          v-if="item.type === 'icon'"
-          :rules="[item.rules]"
+          v-if="item.type === 'file'"
+          :rules="item.rules"
           accept="image/png"
           :label="item.label"
-          placeholder="Pick an avatar"
-          prepend-icon="mdi-camera"
-          @change="handleFileUpload(item.type, $event)"
-        ></v-file-input>
+          :placeholder="item.placeholder"
+          :prepend-icon="item.icon"
+          show-size
+          @change="handleFileUpload(item.flatKey, $event)"
+        />
         <v-row
           v-if="item.type === 'checkbox' && item.items !== undefined"
           no-gutters
@@ -174,12 +175,14 @@ export default {
     const rulesDict = {
       required: (v) => Boolean(v) || 'Required',
       email: (v) => /.+@.+\..+/.test(v) || 'E-mail must be valid',
-      filesize: (file) =>
-        file.length
-          ? file[0].size < 2 * 1024 * 1024 || 'Filesize must be less than 2 MB!'
-          : true,
+      filesize: (v) =>
+        Boolean(v.length == 0) ||
+        Boolean(v[0].size < 2 * 1024 * 1024) ||
+        'Filesize must be less than 2MB',
       tlp: (v) =>
-        ['red', 'amber', 'amber+strict', 'green', 'clear'].includes(v) ||
+        ['red', 'amber', 'amber+strict', 'green', 'clear', undefined].includes(
+          v
+        ) ||
         'Invalid TLP allowed values: red, amber, amber+strict, green, clear'
     }
 
@@ -193,15 +196,18 @@ export default {
 
       emit('submit', reconstructFormData(formData.value, format.value))
     }
+    const handleFileUpload = async (flatKey, event) => {
+      if (!(event.target.files[0] instanceof Blob)) {
+        return
+      }
 
-    const handleFileUpload = async (type, event) => {
       const base64String = await new Promise((resolve, reject) => {
         const reader = new FileReader()
         reader.readAsDataURL(event.target.files[0])
         reader.onload = () => resolve(reader.result.split(',')[1])
         reader.onerror = (error) => reject(error)
       })
-      formData.value[type] = base64String
+      formData.value[flatKey] = base64String
       return base64String
     }
 

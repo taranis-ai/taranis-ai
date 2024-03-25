@@ -37,11 +37,14 @@ class OSINTSource(BaseModel):
     last_attempted = db.Column(db.DateTime, default=None)
     last_error_message = db.Column(db.String, default=None)
 
-    def __init__(self, name, description, type, parameters=None, id=None):
+    def __init__(self, name, description, type, parameters=None, icon=None, id=None):
         self.id = id or str(uuid.uuid4())
         self.name = name
         self.description = description
         self.type = type
+        if icon is not None and (icon_data := self.is_valid_base64(icon)):
+            self.icon = icon_data
+
         self.parameters = Worker.parse_parameters(type, parameters)
 
     @classmethod

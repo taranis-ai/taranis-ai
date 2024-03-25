@@ -37,7 +37,7 @@ class NewsItemData(BaseModel):
 
     attributes: Any = db.relationship("NewsItemAttribute", secondary="news_item_data_news_item_attribute", cascade="all, delete")
 
-    osint_source_id = db.Column(db.String, db.ForeignKey("osint_source.id"), nullable=True)
+    osint_source_id = db.Column(db.String, db.ForeignKey("osint_source.id"), nullable=True, index=True)
     osint_source = db.relationship("OSINTSource")
 
     def __init__(
@@ -181,10 +181,10 @@ class NewsItemData(BaseModel):
 class NewsItem(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
 
-    news_item_data_id = db.Column(db.String, db.ForeignKey("news_item_data.id"))
+    news_item_data_id = db.Column(db.String, db.ForeignKey("news_item_data.id"), index=True)
     news_item_data: Any = db.relationship("NewsItemData", cascade="all, delete")
 
-    news_item_aggregate_id = db.Column(db.Integer, db.ForeignKey("news_item_aggregate.id"))
+    news_item_aggregate_id = db.Column(db.Integer, db.ForeignKey("news_item_aggregate.id"), index=True)
 
     def __init__(self, news_item_data=None):
         self.news_item_data = news_item_data
@@ -996,7 +996,7 @@ class NewsItemAggregate(BaseModel):
 class NewsItemAggregateSearchIndex(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     data: Any = db.Column(db.String)
-    news_item_aggregate_id: Any = db.Column(db.Integer, db.ForeignKey("news_item_aggregate.id"))
+    news_item_aggregate_id: Any = db.Column(db.Integer, db.ForeignKey("news_item_aggregate.id"), index=True)
 
     def __init__(self, story_id, data=None):
         self.news_item_aggregate_id = story_id

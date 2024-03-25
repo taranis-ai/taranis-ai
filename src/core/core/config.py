@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     BUILD_DATE: datetime = datetime.now()
     GIT_INFO: dict[str, str] | None = None
     DATA_FOLDER: str = "./taranis_data"
+    SESSION_TYPE: str = "filesystem"
 
     @model_validator(mode="after")  # type: ignore
     def set_sqlalchemy_uri(self) -> "Settings":
@@ -70,7 +71,6 @@ class Settings(BaseSettings):
             )
         self.CELERY = {
             "broker_url": broker_url,
-            "result_backend": "rpc://",
             "create_missing_queues": True,
             "broker_connection_retry_on_startup": True,
             "broker_connection_retry": False,  # To suppress deprecation warning

@@ -52,6 +52,14 @@ class BaseModel(db.Model):
     def load_multiple(cls: Type[T], json_data: list[dict[str, Any]]) -> list[T]:
         return [cls.from_dict(data) for data in json_data]
 
+    def update(self, item: dict[str, Any]) -> tuple[dict, int]:
+        for key, value in item.items():
+            if hasattr(self, key) and key != "id":
+                setattr(self, key, value)
+
+        db.session.commit()
+        return {"message": f"Successfully updated {self.id}"}, 200
+
     def to_dict(self) -> dict[str, Any]:
         table = getattr(self, "__table__", None)
         if table is None:

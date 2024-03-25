@@ -82,7 +82,7 @@ class CollectorTask(Task):
         super().after_return(status, retval, task_id, args, kwargs, einfo)
 
 
-@shared_task(time_limit=50, name="collector_preview")
+@shared_task(time_limit=50, name="collector_preview", track_started=True, acks_late=True)
 def collector_preview(source_id: str):
     collector = Collector()
     source, err = collector.get_source(source_id)

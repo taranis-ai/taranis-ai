@@ -42,8 +42,8 @@ class Settings(BaseSettings):
         task_queues.extend(Queue(f"{worker_type.lower()}", routing_key=f"{worker_type.lower()}") for worker_type in self.WORKER_TYPES)
         self.CELERY = {
             "broker_url": broker_url,
-            "result_backend": "rpc://",
             "broker_connection_retry_on_startup": True,
+            "result_backend": "worker.http_backend:HTTPBackend",
             "broker_connection_retry": False,  # To suppress deprecation warning
             "beat_scheduler": "worker.scheduler:RESTScheduler",
             "enable_utc": True,
