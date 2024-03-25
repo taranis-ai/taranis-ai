@@ -31,6 +31,9 @@ def pre_seed(db):
         pre_seed_assets()
         logger.debug("Assets seeded")
 
+        pre_seed_manual_source()
+        logger.debug("Manual source seeded")
+
     except Exception:
         logger.exception()
         logger.critical("Pre Seed failed")
@@ -41,6 +44,21 @@ def pre_seed_source_groups():
 
     if not OSINTSourceGroup.get("default"):
         OSINTSourceGroup.add({"id": "default", "name": "Default", "description": "Default group for uncategorized sources", "default": True})
+
+
+def pre_seed_manual_source():
+    from core.model.osint_source import OSINTSource
+
+    if not OSINTSource.get("manual"):
+        OSINTSource.add(
+            {
+                "id": "manual",
+                "name": "Manual",
+                "description": "Manual source",
+                "type": "MANUAL_COLLECTOR",
+                "parameters": [],
+            }
+        )
 
 
 def pre_seed_workers():
