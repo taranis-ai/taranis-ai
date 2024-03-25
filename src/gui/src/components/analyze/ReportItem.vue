@@ -31,6 +31,15 @@
         {{ $t('button.save') }}
       </v-btn>
       <v-btn
+        prepend-icon="mdi-content-copy"
+        color="primary"
+        variant="flat"
+        class="ml-4"
+        @click="cloneReportItem"
+      >
+        Clone
+      </v-btn>
+      <v-btn
         v-if="report_item.news_item_aggregates.length"
         prepend-icon="mdi-delete-outline"
         color="error"
@@ -250,6 +259,44 @@ export default {
         })
     }
 
+    const cloneReportItem = async () => {
+      try {
+        console.log(
+          'Attempting to clone report item with state:',
+          report_item.value
+        )
+        // Prepare the data for cloning excluding fields we don't want duplicated
+        const cloneData = { ...report_item.value }
+        delete cloneData.id
+        delete cloneData.attributes
+        delete cloneData.created
+        delete cloneData.last_updated
+        delete cloneData.user_id
+        cloneData.uuid = null
+
+        console.log('Clone data before sending to backend:', cloneData)
+
+        const response = await createReportItem(cloneData)
+        notifySuccess(t('Clone created with ID:') + ` ${response.data.id}`)
+
+        const clonedItemId = response.data.id // Retrieve ID of the newly created item
+
+        // Prepare the update data with attributes
+        const updateData = {
+          attributes: report_item.value.attributes
+        }
+
+        // Update the newly created report item to include attributes
+        await updateReportItem(clonedItemId, updateData)
+        notifySuccess(`Attributes added to the clone with ID: ${clonedItemId}`)
+
+        router.push('/report/' + response.data.id)
+      } catch (error) {
+        console.error('Clone creation error:', error)
+        notifyFailure(t('Failed to clone report item'))
+      }
+    }
+
     return {
       verticalView,
       expand_panel_groups,
@@ -261,7 +308,8 @@ export default {
       container_title,
       saveReportItem,
       removeAllFromReport,
-      removeFromReport
+      removeFromReport,
+      cloneReportItem
     }
   }
 }
