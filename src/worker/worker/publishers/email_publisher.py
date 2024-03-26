@@ -87,7 +87,7 @@ class EMAILPublisher(BasePublisher):
             self.attach_file(rendered_product)
             logger.debug("Product attached")
 
-    def smtp_login(self, server) -> dict | None:
+    def smtp_login(self, server) -> dict:
         try:
             server.login(self.smtp_username, self.smtp_password)
             return {"message": "Email Publisher: Task Successful"}
@@ -96,7 +96,7 @@ class EMAILPublisher(BasePublisher):
             logger.error(f"{error_message}: {str(e)}")
             return {"error": error_message}
 
-    def send_with_tls(self, context) -> dict | None:
+    def send_with_tls(self, context) -> dict:
         try:
             with SMTP_SSL(self.smtp_address, self.smtp_port, context=context) as server:
                 return self.send_mail(server)
@@ -104,7 +104,7 @@ class EMAILPublisher(BasePublisher):
             logger.error(f"Your SMTP server with TLS context throws an error: {str(e)}")
             return {"error": "An SMTP error occurred"}
 
-    def send_without_tls(self) -> dict | None:
+    def send_without_tls(self) -> dict:
         try:
             server = smtplib.SMTP(self.smtp_address, self.smtp_port)
             return self.send_mail(server)
@@ -112,45 +112,14 @@ class EMAILPublisher(BasePublisher):
             logger.error(f"Your SMTP server throws an error: {str(e)}")
             return {"error": "An SMTP error occurred"}
 
-    def send_mail(self, server) -> dict | None:
-        # s.set_debuglevel(1)
+    def send_mail(self, server) -> dict:
         if self.smtp_username and self.smtp_password:
             self.smtp_login(server)
         try:
             server.sendmail(self.msg.get("From"), self.msg.get("To"), self.msg.as_string())
-        except smtplib.SMTPException as e:
+        except SMTPException as e:
             logger.error(f"Your SMTP server throws an error: {str(e)}")
             return {"error": "An SMTP error occurred"}
         finally:
             server.quit()
         return {"message": "Email Publisher: Task Successful"}
-
-
-if __name__ == "__main__":
-    email_publisher = EMAILPublisher()
-    email_publisher.publish(
-        # {
-        #     "parameters": {
-        #         "SMTP_SERVER_ADDRESS": "",
-        #         "SMTP_SERVER_PORT": ,
-        #         "SERVER_TLS": False,
-        #         "EMAIL_USERNAME": "",
-        #         "EMAIL_PASSWORD": "",
-        #         "EMAIL_SENDER": "sender@email.com",
-        #         "EMAIL_RECIPIENT": "",
-        #         "EMAIL_SUBJECT": "Test email subject",
-        #     },
-        {
-            "parameters": {
-                "SMTP_SERVER_ADDRESS": "localhost",
-                "SMTP_SERVER_PORT": 1025,
-                "SERVER_TLS": False,
-                "EMAIL_USERNAME": "",
-                "EMAIL_PASSWORD": "",
-                "EMAIL_SENDER": "sender@email.com",
-                "EMAIL_RECIPIENT": "taranis@dev.taranis.ai",
-                "EMAIL_SUBJECT": "Test email subject",
-            },
-        },
-        {"id": 1, "type": "text_presenter", "type_id": 3, "mime_type": "text/plain", "report_items": [{"title": "test title"}]},
-    )
