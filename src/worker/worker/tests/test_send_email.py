@@ -1,5 +1,4 @@
 from unittest.mock import patch
-from unittest.mock import MagicMock
 import pytest
 
 import worker.publishers as publishers
@@ -14,8 +13,19 @@ def email_publisher():
 def get_product_mock(requests_mock):
     from worker.tests.publishers_data import product_render_data, product_render_mime
 
+    (
+        requests_mock.get(
+            "http://taranis/api/worker/products/1/render", content=product_render_data, headers={"Content-Type": product_render_mime}
+        )
+    )
+
+
+@pytest.fixture
+def get_product_pdf_mock(requests_mock):
+    from worker.tests.publishers_data import product_render_data_pdf, product_render_mime_pdf
+
     requests_mock.get(
-        "http://taranis/api/worker/products/1/render", content=product_render_data, headers={"Content-Type": product_render_mime}
+        "http://taranis/api/worker/products/1/render", content=product_render_data_pdf, headers={"Content-Type": product_render_mime_pdf}
     )
 
 
@@ -28,6 +38,14 @@ def smtp_mock():
 
 
 def test_email_publisher_publish(email_publisher, get_product_mock, smtp_mock):
+    from worker.tests.publishers_data import email_publisher_admin_input, email_publisher_input
+
+    result = email_publisher.publish(email_publisher_admin_input, email_publisher_input)
+    assert result == {"message": "Email Publisher: Task Successful"}
+    smtp_mock.sendmail.assert_called()
+
+
+def test_email_publisher_publish_pdf(email_publisher, get_product_pdf_mock, smtp_mock):
     from worker.tests.publishers_data import email_publisher_admin_input, email_publisher_input
 
     result = email_publisher.publish(email_publisher_admin_input, email_publisher_input)
