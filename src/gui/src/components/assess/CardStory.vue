@@ -28,20 +28,21 @@
                   }"
                 />
 
-                <h2
+                <a
                   v-if="news_item_length > 1"
                   class="ml-3 mb-1 d-flex justify-center align-center text-primary"
                   style="font-size: 1rem"
+                  :href="'/story/' + story.id"
+                  target="_blank"
                 >
                   <v-icon
                     class="float-left mr-1"
                     size="x-small"
                     color="primary"
-                  >
-                    mdi-file-multiple-outline
-                  </v-icon>
+                    icon="mdi-file-multiple-outline"
+                  />
                   ({{ news_item_length }})
-                </h2>
+                </a>
               </v-container>
 
               <summarized-content

@@ -6,10 +6,14 @@
     <td class="py-0" @click.stop>
       <v-tooltip>
         <template #activator="{ props }">
-          <img v-if="icon" v-bind="props" 
-          :src="'data:image/png;base64,' + icon" :alt="source?.name" height="32"/> 
-          <v-icon v-else v-bind="props" :icon="typeIcon" 
+          <img
+            v-if="icon"
+            v-bind="props"
+            :src="'data:image/png;base64,' + icon"
+            :alt="source?.name"
+            height="32"
           />
+          <v-icon v-else v-bind="props" :icon="typeIcon" />
         </template>
         <span>{{ source?.name }}</span>
       </v-tooltip>
