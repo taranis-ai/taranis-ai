@@ -8,7 +8,6 @@ from requests.exceptions import ConnectionError
 
 
 class Collector:
-
     def __init__(self):
         self.core_api = CoreApi()
         self.collectors = {
