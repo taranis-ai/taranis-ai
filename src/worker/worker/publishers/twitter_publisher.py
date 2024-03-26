@@ -9,7 +9,7 @@ class TWITTERPublisher(BasePublisher):
     name = "Twitter Publisher"
     description = "Publisher for publishing to Twitter account"
 
-    def publish(self, publisher_input):
+    def publish(self, publisher, publisher_input):
         try:
             api_key = publisher_input.parameter_values_map["TWITTER_API_KEY"]
             api_key_secret = publisher_input.parameter_values_map["TWITTER_API_KEY_SECRET"]

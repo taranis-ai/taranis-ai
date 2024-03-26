@@ -1,136 +1,125 @@
+import base64
 import datetime
 import smtplib
-from email.message import Message
-from email.mime.base import MIMEBase
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-import gnupg
+import ssl
+from email.message import EmailMessage
+from smtplib import SMTP_SSL, SMTPAuthenticationError, SMTPException
 
-from .base_publisher import BasePublisher
+from worker.log import logger
+from worker.publishers.base_publisher import BasePublisher
+from worker.types import Product
 
 
 class EMAILPublisher(BasePublisher):
-    type = "EMAIL_PUBLISHER"
-    name = "EMAIL Publisher"
-    description = "Publisher for publishing by email"
+    def __init__(self):
+        super().__init__()
+        self.smtp_address = None
+        self.smtp_port = None
+        self.smtp_tls = False
+        self.smtp_username = None
+        self.smtp_password = None
+        self.sender = None
+        self.recipient = None
+        self.mail_subject = None
 
-    def publish(self, publisher_input):
-        smtp_server = publisher_input.parameter_values_map["SMTP_SERVER"]
-        smtp_server_port = publisher_input.parameter_values_map["SMTP_SERVER_PORT"]
-        email_user = publisher_input.parameter_values_map["EMAIL_USERNAME"]
-        email_password = publisher_input.parameter_values_map["EMAIL_PASSWORD"]
-        email_recipients = publisher_input.parameter_values_map["EMAIL_RECIPIENT"]
-        email_subject = publisher_input.parameter_values_map["EMAIL_SUBJECT"]
-        email_message = publisher_input.parameter_values_map["EMAIL_MESSAGE"]
-        email_encryption = publisher_input.parameter_values_map["EMAIL_ENCRYPTION"]
+        self.msg = None
+        self.type = "EMAIL_PUBLISHER"
+        self.name = "EMAIL Publisher"
+        self.description = "Publisher for publishing by email"
 
-        file = "file_" + datetime.datetime.now().strftime("%d-%m-%Y_%H:%M") + ".pdf"
+    def publish(self, publisher, publisher_input) -> dict:
+        self.smtp_address = publisher.get("parameters").get("SMTP_SERVER_ADDRESS")
+        if not self.smtp_address:
+            logger.error("No SMTP server address provided")
+            return {"error": "No SMTP server address provided"}
 
-        if publisher_input.data is not None:
-            data = publisher_input.data[:]
+        self.smtp_port = publisher.get("parameters").get("SMTP_SERVER_PORT", 25)
+        self.smtp_tls = publisher.get("parameters").get("SERVER_TLS")
+        self.smtp_username = publisher.get("parameters").get("EMAIL_USERNAME")
+        self.smtp_password = publisher.get("parameters").get("EMAIL_PASSWORD")
+        self.sender = publisher.get("parameters").get("EMAIL_SENDER")
+        self.recipient = publisher.get("parameters").get("EMAIL_RECIPIENT")
+        self.mail_subject = publisher.get("parameters").get("EMAIL_SUBJECT")
+
+        if publisher_input is None:
+            logger.error("No user input provided")
+            return {"error": "No user input provided"}
+
+        if rendered_product := self.get_rendered_product(publisher_input):
+            self.setup_email(rendered_product)
+
+            context = ssl.create_default_context() if self.smtp_tls else None
+
+            return self.send_with_tls(context) if context else self.send_without_tls()
+
+        logger.warning("Could not get rendered Product")
+        return {"error": "Could not get rendered Product"}
+
+    def get_rendered_product(self, publisher_input) -> Product | None:
+        product_id = publisher_input.get("id")
+        logger.debug(f"EMAIL Publisher: Getting rendered product for product {product_id}")
+        return self.core_api.get_product_render(product_id)
+
+    def set_meta_data(self):
+        self.msg["Subject"] = self.mail_subject
+        self.msg["From"] = self.sender
+        self.msg["To"] = self.recipient
+
+    def setup_simple_email(self, rendered_product):
+        self.msg = EmailMessage()
+        self.set_meta_data()
+        self.msg.set_content(rendered_product.data.decode("utf-8"))
+
+    def attach_file(self, rendered_product):
+        self.msg = EmailMessage()
+        self.set_meta_data()
+
+        file_name = f"product_{datetime.datetime.now().strftime('%d-%m-%Y_%H-%M')}"
+        maintype, subtype = rendered_product.mime_type.split("/")
+        logger.debug("EMAIL Publisher: Creating attachment")
+        attachment_data = base64.b64decode(rendered_product.data)
+        self.msg.add_attachment(attachment_data, maintype=maintype, subtype=subtype, filename=f"{file_name}")
+
+    def setup_email(self, rendered_product: Product):
+        if rendered_product.mime_type in ["text/plain", "text/html"]:
+            self.setup_simple_email(rendered_product)
         else:
-            data = None
+            self.attach_file(rendered_product)
+            logger.debug("Product attached")
 
-        def get_attachment(file_name):
-            msg_attachment = Message()
-            msg_attachment.add_header(_name="Content-Type", _value="application/pdf", name=file_name)
-            msg_attachment.add_header(_name="Content-Transfer-Encoding", _value="base64")
-            msg_attachment.add_header(_name="Content-Disposition", _value="attachment", filename=file_name)
-            msg_attachment.set_payload(data)
-            return msg_attachment
-
-        def get_body(message):
-            msg_body = Message()
-            msg_body.add_header(_name="Content-Type", _value="text/plain", charset="utf-8")
-            msg_body.add_header(_name="Content-Transfer-Encoding", _value="quoted-printable")
-            msg_body.set_payload(message + 2 * "\n")
-            return msg_body
-
-        def get_encrypted_email_string(email_address_recipient, file_name, message):
-            def get_gpg_cipher_text(string, recipient_email_address):
-                gpg = gnupg.GPG()
-                encrypted_str = str(gpg.encrypt(string, recipient_email_address))
-                return encrypted_str
-
-            msg = Message()
-            msg.add_header(_name="Content-Type", _value="multipart/mixed")
-            msg["From"] = email_user
-            msg["To"] = email_address_recipient
-            msg["Subject"] = email_subject
-
-            msg_text = Message()
-            msg_text.add_header(_name="Content-Type", _value="multipart/mixed")
-            msg_text.add_header(_name="Content-Language", _value="en-US")
-
-            msg_body = get_body(message)
-            msg_attachment = get_attachment(file_name)
-
-            msg_text.attach(msg_body)
-            msg_text.attach(msg_attachment)
-            msg.attach(msg_text)
-
-            pgp_msg = MIMEBase(_maintype="multipart", _subtype="encrypted", protocol="application/pgp-encrypted")
-            pgp_msg["From"] = email_user
-            pgp_msg["To"] = email_address_recipient
-            pgp_msg["Subject"] = email_subject
-
-            pgp_msg_part1 = Message()
-            pgp_msg_part1.add_header(_name="Content-Type", _value="application/pgp-encrypted")
-            pgp_msg_part1.add_header(_name="Content-Description", _value="PGP/MIME version identification")
-            pgp_msg_part1.set_payload("Version: 2" + "\n")
-
-            pgp_msg_part2 = Message()
-            pgp_msg_part2.add_header(_name="Content-Type", _value="application/octet-stream", name="encrypted.asc")
-            pgp_msg_part2.add_header(_name="Content-Description", _value="OpenPGP encrypted message")
-            pgp_msg_part2.add_header(_name="Content-Disposition", _value="inline", filename="encrypted.asc")
-            pgp_msg_part2.set_payload(get_gpg_cipher_text(msg.as_string(), email_address_recipient))
-
-            pgp_msg.attach(pgp_msg_part1)
-            pgp_msg.attach(pgp_msg_part2)
-
-            return pgp_msg.as_string()
-
+    def smtp_login(self, server) -> dict:
         try:
-            server = smtplib.SMTP(smtp_server, smtp_server_port)
-            server.starttls()
-            server.login(email_user, email_password)
+            server.login(self.smtp_username, self.smtp_password)
+            return {"message": "Email Publisher: Task Successful"}
+        except (SMTPAuthenticationError, SMTPException, Exception) as e:
+            error_message = "SMTP authentication error" if isinstance(e, SMTPAuthenticationError) else "An SMTP error occurred"
+            logger.error(f"{error_message}: {str(e)}")
+            return {"error": error_message}
 
-            if publisher_input.recipients is not None:
-                recipients = publisher_input.recipients
-            else:
-                recipients = email_recipients.split(",")
+    def send_with_tls(self, context) -> dict:
+        try:
+            with SMTP_SSL(self.smtp_address, self.smtp_port, context=context) as server:
+                return self.send_mail(server)
+        except Exception as e:
+            logger.error(f"Your SMTP server with TLS context throws an error: {str(e)}")
+            return {"error": "An SMTP error occurred"}
 
-            if email_encryption.lower() == "yes":
-                for recipient in recipients:
-                    email_msg = email_message
-                    email_msg = get_encrypted_email_string(recipient, file, email_msg)
-                    server.sendmail(email_user, recipient, email_msg)
-            else:
-                email_msg = MIMEMultipart()
-                email_msg["From"] = email_user
-                email_msg["To"] = email_recipients
+    def send_without_tls(self) -> dict:
+        try:
+            server = smtplib.SMTP(self.smtp_address, self.smtp_port)
+            return self.send_mail(server)
+        except Exception as e:
+            logger.error(f"Your SMTP server throws an error: {str(e)}")
+            return {"error": "An SMTP error occurred"}
 
-                if publisher_input.message_title is not None:
-                    email_msg["Subject"] = publisher_input.message_title
-                else:
-                    email_msg["Subject"] = email_subject
-
-                if publisher_input.message_body is not None:
-                    body = publisher_input.message_body
-                else:
-                    body = email_message
-
-                email_msg.attach(MIMEText(body + 2 * "\n", "plain"))
-
-                if data is not None:
-                    attachment = get_attachment(file)
-                    email_msg.attach(attachment)
-
-                text = email_msg.as_string()
-
-                server.sendmail(email_user, recipients, text)
-
+    def send_mail(self, server) -> dict:
+        if self.smtp_username and self.smtp_password:
+            self.smtp_login(server)
+        try:
+            server.sendmail(self.msg.get("From"), self.msg.get("To"), self.msg.as_string())
+        except SMTPException as e:
+            logger.error(f"Your SMTP server throws an error: {str(e)}")
+            return {"error": "An SMTP error occurred"}
+        finally:
             server.quit()
-
-        except Exception as error:
-            BasePublisher.print_exception(self, error)
+        return {"message": "Email Publisher: Task Successful"}

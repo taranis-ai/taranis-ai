@@ -65,10 +65,8 @@ class PublisherTask(Task):
             return "Publisher type not found"
         publisher_type: BasePublisher = self.publishers[pub_type]
 
-        published_product = publisher_type.publish(product)
-        if not published_product:
-            return "Error generating product"
-        if "error" in published_product:
-            return published_product["error"]
+        published_product = publisher_type.publish(publisher, product)
+        if error := published_product.get("error"):
+            return error
 
-        return "Product published successfully"
+        return published_product.get("message", "Product published successfully")

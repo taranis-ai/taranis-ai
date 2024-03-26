@@ -3,6 +3,7 @@ from urllib.parse import urlencode
 
 from worker.log import logger
 from worker.config import Config
+from worker.types import Product
 
 
 class CoreApi:
@@ -64,14 +65,14 @@ class CoreApi:
     def get_product(self, product_id: int) -> dict | None:
         return self.api_get(f"/worker/products/{product_id}")
 
-    def get_product_render(self, product_id: int) -> tuple[bytes, str] | None:
+    def get_product_render(self, product_id: int) -> Product | None:
         try:
             url = f"{self.api_url}/worker/products/{product_id}/render"
             response = requests.get(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
             if not response.ok:
                 logger.error(f"Call to {url} failed {response.status_code}")
                 return None
-            return response.content, response.headers["Content-Type"]
+            return Product(response)
         except Exception:
             logger.exception("Can't get Product Render")
             return None
