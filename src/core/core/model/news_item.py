@@ -247,8 +247,6 @@ class NewsItem(BaseModel):
         return {"total_count": count, "items": items}, 200
 
     def allowed_with_acl(self, user: User, require_write_access: bool) -> bool:
-        if tlp_level := self.news_item_data.get_tlp():
-            logger.debug(f"Checking TLP level {tlp_level} for user {user.id}")
         if not RoleBasedAccess.is_enabled():
             return True
 
@@ -545,12 +543,17 @@ class NewsItemAggregate(BaseModel):
         return RoleBasedAccessService.filter_query_with_acl(query, rbac)
 
     @classmethod
+    def _add_TLP_check(cls, query, user: User):
+        return RoleBasedAccessService.filter_query_with_tlp(query, user)
+
+    @classmethod
     def get_by_filter(cls, filter_args: dict, user: User | None = None):
         query = cls.query.distinct().group_by(NewsItemAggregate.id)
         query = cls._add_filters_to_query(filter_args, query)
 
         if user:
             query = cls._add_ACL_check(query, user)
+            query = cls._add_TLP_check(query, user)
 
         query = cls._add_sorting_to_query(filter_args, query)
         paged_query = cls._add_paging_to_query(filter_args, query)
@@ -1075,6 +1078,10 @@ class NewsItemAttribute(BaseModel):
         else:
             attribute.value = value
         return attributes
+
+    @classmethod
+    def get_tlp_level(cls, attributes: list["NewsItemAttribute"]) -> TLPLevel | None:
+        return TLPLevel(cls.get_by_key(attributes, "TLP"))
 
 
 class NewsItemDataNewsItemAttribute(BaseModel):

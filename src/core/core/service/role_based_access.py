@@ -7,6 +7,7 @@ from sqlalchemy.sql.expression import true
 from core.managers.db_manager import db
 from core.model.user import User
 from core.model.role_based_access import RoleBasedAccess, RBACRole
+from core.model.role import TLPLevel
 
 
 @dataclass
@@ -34,6 +35,26 @@ class RoleBasedAccessService:
         has_required_access = not rbac_query.require_write_access or not acl_entry.read_only
 
         return bool(matches_resource and is_enabled and has_required_access)
+
+    @classmethod
+    def filter_query_with_tlp(cls, query: Query, user: User) -> Query:
+        from core.model.news_item import NewsItemAggregateNewsItemAttribute, NewsItemAttribute, NewsItemAggregate
+
+        user_tlp_level = user.get_highest_tlp()
+        if not user_tlp_level or user_tlp_level.value == "red":
+            return query
+
+        tlp_attribute_subquery = (
+            db.session.query(NewsItemAggregateNewsItemAttribute.news_item_aggregate_id)
+            .join(NewsItemAttribute, NewsItemAttribute.id == NewsItemAggregateNewsItemAttribute.news_item_attribute_id)
+            .filter(
+                NewsItemAttribute.key == "TLP", NewsItemAttribute.value.in_([level.value for level in TLPLevel if level <= user_tlp_level])
+            )
+            .subquery()
+        )
+
+        # Apply the filter to the original query to exclude items with a higher TLP level than the user's
+        return query.filter(NewsItemAggregate.id.in_(tlp_attribute_subquery))
 
     @classmethod
     def filter_query_with_acl(cls, query: Query, rbac_query: RBACQuery) -> Query:

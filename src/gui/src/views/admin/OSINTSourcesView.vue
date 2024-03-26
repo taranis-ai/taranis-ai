@@ -1,7 +1,7 @@
 <template>
   <v-container fluid>
     <DataTable
-      :items="osint_sources.items"
+      :items="osint_sources"
       :header-filter="[
         'icon',
         'state',
@@ -97,8 +97,14 @@ export default {
     const mainStore = useMainStore()
     const router = useRouter()
 
-    const { collector_types, osint_sources, parameters } =
-      storeToRefs(configStore)
+    const { collector_types, parameters } = storeToRefs(configStore)
+
+    const osint_sources = computed(() => {
+      // remove the source where id === 'manual'
+      return configStore.osint_sources.items.filter(
+        (source) => source.id !== 'manual'
+      )
+    })
 
     const collector_options = ref([])
     const selected = ref([])
@@ -164,9 +170,8 @@ export default {
 
     const updateData = () => {
       configStore.loadOSINTSources().then(() => {
-        mainStore.itemCountFiltered = osint_sources.value.items.length
-        mainStore.itemCountTotal = osint_sources.value.total_count
-        Object.freeze(osint_sources)
+        mainStore.itemCountFiltered = configStore.osint_sources.items.length - 1
+        mainStore.itemCountTotal = configStore.osint_sources.total_count - 1
       })
       configStore.loadWorkerTypes().then(() => {
         collector_options.value = collector_types.value.map((collector) => {

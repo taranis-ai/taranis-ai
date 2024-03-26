@@ -87,7 +87,7 @@
 </template>
 
 <script>
-import { notifyFailure, tlpLevels } from '@/utils/helpers'
+import { notifyFailure, tlpLevels, notifySuccess } from '@/utils/helpers'
 import {
   getAdminSettings,
   updateAdminSettings,
