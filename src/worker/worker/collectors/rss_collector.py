@@ -1,3 +1,4 @@
+import copy
 import datetime
 import hashlib
 import uuid
@@ -7,6 +8,7 @@ import logging
 from urllib.parse import urlparse
 import dateutil.parser as dateparser
 from trafilatura import extract
+from bs4 import BeautifulSoup
 
 from worker.collectors.base_web_collector import BaseWebCollector
 from worker.log import logger
@@ -47,6 +49,15 @@ class RSSCollector(BaseWebCollector):
 
     def make_request(self, url: str) -> None | requests.Response:
         response = requests.get(url, headers=self.headers, proxies=self.proxies, timeout=self.timeout)
+        # if response.status_code == 403:
+        #     tmp_headers = copy.deepcopy(self.headers)
+        #     tmp_headers["User-agent"] = "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:123.0) Gecko/20100101 Firefox/123.0"
+        #     response = requests.get(
+        #         url,
+        #         headers=tmp_headers,
+        #         proxies=self.proxies,
+        #         timeout=self.timeout,
+        #     )
         if not response.ok:
             raise RuntimeError(f"Response not ok: {response.status_code}")
         return response
@@ -99,6 +110,44 @@ class RSSCollector(BaseWebCollector):
             return content or html_content
 
         return self.xpath_extraction(html_content, xpath)
+
+    def get_summary_splits_us_cert(self, html_content: str) -> list:
+        soup = BeautifulSoup(html_content, "html.parser")
+        tables = soup.find_all("table")  # Find all tables in the content
+        digests = []
+
+        for table in tables:
+            rows = table.find_all("tr")
+            for row in rows[1:]:  # Skip the header row for each table
+                cols = row.find_all("td")
+                row_data = [col.text.strip() for col in cols]
+                product_info = {"title": row_data[0], "content": "<br>".join(row_data), "summary_detail": {}, "summary": "Digest spliting"}
+                row_data.clear()
+                digests.append(product_info)
+                print(digests)
+
+        return digests
+
+    def get_summary_splits_at_cert(self, summary) -> list[dict]:
+        soup = BeautifulSoup(summary, "html.parser")
+        h3_tags = soup.find_all("h3")
+        digests = []
+        for h3 in h3_tags:
+            # Text of the <h3> tag
+            title = f"{h3.get_text() if h3.get_text() else 'No title'}"
+            summary = f"{h3.find_next_sibling(string=True).strip() if h3.find_next_sibling(string=True).strip() else 'No summary'}"
+            link = f"{h3.find_next('a')['href'] if h3.find_next('a') else 'No link'}"
+            # Manually edit the "summary_detail" and "summary" for cleaner digests/report items
+            digests.append({"title": title, "content": summary, "link": link, "summary_detail": {}, "summary": "Digest spliting"})
+
+        return digests
+
+    def digest_splitting(self, feed_entry) -> list[dict]:
+        if "cert.at" in feed_entry.get("link"):
+            return self.get_summary_splits_at_cert(feed_entry.get("summary"))
+        elif "cisa.gov" in feed_entry.get("link"):
+            return self.get_summary_splits_us_cert(feed_entry.get("summary"))
+        return []
 
     def parse_feed(self, feed_entry: feedparser.FeedParserDict, feed_url, source) -> dict[str, str | datetime.datetime | list]:
         author: str = str(feed_entry.get("author", ""))
@@ -180,6 +229,26 @@ class RSSCollector(BaseWebCollector):
         self.core_api.update_osint_source_icon(source_id, icon_content)
         return None
 
+    def get_news_items(self, feed, feed_url, source) -> list:
+        news_items = []
+        for feed_entry in feed["entries"][:42]:
+            print(feed_entry)
+            # Digest splitting
+            digest_splitting = source.get("parameters", {}).get("DIGEST_SPLITTING")
+            title = feed_entry.get("title", "").lower()  # Convert title to lowercase for case-insensitive comparison
+            if digest_splitting and ("zusammenfassung" in title or "summary" in title):
+                digests = self.digest_splitting(feed_entry)
+                for digest in digests:
+                    print("this is a digest")
+                    print(digest)
+                    feed_entry_copy = copy.deepcopy(feed_entry)
+                    feed_entry_copy.update(digest)
+                    news_items.append(self.parse_feed(feed_entry_copy, feed_url, source))
+            else:
+                news_items.append(self.parse_feed(feed_entry, feed_url, source))
+
+        return news_items
+
     def rss_collector(self, feed_url: str, source):
         feed_content = self.make_request(feed_url)
         if not feed_content:
@@ -199,7 +268,14 @@ class RSSCollector(BaseWebCollector):
 
         logger.info(f"RSS-Feed {source['id']} returned feed with {len(feed['entries'])} entries")
 
-        news_items = [self.parse_feed(feed_entry, feed_url, source) for feed_entry in feed["entries"][:42]]
+        news_items = self.get_news_items(feed, feed_url, source)
 
         self.publish(news_items, source)
         return None
+
+
+if __name__ == "__main__":
+    rss_collector = RSSCollector()
+    # rss_collector.collect({"id": 1, "parameters": {"FEED_URL": "https://cert.at/cert-at.de.all.rss_2.0.xml", "DIGEST_SPLITTING": True}})
+    rss_collector.collect({"id": 1, "parameters": {"FEED_URL": "https://us-cert.cisa.gov/ncas/bulletins.xml", "DIGEST_SPLITTING": True}})
+    # rss_collector.collect({"id": 1, "parameters": {"FEED_URL": "https://blog.360totalsecurity.com/en/category/security-news/feed/"}})

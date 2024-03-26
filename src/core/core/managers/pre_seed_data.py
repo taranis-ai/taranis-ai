@@ -10,6 +10,7 @@ workers = [
             {"parameter": "PROXY_SERVER"},
             {"parameter": "TLP_LEVEL", "rules": "tlp"},
             {"parameter": "REFRESH_INTERVAL", "type": "number"},
+            {"parameter": "DIGEST_SPLITTING", "type": "switch"},
         ],
         "type": "RSS_COLLECTOR",
     },
