@@ -4,7 +4,7 @@ from worker.core_api import CoreApi
 from worker.misc.wordlist_update import update_wordlist
 
 
-@shared_task(time_limit=10, name="cleanup_token_blacklist")
+@shared_task(time_limit=10, name="cleanup_token_blacklist", ignore_result=True)
 def cleanup_token_blacklist():
     core_api = CoreApi()
     core_api.cleanup_token_blacklist()

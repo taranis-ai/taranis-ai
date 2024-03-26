@@ -13,9 +13,12 @@
             target="_blank"
           >
             {{ article?.name }}
-            <v-icon class="ml-2" size="x-small" color="primary"
-              >mdi-open-in-new</v-icon
-            >
+            <v-icon
+              class="ml-2"
+              size="x-small"
+              color="primary"
+              icon="mdi-open-in-new"
+            />
           </a>
         </template>
         <span>{{ article?.link }}</span>
@@ -44,7 +47,7 @@ export default {
     const article = computed(() => {
       return props.newsItemData
         ? {
-            name: getCleanHostname(props.newsItemData.source),
+            name: getCleanHostname(props.newsItemData.link),
             link: props.newsItemData.link,
             type: props.newsItemData.osint_source_id
           }

@@ -54,8 +54,6 @@ class PublisherTask(Task):
         if err or not product:
             return err
 
-        logger.debug(f"Rendering product {product}")
-
         publisher, err = self.get_publisher(publisher_id)
         if err or not publisher:
             return err

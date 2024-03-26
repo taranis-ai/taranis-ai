@@ -1,9 +1,9 @@
-from flask import request, send_file, Response
+from flask import request, send_file, Response, session
 from flask_restx import Resource, Namespace, Api
 from werkzeug.datastructures import FileStorage
 
 from core.managers.auth_manager import api_key_required
-from core.managers.log_manager import logger
+from core.log import logger
 from core.managers import queue_manager
 from core.model.osint_source import OSINTSource
 from core.model.product import Product
@@ -26,6 +26,17 @@ class AddNewsItems(Resource):
         return result, status
 
 
+class PreviewNewsItems(Resource):
+    @api_key_required
+    def post(self):
+        json_data = request.json
+        if not json_data:
+            return {"error": "No data provided"}, 400
+        if user := json_data.pop("preview_user"):
+            session[f"preview_{user}"] = json_data
+        return {"message": "Preview saved"}, 200
+
+
 class QueueScheduleEntry(Resource):
     @api_key_required
     def get(self, schedule_id: str):
@@ -34,7 +45,7 @@ class QueueScheduleEntry(Resource):
                 return schedule.to_worker_dict(), 200
             return {"error": f"Schedule with id {schedule_id} not found"}, 404
         except Exception:
-            logger.log_debug_trace()
+            logger.exception()
 
 
 class NextRunTime(Resource):
@@ -47,7 +58,7 @@ class NextRunTime(Resource):
             ScheduleEntry.update_next_run_time(data)
             return {"message": "Next run time updated"}, 200
         except Exception:
-            logger.log_debug_trace()
+            logger.exception()
 
 
 class QueueSchedule(Resource):
@@ -58,7 +69,7 @@ class QueueSchedule(Resource):
                 return [sched.to_worker_dict() for sched in schedules], 200
             return {"error": "No schedules found"}, 404
         except Exception:
-            logger.log_debug_trace()
+            logger.exception()
 
     @api_key_required
     def put(self):
@@ -71,7 +82,7 @@ class QueueSchedule(Resource):
                 return {"error": "No entries provided"}, 400
             return ScheduleEntry.sync(entries), 200
         except Exception:
-            logger.log_debug_trace()
+            logger.exception()
 
 
 class Products(Resource):
@@ -82,7 +93,7 @@ class Products(Resource):
                 return prod.to_worker_dict(), 200
             return {"error": f"Product with id {product_id} not found"}, 404
         except Exception:
-            logger.log_debug_trace()
+            logger.exception()
 
     @api_key_required
     def put(self, product_id: str):
@@ -93,7 +104,7 @@ class Products(Resource):
 
             return {"error": "Error reading file"}, 400
         except Exception:
-            logger.log_debug_trace()
+            logger.exception()
 
 
 class ProductsRender(Resource):
@@ -113,7 +124,7 @@ class Presenters(Resource):
                     return send_file(tmpl)
             return {"error": f"Presenter with id {presenter} not found"}, 404
         except Exception:
-            logger.log_debug_trace()
+            logger.exception()
 
 
 class Publishers(Resource):
@@ -124,7 +135,7 @@ class Publishers(Resource):
                 return pub.to_dict(), 200
             return {"error": f"Publisher with id {publisher} not found"}, 404
         except Exception:
-            logger.log_debug_trace()
+            logger.exception()
 
 
 class Sources(Resource):
@@ -135,7 +146,7 @@ class Sources(Resource):
                 return source.to_worker_dict(), 200
             return {"error": f"Source with id {source_id} not found"}, 404
         except Exception:
-            logger.log_debug_trace()
+            logger.exception()
 
     @api_key_required
     def put(self, source_id: str):
@@ -152,7 +163,7 @@ class Sources(Resource):
             source.update_status(error_msg)
             return {"message": "Status updated"}
         except Exception:
-            logger.log_debug_trace()
+            logger.exception()
             return {"error": "Could not update status"}, 500
 
 
@@ -165,7 +176,7 @@ class SourceIcon(Resource):
                 return {"message": "Icon uploaded"}, 200
             return {"error": f"Source with id {source_id} not found"}, 404
         except Exception:
-            logger.log_debug_trace()
+            logger.exception()
 
 
 class BotsInfo(Resource):
@@ -316,6 +327,7 @@ def initialize(api: Api):
         "/publishers/<string:publisher>",
     )
     worker_ns.add_resource(AddNewsItems, "/news-items")
+    worker_ns.add_resource(PreviewNewsItems, "/news-items/preview")
     worker_ns.add_resource(BotsInfo, "/bots")
     worker_ns.add_resource(ProductsRender, "/products/<int:product_id>/render")
     worker_ns.add_resource(Tags, "/tags")

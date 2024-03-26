@@ -11,7 +11,7 @@ import hashlib
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
-from core.managers.log_manager import logger
+from core.log import logger
 from core.model.user import User
 from core.model.role import TLPLevel
 from core.model.news_item_tag import NewsItemTag
@@ -37,7 +37,7 @@ class NewsItemData(BaseModel):
 
     attributes: Any = db.relationship("NewsItemAttribute", secondary="news_item_data_news_item_attribute", cascade="all, delete")
 
-    osint_source_id = db.Column(db.String, db.ForeignKey("osint_source.id"), nullable=True)
+    osint_source_id = db.Column(db.String, db.ForeignKey("osint_source.id"), nullable=True, index=True)
     osint_source = db.relationship("OSINTSource")
 
     def __init__(
@@ -181,10 +181,10 @@ class NewsItemData(BaseModel):
 class NewsItem(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
 
-    news_item_data_id = db.Column(db.String, db.ForeignKey("news_item_data.id"))
+    news_item_data_id = db.Column(db.String, db.ForeignKey("news_item_data.id"), index=True)
     news_item_data: Any = db.relationship("NewsItemData", cascade="all, delete")
 
-    news_item_aggregate_id = db.Column(db.Integer, db.ForeignKey("news_item_aggregate.id"))
+    news_item_aggregate_id = db.Column(db.Integer, db.ForeignKey("news_item_aggregate.id"), index=True)
 
     def __init__(self, news_item_data=None):
         self.news_item_data = news_item_data
@@ -247,8 +247,6 @@ class NewsItem(BaseModel):
         return {"total_count": count, "items": items}, 200
 
     def allowed_with_acl(self, user: User, require_write_access: bool) -> bool:
-        if tlp_level := self.news_item_data.get_tlp():
-            logger.debug(f"Checking TLP level {tlp_level} for user {user.id}")
         if not RoleBasedAccess.is_enabled():
             return True
 
@@ -545,12 +543,17 @@ class NewsItemAggregate(BaseModel):
         return RoleBasedAccessService.filter_query_with_acl(query, rbac)
 
     @classmethod
+    def _add_TLP_check(cls, query, user: User):
+        return RoleBasedAccessService.filter_query_with_tlp(query, user)
+
+    @classmethod
     def get_by_filter(cls, filter_args: dict, user: User | None = None):
         query = cls.query.distinct().group_by(NewsItemAggregate.id)
         query = cls._add_filters_to_query(filter_args, query)
 
         if user:
             query = cls._add_ACL_check(query, user)
+            query = cls._add_TLP_check(query, user)
 
         query = cls._add_sorting_to_query(filter_args, query)
         paged_query = cls._add_paging_to_query(filter_args, query)
@@ -996,7 +999,7 @@ class NewsItemAggregate(BaseModel):
 class NewsItemAggregateSearchIndex(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     data: Any = db.Column(db.String)
-    news_item_aggregate_id: Any = db.Column(db.Integer, db.ForeignKey("news_item_aggregate.id"))
+    news_item_aggregate_id: Any = db.Column(db.Integer, db.ForeignKey("news_item_aggregate.id"), index=True)
 
     def __init__(self, story_id, data=None):
         self.news_item_aggregate_id = story_id
@@ -1075,6 +1078,10 @@ class NewsItemAttribute(BaseModel):
         else:
             attribute.value = value
         return attributes
+
+    @classmethod
+    def get_tlp_level(cls, attributes: list["NewsItemAttribute"]) -> TLPLevel | None:
+        return TLPLevel(cls.get_by_key(attributes, "TLP"))
 
 
 class NewsItemDataNewsItemAttribute(BaseModel):

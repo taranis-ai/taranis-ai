@@ -4,7 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from core.managers.db_seed_manager import pre_seed
 from sqlalchemy.engine import reflection
-from core.managers.log_manager import logger
+from core.log import logger
 
 from sqlalchemy.engine import Engine
 from sqlalchemy import event

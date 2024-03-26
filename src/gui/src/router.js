@@ -242,6 +242,17 @@ export const router = createRouter({
       }
     },
     {
+      path: '/config/sources/:source_id',
+      name: 'osint_sources_preview',
+      components: {
+        default: () => import('@/views/admin/OSINTSourcesPreview.vue')
+      },
+      meta: {
+        requiresAuth: true,
+        requiresPerm: Permissions.CONFIG_OSINT_SOURCE_ACCESS
+      }
+    },
+    {
       path: '/config/sourcegroups',
       name: 'osint_source_groups',
       components: {

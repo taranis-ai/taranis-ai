@@ -4,7 +4,7 @@ from sqlalchemy import or_, Column, String
 from sqlalchemy.orm import Mapped
 
 from core.managers.db_manager import db
-from core.managers.log_manager import logger
+from core.log import logger
 from core.model.base_model import BaseModel
 from core.model.role_based_access import RoleBasedAccess, ItemType
 from core.model.parameter_value import ParameterValue

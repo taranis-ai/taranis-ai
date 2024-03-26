@@ -23,10 +23,11 @@ class TestAssessApi(BaseTest):
     def test_get_OSINTSourcesList_auth(self, client, auth_header):
         """
         This test queries the OSINTSourcesList authenticated.
-        It expects a valid data and a valid status-code
+        It expects 1 OSINTSource ("manual") retured
         """
         response = self.assert_get_ok(client, "osint-sources-list", auth_header)
-        assert response.get_json()["total_count"] == 0
+        assert response.get_json()["total_count"] == 1
+        assert response.get_json()["items"][0]["id"] == "manual"
 
     def test_get_OSINTSourcesList_unauth(self, client):
         """

@@ -4,7 +4,7 @@ from flask_restx import Resource, Namespace, Api
 
 from core.managers import asset_manager, auth_manager
 from core.managers.sse_manager import sse_manager
-from core.managers.log_manager import logger
+from core.log import logger
 from core.managers.auth_manager import auth_required
 from core.managers.input_validators import validate_id
 from core.model import report_item, report_item_type

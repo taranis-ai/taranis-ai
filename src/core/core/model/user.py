@@ -8,6 +8,7 @@ from core.model.permission import Permission
 from core.model.organization import Organization
 
 from core.model.base_model import BaseModel
+from core.model.role import TLPLevel
 
 
 class User(BaseModel):
@@ -142,6 +143,15 @@ class User(BaseModel):
 
     def get_roles(self):
         return [role.id for role in self.roles]
+
+    def get_highest_tlp(self) -> TLPLevel | None:
+        highest_tlp = None
+        for role in self.roles:
+            if tlp_level := role.tlp_level:
+                tlp_level_enum = TLPLevel(tlp_level)
+                if highest_tlp is None or tlp_level_enum > highest_tlp:
+                    highest_tlp = tlp_level_enum
+        return highest_tlp
 
     def get_current_organization_name(self):
         return self.organization.name if self.organization else ""

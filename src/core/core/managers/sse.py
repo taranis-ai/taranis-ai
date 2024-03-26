@@ -1,6 +1,6 @@
 import queue
 import json
-from core.managers.log_manager import logger
+from core.log import logger
 
 
 class SSE:

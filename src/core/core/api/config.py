@@ -1,13 +1,13 @@
 import io
 
-from flask import request, send_file, jsonify
+from flask import request, send_file, jsonify, session
 from flask_restx import Resource, Namespace, Api
 
 from core.managers import (
     auth_manager,
     queue_manager,
 )
-from core.managers.log_manager import logger
+from core.log import logger
 from core.managers.auth_manager import auth_required
 from core.managers.data_manager import get_template_as_base64, write_base64_to_file, get_presenter_templates, delete_template
 from core.model import (
@@ -23,6 +23,7 @@ from core.model import (
     user,
     word_list,
     queue,
+    task,
     worker,
 )
 from core.model.permission import Permission
@@ -323,6 +324,12 @@ class QueueStatus(Resource):
         return queue_manager.queue_manager.get_queue_status()
 
 
+class QueueTasks(Resource):
+    @auth_required("CONFIG_WORKER_ACCESS")
+    def get(self):
+        return queue_manager.queue_manager.get_queued_tasks()
+
+
 class QueueSchedule(Resource):
     @auth_required("CONFIG_WORKER_ACCESS")
     def get(self):
@@ -366,11 +373,35 @@ class OSINTSources(Resource):
 
 
 class OSINTSourceCollect(Resource):
-    @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
+    @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def post(self, source_id=None):
         if source_id:
             return queue_manager.queue_manager.collect_osint_source(source_id)
         return queue_manager.queue_manager.collect_all_osint_sources()
+
+
+class OSINTSourcePreview(Resource):
+    @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
+    def get(self, source_id):
+        user = auth_manager.get_user_from_jwt()
+        if not user:
+            return {"error": "User not found"}, 404
+
+        task_id = session.get(f"source_preview_{source_id}_{user.id}")
+        if task_id is None:
+            return {"error": "No task scheduled or session expired."}, 404
+
+        if result := task.Task.get(task_id):
+            logger.debug(result.to_dict())
+            return result.to_dict(), 200
+        return {"error": "Task not found"}, 404
+
+    @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
+    def post(self, source_id):
+        if user := auth_manager.get_user_from_jwt():
+            return queue_manager.queue_manager.preview_osint_source(source_id, user.id)
+
+        return {"error": "User not found"}, 404
 
 
 class OSINTSourcesExport(Resource):
@@ -539,6 +570,7 @@ def initialize(api: Api):
     namespace.add_resource(Organizations, "/organizations/<int:organization_id>", "/organizations")
     namespace.add_resource(OSINTSources, "/osint-sources/<string:source_id>", "/osint-sources")
     namespace.add_resource(OSINTSourceCollect, "/osint-sources/<string:source_id>/collect", "/osint-sources/collect")
+    namespace.add_resource(OSINTSourcePreview, "/osint-sources/<string:source_id>/preview")
     namespace.add_resource(OSINTSourceGroups, "/osint-source-groups/<string:group_id>", "/osint-source-groups")
     namespace.add_resource(OSINTSourcesExport, "/export-osint-sources")
     namespace.add_resource(OSINTSourcesImport, "/import-osint-sources")
@@ -551,6 +583,7 @@ def initialize(api: Api):
     namespace.add_resource(Publishers, "/publishers")
     namespace.add_resource(QueueStatus, "/workers/queue-status")
     namespace.add_resource(QueueSchedule, "/workers/schedule")
+    namespace.add_resource(QueueTasks, "/workers/tasks")
     namespace.add_resource(ReportItemTypes, "/report-item-types/<int:type_id>", "/report-item-types")
     namespace.add_resource(ReportItemTypesExport, "/export-report-item-types")
     namespace.add_resource(ReportItemTypesImport, "/import-report-item-types")

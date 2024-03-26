@@ -64,8 +64,6 @@ class PresenterTask(Task):
         if err or not product:
             return err
 
-        logger.debug(f"Rendering product {product}")
-
         presenter, err = self.get_presenter(product)
         if err or not presenter:
             return err

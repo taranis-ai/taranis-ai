@@ -4,7 +4,7 @@ from flask_jwt_extended import verify_jwt_in_request
 
 from flask import Response, stream_with_context, Flask
 from core.managers.sse_manager import sse_manager
-from core.managers.log_manager import logger
+from core.log import logger
 
 
 def stream():

@@ -27,16 +27,19 @@ class Settings(BaseSettings):
     SQLALCHEMY_ECHO: bool = False
     SQLALCHEMY_TRACK_MODIFICATIONS: bool = False
     SQLALCHEMY_DATABASE_URI: str | None = None
+    SQLALCHEMY_ENGINE_OPTIONS: dict[str, Any] = {}
     COLORED_LOGS: bool = True
     BUILD_DATE: datetime = datetime.now()
     GIT_INFO: dict[str, str] | None = None
     DATA_FOLDER: str = "./taranis_data"
+    SESSION_TYPE: str = "filesystem"
 
-    @model_validator(mode="after")
+    @model_validator(mode="after")  # type: ignore
     def set_sqlalchemy_uri(self) -> "Settings":
-        if self.SQLALCHEMY_DATABASE_URI and len(self.SQLALCHEMY_DATABASE_URI) > 1:
-            return self
-        self.SQLALCHEMY_DATABASE_URI = f"{self.SQLALCHEMY_SCHEMA}://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_URL}/{self.DB_DATABASE}"
+        if not self.SQLALCHEMY_DATABASE_URI or len(self.SQLALCHEMY_DATABASE_URI) < 1:
+            self.SQLALCHEMY_DATABASE_URI = f"{self.SQLALCHEMY_SCHEMA}://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_URL}/{self.DB_DATABASE}"
+        if self.SQLALCHEMY_DATABASE_URI.startswith("sqlite:"):
+            self.SQLALCHEMY_ENGINE_OPTIONS = {"connect_args": {"timeout": 10}}
         return self
 
     TARANIS_AUTHENTICATOR: Literal["database", "openid", "test"] = "database"
@@ -70,7 +73,6 @@ class Settings(BaseSettings):
             )
         self.CELERY = {
             "broker_url": broker_url,
-            "ignore_result": True,
             "create_missing_queues": True,
             "broker_connection_retry_on_startup": True,
             "broker_connection_retry": False,  # To suppress deprecation warning

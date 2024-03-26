@@ -1,7 +1,7 @@
 from typing import Any
 import uuid
 
-from core.managers.log_manager import logger
+from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.model.parameter_value import ParameterValue

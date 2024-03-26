@@ -8,7 +8,7 @@ from sqlalchemy.orm import deferred, Mapped
 from sqlalchemy.exc import IntegrityError
 
 from core.managers.db_manager import db
-from core.managers.log_manager import logger
+from core.log import logger
 from core.model.role_based_access import RoleBasedAccess, ItemType
 from core.model.parameter_value import ParameterValue
 from core.model.word_list import WordList
@@ -37,11 +37,14 @@ class OSINTSource(BaseModel):
     last_attempted = db.Column(db.DateTime, default=None)
     last_error_message = db.Column(db.String, default=None)
 
-    def __init__(self, name, description, type, parameters=None, id=None):
+    def __init__(self, name, description, type, parameters=None, icon=None, id=None):
         self.id = id or str(uuid.uuid4())
         self.name = name
         self.description = description
         self.type = type
+        if icon is not None and (icon_data := self.is_valid_base64(icon)):
+            self.icon = icon_data
+
         self.parameters = Worker.parse_parameters(type, parameters)
 
     @classmethod

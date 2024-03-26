@@ -1,7 +1,7 @@
 <template>
   <v-container fluid>
     <DataTable
-      :items="osint_sources.items"
+      :items="osint_sources"
       :header-filter="[
         'icon',
         'state',
@@ -19,8 +19,8 @@
       <template #titlebar>
         <ImportExport @import="importData" @export="exportData"></ImportExport>
         <v-btn
-          color="blue-grey"
           dark
+          color="blue-grey"
           class="ml-4"
           prepend-icon="mdi-run"
           @click="collectAllSources"
@@ -39,6 +39,17 @@
             />
           </template>
           <span>Collect Source</span>
+        </v-tooltip>
+        <v-tooltip left>
+          <template #activator="{ props }">
+            <v-icon
+              v-bind="props"
+              color="secondary"
+              icon="mdi-file-find"
+              @click.stop="previewSource(source.item)"
+            />
+          </template>
+          <span>Preview Source</span>
         </v-tooltip>
       </template>
     </DataTable>
@@ -64,6 +75,7 @@ import {
   exportOSINTSources,
   importOSINTSources,
   collectOSINTSSource,
+  previewOSINTSSource,
   collectAllOSINTSSources
 } from '@/api/config'
 import { notifySuccess, objectFromFormat, notifyFailure } from '@/utils/helpers'
@@ -71,6 +83,7 @@ import { storeToRefs } from 'pinia'
 import { useConfigStore } from '@/stores/ConfigStore'
 import { useMainStore } from '@/stores/MainStore'
 import { ref, computed, onBeforeMount } from 'vue'
+import { useRouter } from 'vue-router'
 
 export default {
   name: 'OSINTSourcesView',
@@ -82,9 +95,16 @@ export default {
   setup() {
     const configStore = useConfigStore()
     const mainStore = useMainStore()
+    const router = useRouter()
 
-    const { collector_types, osint_sources, parameters } =
-      storeToRefs(configStore)
+    const { collector_types, parameters } = storeToRefs(configStore)
+
+    const osint_sources = computed(() => {
+      // remove the source where id === 'manual'
+      return configStore.osint_sources.items.filter(
+        (source) => source.id !== 'manual'
+      )
+    })
 
     const collector_options = ref([])
     const selected = ref([])
@@ -107,12 +127,6 @@ export default {
           type: 'date'
         },
         {
-          name: 'icon',
-          label: 'Icon',
-          type: 'icon',
-          rules: ['filesize']
-        },
-        {
           name: 'name',
           label: 'Name',
           type: 'text',
@@ -122,6 +136,14 @@ export default {
           name: 'description',
           label: 'Description',
           type: 'textarea'
+        },
+        {
+          name: 'icon',
+          label: 'Icon',
+          type: 'file',
+          icon: 'mdi-camera',
+          rules: ['filesize'],
+          placeholder: 'Pick an icon'
         },
         {
           name: 'type',
@@ -148,9 +170,8 @@ export default {
 
     const updateData = () => {
       configStore.loadOSINTSources().then(() => {
-        mainStore.itemCountFiltered = osint_sources.value.items.length
-        mainStore.itemCountTotal = osint_sources.value.total_count
-        Object.freeze(osint_sources)
+        mainStore.itemCountFiltered = configStore.osint_sources.items.length - 1
+        mainStore.itemCountTotal = configStore.osint_sources.total_count - 1
       })
       configStore.loadWorkerTypes().then(() => {
         collector_options.value = collector_types.value.map((collector) => {
@@ -270,6 +291,19 @@ export default {
         })
     }
 
+    const previewSource = (source) => {
+      previewOSINTSSource(source.id)
+        .then(() => {
+          router.push({
+            name: 'osint_sources_preview',
+            params: { source_id: source.id }
+          })
+        })
+        .catch(() => {
+          notifyFailure(`Failed to preview ${source.name}`)
+        })
+    }
+
     return {
       parameters,
       collector_options,
@@ -289,6 +323,7 @@ export default {
       importData,
       exportData,
       collectSource,
+      previewSource,
       collectAllSources,
       selectionChange
     }

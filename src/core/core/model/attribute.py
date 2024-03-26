@@ -4,7 +4,7 @@ from sqlalchemy import func, or_
 from enum import Enum, auto
 from typing import Any
 
-from core.managers.log_manager import logger
+from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 

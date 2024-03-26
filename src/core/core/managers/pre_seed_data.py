@@ -1,7 +1,7 @@
 workers = [
     {
-        "description": "Collector for gathering data from RSS feeds",
         "name": "RSS Collector",
+        "description": "Collector for gathering data from RSS feeds",
         "parameters": [
             {"parameter": "FEED_URL", "rules": "required"},
             {"parameter": "USER_AGENT"},
@@ -14,8 +14,8 @@ workers = [
         "type": "RSS_COLLECTOR",
     },
     {
-        "description": "Collector for gathering data from emails",
         "name": "EMAIL Collector",
+        "description": "Collector for gathering data from emails",
         "parameters": [
             {"parameter": "EMAIL_SERVER_TYPE"},
             {"parameter": "EMAIL_SERVER_HOSTNAME"},
@@ -29,8 +29,8 @@ workers = [
         "type": "EMAIL_COLLECTOR",
     },
     {
-        "description": "Collector for gathering data from a web site via python requests",
         "name": "Simple Web Collector",
+        "description": "Collector for gathering data from a web site via python requests",
         "parameters": [
             {"parameter": "WEB_URL", "rules": "required"},
             {"parameter": "USER_AGENT"},
@@ -39,6 +39,14 @@ workers = [
             {"parameter": "TLP_LEVEL", "rules": "tlp"},
         ],
         "type": "SIMPLE_WEB_COLLECTOR",
+    },
+    {
+        "name": "Manual",
+        "description": "Manual source for creating news items via UI",
+        "parameters": [
+            {"parameter": "TLP_LEVEL", "rules": "tlp"},
+        ],
+        "type": "MANUAL_COLLECTOR",
     },
     {
         "description": "Collector for gathering data from web page",

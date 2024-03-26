@@ -1,3 +1,4 @@
+
 <template>
   <v-form
     id="form"
@@ -107,6 +108,7 @@ export default {
       content: '',
       link: '',
       source: 'manual',
+      osint_source_id: 'manual',
       author: '',
       published: new Date(),
       collected: '',

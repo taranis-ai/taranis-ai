@@ -55,7 +55,7 @@ class CoreApi:
         try:
             return self.api_get(f"/worker/bots/{bot_id}")
         except Exception:
-            logger.log_debug_trace("Can't get Bot Config")
+            logger.exception("Can't get Bot Config")
             return None
 
     def get_osint_source(self, source_id: str) -> dict | None:
@@ -116,7 +116,7 @@ class CoreApi:
         try:
             return self.api_get("/worker/news-item-aggregates", params=filter_dict) or []
         except Exception:
-            logger.log_debug_trace("get_news_items_aggregate failed")
+            logger.exception("get_news_items_aggregate failed")
             return []
 
     def get_tags(self) -> dict | None:
@@ -158,31 +158,14 @@ class CoreApi:
             if tags:
                 return self.api_put(url=f"/worker/tags?bot_type={bot_type}", json_data=tags)
         except Exception:
-            logger.log_debug_trace("update_tags failed")
+            logger.exception("update_tags failed")
             return None
 
     def run_post_collection_bots(self, source_id) -> dict | None:
         try:
             return self.api_put("/worker/post-collection-bots", json_data={"source_id": source_id})
         except Exception:
-            logger.log_debug_trace("Can't run Post Collection Bots")
-            return None
-
-    def update_word_list(self, word_list_id, content, content_type) -> dict | None:
-        try:
-            url = f"{self.api_url}/worker/word-list/{word_list_id}/update"
-            headers = self.headers.copy()
-            headers["Content-type"] = content_type
-            # url = "http://127.0.0.1:8888/anything"
-            if content_type == "text/csv":
-                return self.check_response(
-                    requests.put(url=url, data=content, headers=headers, verify=self.verify, timeout=self.timeout), url
-                )
-            elif content_type == "application/json":
-                return self.check_response(
-                    requests.put(url=url, json=content, headers=headers, verify=self.verify, timeout=self.timeout), url
-                )
-        except Exception:
+            logger.exception("Can't run Post Collection Bots")
             return None
 
     def update_osintsource_status(self, osint_source_id: str, error_msg: dict | None = None) -> dict | None:
@@ -235,7 +218,7 @@ class CoreApi:
 
             return response.ok
         except Exception:
-            logger.log_debug_trace("Cannot add Newsitem")
+            logger.exception("Cannot add Newsitem")
             return False
 
     def cleanup_token_blacklist(self):
@@ -244,5 +227,18 @@ class CoreApi:
             response = requests.post(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
             return self.check_response(response, url)
         except Exception:
-            logger.log_debug_trace("Cannot cleanup token blacklist")
+            logger.exception("Cannot cleanup token blacklist")
             return False
+
+    def store_task_result(self, data) -> dict | None:
+        try:
+            return self.api_post(url="/tasks/", json_data=data)
+        except Exception:
+            return None
+
+    def get_task(self, task_id) -> dict | None:
+        try:
+            url = f"{self.api_url}/tasks/{task_id}"
+            return requests.get(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
+        except Exception:
+            return None
