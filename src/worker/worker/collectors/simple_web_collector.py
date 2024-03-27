@@ -18,36 +18,50 @@ class SimpleWebCollector(BaseWebCollector):
         self.description = "Collector for gathering news with Trafilatura"
 
         self.news_items = []
+        self.web_url = None
+        self.feed_url = None
+        self.xpath = None
         logger_trafilatura = logging.getLogger("trafilatura")
         logger_trafilatura.setLevel(logging.WARNING)
 
-    def collect(self, source):
-        web_url = source["parameters"].get("WEB_URL", None)
-        if not web_url:
+    def parse_source(self, source):
+        self.web_url = source["parameters"].get("WEB_URL", None)
+        if not self.web_url:
             logger.warning("No WEB_URL set")
-            return "No WEB_URL set"
+            return {"error": "No WEB_URL set"}
 
-        logger.info(f"Website {source['id']} Starting collector for url: {web_url}")
+        self.set_proxies(source["parameters"].get("PROXY_SERVER", None))
 
         if user_agent := source["parameters"].get("USER_AGENT", None):
             self.headers = {"User-Agent": user_agent}
 
-        xpath = source["parameters"].get("XPATH", "")
+        self.xpath = source["parameters"].get("XPATH", "")
+
+    def collect(self, source):
+        self.parse_source(source)
+        logger.info(f"Website {source['id']} Starting collector for url: {self.web_url}")
+
         try:
-            return self.web_collector(web_url, source, xpath)
+            return self.web_collector(source)
         except Exception as e:
             logger.exception()
-            logger.error(f"Simple Web Collector for {web_url} failed with error: {str(e)}")
+            logger.error(f"Simple Web Collector for {self.web_url} failed with error: {str(e)}")
             return str(e)
 
-    def parse_web_content(self, web_url, source_id: str, xpath: str = "") -> dict[str, str | datetime.datetime | list]:
+    def preview_collector(self, source):
+        self.parse_source(source)
+        news_item = self.parse_web_content(self.web_url, source["id"])
+
+        return self.preview([news_item], source)
+
+    def parse_web_content(self, web_url, source_id: str) -> dict[str, str | datetime.datetime | list]:
         html_content, published_date = self.html_from_article(web_url)
         if not html_content:
             raise ValueError("Website returned no content")
         author, title = self.extract_meta(html_content)
 
-        if xpath:
-            content = self.xpath_extraction(html_content, xpath)
+        if self.xpath:
+            content = self.xpath_extraction(html_content, self.xpath)
         else:
             extract_document = bare_extraction(html_content, with_metadata=True, include_comments=False, url=web_url)
             author = extract_document["author"] or ""
@@ -81,15 +95,15 @@ class SimpleWebCollector(BaseWebCollector):
 
         return author, title
 
-    def web_collector(self, web_url: str, source, xpath: str = ""):
-        response = requests.head(web_url, headers=self.headers, proxies=self.proxies)
+    def web_collector(self, source):
+        response = requests.head(self.web_url, headers=self.headers, proxies=self.proxies)
         if not response or not response.ok:
             logger.info(f"Website {source['id']} returned no content")
             raise ValueError("Website returned no content")
 
         last_attempted = self.get_last_attempted(source)
         if not last_attempted:
-            self.update_favicon(web_url, source["id"])
+            self.update_favicon(self.web_url, source["id"])
         last_modified = self.get_last_modified(response)
         self.last_modified = last_modified
         if last_modified and last_attempted and last_modified < last_attempted:
@@ -97,9 +111,9 @@ class SimpleWebCollector(BaseWebCollector):
             return "Last-Modified < Last-Attempted"
 
         try:
-            news_item = self.parse_web_content(web_url, source["id"], xpath)
+            news_item = self.parse_web_content(self.web_url, source["id"])
         except ValueError as e:
-            logger.error(f"Simple Web Collector for {web_url} failed with error: {str(e)}")
+            logger.error(f"Simple Web Collector for {self.web_url} failed with error: {str(e)}")
             return str(e)
 
         self.publish([news_item], source)

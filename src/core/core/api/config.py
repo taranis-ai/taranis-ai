@@ -392,7 +392,6 @@ class OSINTSourcePreview(Resource):
             return {"error": "No task scheduled or session expired."}, 404
 
         if result := task.Task.get(task_id):
-            logger.debug(result.to_dict())
             return result.to_dict(), 200
         return {"error": "Task not found"}, 404
 

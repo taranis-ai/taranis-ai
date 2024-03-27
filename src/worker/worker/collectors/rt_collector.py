@@ -47,12 +47,20 @@ class RTCollector(BaseWebCollector):
         if err := self.set_headers(source.get("parameters").get("RT_TOKEN", None)):
             raise ValueError(err)
 
+    def preview_collector(self, source):
+        if err := self.setup_collector(source):
+            raise ValueError(err)
+
+        if tickets := self.rt_collector(source):
+            return self.preview(tickets, source)
+
     def collect(self, source):
         if err := self.setup_collector(source):
             raise ValueError(err)
 
         try:
-            return self.rt_collector(source)
+            if tickets := self.rt_collector(source):
+                return self.publish(tickets, source)
         except Exception as e:
             logger.exception()
             logger.error(f"RT Collector for {self.base_url} failed with error: {str(e)}")
@@ -168,7 +176,6 @@ class RTCollector(BaseWebCollector):
             tickets = self.get_tickets(tickets_ids_list, source)
         except RuntimeError as e:
             logger.error(f"RT Collector for {self.base_url} failed with error: {str(e)}")
-            return RuntimeError(e)
+            raise RuntimeError(f"RT Collector for {self.base_url} failed with error: {str(e)}") from e
 
-        self.publish(tickets, source)
-        return None
+        return tickets
