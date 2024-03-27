@@ -16,11 +16,12 @@ import {
   getAllWordLists,
   getAllParameters,
   getAllSchedule,
+  getAllTemplates,
   getAllWorkers,
   getAllWorkerTypes,
-  getQueueStatus
+  getQueueStatus,
+  getQueueTasks
 } from '@/api/config'
-import { getAllUserProductTypes } from '@/api/user'
 
 export const useConfigStore = defineStore('config', {
   state: () => ({
@@ -37,11 +38,13 @@ export const useConfigStore = defineStore('config', {
     report_item_types: { total_count: 0, items: [] },
     roles: { total_count: 0, items: [] },
     users: { total_count: 0, items: [] },
+    templates: { total_count: 0, items: [] },
     word_lists: { total_count: 0, items: [] },
     schedule: [],
     workers: [],
     worker_types: { total_count: 0, items: [] },
-    queue_status: {}
+    queue_status: {},
+    queue_tasks: []
   }),
   getters: {
     getUserByID: (state) => (user_id) => {
@@ -110,15 +113,6 @@ export const useConfigStore = defineStore('config', {
     },
     loadProductTypes(data) {
       return getAllProductTypes(data)
-        .then((response) => {
-          this.product_types = response.data
-        })
-        .catch((error) => {
-          notifyFailure(error)
-        })
-    },
-    loadUserProductTypes(data) {
-      return getAllUserProductTypes(data)
         .then((response) => {
           this.product_types = response.data
         })
@@ -225,6 +219,15 @@ export const useConfigStore = defineStore('config', {
           notifyFailure(error)
         })
     },
+    async loadTemplates(data) {
+      return getAllTemplates(data)
+        .then((response) => {
+          this.templates = response.data
+        })
+        .catch((error) => {
+          notifyFailure(error)
+        })
+    },
     async loadSchedule(data) {
       return getAllSchedule(data)
         .then((response) => {
@@ -243,6 +246,15 @@ export const useConfigStore = defineStore('config', {
           const error_message = getMessageFromError(error)
           this.queue_status = error_message
           notifyFailure(error_message)
+        })
+    },
+    async loadQueueTasks(data) {
+      return getQueueTasks(data)
+        .then((response) => {
+          this.queue_tasks = response.data
+        })
+        .catch((error) => {
+          notifyFailure(error)
         })
     },
     async loadWorkers(data) {

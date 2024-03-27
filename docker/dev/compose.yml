@@ -19,7 +19,7 @@ services:
       - "database_data:/var/lib/postgresql/data"
 
   rabbitmq:
-    image: "rabbitmq:${RABBITMQ_TAG:-3-management-alpine}"
+    image: "${DOCKER_IMAGE_NAMESPACE:-ghcr.io/taranis-ai}/rabbitmq:latest"
     ports:
       - "${TARANIS_RABBITMQ_PORT:-5672}:5672"
       - "${TARANIS_RABBITMQ_MGMT_PORT:-15672}:15672"

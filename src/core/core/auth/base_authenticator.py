@@ -1,6 +1,6 @@
 from flask_jwt_extended import create_access_token
 
-from core.managers.log_manager import logger
+from core.log import logger
 from core.model.token_blacklist import TokenBlacklist
 from core.model.user import User
 
@@ -40,14 +40,7 @@ class BaseAuthenticator:
             logger.store_user_activity(user, "LOGIN", "Successful")
             access_token = create_access_token(
                 identity=user.username,
-                additional_claims={
-                    "user_claims": {
-                        "id": user.id,
-                        "name": user.name,
-                        "organization_name": user.get_current_organization_name(),
-                        "permissions": user.get_permissions(),
-                    }
-                },
+                additional_claims={"user_claims": {"id": user.id, "name": user.name, "roles": user.get_roles()}},
             )
 
             return {"access_token": access_token}, 200

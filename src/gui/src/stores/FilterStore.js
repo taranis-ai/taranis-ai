@@ -1,14 +1,18 @@
+import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 
-export const useFilterStore = defineStore('filter', {
-  state: () => ({
-    newsItemsFilter: {
+export const useFilterStore = defineStore(
+  'filter',
+  () => {
+    const newsItemsFilter = ref({
       offset: undefined,
       limit: undefined,
       page: undefined,
       search: undefined,
       sort: undefined,
       range: undefined,
+      timefrom: undefined,
+      timeto: undefined,
       read: undefined,
       tags: undefined,
       group: undefined,
@@ -16,14 +20,16 @@ export const useFilterStore = defineStore('filter', {
       in_report: undefined,
       relevant: undefined,
       important: undefined
-    },
-    assetFilter: {
+    })
+
+    const assetFilter = ref({
       offset: undefined,
       limit: undefined,
       search: undefined,
       sort: undefined
-    },
-    reportFilter: {
+    })
+
+    const reportFilter = ref({
       offset: undefined,
       limit: undefined,
       search: undefined,
@@ -31,33 +37,36 @@ export const useFilterStore = defineStore('filter', {
       range: undefined,
       completed: undefined,
       incompleted: undefined
-    },
-    productFilter: {
+    })
+
+    const productFilter = ref({
       offset: undefined,
       limit: undefined,
       search: undefined,
       sort: undefined,
       range: undefined
-    },
-    chartFilter: {
+    })
+
+    const chartFilter = ref({
       threshold: 20,
       y2max: undefined
-    },
-    highlight: true,
-    showWeekChart: false,
-    compactView: false,
-    compactViewSetByUser: false
-  }),
-  getters: {
-    getFilterTags() {
-      if (typeof this.newsItemsFilter.tags === 'string') {
-        return [this.newsItemsFilter.tags]
+    })
+
+    const highlight = ref(true)
+    const showWeekChart = ref(false)
+    const compactView = ref(false)
+    const compactViewSetByUser = ref(false)
+
+    // Getters
+    const getFilterTags = computed(() => {
+      if (typeof newsItemsFilter.value.tags === 'string') {
+        return [newsItemsFilter.value.tags]
       }
-      return this.newsItemsFilter.tags
-    }
-  },
-  actions: {
-    setFilter(filter) {
+      return newsItemsFilter.value.tags
+    })
+
+    // Actions
+    function setFilter(filter) {
       if (filter.tags && typeof filter.tags === 'string') {
         filter.tags = [filter.tags]
       }
@@ -67,55 +76,145 @@ export const useFilterStore = defineStore('filter', {
       if (filter.limit && typeof filter.limit === 'string') {
         filter.limit = parseInt(filter.limit)
       }
-      this.newsItemsFilter = filter
-    },
-    appendTag(tag) {
-      if (this.newsItemsFilter.tags) {
-        if (typeof this.newsItemsFilter.tags === 'string') {
-          this.newsItemsFilter.tags = [this.newsItemsFilter.tags]
+      newsItemsFilter.value = filter
+    }
+
+    function appendTag(tag) {
+      if (newsItemsFilter.value.tags) {
+        if (typeof newsItemsFilter.value.tags === 'string') {
+          newsItemsFilter.value.tags = [newsItemsFilter.value.tags]
         }
-        if (!this.newsItemsFilter.tags.includes(tag)) {
-          this.newsItemsFilter.tags.push(tag)
+        if (!newsItemsFilter.value.tags.includes(tag)) {
+          newsItemsFilter.value.tags.push(tag)
         }
       } else {
-        this.newsItemsFilter.tags = [tag]
+        newsItemsFilter.value.tags = [tag]
       }
-    },
-    nextPage() {
-      const offset = this.newsItemsFilter.offset || 0
-      const limit = this.newsItemsFilter.limit || 20
+    }
 
-      this.newsItemsFilter.offset = offset + limit
-    },
-    updateFilter(filter) {
+    function nextPage() {
+      const offset = newsItemsFilter.value.offset || 0
+      const limit = newsItemsFilter.value.limit || 20
+
+      newsItemsFilter.value.offset = offset + limit
+    }
+
+    function updateFilter(filter) {
       Object.keys(filter).forEach((element) => {
         if (element == 'tags' && typeof filter[element] === 'string') {
-          this.newsItemsFilter[element] = [filter[element]]
+          newsItemsFilter.value[element] = [filter[element]]
         } else {
-          this.newsItemsFilter[element] = filter[element]
+          newsItemsFilter.value[element] = filter[element]
         }
       })
-    },
-    updateAssetFilter(filter) {
+    }
+
+    function updateAssetFilter(filter) {
       Object.keys(filter).forEach((element) => {
-        this.assetFilter[element] = filter[element]
+        assetFilter.value[element] = filter[element]
       })
-    },
-    updateReportFilter(filter) {
+    }
+
+    function updateReportFilter(filter) {
       Object.keys(filter).forEach((element) => {
-        this.reportFilter[element] = filter[element]
+        reportFilter.value[element] = filter[element]
       })
-    },
-    setReportFilter(filter) {
-      this.reportFilter = filter
-    },
-    updateProductFilter(filter) {
+    }
+
+    function setReportFilter(filter) {
+      reportFilter.value = filter
+    }
+
+    function updateProductFilter(filter) {
       Object.keys(filter).forEach((element) => {
-        this.productFilter[element] = filter[element]
+        productFilter.value[element] = filter[element]
       })
-    },
-    setProductFilter(filter) {
-      this.productFilter = filter
+    }
+
+    function setProductFilter(filter) {
+      productFilter.value = filter
+    }
+
+    function setUserFilters(profile) {
+      compactView.value = profile.compact_view
+      showWeekChart.value = profile.show_charts
+    }
+
+    function resetFilter() {
+      newsItemsFilter.value = {
+        offset: undefined,
+        limit: undefined,
+        page: undefined,
+        search: undefined,
+        sort: undefined,
+        range: undefined,
+        timefrom: undefined,
+        timeto: undefined,
+        read: undefined,
+        tags: undefined,
+        group: undefined,
+        source: undefined,
+        in_report: undefined,
+        relevant: undefined,
+        important: undefined
+      }
+      assetFilter.value = {
+        offset: undefined,
+        limit: undefined,
+        search: undefined,
+        sort: undefined
+      }
+      reportFilter.value = {
+        offset: undefined,
+        limit: undefined,
+        search: undefined,
+        sort: undefined,
+        range: undefined,
+        completed: undefined,
+        incompleted: undefined
+      }
+      productFilter.value = {
+        offset: undefined,
+        limit: undefined,
+        search: undefined,
+        sort: undefined,
+        range: undefined
+      }
+    }
+
+    // Return state, getters, and actions
+    return {
+      newsItemsFilter,
+      assetFilter,
+      reportFilter,
+      productFilter,
+      chartFilter,
+      highlight,
+      showWeekChart,
+      compactView,
+      compactViewSetByUser,
+      getFilterTags,
+      setFilter,
+      appendTag,
+      nextPage,
+      updateFilter,
+      updateAssetFilter,
+      updateReportFilter,
+      setReportFilter,
+      updateProductFilter,
+      setProductFilter,
+      setUserFilters,
+      resetFilter
+    }
+  },
+  {
+    persist: {
+      paths: [
+        'showWeekChart',
+        'compactView',
+        'compactViewSetByUser',
+        'highlight'
+      ]
     }
   }
-})
+)

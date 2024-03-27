@@ -5,10 +5,7 @@
     </template>
     <v-list>
       <v-list-item prepend-icon="mdi-account" @click="userview">
-        <v-list-item-title>{{ user.name }}</v-list-item-title>
-        <v-list-item-subtitle>{{
-          user.organization_name
-        }}</v-list-item-subtitle>
+        <v-list-item-title>{{ name }}</v-list-item-title>
       </v-list-item>
       <v-divider></v-divider>
 
@@ -25,13 +22,14 @@
 
 <script>
 import { useAuthStore } from '@/stores/AuthStore'
-import { useMainStore } from '@/stores/MainStore'
+import { useUserStore } from '@/stores/UserStore'
 import { useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
 
 export default {
   name: 'UserMenu',
   setup() {
-    const { user } = useMainStore()
+    const { name, organization, roles } = storeToRefs(useUserStore())
     const authStore = useAuthStore()
     const router = useRouter()
 
@@ -49,7 +47,9 @@ export default {
     }
 
     return {
-      user,
+      name,
+      organization,
+      roles,
       logout,
       settings,
       userview

@@ -3,27 +3,17 @@
     <v-card variant="outlined">
       <v-card-title>
         <v-toolbar>
-          <v-toolbar-title>
+          <span class="align-self-center ml-3">
             {{ $t('settings.user_settings') }}
-          </v-toolbar-title>
+          </span>
           <v-spacer></v-spacer>
-          <v-btn
-            class="mr-2"
-            color="red"
-            variant="outlined"
-            prepend-icon="mdi-undo"
-            @click="resetDefaults()"
-          >
-            <!-- TODO: here it would need a revisit the translation json   {{ $t('settings.reset') }}-->
-            Reset and apply
-          </v-btn>
           <v-btn
             color="success"
             variant="outlined"
             prepend-icon="mdi-content-save"
             @click="save()"
           >
-            {{ $t('settings.save') }}
+            {{ $t('button.save') }}
           </v-btn>
         </v-toolbar>
       </v-card-title>
@@ -31,20 +21,37 @@
         <v-row justify="center" align="center">
           <v-col>
             <v-switch
-              v-model="spellcheck"
-              :label="$t('settings.spellcheck')"
+              v-model="split_view"
+              color="success"
+              :label="$t('settings.split_view')"
             ></v-switch>
           </v-col>
           <v-col>
             <v-switch
               v-model="dark_theme"
+              color="success"
               :label="$t('settings.dark_theme')"
             ></v-switch>
           </v-col>
         </v-row>
         <v-row>
+          <v-col>
+            <v-switch
+              v-model="compact_view"
+              color="success"
+              :label="$t('settings.compact_view')"
+            ></v-switch>
+          </v-col>
+          <v-col>
+            <v-switch
+              v-model="show_charts"
+              color="success"
+              :label="$t('settings.show_charts')"
+            ></v-switch>
+          </v-col>
+        </v-row>
+        <v-row>
           <v-col cols="4">
-            {{ language }}
             <v-autocomplete
               v-model="language"
               :items="locale_descriptions"
@@ -55,6 +62,17 @@
           </v-col>
         </v-row>
         <h1 class="mt-5 mb-5">Hotkeys</h1>
+        <h2 style="background-color: #ffff00">
+          HotKeys are currently not working, see
+          <a
+            href="https://github.com/taranis-ai/taranis-ai/issues/137"
+            target="_blank"
+          >
+            Issue #137
+          </a>
+          for details
+        </h2>
+        <span> Press the button to change the hotkey. </span>
         <v-row no-gutters class="ma-0">
           <v-tooltip v-for="shortcut in hotkeys" :key="shortcut.alias">
             <template #activator="{ props }">
@@ -64,17 +82,18 @@
                 class="blue lighten-5 ma-1"
                 style="width: calc(100% / 3 - 8px)"
                 :prepend-icon="shortcut.icon"
+                :disabled="disableHotkeys"
                 @click.stop="pressKeyDialog(shortcut.alias)"
                 @blur="pressKeyVisible = false"
               >
                 <span v-if="shortcut.key">
                   {{ shortcut.key }}
                 </span>
-                <v-icon v-else color="error">mdi-alert</v-icon>
+                <v-icon v-else color="error" icon="mdi-alert" />
               </v-btn>
             </template>
             <span>
-              {{ $t('settings.' + shortcut.alias) }}
+              {{ shortcut.alias }}
             </span>
           </v-tooltip>
         </v-row>
@@ -85,7 +104,7 @@
 
 <script>
 import { ref, computed } from 'vue'
-import { useSettingsStore } from '@/stores/SettingsStore'
+import { useUserStore } from '@/stores/UserStore'
 import { storeToRefs } from 'pinia'
 import { onMounted } from 'vue'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
@@ -97,10 +116,18 @@ export default {
     const hotkeyAlias = ref('')
     const shortcuts = ref([])
 
-    const settingsStore = useSettingsStore()
+    const userStore = useUserStore()
 
-    const { hotkeys, dark_theme, spellcheck, language } =
-      storeToRefs(settingsStore)
+    const disableHotkeys = true
+
+    const {
+      hotkeys,
+      dark_theme,
+      split_view,
+      language,
+      compact_view,
+      show_charts
+    } = storeToRefs(userStore)
 
     const locale_descriptions = computed(() => [
       { value: 'en', text: 'English' },
@@ -109,33 +136,11 @@ export default {
     ])
 
     const save = () => {
-      settingsStore
+      userStore
         .saveUserProfile({
-          spellcheck: spellcheck.value,
-          dark_theme: dark_theme.value,
-          hotkeys: shortcuts.value,
-          language: language.value
-        })
-        .then(() => {
-          notifySuccess('notification.successful_update')
-        })
-        .catch(() => {
-          notifyFailure('notification.failed_update')
-        })
-    }
-
-    const resetDefaults = () => {
-      settingsStore
-        .resetUserProfile()
-        .then(() => {
-          notifySuccess('notification.successful_update')
-        })
-        .catch(() => {
-          notifyFailure('notification.failed_update')
-        })
-      settingsStore
-        .saveUserProfile({
-          spellcheck: spellcheck.value,
+          split_view: split_view.value,
+          compact_view: compact_view.value,
+          show_charts: show_charts.value,
           dark_theme: dark_theme.value,
           hotkeys: shortcuts.value,
           language: language.value
@@ -182,7 +187,7 @@ export default {
     }
 
     onMounted(() => {
-      settingsStore.loadUserProfile()
+      userStore.loadUserProfile()
       shortcuts.value = hotkeys.value.map((shortcut) => {
         return {
           alias: shortcut.alias,
@@ -194,15 +199,17 @@ export default {
 
     return {
       pressKeyVisible,
+      disableHotkeys,
       hotkeyAlias,
       shortcuts,
       language,
       locale_descriptions,
       dark_theme,
-      spellcheck,
+      split_view,
+      compact_view,
+      show_charts,
       hotkeys,
       save,
-      resetDefaults,
       pressKeyDialog,
       pressKey
     }

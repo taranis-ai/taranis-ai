@@ -10,7 +10,7 @@ export const router = createRouter({
       path: '/',
       name: 'home',
       component: Home,
-      meta: { requiresAuth: true, requiresPerm: [] }
+      meta: { requiresAuth: true }
     },
     {
       path: '/enter',
@@ -18,7 +18,7 @@ export const router = createRouter({
       components: {
         default: () => import('@/views/users/EnterView.vue')
       },
-      meta: { requiresAuth: true, requiresPerm: [Permissions.ASSESS_CREATE] }
+      meta: { requiresAuth: true, requiresPerm: Permissions.ASSESS_CREATE }
     },
     {
       path: '/newsitem/:id',
@@ -26,7 +26,7 @@ export const router = createRouter({
       components: {
         default: () => import('@/views/users/NewsItemView.vue')
       },
-      meta: { requiresAuth: true, requiresPerm: [Permissions.ASSESS_ACCESS] }
+      meta: { requiresAuth: true, requiresPerm: Permissions.ASSESS_ACCESS }
     },
     {
       path: '/newsitem/:id/edit',
@@ -34,7 +34,7 @@ export const router = createRouter({
       components: {
         default: () => import('@/views/users/NewsItemEditView.vue')
       },
-      meta: { requiresAuth: true, requiresPerm: [Permissions.ASSESS_UPDATE] }
+      meta: { requiresAuth: true, requiresPerm: Permissions.ASSESS_UPDATE }
     },
     {
       path: '/story/:id',
@@ -42,7 +42,7 @@ export const router = createRouter({
       components: {
         default: () => import('@/views/users/StoryView.vue')
       },
-      meta: { requiresAuth: true, requiresPerm: [Permissions.ASSESS_ACCESS] }
+      meta: { requiresAuth: true, requiresPerm: Permissions.ASSESS_ACCESS }
     },
     {
       path: '/story/:id/edit',
@@ -50,7 +50,7 @@ export const router = createRouter({
       components: {
         default: () => import('@/views/users/StoryEditView.vue')
       },
-      meta: { requiresAuth: true, requiresPerm: [Permissions.ASSESS_UPDATE] }
+      meta: { requiresAuth: true, requiresPerm: Permissions.ASSESS_UPDATE }
     },
     {
       path: '/assess',
@@ -59,7 +59,7 @@ export const router = createRouter({
         default: () => import('@/views/users/AssessView.vue'),
         nav: () => import('@/views/nav/AssessNav.vue')
       },
-      meta: { requiresAuth: true, requiresPerm: [Permissions.ASSESS_ACCESS] }
+      meta: { requiresAuth: true, requiresPerm: Permissions.ASSESS_ACCESS }
     },
     {
       path: '/analyze',
@@ -69,15 +69,15 @@ export const router = createRouter({
         default: () => import('@/views/users/AnalyzeView.vue'),
         nav: () => import('@/views/nav/AnalyzeNav.vue')
       },
-      meta: { requiresAuth: true, requiresPerm: [Permissions.ANALYZE_ACCESS] }
+      meta: { requiresAuth: true, requiresPerm: Permissions.ANALYZE_ACCESS }
     },
     {
-      path: '/report/:id',
+      path: '/report/:id?',
       name: 'report',
       components: {
         default: () => import('@/views/users/ReportView.vue')
       },
-      meta: { requiresAuth: true, requiresPerm: [Permissions.ASSESS_ACCESS] }
+      meta: { requiresAuth: true, requiresPerm: Permissions.ASSESS_ACCESS }
     },
     {
       path: '/publish',
@@ -87,15 +87,15 @@ export const router = createRouter({
         default: () => import('@/views/users/PublishView.vue'),
         nav: () => import('@/views/nav/PublishNav.vue')
       },
-      meta: { requiresAuth: true, requiresPerm: [Permissions.PUBLISH_ACCESS] }
+      meta: { requiresAuth: true, requiresPerm: Permissions.PUBLISH_ACCESS }
     },
     {
-      path: '/product/:id',
+      path: '/product/:id?',
       name: 'product',
       components: {
         default: () => import('@/views/users/ProductView.vue')
       },
-      meta: { requiresAuth: true, requiresPerm: [Permissions.ASSESS_ACCESS] }
+      meta: { requiresAuth: true, requiresPerm: Permissions.ASSESS_ACCESS }
     },
     {
       path: '/assets',
@@ -104,23 +104,23 @@ export const router = createRouter({
         default: () => import('@/views/users/AssetsView.vue'),
         nav: () => import('@/views/nav/AssetsNav.vue')
       },
-      meta: { requiresAuth: true, requiresPerm: [Permissions.MY_ASSETS_ACCESS] }
+      meta: { requiresAuth: true, requiresPerm: Permissions.ASSETS_ACCESS }
     },
     {
-      path: '/asset/:id',
+      path: '/asset/:id?',
       name: 'asset',
       components: {
         default: () => import('@/views/users/AssetView.vue')
       },
-      meta: { requiresAuth: true, requiresPerm: [Permissions.MY_ASSETS_ACCESS] }
+      meta: { requiresAuth: true, requiresPerm: Permissions.ASSETS_ACCESS }
     },
     {
-      path: '/asset-group/:id',
+      path: '/asset-group/:id?',
       name: 'asset-group',
       components: {
         default: () => import('@/views/users/AssetGroupView.vue')
       },
-      meta: { requiresAuth: true, requiresPerm: [Permissions.MY_ASSETS_ACCESS] }
+      meta: { requiresAuth: true, requiresPerm: Permissions.ASSETS_ACCESS }
     },
     {
       path: '/cluster/:cluster',
@@ -136,7 +136,7 @@ export const router = createRouter({
         default: () => import('@/views/users/settings/UserView.vue'),
         nav: () => import('@/views/nav/UserNav.vue')
       },
-      meta: { requiresAuth: true, requiresPerm: [Permissions.MY_ASSETS_CONFIG] }
+      meta: { requiresAuth: true, requiresPerm: Permissions.ASSETS_CONFIG }
     },
     {
       path: '/user/settings',
@@ -145,7 +145,7 @@ export const router = createRouter({
         default: () => import('@/views/users/settings/UserSettings.vue'),
         nav: () => import('@/views/nav/UserNav.vue')
       },
-      meta: { requiresAuth: true, requiresPerm: [Permissions.MY_ASSETS_CONFIG] }
+      meta: { requiresAuth: true, requiresPerm: Permissions.ASSETS_CONFIG }
     },
     {
       path: '/config/dashboard',
@@ -155,7 +155,7 @@ export const router = createRouter({
         default: () => import('@/views/admin/DashBoardConfigView.vue'),
         nav: () => import('@/views/nav/ConfigNav.vue')
       },
-      meta: { requiresAuth: true, requiresPerm: [Permissions.CONFIG_ACCESS] }
+      meta: { requiresAuth: true, requiresPerm: Permissions.CONFIG_ACCESS }
     },
     {
       path: '/config/organizations',
@@ -166,7 +166,7 @@ export const router = createRouter({
       },
       meta: {
         requiresAuth: true,
-        requiresPerm: [Permissions.CONFIG_ORGANIZATION_ACCESS]
+        requiresPerm: Permissions.CONFIG_ORGANIZATION_ACCESS
       }
     },
     {
@@ -178,7 +178,7 @@ export const router = createRouter({
       },
       meta: {
         requiresAuth: true,
-        requiresPerm: [Permissions.CONFIG_ROLE_ACCESS]
+        requiresPerm: Permissions.CONFIG_ROLE_ACCESS
       }
     },
     {
@@ -190,7 +190,7 @@ export const router = createRouter({
       },
       meta: {
         requiresAuth: true,
-        requiresPerm: [Permissions.CONFIG_ACL_ACCESS]
+        requiresPerm: Permissions.CONFIG_ACL_ACCESS
       }
     },
     {
@@ -202,7 +202,7 @@ export const router = createRouter({
       },
       meta: {
         requiresAuth: true,
-        requiresPerm: [Permissions.CONFIG_USER_ACCESS]
+        requiresPerm: Permissions.CONFIG_USER_ACCESS
       }
     },
     {
@@ -214,7 +214,7 @@ export const router = createRouter({
       },
       meta: {
         requiresAuth: true,
-        requiresPerm: [Permissions.CONFIG_WORKER_ACCESS]
+        requiresPerm: Permissions.CONFIG_WORKER_ACCESS
       }
     },
     {
@@ -226,7 +226,7 @@ export const router = createRouter({
       },
       meta: {
         requiresAuth: true,
-        requiresPerm: [Permissions.CONFIG_BOT_ACCESS]
+        requiresPerm: Permissions.CONFIG_BOT_ACCESS
       }
     },
     {
@@ -238,7 +238,18 @@ export const router = createRouter({
       },
       meta: {
         requiresAuth: true,
-        requiresPerm: [Permissions.CONFIG_OSINT_SOURCE_ACCESS]
+        requiresPerm: Permissions.CONFIG_OSINT_SOURCE_ACCESS
+      }
+    },
+    {
+      path: '/config/sources/:source_id',
+      name: 'osint_sources_preview',
+      components: {
+        default: () => import('@/views/admin/OSINTSourcesPreview.vue')
+      },
+      meta: {
+        requiresAuth: true,
+        requiresPerm: Permissions.CONFIG_OSINT_SOURCE_ACCESS
       }
     },
     {
@@ -250,7 +261,7 @@ export const router = createRouter({
       },
       meta: {
         requiresAuth: true,
-        requiresPerm: [Permissions.CONFIG_OSINT_SOURCE_GROUP_ACCESS]
+        requiresPerm: Permissions.CONFIG_OSINT_SOURCE_GROUP_ACCESS
       }
     },
     {
@@ -262,7 +273,7 @@ export const router = createRouter({
       },
       meta: {
         requiresAuth: true,
-        requiresPerm: [Permissions.CONFIG_PUBLISHER_ACCESS]
+        requiresPerm: Permissions.CONFIG_PUBLISHER_ACCESS
       }
     },
     {
@@ -274,7 +285,19 @@ export const router = createRouter({
       },
       meta: {
         requiresAuth: true,
-        requiresPerm: [Permissions.CONFIG_PRODUCT_TYPE_ACCESS]
+        requiresPerm: Permissions.CONFIG_PRODUCT_TYPE_ACCESS
+      }
+    },
+    {
+      path: '/config/product/templates',
+      name: 'product_templates',
+      components: {
+        default: () => import('@/views/admin/ProductTemplatesView.vue'),
+        nav: () => import('@/views/nav/ConfigNav.vue')
+      },
+      meta: {
+        requiresAuth: true,
+        requiresPerm: Permissions.CONFIG_PRODUCT_TYPE_ACCESS
       }
     },
     {
@@ -286,7 +309,7 @@ export const router = createRouter({
       },
       meta: {
         requiresAuth: true,
-        requiresPerm: [Permissions.CONFIG_ATTRIBUTE_ACCESS]
+        requiresPerm: Permissions.CONFIG_ATTRIBUTE_ACCESS
       }
     },
     {
@@ -298,7 +321,7 @@ export const router = createRouter({
       },
       meta: {
         requiresAuth: true,
-        requiresPerm: [Permissions.CONFIG_REPORT_TYPE_ACCESS]
+        requiresPerm: Permissions.CONFIG_REPORT_TYPE_ACCESS
       }
     },
     {
@@ -310,7 +333,7 @@ export const router = createRouter({
       },
       meta: {
         requiresAuth: true,
-        requiresPerm: [Permissions.CONFIG_WORD_LIST_ACCESS]
+        requiresPerm: Permissions.CONFIG_WORD_LIST_ACCESS
       }
     },
     {
@@ -322,7 +345,7 @@ export const router = createRouter({
       },
       meta: {
         requiresAuth: true,
-        requiresPerm: [Permissions.CONFIG_BOT_ACCESS]
+        requiresPerm: Permissions.CONFIG_BOT_ACCESS
       }
     },
     {
@@ -337,9 +360,31 @@ export const router = createRouter({
       }
     },
     {
+      path: '/config/settings',
+      name: 'admin-settings',
+      components: {
+        default: () => import('@/views/admin/Settings.vue'),
+        nav: () => import('@/views/nav/ConfigNav.vue')
+      },
+      meta: {
+        requiresAuth: true,
+        requiresPerm: Permissions.ADMIN_OPERATIONS
+      }
+    },
+    {
       path: '/login',
       name: 'login',
       component: () => import('@/views/Login.vue')
+    },
+    {
+      path: '/403',
+      name: 'forbidden',
+      component: () => import('@/views/error/AccessForbidden.vue')
+    },
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'not-found',
+      component: () => import('@/views/error/NotFound.vue')
     }
   ]
 })
@@ -347,10 +392,11 @@ export const router = createRouter({
 router.beforeEach((to) => {
   const authstore = useAuthStore()
   if (to.meta.requiresAuth && !authstore.isAuthenticated) {
-    if (authstore.external_login_uri) {
-      window.location = encodeURI(authstore.login_uri)
-    }
     return { name: 'login' }
+  }
+  if (to.meta.requiresPerm && !authstore.hasAccess(to.meta.requiresPerm)) {
+    console.error('Access Denied - User is lacking permissions')
+    return { name: 'forbidden' }
   }
   return true
 })

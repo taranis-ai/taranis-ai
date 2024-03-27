@@ -1,12 +1,12 @@
 <template>
-  <v-row v-if="author">
-    <v-col style="max-width: 110px" class="py-0">
+  <tr v-if="author">
+    <td style="max-width: 110px" class="py-0">
       <strong>{{ $t('assess.author') }}:</strong>
-    </v-col>
-    <v-col class="py-0">
+    </td>
+    <td class="py-0">
       {{ author }}
-    </v-col>
-  </v-row>
+    </td>
+  </tr>
 </template>
 
 <script>

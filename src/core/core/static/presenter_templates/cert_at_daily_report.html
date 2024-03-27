@@ -1,42 +1,51 @@
+{% if data.report_items|length != 1 -%}
+This Template needs excatly one Report
+{% else -%}
+{% set report = data.report_items[0].attributes -%}
+{% set stories = data.report_items[0].news_item_aggregates -%}
+
+<!doctype html>
 <html lang="de">
   <head>
     <meta charset="utf-8">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
-    <title>CERT Report</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CERT.at  - Tageszusammenfassung</title>
+    <link rel="stylesheet" href="https://cert.at/css/app.css">
   </head>
-<body>
-<div id="content-section">
-  <div class="row">
-    <div class="col-sm-12">
-      <h1>
-        Tageszusammenfassung - {{ data.current_date }}
-      </h1>
-      <div class="block">
+  <body>
+    <div class="container-fluid stage bg-shadow">
+      <div class="container stage-push-top stage-domain-statiskten stage-body content-section" role="main">
+      <div class="row">
+      <div class="col-sm-12">
+        <h1>Tageszusammenfassung - {{ report.date }}</h1>
         <h2>End-of-Day report</h2>
-        <h2>Report Items</h2>
-        {% for report_item in data.report_items %}
-        <h3>{{ report_item.title }}</h3>
+          Timeframe:   {{ report.timeframe }}
+          Handler:     {{ report.handler }}
+          Co-Handler:  {{ report.co_handler }}
 
-        {{ report_item.attributes }}
-        <p />
-        <a href="url">https://url/</a>
+        {% for group in ['News' , 'Vulnerabilities'] -%}
+        <h2> {{ group }} </h2>
+        {% for group_id in report[group.lower()].split(',') -%}
+        {% for story in stories -%}
+        {% if story.id|string == group_id -%}
+        <h3>{{ story.title }}</h3>
+        <p>
+        {% if story.summary is defined and story.summary|length -%}
+        {{ story.summary }}
+        {% else -%}
+        {{ story.news_items[0].news_item_data.content }}
+        {%- endif %}
+        </p>
+        <a href="{{ story.news_items[0].news_item_data.link }}">{{ story.news_items[0].news_item_data.link }}</a>
         <hr>
-
-        <h3> Stories </h3>
-        {% for story in report_item.news_item_aggregates %}
-        <h4>{{ story.title }}</h4>
-
-        {{ story }}
-        <p />
-        <a href="url">https://url/</a>
-        <hr>
-        {% endfor %}
-        {% endfor %}
-
+        {%- endif %}
+        {%- endfor %}
+        {%- endfor %}
+        {%- endfor %}
+      </div>
+      </div>
       </div>
     </div>
-  </div>
-</div>
-</body>
+  </body>
 </html>
+{% endif -%}

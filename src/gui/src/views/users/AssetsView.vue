@@ -66,7 +66,7 @@ export default defineComponent({
     }
 
     const addAsset = () => {
-      router.push('/asset/0')
+      router.push('/asset/')
     }
 
     const editAsset = (item) => {
@@ -74,7 +74,7 @@ export default defineComponent({
     }
 
     const addAssetGroup = () => {
-      router.push('/asset-group/0')
+      router.push('/asset-group/')
     }
 
     const editAssetGroup = (item) => {

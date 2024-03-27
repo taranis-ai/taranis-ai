@@ -21,7 +21,7 @@
       :form-format="formFormat"
       :title="editTitle"
       @submit="handleSubmit"
-    ></EditConfig>
+    />
   </v-container>
 </template>
 
@@ -61,12 +61,24 @@ export default {
         name: 'name',
         label: 'Name',
         type: 'text',
-        rules: [(v) => !!v || 'Required']
+        rules: ['required']
       },
       {
         name: 'description',
         label: 'Description',
         type: 'textarea'
+      },
+      {
+        name: 'tlp_level',
+        label: 'TLP Level',
+        type: 'select',
+        items: [
+          { title: 'Clear', value: 'clear' },
+          { title: 'Green', value: 'green' },
+          { title: 'Amber', value: 'amber' },
+          { title: 'Amber+Strict', value: 'amber+strict' },
+          { title: 'Red', value: 'red' }
+        ]
       },
       {
         name: 'permissions',
@@ -82,6 +94,8 @@ export default {
     ])
 
     const updateData = () => {
+      showForm.value = false
+
       store.loadRoles().then(() => {
         mainStore.itemCountTotal = roles.value.total_count
         mainStore.itemCountFiltered = roles.value.items.length
@@ -116,16 +130,14 @@ export default {
     }
 
     const deleteItem = (item) => {
-      if (!item.default) {
-        deleteRole(item)
-          .then(() => {
-            notifySuccess(`Successfully deleted ${item.name}`)
-            updateData()
-          })
-          .catch(() => {
-            notifyFailure(`Failed to delete ${item.name}`)
-          })
-      }
+      deleteRole(item)
+        .then((result) => {
+          notifySuccess(result.data.message)
+          updateData()
+        })
+        .catch((error) => {
+          notifyFailure(error)
+        })
     }
 
     const createItem = (item) => {

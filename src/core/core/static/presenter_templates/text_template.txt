@@ -13,7 +13,7 @@
 # VULNERABILITY REPORT
 {%- elif report_items.get('report_item_type_id') == 4 %}
 # MISP REPORT
-{%- endif %}<br>
+{%- endif %}
 {%- endif %}
 {#- Handle omission of keys: Admin needs to create an attribute omit_keys in the Report Types section with the Name "omission" -#}
 {#- This is a text field where specific keys can be entered with comma separated -#}
@@ -26,10 +26,10 @@ omit_keys: {{ ns.item_list }}
 {% for key, value in report_items.items() %}
 {%- if value != "" and key.lower() not in ns.item_list %}
 {%- if value is mapping or (value is iterable and value is not string and value is not mapping) %}
-<br>## {{ key.upper() }}:<br>
+## {{ key.upper() }}:
 {{ traverse(value, ns) }}
 {%- else %}
-{{ key.upper() }}: {{ value }}<br>
+{{ key.upper() }}: {{ value }}
 {%- endif %}
 {%- endif %}
 {%- endfor %}
@@ -41,3 +41,6 @@ omit_keys: {{ ns.item_list }}
 {%- endif %}
 {%- endmacro %}
 {{- traverse(data.report_items) -}}
+{%- if data.report_items|length == 0 -%}
+No Report Items specified
+{%- endif %}

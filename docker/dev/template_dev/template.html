@@ -1,0 +1,55 @@
+{% if data.report_items|length != 1 -%}
+This Template needs excatly one Report
+{% else -%}
+{% set report = data.report_items[0].attributes -%}
+{% set stories = data.report_items[0].news_item_aggregates -%}
+
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  <title>Test Template</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+  <main>
+    <section class="relative py-16 h-screen bg-gray-300">
+      <div class="container mx-auto px-4">
+        <div class="relative flex flex-col min-w-0 bg-white w-full mb-6 shadow-xl rounded-lg">
+          <div class="px-6">
+            <div class="mt-4 mb-6">
+        <h1 class="text-4xl font-extrabold">Test Template - {{ report.date }}</h1>
+        <h2 class="text-3xl font-semibold">{{ data.report_items[0].title }}</h2>
+          Timeframe:   {{ report.timeframe }}<br/>
+
+        {% for group in ['News' , 'Vulnerabilities'] -%}
+        <h2 class="text-2xl font-semibold my-5"> {{ group }} </h2>
+        {% for group_id in report[group.lower()].split(',') -%}
+        {% for story in stories -%}
+        {% if story.id|string == group_id -%}
+        <div id="{{ story.id }}" class="ml-5">
+        <h3 class="font-extrabold">{{ story.title }}</h3>
+        <p>
+        {% if story.summary is defined and story.summary|length -%}
+        {{ story.summary }}
+        {% else -%}
+        {{ story.news_items[0].news_item_data.content }}
+        {%- endif %}
+        </p>
+        <a class="text-blue-500 underline" href="{{ story.news_items[0].news_item_data.link }}">{{ story.news_items[0].news_item_data.link }}</a>
+        <hr class="mr-5 my-10 border-t-2 border-black">
+        </div>
+        {%- endif %}
+        {%- endfor %}
+        {%- endfor %}
+        {%- endfor %}
+      </div>
+    </div>
+    </div>
+    </div>
+    </section>
+    </main>
+  </body>
+</html>
+{% endif -%}

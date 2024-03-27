@@ -1,35 +1,38 @@
 import os
-import base64
 from typing import Any
-from sqlalchemy import or_, and_
-import sqlalchemy
-from sqlalchemy.sql.expression import cast
+from sqlalchemy import or_, Column, String
+from sqlalchemy.orm import Mapped
 
 from core.managers.db_manager import db
-from core.managers.log_manager import logger
-from core.model.product import Product
+from core.log import logger
 from core.model.base_model import BaseModel
-from core.model.acl_entry import ACLEntry, ItemType
+from core.model.role_based_access import RoleBasedAccess, ItemType
 from core.model.parameter_value import ParameterValue
 from core.model.report_item_type import ReportItemType
 from core.model.worker import PRESENTER_TYPES, Worker
-from core.managers.data_manager import get_presenter_template_path, get_presenter_templates
+from core.managers.data_manager import get_presenter_template_path, get_presenter_templates, get_template_as_base64, write_base64_to_file
+from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 
 
 class ProductType(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
-    title: Any = db.Column(db.String(64), unique=True, nullable=False)
-    description: Any = db.Column(db.String())
+    title: Column[String] = db.Column(db.String(64), unique=True, nullable=False)
+    description: Column[String] = db.Column(db.String())
     type: Any = db.Column(db.Enum(PRESENTER_TYPES))
 
-    parameters = db.relationship("ParameterValue", secondary="product_type_parameter_value", cascade="all, delete")
-    report_types = db.relationship("ReportItemType", secondary="product_type_report_type", cascade="all, delete")
+    parameters: Mapped[list["ParameterValue"]] = db.relationship(
+        "ParameterValue", secondary="product_type_parameter_value", cascade="all, delete"
+    )  # type: ignore
+    report_types: Mapped[list["ReportItemType"]] = db.relationship(
+        "ReportItemType", secondary="product_type_report_type", cascade="all, delete"
+    )  # type: ignore
 
-    def __init__(self, title, type, description="", parameters=None, report_types=None, id=None):
+    def __init__(self, title, type, description=None, parameters=None, report_types=None, id=None):
         self.id = id
         self.title = title
-        self.description = description
         self.type = type
+        if description:
+            self.description = description
         self.parameters = Worker.parse_parameters(type, parameters)
         self.report_types = [ReportItemType.get(report_type) for report_type in report_types] if report_types else []
 
@@ -37,39 +40,21 @@ class ProductType(BaseModel):
     def get_all(cls):
         return cls.query.order_by(db.asc(ProductType.title)).all()
 
-    @classmethod
-    def allowed_with_acl(cls, product_id, user, see, access, modify):
-        product = db.session.query(Product).filter_by(id=product_id).first()
-        if not product:
-            return False
+    def allowed_with_acl(self, user, require_write_access) -> bool:
+        if not RoleBasedAccess.is_enabled() or not user:
+            return True
 
-        query = db.session.query(ProductType.id).distinct().group_by(ProductType.id).filter(ProductType.id == product.product_type_id)
+        query = RBACQuery(user=user, resource_id=str(self.id), resource_type=ItemType.PRODUCT_TYPE, require_write_access=require_write_access)
 
-        query = query.outerjoin(
-            ACLEntry,
-            and_(
-                cast(ProductType.id, sqlalchemy.String) == ACLEntry.item_id,
-                ACLEntry.item_type == ItemType.PRODUCT_TYPE,
-            ),
-        )
-
-        query = ACLEntry.apply_query(query, user, see, access, modify)
-
-        return query.scalar() is not None
+        return RoleBasedAccessService.user_has_access_to_resource(query)
 
     @classmethod
     def get_by_filter(cls, search, user, acl_check):
         query = cls.query.distinct().group_by(ProductType.id)
 
         if acl_check:
-            query = query.outerjoin(
-                ACLEntry,
-                and_(
-                    cast(ProductType.id, sqlalchemy.String) == ACLEntry.item_id,
-                    ACLEntry.item_type == ItemType.PRODUCT_TYPE,
-                ),
-            )
-            query = ACLEntry.apply_query(query, user, True, False, False)
+            rbac = RBACQuery(user=user, resource_type=ItemType.PRODUCT_TYPE)
+            query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
 
         if search:
             query = query.filter(
@@ -109,7 +94,7 @@ class ProductType(BaseModel):
             product_type.report_types = [ReportItemType.get(report_type) for report_type in report_types]
         if template_data := data.get("template"):
             if template_path := product_type.get_template():
-                product_type._base64_to_file(template_data, template_path)
+                write_base64_to_file(template_data, template_path)
         db.session.commit()
         return {"message": f"Updated product type {product_type.title}", "id": product_type.id}, 200
 
@@ -131,26 +116,10 @@ class ProductType(BaseModel):
         full_path = get_presenter_template_path(self._get_template_path())
         return full_path if os.path.isfile(full_path) else ""
 
-    def _file_to_base64(self, filepath: str) -> str:
-        try:
-            with open(filepath, "rb") as f:
-                file_content = f.read()
-            return base64.b64encode(file_content).decode("utf-8")
-        except Exception as e:
-            print(f"An error occurred: {e}")
-            return ""
-
-    def _base64_to_file(self, base64_string: str, filepath: str) -> None:
-        try:
-            with open(filepath, "wb") as f:
-                f.write(base64.b64decode(base64_string))
-        except Exception as e:
-            print(f"An error occurred: {e}")
-
     def get_detail_json(self):
         data = self.to_dict()
         if template := self.get_template():
-            data["template"] = self._file_to_base64(template)
+            data["template"] = get_template_as_base64(template)
         return data
 
     @classmethod

@@ -1,14 +1,16 @@
 from datetime import datetime, timedelta
 from typing import Any
 from base64 import b64encode, b64decode
-from sqlalchemy import orm, func, or_, and_, String as SQLString
-from sqlalchemy.sql.expression import cast
+from sqlalchemy import or_
+from sqlalchemy.orm import deferred, Mapped
 
 from core.managers.db_manager import db
-from core.managers.log_manager import logger
-from core.model.acl_entry import ACLEntry, ItemType
+from core.log import logger
+from core.model.role_based_access import ItemType
 from core.model.report_item import ReportItem
 from core.model.base_model import BaseModel
+from core.model.product_type import ProductType
+from core.service.role_based_access import RoleBasedAccessService, RBACQuery
 
 
 class Product(BaseModel):
@@ -18,15 +20,17 @@ class Product(BaseModel):
 
     created = db.Column(db.DateTime, default=datetime.now)
 
-    product_type_id = db.Column(db.Integer, db.ForeignKey("product_type.id"))
+    product_type_id: Any = db.Column(db.Integer, db.ForeignKey("product_type.id"))
     product_type = db.relationship("ProductType")
 
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"))
     user = db.relationship("User")
 
-    report_items = db.relationship("ReportItem", secondary="product_report_item", cascade="all, delete")
+    report_items: Mapped[list["ReportItem"]] = db.relationship(
+        "ReportItem", secondary="product_report_item", cascade="all, delete"
+    )  # type: ignore
     last_rendered = db.Column(db.DateTime)
-    render_result = orm.deferred(db.Column(db.Text))
+    render_result = deferred(db.Column(db.Text))
 
     def __init__(self, title, product_type_id, description="", report_items=None, id=None):
         self.id = id
@@ -44,27 +48,7 @@ class Product(BaseModel):
         return product.to_dict() if (product := cls.get(product_id)) else None
 
     @classmethod
-    def get_by_filter(cls, filter, user):
-        query = (
-            db.session.query(
-                Product,
-                func.count().filter(ACLEntry.id is not None).label("acls"),
-                func.count().filter(ACLEntry.access).label("access"),
-                func.count().filter(ACLEntry.modify).label("modify"),
-            )
-            .distinct()
-            .group_by(Product.id)
-        )
-
-        query = query.outerjoin(
-            ACLEntry,
-            and_(
-                cast(Product.product_type_id, SQLString) == ACLEntry.item_id,
-                ACLEntry.item_type == ItemType.PRODUCT_TYPE,
-            ),
-        )
-        query = ACLEntry.apply_query(query, user, True, False, False)
-
+    def add_filter_to_query(cls, query, filter: dict):
         search = filter.get("search")
         if search and search != "":
             query = query.filter(
@@ -93,6 +77,18 @@ class Product(BaseModel):
             elif filter["sort"] == "DATE_ASC":
                 query = query.order_by(db.asc(Product.created))
 
+        return query
+
+    @classmethod
+    def get_by_filter(cls, filter, user):
+        query = cls.query.distinct().group_by(Product.id)
+
+        query = query.join(ProductType, ProductType.id == Product.product_type_id)
+        rbac = RBACQuery(user, ItemType.PRODUCT_TYPE)
+        query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
+
+        query = cls.add_filter_to_query(query, filter)
+
         offset = filter.get("offset", 0)
         limit = filter.get("limit", 20)
         return query.offset(offset).limit(limit).all(), query.count()
@@ -100,15 +96,8 @@ class Product(BaseModel):
     @classmethod
     def get_json(cls, filter, user):
         results, count = cls.get_by_filter(filter, user)
-        products = []
-        for result in results:
-            product = result.Product
-            product.see = True
-            product.access = result.access > 0 or result.acls == 0
-            product.modify = result.modify > 0 or result.acls == 0
-            products.append(product)
 
-        items = [product.to_dict() for product in products]
+        items = [product.to_dict() for product in results]
         return {"total_count": count, "items": items}
 
     def to_dict(self) -> dict[str, Any]:
@@ -153,7 +142,7 @@ class Product(BaseModel):
                 if mime_type == "application/pdf":
                     blob = product.render_result
                 else:
-                    blob = b64decode(product.render_result).decode("utf-8")
+                    blob = b64decode(product.render_result).decode("utf-8")  # type: ignore
                 return {"mime_type": product.product_type.get_mimetype(), "blob": blob}
         return None
 
@@ -168,7 +157,7 @@ class Product(BaseModel):
 
         product.description = data.get("description")
 
-        if data.get("product_type_id"):
+        if data.get("product_type_id") != product.product_type_id:
             logger.warning("Product type change not supported")
 
         report_items = data.get("report_items")

@@ -41,7 +41,7 @@
               class="ml-4"
               @click="addItem"
             >
-              New Item
+              {{ $t('button.new_item') }}
             </v-btn>
             <slot name="titlebar"></slot>
           </v-row>
@@ -68,7 +68,7 @@
     </template>
 
     <template #item.tag="{ item }">
-      <v-icon small class="mr-1" :icon="tagIcon || item.tag" />
+      <v-icon small class="mr-1" :icon="item.tag" />
     </template>
     <template #item.icon="{ item }">
       <v-img
@@ -90,7 +90,7 @@
               @click.stop="deleteItem(item)"
             />
           </template>
-          <span>Delete</span>
+          <span>{{ $t('button.delete') }}</span>
         </v-tooltip>
       </div>
     </template>
@@ -133,10 +133,6 @@ export default defineComponent({
     itemsPerPage: {
       type: Number,
       default: 20
-    },
-    tagIcon: {
-      type: String,
-      default: ''
     },
     sortBy: {
       type: Array,

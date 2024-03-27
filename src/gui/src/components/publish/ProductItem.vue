@@ -1,10 +1,10 @@
 <template>
-  <v-card>
+  <v-card class="h-100">
     <v-toolbar density="compact">
       <v-toolbar-title>{{ container_title }}</v-toolbar-title>
       <v-spacer />
       <v-btn
-        v-if="renderedProduct"
+        v-if="renderedProduct && edit"
         variant="outlined"
         class="ml-3 mr-3"
         @click="downloadProduct()"
@@ -36,10 +36,7 @@
     </v-toolbar>
     <v-card-text>
       <v-row no-gutters>
-        <v-col
-          :cols="showPreview ? 6 : 12"
-          :class="showPreview ? 'taranis-vertical-view' : ''"
-        >
+        <v-col :cols="showPreview ? 6 : 12">
           <v-form id="form" ref="form" class="px-4">
             <v-row no-gutters>
               <v-col cols="6" class="pr-3">
@@ -105,17 +102,21 @@
             />
           </v-dialog>
         </v-col>
-        <v-col v-if="showPreview" :cols="6" class="pa-5 taranis-vertical-view">
+        <v-col v-if="showPreview" :cols="6" class="pa-5">
           <div v-if="renderedProduct">
-            <span
-              v-if="render_direct"
-              v-dompurify-html="renderedProduct"
-            ></span>
+            <span v-if="render_html" v-dompurify-html="renderedProduct"></span>
 
-            <vue-pdf-embed
-              v-else
-              :source="'data:application/pdf;base64,' + renderedProduct"
+            <object
+              v-if="renderedProductMimeType === 'application/pdf'"
+              class="pdf-container"
+              :data="'data:application/pdf;base64,' + renderedProduct"
+              type="application/pdf"
+              width="100%"
             />
+
+            <pre v-if="renderedProductMimeType === 'text/plain'">
+              {{ renderedProduct }}
+            </pre>
           </div>
           <div v-else>
             <v-row class="justify-center mb-4">
@@ -138,26 +139,24 @@
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import {
   createProduct,
   updateProduct,
-  getRenderdProduct,
   triggerRenderProduct
 } from '@/api/publish'
 import PopupPublishProduct from '../popups/PopupPublishProduct.vue'
 import { useI18n } from 'vue-i18n'
-import { useConfigStore } from '@/stores/ConfigStore'
 import { useAnalyzeStore } from '@/stores/AnalyzeStore'
-import VuePdfEmbed from 'vue-pdf-embed'
-
+import { usePublishStore } from '@/stores/PublishStore'
 import { notifyFailure, notifySuccess } from '@/utils/helpers'
 import { useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
+import { useHotkeys } from 'vue-use-hotkeys'
 
 export default {
   name: 'ProductItem',
   components: {
-    VuePdfEmbed,
     PopupPublishProduct
   },
   props: {
@@ -170,17 +169,25 @@ export default {
   emits: ['productcreated'],
   setup(props, { emit }) {
     const { t } = useI18n()
-    const configStore = useConfigStore()
     const analyzeStore = useAnalyzeStore()
+    const publishStore = usePublishStore()
     const showPreview = ref(props.edit)
     const publishDialog = ref(false)
     const form = ref(null)
 
-    const renderedProduct = ref(null)
-    const renderedProductMimeType = ref(null)
+    useHotkeys('ctrl+p', (event, handler) => {
+      event.preventDefault()
+      console.debug(`You pressed ${handler.key}`)
+      publishDialog.value = true
+    })
+
+    const { renderedProduct, renderedProductMimeType } =
+      storeToRefs(publishStore)
+
+    renderedProduct.value = null
 
     const product_types = computed(() => {
-      return configStore.product_types.items
+      return publishStore.product_types.items
     })
 
     const product = ref(props.productProp)
@@ -198,11 +205,10 @@ export default {
     const reportItems = computed(() => {
       return analyzeStore.getReportItemsByIDs(supported_report_types.value)
     })
-    const render_direct = computed(() => {
+    const render_html = computed(() => {
       return (
         renderedProductMimeType.value === 'text/html' ||
-        renderedProductMimeType.value === 'application/json' ||
-        renderedProductMimeType.value === 'text/plain'
+        renderedProductMimeType.value === 'application/json'
       )
     })
 
@@ -253,25 +259,11 @@ export default {
       triggerRenderProduct(product.value.id)
         .then(() => {
           notifySuccess('Render triggered please refresh the page')
-          console.debug('Triggered render for product ' + product.value.id)
         })
         .catch(() => {
           console.error(
             'Failed to trigger render for product ' + product.value.id
           )
-        })
-    }
-
-    function renderProduct() {
-      getRenderdProduct(product.value.id)
-        .then((blob) => {
-          if (typeof blob === 'undefined') return
-          renderedProduct.value = blob.data
-          renderedProductMimeType.value = blob.headers['content-type']
-        })
-        .catch((err) => {
-          console.info(err)
-          console.error('Failed to render product ' + product.value.id)
         })
     }
 
@@ -288,7 +280,7 @@ export default {
 
     function downloadProduct() {
       let bytes
-      if (render_direct.value) {
+      if (render_html.value) {
         bytes = new TextEncoder().encode(renderedProduct.value)
       } else {
         bytes = base64ToArrayBuffer(renderedProduct.value)
@@ -324,12 +316,19 @@ export default {
       link.click()
     }
 
+    watch(
+      () => props.edit,
+      (newVal) => {
+        showPreview.value = newVal
+      }
+    )
+
     onMounted(() => {
-      configStore.loadProductTypes()
+      publishStore.loadProductTypes()
       analyzeStore.loadReportItems()
       analyzeStore.loadReportTypes()
       if (props.edit) {
-        renderProduct()
+        publishStore.loadRenderedProduct(product.value.id)
       }
     })
 
@@ -346,12 +345,18 @@ export default {
       renderedProduct,
       report_item_headers,
       supported_report_types,
-      render_direct,
+      renderedProductMimeType,
+      render_html,
       saveProduct,
-      renderProduct,
       downloadProduct,
       rerenderProduct
     }
   }
 }
 </script>
+
+<style scoped>
+.pdf-container {
+  height: 80vh !important;
+}
+</style>

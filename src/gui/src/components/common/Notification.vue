@@ -2,24 +2,14 @@
   <v-snackbar
     v-model="notification.show"
     dark
+    close-on-content-click
+    min-height="4.5em"
+    class="notification"
     :color="notification.type"
     :timer="true"
-    :timeout="10000"
-  >
-    <v-row class="fill-height" no-gutters>
-      <v-col class="d-flex align-center">
-        <span class="text-subtitle-1">{{ notificationContent }}</span>
-      </v-col>
-      <v-col class="d-flex justify-end align-center">
-        <v-btn
-          color="black"
-          icon="mdi-close"
-          size="small"
-          @click="notification.show = false"
-        />
-      </v-col>
-    </v-row>
-  </v-snackbar>
+    :timeout="20000"
+    :text="notificationContent"
+  />
 </template>
 
 <script>
@@ -51,3 +41,9 @@ export default defineComponent({
   }
 })
 </script>
+
+<style scoped>
+.notification {
+  bottom: 50px !important;
+}
+</style>

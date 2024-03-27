@@ -57,6 +57,10 @@ export function patchNewsItem(news_item_id, data) {
   return apiService.patch(`/assess/news-items/${news_item_id}`, data)
 }
 
+export function patchStory(story_id, data) {
+  return apiService.patch(`/assess/stories/${story_id}`, data)
+}
+
 export function readNewsItemAggregate(aggregate_id, read) {
   return apiService.put(`/assess/stories/${aggregate_id}`, {
     read: read

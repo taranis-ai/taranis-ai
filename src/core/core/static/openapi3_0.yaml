@@ -3705,97 +3705,6 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
         '404':
           $ref: "#/components/schemas/notFound"
-  /publishers/presets:
-    get:
-      tags: [publishers]
-      description: get all publisher preset
-      parameters:
-        - name: search
-          in: query
-          schema:
-            type: string
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  total_count:
-                    type: integer
-                  items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/publisher_preset.presentation'
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-    post:
-      tags: [publishers]
-      description: add publisher preset
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/publisher_preset'
-      responses:
-        '200':
-          description: success
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-  /publishers/preset/{id}:
-    parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: integer
-    put:
-      tags: [publishers]
-      description: update publisher preset
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/publisher_preset'
-      responses:
-        '200':
-          description: success
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-    delete:
-      tags: [publishers]
-      description: delete publisher preset
-      responses:
-        '200':
-          description: success
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-
 components:
   schemas:
     #requests
@@ -3932,16 +3841,18 @@ components:
     user_profile:
       type: object
       properties:
-        spellcheck:
-          type: boolean
-          example: True
         dark_theme:
           type: boolean
           example: False
-        word_lists:
-          type: array
-          items:
-            $ref: '#/components/schemas/wordlist'
+        compact_view:
+          type: boolean
+          example: False
+        show_charts:
+          type: boolean
+          example: True
+        split_view:
+          type: boolean
+          example: False
         hotkeys:
           type: array
           items:
@@ -4272,10 +4183,7 @@ components:
 
     attribute_type:
       type: string
-      enum: [STRING, NUMBER, BOOLEAN, RADIO, ENUM, TEXT, RICH_TEXT, DATE, TIME, DATE_TIME, LINK, ATTACHMENT, TLP, CPE, CVE, CVSS]
-    attribute_validator:
-      type: string
-      enum: [NONE, EMAIL, NUMBER, RANGE, REGEXP]
+      enum: [STRING, NUMBER, BOOLEAN, RADIO, ENUM, TEXT, RICH_TEXT, DATE, TIME, DATE_TIME, LINK, ATTACHMENT, TLP, CPE, CVE, CVSS, STORY]
     attribute_enum:
       type: object
       properties:
@@ -4299,10 +4207,6 @@ components:
         type:
           $ref: '#/components/schemas/attribute_type'
         default_value:
-          type: string
-        validator:
-          $ref: '#/components/schemas/attribute_validator'
-        validator_parameter:
           type: string
         tag:
           type: string

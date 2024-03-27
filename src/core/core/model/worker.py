@@ -16,6 +16,7 @@ class COLLECTOR_TYPES(StrEnum):
     SELENIUM_WEB_COLLECTOR = auto()
     SIMPLE_WEB_COLLECTOR = auto()
     RT_COLLECTOR = auto()
+    MANUAL_COLLECTOR = auto()
 
 
 class BOT_TYPES(StrEnum):
@@ -51,6 +52,7 @@ class WORKER_TYPES(StrEnum):
     WEB_COLLECTOR = auto()
     SELENIUM_WEB_COLLECTOR = auto()
     SIMPLE_WEB_COLLECTOR = auto()
+    MANUAL_COLLECTOR = auto()
     RT_COLLECTOR = auto()
     ANALYST_BOT = auto()
     GROUPING_BOT = auto()
@@ -80,11 +82,11 @@ class WORKER_CATEGORY(StrEnum):
 
 class Worker(BaseModel):
     id = db.Column(db.String(64), primary_key=True)
-    name = db.Column(db.String(), nullable=False)
-    description = db.Column(db.String())
-    type = db.Column(db.Enum(WORKER_TYPES), nullable=False)
-    category = db.Column(db.Enum(WORKER_CATEGORY), nullable=False)
-    parameters = db.relationship("ParameterValue", secondary="worker_parameter_value", cascade="all")
+    name: Any = db.Column(db.String(), nullable=False)
+    description: Any = db.Column(db.String())
+    type: Any = db.Column(db.Enum(WORKER_TYPES), nullable=False)
+    category: Any = db.Column(db.Enum(WORKER_CATEGORY), nullable=False)
+    parameters: Any = db.relationship("ParameterValue", secondary="worker_parameter_value", cascade="all")
 
     def __init__(self, name, description, type, parameters):
         self.id = str(uuid.uuid4())
@@ -197,16 +199,17 @@ class Worker(BaseModel):
 
     @classmethod
     def _construct_parameter_data(cls, parameter):
-        from core.model.osint_source import OSINTSourceGroup, OSINTSource
         from core.model.word_list import WordList
 
-        data = {"name": parameter.parameter, "label": parameter.parameter, "parent": "parameters", "type": parameter.type}
+        data = {
+            "name": parameter.parameter,
+            "label": parameter.parameter,
+            "parent": "parameters",
+            "type": parameter.type,
+            "rules": parameter.rules.split(",") if parameter.rules else [],
+        }
 
-        if parameter.parameter == "SOURCE_GROUP":
-            data["items"] = [group.id for group in OSINTSourceGroup.get_all()]
-        elif parameter.parameter == "SOURCE":
-            data["items"] = [source.id for source in OSINTSource.get_all()]
-        elif parameter.parameter in ["TAGGING_WORDLISTS"]:
+        if parameter.parameter in ["TAGGING_WORDLISTS"]:
             data["items"] = [
                 {"name": wordlist.name, "description": wordlist.description} for wordlist in WordList.get_by_filter({"usage": 4})[0]
             ]

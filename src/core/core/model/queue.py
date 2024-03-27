@@ -2,7 +2,7 @@ from typing import Any
 from datetime import datetime
 
 from core.managers.db_manager import db
-from core.managers.log_manager import logger
+from core.log import logger
 from core.model.base_model import BaseModel
 
 
@@ -34,10 +34,7 @@ class ScheduleEntry(BaseModel):
             entry.update(entry_data)
             db.session.commit()
             return entry, 200
-        entry = cls.from_dict(entry_data)
-        db.session.add(entry)
-        db.session.commit()
-        return entry, 200
+        return cls.add(entry_data), 201
 
     @classmethod
     def sync(cls, entries: list["ScheduleEntry"]):
@@ -96,3 +93,7 @@ class ScheduleEntry(BaseModel):
                 data["schedule"] = 600 * 60
         data["last_run_at"] = self.last_run_at.isoformat() if self.last_run_at else None
         return data
+
+    @classmethod
+    def count_all(cls):
+        return cls.query.count()

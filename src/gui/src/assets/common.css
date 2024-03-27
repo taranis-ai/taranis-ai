@@ -59,9 +59,3 @@
   -webkit-line-clamp: 5;
   -webkit-box-orient: vertical;
 }
-
-.taranis-vertical-view {
-  position: relative;
-  height: calc(100vh - 3em);
-  overflow-y: auto
-}

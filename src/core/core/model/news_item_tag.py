@@ -48,7 +48,7 @@ class NewsItemTag(BaseModel):
         offset = filter_args.get("offset", 0)
         limit = filter_args.get("limit", 20)
 
-        return query.offset(offset).limit(limit).all()
+        return query.distinct().offset(offset).limit(limit).all()
 
     @classmethod
     def get_json(cls, filter_args: dict) -> list[dict[str, Any]]:

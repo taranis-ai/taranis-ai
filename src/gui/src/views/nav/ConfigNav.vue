@@ -80,6 +80,12 @@ export default {
         permission: 'CONFIG_PRODUCT_TYPE_ACCESS'
       },
       {
+        icon: 'mdi-file-document-plus-outline',
+        title: 'nav_menu.templates',
+        route: '/config/product/templates',
+        permission: 'CONFIG_PRODUCT_TYPE_ACCESS'
+      },
+      {
         icon: 'mdi-file-star-outline',
         title: 'nav_menu.publisher',
         route: '/config/publishers',
@@ -104,7 +110,8 @@ export default {
         permission: 'CONFIG_WORD_LIST_ACCESS',
         divider: true
       },
-      { icon: 'mdi-api', title: 'nav_menu.openapi', route: '/config/openapi' }
+      { icon: 'mdi-api', title: 'nav_menu.openapi', route: '/config/openapi' },
+      { icon: 'mdi-cog', title: 'nav_menu.settings', route: '/config/settings' }
     ]
   })
 }

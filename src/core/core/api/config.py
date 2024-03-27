@@ -1,16 +1,16 @@
 import io
 
-from flask import request, send_file, jsonify
+from flask import request, send_file, jsonify, session
 from flask_restx import Resource, Namespace, Api
 
 from core.managers import (
     auth_manager,
     queue_manager,
 )
-from core.managers.log_manager import logger
+from core.log import logger
 from core.managers.auth_manager import auth_required
+from core.managers.data_manager import get_template_as_base64, write_base64_to_file, get_presenter_templates, delete_template
 from core.model import (
-    acl_entry,
     attribute,
     bot,
     product_type,
@@ -19,9 +19,11 @@ from core.model import (
     osint_source,
     report_item_type,
     role,
+    role_based_access,
     user,
     word_list,
     queue,
+    task,
     worker,
 )
 from core.model.permission import Permission
@@ -32,6 +34,26 @@ class DictionariesReload(Resource):
     def post(self, dictionary_type):
         attribute.Attribute.load_dictionaries(dictionary_type)
         return {"message": "success"}, 200
+
+
+class ACLEntries(Resource):
+    @auth_required("CONFIG_ACL_ACCESS")
+    def get(self):
+        search = request.args.get(key="search", default=None)
+        return role_based_access.RoleBasedAccess.get_all_json(search)
+
+    @auth_required("CONFIG_ACL_CREATE")
+    def post(self):
+        acl = role_based_access.RoleBasedAccess.add(request.json)
+        return {"message": "ACL created", "id": acl.id}, 201
+
+    @auth_required("CONFIG_ACL_UPDATE")
+    def put(self, acl_id):
+        return role_based_access.RoleBasedAccess.update(acl_id, request.json)
+
+    @auth_required("CONFIG_ACL_DELETE")
+    def delete(self, acl_id):
+        return role_based_access.RoleBasedAccess.delete(acl_id)
 
 
 class Attributes(Resource):
@@ -192,24 +214,29 @@ class Roles(Resource):
         return role.Role.delete(role_id)
 
 
-class ACLEntries(Resource):
-    @auth_required("CONFIG_ACL_ACCESS")
-    def get(self):
-        search = request.args.get(key="search", default=None)
-        return acl_entry.ACLEntry.get_all_json(search)
+class Templates(Resource):
+    @auth_required("CONFIG_PRODUCT_TYPE_ACCESS")
+    def get(self, template_path=None):
+        if template_path:
+            template = get_template_as_base64(template_path)
+            return (template, 200) or ({"error": "Product type not found"}, 404)
+        templates = [{"path": t} for t in get_presenter_templates()]
+        return jsonify({"total_count": len(templates), "items": templates})
 
-    @auth_required("CONFIG_ACL_CREATE")
-    def post(self):
-        acl = acl_entry.ACLEntry.add(request.json)
-        return {"message": "ACL created", "id": acl.id}, 201
+    @auth_required("CONFIG_PRODUCT_TYPE_CREATE")
+    def put(self):
+        if not request.json:
+            return {"error": "No data provided"}, 400
+        template_path = request.json.pop("path")
+        if write_base64_to_file(request.json.get("data"), template_path):
+            return {"message": "Template updated or created", "path": template_path}, 200
+        return {"error": "Could not write template to file"}, 500
 
-    @auth_required("CONFIG_ACL_UPDATE")
-    def put(self, acl_id):
-        return acl_entry.ACLEntry.update(acl_id, request.json)
-
-    @auth_required("CONFIG_ACL_DELETE")
-    def delete(self, acl_id):
-        return acl_entry.ACLEntry.delete(acl_id)
+    @auth_required("CONFIG_PRODUCT_TYPE_DELETE")
+    def delete(self, template_path):
+        if delete_template(template_path):
+            return {"message": "Template deleted", "path": template_path}, 200
+        return {"error": "Could not delete template"}, 500
 
 
 class Organizations(Resource):
@@ -297,6 +324,12 @@ class QueueStatus(Resource):
         return queue_manager.queue_manager.get_queue_status()
 
 
+class QueueTasks(Resource):
+    @auth_required("CONFIG_WORKER_ACCESS")
+    def get(self):
+        return queue_manager.queue_manager.get_queued_tasks()
+
+
 class QueueSchedule(Resource):
     @auth_required("CONFIG_WORKER_ACCESS")
     def get(self):
@@ -340,11 +373,35 @@ class OSINTSources(Resource):
 
 
 class OSINTSourceCollect(Resource):
-    @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
+    @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def post(self, source_id=None):
         if source_id:
             return queue_manager.queue_manager.collect_osint_source(source_id)
         return queue_manager.queue_manager.collect_all_osint_sources()
+
+
+class OSINTSourcePreview(Resource):
+    @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
+    def get(self, source_id):
+        user = auth_manager.get_user_from_jwt()
+        if not user:
+            return {"error": "User not found"}, 404
+
+        task_id = session.get(f"source_preview_{source_id}_{user.id}")
+        if task_id is None:
+            return {"error": "No task scheduled or session expired."}, 404
+
+        if result := task.Task.get(task_id):
+            logger.debug(result.to_dict())
+            return result.to_dict(), 200
+        return {"error": "Task not found"}, 404
+
+    @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
+    def post(self, source_id):
+        if user := auth_manager.get_user_from_jwt():
+            return queue_manager.queue_manager.preview_osint_source(source_id, user.id)
+
+        return {"error": "User not found"}, 404
 
 
 class OSINTSourcesExport(Resource):
@@ -513,6 +570,7 @@ def initialize(api: Api):
     namespace.add_resource(Organizations, "/organizations/<int:organization_id>", "/organizations")
     namespace.add_resource(OSINTSources, "/osint-sources/<string:source_id>", "/osint-sources")
     namespace.add_resource(OSINTSourceCollect, "/osint-sources/<string:source_id>/collect", "/osint-sources/collect")
+    namespace.add_resource(OSINTSourcePreview, "/osint-sources/<string:source_id>/preview")
     namespace.add_resource(OSINTSourceGroups, "/osint-source-groups/<string:group_id>", "/osint-source-groups")
     namespace.add_resource(OSINTSourcesExport, "/export-osint-sources")
     namespace.add_resource(OSINTSourcesImport, "/import-osint-sources")
@@ -520,10 +578,12 @@ def initialize(api: Api):
     namespace.add_resource(Permissions, "/permissions")
     namespace.add_resource(Presenters, "/presenters")
     namespace.add_resource(ProductTypes, "/product-types/<int:type_id>", "/product-types")
+    namespace.add_resource(Templates, "/templates/<string:template_path>", "/templates")
     namespace.add_resource(PublisherPresets, "/publishers-presets/<string:preset_id>", "/publishers-presets")
     namespace.add_resource(Publishers, "/publishers")
     namespace.add_resource(QueueStatus, "/workers/queue-status")
     namespace.add_resource(QueueSchedule, "/workers/schedule")
+    namespace.add_resource(QueueTasks, "/workers/tasks")
     namespace.add_resource(ReportItemTypes, "/report-item-types/<int:type_id>", "/report-item-types")
     namespace.add_resource(ReportItemTypesExport, "/export-report-item-types")
     namespace.add_resource(ReportItemTypesImport, "/import-report-item-types")

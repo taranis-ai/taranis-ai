@@ -37,10 +37,7 @@ jobs:
 
       - name: test
         working-directory: src/worker
-        run: |
-          pip install -e .[dev]
-          echo "Starting Pytest"
-          pytest
+        run: pytest
 
   build_wheel:
     name: build wheel

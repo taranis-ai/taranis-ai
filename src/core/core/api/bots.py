@@ -3,7 +3,7 @@ from flask_restx import Resource, Namespace, Api
 from datetime import datetime, timedelta
 
 from core.managers.sse_manager import sse_manager
-from core.managers.log_manager import logger
+from core.log import logger
 from core.managers.auth_manager import api_key_required
 from core.model import news_item, word_list, bot
 
@@ -75,7 +75,7 @@ class UpdateNewsItemAttributes(Resource):
 class UpdateNewsItemsAggregateSummary(Resource):
     @api_key_required
     def put(self, aggregate_id):
-        news_item.NewsItemAggregate.update_news_items_aggregate_summary(aggregate_id, request.json)
+        return news_item.NewsItemAggregate.update(aggregate_id, request.json)
 
 
 class WordListEntries(Resource):

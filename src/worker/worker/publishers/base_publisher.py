@@ -1,14 +1,15 @@
 from worker.log import logger
+from worker.core_api import CoreApi
 
 
 class BasePublisher:
-    type = "BASE_PUBLISHER"
-    name = "Base Publisher"
-    description = "Base abstract type for all publishers"
+    def __init__(self):
+        self.type = "BASE_PUBLISHER"
+        self.name = "Base Publisher"
+        self.description = "Base abstract type for all publishers"
+        self.core_api = CoreApi()
 
-    parameters = []
-
-    def publish(self, publisher_input):
+    def publish(self, publisher, publisher_input) -> dict[str, str] | None:
         pass
 
     def print_exception(self, error):

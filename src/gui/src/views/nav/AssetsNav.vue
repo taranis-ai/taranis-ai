@@ -31,6 +31,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAssetsStore } from '@/stores/AssetsStore'
 import { useFilterStore } from '@/stores/FilterStore'
+import FilterNavigation from '@/components/common/FilterNavigation.vue'
 import { storeToRefs } from 'pinia'
 
 export default {
@@ -82,16 +83,16 @@ export default {
     const awaitingSearch = ref(false)
 
     const addAsset = () => {
-      router.push('/asset/0')
+      router.push('/asset/')
     }
 
     const addAssetGroup = () => {
-      router.push('/asset-group/0')
+      router.push('/asset-group/')
     }
 
     const updateSearch = (value) => {
       search.value = value
-      updateAssetFilter({ search: value })
+      filterStore.updateAssetFilter({ search: value })
       if (!awaitingSearch.value) {
         setTimeout(() => {
           updateFilteredAssets()
@@ -105,8 +106,7 @@ export default {
       const query = Object.fromEntries(
         Object.entries(route.query).filter(([, v]) => v != null)
       )
-      updateAssetFilter(query)
-      console.debug('loaded with query', query)
+      filterStore.updateAssetFilter(query)
     })
 
     return {

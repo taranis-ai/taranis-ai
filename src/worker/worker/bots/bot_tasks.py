@@ -9,7 +9,8 @@ class BotTask(Task):
     name = "bot_task"
     max_retries = 3
     default_retry_delay = 60
-    time_limit = 1800
+    time_limit = 18000
+    ignore_result = True
 
     def __init__(self):
         self.core_api = CoreApi()

@@ -2,70 +2,105 @@
   <v-card
     v-if="showStory"
     :ripple="false"
-    elevation="0"
+    flat
     :rounded="false"
-    class="no-gutters align-self-stretch mb-1 mt-2 mx-2 story-card"
+    class="no-gutters align-self-stretch mb-1 mt-1 mx-2 story-card"
     :class="card_class"
     @click="toggleSelection"
   >
-    <v-row class="pl-2">
-      <v-col
-        :cols="content_cols"
-        class="d-flex flex-grow-1 mt-1 px-5 py-0 order-first"
-        align-self="center"
-      >
-        <v-icon v-if="story_in_report" class="mr-2 my-auto" icon="mdi-share" />
-        <h2
-          v-dompurify-html="highlighted_title"
-          :class="news_item_title_class"
-        />
-      </v-col>
+    <v-container fluid style="min-height: 112px" class="pa-0 pl-2">
+      <v-row class="pl-2">
+        <v-col class="d-flex">
+          <v-row class="py-1 px-1">
+            <v-col cols="12" :lg="content_cols">
+              <v-container class="d-flex pa-0">
+                <v-icon
+                  v-if="story_in_report"
+                  class="mr-1 mt-1"
+                  icon="mdi-share"
+                />
+                <h2
+                  v-dompurify-html="highlighted_title"
+                  class="mb-1 mt-0"
+                  :class="{
+                    news_item_title_class: true,
+                    story: news_item_length > 1
+                  }"
+                />
 
-      <story-actions
-        :story="story"
-        :detail-view="detailView"
-        :report-view="reportView"
-        :action-cols="meta_cols"
-        @open-details="openCard()"
-        @refresh="emitRefresh()"
-        @remove-from-report="$emit('remove-from-report')"
-      />
+                <a
+                  v-if="news_item_length > 1"
+                  class="ml-3 mb-1 d-flex justify-center align-center text-primary"
+                  style="font-size: 1rem"
+                  :href="'/story/' + story.id"
+                  target="_blank"
+                >
+                  <v-icon
+                    class="float-left mr-1"
+                    size="x-small"
+                    color="primary"
+                    icon="mdi-file-multiple-outline"
+                  />
+                  ({{ news_item_length }})
+                </a>
+              </v-container>
 
-      <!-- DESCRIPTION -->
-      <v-col
-        :cols="content_cols"
-        class="px-5 pb-5 pt-0 order-3"
-        align-self="stretch"
-      >
-        <summarized-content
-          :open="openSummary"
-          :is-summarized="is_summarized"
-          :content="getDescription"
-        />
-      </v-col>
-      <!-- META INFO -->
-      <v-col class="px-5 pt-1 pb-1 order-4" :cols="meta_cols">
-        <story-meta-info
-          :story="story"
-          :detail-view="openSummary"
-          :report-view="reportView"
-        />
-      </v-col>
-    </v-row>
+              <summarized-content
+                :open="openSummary"
+                :is-summarized="is_summarized"
+                :content="getDescription"
+              />
+            </v-col>
+
+            <v-col cols="12" class="meta-info-col" :lg="meta_cols">
+              <story-meta-info
+                :story="story"
+                :detail-view="openSummary"
+                :report-view="reportView"
+              />
+              <week-chart
+                v-if="showWeekChart && openSummary"
+                class="mt-5"
+                :chart-height="180"
+                :story="story"
+              />
+            </v-col>
+            <v-col v-if="showWeekChart && !openSummary" cols="12" lg="2">
+              <week-chart
+                :chart-height="detailView ? 300 : 100"
+                :chart-width="detailView ? 800 : 100"
+                :story="story"
+              />
+            </v-col>
+          </v-row>
+        </v-col>
+        <v-col class="action-bar mr-2">
+          <story-actions
+            :story="story"
+            :detail-view="detailView"
+            :report-view="reportView"
+            :action-cols="meta_cols"
+            @open-details="openCard()"
+            @refresh="emitRefresh()"
+            @remove-from-report="$emit('remove-from-report')"
+          />
+        </v-col>
+      </v-row>
+    </v-container>
   </v-card>
   <v-row
     v-if="openSummary && story.news_items.length > 1"
     dense
-    class="ma-0 mx-2 py-0 px-2"
+    class="ma-0 py-0 px-2"
   >
-    <div class="news-item-container w-100">
+    <div class="news-item-container w-100 pb-2 mb-4">
       <card-news-item
         v-for="item in story.news_items"
         :key="item.id"
         :news-item="item"
         :detail-view="detailView"
+        :open-view="openSummary"
         :story="story"
-        class="mt-2 mx-5 my-3"
         @refresh="emitRefresh()"
       />
     </div>
@@ -83,6 +118,7 @@ import { useFilterStore } from '@/stores/FilterStore'
 import { highlight_text } from '@/utils/helpers'
 import { unGroupStories } from '@/api/assess'
 import { storeToRefs } from 'pinia'
+import WeekChart from '@/components/assess/card/WeekChart.vue'
 
 export default {
   name: 'CardStory',
@@ -90,7 +126,8 @@ export default {
     CardNewsItem,
     StoryActions,
     StoryMetaInfo,
-    SummarizedContent
+    SummarizedContent,
+    WeekChart
   },
   props: {
     story: {
@@ -125,19 +162,19 @@ export default {
     )
 
     const content_cols = computed(() => {
-      if (props.detailView) {
-        return 8
-      }
-      if (showWeekChart.value) {
-        return 6
-      }
-      if (props.reportView || compactView.value) {
+      if (compactView.value) {
         return 10
+      }
+      if (props.reportView) {
+        return 6
       }
       return 8
     })
 
     const meta_cols = computed(() => {
+      if (showWeekChart.value && !openSummary.value) {
+        return 12 - content_cols.value - 2
+      }
       return 12 - content_cols.value
     })
 
@@ -173,6 +210,7 @@ export default {
       return {
         selected: selected.value,
         read: props.story.read,
+        unread: !props.story.read,
         important: props.story.important,
         relevant: props.story.relevance
       }
@@ -242,7 +280,8 @@ export default {
       markAsRead,
       markAsImportant,
       moveSelection,
-      emitRefresh
+      emitRefresh,
+      showWeekChart
     }
   }
 }
@@ -255,69 +294,59 @@ export default {
 
 .story-card {
   border: 2px solid white;
-  &:hover {
-    transition: border-color 180ms;
-    border-color: color-mix(in srgb, rgb(var(--v-theme-primary)) 50%, #ffffff);
-  }
+  transition: 180ms;
+  box-shadow: 1px 2px 9px 0px rgba(0, 0, 0, 0.15);
   &.selected {
-    background-color: color-mix(
-      in srgb,
-      rgb(var(--v-theme-primary)) 5%,
-      #ffffff
-    );
     border-color: rgb(var(--v-theme-primary));
     margin: -2px;
+    background-color: color-mix(
+      in srgb,
+      rgb(var(--v-theme-primary)) 10%,
+      #ffffff
+    );
   }
 }
 
 .news-item-container {
-  background-color: #f0f0f0;
-  border: 2px dotted rgb(var(--v-theme-primary));
-  background-color: color-mix(
-    in srgb,
-    rgb(var(--v-theme-primary)) 15%,
-    #eaeaea
+  background-color: color-mix(in srgb, rgb(var(--v-theme-primary)) 40%, white);
+}
+
+.unread::after {
+  content: '';
+  position: absolute;
+  left: 0px;
+  top: 0;
+  bottom: 0;
+  width: 7px;
+  background-color: rgb(var(--v-theme-primary)) !important;
+  z-index: 1;
+}
+
+.unread.important::after {
+  content: '';
+  position: absolute;
+  left: 0px;
+  top: 0;
+  bottom: 0;
+  width: 7px;
+
+  background: rgb(116, 104, 232);
+  background: linear-gradient(
+    rgba(116, 104, 232, 1) 50%,
+    rgba(233, 198, 69, 1) 50%
   );
-  border-radius: 4px;
+
+  z-index: 2;
 }
 
-.news-item-title {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 1;
-  line-clamp: 1;
-  -webkit-box-orient: vertical;
-  max-height: calc(1.5em * 2);
-  line-height: 1.3;
-}
-.news-item-title-no-clip {
-  max-height: calc(1.5em * 2);
-  line-height: 1.3;
-}
-.read::before {
+.important:not(.unread)::after {
   content: '';
   position: absolute;
-  left: 0;
+  left: 0px;
   top: 0;
   bottom: 0;
-  width: 4px;
-  background-color: blue;
-  z-index: 1;
-}
-
-.important::after {
-  content: '';
-  position: absolute;
-  left: 4px;
-  top: 0;
-  bottom: 0;
-  width: 4px;
-  background-color: red;
-  z-index: 1;
-}
-
-.relevant {
-  border-left: 4px solid green;
+  width: 7px;
+  z-index: 2;
+  background: #e9c645 !important;
 }
 </style>

@@ -3,20 +3,21 @@ import base64
 import contextlib
 from datetime import datetime, timedelta
 from typing import Any, Optional
-from sqlalchemy import orm, and_, or_, func
+from sqlalchemy import orm, or_, func
 from sqlalchemy.sql.expression import false, null
 
-from enum import StrEnum, auto
 from collections import Counter
 import hashlib
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
-from core.managers.log_manager import logger
+from core.log import logger
 from core.model.user import User
+from core.model.role import TLPLevel
 from core.model.news_item_tag import NewsItemTag
-from core.model.acl_entry import ACLEntry, ItemType
+from core.model.role_based_access import ItemType, RoleBasedAccess
 from core.model.osint_source import OSINTSourceGroup, OSINTSource, OSINTSourceGroupOSINTSource
+from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 
 
 class NewsItemData(BaseModel):
@@ -34,9 +35,9 @@ class NewsItemData(BaseModel):
     published: Any = db.Column(db.DateTime, default=datetime.now())
     updated = db.Column(db.DateTime, default=datetime.now())
 
-    attributes = db.relationship("NewsItemAttribute", secondary="news_item_data_news_item_attribute", cascade="all, delete")
+    attributes: Any = db.relationship("NewsItemAttribute", secondary="news_item_data_news_item_attribute", cascade="all, delete")
 
-    osint_source_id = db.Column(db.String, db.ForeignKey("osint_source.id"), nullable=True)
+    osint_source_id = db.Column(db.String, db.ForeignKey("osint_source.id"), nullable=True, index=True)
     osint_source = db.relationship("OSINTSource")
 
     def __init__(
@@ -115,6 +116,11 @@ class NewsItemData(BaseModel):
     def has_attribute_value(self, value) -> bool:
         return any(attribute.value == value for attribute in self.attributes)
 
+    def to_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
+        data["attributes"] = [attribute.to_dict() for attribute in self.attributes]
+        return data
+
     @classmethod
     def update_news_item_lang(cls, news_item_id, lang):
         news_item = cls.get(news_item_id)
@@ -125,7 +131,7 @@ class NewsItemData(BaseModel):
         return {"message": "Language updated"}, 200
 
     @classmethod
-    def update_news_item_attributes(cls, news_item_id, attributes) -> tuple[dict, int]:
+    def update_attributes(cls, news_item_id, attributes) -> tuple[dict, int]:
         news_item = cls.get(news_item_id)
         if news_item is None:
             return {"error": "Invalid news item id"}, 400
@@ -139,6 +145,9 @@ class NewsItemData(BaseModel):
                 news_item.attributes.append(attribute)
 
         return {"message": "Attributes updated"}, 200
+
+    def get_tlp(self) -> str | None:
+        return next((attr.value for attr in self.attributes if attr.key == "TLP"), None)
 
     def update(self, data) -> tuple[dict, int]:
         if self.source != "manual":
@@ -172,21 +181,12 @@ class NewsItemData(BaseModel):
 class NewsItem(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
 
-    read: Any = db.Column(db.Boolean, default=False)
-    important: Any = db.Column(db.Boolean, default=False)
-
-    likes: Any = db.Column(db.Integer, default=0)
-    dislikes: Any = db.Column(db.Integer, default=0)
-    relevance: Any = db.Column(db.Integer, default=0)
-
-    news_item_data_id = db.Column(db.String, db.ForeignKey("news_item_data.id"))
+    news_item_data_id = db.Column(db.String, db.ForeignKey("news_item_data.id"), index=True)
     news_item_data: Any = db.relationship("NewsItemData", cascade="all, delete")
 
-    news_item_aggregate_id = db.Column(db.Integer, db.ForeignKey("news_item_aggregate.id"))
+    news_item_aggregate_id = db.Column(db.Integer, db.ForeignKey("news_item_aggregate.id"), index=True)
 
-    def __init__(self, read=False, important=False, news_item_data=None):
-        self.read = read
-        self.important = important
+    def __init__(self, news_item_data=None):
         self.news_item_data = news_item_data
 
     @classmethod
@@ -199,16 +199,6 @@ class NewsItem(BaseModel):
         query = query.join(NewsItemData, NewsItem.news_item_data_id == NewsItemData.id)
         query = query.outerjoin(OSINTSource, NewsItemData.osint_source_id == OSINTSource.id)
 
-        query = query.outerjoin(
-            ACLEntry,
-            and_(
-                NewsItemData.osint_source_id == ACLEntry.item_id,
-                ACLEntry.item_type == ItemType.OSINT_SOURCE,
-            ),
-        )
-
-        query = ACLEntry.apply_query(query, user, True, False, False)
-
         if search := filter.get("search"):
             query = query.filter(
                 db.or_(
@@ -217,15 +207,6 @@ class NewsItem(BaseModel):
                     NewsItemData.title.ilike(f"%{search}%"),
                 )
             )
-
-        if "read" in filter and filter["read"].lower() != "false":
-            query = query.filter(NewsItem.read is False)
-
-        if "important" in filter and filter["important"].lower() != "false":
-            query = query.filter(NewsItem.important)
-
-        if "relevant" in filter and filter["relevant"].lower() != "false":
-            query = query.filter(NewsItem.likes > 0)
 
         if "in_report" in filter and filter["in_report"].lower() != "false":
             query = query.join(
@@ -246,20 +227,14 @@ class NewsItem(BaseModel):
             elif filter_range == "MONTH":
                 date_limit = date_limit.replace(day=1)
 
-            query = query.filter(NewsItemData.collected >= date_limit)
+            query = query.filter(NewsItemData.published >= date_limit)
 
         if "sort" in filter:
             if filter["sort"] == "DATE_DESC":
-                query = query.order_by(db.desc(NewsItemData.collected), db.desc(NewsItemAggregate.id))
+                query = query.order_by(db.desc(NewsItemData.published), db.desc(NewsItemAggregate.id))
 
             elif filter["sort"] == "DATE_ASC":
-                query = query.order_by(db.asc(NewsItemData.collected), db.asc(NewsItemAggregate.id))
-
-            elif filter["sort"] == "RELEVANCE_DESC":
-                query = query.order_by(db.desc(NewsItem.relevance), db.desc(NewsItem.id))
-
-            elif filter["sort"] == "RELEVANCE_ASC":
-                query = query.order_by(db.asc(NewsItem.relevance), db.asc(NewsItem.id))
+                query = query.order_by(db.asc(NewsItemData.published), db.asc(NewsItemAggregate.id))
 
         offset = filter.get("offset", 0)
         limit = filter.get("limit", 20)
@@ -271,90 +246,34 @@ class NewsItem(BaseModel):
         items = [news_item.to_dict() for news_item in news_items]
         return {"total_count": count, "items": items}, 200
 
-    @classmethod
-    def get_all_by_group_and_source_query(cls, group_id, source_id, time_limit):
-        query = cls.query.join(NewsItemData, NewsItemData.id == NewsItem.news_item_data_id)
-        query = query.filter(
-            NewsItemData.osint_source_id == source_id,
-            NewsItemData.collected >= time_limit,
-        )
-        query = query.join(NewsItemAggregate, NewsItemAggregate.id == NewsItem.news_item_aggregate_id)
-        groups = OSINTSourceGroup.get_for_osint_source(NewsItemData.osint_source_id)
-        if groups:
-            group = groups[0]
-            query = query.filter(group.id == group_id)
-        return query
-
-    def allowed_with_acl(self, user: User, see, access, modify):
-        if not ACLEntry.has_rows() or not user or self.news_item_data.source == "manual":
+    def allowed_with_acl(self, user: User, require_write_access: bool) -> bool:
+        if not RoleBasedAccess.is_enabled():
             return True
 
-        query = db.session.query(NewsItem.id).distinct().group_by(NewsItem.id).filter(NewsItem.id == self.id)
-
-        query = query.join(NewsItemData, NewsItem.news_item_data_id == NewsItemData.id)
-        query = query.join(OSINTSource, NewsItemData.osint_source_id == OSINTSource.id)
-
-        query = query.outerjoin(
-            ACLEntry,
-            and_(
-                NewsItemData.osint_source_id == ACLEntry.item_id,
-                ACLEntry.item_type == ItemType.OSINT_SOURCE,
-            ),
+        query = RBACQuery(
+            user=user,
+            resource_id=self.news_item_data.osint_source_id,
+            resource_type=ItemType.OSINT_SOURCE,
+            require_write_access=require_write_access,
         )
 
-        query = ACLEntry.apply_query(query, user, see, access, modify)
-
-        return query.scalar() is not None
-
-    def vote(self, vote_data, user_id) -> "NewsItemVote":
-        if vote := NewsItemVote.get_by_filter(item_id=self.id, user_id=user_id, item_type="NEWS_ITEM"):
-            if vote_data > 0:
-                self.update_like_vote(vote)
-            else:
-                self.update_dislike_vote(vote)
-        else:
-            vote = self.create_new_vote(vote, user_id)
-
-        self.news_item_data.updated = datetime.now()
-        return vote
-
-    def create_new_vote(self, vote, user_id):
-        vote = NewsItemVote(item_id=self.id, user_id=user_id, item_type="NEWS_ITEM")
-        db.session.add(vote)
-        return vote
-
-    def update_like_vote(self, vote):
-        self.likes += 1
-        self.relevance += 1
-        vote.like = not vote.like
-
-    def update_dislike_vote(self, vote):
-        self.dislikes += 1
-        self.relevance -= 1
-        vote.dislike = not vote.dislike
+        access = RoleBasedAccessService.user_has_access_to_resource(query)
+        if not access:
+            logger.warning(f"User {user.id} has no access to resource {self.news_item_data.osint_source_id}")
+        return access
 
     @classmethod
     def update(cls, news_item_id, data, user_id):
         news_item = cls.get(news_item_id)
         if not news_item:
             return {"error": f"NewsItem with id: {news_item_id} not found"}, 404
-        news_item.update_status(data, user_id)
         news_item.news_item_data.update(data)
 
-        NewsItemAggregate.update_status(news_item.news_item_aggregate_id)
+        if story := NewsItemAggregate.get(news_item.news_item_aggregate_id):
+            story.update_status()
         db.session.commit()
 
         return {"message": "success"}, 200
-
-    def update_status(self, data, user_id):
-        if "vote" in data:
-            self.vote(data["vote"], user_id)
-
-        if "read" in data:
-            self.read = not self.read
-
-        if "important" in data:
-            self.important = not self.important
 
     @classmethod
     def delete(cls, news_item_id):
@@ -371,14 +290,13 @@ class NewsItem(BaseModel):
 
         aggregate.news_items.remove(news_item)
         cls.delete_item(news_item)
-        NewsItemAggregate.update_status(aggregate_id)
+        aggregate.update_status()
         db.session.commit()
 
         return {"message": "success"}, 200
 
     @classmethod
     def delete_item(cls, news_item):
-        NewsItemVote.delete_all(item_id=news_item.id, item_type="NEWS_ITEM")
         db.session.delete(news_item)
 
     def to_dict(self) -> dict[str, Any]:
@@ -387,39 +305,32 @@ class NewsItem(BaseModel):
         return data
 
 
-class NewsItemTypes(StrEnum):
-    AGGREGATE = auto()
-    NEWS_ITEM = auto()
-
-
 class NewsItemVote(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     like = db.Column(db.Boolean, default=False)
     dislike = db.Column(db.Boolean, default=False)
     item_id = db.Column(db.Integer)
-    item_type = db.Column(db.Enum(NewsItemTypes))
     user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=True)
 
-    def __init__(self, item_id, user_id, item_type, like=False, dislike=False):
+    def __init__(self, item_id, user_id, like=False, dislike=False):
         self.id = None
         self.item_id = item_id
         self.user_id = user_id
-        self.item_type = item_type
         self.like = like
         self.dislike = dislike
 
     @classmethod
-    def get_by_filter(cls, item_id, user_id, item_type):
-        return cls.query.filter_by(item_id=item_id, user_id=user_id, item_type=item_type).first()
+    def get_by_filter(cls, item_id, user_id):
+        return cls.query.filter_by(item_id=item_id, user_id=user_id).first()
 
     @classmethod
-    def delete_all(cls, item_id, item_type):
-        cls.query.filter_by(item_id=item_id, item_type=item_type).delete()
+    def delete_all(cls, item_id):
+        cls.query.filter_by(item_id=item_id).delete()
         db.session.commit()
 
     @classmethod
-    def get_user_vote(cls, item_id, user_id, item_type):
-        if vote := cls.get_by_filter(item_id, user_id, item_type):
+    def get_user_vote(cls, item_id, user_id):
+        if vote := cls.get_by_filter(item_id, user_id):
             return {"like": vote.like, "dislike": vote.dislike}
         return {"like": False, "dislike": False}
 
@@ -440,9 +351,20 @@ class NewsItemAggregate(BaseModel):
     comments: Any = db.Column(db.String(), default="")
     summary: Any = db.Column(db.Text, default="")
     news_items: Any = db.relationship("NewsItem")
-    news_item_attributes: Any = db.relationship("NewsItemAttribute", secondary="news_item_aggregate_news_item_attribute")
+    attributes: Any = db.relationship("NewsItemAttribute", secondary="news_item_aggregate_news_item_attribute")
 
-    def __init__(self, title, description="", created=datetime.now(), read=False, important=False, summary="", comments="", news_items=None):
+    def __init__(
+        self,
+        title,
+        description="",
+        created=datetime.now(),
+        read=False,
+        important=False,
+        summary="",
+        comments="",
+        attributes=None,
+        news_items=None,
+    ):
         self.title = title
         self.description = description
         self.created = created
@@ -451,6 +373,8 @@ class NewsItemAggregate(BaseModel):
         self.summary = summary
         self.comments = comments
         self.news_items = self.load_news_items(news_items)
+        if attributes:
+            self.attributes = NewsItemAttribute.load_multiple(attributes)
 
     def load_news_items(self, news_items):
         if all(isinstance(item, int) for item in news_items):
@@ -468,7 +392,7 @@ class NewsItemAggregate(BaseModel):
 
         data = item.to_dict()
         data["in_reports_count"] = ReportItemNewsItemAggregate.count(item.id)
-        data["user_vote"] = NewsItemVote.get_user_vote(item.id, user.id, "AGGREGATE")
+        data["user_vote"] = NewsItemVote.get_user_vote(item.id, user.id)
 
         return data
 
@@ -498,9 +422,9 @@ class NewsItemAggregate(BaseModel):
     def _add_filters_to_query(cls, filter_args: dict, query):
         query = query.join(NewsItem, NewsItem.news_item_aggregate_id == NewsItemAggregate.id)
         query = query.join(NewsItemData, NewsItem.news_item_data_id == NewsItemData.id)
+        query = query.join(OSINTSource, NewsItemData.osint_source_id == OSINTSource.id)
 
-        if filter_args.get("source") or filter_args.get("group"):
-            query = query.outerjoin(OSINTSource, NewsItemData.osint_source_id == OSINTSource.id)
+        if filter_args.get("group"):
             query = query.outerjoin(OSINTSourceGroupOSINTSource, OSINTSource.id == OSINTSourceGroupOSINTSource.osint_source_id)
             query = query.outerjoin(OSINTSourceGroup, OSINTSourceGroupOSINTSource.osint_source_group_id == OSINTSourceGroup.id)
 
@@ -589,10 +513,10 @@ class NewsItemAggregate(BaseModel):
     def _add_sorting_to_query(cls, filter_args: dict, query):
         if sort := filter_args.get("sort", "date_desc").lower():
             if sort == "date_desc":
-                query = query.order_by(db.desc(cls.created), db.desc(cls.id))
+                query = query.group_by(NewsItemData.published).order_by(db.desc(NewsItemData.published), db.desc(cls.id))
 
             elif sort == "date_asc":
-                query = query.order_by(db.asc(cls.created), db.asc(cls.id))
+                query = query.group_by(NewsItemData.published).order_by(db.asc(NewsItemData.published), db.asc(cls.id))
 
             elif sort == "relevance_desc":
                 query = query.order_by(db.desc(cls.relevance), db.desc(cls.id))
@@ -601,7 +525,7 @@ class NewsItemAggregate(BaseModel):
                 query = query.order_by(db.asc(cls.relevance), db.asc(cls.id))
 
             elif sort == "source":
-                query = query.order_by(db.desc(OSINTSource.name), db.desc(cls.created), db.desc(cls.id))
+                query = query.order_by(db.desc(OSINTSource.name), db.desc(cls.id))
 
         return query
 
@@ -615,18 +539,12 @@ class NewsItemAggregate(BaseModel):
 
     @classmethod
     def _add_ACL_check(cls, query, user: User):
-        if not ACLEntry.has_rows() or not user:
-            return query
+        rbac = RBACQuery(user=user, resource_type=ItemType.OSINT_SOURCE)
+        return RoleBasedAccessService.filter_query_with_acl(query, rbac)
 
-        query = query.outerjoin(
-            ACLEntry,
-            and_(
-                NewsItemData.osint_source_id == ACLEntry.item_id,
-                ACLEntry.item_type == ItemType.OSINT_SOURCE,
-            ),
-        )
-        query = ACLEntry.apply_query(query, user, True, False, False)
-        return query
+    @classmethod
+    def _add_TLP_check(cls, query, user: User):
+        return RoleBasedAccessService.filter_query_with_tlp(query, user)
 
     @classmethod
     def get_by_filter(cls, filter_args: dict, user: User | None = None):
@@ -635,6 +553,7 @@ class NewsItemAggregate(BaseModel):
 
         if user:
             query = cls._add_ACL_check(query, user)
+            query = cls._add_TLP_check(query, user)
 
         query = cls._add_sorting_to_query(filter_args, query)
         paged_query = cls._add_paging_to_query(filter_args, query)
@@ -654,7 +573,7 @@ class NewsItemAggregate(BaseModel):
     def get_item_dict(cls, news_item_aggregate: Any, user: Any) -> dict[str, Any]:
         item = news_item_aggregate.to_dict()
         item["in_reports_count"] = ReportItemNewsItemAggregate.count(news_item_aggregate.id)
-        item["user_vote"] = NewsItemVote.get_user_vote(news_item_aggregate.id, user.id, "AGGREGATE")
+        item["user_vote"] = NewsItemVote.get_user_vote(news_item_aggregate.id, user.id)
         return item
 
     @classmethod
@@ -679,11 +598,19 @@ class NewsItemAggregate(BaseModel):
         return [news_item_aggregate.to_worker_dict() for news_item_aggregate in news_item_aggregates]
 
     @classmethod
-    def create_new(cls, news_item_data):
+    def create_new(cls, news_item_data: NewsItemData):
         news_item = NewsItem.add({"news_item_data": news_item_data})
 
-        aggregate = NewsItemAggregate.add({"title": news_item_data.title, "description": news_item_data.review, "news_items": [news_item]})
+        aggregate = NewsItemAggregate.add(
+            {
+                "title": news_item_data.title,
+                "description": news_item_data.review or news_item_data.content,
+                "created": news_item_data.published,
+                "news_items": [news_item],
+            }
+        )
         NewsItemAggregateSearchIndex.prepare(aggregate)
+        aggregate.update_tlp()
 
         db.session.commit()
 
@@ -702,15 +629,15 @@ class NewsItemAggregate(BaseModel):
         except Exception as e:
             return {"error": f"Failed to add news items: {e}"}, 400
 
-        return {"message": f"Added {len(news_items_data)} news items", "ids": ids}, 200
+        return {"message": f"Added {len(ids)} news items", "ids": ids}, 200
 
     @classmethod
-    def update(cls, id, data, user):
+    def update(cls, id, data, user=None):
         aggregate = cls.get(id)
         if not aggregate:
-            return {"error": f"Aggregate with id: {id} not found"}, 404
+            return {"error": "Story not found", "id": id}, 404
 
-        if "vote" in data:
+        if "vote" in data and user:
             aggregate.vote(data["vote"], user.id)
 
         if "important" in data:
@@ -729,16 +656,33 @@ class NewsItemAggregate(BaseModel):
             aggregate.comments = data["comments"]
 
         if "tags" in data:
-            logger.debug(data["tags"])
             cls.reset_tags(id)
             cls.update_tags(id, data["tags"])
 
-        NewsItemAggregate.update_status(aggregate.id)
+        if "summary" in data:
+            cls.summary = data["summary"]
+
+        if "attributes" in data:
+            aggregate.update_attributes(data["attributes"])
+
+        aggregate.update_status()
         db.session.commit()
         return {"message": "Story updated Successful", "id": id}, 200
 
+    def update_attributes(self, attributes):
+        self.attributes = []
+        for attribute in attributes:
+            self.set_atrribute_by_key(key=attribute["key"], value=attribute["value"])
+
+    def set_atrribute_by_key(self, key, value):
+        if not (attribute := NewsItemAttribute.get_by_key(self.attributes, key)):
+            attribute = NewsItemAttribute(key=key, value=value)
+            self.attributes.append(attribute)
+        else:
+            attribute.value = value
+
     def vote(self, vote_data, user_id):
-        if not (vote := NewsItemVote.get_by_filter(item_id=self.id, user_id=user_id, item_type="AGGREGATE")):
+        if not (vote := NewsItemVote.get_by_filter(item_id=self.id, user_id=user_id)):
             vote = self.create_new_vote(vote, user_id, vote_data)
 
         if vote.like and vote_data == "like":
@@ -790,7 +734,7 @@ class NewsItemAggregate(BaseModel):
         return vote
 
     def create_new_vote(self, vote, user_id, vote_data):
-        vote = NewsItemVote(item_id=self.id, user_id=user_id, item_type="AGGREGATE")
+        vote = NewsItemVote(item_id=self.id, user_id=user_id)
         db.session.add(vote)
         return vote
 
@@ -804,14 +748,14 @@ class NewsItemAggregate(BaseModel):
             return {"error": f"aggregate with: {aggregate_id} assigned to a report"}, 500
 
         for news_item in aggregate.news_items:
-            if news_item.allowed_with_acl(user, False, False, True):
+            if news_item.allowed_with_acl(user, True):
                 aggregate.news_items.remove(news_item)
                 NewsItem.delete_item(news_item)
             else:
                 logger.debug(f"User {user.id} not allowed to remove news item {news_item.id}")
                 return {"error": f"User {user.id} not allowed to remove news item {news_item.id}"}, 403
 
-        NewsItemAggregate.update_status(aggregate.id)
+        aggregate.update_status()
 
         db.session.commit()
 
@@ -856,7 +800,7 @@ class NewsItemAggregate(BaseModel):
                     new_tag.tag_type = existing_tag.tag_type
                 n_i_a.tags.append(new_tag)
             if bot_type:
-                n_i_a.news_item_attributes.append(NewsItemAttribute(key=bot_type, value=f"{len(new_tags)}"))
+                n_i_a.attributes.append(NewsItemAttribute(key=bot_type, value=f"{len(new_tags)}"))
             db.session.commit()
             return {"message": "success"}, 200
         except Exception as e:
@@ -904,11 +848,11 @@ class NewsItemAggregate(BaseModel):
                 news_item = NewsItem.get(item)
                 if not news_item:
                     continue
-                if user is None or news_item.allowed_with_acl(user, False, False, True):
+                if user is None or news_item.allowed_with_acl(user, True):
                     aggregate.news_items.append(news_item)
                     aggregate.relevance += news_item.relevance + 1
                     aggregate.add(aggregate)
-                    NewsItemAggregate.update_status(aggregate.id)
+                    aggregate.update_status()
             cls.update_aggregates(aggregate)
             db.session.commit()
             return {"message": "success"}, 200
@@ -919,7 +863,6 @@ class NewsItemAggregate(BaseModel):
     @classmethod
     def group_aggregate(cls, aggregate_ids: list[int], user: User | None = None):
         try:
-            logger.debug(f"grouping: {aggregate_ids}")
             if len(aggregate_ids) < 2 or any(type(a_id) is not int for a_id in aggregate_ids):
                 return {"error": "at least two aggregate ids needed"}, 404
             first_aggregate = NewsItemAggregate.get(aggregate_ids.pop(0))
@@ -933,7 +876,7 @@ class NewsItemAggregate(BaseModel):
 
                 first_aggregate.tags = list({tag.name: tag for tag in first_aggregate.tags + aggregate.tags}.values())
                 for news_item in aggregate.news_items[:]:
-                    if user is None or news_item.allowed_with_acl(user, False, False, True):
+                    if user is None or news_item.allowed_with_acl(user, True):
                         first_aggregate.news_items.append(news_item)
                         first_aggregate.relevance += 1
                         aggregate.news_items.remove(news_item)
@@ -960,7 +903,7 @@ class NewsItemAggregate(BaseModel):
             if not story:
                 return {"error": "not_found"}, 404
             for news_item in story.news_items[:]:
-                if user is None or news_item.allowed_with_acl(user, False, False, True):
+                if user is None or news_item.allowed_with_acl(user, True):
                     cls.create_single_aggregate(news_item)
             cls.update_aggregates({story})
             db.session.commit()
@@ -977,7 +920,7 @@ class NewsItemAggregate(BaseModel):
                 news_item = NewsItem.get(item)
                 if not news_item:
                     continue
-                if not news_item.allowed_with_acl(user, False, False, True):
+                if not news_item.allowed_with_acl(user, True):
                     continue
                 aggregate = NewsItemAggregate.get(news_item.news_item_aggregate_id)
                 if not aggregate:
@@ -994,107 +937,109 @@ class NewsItemAggregate(BaseModel):
 
     @classmethod
     def update_aggregates(cls, aggregates: set):
-        try:
-            for aggregate in aggregates:
-                if len(aggregate.news_items) == 0:
-                    NewsItemAggregateSearchIndex.remove(aggregate)
-                    NewsItemTag.remove_by_aggregate(aggregate)
-                    db.session.delete(aggregate)
-                else:
-                    NewsItemAggregateSearchIndex.prepare(aggregate)
-                    NewsItemAggregate.update_status(aggregate.id)
-        except Exception:
-            logger.warning("Update Aggregates Failed")
-            logger.log_debug_trace("Update Aggregates Failed")
+        for aggregate in aggregates:
+            try:
+                aggregate.update_status()
+            except Exception:
+                logger.exception("Update Aggregates Failed")
 
     @classmethod
     def create_single_aggregate(cls, news_item):
         new_aggregate = NewsItemAggregate(
             title=news_item.news_item_data.title,
             created=news_item.news_item_data.published,
-            description=news_item.news_item_data.review,
+            description=news_item.news_item_data.review or news_item.news_item_data.content,
             news_items=[news_item.id],
         )
         db.session.add(new_aggregate)
         db.session.commit()
 
         NewsItemAggregateSearchIndex.prepare(new_aggregate)
-        NewsItemAggregate.update_status(new_aggregate.id)
+        new_aggregate.update_status()
 
-    @classmethod
-    def update_status(cls, aggregate_id):
-        aggregate = cls.get(aggregate_id)
-        if aggregate is None:
+    def update_status(self):
+        if len(self.news_items) == 0:
+            NewsItemAggregateSearchIndex.remove(self)
+            NewsItemTag.remove_by_aggregate(self)
+            db.session.delete(self)
+            logger.info(f"Deleting empty aggregate - 'ID': {self.id}")
             return
 
-        if len(aggregate.news_items) == 0:
-            NewsItemAggregateSearchIndex.remove(aggregate)
-            db.session.delete(aggregate)
-            logger.info(f"Deleting empty aggregate - 'ID': {aggregate_id}")
-            return
+        self.update_tlp()
 
-    @classmethod
-    def update_news_items_aggregate_summary(cls, aggregate_id, summary):
-        aggregate = cls.get(aggregate_id)
-        if not aggregate:
-            return "not_found", 404
-        aggregate.summary = summary
-        db.session.commit()
-        return {"message": "success"}, 200
+    def update_tlp(self):
+        highest_tlp = None
+        for news_item in self.news_items:
+            if tlp_level := news_item.news_item_data.get_tlp():
+                tlp_level_enum = TLPLevel(tlp_level)
+                if highest_tlp is None or tlp_level_enum > highest_tlp:
+                    highest_tlp = tlp_level_enum
+
+        if highest_tlp:
+            logger.debug(f"Setting TLP level {highest_tlp} for aggregate {self.id}")
+            NewsItemAttribute.set_or_update(self.attributes, "TLP", highest_tlp.value)
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data["news_items"] = [news_item.to_dict() for news_item in self.news_items]
         data["tags"] = [tag.to_small_dict() for tag in self.tags]
-        if news_item_attributes := self.news_item_attributes:
-            data["news_item_attributes"] = [news_item_attribute.to_dict() for news_item_attribute in news_item_attributes]
+        if attributes := self.attributes:
+            data["attributes"] = [news_item_attribute.to_dict() for news_item_attribute in attributes]
         return data
 
     def to_worker_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data["news_items"] = [news_item.to_dict() for news_item in self.news_items]
         data["tags"] = {tag.name: tag.to_dict() for tag in self.tags}
-        if news_item_attributes := self.news_item_attributes:
-            data["news_item_attributes"] = [news_item_attribute.to_dict() for news_item_attribute in news_item_attributes]
+        if attributes := self.attributes:
+            data["attributes"] = [news_item_attribute.to_dict() for news_item_attribute in attributes]
         return data
 
 
 class NewsItemAggregateSearchIndex(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
-    data = db.Column(db.String)
-    news_item_aggregate_id = db.Column(db.Integer, db.ForeignKey("news_item_aggregate.id"))
+    data: Any = db.Column(db.String)
+    news_item_aggregate_id: Any = db.Column(db.Integer, db.ForeignKey("news_item_aggregate.id"), index=True)
+
+    def __init__(self, story_id, data=None):
+        self.news_item_aggregate_id = story_id
+        self.data = data or ""
 
     @classmethod
-    def remove(cls, aggregate):
+    def remove(cls, aggregate: "NewsItemAggregate"):
         search_index = cls.query.filter_by(news_item_aggregate_id=aggregate.id).first()
         if search_index is not None:
             db.session.delete(search_index)
             db.session.commit()
 
     @classmethod
-    def prepare(cls, aggregate):
+    def prepare(cls, aggregate: "NewsItemAggregate"):
         search_index = cls.query.filter_by(news_item_aggregate_id=aggregate.id).first()
         if search_index is None:
-            search_index = NewsItemAggregateSearchIndex()
-            search_index.news_item_aggregate_id = aggregate.id
+            search_index = NewsItemAggregateSearchIndex(aggregate.id)
             db.session.add(search_index)
 
-        data = aggregate.title
-        data += f" {aggregate.description}"
-        data += f" {aggregate.comments}"
-        data += f" {aggregate.summary}"
+        data_components = [
+            aggregate.title,
+            aggregate.description,
+            aggregate.comments,
+            aggregate.summary,
+        ]
 
         for news_item in aggregate.news_items:
-            data += f" {news_item.news_item_data.title}"
-            data += f" {news_item.news_item_data.review}"
-            data += f" {news_item.news_item_data.content}"
-            data += f" {news_item.news_item_data.author}"
-            data += f" {news_item.news_item_data.link}"
+            data_components.extend(
+                [
+                    news_item.news_item_data.title,
+                    news_item.news_item_data.review,
+                    news_item.news_item_data.content,
+                    news_item.news_item_data.author,
+                    news_item.news_item_data.link,
+                ]
+            )
 
-            for attribute in news_item.news_item_data.attributes:
-                data += f" {attribute.value}"
+            data_components.extend([attribute.value for attribute in news_item.news_item_data.attributes])
 
-        search_index.data = data.lower()
+        search_index.data = " ".join(data_components).lower()
         db.session.commit()
 
 
@@ -1121,6 +1066,22 @@ class NewsItemAttribute(BaseModel):
         data.pop("binary_mime_type", None)
         data.pop("binary_data", None)
         return data
+
+    @classmethod
+    def get_by_key(cls, attributes: list["NewsItemAttribute"], key: str) -> "NewsItemAttribute | None":
+        return next((attribute for attribute in attributes if attribute.key == key), None)
+
+    @classmethod
+    def set_or_update(cls, attributes: list["NewsItemAttribute"], key: str, value: str) -> list["NewsItemAttribute"]:
+        if not (attribute := cls.get_by_key(attributes, key)):
+            attributes.append(cls(key=key, value=value))
+        else:
+            attribute.value = value
+        return attributes
+
+    @classmethod
+    def get_tlp_level(cls, attributes: list["NewsItemAttribute"]) -> TLPLevel | None:
+        return TLPLevel(cls.get_by_key(attributes, "TLP"))
 
 
 class NewsItemDataNewsItemAttribute(BaseModel):

@@ -8,7 +8,7 @@ from core.model.permission import Permission
 from core.model.organization import Organization
 
 from core.model.base_model import BaseModel
-from core.managers.log_manager import logger
+from core.model.role import TLPLevel
 
 
 class User(BaseModel):
@@ -38,19 +38,19 @@ class User(BaseModel):
         self.profile = UserProfile(id=id)
 
     @classmethod
-    def find_by_name(cls, username: str):
+    def find_by_name(cls, username: str) -> "User":
         return cls.query.filter_by(username=username).first()
 
     @classmethod
-    def find_by_id(cls, user_id):
+    def find_by_id(cls, user_id) -> "User":
         return cls.query.get(user_id)
 
     @classmethod
-    def find_by_role(cls, role_id: int):
+    def find_by_role(cls, role_id: int) -> "User":
         return cls.query.join(Role, Role.id == role_id).all()
 
     @classmethod
-    def find_by_role_name(cls, role_name: str):
+    def find_by_role_name(cls, role_name: str) -> "User":
         return cls.query.join(Role, Role.name == role_name).all()
 
     @classmethod
@@ -87,6 +87,17 @@ class User(BaseModel):
         data["permissions"] = [permission.id for permission in self.permissions if permission]
         return data
 
+    def to_detail_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "username": self.username,
+            "organization": self.organization.to_user_dict(),
+            "roles": [role.to_user_dict() for role in self.roles if role],
+            "permissions": self.get_permissions(),
+            "profile": self.profile.to_dict(),
+        }
+
     @classmethod
     def add(cls, data) -> "User":
         item = cls.from_dict(data)
@@ -102,11 +113,8 @@ class User(BaseModel):
         if not user:
             return {"error": f"User {user_id} not found"}, 404
         data.pop("id", None)
-        data.pop("tag", None)
         if update_organization := data.pop("organization", None):
             user.organization = Organization.get(update_organization)
-        if update_profile := data.pop("profile_id", None):
-            user.profile = UserProfile.get(update_profile)
         if not (update_roles := data.pop("roles", None)):
             user.roles = data.get("roles", [])
         else:
@@ -133,6 +141,18 @@ class User(BaseModel):
                 all_permissions.update(role.get_permissions())
         return list(all_permissions)
 
+    def get_roles(self):
+        return [role.id for role in self.roles]
+
+    def get_highest_tlp(self) -> TLPLevel | None:
+        highest_tlp = None
+        for role in self.roles:
+            if tlp_level := role.tlp_level:
+                tlp_level_enum = TLPLevel(tlp_level)
+                if highest_tlp is None or tlp_level_enum > highest_tlp:
+                    highest_tlp = tlp_level_enum
+        return highest_tlp
+
     def get_current_organization_name(self):
         return self.organization.name if self.organization else ""
 
@@ -140,62 +160,14 @@ class User(BaseModel):
         return self.profile.to_dict(), 200
 
     @classmethod
-    def update_profile(cls, user, data):
-        logger.debug(user.profile.from_dict(data))
-        user.profile = user.profile.from_dict(data)
-
-        db.session.commit()
-        return user.profile.to_dict(), 200
+    def update_profile(cls, user: "User", data) -> tuple[dict, int]:
+        return user.profile.update(data)
 
     @classmethod
     def delete(cls, id: int) -> tuple[dict[str, Any], int]:
         result = super().delete(id)
         UserProfile.delete(id)
         return result
-
-    ##
-    # External User Management - TODO: Check if this is still needed
-    ##
-
-    @classmethod
-    def get_all_external_json(cls, user, search):
-        users, count = cls.get_by_filter(search, user.organization)
-        items = [user.to_dict() for user in users]
-        return {"total_count": count, "items": items}
-
-    @classmethod
-    def add_new_external(cls, user, data):
-        permissions = Permission.get_external_permissions_ids()
-        data.pop("roles")
-        for permission in data["permissions"]:
-            if permission["id"] not in permissions:
-                data["permissions"].remove(permission)
-        user = cls.from_dict(data)
-        db.session.add(user)
-        db.session.commit()
-        return f"User {user.id} created", 201
-
-    @classmethod
-    def update_external(cls, user, user_id, data):
-        permissions = Permission.get_external_permissions_ids()
-        user = cls.query.get(user_id)
-        if user is None:
-            return f"User {user_id} not found", 404
-
-        updated_user = cls.from_dict(data)
-        if user.organization != updated_user.organization:
-            return f"User {user_id} could not be updated", 400
-        user.username = updated_user.username
-        user.name = updated_user.name
-
-        for permission in updated_user.permissions:
-            if permission and permission.id not in permissions:
-                updated_user.permissions.remove(permission)
-
-        user.permissions = updated_user.permissions
-
-        db.session.commit()
-        return f"User {user_id} updated", 200
 
 
 class UserRole(BaseModel):
@@ -211,31 +183,46 @@ class UserPermission(BaseModel):
 class UserProfile(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
 
-    spellcheck = db.Column(db.Boolean, default=True)
     dark_theme = db.Column(db.Boolean, default=False)
+    split_view = db.Column(db.Boolean, default=False)
+    compact_view = db.Column(db.Boolean, default=False)
+    show_charts = db.Column(db.Boolean, default=False)
 
-    hotkeys = db.relationship("Hotkey", cascade="all, delete-orphan")
+    hotkeys: Any = db.relationship("Hotkey", cascade="all, delete-orphan")
     language = db.Column(db.String(2), default="en")
 
-    def __init__(self, spellcheck=True, dark_theme=False, hotkeys=None, language="en", id=None):
+    def __init__(self, dark_theme=False, hotkeys=None, split_view=None, compact_view=None, show_charts=None, language="en", id=None):
         self.id = id
-        self.spellcheck = spellcheck
         self.dark_theme = dark_theme
-        self.hotkeys = hotkeys or []
+        self.split_view = split_view
+        self.compact_view = compact_view
+        self.show_charts = show_charts
+        self.hotkeys = Hotkey.from_dict(hotkeys) if hotkeys else []
         self.language = language
-
-    @classmethod
-    def from_dict(cls, data: dict):
-        hotkeys = [Hotkey.from_dict(hotkey) for hotkey in data["hotkeys"]]
-        return cls(data["spellcheck"], data["dark_theme"], hotkeys, data["language"])
 
     def to_dict(self):
         return {
-            "spellcheck": self.spellcheck,
+            "split_view": self.split_view,
+            "compact_view": self.compact_view,
+            "show_charts": self.show_charts,
             "dark_theme": self.dark_theme,
             "hotkeys": [hotkey.to_dict() for hotkey in self.hotkeys],
             "language": self.language,
         }
+
+    def update(self, data) -> tuple[dict[str, Any], int]:
+        self.dark_theme = data.pop("dark_theme", self.dark_theme)
+        self.language = data.pop("language", self.language)
+        self.split_view = data.pop("split_view", self.split_view)
+        self.compact_view = data.pop("compact_view", self.compact_view)
+        self.show_charts = data.pop("show_charts", self.show_charts)
+
+        hotkeys = data.pop("hotkeys", None)
+        if hotkeys is not None:
+            self.hotkeys = [Hotkey.from_dict(hotkey) for hotkey in hotkeys]
+
+        db.session.commit()
+        return {"message": "UserProfile updated", "id": f"{self.id}"}, 200
 
 
 class Hotkey(BaseModel):
@@ -254,5 +241,4 @@ class Hotkey(BaseModel):
 
     @classmethod
     def from_dict(cls, data: dict) -> "Hotkey":
-        logger.debug(data)
         return cls(data["key_code"], data["key"], data["alias"])

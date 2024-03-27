@@ -18,6 +18,7 @@
         <v-row no-gutters justify="center" align-content="center">
           <v-col cols="12">
             <v-text-field
+              ref="userfield"
               v-model="username"
               class="mx-2"
               :placeholder="$t('login.username')"
@@ -49,7 +50,6 @@
               type="submit"
               color="primary"
               :disabled="loginButtonDisabled"
-              @click="authenticate"
             />
           </v-col>
         </v-row>
@@ -63,7 +63,6 @@
 
 <script>
 import { useAuthStore } from '@/stores/AuthStore'
-import { useSettingsStore } from '@/stores/SettingsStore'
 import { defineComponent, ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
@@ -77,6 +76,7 @@ export default defineComponent({
     const login_error = ref(undefined)
     const router = useRouter()
     const authStore = useAuthStore()
+    const userfield = ref(null)
 
     const acceptPassword = computed(() =>
       password.value.length > 0 ? true : 'Please enter a password'
@@ -89,7 +89,6 @@ export default defineComponent({
     )
 
     const { isAuthenticated } = storeToRefs(authStore)
-    const { loadUserProfile } = useSettingsStore()
 
     const authenticate = () => {
       authStore
@@ -105,7 +104,6 @@ export default defineComponent({
           }
 
           login_error.value = undefined
-          loadUserProfile()
           router.push('/')
         })
     }
@@ -114,11 +112,13 @@ export default defineComponent({
       if (isAuthenticated.value) {
         router.push('/')
       }
+      userfield.value.focus()
     })
 
     return {
       username,
       password,
+      userfield,
       login_error,
       acceptPassword,
       acceptUser,

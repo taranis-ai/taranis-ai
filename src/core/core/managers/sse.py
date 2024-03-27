@@ -1,24 +1,27 @@
 import queue
 import json
-from flask import g
+from core.log import logger
 
 
 class SSE:
     def __init__(self):
         self.listeners = []
 
-    def listen(self):
+    def listen(self) -> queue.Queue:
         q = queue.Queue(maxsize=20)
         self.listeners.append(q)
         return q
 
-    def publish(self, data: str | dict, event=None):
+    def publish(self, data: str | dict, event=None, specific_listener=None):
+        logger.debug(f"Publishing SSE Event: {event} with data: {data}")
         msg = self.format_sse(data, event)
-        for i in reversed(range(len(self.listeners))):
+        target_listeners = [specific_listener] if specific_listener else self.listeners
+
+        for listener in target_listeners:
             try:
-                self.listeners[i].put_nowait(msg)
+                listener.put_nowait(msg)
             except queue.Full:
-                del self.listeners[i]
+                self.listeners.remove(listener)
 
     def format_sse(self, data: str | dict, event=None) -> str:
         """Formats a string and an event name in order to follow the event stream convention.

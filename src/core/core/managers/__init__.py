@@ -3,7 +3,6 @@ __all__ = [
     "asset_manager",
     "auth_manager",
     "db_manager",
-    "log_manager",
     "sse_manager",
     "queue_manager",
 ]

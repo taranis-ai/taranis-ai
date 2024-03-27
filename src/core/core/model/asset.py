@@ -7,12 +7,11 @@ from core.model.base_model import BaseModel
 from core.model.report_item import ReportItem
 from core.model.user import User
 from core.model.organization import Organization
-from core.managers.log_manager import logger
 
 
 class AssetCpe(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
-    value = db.Column(db.String())
+    value: Any = db.Column(db.String())
 
     asset_id = db.Column(db.Integer, db.ForeignKey("asset.id"))
     asset = db.relationship("Asset")
@@ -24,16 +23,16 @@ class AssetCpe(BaseModel):
 
 class Asset(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(), nullable=False)
-    serial = db.Column(db.String())
-    description = db.Column(db.String())
+    name: Any = db.Column(db.String(), nullable=False)
+    serial: Any = db.Column(db.String())
+    description: Any = db.Column(db.String())
 
-    asset_group_id = db.Column(db.String, db.ForeignKey("asset_group.id"))
-    asset_group = db.relationship("AssetGroup")
+    asset_group_id: Any = db.Column(db.String, db.ForeignKey("asset_group.id"))
+    asset_group: Any = db.relationship("AssetGroup")
 
-    asset_cpes = db.relationship("AssetCpe", cascade="all, delete-orphan", back_populates="asset")
+    asset_cpes: Any = db.relationship("AssetCpe", cascade="all, delete-orphan", back_populates="asset")
 
-    vulnerabilities = db.relationship("AssetVulnerability", cascade="all, delete-orphan", back_populates="asset")
+    vulnerabilities: Any = db.relationship("AssetVulnerability", cascade="all, delete-orphan", back_populates="asset")
     vulnerabilities_count = db.Column(db.Integer, default=0)
 
     def __init__(self, name, serial, description, group, asset_cpes=None, id=None):
@@ -234,17 +233,17 @@ class AssetVulnerability(BaseModel):
 
 class AssetGroup(BaseModel):
     id = db.Column(db.String(64), primary_key=True)
-    name = db.Column(db.String(), nullable=False)
-    description = db.Column(db.String())
+    name: Any = db.Column(db.String(), nullable=False)
+    description: Any = db.Column(db.String())
 
     organization_id = db.Column(db.Integer, db.ForeignKey("organization.id"))
-    organization = db.relationship("Organization")
+    organization: Any = db.relationship("Organization")
 
     def __init__(self, name, description, organization, id=None):
         self.id = id or str(uuid.uuid4())
         self.name = name
         self.description = description
-        self.organization = Organization.get(organization) if type(organization) == int else organization
+        self.organization = Organization.get(organization) if isinstance(organization, int) else organization
 
     @classmethod
     def access_allowed(cls, user: User, group_id: str):

@@ -1,18 +1,24 @@
 <template>
-  <v-row>
-    <v-col style="max-width: 110px" class="py-0">
+  <tr>
+    <td v-if="!compactView" style="max-width: 110px" class="py-0">
       <strong>{{ $t('assess.source') }}:</strong>
-    </v-col>
-    <v-col class="py-0" @click.stop>
+    </td>
+    <td class="py-0" @click.stop>
       <v-tooltip>
         <template #activator="{ props }">
-          <img v-if="icon" v-bind="props" :src="icon" :alt="source?.name" />
+          <img
+            v-if="icon"
+            v-bind="props"
+            :src="'data:image/png;base64,' + icon"
+            :alt="source?.name"
+            height="32"
+          />
           <v-icon v-else v-bind="props" :icon="typeIcon" />
         </template>
         <span>{{ source?.name }}</span>
       </v-tooltip>
-    </v-col>
-  </v-row>
+    </td>
+  </tr>
 </template>
 
 <script>
@@ -25,6 +31,10 @@ export default {
     newsItemData: {
       type: Object,
       required: true
+    },
+    compactView: {
+      type: Boolean,
+      default: false
     }
   },
   setup(props) {

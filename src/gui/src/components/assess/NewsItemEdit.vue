@@ -1,3 +1,4 @@
+
 <template>
   <v-form
     id="form"
@@ -7,10 +8,15 @@
     @submit.prevent="submit"
   >
     <v-card>
+      <v-card-title v-if="readOnly" style="background-color: #ffee00">
+        <h3>
+          Editing is prohibited for news items that are not manually created.
+        </h3>
+      </v-card-title>
       <v-card-text>
         <v-text-field
           v-model="news_item.title"
-          :label="$t('enter.title')"
+          :label="$t('form.title')"
           name="title"
           type="text"
           :rules="[rules.required]"
@@ -42,6 +48,8 @@
           type="text"
         />
 
+        <attributes-table v-model="news_item.attributes" />
+
         <code-editor
           v-model:content="news_item.content"
           :placeholder="placeholder"
@@ -49,7 +57,13 @@
       </v-card-text>
     </v-card>
     <v-spacer class="pt-2"></v-spacer>
-    <v-btn block class="mt-5" type="submit" color="success">
+    <v-btn
+      block
+      class="mt-5"
+      type="submit"
+      color="success"
+      :disabled="readOnly"
+    >
       {{ submitText }}
     </v-btn>
   </v-form>
@@ -59,15 +73,17 @@
 import { computed, ref, onMounted } from 'vue'
 import { addNewsItem, patchNewsItem } from '@/api/assess'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
-import { useMainStore } from '@/stores/MainStore'
+import { useUserStore } from '@/stores/UserStore'
 import CodeEditor from '@/components/common/CodeEditor.vue'
+import AttributesTable from '@/components/assess/AttributesTable.vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 export default {
   name: 'NewsItemEdit',
   components: {
-    CodeEditor
+    CodeEditor,
+    AttributesTable
   },
   props: {
     newsItemProp: {
@@ -77,9 +93,8 @@ export default {
     }
   },
   setup(props) {
-    const mainStore = useMainStore()
+    const userStore = useUserStore()
     const form = ref(null)
-    const user = computed(() => mainStore.user)
     const edit = ref(props.newsItemProp ? true : false)
     const router = useRouter()
     const { t } = useI18n()
@@ -93,10 +108,15 @@ export default {
       content: '',
       link: '',
       source: 'manual',
+      osint_source_id: 'manual',
       author: '',
       published: new Date(),
       collected: '',
       attributes: []
+    })
+
+    const readOnly = computed(() => {
+      return news_item.value.source !== 'manual'
     })
 
     const rules = {
@@ -125,7 +145,7 @@ export default {
         return
       }
 
-      news_item.value.author = user.value.name
+      news_item.value.author = userStore.name
       const d = new Date()
       news_item.value.collected = d.toISOString()
 
@@ -133,7 +153,6 @@ export default {
         const result = await addNewsItem(news_item.value)
 
         notifySuccess(result)
-        console.debug(result.data)
         router.push('/newsitem/' + result.data.ids[0])
       } catch (e) {
         notifyFailure(e)
@@ -157,6 +176,7 @@ export default {
       form,
       rules,
       placeholder,
+      readOnly,
       submitText,
       submit
     }

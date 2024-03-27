@@ -2,7 +2,7 @@ from flask import Response, request
 from flask_restx import Resource, Namespace, Api
 
 from core.managers import auth_manager, queue_manager
-from core.managers.log_manager import logger
+from core.log import logger
 from core.managers.auth_manager import auth_required
 from core.model import product, product_type
 

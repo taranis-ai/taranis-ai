@@ -1,5 +1,5 @@
 <template>
-  <v-container fluid style="min-height: 100vh">
+  <v-container fluid>
     <product-item
       v-if="readyToRender"
       :product-prop="product"
@@ -35,7 +35,7 @@ export default {
 
     const loadProducts = async () => {
       console.debug('Loading product', route.params.id)
-      if (route.params.id && route.params.id !== '0') {
+      if (route.params.id) {
         const response = await getProduct(route.params.id)
         return response.data
       }

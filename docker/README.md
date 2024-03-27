@@ -39,7 +39,7 @@ Use the application
 http://<url>:<TARANIS_PORT>/login
 ```
 
-## Development 
+## Development
 
 See [dev Readme](/dev/README.md) for a quick way to get a development environment running.
 

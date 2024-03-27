@@ -1,19 +1,7 @@
-from core.api import (
-    analyze,
-    assess,
-    assets,
-    auth,
-    bots,
-    config,
-    dashboard,
-    isalive,
-    publish,
-    publishers,
-    user,
-    worker,
-)
+from core.api import admin, analyze, assess, assets, auth, bots, config, dashboard, isalive, publish, user, task, worker, sse
 
 __all__ = [
+    "admin",
     "analyze",
     "assess",
     "assets",
@@ -23,7 +11,8 @@ __all__ = [
     "dashboard",
     "isalive",
     "publish",
-    "publishers",
     "user",
+    "task",
     "worker",
+    "sse",
 ]

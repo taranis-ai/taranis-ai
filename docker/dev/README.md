@@ -13,8 +13,8 @@ cd taranis-ai
 Install pre dependencies:
 * git
 * tmux
-* python3
-* nodejs
+* python3.11
+* nodejs >= 20
 * build-essentials
 * [podman](https://podman.io/docs/installation) or [docker](https://docs.docker.com/engine/install/)
 

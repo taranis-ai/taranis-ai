@@ -11,7 +11,7 @@ from flask_jwt_extended import (
 from flask_jwt_extended.exceptions import JWTExtendedException
 
 # from core.managers import queue_manager
-from core.managers.log_manager import logger
+from core.log import logger
 from core.auth.openid_authenticator import OpenIDAuthenticator
 from core.auth.test_authenticator import TestAuthenticator
 from core.auth.database_authenticator import DatabaseAuthenticator
@@ -94,14 +94,13 @@ def auth_required(permissions: list | str):
                 logger.store_auth_error_activity(f"Missing identity in JWT: {get_jwt()}")
                 return error
 
-            # does it include permissions?
-            claims = get_jwt()
-            user_claims = claims.get("user_claims")
-            if not user_claims:
-                logger.store_user_auth_error_activity(identity, "", "Missing permissions in JWT for identity")
+            # load user
+            user = User.find_by_name(identity)
+            if not user:
+                logger.store_user_auth_error_activity(identity, "", "Could not find User for JWT identity")
                 return error
 
-            permission_claims = set(user_claims.get("permissions"))
+            permission_claims = user.get_permissions()
 
             # is there at least one match with the permissions required by the call?
             if not permissions_set.intersection(permission_claims):
@@ -110,7 +109,7 @@ def auth_required(permissions: list | str):
                     "",
                     "Insufficient permissions in JWT for identity",
                 )
-                return error
+                return {"error": "forbidden"}, 403
 
             return fn(*args, **kwargs)
 

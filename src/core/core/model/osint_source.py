@@ -4,17 +4,18 @@ import base64
 from datetime import datetime
 from typing import Any
 from sqlalchemy import or_, and_
-from sqlalchemy.orm import deferred
+from sqlalchemy.orm import deferred, Mapped
 from sqlalchemy.exc import IntegrityError
 
 from core.managers.db_manager import db
-from core.managers.log_manager import logger
-from core.model.acl_entry import ACLEntry, ItemType
+from core.log import logger
+from core.model.role_based_access import RoleBasedAccess, ItemType
 from core.model.parameter_value import ParameterValue
 from core.model.word_list import WordList
 from core.model.base_model import BaseModel
 from core.model.queue import ScheduleEntry
 from core.model.worker import COLLECTOR_TYPES, Worker
+from core.service.role_based_access import RoleBasedAccessService, RBACQuery
 
 
 class OSINTSource(BaseModel):
@@ -22,21 +23,28 @@ class OSINTSource(BaseModel):
     name: Any = db.Column(db.String(), nullable=False)
     description: Any = db.Column(db.String())
 
-    type = db.Column(db.Enum(COLLECTOR_TYPES))
-    parameters = db.relationship("ParameterValue", secondary="osint_source_parameter_value", cascade="all, delete")
-    groups = db.relationship("OSINTSourceGroup", secondary="osint_source_group_osint_source")
+    type: Any = db.Column(db.Enum(COLLECTOR_TYPES))
+    parameters: Mapped[list[ParameterValue]] = db.relationship(
+        "ParameterValue", secondary="osint_source_parameter_value", cascade="all, delete"
+    )  # type: ignore
+    groups: Mapped[list["OSINTSourceGroup"]] = db.relationship(
+        "OSINTSourceGroup", secondary="osint_source_group_osint_source"
+    )  # type: ignore
 
-    icon = deferred(db.Column(db.LargeBinary))
+    icon: Any = deferred(db.Column(db.LargeBinary))
     state = db.Column(db.SmallInteger, default=0)
     last_collected = db.Column(db.DateTime, default=None)
     last_attempted = db.Column(db.DateTime, default=None)
     last_error_message = db.Column(db.String, default=None)
 
-    def __init__(self, name, description, type, parameters=None, id=None):
+    def __init__(self, name, description, type, parameters=None, icon=None, id=None):
         self.id = id or str(uuid.uuid4())
         self.name = name
         self.description = description
         self.type = type
+        if icon is not None and (icon_data := self.is_valid_base64(icon)):
+            self.icon = icon_data
+
         self.parameters = Worker.parse_parameters(type, parameters)
 
     @classmethod
@@ -46,8 +54,12 @@ class OSINTSource(BaseModel):
         ).all()
 
     @classmethod
-    def get_by_filter(cls, search=None):
+    def get_by_filter(cls, search=None, user=None, acl_check=False):
         query = cls.query
+
+        if acl_check:
+            rbac = RBACQuery(user=user, resource_type=ItemType.OSINT_SOURCE)
+            query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
 
         if search:
             search_string = f"%{search}%"
@@ -103,13 +115,19 @@ class OSINTSource(BaseModel):
         return {"id": self.to_task_id(), "task": "collector_task", "schedule": self.get_schedule(), "args": [self.id]}
 
     @classmethod
-    def get_all_with_type(cls):
-        sources, count = cls.get_by_filter(None)
+    def get_all_with_type(cls, search=None, user=None, acl_check=False):
+        sources, count = cls.get_by_filter(search, user, acl_check)
         items = [source.to_list() for source in sources]
         return {"total_count": count, "items": items}
 
     def to_list(self):
-        return {"id": self.id, "name": self.name, "description": self.description, "type": self.type}
+        return {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "type": self.type,
+            "icon": base64.b64encode(self.icon).decode("utf-8") if self.icon else None,
+        }
 
     @classmethod
     def get_all_by_type(cls, collector_type: str):
@@ -126,6 +144,12 @@ class OSINTSource(BaseModel):
         osint_source.schedule_osint_source()
         return osint_source
 
+    def is_valid_base64(self, s) -> bytes | None:
+        try:
+            return base64.b64decode(s, validate=True)
+        except Exception:
+            return None
+
     @classmethod
     def update(cls, osint_source_id, data):
         osint_source = cls.get(osint_source_id)
@@ -134,6 +158,9 @@ class OSINTSource(BaseModel):
         if name := data.get("name"):
             osint_source.name = name
         osint_source.description = data.get("description")
+        icon_str = data.get("icon")
+        if icon_str is not None and (icon := osint_source.is_valid_base64(icon_str)):
+            osint_source.icon = icon
         if parameters := data.get("parameters"):
             update_parameter = ParameterValue.get_or_create_from_list(parameters)
             osint_source.parameters = ParameterValue.get_update_values(osint_source.parameters, update_parameter)
@@ -280,8 +307,10 @@ class OSINTSourceGroup(BaseModel):
     description: Any = db.Column(db.String())
     default: Any = db.Column(db.Boolean(), default=False)
 
-    osint_sources = db.relationship("OSINTSource", secondary="osint_source_group_osint_source", back_populates="groups")
-    word_lists = db.relationship("WordList", secondary="osint_source_group_word_list")
+    osint_sources: Mapped[list["OSINTSource"]] = db.relationship(
+        "OSINTSource", secondary="osint_source_group_osint_source", back_populates="groups"
+    )  # type: ignore
+    word_lists: Mapped[list["WordList"]] = db.relationship("WordList", secondary="osint_source_group_word_list")  # type: ignore
 
     def __init__(self, name, description="", osint_sources=None, default=False, word_lists=None, id=None):
         self.id = id or str(uuid.uuid4())
@@ -335,32 +364,23 @@ class OSINTSourceGroup(BaseModel):
             ],
         }
 
-    @classmethod
-    def allowed_with_acl(cls, group_id, user, see: bool, access: bool, modify: bool) -> bool:
-        query = db.session.query(OSINTSourceGroup.id).distinct().group_by(OSINTSourceGroup.id).filter(OSINTSourceGroup.id == group_id)
+    def allowed_with_acl(self, user, require_write_access) -> bool:
+        if not RoleBasedAccess.is_enabled() or not user:
+            return True
 
-        query = query.outerjoin(
-            ACLEntry,
-            and_(
-                OSINTSourceGroup.id == ACLEntry.item_id,
-                ACLEntry.item_type == ItemType.OSINT_SOURCE_GROUP,
-            ),
+        query = RBACQuery(
+            user=user, resource_id=self.id, resource_type=ItemType.OSINT_SOURCE_GROUP, require_write_access=require_write_access
         )
-        query = ACLEntry.apply_query(query, user, see, access, modify)
-        acl_check_result = query.scalar() is not None
-        logger.log_debug(f"ACL Check for {group_id} results: {acl_check_result}")
 
-        return acl_check_result
+        return RoleBasedAccessService.user_has_access_to_resource(query)
 
     @classmethod
     def get_by_filter(cls, search, user, acl_check):
         query = cls.query.distinct().group_by(OSINTSourceGroup.id)
 
         if acl_check:
-            query = query.outerjoin(
-                ACLEntry, and_(OSINTSourceGroup.id == ACLEntry.item_id, ACLEntry.item_type == ItemType.OSINT_SOURCE_GROUP)
-            )
-            query = ACLEntry.apply_query(query, user, True, False, False)
+            rbac = RBACQuery(user=user, resource_type=ItemType.OSINT_SOURCE_GROUP)
+            query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
 
         if search:
             query = query.filter(

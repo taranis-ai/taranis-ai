@@ -3,8 +3,7 @@
     <DataTable
       v-model:items="word_lists.items"
       :add-button="true"
-      :header-filter="['tag', 'name', 'description', 'usage', 'actions']"
-      tag-icon="mdi-format-list-bulleted-square"
+      :header-filter="['name', 'description', 'usage', 'actions']"
       @delete-item="deleteItem"
       @edit-item="editItem"
       @add-item="addItem"
@@ -16,7 +15,7 @@
           accepts="application/json, text/csv"
           @import="importData"
           @export="exportData"
-        ></ImportExport>
+        />
       </template>
       <template #actionColumn="source">
         <v-tooltip left>
@@ -38,7 +37,7 @@
       :form-format="formFormat"
       :title="editTitle"
       @submit="handleSubmit"
-    ></EditConfig>
+    />
   </v-container>
 </template>
 
@@ -88,7 +87,7 @@ export default {
         name: 'name',
         label: 'Name',
         type: 'text',
-        rules: [(v) => !!v || 'Required']
+        rules: ['required']
       },
       {
         name: 'description',
@@ -109,7 +108,7 @@ export default {
           { value: 'COLLECTOR_EXCLUDELIST', label: 'Collector Excludelist' },
           { value: 'TAGGING_BOT', label: 'Tagging Bot' }
         ],
-        rules: [(v) => !!v || 'Required']
+        rules: ['required']
       },
       {
         name: 'entries',

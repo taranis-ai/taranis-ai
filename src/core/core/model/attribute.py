@@ -4,7 +4,7 @@ from sqlalchemy import func, or_
 from enum import Enum, auto
 from typing import Any
 
-from core.managers.log_manager import logger
+from core.log import logger
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 
@@ -26,25 +26,18 @@ class AttributeType(Enum):
     CPE = auto()
     CVE = auto()
     CVSS = auto()
-
-
-class AttributeValidator(Enum):
-    NONE = auto()
-    EMAIL = auto()
-    NUMBER = auto()
-    RANGE = auto()
-    REGEXP = auto()
+    STORY = auto()
 
 
 class AttributeEnum(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
-    index = db.Column(db.Integer)
-    value = db.Column(db.String(), nullable=False)
-    description = db.Column(db.String())
+    index: Any = db.Column(db.Integer)
+    value: Any = db.Column(db.String(), nullable=False)
+    description: Any = db.Column(db.String())
     imported = db.Column(db.Boolean, default=False)
 
-    attribute_id = db.Column(db.Integer, db.ForeignKey("attribute.id", ondelete="CASCADE"))
-    attribute = db.relationship("Attribute", cascade="all, delete")
+    attribute_id: Any = db.Column(db.Integer, db.ForeignKey("attribute.id", ondelete="CASCADE"))
+    attribute: Any = db.relationship("Attribute", cascade="all, delete")
 
     def __init__(self, index, value, description, id=None):
         self.id = id
@@ -133,22 +126,17 @@ class AttributeEnum(BaseModel):
 
 class Attribute(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(), nullable=False)
-    description = db.Column(db.String())
+    name: Any = db.Column(db.String(), nullable=False)
+    description: Any = db.Column(db.String())
     type = db.Column(db.Enum(AttributeType))
     default_value = db.Column(db.String(), default="")
 
-    validator = db.Column(db.Enum(AttributeValidator), default=AttributeValidator.NONE)
-    validator_parameter = db.Column(db.String())
-
-    def __init__(self, name, description, attribute_type, validator_parameter="", default_value="", validator=None, id=None):
+    def __init__(self, name, description, attribute_type, default_value="", id=None):
         self.id = id
         self.name = name
         self.description = description
         self.type = attribute_type
         self.default_value = default_value
-        self.validator = validator
-        self.validator_parameter = validator_parameter
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Attribute":
@@ -296,6 +284,7 @@ class Attribute(BaseModel):
             AttributeType.CPE: "mdi-laptop",
             AttributeType.CVE: "mdi-hazard-lights",
             AttributeType.CVSS: "mdi-counter",
+            AttributeType.STORY: "mdi-book-open-outline",
         }
         return switcher.get(self.type, "mdi-textbox")
 

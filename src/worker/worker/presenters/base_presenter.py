@@ -13,7 +13,7 @@ class BasePresenter:
 
     def generate(self, product, template) -> dict[str, bytes | str]:
         try:
-            env = jinja2.Environment(autoescape=True)
+            env = jinja2.Environment(autoescape=False)
             tmpl = env.from_string(template)
             product["current_date"] = datetime.datetime.now().strftime("%Y-%m-%d")
 

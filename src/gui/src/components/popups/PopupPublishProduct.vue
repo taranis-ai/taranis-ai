@@ -1,7 +1,9 @@
 <template>
   <v-card>
     <v-card-title> Publish Product </v-card-title>
-    <v-card-subtitle style="background-color: #ffff00;" > !!! EARLY ACCESS MIGHT NOT WORK !!! </v-card-subtitle>
+    <v-card-subtitle style="background-color: #ffff00">
+      !!! EARLY ACCESS MIGHT NOT WORK !!!
+    </v-card-subtitle>
     <v-card-text>
       Select a publisher:
       <v-select

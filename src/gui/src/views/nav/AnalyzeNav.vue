@@ -75,7 +75,7 @@ export default {
     })
 
     function addReport() {
-      router.push('/report/0')
+      router.push('/report/')
     }
 
     onMounted(() => {
@@ -83,7 +83,6 @@ export default {
         Object.entries(route.query).filter(([, v]) => v != null)
       )
       updateReportFilter(query)
-      console.debug('loaded with query', query)
     })
 
     onUnmounted(() => {

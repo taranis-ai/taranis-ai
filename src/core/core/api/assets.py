@@ -8,12 +8,12 @@ from core.model.attribute import AttributeType
 
 
 class AssetGroups(Resource):
-    @auth_required("MY_ASSETS_ACCESS")
+    @auth_required("ASSETS_ACCESS")
     def get(self):
         search = request.args.get("search", None)
         return asset.AssetGroup.get_all_json(auth_manager.get_user_from_jwt(), search)
 
-    @auth_required("MY_ASSETS_CONFIG")
+    @auth_required("ASSETS_CONFIG")
     def post(self):
         user = auth_manager.get_user_from_jwt()
         if not user:
@@ -27,24 +27,24 @@ class AssetGroups(Resource):
 
 
 class AssetGroup(Resource):
-    @auth_required("MY_ASSETS_CONFIG")
+    @auth_required("ASSETS_CONFIG")
     def put(self, group_id):
         asset.AssetGroup.update(auth_manager.get_user_from_jwt(), group_id, request.json)
 
-    @auth_required("MY_ASSETS_CONFIG")
+    @auth_required("ASSETS_CONFIG")
     def delete(self, group_id):
         return asset.AssetGroup.delete(auth_manager.get_user_from_jwt(), group_id)
 
 
 class Assets(Resource):
-    @auth_required("MY_ASSETS_ACCESS")
+    @auth_required("ASSETS_ACCESS")
     def get(self):
         filter_keys = ["search" "vulnerable", "group", "sort"]
         filter_args: dict[str, str | int] = {k: v for k, v in request.args.items() if k in filter_keys}
 
         return asset.Asset.get_all_json(auth_manager.get_user_from_jwt(), filter_args)
 
-    @auth_required("MY_ASSETS_CREATE")
+    @auth_required("ASSETS_CREATE")
     def post(self):
         user = auth_manager.get_user_from_jwt()
         if not user:
@@ -56,23 +56,23 @@ class Assets(Resource):
 
 
 class Asset(Resource):
-    @auth_required("MY_ASSETS_ACCESS")
+    @auth_required("ASSETS_ACCESS")
     def get(self, asset_id):
         if user := auth_manager.get_user_from_jwt():
             return asset.Asset.get_json(user.organization, asset_id)
         return {"message": "User not found"}, 404
 
-    @auth_required("MY_ASSETS_CREATE")
+    @auth_required("ASSETS_CREATE")
     def put(self, asset_id):
         return asset.Asset.update(auth_manager.get_user_from_jwt(), asset_id, request.json)
 
-    @auth_required("MY_ASSETS_CREATE")
+    @auth_required("ASSETS_CREATE")
     def delete(self, asset_id):
         return asset.Asset.delete(auth_manager.get_user_from_jwt(), asset_id)
 
 
 class AssetVulnerability(Resource):
-    @auth_required("MY_ASSETS_CREATE")
+    @auth_required("ASSETS_CREATE")
     def put(self, asset_id, vulnerability_id):
         data = request.json
         if not data or "solved" not in data:
@@ -86,14 +86,14 @@ class AssetVulnerability(Resource):
 
 
 class GetAttributeCPE(Resource):
-    @auth_required("MY_ASSETS_CREATE")
+    @auth_required("ASSETS_ACCESS")
     def get(self):
         cpe = attribute.Attribute.filter_by_type(AttributeType.CPE)
         return cpe.id
 
 
 class AttributeCPEEnums(Resource):
-    @auth_required("MY_ASSETS_CREATE")
+    @auth_required("ASSETS_ACCESS")
     def get(self):
         cpe = attribute.Attribute.filter_by_type(AttributeType.CPE)
         search = request.args.get("search")

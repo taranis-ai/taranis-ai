@@ -40,7 +40,8 @@ export default {
       const params = {
         page: page,
         per_page: itemsPerPage,
-        sort_by: sortBy.length > 0 ? `${sortBy[0].key}_${sortBy[0].order}` : null
+        sort_by:
+          sortBy.length > 0 ? `${sortBy[0].key}_${sortBy[0].order}` : null
       }
       console.debug('loadItems', params)
 

@@ -61,6 +61,16 @@
           density="compact"
           :disabled="true"
         />
+        <v-file-input
+          v-if="item.type === 'file'"
+          :rules="item.rules"
+          accept="image/png"
+          :label="item.label"
+          :placeholder="item.placeholder"
+          :prepend-icon="item.icon"
+          show-size
+          @change="handleFileUpload(item.flatKey, $event)"
+        />
         <v-row
           v-if="item.type === 'checkbox' && item.items !== undefined"
           no-gutters
@@ -121,7 +131,7 @@
 </template>
 
 <script>
-import { watch, computed, onUpdated } from 'vue'
+import { watch, computed, onUpdated, onMounted } from 'vue'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
@@ -162,6 +172,20 @@ export default {
         objectFromFormat(props.formFormat)
     )
 
+    const rulesDict = {
+      required: (v) => Boolean(v) || 'Required',
+      email: (v) => /.+@.+\..+/.test(v) || 'E-mail must be valid',
+      filesize: (v) =>
+        Boolean(v.length == 0) ||
+        Boolean(v[0].size < 2 * 1024 * 1024) ||
+        'Filesize must be less than 2MB',
+      tlp: (v) =>
+        ['red', 'amber', 'amber+strict', 'green', 'clear', undefined].includes(
+          v
+        ) ||
+        'Invalid TLP allowed values: red, amber, amber+strict, green, clear'
+    }
+
     const { d } = useI18n()
 
     const handleSubmit = async () => {
@@ -172,6 +196,20 @@ export default {
 
       emit('submit', reconstructFormData(formData.value, format.value))
     }
+    const handleFileUpload = async (flatKey, event) => {
+      if (!(event.target.files[0] instanceof Blob)) {
+        return
+      }
+
+      const base64String = await new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.readAsDataURL(event.target.files[0])
+        reader.onload = () => resolve(reader.result.split(',')[1])
+        reader.onerror = (error) => reject(error)
+      })
+      formData.value[flatKey] = base64String
+      return base64String
+    }
 
     const addItem = (name) => {
       const newRow = {}
@@ -181,6 +219,15 @@ export default {
           header.type === 'number' ? 0 : `new${header.value}`
       })
       formData.value[name].push(newRow)
+    }
+
+    const getRules = (rules) => {
+      if (!rules) {
+        return []
+      }
+      return rules
+        .filter((rule) => rulesDict[rule])
+        .map((rule) => rulesDict[rule])
     }
 
     const selectedParameters = computed(() => {
@@ -198,7 +245,8 @@ export default {
       return formats.map((item) => {
         return {
           ...item,
-          flatKey: item.parent ? `${item.parent}.${item.name}` : item.name
+          flatKey: item.parent ? `${item.parent}.${item.name}` : item.name,
+          rules: getRules(item.rules)
         }
       })
     })
@@ -208,6 +256,10 @@ export default {
       objectFromFormat(format.value)
 
     onUpdated(() => {
+      config_form.value.scrollIntoView({ behavior: 'smooth' })
+    })
+
+    onMounted(() => {
       config_form.value.scrollIntoView({ behavior: 'smooth' })
     })
 
@@ -227,7 +279,8 @@ export default {
       format,
       search,
       addItem,
-      handleSubmit
+      handleSubmit,
+      handleFileUpload
     }
   }
 }

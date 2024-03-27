@@ -5,6 +5,7 @@ Revises:
 Create Date: 2023-08-18 11:03:19.018534
 
 """
+
 from alembic import op
 import sqlalchemy as sa
 
@@ -84,8 +85,6 @@ def upgrade():
             nullable=True,
         ),
         sa.Column("default_value", sa.String(), nullable=True),
-        sa.Column("validator", sa.Enum("NONE", "EMAIL", "NUMBER", "RANGE", "REGEXP", name="attributevalidator"), nullable=True),
-        sa.Column("validator_parameter", sa.String(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_table(
@@ -232,7 +231,9 @@ def upgrade():
     op.create_table(
         "user_profile",
         sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("spellcheck", sa.Boolean(), nullable=True),
+        sa.Column("split_view", sa.Boolean(), nullable=True),
+        sa.Column("compact_view", sa.Boolean(), nullable=True),
+        sa.Column("show_charts", sa.Boolean(), nullable=True),
         sa.Column("dark_theme", sa.Boolean(), nullable=True),
         sa.Column("language", sa.String(length=2), nullable=True),
         sa.PrimaryKeyConstraint("id"),

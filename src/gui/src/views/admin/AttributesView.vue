@@ -52,13 +52,13 @@ export default {
         name: 'name',
         label: 'Name',
         type: 'text',
-        rules: [(v) => !!v || 'Required']
+        rules: ['required']
       },
       {
         name: 'description',
         label: 'Description',
         type: 'textarea',
-        rules: [(v) => !!v || 'Required']
+        rules: ['required']
       },
       {
         name: 'default_value',
@@ -85,20 +85,10 @@ export default {
           'TLP',
           'CVE',
           'CPE',
-          'CVSS'
+          'CVSS',
+          'STORY'
         ],
-        rules: [(v) => !!v || 'Required']
-      },
-      {
-        name: 'validator',
-        label: 'Validator',
-        type: 'select',
-        items: ['NONE', 'EMAIL', 'NUMBER', 'RANGE', 'REGEXP']
-      },
-      {
-        name: 'validator_parameter',
-        label: 'Validator Parameter',
-        type: 'text'
+        rules: ['required']
       }
     ]
     const configStore = useConfigStore()

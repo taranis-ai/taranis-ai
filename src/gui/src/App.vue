@@ -17,10 +17,9 @@ import MainMenu from '@/components/MainMenu.vue'
 import Notification from '@/components/common/Notification.vue'
 import { defineComponent, onMounted, watch } from 'vue'
 import { useAuthStore } from '@/stores/AuthStore'
-import { useAssessStore } from '@/stores/AssessStore'
 import { useFilterStore } from '@/stores/FilterStore'
 import { useMainStore } from '@/stores/MainStore'
-import { connectSSE } from '@/utils/sse'
+import { useSseStore } from '@/stores/SseStore'
 import { storeToRefs } from 'pinia'
 import { useDisplay } from 'vuetify'
 
@@ -33,26 +32,27 @@ export default defineComponent({
   setup() {
     const { isAuthenticated, timeToRefresh } = storeToRefs(useAuthStore())
     const authStore = useAuthStore()
-    const assessStore = useAssessStore()
+    const sseStore = useSseStore()
     const { compactView, compactViewSetByUser } = storeToRefs(useFilterStore())
     const { drawerVisible, drawerSetByUser } = storeToRefs(useMainStore())
+    const { isConnected } = storeToRefs(sseStore)
 
     const { mdAndDown, lgAndDown, name: displayName } = useDisplay()
 
-    onMounted(() => {
-      console.debug('App mounted')
-      assessStore.$reset()
+    if (!isConnected.value) {
       if (isAuthenticated.value) {
-        connectSSE()
-      } else {
-        authStore.logout()
+        sseStore.connectSSE()
       }
+    }
+
+    onMounted(() => {
+      isAuthenticated.value || authStore.logout()
+
       if (timeToRefresh.value > 0) {
         setTimeout(() => {
           console.debug('Refreshing token')
           if (isAuthenticated.value) {
             authStore.refresh()
-            // reconnectSSE() # TODO: Implement see Issue #102
           }
         }, timeToRefresh.value)
       }
@@ -92,7 +92,6 @@ export default defineComponent({
 </script>
 
 <style src="./assets/common.css"></style>
-<style src="./assets/centralize.css"></style>
 
 <style lang="scss">
 @import '@/styles/awake.scss';
@@ -107,11 +106,5 @@ export default defineComponent({
     font-size: 0.95rem;
     font-weight: 300;
   }
-}
-
-mark {
-  background-color: $primary;
-  color: white;
-  padding: 2px 5px;
 }
 </style>

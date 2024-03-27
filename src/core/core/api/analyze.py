@@ -4,7 +4,7 @@ from flask_restx import Resource, Namespace, Api
 
 from core.managers import asset_manager, auth_manager
 from core.managers.sse_manager import sse_manager
-from core.managers.log_manager import logger
+from core.log import logger
 from core.managers.auth_manager import auth_required
 from core.managers.input_validators import validate_id
 from core.model import report_item, report_item_type
@@ -62,7 +62,7 @@ class ReportItem(Resource):
             abort(401, "Unauthorized")
         if status == 200 and new_report_item:
             asset_manager.report_item_changed(new_report_item)
-            sse_manager.report_items_updated()
+            sse_manager.report_item_updated({"id": new_report_item.id, "action": "add"})
 
         return new_report_item.to_detail_dict(), status
 
@@ -80,7 +80,7 @@ class ReportItem(Resource):
     def delete(self, report_item_id):
         result, code = report_item.ReportItem.delete(report_item_id)
         if code == 200:
-            sse_manager.report_items_updated()
+            sse_manager.report_item_updated({"id": report_item_id, "action": "delete"})
         return result, code
 
 
@@ -88,7 +88,7 @@ class ReportItemLocks(Resource):
     @auth_required("ANALYZE_UPDATE")
     @validate_id("report_item_id")
     def get(self, report_item_id):
-        return sse_manager.to_json(report_item_id)
+        return sse_manager.to_report_item_json(report_item_id)
 
 
 class ReportItemLock(Resource):
@@ -155,7 +155,7 @@ class ReportItemAttachment(Resource):
     def get(self, report_item_id, attribute_id):
         if report_item_attribute := report_item.ReportItemAttribute.get(attribute_id):
             return send_file(
-                io.BytesIO(report_item_attribute.binary_data),
+                io.BytesIO(report_item_attribute.binary_data),  # type: ignore
                 download_name=report_item_attribute.value,
                 mimetype=report_item_attribute.binary_mime_type,
                 as_attachment=True,

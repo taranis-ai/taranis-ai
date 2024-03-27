@@ -1,5 +1,5 @@
 <template>
-  <div class="vertical-button-group ml-2">
+  <div class="ml-2 vertical-button-group">
     <filter-button
       v-model="newsItemsFilter['read']"
       label="read"

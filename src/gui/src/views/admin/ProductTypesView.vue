@@ -15,16 +15,7 @@
       :config-data="formData"
       :title="editTitle"
       @submit="handleSubmit"
-    >
-      <template #additionalData>
-        <code-editor
-          v-if="showForm"
-          v-model:content="templateData"
-          class="mb-3"
-          header="Template Content"
-        />
-      </template>
-    </EditConfig>
+    />
   </v-container>
 </template>
 
@@ -46,14 +37,12 @@ import { useConfigStore } from '@/stores/ConfigStore'
 import { useMainStore } from '@/stores/MainStore'
 import { ref, computed, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
-import CodeEditor from '@/components/common/CodeEditor.vue'
 
 export default {
   name: 'ProductTypesView',
   components: {
     DataTable,
-    EditConfig,
-    CodeEditor
+    EditConfig
   },
   setup() {
     const configStore = useConfigStore()
@@ -63,8 +52,6 @@ export default {
     const edit = ref(false)
     const presenterList = ref([])
     const showForm = ref(false)
-
-    const templateData = ref('')
 
     const { product_types, presenter_types, report_item_types } =
       storeToRefs(configStore)
@@ -81,7 +68,7 @@ export default {
           name: 'title',
           label: 'Title',
           type: 'text',
-          rules: [(v) => Boolean(v) || 'Required']
+          rules: ['required']
         },
         {
           name: 'description',
@@ -93,14 +80,7 @@ export default {
           label: 'Type',
           type: 'select',
           items: presenterList.value,
-          rules: [(v) => Boolean(v) || 'Required']
-        },
-        {
-          name: 'TEMPLATE_PATH',
-          parent: 'parameters',
-          label: 'Template',
-          type: 'select',
-          items: product_types.value.templates
+          rules: ['required']
         },
         {
           name: 'report_types',
@@ -108,11 +88,24 @@ export default {
           type: 'table',
           headers: [{ title: 'Name', key: 'title' }],
           items: report_item_types.value.items
+        },
+        {
+          name: 'TEMPLATE_PATH',
+          parent: 'parameters',
+          label: 'Template',
+          type: 'select',
+          items: product_types.value.templates
         }
       ]
     })
 
-    const updateData = () => {
+    const editTitle = computed(() => {
+      return edit.value
+        ? `Edit Product Type: ${formData.value['title']}`
+        : 'Add Product Type'
+    })
+
+    function updateData() {
       configStore.loadProductTypes().then(() => {
         mainStore.itemCountTotal = product_types.value.total_count
         mainStore.itemCountFiltered = product_types.value.length
@@ -132,32 +125,22 @@ export default {
       })
     }
 
-    const addItem = () => {
+    function addItem() {
       formData.value = {}
       edit.value = false
       showForm.value = true
     }
 
-    const editItem = (item) => {
+    function editItem(item) {
       formData.value = item
       getProductType(item.id).then((response) => {
-        console.debug('REPORT TYPES', response.data.report_types)
         formData.value['report_types'] = response.data.report_types
-        templateData.value =
-          response.data.template === '' ? atob(response.data.template) : ''
         edit.value = true
         showForm.value = true
       })
     }
 
-    const editTitle = computed(() => {
-      return edit.value
-        ? `Edit Product Type: ${formData.value['title']}`
-        : 'Add Product Type'
-    })
-
-    const handleSubmit = (submittedData) => {
-      delete submittedData.tag
+    function handleSubmit(submittedData) {
       console.debug('submittedData', submittedData)
       if (edit.value) {
         updateItem(submittedData)
@@ -167,7 +150,7 @@ export default {
       showForm.value = false
     }
 
-    const createItem = (item) => {
+    function createItem(item) {
       createProductType(item)
         .then(() => {
           notifySuccess(`Successfully created ${item.name}`)
@@ -178,7 +161,7 @@ export default {
         })
     }
 
-    const deleteItem = (item) => {
+    function deleteItem(item) {
       showForm.value = false
       deleteProductType(item)
         .then((response) => {
@@ -190,7 +173,7 @@ export default {
         })
     }
 
-    const updateItem = (item) => {
+    function updateItem(item) {
       updateProductType(item)
         .then((response) => {
           notifySuccess(response.data.message)
@@ -211,7 +194,6 @@ export default {
       formFormat,
       editTitle,
       showForm,
-      templateData,
       addItem,
       editItem,
       handleSubmit,

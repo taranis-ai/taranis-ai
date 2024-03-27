@@ -10,6 +10,7 @@ class TestAssessApi(BaseTest):
         It expects a valid data and a valid status-code
         """
         response = self.assert_get_ok(client, "osint-source-groups", auth_header)
+        assert response.get_json()["total_count"] == 1
         assert response.get_json()["items"][0]["id"] == "default"
 
     def test_get_OSINTSourceGroupsAssess_unauth(self, client):
@@ -19,26 +20,14 @@ class TestAssessApi(BaseTest):
         """
         self.assert_get_failed(client, "osint-source-groups")
 
-    def test_get_OSINTSourceGroupsList_auth(self, client, auth_header):
-        """
-        This test queries the OSINTSourceGroupsList authenticated.
-        It expects a valid data and a valid status-code
-        """
-        self.assert_get_ok(client, "osint-source-group-list", auth_header)
-
-    def test_get_OSINTSourceGroupsList_unauth(self, client):
-        """
-        This test queries the OSINTSourceGroupsList UNauthenticated.
-        It expects "not authorized"
-        """
-        self.assert_get_failed(client, "osint-source-group-list")
-
     def test_get_OSINTSourcesList_auth(self, client, auth_header):
         """
         This test queries the OSINTSourcesList authenticated.
-        It expects a valid data and a valid status-code
+        It expects 1 OSINTSource ("manual") retured
         """
-        self.assert_get_ok(client, "osint-sources-list", auth_header)
+        response = self.assert_get_ok(client, "osint-sources-list", auth_header)
+        assert response.get_json()["total_count"] == 1
+        assert response.get_json()["items"][0]["id"] == "manual"
 
     def test_get_OSINTSourcesList_unauth(self, client):
         """
@@ -47,33 +36,31 @@ class TestAssessApi(BaseTest):
         """
         self.assert_get_failed(client, "osint-sources-list")
 
-    # def test_post_AddNewsItem_auth(self, client, news_item_aggregates, auth_header):
-    #     """
-    #     This test queries the AddNewsItem authenticated.
-    #     It expects a valid data and a valid status-code
-    #     """
-    #     attribs = {"key": "1293", "value": "some value", "binary_mime_type": "dGVzdAo=", "binary_value": "dGVzdAo="}
+    def test_post_AddNewsItem_auth(self, client, news_item_aggregates, auth_header):
+        """
+        This test queries the AddNewsItem authenticated.
+        It expects a valid data and a valid status-code
+        """
+        attribs = {"key": "1293", "value": "some value", "binary_mime_type": "dGVzdAo=", "binary_value": "dGVzdAo="}
 
-    #     news_item = {
-    #         "id": "1337",
-    #         "title": "test title",
-    #         "review": "test review",
-    #         "source": "test source",
-    #         "link": "https://linky.link.lnk",
-    #         "hash": "test hash",
-    #         "published": "2022-02-21T15:00:15.086285",
-    #         "author": "James Bond",
-    #         "content": "Diamonds are forever",
-    #         "collected": "2022-02-21T15:00:14.086285",
-    #         "attributes": [attribs],
-    #     }
-    #     before = news_item_data.count_all()
-    #     response = client.post("/api/assess/news-items", json=news_item, headers=auth_header)
-    #     assert response
-    #     assert response.content_type == "application/json"
-    #     assert response.data
-    #     assert response.status_code == 200
-    #     assert before < news_item_data.count_all()
+        news_item = {
+            "title": "test title",
+            "review": "test review",
+            "source": "test source",
+            "link": "https://linky.link.lnk",
+            "hash": "test hash",
+            "published": "2022-02-21T15:00:15.086285",
+            "author": "James Bond",
+            "content": "Diamonds are forever",
+            "collected": "2022-02-21T15:00:14.086285",
+            "attributes": [attribs],
+        }
+        response = client.post("/api/assess/news-items", json=news_item, headers=auth_header)
+        assert response
+        assert response.content_type == "application/json"
+        assert response.data
+        assert response.status_code == 200
+        assert len(response.get_json()["ids"]) == 1
 
     def test_post_AddNewsItem_unauth(self, client, news_items_data):
         """
@@ -83,7 +70,6 @@ class TestAssessApi(BaseTest):
         attribs = {"key": "1293", "value": "some value", "binary_mime_type": "dGVzdAo=", "binary_value": "dGVzdAo="}
 
         news_item = {
-            "id": "1337",
             "title": "test title",
             "review": "test review",
             "source": "test source",
@@ -163,7 +149,7 @@ class TestAssessApi(BaseTest):
         assert response.data
         assert response.content_type == "application/json"
         assert response.status_code == 200
-        assert len(response.get_json()["items"]) == 2
+        assert len(response.get_json()["items"]) == 3
 
     def test_get_NewsItemAggregatesTags_unauth(self, client):
         """

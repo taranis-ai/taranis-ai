@@ -8,11 +8,11 @@ from core.model.base_model import BaseModel
 
 class Organization(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(), nullable=False)
-    description = db.Column(db.String())
+    name: Any = db.Column(db.String(), nullable=False)
+    description: Any = db.Column(db.String())
 
     address_id = db.Column(db.Integer, db.ForeignKey("address.id"))
-    address = db.relationship("Address", cascade="all")
+    address: Any = db.relationship("Address", cascade="all")
 
     def __init__(self, name, description=None, address=None, id=None):
         self.id = id
@@ -26,6 +26,12 @@ class Organization(BaseModel):
         data["address"] = self.address.to_dict() if self.address else None
         data.pop("address_id")
         return data
+
+    def to_user_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+        }
 
     @classmethod
     def get_all(cls):

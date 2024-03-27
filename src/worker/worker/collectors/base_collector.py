@@ -1,3 +1,4 @@
+import contextlib
 import datetime
 import hashlib
 import uuid
@@ -57,9 +58,17 @@ class BaseCollector:
 
         return items
 
+    def add_tlp(self, news_items, tlp_level):
+        for item in news_items:
+            item["attributes"].append({"key": "TLP", "value": tlp_level})
+        return news_items
+
     # Use filtered_items for further processing
 
     def collect(self, source: dict):
+        pass
+
+    def preview_collector(self, source: dict):
         pass
 
     def sanitize_html(self, html: str):
@@ -72,6 +81,9 @@ class BaseCollector:
     def sanitize_date(self, date: str | None):
         if isinstance(date, datetime.datetime):
             return date.isoformat()
+        if isinstance(date, str):
+            with contextlib.suppress(ValueError):
+                return datetime.datetime.fromisoformat(date).isoformat()
         return datetime.datetime.now().isoformat()
 
     def sanitize_news_item(self, item: dict, source: dict):
@@ -87,16 +99,25 @@ class BaseCollector:
         item["source"] = self.sanitize_url(item.get("source", ""))
         item["link"] = self.sanitize_url(item.get("link", ""))
         item["hash"] = item.get("hash", hashlib.sha256((item["author"] + item["title"] + item["link"]).encode()).hexdigest())
+        return item
+
+    def preview(self, news_items: list[dict], source: dict):
+        news_items = self.process_news_items(news_items, source)
+        logger.info(f"Previewing {len(news_items)} news items")
+        return news_items
+
+    def process_news_items(self, news_items: list[dict], source: dict) -> list[dict]:
+        if "word_lists" in source:
+            news_items = self.filter_by_word_list(news_items, source)
+        if tlp_level := source["parameters"].get("TLP_LEVEL", None):
+            news_items = self.add_tlp(news_items, tlp_level)
+
+        for item in news_items:
+            item = self.sanitize_news_item(item, source)
+        return news_items
 
     def publish(self, news_items: list[dict], source: dict):
-        if "word_lists" in source:
-            news_items = self.filter_by_word_list(news_items, source)
-        for item in news_items:
-            item = self.sanitize_news_item(item, source)
+        news_items = self.process_news_items(news_items, source)
         logger.info(f"Publishing {len(news_items)} news items to core api")
-        for item in news_items:
-            item = self.sanitize_news_item(item, source)
-        if "word_lists" in source:
-            news_items = self.filter_by_word_list(news_items, source)
         self.core_api.add_news_items(news_items)
         self.core_api.update_osintsource_status(source["id"], None)

@@ -75,6 +75,23 @@ export function exportReportTypes(filter) {
   )
 }
 
+export function getAllTemplates(filter_data) {
+  const filter = apiService.getQueryStringFromNestedObject(filter_data)
+  return apiService.get(`/config/templates?${filter}`)
+}
+
+export function deleteTemplate(template_path) {
+  return apiService.delete(`/config/templates/${template_path}`)
+}
+
+export function updateTemplate(template) {
+  return apiService.put('/config/templates', template)
+}
+
+export function getTemplate(template_path) {
+  return apiService.get(`/config/templates/${template_path}`)
+}
+
 export function getAllProductTypes(filter_data) {
   const filter = apiService.getQueryStringFromNestedObject(filter_data)
   return apiService.get(`/config/product-types?${filter}`)
@@ -96,7 +113,6 @@ export function updateProductType(product_type) {
 }
 
 export function getProductType(product_type_id) {
-  console.debug('product_type', product_type_id)
   return apiService.get(`/config/product-types/${product_type_id}`)
 }
 
@@ -239,6 +255,10 @@ export function getQueueStatus() {
   return apiService.get('/config/workers/queue-status')
 }
 
+export function getQueueTasks() {
+  return apiService.get('/config/workers/tasks')
+}
+
 export function getAllSchedule() {
   return apiService.get('/config/workers/schedule')
 }
@@ -259,6 +279,15 @@ export function createOSINTSource(source) {
 export function collectOSINTSSource(source_id) {
   return apiService.post(`/config/osint-sources/${source_id}/collect`)
 }
+
+export function previewOSINTSSource(source_id) {
+  return apiService.post(`/config/osint-sources/${source_id}/preview`)
+}
+
+export function getOSINTSSourcePreview(source_id) {
+  return apiService.get(`/config/osint-sources/${source_id}/preview`)
+}
+
 
 export function collectAllOSINTSSources() {
   return apiService.post('/config/osint-sources/collect')

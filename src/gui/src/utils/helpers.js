@@ -69,41 +69,52 @@ export function emptyValues(obj) {
 
 export function objectFromFormat(format) {
   const newObject = {}
-  format.map(function (item) {
-    if (item === undefined || item.disabled) {
+
+  format.forEach((item) => {
+    if (!item || item.disabled) {
       return
     }
-    if (item.type === 'switch') {
-      newObject[item.name] = false
-    } else if (
-      item.type === 'text' ||
-      item.type === 'textarea' ||
-      item.type === 'select'
-    ) {
-      newObject[item.name] = ''
-    } else if (item.type === 'number') {
-      newObject[item.name] = 0
-    } else if (item.type === 'table' || item.type === 'checkbox') {
-      newObject[item.name] = []
-    }
+    newObject[item.name] = formDataDefaultValues(item.type)
   })
+
   return flattenFormData(newObject, format)
 }
 
 export function flattenFormData(data, format) {
   const flattened = {}
-  format.forEach((item) => {
-    const key = item.parent ? `${item.parent}.${item.name}` : item.name
-    if (item.parent) {
-      if (!data[item.parent]) {
-        data[item.parent] = {}
-      }
-      flattened[key] = data[item.parent][item.name]
+  const getValueOrDefault = (value, type) =>
+    value === '' ? formDataDefaultValues(type) : value
+
+  format.forEach(({ parent, name, type }) => {
+    const key = parent ? `${parent}.${name}` : name
+    if (parent) {
+      data[parent] = data[parent] || {}
+
+      flattened[key] = getValueOrDefault(data[parent][name], type)
     } else {
-      flattened[key] = data[item.name]
+      flattened[key] = getValueOrDefault(data[name], type)
     }
   })
+
   return flattened
+}
+
+function formDataDefaultValues(format_type) {
+  switch (format_type) {
+    case 'switch':
+      return false
+    case 'text':
+    case 'textarea':
+    case 'select':
+      return ''
+    case 'number':
+      return 0
+    case 'table':
+    case 'checkbox':
+      return []
+    default:
+      return ''
+  }
 }
 
 // Reconstruct the data based on format
@@ -240,7 +251,7 @@ export const baseFormat = [
     name: 'name',
     label: 'Name',
     type: 'text',
-    rules: [(v) => Boolean(v) || 'Required']
+    rules: ['required']
   },
   {
     name: 'description',
@@ -252,23 +263,54 @@ export const baseFormat = [
 export function removeRegexSpecialChars(string) {
   return string.replace(/[.*+?^${}()<>|[\]\\]/g, '')
 }
-export function highlight_text(content) {
-  const filterStore = useFilterStore()
-  if (!content) {
-    return ''
-  }
-  let input = filterStore.newsItemsFilter.search
-  if (filterStore.newsItemsFilter.tags?.length === 1) {
-    input = input || filterStore.newsItemsFilter.tags[0]
-  }
-  if (!filterStore.highlight || !input) {
+export function markText(content, search) {
+  if (!search || search.length === 0) {
     return content
   }
-  const term = removeRegexSpecialChars(input)
-  let results = content
-  results = results.replace(
+  const term = removeRegexSpecialChars(search)
+  return content.replace(
     new RegExp(term, 'gi'),
     (match) => `<mark>${match}</mark>`
   )
+}
+
+export function highlight_text(content) {
+  const filterStore = useFilterStore()
+  if (!filterStore.highlight || !content) {
+    return content
+  }
+  const input = []
+
+  if (
+    filterStore.newsItemsFilter.search &&
+    filterStore.newsItemsFilter.search.length > 0
+  ) {
+    filterStore.newsItemsFilter.search.split(' ').forEach((word) => {
+      input.push(word)
+    })
+  }
+  if (
+    filterStore.newsItemsFilter.tags &&
+    filterStore.newsItemsFilter.tags.length > 0
+  ) {
+    filterStore.newsItemsFilter.tags.forEach((tag) => {
+      input.push(tag)
+    })
+  }
+
+  let results = content
+
+  input.forEach((term) => {
+    results = markText(results, term)
+  })
+
   return results
 }
+
+export const tlpLevels = [
+  { title: 'Clear', value: 'clear' },
+  { title: 'Green', value: 'green' },
+  { title: 'Amber', value: 'amber' },
+  { title: 'Amber+Strict', value: 'amber+strict' },
+  { title: 'Red', value: 'red' }
+]

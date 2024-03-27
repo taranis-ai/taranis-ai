@@ -3,49 +3,47 @@
     :ripple="false"
     elevation="3"
     :rounded="false"
-    class="no-gutters align-self-stretch mb-1 news-item-card"
+    class="no-gutters align-self-stretch ma-2 mb-0 news-item-card"
     :class="{
       selected: selected
     }"
     @click="toggleSelection"
   >
-    <v-row>
-      <v-col
-        cols="12"
-        sm="12"
-        lg="6"
-        class="d-flex flex-grow-1 mt-3 px-5 py-3 order-first"
-        align-self="center"
-      >
-        <h2 class="news-item-title">
-          {{ title }}
-        </h2>
-      </v-col>
+    <v-container fluid style="min-height: 112px" class="pa-0 pl-0">
+      <v-row class="pl-2">
+        <v-col class="d-flex">
+          <v-row class="py-1 px-1">
+            <v-col cols="12" :lg="content_cols" class="mr-1">
+              <v-container class="d-flex pa-0">
+                <h2
+                  v-dompurify-html="title"
+                  class="mb-1 mt-0 news-item-title"
+                />
+              </v-container>
 
-      <NewsItemActions
-        :news-item="newsItem"
-        :story="story"
-        :detail-view="detailView"
-        @delete-item="deleteNewsItem"
-        @open-card="openCard()"
-      />
-      <v-col
-        cols="12"
-        sm="12"
-        lg="6"
-        class="px-5 pb-5 order-lg-3 order-md-2"
-        align-self="stretch"
-      >
-        <summarized-content
-          :open="openSummary"
-          :is_summarized="false"
-          :content="description"
-        />
-      </v-col>
-      <v-col class="px-5 pt-2 pb-3 order-4" cols="12" sm="12" lg="6">
-        <news-meta-info :news-item="newsItem" />
-      </v-col>
-    </v-row>
+              <summarized-content
+                :open="openSummary"
+                :is_summarized="false"
+                :content="description"
+              />
+            </v-col>
+
+            <v-col cols="12" class="meta-info-col mr-n1" :lg="meta_cols">
+              <news-meta-info :news-item="newsItem" />
+            </v-col>
+          </v-row>
+        </v-col>
+        <v-col class="action-bar mr-2">
+          <NewsItemActions
+            :news-item="newsItem"
+            :story="story"
+            :detail-view="detailView"
+            @delete-item="deleteNewsItem"
+            @open-card="openCard()"
+          />
+        </v-col>
+      </v-row>
+    </v-container>
   </v-card>
 </template>
 
@@ -55,6 +53,8 @@ import NewsItemActions from '@/components/assess/card/NewsItemActions.vue'
 import NewsMetaInfo from '@/components/assess/card/NewsMetaInfo.vue'
 import { useAssessStore } from '@/stores/AssessStore'
 import { ref, computed } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useFilterStore } from '@/stores/FilterStore'
 
 export default {
   name: 'CardNewsItem',
@@ -73,7 +73,8 @@ export default {
       required: false,
       default: null
     },
-    detailView: Boolean
+    detailView: Boolean,
+    openView: Boolean
   },
   emits: ['deleteItem', 'refresh'],
   setup(props, { emit }) {
@@ -83,12 +84,24 @@ export default {
     const selected = computed(() =>
       assessStore.newsItemSelection.includes(props.newsItem.id)
     )
+    const { compactView } = storeToRefs(useFilterStore())
 
     const description = computed(
       () =>
         props.newsItem.news_item_data?.content ||
         props.newsItem.news_item_data?.review
     )
+
+    const content_cols = computed(() => {
+      if (props.reportView || compactView.value || props.detailView) {
+        return 10
+      }
+      return 8
+    })
+
+    const meta_cols = computed(() => {
+      return 12 - content_cols.value
+    })
 
     const openCard = () => {
       openSummary.value = !openSummary.value
@@ -113,6 +126,8 @@ export default {
       openCard,
       toggleSelection,
       deleteNewsItem,
+      meta_cols,
+      content_cols
     }
   }
 }
@@ -121,16 +136,7 @@ export default {
 <style scoped lang="scss">
 .news-item-card {
   border: 2px solid white;
-  &:hover {
-    transition: border-color 180ms;
-    border-color: color-mix(
-      in srgb,
-      rgb(var(--v-theme-secondary)) 50%,
-      #ffffff
-    );
-  }
   &.selected {
-    // background-color: #c3b66c;
     background-color: color-mix(
       in srgb,
       rgb(var(--v-theme-secondary)) 5%,

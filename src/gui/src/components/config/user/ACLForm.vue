@@ -3,9 +3,6 @@
     <span v-if="edit" class="caption">ID: {{ acl.id }}</span>
     <v-form id="form" ref="form" validate-on="submit" @submit.prevent="add">
       <v-row no-gutters>
-        <v-btn type="submit" color="success" class="mr-4"> Submit </v-btn>
-      </v-row>
-      <v-row no-gutters>
         <v-col cols="12" class="pa-1">
           <v-text-field
             v-model="acl.name"
@@ -20,7 +17,6 @@
             v-model="acl.description"
             :label="$t('acl.description')"
             name="description"
-            :rules="[rules.required]"
           />
         </v-col>
         <v-col cols="6" class="pa-1">
@@ -35,64 +31,45 @@
           />
         </v-col>
         <v-col cols="6" class="pa-1">
-          <v-text-field
+          <v-combobox
             v-model="acl.item_id"
+            :items="item_ids"
+            :return-object="false"
+            item-title="title"
+            item-value="id"
             :label="$t('acl.item_id')"
-            name="item_id"
-            type="text"
             :rules="[rules.required]"
           />
         </v-col>
       </v-row>
       <v-row no-gutters>
-        <v-col cols="12" class="d-flex">
-          <v-checkbox
-            v-model="acl.see"
-            class="pr-8"
-            :label="$t('acl.see')"
-            name="see"
-          />
-          <v-checkbox
-            v-model="acl.access"
-            class="pr-8"
-            :label="$t('acl.access')"
-            name="access"
-          />
-          <v-checkbox
-            v-model="acl.modify"
-            class="pr-8"
-            :label="$t('acl.modify')"
-            name="modify"
+        <v-col cols="4" offset="1" class="d-flex">
+          <v-btn-toggle v-model="acl.read_only" class="w-100">
+            <v-btn
+              class="flex-grow-1"
+              :value="true"
+              :text="$t('acl.readonly')"
+            />
+            <v-btn
+              class="flex-grow-1"
+              border-color="red-darken-4"
+              :value="false"
+              :text="$t('acl.writeable')"
+            />
+          </v-btn-toggle>
+        </v-col>
+        <v-col cols="3" offset="3" class="d-flex">
+          <v-switch
+            v-model="acl.enabled"
+            color="success"
+            :label="acl.enabled ? $t('acl.enabled') : $t('acl.disabled')"
           />
         </v-col>
       </v-row>
       <v-row no-gutters>
-        <v-col cols="12">
-          <v-checkbox
-            v-model="acl.everyone"
-            :label="$t('acl.everyone')"
-            name="everyone"
-          />
-        </v-col>
-        <v-col cols="12">
-          <v-data-table
-            v-model="selected_users"
-            :headers="headers_user"
-            :items="users"
-            item-key="id"
-            :show-select="true"
-            class="elevation-1"
-          >
-            <template #top>
-              <v-toolbar flat color="white">
-                <v-toolbar-title>{{ $t('acl.users') }}</v-toolbar-title>
-              </v-toolbar>
-            </template>
-          </v-data-table>
-        </v-col>
         <v-col cols="12" class="pt-2">
           <v-data-table
-            v-model="selected_roles"
+            v-model="acl.roles"
             :headers="headers_role"
             :items="roles"
             item-key="id"
@@ -100,22 +77,21 @@
             class="elevation-1"
           >
             <template #top>
-              <v-toolbar flat color="white">
-                <v-toolbar-title>{{ $t('acl.roles') }}</v-toolbar-title>
-              </v-toolbar>
+              <h2 class="ml-4 mb-2">{{ $t('acl.roles') }}</h2>
             </template>
           </v-data-table>
         </v-col>
+      </v-row>
+      <v-row no-gutters>
+        <v-btn type="submit" block color="success" class="mt-5"> Submit </v-btn>
       </v-row>
     </v-form>
   </v-container>
 </template>
 
 <script>
-import { createACLEntry, updateACLEntry } from '@/api/config'
-import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import { useConfigStore } from '@/stores/ConfigStore'
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onBeforeMount, watch } from 'vue'
 
 export default {
   name: 'ACLForm',
@@ -129,24 +105,17 @@ export default {
       default: false
     }
   },
-  setup(props) {
-    const store = useConfigStore()
-    const { loadUsers, loadRoles } = store
+  emits: ['submit'],
+  setup(props, { emit }) {
+    const configStore = useConfigStore()
     const form = ref(null)
     const acl = ref(props.aclProp)
-    const roles = computed(() => store.roles.items)
-    const users = computed(() => store.users.items)
+    const roles = computed(() => configStore.roles.items)
     const rules = {
       required: (v) => Boolean(v) || 'Required.'
     }
 
-    const headers_user = [
-      {
-        title: 'Username',
-        key: 'username'
-      },
-      { title: 'Name', key: 'name' }
-    ]
+    const item_ids = ref([])
 
     const headers_role = [
       {
@@ -157,17 +126,12 @@ export default {
     ]
 
     const types = [
-      { id: 'DELEGATION', title: 'Delegation' },
-      { id: 'OSINT_SOURCE', title: 'OSINT Source' },
-      { id: 'OSINT_SOURCE_GROUP', title: 'OSINT Source Group' },
-      { id: 'PRODUCT_TYPE', title: 'Product Type' },
-      { id: 'REPORT_ITEM', title: 'Report Item' },
-      { id: 'REPORT_ITEM_TYPE', title: 'Report Item Type' },
-      { id: 'WORD_LIST', title: 'Word List' }
+      { id: 'osint_source', title: 'OSINT Source' },
+      { id: 'osint_source_group', title: 'OSINT Source Group' },
+      { id: 'product_type', title: 'Product Type' },
+      { id: 'report_item_type', title: 'Report Type' },
+      { id: 'word_list', title: 'Word List' }
     ]
-
-    const selected_users = []
-    const selected_roles = []
 
     const add = async () => {
       const { valid } = await form.value.validate()
@@ -175,44 +139,70 @@ export default {
         return
       }
 
-      acl.value.users = selected_users.map((user) => ({ id: user.id }))
-      acl.value.roles = selected_roles.map((role) => ({ id: role.id }))
+      emit('submit', acl.value)
+    }
 
-      if (props.edit) {
-        updateACLEntry(acl.value)
-          .then(() => {
-            notifySuccess('acl.successful_edit')
-          })
-          .catch(() => {
-            notifyFailure('acl.error_edit')
-          })
-      } else {
-        createACLEntry(acl.value)
-          .then(() => {
-            notifySuccess('acl.successful')
-          })
-          .catch(() => {
-            notifyFailure(roles, 'acl.error')
-          })
+    const load_item_ids = async (item_type) => {
+      if (item_type === 'osint_source') {
+        await configStore.loadOSINTSources()
+        item_ids.value = configStore.osint_sources.items.map((item) => ({
+          id: item.id.toString(),
+          title: item.name
+        }))
+      } else if (item_type === 'osint_source_group') {
+        await configStore.loadOSINTSourceGroups()
+        item_ids.value = configStore.osint_source_groups.items.map((item) => ({
+          id: item.id.toString(),
+          title: item.name
+        }))
+      } else if (item_type === 'product_type') {
+        await configStore.loadProductTypes()
+        item_ids.value = configStore.product_types.items.map((item) => ({
+          id: item.id.toString(),
+          title: item.title
+        }))
+      } else if (item_type === 'report_item_type') {
+        await configStore.loadReportTypes()
+        item_ids.value = configStore.report_item_types.items.map((item) => ({
+          id: item.id.toString(),
+          title: item.title
+        }))
+      } else if (item_type === 'word_list') {
+        await configStore.loadWordLists()
+        item_ids.value = configStore.word_lists.items.map((item) => ({
+          id: item.id.toString(),
+          title: item.name
+        }))
       }
     }
 
-    onMounted(() => {
-      loadUsers()
-      loadRoles()
+    onBeforeMount(async () => {
+      await load_item_ids(acl.value.item_type)
+      configStore.loadRoles()
     })
+
+    watch(
+      () => acl.value.item_type,
+      (newVal) => {
+        load_item_ids(newVal)
+      }
+    )
+
+    watch(
+      () => props.aclProp,
+      (newVal) => {
+        acl.value = newVal
+      }
+    )
 
     return {
       acl,
       form,
       rules,
-      headers_user,
       headers_role,
-      selected_roles,
-      selected_users,
+      item_ids,
       types,
       roles,
-      users,
       add
     }
   }

@@ -3,9 +3,8 @@
     <DataTable
       v-model:items="organizations.items"
       :add-button="true"
-      :header-filter="['tag', 'id', 'name', 'description', 'actions']"
+      :header-filter="['id', 'name', 'description', 'actions']"
       sort-by-item="id"
-      tag-icon="mdi-office-building"
       @delete-item="deleteItem"
       @edit-item="editItem"
       @add-item="addItem"
@@ -59,7 +58,7 @@ export default {
         name: 'name',
         label: 'Name',
         type: 'text',
-        rules: [(v) => !!v || 'Required']
+        rules: ['required']
       },
       {
         name: 'description',
@@ -120,7 +119,6 @@ export default {
     }
 
     const handleSubmit = (submittedData) => {
-      console.log(submittedData)
       if (edit.value) {
         updateItem(submittedData)
       } else {
