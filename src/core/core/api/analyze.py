@@ -1,12 +1,10 @@
-import io
-from flask import request, send_file, abort
+from flask import request, abort
 from flask_restx import Resource, Namespace, Api
 
 from core.managers import asset_manager, auth_manager
 from core.managers.sse_manager import sse_manager
 from core.log import logger
 from core.managers.auth_manager import auth_required
-from core.managers.input_validators import validate_id
 from core.model import report_item, report_item_type
 
 
@@ -67,7 +65,6 @@ class ReportItem(Resource):
         return new_report_item.to_detail_dict(), status
 
     @auth_required("ANALYZE_UPDATE")
-    @validate_id("report_item_id")
     def put(self, report_item_id):
         request_data = request.json
         if not request_data:
@@ -76,7 +73,6 @@ class ReportItem(Resource):
         return report_item.ReportItem.update_report_item(report_item_id, request_data, auth_manager.get_user_from_jwt())
 
     @auth_required("ANALYZE_DELETE")
-    @validate_id("report_item_id")
     def delete(self, report_item_id):
         result, code = report_item.ReportItem.delete(report_item_id)
         if code == 200:
@@ -86,14 +82,12 @@ class ReportItem(Resource):
 
 class ReportItemLocks(Resource):
     @auth_required("ANALYZE_UPDATE")
-    @validate_id("report_item_id")
     def get(self, report_item_id):
         return sse_manager.to_report_item_json(report_item_id)
 
 
 class ReportItemLock(Resource):
     @auth_required("ANALYZE_UPDATE")
-    @validate_id("report_item_id")
     def put(self, report_item_id):
         user = auth_manager.get_user_from_jwt()
         if not user:
@@ -107,7 +101,6 @@ class ReportItemLock(Resource):
 
 class ReportItemUnlock(Resource):
     @auth_required("ANALYZE_UPDATE")
-    @validate_id("report_item_id")
     def put(self, report_item_id):
         user = auth_manager.get_user_from_jwt()
         if not user:
@@ -119,71 +112,18 @@ class ReportItemUnlock(Resource):
             return str(ex), 500
 
 
-class ReportItemAddAttachment(Resource):
-    @auth_required(["ANALYZE_CREATE", "ANALYZE_UPDATE"])
-    @validate_id("report_item_id")
-    def post(self, report_item_id):
-        file = request.files.get("file")
-        if not file:
-            return {"error": "Error reading file"}, 400
-
-        user = auth_manager.get_user_from_jwt()
-        attribute_group_item_id = request.form["attribute_group_item_id"]
-        data = report_item.ReportItem.add_attachment(report_item_id, attribute_group_item_id, user, file)
-        updated_report_item = report_item.ReportItem.get(report_item_id)
-        asset_manager.report_item_changed(updated_report_item)
-        sse_manager.report_item_updated(data)
-
-        return data
-
-
-class ReportItemAttachment(Resource):
-    @auth_required("ANALYZE_UPDATE")
-    @validate_id("report_item_id")
-    @validate_id("attribute_id")
-    def delete(self, report_item_id, attribute_id):
-        user = auth_manager.get_user_from_jwt()
-        data = report_item.ReportItem.remove_attachment(report_item_id, attribute_id, user)
-        updated_report_item = report_item.ReportItem.get(report_item_id)
-        asset_manager.report_item_changed(updated_report_item)
-        sse_manager.report_item_updated(data)
-        return data
-
-    @auth_required("ANALYZE_ACCESS")
-    @validate_id("report_item_id")
-    @validate_id("attribute_id")
-    def get(self, report_item_id, attribute_id):
-        if report_item_attribute := report_item.ReportItemAttribute.get(attribute_id):
-            return send_file(
-                io.BytesIO(report_item_attribute.binary_data),  # type: ignore
-                download_name=report_item_attribute.value,
-                mimetype=report_item_attribute.binary_mime_type,
-                as_attachment=True,
-            )
-
-        return {"Error": "Report Item Attribute Not Found"}, 404
-
-
 def initialize(api: Api):
     namespace = Namespace("analyze", description="Analyze API")
     namespace.add_resource(ReportTypes, "/report-types")
-    namespace.add_resource(ReportItem, "/report-items/<int:report_item_id>", "/report-items")
-    namespace.add_resource(ReportItemAggregates, "/report-items/<int:report_item_id>/aggregates")
-    namespace.add_resource(ReportItemLocks, "/report-items/<int:report_item_id>/locks")
+    namespace.add_resource(ReportItem, "/report-items/<string:report_item_id>", "/report-items")
+    namespace.add_resource(ReportItemAggregates, "/report-items/<string:report_item_id>/aggregates")
+    namespace.add_resource(ReportItemLocks, "/report-items/<string:report_item_id>/locks")
     namespace.add_resource(
         ReportItemLock,
-        "/report-items/<int:report_item_id>/lock",
+        "/report-items/<string:report_item_id>/lock",
     )
     namespace.add_resource(
         ReportItemUnlock,
-        "/report-items/<int:report_item_id>/unlock",
-    )
-    namespace.add_resource(
-        ReportItemAddAttachment,
-        "/report-items/<int:report_item_id>/file-attributes",
-    )
-    namespace.add_resource(
-        ReportItemAttachment,
-        "/report-items/<int:report_item_id>/file-attributes/<int:attribute_id>",
+        "/report-items/<string:report_item_id>/unlock",
     )
     api.add_namespace(namespace, path="/analyze")

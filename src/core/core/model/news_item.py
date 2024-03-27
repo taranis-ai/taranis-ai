@@ -1095,7 +1095,7 @@ class NewsItemAggregateNewsItemAttribute(BaseModel):
 
 
 class ReportItemNewsItemAggregate(BaseModel):
-    report_item_id = db.Column(db.Integer, db.ForeignKey("report_item.id", ondelete="CASCADE"), primary_key=True)
+    report_item_id = db.Column(db.String(64), db.ForeignKey("report_item.id", ondelete="CASCADE"), primary_key=True)
     news_item_aggregate_id = db.Column(db.Integer, db.ForeignKey("news_item_aggregate.id"), primary_key=True)
 
     @classmethod

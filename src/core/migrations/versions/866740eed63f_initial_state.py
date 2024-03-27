@@ -694,7 +694,7 @@ def upgrade():
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("solved", sa.Boolean(), nullable=True),
         sa.Column("asset_id", sa.Integer(), nullable=True),
-        sa.Column("report_item_id", sa.Integer(), nullable=True),
+        sa.Column("report_item_id", sa.String(), nullable=True),
         sa.ForeignKeyConstraint(
             ["asset_id"],
             ["asset.id"],
@@ -717,9 +717,6 @@ def upgrade():
         "report_item_attribute",
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("value", sa.String(), nullable=False),
-        sa.Column("binary_mime_type", sa.String(), nullable=True),
-        sa.Column("binary_data", sa.LargeBinary(), nullable=True),
-        sa.Column("binary_description", sa.String(), nullable=True),
         sa.Column("attribute_group_item_id", sa.Integer(), nullable=True),
         sa.Column("report_item_id", sa.Integer(), nullable=True),
         sa.ForeignKeyConstraint(["attribute_group_item_id"], ["attribute_group_item.id"], ondelete="CASCADE"),
@@ -736,7 +733,7 @@ def upgrade():
     )
     op.create_table(
         "report_item_news_item_aggregate",
-        sa.Column("report_item_id", sa.Integer(), nullable=False),
+        sa.Column("report_item_id", sa.String(64), nullable=False),
         sa.Column("news_item_aggregate_id", sa.Integer(), nullable=False),
         sa.ForeignKeyConstraint(
             ["news_item_aggregate_id"],

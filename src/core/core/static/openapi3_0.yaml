@@ -379,7 +379,7 @@ paths:
                   items:
                     type: array
                     items:
-                      $ref: '#/components/schemas/report_item.presentation'
+                      $ref: '#/components/schemas/report_item'
         '401':
           description: authorization error
           content:
@@ -423,9 +423,7 @@ paths:
         in: path
         required: true
         schema:
-          type: integer
-          minimum: 1
-          format: int32
+          type: string
     get:
       tags: [analyze]
       description: get a specific report item
@@ -447,7 +445,6 @@ paths:
         '404':
           $ref: "#/components/schemas/notFound"
     put:
-      # TODO: this is a very confusing endpoint
       tags: [analyze]
       description: modify a specific report item
       requestBody:
@@ -462,7 +459,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/modify_report_item.response'
+                $ref: '#/components/schemas/modify_report_item'
         '400':
           description: invalid request
         '401':
@@ -500,9 +497,7 @@ paths:
         in: path
         required: true
         schema:
-          type: integer
-          minimum: 1
-          format: int32
+          type: string
     get:
       tags: [analyze]
       operationId: ReportItemLocks
@@ -530,9 +525,7 @@ paths:
         in: path
         required: true
         schema:
-          type: integer
-          minimum: 1
-          format: int32
+          type: string
     put:
       tags: [analyze]
       description: lock the specified field
@@ -559,9 +552,7 @@ paths:
         in: path
         required: true
         schema:
-          type: integer
-          minimum: 1
-          format: int32
+          type: string
     put:
       tags: [analyze]
       description: unlock the specified field
@@ -574,128 +565,6 @@ paths:
                 $ref: '#/components/schemas/report_item_lock'
         '400':
           description: invalid request
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-  /analyze/report-items/{report_item_id}/file-attributes:
-    parameters:
-      - name: report_item_id
-        in: path
-        required: true
-        schema:
-          type: integer
-          minimum: 1
-          format: int32
-    post:
-      deprecated: true
-      tags: [analyze]
-      description: attach a file to the report item
-      requestBody:
-        content:
-          multipart/form-data:
-            schema:
-              type: object
-              properties:
-                file:
-                  type: string
-                  format: binary
-                attribute_group_item_id:
-                  type: integer
-                description:
-                  type: string
-      responses:
-        '200':
-          description: the file has been attached
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  add:
-                    type: boolean
-                    example: true
-                  user_id:
-                    type: integer
-                  report_item_id:
-                    type: integer
-                  attribute_id:
-                    type: integer
-        '400':
-          description: invalid request
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-  /analyze/report-items/{report_item_id}/file-attributes/{attribute_id}:
-    parameters:
-      - name: report_item_id
-        in: path
-        required: true
-        schema:
-          type: integer
-          minimum: 1
-          format: int32
-      - name: attribute_id
-        in: path
-        required: true
-        schema:
-          type: integer
-          minimum: 1
-          format: int32
-    delete:
-      deprecated: true
-      tags: [analyze]
-      description: remove an attachment from the report item
-      responses:
-        '200':
-          description: the attachment has been removed
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  delete:
-                    type: boolean
-                    example: true
-                  user_id:
-                    type: integer
-                  report_item_id:
-                    type: integer
-                  attribute_id:
-                    type: integer
-        '400':
-          description: erronous input data
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-    get:
-      deprecated: true
-      tags: [analyze]
-      description: download a report item's specified attachment
-      responses:
-        '200':
-          description: the report item's attachment
-          content:
-            application/octet-stream:
-              schema:
-                type: string
-                format: binary
-        '400':
-          description: erronous input data
         '401':
           description: authorization error
           content:
@@ -4053,9 +3922,6 @@ components:
         id:
           type: integer
 
-    report_item_attribute.new:
-      allOf:
-        - $ref: '#/components/schemas/report_item_attribute.base'
     report_item.new:
       allOf:
         - $ref: '#/components/schemas/report_item.base'
@@ -4070,42 +3936,32 @@ components:
               items:
                 $ref: '#/components/schemas/report_item_attribute'
 
-    report_item_attribute.base:
+    report_item_attribute:
       type: object
       properties:
         id:
           type: integer
         value:
           type: string
-        binary_mime_type:
+        title:
           type: string
-        binary_description:
+        description:
           type: string
-        attribute_group_item_id:
+        index:
           type: integer
-    report_item_attribute:
-      allOf:
-        - $ref: '#/components/schemas/report_item_attribute.base'
-        - type: object
-          properties:
-            created:
-              type: string
-              format: date-time
-            last_updated:
-              type: string
-              format: date-time
-            version:
-              type: integer
-            current:
-              type: boolean
-            user:
-              $ref: '#/components/schemas/user.base'
+        multiple:
+          type: boolean
+        type:
+          $ref: '#/components/schemas/attribute_type'
+        group_title:
+          type: string
+        render_data:
+          type: string
+
     report_item.base:
       type: object
       properties:
         id:
-          type: integer
-        uuid:
           type: string
         title:
           type: string
@@ -4132,16 +3988,6 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/report_item_attribute'
-    report_item.presentation:
-      allOf:
-        - $ref: '#/components/schemas/report_item.base'
-        - $ref: '#/components/schemas/acl_entry_status'
-        - $ref: '#/components/schemas/presentation'
-    report_item.id:
-      type: object
-      properties:
-        id:
-          type: integer
 
     parameter_value:
       type: object
@@ -4363,19 +4209,10 @@ components:
     modify_report_item:
       type: object
       properties:
-        title:
+        message:
           type: string
-        completed:
-          type: boolean
-    modify_report_item.response:
-      allOf:
-        - $ref: '#/components/schemas/modify_report_item'
-        - type: object
-          properties:
-            user_id:
-              type: integer
-            report_item_id:
-              type: integer
+        id:
+          type: string
     ScheduleEntry:
       type: object
       properties:
@@ -4622,7 +4459,7 @@ components:
 
     item_type:
       type: string
-      enum: [COLLECTOR, OSINT_SOURCE, OSINT_SOURCE_GROUP, WORD_LIST, REPORT_ITEM, REPORT_ITEM_TYPE, PRODUCT_TYPE, DELEGATION]
+      enum: [COLLECTOR, OSINT_SOURCE, OSINT_SOURCE_GROUP, WORD_LIST, REPORT_ITEM, REPORT_ITEM_TYPE, PRODUCT_TYPE]
     acl_entry_status:
       type: object
       properties:
@@ -4683,13 +4520,11 @@ components:
             report_items:
               type: array
               items:
-                $ref: '#/components/schemas/report_item.presentation'
+                $ref: '#/components/schemas/report_item'
 
     report_item_lock:
       type: object
       properties:
-        report_item_id:
-          type: integer
         locked:
           type: boolean
         lock_time:

@@ -46,14 +46,10 @@ class AnalystBot(BaseBot):
                         for key, value in bots_params.items():
                             if finding := re.search(f"({value})", element.strip(".,")):
                                 value = finding[1]
-                                binary_mime_type = ""
-                                binary_value = ""
 
                                 news_attribute = {
                                     "key": key,
                                     "value": value,
-                                    "binary_mime_type": binary_mime_type,
-                                    "binary_value": binary_value,
                                 }
 
                                 attributes.append(news_attribute)

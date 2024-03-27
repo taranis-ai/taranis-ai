@@ -18,6 +18,8 @@ class QueueManager:
         self.celery: Celery = self.init_app(app)
         self.error: str = ""
         self.mgmt_api = f"http://{app.config['QUEUE_BROKER_HOST']}:15672/api/"
+        self.queue_user = app.config["QUEUE_BROKER_USER"]
+        self.queue_password = app.config["QUEUE_BROKER_PASSWORD"]
 
     def init_app(self, app: Flask):
         celery_app = Celery(app.name)
@@ -54,7 +56,7 @@ class QueueManager:
     def get_queued_tasks(self):
         if self.error:
             return {"error": "QueueManager not initialized"}, 500
-        response = requests.get(f"{self.mgmt_api}queues/", auth=HTTPBasicAuth("guest", "guest"))
+        response = requests.get(f"{self.mgmt_api}queues/", auth=HTTPBasicAuth(self.queue_user, self.queue_password))
         if not response.ok:
             logger.error(response.text)
             return {"error": "Could not reach rabbitmq"}, 500

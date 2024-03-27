@@ -218,7 +218,7 @@ class AssetVulnerability(BaseModel):
     asset_id = db.Column(db.Integer, db.ForeignKey("asset.id"))
     asset = db.relationship("Asset", back_populates="vulnerabilities")
 
-    report_item_id = db.Column(db.Integer, db.ForeignKey("report_item.id", ondelete="CASCADE"))
+    report_item_id = db.Column(db.String(64), db.ForeignKey("report_item.id", ondelete="CASCADE"))
     report_item = db.relationship("ReportItem")
 
     def __init__(self, asset_id, report_item_id):

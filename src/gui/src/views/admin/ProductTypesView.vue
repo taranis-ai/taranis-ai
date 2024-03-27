@@ -94,6 +94,7 @@ export default {
           parent: 'parameters',
           label: 'Template',
           type: 'select',
+          rules: ['required'],
           items: product_types.value.templates
         }
       ]

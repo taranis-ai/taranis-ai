@@ -47,7 +47,7 @@
           <v-col :cols="verticalView ? 6 : 12">
             <v-row no-gutters>
               <v-col v-if="edit" cols="12">
-                <span class="caption">ID: {{ report_item.uuid }}</span>
+                <span class="caption">ID: {{ report_item.id }}</span>
               </v-col>
               <v-col cols="4" class="pr-3">
                 <v-select
@@ -72,36 +72,29 @@
               </v-col>
             </v-row>
             <v-row>
-              <v-col v-if="edit && report_type" cols="12" class="pa-0 ma-0">
+              <v-col v-if="edit" cols="12" class="pa-0 ma-0">
                 <v-expansion-panels
-                  v-for="attribute_group in report_type.attribute_groups"
-                  :key="attribute_group.id"
+                  v-for="(
+                    attributes, attribute_group
+                  ) in report_item.attributes"
+                  :key="attribute_group"
+                  v-model="expand_panel_groups"
                   class="mb-1"
                   multiple
                 >
-                  <v-expansion-panel :title="attribute_group.title">
+                  <v-expansion-panel
+                    :title="attribute_group"
+                    :value="attribute_group"
+                  >
                     <v-expansion-panel-text>
                       <div
-                        v-for="(
-                          attribute, attribute_id
-                        ) in report_item.attributes"
+                        v-for="(attribute, attribute_id) in attributes"
                         :key="attribute_id"
                       >
                         <attribute-item
-                          v-if="
-                            attribute_group.attribute_group_items.find(
-                              (item) =>
-                                item.id === attribute.attribute_group_item_id
-                            )
-                          "
                           v-model:value="attribute.value"
                           :read-only="!edit"
-                          :attribute-item="
-                            attribute_group.attribute_group_items.find(
-                              (item) =>
-                                item.id === attribute.attribute_group_item_id
-                            )
-                          "
+                          :attribute-item="attribute"
                         />
                       </div>
                     </v-expansion-panel-text>
@@ -163,8 +156,12 @@ export default {
     const form = ref(null)
 
     const verticalView = ref(useUserStore().split_view)
-    const expand_panel_groups = ref([])
     const report_item = ref(props.reportItemProp)
+    const expand_panel_groups = ref(
+      report_item.value.attributes
+        ? Object.keys(report_item.value.attributes)
+        : []
+    )
     const required = ref([(v) => !!v || 'Required'])
     provide(
       'report_stories',
@@ -173,14 +170,7 @@ export default {
         title: story.title
       }))
     )
-
     const { report_item_types } = storeToRefs(store)
-
-    const report_type = computed(() =>
-      report_item_types.value.items.find(
-        (item) => item.id === report_item.value.report_item_type_id
-      )
-    )
 
     const container_title = computed(() =>
       props.edit
@@ -257,7 +247,6 @@ export default {
       form,
       required,
       report_item_types,
-      report_type,
       container_title,
       saveReportItem,
       removeAllFromReport,

@@ -3,10 +3,12 @@
     v-model="selected"
     :name="'dateFilter-' + placeholder"
     :placeholder="placeholder"
-    :max-date="maxDate"
+    :max-date="maxDatePlus"
     time-picker-inline
     clearable
-    auto-apply
+    space-confirm
+    autocomplete
+    @open="openMenu()"
   />
 </template>
 
@@ -27,20 +29,34 @@ export default {
     maxDate: {
       type: Date,
       default: new Date()
+    },
+    defaultDate: {
+      type: Date,
+      required: false,
+      default: null
     }
   },
   emits: ['update:modelValue'],
   setup(props, { emit }) {
     const selected = ref(props.modelValue)
+    const maxDatePlus = computed(() =>
+      props.maxDate.setHours(props.maxDate.getHours() + 1)
+    )
 
-    const updateSelected = (val) => {
-      console.debug('updateSelected', val)
+    function updateSelected(val) {
       if (val === null) {
         selected.value = null
       } else {
         selected.value = val.toISOString()
       }
       emit('update:modelValue', selected.value)
+    }
+
+    function openMenu() {
+      console.debug(props.defaultDate)
+      if (selected.value === null && props.defaultDate !== null) {
+        selected.value = props.defaultDate
+      }
     }
 
     watch(
@@ -51,6 +67,8 @@ export default {
     )
 
     return {
+      openMenu,
+      maxDatePlus,
       selected: computed({
         get: () => Date.parse(selected.value),
         set: updateSelected

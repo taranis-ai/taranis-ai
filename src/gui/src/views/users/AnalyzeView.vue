@@ -37,11 +37,7 @@
 
 <script>
 import DataTable from '@/components/common/DataTable.vue'
-import {
-  deleteReportItem,
-  createReportItem,
-  updateReportItem
-} from '@/api/analyze'
+import { deleteReportItem } from '@/api/analyze'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import { useAnalyzeStore } from '@/stores/AnalyzeStore'
 import { useFilterStore } from '@/stores/FilterStore'
@@ -98,30 +94,8 @@ export default {
         })
     }
 
-    const createItem = (item) => {
-      createReportItem(item)
-        .then((response) => {
-          notifySuccess(response)
-          updateData()
-        })
-        .catch((error) => {
-          notifyFailure(error)
-        })
-    }
-
-    const updateItem = (item) => {
-      updateReportItem(item)
-        .then((response) => {
-          notifySuccess(response)
-          updateData()
-        })
-        .catch((error) => {
-          notifyFailure(error)
-        })
-    }
-
     const createProduct = () => {
-      router.push({ name: 'product', params: { id: 0 } })
+      router.push({ name: 'product' })
     }
 
     const selectionChange = (new_selection) => {
@@ -143,8 +117,6 @@ export default {
       addItem,
       editItem,
       deleteItem,
-      createItem,
-      updateItem,
       createProduct,
       selectionChange
     }

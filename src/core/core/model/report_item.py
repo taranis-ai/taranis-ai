@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 
-import uuid as uuid_generator
-from sqlalchemy import orm, or_, text
+import uuid
+from sqlalchemy import or_, text
 from sqlalchemy.sql.expression import false
 
 from typing import Any, Optional
@@ -9,47 +9,60 @@ from typing import Any, Optional
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.model.news_item import NewsItemAggregate
-from core.model.report_item_type import AttributeGroupItem
 from core.model.report_item_type import ReportItemType
 from core.model.role_based_access import RoleBasedAccess, ItemType
 from core.model.user import User
-from core.model.attribute import AttributeType
+from core.log import logger
+from core.model.attribute import AttributeType, AttributeEnum
 from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 
 
 class ReportItemAttribute(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
-    value: Any = db.Column(db.String(), nullable=False)
-    binary_mime_type = db.Column(db.String())
-    binary_data = orm.deferred(db.Column(db.LargeBinary))
-    binary_description = db.Column(db.String())
+    value: Any = db.Column(db.String())
 
-    attribute_group_item_id = db.Column(db.Integer, db.ForeignKey("attribute_group_item.id", ondelete="CASCADE"))
-    attribute_group_item = db.relationship("AttributeGroupItem")
+    title = db.Column(db.String())
+    description = db.Column(db.String())
 
-    report_item_id = db.Column(db.Integer, db.ForeignKey("report_item.id", ondelete="CASCADE"), nullable=True)
+    index = db.Column(db.Integer)
+    multiple = db.Column(db.Boolean, default=False)
+    attribute_type: AttributeType = db.Column(db.Enum(AttributeType))
+    group_title = db.Column(db.String())
+    render_data = db.Column(db.JSON)
+
+    report_item_id = db.Column(db.String(64), db.ForeignKey("report_item.id", ondelete="CASCADE"), nullable=True)
     report_item = db.relationship("ReportItem")
 
     def __init__(
         self,
-        value,
-        attribute_group_item_id,
-        binary_mime_type=None,
-        binary_description=None,
+        value=None,
+        title=None,
+        description=None,
+        index=None,
+        multiple=None,
+        attribute_type=None,
+        group_title=None,
+        render_data=None,
         id=None,
     ):
         self.id = id
-        self.value = value
-        self.binary_mime_type = binary_mime_type
-        self.binary_description = binary_description
-        self.attribute_group_item_id = attribute_group_item_id
+        self.value = value or ""
+        self.title = title
+        self.description = description
+        self.index = index
+        self.multiple = multiple
+        if attribute_type and attribute_type in AttributeType:
+            self.attribute_type = attribute_type
+        self.render_data = render_data
+        self.group_title = group_title
 
     @classmethod
     def update_values_from_report(cls, attribute_data):
-        # TODO: Add functionality to update multiple attributes at once, if attribute_group_item.muliple is True
-        for attribute_id, data in attribute_data.items():
-            if report_item_attribute := cls.get(attribute_id):
-                report_item_attribute.value = data["value"]
+        # TODO: Add functionality to update multiple attributes at once, if muliple is True
+        for attribute_dicts in attribute_data.values():
+            for attribute_id, data in attribute_dicts.items():
+                if report_item_attribute := cls.get(attribute_id):
+                    report_item_attribute.value = data["value"]
 
         db.session.commit()
 
@@ -57,35 +70,26 @@ class ReportItemAttribute(BaseModel):
     def sort(report_item_attribute):
         return report_item_attribute.last_updated
 
-    def update(self, new_item: dict[str, Any]) -> int | None:
-        for key, value in new_item.items():
-            if hasattr(self, key) and key != "id":
-                setattr(self, key, value)
-
-        db.session.commit()
-        return self.id or None
-
     def to_product_dict(self):
         return {
-            self.attribute_group_item.title: self.value,
+            self.title: self.value,
         }
 
     def to_report_dict(self):
-        data = {
+        return {
+            "title": self.title,
+            "description": self.description,
+            "index": self.index,
+            "multiple": self.multiple,
+            "type": self.attribute_type.name,
+            "group_title": self.group_title,
+            "render_data": self.render_data,
             "value": self.value,
-            "attribute_group_item_id": self.attribute_group_item_id,
-            "title": self.attribute_group_item.title,
         }
-        if self.binary_mime_type:
-            data["binary_mime_type"] = self.binary_mime_type
-        if self.binary_description:
-            data["binary_description"] = self.binary_description
-        return data
 
 
 class ReportItem(BaseModel):
-    id = db.Column(db.Integer, primary_key=True)
-    uuid = db.Column(db.String(64))
+    id: Any = db.Column(db.String(64), primary_key=True)
 
     title: Any = db.Column(db.String())
 
@@ -111,19 +115,17 @@ class ReportItem(BaseModel):
 
     def __init__(
         self,
-        uuid,
         title,
         report_item_type_id,
         news_item_aggregates,
-        attributes=attributes or [],
+        attributes=None,
         completed=False,
         id=None,
     ):
-        self.id = id
-        self.uuid = uuid or str(uuid_generator.uuid4())
+        self.id = id or str(uuid.uuid4())
         self.title = title
         self.report_item_type_id = report_item_type_id
-        self.attributes = attributes
+        self.attributes = attributes or []
         self.completed = completed
         self.report_item_cpes = []
 
@@ -132,10 +134,6 @@ class ReportItem(BaseModel):
     @classmethod
     def count_all(cls, is_completed):
         return cls.query.filter_by(completed=is_completed).count()
-
-    @classmethod
-    def find_by_uuid(cls, report_item_uuid):
-        return cls.query.filter_by(uuid=report_item_uuid)
 
     @classmethod
     def get_json(cls, filter, user):
@@ -158,23 +156,30 @@ class ReportItem(BaseModel):
         data["stories"] = len(self.news_item_aggregates)
         return data
 
+    def get_attribute_dict(self) -> dict[str, dict[str, dict[str, Any]]]:
+        result = {}
+        for attribute in self.attributes:
+            group = attribute.group_title
+            item_id = str(attribute.id)
+            if group not in result:
+                result[group] = {}
+            result[group][item_id] = attribute.to_report_dict()
+        return result
+
     def to_detail_dict(self):
         data = super().to_dict()
-        data["attributes"] = {attribute.id: attribute.to_report_dict() for attribute in self.attributes} if self.attributes else {}
+        data["attributes"] = self.get_attribute_dict()
         data["news_item_aggregates"] = [aggregate.to_dict() for aggregate in self.news_item_aggregates if aggregate]
         return data
 
     def to_product_dict(self):
         data = super().to_dict()
-        data["attributes"] = (
-            {attribute.attribute_group_item.title: attribute.value for attribute in self.attributes} if self.attributes else {}
-        )
+        data["attributes"] = {attribute.title: attribute.value for attribute in self.attributes} if self.attributes else {}
         data["news_item_aggregates"] = [aggregate.to_dict() for aggregate in self.news_item_aggregates if aggregate]
         return data
 
     @classmethod
     def from_dict(cls, data) -> "ReportItem":
-        data["attributes"] = ReportItemAttribute.load_multiple(data.pop("attributes", []))
         return cls(**data)
 
     @classmethod
@@ -189,7 +194,6 @@ class ReportItem(BaseModel):
             return report_item, 403
 
         report_item.user_id = user.id
-        report_item.update_cpes()
         report_item.add_attributes()
 
         db.session.add(report_item)
@@ -205,7 +209,22 @@ class ReportItem(BaseModel):
         attribute_groups = report_item_type.attribute_groups
         for attribute_group in attribute_groups:
             for attribute_group_item in attribute_group.attribute_group_items:
-                self.attributes.append(ReportItemAttribute(attribute_group_item_id=attribute_group_item.id, value=""))
+                attribute_enums = AttributeEnum.get_all_for_attribute(attribute_group_item.attribute.id)
+                attribute_enum_data = [attribute_enum.to_small_dict() for attribute_enum in attribute_enums] if attribute_enums else None
+                attr = {
+                    "title": attribute_group_item.title,
+                    "description": attribute_group_item.description,
+                    "index": attribute_group_item.index,
+                    "multiple": attribute_group_item.multiple,
+                    "attribute_type": attribute_group_item.attribute.type,
+                    "group_title": attribute_group.title,
+                    "render_data": {},
+                }
+                if attribute_enum_data:
+                    attr["render_data"]["attribute_enums"] = attribute_enum_data
+                if default_value := attribute_group_item.attribute.default_value:
+                    attr["render_data"]["default_value"] = default_value
+                self.attributes.append(ReportItemAttribute(**attr))
 
     def allowed_with_acl(self, user, require_write_access) -> bool:
         if not RoleBasedAccess.is_enabled() or not user:
@@ -223,16 +242,15 @@ class ReportItem(BaseModel):
     @classmethod
     def get_by_filter(cls, filter: dict, user, acl_check: bool):
         query = cls.query
-
+        query = query.join(ReportItemType, ReportItem.report_item_type_id == ReportItemType.id)
+        query = query.join(ReportItemAttribute, ReportItem.id == ReportItemAttribute.report_item_id)
         if acl_check:
-            query = query.join(ReportItemType, ReportItem.report_item_type_id == ReportItemType.id)
             rbac = RBACQuery(user=user, resource_type=ItemType.REPORT_ITEM_TYPE)
             query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
+            query = RoleBasedAccessService.filter_query_with_tlp(query, user)
 
         if search := filter.get("search"):
-            query = query.join(ReportItemAttribute, ReportItem.id == ReportItemAttribute.report_item_id).filter(
-                or_(ReportItemAttribute.value.ilike(f"%{search}%"), ReportItem.title.ilike(f"%{search}%"))
-            )
+            query = query.filter(or_(ReportItemAttribute.value.ilike(f"%{search}%"), ReportItem.title.ilike(f"%{search}%")))
 
         completed = filter.get("completed", "").lower()
         if completed == "true":
@@ -263,10 +281,6 @@ class ReportItem(BaseModel):
         limit = filter.get("limit", 20)
 
         return query.offset(offset).limit(limit).all(), query.count()
-
-    @classmethod
-    def identical(cls, uuid):
-        return db.session.query(db.exists().where(ReportItem.uuid == uuid)).scalar()
 
     @classmethod
     def get_by_cpe(cls, cpes):
@@ -347,54 +361,9 @@ class ReportItem(BaseModel):
 
         db.session.commit()
 
+        logger.debug(f"Updated Report Item {report_item.id}")
+
         return {"message": "Successfully updated Report Item", "id": report_item.id}, 200
-
-    @classmethod
-    def add_attachment(cls, id, attribute_group_item_id, user, file) -> tuple[dict, int]:
-        report_item = cls.query.get(id)
-        file_data = file.read()
-        new_attribute = ReportItemAttribute(
-            value=file.filename,
-            binary_description=file.filename,
-            binary_mime_type=file.mimetype,
-            attribute_group_item_id=attribute_group_item_id,
-        )
-
-        new_attribute.binary_data = file_data
-        report_item.attributes.append(new_attribute)
-
-        report_item.last_updated = datetime.now()
-
-        db.session.commit()
-
-        return {"message": "Attachment created", "id": new_attribute.id}, 200
-
-    @classmethod
-    def remove_attachment(cls, report_item_id, attribute_id, user):
-        report_item = cls.get(report_item_id)
-        if not report_item:
-            return {"error": f"No Report Item with id '{report_item_id}' found"}, 404
-        attribute_to_delete = next(
-            (attribute for attribute in report_item.attributes if attribute.id == attribute_id),
-            None,
-        )
-        if attribute_to_delete is not None:
-            report_item.attributes.remove(attribute_to_delete)
-
-        report_item.last_updated = datetime.now()
-        db.session.commit()
-
-        return {"message": "Attachment deleted", "id": attribute_id}, 200
-
-    def update_cpes(self):
-        self.report_item_cpes = []
-        if self.completed:
-            for attribute in self.attributes:
-                attribute_group = AttributeGroupItem.get(attribute.attribute_group_item_id)
-                if not attribute_group:
-                    continue
-                if attribute_group.attribute.type == AttributeType.CPE:
-                    self.report_item_cpes.append(ReportItemCpe(attribute.value))
 
     @classmethod
     def delete(cls, id: int) -> tuple[dict[str, Any], int]:
@@ -416,7 +385,7 @@ class ReportItemCpe(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     value = db.Column(db.String())
 
-    report_item_id = db.Column(db.Integer, db.ForeignKey("report_item.id", ondelete="CASCADE"))
+    report_item_id = db.Column(db.String(64), db.ForeignKey("report_item.id", ondelete="CASCADE"))
     report_item = db.relationship("ReportItem")
 
     def __init__(self, value):
