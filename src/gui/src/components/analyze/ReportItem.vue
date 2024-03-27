@@ -22,15 +22,7 @@
         density="compact"
       />
       <v-btn
-        prepend-icon="mdi-content-save"
-        color="success"
-        variant="flat"
-        class="ml-4"
-        @click="saveReportItem"
-      >
-        {{ $t('button.save') }}
-      </v-btn>
-      <v-btn
+        v-if="isSaved"
         prepend-icon="mdi-content-copy"
         color="primary"
         variant="flat"
@@ -38,6 +30,15 @@
         @click="cloneReportItem"
       >
         Clone
+      </v-btn>
+      <v-btn
+        prepend-icon="mdi-content-save"
+        color="success"
+        variant="flat"
+        class="ml-4"
+        @click="saveReportItem"
+      >
+        {{ $t('button.save') }}
       </v-btn>
       <v-btn
         v-if="report_item.news_item_aggregates.length"
@@ -170,7 +171,7 @@ export default {
     const router = useRouter()
     const store = useAnalyzeStore()
     const form = ref(null)
-
+    const isSaved = ref(false)
     const verticalView = ref(useUserStore().split_view)
     const expand_panel_groups = ref([])
     const report_item = ref(props.reportItemProp)
@@ -218,6 +219,9 @@ export default {
       } else {
         createReportItem(report_item.value)
           .then((response) => {
+            if (response && response.data && response.data.id) {
+              isSaved.value = true
+            }
             router.push('/report/' + response.data.id)
             emit('reportcreated', response.data.id)
             notifySuccess(`Report with ID ${response.data.id} created`)
@@ -260,6 +264,10 @@ export default {
     }
 
     const cloneReportItem = async () => {
+      if (!report_item.value.title || report_item.value.title.trim() === '') {
+        notifyFailure('Cannot clone the item: Title is required.')
+        return // Exit the function if the title is not provided
+      }
       try {
         console.log(
           'Attempting to clone report item with state:',
@@ -306,6 +314,7 @@ export default {
       report_item_types,
       report_type,
       container_title,
+      isSaved,
       saveReportItem,
       removeAllFromReport,
       removeFromReport,
