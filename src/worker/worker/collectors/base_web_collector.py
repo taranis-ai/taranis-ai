@@ -1,8 +1,11 @@
 import datetime
+import hashlib
+import uuid
 import requests
 import lxml.html
 import dateutil.parser as dateparser
 from urllib.parse import urlparse
+from trafilatura import bare_extraction
 
 from worker.log import logger
 from worker.collectors.base_collector import BaseCollector
@@ -59,3 +62,52 @@ class BaseWebCollector(BaseCollector):
             logger.error(f"No content found for XPath: {xpath}")
             return ""
         return document.xpath(xpath)[0].text_content()
+
+    def extract_meta(self, html_content):
+        html_content = lxml.html.fromstring(html_content)
+        author = ""
+        title = html_content.findtext(".//title", default="")
+
+        if meta_tags := html_content.xpath("//meta[@name='author']"):
+            author = meta_tags[0].get("content", "")
+
+        return author, title
+
+    def parse_web_content(self, web_url, source_id: str, xpath: str = "") -> dict[str, str | datetime.datetime | list]:
+        html_content, published_date = self.html_from_article(web_url)
+        if not html_content:
+            raise ValueError("Website returned no content")
+        author, title = self.extract_meta(html_content)
+
+        if xpath:
+            content = self.xpath_extraction(html_content, xpath)
+        else:
+            # TODO: @with_metadata is deprecated and substituted by @only_with_metadata
+            # TODO: @with_metadata=True more websites return None
+            extract_document = bare_extraction(html_content, with_metadata=False, include_comments=False, url=web_url)
+            if extract_document is None:
+                return {"error": f"Failed to extract text from the document for url: {web_url}"}
+            # logger.info(f"Extracted document: {extract_document}")
+            author = extract_document.get("author")
+            author = "" if author is None else author
+            title = extract_document.get("title")
+            title = "" if title is None else title
+            content = extract_document.get("content")
+            content = "" if content is None else content
+
+        for_hash: str = author + title + web_url
+
+        return {
+            "id": str(uuid.uuid4()),
+            "hash": hashlib.sha256(for_hash.encode()).hexdigest(),
+            "title": title,
+            "review": "",
+            "source": web_url,
+            "link": web_url,
+            "published": published_date,
+            "author": author,
+            "collected": datetime.datetime.now(),
+            "content": content,
+            "osint_source_id": source_id,
+            "attributes": [],
+        }

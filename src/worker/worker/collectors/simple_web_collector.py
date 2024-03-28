@@ -18,6 +18,7 @@ class SimpleWebCollector(BaseWebCollector):
         self.description = "Collector for gathering news with Trafilatura"
 
         self.news_items = []
+        self.last_modified = None
         logger_trafilatura = logging.getLogger("trafilatura")
         logger_trafilatura.setLevel(logging.WARNING)
 
@@ -40,47 +41,6 @@ class SimpleWebCollector(BaseWebCollector):
             logger.error(f"Simple Web Collector for {web_url} failed with error: {str(e)}")
             return str(e)
 
-    def parse_web_content(self, web_url, source_id: str, xpath: str = "") -> dict[str, str | datetime.datetime | list]:
-        html_content, published_date = self.html_from_article(web_url)
-        if not html_content:
-            raise ValueError("Website returned no content")
-        author, title = self.extract_meta(html_content)
-
-        if xpath:
-            content = self.xpath_extraction(html_content, xpath)
-        else:
-            extract_document = bare_extraction(html_content, with_metadata=True, include_comments=False, url=web_url)
-            author = extract_document["author"] or ""
-            title = extract_document["title"] or ""
-            content = extract_document["text"] or ""
-
-        for_hash: str = author + title + web_url
-
-        return {
-            "id": str(uuid.uuid4()),
-            "hash": hashlib.sha256(for_hash.encode()).hexdigest(),
-            "title": title,
-            "review": "",
-            "source": web_url,
-            "link": web_url,
-            "published": published_date,
-            "author": author,
-            "collected": datetime.datetime.now(),
-            "content": content,
-            "osint_source_id": source_id,
-            "attributes": [],
-        }
-
-    def extract_meta(self, html_content):
-        html_content = lxml.html.fromstring(html_content)
-        author = ""
-        title = html_content.findtext(".//title", default="")
-
-        if meta_tags := html_content.xpath("//meta[@name='author']"):
-            author = meta_tags[0].get("content", "")
-
-        return author, title
-
     def web_collector(self, web_url: str, source, xpath: str = ""):
         response = requests.head(web_url, headers=self.headers, proxies=self.proxies)
         if not response or not response.ok:
@@ -98,9 +58,15 @@ class SimpleWebCollector(BaseWebCollector):
 
         try:
             news_item = self.parse_web_content(web_url, source["id"], xpath)
+            if news_item.get("error"):
+                return news_item.get("error")
         except ValueError as e:
             logger.error(f"Simple Web Collector for {web_url} failed with error: {str(e)}")
             return str(e)
 
         self.publish([news_item], source)
         return None
+
+if __name__ == '__main__':
+    collector = SimpleWebCollector()
+    collector.collect({"id": 1, "parameters": {"WEB_URL": "https://www.bleepingcomputer.com/news/security/free-vpn-apps-on-google-play-turned-android-phones-into-proxies/"}})

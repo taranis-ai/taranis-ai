@@ -25,6 +25,8 @@ class RSSCollector(BaseWebCollector):
         self.headers = {}
         self.timeout = 60
         self.feed_url = ""
+        self.feed_content = None
+        self.last_modified = None
         logger_trafilatura = logging.getLogger("trafilatura")
         logger_trafilatura.setLevel(logging.WARNING)
 
@@ -105,43 +107,20 @@ class RSSCollector(BaseWebCollector):
 
         return self.xpath_extraction(html_content, xpath)
 
-    def get_summary_splits_us_cert(self, html_content: str) -> list:
-        soup = BeautifulSoup(html_content, "html.parser")
-        tables = soup.find_all("table")  # Find all tables in the content
-        digests = []
+    def digest_splitting(self, feed_entry) -> list:
+        urls = self.get_urls(feed_entry.get("summary"))
+        self.headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36"
+        }
+        logger.info(f"RSS-Feed {self.feed_url} digest splitting, found {len(urls)} urls")
+        print(urls)
+        # return [self.content_from_article(url, None) for url in urls] if urls else []
+        return urls or []
 
-        for table in tables:
-            rows = table.find_all("tr")
-            for row in rows[1:]:  # Skip the header row for each table
-                cols = row.find_all("td")
-                row_data = [col.text.strip() for col in cols]
-                product_info = {"title": row_data[0], "content": "<br>".join(row_data), "summary_detail": {}, "summary": "Digest splitting"}
-                row_data.clear()
-                digests.append(product_info)
-                print(digests)
-
-        return digests
-
-    def get_summary_splits_at_cert(self, summary) -> list[dict]:
+    def get_urls(self, summary) -> list:
         soup = BeautifulSoup(summary, "html.parser")
-        h3_tags = soup.find_all("h3")
-        digests = []
-        for h3 in h3_tags:
-            # Text of the <h3> tag
-            title = f"{h3.get_text() if h3.get_text() else 'No title'}"
-            summary = f"{h3.find_next_sibling(string=True).strip() if h3.find_next_sibling(string=True).strip() else 'No summary'}"
-            link = f"{h3.find_next('a')['href'] if h3.find_next('a') else 'No link'}"
-            # Manually edit the "summary_detail" and "summary" for cleaner digests/report items
-            digests.append({"title": title, "content": summary, "link": link, "summary_detail": {}, "summary": "Digest splitting"})
 
-        return digests
-
-    def digest_splitting(self, feed_entry) -> list[dict]:
-        if "cert.at" in feed_entry.get("link"):
-            return self.get_summary_splits_at_cert(feed_entry.get("summary"))
-        elif "cisa.gov" in feed_entry.get("link"):
-            return self.get_summary_splits_us_cert(feed_entry.get("summary"))
-        return []
+        return [a["href"] for a in soup.find_all("a", href=True)]
 
     def parse_feed(self, feed_entry: feedparser.FeedParserDict, source) -> dict[str, str | datetime.datetime | list]:
         author: str = str(feed_entry.get("author", ""))
@@ -192,7 +171,7 @@ class RSSCollector(BaseWebCollector):
             "attributes": [],
         }
 
-    def get_last_modified(self, feed_content: requests.Response, feed: feedparser.FeedParserDict) -> datetime.datetime | None:
+    def get_last_modified_feed(self, feed_content: requests.Response, feed: feedparser.FeedParserDict) -> datetime.datetime | None:
         feed = feedparser.parse(feed_content.content)
         if last_modified := feed_content.headers.get("Last-Modified"):
             return dateparser.parse(last_modified, ignoretz=True)
@@ -223,25 +202,39 @@ class RSSCollector(BaseWebCollector):
         self.core_api.update_osint_source_icon(source_id, icon_content)
         return None
 
-    def get_news_items(self, feed, source) -> list:
-        news_items = []
-        for feed_entry in feed["entries"][:42]:
-            print(feed_entry)
-            # Digest splitting
-            digest_splitting = source.get("parameters", {}).get("DIGEST_SPLITTING")
-            title = feed_entry.get("title", "").lower()
-            if digest_splitting and ("zusammenfassung" in title or "summary" in title):
-                digests = self.digest_splitting(feed_entry)
-                for digest in digests:
-                    print("this is a digest")
-                    print(digest)
-                    feed_entry_copy = copy.deepcopy(feed_entry)
-                    feed_entry_copy.update(digest)
-                    news_items.append(self.parse_feed(feed_entry_copy, source))
-            else:
-                news_items.append(self.parse_feed(feed_entry, source))
+    def split_digest_urls(self, feed_entries) -> list:
+        url_flat_list = [result for feed_entry in feed_entries for result in self.digest_splitting(feed_entry)]  # Flat list
+        logger.info(f"RSS-Feed {self.feed_url} digest splitting, found {len(url_flat_list)} urls bens nesting")
+        # list = []
+        # for feed_entry in feed_entries:
+        #     list.append(self.digest_splitting(feed_entry))
+        # logger.info(f"RSS-Feed {self.feed_url} digest splitting, found {len(list)} urls")
+        return url_flat_list
+        # result = self.digest_splitting(feed_entries[])
 
-        return news_items
+    def get_news_items(self, feed, source):
+        digest_splitting = source["parameters"].get("DIGEST_SPLITTING", False)
+        if digest_splitting == "true":
+            # if False:
+            feed_entries = feed["entries"][:42]
+            split_digest_urls = self.split_digest_urls(feed_entries)
+            len(split_digest_urls)
+            logger.info(f"RSS-Feed {source['id']} returned feed with {len(split_digest_urls)} entries")
+
+            news_items = []
+            for split_digest_url in split_digest_urls:
+                try:
+                    news_item = self.parse_web_content(split_digest_url, source)
+                    if news_item.get("error"):
+                        logger.warning(f"RSS Collector for {split_digest_url} skipped with error: {news_item.get('error')}")
+                        continue
+                    news_items.append(news_item)
+                except Exception as e:
+                    logger.error(f"RSS Collector for failed digest splitting with error: {str(e)}")
+                    return str(e)
+            return [self.parse_web_content(split_digest_url, source) for split_digest_url in split_digest_urls]
+
+        return [self.parse_feed(feed_entry, source) for feed_entry in feed["entries"][:42]]
 
     def get_feed(self) -> feedparser.FeedParserDict:
         self.feed_content = self.make_request(self.feed_url)
@@ -253,7 +246,7 @@ class RSSCollector(BaseWebCollector):
     def preview_collector(self, source):
         self.parse_source(source)
         feed = self.get_feed()
-        news_items = [self.parse_feed(feed_entry, source) for feed_entry in feed["entries"][:42]]
+        news_items = self.get_news_items(feed, source)
 
         return self.preview(news_items, source)
 
@@ -263,7 +256,7 @@ class RSSCollector(BaseWebCollector):
         last_attempted = self.get_last_attempted(source)
         if not last_attempted:
             self.update_favicon(feed.feed, source["id"])
-        last_modified = self.get_last_modified(self.feed_content, feed)
+        last_modified = self.get_last_modified_feed(self.feed_content, feed)
         self.last_modified = last_modified
         if last_modified and last_attempted and last_modified < last_attempted:
             logger.debug(f"Last-Modified: {last_modified} < Last-Attempted {last_attempted} skipping")
@@ -279,6 +272,15 @@ class RSSCollector(BaseWebCollector):
 
 if __name__ == "__main__":
     rss_collector = RSSCollector()
-    # rss_collector.collect({"id": 1, "parameters": {"FEED_URL": "https://cert.at/cert-at.de.all.rss_2.0.xml", "DIGEST_SPLITTING": True}})
-    rss_collector.collect({"id": 1, "parameters": {"FEED_URL": "https://us-cert.cisa.gov/ncas/bulletins.xml", "DIGEST_SPLITTING": True}})
+    rss_collector.collect(
+        {
+            "id": 1,
+            "parameters": {
+                "FEED_URL": "https://cert.at/cert-at.de.all.rss_2.0.xml",
+                "DIGEST_SPLITTING": "true",
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36",
+            },
+        }
+    )
+    # rss_collector.collect({"id": 1, "parameters": {"FEED_URL": "https://us-cert.cisa.gov/ncas/bulletins.xml", "DIGEST_SPLITTING": True}})
     # rss_collector.collect({"id": 1, "parameters": {"FEED_URL": "https://blog.360totalsecurity.com/en/category/security-news/feed/"}})
