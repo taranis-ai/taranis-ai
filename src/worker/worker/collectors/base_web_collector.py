@@ -84,15 +84,15 @@ class BaseWebCollector(BaseCollector):
         else:
             # TODO: @with_metadata is deprecated and substituted by @only_with_metadata
             # TODO: @with_metadata=True more websites return None
-            extract_document = bare_extraction(html_content, with_metadata=False, include_comments=False, url=web_url)
+            extract_document = bare_extraction(html_content, with_metadata=True, include_comments=False, url=web_url)
             if extract_document is None:
-                return {"error": f"Failed to extract text from the document for url: {web_url}"}
+                return {"error": f"Failed to extract News Item for url: {web_url}"}
             # logger.info(f"Extracted document: {extract_document}")
             author = extract_document.get("author")
             author = "" if author is None else author
             title = extract_document.get("title")
             title = "" if title is None else title
-            content = extract_document.get("content")
+            content = extract_document.get("text")
             content = "" if content is None else content
 
         for_hash: str = author + title + web_url

@@ -66,7 +66,3 @@ class SimpleWebCollector(BaseWebCollector):
 
         self.publish([news_item], source)
         return None
-
-if __name__ == '__main__':
-    collector = SimpleWebCollector()
-    collector.collect({"id": 1, "parameters": {"WEB_URL": "https://www.bleepingcomputer.com/news/security/free-vpn-apps-on-google-play-turned-android-phones-into-proxies/"}})
