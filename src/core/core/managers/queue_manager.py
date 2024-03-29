@@ -133,7 +133,7 @@ class QueueManager:
         return {"error": "Could not reach rabbitmq"}, 500
 
     def execute_bot_task(self, bot_id: int):
-        if self.send_task("bot_task", kwargs={"bot_id": bot_id, "queue": "bots"}):
+        if self.send_task("bot_task", args=[bot_id], queue="bots"):
             logger.info(f"Executing Bot {bot_id} scheduled")
             return {"message": f"Executing Bot {bot_id} scheduled", "id": bot_id}, 200
         return {"error": "Could not reach rabbitmq"}, 500

@@ -26,7 +26,7 @@ class StoryBot(BaseBot):
             logger.info(f"Clustering {len(data)} news items")
             if all(len(aggregate["news_items"]) == 1 for aggregate in data):
                 corpus = create_corpus(data)
-                initial_clustering.delay(json.dumps(corpus, cls=CorpusEncoder))
+                initial_clustering.delay(json.dumps(corpus, cls=CorpusEncoder), queue="bots")
             else:
                 already_clustered, to_cluster = self.separate_data(data)
                 clustering_results = incremental_clustering_v2(to_cluster, already_clustered)

@@ -174,10 +174,6 @@
       "status": "Postavenie",
       "successful": "Nový atribút bol úspešne pridaný",
       "successful_edit": "Atribút bol úspešne aktualizovaný",
-      "tlp_amber": "TLP: AMBER",
-      "tlp_green": "TLP:ZELENÁ",
-      "tlp_red": "TLP: ČERVENÁ",
-      "tlp_white": "TLP: BIELA",
       "type": "Typ"
     },
     "button": {

@@ -137,9 +137,9 @@ class ReportItem(BaseModel):
 
     @classmethod
     def get_json(cls, filter, user):
-        reports, count = cls.get_by_filter(filter, user, True)
+        reports = cls.get_by_filter(filter, user, True)
         items = [report.to_dict() for report in reports]
-        return {"total_count": count, "items": items}
+        return {"total_count": len(items), "items": items}
 
     @classmethod
     def get_aggregate_ids(cls, id):
@@ -243,14 +243,13 @@ class ReportItem(BaseModel):
     def get_by_filter(cls, filter: dict, user, acl_check: bool):
         query = cls.query
         query = query.join(ReportItemType, ReportItem.report_item_type_id == ReportItemType.id)
-        query = query.join(ReportItemAttribute, ReportItem.id == ReportItemAttribute.report_item_id)
         if acl_check:
             rbac = RBACQuery(user=user, resource_type=ItemType.REPORT_ITEM_TYPE)
             query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
-            query = RoleBasedAccessService.filter_query_with_tlp(query, user)
+            query = RoleBasedAccessService.filter_report_query_with_tlp(query, user)
 
         if search := filter.get("search"):
-            query = query.filter(or_(ReportItemAttribute.value.ilike(f"%{search}%"), ReportItem.title.ilike(f"%{search}%")))
+            query = query.filter(or_(ReportItemType.title.ilike(f"%{search}%"), ReportItem.title.ilike(f"%{search}%")))
 
         completed = filter.get("completed", "").lower()
         if completed == "true":
@@ -280,7 +279,7 @@ class ReportItem(BaseModel):
         offset = filter.get("offset", 0)
         limit = filter.get("limit", 20)
 
-        return query.offset(offset).limit(limit).all(), query.count()
+        return query.offset(offset).limit(limit).all()
 
     @classmethod
     def get_by_cpe(cls, cpes):
