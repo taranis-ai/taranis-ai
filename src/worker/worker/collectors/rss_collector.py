@@ -110,10 +110,6 @@ class RSSCollector(BaseWebCollector):
 
     def digest_splitting(self, feed_entry) -> list:
         urls = self.get_urls(feed_entry.get("summary"))
-        if self.headers == {}:
-            self.headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36"
-            }
         logger.info(f"RSS-Feed {self.feed_url} digest splitting, found {len(urls)} urls")
 
         return urls or []
@@ -247,7 +243,6 @@ class RSSCollector(BaseWebCollector):
     def preview_collector(self, source):
         self.parse_source(source)
         feed = self.get_feed()
-        # news_items = [self.parse_feed(feed_entry, source) for feed_entry in feed["entries"][:42]]
         news_items = self.get_news_items(feed, source)
         return self.preview(news_items, source)
 
