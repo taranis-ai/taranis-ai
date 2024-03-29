@@ -215,7 +215,7 @@ class RSSCollector(BaseWebCollector):
         return [self.parse_feed(feed_entry, source) for feed_entry in feed["entries"][:42]]
 
     def handle_digests(self, feed, source) -> list[dict] | str:
-        self.digest_splitting_limit = source["parameters"].get("DIGEST_SPLITTING_LIMIT", self.digest_splitting_limit)
+        self.digest_splitting_limit = int(source["parameters"].get("DIGEST_SPLITTING_LIMIT", self.digest_splitting_limit))
         feed_entries = feed["entries"][:42]
         split_digest_urls = self.split_digest_urls(feed_entries)
         logger.info(f"RSS-Feed {source['id']} returned {len(split_digest_urls)} available URLs")
