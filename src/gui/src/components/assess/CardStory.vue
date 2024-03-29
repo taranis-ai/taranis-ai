@@ -30,15 +30,16 @@
 
                 <a
                   v-if="news_item_length > 1"
-                  class="ml-3 mb-1 d-flex justify-center align-center text-primary"
+                  class="ml-3 mb-1 d-flex justify-center align-center"
                   style="font-size: 1rem"
                   :href="'/story/' + story.id"
                   target="_blank"
+                  :style="{ color: colorBasedOnLength }"
                 >
                   <v-icon
                     class="float-left mr-1"
                     size="x-small"
-                    color="primary"
+                    :color="colorBasedOnLength"
                     icon="mdi-file-multiple-outline"
                   />
                   ({{ news_item_length }})
@@ -225,6 +226,17 @@ export default {
         : summary || description || defaultContent
     })
 
+    const colorBasedOnLength = computed(() => {
+      // Color codes are needed for consistent icon/number color shades
+      if (news_item_length.value < 5) {
+        return '#388E3C'
+      } else if (news_item_length.value < 10) {
+        return '#F57F17'
+      } else {
+        return '#BF360C'
+      }
+    })
+
     function openCard() {
       openSummary.value = !openSummary.value
     }
@@ -274,6 +286,7 @@ export default {
       is_summarized,
       newsItemSelection,
       getDescription,
+      colorBasedOnLength,
       openCard,
       ungroup,
       toggleSelection,
