@@ -43,6 +43,7 @@
           :rules="item.rules"
           :disabled="item['disabled']"
           :items="item.items"
+          clearable
         />
         <v-switch
           v-if="item.type === 'switch'"
