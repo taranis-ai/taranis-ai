@@ -27,7 +27,7 @@ class RSSCollector(BaseWebCollector):
         self.feed_url = ""
         self.feed_content = None
         self.last_modified = None
-        self.digest_splitting_limit = 2
+        self.digest_splitting_limit = 30
         logger_trafilatura = logging.getLogger("trafilatura")
         logger_trafilatura.setLevel(logging.WARNING)
 
@@ -226,11 +226,11 @@ class RSSCollector(BaseWebCollector):
         news_items = []
         for split_digest_url in split_digest_urls[: self.digest_splitting_limit]:
             try:
-                news_item = self.parse_web_content(split_digest_url, source)
-                if news_item.get("error"):
+                news_item = self.parse_web_content(split_digest_url, source.get("id"))
+                if not news_item.get("error"):
+                    news_items.append(news_item)
+                else:
                     logger.warning(f"RSS Collector for {split_digest_url} skipped with error: {news_item.get('error')}")
-                    continue
-                news_items.append(news_item)
             except Exception as e:
                 logger.error(f"RSS Collector failed digest splitting with error: {str(e)}")
                 return str(e)
@@ -247,8 +247,8 @@ class RSSCollector(BaseWebCollector):
     def preview_collector(self, source):
         self.parse_source(source)
         feed = self.get_feed()
+        # news_items = [self.parse_feed(feed_entry, source) for feed_entry in feed["entries"][:42]]
         news_items = self.get_news_items(feed, source)
-
         return self.preview(news_items, source)
 
     def rss_collector(self, source):
@@ -272,19 +272,28 @@ class RSSCollector(BaseWebCollector):
         return None
 
 
-
-
 if __name__ == "__main__":
     rss_collector = RSSCollector()
-    rss_collector.collect(
+    # rss_collector.collect(
+    #     {
+    #         "id": 1,
+    #         "parameters": {
+    #             "FEED_URL": "https://cert.at/cert-at.de.all.rss_2.0.xml",
+    #             "DIGEST_SPLITTING": "true",
+    #             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36",
+    #         },
+    #     }
+    # )
+    # rss_collector.collect({"id": 1, "parameters": {"FEED_URL": "https://us-cert.cisa.gov/ncas/bulletins.xml", "DIGEST_SPLITTING": True}})
+    # rss_collector.collect({"id": 1, "parameters": {"FEED_URL": "https://blog.360totalsecurity.com/en/category/security-news/feed/"}})
+
+    rss_collector.preview_collector(
         {
             "id": 1,
             "parameters": {
                 "FEED_URL": "https://cert.at/cert-at.de.all.rss_2.0.xml",
-                "DIGEST_SPLITTING": "true",
+                "DIGEST_SPLITTING": "false",
                 "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36",
             },
         }
     )
-    # rss_collector.collect({"id": 1, "parameters": {"FEED_URL": "https://us-cert.cisa.gov/ncas/bulletins.xml", "DIGEST_SPLITTING": True}})
-    # rss_collector.collect({"id": 1, "parameters": {"FEED_URL": "https://blog.360totalsecurity.com/en/category/security-news/feed/"}})
