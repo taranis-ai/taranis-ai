@@ -162,6 +162,10 @@ export const useAssessStore = defineStore('assess', {
     selectStory(id) {
       this.storySelection = xorConcat(this.storySelection, id)
     },
+    storyAddedToReport(story_id) {
+      const item = this.newsItems.items.find((item) => item.id === story_id)
+      item.in_reports_count += 1
+    },
     selectAllItems() {
       this.storySelection = this.newsItems.items.map((item) => item.id)
     },

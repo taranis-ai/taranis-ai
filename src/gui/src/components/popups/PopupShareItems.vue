@@ -34,7 +34,6 @@
 </template>
 
 <script>
-import { addAggregatesToReportItem } from '@/api/analyze'
 import { useAnalyzeStore } from '@/stores/AnalyzeStore'
 import { ref, onMounted, computed } from 'vue'
 
@@ -57,7 +56,7 @@ export default {
     const reportItems = computed(() => analyzeStore.getReportItemsList)
 
     const share = () => {
-      addAggregatesToReportItem(reportItemSelection.value, props.itemIds)
+      analyzeStore.addStoriesToReport(reportItemSelection.value, props.itemIds)
       emit('close')
     }
 

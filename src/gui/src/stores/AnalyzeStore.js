@@ -2,11 +2,13 @@ import {
   getAllReportItems,
   getAllReportTypes,
   getReportItem,
-  cloneReportItem
+  cloneReportItem,
+  addAggregatesToReportItem
 } from '@/api/analyze'
 
 import { defineStore } from 'pinia'
 import { useFilterStore } from './FilterStore'
+import { useAssessStore } from './AssessStore'
 import { i18n } from '@/i18n/i18n'
 import { notifyFailure, notifySuccess } from '@/utils/helpers'
 
@@ -96,6 +98,20 @@ export const useAnalyzeStore = defineStore('analyze', {
     async loadReportTypes(data) {
       const response = await getAllReportTypes(data)
       this.report_item_types = response.data
+    },
+
+    addStoriesToReport(report_item_id, stories) {
+      addAggregatesToReportItem(report_item_id, stories)
+      const report_item = this.report_items.items.find(
+        (item) => item.id === report_item_id
+      )
+      if (report_item) {
+        report_item.stories = stories
+      }
+      const assessStore = useAssessStore()
+      for (const story of stories) {
+        assessStore.storyAddedToReport(story)
+      }
     },
 
     addSelectionReport(selected_item) {
