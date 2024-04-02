@@ -13,6 +13,11 @@ export function createReportItem(data) {
   return apiService.post('/analyze/report-items', data)
 }
 
+export function cloneReportItem(report_item_id) {
+  return apiService.post(`/analyze/report-items/${report_item_id}/clone`)
+}
+
+
 export function deleteReportItem(report_item) {
   return apiService.delete(`/analyze/report-items/${report_item.id}`)
 }

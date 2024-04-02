@@ -87,6 +87,20 @@ class ReportItemAttribute(BaseModel):
             "value": self.value,
         }
 
+    def clone_attribute(self):
+        value = "" if self.attribute_type in [AttributeType.STORY] else self.value
+
+        return ReportItemAttribute(
+            value=value,
+            title=self.title,
+            description=self.description,
+            index=self.index,
+            multiple=self.multiple,
+            attribute_type=self.attribute_type,
+            group_title=self.group_title,
+            render_data=self.render_data,
+        )
+
 
 class ReportItem(BaseModel):
     id: Any = db.Column(db.String(64), primary_key=True)
@@ -177,6 +191,35 @@ class ReportItem(BaseModel):
         data["attributes"] = {attribute.title: attribute.value for attribute in self.attributes} if self.attributes else {}
         data["news_item_aggregates"] = [aggregate.to_dict() for aggregate in self.news_item_aggregates if aggregate]
         return data
+
+    def clone_report(self):
+        attributes = [a.clone_attribute() for a in self.attributes]
+
+        logger.debug(f"Cloning Report {self.id} from {self.attributes} attributes")
+        logger.debug(f"Cloning Report {self.id} with {attributes} attributes")
+
+        report = ReportItem(
+            title=f"{self.title} (Copy)",
+            report_item_type_id=self.report_item_type_id,
+            news_item_aggregates=[],
+            attributes=attributes,
+            completed=self.completed,
+        )
+        db.session.add(report)
+        db.session.commit()
+        return report
+
+    @classmethod
+    def clone(cls, report_id: int, user: User) -> tuple[dict[str, Any], int]:
+        report = cls.get(report_id)
+        if not report:
+            return {"error": "Report not found"}, 404
+
+        if not report.allowed_with_acl(user, True):
+            return {"error": "Permission Denied"}, 403
+
+        new_report = report.clone_report()
+        return {"message": f"Successfully cloned Report {report_id} to new Report {new_report.id}", "id": new_report.id}, 200
 
     @classmethod
     def from_dict(cls, data) -> "ReportItem":

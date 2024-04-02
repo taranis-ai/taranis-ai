@@ -14,11 +14,18 @@
           <v-row class="py-1 px-1">
             <v-col cols="12" :lg="content_cols">
               <v-container class="d-flex pa-0">
-                <v-icon
-                  v-if="story_in_report"
-                  class="mr-1 mt-1"
-                  icon="mdi-share"
-                />
+                <div
+                  v-if="story_in_reports > 0"
+                  class="story-shared-icons-container"
+                >
+                  <v-icon
+                    v-for="n in story_in_reports"
+                    :key="n"
+                    class="story-shared-icon"
+                    :style="getSharingIcon(n)"
+                    icon="mdi-share"
+                  ></v-icon>
+                </div>
                 <h2
                   v-dompurify-html="highlighted_title"
                   class="mb-1 mt-0"
@@ -179,7 +186,6 @@ export default {
       return 12 - content_cols.value
     })
 
-    const story_in_report = computed(() => props.story.in_reports_count > 0)
     const news_item_length = computed(() =>
       props.story.news_items ? props.story.news_items.length : 0
     )
@@ -237,6 +243,20 @@ export default {
       }
     })
 
+    function getSharingIcon(index) {
+      const baseSize = 24 // Base size for the icons
+      const scaleFactor = 1 - 0.1 * (story_in_reports.value - 1) // Decrease size as more icons are added
+      const size = baseSize * scaleFactor
+      const overlap = (index - 1) * (size / 4) // Calculate overlap based on icon index
+
+      return {
+        width: `${size}px`,
+        height: `${size}px`,
+        position: 'absolute',
+        transform: `translate(${overlap}px, ${overlap}px)`
+      }
+    }
+
     function openCard() {
       openSummary.value = !openSummary.value
     }
@@ -277,7 +297,6 @@ export default {
       showStory,
       card_class,
       item_important,
-      story_in_report,
       news_item_length,
       news_item_title_class,
       highlighted_title,
@@ -287,14 +306,15 @@ export default {
       newsItemSelection,
       getDescription,
       colorBasedOnLength,
+      showWeekChart,
+      getSharingIcon,
       openCard,
       ungroup,
       toggleSelection,
       markAsRead,
       markAsImportant,
       moveSelection,
-      emitRefresh,
-      showWeekChart
+      emitRefresh
     }
   }
 }
@@ -361,5 +381,16 @@ export default {
   width: 7px;
   z-index: 2;
   background: #e9c645 !important;
+}
+
+.story-shared-icons-container {
+  margin-right: 28px;
+  margin-left: -8px;
+  width: max-content; /* Adjust as needed */
+  height: 24px; /* Adjust based on base icon size */
+}
+
+.story-shared-icon {
+  transition: all 0.3s ease;
 }
 </style>
