@@ -11,14 +11,14 @@
       @selection-change="selectionChange"
       @update-items="updateData"
     >
-      <template #actionColumn="bot">
+      <template #actionColumn="{ item }">
         <v-tooltip left>
           <template #activator="{ props }">
             <v-icon
               v-bind="props"
               color="secondary"
               icon="mdi-run"
-              @click.stop="executeBot(bot.item)"
+              @click.stop="executeBot(item)"
             />
           </template>
           <span>Execute Bot</span>

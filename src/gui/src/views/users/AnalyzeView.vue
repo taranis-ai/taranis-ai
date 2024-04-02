@@ -18,18 +18,18 @@
     @update-items="updateData"
     @selection-change="selectionChange"
   >
-    <template #actionColumn>
+    <template #actionColumn="{ item }">
       <v-tooltip left>
         <template #activator="{ props }">
           <v-icon
             v-bind="props"
             color="secondary"
-            @click.stop="createProduct(item)"
+            @click.stop="cloneReport(item.id)"
           >
             mdi-file
           </v-icon>
         </template>
-        <span>Create Product</span>
+        <span>Clone Report</span>
       </v-tooltip>
     </template>
   </DataTable>
@@ -94,8 +94,8 @@ export default {
         })
     }
 
-    const createProduct = () => {
-      router.push({ name: 'product' })
+    const cloneReport = (item_id) => {
+      analyzeStore.cloneReport(item_id)
     }
 
     const selectionChange = (new_selection) => {
@@ -117,7 +117,7 @@ export default {
       addItem,
       editItem,
       deleteItem,
-      createProduct,
+      cloneReport,
       selectionChange
     }
   }

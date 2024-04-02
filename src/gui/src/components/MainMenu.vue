@@ -32,7 +32,7 @@
     </div>
 
     <template #append>
-      <v-menu v-if="mdAndDown" offset-y class="mx-5">
+      <v-menu v-if="smAndDown" offset-y class="mx-5">
         <template #activator="{ props }">
           <v-btn
             v-ripple="false"
@@ -85,7 +85,7 @@ export default defineComponent({
   setup() {
     const mainStore = useMainStore()
     const userStore = useUserStore()
-    const { mdAndDown, mdAndUp } = useDisplay()
+    const { smAndDown, mdAndUp } = useDisplay()
 
     const { drawerVisible, itemCountTotal, itemCountFiltered, buildDate } =
       storeToRefs(mainStore)
@@ -150,7 +150,7 @@ export default defineComponent({
 
     return {
       buildDate,
-      mdAndDown,
+      smAndDown,
       mdAndUp,
       isFiltered,
       showItemCount,

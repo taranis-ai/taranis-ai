@@ -1,7 +1,7 @@
 <template>
   <div class="w-100">
     <v-infinite-scroll
-      v-if="newsItems.items.length > 0"
+      v-if="newsItems.items.length > 0 && !pagination"
       empty-text="All items loaded"
       color="primary"
       @load="displayMore"
@@ -21,6 +21,18 @@
       </template>
     </v-infinite-scroll>
 
+    <v-container v-else-if="newsItems.items.length > 0 && pagination" fluid>
+      <template v-for="item in newsItems.items" :key="item">
+        <card-story :story="item" @refresh="refresh(item.id)" />
+      </template>
+      <v-row class="justify-center mt-10 mb-10">
+        <v-pagination
+          v-model="page"
+          :length="numberOfPages"
+          :total-visible="7"
+        />
+      </v-row>
+    </v-container>
     <v-row
       v-if="newsItems.items.length == 0"
       class="align-center justify-center mt-5"
@@ -62,20 +74,39 @@ export default defineComponent({
     const filterStore = useFilterStore()
     const mainStore = useMainStore()
     const { newsItems, activeSelection, loading } = storeToRefs(assessStore)
-    const { appendNewsItems, clearNewsItemSelection } = assessStore
+    const { newsItemsFilter } = storeToRefs(filterStore)
 
     assessHotkeys()
     const moreToLoad = computed(() => {
-      const offset = filterStore.newsItemsFilter.offset
-        ? parseInt(filterStore.newsItemsFilter.offset)
+      const offset = newsItemsFilter.value.offset
+        ? parseInt(newsItemsFilter.value.offset)
         : 0
       const length = offset + newsItems.value.items.length
       return length < newsItems.value.total_count
     })
 
+    const page = computed({
+      get: () => {
+        return Number(newsItemsFilter.value.page) || 1
+      },
+      set: (val) => {
+        newsItemsFilter.value.page = String(val)
+      }
+    })
+    const numberOfPages = computed(() => {
+      const count = Math.ceil(
+        newsItems.value.total_count / (newsItemsFilter.value.limit || 20)
+      )
+      return count > 0 ? count : 1
+    })
+
     const refresh = (id) => {
       assessStore.updateStoryByID(id)
     }
+
+    const pagination = computed(() => {
+      return Boolean(newsItemsFilter.value.timeto)
+    })
 
     const displayMore = async ({ done }) => {
       console.debug('displayMore', loading.value)
@@ -86,7 +117,7 @@ export default defineComponent({
       if (loading.value) {
         return
       }
-      await appendNewsItems()
+      await assessStore.appendNewsItems()
       done('ok')
     }
     const nextPage = () => {
@@ -106,7 +137,7 @@ export default defineComponent({
     })
 
     onUnmounted(() => {
-      clearNewsItemSelection()
+      assessStore.clearSelection()
       mainStore.itemCountTotal = 0
       mainStore.itemCountFiltered = 0
     })
@@ -115,7 +146,11 @@ export default defineComponent({
       newsItems,
       moreToLoad,
       activeSelection,
+      numberOfPages,
+      page,
       loading,
+      pagination,
+      newsItemsFilter,
       refresh,
       nextPage,
       resetFilter,

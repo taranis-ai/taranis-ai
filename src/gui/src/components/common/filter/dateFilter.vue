@@ -39,9 +39,11 @@ export default {
   emits: ['update:modelValue'],
   setup(props, { emit }) {
     const selected = ref(props.modelValue)
-    const maxDatePlus = computed(() =>
-      props.maxDate.setHours(props.maxDate.getHours() + 1)
-    )
+    const maxDatePlus = computed(() => {
+      const newDate = new Date(props.maxDate.getTime())
+      newDate.setHours(newDate.getHours() + 1)
+      return newDate
+    })
 
     function updateSelected(val) {
       if (val === null) {

@@ -1,8 +1,14 @@
-import { getAllReportItems, getAllReportTypes, getReportItem } from '@/api/analyze'
+import {
+  getAllReportItems,
+  getAllReportTypes,
+  getReportItem,
+  cloneReportItem
+} from '@/api/analyze'
 
 import { defineStore } from 'pinia'
 import { useFilterStore } from './FilterStore'
 import { i18n } from '@/i18n/i18n'
+import { notifyFailure, notifySuccess } from '@/utils/helpers'
 
 const mapReportItem = (item, report_item_types) => {
   return {
@@ -74,6 +80,16 @@ export const useAnalyzeStore = defineStore('analyze', {
 
       if (!found) {
         this.report_items.items.push(updated_item)
+      }
+    },
+
+    async cloneReport(report_item_id) {
+      try {
+        const response = await cloneReportItem(report_item_id)
+        await this.loadReportItems()
+        notifySuccess(response.data.message)
+      } catch (error) {
+        notifyFailure(error)
       }
     },
 

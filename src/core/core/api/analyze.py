@@ -80,6 +80,20 @@ class ReportItem(Resource):
         return result, code
 
 
+class CloneReportItem(Resource):
+    @auth_required("ANALYZE_CREATE")
+    def post(self, report_item_id):
+        try:
+            result, status = report_item.ReportItem.clone(report_item_id, auth_manager.get_user_from_jwt())
+        except Exception as ex:
+            logger.exception()
+            abort(400, f"Error cloning report item: {ex}")
+        if status == 200:
+            sse_manager.report_item_updated({"id": result["id"], "action": "add"})
+
+        return result, status
+
+
 class ReportItemLocks(Resource):
     @auth_required("ANALYZE_UPDATE")
     def get(self, report_item_id):
@@ -116,6 +130,7 @@ def initialize(api: Api):
     namespace = Namespace("analyze", description="Analyze API")
     namespace.add_resource(ReportTypes, "/report-types")
     namespace.add_resource(ReportItem, "/report-items/<string:report_item_id>", "/report-items")
+    namespace.add_resource(CloneReportItem, "/report-items/<string:report_item_id>/clone")
     namespace.add_resource(ReportItemAggregates, "/report-items/<string:report_item_id>/aggregates")
     namespace.add_resource(ReportItemLocks, "/report-items/<string:report_item_id>/locks")
     namespace.add_resource(

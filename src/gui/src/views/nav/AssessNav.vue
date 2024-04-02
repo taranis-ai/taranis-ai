@@ -85,7 +85,11 @@
             v-model="newsItemsFilter.timeto"
             placeholder="Until"
             :default-date="new Date()"
-            :max-date="newsItemsFilter.timefrom"
+            :max-date="
+              newsItemsFilter.timefrom instanceof Date
+                ? newsItemsFilter.timefrom
+                : new Date()
+            "
           />
         </v-col>
         <v-col cols="12" class="pt-1">
