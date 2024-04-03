@@ -201,6 +201,10 @@ export const useAssessStore = defineStore('assess', {
     }
   },
   persist: {
-    paths: ['osint_sources', 'osint_source_groups']
+    paths: ['osint_sources', 'osint_source_groups', 'newsItems'],
+    serializer: {
+      deserialize: (value) => JSON.parse(value),
+      serialize: (value) => JSON.stringify(value)
+    }
   }
 })
