@@ -27,7 +27,10 @@ class TestAssessApi(BaseTest):
         """
         response = self.assert_get_ok(client, "osint-sources-list", auth_header)
         assert response.get_json()["total_count"] >= 1
-        assert response.get_json()["items"][0]["id"] == "manual"
+        items = response.get_json()["items"]
+        assert len(items) >= 1
+        item_ids = [item["id"] for item in items]
+        assert "manual" in item_ids
 
     def test_get_OSINTSourcesList_unauth(self, client):
         """

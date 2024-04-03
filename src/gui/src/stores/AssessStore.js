@@ -12,6 +12,7 @@ import {
 import { defineStore } from 'pinia'
 import { xorConcat, notifyFailure, notifySuccess } from '@/utils/helpers'
 import { useFilterStore } from './FilterStore'
+import { stringify, parse } from 'zipson';
 
 export const useAssessStore = defineStore('assess', {
   state: () => ({
@@ -204,10 +205,9 @@ export const useAssessStore = defineStore('assess', {
     paths: ['osint_sources', 'osint_source_groups', 'newsItems'],
     serializer: {
       deserialize: (value) => {
-        console.debug('Deserializing', value)
-        return JSON.parse(value)
+        return parse(value)
       },
-      serialize: (value) => JSON.stringify(value)
+      serialize: (value) => stringify(value)
     }
   }
 })
