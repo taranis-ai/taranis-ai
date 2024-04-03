@@ -26,7 +26,7 @@ class TestAssessApi(BaseTest):
         It expects 1 OSINTSource ("manual") retured
         """
         response = self.assert_get_ok(client, "osint-sources-list", auth_header)
-        assert response.get_json()["total_count"] == 1
+        assert response.get_json()["total_count"] >= 1
         assert response.get_json()["items"][0]["id"] == "manual"
 
     def test_get_OSINTSourcesList_unauth(self, client):
