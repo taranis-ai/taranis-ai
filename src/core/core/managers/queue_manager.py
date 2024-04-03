@@ -9,7 +9,7 @@ from kombu.exceptions import OperationalError
 
 queue_manager: "QueueManager"
 periodic_tasks = [
-    {"id": "cleanup_token_blacklist", "task": "cleanup_token_blacklist", "schedule": "daily", "args": [], "queue": "misc"},
+    {"id": "cleanup_token_blacklist", "task": "cleanup_token_blacklist", "schedule": "daily", "args": [], "options": {"queue": "misc"}},
 ]
 
 
@@ -40,9 +40,7 @@ class QueueManager:
     def update_task_queue_from_osint_sources(self):
         from core.model.osint_source import OSINTSource
 
-        sources = OSINTSource.get_all()
-        for source in sources:
-            ScheduleEntry.add_or_update(source.to_task_dict())
+        [source.schedule_osint_source() for source in OSINTSource.get_all()]
 
     def schedule_word_list_gathering(self):
         from core.model.word_list import WordList
@@ -150,7 +148,7 @@ class QueueManager:
         return {"error": "Could not reach rabbitmq"}, 500
 
     def get_bot_signature(self, bot_id: list, source_id: str):
-        return self.celery.signature("bot_task", kwargs={"bot_id": bot_id, "filter": {"SOURCE": source_id}})
+        return self.celery.signature("bot_task", kwargs={"bot_id": bot_id, "filter": {"SOURCE": source_id}}, queue="bots")
 
     def post_collection_bots(self, source_id: str):
         from core.model.bot import Bot
