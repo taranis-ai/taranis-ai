@@ -24,7 +24,7 @@
                     class="story-shared-icon"
                     :style="getSharingIcon(n)"
                     icon="mdi-share"
-                  ></v-icon>
+                  />
                 </div>
                 <h2
                   v-dompurify-html="highlighted_title"
@@ -123,7 +123,7 @@ import CardNewsItem from '@/components/assess/CardNewsItem.vue'
 import { ref, computed } from 'vue'
 import { useAssessStore } from '@/stores/AssessStore'
 import { useFilterStore } from '@/stores/FilterStore'
-import { highlight_text } from '@/utils/helpers'
+import { highlight_text, getAssessSharingIcon } from '@/utils/helpers'
 import { unGroupStories } from '@/api/assess'
 import { storeToRefs } from 'pinia'
 import WeekChart from '@/components/assess/card/WeekChart.vue'
@@ -244,17 +244,7 @@ export default {
     })
 
     function getSharingIcon(index) {
-      const baseSize = 24 // Base size for the icons
-      const scaleFactor = 1 - 0.1 * (story_in_reports.value - 1) // Decrease size as more icons are added
-      const size = baseSize * scaleFactor
-      const overlap = (index - 1) * (size / 4) // Calculate overlap based on icon index
-
-      return {
-        width: `${size}px`,
-        height: `${size}px`,
-        position: 'absolute',
-        transform: `translate(${overlap}px, ${overlap}px)`
-      }
+      return getAssessSharingIcon(index, story_in_reports.value)
     }
 
     function openCard() {
@@ -386,6 +376,7 @@ export default {
 .story-shared-icons-container {
   margin-right: 28px;
   margin-left: -8px;
+  margin-top: 10px;
   width: max-content; /* Adjust as needed */
   height: 24px; /* Adjust based on base icon size */
 }

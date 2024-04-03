@@ -1,5 +1,5 @@
 from celery import Celery
-from flask import Flask, session
+from flask import Flask
 import requests
 from requests.auth import HTTPBasicAuth
 
@@ -109,9 +109,8 @@ class QueueManager:
             return {"message": f"Refresh for source {source_id} scheduled"}, 200
         return {"error": "Could not reach rabbitmq"}, 500
 
-    def preview_osint_source(self, source_id: str, user_id):
-        task = self.celery.send_task("collector_preview", args=[source_id], queue="collectors")
-        session[f"source_preview_{source_id}_{user_id}"] = task.id
+    def preview_osint_source(self, source_id: str):
+        task = self.celery.send_task("collector_preview", args=[source_id], queue="collectors", task_id=f"source_preview_{source_id}")
         logger.info(f"Collect for source {source_id} scheduled as {task.id}")
         return {"message": f"Refresh for source {source_id} scheduled", "task_id": task.id}, 200
 

@@ -1,4 +1,4 @@
-from flask import request, send_file, Response, session
+from flask import request, send_file, Response
 from flask_restx import Resource, Namespace, Api
 from werkzeug.datastructures import FileStorage
 
@@ -24,17 +24,6 @@ class AddNewsItems(Resource):
         result, status = NewsItemAggregate.add_news_items(json_data)
         sse_manager.news_items_updated()
         return result, status
-
-
-class PreviewNewsItems(Resource):
-    @api_key_required
-    def post(self):
-        json_data = request.json
-        if not json_data:
-            return {"error": "No data provided"}, 400
-        if user := json_data.pop("preview_user"):
-            session[f"preview_{user}"] = json_data
-        return {"message": "Preview saved"}, 200
 
 
 class QueueScheduleEntry(Resource):
@@ -327,7 +316,6 @@ def initialize(api: Api):
         "/publishers/<string:publisher>",
     )
     worker_ns.add_resource(AddNewsItems, "/news-items")
-    worker_ns.add_resource(PreviewNewsItems, "/news-items/preview")
     worker_ns.add_resource(BotsInfo, "/bots")
     worker_ns.add_resource(ProductsRender, "/products/<int:product_id>/render")
     worker_ns.add_resource(Tags, "/tags")

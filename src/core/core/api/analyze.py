@@ -14,10 +14,10 @@ class ReportTypes(Resource):
         return report_item_type.ReportItemType.get_all_json(None, auth_manager.get_user_from_jwt(), True)
 
 
-class ReportItemAggregates(Resource):
+class ReportStories(Resource):
     @auth_required("ANALYZE_ACCESS")
     def get(self, report_item_id):
-        return report_item.ReportItem.get_aggregate_ids(report_item_id)
+        return report_item.ReportItem.get_story_ids(report_item_id)
 
     @auth_required("ANALYZE_UPDATE")
     def put(self, report_item_id):
@@ -25,7 +25,7 @@ class ReportItemAggregates(Resource):
         if not isinstance(request_data, list):
             logger.debug("No data in request")
             return "No data in request", 400
-        return report_item.ReportItem.set_aggregates(report_item_id, request_data, auth_manager.get_user_from_jwt())
+        return report_item.ReportItem.set_stories(report_item_id, request_data, auth_manager.get_user_from_jwt())
 
     @auth_required("ANALYZE_UPDATE")
     def post(self, report_item_id):
@@ -33,7 +33,7 @@ class ReportItemAggregates(Resource):
         if not isinstance(request_data, list):
             logger.debug("No data in request")
             return "No data in request", 400
-        return report_item.ReportItem.add_aggregates(report_item_id, request_data, auth_manager.get_user_from_jwt())
+        return report_item.ReportItem.add_stories(report_item_id, request_data, auth_manager.get_user_from_jwt())
 
 
 class ReportItem(Resource):
@@ -131,7 +131,7 @@ def initialize(api: Api):
     namespace.add_resource(ReportTypes, "/report-types")
     namespace.add_resource(ReportItem, "/report-items/<string:report_item_id>", "/report-items")
     namespace.add_resource(CloneReportItem, "/report-items/<string:report_item_id>/clone")
-    namespace.add_resource(ReportItemAggregates, "/report-items/<string:report_item_id>/aggregates")
+    namespace.add_resource(ReportStories, "/report-items/<string:report_item_id>/stories")
     namespace.add_resource(ReportItemLocks, "/report-items/<string:report_item_id>/locks")
     namespace.add_resource(
         ReportItemLock,

@@ -1,6 +1,6 @@
 import io
 
-from flask import request, send_file, jsonify, session
+from flask import request, send_file, jsonify
 from flask_restx import Resource, Namespace, Api
 
 from core.managers import (
@@ -383,13 +383,7 @@ class OSINTSourceCollect(Resource):
 class OSINTSourcePreview(Resource):
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def get(self, source_id):
-        user = auth_manager.get_user_from_jwt()
-        if not user:
-            return {"error": "User not found"}, 404
-
-        task_id = session.get(f"source_preview_{source_id}_{user.id}")
-        if task_id is None:
-            return {"error": "No task scheduled or session expired."}, 404
+        task_id = f"source_preview_{source_id}"
 
         if result := task.Task.get(task_id):
             return result.to_dict(), 200
@@ -397,10 +391,7 @@ class OSINTSourcePreview(Resource):
 
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def post(self, source_id):
-        if user := auth_manager.get_user_from_jwt():
-            return queue_manager.queue_manager.preview_osint_source(source_id, user.id)
-
-        return {"error": "User not found"}, 404
+        return queue_manager.queue_manager.preview_osint_source(source_id)
 
 
 class OSINTSourcesExport(Resource):

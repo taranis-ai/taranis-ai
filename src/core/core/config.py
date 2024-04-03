@@ -32,7 +32,6 @@ class Settings(BaseSettings):
     BUILD_DATE: datetime = datetime.now()
     GIT_INFO: dict[str, str] | None = None
     DATA_FOLDER: str = "./taranis_data"
-    SESSION_TYPE: str = "filesystem"
 
     @model_validator(mode="after")  # type: ignore
     def set_sqlalchemy_uri(self) -> "Settings":
