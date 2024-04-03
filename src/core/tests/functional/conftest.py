@@ -2,14 +2,23 @@ import pytest
 
 
 @pytest.fixture(scope="function")
-def fake_source(app, request, cleanup_sources):
+def fake_source(app, request):
     with app.app_context():
         from core.model.osint_source import OSINTSource
 
-        source_id = cleanup_sources["id"]
+        source_data = {
+            "id": "99",
+            "description": "This is a test source",
+            "name": "Test Source",
+            "parameters": [
+                {"FEED_URL": "https://url/feed.xml"},
+            ],
+            "type": "rss_collector",
+        }
+        source_id = source_data["id"]
 
         if not OSINTSource.get(source_id):
-            OSINTSource.add(cleanup_sources)
+            OSINTSource.add(source_data)
 
         def teardown():
             with app.app_context():
@@ -77,30 +86,6 @@ def news_item_aggregates(app, request, news_items_data):
         request.addfinalizer(teardown)
 
         yield [nia1, nia2]
-
-
-@pytest.fixture(scope="session")
-def cleanup_sources(app, request):
-    with app.app_context():
-        from core.model.osint_source import OSINTSource
-
-        source_data = {
-            "id": "42",
-            "description": "This is a test source",
-            "name": "Test Source",
-            "parameters": [
-                {"FEED_URL": "https://url/feed.xml"},
-            ],
-            "type": "rss_collector",
-        }
-
-        def teardown():
-            with app.app_context():
-                [OSINTSource.delete(source.id) for source in OSINTSource.get_all()]
-
-        request.addfinalizer(teardown)
-
-        yield source_data
 
 
 @pytest.fixture(scope="session")

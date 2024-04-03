@@ -2,6 +2,30 @@ import pytest
 
 
 @pytest.fixture(scope="session")
+def cleanup_sources(app, request):
+    with app.app_context():
+        from core.model.osint_source import OSINTSource
+
+        source_data = {
+            "id": "42",
+            "description": "This is a test source",
+            "name": "Test Source",
+            "parameters": [
+                {"FEED_URL": "https://url/feed.xml"},
+            ],
+            "type": "rss_collector",
+        }
+
+        def teardown():
+            with app.app_context():
+                [OSINTSource.delete(source.id) for source in OSINTSource.get_all()]
+
+        request.addfinalizer(teardown)
+
+        yield source_data
+
+
+@pytest.fixture(scope="session")
 def cleanup_source_groups(app, request):
     with app.app_context():
         from core.model.osint_source import OSINTSourceGroup
