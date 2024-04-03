@@ -9,7 +9,7 @@ from kombu.exceptions import OperationalError
 
 queue_manager: "QueueManager"
 periodic_tasks = [
-    {"id": "cleanup_token_blacklist", "task": "cleanup_token_blacklist", "schedule": "daily", "args": []},
+    {"id": "cleanup_token_blacklist", "task": "cleanup_token_blacklist", "schedule": "daily", "args": [], "queue": "misc"},
 ]
 
 

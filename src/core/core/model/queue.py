@@ -11,14 +11,16 @@ class ScheduleEntry(BaseModel):
     task = db.Column(db.String)
     schedule = db.Column(db.String)
     args = db.Column(db.String)
+    queue = db.Column(db.String)
     last_run_at = db.Column(db.DateTime)
     next_run_time = db.Column(db.DateTime)
     total_run_count = db.Column(db.Integer)
 
-    def __init__(self, id, task, schedule, args):
+    def __init__(self, id, task, schedule, queue, args):
         self.id = id
         self.task = task
         self.schedule = schedule
+        self.queue = queue
         self.args = args
         self.total_run_count = 0
 

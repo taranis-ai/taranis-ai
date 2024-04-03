@@ -307,7 +307,7 @@ export default {
     })
 
     const resetFilter = () => {
-      assessStore.$reset()
+      assessStore.reset()
       filterStore.resetFilter()
     }
 

@@ -1,12 +1,12 @@
 <template>
   <div class="w-100">
     <v-infinite-scroll
-      v-if="newsItems.items.length > 0 && !pagination"
+      v-if="stories.items.length > 0 && !pagination"
       empty-text="All items loaded"
       color="primary"
       @load="displayMore"
     >
-      <template v-for="item in newsItems.items" :key="item">
+      <template v-for="item in stories.items" :key="item">
         <card-story :story="item" @refresh="refresh(item.id)" />
       </template>
       <template #loading>
@@ -21,8 +21,8 @@
       </template>
     </v-infinite-scroll>
 
-    <v-container v-else-if="newsItems.items.length > 0 && pagination" fluid>
-      <template v-for="item in newsItems.items" :key="item">
+    <v-container v-else-if="stories.items.length > 0 && pagination" fluid>
+      <template v-for="item in stories.items" :key="item">
         <card-story :story="item" @refresh="refresh(item.id)" />
       </template>
       <v-row class="justify-center mt-10 mb-10">
@@ -34,7 +34,7 @@
       </v-row>
     </v-container>
     <v-row
-      v-if="newsItems.items.length == 0"
+      v-if="stories.items.length == 0"
       class="align-center justify-center mt-5"
     >
       <v-col cols="12">
@@ -73,7 +73,7 @@ export default defineComponent({
     const assessStore = useAssessStore()
     const filterStore = useFilterStore()
     const mainStore = useMainStore()
-    const { newsItems, activeSelection, loading } = storeToRefs(assessStore)
+    const { stories, activeSelection, loading } = storeToRefs(assessStore)
     const { newsItemsFilter } = storeToRefs(filterStore)
 
     assessHotkeys()
@@ -81,8 +81,8 @@ export default defineComponent({
       const offset = newsItemsFilter.value.offset
         ? parseInt(newsItemsFilter.value.offset)
         : 0
-      const length = offset + newsItems.value.items.length
-      return length < newsItems.value.total_count
+      const length = offset + stories.value.items.length
+      return length < stories.value.total_count
     })
 
     const page = computed({
@@ -95,7 +95,7 @@ export default defineComponent({
     })
     const numberOfPages = computed(() => {
       const count = Math.ceil(
-        newsItems.value.total_count / (newsItemsFilter.value.limit || 20)
+        stories.value.total_count / (newsItemsFilter.value.limit || 20)
       )
       return count > 0 ? count : 1
     })
@@ -132,8 +132,8 @@ export default defineComponent({
     }
 
     onUpdated(() => {
-      mainStore.itemCountTotal = newsItems.value.total_count
-      mainStore.itemCountFiltered = newsItems.value.items.length
+      mainStore.itemCountTotal = stories.value.total_count
+      mainStore.itemCountFiltered = stories.value.items.length
     })
 
     onUnmounted(() => {
@@ -143,7 +143,7 @@ export default defineComponent({
     })
 
     return {
-      newsItems,
+      stories,
       moreToLoad,
       activeSelection,
       numberOfPages,

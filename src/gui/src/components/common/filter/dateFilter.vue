@@ -7,7 +7,6 @@
     time-picker-inline
     clearable
     space-confirm
-    autocomplete
     @open="openMenu()"
   />
 </template>
