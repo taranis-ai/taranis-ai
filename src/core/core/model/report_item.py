@@ -156,7 +156,7 @@ class ReportItem(BaseModel):
         return {"total_count": len(items), "items": items}
 
     @classmethod
-    def get_aggregate_ids(cls, id):
+    def get_story_ids(cls, id):
         report_item = cls.query.get(id)
         return [aggregate.id for aggregate in report_item.news_item_aggregates]
 
@@ -355,7 +355,7 @@ class ReportItem(BaseModel):
         return report_item, {}, 200
 
     @classmethod
-    def add_aggregates(cls, id: int, item_ids: list[int], user: User) -> tuple[dict, int]:
+    def add_stories(cls, id: int, item_ids: list[int], user: User) -> tuple[dict, int]:
         report_item, err, status = cls.get_report_item_and_check_permission(id, user)
         if err or not report_item:
             return err, status
@@ -379,7 +379,7 @@ class ReportItem(BaseModel):
         return {"message": f"Successfully removed {aggregate_ids} from {report_item.id}"}, 200
 
     @classmethod
-    def set_aggregates(cls, id: int, aggregate_ids: list, user: User) -> tuple[dict, int]:
+    def set_stories(cls, id: int, aggregate_ids: list, user: User) -> tuple[dict, int]:
         return cls.update_report_item(id, {"aggregate_ids": aggregate_ids}, user)
 
     @classmethod

@@ -226,6 +226,68 @@ export function tagTextFromType(tag_type) {
   return tag_type
 }
 
+export function getAssessSharingIcon(index, story_in_reports) {
+  let scaleFactor = 0.7
+  let spacing = 8
+
+  let positionX = 0
+  let positionY = 0
+
+  const min_icons = Math.min(story_in_reports, 5)
+
+  // Positions are determined as offsets from the center
+  switch (min_icons) {
+    case 1: // Center
+      scaleFactor = 1
+      break
+    case 2: // Diagonal corners
+      spacing = 6
+      positionX = index === 1 ? -spacing : spacing
+      positionY = index === 1 ? -spacing : spacing
+      scaleFactor = 0.9
+      break
+    case 3: // Two corners and center
+      scaleFactor = 0.8
+      if (index === 1) {
+        positionX = -spacing
+        positionY = -spacing
+      } else if (index === 2) {
+        // Center (no change needed)
+      } else {
+        positionX = spacing
+        positionY = spacing
+      }
+      break
+    case 4: // Four corners
+    case 5: // Four corners and center
+      if (index === 1) {
+        positionX = -spacing
+        positionY = -spacing
+      } else if (index === 2) {
+        positionX = spacing
+        positionY = -spacing
+      } else if (index === 3) {
+        positionX = -spacing
+        positionY = spacing
+      } else if (index === 4 || index === 5) {
+        positionX = spacing
+        positionY = spacing
+      }
+      if (min_icons === 5 && index === 5) {
+        // Reset for center position if 5 icons
+        positionX = 0
+        positionY = 0
+      }
+      break
+  }
+
+  return {
+    '--v-icon-size-multiplier': scaleFactor,
+    position: 'absolute',
+    transform: `translate(${positionX}px, ${positionY}px)`,
+  }
+}
+
 export function getMessageFromError(error) {
   if (error.response && error.response.data && error.response.data.error) {
     return error.response.data.error
