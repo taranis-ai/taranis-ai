@@ -28,6 +28,7 @@ class RSSCollector(BaseWebCollector):
         self.feed_content = None
         self.last_modified = None
         self.digest_splitting_limit = 30
+        self.split_digest_urls = []
         logger_trafilatura = logging.getLogger("trafilatura")
         logger_trafilatura.setLevel(logging.WARNING)
 
@@ -200,7 +201,7 @@ class RSSCollector(BaseWebCollector):
         self.core_api.update_osint_source_icon(source_id, icon_content)
         return None
 
-    def split_digest_urls(self, feed_entries) -> list:
+    def get_digest_url_list(self, feed_entries) -> list:
         return [result for feed_entry in feed_entries for result in self.digest_splitting(feed_entry)]  # Flat list of URLs
 
     def get_news_items(self, feed, source) -> list | str:
@@ -213,23 +214,27 @@ class RSSCollector(BaseWebCollector):
     def handle_digests(self, feed, source) -> list[dict] | str:
         self.digest_splitting_limit = int(source["parameters"].get("DIGEST_SPLITTING_LIMIT", self.digest_splitting_limit))
         feed_entries = feed["entries"][:42]
-        split_digest_urls = self.split_digest_urls(feed_entries)
-        logger.info(f"RSS-Feed {source['id']} returned {len(split_digest_urls)} available URLs")
+        self.split_digest_urls = self.get_digest_url_list(feed_entries)
+        logger.info(f"RSS-Feed {source['id']} returned {len(self.split_digest_urls)} available URLs")
 
-        return self.parse_digests(split_digest_urls, source)
+        return self.parse_digests(source)
 
-    def parse_digests(self, split_digest_urls, source) -> list[dict] | str:
+    def parse_digests(self, source) -> list[dict] | str:
         news_items = []
-        for split_digest_url in split_digest_urls[: self.digest_splitting_limit]:
+        max_elements = (
+            len(self.split_digest_urls) if len(self.split_digest_urls) < self.digest_splitting_limit else self.digest_splitting_limit
+        )
+        for split_digest_url in self.split_digest_urls[:max_elements]:
             try:
                 news_item = self.parse_web_content(split_digest_url, source.get("id"))
-                if not news_item.get("error"):
-                    news_items.append(news_item)
-                else:
-                    logger.warning(f"RSS Collector for {split_digest_url} skipped with error: {news_item.get('error')}")
+                news_items.append(news_item)
+            # Trafilatura.extract_metadata() raises for certain URLs a ValueError
+            # Example error message: "month must be in 1..12"
+            except ValueError:
+                pass
             except Exception as e:
                 logger.error(f"RSS Collector failed digest splitting with error: {str(e)}")
-                return str(e)
+                raise e
 
         return news_items
 
@@ -261,7 +266,7 @@ class RSSCollector(BaseWebCollector):
         logger.info(f"RSS-Feed {source['id']} returned feed with {len(feed['entries'])} entries")
 
         news_items = self.get_news_items(feed, source)
-        logger.info(news_items)
+        # logger.info(news_items)
 
         self.publish(news_items, source)
         return None
@@ -279,16 +284,25 @@ if __name__ == "__main__":
     #         },
     #     }
     # )
-    # rss_collector.collect({"id": 1, "parameters": {"FEED_URL": "https://us-cert.cisa.gov/ncas/bulletins.xml", "DIGEST_SPLITTING": True}})
-    # rss_collector.collect({"id": 1, "parameters": {"FEED_URL": "https://blog.360totalsecurity.com/en/category/security-news/feed/"}})
-
-    rss_collector.preview_collector(
+    rss_collector.collect(
         {
             "id": 1,
             "parameters": {
-                "FEED_URL": "https://cert.at/cert-at.de.all.rss_2.0.xml",
-                "DIGEST_SPLITTING": "false",
-                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36",
+                "FEED_URL": "https://us-cert.cisa.gov/ncas/bulletins.xml",
+                "DIGEST_SPLITTING": "true",
+                # "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36",
             },
         }
     )
+    # rss_collector.collect({"id": 1, "parameters": {"FEED_URL": "https://blog.360totalsecurity.com/en/category/security-news/feed/"}})
+
+    # rss_collector.preview_collector(
+    #     {
+    #         "id": 1,
+    #         "parameters": {
+    #             "FEED_URL": "https://cert.at/cert-at.de.all.rss_2.0.xml",
+    #             "DIGEST_SPLITTING": "false",
+    #             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36",
+    #         },
+    #     }
+    # )

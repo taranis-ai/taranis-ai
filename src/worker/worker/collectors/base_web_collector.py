@@ -5,7 +5,7 @@ import requests
 import lxml.html
 import dateutil.parser as dateparser
 from urllib.parse import urlparse
-from trafilatura import bare_extraction
+from trafilatura import bare_extraction, extract_metadata
 
 from worker.log import logger
 from worker.collectors.base_collector import BaseCollector
@@ -48,11 +48,15 @@ class BaseWebCollector(BaseCollector):
         self.core_api.update_osint_source_icon(source_id, icon_content)
         return None
 
-    def html_from_article(self, web_url: str) -> tuple[str, datetime.datetime]:
+    def web_content_from_article(self, web_url: str) -> tuple[str, datetime.datetime]:
         response = requests.get(web_url, headers=self.headers, proxies=self.proxies, timeout=60)
         if not response or not response.ok:
             return "", datetime.datetime.now()
-        html_content = response.content.decode("utf-8")
+        # Handle non-text content
+        if response.headers["Content-Type"].startswith("text/"):
+            html_content = response.content.decode("utf-8")
+        else:
+            html_content = response.content
         published_date = self.get_last_modified(response)
         return html_content, published_date
 
@@ -63,37 +67,29 @@ class BaseWebCollector(BaseCollector):
             return ""
         return document.xpath(xpath)[0].text_content()
 
-    def extract_meta(self, html_content):
-        html_content = lxml.html.fromstring(html_content)
-        author = ""
-        title = html_content.findtext(".//title", default="")
-
-        if meta_tags := html_content.xpath("//meta[@name='author']"):
-            author = meta_tags[0].get("content", "")
+    def extract_meta(self, web_content, web_url):
+        # Trafilatura.extract_metadata() raises for certain URLs a ValueError
+        # Example error message: "month must be in 1..12"
+        metadata = extract_metadata(web_content, default_url=web_url)
+        author = "" if metadata is None or metadata.as_dict().get("author") is None else metadata.as_dict().get("author")
+        title = "" if metadata is None or metadata.as_dict().get("title") is None else metadata.as_dict().get("title")
 
         return author, title
 
     def parse_web_content(self, web_url, source_id: str, xpath: str = "") -> dict[str, str | datetime.datetime | list]:
-        html_content, published_date = self.html_from_article(web_url)
-        if not html_content:
-            raise ValueError("Website returned no content")
-        author, title = self.extract_meta(html_content)
-
+        web_content, published_date = self.web_content_from_article(web_url)
+        content = ""
         if xpath:
-            content = self.xpath_extraction(html_content, xpath)
-        else:
-            # TODO: @with_metadata is deprecated and substituted by @only_with_metadata
-            # TODO: @with_metadata=True more websites return None
-            extract_document = bare_extraction(html_content, with_metadata=True, include_comments=False, url=web_url)
-            if extract_document is None:
-                return {"error": f"Failed to extract News Item for url: {web_url}"}
-            # logger.info(f"Extracted document: {extract_document}")
-            author = extract_document.get("author")
-            author = "" if author is None else author
-            title = extract_document.get("title")
-            title = "" if title is None else title
-            content = extract_document.get("text")
-            content = "" if content is None else content
+            content = self.xpath_extraction(web_content, xpath)
+        elif web_content is not None:
+            extract_document = bare_extraction(web_content, url=web_url, with_metadata=False, include_comments=False)
+            if extract_document is not None or extract_document:
+                content = extract_document.get("text")
+                content = "" if content is None else content
+            else:
+                content = ""
+
+        author, title = self.extract_meta(web_content, web_url)
 
         for_hash: str = author + title + web_url
 
