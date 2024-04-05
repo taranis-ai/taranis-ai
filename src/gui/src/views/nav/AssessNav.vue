@@ -204,8 +204,7 @@ import filterButton from '@/components/common/filter/filterButton.vue'
 import AssessFilterButtons from '@/components/assess/AssessFilterButtons.vue'
 import filterSortList from '@/components/common/filter/filterSortList.vue'
 import FilterNavigation from '@/components/common/FilterNavigation.vue'
-import { computed, onUnmounted, onBeforeMount, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, onBeforeMount } from 'vue'
 import { useFilterStore } from '@/stores/FilterStore'
 import { useAssessStore } from '@/stores/AssessStore'
 import { storeToRefs } from 'pinia'
@@ -228,21 +227,15 @@ export default {
 
     const { getOSINTSourceGroupsList, getOSINTSourcesList } =
       storeToRefs(assessStore)
-    const { updateNewsItems } = assessStore
     const { mdAndDown, smAndUp } = useDisplay()
 
     const {
       newsItemsFilter,
-      chartFilter,
       highlight,
       showWeekChart,
       compactView,
       compactViewSetByUser
     } = storeToRefs(filterStore)
-
-    const { setFilter, updateFilter } = useFilterStore()
-
-    const route = useRoute()
 
     const filter_range = computed({
       get() {
@@ -284,26 +277,13 @@ export default {
         return newsItemsFilter.value.search
       },
       set(value) {
-        updateFilter({ search: value })
+        filterStore.updateFilter({ search: value })
       }
     })
-
-    const updateQuery = () => {
-      const query = Object.fromEntries(
-        Object.entries(route.query).filter(([, v]) => v != null)
-      )
-      setFilter(query)
-      console.debug('loaded with query', query)
-    }
 
     onBeforeMount(() => {
       assessStore.updateOSINTSourceGroupsList()
       assessStore.updateOSINTSources()
-      updateQuery()
-    })
-
-    onUnmounted(() => {
-      filterStore.resetFilter()
     })
 
     const resetFilter = () => {
@@ -316,18 +296,8 @@ export default {
       compactViewSetByUser.value = true
     }
 
-    watch(
-      newsItemsFilter,
-      (filter, prevFilter) => {
-        console.debug('filter changed', filter, prevFilter)
-        updateNewsItems()
-      },
-      { deep: true }
-    )
-
     return {
       search,
-      chartFilter,
       mdAndDown,
       smAndUp,
       highlight,

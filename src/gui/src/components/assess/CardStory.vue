@@ -66,17 +66,16 @@
                 :detail-view="openSummary"
                 :report-view="reportView"
               />
-              <week-chart
-                v-if="showWeekChart && openSummary"
+              <WeekChart
+                v-if="openSummary"
                 class="mt-5"
                 :chart-height="180"
                 :story="story"
               />
             </v-col>
-            <v-col v-if="showWeekChart && !openSummary" cols="12" lg="2">
-              <week-chart
+            <v-col v-if="!openSummary" cols="12" lg="2">
+              <WeekChart
                 :chart-height="detailView ? 300 : 100"
-                :chart-width="detailView ? 800 : 100"
                 :story="story"
               />
             </v-col>
@@ -124,9 +123,9 @@ import { ref, computed } from 'vue'
 import { useAssessStore } from '@/stores/AssessStore'
 import { useFilterStore } from '@/stores/FilterStore'
 import { highlight_text, getAssessSharingIcon } from '@/utils/helpers'
-import { unGroupStories } from '@/api/assess'
+import { unGroupAction } from '@/api/assess'
 import { storeToRefs } from 'pinia'
-import WeekChart from '@/components/assess/card/WeekChart.vue'
+import ChartWrapper from '@/components/assess/card/ChartWrapper.vue'
 
 export default {
   name: 'CardStory',
@@ -135,7 +134,7 @@ export default {
     StoryActions,
     StoryMetaInfo,
     SummarizedContent,
-    WeekChart
+    WeekChart: ChartWrapper
   },
   props: {
     story: {
@@ -268,7 +267,7 @@ export default {
     }
 
     function ungroup() {
-      unGroupStories([props.story.id]).then(() => {
+      unGroupAction([props.story.id]).then(() => {
         emit('refresh')
       })
     }

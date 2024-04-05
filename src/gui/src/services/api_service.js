@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { useAuthStore } from '@/stores/AuthStore'
+import { getQueryStringFromNestedObject } from '@/utils/query'
 
 export class ApiService {
   constructor(baseURL) {
@@ -18,33 +19,8 @@ export class ApiService {
     }
   }
 
-  getQueryStringFromObject(filterObject) {
-    return Object.entries(filterObject)
-      .filter(([, val]) => val != null)
-      .map(([key, val]) => `${key}=${val}`)
-      .join('&')
-  }
-
-  encodeAmpersand(value) {
-    return value.replace(/&/g, '%2526')
-  }
-
   getQueryStringFromNestedObject(filterObject) {
-    if (!filterObject) {
-      return ''
-    }
-    return Object.entries(filterObject)
-      .filter(([, val]) => val != null)
-      .map(([key, val]) => {
-        if (Array.isArray(val)) {
-          return val.map((v) => `${key}=${this.encodeAmpersand(v)}`).join('&')
-        }
-        if (typeof val === 'object') {
-          return this.getQueryStringFromObject(val)
-        }
-        return `${key}=${val}`
-      })
-      .join('&')
+    return getQueryStringFromNestedObject(filterObject)
   }
 
   async get(resource) {

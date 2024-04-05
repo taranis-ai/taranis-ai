@@ -284,7 +284,7 @@ export function getAssessSharingIcon(index, story_in_reports) {
   return {
     '--v-icon-size-multiplier': scaleFactor,
     position: 'absolute',
-    transform: `translate(${positionX}px, ${positionY}px)`,
+    transform: `translate(${positionX}px, ${positionY}px)`
   }
 }
 
@@ -376,3 +376,51 @@ export const tlpLevels = [
   { title: 'Amber+Strict', value: 'amber+strict' },
   { title: 'Red', value: 'red' }
 ]
+
+export const staticWeekChartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  scales: {
+    x: {
+      grid: {
+        color: '#c1c1c1'
+      },
+      border: {
+        dash: [2, 4]
+      }
+    },
+    y1: {
+      position: 'left',
+      beginAtZero: true,
+      ticks: {
+        stepSize: 1
+      },
+      grid: {
+        display: false
+      }
+    },
+    y2: {
+      position: 'right',
+      beginAtZero: true,
+      max: 10,
+      ticks: {
+        stepSize: 1
+      },
+      grid: {
+        display: false
+      }
+    }
+  },
+  plugins: {
+    filler: {
+      propagate: false
+    },
+    legend: {
+      display: false
+    },
+    tooltip: {
+      mode: 'index',
+      intersect: false
+    }
+  }
+}

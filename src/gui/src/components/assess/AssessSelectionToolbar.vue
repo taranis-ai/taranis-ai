@@ -13,10 +13,18 @@
           @click.stop="actionClicked('addToReport')"
         />
         <v-btn
+          v-if="storySelection.length > 1"
           text="merge"
           size="small"
           prepend-icon="mdi-merge"
           @click.stop="actionClicked('merge')"
+        />
+        <v-btn
+          v-if="showUnGroup"
+          text="ungroup"
+          size="small"
+          prepend-icon="mdi-ungroup"
+          @click.stop="actionClicked('unGroup')"
         />
         <v-btn
           text="mark as read"
@@ -89,11 +97,10 @@
 </template>
 
 <script>
-import { groupAction, unGroupNewsItems, unGroupStories } from '@/api/assess'
+import { unGroupNewsItems } from '@/api/assess'
 import PopupShareItems from '@/components/popups/PopupShareItems.vue'
 import { useAssessStore } from '@/stores/AssessStore'
 
-import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import { storeToRefs } from 'pinia'
 import { ref, computed } from 'vue'
 
@@ -107,6 +114,15 @@ export default {
     const { storySelection, newsItemSelection } = storeToRefs(assessStore)
     const sharingDialog = ref(false)
 
+    const showUnGroup = computed(() => {
+      if (storySelection.value.length !== 1) return false
+
+      const story = assessStore.getStoryByID(storySelection.value[0])
+      if (story === undefined || story.news_items.length < 2) return false
+
+      return true
+    })
+
     const startCols = computed(() => {
       if (
         storySelection.value.length > 0 &&
@@ -119,22 +135,13 @@ export default {
 
     const actionClicked = (action) => {
       if (action === 'merge') {
-        groupAction(storySelection.value)
-          .then(() => {
-            notifySuccess('Items merged')
-            assessStore.clearSelection()
-            assessStore.updateNewsItems()
-          })
-          .catch((err) => {
-            notifyFailure('Failed to merge items')
-            console.log(err)
-          })
+        assessStore.groupStories()
       } else if (action === 'addToReport') {
         sharingDialog.value = true
       } else if (action === 'remove') {
         unGroupNewsItems(newsItemSelection.value)
       } else if (action === 'unGroup') {
-        unGroupStories(storySelection.value)
+        assessStore.ungroupStories()
       } else if (action === 'markAsRead') {
         assessStore.markSelectionAsRead()
       } else if (action === 'markAsImportant') {
@@ -150,6 +157,7 @@ export default {
       sharingDialog,
       storySelection,
       newsItemSelection,
+      showUnGroup,
       startCols,
       actionClicked,
       deselect

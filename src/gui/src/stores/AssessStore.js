@@ -7,6 +7,8 @@ import {
   voteNewsItemAggregate,
   deleteNewsItemAggregate,
   updateStoryTags,
+  groupAction,
+  unGroupAction,
   getStory
 } from '@/api/assess'
 import { defineStore } from 'pinia'
@@ -14,6 +16,8 @@ import { xorConcat, notifyFailure, notifySuccess } from '@/utils/helpers'
 import { useFilterStore } from './FilterStore'
 import { stringify, parse } from 'zipson'
 import { ref, computed } from 'vue'
+import { staticWeekChartOptions } from '@/utils/helpers'
+import { getQueryStringFromNestedObject } from '@/utils/query'
 
 export const useAssessStore = defineStore(
   'assess',
@@ -23,9 +27,9 @@ export const useAssessStore = defineStore(
     const stories = ref({ total_count: 0, items: [] })
     const newsItemSelection = ref([])
     const storySelection = ref([])
-    const maxItem = ref(0)
     const loading = ref(false)
     const new_news_items = ref(false)
+    const weekChartOptions = ref(staticWeekChartOptions)
 
     const OSINTSourceGroupsList = computed(() =>
       Array.isArray(osint_source_groups.value.items)
@@ -49,33 +53,42 @@ export const useAssessStore = defineStore(
       () =>
         newsItemSelection.value.length > 0 || storySelection.value.length > 0
     )
-    async function updateNewsItems() {
+
+    async function updateStories() {
       try {
         loading.value = true
         const filter = useFilterStore()
-        const response = await getStories(filter.newsItemsFilter)
+        console.debug('Updating Stories with Filter', filter.filterQuery)
+        const response = await getStories(filter.filterQuery)
         stories.value.items = response.data.items
         stories.value.total_count = response.data.total_count
-        maxItem.value = response.data.max_item
+        weekChartOptions.value.scales.y2.max = response.data.max_item
         loading.value = false
       } catch (error) {
+        loading.value = false
         notifyFailure(error.message)
       }
     }
-    async function modifyNewsItemsList(action = 'append') {
+    async function modifyStories(action = 'append') {
       try {
         loading.value = true
         // Make a copy of the original filter and adjust the offset based on the action
         const filter = { ...useFilterStore().newsItemsFilter }
         filter.offset = action === 'prepend' ? 0 : stories.value.items.length
 
-        const response = await getStories(filter)
+        const filterQuery = getQueryStringFromNestedObject(filter)
+        const response = await getStories(filterQuery)
         const existingItemIds = new Set(
           stories.value.items.map((item) => item.id)
         )
         const uniqueNewItems = response.data.items.filter(
           (item) => !existingItemIds.has(item.id)
         )
+
+        console.debug('Returned Item IDs', response.data.items.map((item) => item.id))
+        console.debug('Unique New Items', uniqueNewItems.length)
+        console.debug('Unique Item IDs', uniqueNewItems.map((item) => item.id))
+        console.debug('Existing Item IDs', existingItemIds)
 
         // Adjust the items array based on the action
         stories.value.items =
@@ -84,25 +97,30 @@ export const useAssessStore = defineStore(
             : [...uniqueNewItems, ...stories.value.items]
 
         stories.value.total_count = response.data.total_count
-        maxItem.value = response.data.max_item
+        weekChartOptions.value.scales.y2.max = response.data.max_item
+        console.debug('Modified Stories', action)
+        await new Promise(r => setTimeout(r, 2000));
         loading.value = false
       } catch (error) {
+        loading.value = false
         console.error(error)
         notifyFailure(error.message)
       }
     }
 
-    async function appendNewsItems() {
-      await modifyNewsItemsList('append')
+    async function appendStories() {
+      await modifyStories('append')
     }
-    async function prependNewsItems() {
-      await modifyNewsItemsList('prepend')
+    async function prependStories() {
+      await modifyStories('prepend')
+    }
+
+    function getStoryByID(id) {
+      return stories.value.items.filter((item) => item.id === id)[0]
     }
     function removeStoryByID(id) {
       deleteNewsItemAggregate(id)
-      stories.value.items = stories.value.items.filter(
-        (item) => item.id !== id
-      )
+      stories.value.items = stories.value.items.filter((item) => item.id !== id)
     }
     async function updateStoryByID(id) {
       const response = await getStory(id)
@@ -151,6 +169,55 @@ export const useAssessStore = defineStore(
       const response = await getOSINTSourceGroupsList()
       osint_source_groups.value = response.data
     }
+
+    async function ungroupStories(stories = storySelection.value) {
+      try {
+        if (stories.length < 1) {
+          notifyFailure('Select at least 1 story to ungroup')
+          return
+        }
+        await unGroupAction(stories)
+        clearSelection()
+        await updateStories()
+      } catch (error) {
+        notifyFailure(error)
+      }
+    }
+
+    function groupStories() {
+      try {
+        if (storySelection.value.length < 2) {
+          notifyFailure('Select at least 2 stories to group')
+          return
+        }
+        groupAction(storySelection.value)
+        // Take all the elements from stories.value where the id matches the storySelection.value except the first one and remove them from stories.value, and add them to the first one
+        const firstID = storySelection.value.shift()
+        const firstStory = stories.value.items.find(
+          (item) => item.id === firstID
+        )
+        const storiesToMerge = stories.value.items.filter((item) =>
+          storySelection.value.includes(item.id)
+        )
+        firstStory.news_items = [
+          ...firstStory.news_items,
+          ...storiesToMerge.map((item) => item.news_items).flat()
+        ]
+        firstStory.news_items = firstStory.news_items.sort(
+          (a, b) => new Date(b.published_at) - new Date(a.published_at)
+        )
+        stories.value.items = stories.value.items.filter(
+          (item) => !storySelection.value.includes(item.id)
+        )
+
+        notifySuccess(`Merged stories: ${storySelection.value.join(', ')}`)
+        clearSelection()
+      } catch (error) {
+        console.error(error)
+        notifyFailure(error)
+      }
+    }
+
     function selectNewsItem(id) {
       newsItemSelection.value = xorConcat(newsItemSelection.value, id)
     }
@@ -208,7 +275,7 @@ export const useAssessStore = defineStore(
       stories.value = { total_count: 0, items: [] }
       newsItemSelection.value = []
       storySelection.value = []
-      maxItem.value = 0
+      weekChartOptions.value = staticWeekChartOptions
       loading.value = false
       new_news_items.value = false
     }
@@ -219,17 +286,20 @@ export const useAssessStore = defineStore(
       stories,
       newsItemSelection,
       storySelection,
-      maxItem,
+      weekChartOptions,
       loading,
       new_news_items,
       OSINTSourceGroupsList,
       OSINTSourcesList,
       activeSelection,
       reset,
-      updateNewsItems,
-      modifyNewsItemsList,
-      appendNewsItems,
-      prependNewsItems,
+      updateStories,
+      modifyStories,
+      groupStories,
+      ungroupStories,
+      appendStories,
+      prependStories,
+      getStoryByID,
       removeStoryByID,
       updateStoryByID,
       voteOnNewsItemAggregate,
