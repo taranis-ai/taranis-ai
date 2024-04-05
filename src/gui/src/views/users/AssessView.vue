@@ -49,14 +49,14 @@
         <v-btn block class="mx-4" @click="resetFilter()">Reset Filter</v-btn>
       </v-col>
     </v-row>
-    <assess-selection-toolbar v-if="activeSelection" />
+    <assess-selection-toolbar v-show="activeSelection" />
   </div>
 </template>
 
 <script>
 import CardStory from '@/components/assess/CardStory.vue'
 import AssessSelectionToolbar from '@/components/assess/AssessSelectionToolbar.vue'
-import { defineComponent, computed, onUnmounted, onUpdated } from 'vue'
+import { defineComponent, computed, onDeactivated, onUpdated } from 'vue'
 import { useAssessStore } from '@/stores/AssessStore'
 import { useFilterStore } from '@/stores/FilterStore'
 import { useMainStore } from '@/stores/MainStore'
@@ -115,9 +115,12 @@ export default defineComponent({
         return
       }
       if (loading.value) {
+        setTimeout(async () => {
+          loading.value = false
+        }, 2000)
         return
       }
-      await assessStore.appendNewsItems()
+      await assessStore.appendStories()
       done('ok')
     }
     const nextPage = () => {
@@ -136,7 +139,7 @@ export default defineComponent({
       mainStore.itemCountFiltered = stories.value.items.length
     })
 
-    onUnmounted(() => {
+    onDeactivated(() => {
       assessStore.clearSelection()
       mainStore.itemCountTotal = 0
       mainStore.itemCountFiltered = 0

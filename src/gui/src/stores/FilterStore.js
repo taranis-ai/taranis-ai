@@ -1,5 +1,8 @@
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { defineStore } from 'pinia'
+import { useAssessStore } from './AssessStore'
+import { router } from '@/router'
+import { getQueryStringFromNestedObject } from '@/utils/query'
 
 export const useFilterStore = defineStore(
   'filter',
@@ -21,6 +24,24 @@ export const useFilterStore = defineStore(
       relevant: undefined,
       important: undefined
     })
+
+    const filterQuery = ref(null)
+
+    watch(
+      newsItemsFilter,
+      (filter) => {
+        const newFilterQuery = getQueryStringFromNestedObject(filter)
+
+        if (newFilterQuery === filterQuery.value) {
+          return
+        }
+        filterQuery.value = newFilterQuery
+        router.push({ query: filter })
+        const assessStore = useAssessStore()
+        assessStore.updateStories()
+      },
+      { deep: true }
+    )
 
     const assetFilter = ref({
       offset: undefined,
@@ -45,11 +66,6 @@ export const useFilterStore = defineStore(
       search: undefined,
       sort: undefined,
       range: undefined
-    })
-
-    const chartFilter = ref({
-      threshold: 20,
-      y2max: undefined
     })
 
     const highlight = ref(true)
@@ -185,10 +201,10 @@ export const useFilterStore = defineStore(
     // Return state, getters, and actions
     return {
       newsItemsFilter,
+      filterQuery,
       assetFilter,
       reportFilter,
       productFilter,
-      chartFilter,
       highlight,
       showWeekChart,
       compactView,

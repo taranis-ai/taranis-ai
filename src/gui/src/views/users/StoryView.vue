@@ -1,7 +1,7 @@
 <template>
   <v-container v-if="story" fluid>
     <card-story :story="story" :detail-view="true" />
-    <assess-selection-toolbar v-if="activeSelection" />
+    <assess-selection-toolbar v-show="activeSelection" />
   </v-container>
   <not-found-card v-else :item-id="story_id" item-type="Story" />
 </template>

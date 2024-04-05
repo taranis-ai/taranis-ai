@@ -1,4 +1,3 @@
-import { router } from '@/router'
 import { apiService } from '@/main'
 
 export function getOSINTSourceGroupsList() {
@@ -9,9 +8,7 @@ export function getOSINTSourcesList() {
   return apiService.get('/assess/osint-sources-list')
 }
 
-export function getStories(filter_data) {
-  const filter = apiService.getQueryStringFromNestedObject(filter_data)
-  router.push({ query: filter_data })
+export function getStories(filter) {
   return apiService.get(`/assess/stories?${filter}`)
 }
 
@@ -81,7 +78,7 @@ export function groupAction(data) {
   return apiService.put('/assess/stories/group', data)
 }
 
-export function unGroupStories(data) {
+export function unGroupAction(data) {
   return apiService.put('/assess/stories/ungroup', data)
 }
 

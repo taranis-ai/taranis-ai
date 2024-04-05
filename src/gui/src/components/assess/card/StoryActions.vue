@@ -316,7 +316,6 @@ import PopupShareItems from '@/components/popups/PopupShareItems.vue'
 import { ref, computed } from 'vue'
 import { useAssessStore } from '@/stores/AssessStore'
 import { useFilterStore } from '@/stores/FilterStore'
-import { unGroupStories } from '@/api/assess'
 import { storeToRefs } from 'pinia'
 
 export default {
@@ -408,9 +407,7 @@ export default {
     }
 
     function ungroup() {
-      unGroupStories([props.story.id]).then(() => {
-        emit('refresh')
-      })
+      assessStore.ungroupStories([props.story.id])
     }
 
     function moveSelection() {

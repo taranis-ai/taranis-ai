@@ -2,10 +2,18 @@
   <v-app class="grey lighten-2">
     <MainMenu v-if="isAuthenticated" />
 
-    <router-view name="nav"></router-view>
+    <router-view v-slot="{ Component }" name="nav">
+      <keep-alive>
+        <component :is="Component" />
+      </keep-alive>
+    </router-view>
 
     <v-main class="d-flex">
-      <router-view />
+      <router-view v-slot="{ Component }">
+        <keep-alive :include="['AssessView']">
+          <component :is="Component" />
+        </keep-alive>
+      </router-view>
     </v-main>
 
     <Notification v-if="isAuthenticated" />
@@ -15,13 +23,10 @@
 <script>
 import MainMenu from '@/components/MainMenu.vue'
 import Notification from '@/components/common/Notification.vue'
-import { defineComponent, onMounted, watch } from 'vue'
+import { defineComponent, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/AuthStore'
-import { useFilterStore } from '@/stores/FilterStore'
-import { useMainStore } from '@/stores/MainStore'
 import { useSseStore } from '@/stores/SseStore'
 import { storeToRefs } from 'pinia'
-import { useDisplay } from 'vuetify'
 
 export default defineComponent({
   name: 'App',
@@ -33,11 +38,7 @@ export default defineComponent({
     const { isAuthenticated, timeToRefresh } = storeToRefs(useAuthStore())
     const authStore = useAuthStore()
     const sseStore = useSseStore()
-    const { compactView, compactViewSetByUser } = storeToRefs(useFilterStore())
-    const { drawerVisible, drawerSetByUser } = storeToRefs(useMainStore())
     const { isConnected } = storeToRefs(sseStore)
-
-    const { mdAndDown, lgAndDown, name: displayName } = useDisplay()
 
     if (!isConnected.value) {
       if (isAuthenticated.value) {
@@ -57,32 +58,6 @@ export default defineComponent({
         }, timeToRefresh.value)
       }
     })
-
-    watch(
-      () => mdAndDown.value,
-      (nv) => {
-        if (compactViewSetByUser.value) return
-        compactView.value = nv
-      },
-      { immediate: true }
-    )
-
-    watch(
-      () => lgAndDown.value,
-      (nv) => {
-        if (drawerSetByUser.value) return
-        drawerVisible.value = !nv
-      },
-      { immediate: true }
-    )
-
-    watch(
-      () => displayName.value,
-      (newValue) => {
-        console.debug('Display name changed to', newValue)
-      },
-      { immediate: true }
-    )
 
     return {
       isAuthenticated

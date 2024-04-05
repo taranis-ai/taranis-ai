@@ -55,7 +55,7 @@
                     block
                     color="red"
                     text="Ungroup all Stories"
-                    @click="ungroupStories"
+                    @click="ungroupAllStoriesAction"
                   />
                 </v-card-actions>
               </v-card>
@@ -128,7 +128,7 @@ export default {
         notifyFailure(error)
       }
     }
-    async function ungroupStories() {
+    async function ungroupAllStoriesAction() {
       try {
         const result = await ungroupAllStories()
         notifySuccess(result)
@@ -144,7 +144,7 @@ export default {
         notifyFailure(error)
       }
     }
-    return { deleteTags, ungroupStories, deleteEverything, tlpLevels, tlp }
+    return { deleteTags, ungroupAllStoriesAction, deleteEverything, tlpLevels, tlp }
   }
 }
 </script>
