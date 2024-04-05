@@ -14,35 +14,36 @@ classifiers = [
 requires-python = ">=3.11"
 dependencies = [
     # Core
-    "celery==5.3.6",
-    "click==8.1.7",
-    "python-dotenv==1.0.0",
+    "celery",
+    "click",
+    "python-dotenv",
     "pydantic-settings",
-    "requests==2.31.0",
+    "requests",
     # Collector
-    "beautifulsoup4==4.12.3",
-    "trafilatura==1.6.4",
-    "feedparser==6.0.11",
+    "beautifulsoup4",
+    "trafilatura",
+    "feedparser",
     "pyopenssl",
-    "lxml",
+    "lxml[html_clean]",
 
     # Publisher
-    "pymisp==2.4.173",
-    "paramiko==3.4.0",
-    "python-gnupg==0.5.1",
-    "tweepy==4.14.0",
+    "pymisp",
+    "paramiko",
+    "python-gnupg",
+    "tweepy",
 
     # Presenters
-    "weasyprint==60.2",
+    "weasyprint",
 
     # Bots
+    "scipy==1.12.0",
     "ioc-finder",
     "ioc-fanger",
-    "flair==0.13.1",
-    "transformers==4.37.1",
-    "py3langid==0.2.2",
-    "nltk==3.8.1",
-    "taranis-story-clustering==0.7.6"
+    "flair",
+    "transformers",
+    "py3langid",
+    "nltk",
+    "taranis-story-clustering==0.7.7"
 ]
 dynamic = ["version"]
 

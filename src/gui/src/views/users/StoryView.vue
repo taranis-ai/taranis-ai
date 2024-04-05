@@ -30,7 +30,7 @@ export default {
     const story_id = route.params.id
 
     const story = computed(() => {
-      return assessStore.newsItems.items.find((item) => item.id == story_id)
+      return assessStore.stories.items.find((item) => item.id == story_id)
     })
 
     const loadStories = async () => {

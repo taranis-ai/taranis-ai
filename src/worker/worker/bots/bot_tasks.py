@@ -25,7 +25,7 @@ class BotTask(Task):
             "summary_bot": worker.bots.SummaryBot(),
         }
 
-    def run(self, *args, bot_id: str, filter: dict | None = None):
+    def run(self, bot_id: str, filter: dict | None = None):
         logger.info(f"Starting bot task {self.name}")
         bot_config = self.core_api.get_bot_config(bot_id)
         if not bot_config:

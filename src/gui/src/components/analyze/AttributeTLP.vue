@@ -1,13 +1,10 @@
 <template>
   <v-radio-group v-model="input" :disabled="readOnly" :label="title">
-    <v-radio
-      :label="$t('attribute.tlp_clear')"
-      color="blue-grey"
-      value="CLEAR"
-    />
-    <v-radio :label="$t('attribute.tlp_green')" color="green" value="GREEN" />
-    <v-radio :label="$t('attribute.tlp_amber')" color="orange" value="AMBER" />
-    <v-radio :label="$t('attribute.tlp_red')" color="red" value="RED" />
+    <v-radio label="TLP:CLEAR" color="blue-grey" value="clear" />
+    <v-radio label="TLP:GREEN" color="green" value="green" />
+    <v-radio label="TLP:AMBER" color="orange" value="amber" />
+    <v-radio label="TLP:AMBER+STRICT" color="orange" value="amber+strict" />
+    <v-radio label="TLP:RED" color="red" value="red" />
   </v-radio-group>
 </template>
 

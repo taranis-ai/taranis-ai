@@ -69,7 +69,7 @@ class BaseCollector:
         pass
 
     def preview_collector(self, source: dict):
-        pass
+        logger.error("Preview not implemented")
 
     def sanitize_html(self, html: str):
         html = re.sub(r"(?i)(&nbsp;|\xa0)", " ", html, re.DOTALL)

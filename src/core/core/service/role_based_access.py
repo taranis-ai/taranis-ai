@@ -53,8 +53,26 @@ class RoleBasedAccessService:
             .subquery()
         )
 
-        # Apply the filter to the original query to exclude items with a higher TLP level than the user's
         return query.filter(NewsItemAggregate.id.in_(tlp_attribute_subquery))
+
+    @classmethod
+    def filter_report_query_with_tlp(cls, query: Query, user: User) -> Query:
+        from core.model.report_item import ReportItem, ReportItemAttribute, AttributeType
+
+        user_tlp_level = user.get_highest_tlp()
+        if not user_tlp_level or user_tlp_level.value == "red":
+            return query
+
+        tlp_attribute_subquery = (
+            db.session.query(ReportItemAttribute.report_item_id)
+            .filter(
+                ReportItemAttribute.attribute_type == AttributeType.TLP,
+                ReportItemAttribute.value.in_([level.value for level in TLPLevel if level <= user_tlp_level]),
+            )
+            .subquery()
+        )
+
+        return query.filter(ReportItem.id.in_(tlp_attribute_subquery))
 
     @classmethod
     def filter_query_with_acl(cls, query: Query, rbac_query: RBACQuery) -> Query:

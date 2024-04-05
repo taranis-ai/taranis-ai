@@ -174,10 +174,6 @@
         "status": "Status",
         "successful": "Neues Attribut wurde erfolgreich hinzugefügt",
         "successful_edit": "Attribut wurde erfolgreich aktualisiert",
-        "tlp_amber": "TLP:AMBER",
-        "tlp_green": "TLP:GRÜN",
-        "tlp_red": "TLP:ROT",
-        "tlp_white": "TLP:WEISS",
         "type": "Typ"
     },
     "button": {

@@ -1,4 +1,3 @@
-
 <template>
   <v-form
     id="form"

@@ -9,11 +9,13 @@
   >
     <template #appbar>
       <filter-button
+        v-if="smAndUp"
         v-model="newsItemsFilter['read']"
         :label="mdAndDown ? '' : 'read'"
         icon="mdi-eye-check-outline"
       />
       <filter-button
+        v-if="smAndUp"
         v-model="newsItemsFilter['in_report']"
         :label="mdAndDown ? '' : 'items in reports'"
         icon="mdi-google-circles-communities"
@@ -71,14 +73,23 @@
         </v-col>
 
         <v-col cols="12" class="pt-1">
-          <date-filter v-model="newsItemsFilter.timefrom" placeholder="From" />
+          <date-filter
+            v-model="newsItemsFilter.timefrom"
+            placeholder="From"
+            :default-date="defaultFromDate"
+          />
         </v-col>
 
         <v-col cols="12" class="pt-1">
           <date-filter
             v-model="newsItemsFilter.timeto"
             placeholder="Until"
-            :max-date="new Date(newsItemsFilter.timefrom)"
+            :default-date="new Date()"
+            :max-date="
+              newsItemsFilter.timefrom instanceof Date
+                ? newsItemsFilter.timefrom
+                : new Date()
+            "
           />
         </v-col>
         <v-col cols="12" class="pt-1">
@@ -218,7 +229,7 @@ export default {
     const { getOSINTSourceGroupsList, getOSINTSourcesList } =
       storeToRefs(assessStore)
     const { updateNewsItems } = assessStore
-    const { mdAndDown } = useDisplay()
+    const { mdAndDown, smAndUp } = useDisplay()
 
     const {
       newsItemsFilter,
@@ -263,6 +274,11 @@ export default {
       }
     })
 
+    const now = new Date()
+    now.setDate(now.getDate() - 1)
+    now.setHours(18, 0, 0, 0)
+    const defaultFromDate = now
+
     const search = computed({
       get() {
         return newsItemsFilter.value.search
@@ -291,7 +307,7 @@ export default {
     })
 
     const resetFilter = () => {
-      assessStore.$reset()
+      assessStore.reset()
       filterStore.resetFilter()
     }
 
@@ -313,10 +329,12 @@ export default {
       search,
       chartFilter,
       mdAndDown,
+      smAndUp,
       highlight,
       showWeekChart,
       compactView,
       filter_range,
+      defaultFromDate,
       getOSINTSourceGroupsList,
       getOSINTSourcesList,
       newsItemsFilter,

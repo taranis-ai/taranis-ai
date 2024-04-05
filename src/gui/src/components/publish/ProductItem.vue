@@ -76,6 +76,14 @@
                   :items="reportItems"
                   show-select
                 >
+                  <template #item.completed="{ item }">
+                    <v-chip
+                      :color="item.completed ? 'green' : 'red'"
+                      variant="outlined"
+                    >
+                      {{ item.completed ? 'complete' : 'incomplete' }}
+                    </v-chip>
+                  </template>
                   <template v-if="reportItems.length < 10" #bottom />
                 </v-data-table>
               </v-col>
@@ -83,18 +91,21 @@
             <v-row no-gutters>
               <v-col cols="12">
                 <v-btn
-                  v-if="edit && renderedProduct"
+                  v-if="edit"
+                  v-bind="props"
                   color="primary"
                   class="mt-3"
+                  :disabled="renderedProduct === null"
                   block
                   @click="publishDialog = true"
                 >
-                  Publish
+                  <span v-if="renderedProduct">Publish</span>
+                  <span v-else>Render Product first, to enable publishing</span>
                 </v-btn>
               </v-col>
             </v-row>
           </v-form>
-          <v-dialog v-model="publishDialog" width="auto">
+          <v-dialog v-model="publishDialog" width="auto" min-width="500px">
             <popup-publish-product
               :product-id="product.id"
               :dialog="publishDialog"

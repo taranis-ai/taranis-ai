@@ -13,6 +13,10 @@ export function createReportItem(data) {
   return apiService.post('/analyze/report-items', data)
 }
 
+export function cloneReportItem(report_item_id) {
+  return apiService.post(`/analyze/report-items/${report_item_id}/clone`)
+}
+
 export function deleteReportItem(report_item) {
   return apiService.delete(`/analyze/report-items/${report_item.id}`)
 }
@@ -23,16 +27,13 @@ export function updateReportItem(report_item_id, data) {
 
 export function addAggregatesToReportItem(report_item_id, data) {
   return apiService.post(
-    `/analyze/report-items/${report_item_id}/aggregates`,
+    `/analyze/report-items/${report_item_id}/stories`,
     data
   )
 }
 
 export function setAggregatesToReportItem(report_item_id, data) {
-  return apiService.put(
-    `/analyze/report-items/${report_item_id}/aggregates`,
-    data
-  )
+  return apiService.put(`/analyze/report-items/${report_item_id}/stories`, data)
 }
 
 export function getReportItemLocks(report_item_id) {

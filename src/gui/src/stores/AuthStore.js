@@ -50,7 +50,7 @@ export const useAuthStore = defineStore('authenticator', {
       configStore.$reset()
       mainStore.reset()
       sseStore.resetSSE()
-      assessStore.$reset()
+      assessStore.reset()
       router.push({ name: 'login' })
     },
     async refresh() {

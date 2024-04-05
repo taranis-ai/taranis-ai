@@ -112,7 +112,13 @@ class OSINTSource(BaseModel):
         return refresh_interval or "120"
 
     def to_task_dict(self):
-        return {"id": self.to_task_id(), "task": "collector_task", "schedule": self.get_schedule(), "args": [self.id]}
+        return {
+            "id": self.to_task_id(),
+            "task": "collector_task",
+            "schedule": self.get_schedule(),
+            "args": [self.id],
+            "options": {"queue": "collectors"},
+        }
 
     @classmethod
     def get_all_with_type(cls, search=None, user=None, acl_check=False):
@@ -195,6 +201,8 @@ class OSINTSource(BaseModel):
         db.session.commit()
 
     def schedule_osint_source(self):
+        if self.type == COLLECTOR_TYPES.MANUAL_COLLECTOR:
+            return {"message": "Manual collector does not need to be scheduled"}, 200
         entry = self.to_task_dict()
         ScheduleEntry.add_or_update(entry)
         logger.info(f"Schedule for source {self.id} updated with - {entry}")

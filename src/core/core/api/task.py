@@ -24,10 +24,16 @@ class Task(Resource):
 
         logger.debug(f"Task ID: {task_id} - {data.get('status')}")
 
+        result = data.get("result")
+
+        if not result or "error" in result:
+            logger.error(f"Task ID: {task_id} - {result}")
+            return {"status": "error"}, 400
+
         if task_id.startswith("gather_word_list"):
-            WordList.update_word_list(**data.get("result"))
+            WordList.update_word_list(**result)
         else:
-            task_data = {"id": task_id, "result": data.get("result"), "status": data.get("status")}
+            task_data = {"id": task_id, "result": result, "status": data.get("status")}
             TaskModel.add_or_update(task_data)
         return {"status": "success"}, 201
 

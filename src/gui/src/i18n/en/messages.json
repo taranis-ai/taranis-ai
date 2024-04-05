@@ -141,10 +141,6 @@
         "select_enum": "Select Constant Value",
         "select_file": "Select file",
         "select_time": "Select Time",
-        "tlp_amber": "TLP:AMBER",
-        "tlp_green": "TLP:GREEN",
-        "tlp_red": "TLP:RED",
-        "tlp_clear": "TLP:CLEAR",
         "type": "Type"
     },
     "button": {

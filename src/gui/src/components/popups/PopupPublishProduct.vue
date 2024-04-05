@@ -1,8 +1,8 @@
 <template>
   <v-card>
     <v-card-title> Publish Product </v-card-title>
-    <v-card-subtitle style="background-color: #ffff00">
-      !!! EARLY ACCESS MIGHT NOT WORK !!!
+    <v-card-subtitle class="warning-text">
+      <span v-if="incomplete">This Product contains incomplete Reports</span>
     </v-card-subtitle>
     <v-card-text>
       Select a publisher:
@@ -48,6 +48,10 @@ export default {
       type: Number,
       required: true
     },
+    incomplete: {
+      type: Boolean,
+      default: true
+    },
     dialog: Boolean
   },
   emits: ['close'],
@@ -81,3 +85,9 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+.warning-text {
+  background-color: #ffc107;
+}
+</style>

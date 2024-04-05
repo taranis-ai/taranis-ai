@@ -9,6 +9,7 @@ workers = [
             {"parameter": "XPATH"},
             {"parameter": "PROXY_SERVER"},
             {"parameter": "TLP_LEVEL", "rules": "tlp"},
+            {"parameter": "MAX_ARTICLE_AGE", "type": "number"},
             {"parameter": "REFRESH_INTERVAL", "type": "number"},
             {"parameter": "DIGEST_SPLITTING", "type": "switch"},
             {"parameter": "DIGEST_SPLITTING_LIMIT", "value": "30", "type": "number"},
@@ -179,26 +180,26 @@ workers = [
     {
         "type": "PDF_PRESENTER",
         "description": "Presenter for generating PDF documents",
-        "parameters": ["TEMPLATE_PATH"],
+        "parameters": {"parameter": "TEMPLATE_PATH", "rules": "required"},
         "name": "PDF Presenter",
     },
     {
         "type": "HTML_PRESENTER",
         "name": "HTML Presenter",
         "description": "Presenter for generating html documents",
-        "parameters": ["TEMPLATE_PATH"],
+        "parameters": {"parameter": "TEMPLATE_PATH", "rules": "required"},
     },
     {
         "type": "TEXT_PRESENTER",
         "name": "TEXT Presenter",
         "description": "Presenter for generating text documents",
-        "parameters": ["TEMPLATE_PATH"],
+        "parameters": {"parameter": "TEMPLATE_PATH", "rules": "required"},
     },
     {
         "type": "JSON_PRESENTER",
         "name": "JSON Presenter",
         "description": "Presenter for generating json documents",
-        "parameters": ["TEMPLATE_PATH"],
+        "parameters": {"parameter": "TEMPLATE_PATH", "rules": "required"},
     },
     {
         "type": "FTP_PUBLISHER",

@@ -27,9 +27,8 @@
       </td>
       <td>
         <tag-list
-          :tags="story.tags"
+          :tags="[...new Set(story.tags.slice(0, tagLimit))]"
           :truncate="!detailView"
-          :limit="tagLimit"
           :color="detailView"
           :wrap="showWeekChart || detailView"
           :editable="detailView"

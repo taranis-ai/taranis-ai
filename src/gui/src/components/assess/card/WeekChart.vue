@@ -75,7 +75,7 @@ export default {
   },
   computed: {
     ...mapState(useFilterStore, ['chartFilter']),
-    ...mapState(useAssessStore, ['max_item']),
+    ...mapState(useAssessStore, ['maxItem']),
     chart_style() {
       return {
         height: this.chartHeight + 'px',
@@ -174,7 +174,7 @@ export default {
           y2: {
             position: 'right',
             beginAtZero: true,
-            max: parseInt(this.max_item),
+            max: parseInt(this.maxItem),
             // grid: {
             //   // display gridlines only for y1
             //   drawOnChartArea: false

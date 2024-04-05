@@ -14,11 +14,18 @@
           <v-row class="py-1 px-1">
             <v-col cols="12" :lg="content_cols">
               <v-container class="d-flex pa-0">
-                <v-icon
-                  v-if="story_in_report"
-                  class="mr-1 mt-1"
-                  icon="mdi-share"
-                />
+                <div
+                  v-if="story_in_reports > 0"
+                  class="story-shared-icons-container"
+                >
+                  <v-icon
+                    v-for="n in story_in_reports"
+                    :key="n"
+                    class="story-shared-icon"
+                    :style="getSharingIcon(n)"
+                    icon="mdi-share"
+                  />
+                </div>
                 <h2
                   v-dompurify-html="highlighted_title"
                   class="mb-1 mt-0"
@@ -30,15 +37,16 @@
 
                 <a
                   v-if="news_item_length > 1"
-                  class="ml-3 mb-1 d-flex justify-center align-center text-primary"
+                  class="ml-3 mb-1 d-flex justify-center align-center"
                   style="font-size: 1rem"
                   :href="'/story/' + story.id"
                   target="_blank"
+                  :style="{ color: colorBasedOnLength }"
                 >
                   <v-icon
                     class="float-left mr-1"
                     size="x-small"
-                    color="primary"
+                    :color="colorBasedOnLength"
                     icon="mdi-file-multiple-outline"
                   />
                   ({{ news_item_length }})
@@ -115,7 +123,7 @@ import CardNewsItem from '@/components/assess/CardNewsItem.vue'
 import { ref, computed } from 'vue'
 import { useAssessStore } from '@/stores/AssessStore'
 import { useFilterStore } from '@/stores/FilterStore'
-import { highlight_text } from '@/utils/helpers'
+import { highlight_text, getAssessSharingIcon } from '@/utils/helpers'
 import { unGroupStories } from '@/api/assess'
 import { storeToRefs } from 'pinia'
 import WeekChart from '@/components/assess/card/WeekChart.vue'
@@ -178,7 +186,6 @@ export default {
       return 12 - content_cols.value
     })
 
-    const story_in_report = computed(() => props.story.in_reports_count > 0)
     const news_item_length = computed(() =>
       props.story.news_items ? props.story.news_items.length : 0
     )
@@ -225,6 +232,21 @@ export default {
         : summary || description || defaultContent
     })
 
+    const colorBasedOnLength = computed(() => {
+      // Color codes are needed for consistent icon/number color shades
+      if (news_item_length.value < 5) {
+        return '#388E3C'
+      } else if (news_item_length.value < 10) {
+        return '#F57F17'
+      } else {
+        return '#BF360C'
+      }
+    })
+
+    function getSharingIcon(index) {
+      return getAssessSharingIcon(index, story_in_reports.value)
+    }
+
     function openCard() {
       openSummary.value = !openSummary.value
     }
@@ -265,7 +287,6 @@ export default {
       showStory,
       card_class,
       item_important,
-      story_in_report,
       news_item_length,
       news_item_title_class,
       highlighted_title,
@@ -274,14 +295,16 @@ export default {
       is_summarized,
       newsItemSelection,
       getDescription,
+      colorBasedOnLength,
+      showWeekChart,
+      getSharingIcon,
       openCard,
       ungroup,
       toggleSelection,
       markAsRead,
       markAsImportant,
       moveSelection,
-      emitRefresh,
-      showWeekChart
+      emitRefresh
     }
   }
 }
@@ -348,5 +371,17 @@ export default {
   width: 7px;
   z-index: 2;
   background: #e9c645 !important;
+}
+
+.story-shared-icons-container {
+  margin-right: 28px;
+  margin-left: -8px;
+  margin-top: 10px;
+  width: max-content; /* Adjust as needed */
+  height: 24px; /* Adjust based on base icon size */
+}
+
+.story-shared-icon {
+  transition: all 0.3s ease;
 }
 </style>

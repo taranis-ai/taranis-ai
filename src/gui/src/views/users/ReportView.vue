@@ -23,12 +23,10 @@ export default {
   setup() {
     const route = useRoute()
     const default_report_item = ref({
-      uuid: null,
       title: '',
       completed: false,
       report_item_type_id: null,
-      news_item_aggregates: [],
-      attributes: []
+      news_item_aggregates: []
     })
     const report_item = ref(default_report_item.value)
     const edit = ref(true)
@@ -36,7 +34,7 @@ export default {
 
     const loadReportItem = async () => {
       console.debug('Loading report item', route.params.id)
-      if (route.params.id && route.params.id !== '0') {
+      if (route.params.id) {
         const response = await getReportItem(route.params.id)
         return response.data
       }

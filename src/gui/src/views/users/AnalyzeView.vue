@@ -18,18 +18,18 @@
     @update-items="updateData"
     @selection-change="selectionChange"
   >
-    <template #actionColumn>
+    <template #actionColumn="{ item }">
       <v-tooltip left>
         <template #activator="{ props }">
           <v-icon
             v-bind="props"
             color="secondary"
-            @click.stop="createProduct(item)"
+            @click.stop="cloneReport(item.id)"
           >
             mdi-file
           </v-icon>
         </template>
-        <span>Create Product</span>
+        <span>Clone Report</span>
       </v-tooltip>
     </template>
   </DataTable>
@@ -37,11 +37,7 @@
 
 <script>
 import DataTable from '@/components/common/DataTable.vue'
-import {
-  deleteReportItem,
-  createReportItem,
-  updateReportItem
-} from '@/api/analyze'
+import { deleteReportItem } from '@/api/analyze'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import { useAnalyzeStore } from '@/stores/AnalyzeStore'
 import { useFilterStore } from '@/stores/FilterStore'
@@ -98,30 +94,8 @@ export default {
         })
     }
 
-    const createItem = (item) => {
-      createReportItem(item)
-        .then((response) => {
-          notifySuccess(response)
-          updateData()
-        })
-        .catch((error) => {
-          notifyFailure(error)
-        })
-    }
-
-    const updateItem = (item) => {
-      updateReportItem(item)
-        .then((response) => {
-          notifySuccess(response)
-          updateData()
-        })
-        .catch((error) => {
-          notifyFailure(error)
-        })
-    }
-
-    const createProduct = () => {
-      router.push({ name: 'product', params: { id: 0 } })
+    const cloneReport = (item_id) => {
+      analyzeStore.cloneReport(item_id)
     }
 
     const selectionChange = (new_selection) => {
@@ -143,9 +117,7 @@ export default {
       addItem,
       editItem,
       deleteItem,
-      createItem,
-      updateItem,
-      createProduct,
+      cloneReport,
       selectionChange
     }
   }

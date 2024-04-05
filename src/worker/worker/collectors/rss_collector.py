@@ -136,15 +136,16 @@ class RSSCollector(BaseWebCollector):
         published = self.get_published_date(feed_entry, link, collected)
 
         content_location = source["parameters"].get("CONTENT_LOCATION", None)
+        max_article_age = int(source["parameters"].get("MAX_ARTICLE_AGE", 180))
         content_from_feed, content_location = self.content_from_feed(feed_entry, content_location)
         if content_from_feed:
             content = str(feed_entry[content_location])
         elif link:
-            if published.date() >= (datetime.date.today() - datetime.timedelta(days=90)):
+            if published.date() >= (datetime.date.today() - datetime.timedelta(days=max_article_age)):
                 xpath = source["parameters"].get("XPATH", None)
                 content = self.content_from_article(link, xpath)
             else:
-                content = "The article is older than 90 days - skipping"
+                content = f"The article is older than {max_article_age} days - skipping"
         elif description:
             content = description
         else:

@@ -1,63 +1,63 @@
 <template>
   <div>
     <v-textarea
-      v-if="attributeItem.attribute.type === 'TEXT'"
+      v-if="attributeItem.type === 'TEXT'"
       v-model="input"
       :readonly="readOnly"
       :label="attributeItem.title"
       :hint="attributeItem.description"
     />
     <v-text-field
-      v-if="attributeItem.attribute.type === 'STRING'"
+      v-if="attributeItem.type === 'STRING'"
       v-model="input"
       :readonly="readOnly"
       :label="attributeItem.title"
       :hint="attributeItem.description"
     />
     <v-checkbox
-      v-if="attributeItem.attribute.type === 'BOOLEAN'"
+      v-if="attributeItem.type === 'BOOLEAN'"
       v-model="input"
       :readonly="readOnly"
       :label="attributeItem.title"
     />
     <v-select
-      v-if="attributeItem.attribute.type === 'ENUM'"
+      v-if="attributeItem.type === 'ENUM'"
       v-model="input"
       :readonly="readOnly"
       item-title="value"
       item-value="value"
-      :items="attributeItem.attribute.attribute_enums"
+      :items="attributeItem.render_data.attribute_enums"
       :label="attributeItem.title"
     />
     <v-radio-group
-      v-if="attributeItem.attribute.type === 'RADIO'"
+      v-if="attributeItem.type === 'RADIO'"
       v-model="input"
       :disabled="readOnly"
       :label="attributeItem.title"
     >
       <v-radio
-        v-for="attr_enum in attributeItem.attribute.attribute_enums"
+        v-for="attr_enum in attributeItem.render_data.attribute_enums"
         :key="attr_enum.id"
         :label="attr_enum.value"
         :value="attr_enum.value"
       />
     </v-radio-group>
     <code-editor
-      v-if="attributeItem.attribute.type === 'RICH_TEXT'"
+      v-if="attributeItem.type === 'RICH_TEXT'"
       v-model:content="input"
       :read-only="readOnly"
     />
     <AttributeTLP
-      v-if="attributeItem.attribute.type === 'TLP'"
+      v-if="attributeItem.type === 'TLP'"
       v-model="input"
       :read-only="readOnly"
       :title="attributeItem.title"
     />
     <VueDatePicker
       v-if="
-        attributeItem.attribute.type === 'DATE' ||
-        attributeItem.attribute.type === 'DATE_TIME' ||
-        attributeItem.attribute.type === 'TIME'
+        attributeItem.type === 'DATE' ||
+        attributeItem.type === 'DATE_TIME' ||
+        attributeItem.type === 'TIME'
       "
       v-model="input"
       class="mb-5"
@@ -66,27 +66,26 @@
       :readonly="readOnly"
       position="left"
       :time-picker-inline="
-        attributeItem.attribute.type === 'TIME' ||
-        attributeItem.attribute.type === 'DATE_TIME'
+        attributeItem.type === 'TIME' || attributeItem.type === 'DATE_TIME'
       "
       clearable
       auto-apply
     />
     <v-text-field
-      v-if="attributeItem.attribute.type === 'CVE'"
+      v-if="attributeItem.type === 'CVE'"
       v-model="input"
       :rules="[rules.cve]"
       :readonly="readOnly"
       :label="attributeItem.title"
     />
     <v-text-field
-      v-if="attributeItem.attribute.type === 'CVSS'"
+      v-if="attributeItem.type === 'CVSS'"
       v-model="input"
       :readonly="readOnly"
       :label="attributeItem.title"
       persistent-hint
     />
-    <div v-if="attributeItem.attribute.type === 'CVSS'" class="hint-text">
+    <div v-if="attributeItem.type === 'CVSS'" class="hint-text">
       Use
       <a
         href="https://nvd.nist.gov/vuln-metrics/cvss/v3-calculator"
@@ -96,7 +95,7 @@
       to calculate CVSS score
     </div>
     <v-autocomplete
-      v-if="attributeItem.attribute.type === 'CPE'"
+      v-if="attributeItem.type === 'CPE'"
       v-model="input"
       :readonly="readOnly"
       :label="attributeItem.title"
@@ -105,7 +104,7 @@
       <!-- TODO: Use MyAssets for Autocomplete -->
     </v-autocomplete>
     <AttributeStory
-      v-if="attributeItem.attribute.type === 'STORY'"
+      v-if="attributeItem.type === 'STORY'"
       v-model="input"
       :readonly="readOnly"
       :title="attributeItem.title"
