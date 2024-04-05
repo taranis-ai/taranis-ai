@@ -1,4 +1,3 @@
-import copy
 import datetime
 import hashlib
 import uuid
@@ -227,10 +226,12 @@ class RSSCollector(BaseWebCollector):
         for split_digest_url in self.split_digest_urls[:max_elements]:
             try:
                 news_item = self.parse_web_content(split_digest_url, source.get("id"))
-                news_items.append(news_item)
-            # Trafilatura.extract_metadata() raises for certain URLs a ValueError
-            # Example error message: "month must be in 1..12"
+                if not news_item.get("error"):
+                    news_items.append(news_item)
             except ValueError:
+                # Trafilatura.extract_metadata() raises for certain URLs a ValueError
+                # Example URL: https://www.mozilla.org/en-US/security/advisories/mfsa2024-17/
+                # Example error message: "month must be in 1..12"
                 pass
             except Exception as e:
                 logger.error(f"RSS Collector failed digest splitting with error: {str(e)}")
@@ -266,43 +267,6 @@ class RSSCollector(BaseWebCollector):
         logger.info(f"RSS-Feed {source['id']} returned feed with {len(feed['entries'])} entries")
 
         news_items = self.get_news_items(feed, source)
-        # logger.info(news_items)
 
         self.publish(news_items, source)
         return None
-
-
-if __name__ == "__main__":
-    rss_collector = RSSCollector()
-    # rss_collector.collect(
-    #     {
-    #         "id": 1,
-    #         "parameters": {
-    #             "FEED_URL": "https://cert.at/cert-at.de.all.rss_2.0.xml",
-    #             "DIGEST_SPLITTING": "true",
-    #             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36",
-    #         },
-    #     }
-    # )
-    rss_collector.collect(
-        {
-            "id": 1,
-            "parameters": {
-                "FEED_URL": "https://us-cert.cisa.gov/ncas/bulletins.xml",
-                "DIGEST_SPLITTING": "true",
-                # "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36",
-            },
-        }
-    )
-    # rss_collector.collect({"id": 1, "parameters": {"FEED_URL": "https://blog.360totalsecurity.com/en/category/security-news/feed/"}})
-
-    # rss_collector.preview_collector(
-    #     {
-    #         "id": 1,
-    #         "parameters": {
-    #             "FEED_URL": "https://cert.at/cert-at.de.all.rss_2.0.xml",
-    #             "DIGEST_SPLITTING": "false",
-    #             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36",
-    #         },
-    #     }
-    # )

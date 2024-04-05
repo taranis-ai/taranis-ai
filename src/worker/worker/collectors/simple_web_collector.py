@@ -1,10 +1,5 @@
-import datetime
-import hashlib
-import uuid
 import requests
 import logging
-import lxml.html
-from trafilatura import bare_extraction
 
 from worker.log import logger
 from worker.collectors.base_web_collector import BaseWebCollector

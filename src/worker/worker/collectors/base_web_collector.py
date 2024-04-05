@@ -69,12 +69,21 @@ class BaseWebCollector(BaseCollector):
 
     def extract_meta(self, web_content, web_url):
         # Trafilatura.extract_metadata() raises for certain URLs a ValueError
+        # Example URL: https://www.mozilla.org/en-US/security/advisories/mfsa2024-17/
         # Example error message: "month must be in 1..12"
         metadata = extract_metadata(web_content, default_url=web_url)
         author = "" if metadata is None or metadata.as_dict().get("author") is None else metadata.as_dict().get("author")
-        title = "" if metadata is None or metadata.as_dict().get("title") is None else metadata.as_dict().get("title")
+        title = "Title not collected" if metadata is None or metadata.as_dict().get("title") is None else metadata.as_dict().get("title")
 
         return author, title
+
+    def extract_content(self, web_content, web_url):
+        extract_document = bare_extraction(web_content, url=web_url, with_metadata=False, include_comments=False)
+        if extract_document is None:
+            return {"error": "No content found"}
+        text = extract_document.get("text")
+        content = {"value": text}
+        return {"error": "No content found"} if text is None else content
 
     def parse_web_content(self, web_url, source_id: str, xpath: str = "") -> dict[str, str | datetime.datetime | list]:
         web_content, published_date = self.web_content_from_article(web_url)
@@ -82,12 +91,10 @@ class BaseWebCollector(BaseCollector):
         if xpath:
             content = self.xpath_extraction(web_content, xpath)
         elif web_content is not None:
-            extract_document = bare_extraction(web_content, url=web_url, with_metadata=False, include_comments=False)
-            if extract_document is not None or extract_document:
-                content = extract_document.get("text")
-                content = "" if content is None else content
-            else:
-                content = ""
+            content = self.extract_content(web_content, web_url)
+            if content.get("error"):
+                logger.warning(f"Failed to extract content from {web_url}")
+                return content
 
         author, title = self.extract_meta(web_content, web_url)
 
@@ -103,7 +110,7 @@ class BaseWebCollector(BaseCollector):
             "published": published_date,
             "author": author,
             "collected": datetime.datetime.now(),
-            "content": content,
+            "content": content.get("value"),
             "osint_source_id": source_id,
             "attributes": [],
         }

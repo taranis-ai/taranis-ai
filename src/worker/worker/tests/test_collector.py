@@ -65,13 +65,23 @@ def test_rss_collector(rss_collector_mock, rss_collector):
     assert result is None
 
 
+def test_rss_collector_digest_splitting(rss_collector_mock, rss_collector):
+    from testdata import rss_collector_source_data
+
+    rss_collector_source_data["parameters"]["DIGEST_SPLITTING"] = "true"
+    rss_collector_source_data["parameters"]["DIGEST_SPLITTING_LIMIT"] = 2
+    result = rss_collector.collect(rss_collector_source_data)
+
+    assert result is None
+
+
 @pytest.fixture
 def simple_web_collector_mock(requests_mock, collectors_mock):
     from testdata import web_collector_url, web_collector_fav_icon_url
 
     requests_mock.head(web_collector_url, json={})
     requests_mock.get(web_collector_fav_icon_url, json={})
-    requests_mock.get(web_collector_url, text=file_loader("testweb.html"))
+    requests_mock.get(web_collector_url, text=file_loader("testweb.html"), headers={"Content-Type": "text/html"})
 
 
 def test_simple_web_collector_basic(simple_web_collector_mock, simple_web_collector):
