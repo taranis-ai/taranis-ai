@@ -26,7 +26,7 @@ class RSSCollector(BaseWebCollector):
         self.feed_url = ""
         self.feed_content = None
         self.last_modified = None
-        self.digest_splitting_limit = 30
+        self.digest_splitting_limit = None
         self.split_digest_urls = []
         logger_trafilatura = logging.getLogger("trafilatura")
         logger_trafilatura.setLevel(logging.WARNING)
@@ -38,6 +38,8 @@ class RSSCollector(BaseWebCollector):
             return {"error": "No FEED_URL set"}
 
         self.set_proxies(source["parameters"].get("PROXY_SERVER", None))
+
+        self.digest_splitting_limit = int(source["parameters"].get("DIGEST_SPLITTING_LIMIT", 30))
 
         logger.info(f"RSS-Feed {source['id']} Starting collector for url: {self.feed_url}")
 
@@ -229,11 +231,6 @@ class RSSCollector(BaseWebCollector):
                 news_item = self.parse_web_content(split_digest_url, source.get("id"))
                 if not news_item.get("error"):
                     news_items.append(news_item)
-            except ValueError:
-                # Trafilatura.extract_metadata() raises for certain URLs a ValueError
-                # Example URL: https://www.mozilla.org/en-US/security/advisories/mfsa2024-17/
-                # Example error message: "month must be in 1..12"
-                pass
             except Exception as e:
                 logger.error(f"RSS Collector failed digest splitting with error: {str(e)}")
                 raise e

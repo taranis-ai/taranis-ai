@@ -1,3 +1,4 @@
+import contextlib
 import datetime
 import hashlib
 import uuid
@@ -60,24 +61,26 @@ class BaseWebCollector(BaseCollector):
         published_date = self.get_last_modified(response)
         return html_content, published_date
 
-    def xpath_extraction(self, html_content, xpath: str) -> str:
+    def xpath_extraction(self, html_content, xpath: str) -> dict:
         document = lxml.html.fromstring(html_content)
         if not document.xpath(xpath):
             logger.error(f"No content found for XPath: {xpath}")
-            return ""
-        return document.xpath(xpath)[0].text_content()
+            return {"value": "No content found"}
+        return {"value": document.xpath(xpath)[0].text_content()}
 
-    def extract_meta(self, web_content, web_url):
-        # Trafilatura.extract_metadata() raises for certain URLs a ValueError
-        # Example URL: https://www.mozilla.org/en-US/security/advisories/mfsa2024-17/
-        # Example error message: "month must be in 1..12"
-        metadata = extract_metadata(web_content, default_url=web_url)
-        author = "" if metadata is None or metadata.as_dict().get("author") is None else metadata.as_dict().get("author")
-        title = "Title not collected" if metadata is None or metadata.as_dict().get("title") is None else metadata.as_dict().get("title")
+    def extract_meta(self, web_content, web_url) -> [str, str]:
+        # See https://github.com/adbar/htmldate/pull/145
+        with contextlib.suppress(ValueError):
+            metadata = extract_metadata(web_content, default_url=web_url)
+        if metadata is None:
+            return "", ""
 
-        return author, title
+        author = metadata.as_dict().get("author")
+        title = metadata.as_dict().get("title")
 
-    def extract_content(self, web_content, web_url):
+        return author if author is not None else "", title if title is not None else "No title found"
+
+    def extract_content(self, web_content, web_url) -> dict:
         extract_document = bare_extraction(web_content, url=web_url, with_metadata=False, include_comments=False)
         if extract_document is None:
             return {"error": "No content found"}
@@ -87,7 +90,7 @@ class BaseWebCollector(BaseCollector):
 
     def parse_web_content(self, web_url, source_id: str, xpath: str = "") -> dict[str, str | datetime.datetime | list]:
         web_content, published_date = self.web_content_from_article(web_url)
-        content = ""
+        content = {"error": "No content found"}
         if xpath:
             content = self.xpath_extraction(web_content, xpath)
         elif web_content is not None:
@@ -97,7 +100,6 @@ class BaseWebCollector(BaseCollector):
                 return content
 
         author, title = self.extract_meta(web_content, web_url)
-
         for_hash: str = author + title + web_url
 
         return {
@@ -110,7 +112,7 @@ class BaseWebCollector(BaseCollector):
             "published": published_date,
             "author": author,
             "collected": datetime.datetime.now(),
-            "content": content.get("value"),
+            "content": content.get("value", ""),
             "osint_source_id": source_id,
             "attributes": [],
         }

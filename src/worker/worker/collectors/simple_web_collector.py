@@ -70,7 +70,6 @@ class SimpleWebCollector(BaseWebCollector):
                 return news_item.get("error")
         except ValueError as e:
             logger.error(f"Simple Web Collector for {self.web_url} failed with error: {str(e)}")
-            return str(e)
 
         self.publish([news_item], source)
         return None
