@@ -8,6 +8,7 @@ from worker.core_api import CoreApi
 class BotTask(Task):
     name = "bot_task"
     max_retries = 3
+    priority = 2
     default_retry_delay = 60
     time_limit = 18000
     ignore_result = True

@@ -3,14 +3,11 @@
 set -eu
 
 if [ ! -d "venv" ]; then
-    python3.11 -m venv venv
+    uv venv -p 3.11 venv
+    source venv/bin/activate
+    uv pip install -e ."[dev]"
 fi
 
-# Activate venv
 source venv/bin/activate
 
-# Install requirements
-python -m pip install -e ."[dev]"
-
-# Run the app
 python ./start_dev_worker.py

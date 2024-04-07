@@ -1,10 +1,11 @@
-from typing import Any
-from sqlalchemy import or_, and_, func
-from sqlalchemy.orm import joinedload
 import uuid
+from typing import Any
 
-from core.managers.db_manager import db
+from sqlalchemy import and_, func, or_
+from sqlalchemy.orm import joinedload
+
 from core.log import logger
+from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.model.parameter_value import ParameterValue
 from core.model.worker import BOT_TYPES, Worker

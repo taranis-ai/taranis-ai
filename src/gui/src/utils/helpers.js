@@ -344,18 +344,15 @@ export function highlight_text(content) {
   const input = []
 
   if (
-    filterStore.newsItemsFilter.search &&
-    filterStore.newsItemsFilter.search.length > 0
+    filterStore.storyFilter.search &&
+    filterStore.storyFilter.search.length > 0
   ) {
-    filterStore.newsItemsFilter.search.split(' ').forEach((word) => {
+    filterStore.storyFilter.search.split(' ').forEach((word) => {
       input.push(word)
     })
   }
-  if (
-    filterStore.newsItemsFilter.tags &&
-    filterStore.newsItemsFilter.tags.length > 0
-  ) {
-    filterStore.newsItemsFilter.tags.forEach((tag) => {
+  if (filterStore.storyFilter.tags && filterStore.storyFilter.tags.length > 0) {
+    filterStore.storyFilter.tags.forEach((tag) => {
       input.push(tag)
     })
   }

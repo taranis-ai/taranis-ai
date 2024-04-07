@@ -62,6 +62,7 @@ class Collector:
 class CollectorTask(Task):
     name = "collector_task"
     max_retries = 3
+    priority = 5
     default_retry_delay = 60
     time_limit = 60
     ignore_result = True
@@ -82,7 +83,7 @@ class CollectorTask(Task):
         super().after_return(status, retval, task_id, args, kwargs, einfo)
 
 
-@shared_task(time_limit=50, name="collector_preview", track_started=True, acks_late=True)
+@shared_task(time_limit=50, name="collector_preview", track_started=True, acks_late=True, priority=8)
 def collector_preview(source_id: str):
     collector = Collector()
     source, err = collector.get_source(source_id)

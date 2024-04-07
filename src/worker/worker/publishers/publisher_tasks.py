@@ -10,6 +10,7 @@ from requests.exceptions import ConnectionError
 class PublisherTask(Task):
     name = "publisher_task"
     max_retries = 3
+    priority = 6
     default_retry_delay = 60
     time_limit = 60
 

@@ -55,6 +55,10 @@ install_basic_utils() {
         software-properties-common
 }
 
+install_astral() {
+    pip install ruff uv
+}
+
 # Install and setup Docker
 install_docker() {
     sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
@@ -81,13 +85,16 @@ install_python() {
 }
 
 main() {
+    [[ -f ./docker/dev/.installed ]] && exit 0
     check_sudo_access
     check_if_installed
     update_packages
     install_basic_utils
+    install_astral
     install_docker
     setup_nodejs
     install_python
+    touch ./docker/dev/.installed
 }
 
 # Execute the main function

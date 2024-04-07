@@ -7,7 +7,7 @@ import { getQueryStringFromNestedObject } from '@/utils/query'
 export const useFilterStore = defineStore(
   'filter',
   () => {
-    const newsItemsFilter = ref({
+    const storyFilter = ref({
       offset: undefined,
       limit: undefined,
       page: undefined,
@@ -25,10 +25,11 @@ export const useFilterStore = defineStore(
       important: undefined
     })
 
+    const storyPage = ref(0)
     const filterQuery = ref(null)
 
     watch(
-      newsItemsFilter,
+      storyFilter,
       (filter) => {
         const newFilterQuery = getQueryStringFromNestedObject(filter)
 
@@ -75,10 +76,10 @@ export const useFilterStore = defineStore(
 
     // Getters
     const getFilterTags = computed(() => {
-      if (typeof newsItemsFilter.value.tags === 'string') {
-        return [newsItemsFilter.value.tags]
+      if (typeof storyFilter.value.tags === 'string') {
+        return [storyFilter.value.tags]
       }
-      return newsItemsFilter.value.tags
+      return storyFilter.value.tags
     })
 
     // Actions
@@ -92,35 +93,40 @@ export const useFilterStore = defineStore(
       if (filter.limit && typeof filter.limit === 'string') {
         filter.limit = parseInt(filter.limit)
       }
-      newsItemsFilter.value = filter
+      if (filter.page && typeof filter.page === 'string') {
+        storyPage.value = parseInt(filter.page)
+      }
+      storyFilter.value = filter
     }
 
     function appendTag(tag) {
-      if (newsItemsFilter.value.tags) {
-        if (typeof newsItemsFilter.value.tags === 'string') {
-          newsItemsFilter.value.tags = [newsItemsFilter.value.tags]
+      if (storyFilter.value.tags) {
+        if (typeof storyFilter.value.tags === 'string') {
+          storyFilter.value.tags = [storyFilter.value.tags]
         }
-        if (!newsItemsFilter.value.tags.includes(tag)) {
-          newsItemsFilter.value.tags.push(tag)
+        if (!storyFilter.value.tags.includes(tag)) {
+          storyFilter.value.tags.push(tag)
         }
       } else {
-        newsItemsFilter.value.tags = [tag]
+        storyFilter.value.tags = [tag]
       }
     }
 
     function nextPage() {
-      const offset = newsItemsFilter.value.offset || 0
-      const limit = newsItemsFilter.value.limit || 20
-
-      newsItemsFilter.value.offset = offset + limit
+      if (typeof storyPage.value === 'number') {
+        storyPage.value += 1
+      } else {
+        storyPage.value = 2
+      }
+      return storyPage.value
     }
 
     function updateFilter(filter) {
       Object.keys(filter).forEach((element) => {
         if (element == 'tags' && typeof filter[element] === 'string') {
-          newsItemsFilter.value[element] = [filter[element]]
+          storyFilter.value[element] = [filter[element]]
         } else {
-          newsItemsFilter.value[element] = filter[element]
+          storyFilter.value[element] = filter[element]
         }
       })
     }
@@ -157,11 +163,11 @@ export const useFilterStore = defineStore(
     }
 
     function resetFilter() {
-      newsItemsFilter.value = {
+      storyFilter.value = {
         offset: undefined,
         limit: undefined,
-        page: undefined,
         search: undefined,
+        page: undefined,
         sort: undefined,
         range: undefined,
         timefrom: undefined,
@@ -174,6 +180,7 @@ export const useFilterStore = defineStore(
         relevant: undefined,
         important: undefined
       }
+      storyPage.value = 0
       assetFilter.value = {
         offset: undefined,
         limit: undefined,
@@ -200,7 +207,8 @@ export const useFilterStore = defineStore(
 
     // Return state, getters, and actions
     return {
-      newsItemsFilter,
+      storyFilter,
+      storyPage,
       filterQuery,
       assetFilter,
       reportFilter,
