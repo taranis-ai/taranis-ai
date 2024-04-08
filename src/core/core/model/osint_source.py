@@ -4,7 +4,7 @@ import base64
 from datetime import datetime
 from typing import Any
 from sqlalchemy import or_, and_
-from sqlalchemy.orm import deferred, Mapped
+from sqlalchemy.orm import deferred
 from sqlalchemy.exc import IntegrityError
 
 from core.managers.db_manager import db
@@ -24,12 +24,12 @@ class OSINTSource(BaseModel):
     description: Any = db.Column(db.String())
 
     type: Any = db.Column(db.Enum(COLLECTOR_TYPES))
-    parameters: Mapped[list[ParameterValue]] = db.relationship(
-        "ParameterValue", secondary="osint_source_parameter_value", cascade="all, delete"
+    parameters: Any = db.relationship(
+        "ParameterValue",
+        secondary="osint_source_parameter_value",
+        cascade="all, delete",
     )  # type: ignore
-    groups: Mapped[list["OSINTSourceGroup"]] = db.relationship(
-        "OSINTSourceGroup", secondary="osint_source_group_osint_source"
-    )  # type: ignore
+    groups: Any = db.relationship("OSINTSourceGroup", secondary="osint_source_group_osint_source")  # type: ignore
 
     icon: Any = deferred(db.Column(db.LargeBinary))
     state = db.Column(db.SmallInteger, default=0)
@@ -49,9 +49,14 @@ class OSINTSource(BaseModel):
 
     @classmethod
     def get_all(cls) -> list["OSINTSource"]:
-        return cls.query.order_by(
-            db.nulls_first(db.asc(OSINTSource.last_collected)), db.nulls_first(db.asc(OSINTSource.last_attempted))
-        ).all()
+        return (
+            cls.query.filter(cls.type != COLLECTOR_TYPES.MANUAL_COLLECTOR)
+            .order_by(
+                db.nulls_first(db.asc(cls.last_collected)),
+                db.nulls_first(db.asc(cls.last_attempted)),
+            )
+            .all()
+        )
 
     @classmethod
     def get_by_filter(cls, search=None, user=None, acl_check=False):
@@ -138,7 +143,10 @@ class OSINTSource(BaseModel):
     @classmethod
     def get_all_by_type(cls, collector_type: str):
         query = cls.query.filter(OSINTSource.type == collector_type)
-        sources = query.order_by(db.nulls_first(db.asc(OSINTSource.last_collected)), db.nulls_first(db.asc(OSINTSource.last_attempted))).all()
+        sources = query.order_by(
+            db.nulls_first(db.asc(OSINTSource.last_collected)),
+            db.nulls_first(db.asc(OSINTSource.last_attempted)),
+        ).all()
         return [source.to_dict() for source in sources]
 
     @classmethod
@@ -315,10 +323,12 @@ class OSINTSourceGroup(BaseModel):
     description: Any = db.Column(db.String())
     default: Any = db.Column(db.Boolean(), default=False)
 
-    osint_sources: Mapped[list["OSINTSource"]] = db.relationship(
-        "OSINTSource", secondary="osint_source_group_osint_source", back_populates="groups"
+    osint_sources: Any = db.relationship(
+        "OSINTSource",
+        secondary="osint_source_group_osint_source",
+        back_populates="groups",
     )  # type: ignore
-    word_lists: Mapped[list["WordList"]] = db.relationship("WordList", secondary="osint_source_group_word_list")  # type: ignore
+    word_lists: Any = db.relationship("WordList", secondary="osint_source_group_word_list")  # type: ignore
 
     def __init__(self, name, description="", osint_sources=None, default=False, word_lists=None, id=None):
         self.id = id or str(uuid.uuid4())

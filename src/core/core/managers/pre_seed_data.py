@@ -12,7 +12,11 @@ workers = [
             {"parameter": "MAX_ARTICLE_AGE", "type": "number"},
             {"parameter": "REFRESH_INTERVAL", "type": "number"},
             {"parameter": "DIGEST_SPLITTING", "type": "switch"},
-            {"parameter": "DIGEST_SPLITTING_LIMIT", "value": "30", "type": "number"},
+            {
+                "parameter": "DIGEST_SPLITTING_LIMIT",
+                "type": "number",
+                "rules": "digest_splitting_limit",
+            },
         ],
         "type": "RSS_COLLECTOR",
     },
