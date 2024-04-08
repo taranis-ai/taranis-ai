@@ -43,9 +43,9 @@ class NewsItemData(BaseModel):
     def __init__(
         self,
         title,
-        review,
         source,
         content,
+        review=None,
         osint_source_id=None,
         author=None,
         link=None,

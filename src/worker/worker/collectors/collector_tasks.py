@@ -39,7 +39,7 @@ class Collector:
 
         return None, f"Collector {collector_type} not implemented"
 
-    def collect_by_source_id(self, source_id: str):
+    def collect_by_source_id(self, source_id: str, manual: bool = False):
         err = None
 
         source, err = self.get_source(source_id)
@@ -50,7 +50,7 @@ class Collector:
         if err or not collector:
             return err
 
-        if err := collector.collect(source):
+        if err := collector.collect(source, manual):
             if err == "Last-Modified < Last-Attempted":
                 return "Skipping source"
             self.core_api.update_osintsource_status(source_id, {"error": err})
@@ -71,16 +71,12 @@ class CollectorTask(Task):
         self.core_api = CoreApi()
         self.collector = Collector()
 
-    def run(self, source_id: str):
+    def run(self, source_id: str, manual: bool = False):
         logger.info(f"Starting collector task {self.name}")
-        if err := self.collector.collect_by_source_id(source_id):
+        if err := self.collector.collect_by_source_id(source_id, manual):
             return err
         self.core_api.run_post_collection_bots(source_id)
         return f"Succesfully collected source {source_id}"
-
-    def after_return(self, status, retval, task_id, args, kwargs, einfo):
-        logger.info(f"Finished collector task {self.name} with status {status}")
-        super().after_return(status, retval, task_id, args, kwargs, einfo)
 
 
 @shared_task(time_limit=50, name="collector_preview", track_started=True, acks_late=True, priority=8)
