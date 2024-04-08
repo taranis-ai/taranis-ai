@@ -49,7 +49,7 @@
         <v-btn block class="mx-4" @click="resetFilter()">Reset Filter</v-btn>
       </v-col>
     </v-row>
-    <assess-selection-toolbar v-show="activeSelection" />
+    <assess-selection-toolbar />
   </div>
 </template>
 
@@ -73,7 +73,7 @@ export default defineComponent({
     const assessStore = useAssessStore()
     const filterStore = useFilterStore()
     const mainStore = useMainStore()
-    const { stories, activeSelection, loading } = storeToRefs(assessStore)
+    const { stories, loading } = storeToRefs(assessStore)
     const { storyFilter } = storeToRefs(filterStore)
 
     assessHotkeys()
@@ -147,7 +147,6 @@ export default defineComponent({
     return {
       stories,
       moreToLoad,
-      activeSelection,
       numberOfPages,
       page,
       loading,

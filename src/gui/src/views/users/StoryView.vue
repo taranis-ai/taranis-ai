@@ -1,7 +1,7 @@
 <template>
   <v-container v-if="story" fluid>
     <card-story :story="story" :detail-view="true" />
-    <assess-selection-toolbar v-show="activeSelection" />
+    <assess-selection-toolbar />
   </v-container>
   <not-found-card v-else :item-id="story_id" item-type="Story" />
 </template>
@@ -10,7 +10,6 @@
 import { computed, onMounted } from 'vue'
 import CardStory from '@/components/assess/CardStory.vue'
 import { useRoute } from 'vue-router'
-import { storeToRefs } from 'pinia'
 import { useAssessStore } from '@/stores/AssessStore'
 import AssessSelectionToolbar from '@/components/assess/AssessSelectionToolbar.vue'
 import NotFoundCard from '@/components/common/NotFoundCard.vue'
@@ -24,7 +23,6 @@ export default {
   },
   setup() {
     const assessStore = useAssessStore()
-    const { activeSelection } = storeToRefs(assessStore)
 
     const route = useRoute()
     const story_id = route.params.id
@@ -39,7 +37,7 @@ export default {
       }
     }
 
-    onMounted( async () => {
+    onMounted(async () => {
       const assessStore = useAssessStore()
       assessStore.updateOSINTSources()
       loadStories()
@@ -47,8 +45,7 @@ export default {
 
     return {
       story,
-      story_id,
-      activeSelection
+      story_id
     }
   }
 }

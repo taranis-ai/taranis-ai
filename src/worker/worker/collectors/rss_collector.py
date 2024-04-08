@@ -84,16 +84,17 @@ class RSSCollector(BaseWebCollector):
             logger.info("Could not parse date - falling back to current date")
             return self.last_modified or collected
 
-    def link_transformer(self, link: str, transform_str: str) -> str:
+    def link_transformer(self, link: str, transform_str: str = "") -> str:
         parsed_url = urlparse(link)
         segments = [parsed_url.netloc] + parsed_url.path.strip("/").split("/")
         transformed_segments = [operation.replace("{}", segment) for segment, operation in zip(segments, transform_str.split("/"))]
         return f"{parsed_url.scheme}://{'/'.join(transformed_segments)}"
 
-    def get_article_content(self, link_for_article: str) -> str:
-        html_content = self.make_request(link_for_article)
+    def clean_url(self, url: str) -> str:
+        return url.split("?")[0].split("#")[0]
 
-        return html_content.content.decode("utf-8") if html_content is not None else ""
+    def get_article_content(self, link_for_article: str) -> str:
+        return self.make_request(link_for_article) or ""
 
     def content_from_article(self, url: str, xpath: str | None) -> str:
         html_content = self.get_article_content(url)
@@ -109,10 +110,7 @@ class RSSCollector(BaseWebCollector):
         description: str = str(feed_entry.get("description", ""))
         link: str = str(feed_entry.get("link", ""))
         collected: datetime.datetime = datetime.datetime.now()
-        for_hash: str = author + title + link
-
-        if "redteam-pentesting.de" in link:  # TODO: Remove this once the the source schema is updated
-            source["parameters"]["LINK_TRANSFORMER"] = "{}/{}/{}/{}.txt"
+        for_hash: str = author + title + self.clean_url(link)
 
         if link_transformer := source["parameters"].get("LINK_TRANSFORMER", None):
             link = self.link_transformer(link, link_transformer)

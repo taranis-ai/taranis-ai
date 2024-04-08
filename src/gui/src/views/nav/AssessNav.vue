@@ -31,7 +31,7 @@
         <v-col cols="12" class="pt-1">
           <v-autocomplete
             v-model="storyFilter.group"
-            :items="getOSINTSourceGroupsList"
+            :items="OSINTSourceGroupsList"
             item-title="title"
             item-value="id"
             label="Source Group"
@@ -47,7 +47,7 @@
         <v-col cols="12" class="pt-2">
           <v-autocomplete
             v-model="storyFilter.source"
-            :items="getOSINTSourcesList"
+            :items="OSINTSourcesList"
             item-title="title"
             item-value="id"
             label="Source"
@@ -225,7 +225,7 @@ export default {
     const assessStore = useAssessStore()
     const filterStore = useFilterStore()
 
-    const { getOSINTSourceGroupsList, getOSINTSourcesList } =
+    const { OSINTSourceGroupsList, OSINTSourcesList } =
       storeToRefs(assessStore)
     const { mdAndDown, smAndUp } = useDisplay()
 
@@ -289,6 +289,8 @@ export default {
     const resetFilter = () => {
       assessStore.reset()
       filterStore.resetFilter()
+      assessStore.updateOSINTSources()
+      assessStore.updateOSINTSourceGroupsList()
       assessStore.updateStories()
     }
 
@@ -306,8 +308,8 @@ export default {
       compactView,
       filter_range,
       defaultFromDate,
-      getOSINTSourceGroupsList,
-      getOSINTSourcesList,
+      OSINTSourcesList,
+      OSINTSourceGroupsList,
       storyFilter,
       resetFilter,
       setCompactView

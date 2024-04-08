@@ -27,7 +27,7 @@ export const useAssessStore = defineStore(
     const newsItemSelection = ref([])
     const storySelection = ref([])
     const loading = ref(false)
-    const new_news_items = ref(false)
+    const new_stories = ref(false)
     const weekChartOptions = ref(staticWeekChartOptions)
 
     const OSINTSourceGroupsList = computed(() =>
@@ -151,16 +151,10 @@ export const useAssessStore = defineStore(
       }
     }
     async function updateOSINTSources() {
-      if (osint_sources.value.items.length > 0) {
-        return
-      }
       const response = await getOSINTSourcesList()
       osint_sources.value = response.data
     }
     async function updateOSINTSourceGroupsList() {
-      if (osint_source_groups.value.items.length > 0) {
-        return
-      }
       const response = await getOSINTSourceGroupsList()
       osint_source_groups.value = response.data
     }
@@ -250,7 +244,7 @@ export const useAssessStore = defineStore(
     }
     function sseNewsItemsUpdated() {
       console.debug('Triggerd News items update')
-      new_news_items.value = true
+      new_stories.value = true
     }
     function markStoryAsRead(id) {
       const item = stories.value.items.find((item) => item.id === id)
@@ -272,7 +266,7 @@ export const useAssessStore = defineStore(
       storySelection.value = []
       weekChartOptions.value = staticWeekChartOptions
       loading.value = false
-      new_news_items.value = false
+      new_stories.value = false
     }
 
     return {
@@ -283,7 +277,7 @@ export const useAssessStore = defineStore(
       storySelection,
       weekChartOptions,
       loading,
-      new_news_items,
+      new_stories,
       OSINTSourceGroupsList,
       OSINTSourcesList,
       activeSelection,

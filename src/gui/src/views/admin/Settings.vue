@@ -107,9 +107,20 @@ export default {
       get: () => tlpLevel.value,
       set: (value) => {
         tlpLevel.value = value
-        updateAdminSettings({ default_tlp_level: value })
+        updateSettings()
       }
     })
+
+    async function updateSettings() {
+      try {
+        const result = await updateAdminSettings({
+          default_tlp_level: tlpLevel.value
+        })
+        notifySuccess(result)
+      } catch (error) {
+        notifyFailure(error)
+      }
+    }
 
     async function getSettings() {
       try {
@@ -144,7 +155,13 @@ export default {
         notifyFailure(error)
       }
     }
-    return { deleteTags, ungroupAllStoriesAction, deleteEverything, tlpLevels, tlp }
+    return {
+      deleteTags,
+      ungroupAllStoriesAction,
+      deleteEverything,
+      tlpLevels,
+      tlp
+    }
   }
 }
 </script>
