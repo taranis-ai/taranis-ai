@@ -7,6 +7,7 @@ import logging
 from urllib.parse import urlparse
 import dateutil.parser as dateparser
 from trafilatura import extract
+from bs4 import BeautifulSoup
 
 from worker.collectors.base_web_collector import BaseWebCollector
 from worker.log import logger
@@ -23,6 +24,10 @@ class RSSCollector(BaseWebCollector):
         self.headers = {}
         self.timeout = 60
         self.feed_url = ""
+        self.feed_content = None
+        self.last_modified = None
+        self.digest_splitting_limit = None
+        self.split_digest_urls = []
         logger_trafilatura = logging.getLogger("trafilatura")
         logger_trafilatura.setLevel(logging.WARNING)
 
@@ -33,6 +38,8 @@ class RSSCollector(BaseWebCollector):
             return {"error": "No FEED_URL set"}
 
         self.set_proxies(source["parameters"].get("PROXY_SERVER", None))
+
+        self.digest_splitting_limit = int(source["parameters"].get("DIGEST_SPLITTING_LIMIT", 30))
 
         logger.info(f"RSS-Feed {source['id']} Starting collector for url: {self.feed_url}")
 
@@ -104,6 +111,17 @@ class RSSCollector(BaseWebCollector):
 
         return self.xpath_extraction(html_content, xpath)
 
+    def digest_splitting(self, feed_entry) -> list:
+        urls = self.get_urls(feed_entry.get("summary"))
+        logger.info(f"RSS-Feed {self.feed_url} digest splitting, found {len(urls)} urls")
+
+        return urls or []
+
+    def get_urls(self, summary) -> list:
+        soup = BeautifulSoup(summary, "html.parser")
+
+        return [a["href"] for a in soup.find_all("a", href=True)]
+
     def parse_feed(self, feed_entry: feedparser.FeedParserDict, source) -> dict[str, str | datetime.datetime | list]:
         author: str = str(feed_entry.get("author", ""))
         title: str = str(feed_entry.get("title", ""))
@@ -151,7 +169,8 @@ class RSSCollector(BaseWebCollector):
             "attributes": [],
         }
 
-    def get_last_modified(self, feed_content: requests.Response, feed: feedparser.FeedParserDict) -> datetime.datetime | None:
+    # TODO: This function is renamed because of inheritance issues. Notice that @feed is/was not used in the function.
+    def get_last_modified_feed(self, feed_content: requests.Response, feed: feedparser.FeedParserDict) -> datetime.datetime | None:
         feed = feedparser.parse(feed_content.content)
         if last_modified := feed_content.headers.get("Last-Modified"):
             return dateparser.parse(last_modified, ignoretz=True)
@@ -182,6 +201,40 @@ class RSSCollector(BaseWebCollector):
         self.core_api.update_osint_source_icon(source_id, icon_content)
         return None
 
+    def get_digest_url_list(self, feed_entries) -> list:
+        return [result for feed_entry in feed_entries for result in self.digest_splitting(feed_entry)]  # Flat list of URLs
+
+    def get_news_items(self, feed, source) -> list | str:
+        digest_splitting = source["parameters"].get("DIGEST_SPLITTING", False)
+        if digest_splitting == "true":
+            return self.handle_digests(feed, source)
+
+        return [self.parse_feed(feed_entry, source) for feed_entry in feed["entries"][:42]]
+
+    def handle_digests(self, feed, source) -> list[dict] | str:
+        self.digest_splitting_limit = int(source["parameters"].get("DIGEST_SPLITTING_LIMIT", self.digest_splitting_limit))
+        feed_entries = feed["entries"][:42]
+        self.split_digest_urls = self.get_digest_url_list(feed_entries)
+        logger.info(f"RSS-Feed {source['id']} returned {len(self.split_digest_urls)} available URLs")
+
+        return self.parse_digests(source)
+
+    def parse_digests(self, source) -> list[dict] | str:
+        news_items = []
+        max_elements = (
+            len(self.split_digest_urls) if len(self.split_digest_urls) < self.digest_splitting_limit else self.digest_splitting_limit
+        )
+        for split_digest_url in self.split_digest_urls[:max_elements]:
+            try:
+                news_item = self.parse_web_content(split_digest_url, source.get("id"))
+                if not news_item.get("error"):
+                    news_items.append(news_item)
+            except Exception as e:
+                logger.error(f"RSS Collector failed digest splitting with error: {str(e)}")
+                raise e
+
+        return news_items
+
     def get_feed(self) -> feedparser.FeedParserDict:
         self.feed_content = self.make_request(self.feed_url)
         if not self.feed_content:
@@ -192,8 +245,7 @@ class RSSCollector(BaseWebCollector):
     def preview_collector(self, source):
         self.parse_source(source)
         feed = self.get_feed()
-        news_items = [self.parse_feed(feed_entry, source) for feed_entry in feed["entries"][:42]]
-
+        news_items = self.get_news_items(feed, source)
         return self.preview(news_items, source)
 
     def rss_collector(self, source):
@@ -202,7 +254,7 @@ class RSSCollector(BaseWebCollector):
         last_attempted = self.get_last_attempted(source)
         if not last_attempted:
             self.update_favicon(feed.feed, source["id"])
-        last_modified = self.get_last_modified(self.feed_content, feed)
+        last_modified = self.get_last_modified_feed(self.feed_content, feed)
         self.last_modified = last_modified
         if last_modified and last_attempted and last_modified < last_attempted:
             logger.debug(f"Last-Modified: {last_modified} < Last-Attempted {last_attempted} skipping")
@@ -210,7 +262,7 @@ class RSSCollector(BaseWebCollector):
 
         logger.info(f"RSS-Feed {source['id']} returned feed with {len(feed['entries'])} entries")
 
-        news_items = [self.parse_feed(feed_entry, source) for feed_entry in feed["entries"][:42]]
+        news_items = self.get_news_items(feed, source)
 
         self.publish(news_items, source)
         return None

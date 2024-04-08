@@ -1,8 +1,12 @@
+import contextlib
 import datetime
+import hashlib
+import uuid
 import requests
 import lxml.html
 import dateutil.parser as dateparser
 from urllib.parse import urlparse
+from trafilatura import extract, extract_metadata
 
 from worker.log import logger
 from worker.collectors.base_collector import BaseCollector
@@ -45,17 +49,59 @@ class BaseWebCollector(BaseCollector):
         self.core_api.update_osint_source_icon(source_id, icon_content)
         return None
 
-    def html_from_article(self, web_url: str) -> tuple[str, datetime.datetime]:
+    def web_content_from_article(self, web_url: str) -> tuple[str, datetime.datetime]:
         response = requests.get(web_url, headers=self.headers, proxies=self.proxies, timeout=60)
         if not response or not response.ok:
             return "", datetime.datetime.now()
-        html_content = response.content.decode("utf-8")
         published_date = self.get_last_modified(response)
-        return html_content, published_date
+        if text := response.text:
+            return text, published_date
+        return "", published_date
 
-    def xpath_extraction(self, html_content, xpath: str) -> str:
+    def xpath_extraction(self, html_content, xpath: str) -> str | None:
         document = lxml.html.fromstring(html_content)
         if not document.xpath(xpath):
             logger.error(f"No content found for XPath: {xpath}")
-            return ""
+            return None
         return document.xpath(xpath)[0].text_content()
+
+    def extract_meta(self, web_content, web_url) -> [str, str]:
+        # See https://github.com/adbar/htmldate/pull/145
+        with contextlib.suppress(ValueError):
+            metadata = extract_metadata(web_content, default_url=web_url)
+        if metadata is None:
+            return "", ""
+
+        author = metadata.as_dict().get("author")
+        title = metadata.as_dict().get("title")
+
+        return author if author is not None else "", title if title is not None else "No title found"
+
+    def parse_web_content(self, web_url, source_id: str, xpath: str = "") -> dict[str, str | datetime.datetime | list]:
+        web_content, published_date = self.web_content_from_article(web_url)
+        content = ""
+        if xpath:
+            content = self.xpath_extraction(web_content, xpath)
+        elif web_content is not None:
+            content = extract(web_content, url=web_url)
+
+        if not content or not web_content:
+            return {"error": "No content found"}
+
+        author, title = self.extract_meta(web_content, web_url)
+        for_hash: str = author + title + web_url
+
+        return {
+            "id": str(uuid.uuid4()),
+            "hash": hashlib.sha256(for_hash.encode()).hexdigest(),
+            "title": title,
+            "review": "",
+            "source": web_url,
+            "link": web_url,
+            "published": published_date,
+            "author": author,
+            "collected": datetime.datetime.now(),
+            "content": content,
+            "osint_source_id": source_id,
+            "attributes": [],
+        }
