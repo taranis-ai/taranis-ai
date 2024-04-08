@@ -6,7 +6,7 @@ import requests
 import lxml.html
 import dateutil.parser as dateparser
 from urllib.parse import urlparse
-from trafilatura import bare_extraction, extract_metadata
+from trafilatura import extract, extract_metadata
 
 from worker.log import logger
 from worker.collectors.base_collector import BaseCollector
@@ -53,20 +53,17 @@ class BaseWebCollector(BaseCollector):
         response = requests.get(web_url, headers=self.headers, proxies=self.proxies, timeout=60)
         if not response or not response.ok:
             return "", datetime.datetime.now()
-        # Handle non-text content
-        if response.headers["Content-Type"].startswith("text/"):
-            html_content = response.content.decode("utf-8")
-        else:
-            html_content = response.content
         published_date = self.get_last_modified(response)
-        return html_content, published_date
+        if text := response.text:
+            return text, published_date
+        return "", published_date
 
-    def xpath_extraction(self, html_content, xpath: str) -> dict:
+    def xpath_extraction(self, html_content, xpath: str) -> str | None:
         document = lxml.html.fromstring(html_content)
         if not document.xpath(xpath):
             logger.error(f"No content found for XPath: {xpath}")
-            return {"value": "No content found"}
-        return {"value": document.xpath(xpath)[0].text_content()}
+            return None
+        return document.xpath(xpath)[0].text_content()
 
     def extract_meta(self, web_content, web_url) -> [str, str]:
         # See https://github.com/adbar/htmldate/pull/145
@@ -80,24 +77,16 @@ class BaseWebCollector(BaseCollector):
 
         return author if author is not None else "", title if title is not None else "No title found"
 
-    def extract_content(self, web_content, web_url) -> dict:
-        extract_document = bare_extraction(web_content, url=web_url, with_metadata=False, include_comments=False)
-        if extract_document is None:
-            return {"error": "No content found"}
-        text = extract_document.get("text")
-        content = {"value": text}
-        return {"error": "No content found"} if text is None else content
-
     def parse_web_content(self, web_url, source_id: str, xpath: str = "") -> dict[str, str | datetime.datetime | list]:
         web_content, published_date = self.web_content_from_article(web_url)
-        content = {"error": "No content found"}
+        content = ""
         if xpath:
             content = self.xpath_extraction(web_content, xpath)
         elif web_content is not None:
-            content = self.extract_content(web_content, web_url)
-            if content.get("error"):
-                logger.warning(f"Failed to extract content from {web_url}")
-                return content
+            content = extract(web_content, url=web_url)
+
+        if not content or not web_content:
+            return {"error": "No content found"}
 
         author, title = self.extract_meta(web_content, web_url)
         for_hash: str = author + title + web_url
@@ -112,7 +101,7 @@ class BaseWebCollector(BaseCollector):
             "published": published_date,
             "author": author,
             "collected": datetime.datetime.now(),
-            "content": content.get("value", ""),
+            "content": content,
             "osint_source_id": source_id,
             "attributes": [],
         }
