@@ -11,6 +11,12 @@ workers = [
             {"parameter": "TLP_LEVEL", "rules": "tlp"},
             {"parameter": "MAX_ARTICLE_AGE", "type": "number"},
             {"parameter": "REFRESH_INTERVAL", "type": "number"},
+            {"parameter": "DIGEST_SPLITTING", "type": "switch"},
+            {
+                "parameter": "DIGEST_SPLITTING_LIMIT",
+                "type": "number",
+                "rules": "digest_splitting_limit",
+            },
         ],
         "type": "RSS_COLLECTOR",
     },
