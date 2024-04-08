@@ -17,7 +17,6 @@ import { useFilterStore } from './FilterStore'
 import { stringify, parse } from 'zipson'
 import { ref, computed } from 'vue'
 import { staticWeekChartOptions } from '@/utils/helpers'
-import { getQueryStringFromNestedObject } from '@/utils/query'
 
 export const useAssessStore = defineStore(
   'assess',
@@ -28,7 +27,7 @@ export const useAssessStore = defineStore(
     const newsItemSelection = ref([])
     const storySelection = ref([])
     const loading = ref(false)
-    const new_news_items = ref(false)
+    const new_stories = ref(false)
     const weekChartOptions = ref(staticWeekChartOptions)
 
     const OSINTSourceGroupsList = computed(() =>
@@ -69,14 +68,23 @@ export const useAssessStore = defineStore(
         notifyFailure(error.message)
       }
     }
-    async function modifyStories(action = 'append') {
+    async function appendStories() {
       try {
         loading.value = true
-        // Make a copy of the original filter and adjust the offset based on the action
-        const filter = { ...useFilterStore().newsItemsFilter }
-        filter.offset = action === 'prepend' ? 0 : stories.value.items.length
+        const filter = useFilterStore()
 
-        const filterQuery = getQueryStringFromNestedObject(filter)
+        const page = filter.nextPage()
+
+        let { filterQuery } = filter
+        if (filterQuery === '') {
+          filterQuery += `page=${page}&no_count=true`
+        } else if (filterQuery.includes('page')) {
+          filterQuery = filterQuery.replace(/page=\d+/, `page=${page}`)
+          filterQuery += '&no_count=true'
+        } else {
+          filterQuery += `&page=${page}&no_count=true`
+        }
+
         const response = await getStories(filterQuery)
         const existingItemIds = new Set(
           stories.value.items.map((item) => item.id)
@@ -84,35 +92,22 @@ export const useAssessStore = defineStore(
         const uniqueNewItems = response.data.items.filter(
           (item) => !existingItemIds.has(item.id)
         )
+        if (uniqueNewItems.length === 0) {
+          notifySuccess('No more stories to load')
+          loading.value = false
+          return false
+        }
 
-        console.debug('Returned Item IDs', response.data.items.map((item) => item.id))
-        console.debug('Unique New Items', uniqueNewItems.length)
-        console.debug('Unique Item IDs', uniqueNewItems.map((item) => item.id))
-        console.debug('Existing Item IDs', existingItemIds)
+        stories.value.items = [...stories.value.items, ...uniqueNewItems]
 
-        // Adjust the items array based on the action
-        stories.value.items =
-          action === 'append'
-            ? [...stories.value.items, ...uniqueNewItems]
-            : [...uniqueNewItems, ...stories.value.items]
-
-        stories.value.total_count = response.data.total_count
         weekChartOptions.value.scales.y2.max = response.data.max_item
-        console.debug('Modified Stories', action)
-        await new Promise(r => setTimeout(r, 2000));
         loading.value = false
+        return true
       } catch (error) {
         loading.value = false
         console.error(error)
         notifyFailure(error.message)
       }
-    }
-
-    async function appendStories() {
-      await modifyStories('append')
-    }
-    async function prependStories() {
-      await modifyStories('prepend')
     }
 
     function getStoryByID(id) {
@@ -156,16 +151,10 @@ export const useAssessStore = defineStore(
       }
     }
     async function updateOSINTSources() {
-      if (osint_sources.value.items.length > 0) {
-        return
-      }
       const response = await getOSINTSourcesList()
       osint_sources.value = response.data
     }
     async function updateOSINTSourceGroupsList() {
-      if (osint_source_groups.value.items.length > 0) {
-        return
-      }
       const response = await getOSINTSourceGroupsList()
       osint_source_groups.value = response.data
     }
@@ -255,7 +244,7 @@ export const useAssessStore = defineStore(
     }
     function sseNewsItemsUpdated() {
       console.debug('Triggerd News items update')
-      new_news_items.value = true
+      new_stories.value = true
     }
     function markStoryAsRead(id) {
       const item = stories.value.items.find((item) => item.id === id)
@@ -277,7 +266,7 @@ export const useAssessStore = defineStore(
       storySelection.value = []
       weekChartOptions.value = staticWeekChartOptions
       loading.value = false
-      new_news_items.value = false
+      new_stories.value = false
     }
 
     return {
@@ -288,17 +277,15 @@ export const useAssessStore = defineStore(
       storySelection,
       weekChartOptions,
       loading,
-      new_news_items,
+      new_stories,
       OSINTSourceGroupsList,
       OSINTSourcesList,
       activeSelection,
       reset,
       updateStories,
-      modifyStories,
       groupStories,
       ungroupStories,
       appendStories,
-      prependStories,
       getStoryByID,
       removeStoryByID,
       updateStoryByID,

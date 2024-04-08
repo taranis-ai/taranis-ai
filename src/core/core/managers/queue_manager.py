@@ -102,7 +102,7 @@ class QueueManager:
         return {"status": task.state}, 202
 
     def collect_osint_source(self, source_id: str):
-        if self.send_task("collector_task", args=[source_id], queue="collectors"):
+        if self.send_task("collector_task", args=[source_id, True], queue="collectors"):
             logger.info(f"Collect for source {source_id} scheduled")
             return {"message": f"Refresh for source {source_id} scheduled"}, 200
         return {"error": "Could not reach rabbitmq"}, 500
@@ -119,7 +119,7 @@ class QueueManager:
             return {"error": "Could not reach rabbitmq"}, 500
         sources = OSINTSource.get_all()
         for source in sources:
-            self.send_task("collector_task", args=[source.id], queue="collectors")
+            self.send_task("collector_task", args=[source.id, True], queue="collectors")
             logger.info(f"Collect for source {source.id} scheduled")
         return {"message": f"Refresh for source {len(sources)} scheduled"}, 200
 
@@ -148,7 +148,7 @@ class QueueManager:
         return {"error": "Could not reach rabbitmq"}, 500
 
     def get_bot_signature(self, bot_id: list, source_id: str):
-        return self.celery.signature("bot_task", kwargs={"bot_id": bot_id, "filter": {"SOURCE": source_id}}, queue="bots")
+        return self.celery.signature("bot_task", kwargs={"bot_id": bot_id, "filter": {"SOURCE": source_id}}, queue="bots", immutable=True)
 
     def post_collection_bots(self, source_id: str):
         from core.model.bot import Bot
@@ -158,10 +158,8 @@ class QueueManager:
         current_bot = self.get_bot_signature(post_collection_bots.pop(0), source_id)
 
         try:
-            for bot_id in post_collection_bots:
-                next_bot = self.get_bot_signature(bot_id, source_id)
-                current_bot.apply_async(link=next_bot, link_error=next_bot, queue="bots")
-                current_bot = next_bot
+            bot_chain = [self.get_bot_signature(bot_id, source_id) for bot_id in post_collection_bots]
+            current_bot.apply_async(link=bot_chain, link_error=bot_chain, queue="bots", ignore_result=True)
             return {"message": f"Post collection bots scheduled for source {source_id}"}, 200
         except Exception as e:
             return {"error": "Could schedule post collection bots", "details": str(e)}, 500

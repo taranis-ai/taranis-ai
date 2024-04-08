@@ -65,7 +65,7 @@ class BaseCollector:
 
     # Use filtered_items for further processing
 
-    def collect(self, source: dict):
+    def collect(self, source: dict, manual: bool = False):
         pass
 
     def preview_collector(self, source: dict):

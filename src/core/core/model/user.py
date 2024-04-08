@@ -188,7 +188,7 @@ class UserProfile(BaseModel):
     compact_view = db.Column(db.Boolean, default=False)
     show_charts = db.Column(db.Boolean, default=False)
 
-    hotkeys: Any = db.relationship("Hotkey", cascade="all, delete-orphan")
+    hotkeys: Any = db.Column(db.JSON)
     language = db.Column(db.String(2), default="en")
 
     def __init__(self, dark_theme=False, hotkeys=None, split_view=None, compact_view=None, show_charts=None, language="en", id=None):
@@ -197,7 +197,7 @@ class UserProfile(BaseModel):
         self.split_view = split_view
         self.compact_view = compact_view
         self.show_charts = show_charts
-        self.hotkeys = Hotkey.from_dict(hotkeys) if hotkeys else []
+        self.hotkeys = hotkeys or {}
         self.language = language
 
     def to_dict(self):
@@ -206,7 +206,7 @@ class UserProfile(BaseModel):
             "compact_view": self.compact_view,
             "show_charts": self.show_charts,
             "dark_theme": self.dark_theme,
-            "hotkeys": [hotkey.to_dict() for hotkey in self.hotkeys],
+            "hotkeys": self.hotkeys,
             "language": self.language,
         }
 
@@ -216,29 +216,7 @@ class UserProfile(BaseModel):
         self.split_view = data.pop("split_view", self.split_view)
         self.compact_view = data.pop("compact_view", self.compact_view)
         self.show_charts = data.pop("show_charts", self.show_charts)
-
-        hotkeys = data.pop("hotkeys", None)
-        if hotkeys is not None:
-            self.hotkeys = [Hotkey.from_dict(hotkey) for hotkey in hotkeys]
+        self.hotkeys = data.pop("hotkeys", self.hotkeys)
 
         db.session.commit()
         return {"message": "UserProfile updated", "id": f"{self.id}"}, 200
-
-
-class Hotkey(BaseModel):
-    id = db.Column(db.Integer, primary_key=True)
-    key_code = db.Column(db.Integer)
-    key = db.Column(db.String)
-    alias = db.Column(db.String)
-
-    user_profile_id = db.Column(db.Integer, db.ForeignKey("user_profile.id", ondelete="CASCADE"))
-
-    def __init__(self, key_code, key, alias, id=None):
-        self.id = id
-        self.key_code = key_code
-        self.key = key
-        self.alias = alias
-
-    @classmethod
-    def from_dict(cls, data: dict) -> "Hotkey":
-        return cls(data["key_code"], data["key"], data["alias"])

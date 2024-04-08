@@ -10,6 +10,7 @@ from requests.exceptions import ConnectionError
 class PresenterTask(Task):
     name = "presenter_task"
     max_retries = 3
+    priority = 8
     default_retry_delay = 60
     time_limit = 60
 

@@ -45,7 +45,9 @@ class SimpleWebCollector(BaseWebCollector):
 
     def preview_collector(self, source):
         self.parse_source(source)
-        news_item = self.parse_web_content(self.web_url, source["id"])
+        news_item = self.news_item_from_article(self.web_url, source["id"])
+        if news_item.get("error"):
+            return news_item.get("error")
 
         return self.preview([news_item], source)
 
@@ -65,7 +67,7 @@ class SimpleWebCollector(BaseWebCollector):
             return "Last-Modified < Last-Attempted"
 
         try:
-            news_item = self.parse_web_content(self.web_url, source["id"], self.xpath)
+            news_item = self.news_item_from_article(self.web_url, source["id"], self.xpath)
             if news_item.get("error"):
                 return news_item.get("error")
         except ValueError as e:

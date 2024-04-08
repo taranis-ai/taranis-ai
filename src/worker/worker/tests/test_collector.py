@@ -133,7 +133,7 @@ def rt_mock(requests_mock, collectors_mock):
 def test_simple_web_collector_collect(simple_web_collector):
     from testdata import web_collector_url, web_collector_result_title, web_collector_result_content
 
-    result_item = simple_web_collector.parse_web_content(web_collector_url, "test_source")
+    result_item = simple_web_collector.news_item_from_article(web_collector_url, "test_source")
 
     assert result_item["title"] == web_collector_result_title
     # assert result_item["author"] == "John Doe"

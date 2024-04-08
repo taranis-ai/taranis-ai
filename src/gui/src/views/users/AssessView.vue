@@ -49,7 +49,7 @@
         <v-btn block class="mx-4" @click="resetFilter()">Reset Filter</v-btn>
       </v-col>
     </v-row>
-    <assess-selection-toolbar v-show="activeSelection" />
+    <assess-selection-toolbar />
   </div>
 </template>
 
@@ -73,13 +73,13 @@ export default defineComponent({
     const assessStore = useAssessStore()
     const filterStore = useFilterStore()
     const mainStore = useMainStore()
-    const { stories, activeSelection, loading } = storeToRefs(assessStore)
-    const { newsItemsFilter } = storeToRefs(filterStore)
+    const { stories, loading } = storeToRefs(assessStore)
+    const { storyFilter } = storeToRefs(filterStore)
 
     assessHotkeys()
     const moreToLoad = computed(() => {
-      const offset = newsItemsFilter.value.offset
-        ? parseInt(newsItemsFilter.value.offset)
+      const offset = storyFilter.value.offset
+        ? parseInt(storyFilter.value.offset)
         : 0
       const length = offset + stories.value.items.length
       return length < stories.value.total_count
@@ -87,15 +87,15 @@ export default defineComponent({
 
     const page = computed({
       get: () => {
-        return Number(newsItemsFilter.value.page) || 1
+        return Number(storyFilter.value.page) + 1 || 0
       },
       set: (val) => {
-        newsItemsFilter.value.page = String(val)
+        storyFilter.value.page = String(val - 1)
       }
     })
     const numberOfPages = computed(() => {
       const count = Math.ceil(
-        stories.value.total_count / (newsItemsFilter.value.limit || 20)
+        stories.value.total_count / (storyFilter.value.limit || 20)
       )
       return count > 0 ? count : 1
     })
@@ -105,7 +105,7 @@ export default defineComponent({
     }
 
     const pagination = computed(() => {
-      return Boolean(newsItemsFilter.value.timeto)
+      return Boolean(storyFilter.value.timeto)
     })
 
     const displayMore = async ({ done }) => {
@@ -120,11 +120,10 @@ export default defineComponent({
         }, 2000)
         return
       }
-      await assessStore.appendStories()
-      done('ok')
-    }
-    const nextPage = () => {
-      filterStore.nextPage()
+      if (await assessStore.appendStories()) {
+        done('ok')
+      }
+      done('empty')
     }
 
     const resetFilter = () => {
@@ -148,14 +147,12 @@ export default defineComponent({
     return {
       stories,
       moreToLoad,
-      activeSelection,
       numberOfPages,
       page,
       loading,
       pagination,
-      newsItemsFilter,
+      storyFilter,
       refresh,
-      nextPage,
       resetFilter,
       displayMore,
       onTriggeredEventHandler

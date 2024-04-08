@@ -57,7 +57,7 @@
 
         <!-- scope -->
         <v-row v-if="showPaging" no-gutters class="ma-2 my-4 px-2">
-          <v-select
+          <v-autocomplete
             v-model="limitState"
             :items="itemsPerPage"
             label="Items per page"
@@ -97,7 +97,7 @@ export default {
   emits: ['update:search', 'update:limit'],
   setup(props, { emit }) {
     const showOmniSearch = ref(false)
-    const itemsPerPage = [25, 50, 100, 500, 1000]
+    const itemsPerPage = [20, 40, 100, 200, 400]
     const timeout = ref(null)
     const store = useMainStore()
 

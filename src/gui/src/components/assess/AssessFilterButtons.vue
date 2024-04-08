@@ -1,22 +1,22 @@
 <template>
   <div class="ml-2 vertical-button-group">
     <filter-button
-      v-model="newsItemsFilter['read']"
+      v-model="storyFilter['read']"
       label="read"
       icon="mdi-eye-check-outline"
     />
     <filter-button
-      v-model="newsItemsFilter['important']"
+      v-model="storyFilter['important']"
       label="important"
       icon="mdi-star-check-outline"
     />
     <filter-button
-      v-model="newsItemsFilter['in_report']"
+      v-model="storyFilter['in_report']"
       label="items in reports"
       icon="mdi-google-circles-communities"
     />
     <filter-button
-      v-model="newsItemsFilter['relevant']"
+      v-model="storyFilter['relevant']"
       label="relevant"
       icon="mdi-bullseye-arrow"
     />
@@ -36,10 +36,10 @@ export default {
   props: {},
   setup() {
     const filterStore = useFilterStore()
-    const { newsItemsFilter } = storeToRefs(filterStore)
+    const { storyFilter } = storeToRefs(filterStore)
 
     return {
-      newsItemsFilter
+      storyFilter
     }
   }
 }

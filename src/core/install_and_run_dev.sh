@@ -3,14 +3,12 @@
 set -eu
 
 if [ ! -d "venv" ]; then
-    python3 -m venv venv
+    uv venv venv
+    source venv/bin/activate
+    uv pip install -e ."[dev]"
 fi
 
-# Activate venv
 source venv/bin/activate
-
-# Install requirements
-python -m pip install -e ."[dev]"
 
 # Run the app
 python -m flask run

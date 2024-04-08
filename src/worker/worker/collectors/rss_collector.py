@@ -1,6 +1,5 @@
 import datetime
 import hashlib
-import uuid
 import feedparser
 import requests
 import logging
@@ -11,6 +10,7 @@ from bs4 import BeautifulSoup
 
 from worker.collectors.base_web_collector import BaseWebCollector
 from worker.log import logger
+from worker.types import NewsItem
 
 
 class RSSCollector(BaseWebCollector):
@@ -46,10 +46,10 @@ class RSSCollector(BaseWebCollector):
         if user_agent := source["parameters"].get("USER_AGENT", None):
             self.headers = {"User-Agent": user_agent}
 
-    def collect(self, source):
+    def collect(self, source, manual: bool = False):
         self.parse_source(source)
         try:
-            return self.rss_collector(source)
+            return self.rss_collector(source, manual)
         except Exception as e:
             logger.exception()
             logger.error(f"RSS collector failed with error: {str(e)}")
@@ -68,7 +68,7 @@ class RSSCollector(BaseWebCollector):
                 return True, location
         return False, content_location
 
-    def get_published_date(self, feed_entry: feedparser.FeedParserDict, link: str, collected: datetime.datetime) -> datetime.datetime:
+    def get_published_date(self, feed_entry: feedparser.FeedParserDict) -> datetime.datetime | None:
         published: str | datetime.datetime = str(
             feed_entry.get(
                 "published",
@@ -77,30 +77,20 @@ class RSSCollector(BaseWebCollector):
                 ),
             )
         )
-        if not published:
-            if not link:
-                return self.last_modified or collected
-            response = requests.head(link, headers=self.headers, proxies=self.proxies, timeout=self.timeout)
-            if not response.ok:
-                return self.last_modified or collected
-
-            published = str(response.headers.get("Last-Modified", ""))
         try:
-            return dateparser.parse(published, ignoretz=True) if published else collected
+            return dateparser.parse(published, ignoretz=True) if published else None
         except Exception:
             logger.info("Could not parse date - falling back to current date")
-            return self.last_modified or collected
+            return self.last_modified or None
 
-    def link_transformer(self, link: str, transform_str: str) -> str:
+    def link_transformer(self, link: str, transform_str: str = "") -> str:
         parsed_url = urlparse(link)
         segments = [parsed_url.netloc] + parsed_url.path.strip("/").split("/")
         transformed_segments = [operation.replace("{}", segment) for segment, operation in zip(segments, transform_str.split("/"))]
         return f"{parsed_url.scheme}://{'/'.join(transformed_segments)}"
 
     def get_article_content(self, link_for_article: str) -> str:
-        html_content = self.make_request(link_for_article)
-
-        return html_content.content.decode("utf-8") if html_content is not None else ""
+        return self.make_request(link_for_article) or ""
 
     def content_from_article(self, url: str, xpath: str | None) -> str:
         html_content = self.get_article_content(url)
@@ -126,50 +116,37 @@ class RSSCollector(BaseWebCollector):
         title: str = str(feed_entry.get("title", ""))
         description: str = str(feed_entry.get("description", ""))
         link: str = str(feed_entry.get("link", ""))
-        collected: datetime.datetime = datetime.datetime.now()
-        for_hash: str = author + title + link
-
-        if "redteam-pentesting.de" in link:  # TODO: Remove this once the the source schema is updated
-            source["parameters"]["LINK_TRANSFORMER"] = "{}/{}/{}/{}.txt"
 
         if link_transformer := source["parameters"].get("LINK_TRANSFORMER", None):
             link = self.link_transformer(link, link_transformer)
 
-        published = self.get_published_date(feed_entry, link, collected)
+        published = self.get_published_date(feed_entry)
 
         content_location = source["parameters"].get("CONTENT_LOCATION", None)
-        max_article_age = int(source["parameters"].get("MAX_ARTICLE_AGE", 180))
         content_from_feed, content_location = self.content_from_feed(feed_entry, content_location)
         if content_from_feed:
             content = str(feed_entry[content_location])
         elif link:
-            if published.date() >= (datetime.date.today() - datetime.timedelta(days=max_article_age)):
-                xpath = source["parameters"].get("XPATH", None)
-                content = self.content_from_article(link, xpath)
-            else:
-                content = f"The article is older than {max_article_age} days - skipping"
-        elif description:
-            content = description
-        else:
-            content = "No content found in feed or article - please check your CONTENT_LOCATION parameter"
+            web_content = self.parse_web_content(link, source["parameters"].get("XPATH", None))
+            content = web_content.get("content")
+            author = web_content.get("author") or author
+            title = web_content.get("title") or title
+            published = web_content.get("published_date") or published
 
         if content == description:
             description = ""
 
-        return {
-            "id": str(uuid.uuid4()),
-            "hash": hashlib.sha256(for_hash.encode()).hexdigest(),
-            "title": title,
-            "review": description,
-            "source": self.feed_url,
-            "link": link,
-            "published": published,
-            "author": author,
-            "collected": collected,
-            "content": content,
-            "osint_source_id": source["id"],
-            "attributes": [],
-        }
+        for_hash: str = author + title + self.clean_url(link)
+
+        return NewsItem(
+            source_id=source["id"],
+            hash=hashlib.sha256(for_hash.encode()).hexdigest(),
+            author=author,
+            title=title,
+            content=content,
+            web_url=link,
+            published_date=published,
+        ).to_dict()
 
     # TODO: This function is renamed because of inheritance issues. Notice that @feed is/was not used in the function.
     def get_last_modified_feed(self, feed_content: requests.Response, feed: feedparser.FeedParserDict) -> datetime.datetime | None:
@@ -211,7 +188,15 @@ class RSSCollector(BaseWebCollector):
         if digest_splitting == "true":
             return self.handle_digests(feed, source)
 
-        return [self.parse_feed(feed_entry, source) for feed_entry in feed["entries"][:42]]
+        parsed_entries = []
+        for feed_entry in feed["entries"][:42]:
+            try:
+                parsed_entries.append(self.parse_feed(feed_entry, source))
+            except ValueError as e:
+                logger.warning(f"{feed_entry['link']}: {str(e)}")
+                continue
+
+        return parsed_entries
 
     def handle_digests(self, feed, source) -> list[dict] | str:
         self.digest_splitting_limit = int(source["parameters"].get("DIGEST_SPLITTING_LIMIT", self.digest_splitting_limit))
@@ -223,14 +208,13 @@ class RSSCollector(BaseWebCollector):
 
     def parse_digests(self, source) -> list[dict] | str:
         news_items = []
-        max_elements = (
-            len(self.split_digest_urls) if len(self.split_digest_urls) < self.digest_splitting_limit else self.digest_splitting_limit
-        )
+        max_elements = min(len(self.split_digest_urls), self.digest_splitting_limit)
         for split_digest_url in self.split_digest_urls[:max_elements]:
             try:
-                news_item = self.parse_web_content(split_digest_url, source.get("id"))
-                if not news_item.get("error"):
-                    news_items.append(news_item)
+                news_items.append(self.news_item_from_article(split_digest_url, source.get("id")))
+            except ValueError as e:
+                logger.warning(f"RSS-Feed {source['id']} failed to parse digest with error: {str(e)}")
+                continue
             except Exception as e:
                 logger.error(f"RSS Collector failed digest splitting with error: {str(e)}")
                 raise e
@@ -250,7 +234,7 @@ class RSSCollector(BaseWebCollector):
         news_items = self.get_news_items(feed, source)
         return self.preview(news_items, source)
 
-    def rss_collector(self, source):
+    def rss_collector(self, source, manual: bool = False):
         feed = self.get_feed()
 
         last_attempted = self.get_last_attempted(source)
@@ -258,7 +242,7 @@ class RSSCollector(BaseWebCollector):
             self.update_favicon(feed.feed, source["id"])
         last_modified = self.get_last_modified_feed(self.feed_content, feed)
         self.last_modified = last_modified
-        if last_modified and last_attempted and last_modified < last_attempted:
+        if last_modified and last_attempted and last_modified < last_attempted and not manual:
             logger.debug(f"Last-Modified: {last_modified} < Last-Attempted {last_attempted} skipping")
             return "Last-Modified < Last-Attempted"
 

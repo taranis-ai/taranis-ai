@@ -43,9 +43,9 @@ class NewsItemData(BaseModel):
     def __init__(
         self,
         title,
-        review,
         source,
         content,
+        review=None,
         osint_source_id=None,
         author=None,
         link=None,
@@ -558,6 +558,8 @@ class NewsItemAggregate(BaseModel):
         query = cls._add_sorting_to_query(filter_args, query)
         paged_query = cls._add_paging_to_query(filter_args, query)
 
+        if filter_args.get("no_count", False):
+            return paged_query.all(), 0
         return paged_query.all(), query.count()
 
     @classmethod
@@ -589,6 +591,9 @@ class NewsItemAggregate(BaseModel):
             max_item_count = max(max_item_count, current_max_item)
 
             items.append(item)
+
+        if filter_args.get("no_count", False):
+            return {"items": items, "max_item": max_item_count}, 200
 
         return {"total_count": count, "items": items, "max_item": max_item_count}
 

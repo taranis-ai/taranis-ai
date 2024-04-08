@@ -1,22 +1,22 @@
 <template>
   <filter-navigation
     :search="search"
-    :limit="newsItemsFilter.limit"
-    :offset="newsItemsFilter.offset"
+    :limit="storyFilter.limit"
+    :offset="storyFilter.offset"
     @update:search="(value) => (search = value)"
-    @update:limit="(value) => (newsItemsFilter.limit = value)"
-    @update:offset="(value) => (newsItemsFilter.offset = value)"
+    @update:limit="(value) => (storyFilter.limit = value)"
+    @update:offset="(value) => (storyFilter.offset = value)"
   >
     <template #appbar>
       <filter-button
         v-if="smAndUp"
-        v-model="newsItemsFilter['read']"
+        v-model="storyFilter['read']"
         :label="mdAndDown ? '' : 'read'"
         icon="mdi-eye-check-outline"
       />
       <filter-button
         v-if="smAndUp"
-        v-model="newsItemsFilter['in_report']"
+        v-model="storyFilter['in_report']"
         :label="mdAndDown ? '' : 'items in reports'"
         icon="mdi-google-circles-communities"
       />
@@ -30,8 +30,8 @@
 
         <v-col cols="12" class="pt-1">
           <v-autocomplete
-            v-model="newsItemsFilter.group"
-            :items="getOSINTSourceGroupsList"
+            v-model="storyFilter.group"
+            :items="OSINTSourceGroupsList"
             item-title="title"
             item-value="id"
             label="Source Group"
@@ -46,8 +46,8 @@
 
         <v-col cols="12" class="pt-2">
           <v-autocomplete
-            v-model="newsItemsFilter.source"
-            :items="getOSINTSourcesList"
+            v-model="storyFilter.source"
+            :items="OSINTSourcesList"
             item-title="title"
             item-value="id"
             label="Source"
@@ -74,7 +74,7 @@
 
         <v-col cols="12" class="pt-1">
           <date-filter
-            v-model="newsItemsFilter.timefrom"
+            v-model="storyFilter.timefrom"
             placeholder="From"
             :default-date="defaultFromDate"
           />
@@ -82,18 +82,18 @@
 
         <v-col cols="12" class="pt-1">
           <date-filter
-            v-model="newsItemsFilter.timeto"
+            v-model="storyFilter.timeto"
             placeholder="Until"
             :default-date="new Date()"
             :max-date="
-              newsItemsFilter.timefrom instanceof Date
-                ? newsItemsFilter.timefrom
+              storyFilter.timefrom instanceof Date
+                ? storyFilter.timefrom
                 : new Date()
             "
           />
         </v-col>
         <v-col cols="12" class="pt-1">
-          <tag-filter v-model="newsItemsFilter.tags" />
+          <tag-filter v-model="storyFilter.tags" />
         </v-col>
       </v-row>
 
@@ -111,7 +111,7 @@
         </v-col>
 
         <v-col cols="12" class="pt-2">
-          <filter-sort-list v-model="newsItemsFilter.sort" />
+          <filter-sort-list v-model="storyFilter.sort" />
         </v-col>
       </v-row>
 
@@ -225,12 +225,12 @@ export default {
     const assessStore = useAssessStore()
     const filterStore = useFilterStore()
 
-    const { getOSINTSourceGroupsList, getOSINTSourcesList } =
+    const { OSINTSourceGroupsList, OSINTSourcesList } =
       storeToRefs(assessStore)
     const { mdAndDown, smAndUp } = useDisplay()
 
     const {
-      newsItemsFilter,
+      storyFilter,
       highlight,
       showWeekChart,
       compactView,
@@ -247,7 +247,7 @@ export default {
         switch (value) {
           case 'day': {
             now.setHours(0, 0, 0, 0) // Set to today at 00:00
-            newsItemsFilter.value.timefrom = now.toISOString()
+            storyFilter.value.timefrom = now.toISOString()
             break
           }
           case 'week': {
@@ -255,12 +255,12 @@ export default {
             const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
             now.setDate(now.getDate() + diffToMonday)
             now.setHours(0, 0, 0, 0) // Set hours to 00:00
-            newsItemsFilter.value.timefrom = now.toISOString()
+            storyFilter.value.timefrom = now.toISOString()
             break
           }
           case '24h': {
             const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
-            newsItemsFilter.value.timefrom = yesterday.toISOString()
+            storyFilter.value.timefrom = yesterday.toISOString()
             break
           }
         }
@@ -274,7 +274,7 @@ export default {
 
     const search = computed({
       get() {
-        return newsItemsFilter.value.search
+        return storyFilter.value.search
       },
       set(value) {
         filterStore.updateFilter({ search: value })
@@ -289,6 +289,9 @@ export default {
     const resetFilter = () => {
       assessStore.reset()
       filterStore.resetFilter()
+      assessStore.updateOSINTSources()
+      assessStore.updateOSINTSourceGroupsList()
+      assessStore.updateStories()
     }
 
     function setCompactView() {
@@ -305,9 +308,9 @@ export default {
       compactView,
       filter_range,
       defaultFromDate,
-      getOSINTSourceGroupsList,
-      getOSINTSourcesList,
-      newsItemsFilter,
+      OSINTSourcesList,
+      OSINTSourceGroupsList,
+      storyFilter,
       resetFilter,
       setCompactView
     }
