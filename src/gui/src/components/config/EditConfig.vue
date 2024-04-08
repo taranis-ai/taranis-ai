@@ -186,7 +186,7 @@ export default {
         ) ||
         'Invalid TLP allowed values: red, amber, amber+strict, green, clear',
       digest_splitting_limit: (v) =>
-        v > 200 || 'Digest splitting limit must be less than 200'
+        v >= 200 || 'Digest splitting limit must be less than 200'
     }
 
     const { d } = useI18n()
