@@ -3,6 +3,8 @@
     v-model="activeSelection"
     persistent
     scroll-strategy="none"
+    :retain-focus="false"
+    :no-click-animation="true"
     :scrim="false"
   >
     <v-card v-if="storySelection.length > 0" class="story-toolbar">
@@ -52,7 +54,7 @@
               text="deselect"
               variant="outlined"
               prepend-icon="mdi-selection-remove"
-              @click.stop="deselect"
+              @click.stop="deselectStories"
             />
             <span class="mx-8">
               Stories selected: <strong>{{ storySelection.length }}</strong>
@@ -85,7 +87,7 @@
               variant="outlined"
               text="deselect"
               prepend-icon="mdi-selection-remove"
-              @click.stop="deselect"
+              @click.stop="deselectNews"
             />
             <span class="mx-4">
               News Items selected:
@@ -143,8 +145,12 @@ export default {
       }
     }
 
-    const deselect = () => {
-      assessStore.clearSelection()
+    function deselectStories() {
+      assessStore.clearStorySelection()
+    }
+
+    function deselectNews() {
+      assessStore.clearNewsItemSelection()
     }
 
     return {
@@ -154,7 +160,8 @@ export default {
       activeSelection,
       showUnGroup,
       actionClicked,
-      deselect
+      deselectStories,
+      deselectNews
     }
   }
 }

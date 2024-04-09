@@ -1,6 +1,8 @@
 <template>
   <v-app class="grey lighten-2">
-    <MainMenu v-if="isAuthenticated" />
+    <keep-alive>
+      <MainMenu v-if="isAuthenticated" />
+    </keep-alive>
 
     <router-view v-slot="{ Component }" name="nav">
       <keep-alive>
@@ -25,7 +27,7 @@ import MainMenu from '@/components/MainMenu.vue'
 import Notification from '@/components/common/Notification.vue'
 import { defineComponent, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/AuthStore'
-import { useSseStore } from '@/stores/SseStore'
+// import { useSseStore } from '@/stores/SseStore'
 import { storeToRefs } from 'pinia'
 
 export default defineComponent({
@@ -37,14 +39,14 @@ export default defineComponent({
   setup() {
     const { isAuthenticated, timeToRefresh } = storeToRefs(useAuthStore())
     const authStore = useAuthStore()
-    const sseStore = useSseStore()
-    const { isConnected } = storeToRefs(sseStore)
+    // const sseStore = useSseStore()
+    // const { isConnected } = storeToRefs(sseStore)
 
-    if (!isConnected.value) {
-      if (isAuthenticated.value) {
-        sseStore.connectSSE()
-      }
-    }
+    // if (!isConnected.value) {
+    //   if (isAuthenticated.value) {
+    //     sseStore.connectSSE()
+    //   }
+    // }
 
     onMounted(() => {
       isAuthenticated.value || authStore.logout()

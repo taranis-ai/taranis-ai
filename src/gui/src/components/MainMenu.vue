@@ -8,7 +8,11 @@
     clipped-left
   >
     <template #prepend>
-      <v-btn color="primary" @click.stop="navClicked">
+      <v-btn
+        color="primary"
+        :disabled="!showNavButton"
+        @click.stop="navClicked"
+      >
         <v-icon :icon="drawerVisible ? 'mdi-menu-open' : 'mdi-menu-close'" />
       </v-btn>
     </template>
@@ -78,6 +82,7 @@ import { useMainStore } from '@/stores/MainStore'
 import { useUserStore } from '@/stores/UserStore'
 import { defineComponent, computed } from 'vue'
 import { useDisplay } from 'vuetify'
+import { useRoute } from 'vue-router'
 
 export default defineComponent({
   name: 'MainMenu',
@@ -86,6 +91,7 @@ export default defineComponent({
     const mainStore = useMainStore()
     const userStore = useUserStore()
     const { smAndDown, mdAndUp } = useDisplay()
+    const route = useRoute()
 
     const { drawerVisible, itemCountTotal, itemCountFiltered, buildDate } =
       storeToRefs(mainStore)
@@ -103,6 +109,17 @@ export default defineComponent({
     const navClicked = () => {
       mainStore.toggleDrawer()
     }
+
+    const showNavButton = computed(() => {
+      return (
+        route.name === 'assess' ||
+        route.name === 'analyze' ||
+        route.name === 'publish' ||
+        route.name === 'assets' ||
+        route.path.startsWith('/config')
+      )
+    })
+
     const buttons = [
       {
         title: 'main_menu.dashboard',
@@ -157,6 +174,7 @@ export default defineComponent({
       itemCountFiltered,
       itemCountTotal,
       drawerVisible,
+      showNavButton,
       buttonList,
       navClicked
     }

@@ -54,6 +54,7 @@
               </v-container>
 
               <summarized-content
+                :compact="compactView"
                 :open="openSummary"
                 :is-summarized="is_summarized"
                 :content="getDescription"
@@ -73,7 +74,7 @@
                 :story="story"
               />
             </v-col>
-            <v-col v-if="!openSummary" cols="12" lg="2">
+            <v-col v-if="!openSummary && showWeekChart" cols="2">
               <WeekChart
                 :chart-height="detailView ? 300 : 100"
                 :story="story"
@@ -123,7 +124,6 @@ import { ref, computed } from 'vue'
 import { useAssessStore } from '@/stores/AssessStore'
 import { useFilterStore } from '@/stores/FilterStore'
 import { highlight_text, getAssessSharingIcon } from '@/utils/helpers'
-import { unGroupAction } from '@/api/assess'
 import { storeToRefs } from 'pinia'
 import ChartWrapper from '@/components/assess/card/ChartWrapper.vue'
 
@@ -254,27 +254,8 @@ export default {
       assessStore.selectStory(props.story.id)
     }
 
-    function markAsRead() {
-      assessStore.readNewsItemAggregate(props.story.id)
-    }
-
-    function markAsImportant() {
-      assessStore.importantNewsItemAggregate(props.story.id)
-    }
-
     function emitRefresh() {
       emit('refresh')
-    }
-
-    function ungroup() {
-      unGroupAction([props.story.id]).then(() => {
-        emit('refresh')
-      })
-    }
-
-    function moveSelection() {
-      // assessStore.moveSelectionToStory(props.story.id, newsItemSelection.value)
-      console.debug('move selection to story', newsItemSelection.value)
     }
 
     return {
@@ -285,6 +266,7 @@ export default {
       meta_cols,
       showStory,
       card_class,
+      compactView,
       item_important,
       news_item_length,
       news_item_title_class,
@@ -298,11 +280,7 @@ export default {
       showWeekChart,
       getSharingIcon,
       openCard,
-      ungroup,
       toggleSelection,
-      markAsRead,
-      markAsImportant,
-      moveSelection,
       emitRefresh
     }
   }

@@ -9,6 +9,7 @@ from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.model.parameter_value import ParameterValue
 from core.model.worker import BOT_TYPES, Worker
+from core.model.queue import ScheduleEntry
 
 
 class Bot(BaseModel):
@@ -119,6 +120,29 @@ class Bot(BaseModel):
         data = super().to_dict()
         data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters}
         return data
+
+    def schedule_bot(self):
+        if interval := ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL"):
+            entry = self.to_task_dict(interval)
+            ScheduleEntry.add_or_update(entry)
+            logger.info(f"Schedule for bot {self.id} updated with - {entry}")
+            return {"message": f"Schedule for bot {self.id} updated"}, 200
+        return {"message": "Bot has no refresh interval"}, 200
+
+    def unschedule_bot(self):
+        entry_id = f"bot_{self.id}_{self.type}"
+        ScheduleEntry.delete(entry_id)
+        logger.info(f"Schedule for bot {self.id} removed")
+        return {"message": f"Schedule for bot {self.id} removed"}, 200
+
+    def to_task_dict(self, interval):
+        return {
+            "id": f"bot_{self.id}_{self.type}",
+            "task": "bot_task",
+            "schedule": interval,
+            "args": [self.id],
+            "options": {"queue": "bots"},
+        }
 
 
 class BotParameterValue(BaseModel):

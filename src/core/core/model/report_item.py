@@ -398,7 +398,8 @@ class ReportItem(BaseModel):
         if attributes_data := data.pop("attributes", None):
             ReportItemAttribute.update_values_from_report(attributes_data)
 
-        if aggregate_ids := data.get("aggregate_ids"):
+        aggregate_ids = data.get("aggregate_ids")
+        if aggregate_ids is not None:
             report_item.news_item_aggregates = [NewsItemAggregate.get(aggregate_id) for aggregate_id in aggregate_ids]
 
         db.session.commit()

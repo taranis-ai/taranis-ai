@@ -1,5 +1,5 @@
 from typing import Any
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from core.managers.db_manager import db
 from core.log import logger
@@ -91,10 +91,20 @@ class ScheduleEntry(BaseModel):
                 data["schedule"] = schedule * 60
             elif isinstance(schedule, str) and schedule.isdigit():
                 data["schedule"] = int(schedule) * 60
+            elif isinstance(schedule, str) and ":" in schedule:
+                data["schedule"] = self.worker_at_hour(schedule)
             else:
                 data["schedule"] = 600 * 60
         data["last_run_at"] = self.last_run_at.isoformat() if self.last_run_at else None
         return data
+
+    def worker_at_hour(self, schedule):
+        now = datetime.now()
+        scheduled_time = datetime.strptime(schedule, "%H:%M")
+        next_run = now.replace(hour=scheduled_time.hour, minute=scheduled_time.minute, second=0, microsecond=0)
+        if now >= next_run:
+            next_run += timedelta(days=1)
+        return (next_run - now).total_seconds()
 
     @classmethod
     def count_all(cls):

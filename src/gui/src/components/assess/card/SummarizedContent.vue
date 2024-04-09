@@ -1,5 +1,5 @@
 <template>
-  <span :class="open ? 'news-item-summary-no-clip' : 'news-item-summary'">
+  <span :class="contentClass">
     <v-tooltip v-if="isSummarized" top>
       <template #activator="{ props }">
         <v-icon v-bind="props" icon="mdi-text-short" />
@@ -27,6 +27,10 @@ export default {
     open: {
       type: Boolean,
       default: false
+    },
+    compact: {
+      type: Boolean,
+      default: false
     }
   },
   setup(props) {
@@ -36,9 +40,18 @@ export default {
       return highlight_text(props.content)
     })
 
+    const contentClass = computed(() => {
+      return props.open
+        ? 'news-item-summary-no-clip'
+        : props.compact
+          ? 'news-item-summary-compact'
+          : 'news-item-summary'
+    })
+
     return {
       colorStart,
-      highlighted
+      highlighted,
+      contentClass
     }
   }
 }
@@ -51,6 +64,15 @@ export default {
   display: -webkit-box;
   -webkit-line-clamp: 4;
   line-clamp: 4;
+  -webkit-box-orient: vertical;
+  min-height: 1.5em;
+}
+.news-item-summary-compact {
+  margin-bottom: 0px !important;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
   min-height: 1.5em;
 }

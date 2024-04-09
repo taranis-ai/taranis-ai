@@ -1,54 +1,48 @@
 <template>
-  <div class="ml-auto mr-auto" style="width: fit-content">
-    <v-tooltip
-      v-if="!detailView"
-      :text="openSummary ? 'hide details' : 'show details'"
+  <div v-if="active" class="ml-auto mr-auto" style="width: fit-content">
+    <v-btn
+      v-if="!reportView && !detailView"
+      v-ripple="false"
+      variant="tonal"
+      :color="openSummary ? 'primary' : '#919191'"
+      class="item-action-btn"
+      density="compact"
+      @click.stop="openCard"
     >
-      <template v-if="!reportView" #activator="{ props }">
-        <v-btn
-          v-ripple="false"
-          :variant="openSummary ? 'flat' : 'tonal'"
-          :color="openSummary ? 'primary' : '#919191'"
-          class="item-action-btn"
-          density="compact"
-          :icon="openSummary ? 'mdi-chevron-up' : 'mdi-chevron-down'"
-          v-bind="props"
-          @click.stop="openCard"
-        />
-      </template>
-    </v-tooltip>
+      <v-tooltip
+        activator="parent"
+        :text="openSummary ? 'hide details' : 'show details'"
+      />
+      <v-icon :icon="openSummary ? 'mdi-chevron-up' : 'mdi-chevron-down'" />
+    </v-btn>
+    <v-btn
+      v-if="!detailView"
+      v-ripple="false"
+      variant="tonal"
+      class="item-action-btn"
+      density="compact"
+      color="#919191"
+      :to="`/story/${story.id}`"
+      tag="button"
+      @click.stop
+    >
+      <v-tooltip activator="parent" text="open detail view" />
+      <v-icon icon="mdi-magnify" />
+    </v-btn>
 
-    <v-tooltip v-if="!detailView && !compactView" text="open detail view">
-      <template #activator="{ props }">
-        <v-btn
-          v-ripple="false"
-          variant="tonal"
-          class="item-action-btn"
-          density="compact"
-          color="#919191"
-          icon="mdi-magnify"
-          v-bind="props"
-          :to="'/story/' + story.id"
-          tag="button"
-          @click.stop
-        />
-      </template>
-    </v-tooltip>
-
-    <v-tooltip v-if="!reportView" text="add to report">
-      <template #activator="{ props }">
-        <v-btn
-          v-ripple="false"
-          variant="tonal"
-          class="item-action-btn"
-          density="compact"
-          color="#919191"
-          icon="mdi-google-circles-communities"
-          v-bind="props"
-          @click.stop="sharingDialog = true"
-        />
-      </template>
-    </v-tooltip>
+    <v-btn
+      v-if="!reportView && (!compactView || openSummary)"
+      v-ripple="false"
+      variant="tonal"
+      class="item-action-btn"
+      density="compact"
+      color="#919191"
+      icon="mdi-google-circles-communities"
+      @click.stop="sharingDialog = true"
+    >
+      <v-tooltip activator="parent" text="add to report" />
+      <v-icon icon="mdi-google-circles-communities" />
+    </v-btn>
 
     <v-tooltip v-if="reportView" text="remove from report">
       <template #activator="{ props }">
@@ -78,7 +72,7 @@
           density="compact"
           :icon="story.read ? 'mdi-eye-check-outline' : 'mdi-eye-off-outline'"
           v-bind="props"
-          @click.stop="markAsRead()"
+          @click="markAsRead()"
         />
       </template>
     </v-tooltip>
@@ -207,6 +201,21 @@
       </template>
 
       <v-list dense>
+        <v-list-item v-if="compactView" :to="'/story/' + story.id">
+          <v-tooltip
+            activator="parent"
+            text="open detail view"
+            location="start"
+          />
+          <v-icon icon="mdi-magnify" />
+        </v-list-item>
+        <v-list-item
+          v-if="compactView && !reportView"
+          @click.stop="sharingDialog = true"
+        >
+          <v-tooltip activator="parent" text="add to report" location="start" />
+          <v-icon icon="mdi-google-circles-communities" />
+        </v-list-item>
         <v-list-item
           v-if="detailView"
           :prepend-icon="
@@ -228,15 +237,6 @@
             "
           />
         </v-list-item>
-        <v-list-item v-if="compactView" :to="'/story/' + story.id">
-          <v-tooltip
-            activator="parent"
-            text="open detail view"
-            location="start"
-          />
-          <v-icon icon="mdi-magnify" />
-        </v-list-item>
-
         <v-list-item :to="`/story/${story.id}/edit`">
           <v-tooltip activator="parent" text="edit story" location="start" />
           <v-icon icon="mdi-book-edit-outline" />
@@ -313,7 +313,7 @@
 <script>
 import PopupDeleteItem from '@/components/popups/PopupDeleteItem.vue'
 import PopupShareItems from '@/components/popups/PopupShareItems.vue'
-import { ref, computed } from 'vue'
+import { ref, computed, onDeactivated, onActivated } from 'vue'
 import { useAssessStore } from '@/stores/AssessStore'
 import { useFilterStore } from '@/stores/FilterStore'
 import { storeToRefs } from 'pinia'
@@ -332,8 +332,12 @@ export default {
     detailView: { type: Boolean, default: false },
     reportView: { type: Boolean, default: false }
   },
-  emits: ['refresh', 'remove-from-report', 'open-details'],
+  emits: ['remove-from-report', 'open-details'],
   setup(props, { emit }) {
+    // This variable is an ugly hack to still show tooltips after the view is changed
+    // This happens since the StoryActions are wrapped into a <keep-alive> component
+    const active = ref(true)
+
     const viewDetails = ref(false)
     const openSummary = ref(props.detailView)
     const sharingDialog = ref(false)
@@ -346,10 +350,6 @@ export default {
 
     const { compactView } = storeToRefs(useFilterStore())
 
-    const item_important = computed(() =>
-      'important' in props.story ? props.story.important : false
-    )
-
     const allow_edit = computed(() => {
       return Boolean(
         !props.reportView &&
@@ -361,43 +361,22 @@ export default {
     const news_item_length = computed(() =>
       props.story.news_items ? props.story.news_items.length : 0
     )
-    const minButtonWidth = computed(() => {
-      if (compactView.value) {
-        return '0px'
-      }
-      const longestText = `${
-        news_item_length.value > 1 ? '(' + news_item_length.value + ')' : ''
-      }`
-      return longestText.length + 11 + 'ch'
-    })
-
-    const news_item_summary_text = computed(() =>
-      compactView.value ? '' : openSummary.value ? 'Collapse' : 'Expand'
-    )
 
     const openCard = () => {
       openSummary.value = !openSummary.value
       emit('open-details')
     }
 
-    const toggleSelection = () => {
-      assessStore.selectStory(props.story.id)
-    }
-
     const markAsRead = () => {
-      assessStore.readNewsItemAggregate(props.story.id)
+      assessStore.markStoryAsRead(props.story.id)
     }
 
     const markAsImportant = () => {
-      assessStore.importantNewsItemAggregate(props.story.id)
+      assessStore.markStoryAsImportant(props.story.id)
     }
 
     const deleteNewsItem = () => {
       assessStore.removeStoryByID(props.story.id)
-    }
-
-    const emitRefresh = () => {
-      emit('refresh')
     }
 
     function shareViaMail() {
@@ -415,7 +394,18 @@ export default {
       console.debug('move selection to story', newsItemSelection.value)
     }
 
+    onDeactivated(() => {
+      deleteDialog.value = false
+      sharingDialog.value = false
+      active.value = false
+    })
+
+    onActivated(() => {
+      active.value = true
+    })
+
     return {
+      active,
       viewDetails,
       openSummary,
       selected,
@@ -423,20 +413,15 @@ export default {
       compactView,
       sharingDialog,
       deleteDialog,
-      item_important,
       news_item_length,
-      minButtonWidth,
       newsItemSelection,
-      news_item_summary_text,
       openCard,
       ungroup,
-      toggleSelection,
       shareViaMail,
       markAsRead,
       markAsImportant,
       deleteNewsItem,
-      moveSelection,
-      emitRefresh
+      moveSelection
     }
   }
 }
