@@ -3,6 +3,7 @@
     :sort-by="sortBy"
     :items="report_items_data"
     :show-top="true"
+    :search-bar="false"
     :header-filter="[
       'completed',
       'type',
