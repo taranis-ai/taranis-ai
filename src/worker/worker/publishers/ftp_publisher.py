@@ -1,66 +1,50 @@
-import datetime
 import ftplib
-import os
+from io import BytesIO
+from urllib.parse import urlsplit, ParseResult
 from base64 import b64decode
-from urllib.parse import urlsplit
-import paramiko
 
+from worker.log import logger
 from .base_publisher import BasePublisher
 
 
 class FTPPublisher(BasePublisher):
-    type = "FTP_PUBLISHER"
-    name = "FTP Publisher"
-    description = "Publisher for publishing to FTP server"
+    def __init__(self):
+        super().__init__()
+        self.ftp_url = None
 
-    def publish(self, publisher, publisher_input):
-        filename = ""
-        try:
-            ftp_url = publisher_input.parameter_values_map["FTP_URL"]
+        self.type = "FTP_PUBLISHER"
+        self.name = "FTP Publisher"
+        self.description = "Publisher for publishing to FTP server"
 
-            mime_type = publisher_input.mime_type[:]
+    def publish(self, publisher, product, rendered_product):
+        parameters = publisher.get("parameters")
+        ftp_url = parameters.get("FTP_URL")
 
-            if mime_type[:] == "application/pdf":
-                filename = "file_" + datetime.datetime.now().strftime("%d-%m-%Y_%H:%M") + ".pdf"
-            elif mime_type[:] == "text/plain":
-                filename = "file_" + datetime.datetime.now().strftime("%d-%m-%Y_%H:%M") + ".txt"
-            elif mime_type[:] == "application/json":
-                filename = "file_" + datetime.datetime.now().strftime("%d-%m-%Y_%H:%M") + ".json"
-            elif mime_type[:] == "text/html":
-                filename = "file_" + datetime.datetime.now().strftime("%d-%m-%Y_%H:%M") + ".html"
+        self.set_file_name(product)
+        ftp_data = urlsplit(ftp_url)
 
-            data = publisher_input.data[:]
+        logger.debug(ftp_data)
+        if rendered_product.mime_type in ["text/plain", "text/html"]:
+            data_to_upload = BytesIO(rendered_product.data)
+        else:
+            data_to_upload = BytesIO(b64decode(rendered_product.data))
 
-            bytes_data = b64decode(data, validate=True)
+        self.input_validation(ftp_data)
+        self.upload_to_ftp(ftp_data, data_to_upload)
 
-            with open(filename, "wb") as f:
-                f.write(bytes_data)
-            ftp_data = urlsplit(ftp_url)
+        return "Successfully uploaded to FTP server"
 
-            ftp_hostname = ftp_data.hostname
-            ftp_username = ftp_data.username
-            ftp_password = ftp_data.password
+    def input_validation(self, server_config: ParseResult):
+        if not server_config.username or not server_config.password:
+            raise ValueError("Username and Password are required for FTP")
 
-            remote_path = ftp_data.path + filename
+        if server_config.scheme != "ftp":
+            raise ValueError(f"Schema '{server_config.scheme}' not supported, choose 'ftp'")
 
-            if ftp_data.scheme == "sftp":
-                ssh_port = ftp_data.port or 22
-                ssh = paramiko.SSHClient()
-                ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                ssh.connect(hostname=ftp_hostname, port=ssh_port, username=ftp_username, password=ftp_password)
-                sftp = ssh.open_sftp()
-                sftp.put(filename, remote_path)
-                sftp.close()
-            elif ftp_data.scheme == "ftp":
-                ftp_port = ftp_data.port or 21
-                ftp = ftplib.FTP()
-                ftp.connect(host=ftp_hostname, port=ftp_port)
-                ftp.login(ftp_username, ftp_password)
-                ftp.storbinary(f"STOR {remote_path}", open(filename, "rb"))
-                ftp.quit()
-            else:
-                raise Exception(f"Schema '{ftp_data.scheme}' not supported, choose 'ftp' or 'sftp'")
-        except Exception as error:
-            BasePublisher.print_exception(self, error)
-        finally:
-            os.remove(filename)
+    def upload_to_ftp(self, server_config: ParseResult, data_to_upload: BytesIO):
+        ftp_port = server_config.port or 21
+        remote_path = server_config.path + self.file_name
+        with ftplib.FTP() as ftp:
+            ftp.connect(host=server_config.hostname, port=ftp_port)
+            ftp.login(server_config.username, server_config.password)
+            ftp.storbinary(f"STOR {remote_path}", data_to_upload)

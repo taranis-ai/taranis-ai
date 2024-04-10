@@ -1,31 +1,31 @@
-from base64 import b64decode
 import tweepy
 
 from .base_publisher import BasePublisher
 
 
 class TWITTERPublisher(BasePublisher):
-    type = "TWITTER_PUBLISHER"
-    name = "Twitter Publisher"
-    description = "Publisher for publishing to Twitter account"
+    def __init__(self):
+        super().__init__()
+        self.type = "TWITTER_PUBLISHER"
+        self.name = "Twitter Publisher"
+        self.description = "Publisher for publishing to Twitter account"
 
-    def publish(self, publisher, publisher_input):
-        try:
-            api_key = publisher_input.parameter_values_map["TWITTER_API_KEY"]
-            api_key_secret = publisher_input.parameter_values_map["TWITTER_API_KEY_SECRET"]
-            access_token = publisher_input.parameter_values_map["TWITTER_ACCESS_TOKEN"]
-            access_token_secret = publisher_input.parameter_values_map["TWITTER_ACCESS_TOKEN_SECRET"]
+    def publish(self, publisher, product, rendered_product):
+        parameters = publisher.get("parameters")
 
-            auth = tweepy.OAuthHandler(api_key, api_key_secret)
-            auth.set_access_token(access_token, access_token_secret)
+        api_key = parameters.get("TWITTER_API_KEY")
+        api_key_secret = parameters.get("TWITTER_API_KEY_SECRET")
+        access_token = parameters.get("TWITTER_ACCESS_TOKEN")
+        access_token_secret = parameters.get("TWITTER_ACCESS_TOKEN_SECRET")
 
-            api = tweepy.API(auth)
+        auth = tweepy.OAuthHandler(api_key, api_key_secret)
+        auth.set_access_token(access_token, access_token_secret)
 
-            data = publisher_input.data[:]
+        api = tweepy.API(auth)
 
-            bytes_data = b64decode(data, validate=True)
+        bytes_data = rendered_product.data.decode("utf-8")
 
-            if len(bytes_data) <= 240:
-                api.update_status(bytes_data)
-        except Exception as error:
-            BasePublisher.print_exception(self, error)
+        if len(bytes_data) > 240:
+            raise ValueError("Tweet is too long")
+
+        return api.update_status(bytes_data)

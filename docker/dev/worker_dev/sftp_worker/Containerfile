@@ -1,0 +1,24 @@
+FROM ubuntu:latest
+
+RUN apt-get update && apt-get install -y openssh-server nginx
+
+COPY nginx_config /etc/nginx/sites-available/default
+COPY sftp_config /etc/ssh/sshd_config.d/sftp_config.conf
+RUN mkdir /var/run/sshd
+RUN rm -f /var/www/html/index.nginx-debian.html
+
+ENV SFTP_USER=user
+ENV SFTP_PASSWORD=password
+RUN useradd -m -d /var/www/html -s /bin/bash ${SFTP_USER} && \
+    echo "${SFTP_USER}:${SFTP_PASSWORD}" | chpasswd && \
+    chown -R ${SFTP_USER} /var/www/html
+
+VOLUME ["/var/www/html"]
+
+COPY startup.sh /startup.sh
+RUN chmod +x /startup.sh
+
+EXPOSE 80 22
+
+CMD ["/startup.sh"]
+

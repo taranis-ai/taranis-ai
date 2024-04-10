@@ -209,7 +209,13 @@ workers = [
         "type": "FTP_PUBLISHER",
         "name": "FTP Publisher",
         "description": "Publisher for publishing to FTP server",
-        "parameters": ["FTP_URL"],
+        "parameters": {"parameter": "FTP_URL", "rules": "required"},
+    },
+    {
+        "type": "SFTP_PUBLISHER",
+        "name": "SFTP Publisher",
+        "description": "Publisher for publishing to SFTP server",
+        "parameters": [{"parameter": "SFTP_URL", "rules": "required"}, {"parameter": "PRIVATE_KEY"}],
     },
     {
         "type": "EMAIL_PUBLISHER",

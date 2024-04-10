@@ -24,7 +24,7 @@ dependencies = [
     "trafilatura",
     "feedparser",
     "pyopenssl",
-    "lxml[html_clean]",
+    "lxml",
 
     # Publisher
     "pymisp",
@@ -48,7 +48,18 @@ dependencies = [
 dynamic = ["version"]
 
 [project.optional-dependencies]
-dev = ["ruff", "pytest", "pytest-celery", "requests-mock", "watchdog", "build", "wheel", "setuptools", "setuptools_scm"]
+dev = [
+    "ruff",
+    "pytest",
+    "pytest-celery",
+    "requests-mock",
+    "watchdog",
+    "build",
+    "wheel",
+    "setuptools",
+    "setuptools_scm",
+    "mock-ssh-server @ https://github.com/b3n4kh/mock-ssh-server/releases/download/0.9.2/mock-ssh-server-0.9.2.tar.gz"
+]
 
 [project.urls]
 "Source Code" = "https://github.com/taranis-ai/taranis-ai"

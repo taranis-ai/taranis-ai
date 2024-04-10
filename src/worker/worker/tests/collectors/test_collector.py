@@ -1,60 +1,6 @@
-import os
 import pytest
 
 from testdata import news_items
-import worker.collectors as collectors
-
-
-@pytest.fixture
-def rss_collector():
-    return collectors.RSSCollector()
-
-
-@pytest.fixture
-def simple_web_collector():
-    return collectors.SimpleWebCollector()
-
-
-@pytest.fixture
-def rt_collector():
-    return collectors.RTCollector()
-
-
-@pytest.fixture
-def osint_source_update_mock(requests_mock):
-    requests_mock.put("http://taranis/api/worker/osint-sources/1", json={})
-
-
-@pytest.fixture
-def news_item_upload_mock(requests_mock):
-    requests_mock.post("http://taranis/api/worker/news-items", json={})
-
-
-@pytest.fixture
-def collectors_mock(osint_source_update_mock, news_item_upload_mock):
-    pass
-
-
-def file_loader(filename):
-    try:
-        dir_path = os.path.dirname(os.path.realpath(__file__))
-        file_path = os.path.join(dir_path, filename)
-
-        with open(file_path, "r") as f:
-            return f.read()
-    except OSError as e:
-        raise OSError(f"Error while reading file: {e}") from e
-
-
-@pytest.fixture
-def rss_collector_mock(requests_mock, collectors_mock):
-    from testdata import rss_collector_url, rss_collector_fav_icon_url, rss_collector_targets
-
-    requests_mock.get(rss_collector_targets[0], json={})
-    requests_mock.get(rss_collector_targets[1], json={})
-    requests_mock.get(rss_collector_targets[2], json={})
-    requests_mock.get(rss_collector_fav_icon_url, json={})
-    requests_mock.get(rss_collector_url, text=file_loader("test_rss_feed.xml"))
 
 
 def test_rss_collector(rss_collector_mock, rss_collector):
@@ -75,15 +21,6 @@ def test_rss_collector_digest_splitting(rss_collector_mock, rss_collector):
     assert result is None
 
 
-@pytest.fixture
-def simple_web_collector_mock(requests_mock, collectors_mock):
-    from testdata import web_collector_url, web_collector_fav_icon_url
-
-    requests_mock.head(web_collector_url, json={})
-    requests_mock.get(web_collector_fav_icon_url, json={})
-    requests_mock.get(web_collector_url, text=file_loader("testweb.html"), headers={"Content-Type": "text/html"})
-
-
 def test_simple_web_collector_basic(simple_web_collector_mock, simple_web_collector):
     from testdata import web_collector_source_data
 
@@ -102,7 +39,7 @@ def test_simple_web_collector_xpath(simple_web_collector_mock, simple_web_collec
 
 
 def test_rt_collector_collect(rt_mock, rt_collector):
-    import rt_testdata
+    import worker.tests.collectors.rt_testdata as rt_testdata
 
     result = rt_collector.collect(rt_testdata.rt_collector_source_data)
 
@@ -110,24 +47,13 @@ def test_rt_collector_collect(rt_mock, rt_collector):
 
 
 def test_rt_collector_ticket_transaction(rt_mock, rt_collector):
-    import rt_testdata
+    import worker.tests.collectors.rt_testdata as rt_testdata
 
     rt_collector.setup_collector(rt_testdata.rt_collector_source_data)
 
     result = rt_collector.get_ticket_transaction(1)
 
     assert result == "1"
-
-
-@pytest.fixture
-def rt_mock(requests_mock, collectors_mock):
-    import rt_testdata
-
-    requests_mock.get(rt_testdata.rt_ticket_search_url, json=rt_testdata.rt_ticket_search_result)
-    requests_mock.get(rt_testdata.rt_ticket_url, json=rt_testdata.rt_ticket_1)
-    requests_mock.get(rt_testdata.rt_history_url, json=rt_testdata.rt_ticket_history_1)
-    requests_mock.get(rt_testdata.rt_transaction_url, json=rt_testdata.rt_ticket_transaction_1)
-    requests_mock.get(rt_testdata.rt_attachment_url, json=rt_testdata.rt_ticket_attachment_1)
 
 
 def test_simple_web_collector_collect(simple_web_collector):

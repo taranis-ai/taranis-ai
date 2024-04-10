@@ -39,6 +39,7 @@ class PRESENTER_TYPES(StrEnum):
 
 class PUBLISHER_TYPES(StrEnum):
     FTP_PUBLISHER = auto()
+    SFTP_PUBLISHER = auto()
     EMAIL_PUBLISHER = auto()
     TWITTER_PUBLISHER = auto()
     WORDPRESS_PUBLISHER = auto()
@@ -67,6 +68,7 @@ class WORKER_TYPES(StrEnum):
     TEXT_PRESENTER = auto()
     JSON_PRESENTER = auto()
     FTP_PUBLISHER = auto()
+    SFTP_PUBLISHER = auto()
     EMAIL_PUBLISHER = auto()
     TWITTER_PUBLISHER = auto()
     WORDPRESS_PUBLISHER = auto()

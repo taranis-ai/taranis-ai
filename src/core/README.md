@@ -9,7 +9,7 @@ Furthermore it offers SSE to the Frontend and acts as celery scheduler backend.
 
 ## Requirements
 
-* Python version 3.11 or greater.
+* Python version 3.12 or greater.
 * SQLite or PostgreSQL
 * [Optional] RabbitMQ
 

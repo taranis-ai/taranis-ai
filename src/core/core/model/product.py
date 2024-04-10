@@ -104,6 +104,7 @@ class Product(BaseModel):
     def to_worker_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
+            "title": self.title,
             "type": self.product_type.type,
             "type_id": self.product_type.id,
             "mime_type": self.product_type.get_mimetype(),

@@ -1,37 +1,32 @@
 import base64
-from base64 import b64decode
-from datetime import datetime
 import requests
 
 from .base_publisher import BasePublisher
 
 
 class WORDPRESSPublisher(BasePublisher):
-    type = "WORDPRESS_PUBLISHER"
-    name = "Wordpress Publisher"
-    description = "Publisher for publishing on Wordpress webpage"
+    def __init__(self):
+        super().__init__()
+        self.type = "WORDPRESS_PUBLISHER"
+        self.name = "Wordpress Publisher"
+        self.description = "Publisher for publishing on Wordpress webpage"
 
-    def publish(self, publisher, publisher_input):
-        try:
-            user = publisher_input.parameter_values_map["WP_USER"]
-            python_app_secret = publisher_input.parameter_values_map["WP_PYTHON_APP_SECRET"]
-            main_wp_url = publisher_input.parameter_values_map["WP_URL"]
+    def publish(self, publisher, product, rendered_product):
+        parameters = publisher.get("parameters")
 
-            data_string = f"{user}:{python_app_secret}"
+        user = parameters.get("WP_USER")
+        python_app_secret = parameters.get("WP_PYTHON_APP_SECRET")
+        main_wp_url = parameters.get("WP_URL")
 
-            token = base64.b64encode(data_string.encode())
+        data_string = f"{user}:{python_app_secret}"
 
-            headers = {"Authorization": "Basic " + token.decode("utf-8")}
+        token = base64.b64encode(data_string.encode())
 
-            data = publisher_input.data[:]
+        headers = {"Authorization": "Basic " + token.decode("utf-8")}
 
-            bytes_data = b64decode(data, validate=True).decode("utf-8")
+        bytes_data = rendered_product.data.decode("utf-8")
 
-            now = datetime.now()
-            title = f"Report from TaranisNG on {now.strftime('%d.%m.%Y')} at {now.strftime('%H:%M')}"
+        post = {"title": product.get("title"), "status": "publish", "content": bytes_data}
 
-            post = {"title": title, "status": "publish", "content": bytes_data}
-
-            requests.post(f"{main_wp_url}/index.php/wp-json/wp/v2/posts", headers=headers, json=post, timeout=60)
-        except Exception as error:
-            BasePublisher.print_exception(self, error)
+        response = requests.post(f"{main_wp_url}/index.php/wp-json/wp/v2/posts", headers=headers, json=post, timeout=60)
+        return response.text
