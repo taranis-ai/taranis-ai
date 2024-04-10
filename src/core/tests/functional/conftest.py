@@ -96,13 +96,7 @@ def cleanup_report_item(app, request):
 
         first_report_type = ReportItemType.get_all()[0].id
 
-        report_data = {
-            "id": "42",
-            "title": "Test Report",
-            "completed": False,
-            "report_item_type_id": first_report_type,
-            "news_item_aggregates": [],
-        }
+        report_data = {"id": "42", "title": "Test Report", "completed": False, "report_item_type_id": first_report_type}
 
         def teardown():
             with app.app_context():

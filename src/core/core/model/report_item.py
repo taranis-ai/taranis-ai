@@ -131,7 +131,7 @@ class ReportItem(BaseModel):
         self,
         title,
         report_item_type_id,
-        news_item_aggregates,
+        news_item_aggregates=None,
         attributes=None,
         completed=False,
         id=None,
@@ -142,8 +142,8 @@ class ReportItem(BaseModel):
         self.attributes = attributes or []
         self.completed = completed
         self.report_item_cpes = []
-
-        self.news_item_aggregates = [NewsItemAggregate.get(news_item_aggregate.id) for news_item_aggregate in news_item_aggregates]
+        if news_item_aggregates:
+            self.news_item_aggregates = [NewsItemAggregate.get(news_item_aggregate.id) for news_item_aggregate in news_item_aggregates]
 
     @classmethod
     def count_all(cls, is_completed):
