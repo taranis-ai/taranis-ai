@@ -43,9 +43,7 @@ class TestAnalyzeApi(BaseTest):
         """
         report_id = cleanup_report_item["id"]
 
-        response = self.assert_post_ok(
-            client, f"report-items/{report_id}/clone", {}, auth_header=auth_header
-        )  # is empty body okay for cloning ?
+        response = self.assert_post_ok(client, f"report-items/{report_id}/clone", {}, auth_header=auth_header)
         assert "id" in response.get_json() and response.get_json()["id"] != report_id, "Cloned report must have a different ID."
 
     def test_get_report_stories(self, client, auth_header, cleanup_report_item):
@@ -64,9 +62,8 @@ class TestAnalyzeApi(BaseTest):
         It expects the updated stories to be reflected in the response
         """
         report_id = cleanup_report_item["id"]
-        """ News items aggregate, then extract id, then pass it to the list.
-        """
         stories_ids = [story.id for story in news_item_aggregates]
+
         response = self.assert_put_ok(client, f"report-items/{report_id}/stories", json_data=stories_ids, auth_header=auth_header)
         response_data = response.get_json()
 
