@@ -8,7 +8,11 @@
     @edit-item="editItem"
     @update-items="updateData"
     @selection-change="selectionChange"
-  />
+  >
+    <template #titlebar>
+      <h2>Products</h2>
+    </template>
+  </DataTable>
 </template>
 
 <script>

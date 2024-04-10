@@ -1,7 +1,6 @@
 import os
 from typing import Any
 from sqlalchemy import or_, Column, String
-from sqlalchemy.orm import Mapped
 
 from core.managers.db_manager import db
 from core.log import logger
@@ -20,12 +19,8 @@ class ProductType(BaseModel):
     description: Column[String] = db.Column(db.String())
     type: Any = db.Column(db.Enum(PRESENTER_TYPES))
 
-    parameters: Mapped[list["ParameterValue"]] = db.relationship(
-        "ParameterValue", secondary="product_type_parameter_value", cascade="all, delete"
-    )  # type: ignore
-    report_types: Mapped[list["ReportItemType"]] = db.relationship(
-        "ReportItemType", secondary="product_type_report_type", cascade="all, delete"
-    )  # type: ignore
+    parameters: Any = db.relationship("ParameterValue", secondary="product_type_parameter_value", cascade="all, delete")  # type: ignore
+    report_types: Any = db.relationship("ReportItemType", secondary="product_type_report_type", cascade="all, delete")  # type: ignore
 
     def __init__(self, title, type, description=None, parameters=None, report_types=None, id=None):
         self.id = id

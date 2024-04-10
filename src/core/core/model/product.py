@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from typing import Any
 from base64 import b64encode, b64decode
 from sqlalchemy import or_
-from sqlalchemy.orm import deferred, Mapped
+from sqlalchemy.orm import deferred
 
 from core.managers.db_manager import db
 from core.log import logger
@@ -26,9 +26,7 @@ class Product(BaseModel):
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"))
     user = db.relationship("User")
 
-    report_items: Mapped[list["ReportItem"]] = db.relationship(
-        "ReportItem", secondary="product_report_item", cascade="all, delete"
-    )  # type: ignore
+    report_items: Any = db.relationship("ReportItem", secondary="product_report_item", cascade="all, delete")  # type: ignore
     last_rendered = db.Column(db.DateTime)
     render_result = deferred(db.Column(db.Text))
 
@@ -52,10 +50,7 @@ class Product(BaseModel):
         search = filter.get("search")
         if search and search != "":
             query = query.filter(
-                or_(
-                    Product.title.ilike(f"%{search}%"),
-                    Product.description.ilike(f"%{search}%"),
-                )
+                or_(Product.title.ilike(f"%{search}%"), Product.description.ilike(f"%{search}%"), ProductType.title.ilike(f"%{search}%"))
             )
 
         if "range" in filter and filter["range"].upper() != "ALL":

@@ -3,6 +3,7 @@
     :sort-by="sortBy"
     :items="report_items_data"
     :show-top="true"
+    :search-bar="false"
     :header-filter="[
       'completed',
       'type',
@@ -18,6 +19,9 @@
     @update-items="updateData"
     @selection-change="selectionChange"
   >
+    <template #titlebar>
+      <h2>Reports</h2>
+    </template>
     <template #actionColumn="{ item }">
       <v-tooltip left>
         <template #activator="{ props }">

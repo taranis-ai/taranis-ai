@@ -35,7 +35,6 @@ export default {
 
     const logout = async () => {
       await authStore.logout()
-      window.location.reload()
     }
 
     const settings = () => {

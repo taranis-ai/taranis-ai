@@ -113,28 +113,4 @@ export default {
 button {
   display: flex !important;
 }
-
-button.vertical-button .v-btn__append,
-button.vertical-button .v-btn__append i {
-  margin-left: auto;
-  font-size: 100% !important;
-}
-
-.vertical-button-group {
-  display: flex;
-  flex-direction: column;
-  height: 100% !important;
-}
-
-.vertical-button {
-  width: 100%;
-  justify-content: flex-start;
-}
-
-.vertical-button-group .v-icon,
-.vertical-button .v-icon {
-  margin-right: 0.6rem;
-  color: rgb(var(--v-theme-primary)) !important;
-  font-size: 1.3rem !important;
-}
 </style>

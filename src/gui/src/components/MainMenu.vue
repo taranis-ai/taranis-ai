@@ -7,24 +7,20 @@
     app
     clipped-left
   >
-    <template #prepend>
-      <v-btn
-        color="primary"
-        :disabled="!showNavButton"
-        @click.stop="navClicked"
-      >
-        <v-icon :icon="drawerVisible ? 'mdi-menu-open' : 'mdi-menu-close'" />
-      </v-btn>
-    </template>
-
-    <v-toolbar-title>
+    <v-app-bar-nav-icon
+      color="primary"
+      :disabled="!showNavButton"
+      :icon="drawerVisible ? 'mdi-menu-open' : 'mdi-menu-close'"
+      @click.stop="navClicked"
+    />
+    <v-app-bar-title>
       <img
         src="@/assets/taranis-logo.svg"
-        alt="taranis logo"
+        alt="Taranis AI"
         style="max-width: 360px; height: 100%"
         class="py-3"
       />
-    </v-toolbar-title>
+    </v-app-bar-title>
 
     <div v-if="showItemCount && mdAndUp" class="mr-10">
       <span>
@@ -34,6 +30,18 @@
         / displayed items: <strong>{{ itemCountFiltered }}</strong>
       </span>
     </div>
+
+    <v-text-field
+      v-if="showSearchBar"
+      id="omni-search"
+      v-model="searchState"
+      placeholder="search"
+      varint="outlined"
+      hide-details
+      density="compact"
+      prepend-inner-icon="mdi-magnify"
+      class="mr-5 ml-5 omni-search"
+    />
 
     <template #append>
       <v-menu v-if="smAndDown" offset-y class="mx-5">
@@ -80,7 +88,8 @@ import UserMenu from '@/components/UserMenu.vue'
 import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/MainStore'
 import { useUserStore } from '@/stores/UserStore'
-import { defineComponent, computed } from 'vue'
+import { useFilterStore } from '@/stores/FilterStore'
+import { defineComponent, computed, ref } from 'vue'
 import { useDisplay } from 'vuetify'
 import { useRoute } from 'vue-router'
 
@@ -90,11 +99,42 @@ export default defineComponent({
   setup() {
     const mainStore = useMainStore()
     const userStore = useUserStore()
+    const filterStore = useFilterStore()
     const { smAndDown, mdAndUp } = useDisplay()
     const route = useRoute()
 
     const { drawerVisible, itemCountTotal, itemCountFiltered, buildDate } =
       storeToRefs(mainStore)
+
+    const timeout = ref(null)
+    const searchState = computed({
+      get: () => {
+        if (route.name === 'assess') {
+          return filterStore.storyFilter.search
+        }
+        if (route.name === 'analyze') {
+          return filterStore.reportFilter.search
+        }
+        if (route.name === 'publish') {
+          return filterStore.productFilter.search
+        }
+        return ''
+      },
+      set: (value) => {
+        clearTimeout(timeout.value)
+        timeout.value = setTimeout(() => {
+          if (route.name === 'assess') {
+            filterStore.storyFilter.search = value
+          }
+          if (route.name === 'analyze') {
+            filterStore.reportFilter.search = value
+          }
+          if (route.name === 'publish') {
+            filterStore.productFilter.search = value
+          }
+        }, 500)
+      }
+    })
 
     const showItemCount = computed(() => {
       return itemCountTotal.value !== undefined && itemCountTotal.value > 0
@@ -109,6 +149,14 @@ export default defineComponent({
     const navClicked = () => {
       mainStore.toggleDrawer()
     }
+
+    const showSearchBar = computed(() => {
+      return (
+        route.name === 'assess' ||
+        route.name === 'analyze' ||
+        route.name === 'publish'
+      )
+    })
 
     const showNavButton = computed(() => {
       return (
@@ -169,6 +217,8 @@ export default defineComponent({
       buildDate,
       smAndDown,
       mdAndUp,
+      searchState,
+      showSearchBar,
       isFiltered,
       showItemCount,
       itemCountFiltered,
@@ -190,5 +240,8 @@ export default defineComponent({
 
 .v-btn--active i {
   color: #7468e8;
+}
+.omni-search {
+  max-width: 300px;
 }
 </style>
