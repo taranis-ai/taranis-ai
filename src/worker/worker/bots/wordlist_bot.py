@@ -4,32 +4,32 @@ from worker.log import logger
 
 
 class WordlistBot(BaseBot):
-    type = "WORDLIST_BOT"
-    name = "Wordlist Bot"
-    description = "Bot for tagging news items by wordlist"
+    def __init__(self):
+        super().__init__()
+
+        self.type = "WORDLIST_BOT"
+        self.name = "Wordlist Bot"
+        self.description = "Bot for tagging news items by wordlist"
 
     def execute(self, parameters=None):
-        if not parameters:
+        ignore_case = self._set_ignore_case_flag(parameters)
+        override_existing_tags = parameters.get("OVERRIDE_EXISTING_TAGS", True)
+
+        word_list_entries = self._get_word_list_entries()
+        if not word_list_entries:
+            logger.debug("No word list entries found")
             return
 
-        try:
-            ignore_case = self._set_ignore_case_flag(parameters)
-            override_existing_tags = parameters.get("OVERRIDE_EXISTING_TAGS", True)
+        if not (data := self.get_stories(parameters)):
+            return
 
-            word_list_entries = self._get_word_list_entries()
-            if not word_list_entries:
-                return "No word lists found"
+        found_tags = self._find_tags_for_aggregates(data, word_list_entries, override_existing_tags, ignore_case)
+        if not found_tags:
+            logger.debug("No tags found")
+            return
 
-            if not (data := self.get_stories(parameters)):
-                return "Error getting news items"
-
-            found_tags = self._find_tags_for_aggregates(data, word_list_entries, override_existing_tags, ignore_case)
-            logger.debug(found_tags)
-            self.core_api.update_tags(found_tags, self.type)
-
-        except Exception as error:
-            logger.log_debug_trace(f"Error running Bot: {self.type}")
-            return str(error)
+        logger.debug(found_tags)
+        self.core_api.update_tags(found_tags, self.type)
 
     @staticmethod
     def _set_ignore_case_flag(parameters):

@@ -5,12 +5,11 @@ import datetime
 
 
 class BaseBot:
-    type = "BASE_BOT"
-    name = "Base Bot"
-    description = "Base abstract type for all bots"
-
     def __init__(self):
         self.core_api = CoreApi()
+        self.type = "BASE_BOT"
+        self.name = "Base Bot"
+        self.description = "Base abstract type for all bots"
 
     def execute(self):
         pass
@@ -37,15 +36,11 @@ class BaseBot:
 
     def get_stories(self, parameters) -> list:
         filter_dict = self.get_filter_dict(parameters)
-        data = self.core_api.get_news_items_aggregate(filter_dict)
+        data = self.core_api.get_stories(filter_dict)
         if not data:
-            logger.error("Error getting news items")
+            logger.debug(f"No Stories for filter: {filter_dict}")
         return data
 
     def refresh(self):
         logger.info(f"Refreshing Bot: {self.type} ...")
-
-        try:
-            self.execute()
-        except Exception:
-            logger.log_debug_trace(f"Refresh Bots Failed: {self.type}")
+        self.execute()

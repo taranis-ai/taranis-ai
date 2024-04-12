@@ -1,5 +1,5 @@
-from flask import Response, request
-from flask_restx import Resource, Namespace, Api
+from flask import Response, request, Flask
+from flask.views import MethodView
 
 from core.managers import auth_manager, queue_manager
 from core.log import logger
@@ -7,13 +7,13 @@ from core.managers.auth_manager import auth_required
 from core.model import product, product_type
 
 
-class ProductTypes(Resource):
+class ProductTypes(MethodView):
     @auth_required("PUBLISH_ACCESS")
     def get(self):
         return product_type.ProductType.get_all_json(None, auth_manager.get_user_from_jwt(), True)
 
 
-class Products(Resource):
+class Products(MethodView):
     @auth_required("PUBLISH_ACCESS")
     def get(self, product_id=None):
         try:
@@ -45,16 +45,18 @@ class Products(Resource):
         return product.Product.delete(product_id)
 
 
-class PublishProduct(Resource):
+class PublishProduct(MethodView):
     @auth_required("PUBLISH_PRODUCT")
     def post(self, product_id, publisher_id):
         return queue_manager.queue_manager.publish_product(product_id, publisher_id)
 
 
-class ProductsRender(Resource):
+class ProductsRender(MethodView):
     @auth_required("PUBLISH_ACCESS")
-    def post(self, product_id):
-        return queue_manager.queue_manager.generate_product(product_id)
+    async def post(self, product_id):
+        # return await queue_manager.queue_manager.generate_product(product_id)
+        logger.info(f"Generating Product {product_id} scheduled")
+        return {"message": f"Generating Product {product_id} scheduled"}, 200
 
     @auth_required("PUBLISH_ACCESS")
     def get(self, product_id):
@@ -63,13 +65,12 @@ class ProductsRender(Resource):
         return {"error": f"Product {product_id} not found"}, 404
 
 
-def initialize(api: Api):
-    namespace = Namespace("publish", description="Publish API")
-    namespace.add_resource(Products, "/products", "/products/<int:product_id>")
-    namespace.add_resource(ProductTypes, "/product-types")
-    namespace.add_resource(ProductsRender, "/products/<int:product_id>/render")
-    namespace.add_resource(
-        PublishProduct,
-        "/products/<int:product_id>/publishers/<string:publisher_id>",
+def initialize(app: Flask):
+    base_route = "/api/publish"
+    app.add_url_rule(f"{base_route}/products/<int:product_id>/render", view_func=ProductsRender.as_view("products_render"))
+    app.add_url_rule(
+        f"{base_route}/products/<int:product_id>/publishers/<string:publisher_id>", view_func=PublishProduct.as_view("publish_product")
     )
-    api.add_namespace(namespace, path="/publish")
+    app.add_url_rule(f"{base_route}/products", view_func=Products.as_view("products"))
+    app.add_url_rule(f"{base_route}/products/<int:product_id>", view_func=Products.as_view("product"))
+    app.add_url_rule(f"{base_route}/product-types", view_func=ProductTypes.as_view("product_types"))

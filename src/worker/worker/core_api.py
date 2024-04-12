@@ -113,12 +113,8 @@ class CoreApi:
         except Exception:
             return None
 
-    def get_news_items_aggregate(self, filter_dict: dict) -> list:
-        try:
-            return self.api_get("/worker/news-item-aggregates", params=filter_dict) or []
-        except Exception:
-            logger.exception("get_news_items_aggregate failed")
-            return []
+    def get_stories(self, filter_dict: dict) -> list:
+        return self.api_get("/worker/news-item-aggregates", params=filter_dict)
 
     def get_tags(self) -> dict | None:
         return self.api_get("/worker/tags")

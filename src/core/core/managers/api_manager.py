@@ -2,11 +2,13 @@ from flask_restx import Api
 from swagger_ui import api_doc
 from flask import jsonify
 from pathlib import Path
+from flask_caching import Cache
 
 import core.api as core_api
 
 
 def initialize(app):
+    Cache(app)
     api = Api(app, version="1", title="Taranis API", doc="/api/swagger", prefix="/api")
 
     app.register_error_handler(400, handle_bad_request)
@@ -25,7 +27,7 @@ def initialize(app):
     core_api.config.initialize(api)
     core_api.dashboard.initialize(api)
     core_api.isalive.initialize(api)
-    core_api.publish.initialize(api)
+    core_api.publish.initialize(app)
     core_api.user.initialize(api)
     core_api.task.initialize(api)
     core_api.worker.initialize(api)

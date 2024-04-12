@@ -94,6 +94,7 @@ export default {
 
     const updateData = () => {
       Promise.all([
+        configStore.loadOSINTSources(),
         configStore.loadQueueStatus(),
         configStore.loadSchedule(),
         configStore.loadWorkers(),

@@ -7,45 +7,39 @@ from flair.nn import Classifier
 
 
 class NLPBot(BaseBot):
-    type = "NLP_BOT"
-    name = "NLP Bot"
-    description = "Bot for naturale language processing of news items"
-
     def __init__(self):
         super().__init__()
+        self.type = "NLP_BOT"
+        self.name = "NLP Bot"
+        self.description = "Bot for naturale language processing of news items"
+
         logger.debug("Setup NER Model...")
         self.ner_multi = Classifier.load("flair/ner-multi")
         torch.set_num_threads(1)  # https://github.com/pytorch/pytorch/issues/36191
         self.extraction_line_limit = 20
 
     def execute(self, parameters=None):
-        if not parameters:
-            return
-        try:
-            if not (data := self.get_stories(parameters)):
-                return "Error getting news items"
+        if not (data := self.get_stories(parameters)):
+            return None
 
-            all_keywords = {k: v for news_item in data for k, v in news_item["tags"].items()}
+        all_keywords = {k: v for news_item in data for k, v in news_item["tags"].items()}
 
-            update_result = {}
+        update_result = {}
 
-            for i, aggregate in enumerate(data):
-                if attributes := aggregate.get("news_item_attributes", {}):
-                    if self.type in [d["key"] for d in attributes if "key" in d]:
-                        logger.debug(f"Skipping {aggregate['id']} because it has attributes: {attributes}")
-                        continue
-                if i % max(len(data) // 10, 1) == 0:
-                    logger.debug(f"Extracting NER from {aggregate['id']}: {i}/{len(data)}")
-                    self.core_api.update_tags(update_result, self.type)
-                    update_result = {}
+        for i, aggregate in enumerate(data):
+            if attributes := aggregate.get("news_item_attributes", {}):
+                if self.type in [d["key"] for d in attributes if "key" in d]:
+                    logger.debug(f"Skipping {aggregate['id']} because it has attributes: {attributes}")
+                    continue
+            if i % max(len(data) // 10, 1) == 0:
+                logger.debug(f"Extracting NER from {aggregate['id']}: {i}/{len(data)}")
+                self.core_api.update_tags(update_result, self.type)
+                update_result = {}
 
-                current_keywords = self.extract_keywords(aggregate, all_keywords)
-                all_keywords |= current_keywords
-                update_result[aggregate["id"]] = current_keywords
-            self.core_api.update_tags(update_result, self.type)
-
-        except Exception:
-            logger.log_debug_trace(f"Error running Bot: {self.type}")
+            current_keywords = self.extract_keywords(aggregate, all_keywords)
+            all_keywords |= current_keywords
+            update_result[aggregate["id"]] = current_keywords
+        self.core_api.update_tags(update_result, self.type)
 
     def extract_keywords(self, aggregate: dict, all_keywords: dict) -> dict:
         current_keywords = aggregate.get("tags", {})

@@ -11,17 +11,12 @@ from transformers import (
 
 
 class SummaryBot(BaseBot):
-    type = "SUMMARY_BOT"
-    name = "Summary generation Bot"
-    description = "Bot for naturale language processing of news items"
-    """
-    summary_threshold: int
-        if content is larger than summary_threshold it will be summarized
-    """
-    summary_threshold = 750
-
     def __init__(self):
         super().__init__()
+        self.type = "SUMMARY_BOT"
+        self.name = "Summary generation Bot"
+        self.description = "Bot for naturale language processing of news items"
+        self.summary_threshold = 750
         logger.debug("Setup Summarization Model...")
         torch.set_num_threads(1)  # https://github.com/pytorch/pytorch/issues/36191
         self.set_summarization_model()
