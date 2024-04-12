@@ -50,11 +50,15 @@ class OSINTSource(BaseModel):
     @classmethod
     def get_all(cls) -> list["OSINTSource"]:
         return (
-            cls.query.filter(cls.type != COLLECTOR_TYPES.MANUAL_COLLECTOR)
-            .order_by(
-                db.nulls_first(db.asc(cls.last_collected)),
-                db.nulls_first(db.asc(cls.last_attempted)),
+            db.session.execute(
+                db.select([cls])
+                .where(cls.type != COLLECTOR_TYPES.MANUAL_COLLECTOR)
+                .order_by(
+                    db.nulls_first(db.asc(cls.last_collected)),
+                    db.nulls_first(db.asc(cls.last_attempted)),
+                )
             )
+            .scalars()
             .all()
         )
 

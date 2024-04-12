@@ -35,27 +35,23 @@ class Organization(BaseModel):
 
     @classmethod
     def get_all(cls):
-        return cls.query.order_by(db.asc(Organization.name)).all()
+        return db.session.execute(db.select(cls).order_by(db.asc(cls.name))).scalars().all()
 
     @classmethod
-    def get_by_filter(cls, search):
-        query = cls.query
+    def get_by_filter(cls, search) -> list["Organization"] | None:
+        query = db.select(cls)
 
         if search:
-            query = query.filter(
+            query = query.where(
                 or_(
                     Organization.name.ilike(f"%{search}%"),
                     Organization.description.ilike(f"%{search}%"),
                 )
             )
 
-        return query.order_by(db.asc(Organization.name)).all(), query.count()
+        query = query.order_by(db.asc(Organization.name))
 
-    @classmethod
-    def get_all_json(cls, search):
-        organizations, count = cls.get_by_filter(search)
-        items = [organization.to_dict() for organization in organizations]
-        return {"total_count": count, "items": items}
+        return db.session.execute(query).scalars().all()
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Organization":

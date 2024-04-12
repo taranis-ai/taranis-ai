@@ -53,10 +53,8 @@ class PublishProduct(MethodView):
 
 class ProductsRender(MethodView):
     @auth_required("PUBLISH_ACCESS")
-    async def post(self, product_id):
-        # return await queue_manager.queue_manager.generate_product(product_id)
-        logger.info(f"Generating Product {product_id} scheduled")
-        return {"message": f"Generating Product {product_id} scheduled"}, 200
+    def post(self, product_id):
+        return queue_manager.queue_manager.generate_product(product_id)
 
     @auth_required("PUBLISH_ACCESS")
     def get(self, product_id):

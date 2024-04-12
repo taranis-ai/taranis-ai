@@ -1,7 +1,6 @@
 import os
 import contextlib
 from flask import Flask
-from flask_cors import CORS
 
 from core.managers import (
     db_manager,
@@ -29,7 +28,6 @@ def create_app():
 
 def initialize_managers(app):
     global FIRST_WORKER
-    CORS(app)
 
     if FIRST_WORKER:
         log.logger.info(f"Connecting Database: {app.config.get('SQLALCHEMY_DATABASE_URI')}")

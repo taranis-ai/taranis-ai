@@ -28,7 +28,7 @@ export const useConfigStore = defineStore('config', {
     acls: { total_count: 0, items: [] },
     attributes: { total_count: 0, items: [] },
     bots: { total_count: 0, items: [] },
-    organizations: { total_count: 0, items: [] },
+    organizations: [],
     osint_sources: { total_count: 0, items: [] },
     osint_source_groups: { total_count: 0, items: [] },
     parameters: [],

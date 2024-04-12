@@ -241,9 +241,14 @@ class Templates(Resource):
 
 class Organizations(Resource):
     @auth_required("CONFIG_ORGANIZATION_ACCESS")
-    def get(self):
+    def get(self, organization_id=None):
+        if organization_id:
+            org = organization.Organization.get(organization_id)
+            return org.to_dict() if org else ({"error": "Organization not found"}, 404)
         search = request.args.get(key="search", default=None)
-        return organization.Organization.get_all_json(search)
+        if orgs := organization.Organization.get_by_filter(search):
+            return organization.Organization.to_list(orgs)
+        return {"error": "No organizations found"}, 404
 
     @auth_required("CONFIG_ORGANIZATION_CREATE")
     def post(self):

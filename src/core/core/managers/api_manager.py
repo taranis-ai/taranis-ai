@@ -3,12 +3,15 @@ from swagger_ui import api_doc
 from flask import jsonify
 from pathlib import Path
 from flask_caching import Cache
+from flask_cors import CORS
 
 import core.api as core_api
 
 
 def initialize(app):
     Cache(app)
+    CORS(app)
+
     api = Api(app, version="1", title="Taranis API", doc="/api/swagger", prefix="/api")
 
     app.register_error_handler(400, handle_bad_request)

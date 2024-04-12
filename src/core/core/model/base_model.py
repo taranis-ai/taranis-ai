@@ -20,10 +20,10 @@ class BaseModel(db.Model):
 
     @classmethod
     def delete(cls: Type[T], id) -> tuple[dict[str, Any], int]:
-        if cls.query.filter_by(id=id).delete():
+        if item := cls.get(id):
+            db.session.delete(item)
             db.session.commit()
             return {"message": f"{cls.__name__} {id} deleted"}, 200
-
         return {"error": f"{cls.__name__} {id} not found"}, 404
 
     @classmethod
@@ -76,11 +76,15 @@ class BaseModel(db.Model):
         return json.dumps(self.to_dict())
 
     @classmethod
+    def to_list(cls, objects: list[T]) -> list[dict[str, Any]]:
+        return [obj.to_dict() for obj in objects]
+
+    @classmethod
     def get(cls: Type[T], id) -> T | None:
         if (isinstance(id, int) and (id < 0 or id > 2**63 - 1)) or id is None:
             return None
-        return cls.query.get(id)
+        return db.session.get(cls, id)
 
     @classmethod
     def get_all(cls: Type[T]) -> list[T] | None:
-        return cls.query.all()
+        return db.session.execute(db.select(cls)).scalars().all()
