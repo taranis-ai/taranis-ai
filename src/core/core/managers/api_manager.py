@@ -1,4 +1,3 @@
-from flask_restx import Api
 from swagger_ui import api_doc
 from flask import jsonify
 from pathlib import Path
@@ -12,8 +11,6 @@ def initialize(app):
     Cache(app)
     CORS(app)
 
-    api = Api(app, version="1", title="Taranis API", doc="/api/swagger", prefix="/api")
-
     app.register_error_handler(400, handle_bad_request)
     app.register_error_handler(401, handle_unauthorized)
     app.register_error_handler(404, handle_not_found)
@@ -21,19 +18,19 @@ def initialize(app):
     openapi_yaml = Path(__file__).parent.parent / "static" / "openapi3_0.yaml"
     api_doc(app, config_path=openapi_yaml, url_prefix="/api/doc", editor=False)
 
-    core_api.admin.initialize(api)
-    core_api.analyze.initialize(api)
-    core_api.assess.initialize(api)
-    core_api.assets.initialize(api)
-    core_api.auth.initialize(api)
-    core_api.bots.initialize(api)
-    core_api.config.initialize(api)
-    core_api.dashboard.initialize(api)
-    core_api.isalive.initialize(api)
+    core_api.admin.initialize(app)
+    core_api.analyze.initialize(app)
+    core_api.assess.initialize(app)
+    core_api.assets.initialize(app)
+    core_api.auth.initialize(app)
+    core_api.bots.initialize(app)
+    core_api.config.initialize(app)
+    core_api.dashboard.initialize(app)
+    core_api.isalive.initialize(app)
     core_api.publish.initialize(app)
-    core_api.user.initialize(api)
-    core_api.task.initialize(api)
-    core_api.worker.initialize(api)
+    core_api.user.initialize(app)
+    core_api.task.initialize(app)
+    core_api.worker.initialize(app)
     core_api.sse.initialize(app)
 
 

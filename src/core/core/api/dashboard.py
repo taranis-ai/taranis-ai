@@ -1,6 +1,6 @@
-from flask import request
+from flask import request, Flask
+from flask.views import MethodView
 from flask_jwt_extended import jwt_required
-from flask_restx import Resource, Namespace, Api
 
 from core.log import logger
 from core.model.news_item import NewsItemData, NewsItemAggregate
@@ -12,7 +12,7 @@ from core.model.queue import ScheduleEntry
 from core.config import Config
 
 
-class Dashboard(Resource):
+class Dashboard(MethodView):
     @jwt_required()
     def get(self):
         total_news_items = NewsItemData.count_all()
@@ -33,7 +33,7 @@ class Dashboard(Resource):
         }, 200
 
 
-class TrendingClusters(Resource):
+class TrendingClusters(MethodView):
     @jwt_required()
     def get(self):
         try:
@@ -43,7 +43,7 @@ class TrendingClusters(Resource):
             return {"error": str(e)}, 400
 
 
-class StoryClusters(Resource):
+class StoryClusters(MethodView):
     @jwt_required()
     def get(self):
         try:
@@ -55,7 +55,7 @@ class StoryClusters(Resource):
             return {"error": str(e)}, 400
 
 
-class ClusterByType(Resource):
+class ClusterByType(MethodView):
     @jwt_required()
     def get(self, tag_type: str):
         try:
@@ -70,14 +70,7 @@ class ClusterByType(Resource):
             return {"error": str(e)}, 400
 
 
-class Tagcloud(Resource):
-    @jwt_required()
-    def get(self):
-        # TODO: should be just a list of tags and their counts
-        return {"message": "Not implemented"}, 501
-
-
-class BuildInfo(Resource):
+class BuildInfo(MethodView):
     @jwt_required()
     def get(self):
         result = {"build_date": Config.BUILD_DATE.isoformat()}
@@ -86,12 +79,11 @@ class BuildInfo(Resource):
         return result
 
 
-def initialize(api: Api):
-    namespace = Namespace("dashboard", description="Dashboard related operations")
-    namespace.add_resource(Dashboard, "/", "")
-    namespace.add_resource(Tagcloud, "/tagcloud")
-    namespace.add_resource(TrendingClusters, "/trending-clusters")
-    namespace.add_resource(StoryClusters, "/story-clusters")
-    namespace.add_resource(ClusterByType, "/cluster/<string:tag_type>")
-    namespace.add_resource(BuildInfo, "/build-info")
-    api.add_namespace(namespace, path="/dashboard")
+def initialize(app: Flask):
+    base_route = "/api/dashboard"
+    app.add_url_rule(f"{base_route}/", view_func=Dashboard.as_view("dashboard"))
+    app.add_url_rule(f"{base_route}", view_func=Dashboard.as_view("dashboard_"))
+    app.add_url_rule(f"{base_route}/trending-clusters", view_func=TrendingClusters.as_view("trending-clusters"))
+    app.add_url_rule(f"{base_route}/story-clusters", view_func=StoryClusters.as_view("story-clusters"))
+    app.add_url_rule(f"{base_route}/cluster/<string:tag_type>", view_func=ClusterByType.as_view("cluster-by-type"))
+    app.add_url_rule(f"{base_route}/build-info", view_func=BuildInfo.as_view("build-info"))

@@ -187,7 +187,7 @@ def pre_seed_default_user():
     from core.model.user import User
     from core.model.role import Role
 
-    user_count = User.get_all_json()["total_count"]
+    user_count = User.get_filtered_count(User.get_filter_query())
     if user_count > 0:
         return
 

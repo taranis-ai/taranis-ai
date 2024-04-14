@@ -1,5 +1,5 @@
-from flask import request
-from flask_restx import Resource, Namespace, Api
+from flask import request, Flask
+from flask.views import MethodView
 
 from core.managers import auth_manager
 from core.managers.auth_manager import auth_required
@@ -7,9 +7,15 @@ from core.model import asset, attribute
 from core.model.attribute import AttributeType
 
 
-class AssetGroups(Resource):
+class AssetGroups(MethodView):
     @auth_required("ASSETS_ACCESS")
-    def get(self):
+    def get(self, group_id=None):
+        user = auth_manager.get_user_from_jwt()
+        if not user:
+            return {"error": "User not found"}, 404
+        if group_id:
+            return asset.AssetGroup.get_json(user.organization, group_id)
+
         search = request.args.get("search", None)
         return asset.AssetGroup.get_all_json(auth_manager.get_user_from_jwt(), search)
 
@@ -25,24 +31,32 @@ class AssetGroups(Resource):
         asset_result = asset.AssetGroup.add(data)
         return {"message": "Asset Group added", "id": asset_result.id}, 201
 
-
-class AssetGroup(Resource):
-    @auth_required("ASSETS_CONFIG")
-    def put(self, group_id):
-        asset.AssetGroup.update(auth_manager.get_user_from_jwt(), group_id, request.json)
-
     @auth_required("ASSETS_CONFIG")
     def delete(self, group_id):
-        return asset.AssetGroup.delete(auth_manager.get_user_from_jwt(), group_id)
+        if user := auth_manager.get_user_from_jwt():
+            return asset.AssetGroup.delete(user.organization, group_id)
+        return {"error": "User not found"}, 404
+
+    @auth_required("ASSETS_CONFIG")
+    def put(self, group_id):
+        if user := auth_manager.get_user_from_jwt():
+            return asset.AssetGroup.update(user.organization, group_id, request.json)
+        return {"error": "User not found"}, 404
 
 
-class Assets(Resource):
+class Assets(MethodView):
     @auth_required("ASSETS_ACCESS")
-    def get(self):
+    def get(self, asset_id=None):
+        user = auth_manager.get_user_from_jwt()
+        if not user:
+            return {"error": "User not found"}, 404
+
+        if asset_id:
+            return asset.Asset.get_json(user.organization, asset_id)
         filter_keys = ["search" "vulnerable", "group", "sort"]
         filter_args: dict[str, str | int] = {k: v for k, v in request.args.items() if k in filter_keys}
 
-        return asset.Asset.get_all_json(auth_manager.get_user_from_jwt(), filter_args)
+        return asset.Asset.get_all_json(user.organization, filter_args)
 
     @auth_required("ASSETS_CREATE")
     def post(self):
@@ -52,47 +66,40 @@ class Assets(Resource):
         data = request.json
         if not data:
             return {"error": "No data provided"}, 400
-        return asset.Asset.add(user, data)
-
-
-class Asset(Resource):
-    @auth_required("ASSETS_ACCESS")
-    def get(self, asset_id):
-        if user := auth_manager.get_user_from_jwt():
-            return asset.Asset.get_json(user.organization, asset_id)
-        return {"message": "User not found"}, 404
+        return asset.Asset.add(user.organization, data)
 
     @auth_required("ASSETS_CREATE")
     def put(self, asset_id):
-        return asset.Asset.update(auth_manager.get_user_from_jwt(), asset_id, request.json)
+        if user := auth_manager.get_user_from_jwt():
+            return asset.Asset.update(user.organization, asset_id, request.json)
+        return {"error": "User not found"}, 404
 
     @auth_required("ASSETS_CREATE")
     def delete(self, asset_id):
-        return asset.Asset.delete(auth_manager.get_user_from_jwt(), asset_id)
+        if user := auth_manager.get_user_from_jwt():
+            return asset.Asset.delete(user.organization, asset_id)
+        return {"error": "User not found"}, 404
 
 
-class AssetVulnerability(Resource):
+class AssetVulnerability(MethodView):
     @auth_required("ASSETS_CREATE")
     def put(self, asset_id, vulnerability_id):
         data = request.json
         if not data or "solved" not in data:
             return {"message": "Missing solved field"}, 400
-        return asset.Asset.solve_vulnerability(
-            auth_manager.get_user_from_jwt(),
-            asset_id,
-            vulnerability_id,
-            data["solved"],
-        )
+        if user := auth_manager.get_user_from_jwt():
+            return asset.Asset.solve_vulnerability(user.organization, asset_id, vulnerability_id, data["solved"])
+        return {"error": "User not found"}, 404
 
 
-class GetAttributeCPE(Resource):
+class GetAttributeCPE(MethodView):
     @auth_required("ASSETS_ACCESS")
     def get(self):
         cpe = attribute.Attribute.filter_by_type(AttributeType.CPE)
         return cpe.id
 
 
-class AttributeCPEEnums(Resource):
+class AttributeCPEEnums(MethodView):
     @auth_required("ASSETS_ACCESS")
     def get(self):
         cpe = attribute.Attribute.filter_by_type(AttributeType.CPE)
@@ -103,23 +110,15 @@ class AttributeCPEEnums(Resource):
         return attribute.AttributeEnum.get_for_attribute_json(cpe.id, search, offset, limit)
 
 
-def initialize(api: Api):
-    asset_namespace = Namespace("Assets", description="Assets related operations")
-    asset_groups_namespace = Namespace("AssetGroups", description="Assets related operations")
-    asset_attributes_namespace = Namespace("AssetAttributes", description="Assets related operations")
-    asset_groups_namespace.add_resource(AssetGroups, "/", "")
-    asset_groups_namespace.add_resource(AssetGroup, "/<string:group_id>")
-
-    asset_namespace.add_resource(Assets, "/", "")
-    asset_namespace.add_resource(Asset, "/<int:asset_id>")
-
-    asset_namespace.add_resource(
-        AssetVulnerability,
-        "/<int:asset_id>/vulnerabilities/<int:vulnerability_id>",
+def initialize(app: Flask):
+    base_route = "/api"
+    app.add_url_rule(f"{base_route}/assets", view_func=Assets.as_view("assets"))
+    app.add_url_rule(f"{base_route}/assets/<int:asset_id>", view_func=Assets.as_view("asset"))
+    app.add_url_rule(
+        f"{base_route}/assets/<int:asset_id>/vulnerabilities/<int:vulnerability_id>",
+        view_func=AssetVulnerability.as_view("asset_vulnerability"),
     )
-
-    asset_attributes_namespace.add_resource(GetAttributeCPE, "/cpe")
-    asset_attributes_namespace.add_resource(AttributeCPEEnums, "/cpe/enums")
-    api.add_namespace(asset_namespace, path="/assets")
-    api.add_namespace(asset_groups_namespace, path="/asset-groups")
-    api.add_namespace(asset_attributes_namespace, path="/asset-attributes")
+    app.add_url_rule(f"{base_route}/asset-groups", view_func=AssetGroups.as_view("asset_groups"))
+    app.add_url_rule(f"{base_route}/asset-groups/<string:group_id>", view_func=AssetGroups.as_view("asset_group"))
+    app.add_url_rule(f"{base_route}/asset-attributes/cpe", view_func=GetAttributeCPE.as_view("cpe"))
+    app.add_url_rule(f"{base_route}/asset-attributes/cpe/enums", view_func=AttributeCPEEnums.as_view("cpe_enums"))

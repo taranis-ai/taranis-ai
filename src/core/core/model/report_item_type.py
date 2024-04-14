@@ -35,7 +35,7 @@ class AttributeGroupItem(BaseModel):
                 attribute_id = attr.id
 
         if not attribute_id:
-            raise Exception("AttributeGroupItem requires either attribute_id or attribute")
+            raise ValueError("AttributeGroupItem requires either attribute_id or attribute")
 
         self.attribute_id = attribute_id
 

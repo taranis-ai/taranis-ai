@@ -1,3 +1,4 @@
+from sqlalchemy.sql import Select
 from sqlalchemy import or_
 from typing import Any
 
@@ -34,11 +35,11 @@ class Organization(BaseModel):
         }
 
     @classmethod
-    def get_all(cls):
+    def get_all(cls) -> list["Organization"]:
         return db.session.execute(db.select(cls).order_by(db.asc(cls.name))).scalars().all()
 
     @classmethod
-    def get_by_filter(cls, search) -> list["Organization"] | None:
+    def get_filter_query(cls, search=None) -> Select:
         query = db.select(cls)
 
         if search:
@@ -51,7 +52,7 @@ class Organization(BaseModel):
 
         query = query.order_by(db.asc(Organization.name))
 
-        return db.session.execute(query).scalars().all()
+        return query
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Organization":

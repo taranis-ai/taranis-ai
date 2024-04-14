@@ -166,12 +166,12 @@ class TestUserConfigApi(BaseTest):
             "name": "Testy McTestFace",
         }
         response = self.assert_put_ok(client, uri=f"users/{user_id}", json_data=user_data, auth_header=auth_header)
-        assert response.json[0]["message"] == f"User {user_id} updated"
+        assert response.json["message"] == f"User {user_id} updated"
 
     def test_get_user(self, client, auth_header, cleanup_user):
         user_id = cleanup_user["id"]
         response = self.assert_get_ok(client, f"users?search={cleanup_user['username']}", auth_header)
-        assert response.json["total_count"] == 1
+        assert response.json["count"] == 1
         assert response.json["items"][0]["username"] == cleanup_user["username"]
         assert response.json["items"][0]["name"] == "Testy McTestFace"
         assert response.json["items"][0]["id"] == user_id
@@ -180,7 +180,11 @@ class TestUserConfigApi(BaseTest):
     def test_delete_user(self, client, auth_header, cleanup_user):
         user_id = cleanup_user["id"]
         response = self.assert_delete_ok(client, uri=f"users/{user_id}", auth_header=auth_header)
-        assert response.json[0]["message"] == f"User {user_id} deleted"
+        assert response.json["message"] == f"User {user_id} deleted"
+
+
+class TestRoleConfigApi(BaseTest):
+    base_uri = "/api/config"
 
     def test_create_role(self, client, auth_header, cleanup_role):
         response = self.assert_post_ok(client, uri="roles", json_data=cleanup_role, auth_header=auth_header)
@@ -208,6 +212,10 @@ class TestUserConfigApi(BaseTest):
         response = self.assert_delete_ok(client, uri=f"roles/{role_id}", auth_header=auth_header)
         assert response.json["message"] == f"Role {role_id} deleted"
 
+
+class TestOrganizationConfigApi(BaseTest):
+    base_uri = "/api/config"
+
     def test_create_organization(self, client, auth_header, cleanup_organization):
         response = self.assert_post_ok(client, uri="organizations", json_data=cleanup_organization, auth_header=auth_header)
         assert response.json["message"] == "Organization created"
@@ -225,7 +233,7 @@ class TestUserConfigApi(BaseTest):
     def test_get_organizations(self, client, auth_header, cleanup_organization):
         organization_id = cleanup_organization["id"]
         response = self.assert_get_ok(client, uri=f"organizations?search={cleanup_organization['name']}", auth_header=auth_header)
-        assert response.json["total_count"] == 1
+        assert response.json["count"] == 1
         assert response.json["items"][0]["name"] == cleanup_organization["name"]
         assert response.json["items"][0]["description"] == "Orgy McOrgFace"
         assert response.json["items"][0]["id"] == organization_id

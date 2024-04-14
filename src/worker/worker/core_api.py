@@ -114,7 +114,7 @@ class CoreApi:
             return None
 
     def get_stories(self, filter_dict: dict) -> list:
-        return self.api_get("/worker/news-item-aggregates", params=filter_dict)
+        return self.api_get("/worker/stories", params=filter_dict)
 
     def get_tags(self) -> dict | None:
         return self.api_get("/worker/tags")
@@ -134,7 +134,7 @@ class CoreApi:
     def update_news_items_aggregate_summary(self, id, summary: str) -> dict | None:
         try:
             data = {"summary": summary}
-            return self.api_put(url=f"/bots/aggregate/{id}/summary", json_data=data)
+            return self.api_put(url=f"/bots/story/{id}/summary", json_data=data)
         except Exception:
             return None
 
@@ -186,7 +186,7 @@ class CoreApi:
     def news_items_grouping(self, data):
         try:
             response = requests.put(
-                f"{self.api_url}/bots/news-item-aggregates/group",
+                f"{self.api_url}/bots/stories/group",
                 json=data,
                 headers=self.headers,
                 timeout=self.timeout,
@@ -198,7 +198,7 @@ class CoreApi:
     def news_items_grouping_multiple(self, data):
         try:
             response = requests.put(
-                f"{self.api_url}/bots/news-item-aggregates/group-multiple",
+                f"{self.api_url}/bots/stories/group-multiple",
                 json=data,
                 headers=self.headers,
                 timeout=self.timeout,

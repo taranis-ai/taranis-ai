@@ -2,10 +2,10 @@ import {
   getStories,
   getOSINTSourceGroupsList,
   getOSINTSourcesList,
-  readNewsItemAggregate,
-  importantNewsItemAggregate,
-  voteNewsItemAggregate,
-  deleteNewsItemAggregate,
+  readStory,
+  importantStory,
+  voteStory,
+  deleteStory,
   updateStoryTags,
   groupAction,
   unGroupAction,
@@ -114,7 +114,7 @@ export const useAssessStore = defineStore(
       return stories.value.items.filter((item) => item.id === id)[0]
     }
     function removeStoryByID(id) {
-      deleteNewsItemAggregate(id)
+      deleteStory(id)
       stories.value.items = stories.value.items.filter((item) => item.id !== id)
     }
     async function updateStoryByID(id) {
@@ -136,7 +136,7 @@ export const useAssessStore = defineStore(
     }
     async function voteOnNewsItemAggregate(id, vote) {
       try {
-        await voteNewsItemAggregate(id, vote)
+        await voteStory(id, vote)
       } catch (error) {
         notifyFailure(error)
       }
@@ -249,13 +249,13 @@ export const useAssessStore = defineStore(
     function markStoryAsRead(id) {
       const item = stories.value.items.find((item) => item.id === id)
       item.read = !item.read
-      readNewsItemAggregate(id, item.read)
+      readStory(id, item.read)
     }
 
     function markStoryAsImportant(id) {
       const item = stories.value.items.find((item) => item.id === id)
       item.important = !item.important
-      importantNewsItemAggregate(id, item.important)
+      importantStory(id, item.important)
     }
 
     function reset() {

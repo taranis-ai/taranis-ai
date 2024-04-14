@@ -98,8 +98,8 @@ import PopupDeleteItem from '@/components/popups/PopupDeleteItem.vue'
 import { notifySuccess, notifyFailure } from '@/utils/helpers.js'
 import {
   deleteNewsItem,
-  importantNewsItemAggregate,
-  readNewsItemAggregate,
+  importantStory,
+  readStory,
   unGroupNewsItems
 } from '@/api/assess'
 import { ref, computed } from 'vue'
@@ -141,11 +141,11 @@ export default {
     })
 
     const markAsRead = () => {
-      readNewsItemAggregate(props.newsItem.id)
+      readStory(props.newsItem.id)
     }
 
     const markAsImportant = () => {
-      importantNewsItemAggregate(props.newsItem.id)
+      importantStory(props.newsItem.id)
     }
 
     const deleteItem = () => {

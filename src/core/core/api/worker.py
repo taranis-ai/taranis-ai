@@ -1,5 +1,5 @@
-from flask import request, send_file, Response
-from flask_restx import Resource, Namespace, Api
+from flask import request, send_file, Response, Flask
+from flask.views import MethodView
 from werkzeug.datastructures import FileStorage
 
 from core.managers.auth_manager import api_key_required
@@ -17,7 +17,7 @@ from core.managers.sse_manager import sse_manager
 from core.model.bot import Bot
 
 
-class AddNewsItems(Resource):
+class AddNewsItems(MethodView):
     @api_key_required
     def post(self):
         json_data = request.json
@@ -26,7 +26,7 @@ class AddNewsItems(Resource):
         return result, status
 
 
-class QueueScheduleEntry(Resource):
+class QueueScheduleEntry(MethodView):
     @api_key_required
     def get(self, schedule_id: str):
         try:
@@ -37,7 +37,7 @@ class QueueScheduleEntry(Resource):
             logger.exception()
 
 
-class NextRunTime(Resource):
+class NextRunTime(MethodView):
     @api_key_required
     def put(self):
         try:
@@ -50,7 +50,7 @@ class NextRunTime(Resource):
             logger.exception()
 
 
-class QueueSchedule(Resource):
+class QueueSchedule(MethodView):
     @api_key_required
     def get(self):
         try:
@@ -74,7 +74,7 @@ class QueueSchedule(Resource):
             logger.exception()
 
 
-class Products(Resource):
+class Products(MethodView):
     @api_key_required
     def get(self, product_id: int):
         try:
@@ -96,7 +96,7 @@ class Products(Resource):
             logger.exception()
 
 
-class ProductsRender(Resource):
+class ProductsRender(MethodView):
     @api_key_required
     def get(self, product_id):
         if product_data := Product.get_render(product_id):
@@ -104,7 +104,7 @@ class ProductsRender(Resource):
         return {"error": f"Product {product_id} not found"}, 404
 
 
-class Presenters(Resource):
+class Presenters(MethodView):
     @api_key_required
     def get(self, presenter: str):
         try:
@@ -116,7 +116,7 @@ class Presenters(Resource):
             logger.exception()
 
 
-class Publishers(Resource):
+class Publishers(MethodView):
     @api_key_required
     def get(self, publisher: str):
         try:
@@ -127,7 +127,7 @@ class Publishers(Resource):
             logger.exception()
 
 
-class Sources(Resource):
+class Sources(MethodView):
     @api_key_required
     def get(self, source_id: str):
         try:
@@ -156,7 +156,7 @@ class Sources(Resource):
             return {"error": "Could not update status"}, 500
 
 
-class SourceIcon(Resource):
+class SourceIcon(MethodView):
     def put(self, source_id: str):
         try:
             if source := OSINTSource.get(source_id):
@@ -168,14 +168,14 @@ class SourceIcon(Resource):
             logger.exception()
 
 
-class BotsInfo(Resource):
+class BotsInfo(MethodView):
     @api_key_required
     def get(self):
         search = request.args.get(key="search", default=None)
         return Bot.get_all_json(search)
 
 
-class NewsItemsAggregates(Resource):
+class Stories(MethodView):
     @api_key_required
     def get(self):
         filter_keys = ["search", "in_report", "timefrom", "sort", "range", "limit"]
@@ -189,7 +189,7 @@ class NewsItemsAggregates(Resource):
         return {"error": "No news item aggregates found"}, 404
 
 
-class Tags(Resource):
+class Tags(MethodView):
     @api_key_required
     def get(self):
         if tags := NewsItemTag.get_all():
@@ -211,14 +211,14 @@ class Tags(Resource):
         return {"message": "Tags updated"}, 200
 
 
-class DropTags(Resource):
+class DropTags(MethodView):
     @api_key_required
     def post(self):
         NewsItemTag.delete_all_tags()
         return {"message": "deleted all tags"}, 200
 
 
-class BotInfo(Resource):
+class BotInfo(MethodView):
     @api_key_required
     def get(self, bot_id):
         # return Bot.get(bot_id)
@@ -235,7 +235,7 @@ class BotInfo(Resource):
         return Bot.update(bot_id, request.json)
 
 
-class PostCollectionBots(Resource):
+class PostCollectionBots(MethodView):
     @api_key_required
     def put(self):
         data = request.json
@@ -246,7 +246,7 @@ class PostCollectionBots(Resource):
         return {"error": "No source_id provided"}, 400
 
 
-class WordLists(Resource):
+class WordLists(MethodView):
     @api_key_required
     def get(self):
         search = request.args.get(key="search", default=None)
@@ -254,7 +254,7 @@ class WordLists(Resource):
         return WordList.get_all_json({"search": search, "usage": usage}, None, False)
 
 
-class WordListByID(Resource):
+class WordListByID(MethodView):
     @api_key_required
     def get(self, word_list_id: int):
         if word_list := WordList.get(word_list_id):
@@ -262,7 +262,7 @@ class WordListByID(Resource):
         return {"error": f"Word list with id {word_list_id} not found"}, 404
 
 
-class WordListUpdate(Resource):
+class WordListUpdate(MethodView):
     @api_key_required
     def put(self, word_list_id):
         if request.content_type == "application/json":
@@ -280,51 +280,25 @@ class WordListUpdate(Resource):
         return {"error": "Unable to import"}, 400
 
 
-def initialize(api: Api):
-    worker_ns = Namespace("Worker", description="Publish Subscribe Worker Endpoints")
-    beat_ns = Namespace("Beat", description="Publish Subscribe Beat Endpoints")
-    beat_ns.add_resource(
-        QueueSchedule,
-        "/schedule",
-    )
-    beat_ns.add_resource(
-        QueueScheduleEntry,
-        "/schedule/<string:schedule_id>",
-    )
-    beat_ns.add_resource(
-        NextRunTime,
-        "/next-run-time",
-    )
-    worker_ns.add_resource(
-        Sources,
-        "/osint-sources/<string:source_id>",
-    )
-    worker_ns.add_resource(
-        SourceIcon,
-        "/osint-sources/<string:source_id>/icon",
-    )
-    worker_ns.add_resource(
-        Products,
-        "/products/<int:product_id>",
-    )
-    worker_ns.add_resource(
-        Presenters,
-        "/presenters/<string:presenter>",
-    )
-    worker_ns.add_resource(
-        Publishers,
-        "/publishers/<string:publisher>",
-    )
-    worker_ns.add_resource(AddNewsItems, "/news-items")
-    worker_ns.add_resource(BotsInfo, "/bots")
-    worker_ns.add_resource(ProductsRender, "/products/<int:product_id>/render")
-    worker_ns.add_resource(Tags, "/tags")
-    worker_ns.add_resource(BotInfo, "/bots/<string:bot_id>")
-    worker_ns.add_resource(PostCollectionBots, "/post-collection-bots")
-    worker_ns.add_resource(NewsItemsAggregates, "/news-item-aggregates", "/stories")
-    worker_ns.add_resource(WordLists, "/word-lists")
-    worker_ns.add_resource(WordListByID, "/word-list/<int:word_list_id>")
-    worker_ns.add_resource(WordListUpdate, "/word-list/<int:word_list_id>/update")
+def initialize(app: Flask):
+    worker_url = "/api/worker"
+    beat_url = "/api/beat"
 
-    api.add_namespace(beat_ns, path="/beat")
-    api.add_namespace(worker_ns, path="/worker")
+    app.add_url_rule(f"{beat_url}/schedule", view_func=QueueSchedule.as_view("queue_schedule"))
+    app.add_url_rule(f"{beat_url}/schedule/<string:schedule_id>", view_func=QueueScheduleEntry.as_view("queue_schedule_entry"))
+    app.add_url_rule(f"{beat_url}/next-run-time", view_func=NextRunTime.as_view("next_run_time"))
+    app.add_url_rule(f"{worker_url}/osint-sources/<string:source_id>", view_func=Sources.as_view("osint_sources_worker"))
+    app.add_url_rule(f"{worker_url}/osint-sources/<string:source_id>/icon", view_func=SourceIcon.as_view("osint_sources_worker_icon"))
+    app.add_url_rule(f"{worker_url}/products/<int:product_id>", view_func=Products.as_view("products_worker"))
+    app.add_url_rule(f"{worker_url}/products/<int:product_id>/render", view_func=ProductsRender.as_view("products_render_worker"))
+    app.add_url_rule(f"{worker_url}/presenters/<string:presenter>", view_func=Presenters.as_view("presenters_worker"))
+    app.add_url_rule(f"{worker_url}/publishers/<string:publisher>", view_func=Publishers.as_view("publishers_worker"))
+    app.add_url_rule(f"{worker_url}/news-items", view_func=AddNewsItems.as_view("news_items_worker"))
+    app.add_url_rule(f"{worker_url}/bots", view_func=BotsInfo.as_view("bots_worker"))
+    app.add_url_rule(f"{worker_url}/tags", view_func=Tags.as_view("tags_worker"))
+    app.add_url_rule(f"{worker_url}/bots/<string:bot_id>", view_func=BotInfo.as_view("bot_info_worker"))
+    app.add_url_rule(f"{worker_url}/post-collection-bots", view_func=PostCollectionBots.as_view("post_collection_bots_worker"))
+    app.add_url_rule(f"{worker_url}/stories", view_func=Stories.as_view("stories_worker"))
+    app.add_url_rule(f"{worker_url}/word-lists", view_func=WordLists.as_view("word_lists_worker"))
+    app.add_url_rule(f"{worker_url}/word-list/<int:word_list_id>", view_func=WordListByID.as_view("word_list_by_id_worker"))
+    app.add_url_rule(f"{worker_url}/word-list/<int:word_list_id>/update", view_func=WordListUpdate.as_view("word_list_update_worker"))

@@ -1,6 +1,5 @@
-import io
-from flask import request, send_file
-from flask_restx import Resource, Namespace
+from flask import request, Flask
+from flask.views import MethodView
 from urllib.parse import unquote
 
 from core.managers import auth_manager
@@ -11,19 +10,19 @@ from core.model import news_item, osint_source, news_item_tag
 from core.managers.input_validators import validate_id
 
 
-class OSINTSourceGroupsList(Resource):
+class OSINTSourceGroupsList(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self):
         return osint_source.OSINTSourceGroup.get_all_json(search=None, user=auth_manager.get_user_from_jwt(), acl_check=True)
 
 
-class OSINTSourcesList(Resource):
+class OSINTSourcesList(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self):
         return osint_source.OSINTSource.get_all_with_type(search=None, user=auth_manager.get_user_from_jwt(), acl_check=True)
 
 
-class NewsItems(Resource):
+class NewsItems(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self):
         user = auth_manager.get_user_from_jwt()
@@ -53,7 +52,7 @@ class NewsItems(Resource):
         return result, status
 
 
-class NewsItem(Resource):
+class NewsItem(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self, item_id):
         item = news_item.NewsItem.get(item_id)
@@ -88,7 +87,7 @@ class NewsItem(Resource):
         return response, code
 
 
-class Stories(Resource):
+class Stories(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self):
         try:
@@ -124,7 +123,7 @@ class Stories(Resource):
             return {"error": "Failed to get Stories"}, 400
 
 
-class StoryTags(Resource):
+class StoryTags(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self):
         try:
@@ -140,7 +139,7 @@ class StoryTags(Resource):
             return {"error": "Failed to get Tags"}, 400
 
 
-class StoryTagList(Resource):
+class StoryTagList(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self):
         try:
@@ -154,42 +153,42 @@ class StoryTagList(Resource):
             return {"error": "Failed to get Tags"}, 400
 
 
-class Story(Resource):
+class Story(MethodView):
     @auth_required("ASSESS_ACCESS")
-    @validate_id("aggregate_id")
-    def get(self, aggregate_id):
+    @validate_id("story_id")
+    def get(self, story_id):
         user = auth_manager.get_user_from_jwt()
-        return news_item.NewsItemAggregate.get_json(aggregate_id, user)
+        return news_item.NewsItemAggregate.get_json(story_id, user)
 
     @auth_required("ASSESS_UPDATE")
-    @validate_id("aggregate_id")
-    def put(self, aggregate_id):
+    @validate_id("story_id")
+    def put(self, story_id):
         user = auth_manager.get_user_from_jwt()
         if not request.is_json:
             return {"error": "Missing JSON in request"}, 400
-        response, code = news_item.NewsItemAggregate.update(aggregate_id, request.json, user)
+        response, code = news_item.NewsItemAggregate.update(story_id, request.json, user)
         sse_manager.news_items_updated()
         return response, code
 
     @auth_required("ASSESS_DELETE")
-    @validate_id("aggregate_id")
-    def delete(self, aggregate_id):
+    @validate_id("story_id")
+    def delete(self, story_id):
         user = auth_manager.get_user_from_jwt()
-        response, code = news_item.NewsItemAggregate.delete_by_id(aggregate_id, user)
+        response, code = news_item.NewsItemAggregate.delete_by_id(story_id, user)
         sse_manager.news_items_updated()
         return response, code
 
     @auth_required("ASSESS_UPDATE")
-    @validate_id("aggregate_id")
-    def patch(self, aggregate_id):
+    @validate_id("story_id")
+    def patch(self, story_id):
         user = auth_manager.get_user_from_jwt()
         if not request.is_json:
             return {"error": "Missing JSON in request"}, 400
-        response, code = news_item.NewsItemAggregate.update(aggregate_id, request.json, user)
+        response, code = news_item.NewsItemAggregate.update(story_id, request.json, user)
         return response, code
 
 
-class UnGroupAction(Resource):
+class UnGroupAction(MethodView):
     @auth_required("ASSESS_UPDATE")
     def put(self):
         user = auth_manager.get_user_from_jwt()
@@ -204,7 +203,7 @@ class UnGroupAction(Resource):
         return response, code
 
 
-class UnGroupStories(Resource):
+class UnGroupStories(MethodView):
     @auth_required("ASSESS_UPDATE")
     def put(self):
         user = auth_manager.get_user_from_jwt()
@@ -219,7 +218,7 @@ class UnGroupStories(Resource):
         return response, code
 
 
-class GroupAction(Resource):
+class GroupAction(MethodView):
     @auth_required("ASSESS_UPDATE")
     def put(self):
         user = auth_manager.get_user_from_jwt()
@@ -234,42 +233,15 @@ class GroupAction(Resource):
         return response, code
 
 
-class DownloadAttachment(Resource):
-    @auth_required("ASSESS_ACCESS")
-    @validate_id("item_data_id")
-    @validate_id("attribute_id")
-    def get(self, item_data_id, attribute_id):
-        user = auth_manager.get_user_from_jwt()
-        if attribute := news_item.NewsItemAttribute.get(attribute_id):
-            logger.store_user_activity(user, "ASSESS_ACCESS", str({"file": attribute.value}))
-            return (
-                send_file(
-                    io.BytesIO(attribute.binary_data),  # type: ignore
-                    download_name=attribute.value,
-                    mimetype=attribute.binary_mime_type,
-                    as_attachment=True,
-                ),
-                200,
-            )
-        return {"error": "Unauthorized access attempt to News Item Data"}, 400
-
-
-def initialize(api):
-    namespace = Namespace("Assess", description="Assess related operations")
-    namespace.add_resource(OSINTSourceGroupsList, "/osint-source-groups", "/osint-source-group-list")
-    namespace.add_resource(OSINTSourcesList, "/osint-sources-list")
-    namespace.add_resource(Stories, "/news-item-aggregates", "/stories")
-    namespace.add_resource(StoryTags, "/tags")
-    namespace.add_resource(StoryTagList, "/taglist")
-
-    namespace.add_resource(NewsItems, "/news-items")
-    namespace.add_resource(NewsItem, "/news-items/<int:item_id>")
-    namespace.add_resource(Story, "/news-item-aggregates/<int:aggregate_id>", "/stories/<int:aggregate_id>")
-    namespace.add_resource(GroupAction, "/news-item-aggregates/group", "/stories/group")
-    namespace.add_resource(UnGroupStories, "/news-item-aggregates/ungroup", "/stories/ungroup")
-    namespace.add_resource(UnGroupAction, "/news-items/ungroup")
-    namespace.add_resource(
-        DownloadAttachment,
-        "/news-item-data/<string:item_data_id>/attributes/<int:attribute_id>/file",
-    )
-    api.add_namespace(namespace, path="/assess")
+def initialize(app: Flask):
+    base_route = "/api/assess"
+    app.add_url_rule(f"{base_route}/stories", view_func=Stories.as_view("stories"))
+    app.add_url_rule(f"{base_route}/story/<int:story_id>", view_func=Story.as_view("story"))
+    app.add_url_rule(f"{base_route}/osint-source-group-list", view_func=OSINTSourceGroupsList.as_view("osint_source_groups-list"))
+    app.add_url_rule(f"{base_route}/osint-sources-list", view_func=OSINTSourcesList.as_view("osint_sources_list"))
+    app.add_url_rule(f"{base_route}/tags", view_func=StoryTags.as_view("tags"))
+    app.add_url_rule(f"{base_route}/taglist", view_func=StoryTagList.as_view("taglist"))
+    app.add_url_rule(f"{base_route}/news-items", view_func=NewsItems.as_view("news_items"))
+    app.add_url_rule(f"{base_route}/news-items/<int:item_id>", view_func=NewsItem.as_view("news_item"))
+    app.add_url_rule(f"{base_route}/stories/group", view_func=GroupAction.as_view("group_action"))
+    app.add_url_rule(f"{base_route}/stories/ungroup", view_func=UnGroupStories.as_view("ungroup_stories"))

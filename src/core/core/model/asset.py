@@ -5,7 +5,6 @@ from typing import Any
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.model.report_item import ReportItem
-from core.model.user import User
 from core.model.organization import Organization
 
 
@@ -88,9 +87,9 @@ class Asset(BaseModel):
             self.vulnerabilities.append(vulnerability)
 
     @classmethod
-    def solve_vulnerability(cls, user, asset_id, report_item_id, solved):
+    def solve_vulnerability(cls, organization: Organization, asset_id, report_item_id, solved):
         asset = cls.query.get(asset_id)
-        if AssetGroup.access_allowed(user, asset.asset_group_id):
+        if AssetGroup.access_allowed(organization, asset.asset_group_id):
             for vulnerability in asset.vulnerabilities:
                 if vulnerability.report_item_id == report_item_id:
                     if solved is not vulnerability.solved:
@@ -143,12 +142,11 @@ class Asset(BaseModel):
         return query.first()
 
     @classmethod
-    def get_all_json(cls, user, filter):
+    def get_all_json(cls, organization: Organization, filter: dict):
         group_id = filter.get("group")
         search = filter.get("search")
         sort = filter.get("sort")
         vulnerable = filter.get("vulnerable")
-        organization = user.organization
         assets = cls.get_by_filter(group_id, search, sort, vulnerable, organization)
         return [asset.to_dict() for asset in assets], 200
 
@@ -172,9 +170,9 @@ class Asset(BaseModel):
         return (asset.to_dict(), 200) if asset else ("Asset Not Found", 404)
 
     @classmethod
-    def add(cls, user: User, data) -> tuple[dict, int]:
+    def add(cls, organization: Organization, data) -> tuple[dict, int]:
         asset = cls.from_dict(data)
-        if not AssetGroup.access_allowed(user, asset.asset_group_id):
+        if not AssetGroup.access_allowed(organization, asset.asset_group_id):
             return {"error": "Access Denied"}, 403
 
         db.session.add(asset)
@@ -183,12 +181,12 @@ class Asset(BaseModel):
         return {"message": "Asset added", "id": asset.id}, 201
 
     @classmethod
-    def update(cls, user, asset_id, data) -> tuple[dict, int]:
+    def update(cls, organization: Organization, asset_id, data) -> tuple[dict, int]:
         asset = cls.query.get(asset_id)
         if not asset:
             return {"error": "Asset Not Found"}, 404
 
-        if not AssetGroup.access_allowed(user, asset.asset_group_id):
+        if not AssetGroup.access_allowed(organization, asset.asset_group_id):
             return {"error": "Access Denied"}, 403
         for key, value in data.items():
             if hasattr(asset, key) and key != "id":
@@ -198,12 +196,12 @@ class Asset(BaseModel):
         return {"message": "Asset updated", "id": asset.id}, 201
 
     @classmethod
-    def delete(cls, user, id) -> tuple[dict, int]:
+    def delete(cls, organization: Organization, id) -> tuple[dict, int]:
         asset = cls.query.get(id)
         if not asset:
             return {"error": "Asset Not Found"}, 404
 
-        if not AssetGroup.access_allowed(user, asset.asset_group_id):
+        if not AssetGroup.access_allowed(organization, asset.asset_group_id):
             return {"error": "Access Denied"}, 403
 
         db.session.delete(asset)
@@ -246,8 +244,8 @@ class AssetGroup(BaseModel):
         self.organization = Organization.get(organization) if isinstance(organization, int) else organization
 
     @classmethod
-    def access_allowed(cls, user: User, group_id: str):
-        return cls.query.get(group_id).organization == user.organization
+    def access_allowed(cls, organization: Organization, group_id: str):
+        return cls.query.get(group_id).organization == organization
 
     @classmethod
     def get_default_group(cls):
@@ -271,33 +269,33 @@ class AssetGroup(BaseModel):
         return query.order_by(db.asc(AssetGroup.name)).all(), query.count()
 
     @classmethod
-    def get_all_json(cls, user, search):
-        groups, count = cls.get_by_filter(search, user.organization)
+    def get_all_json(cls, organization: Organization, search):
+        groups, count = cls.get_by_filter(search, organization)
         return [group.to_dict() for group in groups]
 
     @classmethod
-    def delete(cls, user, group_id):
+    def delete(cls, organization: Organization, group_id):
         if group_id == "default":
-            return "Cannot delete default group", 400
-        if not cls.access_allowed(user, group_id):
-            return "Access denied", 403
+            return {"error": "Cannot delete default group"}, 400
+        if not cls.access_allowed(organization, group_id):
+            return {"error": "Access denied"}, 403
 
         group = cls.query.get(group_id)
         db.session.delete(group)
         db.session.commit()
 
-        return "Group deleted", 200
+        return {"message": "Group deleted"}, 200
 
     @classmethod
-    def update(cls, user, group_id, data):
-        if not cls.access_allowed(user, group_id):
-            return "Access denied", 403
+    def update(cls, organization: Organization, group_id, data):
+        if not cls.access_allowed(organization, group_id):
+            return {"error": "Access denied"}, 403
 
         updated_group = cls.from_dict(data)
         if not updated_group:
-            return "Invalid group data", 400
+            return {"error": "Invalid group data"}, 400
         group = cls.query.get(group_id)
         group.name = updated_group.name
         group.description = updated_group.description
         db.session.commit()
-        return "Group updated", 200
+        return {"message": "Group updated"}, 200

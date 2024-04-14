@@ -35,17 +35,17 @@ export function getNewsItem(news_item_id) {
 }
 
 export function getStory(story_id) {
-  return apiService.get(`/assess/stories/${story_id}`)
+  return apiService.get(`/assess/story/${story_id}`)
 }
 
-export function voteNewsItemAggregate(aggregate_id, vote) {
-  return apiService.put(`/assess/stories/${aggregate_id}`, {
+export function voteStory(story_id, vote) {
+  return apiService.put(`/assess/story/${story_id}`, {
     vote: vote
   })
 }
 
-export function updateStoryTags(aggregate_id, tags) {
-  return apiService.patch(`/assess/stories/${aggregate_id}`, {
+export function updateStoryTags(story_id, tags) {
+  return apiService.patch(`/assess/story/${story_id}`, {
     tags: tags
   })
 }
@@ -55,21 +55,21 @@ export function patchNewsItem(news_item_id, data) {
 }
 
 export function patchStory(story_id, data) {
-  return apiService.patch(`/assess/stories/${story_id}`, data)
+  return apiService.patch(`/assess/story/${story_id}`, data)
 }
 
-export function readNewsItemAggregate(aggregate_id, read) {
-  return apiService.put(`/assess/stories/${aggregate_id}`, {
+export function readStory(story_id, read) {
+  return apiService.put(`/assess/story/${story_id}`, {
     read: read
   })
 }
 
-export function deleteNewsItemAggregate(aggregate_id) {
-  return apiService.delete(`/assess/stories/${aggregate_id}`)
+export function deleteStory(story_id) {
+  return apiService.delete(`/assess/story/${story_id}`)
 }
 
-export function importantNewsItemAggregate(aggregate_id, important) {
-  return apiService.put(`/assess/stories/${aggregate_id}`, {
+export function importantStory(story_id, important) {
+  return apiService.put(`/assess/story/${story_id}`, {
     important: important
   })
 }

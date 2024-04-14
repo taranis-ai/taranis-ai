@@ -9,7 +9,7 @@ class TestAssessApi(BaseTest):
         This test queries the OSINTSourceGroupsAssess authenticated.
         It expects a valid data and a valid status-code
         """
-        response = self.assert_get_ok(client, "osint-source-groups", auth_header)
+        response = self.assert_get_ok(client, "osint-source-group-list", auth_header)
         assert response.get_json()["total_count"] == 1
         assert response.get_json()["items"][0]["id"] == "default"
 
@@ -18,7 +18,7 @@ class TestAssessApi(BaseTest):
         This test queries the OSINTSourceGroupsAssess UNauthenticated.
         It expects "not authorized"
         """
-        self.assert_get_failed(client, "osint-source-groups")
+        self.assert_get_failed(client, "osint-source-group-list")
 
     def test_get_OSINTSourcesList_auth(self, client, auth_header):
         """
@@ -97,38 +97,38 @@ class TestAssessApi(BaseTest):
         This test queries the NewsItemAggregates authenticated.
         It expects a valid data and a valid status-code
         """
-        response = client.get("/api/assess/news-item-aggregates", headers=auth_header)
+        response = client.get("/api/assess/stories", headers=auth_header)
         assert response
         assert response.data
         assert response.get_json()["total_count"] == 2
         assert response.content_type == "application/json"
         assert response.status_code == 200
 
-        response = client.get("/api/assess/news-item-aggregates?search=notexistent", headers=auth_header)
+        response = client.get("/api/assess/stories?search=notexistent", headers=auth_header)
         assert response.get_json()["total_count"] == 0
 
-        response = client.get("/api/assess/news-item-aggregates?notexistent=notexist", headers=auth_header)
+        response = client.get("/api/assess/stories?notexistent=notexist", headers=auth_header)
         assert response.get_json()["total_count"] > 0
 
-        response = client.get("/api/assess/news-item-aggregates?read=true", headers=auth_header)
+        response = client.get("/api/assess/stories?read=true", headers=auth_header)
         assert len(response.get_json()["items"]) == 0
 
-        response = client.get("/api/assess/news-item-aggregates?relevant=true", headers=auth_header)
+        response = client.get("/api/assess/stories?relevant=true", headers=auth_header)
         assert len(response.get_json()["items"]) == 0
 
-        response = client.get("/api/assess/news-item-aggregates?in_report=true", headers=auth_header)
+        response = client.get("/api/assess/stories?in_report=true", headers=auth_header)
         assert len(response.get_json()["items"]) == 0
 
-        response = client.get("/api/assess/news-item-aggregates?range=DAY", headers=auth_header)
+        response = client.get("/api/assess/stories?range=DAY", headers=auth_header)
         assert response.get_json()["total_count"] == 0
 
-        response = client.get("/api/assess/news-item-aggregates?sort=DATE_DESC", headers=auth_header)
+        response = client.get("/api/assess/stories?sort=DATE_DESC", headers=auth_header)
         assert response.get_json()["total_count"] > 0
 
-        response = client.get("/api/assess/news-item-aggregates?offset=1", headers=auth_header)
+        response = client.get("/api/assess/stories?offset=1", headers=auth_header)
         assert len(response.get_json()["items"]) == 1
 
-        response = client.get("/api/assess/news-item-aggregates?limit=1", headers=auth_header)
+        response = client.get("/api/assess/stories?limit=1", headers=auth_header)
         assert len(response.get_json()["items"]) == 1
 
     def test_get_NewsItem_unauth(self, client):

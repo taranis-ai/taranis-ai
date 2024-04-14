@@ -2,6 +2,8 @@ from typing import Any, TypeVar, Type
 from datetime import datetime
 from enum import Enum
 import json
+from sqlalchemy.sql import Select
+from sqlalchemy import func
 
 from core.managers.db_manager import db
 
@@ -80,11 +82,50 @@ class BaseModel(db.Model):
         return [obj.to_dict() for obj in objects]
 
     @classmethod
-    def get(cls: Type[T], id) -> T | None:
-        if (isinstance(id, int) and (id < 0 or id > 2**63 - 1)) or id is None:
+    def get(cls: Type[T], item_id) -> T | None:
+        if (isinstance(item_id, int) and (item_id < 0 or item_id > 2**63 - 1)) or item_id is None:
             return None
-        return db.session.get(cls, id)
+        return db.session.get(cls, item_id)
 
     @classmethod
     def get_all(cls: Type[T]) -> list[T] | None:
         return db.session.execute(db.select(cls)).scalars().all()
+
+    @classmethod
+    def get_for_api(cls, item_id) -> tuple[dict[str, Any], int]:
+        if item := cls.get(item_id):
+            return item.to_dict(), 200
+        return {"error": f"{cls.__name__} {item_id} not found"}, 404
+
+    @classmethod
+    def get_filter_query(cls: Type[T], search=None) -> Select:
+        query = db.select(cls)
+
+        if search:
+            query = query.where(db.or_(*[column.ilike(f"%{search}%") for column in cls.__table__.columns]))
+
+        return query
+
+    @classmethod
+    def get_filtered(cls: Type[T], query: Select) -> list[T] | None:
+        return db.session.execute(query).scalars().all()
+
+    @classmethod
+    def get_by_filter(cls: Type[T], search=None) -> list[T] | None:
+        return cls.get_filtered(cls.get_filter_query(search))
+
+    @classmethod
+    def get_all_for_api(cls: Type[T], search=None, with_count: bool = False) -> tuple[dict[str, Any], int]:
+        query = cls.get_filter_query(search)
+        items = cls.get_filtered(query)
+        if not items:
+            return {"items": []}, 404
+        if with_count:
+            count = cls.get_filtered_count(query)
+            return {"count": count, "items": cls.to_list(items)}, 200
+        return {"items": cls.to_list(items)}, 200
+
+    @classmethod
+    def get_filtered_count(cls: Type[T], query: Select) -> int:
+        count_query = db.select(func.count()).select_from(query).order_by(None)
+        return db.session.execute(count_query).scalar() or 0

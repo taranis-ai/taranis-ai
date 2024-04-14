@@ -1,4 +1,3 @@
-from sqlalchemy import or_
 from werkzeug.security import generate_password_hash
 from typing import Any
 
@@ -42,10 +41,6 @@ class User(BaseModel):
         return cls.query.filter_by(username=username).first()
 
     @classmethod
-    def find_by_id(cls, user_id) -> "User":
-        return cls.query.get(user_id)
-
-    @classmethod
     def find_by_role(cls, role_id: int) -> "User":
         return cls.query.join(Role, Role.id == role_id).all()
 
@@ -56,29 +51,6 @@ class User(BaseModel):
     @classmethod
     def get_all(cls):
         return cls.query.order_by(db.asc(User.name)).all()
-
-    @classmethod
-    def get_by_filter(cls, search, organization):
-        query = cls.query
-
-        if organization:
-            query = query.filter(User.organization_id == organization.id)
-
-        if search is not None:
-            query = query.filter(
-                or_(
-                    User.name.ilike(f"%{search}%"),
-                    User.username.ilike(f"%{search}%"),
-                )
-            )
-
-        return query.order_by(db.asc(User.name)).all(), query.count()
-
-    @classmethod
-    def get_all_json(cls, search=None):
-        users, count = cls.get_by_filter(search, None)
-        items = [user.to_dict() for user in users]
-        return {"total_count": count, "items": items}
 
     def to_dict(self):
         data = {c.name: getattr(self, c.name) for c in self.__table__.columns if c.name != "password"}

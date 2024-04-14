@@ -1,10 +1,11 @@
-from flask_restx import Resource, Namespace, Api
+from flask import Flask
+from flask.views import MethodView
 
 from core.managers.auth_manager import auth_required
 from core.model.news_item_tag import NewsItemTag
 
 
-class AdminSettings(Resource):
+class AdminSettings(MethodView):
     @auth_required("ADMIN_OPERATIONS")
     def get(self):
         return {}, 200
@@ -14,31 +15,28 @@ class AdminSettings(Resource):
         return {"error": "TODO IMPLEMENT"}, 501
 
 
-class DeleteTags(Resource):
+class DeleteTags(MethodView):
     @auth_required("ADMIN_OPERATIONS")
     def post(self):
         NewsItemTag.delete_all_tags()
         return {"message": "deleted all tags"}, 200
 
 
-class UngroupStories(Resource):
+class UngroupStories(MethodView):
     @auth_required("ADMIN_OPERATIONS")
     def post(self):
         return {"error": "TODO IMPLEMENT"}, 501
 
 
-class ResetDatabase(Resource):
+class ResetDatabase(MethodView):
     @auth_required("ADMIN_OPERATIONS")
     def post(self):
         return {"error": "TODO IMPLEMENT"}, 501
 
 
-def initialize(api: Api):
-    namespace = Namespace("admin", description="Admin operations")
-
-    namespace.add_resource(AdminSettings, "/")
-    namespace.add_resource(DeleteTags, "/delete-tags")
-    namespace.add_resource(UngroupStories, "/ungroup-stories")
-    namespace.add_resource(ResetDatabase, "/reset-database")
-
-    api.add_namespace(namespace, path="/admin")
+def initialize(app: Flask):
+    base_route = "/api/admin"
+    app.add_url_rule(f"{base_route}/", view_func=AdminSettings.as_view("admin_settings"))
+    app.add_url_rule(f"{base_route}/delete-tags", view_func=DeleteTags.as_view("delete_tags"))
+    app.add_url_rule(f"{base_route}/ungroup-stories", view_func=UngroupStories.as_view("ungroup_all_stories"))
+    app.add_url_rule(f"{base_route}/reset-database", view_func=ResetDatabase.as_view("reset_database"))

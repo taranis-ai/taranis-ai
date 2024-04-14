@@ -18,7 +18,6 @@ dependencies = [
     "Flask-Cors",
     "Flask-JWT-Extended",
     "Flask-Migrate",
-    "flask-restx",
     "Flask-SQLAlchemy",
     "flask_caching",
     "click",

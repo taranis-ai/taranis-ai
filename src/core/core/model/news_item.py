@@ -640,7 +640,7 @@ class NewsItemAggregate(BaseModel):
     def update(cls, id, data, user=None):
         aggregate = cls.get(id)
         if not aggregate:
-            return {"error": "Story not found", "id": id}, 404
+            return {"error": "Story not found", "id": f"{id}"}, 404
 
         if "vote" in data and user:
             aggregate.vote(data["vote"], user.id)
@@ -672,7 +672,7 @@ class NewsItemAggregate(BaseModel):
 
         aggregate.update_status()
         db.session.commit()
-        return {"message": "Story updated Successful", "id": id}, 200
+        return {"message": "Story updated Successful", "id": f"{id}"}, 200
 
     def update_attributes(self, attributes):
         self.attributes = []
@@ -898,7 +898,7 @@ class NewsItemAggregate(BaseModel):
     def ungroup_multiple_stories(cls, story_ids: list[int], user: User | None = None):
         results = [cls.ungroup_story(story_id, user) for story_id in story_ids]
         if any(result[1] == 500 for result in results):
-            return {"error": "grouping failed"}, 500
+            return {"error": "grouping failed"}, 400
         return {"message": "success"}, 200
 
     @classmethod
@@ -1012,14 +1012,14 @@ class NewsItemAggregateSearchIndex(BaseModel):
 
     @classmethod
     def remove(cls, aggregate: "NewsItemAggregate"):
-        search_index = cls.query.filter_by(news_item_aggregate_id=aggregate.id).first()
+        search_index = db.session.execute(db.select(cls).filter_by(news_item_aggregate_id=aggregate.id)).scalar_one_or_none()
         if search_index is not None:
             db.session.delete(search_index)
             db.session.commit()
 
     @classmethod
     def prepare(cls, aggregate: "NewsItemAggregate"):
-        search_index = cls.query.filter_by(news_item_aggregate_id=aggregate.id).first()
+        search_index = db.session.execute(db.select(cls).filter_by(news_item_aggregate_id=aggregate.id)).scalar_one_or_none()
         if search_index is None:
             search_index = NewsItemAggregateSearchIndex(aggregate.id)
             db.session.add(search_index)
