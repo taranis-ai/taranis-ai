@@ -68,7 +68,7 @@
 </template>
 
 <script>
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import { useUserStore } from '@/stores/UserStore'
 import { storeToRefs } from 'pinia'
 import { onMounted } from 'vue'
@@ -81,10 +81,6 @@ export default {
     HotKeysLegend
   },
   setup() {
-    const pressKeyVisible = ref(false)
-    const hotkeyAlias = ref('')
-    const shortcuts = ref([])
-
     const userStore = useUserStore()
 
     const disableHotkeys = true
@@ -111,7 +107,7 @@ export default {
           compact_view: compact_view.value,
           show_charts: show_charts.value,
           dark_theme: dark_theme.value,
-          hotkeys: shortcuts.value,
+          hotkeys: hotkeys.value,
           language: language.value
         })
         .then(() => {
@@ -122,55 +118,12 @@ export default {
         })
     }
 
-    const pressKeyDialog = (event) => {
-      window.addEventListener('keydown', pressKey, false)
-
-      pressKeyVisible.value = true
-      hotkeyAlias.value = event
-    }
-
-    const pressKey = (event) => {
-      const key = event
-      const hotkeyIndex = hotkeys.value
-        .map(function (e) {
-          return e.alias
-        })
-        .indexOf(hotkeyAlias.value)
-
-      window.removeEventListener('keydown', pressKey)
-
-      pressKeyVisible.value = false
-
-      // check doubles and clear
-      // TODO: FIX
-      shortcuts.value.forEach((doubleKey, i) => {
-        if (doubleKey.key_code === key.keyCode && i !== hotkeyIndex) {
-          shortcuts.value[i].key_code = 0
-          shortcuts.value[i].key = 'undefined'
-        }
-      })
-
-      // assigned new key
-      hotkeys.value[hotkeyIndex].key_code = key.keyCode
-      hotkeys.value[hotkeyIndex].key = key.code
-    }
-
     onMounted(() => {
       userStore.loadUserProfile()
-      shortcuts.value = hotkeys.value.map((shortcut) => {
-        return {
-          alias: shortcut.alias,
-          key: shortcut.key || null,
-          key_code: shortcut.key_code || null
-        }
-      })
     })
 
     return {
-      pressKeyVisible,
       disableHotkeys,
-      hotkeyAlias,
-      shortcuts,
       language,
       locale_descriptions,
       dark_theme,
@@ -178,9 +131,7 @@ export default {
       compact_view,
       show_charts,
       hotkeys,
-      save,
-      pressKeyDialog,
-      pressKey
+      save
     }
   }
 }

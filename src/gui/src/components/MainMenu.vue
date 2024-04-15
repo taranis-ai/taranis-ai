@@ -78,6 +78,7 @@
         </div>
         <user-menu />
       </v-toolbar>
+      <user-menu v-if="smAndDown" />
     </template>
   </v-app-bar>
 </template>

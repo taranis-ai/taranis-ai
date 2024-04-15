@@ -324,11 +324,6 @@ class NewsItemVote(BaseModel):
         return cls.query.filter_by(item_id=item_id, user_id=user_id).first()
 
     @classmethod
-    def delete_all(cls, item_id):
-        cls.query.filter_by(item_id=item_id).delete()
-        db.session.commit()
-
-    @classmethod
     def get_user_vote(cls, item_id, user_id):
         if vote := cls.get_by_filter(item_id, user_id):
             return {"like": vote.like, "dislike": vote.dislike}
@@ -868,7 +863,7 @@ class NewsItemAggregate(BaseModel):
     @classmethod
     def group_aggregate(cls, aggregate_ids: list[int], user: User | None = None):
         try:
-            if len(aggregate_ids) < 2 or any(type(a_id) is not int for a_id in aggregate_ids):
+            if len(aggregate_ids) < 2 or any(not isinstance(a_id, int) for a_id in aggregate_ids):
                 return {"error": "at least two aggregate ids needed"}, 404
             first_aggregate = NewsItemAggregate.get(aggregate_ids.pop(0))
             if not first_aggregate:

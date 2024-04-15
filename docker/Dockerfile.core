@@ -30,6 +30,7 @@ RUN install -d -o user -g user /app/data
 
 COPY --from=builder --chown=user:user /app/.venv /app/.venv
 COPY --chown=user:user ./src/core/. /app/
+COPY --chown=user:user ./docker/start-granian.sh /app/
 
 USER user
 
@@ -43,10 +44,14 @@ ENV GRANIAN_PORT=8080
 ENV GRANIAN_HOST=0.0.0.0
 ENV GRANIAN_INTERFACE=wsgi
 ENV GRANIAN_APP=run
+ENV GRANIAN_THREADS=2
+ENV GRANIAN_WORKERS=2
+ENV GRANIAN_BLOCKING_THREADS=4
+
 
 VOLUME ["/app/data"]
 EXPOSE 8080
 
 HEALTHCHECK --interval=60s --timeout=3s --retries=5 CMD curl --fail http://localhost:8080/api/isalive || exit 1
 
-CMD ["granian", "run"]
+CMD ["/start-granian.sh"]

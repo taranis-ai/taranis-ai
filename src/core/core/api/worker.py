@@ -214,8 +214,7 @@ class Tags(MethodView):
 class DropTags(MethodView):
     @api_key_required
     def post(self):
-        NewsItemTag.delete_all_tags()
-        return {"message": "deleted all tags"}, 200
+        return NewsItemTag.delete_all()
 
 
 class BotInfo(MethodView):

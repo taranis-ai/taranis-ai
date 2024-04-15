@@ -86,7 +86,6 @@ class TestAssessApi(BaseTest):
         }
         before = len(news_items_data)
         response = client.post("/api/assess/news-items", json=news_item)
-        assert response
         assert response.content_type == "application/json"
         assert response.get_json()["error"] == "not authorized"
         assert response.status_code == 401

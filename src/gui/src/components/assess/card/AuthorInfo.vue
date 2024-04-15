@@ -1,6 +1,6 @@
 <template>
   <tr v-if="author">
-    <td style="max-width: 110px" class="py-0">
+    <td v-if="!compactView" style="max-width: 110px" class="py-0">
       <strong>{{ $t('assess.author') }}:</strong>
     </td>
     <td class="py-0">
@@ -18,6 +18,10 @@ export default {
     newsItemData: {
       type: Object,
       required: true
+    },
+    compactView: {
+      type: Boolean,
+      default: false
     }
   },
   setup(props) {

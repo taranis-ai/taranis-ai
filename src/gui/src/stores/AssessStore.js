@@ -134,7 +134,7 @@ export const useAssessStore = defineStore(
         stories.value.items.push(updated_item)
       }
     }
-    async function voteOnNewsItemAggregate(id, vote) {
+    async function voteOnStory(id, vote) {
       try {
         await voteStory(id, vote)
       } catch (error) {
@@ -289,7 +289,7 @@ export const useAssessStore = defineStore(
       getStoryByID,
       removeStoryByID,
       updateStoryByID,
-      voteOnNewsItemAggregate,
+      voteOnStory,
       updateTags,
       updateOSINTSources,
       updateOSINTSourceGroupsList,

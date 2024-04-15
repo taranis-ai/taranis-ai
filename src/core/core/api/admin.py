@@ -18,8 +18,7 @@ class AdminSettings(MethodView):
 class DeleteTags(MethodView):
     @auth_required("ADMIN_OPERATIONS")
     def post(self):
-        NewsItemTag.delete_all_tags()
-        return {"message": "deleted all tags"}, 200
+        return NewsItemTag.delete_all()
 
 
 class UngroupStories(MethodView):

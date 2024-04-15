@@ -3,7 +3,7 @@ from datetime import datetime
 from enum import Enum
 import json
 from sqlalchemy.sql import Select
-from sqlalchemy import func
+import sqlalchemy
 
 from core.managers.db_manager import db
 
@@ -45,6 +45,12 @@ class BaseModel(db.Model):
 
         db.session.commit()
         return result
+
+    @classmethod
+    def delete_all(cls: Type[T]) -> tuple[dict[str, Any], int]:
+        sqlalchemy.delete(cls)
+        db.session.commit()
+        return {"message": f"All {cls.__name__} deleted"}, 200
 
     @classmethod
     def from_dict(cls: Type[T], data: dict[str, Any]) -> T:
@@ -127,5 +133,5 @@ class BaseModel(db.Model):
 
     @classmethod
     def get_filtered_count(cls: Type[T], query: Select) -> int:
-        count_query = db.select(func.count()).select_from(query).order_by(None)
+        count_query = db.select(sqlalchemy.func.count()).select_from(query).order_by(None)
         return db.session.execute(count_query).scalar() or 0
