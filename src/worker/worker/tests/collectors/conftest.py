@@ -42,10 +42,10 @@ def news_item_upload_mock(requests_mock):
 
 @pytest.fixture
 def web_collector_url_mock(requests_mock):
-    from worker.tests.testdata import head_request
+    from worker.tests.testdata import web_collector_url, head_request
 
-    requests_mock.head("https://raw.example.com/testweb.html", json=head_request)
-    requests_mock.get("https://raw.example.com/testweb.html", text=file_loader("testweb.html"), headers={"Content-Type": "text/html"})
+    requests_mock.head(web_collector_url, json=head_request)
+    requests_mock.get(web_collector_url, text=file_loader("testweb.html"), headers={"Content-Type": "text/html"})
 
 
 @pytest.fixture
