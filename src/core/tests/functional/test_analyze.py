@@ -69,13 +69,12 @@ class TestAnalyzeApi(BaseTest):
 
         assert "Successfully updated Report Item" in response_data.get("message"), "The update operation should return a success message."
 
-
-def test_delete_report(self, client, auth_header, cleanup_report_item):
-    """
-    This test sends a DELETE request to the /api/analyze/report-items/<report_id> endpoint to remove a report.
-    It expects a successful deletion indicated by a 204 No Content status code
-    """
-    report_id = cleanup_report_item["id"]
-    response = self.assert_delete_ok(client, f"report-items/{report_id}", auth_header=auth_header)
-    assert "message" in response.text
-    assert response.json["message"] == "Report successfully deleted"
+    def test_delete_report(self, client, auth_header, cleanup_report_item):
+        """
+        This test sends a DELETE request to the /api/analyze/report-items/<report_id> endpoint to remove a report.
+        It expects a successful deletion indicated by a 204 No Content status code
+        """
+        report_id = cleanup_report_item["id"]
+        response = self.assert_delete_ok(client, f"report-items/{report_id}", auth_header=auth_header)
+        assert "message" in response.text
+        assert response.json["message"] == "Report successfully deleted"
