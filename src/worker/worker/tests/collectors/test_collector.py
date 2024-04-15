@@ -1,10 +1,10 @@
 import pytest
 
-from testdata import news_items
+from worker.tests.testdata import news_items
 
 
 def test_rss_collector(rss_collector_mock, rss_collector):
-    from testdata import rss_collector_source_data
+    from worker.tests.testdata import rss_collector_source_data
 
     result = rss_collector.collect(rss_collector_source_data)
 
@@ -12,7 +12,7 @@ def test_rss_collector(rss_collector_mock, rss_collector):
 
 
 def test_rss_collector_digest_splitting(rss_collector_mock, rss_collector):
-    from testdata import rss_collector_source_data
+    from worker.tests.testdata import rss_collector_source_data
 
     rss_collector_source_data["parameters"]["DIGEST_SPLITTING"] = "true"
     rss_collector_source_data["parameters"]["DIGEST_SPLITTING_LIMIT"] = 2
@@ -22,7 +22,7 @@ def test_rss_collector_digest_splitting(rss_collector_mock, rss_collector):
 
 
 def test_simple_web_collector_basic(simple_web_collector_mock, simple_web_collector):
-    from testdata import web_collector_source_data
+    from worker.tests.testdata import web_collector_source_data
 
     result = simple_web_collector.collect(web_collector_source_data)
 
@@ -30,7 +30,7 @@ def test_simple_web_collector_basic(simple_web_collector_mock, simple_web_collec
 
 
 def test_simple_web_collector_xpath(simple_web_collector_mock, simple_web_collector):
-    from testdata import web_collector_source_data, web_collector_source_xpath
+    from worker.tests.testdata import web_collector_source_data, web_collector_source_xpath
 
     web_collector_source_data["parameters"]["XPATH"] = web_collector_source_xpath
     result = simple_web_collector.collect(web_collector_source_data)
@@ -56,8 +56,8 @@ def test_rt_collector_ticket_transaction(rt_mock, rt_collector):
     assert result == "1"
 
 
-def test_simple_web_collector_collect(simple_web_collector):
-    from testdata import web_collector_url, web_collector_result_title, web_collector_result_content
+def test_simple_web_collector_collect(simple_web_collector_mock, simple_web_collector):
+    from worker.tests.testdata import web_collector_url, web_collector_result_title, web_collector_result_content
 
     result_item = simple_web_collector.news_item_from_article(web_collector_url, "test_source")
 
@@ -68,7 +68,7 @@ def test_simple_web_collector_collect(simple_web_collector):
 
 @pytest.mark.parametrize("input_news_items", [news_items, news_items[2:], news_items[:: len(news_items) - 1], [news_items[-1]]])
 def test_filter_by_word_list_empty_wordlist(rss_collector, input_news_items):
-    from testdata import source_empty_wordlist
+    from worker.tests.testdata import source_empty_wordlist
 
     emptylist_results = rss_collector.filter_by_word_list(input_news_items, source_empty_wordlist)
 
@@ -80,7 +80,7 @@ def test_filter_by_word_list_empty_wordlist(rss_collector, input_news_items):
     [(news_items, news_items[:2]), (news_items[2:], []), (news_items[:: len(news_items) - 1], [news_items[0]]), ([news_items[-1]], [])],
 )
 def test_filter_by_word_list_include_list(rss_collector, input_news_items, expected_news_items):
-    from testdata import source_include_list
+    from worker.tests.testdata import source_include_list
 
     include_list_results = rss_collector.filter_by_word_list(input_news_items, source_include_list)
 
@@ -97,7 +97,7 @@ def test_filter_by_word_list_include_list(rss_collector, input_news_items, expec
     ],
 )
 def test_filter_by_word_list_exclude_list(rss_collector, input_news_items, expected_news_items):
-    from testdata import source_exclude_list
+    from worker.tests.testdata import source_exclude_list
 
     exclude_list_results = rss_collector.filter_by_word_list(input_news_items, source_exclude_list)
 
@@ -109,7 +109,7 @@ def test_filter_by_word_list_exclude_list(rss_collector, input_news_items, expec
     [(news_items, news_items[:2]), (news_items[2:], []), (news_items[:: len(news_items) - 1], [news_items[0]]), ([news_items[-1]], [])],
 )
 def test_filter_by_word_list_include_multiple_list(rss_collector, input_news_items, expected_news_items):
-    from testdata import source_include_multiple_list
+    from worker.tests.testdata import source_include_multiple_list
 
     include_list_results = rss_collector.filter_by_word_list(input_news_items, source_include_multiple_list)
 
@@ -126,7 +126,7 @@ def test_filter_by_word_list_include_multiple_list(rss_collector, input_news_ite
     ],
 )
 def test_filter_by_word_list_exclude_multiple_list(rss_collector, input_news_items, expected_news_items):
-    from testdata import source_exclude_multiple_list
+    from worker.tests.testdata import source_exclude_multiple_list
 
     exclude_list_results = rss_collector.filter_by_word_list(input_news_items, source_exclude_multiple_list)
 
@@ -138,7 +138,7 @@ def test_filter_by_word_list_exclude_multiple_list(rss_collector, input_news_ite
     [(news_items, [news_items[0]]), (news_items[2:], []), (news_items[:: len(news_items) - 1], [news_items[0]]), ([news_items[-1]], [])],
 )
 def test_filter_by_word_list_include_exclude_list(rss_collector, input_news_items, expected_news_items):
-    from testdata import source_include_list_exclude_list
+    from worker.tests.testdata import source_include_list_exclude_list
 
     include_exclude_list_results = rss_collector.filter_by_word_list(input_news_items, source_include_list_exclude_list)
 
@@ -150,7 +150,7 @@ def test_filter_by_word_list_include_exclude_list(rss_collector, input_news_item
     [(news_items, [news_items[0]]), (news_items[2:], []), (news_items[:: len(news_items) - 1], [news_items[0]]), ([news_items[-1]], [])],
 )
 def test_filter_by_word_list_include_exclude_multiple_lists(rss_collector, input_news_items, expected_news_items):
-    from testdata import source_include_multiple_list_exclude_multiple_list
+    from worker.tests.testdata import source_include_multiple_list_exclude_multiple_list
 
     include_exclude_list_results = rss_collector.filter_by_word_list(input_news_items, source_include_multiple_list_exclude_multiple_list)
 

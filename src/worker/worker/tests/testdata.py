@@ -411,10 +411,10 @@ source_exclude_multiple_list = {
     "parameters": {"FEED_URL": ""},
 }
 
-web_collector_url = "https://raw.githubusercontent.com/taranis-ai/taranis-ai/master/src/worker/worker/tests/collectors/testweb.html"
+web_collector_url = "https://raw.example.com/testweb.html"
 web_collector_result_content = "In an era where digital security is paramount, the role of National Computer Emergency Response Teams (CERTs) has never been more critical."
-web_collector_fav_icon_url = "https://raw.githubusercontent.com/favicon.ico"
-web_collector_source_data = {"id": 1, "parameters": {"WEB_URL": f"{web_collector_url}"}}
+web_collector_fav_icon_url = "https://raw.example.com/favicon.ico"
+web_collector_source_data = {"id": 1, "parameters": {"WEB_URL": "https://raw.example.com/testweb.html"}}
 web_collector_source_xpath = "/html/body/div/div[3]"
 web_collector_result_title = "National CERT Importance"
 
@@ -426,3 +426,29 @@ rss_collector_targets = [
     "https://greentechnews.org/blog/2024/2/green-tech-energy-sector",
     "https://space-eu.org/blog/2024/3/european-space-exploration",
 ]
+
+head_request = {
+    "Connection": "keep-alive",
+    "Content-Length": "1111",
+    "Server": "example.com",
+    "Content-Type": "text/html; charset=utf-8",
+    "Last-Modified": "Mon, 1 Jan 2000 12:00:00 GMT",
+    "Access-Control-Allow-Origin": "*",
+    "Strict-Transport-Security": "max-age=11111111",
+    "ETag": 'W/"11111111-1111"',
+    "expires": "Mon, 1 Jan 2000 12:00:00 GMT",
+    "Cache-Control": "max-age=111",
+    "Content-Encoding": "gzip",
+    "x-proxy-cache": "MISS",
+    "X-Example-Request-Id": "1111:111111:1111111:1111111:11111111",
+    "Accept-Ranges": "bytes",
+    "Date": "Mon, 1 Jan 2000 00:00:00 GMT",
+    "Via": "1.1 varnish",
+    "Age": "1",
+    "X-Served-By": "cache-vie1111-VIE",
+    "X-Cache": "HIT",
+    "X-Cache-Hits": "1",
+    "X-Timer": "S1111111111.111111,VS0,VE2",
+    "Vary": "Accept-Encoding",
+    "X-Fastly-Request-ID": "aa11111111111111111111111111111111111111",
+}

@@ -41,13 +41,21 @@ def news_item_upload_mock(requests_mock):
 
 
 @pytest.fixture
+def web_collector_url_mock(requests_mock):
+    from worker.tests.testdata import web_collector_url, head_request
+
+    requests_mock.head(web_collector_url, json=head_request)
+    requests_mock.get(web_collector_url, text=file_loader("testweb.html"), headers={"Content-Type": "text/html"})
+
+
+@pytest.fixture
 def collectors_mock(osint_source_update_mock, news_item_upload_mock):
     pass
 
 
 @pytest.fixture
 def rss_collector_mock(requests_mock, collectors_mock):
-    from testdata import rss_collector_url, rss_collector_fav_icon_url, rss_collector_targets
+    from worker.tests.testdata import rss_collector_url, rss_collector_fav_icon_url, rss_collector_targets
 
     requests_mock.get(rss_collector_targets[0], json={})
     requests_mock.get(rss_collector_targets[1], json={})
@@ -57,12 +65,10 @@ def rss_collector_mock(requests_mock, collectors_mock):
 
 
 @pytest.fixture
-def simple_web_collector_mock(requests_mock, collectors_mock):
-    from testdata import web_collector_url, web_collector_fav_icon_url
+def simple_web_collector_mock(requests_mock, collectors_mock, web_collector_url_mock):
+    from worker.tests.testdata import web_collector_fav_icon_url
 
-    requests_mock.head(web_collector_url, json={})
     requests_mock.get(web_collector_fav_icon_url, json={})
-    requests_mock.get(web_collector_url, text=file_loader("testweb.html"), headers={"Content-Type": "text/html"})
 
 
 @pytest.fixture
