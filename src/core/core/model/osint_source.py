@@ -118,7 +118,7 @@ class OSINTSource(BaseModel):
 
     def get_schedule(self):
         refresh_interval = ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL")
-        return refresh_interval or "120"
+        return refresh_interval or "480"
 
     def to_task_dict(self):
         return {

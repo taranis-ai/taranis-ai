@@ -231,16 +231,16 @@ export const useAssessStore = defineStore(
       storySelection.value = []
     }
     function markSelectionAsRead() {
-      console.debug('Mark as Read: ', storySelection.value)
-
       storySelection.value.forEach((id) => {
         markStoryAsRead(id)
       })
+      clearStorySelection()
     }
     function markSelectionAsImportant() {
       storySelection.value.forEach((id) => {
         markStoryAsImportant(id)
       })
+      clearStorySelection()
     }
     function sseNewsItemsUpdated() {
       console.debug('Triggerd News items update')
@@ -249,13 +249,32 @@ export const useAssessStore = defineStore(
     function markStoryAsRead(id) {
       const item = stories.value.items.find((item) => item.id === id)
       item.read = !item.read
+      filterStories()
       readStory(id, item.read)
     }
 
     function markStoryAsImportant(id) {
       const item = stories.value.items.find((item) => item.id === id)
       item.important = !item.important
+      filterStories()
       importantStory(id, item.important)
+    }
+
+    function filterStories() {
+      const filter = useFilterStore()
+      const {storyFilter} = filter
+      stories.value.items = stories.value.items.filter((item) => {
+        if (storyFilter.read === 'true' && !item.read || storyFilter.read === 'false' && item.read) {
+          return false
+        }
+        if (storyFilter.important === 'true' && !item.important || storyFilter.important === 'false' && item.important) {
+          return false
+        }
+        return true
+      })
+      if (stories.value.items.length === 0 && stories.value.total_count > 0) {
+        updateStories()
+      }
     }
 
     function reset() {

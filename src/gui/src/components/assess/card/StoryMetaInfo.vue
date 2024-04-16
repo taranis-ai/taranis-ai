@@ -1,5 +1,4 @@
 <template>
-  <!-- <div> -->
   <table class="story-meta-info">
     <tr>
       <td v-if="!compactView">
@@ -61,10 +60,6 @@
       v-if="detailView && story.news_items.length === 1"
       :news-item-data="story.news_items[0].news_item_data"
     />
-    <source-info
-      v-if="detailView && story.news_items.length < 2"
-      :news-item-data="story.news_items[0].news_item_data"
-    />
     <v-dialog v-model="showTagDialog" width="auto">
       <popup-edit-tags
         :tags="story.tags"
@@ -73,7 +68,6 @@
       />
     </v-dialog>
   </table>
-  <!-- </div> -->
 </template>
 
 <script>
@@ -85,7 +79,6 @@ import { computed, ref } from 'vue'
 import { useDisplay } from 'vuetify'
 import { storeToRefs } from 'pinia'
 import ArticleInfo from '@/components/assess/card/ArticleInfo.vue'
-import SourceInfo from '@/components/assess/card/SourceInfo.vue'
 import AuthorInfo from '@/components/assess/card/AuthorInfo.vue'
 import PopupEditTags from '@/components/popups/PopupEditTags.vue'
 import StoryVotes from '@/components/assess/card/StoryVotes.vue'
@@ -95,7 +88,6 @@ export default {
   components: {
     PopupEditTags,
     ArticleInfo,
-    SourceInfo,
     AuthorInfo,
     StoryVotes,
     TagList

@@ -12,6 +12,26 @@
       <v-row class="pl-2">
         <v-col class="d-flex">
           <v-row class="py-1 px-1">
+
+            <v-col cols="12" class="meta-info-col" :lg="meta_cols">
+              <story-meta-info
+                :story="story"
+                :detail-view="openSummary"
+                :report-view="reportView"
+              />
+              <WeekChart
+                v-if="openSummary"
+                class="mt-5"
+                :chart-height="180"
+                :story="story"
+              />
+            </v-col>
+            <v-col v-if="!openSummary && showWeekChart" cols="2">
+              <WeekChart
+                :chart-height="detailView ? 300 : 100"
+                :story="story"
+              />
+            </v-col>
             <v-col cols="12" :lg="content_cols">
               <v-container class="d-flex pa-0">
                 <div
@@ -61,25 +81,6 @@
               />
             </v-col>
 
-            <v-col cols="12" class="meta-info-col" :lg="meta_cols">
-              <story-meta-info
-                :story="story"
-                :detail-view="openSummary"
-                :report-view="reportView"
-              />
-              <WeekChart
-                v-if="openSummary"
-                class="mt-5"
-                :chart-height="180"
-                :story="story"
-              />
-            </v-col>
-            <v-col v-if="!openSummary && showWeekChart" cols="2">
-              <WeekChart
-                :chart-height="detailView ? 300 : 100"
-                :story="story"
-              />
-            </v-col>
           </v-row>
         </v-col>
         <v-col class="action-bar mr-2">
@@ -175,7 +176,7 @@ export default {
       if (props.reportView) {
         return 6
       }
-      return 8
+      return 9
     })
 
     const meta_cols = computed(() => {

@@ -47,9 +47,7 @@ class QueueManager:
 
         word_lists = WordList.get_all_empty()
         for word_list in word_lists:
-            self.celery.send_task(
-                "gather_word_list", args=[word_list.id], task_id=f"gather_word_list_{word_list.id}", bind=True, queue="misc"
-            )
+            self.celery.send_task("gather_word_list", args=[word_list.id], task_id=f"gather_word_list_{word_list.id}", queue="misc")
 
     def get_queued_tasks(self):
         if self.error:

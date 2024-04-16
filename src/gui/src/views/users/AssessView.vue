@@ -1,7 +1,7 @@
 <template>
   <div class="w-100">
     <v-infinite-scroll
-      v-if="stories.items.length > 0 && !pagination"
+      v-if="stories.total_count > 0 && !pagination"
       empty-text="All items loaded"
       color="primary"
       @load="displayMore"
@@ -21,7 +21,7 @@
       </template>
     </v-infinite-scroll>
 
-    <v-container v-else-if="stories.items.length > 0 && pagination" fluid>
+    <v-container v-else-if="stories.total_count > 0 && pagination" fluid>
       <template v-for="item in stories.items" :key="item">
         <card-story :story="item" @refresh="refresh(item.id)" />
       </template>
@@ -34,7 +34,7 @@
       </v-row>
     </v-container>
     <v-row
-      v-if="stories.items.length == 0"
+      v-if="stories.total_count == 0"
       class="align-center justify-center mt-5"
     >
       <v-col cols="12">

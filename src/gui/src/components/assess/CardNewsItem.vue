@@ -13,6 +13,9 @@
       <v-row class="pl-2">
         <v-col class="d-flex">
           <v-row class="py-1 px-1">
+            <v-col cols="12" class="meta-info-col mr-n1" :lg="meta_cols">
+              <news-meta-info :news-item="newsItem" />
+            </v-col>
             <v-col cols="12" :lg="content_cols" class="mr-1">
               <v-container class="d-flex pa-0">
                 <h2
@@ -28,9 +31,6 @@
               />
             </v-col>
 
-            <v-col cols="12" class="meta-info-col mr-n1" :lg="meta_cols">
-              <news-meta-info :news-item="newsItem" />
-            </v-col>
           </v-row>
         </v-col>
         <v-col class="action-bar mr-2">
