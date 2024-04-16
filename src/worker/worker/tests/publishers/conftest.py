@@ -45,9 +45,19 @@ def smtp_mock():
 
 
 @yield_fixture()
-def sftp_mock():
+def sftp_mock(request):
+    from worker.tests.publishers.publishers_data import product_text
+    import os
+    import glob
+
     users = {
         "user": {"type": "password", "password": "password"},
     }
     with mockssh.Server(users) as s:
         yield s
+
+    def teardown():
+        for product in glob.glob(f"{product_text['title']}*"):
+            os.remove(product)
+
+    request.addfinalizer(teardown)

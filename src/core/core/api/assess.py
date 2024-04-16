@@ -103,6 +103,8 @@ class Stories(MethodView):
                 "timefrom",
                 "timeto",
                 "no_count",
+                "include_attrs",
+                "exclude_attrs",
             ]
             filter_args: dict[str, str | int | list] = {k: v for k, v in request.args.items() if k in filter_keys}
             filter_list_keys = ["source", "group"]

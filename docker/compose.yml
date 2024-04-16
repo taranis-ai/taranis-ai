@@ -105,6 +105,7 @@ services:
       QUEUE_BROKER_HOST: "rabbitmq"
       QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
       QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-taranis}"
+      WORKER_TYPES: '[]'
       DEBUG: "${DEBUG:-False}"
     logging:
       driver: "json-file"
@@ -112,7 +113,7 @@ services:
         max-size: "200k"
         max-file: "10"
 
-  worker:
+  collector:
     depends_on:
       - rabbitmq
     deploy:
@@ -126,6 +127,30 @@ services:
       QUEUE_BROKER_HOST: "rabbitmq"
       QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
       QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-taranis}"
+      WORKER_TYPES: '["Collectors", "Bots"]'
+      DEBUG: "${DEBUG:-False}"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
+
+  publisher:
+    depends_on:
+      - rabbitmq
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-worker:${TARANIS_TAG:-latest}"
+    environment:
+      TARANIS_CORE_URL: "http://core/api"
+      API_KEY: "${API_KEY}"
+      QUEUE_BROKER_HOST: "rabbitmq"
+      QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
+      QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-taranis}"
+      WORKER_TYPES: '["Presenters", "Publishers"]'
       DEBUG: "${DEBUG:-False}"
     logging:
       driver: "json-file"

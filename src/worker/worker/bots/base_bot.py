@@ -24,6 +24,9 @@ class BaseBot:
             limit = (datetime.datetime.now() - datetime.timedelta(days=7)).isoformat()
             filter_dict["timefrom"] = limit
 
+        filter_dict["no_count"] = True
+        filter_dict["exclude_attrs"] = self.type
+
         return filter_dict
 
     def update_filter_for_pagination(self, filter_dict, limit=100):
