@@ -12,7 +12,9 @@ loglevel = LogLevels.info
 if os.getenv("DEBUG", "false").lower() == "true":
     loglevel = LogLevels.debug
 
-workers = int(multiprocessing.cpu_count())
+workers = int(os.getenv("GRANIAN_WORKERS", multiprocessing.cpu_count()))
+address = os.getenv("GRANIAN_ADDRESS", "0.0.0.0")
+port = int(os.getenv("GRANIAN_PORT", 8080))
 
 
 def app_loader(target):
@@ -22,4 +24,4 @@ def app_loader(target):
 
 
 create_app(initial_setup=True)
-Granian("core", interface=Interfaces.WSGI, address="0.0.0.0", port=8080, log_level=loglevel, workers=workers).serve(target_loader=app_loader)
+Granian("core", interface=Interfaces.WSGI, address=address, port=port, log_level=loglevel, workers=workers).serve(target_loader=app_loader)
