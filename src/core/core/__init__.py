@@ -9,7 +9,7 @@ from core.managers import (
 )
 
 
-def create_app(initial_setup: bool):
+def create_app(initial_setup: bool = True):
     app = Flask(__name__)
     app.config.from_object("core.config.Config")
 
