@@ -2,6 +2,7 @@ from sqlalchemy import or_
 import uuid
 from typing import Any
 from enum import StrEnum, auto
+from sqlalchemy.sql import Select
 
 from core.managers.db_manager import db
 from core.model.parameter_value import ParameterValue
@@ -137,6 +138,26 @@ class Worker(BaseModel):
             query = query.filter(Worker.type == type)
 
         return query.order_by(db.asc(Worker.name)).all(), query.count()
+
+    @classmethod
+    def get_filter_query(cls, filter_args: dict) -> Select:
+        query = db.select(cls)
+
+        if search := filter_args.get("search"):
+            query = query.where(
+                or_(
+                    Worker.name.ilike(f"%{search}%"),
+                    Worker.description.ilike(f"%{search}%"),
+                )
+            )
+
+        if category := filter_args.get("category"):
+            query = query.where(Worker.category == category)
+
+        if type := filter_args.get("type"):
+            query = query.where(Worker.type == type)
+
+        return query
 
     @classmethod
     def filter_by_type(cls, type):
