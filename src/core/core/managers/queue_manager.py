@@ -163,14 +163,14 @@ class QueueManager:
             return {"error": "Could schedule post collection bots", "details": str(e)}, 500
 
 
-def initialize(app: Flask, first_worker: bool):
+def initialize(app: Flask, initial_setup: bool = True):
     global queue_manager
     queue_manager = QueueManager(app)
     try:
         with queue_manager.celery.connection() as conn:
             conn.ensure_connection(max_retries=3)
             queue_manager.error = ""
-        if first_worker:
+        if initial_setup:
             logger.info(f"QueueManager initialized: {queue_manager.celery.broker_connection().as_uri()}")
             queue_manager.post_init()
     except OperationalError:
