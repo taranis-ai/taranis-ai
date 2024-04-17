@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from typing import Any, Optional
 from sqlalchemy import orm, or_, func
 from sqlalchemy.sql.expression import false, null
+from sqlalchemy.sql import Select
 
 from collections import Counter
 import hashlib
@@ -81,27 +82,28 @@ class NewsItemData(BaseModel):
         return hashlib.sha256(combined_str.encode()).hexdigest()
 
     @classmethod
-    def count_all(cls):
-        return cls.query.count()
-
-    @classmethod
     def identical(cls, hash) -> bool:
         return db.session.query(db.exists().where(NewsItemData.hash == hash)).scalar()
 
     @classmethod
     def find_by_hash(cls, hash):
-        return cls.query.filter(NewsItemData.hash == hash).all()
+        return cls.get_filtered(db.select(cls).where(NewsItemData.hash == hash))
 
     @classmethod
     def latest_collected(cls):
-        news_item_data = cls.query.order_by(db.desc(NewsItemData.collected)).first()
+        news_item_data = db.select(cls).order_by(db.desc(NewsItemData.collected)).first()
         return news_item_data.collected.isoformat() if news_item_data else ""
 
     @classmethod
-    def get_all_news_items_data(cls, limit: str):
-        limit_date = datetime.fromisoformat(limit)
-        news_items_data = cls.query.filter(cls.collected > limit_date).all()
-        return [news_item_data.to_dict() for news_item_data in news_items_data]
+    def get_filter_query(cls, filter_args: dict) -> Select:
+        query = super().get_filter_query(filter_args)
+        query = db.select(cls)
+
+        if limit := filter_args.get("limit"):
+            limit_date = datetime.fromisoformat(limit)
+            query = query.where(cls.collected > limit_date)
+
+        return query
 
     @classmethod
     def attribute_value_identical(cls, id, value) -> bool:

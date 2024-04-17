@@ -244,8 +244,8 @@ class Organizations(MethodView):
     def get(self, organization_id=None):
         if organization_id:
             return organization.Organization.get_for_api(organization_id)
-        search = request.args.get(key="search", default=None)
-        return organization.Organization.get_all_for_api(search, True)
+        filtre_args = {"search": request.args.get(key="search", default=None)}
+        return organization.Organization.get_all_for_api(filtre_args, True)
 
     @auth_required("CONFIG_ORGANIZATION_CREATE")
     def post(self):
@@ -266,8 +266,8 @@ class Users(MethodView):
     def get(self, user_id=None):
         if user_id:
             return user.User.get_for_api(user_id)
-        search = request.args.get(key="search", default=None)
-        return user.User.get_all_for_api(search, True)
+        filtre_args = {"search": request.args.get(key="search", default=None)}
+        return user.User.get_all_for_api(filtre_args, True)
 
     @auth_required("CONFIG_USER_CREATE")
     def post(self):

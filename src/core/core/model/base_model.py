@@ -104,10 +104,10 @@ class BaseModel(db.Model):
         return {"error": f"{cls.__name__} {item_id} not found"}, 404
 
     @classmethod
-    def get_filter_query(cls: Type[T], search=None) -> Select:
+    def get_filter_query(cls: Type[T], filter_args: dict) -> Select:
         query = db.select(cls)
 
-        if search:
+        if search := filter_args.get("search"):
             query = query.where(db.or_(*[column.ilike(f"%{search}%") for column in cls.__table__.columns]))
 
         return query
@@ -117,12 +117,12 @@ class BaseModel(db.Model):
         return db.session.execute(query).scalars().all()
 
     @classmethod
-    def get_by_filter(cls: Type[T], search=None) -> list[T] | None:
-        return cls.get_filtered(cls.get_filter_query(search))
+    def get_by_filter(cls: Type[T], filter_args: dict) -> list[T] | None:
+        return cls.get_filtered(cls.get_filter_query(filter_args))
 
     @classmethod
-    def get_all_for_api(cls: Type[T], search=None, with_count: bool = False) -> tuple[dict[str, Any], int]:
-        query = cls.get_filter_query(search)
+    def get_all_for_api(cls: Type[T], filter_args: dict, with_count: bool = False) -> tuple[dict[str, Any], int]:
+        query = cls.get_filter_query(filter_args)
         items = cls.get_filtered(query)
         if not items:
             return {"items": []}, 404
@@ -133,5 +133,10 @@ class BaseModel(db.Model):
 
     @classmethod
     def get_filtered_count(cls: Type[T], query: Select) -> int:
-        count_query = db.select(sqlalchemy.func.count()).select_from(query).order_by(None)
+        count_query = db.select(sqlalchemy.func.count()).select_from(query).order_by(None).offset(None).limit(None)
+        return db.session.execute(count_query).scalar() or 0
+
+    @classmethod
+    def get_count(cls: Type[T]) -> int:
+        count_query = db.select(sqlalchemy.func.count())
         return db.session.execute(count_query).scalar() or 0

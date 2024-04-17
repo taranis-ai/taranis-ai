@@ -57,8 +57,8 @@ export const useAssessStore = defineStore(
       try {
         loading.value = true
         const filter = useFilterStore()
-        console.debug('Updating Stories with Filter', filter.filterQuery)
-        const response = await getStories(filter.filterQuery)
+        console.debug('Updating Stories with Filter', filter.storyFilterQuery)
+        const response = await getStories(filter.storyFilterQuery)
         stories.value.items = response.data.items
         stories.value.total_count = response.data.total_count
         weekChartOptions.value.scales.y2.max = response.data.max_item
@@ -75,17 +75,20 @@ export const useAssessStore = defineStore(
 
         const page = filter.nextPage()
 
-        let { filterQuery } = filter
-        if (filterQuery === '') {
-          filterQuery += `page=${page}&no_count=true`
-        } else if (filterQuery.includes('page')) {
-          filterQuery = filterQuery.replace(/page=\d+/, `page=${page}`)
-          filterQuery += '&no_count=true'
+        let { storyFilterQuery } = filter
+        if (storyFilterQuery === '') {
+          storyFilterQuery += `page=${page}&no_count=true`
+        } else if (storyFilterQuery.includes('page')) {
+          storyFilterQuery = storyFilterQuery.replace(
+            /page=\d+/,
+            `page=${page}`
+          )
+          storyFilterQuery += '&no_count=true'
         } else {
-          filterQuery += `&page=${page}&no_count=true`
+          storyFilterQuery += `&page=${page}&no_count=true`
         }
 
-        const response = await getStories(filterQuery)
+        const response = await getStories(storyFilterQuery)
         const existingItemIds = new Set(
           stories.value.items.map((item) => item.id)
         )
@@ -262,12 +265,18 @@ export const useAssessStore = defineStore(
 
     function filterStories() {
       const filter = useFilterStore()
-      const {storyFilter} = filter
+      const { storyFilter } = filter
       stories.value.items = stories.value.items.filter((item) => {
-        if (storyFilter.read === 'true' && !item.read || storyFilter.read === 'false' && item.read) {
+        if (
+          (storyFilter.read === 'true' && !item.read) ||
+          (storyFilter.read === 'false' && item.read)
+        ) {
           return false
         }
-        if (storyFilter.important === 'true' && !item.important || storyFilter.important === 'false' && item.important) {
+        if (
+          (storyFilter.important === 'true' && !item.important) ||
+          (storyFilter.important === 'false' && item.important)
+        ) {
           return false
         }
         return true

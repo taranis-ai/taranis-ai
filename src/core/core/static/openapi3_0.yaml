@@ -338,10 +338,6 @@ paths:
           in: query
           schema:
             type: string
-        - name: incompleted
-          in: query
-          schema:
-            type: string
         - name: range
           in: query
           schema:

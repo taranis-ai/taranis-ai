@@ -40,14 +40,13 @@ class ReportItem(MethodView):
     @auth_required("ANALYZE_ACCESS")
     def get(self, report_item_id=None):
         if report_item_id:
-            result_json = report_item.ReportItem.get_detail_json(report_item_id)
-            return (result_json, 200) if result_json else ("Could not get report item", 404)
-        filter_keys = ["search", "completed", "incompleted", "range", "sort", "group"]
+            return report_item.ReportItem.get_for_api(report_item_id)
+        filter_keys = ["search", "completed", "range", "sort", "group"]
         filter_args: dict[str, str | int] = {k: v for k, v in request.args.items() if k in filter_keys}
 
         filter_args["offset"] = min(int(request.args.get("offset", 0)), (2**31) - 1)
         filter_args["limit"] = min(int(request.args.get("limit", 20)), 200)
-        return report_item.ReportItem.get_json(filter_args, auth_manager.get_user_from_jwt())
+        return report_item.ReportItem.get_all_for_api(filter_args, auth_manager.get_user_from_jwt())
 
     @auth_required("ANALYZE_CREATE")
     def post(self):

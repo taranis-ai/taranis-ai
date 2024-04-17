@@ -20,3 +20,14 @@ def validate_id(id_name):
         return decorated_function
 
     return decorator
+
+
+def validate_json(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not request.is_json:
+            return {"error": "Missing JSON in request"}, 400
+
+        return f(*args, **kwargs)
+
+    return decorated_function

@@ -140,8 +140,7 @@ export default defineComponent({
 
     onDeactivated(() => {
       assessStore.clearSelection()
-      mainStore.itemCountTotal = 0
-      mainStore.itemCountFiltered = 0
+      mainStore.resetItemCount()
     })
 
     return {

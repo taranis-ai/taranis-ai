@@ -38,10 +38,6 @@ class Product(BaseModel):
         self.report_items = [ReportItem.get(report_item) for report_item in report_items] if report_items else []
 
     @classmethod
-    def count_all(cls):
-        return cls.query.count()
-
-    @classmethod
     def get_detail_json(cls, product_id):
         return product.to_dict() if (product := cls.get(product_id)) else None
 

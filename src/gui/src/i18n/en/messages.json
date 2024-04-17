@@ -174,15 +174,17 @@
         "username": "Username"
     },
     "enter": {
+        "title": "Title",
         "content": "Content",
         "description": "Description",
-        "error": "Could not create news item.",
-        "failed": "Failed to create or update news item",
         "link": "Link",
         "published": "Published",
         "review": "Review",
         "source": "Source",
-        "successful": "News item was successfully created"
+        "comment": "Comment",
+        "summary": "Summary",
+        "comment_placeholder": "Enter your comment here...\n\n\n",
+        "summary_placeholder": "Enter your summary here...\n\n\n"
     },
     "error": {
         "aggregate_in_use": "Some of selected aggregates or news items are already assigned to a report item",

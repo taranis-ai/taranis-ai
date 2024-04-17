@@ -22,6 +22,9 @@ def initialize(app, initial_setup: bool = True):
     db.init_app(app)
     migrate.init_app(app, db)
 
+    if initial_setup:
+        logger.info(f"Connecting Database: {app.config.get('SQLALCHEMY_DATABASE_URI')}")
+
     if is_db_empty() and initial_setup:
         logger.debug("Create new Database")
         db.create_all()

@@ -40,4 +40,5 @@ class Task(MethodView):
 
 def initialize(app: Flask):
     app.add_url_rule("/api/tasks", view_func=Task.as_view("tasks"))
+    app.add_url_rule("/api/tasks/", view_func=Task.as_view("tasks_"))
     app.add_url_rule("/api/tasks/<string:task_id>", view_func=Task.as_view("task"))

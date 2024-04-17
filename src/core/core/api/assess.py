@@ -7,7 +7,8 @@ from core.managers.sse_manager import sse_manager
 from core.log import logger
 from core.managers.auth_manager import auth_required
 from core.model import news_item, osint_source, news_item_tag
-from core.managers.input_validators import validate_id
+from core.managers.input_validators import validate_id, validate_json
+from core.managers import queue_manager
 
 
 class OSINTSourceGroupsList(MethodView):
@@ -40,12 +41,11 @@ class NewsItems(MethodView):
             return {"error": "Failed to get Newsitems"}, 500
 
     @auth_required("ASSESS_CREATE")
+    @validate_json
     def post(self):
-        if not request.is_json:
-            return {"error": "Missing JSON in request"}, 422
         data_json = request.json
         if not data_json:
-            return {"error": "No data in JSON"}, 422
+            return {"error": "No NewsItems in JSON Body"}, 422
 
         result, status = news_item.NewsItemAggregate.add_news_items([data_json])
         sse_manager.news_items_updated()
@@ -59,23 +59,21 @@ class NewsItem(MethodView):
         return item.to_dict() if item else ("NewsItem not found", 404)
 
     @auth_required("ASSESS_UPDATE")
+    @validate_json
     def put(self, item_id):
         user = auth_manager.get_user_from_jwt()
         if not user:
             return {"error": "Invalid User"}, 403
-        if not request.is_json:
-            return {"error": "Missing JSON in request"}, 400
         response, code = news_item.NewsItem.update(item_id, request.json, user.id)
         sse_manager.news_items_updated()
         return response, code
 
     @auth_required("ASSESS_UPDATE")
+    @validate_json
     def patch(self, item_id):
         user = auth_manager.get_user_from_jwt()
         if not user:
             return {"error": "Invalid User"}, 403
-        if not request.is_json:
-            return {"error": "Missing JSON in request"}, 400
         response, code = news_item.NewsItem.update(item_id, request.json, user.id)
         sse_manager.news_items_updated()
         return response, code
@@ -164,10 +162,9 @@ class Story(MethodView):
 
     @auth_required("ASSESS_UPDATE")
     @validate_id("story_id")
+    @validate_json
     def put(self, story_id):
         user = auth_manager.get_user_from_jwt()
-        if not request.is_json:
-            return {"error": "Missing JSON in request"}, 400
         response, code = news_item.NewsItemAggregate.update(story_id, request.json, user)
         sse_manager.news_items_updated()
         return response, code
@@ -182,20 +179,18 @@ class Story(MethodView):
 
     @auth_required("ASSESS_UPDATE")
     @validate_id("story_id")
+    @validate_json
     def patch(self, story_id):
         user = auth_manager.get_user_from_jwt()
-        if not request.is_json:
-            return {"error": "Missing JSON in request"}, 400
         response, code = news_item.NewsItemAggregate.update(story_id, request.json, user)
         return response, code
 
 
-class UnGroupAction(MethodView):
+class UnGroupNewsItem(MethodView):
     @auth_required("ASSESS_UPDATE")
+    @validate_json
     def put(self):
         user = auth_manager.get_user_from_jwt()
-        if not request.is_json:
-            return {"error": "Missing JSON in request"}, 400
 
         newsitem_ids = request.json
         if not newsitem_ids:
@@ -207,11 +202,9 @@ class UnGroupAction(MethodView):
 
 class UnGroupStories(MethodView):
     @auth_required("ASSESS_UPDATE")
+    @validate_json
     def put(self):
         user = auth_manager.get_user_from_jwt()
-        if not request.is_json:
-            return {"error": "Missing JSON in request"}, 400
-
         story_ids = request.json
         if not story_ids:
             return {"error": "No story ids provided"}, 400
@@ -222,15 +215,30 @@ class UnGroupStories(MethodView):
 
 class GroupAction(MethodView):
     @auth_required("ASSESS_UPDATE")
+    @validate_json
     def put(self):
         user = auth_manager.get_user_from_jwt()
-        if not request.is_json:
-            return {"error": "Missing JSON in request"}, 400
-
         aggregate_ids = request.json
         if not aggregate_ids:
             return {"error": "No aggregate ids provided"}, 400
         response, code = news_item.NewsItemAggregate.group_aggregate(aggregate_ids, user)
+        sse_manager.news_items_updated()
+        return response, code
+
+
+class BotActions(MethodView):
+    @auth_required("ASSESS_UPDATE")
+    @validate_json
+    def post(self):
+        if not request.json:
+            return {"error": "Please provide story_id & bot_id"}, 400
+        bot_id = request.json.get("bot_id")
+        if not bot_id:
+            return {"error": "No bot_id provided"}, 400
+        story_id = request.json.get("story_id")
+        if not story_id:
+            return {"error": "No story_id provided"}, 400
+        response, code = queue_manager.queue_manager.execute_bot_task(bot_id=bot_id, filter={"story_id": story_id})
         sse_manager.news_items_updated()
         return response, code
 
@@ -247,3 +255,5 @@ def initialize(app: Flask):
     app.add_url_rule(f"{base_route}/news-items/<int:item_id>", view_func=NewsItem.as_view("news_item"))
     app.add_url_rule(f"{base_route}/stories/group", view_func=GroupAction.as_view("group_action"))
     app.add_url_rule(f"{base_route}/stories/ungroup", view_func=UnGroupStories.as_view("ungroup_stories"))
+    app.add_url_rule(f"{base_route}/news-items/ungroup", view_func=UnGroupNewsItem.as_view("ungroup_news_items"))
+    app.add_url_rule(f"{base_route}/stories/botactions", view_func=BotActions.as_view("bot_actions"))

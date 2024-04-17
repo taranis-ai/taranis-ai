@@ -58,7 +58,7 @@ class Bot(BaseModel):
 
     @classmethod
     def index_exists(cls, index):
-        return cls.query.filter_by(index=index).count() > 0
+        return db.select(cls).where(index=index).scalar()
 
     @classmethod
     def add(cls, data) -> tuple[dict, int]:
@@ -76,11 +76,11 @@ class Bot(BaseModel):
         filter_type = type.lower()
         if filter_type not in [types.value for types in BOT_TYPES]:
             return None
-        return cls.query.filter_by(type=filter_type).first()
+        return db.select(cls).where(type=filter_type).scalar_one()
 
     @classmethod
     def get_all_by_type(cls, type):
-        return cls.query.filter_by(type=type).all()
+        return cls.get_filtered(db.select(cls).where(type=type))
 
     @classmethod
     def get_by_filter(cls, search):

@@ -1,6 +1,6 @@
-# TaranisNG Core
+# Taranis AI Core
 
-The Tarins-NG Core could be called the "backend" of TaranisNG.
+Core could be called the "backend" of Taranis AI.
 
 It offers API Endpoints to the Frontend, is the sole persistence layer (via SQLAlchemy) and schedules tasks via Celery.
 
@@ -24,4 +24,4 @@ Furthermore it offers SSE to the Frontend and acts as celery scheduler backend.
 
 or
 
-`gunicorn`
+`./start-granian.py`

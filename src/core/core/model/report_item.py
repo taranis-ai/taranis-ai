@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 import uuid
 from sqlalchemy import or_, text
 from sqlalchemy.sql.expression import false
+from sqlalchemy.sql import Select
 
 from typing import Any, Optional
 
@@ -147,13 +148,27 @@ class ReportItem(BaseModel):
 
     @classmethod
     def count_all(cls, is_completed):
-        return cls.query.filter_by(completed=is_completed).count()
+        return cls.get_filtered_count(db.select(cls).where(completed=is_completed))
 
     @classmethod
-    def get_json(cls, filter, user):
-        reports = cls.get_by_filter(filter, user, True)
-        items = [report.to_dict() for report in reports]
-        return {"total_count": len(items), "items": items}
+    def get_all_for_api(cls, filter_args: dict, with_count: bool = False, user=None) -> tuple[dict[str, Any], int]:
+        if user:
+            query = cls.get_filter_query_with_acl(filter_args, user)
+        else:
+            query = cls.get_filter_query(filter_args)
+        items = cls.get_filtered(query)
+        if not items:
+            return {"items": []}, 404
+        if with_count:
+            count = cls.get_filtered_count(query)
+            return {"count": count, "items": cls.to_list(items)}, 200
+        return {"items": cls.to_list(items)}, 200
+
+    @classmethod
+    def get_for_api(cls, item_id) -> tuple[dict[str, Any], int]:
+        if item := cls.get(item_id):
+            return item.to_detail_dict(), 200
+        return {"error": f"{cls.__name__} {item_id} not found"}, 404
 
     @classmethod
     def get_story_ids(cls, id):
@@ -222,10 +237,6 @@ class ReportItem(BaseModel):
         return {"message": f"Successfully cloned Report {report_id} to new Report {new_report.id}", "id": new_report.id}, 200
 
     @classmethod
-    def from_dict(cls, data) -> "ReportItem":
-        return cls(**data)
-
-    @classmethod
     def load_multiple(cls, data: list[dict[str, Any]]) -> list["ReportItem"]:
         return [cls.from_dict(report_item) for report_item in data]
 
@@ -283,46 +294,50 @@ class ReportItem(BaseModel):
         return RoleBasedAccessService.user_has_access_to_resource(query)
 
     @classmethod
-    def get_by_filter(cls, filter: dict, user, acl_check: bool):
-        query = cls.query
+    def get_filter_query(cls, filter_args: dict) -> Select:
+        query = db.select(cls)
         query = query.join(ReportItemType, ReportItem.report_item_type_id == ReportItemType.id)
-        if acl_check:
-            rbac = RBACQuery(user=user, resource_type=ItemType.REPORT_ITEM_TYPE)
-            query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
-            query = RoleBasedAccessService.filter_report_query_with_tlp(query, user)
 
-        if search := filter.get("search"):
-            query = query.filter(or_(ReportItemType.title.ilike(f"%{search}%"), ReportItem.title.ilike(f"%{search}%")))
+        if search := filter_args.get("search"):
+            query = query.where(or_(ReportItemType.title.ilike(f"%{search}%"), ReportItem.title.ilike(f"%{search}%")))
 
-        completed = filter.get("completed", "").lower()
+        if filter_range := filter_args.get("range"):
+            date_limit = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+
+            if filter_range.upper() == "WEEK":
+                date_limit -= timedelta(days=date_limit.weekday())
+                query = query.filter(ReportItem.created >= date_limit)
+
+            if filter_range.upper() == "MONTH":
+                date_limit = date_limit.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                query = query.filter(ReportItem.created >= date_limit)
+
+        completed = filter_args.get("completed", "").lower()
         if completed == "true":
             query = query.filter(ReportItem.completed)
 
         if completed == "false":
             query = query.filter(ReportItem.completed == false())
 
-        if "range" in filter and filter["range"].upper() != "ALL":
-            filter_range = filter["range"].upper()
-            date_limit = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-
-            if filter_range == "WEEK":
-                date_limit -= timedelta(days=date_limit.weekday())
-
-            if filter_range == "MONTH":
-                date_limit = date_limit.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-
-            query = query.filter(ReportItem.created >= date_limit)
-
-        if "sort" in filter:
-            if filter["sort"] == "DATE_DESC":
+        if sort := filter_args.get("sort"):
+            if sort == "DATE_DESC":
                 query = query.order_by(db.desc(ReportItem.created))
 
-            elif filter["sort"] == "DATE_ASC":
+            elif sort == "DATE_ASC":
                 query = query.order_by(db.asc(ReportItem.created))
-        offset = filter.get("offset", 0)
-        limit = filter.get("limit", 20)
 
-        return query.offset(offset).limit(limit).all()
+        offset = filter_args.get("offset", 0)
+        limit = filter_args.get("limit", 20)
+
+        return query.offset(offset).limit(limit)
+
+    @classmethod
+    def get_filter_query_with_acl(cls, filter_args: dict, user: User) -> Select:
+        query = cls.get_filter_query(filter_args)
+        rbac = RBACQuery(user=user, resource_type=ItemType.REPORT_ITEM_TYPE)
+        query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
+        query = RoleBasedAccessService.filter_report_query_with_tlp(query, user)
+        return query
 
     @classmethod
     def get_by_cpe(cls, cpes):

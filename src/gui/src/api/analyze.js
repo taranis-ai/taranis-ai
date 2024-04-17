@@ -1,7 +1,6 @@
 import { apiService } from '@/main'
 
-export function getAllReportItems(filter_data) {
-  const filter = apiService.getQueryStringFromNestedObject(filter_data)
+export function getAllReportItems(filter) {
   return apiService.get(`/analyze/report-items?${filter}`)
 }
 

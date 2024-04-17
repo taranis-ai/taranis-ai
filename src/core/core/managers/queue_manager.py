@@ -127,8 +127,11 @@ class QueueManager:
             return {"message": f"Gathering for WordList {word_list_id} scheduled"}, 200
         return {"error": "Could not reach rabbitmq"}, 500
 
-    def execute_bot_task(self, bot_id: int):
-        if self.send_task("bot_task", args=[bot_id], queue="bots"):
+    def execute_bot_task(self, bot_id: int, filter: dict | None = None):
+        bot_args: dict[str, int | dict] = {"bot_id": bot_id}
+        if filter:
+            bot_args["filter"] = filter
+        if self.send_task("bot_task", kwargs=bot_args, queue="bots"):
             logger.info(f"Executing Bot {bot_id} scheduled")
             return {"message": f"Executing Bot {bot_id} scheduled", "id": bot_id}, 200
         return {"error": "Could not reach rabbitmq"}, 500

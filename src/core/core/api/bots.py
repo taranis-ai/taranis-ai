@@ -43,16 +43,16 @@ class BotUnGroupAction(MethodView):
 
 class NewsItemData(MethodView):
     @api_key_required
-    def get(self):
+    def get(self, news_item_data_id=None):
         try:
-            limit = request.args.get("limit", default=(datetime.now() - timedelta(weeks=1)).isoformat())
-            return news_item.NewsItemData.get_all_news_items_data(limit)
-        except Exception:
-            logger.log_debug_trace("GET /news-item-data failed")
-            return "", 400
+            if news_item_data_id:
+                return news_item.NewsItemData.get_for_api(news_item_data_id)
+            filtre_args = {"limit": request.args.get("limit", default=(datetime.now() - timedelta(weeks=1)).isoformat())}
+            return news_item.NewsItemData.get_all_for_api(filtre_args)
+        except Exception as e:
+            logger.error(str(e))
+            return {"error": str(e)}, 400
 
-
-class UpdateNewsItemData(MethodView):
     @api_key_required
     def put(self, news_item_data_id):
         try:
@@ -107,7 +107,7 @@ def initialize(app: Flask):
     app.add_url_rule(f"{base_route}/news-item-data", view_func=NewsItemData.as_view("news_item_data"))
     app.add_url_rule(
         f"{base_route}/news-item-data/<string:news_item_data_id>",
-        view_func=UpdateNewsItemData.as_view("update_news_item_data"),
+        view_func=NewsItemData.as_view("update_news_item_data"),
     )
     app.add_url_rule(
         f"{base_route}/news-item-data/<string:news_item_data_id>/attributes",

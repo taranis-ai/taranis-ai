@@ -51,8 +51,6 @@ export default {
     const reportItemSelection = ref(null)
     const analyzeStore = useAnalyzeStore()
 
-    const { loadReportItems } = analyzeStore
-
     const reportItems = computed(() => analyzeStore.getReportItemsList)
 
     const share = () => {
@@ -65,7 +63,7 @@ export default {
     }
 
     onMounted(() => {
-      loadReportItems()
+      analyzeStore.loadReportItems()
     })
 
     return {

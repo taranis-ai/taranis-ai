@@ -22,7 +22,13 @@
 
         <code-editor
           v-model:content="story.comment"
-          placeholder="Story comment"
+          :header="$t('enter.comment')"
+          :placeholder="$t('enter.comment_placeholder')"
+        />
+        <code-editor
+          v-model:content="story.summary"
+          :header="$t('enter.summary')"
+          :placeholder="$t('enter.summary_placeholder')"
         />
       </v-card-text>
     </v-card>
@@ -77,6 +83,7 @@ export default {
           title: story.value.title,
           tags: story.value.tags,
           comment: story.value.comment,
+          summary: story.value.summary,
           attributes: story.value.attributes
         })
         notifySuccess(result)

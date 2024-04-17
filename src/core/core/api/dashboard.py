@@ -15,8 +15,8 @@ from core.config import Config
 class Dashboard(MethodView):
     @jwt_required()
     def get(self):
-        total_news_items = NewsItemData.count_all()
-        total_products = Product.count_all()
+        total_news_items = NewsItemData.get_count()
+        total_products = Product.get_count()
         report_items_completed = ReportItem.count_all(True)
         report_items_in_progress = ReportItem.count_all(False)
         total_database_items = total_news_items + total_products + report_items_completed + report_items_in_progress
