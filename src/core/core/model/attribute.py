@@ -46,12 +46,8 @@ class AttributeEnum(BaseModel):
         self.description = description
 
     @classmethod
-    def count_for_attribute(cls, attribute_id) -> int:
-        return cls.query.filter_by(attribute_id=attribute_id).count()
-
-    @classmethod
     def get_all_for_attribute(cls, attribute_id):
-        return cls.query.filter_by(attribute_id=attribute_id).order_by(db.asc(cls.index)).all()
+        return cls.get_filtered(db.select(cls).filter_by(attribute_id=attribute_id).order_by(db.asc(cls.index))) or []
 
     @classmethod
     def get_for_attribute(cls, attribute_id, search, offset, limit):

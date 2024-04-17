@@ -1,7 +1,7 @@
 import uuid
 from typing import Any
 
-from sqlalchemy import and_, func, or_
+from sqlalchemy import and_, func
 from sqlalchemy.orm import joinedload
 
 from core.log import logger
@@ -68,10 +68,6 @@ class Bot(BaseModel):
         return {"message": f"Bot {bot.name} added", "id": f"{bot.id}"}, 201
 
     @classmethod
-    def get_first(cls):
-        return cls.query.first()
-
-    @classmethod
     def filter_by_type(cls, type: str) -> "Bot | None":
         filter_type = type.lower()
         if filter_type not in [types.value for types in BOT_TYPES]:
@@ -81,26 +77,6 @@ class Bot(BaseModel):
     @classmethod
     def get_all_by_type(cls, type):
         return cls.get_filtered(db.select(cls).where(type=type))
-
-    @classmethod
-    def get_by_filter(cls, search):
-        query = cls.query
-
-        if search:
-            query = query.filter(
-                or_(
-                    Bot.name.ilike(f"%{search}%"),
-                    Bot.description.ilike(f"%{search}%"),  # type: ignore
-                )
-            )
-
-        return query.order_by(db.asc(Bot.name)).all(), query.count()
-
-    @classmethod
-    def get_all_json(cls, search):
-        bots, count = cls.get_by_filter(search)
-        items = [bot.to_dict() for bot in bots]
-        return {"total_count": count, "items": items}
 
     @classmethod
     def get_post_collection(cls):

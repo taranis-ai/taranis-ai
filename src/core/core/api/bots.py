@@ -88,9 +88,9 @@ class BotsInfo(MethodView):
     @api_key_required
     def get(self, bot_id=None):
         if bot_id:
-            return bot.Bot.get_by_filter(bot_id)
-        search = request.args.get(key="search", default=None)
-        return bot.Bot.get_all_json(search)
+            return bot.Bot.get_for_api(bot_id)
+        search = {"search": request.args.get(key="search", default=None)}
+        return bot.Bot.get_all_for_api(search)
 
     @api_key_required
     def put(self, bot_id):

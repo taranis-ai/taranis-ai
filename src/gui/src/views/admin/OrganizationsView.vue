@@ -1,7 +1,7 @@
 <template>
   <v-container fluid>
     <DataTable
-      v-model:items="organizations"
+      v-model:items="organizations.items"
       :add-button="true"
       :header-filter="['id', 'name', 'description', 'actions']"
       sort-by-item="id"

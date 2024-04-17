@@ -39,10 +39,10 @@ class Organization(BaseModel):
         return db.session.execute(db.select(cls).order_by(db.asc(cls.name))).scalars().all()
 
     @classmethod
-    def get_filter_query(cls, search=None) -> Select:
+    def get_filter_query(cls, filter_args: dict) -> Select:
         query = db.select(cls)
 
-        if search:
+        if search := filter_args.get("search"):
             query = query.where(
                 or_(
                     Organization.name.ilike(f"%{search}%"),

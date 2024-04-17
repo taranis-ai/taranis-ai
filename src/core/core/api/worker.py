@@ -168,13 +168,6 @@ class SourceIcon(MethodView):
             logger.exception()
 
 
-class BotsInfo(MethodView):
-    @api_key_required
-    def get(self):
-        search = request.args.get(key="search", default=None)
-        return Bot.get_all_json(search)
-
-
 class Stories(MethodView):
     @api_key_required
     def get(self):
@@ -219,10 +212,11 @@ class DropTags(MethodView):
 
 class BotInfo(MethodView):
     @api_key_required
-    def get(self, bot_id):
-        # return Bot.get(bot_id)
-        # TODO: This is a hack to get the bot info by it's Type, not ID
-        # depending on how the worker is triggered we might not have the bot I
+    def get(self, bot_id=None):
+        if not bot_id:
+            search = {"search": request.args.get(key="search", default=None)}
+            return Bot.get_all_for_api(search)
+
         if result := Bot.get(bot_id):
             return result.to_dict(), 200
         if result := Bot.filter_by_type(bot_id):
@@ -293,7 +287,7 @@ def initialize(app: Flask):
     app.add_url_rule(f"{worker_url}/presenters/<string:presenter>", view_func=Presenters.as_view("presenters_worker"))
     app.add_url_rule(f"{worker_url}/publishers/<string:publisher>", view_func=Publishers.as_view("publishers_worker"))
     app.add_url_rule(f"{worker_url}/news-items", view_func=AddNewsItems.as_view("news_items_worker"))
-    app.add_url_rule(f"{worker_url}/bots", view_func=BotsInfo.as_view("bots_worker"))
+    app.add_url_rule(f"{worker_url}/bots", view_func=BotInfo.as_view("bots_worker"))
     app.add_url_rule(f"{worker_url}/tags", view_func=Tags.as_view("tags_worker"))
     app.add_url_rule(f"{worker_url}/bots/<string:bot_id>", view_func=BotInfo.as_view("bot_info_worker"))
     app.add_url_rule(f"{worker_url}/post-collection-bots", view_func=PostCollectionBots.as_view("post_collection_bots_worker"))

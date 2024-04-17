@@ -6,6 +6,7 @@ from sqlalchemy.sql import Select
 import sqlalchemy
 
 from core.managers.db_manager import db
+from core.log import logger
 
 T = TypeVar("T", bound="BaseModel")
 
@@ -121,8 +122,9 @@ class BaseModel(db.Model):
         return cls.get_filtered(cls.get_filter_query(filter_args))
 
     @classmethod
-    def get_all_for_api(cls: Type[T], filter_args: dict, with_count: bool = False) -> tuple[dict[str, Any], int]:
-        query = cls.get_filter_query(filter_args)
+    def get_all_for_api(cls: Type[T], filter_args: dict | None, with_count: bool = False) -> tuple[dict[str, Any], int]:
+        logger.debug(f"Filtering {cls.__name__} with {filter_args}")
+        query = cls.get_filter_query(filter_args or {})
         items = cls.get_filtered(query)
         if not items:
             return {"items": []}, 404
@@ -138,5 +140,5 @@ class BaseModel(db.Model):
 
     @classmethod
     def get_count(cls: Type[T]) -> int:
-        count_query = db.select(sqlalchemy.func.count())
+        count_query = db.select(sqlalchemy.func.count()).select_from(cls)
         return db.session.execute(count_query).scalar() or 0

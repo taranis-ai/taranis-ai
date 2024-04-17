@@ -27,6 +27,7 @@ from core.model import (
     worker,
 )
 from core.model.permission import Permission
+from core.managers.input_validators import extract_args
 
 
 class DictionariesReload(MethodView):
@@ -241,11 +242,11 @@ class Templates(MethodView):
 
 class Organizations(MethodView):
     @auth_required("CONFIG_ORGANIZATION_ACCESS")
-    def get(self, organization_id=None):
+    @extract_args("search")
+    def get(self, organization_id=None, filter_args=None):
         if organization_id:
             return organization.Organization.get_for_api(organization_id)
-        filtre_args = {"search": request.args.get(key="search", default=None)}
-        return organization.Organization.get_all_for_api(filtre_args, True)
+        return organization.Organization.get_all_for_api(filter_args, True)
 
     @auth_required("CONFIG_ORGANIZATION_CREATE")
     def post(self):
@@ -297,9 +298,11 @@ class Users(MethodView):
 
 class Bots(MethodView):
     @auth_required("CONFIG_BOT_ACCESS")
-    def get(self):
-        search = request.args.get(key="search", default=None)
-        return bot.Bot.get_all_json(search)
+    def get(self, bot_id=None):
+        if bot_id:
+            return bot.Bot.get_for_api(bot_id)
+        search = {"search": request.args.get(key="search", default=None)}
+        return bot.Bot.get_all_for_api(search)
 
     @auth_required("CONFIG_BOT_UPDATE")
     def put(self, bot_id):
@@ -445,15 +448,21 @@ class OSINTSourceGroups(MethodView):
 
 
 class Presenters(MethodView):
-    def get(self):
-        search = request.args.get(key="search", default=None)
-        return worker.Worker.get_all_json({"search": search, "category": "presenter"})
+    @auth_required("CONFIG_PUBLISHER_ACCESS")
+    @extract_args("search")
+    def get(self, filter_args=None):
+        filter_args = filter_args or {}
+        filter_args["category"] = "publisher"
+        return worker.Worker.get_all_for_api(filter_args)
 
 
 class Publishers(MethodView):
-    def get(self):
-        search = request.args.get(key="search", default=None)
-        return worker.Worker.get_all_json({"search": search, "category": "publisher"})
+    @auth_required("CONFIG_PUBLISHER_ACCESS")
+    @extract_args("search")
+    def get(self, filter_args=None):
+        filter_args = filter_args or {}
+        filter_args["category"] = "publisher"
+        return worker.Worker.get_all_for_api(filter_args)
 
 
 class PublisherPresets(MethodView):
@@ -542,10 +551,9 @@ class Workers(MethodView):
 
 class WorkerTypes(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
-    def get(self):
-        search = request.args.get(key="search", default=None)
-        filter_args = {"search": search}
-        return worker.Worker.get_all_json(filter_args)
+    @extract_args("search", "category", "type")
+    def get(self, filter_args=None):
+        return worker.Worker.get_all_for_api(filter_args)
 
     @auth_required("CONFIG_WORKER_ACCESS")
     def post(self):

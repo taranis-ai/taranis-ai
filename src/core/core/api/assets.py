@@ -5,19 +5,22 @@ from core.managers import auth_manager
 from core.managers.auth_manager import auth_required
 from core.model import asset, attribute
 from core.model.attribute import AttributeType
+from core.managers.input_validators import extract_args
 
 
 class AssetGroups(MethodView):
     @auth_required("ASSETS_ACCESS")
-    def get(self, group_id=None):
+    @extract_args("search")
+    def get(self, group_id=None, filter_args=None):
         user = auth_manager.get_user_from_jwt()
         if not user:
             return {"error": "User not found"}, 404
         if group_id:
-            return asset.AssetGroup.get_json(user.organization, group_id)
+            return asset.AssetGroup.get_for_api(group_id, user.organization)
 
-        search = request.args.get("search", None)
-        return asset.AssetGroup.get_all_json(auth_manager.get_user_from_jwt(), search)
+        filter_args = filter_args or {}
+        filter_args["organization"] = user.organization
+        return asset.AssetGroup.get_all_for_api(filter_args)
 
     @auth_required("ASSETS_CONFIG")
     def post(self):
@@ -46,17 +49,17 @@ class AssetGroups(MethodView):
 
 class Assets(MethodView):
     @auth_required("ASSETS_ACCESS")
-    def get(self, asset_id=None):
+    @extract_args("search", "vulnerable", "group", "sort")
+    def get(self, asset_id=None, filter_args=None):
         user = auth_manager.get_user_from_jwt()
         if not user:
             return {"error": "User not found"}, 404
 
         if asset_id:
-            return asset.Asset.get_json(user.organization, asset_id)
-        filter_keys = ["search" "vulnerable", "group", "sort"]
-        filter_args: dict[str, str | int] = {k: v for k, v in request.args.items() if k in filter_keys}
-
-        return asset.Asset.get_all_json(user.organization, filter_args)
+            return asset.Asset.get_for_api(asset_id, user.organization)
+        filter_args = filter_args or {}
+        filter_args["organization"] = user.organization
+        return asset.Asset.get_all_for_api(filter_args)
 
     @auth_required("ASSETS_CREATE")
     def post(self):

@@ -31,3 +31,16 @@ def validate_json(f):
         return f(*args, **kwargs)
 
     return decorated_function
+
+
+def extract_args(*keys):
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            filter_args = {k: request.args[k] for k in keys if k in request.args}
+            kwargs["filter_args"] = filter_args
+            return f(*args, **kwargs)
+
+        return decorated_function
+
+    return decorator

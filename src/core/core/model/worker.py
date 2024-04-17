@@ -109,35 +109,10 @@ class Worker(BaseModel):
         return {"message": f"Worker {worker.name} added", "id": worker.id}, 201
 
     @classmethod
-    def get_first(cls):
-        return cls.query.first()
-
-    @classmethod
     def get_type(cls, id) -> "Worker":
         if worker := cls.get(id):
             return worker.type
-        else:
-            raise ValueError
-
-    @classmethod
-    def get_by_filter(cls, filter_args: dict):
-        query = cls.query
-
-        if search := filter_args.get("search"):
-            query = query.filter(
-                or_(
-                    Worker.name.ilike(f"%{search}%"),
-                    Worker.description.ilike(f"%{search}%"),
-                )
-            )
-
-        if category := filter_args.get("category"):
-            query = query.filter(Worker.category == category)
-
-        if type := filter_args.get("type"):
-            query = query.filter(Worker.type == type)
-
-        return query.order_by(db.asc(Worker.name)).all(), query.count()
+        raise ValueError(f"Worker {id} not found")
 
     @classmethod
     def get_filter_query(cls, filter_args: dict) -> Select:
@@ -152,22 +127,18 @@ class Worker(BaseModel):
             )
 
         if category := filter_args.get("category"):
-            query = query.where(Worker.category == category)
+            if category in WORKER_CATEGORY.__members__:
+                query = query.where(Worker.category == category)
 
         if type := filter_args.get("type"):
-            query = query.where(Worker.type == type)
+            if type in WORKER_TYPES.__members__:
+                query = query.where(Worker.type == type)
 
-        return query
-
-    @classmethod
-    def filter_by_type(cls, type):
-        return cls.query.filter_by(type=type).first()
+        return query.order_by(db.asc(Worker.name))
 
     @classmethod
-    def get_all_json(cls, filter_args: dict):
-        workers, count = cls.get_by_filter(filter_args)
-        items = [worker.to_worker_info_dict() for worker in workers]
-        return {"total_count": count, "items": items}
+    def filter_by_type(cls, worker_type) -> "Worker | None":
+        return db.session.execute(db.select(cls).filter(cls.type == worker_type)).scalar_one_or_none()
 
     def to_worker_info_dict(self) -> dict[str, Any]:
         return {
@@ -186,8 +157,9 @@ class Worker(BaseModel):
 
     @classmethod
     def get_parameters(cls, worker_type: str) -> list[ParameterValue]:
-        parameters = cls.query.filter(cls.type == worker_type).first().parameters
-        return [parameter.get_copy() for parameter in parameters]
+        if worker := cls.filter_by_type(worker_type):
+            return [parameter.get_copy() for parameter in worker.parameters]
+        return []
 
     @classmethod
     def parse_parameters(cls, worker_type: str, parameters) -> list[ParameterValue]:

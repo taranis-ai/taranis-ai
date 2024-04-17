@@ -91,7 +91,7 @@ class NewsItemData(BaseModel):
 
     @classmethod
     def latest_collected(cls):
-        news_item_data = db.select(cls).order_by(db.desc(NewsItemData.collected)).first()
+        news_item_data = db.session.execute(db.select(cls).order_by(db.desc(NewsItemData.collected)).limit(1)).scalar_one()
         return news_item_data.collected.isoformat() if news_item_data else ""
 
     @classmethod

@@ -148,7 +148,7 @@ class ReportItem(BaseModel):
 
     @classmethod
     def count_all(cls, is_completed):
-        return cls.get_filtered_count(db.select(cls).where(completed=is_completed))
+        return cls.get_filtered_count(db.select(cls).filter_by(completed=is_completed))
 
     @classmethod
     def get_all_for_api(cls, filter_args: dict, with_count: bool = False, user=None) -> tuple[dict[str, Any], int]:
