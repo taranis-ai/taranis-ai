@@ -84,11 +84,11 @@ class Attributes(MethodView):
 
 class AttributeEnums(MethodView):
     @auth_required("CONFIG_ATTRIBUTE_ACCESS")
-    def get(self, attribute_id):
-        search = request.args.get(key="search", default=None)
-        offset = request.args.get(key="offset", default=0)
-        limit = request.args.get(key="limit", default=10)
-        return attribute.AttributeEnum.get_for_attribute_json(attribute_id, search, offset, limit)
+    @extract_args("search", "offset", "limit")
+    def get(self, attribute_id=None, filter_args=None):
+        if attribute_id:
+            return attribute.AttributeEnum.get_for_api(attribute_id)
+        return attribute.AttributeEnum.get_all_for_api(filter_args, True)
 
     @auth_required("CONFIG_ATTRIBUTE_UPDATE")
     def post(self, attribute_id):
@@ -264,11 +264,11 @@ class Organizations(MethodView):
 
 class Users(MethodView):
     @auth_required("CONFIG_USER_ACCESS")
-    def get(self, user_id=None):
+    @extract_args("search")
+    def get(self, user_id=None, filter_args=None):
         if user_id:
             return user.User.get_for_api(user_id)
-        filtre_args = {"search": request.args.get(key="search", default=None)}
-        return user.User.get_all_for_api(filtre_args, True)
+        return user.User.get_all_for_api(filter_args, True)
 
     @auth_required("CONFIG_USER_CREATE")
     def post(self):
@@ -298,11 +298,11 @@ class Users(MethodView):
 
 class Bots(MethodView):
     @auth_required("CONFIG_BOT_ACCESS")
-    def get(self, bot_id=None):
+    @extract_args("search")
+    def get(self, bot_id=None, filter_args=None):
         if bot_id:
             return bot.Bot.get_for_api(bot_id)
-        search = {"search": request.args.get(key="search", default=None)}
-        return bot.Bot.get_all_for_api(search)
+        return bot.Bot.get_all_for_api(filter_args, True)
 
     @auth_required("CONFIG_BOT_UPDATE")
     def put(self, bot_id):
@@ -313,7 +313,8 @@ class Bots(MethodView):
 
     @auth_required("CONFIG_BOT_CREATE")
     def post(self):
-        return bot.Bot.add(request.json)
+        new_bot = bot.Bot.add(request.json)
+        return {"message": f"Bot {new_bot.name} created", "id": new_bot.id}, 201
 
     @auth_required("CONFIG_BOT_DELETE")
     def delete(self, bot_id):
@@ -553,7 +554,7 @@ class WorkerTypes(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
     @extract_args("search", "category", "type")
     def get(self, filter_args=None):
-        return worker.Worker.get_all_for_api(filter_args)
+        return worker.Worker.get_all_for_api(filter_args, True)
 
     @auth_required("CONFIG_WORKER_ACCESS")
     def post(self):

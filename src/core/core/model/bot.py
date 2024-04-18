@@ -3,6 +3,7 @@ from typing import Any
 
 from sqlalchemy import and_, func
 from sqlalchemy.orm import joinedload
+from sqlalchemy.sql import Select
 
 from core.log import logger
 from core.managers.db_manager import db
@@ -61,13 +62,6 @@ class Bot(BaseModel):
         return db.select(cls).where(index=index).scalar()
 
     @classmethod
-    def add(cls, data) -> tuple[dict, int]:
-        bot = cls.from_dict(data)
-        db.session.add(bot)
-        db.session.commit()
-        return {"message": f"Bot {bot.name} added", "id": f"{bot.id}"}, 201
-
-    @classmethod
     def filter_by_type(cls, type: str) -> "Bot | None":
         filter_type = type.lower()
         if filter_type not in [types.value for types in BOT_TYPES]:
@@ -119,6 +113,15 @@ class Bot(BaseModel):
             "args": [self.id],
             "options": {"queue": "bots"},
         }
+
+    @classmethod
+    def get_filter_query(cls, filter_args: dict) -> Select:
+        query = db.select(cls)
+
+        if search := filter_args.get("search"):
+            query = query.filter(db.or_(Bot.name.ilike(f"%{search}%"), Bot.description.ilike(f"%{search}%")))
+
+        return query
 
 
 class BotParameterValue(BaseModel):

@@ -46,7 +46,7 @@ class ReportItem(MethodView):
 
         filter_args["offset"] = min(int(request.args.get("offset", 0)), (2**31) - 1)
         filter_args["limit"] = min(int(request.args.get("limit", 20)), 200)
-        return report_item.ReportItem.get_all_for_api(filter_args, auth_manager.get_user_from_jwt())
+        return report_item.ReportItem.get_all_for_api(filter_args=filter_args, with_count=True, user=auth_manager.get_user_from_jwt())
 
     @auth_required("ANALYZE_CREATE")
     def post(self):

@@ -249,7 +249,7 @@ class TestBotConfigApi(BaseTest):
 
     def test_create_bot(self, client, auth_header, cleanup_bot):
         response = self.assert_post_ok(client, uri="bots", json_data=cleanup_bot, auth_header=auth_header)
-        assert response.json["message"] == f"Bot {cleanup_bot['name']} added"
+        assert response.json["message"] == f"Bot {cleanup_bot['name']} created"
         assert response.json["id"] == cleanup_bot["id"]
 
     def test_modify_bot(self, client, auth_header, cleanup_bot):
@@ -265,7 +265,7 @@ class TestBotConfigApi(BaseTest):
     def test_get_bots(self, client, auth_header, cleanup_bot):
         bot_id = cleanup_bot["id"]
         response = self.assert_get_ok(client, uri=f"bots?search={cleanup_bot['name']}", auth_header=auth_header)
-        assert response.json["total_count"] == 1
+        assert response.json["count"] == 1
         assert response.json["items"][0]["name"] == cleanup_bot["name"]
         assert response.json["items"][0]["description"] == "Boty McBotFace"
         assert response.json["items"][0]["id"] == bot_id
@@ -436,6 +436,7 @@ class TestWorkerTypes(BaseTest):
         assert response.json["items"][0]["name"] == cleanup_worker_types["name"]
         assert response.json["items"][0]["description"] == cleanup_worker_types["description"]
         assert response.json["items"][0]["type"] == cleanup_worker_types["type"]
+        print(response.json["items"][0])
         assert response.json["items"][0]["parameters"]["REGULAR_EXPRESSION"] == cleanup_worker_types["parameters"]["REGULAR_EXPRESSION"]
         assert response.json["items"][0]["parameters"]["ITEM_FILTER"] == cleanup_worker_types["parameters"]["ITEM_FILTER"]
         assert response.json["items"][0]["parameters"]["RUN_AFTER_COLLECTOR"] == cleanup_worker_types["parameters"]["RUN_AFTER_COLLECTOR"]

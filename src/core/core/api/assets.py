@@ -102,17 +102,6 @@ class GetAttributeCPE(MethodView):
         return cpe.id
 
 
-class AttributeCPEEnums(MethodView):
-    @auth_required("ASSETS_ACCESS")
-    def get(self):
-        cpe = attribute.Attribute.filter_by_type(AttributeType.CPE)
-        search = request.args.get("search")
-        limit = min(int(request.args.get("limit", 20)), 200)
-        offset = int(request.args.get("offset", 0))
-
-        return attribute.AttributeEnum.get_for_attribute_json(cpe.id, search, offset, limit)
-
-
 def initialize(app: Flask):
     base_route = "/api"
     app.add_url_rule(f"{base_route}/assets", view_func=Assets.as_view("assets"))
@@ -124,4 +113,3 @@ def initialize(app: Flask):
     app.add_url_rule(f"{base_route}/asset-groups", view_func=AssetGroups.as_view("asset_groups"))
     app.add_url_rule(f"{base_route}/asset-groups/<string:group_id>", view_func=AssetGroups.as_view("asset_group"))
     app.add_url_rule(f"{base_route}/asset-attributes/cpe", view_func=GetAttributeCPE.as_view("cpe"))
-    app.add_url_rule(f"{base_route}/asset-attributes/cpe/enums", view_func=AttributeCPEEnums.as_view("cpe_enums"))

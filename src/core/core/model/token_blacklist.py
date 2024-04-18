@@ -25,5 +25,5 @@ class TokenBlacklist(BaseModel):
 
     @classmethod
     def delete_older(cls, check_time):
-        db.session.query(TokenBlacklist).filter(TokenBlacklist.created < check_time).delete()
+        db.select(TokenBlacklist).filter(TokenBlacklist.created < check_time).delete()
         db.session.commit()

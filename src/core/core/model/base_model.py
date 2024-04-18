@@ -21,6 +21,29 @@ class BaseModel(db.Model):
     def __repr__(self) -> str:
         return f"{self.__class__.__name__} {self.to_json()}"
 
+    def update(self, item: dict[str, Any]) -> tuple[dict, int]:
+        for key, value in item.items():
+            if hasattr(self, key) and key != "id":
+                setattr(self, key, value)
+
+        db.session.commit()
+        return {"message": f"Successfully updated {self.id}"}, 200
+
+    def to_dict(self) -> dict[str, Any]:
+        table = getattr(self, "__table__", None)
+        if table is None:
+            return {}
+        data = {c.name: getattr(self, c.name) for c in table.columns}
+        for key, value in data.items():
+            if isinstance(value, datetime):
+                data[key] = value.isoformat()
+            elif isinstance(value, Enum):
+                data[key] = value.value
+        return data
+
+    def to_json(self) -> str:
+        return json.dumps(self.to_dict())
+
     @classmethod
     def delete(cls: Type[T], id) -> tuple[dict[str, Any], int]:
         if item := cls.get(id):
@@ -61,29 +84,6 @@ class BaseModel(db.Model):
     def load_multiple(cls: Type[T], json_data: list[dict[str, Any]]) -> list[T]:
         return [cls.from_dict(data) for data in json_data]
 
-    def update(self, item: dict[str, Any]) -> tuple[dict, int]:
-        for key, value in item.items():
-            if hasattr(self, key) and key != "id":
-                setattr(self, key, value)
-
-        db.session.commit()
-        return {"message": f"Successfully updated {self.id}"}, 200
-
-    def to_dict(self) -> dict[str, Any]:
-        table = getattr(self, "__table__", None)
-        if table is None:
-            return {}
-        data = {c.name: getattr(self, c.name) for c in table.columns}
-        for key, value in data.items():
-            if isinstance(value, datetime):
-                data[key] = value.isoformat()
-            elif isinstance(value, Enum):
-                data[key] = value.value
-        return data
-
-    def to_json(self) -> str:
-        return json.dumps(self.to_dict())
-
     @classmethod
     def to_list(cls, objects: list[T]) -> list[dict[str, Any]]:
         return [obj.to_dict() for obj in objects]
@@ -109,13 +109,17 @@ class BaseModel(db.Model):
         query = db.select(cls)
 
         if search := filter_args.get("search"):
-            query = query.where(db.or_(*[column.ilike(f"%{search}%") for column in cls.__table__.columns]))
+            query = query.filter(cls.id.ilike(f"%{search}%"))
 
         return query
 
     @classmethod
     def get_filtered(cls: Type[T], query: Select) -> list[T] | None:
         return db.session.execute(query).scalars().all()
+
+    @classmethod
+    def get_first(cls: Type[T], query: Select) -> T | None:
+        return db.session.execute(query).scalar()
 
     @classmethod
     def get_by_filter(cls: Type[T], filter_args: dict) -> list[T] | None:

@@ -1,5 +1,6 @@
 from werkzeug.security import generate_password_hash
 from typing import Any
+from sqlalchemy.sql import Select
 
 from core.managers.db_manager import db
 from core.model.role import Role
@@ -140,6 +141,18 @@ class User(BaseModel):
         result = super().delete(id)
         UserProfile.delete(id)
         return result
+
+    @classmethod
+    def get_filter_query(cls, filter_args: dict) -> Select:
+        query = db.select(cls)
+
+        if organization := filter_args.get("organization"):
+            query = query.where(User.organization_id == organization.id)
+
+        if search := filter_args.get("search"):
+            query = query.filter(db.or_(User.name.ilike(f"%{search}%"), User.username.ilike(f"%{search}%")))
+
+        return query.order_by(db.asc(User.name))
 
 
 class UserRole(BaseModel):

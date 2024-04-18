@@ -15,6 +15,7 @@ from core.model.news_item import NewsItemAggregate
 from core.model.news_item_tag import NewsItemTag
 from core.managers.sse_manager import sse_manager
 from core.model.bot import Bot
+from core.managers.input_validators import extract_args
 
 
 class AddNewsItems(MethodView):
@@ -212,10 +213,10 @@ class DropTags(MethodView):
 
 class BotInfo(MethodView):
     @api_key_required
-    def get(self, bot_id=None):
+    @extract_args("search")
+    def get(self, bot_id=None, filter_args=None):
         if not bot_id:
-            search = {"search": request.args.get(key="search", default=None)}
-            return Bot.get_all_for_api(search)
+            return Bot.get_all_for_api(filter_args)
 
         if result := Bot.get(bot_id):
             return result.to_dict(), 200

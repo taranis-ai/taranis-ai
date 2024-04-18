@@ -1,6 +1,7 @@
 import os
 from xml.etree.ElementTree import iterparse
 from sqlalchemy import func, or_
+from sqlalchemy.sql import Select
 from enum import Enum, auto
 from typing import Any
 
@@ -50,42 +51,30 @@ class AttributeEnum(BaseModel):
         return cls.get_filtered(db.select(cls).filter_by(attribute_id=attribute_id).order_by(db.asc(cls.index))) or []
 
     @classmethod
-    def get_for_attribute(cls, attribute_id, search, offset, limit):
-        query = cls.query.filter_by(attribute_id=attribute_id)
-        if search:
-            search_string = f"%{search}%"
+    def get_filter_query(cls, filter_args: dict) -> Select:
+        query = db.select(cls)
+
+        if search := filter_args.get("search"):
             query = query.filter(
                 or_(
-                    AttributeEnum.value.ilike(search_string),
-                    AttributeEnum.description.ilike(search_string),
+                    AttributeEnum.value.ilike(f"%{search}%"),
+                    AttributeEnum.description.ilike(f"%{search}%"),
                 )
             )
-
-        query = query.order_by(db.asc(AttributeEnum.index))
-
-        return query.offset(offset).limit(limit).all(), query.count()
+        return query.order_by(db.asc(AttributeEnum.index))
 
     @classmethod
     def find_by_value(cls, attribute_id, value):
-        return cls.query.filter_by(attribute_id=attribute_id).filter(func.lower(AttributeEnum.value) == value.lower()).first()
-
-    @classmethod
-    def get_for_attribute_json(cls, attribute_id, search, offset, limit):
-        attribute_enums, total_count = cls.get_for_attribute(attribute_id, search, offset, limit)
-        items = [attribute_enum.to_dict() for attribute_enum in attribute_enums]
-        return {
-            "total_count": total_count,
-            "items": items,
-        }
+        return cls.get_first(db.select(cls).filter_by(attribute_id=attribute_id).filter(func.lower(AttributeEnum.value) == value.lower()))
 
     @classmethod
     def delete_for_attribute(cls, attribute_id):
-        cls.query.filter_by(attribute_id=attribute_id).delete()
+        db.select(cls).filter_by(attribute_id=attribute_id).delete()
         db.session.commit()
 
     @classmethod
     def delete_imported_for_attribute(cls, attribute_id):
-        cls.query.filter_by(attribute_id=attribute_id, imported=True).delete()
+        db.select(cls).filter_by(attribute_id=attribute_id, imported=True).delete()
         db.session.commit()
 
     @classmethod
@@ -98,18 +87,6 @@ class AttributeEnum(BaseModel):
                 setattr(attribute_enum, key, value)
         db.session.commit()
         return {"message": f"Attribute Enum {attribute_enum.id} updated", "id": attribute_enum.id}, 200
-
-    @classmethod
-    def delete(cls, attribute_enum_id) -> tuple[dict, int]:
-        cls.query.get(attribute_enum_id).delete()
-        db.session.commit()
-        return {"message": f"Attribute Enum {attribute_enum_id} deleted", "id": attribute_enum_id}, 200
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "AttributeEnum":
-        if attribute_data := data.pop("attribute", None):
-            data["attribute"] = Attribute.from_dict(attribute_data)
-        return cls(**data)
 
     def to_dict(self):
         data = {c.name: getattr(self, c.name) for c in self.__table__.columns}

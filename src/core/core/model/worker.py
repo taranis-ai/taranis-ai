@@ -140,7 +140,7 @@ class Worker(BaseModel):
     def filter_by_type(cls, worker_type) -> "Worker | None":
         return db.session.execute(db.select(cls).filter(cls.type == worker_type)).scalar_one_or_none()
 
-    def to_worker_info_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "name": self.name,
@@ -149,11 +149,6 @@ class Worker(BaseModel):
             "category": self.category,
             "parameters": {parameter.parameter: parameter.value for parameter in self.parameters},
         }
-
-    def to_dict(self) -> dict[str, Any]:
-        data = super().to_dict()
-        data["parameters"] = [pv.to_dict() for pv in self.parameters]
-        return data
 
     @classmethod
     def get_parameters(cls, worker_type: str) -> list[ParameterValue]:

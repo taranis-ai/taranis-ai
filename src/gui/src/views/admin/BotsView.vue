@@ -80,7 +80,7 @@ export default {
 
     const updateData = () => {
       configStore.loadBots().then(() => {
-        mainStore.itemCountTotal = bots.value.total_count
+        mainStore.itemCountTotal = bots.value.count
         mainStore.itemCountFiltered = bots.value.items.length
       })
       configStore.loadWorkerTypes().then(() => {
