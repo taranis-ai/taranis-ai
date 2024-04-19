@@ -2,9 +2,8 @@ import uuid
 import json
 import base64
 from datetime import datetime
-from typing import Any
-from sqlalchemy import or_
-from sqlalchemy.orm import deferred, Mapped
+from typing import Any, Sequence
+from sqlalchemy.orm import deferred, Mapped, relationship
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql import Select
 
@@ -24,13 +23,13 @@ class OSINTSource(BaseModel):
     name: Mapped[str] = db.Column(db.String(), nullable=False)
     description: Mapped[str] = db.Column(db.String())
 
-    type: Any = db.Column(db.Enum(COLLECTOR_TYPES))
-    parameters: Any = db.relationship(
+    type: Mapped[COLLECTOR_TYPES] = db.Column(db.Enum(COLLECTOR_TYPES))
+    parameters: Mapped[list["ParameterValue"]] = relationship(
         "ParameterValue",
         secondary="osint_source_parameter_value",
         cascade="all, delete",
-    )  # type: ignore
-    groups: Any = db.relationship("OSINTSourceGroup", secondary="osint_source_group_osint_source")  # type: ignore
+    )
+    groups: Mapped[list["OSINTSourceGroup"]] = relationship("OSINTSourceGroup", secondary="osint_source_group_osint_source")
 
     icon: Any = deferred(db.Column(db.LargeBinary))
     state = db.Column(db.SmallInteger, default=0)
@@ -38,18 +37,18 @@ class OSINTSource(BaseModel):
     last_attempted = db.Column(db.DateTime, default=None)
     last_error_message = db.Column(db.String, default=None)
 
-    def __init__(self, name, description, type, parameters=None, icon=None, id=None):
+    def __init__(self, name: str, description: str, type: str | COLLECTOR_TYPES, parameters=None, icon=None, id=None):
         self.id = id or str(uuid.uuid4())
         self.name = name
         self.description = description
-        self.type = type
+        self.type = type if isinstance(type, COLLECTOR_TYPES) else COLLECTOR_TYPES(type.lower())
         if icon is not None and (icon_data := self.is_valid_base64(icon)):
             self.icon = icon_data
 
         self.parameters = Worker.parse_parameters(type, parameters)
 
     @classmethod
-    def get_all(cls) -> list["OSINTSource"]:
+    def get_all(cls) -> Sequence["OSINTSource"]:
         return (
             db.session.execute(
                 db.select(cls)
@@ -75,7 +74,7 @@ class OSINTSource(BaseModel):
         query = db.select(cls)
 
         if search := filter_args.get("search"):
-            query = query.where(or_(cls.name.ilike(f"%{search}%"), cls.description.ilike(f"%{search}%"), cls.type.ilike(f"%{search}%")))
+            query = query.where(db.or_(cls.name.ilike(f"%{search}%"), cls.description.ilike(f"%{search}%"), cls.type.ilike(f"%{search}%")))
 
         if source_type := filter_args.get("type"):
             query = query.where(cls.type == source_type)
@@ -291,8 +290,8 @@ class OSINTSource(BaseModel):
 
 
 class OSINTSourceParameterValue(BaseModel):
-    osint_source_id = db.Column(db.String, db.ForeignKey("osint_source.id", ondelete="CASCADE"), primary_key=True)
-    parameter_value_id = db.Column(db.Integer, db.ForeignKey("parameter_value.id", ondelete="CASCADE"), primary_key=True)
+    osint_source_id: Mapped[str] = db.Column(db.String, db.ForeignKey("osint_source.id", ondelete="CASCADE"), primary_key=True)
+    parameter_value_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("parameter_value.id", ondelete="CASCADE"), primary_key=True)
 
 
 class OSINTSourceGroup(BaseModel):
@@ -301,12 +300,12 @@ class OSINTSourceGroup(BaseModel):
     description: Mapped[str] = db.Column(db.String())
     default: Mapped[bool] = db.Column(db.Boolean(), default=False)
 
-    osint_sources: Any = db.relationship(
+    osint_sources: Mapped[list["OSINTSource"]] = relationship(
         "OSINTSource",
         secondary="osint_source_group_osint_source",
         back_populates="groups",
     )
-    word_lists: Any = db.relationship("WordList", secondary="osint_source_group_word_list")  # type: ignore
+    word_lists: Mapped[list["WordList"]] = relationship("WordList", secondary="osint_source_group_word_list")  # type: ignore
 
     def __init__(self, name, description="", osint_sources=None, default=False, word_lists=None, id=None):
         self.id = id or str(uuid.uuid4())
@@ -332,7 +331,7 @@ class OSINTSourceGroup(BaseModel):
         query = db.select(cls)
 
         if search := filter_args.get("search"):
-            query = query.where(or_(cls.name.ilike(f"%{search}%"), cls.description.ilike(f"%{search}%")))
+            query = query.where(db.or_(cls.name.ilike(f"%{search}%"), cls.description.ilike(f"%{search}%")))
 
         return query.order_by(db.asc(cls.name))
 

@@ -1,6 +1,6 @@
 from typing import Any
 from sqlalchemy.sql.expression import Select
-from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import Mapped, relationship
 import json
 
 from core.managers.db_manager import db
@@ -18,14 +18,15 @@ class AttributeGroupItem(BaseModel):
     index: Mapped[int] = db.Column(db.Integer)
     multiple: Mapped[bool] = db.Column(db.Boolean, default=False)
 
-    attribute_group_id = db.Column(db.Integer, db.ForeignKey("attribute_group.id", ondelete="CASCADE"))
-    attribute_group = db.relationship("AttributeGroup")
+    attribute_group_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("attribute_group.id", ondelete="CASCADE"))
+    attribute_group: Mapped["AttributeGroup"] = relationship("AttributeGroup")
 
-    attribute_id = db.Column(db.Integer, db.ForeignKey("attribute.id"))
-    attribute = db.relationship("Attribute")
+    attribute_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("attribute.id"))
+    attribute: Mapped["Attribute"] = relationship("Attribute")
 
     def __init__(self, title: str, description: str, index: int, attribute_id=None, attribute=None, multiple=False, id=None):
-        self.id = id
+        if id:
+            self.id = id
         self.title = title
         self.description = description
         self.index = index
@@ -69,23 +70,24 @@ class AttributeGroupItem(BaseModel):
 
 
 class AttributeGroup(BaseModel):
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String())
-    description = db.Column(db.String())
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    title: Mapped[str] = db.Column(db.String())
+    description: Mapped[str] = db.Column(db.String())
 
-    index = db.Column(db.Integer)
+    index: Mapped[int] = db.Column(db.Integer)
 
-    report_item_type_id = db.Column(db.Integer, db.ForeignKey("report_item_type.id", ondelete="CASCADE"))
-    report_item_type = db.relationship("ReportItemType")
+    report_item_type_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("report_item_type.id", ondelete="CASCADE"))
+    report_item_type: Mapped["ReportItemType"] = relationship("ReportItemType")
 
-    attribute_group_items: Any = db.relationship(
+    attribute_group_items: Mapped[list["AttributeGroupItem"]] = relationship(
         "AttributeGroupItem",
         back_populates="attribute_group",
         cascade="all, delete-orphan",
     )
 
     def __init__(self, title, description, index, attribute_group_items=None, id=None):
-        self.id = id
+        if id:
+            self.id = id
         self.title = title
         self.description = description
         self.index = index
@@ -147,13 +149,13 @@ class ReportItemType(BaseModel):
     title: Mapped[str] = db.Column(db.String())
     description: Mapped[str] = db.Column(db.String())
 
-    attribute_groups: Any = db.relationship(
+    attribute_groups: Mapped[list["AttributeGroup"]] = relationship(
         "AttributeGroup",
         back_populates="report_item_type",
         cascade="all, delete-orphan",
     )
 
-    def __init__(self, title: str, description: str | None = None, attribute_groups=None, id: int | None = None):
+    def __init__(self, title: str, description: str = "", attribute_groups=None, id: int | None = None):
         self.title = title
         self.description = description
         self.attribute_groups = AttributeGroup.load_multiple(attribute_groups) if attribute_groups else []

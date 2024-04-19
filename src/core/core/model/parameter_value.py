@@ -28,11 +28,13 @@ class ParameterValue(BaseModel):
     def __init__(
         self, parameter: str, value: str = "", type: str | PARAMETER_TYPES = "text", rules: str | None = None, id: int | None = None
     ):
-        self.id = id
         self.parameter = parameter
         self.value = value
         self.type = type if isinstance(type, PARAMETER_TYPES) else PARAMETER_TYPES(type.lower())
-        self.rules = rules
+        if rules:
+            self.rules = rules
+        if id:
+            self.id = id
 
     def to_dict(self) -> dict[str, str]:
         return {self.parameter: self.value}

@@ -2,6 +2,7 @@ import os
 from xml.etree.ElementTree import iterparse
 from sqlalchemy import func, or_
 from sqlalchemy.sql import Select
+from sqlalchemy.orm import Mapped, relationship
 from enum import Enum, auto
 from typing import Any
 
@@ -31,17 +32,18 @@ class AttributeType(Enum):
 
 
 class AttributeEnum(BaseModel):
-    id = db.Column(db.Integer, primary_key=True)
-    index: Any = db.Column(db.Integer)
-    value: Any = db.Column(db.String(), nullable=False)
-    description: Any = db.Column(db.String())
-    imported = db.Column(db.Boolean, default=False)
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    index: Mapped[int] = db.Column(db.Integer)
+    value: Mapped[str] = db.Column(db.String(), nullable=False)
+    description: Mapped[str] = db.Column(db.String())
+    imported: Mapped[bool] = db.Column(db.Boolean, default=False)
 
-    attribute_id: Any = db.Column(db.Integer, db.ForeignKey("attribute.id", ondelete="CASCADE"))
-    attribute: Any = db.relationship("Attribute", cascade="all, delete")
+    attribute_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("attribute.id", ondelete="CASCADE"))
+    attribute: Mapped["Attribute"] = relationship("Attribute", cascade="all, delete")
 
-    def __init__(self, index, value, description, id=None):
-        self.id = id
+    def __init__(self, index: int, value: str, description: str, id=None):
+        if id:
+            self.id = id
         self.index = index
         self.value = value
         self.description = description
@@ -98,14 +100,15 @@ class AttributeEnum(BaseModel):
 
 
 class Attribute(BaseModel):
-    id = db.Column(db.Integer, primary_key=True)
-    name: Any = db.Column(db.String(), nullable=False)
-    description: Any = db.Column(db.String())
-    type = db.Column(db.Enum(AttributeType))
-    default_value = db.Column(db.String(), default="")
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    name: Mapped[str] = db.Column(db.String(), nullable=False)
+    description: Mapped[str] = db.Column(db.String())
+    type: Mapped[AttributeType] = db.Column(db.Enum(AttributeType))
+    default_value: Mapped[str] = db.Column(db.String(), default="")
 
-    def __init__(self, name, description, attribute_type, default_value="", id=None):
-        self.id = id
+    def __init__(self, name: str, description: str, attribute_type, default_value: str = "", id=None):
+        if id:
+            self.id = id
         self.name = name
         self.description = description
         self.type = attribute_type
@@ -181,7 +184,7 @@ class Attribute(BaseModel):
                 if element.tag == "{http://cve.mitre.org/cve/downloads/1.0}desc":
                     desc = element.text
                 elif element.tag == "{http://cve.mitre.org/cve/downloads/1.0}item":
-                    attribute_enum = AttributeEnum(None, item_count, element.attrib["name"], desc)
+                    attribute_enum = AttributeEnum(item_count, element.attrib["name"], desc)
                     attribute_enum.attribute_id = attribute.id
                     attribute_enum.imported = True
                     db.session.add(attribute_enum)
@@ -215,7 +218,7 @@ class Attribute(BaseModel):
                 if element.tag == "{http://cpe.mitre.org/dictionary/2.0}title":
                     desc = element.text
                 elif element.tag == "{http://cpe.mitre.org/dictionary/2.0}cpe-item":
-                    attribute_enum = AttributeEnum(None, item_count, element.attrib["name"], desc)
+                    attribute_enum = AttributeEnum(item_count, element.attrib["name"], desc)
                     attribute_enum.attribute_id = attribute.id
                     attribute_enum.imported = True
                     db.session.add(attribute_enum)

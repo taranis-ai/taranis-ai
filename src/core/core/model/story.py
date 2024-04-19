@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Any, Sequence
 from sqlalchemy import or_, func
-from sqlalchemy.orm import aliased, Mapped
+from sqlalchemy.orm import aliased, Mapped, relationship
 from sqlalchemy.sql.expression import false, null
 from sqlalchemy.sql import Select
 
@@ -22,6 +22,8 @@ from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 
 
 class Story(BaseModel):
+    __tablename__ = "story"
+
     id: Mapped[str] = db.Column(db.String(64), primary_key=True)
     title: Mapped[str] = db.Column(db.String())
     description: Mapped[str] = db.Column(db.String())
@@ -34,10 +36,10 @@ class Story(BaseModel):
     dislikes: Mapped[int] = db.Column(db.Integer, default=0)
     relevance: Mapped[int] = db.Column(db.Integer, default=0)
 
-    comments: Any = db.Column(db.String(), default="")
-    summary: Any = db.Column(db.Text, default="")
-    news_items: Any = db.relationship("NewsItem")
-    attributes: Any = db.relationship("NewsItemAttribute", secondary="story_news_item_attribute")
+    comments: Mapped[str] = db.Column(db.String(), default="")
+    summary: Mapped[str] = db.Column(db.Text, default="")
+    news_items: Mapped[list["NewsItem"]] = relationship("NewsItem")
+    attributes: Mapped[list["NewsItemAttribute"]] = relationship("NewsItemAttribute", secondary="story_news_item_attribute")
 
     def __init__(
         self,
@@ -684,9 +686,11 @@ class Story(BaseModel):
 
 
 class StorySearchIndex(BaseModel):
-    id = db.Column(db.Integer, primary_key=True)
-    data: Any = db.Column(db.String)
-    story_id: Any = db.Column(db.String(64), db.ForeignKey("story.id"), index=True)
+    __tablename__ = "story_search_index"
+
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    data: Mapped[str] = db.Column(db.String)
+    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id"), index=True)
 
     def __init__(self, story_id, data=None):
         self.story_id = story_id
@@ -724,21 +728,20 @@ class StorySearchIndex(BaseModel):
                 ]
             )
 
-            data_components.extend([attribute.value for attribute in news_item.attributes])
-
         search_index.data = " ".join(data_components).lower()
         db.session.commit()
 
 
 class NewsItemVote(BaseModel):
-    id = db.Column(db.Integer, primary_key=True)
-    like = db.Column(db.Boolean, default=False)
-    dislike = db.Column(db.Boolean, default=False)
-    item_id = db.Column(db.Integer)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=True)
+    __tablename__ = "news_item_vote"
+
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    like: Mapped[bool] = db.Column(db.Boolean, default=False)
+    dislike: Mapped[bool] = db.Column(db.Boolean, default=False)
+    item_id: Mapped[int] = db.Column(db.Integer)
+    user_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=True)
 
     def __init__(self, item_id, user_id, like=False, dislike=False):
-        self.id = None
         self.item_id = item_id
         self.user_id = user_id
         self.like = like
@@ -756,13 +759,15 @@ class NewsItemVote(BaseModel):
 
 
 class StoryNewsItemAttribute(BaseModel):
-    story_id = db.Column(db.String(64), db.ForeignKey("story.id"), primary_key=True)
-    news_item_attribute_id = db.Column(db.String(64), db.ForeignKey("news_item_attribute.id", ondelete="CASCADE"), primary_key=True)
+    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id"), primary_key=True)
+    news_item_attribute_id: Mapped[str] = db.Column(
+        db.String(64), db.ForeignKey("news_item_attribute.id", ondelete="CASCADE"), primary_key=True
+    )
 
 
 class ReportItemStory(BaseModel):
-    report_item_id = db.Column(db.String(64), db.ForeignKey("report_item.id", ondelete="CASCADE"), primary_key=True)
-    story_id = db.Column(db.String(64), db.ForeignKey("story.id"), primary_key=True)
+    report_item_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("report_item.id", ondelete="CASCADE"), primary_key=True)
+    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id"), primary_key=True)
 
     @classmethod
     def assigned(cls, story_id):

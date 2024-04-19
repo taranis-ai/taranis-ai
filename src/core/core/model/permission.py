@@ -1,20 +1,22 @@
-from sqlalchemy import or_
 from sqlalchemy.sql.expression import Select
-from typing import Any
+from sqlalchemy.orm import Mapped, relationship
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 
 
 class Permission(BaseModel):
-    id = db.Column(db.String, primary_key=True)
-    name: Any = db.Column(db.String(), unique=True, nullable=False)
-    description: Any = db.Column(db.String())
+    __tablename__ = "permission"
 
-    roles = db.relationship("Role", secondary="role_permission")
+    id: Mapped[str] = db.Column(db.String, primary_key=True)
+    name: Mapped[str] = db.Column(db.String(), unique=True, nullable=False)
+    description: Mapped[str] = db.Column(db.String())
+
+    roles: Mapped[list["Role"]] = relationship("Role", secondary="role_permission")
 
     def __init__(self, name, description, id=None):
-        self.id = id
+        if id:
+            self.id = id
         self.name = name
         self.description = description
 
@@ -38,7 +40,7 @@ class Permission(BaseModel):
 
         if search := filter_args.get("search"):
             query = query.where(
-                or_(
+                db.or_(
                     cls.name.ilike(f"%{search}%"),
                     cls.description.ilike(f"%{search}%"),
                 )

@@ -1,6 +1,7 @@
 from werkzeug.security import generate_password_hash
 from typing import Any
 from sqlalchemy.sql import Select
+from sqlalchemy.orm import Mapped, relationship
 
 from core.managers.db_manager import db
 from core.model.role import Role
@@ -12,26 +13,30 @@ from core.model.role import TLPLevel
 
 
 class User(BaseModel):
-    id = db.Column(db.Integer, primary_key=True)
-    username: Any = db.Column(db.String(64), unique=True, nullable=False)
-    name: Any = db.Column(db.String(), nullable=False)
-    password: Any = db.Column(db.String(), nullable=True)
+    __tablename__ = "user"
 
-    organization_id = db.Column(db.Integer, db.ForeignKey("organization.id"))
-    organization: Any = db.relationship("Organization")
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    username: Mapped[str] = db.Column(db.String(64), unique=True, nullable=False)
+    name: Mapped[str] = db.Column(db.String(), nullable=False)
+    password: Mapped[str] = db.Column(db.String(), nullable=True)
 
-    roles: Any = db.relationship(Role, secondary="user_role", cascade="all, delete")
-    permissions: Any = db.relationship(Permission, secondary="user_permission", cascade="all, delete")
+    organization_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("organization.id"))
+    organization: Mapped[Organization] = relationship(Organization)
 
-    profile_id = db.Column(db.Integer, db.ForeignKey("user_profile.id", ondelete="CASCADE"))
-    profile = db.relationship("UserProfile", cascade="all, delete")
+    roles: Mapped[list[Role]] = relationship(Role, secondary="user_role", cascade="all, delete")
+    permissions: Mapped[list[Permission]] = relationship(Permission, secondary="user_permission", cascade="all, delete")
 
-    def __init__(self, username, name, organization, roles, permissions, password=None, id=None):
-        self.id = id
+    profile_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("user_profile.id", ondelete="CASCADE"))
+    profile: Mapped["UserProfile"] = relationship("UserProfile", cascade="all, delete")
+
+    def __init__(self, username: str, name: str, organization: int, roles: list[int], permissions: list[str], password=None, id=None):
+        if id:
+            self.id = id
         self.username = username
         self.name = name
-        if password:
-            self.password = generate_password_hash(password)
+        if not password:
+            raise ValueError("Password is required")
+        self.password = generate_password_hash(password)
         self.organization = Organization.get(organization)
         self.roles = [Role.get(role) for role in roles]
         self.permissions = [Permission.get(permission) for permission in permissions]
@@ -74,8 +79,6 @@ class User(BaseModel):
     @classmethod
     def add(cls, data) -> "User":
         item = cls.from_dict(data)
-        if not item.password:
-            raise ValueError("Password is required")
         db.session.add(item)
         db.session.commit()
         return item

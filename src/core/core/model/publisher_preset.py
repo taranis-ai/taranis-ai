@@ -1,6 +1,6 @@
 from typing import Any
 from sqlalchemy.sql.expression import Select
-from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import Mapped, relationship
 import uuid
 
 from core.log import logger
@@ -11,17 +11,21 @@ from core.model.worker import PUBLISHER_TYPES, Worker
 
 
 class PublisherPreset(BaseModel):
+    __tablename__ = "publisher_preset"
+
     id: Mapped[str] = db.Column(db.String(64), primary_key=True)
     name: Mapped[str] = db.Column(db.String(), nullable=False)
     description: Mapped[str] = db.Column(db.String())
     type: Mapped[PUBLISHER_TYPES] = db.Column(db.Enum(PUBLISHER_TYPES))
-    parameters: Any = db.relationship("ParameterValue", secondary="publisher_preset_parameter_value", cascade="all, delete")
+    parameters: Mapped[list["ParameterValue"]] = relationship(
+        "ParameterValue", secondary="publisher_preset_parameter_value", cascade="all, delete"
+    )
 
     def __init__(
         self,
         name: str,
         type: PUBLISHER_TYPES,
-        description: str | None = None,
+        description: str = "",
         parameters=None,
         id: str | None = None,
     ):

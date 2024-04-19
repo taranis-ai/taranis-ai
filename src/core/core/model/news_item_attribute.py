@@ -3,7 +3,7 @@ import base64
 import contextlib
 from datetime import datetime
 from typing import Any
-from sqlalchemy import orm
+from sqlalchemy.orm import Mapped, deferred
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
@@ -11,18 +11,19 @@ from core.model.role import TLPLevel
 
 
 class NewsItemAttribute(BaseModel):
-    id = db.Column(db.String(64), primary_key=True)
-    key: Any = db.Column(db.String(), nullable=False)
-    value: Any = db.Column(db.String(), nullable=False)
-    binary_mime_type = db.Column(db.String())
-    binary_data = orm.deferred(db.Column(db.LargeBinary))
-    created = db.Column(db.DateTime, default=datetime.now)
+    id: Mapped[str] = db.Column(db.String(64), primary_key=True)
+    key: Mapped[str] = db.Column(db.String(), nullable=False)
+    value: Mapped[str] = db.Column(db.String(), nullable=False)
+    binary_mime_type: Mapped[str] = db.Column(db.String())
+    binary_data: Mapped = deferred(db.Column(db.LargeBinary))
+    created: Mapped[datetime] = db.Column(db.DateTime, default=datetime.now)
 
     def __init__(self, key, value, binary_mime_type=None, binary_value=None, id=None):
         self.id = id or str(uuid.uuid4())
         self.key = key
         self.value = value
-        self.binary_mime_type = binary_mime_type
+        if binary_mime_type:
+            self.binary_mime_type = binary_mime_type
 
         with contextlib.suppress(Exception):
             if binary_value:

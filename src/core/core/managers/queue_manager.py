@@ -154,7 +154,7 @@ class QueueManager:
     def post_collection_bots(self, source_id: str):
         from core.model.bot import Bot
 
-        post_collection_bots = Bot.get_post_collection()
+        post_collection_bots = list(Bot.get_post_collection())
 
         current_bot = self.get_bot_signature(post_collection_bots.pop(0), source_id)
 

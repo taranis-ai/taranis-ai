@@ -1,5 +1,6 @@
 from sqlalchemy.sql import Select
 from typing import Any
+from sqlalchemy.orm import Mapped, relationship
 
 from core.managers.db_manager import db
 from core.model.address import Address
@@ -7,15 +8,16 @@ from core.model.base_model import BaseModel
 
 
 class Organization(BaseModel):
-    id = db.Column(db.Integer, primary_key=True)
-    name: Any = db.Column(db.String(), nullable=False)
-    description: Any = db.Column(db.String())
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    name: Mapped[str] = db.Column(db.String(), nullable=False)
+    description: Mapped[str] = db.Column(db.String())
 
-    address_id = db.Column(db.Integer, db.ForeignKey("address.id"))
-    address: Any = db.relationship("Address", cascade="all")
+    address_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("address.id"))
+    address: Mapped["Address"] = relationship("Address", cascade="all")
 
-    def __init__(self, name, description=None, address=None, id=None):
-        self.id = id
+    def __init__(self, name: str, description: str | None = None, address=None, id: int | None = None):
+        if id:
+            self.id = id
         self.name = name
         if description:
             self.description = description

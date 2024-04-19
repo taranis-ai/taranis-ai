@@ -1,7 +1,6 @@
 from sqlalchemy import or_
 from sqlalchemy.sql.expression import Select
-from sqlalchemy.orm import Mapped
-from typing import Any
+from sqlalchemy.orm import Mapped, relationship
 from enum import StrEnum
 
 from core.managers.db_manager import db
@@ -18,15 +17,18 @@ class TLPLevel(StrEnum):
 
 
 class Role(BaseModel):
-    id = db.Column(db.Integer, primary_key=True)
-    name: Any = db.Column(db.String(64), unique=True, nullable=False)
-    description: Any = db.Column(db.String())
-    tlp_level = db.Column(db.Enum(TLPLevel))
-    permissions: Mapped[list[Permission]] = db.relationship(Permission, secondary="role_permission", back_populates="roles")  # type: ignore
-    acls = db.relationship("RoleBasedAccess", secondary="rbac_role")  # type: ignore
+    __tablename__ = "role"
+
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    name: Mapped[str] = db.Column(db.String(64), unique=True, nullable=False)
+    description: Mapped[str] = db.Column(db.String())
+    tlp_level: Mapped[TLPLevel] = db.Column(db.Enum(TLPLevel))
+    permissions: Mapped[list[Permission]] = relationship(Permission, secondary="role_permission", back_populates="roles")
+    acls = relationship("RoleBasedAccess", secondary="rbac_role")
 
     def __init__(self, name, description=None, tlp_level=None, permissions=None, id=None):
-        self.id = id
+        if id:
+            self.id = id
         self.name = name
         if description:
             self.description = description

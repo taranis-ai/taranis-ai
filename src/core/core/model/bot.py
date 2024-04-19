@@ -1,8 +1,8 @@
 import uuid
-from typing import Any
+from typing import Any, Sequence
 
 from sqlalchemy import func
-from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql import Select
 
 from core.log import logger
@@ -19,9 +19,9 @@ class Bot(BaseModel):
     description: Mapped[str] = db.Column(db.String())
     type: Mapped[BOT_TYPES] = db.Column(db.Enum(BOT_TYPES))
     index: Mapped[int] = db.Column(db.Integer, unique=True, nullable=False)
-    parameters: Any = db.relationship("ParameterValue", secondary="bot_parameter_value", cascade="all, delete")
+    parameters: Mapped[list[ParameterValue]] = relationship("ParameterValue", secondary="bot_parameter_value", cascade="all, delete")
 
-    def __init__(self, name: str, type: str | BOT_TYPES, description: str | None = None, parameters=None, id: str | None = None):
+    def __init__(self, name: str, type: str | BOT_TYPES, description: str = "", parameters=None, id: str | None = None):
         self.id = id or str(uuid.uuid4())
         self.name = name
         self.description = description
@@ -73,7 +73,7 @@ class Bot(BaseModel):
         return cls.get_filtered(db.select(cls).where(type=type))
 
     @classmethod
-    def get_post_collection(cls) -> list[str]:
+    def get_post_collection(cls) -> Sequence[str]:
         stmt = (
             db.select(cls.id)
             .join(BotParameterValue, cls.id == BotParameterValue.bot_id)
@@ -123,5 +123,5 @@ class Bot(BaseModel):
 
 
 class BotParameterValue(BaseModel):
-    bot_id = db.Column(db.String, db.ForeignKey("bot.id", ondelete="CASCADE"), primary_key=True)
-    parameter_value_id = db.Column(db.Integer, db.ForeignKey("parameter_value.id"), primary_key=True)
+    bot_id: Mapped[str] = db.Column(db.String, db.ForeignKey("bot.id", ondelete="CASCADE"), primary_key=True)
+    parameter_value_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("parameter_value.id"), primary_key=True)

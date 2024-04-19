@@ -32,12 +32,13 @@ class RoleBasedAccess(BaseModel):
     read_only: Mapped[bool] = db.Column(db.Boolean, default=True)
     enabled: Mapped[bool] = db.Column(db.Boolean, default=True)
 
-    def __init__(self, name, description, item_type, item_id, roles=None, read_only=None, enabled=None, id=None):
-        self.id = id
+    def __init__(self, name: str, description: str, item_type, item_id: str, roles=None, read_only=None, enabled=None, id=None):
+        if id:
+            self.id = id
         self.name = name
         self.description = description
         self.item_type = item_type
-        self.item_id = str(item_id)  # type: ignore
+        self.item_id = item_id
         if read_only is not None:
             self.read_only = read_only
         if enabled is not None:

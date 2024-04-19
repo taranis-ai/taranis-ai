@@ -2,9 +2,8 @@ import json
 import csv
 from typing import Any
 from enum import IntEnum
-from sqlalchemy import or_
 from sqlalchemy.sql import Select
-from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import Mapped, relationship
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
@@ -21,17 +20,18 @@ class WordListUsage(IntEnum):
 
 
 class WordList(BaseModel):
+    __tablename__ = "word_list"
+
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
     name: Mapped[str] = db.Column(db.String(), nullable=False)
     description: Mapped[str] = db.Column(db.String(), default=None)
     usage: Mapped[int] = db.Column(db.Integer, default=0)
     link: Mapped[str] = db.Column(db.String(), nullable=True, default=None)
-    entries: Any = db.relationship("WordListEntry", cascade="all, delete")
+    entries: Mapped[list["WordListEntry"]] = relationship("WordListEntry", cascade="all, delete")
 
-    def __init__(
-        self, name: str, description: str | None = None, usage: int = 0, link: str | None = None, entries=None, id: int | None = None
-    ):
-        self.id = id
+    def __init__(self, name: str, description: str | None = None, usage: int = 0, link: str = "", entries=None, id: int | None = None):
+        if id:
+            self.id = id
         self.name = name
         if description:
             self.description = description
@@ -99,7 +99,7 @@ class WordList(BaseModel):
 
         if search := filter_args.get("search"):
             query = query.where(
-                or_(
+                db.or_(
                     cls.name.ilike(f"%{search}%"),
                     cls.description.ilike(f"%{search}%"),
                 )
@@ -223,15 +223,18 @@ class WordList(BaseModel):
 
 
 class WordListEntry(BaseModel):
+    __tablename__ = "word_list_entry"
+
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
     value: Mapped[str] = db.Column(db.String(), nullable=False)
     category: Mapped[str] = db.Column(db.String(), nullable=True)
     description: Mapped[str] = db.Column(db.String(), nullable=True)
 
-    word_list_id = db.Column(db.Integer, db.ForeignKey("word_list.id", ondelete="CASCADE"))
+    word_list_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("word_list.id", ondelete="CASCADE"))
 
-    def __init__(self, value, category="Uncategorized", description=None, id=None):
-        self.id = id
+    def __init__(self, value, category="Uncategorized", description="", id=None):
+        if id:
+            self.id = id
         self.value = value
         self.category = category
         self.description = description

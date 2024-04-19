@@ -1,6 +1,7 @@
 import uuid
 from sqlalchemy import or_
 from sqlalchemy.sql import Select
+from sqlalchemy.orm import Mapped, relationship
 from typing import Any
 
 from core.managers.db_manager import db
@@ -9,34 +10,25 @@ from core.model.report_item import ReportItem
 from core.model.organization import Organization
 
 
-class AssetCpe(BaseModel):
-    id = db.Column(db.Integer, primary_key=True)
-    value: Any = db.Column(db.String())
-
-    asset_id = db.Column(db.Integer, db.ForeignKey("asset.id"))
-    asset = db.relationship("Asset")
-
-    def __init__(self, value):
-        self.id = None
-        self.value = value
-
-
 class Asset(BaseModel):
-    id = db.Column(db.Integer, primary_key=True)
-    name: Any = db.Column(db.String(), nullable=False)
-    serial: Any = db.Column(db.String())
-    description: Any = db.Column(db.String())
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    name: Mapped[str] = db.Column(db.String(), nullable=False)
+    serial: Mapped[str] = db.Column(db.String())
+    description: Mapped[str] = db.Column(db.String())
 
-    asset_group_id: Any = db.Column(db.String, db.ForeignKey("asset_group.id"))
-    asset_group: Any = db.relationship("AssetGroup")
+    asset_group_id: Mapped[str] = db.Column(db.String, db.ForeignKey("asset_group.id"))
+    asset_group: Mapped["AssetGroup"] = relationship("AssetGroup")
 
-    asset_cpes: Any = db.relationship("AssetCpe", cascade="all, delete-orphan", back_populates="asset")
+    asset_cpes: Mapped[list["AssetCpe"]] = relationship("AssetCpe", cascade="all, delete-orphan", back_populates="asset")
 
-    vulnerabilities: Any = db.relationship("AssetVulnerability", cascade="all, delete-orphan", back_populates="asset")
-    vulnerabilities_count = db.Column(db.Integer, default=0)
+    vulnerabilities: Mapped[list["AssetVulnerability"]] = relationship(
+        "AssetVulnerability", cascade="all, delete-orphan", back_populates="asset"
+    )
+    vulnerabilities_count: Mapped[int] = db.Column(db.Integer, default=0)
 
     def __init__(self, name, serial, description, group, asset_cpes=None, id=None):
-        self.id = id
+        if id:
+            self.id = id
         self.name = name
         self.serial = serial
         self.description = description
@@ -51,7 +43,7 @@ class Asset(BaseModel):
         return (
             db.session.query(cls)
             .join(AssetCpe, cls.id == AssetCpe.asset_id)
-            .filter(or_(*[AssetCpe.value.like(cpe) for cpe in cpes]))
+            .filter(db.or_(*[AssetCpe.value.like(cpe) for cpe in cpes]))
             .distinct()
             .all()
         )
@@ -77,6 +69,8 @@ class Asset(BaseModel):
     def update_vulnerabilities(self):
         cpes = [cpe.value for cpe in self.asset_cpes if cpe]
         report_item_ids = ReportItem.get_by_cpe(cpes)
+        if not report_item_ids:
+            return
 
         solved = [vulnerability.report_item_id for vulnerability in self.vulnerabilities if vulnerability.solved is True]
         self.vulnerabilities = []
@@ -196,17 +190,16 @@ class Asset(BaseModel):
 
 
 class AssetVulnerability(BaseModel):
-    id = db.Column(db.Integer, primary_key=True)
-    solved = db.Column(db.Boolean, default=False)
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    solved: Mapped[bool] = db.Column(db.Boolean, default=False)
 
-    asset_id = db.Column(db.Integer, db.ForeignKey("asset.id"))
-    asset = db.relationship("Asset", back_populates="vulnerabilities")
+    asset_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("asset.id"))
+    asset: Mapped["Asset"] = relationship("Asset", back_populates="vulnerabilities")
 
-    report_item_id = db.Column(db.String(64), db.ForeignKey("report_item.id", ondelete="CASCADE"))
-    report_item = db.relationship("ReportItem")
+    report_item_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("report_item.id", ondelete="CASCADE"))
+    report_item: Mapped["ReportItem"] = relationship("ReportItem")
 
     def __init__(self, asset_id, report_item_id):
-        self.id = None
         self.asset_id = asset_id
         self.report_item_id = report_item_id
 
@@ -216,12 +209,12 @@ class AssetVulnerability(BaseModel):
 
 
 class AssetGroup(BaseModel):
-    id = db.Column(db.String(64), primary_key=True)
-    name: Any = db.Column(db.String(), nullable=False)
-    description: Any = db.Column(db.String())
+    id: Mapped[str] = db.Column(db.String(64), primary_key=True)
+    name: Mapped[str] = db.Column(db.String(), nullable=False)
+    description: Mapped[str] = db.Column(db.String())
 
-    organization_id = db.Column(db.Integer, db.ForeignKey("organization.id"))
-    organization: Any = db.relationship("Organization")
+    organization_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("organization.id"))
+    organization: Mapped["Organization"] = relationship("Organization")
 
     def __init__(self, name, description, organization, id=None):
         self.id = id or str(uuid.uuid4())
@@ -293,3 +286,14 @@ class AssetGroup(BaseModel):
             group.description = description
         db.session.commit()
         return {"message": "Group updated"}, 200
+
+
+class AssetCpe(BaseModel):
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    value: Mapped[str] = db.Column(db.String())
+
+    asset_id = db.Column(db.Integer, db.ForeignKey("asset.id"))
+    asset = db.relationship("Asset")
+
+    def __init__(self, value):
+        self.value = value

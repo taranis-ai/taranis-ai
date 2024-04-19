@@ -22,7 +22,7 @@ dependencies = [
     "flask_caching",
     "click",
     "celery",
-    "SQLAlchemy==1.4.51",
+    "SQLAlchemy",
     "pydantic-settings",
     "python-dotenv",
     "granian",

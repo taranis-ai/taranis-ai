@@ -1,4 +1,4 @@
-from typing import Any, TypeVar, Type
+from typing import Any, TypeVar, Type, Sequence
 from datetime import datetime
 from enum import Enum
 import json
@@ -83,7 +83,7 @@ class BaseModel(db.Model):
         return [cls.from_dict(data) for data in json_data]
 
     @classmethod
-    def to_list(cls, objects: list[T]) -> list[dict[str, Any]]:
+    def to_list(cls, objects: list[T] | Sequence[T]) -> list[dict[str, Any]]:
         return [obj.to_dict() for obj in objects]
 
     @classmethod
@@ -93,7 +93,7 @@ class BaseModel(db.Model):
         return db.session.get(cls, item_id)
 
     @classmethod
-    def get_all(cls: Type[T]) -> list[T] | None:
+    def get_all(cls: Type[T]) -> Sequence[T] | None:
         return db.session.execute(db.select(cls)).scalars().all()
 
     @classmethod
@@ -116,7 +116,7 @@ class BaseModel(db.Model):
         return query
 
     @classmethod
-    def get_filtered(cls: Type[T], query: Select) -> list[T] | None:
+    def get_filtered(cls: Type[T], query: Select) -> Sequence[T] | None:
         return db.session.execute(query).scalars().all()
 
     @classmethod
@@ -124,7 +124,7 @@ class BaseModel(db.Model):
         return db.session.execute(query).scalar()
 
     @classmethod
-    def get_by_filter(cls: Type[T], filter_args: dict) -> list[T] | None:
+    def get_by_filter(cls: Type[T], filter_args: dict) -> Sequence[T] | None:
         return cls.get_filtered(cls.get_filter_query(filter_args))
 
     @classmethod

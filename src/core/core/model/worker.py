@@ -1,8 +1,8 @@
-from sqlalchemy import or_
 import uuid
 from typing import Any
 from enum import StrEnum, auto
 from sqlalchemy.sql import Select
+from sqlalchemy.orm import Mapped, relationship
 
 from core.managers.db_manager import db
 from core.model.parameter_value import ParameterValue
@@ -84,12 +84,14 @@ class WORKER_CATEGORY(StrEnum):
 
 
 class Worker(BaseModel):
-    id = db.Column(db.String(64), primary_key=True)
-    name: Any = db.Column(db.String(), nullable=False)
-    description: Any = db.Column(db.String())
-    type: Any = db.Column(db.Enum(WORKER_TYPES), nullable=False)
-    category: Any = db.Column(db.Enum(WORKER_CATEGORY), nullable=False)
-    parameters: Any = db.relationship("ParameterValue", secondary="worker_parameter_value", cascade="all")
+    __tablename__ = "worker"
+
+    id: Mapped[str] = db.Column(db.String(64), primary_key=True)
+    name: Mapped[str] = db.Column(db.String(), nullable=False)
+    description: Mapped[str] = db.Column(db.String())
+    type: Mapped[WORKER_TYPES] = db.Column(db.Enum(WORKER_TYPES), nullable=False)
+    category: Mapped[WORKER_CATEGORY] = db.Column(db.Enum(WORKER_CATEGORY), nullable=False)
+    parameters: Mapped[list["ParameterValue"]] = relationship("ParameterValue", secondary="worker_parameter_value", cascade="all")
 
     def __init__(self, name, description, type, parameters):
         self.id = str(uuid.uuid4())
@@ -109,7 +111,7 @@ class Worker(BaseModel):
         return {"message": f"Worker {worker.name} added", "id": worker.id}, 201
 
     @classmethod
-    def get_type(cls, id) -> "Worker":
+    def get_type(cls, id) -> "WORKER_TYPES":
         if worker := cls.get(id):
             return worker.type
         raise ValueError(f"Worker {id} not found")
@@ -120,7 +122,7 @@ class Worker(BaseModel):
 
         if search := filter_args.get("search"):
             query = query.where(
-                or_(
+                db.or_(
                     Worker.name.ilike(f"%{search}%"),
                     Worker.description.ilike(f"%{search}%"),
                 )

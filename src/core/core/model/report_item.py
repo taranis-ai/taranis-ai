@@ -4,7 +4,7 @@ import uuid
 from sqlalchemy import or_
 from sqlalchemy.sql.expression import false
 from sqlalchemy.sql import Select
-from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import Mapped, relationship
 
 from typing import Any, Optional
 
@@ -20,29 +20,33 @@ from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 
 
 class ReportItem(BaseModel):
+    __tablename__ = "report_item"
+
     id: Mapped[str] = db.Column(db.String(64), primary_key=True)
 
     title: Mapped[str] = db.Column(db.String())
 
     created: Mapped[datetime] = db.Column(db.DateTime, default=datetime.now)
-    last_updated = db.Column(db.DateTime, default=datetime.now)
-    completed = db.Column(db.Boolean, default=False)
+    last_updated: Mapped[datetime] = db.Column(db.DateTime, default=datetime.now)
+    completed: Mapped[bool] = db.Column(db.Boolean, default=False)
 
-    user_id: Any = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
-    user: Any = db.relationship("User")
+    user_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    user: Mapped["User"] = relationship("User")
 
-    report_item_type_id: Any = db.Column(db.Integer, db.ForeignKey("report_item_type.id"), nullable=True)
-    report_item_type: Any = db.relationship("ReportItemType")
+    report_item_type_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("report_item_type.id"), nullable=True)
+    report_item_type: Mapped["ReportItemType"] = relationship("ReportItemType")
 
-    stories: Any = db.relationship("Story", secondary="report_item_story")
+    stories: Mapped[list["Story"]] = relationship("Story", secondary="report_item_story")
 
-    attributes: Any = db.relationship(
+    attributes: Mapped[list["ReportItemAttribute"]] = relationship(
         "ReportItemAttribute",
         back_populates="report_item",
         cascade="all, delete-orphan",
     )
 
-    report_item_cpes: Any = db.relationship("ReportItemCpe", cascade="all, delete-orphan", back_populates="report_item")
+    report_item_cpes: Mapped[list["ReportItemCpe"]] = relationship(
+        "ReportItemCpe", cascade="all, delete-orphan", back_populates="report_item"
+    )
 
     def __init__(
         self,
@@ -420,9 +424,8 @@ class ReportItemCpe(BaseModel):
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
     value: Mapped[str] = db.Column(db.String())
 
-    report_item_id = db.Column(db.String(64), db.ForeignKey("report_item.id", ondelete="CASCADE"))
-    report_item = db.relationship("ReportItem")
+    report_item_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("report_item.id", ondelete="CASCADE"))
+    report_item: Mapped["ReportItem"] = relationship("ReportItem")
 
     def __init__(self, value):
-        self.id = None
         self.value = value

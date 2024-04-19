@@ -6,12 +6,13 @@ from core.model.base_model import BaseModel
 
 
 class TokenBlacklist(BaseModel):
+    __tablename__ = "token_blacklist"
+
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
     token: Mapped[str] = db.Column(db.String(), nullable=False)
     created: Mapped[datetime] = db.Column(db.DateTime, default=datetime.now)
 
     def __init__(self, token):
-        self.id = None
         self.token = token
 
     @classmethod

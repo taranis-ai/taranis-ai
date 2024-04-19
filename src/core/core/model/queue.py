@@ -8,6 +8,8 @@ from core.model.base_model import BaseModel
 
 
 class ScheduleEntry(BaseModel):
+    __tablename__ = "schedule_entry"
+
     id: Mapped[str] = db.Column(db.String, primary_key=True)
     task: Mapped[str] = db.Column(db.String)
     schedule: Mapped[str] = db.Column(db.String)

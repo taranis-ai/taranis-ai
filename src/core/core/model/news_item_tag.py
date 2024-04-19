@@ -1,4 +1,5 @@
-from sqlalchemy import orm, func
+from sqlalchemy import func
+from sqlalchemy.orm import Mapped, backref, relationship
 from typing import Any
 
 from core.managers.db_manager import db
@@ -6,11 +7,11 @@ from core.model.base_model import BaseModel
 
 
 class NewsItemTag(BaseModel):
-    id = db.Column(db.Integer, primary_key=True)
-    name: Any = db.Column(db.String(255))
-    tag_type: Any = db.Column(db.String(255))
-    story_id = db.Column(db.ForeignKey("story.id"))
-    story = db.relationship("Story", backref=orm.backref("tags", cascade="all, delete-orphan"))
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    name: Mapped[str] = db.Column(db.String(255))
+    tag_type: Mapped[str] = db.Column(db.String(255))
+    story_id: Mapped[str] = db.Column(db.ForeignKey("story.id"))
+    story: Mapped["Story"] = relationship("Story", backref=backref("tags", cascade="all, delete-orphan"))
 
     def __init__(self, name, tag_type):
         self.id = None

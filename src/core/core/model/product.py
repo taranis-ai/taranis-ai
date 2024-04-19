@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from typing import Any
 import uuid
 from base64 import b64encode, b64decode
-from sqlalchemy.orm import deferred, Mapped
+from sqlalchemy.orm import deferred, Mapped, relationship
 from sqlalchemy.sql import Select
 
 from core.managers.db_manager import db
@@ -16,19 +16,21 @@ from core.service.role_based_access import RoleBasedAccessService, RBACQuery
 
 
 class Product(BaseModel):
+    __tablename__ = "product"
+
     id: Mapped[str] = db.Column(db.String(64), primary_key=True)
     title: Mapped[str] = db.Column(db.String(), nullable=False)
     description: Mapped[str] = db.Column(db.String())
 
     created: Mapped[datetime] = db.Column(db.DateTime, default=datetime.now)
 
-    product_type_id: Any = db.Column(db.Integer, db.ForeignKey("product_type.id"))
-    product_type = db.relationship("ProductType")
+    product_type_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("product_type.id"))
+    product_type: Mapped["ProductType"] = relationship("ProductType")
 
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"))
-    user = db.relationship("User")
+    user_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("user.id"))
+    user: Mapped["User"] = relationship("User")
 
-    report_items: Any = db.relationship("ReportItem", secondary="product_report_item", cascade="all, delete")  # type: ignore
+    report_items: Mapped[list["ReportItem"]] = relationship("ReportItem", secondary="product_report_item", cascade="all, delete")
     last_rendered: Mapped[datetime] = db.Column(db.DateTime)
     render_result = deferred(db.Column(db.Text))
 
@@ -146,8 +148,8 @@ class Product(BaseModel):
 
 
 class ProductReportItem(BaseModel):
-    product_id = db.Column(db.String(64), db.ForeignKey("product.id", ondelete="CASCADE"), primary_key=True)
-    report_item_id = db.Column(db.String(64), db.ForeignKey("report_item.id", ondelete="CASCADE"), primary_key=True)
+    product_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("product.id", ondelete="CASCADE"), primary_key=True)
+    report_item_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("report_item.id", ondelete="CASCADE"), primary_key=True)
 
     @classmethod
     def assigned(cls, report_id) -> bool:

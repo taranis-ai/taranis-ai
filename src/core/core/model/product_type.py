@@ -1,8 +1,7 @@
 import os
 from typing import Any
-from sqlalchemy import or_
 from sqlalchemy.sql.expression import Select
-from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import Mapped, relationship
 
 from core.managers.db_manager import db
 from core.log import logger
@@ -16,20 +15,24 @@ from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 
 
 class ProductType(BaseModel):
+    __tablename__ = "product_type"
+
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
     title: Mapped[str] = db.Column(db.String(64), unique=True, nullable=False)
     description: Mapped[str] = db.Column(db.String())
-    type: Any = db.Column(db.Enum(PRESENTER_TYPES))
+    type: Mapped[PRESENTER_TYPES] = db.Column(db.Enum(PRESENTER_TYPES))
 
-    parameters: Any = db.relationship("ParameterValue", secondary="product_type_parameter_value", cascade="all, delete")  # type: ignore
-    report_types: Any = db.relationship("ReportItemType", secondary="product_type_report_type", cascade="all, delete")  # type: ignore
+    parameters: Mapped[list["ParameterValue"]] = relationship(
+        "ParameterValue", secondary="product_type_parameter_value", cascade="all, delete"
+    )
+    report_types: Mapped[list["ReportItemType"]] = relationship("ReportItemType", secondary="product_type_report_type", cascade="all, delete")
 
-    def __init__(self, title, type, description=None, parameters=None, report_types=None, id=None):
-        self.id = id
+    def __init__(self, title, type, description="", parameters=None, report_types=None, id=None):
+        if id:
+            self.id = id
         self.title = title
         self.type = type
-        if description:
-            self.description = description
+        self.description = description
         self.parameters = Worker.parse_parameters(type, parameters)
         self.report_types = [ReportItemType.get(report_type) for report_type in report_types] if report_types else []
 
@@ -47,7 +50,7 @@ class ProductType(BaseModel):
 
         if search := filter_args.get("search"):
             query = query.where(
-                or_(
+                db.or_(
                     cls.title.ilike(f"%{search}%"),
                     cls.description.ilike(f"%{search}%"),
                 )
