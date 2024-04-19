@@ -5,7 +5,7 @@ from core.managers import auth_manager
 from core.managers.auth_manager import auth_required
 from core.model import asset, attribute
 from core.model.attribute import AttributeType
-from core.managers.input_validators import extract_args
+from core.managers.decorators import extract_args
 
 
 class AssetGroups(MethodView):

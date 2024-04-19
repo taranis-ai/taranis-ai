@@ -46,10 +46,10 @@
     },
     "assess": {
         "add_news_item": "Nachrichtenelement hinzufügen",
-        "aggregate_description": "Beschreibung",
-        "aggregate_detail": "Aggregatdetails",
-        "aggregate_info": "Info",
-        "aggregate_title": "Titel",
+        "story_description": "Beschreibung",
+        "story_detail": "Details",
+        "story_info": "Info",
+        "story_title": "Titel",
         "article": "Artikel",
         "attributes": "Attribute",
         "author": "Autor",
@@ -192,7 +192,6 @@
         "update": "Aktualisieren"
     },
     "card_item": {
-        "aggregated_items": "Aggregierte Nachrichtenelemente",
         "collected": "Gesammelt",
         "created": "Erstellt",
         "description": "Beschreibung",
@@ -218,7 +217,7 @@
         "title": "Titel"
     },
     "error": {
-        "aggregate_in_use": "Einige der ausgewählten Aggregate oder Nachrichtenelemente sind bereits einem Berichtselement zugewiesen",
+        "story_in_use": "Einige der ausgewählten Stories oder Nachrichtenelemente sind bereits einem Berichtselement zugewiesen",
         "server_error": "Unbekannter Serverfehler..."
     },
     "form": {

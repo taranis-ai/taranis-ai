@@ -27,7 +27,7 @@ from core.model import (
     worker,
 )
 from core.model.permission import Permission
-from core.managers.input_validators import extract_args
+from core.managers.decorators import extract_args
 
 
 class DictionariesReload(MethodView):
@@ -39,9 +39,11 @@ class DictionariesReload(MethodView):
 
 class ACLEntries(MethodView):
     @auth_required("CONFIG_ACL_ACCESS")
-    def get(self):
-        search = request.args.get(key="search", default=None)
-        return role_based_access.RoleBasedAccess.get_all_json(search)
+    @extract_args("search")
+    def get(self, acl_id=None, filter_args=None):
+        if acl_id:
+            return role_based_access.RoleBasedAccess.get_for_api(acl_id)
+        return role_based_access.RoleBasedAccess.get_all_for_api(filter_args, True)
 
     @auth_required("CONFIG_ACL_CREATE")
     def post(self):
@@ -58,20 +60,18 @@ class ACLEntries(MethodView):
 
 
 class Attributes(MethodView):
+    @auth_required(["CONFIG_ATTRIBUTE_ACCESS", "ANALYZE_ACCESS"])
+    @extract_args("search")
+    def get(self, attribute_id=None, filter_args=None):
+        if attribute_id:
+            return attribute.Attribute.get_for_api(attribute_id)
+
+        return attribute.Attribute.get_all_for_api(filter_args, True)
+
     @auth_required("CONFIG_ATTRIBUTE_CREATE")
     def post(self):
         attribute_result = attribute.Attribute.add(request.json)
         return {"message": "Attribute added", "id": attribute_result.id}, 201
-
-    @auth_required(["CONFIG_ATTRIBUTE_ACCESS", "ANALYZE_ACCESS"])
-    def get(self, attribute_id=None):
-        if attribute_id:
-            if result := attribute.Attribute.get(attribute_id):
-                return result.to_dict()
-            return {"error": "Attribute not found"}, 404
-
-        search = request.args.get(key="search", default=None)
-        return attribute.Attribute.get_all_json(search)
 
     @auth_required("CONFIG_ATTRIBUTE_UPDATE")
     def put(self, attribute_id):
@@ -132,9 +132,12 @@ class ReportItemTypesExport(MethodView):
 
 class ReportItemTypes(MethodView):
     @auth_required("CONFIG_REPORT_TYPE_ACCESS")
-    def get(self):
-        search = request.args.get(key="search", default=None)
-        return report_item_type.ReportItemType.get_all_json(search, auth_manager.get_user_from_jwt(), False)
+    @extract_args("search")
+    def get(self, type_id=None, filter_args=None):
+        if type_id:
+            return report_item_type.ReportItemType.get_for_api(type_id)
+        user = auth_manager.get_user_from_jwt()
+        return report_item_type.ReportItemType.get_all_for_api(filter_args, True, user)
 
     @auth_required("CONFIG_REPORT_TYPE_CREATE")
     def post(self):
@@ -159,12 +162,12 @@ class ReportItemTypes(MethodView):
 
 class ProductTypes(MethodView):
     @auth_required("CONFIG_PRODUCT_TYPE_ACCESS")
-    def get(self, type_id=None):
+    @extract_args("search")
+    def get(self, type_id=None, filter_args=None):
         if type_id:
-            detail_product = product_type.ProductType.get(type_id)
-            return detail_product.get_detail_json() if detail_product else ({"error": "Product type not found"}, 404)
-        search = request.args.get(key="search", default=None)
-        return jsonify(product_type.ProductType.get_all_json(search, auth_manager.get_user_from_jwt(), False))
+            return product_type.ProductType.get_for_api(type_id)
+        user = auth_manager.get_user_from_jwt()
+        return product_type.ProductType.get_all_for_api(filter_args, True, user)
 
     @auth_required("CONFIG_PRODUCT_TYPE_CREATE")
     def post(self):
@@ -173,7 +176,8 @@ class ProductTypes(MethodView):
 
     @auth_required("CONFIG_PRODUCT_TYPE_UPDATE")
     def put(self, type_id):
-        return product_type.ProductType.update(type_id, request.json)
+        user = auth_manager.get_user_from_jwt()
+        return product_type.ProductType.update(type_id, request.json, user)
 
     @auth_required("CONFIG_PRODUCT_TYPE_DELETE")
     def delete(self, type_id):
@@ -188,16 +192,18 @@ class Parameters(MethodView):
 
 class Permissions(MethodView):
     @auth_required("CONFIG_ACCESS")
-    def get(self):
-        search = request.args.get(key="search", default=None)
-        return Permission.get_all_json(search)
+    @extract_args("search")
+    def get(self, filter_args=None):
+        return Permission.get_all_for_api(filter_args, True)
 
 
 class Roles(MethodView):
     @auth_required("CONFIG_ROLE_ACCESS")
-    def get(self):
-        search = request.args.get(key="search", default=None)
-        return role.Role.get_all_json(search)
+    @extract_args("search")
+    def get(self, role_id=None, filter_args=None):
+        if role_id:
+            return role.Role.get_for_api(role_id)
+        return role.Role.get_all_for_api(filter_args, True)
 
     @auth_required("CONFIG_ROLE_CREATE")
     def post(self):
@@ -351,13 +357,12 @@ class QueueSchedule(MethodView):
 
 class OSINTSources(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
-    def get(self, source_id=None):
+    @extract_args("search")
+    def get(self, source_id=None, filter_args=None):
         if source_id:
-            source = osint_source.OSINTSource.get(source_id)
-            return source.to_dict() if source else ("OSINT source not found", 404)
-        search = request.args.get(key="search", default=None)
-        result_dict = osint_source.OSINTSource.get_all_json(search)
-        return result_dict, 200
+            return osint_source.OSINTSource.get_for_api(source_id)
+        user = auth_manager.get_user_from_jwt()
+        return osint_source.OSINTSource.get_all_for_api(filter_args=filter_args, with_count=True, user=user)
 
     @auth_required("CONFIG_OSINT_SOURCE_CREATE")
     def post(self):
@@ -430,9 +435,14 @@ class OSINTSourcesImport(MethodView):
 
 class OSINTSourceGroups(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_ACCESS")
-    def get(self):
-        search = request.args.get(key="search", default=None)
-        return osint_source.OSINTSourceGroup.get_all_json(search, auth_manager.get_user_from_jwt(), False)
+    @extract_args("search")
+    def get(self, group_id=None, filter_args=None):
+        user = auth_manager.get_user_from_jwt()
+        if not user:
+            return {"error": "User not found"}, 404
+        if group_id:
+            return osint_source.OSINTSourceGroup.get_for_api(group_id)
+        return osint_source.OSINTSourceGroup.get_all_for_api(filter_args=filter_args, with_count=True, user=user)
 
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_CREATE")
     def post(self):
@@ -468,12 +478,11 @@ class Publishers(MethodView):
 
 class PublisherPresets(MethodView):
     @auth_required("CONFIG_PUBLISHER_ACCESS")
-    def get(self, preset_id=None):
+    @extract_args("search")
+    def get(self, preset_id=None, filter_args=None):
         if preset_id:
-            preset = publisher_preset.PublisherPreset.get(preset_id)
-            return preset.to_dict() if preset else ({"error": "Publisher preset not found"}, 404)
-        search = request.args.get(key="search", default=None)
-        return publisher_preset.PublisherPreset.get_all_json(search)
+            return publisher_preset.PublisherPreset.get_for_api(preset_id)
+        return publisher_preset.PublisherPreset.get_all_for_api(filter_args, True)
 
     @auth_required("CONFIG_PUBLISHER_CREATE")
     def post(self):
@@ -491,13 +500,12 @@ class PublisherPresets(MethodView):
 
 class WordLists(MethodView):
     @auth_required("CONFIG_WORD_LIST_ACCESS")
-    def get(self, word_list_id=None):
+    @extract_args("search", "usage")
+    def get(self, word_list_id=None, filter_args=None):
         if word_list_id:
-            word_list_result = word_list.WordList.get(word_list_id)
-            return word_list_result.to_dict() if word_list_result else ({"error": "Word list not found"}, 404)
-        search = request.args.get(key="search", default=None)
-        usage = request.args.get(key="usage", default=None)
-        return word_list.WordList.get_all_json({"search": search, "usage": usage}, auth_manager.get_user_from_jwt(), False)
+            return word_list.WordList.get_for_api(word_list_id)
+        user = auth_manager.get_user_from_jwt()
+        return word_list.WordList.get_all_for_api(filter_args=filter_args, with_count=True, user=user)
 
     @auth_required("CONFIG_WORD_LIST_CREATE")
     def post(self):

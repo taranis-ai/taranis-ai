@@ -15,7 +15,7 @@ class SummaryBot(BaseBot):
         super().__init__()
         self.type = "SUMMARY_BOT"
         self.name = "Summary generation Bot"
-        self.description = "Bot for naturale language processing of news items"
+        self.description = "Bot to generate summaries for stories"
         self.summary_threshold = 750
         logger.debug("Setup Summarization Model...")
         torch.set_num_threads(1)  # https://github.com/pytorch/pytorch/issues/36191
@@ -36,28 +36,22 @@ class SummaryBot(BaseBot):
             if not (data := self.get_stories(parameters)):
                 return "Error getting news items"
 
-            for aggregate in data:
+            for story in data:
                 content_to_summarize = ""
 
-                if aggregate.get("summary", None) and aggregate.get("tags", None):
-                    logger.debug(f"Skipping aggregate: {aggregate['id']}")
-                    continue
-
-                for news_item in aggregate["news_items"]:
-                    content = (
-                        news_item["news_item_data"]["content"] + news_item["news_item_data"]["review"] + news_item["news_item_data"]["title"]
-                    )
+                for news_item in story["news_items"]:
+                    content = news_item["content"] + news_item["review"] + news_item["title"]
                     content_to_summarize += content
 
-                if not aggregate.get("summary"):
+                if not story.get("summary"):
                     try:
                         if summary := self.predict_summary(content_to_summarize[: self.summary_threshold]):
-                            logger.debug(f"Generated summary for {aggregate['id']}: {summary}")
-                            self.core_api.update_news_items_aggregate_summary(aggregate["id"], summary)
+                            logger.debug(f"Generated summary for {story['id']}: {summary}")
+                            self.core_api.update_story_summary(story["id"], summary)
                     except Exception:
-                        logger.log_debug_trace(f"Could not generate summary for {aggregate['id']}")
+                        logger.log_debug_trace(f"Could not generate summary for {story['id']}")
 
-                logger.debug(f"Created summary for : {aggregate['id']}")
+                logger.debug(f"Created summary for : {story['id']}")
 
         except Exception:
             logger.log_debug_trace(f"Error running Bot: {self.type}")

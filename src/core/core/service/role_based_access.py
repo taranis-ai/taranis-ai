@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from sqlalchemy import cast, String, select
 from sqlalchemy.orm import aliased
 from sqlalchemy.sql import Select
-from sqlalchemy.orm.query import Query
 from sqlalchemy.sql.expression import true
 
 from core.managers.db_manager import db
@@ -38,23 +37,24 @@ class RoleBasedAccessService:
         return bool(matches_resource and is_enabled and has_required_access)
 
     @classmethod
-    def filter_query_with_tlp(cls, query: Query, user: User) -> Query:
-        from core.model.news_item import NewsItemAggregateNewsItemAttribute, NewsItemAttribute, NewsItemAggregate
+    def filter_query_with_tlp(cls, query: Select, user: User) -> Select:
+        from core.model.story import Story, StoryNewsItemAttribute
+        from core.model.news_item_attribute import NewsItemAttribute
 
         user_tlp_level = user.get_highest_tlp()
         if not user_tlp_level or user_tlp_level.value == "red":
             return query
 
         tlp_attribute_subquery = (
-            db.session.query(NewsItemAggregateNewsItemAttribute.news_item_aggregate_id)
-            .join(NewsItemAttribute, NewsItemAttribute.id == NewsItemAggregateNewsItemAttribute.news_item_attribute_id)
+            select(StoryNewsItemAttribute.story_id)
+            .join(NewsItemAttribute, NewsItemAttribute.id == StoryNewsItemAttribute.news_item_attribute_id)
             .filter(
                 NewsItemAttribute.key == "TLP", NewsItemAttribute.value.in_([level.value for level in TLPLevel if level <= user_tlp_level])
             )
             .subquery()
         )
 
-        return query.filter(NewsItemAggregate.id.in_(tlp_attribute_subquery))
+        return query.filter(Story.id.in_(tlp_attribute_subquery))
 
     @classmethod
     def filter_report_query_with_tlp(cls, query: Select, user: User) -> Select:
@@ -65,7 +65,7 @@ class RoleBasedAccessService:
             return query
 
         tlp_attribute_subquery = (
-            db.session.query(ReportItemAttribute.report_item_id)
+            select(ReportItemAttribute.report_item_id)
             .filter(
                 ReportItemAttribute.attribute_type == AttributeType.TLP,
                 ReportItemAttribute.value.in_([level.value for level in TLPLevel if level <= user_tlp_level]),

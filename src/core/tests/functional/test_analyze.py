@@ -18,7 +18,7 @@ class TestAnalyzeApi(BaseTest):
         It expects a valid data and a valid status-code
         """
         response = self.assert_get_ok(client, "report-items", auth_header)
-        assert response.get_json()["count"] == 1
+        assert response.get_json()["total_count"] == 1
         items = response.get_json()["items"]
         assert len(items) == 1
         assert items[0]["title"] == cleanup_report_item["title"]

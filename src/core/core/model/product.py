@@ -1,24 +1,26 @@
 from datetime import datetime, timedelta
 from typing import Any
+import uuid
 from base64 import b64encode, b64decode
-from sqlalchemy import or_
-from sqlalchemy.orm import deferred
+from sqlalchemy.orm import deferred, Mapped
+from sqlalchemy.sql import Select
 
 from core.managers.db_manager import db
 from core.log import logger
 from core.model.role_based_access import ItemType
 from core.model.report_item import ReportItem
 from core.model.base_model import BaseModel
+from core.model.user import User
 from core.model.product_type import ProductType
 from core.service.role_based_access import RoleBasedAccessService, RBACQuery
 
 
 class Product(BaseModel):
-    id = db.Column(db.Integer, primary_key=True)
-    title: Any = db.Column(db.String(), nullable=False)
-    description: Any = db.Column(db.String())
+    id: Mapped[str] = db.Column(db.String(64), primary_key=True)
+    title: Mapped[str] = db.Column(db.String(), nullable=False)
+    description: Mapped[str] = db.Column(db.String())
 
-    created = db.Column(db.DateTime, default=datetime.now)
+    created: Mapped[datetime] = db.Column(db.DateTime, default=datetime.now)
 
     product_type_id: Any = db.Column(db.Integer, db.ForeignKey("product_type.id"))
     product_type = db.relationship("ProductType")
@@ -27,30 +29,34 @@ class Product(BaseModel):
     user = db.relationship("User")
 
     report_items: Any = db.relationship("ReportItem", secondary="product_report_item", cascade="all, delete")  # type: ignore
-    last_rendered = db.Column(db.DateTime)
+    last_rendered: Mapped[datetime] = db.Column(db.DateTime)
     render_result = deferred(db.Column(db.Text))
 
-    def __init__(self, title, product_type_id, description="", report_items=None, id=None):
-        self.id = id
+    def __init__(self, title: str, product_type_id: int, description: str = "", report_items: list[str] | None = None, id: str | None = None):
+        self.id = id or str(uuid.uuid4())
         self.title = title
         self.description = description
         self.product_type_id = product_type_id
         self.report_items = [ReportItem.get(report_item) for report_item in report_items] if report_items else []
 
     @classmethod
-    def get_detail_json(cls, product_id):
-        return product.to_dict() if (product := cls.get(product_id)) else None
+    def get_filter_query_with_acl(cls, filter_args: dict, user: User) -> Select:
+        query = cls.get_filter_query(filter_args)
+        rbac = RBACQuery(user=user, resource_type=ItemType.PRODUCT_TYPE)
+        query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
+        return query
 
     @classmethod
-    def add_filter_to_query(cls, query, filter: dict):
-        search = filter.get("search")
-        if search and search != "":
+    def get_filter_query(cls, filter_args: dict) -> Select:
+        query = db.select(cls)
+
+        if search := filter_args.get("search"):
             query = query.filter(
-                or_(Product.title.ilike(f"%{search}%"), Product.description.ilike(f"%{search}%"), ProductType.title.ilike(f"%{search}%"))
+                db.or_(Product.title.ilike(f"%{search}%"), Product.description.ilike(f"%{search}%"), ProductType.title.ilike(f"%{search}%"))
             )
 
-        if "range" in filter and filter["range"].upper() != "ALL":
-            filter_range = filter["range"].upper()
+        if filter_range := filter_args.get("range"):
+            filter_range = filter_range.upper()
             date_limit = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
 
             if filter_range == "WEEK":
@@ -61,35 +67,14 @@ class Product(BaseModel):
 
             query = query.filter(Product.created >= date_limit)
 
-        if "sort" in filter:
-            if filter["sort"] == "DATE_DESC":
+        if sort := filter_args.get("sort"):
+            if sort == "DATE_DESC":
                 query = query.order_by(db.desc(Product.created))
 
-            elif filter["sort"] == "DATE_ASC":
+            elif sort == "DATE_ASC":
                 query = query.order_by(db.asc(Product.created))
 
         return query
-
-    @classmethod
-    def get_by_filter(cls, filter, user):
-        query = cls.query.distinct().group_by(Product.id)
-
-        query = query.join(ProductType, ProductType.id == Product.product_type_id)
-        rbac = RBACQuery(user, ItemType.PRODUCT_TYPE)
-        query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
-
-        query = cls.add_filter_to_query(query, filter)
-
-        offset = filter.get("offset", 0)
-        limit = filter.get("limit", 20)
-        return query.offset(offset).limit(limit).all(), query.count()
-
-    @classmethod
-    def get_json(cls, filter, user):
-        results, count = cls.get_by_filter(filter, user)
-
-        items = [product.to_dict() for product in results]
-        return {"total_count": count, "items": items}
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
@@ -118,7 +103,7 @@ class Product(BaseModel):
             return False
 
     @classmethod
-    def update_render_for_id(cls, product_id, render_result):
+    def update_render_for_id(cls, product_id: str, render_result):
         product = cls.get(product_id)
         if not product:
             return {"error": f"Product {product_id} not found"}, 404
@@ -127,7 +112,7 @@ class Product(BaseModel):
         return {"error": f"Product {product_id} not updated"}, 500
 
     @classmethod
-    def get_render(cls, product_id):
+    def get_render(cls, product_id: str):
         if product := cls.get(product_id):
             if product.render_result:
                 mime_type = product.product_type.get_mimetype()
@@ -139,7 +124,7 @@ class Product(BaseModel):
         return None
 
     @classmethod
-    def update(cls, product_id, data) -> tuple[dict, int]:
+    def update(cls, product_id: str, data) -> tuple[dict, int]:
         product = Product.get(product_id)
         if product is None:
             return {"error": f"Product {product_id} not found"}, 404
@@ -161,5 +146,10 @@ class Product(BaseModel):
 
 
 class ProductReportItem(BaseModel):
-    product_id = db.Column(db.Integer, db.ForeignKey("product.id", ondelete="CASCADE"), primary_key=True)
+    product_id = db.Column(db.String(64), db.ForeignKey("product.id", ondelete="CASCADE"), primary_key=True)
     report_item_id = db.Column(db.String(64), db.ForeignKey("report_item.id", ondelete="CASCADE"), primary_key=True)
+
+    @classmethod
+    def assigned(cls, report_id) -> bool:
+        query = db.select(db.exists().where(cls.report_item_id == report_id))
+        return db.session.execute(query).scalar_one()

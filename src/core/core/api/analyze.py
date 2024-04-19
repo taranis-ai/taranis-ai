@@ -11,7 +11,7 @@ from core.model import report_item, report_item_type
 class ReportTypes(MethodView):
     @auth_required("ANALYZE_ACCESS")
     def get(self):
-        return report_item_type.ReportItemType.get_all_json(None, auth_manager.get_user_from_jwt(), True)
+        return report_item_type.ReportItemType.get_all_for_api(filter_args=None, with_count=False, user=auth_manager.get_user_from_jwt())
 
 
 class ReportStories(MethodView):
@@ -129,9 +129,9 @@ def initialize(app: Flask):
     base_route = "/api/analyze"
     app.add_url_rule(f"{base_route}/report-types", view_func=ReportTypes.as_view("report_types"))
     app.add_url_rule(f"{base_route}/report-items", view_func=ReportItem.as_view("report_items"))
-    app.add_url_rule(f"{base_route}/report-items/<report_item_id>", view_func=ReportItem.as_view("report_item"))
-    app.add_url_rule(f"{base_route}/report-items/<report_item_id>/clone", view_func=CloneReportItem.as_view("clone_report_item"))
-    app.add_url_rule(f"{base_route}/report-items/<report_item_id>/stories", view_func=ReportStories.as_view("report_stories"))
-    app.add_url_rule(f"{base_route}/report-items/<report_item_id>/locks", view_func=ReportItemLocks.as_view("report_item_locks"))
-    app.add_url_rule(f"{base_route}/report-items/<report_item_id>/lock", view_func=ReportItemLock.as_view("report_item_lock"))
-    app.add_url_rule(f"{base_route}/report-items/<report_item_id>/unlock", view_func=ReportItemUnlock.as_view("report_item_unlock"))
+    app.add_url_rule(f"{base_route}/report-items/<string:report_item_id>", view_func=ReportItem.as_view("report_item"))
+    app.add_url_rule(f"{base_route}/report-items/<string:report_item_id>/clone", view_func=CloneReportItem.as_view("clone_report_item"))
+    app.add_url_rule(f"{base_route}/report-items/<string:report_item_id>/stories", view_func=ReportStories.as_view("report_stories"))
+    app.add_url_rule(f"{base_route}/report-items/<string:report_item_id>/locks", view_func=ReportItemLocks.as_view("report_item_locks"))
+    app.add_url_rule(f"{base_route}/report-items/<string:report_item_id>/lock", view_func=ReportItemLock.as_view("report_item_lock"))
+    app.add_url_rule(f"{base_route}/report-items/<string:report_item_id>/unlock", view_func=ReportItemUnlock.as_view("report_item_unlock"))

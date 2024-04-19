@@ -79,7 +79,7 @@ class AttributeEnum(BaseModel):
 
     @classmethod
     def update(cls, enum_id, data) -> tuple[dict, int]:
-        attribute_enum = cls.query.get(enum_id)
+        attribute_enum = cls.get(enum_id)
         if not attribute_enum:
             return {"error": "Attribute Enum not found"}, 404
         for key, value in data.items():
@@ -118,33 +118,26 @@ class Attribute(BaseModel):
         return cls(**data)
 
     @classmethod
-    def filter_by_type(cls, attribute_type):
-        return cls.query.filter_by(type=attribute_type).first()
+    def filter_by_type(cls, attribute_type) -> "Attribute|None":
+        return cls.get_first(db.select(cls).filter_by(type=attribute_type))
 
     @classmethod
     def filter_by_name(cls, name):
-        return cls.query.filter_by(name=name).first()
+        return cls.get_first(db.select(cls).filter_by(name=name))
 
     @classmethod
-    def get_by_filter(cls, search):
-        query = cls.query
+    def get_filter_query(cls, filter_args: dict) -> Select:
+        query = db.select(cls)
 
-        if search:
-            search_string = f"%{search}%"
-            query = query.filter(
+        if search := filter_args.get("search"):
+            query = query.where(
                 or_(
-                    Attribute.name.ilike(search_string),
-                    Attribute.description.ilike(search_string),
+                    cls.name.ilike(f"%{search}%"),
+                    cls.description.ilike(f"%{search}%"),
                 )
             )
 
-        return query.order_by(db.asc(Attribute.name)).all(), query.count()
-
-    @classmethod
-    def get_all_json(cls, search):
-        attributes, total_count = cls.get_by_filter(search)
-        items = [attribute.to_dict() for attribute in attributes]
-        return {"total_count": total_count, "items": items}
+        return query.order_by(db.asc(cls.name))
 
     @classmethod
     def create_attribute_with_enum(cls, data):
@@ -152,6 +145,8 @@ class Attribute(BaseModel):
         cls.add(data)
 
         attribute = cls.filter_by_name(data["name"])
+        if not attribute:
+            return
         attribute_enums = AttributeEnum.load_multiple(attribute_enmus)
         for attribute_enum in attribute_enums:
             attribute_enum.attribute_id = attribute.id
@@ -160,7 +155,7 @@ class Attribute(BaseModel):
 
     @classmethod
     def update(cls, attribute_id, data) -> tuple[dict, int]:
-        attribute = cls.query.get(attribute_id)
+        attribute = cls.get(attribute_id)
         if not attribute:
             return {"error": "Attribute not found"}, 404
         for key, value in data.items():
@@ -171,7 +166,11 @@ class Attribute(BaseModel):
 
     @classmethod
     def load_cve_from_file(cls, file_path):
-        attribute = cls.query.filter_by(type=AttributeType.CVE).first()
+        attribute = cls.get_first(db.select(cls).filter_by(type=AttributeType.CVE))
+        if not attribute:
+            attribute = Attribute("CVE", "Common Vulnerabilities and Exposures", AttributeType.CVE)
+            db.session.add(attribute)
+            db.session.commit()
         AttributeEnum.delete_imported_for_attribute(attribute.id)
 
         item_count = 0
@@ -200,7 +199,12 @@ class Attribute(BaseModel):
 
     @classmethod
     def load_cpe_from_file(cls, file_path):
-        attribute = cls.query.filter_by(type=AttributeType.CPE).first()
+        attribute = cls.get_first(db.select(cls).filter_by(type=AttributeType.CPE))
+        if not attribute:
+            attribute = Attribute("CPE", "Common Platform Enumeration", AttributeType.CPE)
+            db.session.add(attribute)
+            db.session.commit()
+
         AttributeEnum.delete_imported_for_attribute(attribute.id)
 
         item_count = 0

@@ -12,7 +12,6 @@
       <v-row class="pl-2">
         <v-col class="d-flex">
           <v-row class="py-1 px-1">
-
             <v-col cols="12" class="meta-info-col" :lg="meta_cols">
               <story-meta-info
                 :story="story"
@@ -80,7 +79,6 @@
                 :content="getDescription"
               />
             </v-col>
-
           </v-row>
         </v-col>
         <v-col class="action-bar mr-2">
@@ -159,10 +157,7 @@ export default {
     const { showWeekChart, compactView } = storeToRefs(useFilterStore())
 
     const showStory = computed(() => {
-      return (
-        props.story.news_items.length > 0 &&
-        'news_item_data' in props.story.news_items[0]
-      )
+      return props.story.news_items.length > 0
     })
 
     const item_important = computed(() =>
@@ -225,7 +220,7 @@ export default {
 
     const getDescription = computed(() => {
       const { description, summary, news_items } = props.story
-      const defaultContent = news_items[0].news_item_data.content
+      const defaultContent = news_items[0].content
 
       return openSummary.value
         ? defaultContent

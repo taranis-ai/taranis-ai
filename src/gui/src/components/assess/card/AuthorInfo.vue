@@ -15,7 +15,7 @@ import { computed } from 'vue'
 export default {
   name: 'AuthorInfo',
   props: {
-    newsItemData: {
+    newsItem: {
       type: Object,
       required: true
     },
@@ -26,7 +26,7 @@ export default {
   },
   setup(props) {
     const author = computed(() => {
-      return props.newsItemData?.author
+      return props.newsItem?.author
     })
 
     return {

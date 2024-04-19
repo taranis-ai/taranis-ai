@@ -26,7 +26,7 @@ export default {
       title: '',
       completed: false,
       report_item_type_id: null,
-      news_item_aggregates: []
+      stories: []
     })
     const report_item = ref(default_report_item.value)
     const edit = ref(true)

@@ -1,5 +1,6 @@
 from typing import Any
 from enum import StrEnum, auto
+from sqlalchemy.orm import Mapped
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
@@ -18,20 +19,22 @@ class PARAMETER_TYPES(StrEnum):
 
 
 class ParameterValue(BaseModel):
-    id: Any = db.Column(db.Integer, primary_key=True)
-    parameter: Any = db.Column(db.String, nullable=False)
-    value: Any = db.Column(db.String, nullable=False, default="")
-    type: Any = db.Column(db.Enum(PARAMETER_TYPES), nullable=False, default="text")
-    rules: Any = db.Column(db.String, nullable=True)
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    parameter: Mapped[str] = db.Column(db.String, nullable=False)
+    value: Mapped[str] = db.Column(db.String, nullable=False, default="")
+    type: Mapped[PARAMETER_TYPES] = db.Column(db.Enum(PARAMETER_TYPES), nullable=False)
+    rules: Mapped[str] = db.Column(db.String, nullable=True)
 
-    def __init__(self, parameter, value="", type="text", rules=None, id=None):
+    def __init__(
+        self, parameter: str, value: str = "", type: str | PARAMETER_TYPES = "text", rules: str | None = None, id: int | None = None
+    ):
         self.id = id
         self.parameter = parameter
         self.value = value
-        self.type = type
+        self.type = type if isinstance(type, PARAMETER_TYPES) else PARAMETER_TYPES(type.lower())
         self.rules = rules
 
-    def to_dict(self) -> dict[int, Any]:
+    def to_dict(self) -> dict[str, str]:
         return {self.parameter: self.value}
 
     def get_copy(self) -> "ParameterValue":

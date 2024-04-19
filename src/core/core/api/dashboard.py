@@ -3,7 +3,8 @@ from flask.views import MethodView
 from flask_jwt_extended import jwt_required
 
 from core.log import logger
-from core.model.news_item import NewsItemData, NewsItemAggregate
+from core.model.news_item import NewsItem
+from core.model.story import Story
 from core.model.news_item_tag import NewsItemTag
 from core.service.news_item_tag import NewsItemTagService
 from core.model.product import Product
@@ -15,13 +16,13 @@ from core.config import Config
 class Dashboard(MethodView):
     @jwt_required()
     def get(self):
-        total_news_items = NewsItemData.get_count()
+        total_news_items = NewsItem.get_count()
         total_products = Product.get_count()
         report_items_completed = ReportItem.count_all(True)
         report_items_in_progress = ReportItem.count_all(False)
         total_database_items = total_news_items + total_products + report_items_completed + report_items_in_progress
-        latest_collected = NewsItemData.latest_collected()
-        schedule_lenght = ScheduleEntry.count_all()
+        latest_collected = NewsItem.latest_collected()
+        schedule_lenght = ScheduleEntry.get_count()
         return {
             "total_news_items": total_news_items,
             "total_products": total_products,
@@ -49,7 +50,7 @@ class StoryClusters(MethodView):
         try:
             days = int(request.args.get("days", 7))
             limit = int(request.args.get("limit", 12))
-            return NewsItemAggregate.get_story_clusters(days, limit)
+            return Story.get_story_clusters(days, limit)
         except Exception as e:
             logger.log_debug_trace()
             return {"error": str(e)}, 400

@@ -1,5 +1,4 @@
 from sqlalchemy.sql import Select
-from sqlalchemy import or_
 from typing import Any
 
 from core.managers.db_manager import db
@@ -35,24 +34,18 @@ class Organization(BaseModel):
         }
 
     @classmethod
-    def get_all(cls) -> list["Organization"]:
-        return db.session.execute(db.select(cls).order_by(db.asc(cls.name))).scalars().all()
-
-    @classmethod
     def get_filter_query(cls, filter_args: dict) -> Select:
         query = db.select(cls)
 
         if search := filter_args.get("search"):
             query = query.where(
-                or_(
-                    Organization.name.ilike(f"%{search}%"),
-                    Organization.description.ilike(f"%{search}%"),
+                db.or_(
+                    cls.name.ilike(f"%{search}%"),
+                    cls.description.ilike(f"%{search}%"),
                 )
             )
 
-        query = query.order_by(db.asc(Organization.name))
-
-        return query
+        return query.order_by(db.asc(cls.name))
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Organization":

@@ -22,7 +22,7 @@ import { computed } from 'vue'
 export default {
   name: 'SourceInfo',
   props: {
-    newsItemData: {
+    newsItem: {
       type: Object,
       required: true
     },
@@ -33,8 +33,8 @@ export default {
   },
   setup(props) {
     const source = computed(() => {
-      return props.newsItemData
-        ? getSourceInfo(props.newsItemData.osint_source_id)
+      return props.newsItem
+        ? getSourceInfo(props.newsItem.osint_source_id)
         : null
     })
 

@@ -1,4 +1,5 @@
 from sqlalchemy import or_
+from sqlalchemy.sql.expression import Select
 from sqlalchemy.orm import Mapped
 from typing import Any
 from enum import StrEnum
@@ -37,39 +38,25 @@ class Role(BaseModel):
                     self.permissions.append(permission)
 
     @classmethod
-    def filter_by_name(cls, role_name):
-        return cls.query.filter_by(name=role_name).first()
+    def filter_by_name(cls, role_name) -> "Role|None":
+        return cls.get_first(db.select(cls).filter_by(name=role_name))
 
     @classmethod
-    def get_all(cls):
-        return cls.query.order_by(db.asc(Role.name)).all()
+    def get_filter_query(cls, filter_args: dict) -> Select:
+        query = db.select(cls)
 
-    @classmethod
-    def get_by_filter(cls, search):
-        query = cls.query
-
-        if search is not None:
-            query = query.filter(
+        if search := filter_args.get("search"):
+            query = query.where(
                 or_(
-                    Role.name.ilike(f"%{search}%"),
-                    Role.description.ilike(f"%{search}%"),
+                    cls.name.ilike(f"%{search}%"),
+                    cls.description.ilike(f"%{search}%"),
                 )
             )
 
-        return query.order_by(db.asc(Role.name)).all(), query.count()
-
-    @classmethod
-    def get_all_json(cls, search):
-        roles, count = cls.get_by_filter(search)
-        items = [role.to_dict() for role in roles]
-        return {"total_count": count, "items": items}
-
-    @classmethod
-    def load_multiple(cls, json_data: list[dict[str, Any]]) -> list["Role"]:
-        return [cls.from_dict(data) for data in json_data]
+        return query.order_by(db.asc(cls.name))
 
     def to_dict(self):
-        data = {c.name: getattr(self, c.name) for c in self.__table__.columns}
+        data = super().to_dict()
         data["permissions"] = self.get_permissions()
         return data
 

@@ -1,4 +1,5 @@
 from sqlalchemy import or_
+from sqlalchemy.sql.expression import Select
 from typing import Any
 
 from core.managers.db_manager import db
@@ -27,29 +28,20 @@ class Permission(BaseModel):
         return f"Successfully created {permission.id}"
 
     @classmethod
-    def get_all(cls):
-        return cls.query.order_by(db.asc(Permission.id)).all()
-
-    @classmethod
     def get_all_ids(cls):
-        return [permission.id for permission in cls.get_all()]
+        permissions = cls.get_all()
+        return [permission.id for permission in permissions] if permissions else []
 
     @classmethod
-    def get_by_filter(cls, search):
-        query = cls.query
+    def get_filter_query(cls, filter_args: dict) -> Select:
+        query = db.select(cls)
 
-        if search is not None:
-            query = query.filter(
+        if search := filter_args.get("search"):
+            query = query.where(
                 or_(
-                    Permission.name.ilike(f"%{search}%"),
-                    Permission.description.ilike(f"%{search}%"),
+                    cls.name.ilike(f"%{search}%"),
+                    cls.description.ilike(f"%{search}%"),
                 )
             )
 
-        return query.order_by(db.asc(Permission.id)).all(), query.count()
-
-    @classmethod
-    def get_all_json(cls, search):
-        permissions, count = cls.get_by_filter(search)
-        items = [permission.to_dict() for permission in permissions]
-        return {"total_count": count, "items": items}
+        return query.order_by(db.asc(cls.name))

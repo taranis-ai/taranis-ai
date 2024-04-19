@@ -115,7 +115,7 @@ workers = [
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
             {"parameter": "REFRESH_INTERVAL", "type": "number"},
         ],
-        "description": "Bot for grouping news items into aggregates",
+        "description": "Bot for grouping news items into stories",
     },
     {
         "type": "NLP_BOT",
@@ -168,7 +168,7 @@ workers = [
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
             {"parameter": "REFRESH_INTERVAL", "type": "number"},
         ],
-        "description": "Bot for summarizing news items aggregates",
+        "description": "Bot for summarizing stories",
     },
     {
         "type": "WORDLIST_BOT",

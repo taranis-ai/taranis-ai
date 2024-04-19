@@ -30,7 +30,6 @@
                 :content="description"
               />
             </v-col>
-
           </v-row>
         </v-col>
         <v-col class="action-bar mr-2">
@@ -87,9 +86,7 @@ export default {
     const { compactView } = storeToRefs(useFilterStore())
 
     const description = computed(
-      () =>
-        props.newsItem.news_item_data?.content ||
-        props.newsItem.news_item_data?.review
+      () => props.newsItem?.content || props.newsItem?.review
     )
 
     const content_cols = computed(() => {
@@ -107,7 +104,7 @@ export default {
       openSummary.value = !openSummary.value
     }
 
-    const title = computed(() => props.newsItem.news_item_data?.title)
+    const title = computed(() => props.newsItem?.title)
 
     const toggleSelection = () => {
       assessStore.selectNewsItem(props.newsItem.id)

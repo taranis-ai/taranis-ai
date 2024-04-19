@@ -1,15 +1,16 @@
 from datetime import datetime, timedelta
 
 import uuid
-from sqlalchemy import or_, text
+from sqlalchemy import or_
 from sqlalchemy.sql.expression import false
 from sqlalchemy.sql import Select
+from sqlalchemy.orm import Mapped
 
 from typing import Any, Optional
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
-from core.model.news_item import NewsItemAggregate
+from core.model.story import Story
 from core.model.report_item_type import ReportItemType
 from core.model.role_based_access import RoleBasedAccess, ItemType
 from core.model.user import User
@@ -18,97 +19,12 @@ from core.model.attribute import AttributeType, AttributeEnum
 from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 
 
-class ReportItemAttribute(BaseModel):
-    id = db.Column(db.Integer, primary_key=True)
-    value: Any = db.Column(db.String())
-
-    title = db.Column(db.String())
-    description = db.Column(db.String())
-
-    index = db.Column(db.Integer)
-    multiple = db.Column(db.Boolean, default=False)
-    attribute_type: AttributeType = db.Column(db.Enum(AttributeType))
-    group_title = db.Column(db.String())
-    render_data = db.Column(db.JSON)
-
-    report_item_id = db.Column(db.String(64), db.ForeignKey("report_item.id", ondelete="CASCADE"), nullable=True)
-    report_item = db.relationship("ReportItem")
-
-    def __init__(
-        self,
-        value=None,
-        title=None,
-        description=None,
-        index=None,
-        multiple=None,
-        attribute_type=None,
-        group_title=None,
-        render_data=None,
-        id=None,
-    ):
-        self.id = id
-        self.value = value or ""
-        self.title = title
-        self.description = description
-        self.index = index
-        self.multiple = multiple
-        if attribute_type and attribute_type in AttributeType:
-            self.attribute_type = attribute_type
-        self.render_data = render_data
-        self.group_title = group_title
-
-    @classmethod
-    def update_values_from_report(cls, attribute_data):
-        # TODO: Add functionality to update multiple attributes at once, if muliple is True
-        for attribute_dicts in attribute_data.values():
-            for attribute_id, data in attribute_dicts.items():
-                if report_item_attribute := cls.get(attribute_id):
-                    report_item_attribute.value = data["value"]
-
-        db.session.commit()
-
-    @staticmethod
-    def sort(report_item_attribute):
-        return report_item_attribute.last_updated
-
-    def to_product_dict(self):
-        return {
-            self.title: self.value,
-        }
-
-    def to_report_dict(self):
-        return {
-            "title": self.title,
-            "description": self.description,
-            "index": self.index,
-            "multiple": self.multiple,
-            "type": self.attribute_type.name,
-            "group_title": self.group_title,
-            "render_data": self.render_data,
-            "value": self.value,
-        }
-
-    def clone_attribute(self):
-        value = "" if self.attribute_type in [AttributeType.STORY] else self.value
-
-        return ReportItemAttribute(
-            value=value,
-            title=self.title,
-            description=self.description,
-            index=self.index,
-            multiple=self.multiple,
-            attribute_type=self.attribute_type,
-            group_title=self.group_title,
-            render_data=self.render_data,
-        )
-
-
 class ReportItem(BaseModel):
-    id: Any = db.Column(db.String(64), primary_key=True)
+    id: Mapped[str] = db.Column(db.String(64), primary_key=True)
 
-    title: Any = db.Column(db.String())
+    title: Mapped[str] = db.Column(db.String())
 
-    created = db.Column(db.DateTime, default=datetime.now)
+    created: Mapped[datetime] = db.Column(db.DateTime, default=datetime.now)
     last_updated = db.Column(db.DateTime, default=datetime.now)
     completed = db.Column(db.Boolean, default=False)
 
@@ -118,7 +34,7 @@ class ReportItem(BaseModel):
     report_item_type_id: Any = db.Column(db.Integer, db.ForeignKey("report_item_type.id"), nullable=True)
     report_item_type: Any = db.relationship("ReportItemType")
 
-    news_item_aggregates: Any = db.relationship("NewsItemAggregate", secondary="report_item_news_item_aggregate")
+    stories: Any = db.relationship("Story", secondary="report_item_story")
 
     attributes: Any = db.relationship(
         "ReportItemAttribute",
@@ -132,7 +48,7 @@ class ReportItem(BaseModel):
         self,
         title,
         report_item_type_id,
-        news_item_aggregates,
+        stories=None,
         attributes=None,
         completed=False,
         id=None,
@@ -143,37 +59,29 @@ class ReportItem(BaseModel):
         self.attributes = attributes or []
         self.completed = completed
         self.report_item_cpes = []
-
-        self.news_item_aggregates = [NewsItemAggregate.get(news_item_aggregate.id) for news_item_aggregate in news_item_aggregates]
+        if stories is not None:
+            self.stories = [Story.get(story_id) for story_id in stories]
 
     @classmethod
     def count_all(cls, is_completed):
         return cls.get_filtered_count(db.select(cls).filter_by(completed=is_completed))
 
     @classmethod
-    def get_all_for_api(cls, filter_args: dict, with_count: bool = False, user=None) -> tuple[dict[str, Any], int]:
-        if user:
-            query = cls.get_filter_query_with_acl(filter_args, user)
-        else:
-            query = cls.get_filter_query(filter_args)
-        items = cls.get_filtered(query)
-        if not items:
-            return {"items": []}, 404
-        if with_count:
-            count = cls.get_filtered_count(query)
-            return {"count": count, "items": cls.to_list(items)}, 200
-        return {"items": cls.to_list(items)}, 200
+    def get_for_api(cls, item_id: str, user: User | None = None) -> tuple[dict[str, Any], int]:
+        # sourcery skip: assign-if-exp, reintroduce-else, swap-if-else-branches, use-named-expression
+        item = cls.get(item_id)
+        if not item:
+            return {"error": f"{cls.__name__} {item_id} not found"}, 404
+        if user and not item.allowed_with_acl(user, False):
+            return {"error": f"User {user.id} is not allowed to read Report {item.id}"}, 403
+
+        return item.to_detail_dict(), 200
 
     @classmethod
-    def get_for_api(cls, item_id) -> tuple[dict[str, Any], int]:
-        if item := cls.get(item_id):
-            return item.to_detail_dict(), 200
-        return {"error": f"{cls.__name__} {item_id} not found"}, 404
-
-    @classmethod
-    def get_story_ids(cls, id):
-        report_item = cls.query.get(id)
-        return [aggregate.id for aggregate in report_item.news_item_aggregates]
+    def get_story_ids(cls, item_id):
+        if report_item := cls.get(item_id):
+            return [story.id for story in report_item.stories], 200
+        return {"error": "Report Item not found"}, 404
 
     @classmethod
     def get_detail_json(cls, id):
@@ -182,7 +90,7 @@ class ReportItem(BaseModel):
 
     def to_dict(self):
         data = super().to_dict()
-        data["stories"] = len(self.news_item_aggregates)
+        data["stories"] = len(self.stories)
         return data
 
     def get_attribute_dict(self) -> dict[str, dict[str, dict[str, Any]]]:
@@ -198,34 +106,31 @@ class ReportItem(BaseModel):
     def to_detail_dict(self):
         data = super().to_dict()
         data["attributes"] = self.get_attribute_dict()
-        data["news_item_aggregates"] = [aggregate.to_dict() for aggregate in self.news_item_aggregates if aggregate]
+        data["stories"] = [story.to_dict() for story in self.stories if story]
         return data
 
     def to_product_dict(self):
         data = super().to_dict()
         data["attributes"] = {attribute.title: attribute.value for attribute in self.attributes} if self.attributes else {}
-        data["news_item_aggregates"] = [aggregate.to_dict() for aggregate in self.news_item_aggregates if aggregate]
+        data["stories"] = [story.to_dict() for story in self.stories if story]
         return data
 
     def clone_report(self):
         attributes = [a.clone_attribute() for a in self.attributes]
 
-        logger.debug(f"Cloning Report {self.id} from {self.attributes} attributes")
-        logger.debug(f"Cloning Report {self.id} with {attributes} attributes")
-
         report = ReportItem(
-            title=f"{self.title} (Copy)",
+            title=f"{self.title} ({datetime.now().isoformat()})",
             report_item_type_id=self.report_item_type_id,
-            news_item_aggregates=[],
             attributes=attributes,
             completed=self.completed,
+            stories=[],
         )
         db.session.add(report)
         db.session.commit()
         return report
 
     @classmethod
-    def clone(cls, report_id: int, user: User) -> tuple[dict[str, Any], int]:
+    def clone(cls, report_id: str, user: User) -> tuple[dict[str, Any], int]:
         report = cls.get(report_id)
         if not report:
             return {"error": "Report not found"}, 404
@@ -341,65 +246,52 @@ class ReportItem(BaseModel):
 
     @classmethod
     def get_by_cpe(cls, cpes):
-        if len(cpes) <= 0:
-            return []
-        query_string = "SELECT DISTINCT report_item_id FROM report_item_cpe WHERE value LIKE ANY(:cpes) OR {}"
-        params = {"cpes": cpes}
-
-        inner_query = ""
-        for i in range(len(cpes)):
-            if i > 0:
-                inner_query += " OR "
-            param = f"cpe{str(i)}"
-            inner_query += f":{param} LIKE value"
-            params[param] = cpes[i]
-
-        result = db.engine.execute(text(query_string.format(inner_query)), params)
-
-        return [row[0] for row in result if row[0] is not None]
+        query = db.select(cls).distinct(cls.id).join(ReportItemCpe, ReportItem.id == ReportItemCpe.report_item_id)
+        query = query.filter(ReportItemCpe.value.in_(cpes))
+        return cls.get_filtered(query)
 
     @classmethod
-    def get_report_item_and_check_permission(cls, id: int, user: User) -> tuple[Optional["ReportItem"], dict, int]:
-        report_item = cls.get(id)
+    def get_report_item_and_check_permission(cls, report_id: str, user: User) -> tuple[Optional["ReportItem"], dict, int]:
+        report_item = cls.get(report_id)
         if not report_item:
             return None, {"error": "Report Item not Found"}, 404
 
-        if not report_item.report_item_type.allowed_with_acl(user, True):
+        if not report_item.allowed_with_acl(user, True):
             return None, {"error": f"User {user.id} is not allowed to update Report {report_item.id}"}, 403
 
         return report_item, {}, 200
 
     @classmethod
-    def add_stories(cls, id: int, item_ids: list[int], user: User) -> tuple[dict, int]:
-        report_item, err, status = cls.get_report_item_and_check_permission(id, user)
+    def add_stories(cls, report_id: str, item_ids: list[int], user: User) -> tuple[dict, int]:
+        report_item, err, status = cls.get_report_item_and_check_permission(report_id, user)
         if err or not report_item:
             return err, status
 
-        items = [NewsItemAggregate.get(item_id) for item_id in item_ids]
-        report_item.news_item_aggregates.extend(items)
+        items = [Story.get(item_id) for item_id in item_ids]
+        report_item.stories.extend(items)
         db.session.commit()
 
         return {"message": f"Successfully added {item_ids} to {report_item.id}"}, 200
 
     @classmethod
-    def remove_aggregates(cls, id: int, aggregate_ids: list[int], user: User) -> tuple[dict, int]:
-        report_item, err, status = cls.get_report_item_and_check_permission(id, user)
+    def remove_stories(cls, report_id: str, story_ids: list[int], user: User) -> tuple[dict, int]:
+        report_item, err, status = cls.get_report_item_and_check_permission(report_id, user)
         if err or not report_item:
             return err, status
 
-        items = [NewsItemAggregate.get(item_id) for item_id in aggregate_ids]
-        report_item.news_item_aggregates = [item for item in report_item.news_item_aggregates if item not in items]
+        items = [Story.get(item_id) for item_id in story_ids]
+        report_item.stories = [item for item in report_item.stories if item not in items]
         db.session.commit()
 
-        return {"message": f"Successfully removed {aggregate_ids} from {report_item.id}"}, 200
+        return {"message": f"Successfully removed {story_ids} from {report_item.id}"}, 200
 
     @classmethod
-    def set_stories(cls, id: int, aggregate_ids: list, user: User) -> tuple[dict, int]:
-        return cls.update_report_item(id, {"aggregate_ids": aggregate_ids}, user)
+    def set_stories(cls, report_id: str, story_ids: list, user: User) -> tuple[dict, int]:
+        return cls.update_report_item(report_id, {"story_ids": story_ids}, user)
 
     @classmethod
-    def update_report_item(cls, id: int, data: dict, user: User) -> tuple[dict, int]:
-        report_item, err, status = cls.get_report_item_and_check_permission(id, user)
+    def update_report_item(cls, report_id: str, data: dict, user: User) -> tuple[dict, int]:
+        report_item, err, status = cls.get_report_item_and_check_permission(report_id, user)
         if err or not report_item:
             return err, status
 
@@ -413,9 +305,9 @@ class ReportItem(BaseModel):
         if attributes_data := data.pop("attributes", None):
             ReportItemAttribute.update_values_from_report(attributes_data)
 
-        aggregate_ids = data.get("aggregate_ids")
-        if aggregate_ids is not None:
-            report_item.news_item_aggregates = [NewsItemAggregate.get(aggregate_id) for aggregate_id in aggregate_ids]
+        story_ids = data.get("story_ids")
+        if story_ids is not None:
+            report_item.stories = [Story.get(story_id) for story_id in story_ids]
 
         db.session.commit()
 
@@ -424,14 +316,14 @@ class ReportItem(BaseModel):
         return {"message": "Successfully updated Report Item", "id": report_item.id}, 200
 
     @classmethod
-    def delete(cls, id: int) -> tuple[dict[str, Any], int]:
-        from core.model.product import Product
+    def delete(cls, report_id: str) -> tuple[dict[str, Any], int]:
+        from core.model.product import ProductReportItem
 
-        report = cls.get(id)
+        report = cls.get(report_id)
         if not report:
             return {"error": "Report not found"}, 404
 
-        if Product.query.filter(Product.report_items.any(id=report.id)).first():  # type: ignore
+        if ProductReportItem.assigned(report_id):
             return {"error": "Report is used in a product"}, 409
 
         db.session.delete(report)
@@ -439,9 +331,94 @@ class ReportItem(BaseModel):
         return {"message": "Report successfully deleted"}, 200
 
 
-class ReportItemCpe(BaseModel):
+class ReportItemAttribute(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
-    value = db.Column(db.String())
+    value: Any = db.Column(db.String())
+
+    title = db.Column(db.String())
+    description = db.Column(db.String())
+
+    index = db.Column(db.Integer)
+    multiple = db.Column(db.Boolean, default=False)
+    attribute_type: AttributeType = db.Column(db.Enum(AttributeType))
+    group_title = db.Column(db.String())
+    render_data = db.Column(db.JSON)
+
+    report_item_id = db.Column(db.String(64), db.ForeignKey("report_item.id", ondelete="CASCADE"), nullable=True)
+    report_item = db.relationship("ReportItem")
+
+    def __init__(
+        self,
+        value=None,
+        title=None,
+        description=None,
+        index=None,
+        multiple=None,
+        attribute_type=None,
+        group_title=None,
+        render_data=None,
+        id=None,
+    ):
+        self.id = id
+        self.value = value or ""
+        self.title = title
+        self.description = description
+        self.index = index
+        self.multiple = multiple
+        if attribute_type and attribute_type in AttributeType:
+            self.attribute_type = attribute_type
+        self.render_data = render_data
+        self.group_title = group_title
+
+    @classmethod
+    def update_values_from_report(cls, attribute_data):
+        # TODO: Add functionality to update multiple attributes at once, if muliple is True
+        for attribute_dicts in attribute_data.values():
+            for attribute_id, data in attribute_dicts.items():
+                if report_item_attribute := cls.get(attribute_id):
+                    report_item_attribute.value = data["value"]
+
+        db.session.commit()
+
+    @staticmethod
+    def sort(report_item_attribute):
+        return report_item_attribute.last_updated
+
+    def to_product_dict(self):
+        return {
+            self.title: self.value,
+        }
+
+    def to_report_dict(self):
+        return {
+            "title": self.title,
+            "description": self.description,
+            "index": self.index,
+            "multiple": self.multiple,
+            "type": self.attribute_type.name,
+            "group_title": self.group_title,
+            "render_data": self.render_data,
+            "value": self.value,
+        }
+
+    def clone_attribute(self):
+        value = "" if self.attribute_type in [AttributeType.STORY] else self.value
+
+        return ReportItemAttribute(
+            value=value,
+            title=self.title,
+            description=self.description,
+            index=self.index,
+            multiple=self.multiple,
+            attribute_type=self.attribute_type,
+            group_title=self.group_title,
+            render_data=self.render_data,
+        )
+
+
+class ReportItemCpe(BaseModel):
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    value: Mapped[str] = db.Column(db.String())
 
     report_item_id = db.Column(db.String(64), db.ForeignKey("report_item.id", ondelete="CASCADE"))
     report_item = db.relationship("ReportItem")

@@ -2,7 +2,7 @@
 This Template needs excatly one Report
 {% else -%}
 {% set report = data.report_items[0].attributes -%}
-{% set stories = data.report_items[0].news_item_aggregates %}
+{% set stories = data.report_items[0].stories %}
 
 =====================
 = End-of-Day report =
@@ -26,10 +26,10 @@ Co-Handler:  {{ report.co_handler }}
 {% if story.summary is defined and story.summary|length -%}
 {{ story.summary }}
 {% else -%}
-{{ story.news_items[0].news_item_data.content }}
+{{ story.news_items[0].content }}
 {%- endif %}
 ---------------------------------------------
-{{ story.news_items[0].news_item_data.link }}
+{{ story.news_items[0].link }}
 
 {%- endif %}
 {%- endfor %}
@@ -50,10 +50,10 @@ Co-Handler:  {{ report.co_handler }}
 {% if story.summary is defined and story.summary|length -%}
 {{ story.summary }}
 {% else -%}
-{{ story.news_items[0].news_item_data.content }}
+{{ story.news_items[0].content }}
 {%- endif %}
 ---------------------------------------------
-{{ story.news_items[0].news_item_data.link }}
+{{ story.news_items[0].link }}
 
 {%- endif %}
 {%- endfor %}

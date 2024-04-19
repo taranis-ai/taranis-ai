@@ -54,7 +54,7 @@ export default {
 
     const updateData = () => {
       store.loadUsers().then(() => {
-        mainStore.itemCountTotal = users.value.count
+        mainStore.itemCountTotal = users.value.total_count
         mainStore.itemCountFiltered = users.value.items?.length || 0
       })
     }

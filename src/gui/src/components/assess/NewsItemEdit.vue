@@ -152,7 +152,7 @@ export default {
         const result = await addNewsItem(news_item.value)
 
         notifySuccess(result)
-        router.push('/newsitem/' + result.data.ids[0])
+        router.push('/story/' + result.data.ids[0])
       } catch (e) {
         notifyFailure(e)
       }

@@ -34,7 +34,7 @@ class IOCBot(BaseBot):
                     continue
             if i % max(len(data) // 10, 1) == 0:
                 logger.debug(f"Extracting IOCs from {story['id']}: {i}/{len(data)}")
-            story_content = " ".join(news_item["news_item_data"]["content"] for news_item in story["news_items"])
+            story_content = " ".join(news_item["content"] for news_item in story["news_items"])
             if iocs := self.extract_ioc(story_content):
                 extracted_keywords[story["id"]] = iocs
 

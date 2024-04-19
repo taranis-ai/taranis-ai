@@ -1,5 +1,6 @@
 from typing import Any
-from sqlalchemy import or_
+from sqlalchemy.sql.expression import Select
+from sqlalchemy.orm import Mapped
 import json
 
 from core.managers.db_manager import db
@@ -10,12 +11,12 @@ from core.service.role_based_access import RoleBasedAccessService, RBACQuery
 
 
 class AttributeGroupItem(BaseModel):
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(), nullable=False)
-    description = db.Column(db.String())
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    title: Mapped[str] = db.Column(db.String(), nullable=False)
+    description: Mapped[str] = db.Column(db.String())
 
-    index = db.Column(db.Integer)
-    multiple = db.Column(db.Boolean, default=False)
+    index: Mapped[int] = db.Column(db.Integer)
+    multiple: Mapped[bool] = db.Column(db.Boolean, default=False)
 
     attribute_group_id = db.Column(db.Integer, db.ForeignKey("attribute_group.id", ondelete="CASCADE"))
     attribute_group = db.relationship("AttributeGroup")
@@ -23,7 +24,7 @@ class AttributeGroupItem(BaseModel):
     attribute_id = db.Column(db.Integer, db.ForeignKey("attribute.id"))
     attribute = db.relationship("Attribute")
 
-    def __init__(self, title, description, index, attribute_id=None, attribute=None, multiple=False, id=None):
+    def __init__(self, title: str, description: str, index: int, attribute_id=None, attribute=None, multiple=False, id=None):
         self.id = id
         self.title = title
         self.description = description
@@ -142,9 +143,9 @@ class AttributeGroup(BaseModel):
 
 
 class ReportItemType(BaseModel):
-    id = db.Column(db.Integer, primary_key=True)
-    title: Any = db.Column(db.String())
-    description: Any = db.Column(db.String())
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    title: Mapped[str] = db.Column(db.String())
+    description: Mapped[str] = db.Column(db.String())
 
     attribute_groups: Any = db.relationship(
         "AttributeGroup",
@@ -152,7 +153,7 @@ class ReportItemType(BaseModel):
         cascade="all, delete-orphan",
     )
 
-    def __init__(self, title, description=None, attribute_groups=None, id=None):
+    def __init__(self, title: str, description: str | None = None, attribute_groups=None, id: int | None = None):
         self.title = title
         self.description = description
         self.attribute_groups = AttributeGroup.load_multiple(attribute_groups) if attribute_groups else []
@@ -167,6 +168,13 @@ class ReportItemType(BaseModel):
     def get_by_title(cls, title):
         return cls.query.filter_by(title=title).first()
 
+    @classmethod
+    def get_filter_query_with_acl(cls, filter_args: dict, user) -> Select:
+        query = cls.get_filter_query(filter_args)
+        rbac = RBACQuery(user=user, resource_type=ItemType.REPORT_ITEM_TYPE)
+        query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
+        return query
+
     def allowed_with_acl(self, user, require_write_access) -> bool:
         if not RoleBasedAccess.is_enabled() or not user:
             return True
@@ -178,29 +186,18 @@ class ReportItemType(BaseModel):
         return RoleBasedAccessService.user_has_access_to_resource(query)
 
     @classmethod
-    def get_by_filter(cls, search, user, acl_check):
-        query = cls.query.distinct().group_by(ReportItemType.id)
+    def get_filter_query(cls, filter_args: dict) -> Select:
+        query = db.select(cls)
 
-        if acl_check:
-            rbac = RBACQuery(user=user, resource_type=ItemType.REPORT_ITEM_TYPE)
-            query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
-
-        if search:
-            search_string = f"%{search}%"
-            query = query.filter(
-                or_(
-                    ReportItemType.title.ilike(search_string),
-                    ReportItemType.description.ilike(search_string),
+        if search := filter_args.get("search"):
+            query = query.where(
+                db.or_(
+                    cls.title.ilike(f"%{search}%"),
+                    cls.description.ilike(f"%{search}%"),
                 )
             )
 
-        return query.order_by(db.asc(ReportItemType.title)).all(), query.count()
-
-    @classmethod
-    def get_all_json(cls, search, user, acl_check):
-        report_item_types, count = cls.get_by_filter(search, user, acl_check)
-        items = [report_item_type.to_dict() for report_item_type in report_item_types]
-        return {"total_count": count, "items": items}
+        return query.order_by(db.asc(cls.title))
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()

@@ -3,7 +3,7 @@ import {
   getAllReportTypes,
   getReportItem,
   cloneReportItem,
-  addAggregatesToReportItem
+  addStoriesToReportItem
 } from '@/api/analyze'
 
 import { defineStore } from 'pinia'
@@ -26,7 +26,7 @@ const mapReportItem = (item, report_item_types) => {
 }
 
 export const useAnalyzeStore = defineStore('analyze', () => {
-  const report_items = ref({ count: 0, items: [] })
+  const report_items = ref({ total_count: 0, items: [] })
   const report_item_types = ref({ total_count: 0, items: [] })
   const selection_report = ref([])
 
@@ -100,7 +100,7 @@ export const useAnalyzeStore = defineStore('analyze', () => {
   }
 
   function addStoriesToReport(report_item_id, stories) {
-    addAggregatesToReportItem(report_item_id, stories)
+    addStoriesToReportItem(report_item_id, stories)
     const report_item = report_items.value.items.find(
       (item) => item.id === report_item_id
     )
@@ -132,7 +132,7 @@ export const useAnalyzeStore = defineStore('analyze', () => {
   }
 
   function reset() {
-    report_items.value = { count: 0, items: [] }
+    report_items.value = { total_count: 0, items: [] }
     report_item_types.value = { total_count: 0, items: [] }
     selection_report.value = []
   }

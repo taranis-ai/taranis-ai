@@ -2,10 +2,13 @@ import json
 import csv
 from typing import Any
 from enum import IntEnum
-from sqlalchemy import or_, Column, String
+from sqlalchemy import or_
+from sqlalchemy.sql import Select
+from sqlalchemy.orm import Mapped
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
+from core.model.user import User
 from core.model.role_based_access import RoleBasedAccess, ItemType
 from core.log import logger
 from core.service.role_based_access import RBACQuery, RoleBasedAccessService
@@ -18,14 +21,16 @@ class WordListUsage(IntEnum):
 
 
 class WordList(BaseModel):
-    id: Any = db.Column(db.Integer, primary_key=True)
-    name: Column[String] = db.Column(db.String(), nullable=False)
-    description: Column[String] = db.Column(db.String(), default=None)
-    usage: Any = db.Column(db.Integer, default=0)
-    link: Any = db.Column(db.String(), nullable=True, default=None)
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    name: Mapped[str] = db.Column(db.String(), nullable=False)
+    description: Mapped[str] = db.Column(db.String(), default=None)
+    usage: Mapped[int] = db.Column(db.Integer, default=0)
+    link: Mapped[str] = db.Column(db.String(), nullable=True, default=None)
     entries: Any = db.relationship("WordListEntry", cascade="all, delete")
 
-    def __init__(self, name, description=None, usage=0, link=None, entries=None, id=None):
+    def __init__(
+        self, name: str, description: str | None = None, usage: int = 0, link: str | None = None, entries=None, id: int | None = None
+    ):
         self.id = id
         self.name = name
         if description:
@@ -35,8 +40,8 @@ class WordList(BaseModel):
         self.entries = WordListEntry.load_multiple(entries) if entries else []
 
     @classmethod
-    def find_by_name(cls, name: str) -> "WordList":
-        return cls.query.filter_by(name=name).first()
+    def find_by_name(cls, name: str) -> "WordList|None":
+        return cls.get_first(db.select(cls).filter_by(name=name))
 
     def add_usage(self, usage_type):
         self.usage |= usage_type
@@ -69,7 +74,7 @@ class WordList(BaseModel):
             return False
         return usage < (2 ** len(WordListUsage))
 
-    def allowed_with_acl(self, user, require_write_access) -> bool:
+    def allowed_with_acl(self, user: User, require_write_access) -> bool:
         if not RoleBasedAccess.is_enabled() or not user:
             return True
 
@@ -78,40 +83,32 @@ class WordList(BaseModel):
         return RoleBasedAccessService.user_has_access_to_resource(query)
 
     @classmethod
-    def get_all(cls):
-        return cls.query.order_by(db.asc(WordList.name)).all()
-
-    @classmethod
     def get_all_empty(cls):
-        return cls.query.filter_by(entries=None).order_by(db.asc(WordList.name)).all()
+        return cls.get_filtered(db.select(cls).filter_by(entries=None).order_by(db.asc(WordList.name)))
 
     @classmethod
-    def get_by_filter(cls, filter_data, user=None, acl_check=False):
-        query = cls.query.distinct().group_by(WordList.id)
+    def get_filter_query_with_acl(cls, filter_args: dict, user: User) -> Select:
+        query = cls.get_filter_query(filter_args)
+        rbac = RBACQuery(user=user, resource_type=ItemType.WORD_LIST)
+        query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
+        return query
 
-        if acl_check:
-            rbac = RBACQuery(user=user, resource_type=ItemType.WORD_LIST)
-            query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
+    @classmethod
+    def get_filter_query(cls, filter_args: dict) -> Select:
+        query = db.select(cls)
 
-        if search := filter_data.get("search"):
-            search_string = f"%{search}%"
-            query = query.filter(
+        if search := filter_args.get("search"):
+            query = query.where(
                 or_(
-                    WordList.name.ilike(search_string),
-                    WordList.description.ilike(search_string),
+                    cls.name.ilike(f"%{search}%"),
+                    cls.description.ilike(f"%{search}%"),
                 )
             )
 
-        if usage := filter_data.get("usage"):
+        if usage := filter_args.get("usage"):
             query = query.filter(WordList.usage.op("&")(usage) > 0)
 
-        return query.order_by(db.asc(WordList.name)).all(), query.count()
-
-    @classmethod
-    def get_all_json(cls, filter_data, user, acl_check):
-        word_lists, count = cls.get_by_filter(filter_data, user, acl_check)
-        items = [word_list.to_dict() for word_list in word_lists]
-        return {"total_count": count, "items": items}
+        return query.order_by(db.asc(cls.name))
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
@@ -132,10 +129,13 @@ class WordList(BaseModel):
         return [entry.to_entry_dict() for entry in self.entries if entry]
 
     @classmethod
-    def update(cls, word_list_id, data) -> tuple[dict, int]:
+    def update(cls, word_list_id: int, data, user: User | None = None) -> tuple[dict, int]:
         word_list = cls.get(word_list_id)
         if word_list is None:
             return {"error": "WordList not found"}, 404
+
+        if user and not word_list.allowed_with_acl(user, require_write_access=True):
+            return {"error": "User does not have write access to WordList"}, 403
 
         if name := data.get("name"):
             word_list.name = name
@@ -196,12 +196,13 @@ class WordList(BaseModel):
         return update_word_list
 
     @classmethod
-    def export(cls, source_ids=None):
+    def export(cls, source_ids=None) -> bytes:
+        query = db.select(cls)
         if source_ids:
-            data = cls.query.filter(cls.id.in_(source_ids)).all()  # type: ignore
-        else:
-            data = cls.get_all()
-        export_data = {"version": 1, "data": [word_list.to_export_dict() for word_list in data]}
+            query = query.filter(cls.id.in_(source_ids))
+
+        data = cls.get_filtered(query)
+        export_data = {"version": 1, "data": [word_list.to_export_dict() for word_list in data]} if data else {}
         return json.dumps(export_data).encode("utf-8")
 
     @classmethod
@@ -222,10 +223,10 @@ class WordList(BaseModel):
 
 
 class WordListEntry(BaseModel):
-    id = db.Column(db.Integer, primary_key=True)
-    value: Any = db.Column(db.String(), nullable=False)
-    category: Any = db.Column(db.String(), nullable=True)
-    description: Any = db.Column(db.String(), nullable=True)
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    value: Mapped[str] = db.Column(db.String(), nullable=False)
+    category: Mapped[str] = db.Column(db.String(), nullable=True)
+    description: Mapped[str] = db.Column(db.String(), nullable=True)
 
     word_list_id = db.Column(db.Integer, db.ForeignKey("word_list.id", ondelete="CASCADE"))
 
@@ -237,16 +238,14 @@ class WordListEntry(BaseModel):
 
     @classmethod
     def identical(cls, value, word_list_id):
-        return db.session.query(
-            db.exists().where(WordListEntry.value == value).where(WordListEntry.word_list_id == word_list_id)
-        ).scalar()  # type: ignore
+        return db.session.execute(db.exists().where(WordListEntry.value == value).where(WordListEntry.word_list_id == word_list_id)).scalar()
 
     @classmethod
-    def delete_entries(cls, id, value):
-        word_list = WordList.get(id)
+    def delete_entries(cls, word_list_id, value):
+        word_list = WordList.get(word_list_id)
         if not word_list:
             return "WordList not found", 404
-        cls.query.filter_by(word_list_id=word_list.id).filter_by(value=value).delete()
+        db.delete(cls).where(cls.word_list_id == word_list_id).where(cls.value == value).execute()
         db.session.commit()
 
     @classmethod

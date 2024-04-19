@@ -53,12 +53,12 @@
     </tr>
 
     <article-info
-      :news-item-data="story.news_items[0].news_item_data"
+      :news-item="story.news_items[0]"
       :compact-view="compactView"
     />
     <author-info
       v-if="detailView && story.news_items.length === 1"
-      :news-item-data="story.news_items[0].news_item_data"
+      :news-item="story.news_items[0]"
     />
     <v-dialog v-model="showTagDialog" width="auto">
       <popup-edit-tags
@@ -72,7 +72,6 @@
 
 <script>
 import TagList from '@/components/assess/card/TagList.vue'
-// import WeekChart from '@/components/assess/card/WeekChart.vue'
 import { useFilterStore } from '@/stores/FilterStore'
 import { useI18n } from 'vue-i18n'
 import { computed, ref } from 'vue'
@@ -91,7 +90,6 @@ export default {
     AuthorInfo,
     StoryVotes,
     TagList
-    // WeekChart
   },
   props: {
     story: {
@@ -113,9 +111,7 @@ export default {
 
     const published_dates = computed(() => {
       const pub_dates = props.story.news_items
-        ? props.story.news_items
-            .map((item) => item.news_item_data.published)
-            .sort()
+        ? props.story.news_items.map((item) => item.published).sort()
         : []
 
       if (pub_dates.length === 0) {

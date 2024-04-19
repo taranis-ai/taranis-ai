@@ -10,7 +10,6 @@ class TestAssessApi(BaseTest):
         It expects a valid data and a valid status-code
         """
         response = self.assert_get_ok(client, "osint-source-group-list", auth_header)
-        assert response.get_json()["total_count"] == 1
         assert response.get_json()["items"][0]["id"] == "default"
 
     def test_get_OSINTSourceGroupsAssess_unauth(self, client):
@@ -26,7 +25,6 @@ class TestAssessApi(BaseTest):
         It expects 1 OSINTSource ("manual") retured
         """
         response = self.assert_get_ok(client, "osint-sources-list", auth_header)
-        assert response.get_json()["total_count"] >= 1
         items = response.get_json()["items"]
         assert len(items) >= 1
         item_ids = [item["id"] for item in items]
@@ -39,7 +37,7 @@ class TestAssessApi(BaseTest):
         """
         self.assert_get_failed(client, "osint-sources-list")
 
-    def test_post_AddNewsItem_auth(self, client, news_item_aggregates, auth_header):
+    def test_post_AddNewsItem_auth(self, client, stories, auth_header):
         """
         This test queries the AddNewsItem authenticated.
         It expects a valid data and a valid status-code
@@ -91,9 +89,9 @@ class TestAssessApi(BaseTest):
         assert response.status_code == 401
         assert before == len(news_items_data)
 
-    def test_get_NewsItemAggregates_auth(self, client, news_item_aggregates, auth_header):
+    def test_get_stories_auth(self, client, stories, auth_header):
         """
-        This test queries the NewsItemAggregates authenticated.
+        This test queries the stories authenticated.
         It expects a valid data and a valid status-code
         """
         response = client.get("/api/assess/stories", headers=auth_header)
@@ -104,7 +102,7 @@ class TestAssessApi(BaseTest):
         assert response.status_code == 200
 
         response = client.get("/api/assess/stories?search=notexistent", headers=auth_header)
-        assert response.get_json()["total_count"] == 0
+        assert response.status_code == 404
 
         response = client.get("/api/assess/stories?notexistent=notexist", headers=auth_header)
         assert response.get_json()["total_count"] > 0
@@ -119,7 +117,7 @@ class TestAssessApi(BaseTest):
         assert len(response.get_json()["items"]) == 0
 
         response = client.get("/api/assess/stories?range=DAY", headers=auth_header)
-        assert response.get_json()["total_count"] == 0
+        assert response.status_code == 404
 
         response = client.get("/api/assess/stories?sort=DATE_DESC", headers=auth_header)
         assert response.get_json()["total_count"] > 0
@@ -141,7 +139,7 @@ class TestAssessApi(BaseTest):
         assert response.get_json()["error"] == "not authorized"
         assert response.status_code == 401
 
-    def test_get_NewsItem_auth(self, client, news_item_aggregates, auth_header):
+    def test_get_NewsItem_auth(self, client, stories, auth_header):
         """
         This test queries the NewsItems Authenticated.
         It expects valid NewsItems
@@ -151,11 +149,11 @@ class TestAssessApi(BaseTest):
         assert response.data
         assert response.content_type == "application/json"
         assert response.status_code == 200
-        assert len(response.get_json()["items"]) == 3
+        assert len(response.get_json()["items"]) == 2
 
-    def test_get_NewsItemAggregatesTags_unauth(self, client):
+    def test_get_story_tags_unauth(self, client):
         """
-        This test queries the NewsItemsAggregatesTags UNauthenticated.
+        This test queries the tags UNauthenticated.
         It expects "not authorized"
         """
         response = client.get("/api/assess/tags")
@@ -164,12 +162,12 @@ class TestAssessApi(BaseTest):
         assert response.get_json()["error"] == "not authorized"
         assert response.status_code == 401
 
-    def test_get_NewsItemAggregatesTags(self, client, news_item_aggregates, auth_header):
+    def test_get_story_tags(self, client, stories, auth_header):
         """
-        This test queries the NewsItemsAggregatesTags Authentictaed.
+        This test queries the tags Authentictaed.
         It expects a list of tags
         """
-        nia1, nia2 = news_item_aggregates
+        nia1, nia2 = stories
         response = nia1.update_tags(nia1.id, ["foo", "bar", "baz"])
         assert response[1] == 200
         response = nia2.update_tags(nia2.id, {"foo": {"tag_type": "misc"}, "bar": {"tag_type": "misc"}})

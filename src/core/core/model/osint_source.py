@@ -3,9 +3,10 @@ import json
 import base64
 from datetime import datetime
 from typing import Any
-from sqlalchemy import or_, and_
-from sqlalchemy.orm import deferred
+from sqlalchemy import or_
+from sqlalchemy.orm import deferred, Mapped
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.sql import Select
 
 from core.managers.db_manager import db
 from core.log import logger
@@ -19,9 +20,9 @@ from core.service.role_based_access import RoleBasedAccessService, RBACQuery
 
 
 class OSINTSource(BaseModel):
-    id: Any = db.Column(db.String(64), primary_key=True)
-    name: Any = db.Column(db.String(), nullable=False)
-    description: Any = db.Column(db.String())
+    id: Mapped[str] = db.Column(db.String(64), primary_key=True)
+    name: Mapped[str] = db.Column(db.String(), nullable=False)
+    description: Mapped[str] = db.Column(db.String())
 
     type: Any = db.Column(db.Enum(COLLECTOR_TYPES))
     parameters: Any = db.relationship(
@@ -51,7 +52,7 @@ class OSINTSource(BaseModel):
     def get_all(cls) -> list["OSINTSource"]:
         return (
             db.session.execute(
-                db.select([cls])
+                db.select(cls)
                 .where(cls.type != COLLECTOR_TYPES.MANUAL_COLLECTOR)
                 .order_by(
                     db.nulls_first(db.asc(cls.last_collected)),
@@ -63,34 +64,27 @@ class OSINTSource(BaseModel):
         )
 
     @classmethod
-    def get_by_filter(cls, search=None, user=None, acl_check=False):
-        query = cls.query
+    def get_filter_query_with_acl(cls, filter_args: dict, user) -> Select:
+        query = cls.get_filter_query(filter_args)
+        rbac = RBACQuery(user=user, resource_type=ItemType.OSINT_SOURCE)
+        query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
+        return query
 
-        if acl_check:
-            rbac = RBACQuery(user=user, resource_type=ItemType.OSINT_SOURCE)
-            query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
+    @classmethod
+    def get_filter_query(cls, filter_args: dict) -> Select:
+        query = db.select(cls)
 
-        if search:
-            search_string = f"%{search}%"
-            query = query.filter(
-                or_(
-                    OSINTSource.name.ilike(search_string),
-                    OSINTSource.description.ilike(search_string),
-                    OSINTSource.type.ilike(search_string),
-                )
-            )
+        if search := filter_args.get("search"):
+            query = query.where(or_(cls.name.ilike(f"%{search}%"), cls.description.ilike(f"%{search}%"), cls.type.ilike(f"%{search}%")))
 
-        return query.order_by(db.asc(OSINTSource.name)).all(), query.count()
+        if source_type := filter_args.get("type"):
+            query = query.where(cls.type == source_type)
+
+        return query.order_by(db.asc(cls.name))
 
     def update_icon(self, icon):
         self.icon = icon
         db.session.commit()
-
-    @classmethod
-    def get_all_json(cls, search):
-        sources, count = cls.get_by_filter(search)
-        items = [source.to_dict() for source in sources]
-        return {"total_count": count, "items": items}
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "OSINTSource":
@@ -128,30 +122,6 @@ class OSINTSource(BaseModel):
             "args": [self.id],
             "options": {"queue": "collectors"},
         }
-
-    @classmethod
-    def get_all_with_type(cls, search=None, user=None, acl_check=False):
-        sources, count = cls.get_by_filter(search, user, acl_check)
-        items = [source.to_list() for source in sources]
-        return {"total_count": count, "items": items}
-
-    def to_list(self):
-        return {
-            "id": self.id,
-            "name": self.name,
-            "description": self.description,
-            "type": self.type,
-            "icon": base64.b64encode(self.icon).decode("utf-8") if self.icon else None,
-        }
-
-    @classmethod
-    def get_all_by_type(cls, collector_type: str):
-        query = cls.query.filter(OSINTSource.type == collector_type)
-        sources = query.order_by(
-            db.nulls_first(db.asc(OSINTSource.last_collected)),
-            db.nulls_first(db.asc(OSINTSource.last_attempted)),
-        ).all()
-        return [source.to_dict() for source in sources]
 
     @classmethod
     def add(cls, data):
@@ -239,21 +209,25 @@ class OSINTSource(BaseModel):
         return export_dict
 
     @classmethod
-    def export_osint_sources(cls, source_ids=None):
+    def export_osint_sources(cls, source_ids=None) -> bytes:
+        query = db.select(cls)
         if source_ids:
-            data = cls.query.filter(cls.id.in_(source_ids)).all()  # type: ignore
-        else:
-            data = cls.get_all()
+            query = query.filter(cls.id.in_(source_ids))
+
+        data = cls.get_filtered(query)
+        if not data:
+            return json.dumps({"error": "no sources found"}).encode("utf-8")
 
         id_to_index_map = {}
         for idx, osint_source in enumerate(data, 1):
             osint_source.cleanup_parameters()
             id_to_index_map[osint_source.id] = idx
 
+        groups = OSINTSourceGroup.get_all_without_default() or []
         export_data = {
             "version": 3,
             "sources": [osint_source.to_export_dict(id_to_index_map) for osint_source in data],
-            "groups": [group.to_export_dict(id_to_index_map) for group in OSINTSourceGroup.get_all_without_default()],
+            "groups": [group.to_export_dict(id_to_index_map) for group in groups],
         }
         logger.debug(f"Exporting {len(export_data['sources'])} sources")
         return json.dumps(export_data).encode("utf-8")
@@ -322,16 +296,16 @@ class OSINTSourceParameterValue(BaseModel):
 
 
 class OSINTSourceGroup(BaseModel):
-    id: Any = db.Column(db.String(64), primary_key=True)
-    name: Any = db.Column(db.String(), nullable=False)
-    description: Any = db.Column(db.String())
-    default: Any = db.Column(db.Boolean(), default=False)
+    id: Mapped[str] = db.Column(db.String(64), primary_key=True)
+    name: Mapped[str] = db.Column(db.String(), nullable=False)
+    description: Mapped[str] = db.Column(db.String())
+    default: Mapped[bool] = db.Column(db.Boolean(), default=False)
 
     osint_sources: Any = db.relationship(
         "OSINTSource",
         secondary="osint_source_group_osint_source",
         back_populates="groups",
-    )  # type: ignore
+    )
     word_lists: Any = db.relationship("WordList", secondary="osint_source_group_word_list")  # type: ignore
 
     def __init__(self, name, description="", osint_sources=None, default=False, word_lists=None, id=None):
@@ -343,22 +317,24 @@ class OSINTSourceGroup(BaseModel):
         self.word_lists = [WordList.get(word_list) for word_list in word_lists] if word_lists else []
 
     @classmethod
-    def get_all(cls):
-        return cls.query.order_by(db.asc(OSINTSourceGroup.name)).all()
-
-    @classmethod
     def get_all_without_default(cls):
-        return cls.query.filter(OSINTSourceGroup.default.is_(False)).order_by(db.asc(OSINTSourceGroup.name)).all()
+        return cls.get_filtered(db.select(cls).filter(OSINTSourceGroup.default.is_(False)).order_by(db.asc(OSINTSourceGroup.name)))
 
     @classmethod
-    def get_for_osint_source(cls, osint_source_id):
-        return cls.query.join(
-            OSINTSourceGroupOSINTSource,
-            and_(
-                OSINTSourceGroupOSINTSource.osint_source_id == osint_source_id,
-                OSINTSourceGroup.id == OSINTSourceGroupOSINTSource.osint_source_group_id,
-            ),
-        ).all()
+    def get_filter_query_with_acl(cls, filter_args: dict, user) -> Select:
+        query = cls.get_filter_query(filter_args)
+        rbac = RBACQuery(user=user, resource_type=ItemType.OSINT_SOURCE_GROUP)
+        query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
+        return query
+
+    @classmethod
+    def get_filter_query(cls, filter_args: dict) -> Select:
+        query = db.select(cls)
+
+        if search := filter_args.get("search"):
+            query = query.where(or_(cls.name.ilike(f"%{search}%"), cls.description.ilike(f"%{search}%")))
+
+        return query.order_by(db.asc(cls.name))
 
     def to_word_list_dict(self):
         flat_entry_list = []
@@ -369,11 +345,15 @@ class OSINTSourceGroup(BaseModel):
 
     @classmethod
     def get_default(cls):
-        return cls.query.filter(OSINTSourceGroup.default).first()
+        return cls.get_first(db.select(cls).filter(OSINTSourceGroup.default))
 
     @classmethod
     def add_source_to_default(cls, osint_source: OSINTSource):
         default_group = cls.get_default()
+        if not default_group:
+            default_group = cls(name="Default", default=True)
+            db.session.add(default_group)
+            db.session.commit()
         default_group.osint_sources.append(osint_source)
         db.session.commit()
 
@@ -396,33 +376,6 @@ class OSINTSourceGroup(BaseModel):
 
         return RoleBasedAccessService.user_has_access_to_resource(query)
 
-    @classmethod
-    def get_by_filter(cls, search, user, acl_check):
-        query = cls.query.distinct().group_by(OSINTSourceGroup.id)
-
-        if acl_check:
-            rbac = RBACQuery(user=user, resource_type=ItemType.OSINT_SOURCE_GROUP)
-            query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
-
-        if search:
-            query = query.filter(
-                or_(
-                    OSINTSourceGroup.name.ilike(f"%{search}%"),
-                    OSINTSourceGroup.description.ilike(f"%{search}%"),
-                )
-            )
-
-        return (
-            query.all(),
-            query.count(),
-        )
-
-    @classmethod
-    def get_all_json(cls, search, user, acl_check):
-        groups, count = cls.get_by_filter(search, user, acl_check)
-        items = [group.to_dict() for group in groups]
-        return {"total_count": count, "items": items}
-
     def to_dict(self):
         data = super().to_dict()
         data["osint_sources"] = [osint_source.id for osint_source in self.osint_sources if osint_source]
@@ -442,7 +395,7 @@ class OSINTSourceGroup(BaseModel):
 
     @classmethod
     def update(cls, osint_source_group_id, data):
-        osint_source_group = cls.query.get(osint_source_group_id)
+        osint_source_group = cls.get(osint_source_group_id)
         if osint_source_group is None:
             return {"error": "OSINT Source Group not found"}, 404
 
@@ -456,12 +409,6 @@ class OSINTSourceGroup(BaseModel):
         osint_source_group.word_lists = [WordList.get(word_list) for word_list in word_lists]
         db.session.commit()
         return {"message": f"Successfully updated {osint_source_group.name}", "id": f"{osint_source_group.id}"}, 201
-
-        # TODO: Reassign news items to default group
-        # if sources_in_default_group is not None:
-        #     default_group = osint_source.OSINTSourceGroup.get_default()
-        #     for source in sources_in_default_group:
-        #         NewsItemAggregate.reassign_to_new_groups(source.id, default_group.id)
 
 
 class OSINTSourceGroupOSINTSource(BaseModel):

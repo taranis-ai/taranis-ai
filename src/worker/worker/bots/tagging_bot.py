@@ -20,13 +20,13 @@ class TaggingBot(BaseBot):
             return None
 
         found_tags = {}
-        for aggregate in data:
+        for story in data:
             findings = set()
-            existing_tags = aggregate["tags"] or []
-            for news_item in aggregate["news_items"]:
-                content = news_item["news_item_data"]["content"]
-                title = news_item["news_item_data"]["title"]
-                review = news_item["news_item_data"]["review"]
+            existing_tags = story["tags"] or []
+            for news_item in story["news_items"]:
+                content = news_item["content"]
+                title = news_item["title"]
+                review = news_item["review"]
 
                 analyzed_content = set((title + review + content).split())
 
@@ -34,7 +34,7 @@ class TaggingBot(BaseBot):
                     if finding := re.search(f"({regexp})", element.strip(".,")):
                         if finding[1] not in existing_tags:
                             findings.add(finding[1])
-            found_tags[aggregate["id"]] = findings
+            found_tags[story["id"]] = findings
 
         if not found_tags:
             logger.debug("No tags found")

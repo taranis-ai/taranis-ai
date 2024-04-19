@@ -9,7 +9,7 @@ class GroupingBot(BaseBot):
         super().__init__()
         self.type = "GROUPING_BOT"
         self.name = "Grouping Bot"
-        self.description = "Bot for grouping news items into aggregates"
+        self.description = "Bot for grouping news items into stories"
         self.default_regex = r"CVE-\d{4}-\d{4,7}"
 
     def execute(self, parameters=None):
@@ -21,15 +21,15 @@ class GroupingBot(BaseBot):
             return None
 
         findings = defaultdict(list)
-        for aggregate in data:
-            for news_item in aggregate["news_items"]:
-                content = news_item["news_item_data"]["content"]
-                title = news_item["news_item_data"]["title"]
+        for story in data:
+            for news_item in story["news_items"]:
+                content = news_item["content"]
+                title = news_item["title"]
 
                 analyzed_content = set((title + content).split())
                 for element in analyzed_content:
                     if finding := re.search(f"({regexp})", element.strip(".,")):
-                        findings[finding[1]].append(aggregate["id"])
+                        findings[finding[1]].append(story["id"])
                         break
 
         if not findings:

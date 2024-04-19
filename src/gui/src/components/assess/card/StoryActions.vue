@@ -354,7 +354,7 @@ export default {
       return Boolean(
         !props.reportView &&
           props.story.news_items.length === 1 &&
-          props.story.news_items[0].news_item_data.source == 'manual'
+          props.story.news_items[0].source == 'manual'
       )
     })
 

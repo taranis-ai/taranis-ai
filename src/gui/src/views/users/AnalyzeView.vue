@@ -72,7 +72,7 @@ export default {
     )
 
     const updateData = () => {
-      mainStore.itemCountTotal = report_items.value.count
+      mainStore.itemCountTotal = report_items.value.total_count
       mainStore.itemCountFiltered = report_items.value.items.length
       analyzeStore.loadReportTypes()
     }

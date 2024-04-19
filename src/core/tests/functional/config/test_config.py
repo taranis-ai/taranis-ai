@@ -132,10 +132,10 @@ class TestWordListConfigApi(BaseTest):
 
     def test_get_word_lists(self, client, auth_header, cleanup_word_lists):
         response = self.assert_get_ok(client, "word-lists", auth_header)
-        total_count = response.get_json()["total_count"]
+        count = response.get_json()["total_count"]
         word_lists = response.get_json()["items"]
 
-        assert total_count > 0
+        assert count > 0
         assert len(word_lists) > 0
 
         response = self.assert_get_ok(client, f"word-lists/{cleanup_word_lists['id']}", auth_header)
@@ -171,7 +171,7 @@ class TestUserConfigApi(BaseTest):
     def test_get_user(self, client, auth_header, cleanup_user):
         user_id = cleanup_user["id"]
         response = self.assert_get_ok(client, f"users?search={cleanup_user['username']}", auth_header)
-        assert response.json["count"] == 1
+        assert response.json["total_count"] == 1
         assert response.json["items"][0]["username"] == cleanup_user["username"]
         assert response.json["items"][0]["name"] == "Testy McTestFace"
         assert response.json["items"][0]["id"] == user_id
@@ -233,7 +233,7 @@ class TestOrganizationConfigApi(BaseTest):
     def test_get_organizations(self, client, auth_header, cleanup_organization):
         organization_id = cleanup_organization["id"]
         response = self.assert_get_ok(client, uri=f"organizations?search={cleanup_organization['name']}", auth_header=auth_header)
-        assert response.json["count"] == 1
+        assert response.json["total_count"] == 1
         assert response.json["items"][0]["name"] == cleanup_organization["name"]
         assert response.json["items"][0]["description"] == "Orgy McOrgFace"
         assert response.json["items"][0]["id"] == organization_id
@@ -265,7 +265,7 @@ class TestBotConfigApi(BaseTest):
     def test_get_bots(self, client, auth_header, cleanup_bot):
         bot_id = cleanup_bot["id"]
         response = self.assert_get_ok(client, uri=f"bots?search={cleanup_bot['name']}", auth_header=auth_header)
-        assert response.json["count"] == 1
+        assert response.json["total_count"] == 1
         assert response.json["items"][0]["name"] == cleanup_bot["name"]
         assert response.json["items"][0]["description"] == "Boty McBotFace"
         assert response.json["items"][0]["id"] == bot_id
@@ -326,6 +326,8 @@ class TestProductTypes(BaseTest):
         product_type_type = cleanup_product_types["type"]
         response = self.assert_get_ok(client, uri=f"product-types?search={product_type_type}", auth_header=auth_header)
         assert response.json["items"][0]["type"] == product_type_type
+        assert response.json["total_count"] == 1
+        assert response.json["templates"]
 
     def test_delete_product_type(self, client, auth_header, cleanup_product_types):
         product_type_id = cleanup_product_types["id"]

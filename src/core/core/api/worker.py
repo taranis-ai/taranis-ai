@@ -11,18 +11,20 @@ from core.model.queue import ScheduleEntry
 from core.model.product_type import ProductType
 from core.model.publisher_preset import PublisherPreset
 from core.model.word_list import WordList
-from core.model.news_item import NewsItemAggregate
+from core.model.story import Story
 from core.model.news_item_tag import NewsItemTag
 from core.managers.sse_manager import sse_manager
 from core.model.bot import Bot
-from core.managers.input_validators import extract_args
+from core.managers.decorators import extract_args
 
 
 class AddNewsItems(MethodView):
     @api_key_required
     def post(self):
         json_data = request.json
-        result, status = NewsItemAggregate.add_news_items(json_data)
+        if not isinstance(json_data, list):
+            return {"error": "Expected a list of news items"}, 400
+        result, status = Story.add_news_items(json_data)
         sse_manager.news_items_updated()
         return result, status
 
@@ -178,9 +180,9 @@ class Stories(MethodView):
         for key in filter_list_keys:
             filter_args[key] = request.args.getlist(key)
 
-        if aggregates := NewsItemAggregate.get_for_worker(filter_args):
-            return aggregates, 200
-        return {"error": "No news item aggregates found"}, 404
+        if story := Story.get_for_worker(filter_args):
+            return story, 200
+        return {"error": "No stories found"}, 404
 
 
 class Tags(MethodView):
@@ -196,10 +198,10 @@ class Tags(MethodView):
             return {"error": "No data provided"}, 400
         errors = {}
         bot_type = request.args.get("bot_type", default="")
-        for aggregate_id, tags in data.items():
-            _, status = NewsItemAggregate.update_tags(aggregate_id, tags, bot_type)
+        for story_id, tags in data.items():
+            _, status = Story.update_tags(story_id, tags, bot_type)
             if status != 200:
-                errors[aggregate_id] = status
+                errors[story_id] = status
         if errors:
             return {"message": "Some tags failed to update", "errors": errors}, 207
         return {"message": "Tags updated"}, 200
@@ -242,21 +244,12 @@ class PostCollectionBots(MethodView):
 
 class WordLists(MethodView):
     @api_key_required
-    def get(self):
-        search = request.args.get(key="search", default=None)
-        usage = request.args.get(key="usage", default=None, type=int)
-        return WordList.get_all_json({"search": search, "usage": usage}, None, False)
+    @extract_args("search", "usage")
+    def get(self, word_list_id=None, filter_args=None):
+        if word_list_id:
+            return WordList.get_for_api(word_list_id)
+        return WordList.get_all_for_api(filter_args)
 
-
-class WordListByID(MethodView):
-    @api_key_required
-    def get(self, word_list_id: int):
-        if word_list := WordList.get(word_list_id):
-            return word_list.to_dict()
-        return {"error": f"Word list with id {word_list_id} not found"}, 404
-
-
-class WordListUpdate(MethodView):
     @api_key_required
     def put(self, word_list_id):
         if request.content_type == "application/json":
@@ -294,5 +287,4 @@ def initialize(app: Flask):
     app.add_url_rule(f"{worker_url}/post-collection-bots", view_func=PostCollectionBots.as_view("post_collection_bots_worker"))
     app.add_url_rule(f"{worker_url}/stories", view_func=Stories.as_view("stories_worker"))
     app.add_url_rule(f"{worker_url}/word-lists", view_func=WordLists.as_view("word_lists_worker"))
-    app.add_url_rule(f"{worker_url}/word-list/<int:word_list_id>", view_func=WordListByID.as_view("word_list_by_id_worker"))
-    app.add_url_rule(f"{worker_url}/word-list/<int:word_list_id>/update", view_func=WordListUpdate.as_view("word_list_update_worker"))
+    app.add_url_rule(f"{worker_url}/word-list/<int:word_list_id>", view_func=WordLists.as_view("word_list_by_id_worker"))

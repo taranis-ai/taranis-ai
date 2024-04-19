@@ -16,10 +16,12 @@ class BaseModel(db.Model):
     __abstract__ = True
 
     def __str__(self) -> str:
-        return f"{self.__class__.__name__} {self.to_json()}"
+        return f"{self.__class__.__name__}"
+        # return f"{self.__class__.__name__} {self.to_json()}"
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__} {self.to_json()}"
+        return f"{self.__class__.__name__}"
+        # return f"{self.__class__.__name__} {self.to_json()}"
 
     def update(self, item: dict[str, Any]) -> tuple[dict, int]:
         for key, value in item.items():
@@ -61,14 +63,10 @@ class BaseModel(db.Model):
 
     @classmethod
     def add_multiple(cls: Type[T], json_data) -> list[T]:
-        result = []
-        for data in json_data:
-            item = cls.from_dict(data)
-            db.session.add(item)
-            result.append(item)
-
+        items = cls.load_multiple(json_data)
+        db.session.add_all(items)
         db.session.commit()
-        return result
+        return items
 
     @classmethod
     def delete_all(cls: Type[T]) -> tuple[dict[str, Any], int]:
@@ -105,6 +103,10 @@ class BaseModel(db.Model):
         return {"error": f"{cls.__name__} {item_id} not found"}, 404
 
     @classmethod
+    def get_filter_query_with_acl(cls, filter_args: dict, user) -> Select:
+        return cls.get_filter_query(filter_args)
+
+    @classmethod
     def get_filter_query(cls: Type[T], filter_args: dict) -> Select:
         query = db.select(cls)
 
@@ -126,15 +128,19 @@ class BaseModel(db.Model):
         return cls.get_filtered(cls.get_filter_query(filter_args))
 
     @classmethod
-    def get_all_for_api(cls: Type[T], filter_args: dict | None, with_count: bool = False) -> tuple[dict[str, Any], int]:
+    def get_all_for_api(cls, filter_args: dict | None, with_count: bool = False, user=None) -> tuple[dict[str, Any], int]:
+        filter_args = filter_args or {}
         logger.debug(f"Filtering {cls.__name__} with {filter_args}")
-        query = cls.get_filter_query(filter_args or {})
+        if user:
+            query = cls.get_filter_query_with_acl(filter_args, user)
+        else:
+            query = cls.get_filter_query(filter_args)
         items = cls.get_filtered(query)
         if not items:
             return {"items": []}, 404
         if with_count:
             count = cls.get_filtered_count(query)
-            return {"count": count, "items": cls.to_list(items)}, 200
+            return {"total_count": count, "items": cls.to_list(items)}, 200
         return {"items": cls.to_list(items)}, 200
 
     @classmethod

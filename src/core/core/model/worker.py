@@ -127,11 +127,11 @@ class Worker(BaseModel):
             )
 
         if category := filter_args.get("category"):
-            if category in WORKER_CATEGORY.__members__:
+            if bool(WORKER_CATEGORY(category)):
                 query = query.where(Worker.category == category)
 
         if type := filter_args.get("type"):
-            if type in WORKER_TYPES.__members__:
+            if bool(WORKER_TYPES(type)):
                 query = query.where(Worker.type == type)
 
         return query.order_by(db.asc(Worker.name))
@@ -200,9 +200,8 @@ class Worker(BaseModel):
         }
 
         if parameter.parameter in ["TAGGING_WORDLISTS"]:
-            data["items"] = [
-                {"name": wordlist.name, "description": wordlist.description} for wordlist in WordList.get_by_filter({"usage": 4})[0]
-            ]
+            word_lists = WordList.get_by_filter({"usage": 4})
+            data["items"] = [{"name": wordlist.name, "description": wordlist.description} for wordlist in word_lists] if word_lists else []
             data["headers"] = [{"title": "Name", "key": "name"}, {"title": "Description", "key": "description"}]
             data["value"] = []
             data["disabled"] = True

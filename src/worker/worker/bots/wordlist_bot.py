@@ -23,7 +23,7 @@ class WordlistBot(BaseBot):
         if not (data := self.get_stories(parameters)):
             return
 
-        found_tags = self._find_tags_for_aggregates(data, word_list_entries, override_existing_tags, ignore_case)
+        found_tags = self._find_tags_for_stories(data, word_list_entries, override_existing_tags, ignore_case)
         if not found_tags:
             logger.debug("No tags found")
             return
@@ -40,27 +40,27 @@ class WordlistBot(BaseBot):
             return [entry for word_list in word_lists["items"] for entry in word_list["entries"]]
         return
 
-    def _find_tags_for_aggregates(self, data, word_list_entries, override_existing_tags, ignore_case):
+    def _find_tags_for_stories(self, data, word_list_entries, override_existing_tags, ignore_case):
         found_tags = {}
         logger.info(f"Extracting tags from news items: {len(data)}")
-        for i, aggregate in enumerate(data):
-            if attributes := aggregate.get("news_item_attributes", {}):
+        for i, story in enumerate(data):
+            if attributes := story.get("news_item_attributes", {}):
                 if self.type in [d["key"] for d in attributes if "key" in d]:
-                    logger.debug(f"Skipping {aggregate['id']} because it has attributes: {attributes}")
+                    logger.debug(f"Skipping {story['id']} because it has attributes: {attributes}")
                     continue
 
             if i % max(len(data) // 10, 1) == 0:
-                logger.debug(f"Extracting words from {aggregate['id']}: {i}/{len(data)}")
-            if findings := self._find_tags(aggregate, word_list_entries, override_existing_tags, ignore_case):
-                found_tags[aggregate["id"]] = findings
+                logger.debug(f"Extracting words from {story['id']}: {i}/{len(data)}")
+            if findings := self._find_tags(story, word_list_entries, override_existing_tags, ignore_case):
+                found_tags[story["id"]] = findings
         return found_tags
 
-    def _find_tags(self, aggregate, word_list_entries, override_existing_tags, ignore_case):
+    def _find_tags(self, stord, word_list_entries, override_existing_tags, ignore_case):
         findings = {}
         entry_set = {item["value"]: item["category"] for item in word_list_entries}
-        existing_tags = aggregate["tags"] or {}
+        existing_tags = stord["tags"] or {}
 
-        all_content = self._aggregate_content(aggregate)
+        all_content = self._story_content(stord)
 
         for entry, category in entry_set.items():
             if re.search(r"\b" + re.escape(entry) + r"\b", all_content, ignore_case):
@@ -71,10 +71,5 @@ class WordlistBot(BaseBot):
         return findings
 
     @staticmethod
-    def _aggregate_content(aggregate):
-        return " ".join(
-            [
-                news_item["news_item_data"]["title"] + news_item["news_item_data"]["review"] + news_item["news_item_data"]["content"]
-                for news_item in aggregate["news_items"]
-            ]
-        )
+    def _story_content(story):
+        return " ".join([news_item["title"] + news_item["review"] + news_item["content"] for news_item in story["news_items"]])

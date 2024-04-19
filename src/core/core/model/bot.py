@@ -1,8 +1,8 @@
 import uuid
 from typing import Any
 
-from sqlalchemy import and_, func
-from sqlalchemy.orm import joinedload
+from sqlalchemy import func
+from sqlalchemy.orm import Mapped
 from sqlalchemy.sql import Select
 
 from core.log import logger
@@ -14,18 +14,18 @@ from core.model.queue import ScheduleEntry
 
 
 class Bot(BaseModel):
-    id = db.Column(db.String(64), primary_key=True)
-    name: Any = db.Column(db.String(), nullable=False)
-    description: Any = db.Column(db.String())
-    type = db.Column(db.Enum(BOT_TYPES))
-    index = db.Column(db.Integer, unique=True, nullable=False)
+    id: Mapped[str] = db.Column(db.String(64), primary_key=True)
+    name: Mapped[str] = db.Column(db.String(), nullable=False)
+    description: Mapped[str] = db.Column(db.String())
+    type: Mapped[BOT_TYPES] = db.Column(db.Enum(BOT_TYPES))
+    index: Mapped[int] = db.Column(db.Integer, unique=True, nullable=False)
     parameters: Any = db.relationship("ParameterValue", secondary="bot_parameter_value", cascade="all, delete")
 
-    def __init__(self, name, type, description=None, parameters=None, id=None):
+    def __init__(self, name: str, type: str | BOT_TYPES, description: str | None = None, parameters=None, id: str | None = None):
         self.id = id or str(uuid.uuid4())
         self.name = name
         self.description = description
-        self.type = type
+        self.type = type if isinstance(type, BOT_TYPES) else BOT_TYPES(type.lower())
         self.index = Bot.get_highest_index() + 1
         self.parameters = Worker.parse_parameters(type, parameters)
 
@@ -73,18 +73,16 @@ class Bot(BaseModel):
         return cls.get_filtered(db.select(cls).where(type=type))
 
     @classmethod
-    def get_post_collection(cls):
-        # This should return all bots where the parameter with the KEY RUN_AFTER_COLLECTOR has the value True
-        bots = (
-            cls.query.join(BotParameterValue, Bot.id == BotParameterValue.bot_id)
+    def get_post_collection(cls) -> list[str]:
+        stmt = (
+            db.select(cls.id)
+            .join(BotParameterValue, cls.id == BotParameterValue.bot_id)
             .join(ParameterValue, BotParameterValue.parameter_value_id == ParameterValue.id)
-            .filter(and_(ParameterValue.parameter == "RUN_AFTER_COLLECTOR", ParameterValue.value == "true"))
-            .options(joinedload(Bot.parameters))
-            .order_by(Bot.index)
-            .all()
+            .filter(db.and_(ParameterValue.parameter == "RUN_AFTER_COLLECTOR", ParameterValue.value == "true"))
+            .order_by(cls.index)
         )
 
-        return [bot.id for bot in bots]
+        return db.session.execute(stmt).scalars().all()
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()

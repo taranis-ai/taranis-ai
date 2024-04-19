@@ -5,16 +5,17 @@ from datetime import datetime, timedelta
 from core.managers.sse_manager import sse_manager
 from core.log import logger
 from core.managers.auth_manager import api_key_required
-from core.model import news_item, word_list, bot
+from core.model import news_item, bot, story
+from core.managers.decorators import extract_args
 
 
 class BotGroupAction(MethodView):
     @api_key_required
     def put(self):
-        aggregate_ids = request.json
-        if not aggregate_ids:
-            return {"No aggregate ids provided"}, 400
-        response, code = news_item.NewsItemAggregate.group_aggregate(aggregate_ids)
+        story_ids = request.json
+        if not story_ids:
+            return {"No story ids provided"}, 400
+        response, code = story.Story.group_stories(story_ids)
         sse_manager.news_items_updated()
         return response, code
 
@@ -22,10 +23,10 @@ class BotGroupAction(MethodView):
 class BotGroupMultipleAction(MethodView):
     @api_key_required
     def put(self):
-        aggregate_ids = request.json
-        if not aggregate_ids:
-            return {"No aggregate ids provided"}, 400
-        response, code = news_item.NewsItemAggregate.group_multiple_aggregate(aggregate_ids)
+        story_ids = request.json
+        if not story_ids:
+            return {"No stories provided"}, 400
+        response, code = story.Story.group_multiple_stories(story_ids)
         sse_manager.news_items_updated()
         return response, code
 
@@ -35,31 +36,31 @@ class BotUnGroupAction(MethodView):
     def put(self):
         newsitem_ids = request.json
         if not newsitem_ids:
-            return {"No aggregate ids provided"}, 400
-        response, code = news_item.NewsItemAggregate.remove_news_items_from_story(newsitem_ids)
+            return {"No news items provided"}, 400
+        response, code = story.Story.remove_news_items_from_story(newsitem_ids)
         sse_manager.news_items_updated()
         return response, code
 
 
-class NewsItemData(MethodView):
+class NewsItem(MethodView):
     @api_key_required
-    def get(self, news_item_data_id=None):
+    def get(self, news_item_id=None):
         try:
-            if news_item_data_id:
-                return news_item.NewsItemData.get_for_api(news_item_data_id)
+            if news_item_id:
+                return news_item.NewsItem.get_for_api(news_item_id)
             filtre_args = {"limit": request.args.get("limit", default=(datetime.now() - timedelta(weeks=1)).isoformat())}
-            return news_item.NewsItemData.get_all_for_api(filtre_args)
+            return news_item.NewsItem.get_all_for_api(filtre_args)
         except Exception as e:
             logger.error(str(e))
             return {"error": str(e)}, 400
 
     @api_key_required
-    def put(self, news_item_data_id):
+    def put(self, news_item_id):
         try:
             if not request.json:
                 return {"Not update data provided"}
             if language := request.json.get("language"):
-                return news_item.NewsItemData.update_news_item_lang(news_item_data_id, language)
+                return news_item.NewsItem.update_news_item_lang(news_item_id, language)
             return {"Not implemented"}
         except Exception as e:
             logger.error(str(e))
@@ -68,29 +69,23 @@ class NewsItemData(MethodView):
 
 class UpdateNewsItemAttributes(MethodView):
     @api_key_required
-    def put(self, news_item_data_id):
-        news_item.NewsItemData.update_news_item_attributes(news_item_data_id, request.json)
+    def put(self, news_item_id):
+        news_item.NewsItem.update_attributes(news_item_id, request.json)
 
 
-class UpdateNewsItemsAggregateSummary(MethodView):
+class UpdateStorySummary(MethodView):
     @api_key_required
     def put(self, story_id):
-        return news_item.NewsItemAggregate.update(story_id, request.json)
-
-
-class WordListEntries(MethodView):
-    @api_key_required
-    def put(self, word_list_id):
-        return word_list.WordList.update(word_list_id, request.json)
+        return story.Story.update(story_id, request.json)
 
 
 class BotsInfo(MethodView):
     @api_key_required
-    def get(self, bot_id=None):
+    @extract_args("search")
+    def get(self, bot_id=None, filter_args=None):
         if bot_id:
             return bot.Bot.get_for_api(bot_id)
-        search = {"search": request.args.get(key="search", default=None)}
-        return bot.Bot.get_all_for_api(search)
+        return bot.Bot.get_all_for_api(filter_args)
 
     @api_key_required
     def put(self, bot_id):
@@ -104,13 +99,13 @@ def initialize(app: Flask):
     app.add_url_rule(f"{base_route}", view_func=BotsInfo.as_view("bots"))
     app.add_url_rule(f"{base_route}/", view_func=BotsInfo.as_view("bots_info"))
     app.add_url_rule(f"{base_route}/<string:bot_id>", view_func=BotsInfo.as_view("bot_info"))
-    app.add_url_rule(f"{base_route}/news-item-data", view_func=NewsItemData.as_view("news_item_data"))
+    app.add_url_rule(f"{base_route}/news-item", view_func=NewsItem.as_view("bots_news_item"))
     app.add_url_rule(
-        f"{base_route}/news-item-data/<string:news_item_data_id>",
-        view_func=NewsItemData.as_view("update_news_item_data"),
+        f"{base_route}/news-item/<string:news_item_id>",
+        view_func=NewsItem.as_view("update_news_item"),
     )
     app.add_url_rule(
-        f"{base_route}/news-item-data/<string:news_item_data_id>/attributes",
+        f"{base_route}/news-item/<string:news_item_id>/attributes",
         view_func=UpdateNewsItemAttributes.as_view("update_news_item_attributes"),
     )
     app.add_url_rule(
@@ -127,9 +122,5 @@ def initialize(app: Flask):
     )
     app.add_url_rule(
         f"{base_route}/story/<string:story_id>/summary",
-        view_func=UpdateNewsItemsAggregateSummary.as_view("update_aggregate_summary"),
-    )
-    app.add_url_rule(
-        f"{base_route}/word-list/<int:word_list_id>",
-        view_func=WordListEntries.as_view("word_list_entries"),
+        view_func=UpdateStorySummary.as_view("update_story_summary"),
     )

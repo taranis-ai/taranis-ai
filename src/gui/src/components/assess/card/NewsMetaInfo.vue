@@ -12,14 +12,8 @@
         {{ collected_date }}
       </td>
     </tr>
-    <article-info
-      :news-item-data="newsItem.news_item_data"
-      :compact-view="compactView"
-    />
-    <author-info
-      :news-item-data="newsItem.news_item_data"
-      :compact-view="compactView"
-    />
+    <article-info :news-item="newsItem" :compact-view="compactView" />
+    <author-info :news-item="newsItem" :compact-view="compactView" />
   </table>
 </template>
 
@@ -44,20 +38,20 @@ export default {
     const { d } = useI18n()
 
     const published_date = computed(() => {
-      return props.newsItem.news_item_data?.published
-        ? d(new Date(props.newsItem.news_item_data.published), 'long')
+      return props.newsItem?.published
+        ? d(new Date(props.newsItem.published), 'long')
         : null
     })
 
     const { compactView } = storeToRefs(useFilterStore())
 
     const author = computed(() => {
-      return props.newsItem.news_item_data?.author
+      return props.newsItem?.author
     })
 
     const collected_date = computed(() => {
-      return props.newsItem.news_item_data?.collected
-        ? d(new Date(props.newsItem.news_item_data.collected), 'long')
+      return props.newsItem?.collected
+        ? d(new Date(props.newsItem.collected), 'long')
         : null
     })
 

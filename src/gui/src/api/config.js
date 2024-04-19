@@ -1,9 +1,5 @@
 import { apiService } from '@/main'
 
-export function reloadDictionaries(type) {
-  return apiService.post(`/config/reload-enum-dictionaries/${type}`)
-}
-
 export function getAllAttributes(filter_data) {
   const filter = apiService.getQueryStringFromNestedObject(filter_data)
   return apiService.get(`/config/attributes?${filter}`)

@@ -45,7 +45,7 @@ class QueueManager:
     def schedule_word_list_gathering(self):
         from core.model.word_list import WordList
 
-        word_lists = WordList.get_all_empty()
+        word_lists = WordList.get_all_empty() or []
         for word_list in word_lists:
             self.celery.send_task("gather_word_list", args=[word_list.id], task_id=f"gather_word_list_{word_list.id}", queue="misc")
 
@@ -148,7 +148,7 @@ class QueueManager:
             return {"message": f"Publishing Product: {product_id} with publisher: {publisher_id} scheduled"}, 200
         return {"error": "Could not reach rabbitmq"}, 500
 
-    def get_bot_signature(self, bot_id: list, source_id: str):
+    def get_bot_signature(self, bot_id: str, source_id: str):
         return self.celery.signature("bot_task", kwargs={"bot_id": bot_id, "filter": {"SOURCE": source_id}}, queue="bots", immutable=True)
 
     def post_collection_bots(self, source_id: str):
