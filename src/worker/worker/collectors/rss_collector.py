@@ -81,7 +81,7 @@ class RSSCollector(BaseWebCollector):
             return dateparser.parse(published, ignoretz=True) if published else None
         except Exception:
             logger.info("Could not parse date - falling back to current date")
-            return self.last_modified or None
+            return None
 
     def link_transformer(self, link: str, transform_str: str = "") -> str:
         parsed_url = urlparse(link)
@@ -131,7 +131,7 @@ class RSSCollector(BaseWebCollector):
             content = content if content_from_feed else web_content.get("content")
             author = author or web_content.get("author")
             title = title or web_content.get("title")
-            published = web_content.get("published_date") or published
+            published = published or web_content.get("published_date") or self.last_modified
 
         if content == description:
             description = ""
