@@ -194,6 +194,7 @@ class TestRoleConfigApi(BaseTest):
     def test_modify_role(self, client, auth_header, cleanup_role):
         role_data = {
             "description": "Roly McRoleFace",
+            "tlp_level": "clear",
         }
         role_id = cleanup_role["id"]
         response = self.assert_put_ok(client, uri=f"roles/{role_id}", json_data=role_data, auth_header=auth_header)
@@ -205,6 +206,7 @@ class TestRoleConfigApi(BaseTest):
         assert response.json["total_count"] == 1
         assert response.json["items"][0]["name"] == cleanup_role["name"]
         assert response.json["items"][0]["description"] == "Roly McRoleFace"
+        assert response.json["items"][0]["tlp_level"] == "clear"
         assert response.json["items"][0]["id"] == role_id
 
     def test_delete_role(self, client, auth_header, cleanup_role):

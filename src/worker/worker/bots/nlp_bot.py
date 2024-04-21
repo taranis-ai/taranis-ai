@@ -31,7 +31,7 @@ class NLPBot(BaseBot):
                 if self.type in [d["key"] for d in attributes if "key" in d]:
                     logger.debug(f"Skipping {story['id']} because it has attributes: {attributes}")
                     continue
-            if i % max(len(data) // 10, 1) == 0:
+            if i % max(len(data) // 5, 1) == 0:
                 logger.debug(f"Extracting NER from {story['id']}: {i}/{len(data)}")
                 self.core_api.update_tags(update_result, self.type)
                 update_result = {}

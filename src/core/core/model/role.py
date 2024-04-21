@@ -1,6 +1,8 @@
 from sqlalchemy import or_
 from sqlalchemy.sql.expression import Select
 from sqlalchemy.orm import Mapped, relationship
+import contextlib
+from typing import Optional
 from enum import StrEnum
 
 from core.managers.db_manager import db
@@ -22,7 +24,7 @@ class Role(BaseModel):
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
     name: Mapped[str] = db.Column(db.String(64), unique=True, nullable=False)
     description: Mapped[str] = db.Column(db.String())
-    tlp_level: Mapped[TLPLevel] = db.Column(db.Enum(TLPLevel))
+    tlp_level: Mapped[Optional[TLPLevel]] = db.Column(db.Enum(TLPLevel), nullable=True)
     permissions: Mapped[list[Permission]] = relationship(Permission, secondary="role_permission", back_populates="roles")
     acls = relationship("RoleBasedAccess", secondary="rbac_role")
 
@@ -69,7 +71,12 @@ class Role(BaseModel):
         }
 
     def get_permissions(self):
-        return [permission.id for permission in self.permissions if permission]  # type: ignore
+        return [permission.id for permission in self.permissions if permission]
+
+    def get_tlp_level(self, tlp_level: str) -> TLPLevel | None:
+        with contextlib.suppress(ValueError):
+            return TLPLevel(tlp_level)
+        return None
 
     @classmethod
     def update(cls, role_id: int, data: dict) -> tuple[dict, int]:
@@ -79,8 +86,8 @@ class Role(BaseModel):
         if name := data.get("name"):
             role.name = name
         role.description = str(data.get("description"))
-        if tlp_level := TLPLevel(data.get("tlp_level")):
-            role.tlp_level = tlp_level
+        if tlp_level := data.get("tlp_level"):
+            role.tlp_level = role.get_tlp_level(tlp_level)
         permissions = data.get("permissions", [])
         role.permissions = [Permission.get(permission_id) for permission_id in permissions]
         db.session.commit()
