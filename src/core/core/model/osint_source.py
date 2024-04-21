@@ -19,6 +19,8 @@ from core.service.role_based_access import RoleBasedAccessService, RBACQuery
 
 
 class OSINTSource(BaseModel):
+    __tablename__ = "osint_source"
+
     id: Mapped[str] = db.Column(db.String(64), primary_key=True)
     name: Mapped[str] = db.Column(db.String(), nullable=False)
     description: Mapped[str] = db.Column(db.String())
@@ -119,7 +121,7 @@ class OSINTSource(BaseModel):
             "task": "collector_task",
             "schedule": self.get_schedule(),
             "args": [self.id],
-            "options": {"queue": "collectors"},
+            "options": {"queue": "collectors", "task_id": self.to_task_id()},
         }
 
     @classmethod

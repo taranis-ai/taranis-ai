@@ -14,6 +14,8 @@ from core.model.queue import ScheduleEntry
 
 
 class Bot(BaseModel):
+    __tablename__ = "bot"
+
     id: Mapped[str] = db.Column(db.String(64), primary_key=True)
     name: Mapped[str] = db.Column(db.String(), nullable=False)
     description: Mapped[str] = db.Column(db.String())

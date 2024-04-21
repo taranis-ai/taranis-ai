@@ -11,6 +11,8 @@ from core.model.role import TLPLevel
 
 
 class NewsItemAttribute(BaseModel):
+    __tablename__ = "news_item_attribute"
+
     id: Mapped[str] = db.Column(db.String(64), primary_key=True)
     key: Mapped[str] = db.Column(db.String(), nullable=False)
     value: Mapped[str] = db.Column(db.String(), nullable=False)
@@ -37,7 +39,7 @@ class NewsItemAttribute(BaseModel):
 
     @classmethod
     def get_by_key(cls, attributes: list["NewsItemAttribute"], key: str) -> "NewsItemAttribute | None":
-        return next((attribute for attribute in attributes if attribute.key == key), None)
+        return next((attribute for attribute in attributes if attribute.key == key), None)  # type: ignore
 
     @classmethod
     def set_or_update(cls, attributes: list["NewsItemAttribute"], key: str, value: str) -> list["NewsItemAttribute"]:

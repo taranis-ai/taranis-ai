@@ -5,6 +5,8 @@ from core.model.base_model import BaseModel
 
 
 class Address(BaseModel):
+    __tablename__ = "address"
+
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
     street: Mapped[str] = db.Column(db.String())
     city: Mapped[str] = db.Column(db.String())

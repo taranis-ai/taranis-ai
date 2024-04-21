@@ -11,6 +11,8 @@ from core.model.organization import Organization
 
 
 class Asset(BaseModel):
+    __tablename__ = "asset"
+
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
     name: Mapped[str] = db.Column(db.String(), nullable=False)
     serial: Mapped[str] = db.Column(db.String())
@@ -190,6 +192,8 @@ class Asset(BaseModel):
 
 
 class AssetVulnerability(BaseModel):
+    __tablename__ = "asset_vulnerability"
+
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
     solved: Mapped[bool] = db.Column(db.Boolean, default=False)
 
@@ -209,6 +213,8 @@ class AssetVulnerability(BaseModel):
 
 
 class AssetGroup(BaseModel):
+    __tablename__ = "asset_group"
+
     id: Mapped[str] = db.Column(db.String(64), primary_key=True)
     name: Mapped[str] = db.Column(db.String(), nullable=False)
     description: Mapped[str] = db.Column(db.String())
@@ -289,6 +295,8 @@ class AssetGroup(BaseModel):
 
 
 class AssetCpe(BaseModel):
+    __tablename__ = "asset_cpe"
+
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
     value: Mapped[str] = db.Column(db.String())
 

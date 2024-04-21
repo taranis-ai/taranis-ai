@@ -17,6 +17,8 @@ from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 
 
 class NewsItem(BaseModel):
+    __tablename__ = "news_item"
+
     id: Mapped[str] = db.Column(db.String(64), primary_key=True)
     hash: Mapped[str] = db.Column(db.String())
 
@@ -127,7 +129,7 @@ class NewsItem(BaseModel):
         return {"message": "Attributes updated"}, 200
 
     def get_tlp(self) -> str | None:
-        return next((attr.value for attr in self.attributes if attr.key == "TLP"), None)
+        return next((attr.value for attr in self.attributes if attr.key == "TLP"), None)  # type: ignore
 
     def update_item(self, data) -> tuple[dict, int]:
         if self.source != "manual":

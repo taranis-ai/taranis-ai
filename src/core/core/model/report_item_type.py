@@ -11,6 +11,8 @@ from core.service.role_based_access import RoleBasedAccessService, RBACQuery
 
 
 class AttributeGroupItem(BaseModel):
+    __tablename__ = "attribute_group_item"
+
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
     title: Mapped[str] = db.Column(db.String(), nullable=False)
     description: Mapped[str] = db.Column(db.String())
@@ -70,6 +72,8 @@ class AttributeGroupItem(BaseModel):
 
 
 class AttributeGroup(BaseModel):
+    __tablename__ = "attribute_group"
+
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
     title: Mapped[str] = db.Column(db.String())
     description: Mapped[str] = db.Column(db.String())
@@ -145,6 +149,8 @@ class AttributeGroup(BaseModel):
 
 
 class ReportItemType(BaseModel):
+    __tablename__ = "report_item_type"
+
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
     title: Mapped[str] = db.Column(db.String())
     description: Mapped[str] = db.Column(db.String())

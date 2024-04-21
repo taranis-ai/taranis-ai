@@ -6,6 +6,7 @@ from requests.auth import HTTPBasicAuth
 from core.log import logger
 from core.model.queue import ScheduleEntry
 from kombu.exceptions import OperationalError
+from kombu import Queue
 
 queue_manager: "QueueManager"
 periodic_tasks = [
@@ -20,6 +21,7 @@ class QueueManager:
         self.mgmt_api = f"http://{app.config['QUEUE_BROKER_HOST']}:15672/api/"
         self.queue_user = app.config["QUEUE_BROKER_USER"]
         self.queue_password = app.config["QUEUE_BROKER_PASSWORD"]
+        self.queue_names = ["misc", "bots", "celery", "collectors", "presenters", "publishers"]
 
     def init_app(self, app: Flask):
         celery_app = Celery(app.name)
@@ -29,13 +31,22 @@ class QueueManager:
         return celery_app
 
     def post_init(self):
+        self.clear_queues()
         self.add_periodic_tasks()
         self.update_task_queue_from_osint_sources()
         self.schedule_word_list_gathering()
+        logger.debug(f"{self.get_queued_tasks()=}")
 
     def add_periodic_tasks(self):
         for task in periodic_tasks:
             ScheduleEntry.add_or_update(task)
+
+    def clear_queues(self):
+        with queue_manager.celery.connection() as conn:
+            for queue_name in set(self.queue_names):
+                queue = Queue(name=queue_name, channel=conn)
+                queue.purge()
+            logger.info("All queues cleared")
 
     def update_task_queue_from_osint_sources(self):
         from core.model.osint_source import OSINTSource
@@ -122,7 +133,7 @@ class QueueManager:
         return {"message": f"Refresh for source {len(sources)} scheduled"}, 200
 
     def gather_word_list(self, word_list_id: int):
-        if self.send_task("gather_word_list", args=[word_list_id], queue="misc"):
+        if self.send_task("gather_word_list", args=[word_list_id], queue="misc", task_id=f"gather_word_list_{word_list_id}"):
             logger.info(f"Gathering for WordList {word_list_id} scheduled")
             return {"message": f"Gathering for WordList {word_list_id} scheduled"}, 200
         return {"error": "Could not reach rabbitmq"}, 500

@@ -8,6 +8,8 @@ from core.model.base_model import BaseModel
 
 
 class Organization(BaseModel):
+    __tablename__ = "organization"
+
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
     name: Mapped[str] = db.Column(db.String(), nullable=False)
     description: Mapped[str] = db.Column(db.String())

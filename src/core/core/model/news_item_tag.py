@@ -7,6 +7,8 @@ from core.model.base_model import BaseModel
 
 
 class NewsItemTag(BaseModel):
+    __tablename__ = "news_item_tag"
+
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
     name: Mapped[str] = db.Column(db.String(255))
     tag_type: Mapped[str] = db.Column(db.String(255))
@@ -14,7 +16,6 @@ class NewsItemTag(BaseModel):
     story: Mapped["Story"] = relationship("Story", backref=backref("tags", cascade="all, delete-orphan"))
 
     def __init__(self, name, tag_type):
-        self.id = None
         self.name = name
         self.tag_type = tag_type
 

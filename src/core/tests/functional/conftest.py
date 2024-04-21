@@ -30,10 +30,8 @@ def fake_source(app, request):
 
 
 @pytest.fixture(scope="session")
-def news_items_data(app, fake_source):
+def news_items(app, fake_source):
     with app.app_context():
-        from core.model.news_item import NewsItem
-
         news_items_list = [
             {
                 "id": "1be00eef-6ade-4818-acfc-25029531a9a5",
@@ -63,17 +61,43 @@ def news_items_data(app, fake_source):
             },
         ]
 
-        yield NewsItem.load_multiple(news_items_list)
+        yield news_items_list
 
 
 @pytest.fixture(scope="session")
-def stories(app, request, news_items_data):
+def cleanup_news_item(app, request, fake_source):
+    from core.model.news_item import NewsItem
+
+    news_item = {
+        "id": "4b9a5a9e-04d7-41fc-928f-99e5ad608ebb",
+        "hash": "a96e88baaff421165e90ac4bb9059971b86f88d5c2abba36d78a1264fb8e9c87",
+        "title": "Test News Item 13",
+        "review": "CVE-2020-1234 - Test Story 1",
+        "author": "John Doe",
+        "source": "https://url/13",
+        "link": "https://url/13",
+        "content": "CVE-2020-1234 - Test Story 1",
+        "collected": "2023-08-01T17:01:04.802015",
+        "published": "2023-08-01T17:01:04.801998",
+        "osint_source_id": fake_source,
+    }
+
+    def teardown():
+        with app.app_context():
+            NewsItem.delete(news_item["id"])
+
+    request.addfinalizer(teardown)
+
+    yield news_item
+
+
+@pytest.fixture(scope="session")
+def stories(app, request, news_items):
     with app.app_context():
         from core.model.story import Story
         from core.model.report_item import ReportItem
 
-        nia1 = Story.add(news_items_data[0])
-        nia2 = Story.add(news_items_data[1])
+        story_ids = Story.add_news_items(news_items)[0].get("ids")
 
         def teardown():
             with app.app_context():
@@ -82,7 +106,7 @@ def stories(app, request, news_items_data):
 
         request.addfinalizer(teardown)
 
-        yield [nia1, nia2]
+        yield story_ids
 
 
 @pytest.fixture(scope="session")

@@ -32,6 +32,8 @@ class AttributeType(Enum):
 
 
 class AttributeEnum(BaseModel):
+    __tablename__ = "attribute_enum"
+
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
     index: Mapped[int] = db.Column(db.Integer)
     value: Mapped[str] = db.Column(db.String(), nullable=False)
@@ -100,6 +102,8 @@ class AttributeEnum(BaseModel):
 
 
 class Attribute(BaseModel):
+    __tablename__ = "attribute"
+
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
     name: Mapped[str] = db.Column(db.String(), nullable=False)
     description: Mapped[str] = db.Column(db.String())

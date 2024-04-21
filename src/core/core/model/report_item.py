@@ -336,6 +336,8 @@ class ReportItem(BaseModel):
 
 
 class ReportItemAttribute(BaseModel):
+    __tablename__ = "report_item_attribute"
+
     id = db.Column(db.Integer, primary_key=True)
     value: Any = db.Column(db.String())
 

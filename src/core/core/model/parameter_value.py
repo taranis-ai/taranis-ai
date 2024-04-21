@@ -19,6 +19,8 @@ class PARAMETER_TYPES(StrEnum):
 
 
 class ParameterValue(BaseModel):
+    __tablename__ = "parameter_value"
+
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
     parameter: Mapped[str] = db.Column(db.String, nullable=False)
     value: Mapped[str] = db.Column(db.String, nullable=False, default="")

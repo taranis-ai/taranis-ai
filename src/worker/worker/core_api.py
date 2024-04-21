@@ -107,7 +107,7 @@ class CoreApi:
         except Exception:
             return None
 
-    def get_news_items_data(self, limit) -> dict | None:
+    def get_news_items(self, limit) -> dict | None:
         try:
             return self.api_get("/bots/news-item", params={"limit": limit})
         except Exception:

@@ -26,7 +26,7 @@ class AnalystBot(BaseBot):
         bots_params = dict(zip(self.regexp, self.attr_name))
         limit = (datetime.datetime.now() - datetime.timedelta(days=7)).isoformat()
 
-        if not (data := self.core_api.get_news_items_data(limit)):
+        if not (data := self.core_api.get_news_items(limit)):
             logger.debug(f"No News Items for filter: {limit}")
             return None
         for item in data:

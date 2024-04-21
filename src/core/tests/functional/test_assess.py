@@ -37,57 +37,29 @@ class TestAssessApi(BaseTest):
         """
         self.assert_get_failed(client, "osint-sources-list")
 
-    def test_post_AddNewsItem_auth(self, client, stories, auth_header):
+    def test_post_AddNewsItem_auth(self, client, cleanup_news_item, auth_header):
         """
         This test queries the AddNewsItem authenticated.
         It expects a valid data and a valid status-code
         """
-        attribs = {"key": "1293", "value": "some value", "binary_mime_type": "dGVzdAo=", "binary_value": "dGVzdAo="}
 
-        news_item = {
-            "title": "test title",
-            "review": "test review",
-            "source": "test source",
-            "link": "https://linky.link.lnk",
-            "hash": "test hash",
-            "published": "2022-02-21T15:00:15.086285",
-            "author": "James Bond",
-            "content": "Diamonds are forever",
-            "collected": "2022-02-21T15:00:14.086285",
-            "attributes": [attribs],
-        }
-        response = client.post("/api/assess/news-items", json=news_item, headers=auth_header)
+        response = client.post("/api/assess/news-items", json=cleanup_news_item, headers=auth_header)
         assert response
         assert response.content_type == "application/json"
         assert response.data
         assert response.status_code == 200
         assert len(response.get_json()["ids"]) == 1
 
-    def test_post_AddNewsItem_unauth(self, client, news_items_data):
+    def test_post_AddNewsItem_unauth(self, client, cleanup_news_item):
         """
         This test queries the AddNewsItem UNauthenticated.
         It expects "not authorized"
         """
-        attribs = {"key": "1293", "value": "some value", "binary_mime_type": "dGVzdAo=", "binary_value": "dGVzdAo="}
 
-        news_item = {
-            "title": "test title",
-            "review": "test review",
-            "source": "test source",
-            "link": "https://linky.link.lnk",
-            "hash": "test hash",
-            "published": "2022-02-21T15:00:15.086285",
-            "author": "James Bond",
-            "content": "Diamonds are forever",
-            "collected": "2022-02-21T15:00:14.086285",
-            "attributes": [attribs],
-        }
-        before = len(news_items_data)
-        response = client.post("/api/assess/news-items", json=news_item)
+        response = client.post("/api/assess/news-items", json=cleanup_news_item)
         assert response.content_type == "application/json"
         assert response.get_json()["error"] == "not authorized"
         assert response.status_code == 401
-        assert before == len(news_items_data)
 
     def test_get_stories_auth(self, client, stories, auth_header):
         """
@@ -97,7 +69,7 @@ class TestAssessApi(BaseTest):
         response = client.get("/api/assess/stories", headers=auth_header)
         assert response
         assert response.data
-        assert response.get_json()["total_count"] == 2
+        assert response.get_json()["total_count"] == 3
         assert response.content_type == "application/json"
         assert response.status_code == 200
 
@@ -123,7 +95,7 @@ class TestAssessApi(BaseTest):
         assert response.get_json()["total_count"] > 0
 
         response = client.get("/api/assess/stories?offset=1", headers=auth_header)
-        assert len(response.get_json()["items"]) == 1
+        assert len(response.get_json()["items"]) == 2
 
         response = client.get("/api/assess/stories?limit=1", headers=auth_header)
         assert len(response.get_json()["items"]) == 1
@@ -149,7 +121,7 @@ class TestAssessApi(BaseTest):
         assert response.data
         assert response.content_type == "application/json"
         assert response.status_code == 200
-        assert len(response.get_json()["items"]) == 2
+        assert len(response.get_json()["items"]) == 3
 
     def test_get_story_tags_unauth(self, client):
         """
@@ -167,7 +139,13 @@ class TestAssessApi(BaseTest):
         This test queries the tags Authentictaed.
         It expects a list of tags
         """
-        nia1, nia2 = stories
+        from core.model.story import Story
+
+        nia1 = Story.get(stories[0])
+        nia2 = Story.get(stories[1])
+        assert nia1
+        assert nia2
+
         response = nia1.update_tags(nia1.id, ["foo", "bar", "baz"])
         assert response[1] == 200
         response = nia2.update_tags(nia2.id, {"foo": {"tag_type": "misc"}, "bar": {"tag_type": "misc"}})

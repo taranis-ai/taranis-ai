@@ -314,6 +314,7 @@ class Story(BaseModel):
 
     @classmethod
     def add_from_news_item(cls, news_item: dict):
+        logger.debug(f"Creating new story from news item: {news_item}")
         return Story.add(
             {
                 "title": news_item.get("title"),
