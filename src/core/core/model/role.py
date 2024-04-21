@@ -73,13 +73,14 @@ class Role(BaseModel):
 
     @classmethod
     def update(cls, role_id: int, data: dict) -> tuple[dict, int]:
-        role = cls.query.get(role_id)
-        if role is None:
+        role = cls.get(role_id)
+        if not role:
             return {"error": "Role not found"}, 404
         if name := data.get("name"):
             role.name = name
-        role.description = data.get("description")
-        role.tlp_level = data.get("tlp_level")
+        role.description = str(data.get("description"))
+        if tlp_level := TLPLevel(data.get("tlp_level")):
+            role.tlp_level = tlp_level
         permissions = data.get("permissions", [])
         role.permissions = [Permission.get(permission_id) for permission_id in permissions]
         db.session.commit()

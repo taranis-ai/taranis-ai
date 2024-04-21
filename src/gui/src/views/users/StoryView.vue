@@ -13,6 +13,7 @@ import { useRoute } from 'vue-router'
 import { useAssessStore } from '@/stores/AssessStore'
 import AssessSelectionToolbar from '@/components/assess/AssessSelectionToolbar.vue'
 import NotFoundCard from '@/components/common/NotFoundCard.vue'
+import { storyHotkeys } from '@/utils/hotkeys'
 
 export default {
   name: 'StoryView',
@@ -26,6 +27,7 @@ export default {
 
     const route = useRoute()
     const story_id = route.params.id
+    storyHotkeys()
 
     const story = computed(() => {
       return assessStore.stories.items.find((item) => item.id == story_id)

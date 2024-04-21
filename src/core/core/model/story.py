@@ -70,12 +70,12 @@ class Story(BaseModel):
             self.attributes = NewsItemAttribute.load_multiple(attributes)
 
     def load_news_items(self, news_items):
-        if all(isinstance(item, str) for item in news_items):
+        if isinstance(news_items[0], dict):
+            return NewsItem.load_multiple(news_items)
+        elif isinstance(news_items[0], str):
             return [NewsItem.get(item_id) for item_id in news_items]
-        elif all(isinstance(item, NewsItem) for item in news_items):
+        elif isinstance(news_items[0], NewsItem):
             return news_items
-        elif all(isinstance(item, dict) for item in news_items):
-            return [NewsItem.from_dict(item) for item in news_items]
         return []
 
     @classmethod
@@ -88,24 +88,46 @@ class Story(BaseModel):
     @classmethod
     def get_story_clusters(cls, days: int = 7, limit: int = 10):
         start_date = datetime.now() - timedelta(days=days)
-        clusters = (
-            cls.query.join(NewsItem)
+        if clusters := cls.get_filtered(
+            db.select(cls)
             .join(NewsItem)
             .filter(NewsItem.published >= start_date)
             .group_by(cls.title, cls.id)
             .order_by(func.count().desc())
             .having(func.count() > 1)
             .limit(limit)
-            .all()
+        ):
+            return [
+                {
+                    "name": cluster.title,
+                    "size": len(cluster.news_items),
+                    "published": [ni.published.isoformat() for ni in cluster.news_items],
+                }
+                for cluster in clusters
+            ]
+        return []
+
+    @classmethod
+    def _add_exclude_attr_filter(cls, query: Select, exclude_attr: str):
+        # Aliasing for clarity in subquery
+        subquery_attribute = aliased(NewsItemAttribute)
+        subquery_story_attribute = aliased(StoryNewsItemAttribute)
+
+        # Create a subquery to find stories with the undesired attribute
+        subquery = (
+            db.select(subquery_story_attribute.story_id)
+            .join(subquery_attribute, subquery_attribute.id == subquery_story_attribute.news_item_attribute_id)
+            .filter(subquery_attribute.key == exclude_attr)
+            .distinct()
         )
-        return [
-            {
-                "name": cluster.title,
-                "size": len(cluster.news_items),
-                "published": [ni.published.isoformat() for ni in cluster.news_items],
-            }
-            for cluster in clusters
-        ]
+
+        # Use the subquery to filter out stories with the undesired attribute
+        query = query.outerjoin(StoryNewsItemAttribute, StoryNewsItemAttribute.story_id == Story.id).outerjoin(
+            NewsItemAttribute, NewsItemAttribute.id == StoryNewsItemAttribute.news_item_attribute_id
+        )
+
+        # Apply the filter using NOT IN to exclude stories found in the subquery
+        return query.filter(Story.id.notin_(subquery))
 
     @classmethod
     def _add_filters_to_query(cls, filter_args: dict, query: Select) -> Select:
@@ -134,6 +156,10 @@ class Story(BaseModel):
             )
             for word in words:
                 query = query.filter(StorySearchIndex.data.ilike(f"%{word}%"))
+
+        if exclude_attr := filter_args.get("exclude_attr"):
+            query = cls._add_exclude_attr_filter(query, exclude_attr)
+            logger.debug(f"Filtering Stories by {exclude_attr}")
 
         read = filter_args.get("read", "").lower()
         if read == "true":
@@ -314,7 +340,6 @@ class Story(BaseModel):
 
     @classmethod
     def add_from_news_item(cls, news_item: dict):
-        logger.debug(f"Creating new story from news item: {news_item}")
         return Story.add(
             {
                 "title": news_item.get("title"),
@@ -328,13 +353,16 @@ class Story(BaseModel):
     def add_news_items(cls, news_items_list: list[dict]):
         ids = []
         try:
-            ids.extend(cls.add_from_news_item(news_item) for news_item in news_items_list if not NewsItem.identical(news_item.get("hash")))
+            for news_item in news_items_list:
+                if NewsItem.identical(news_item.get("hash", NewsItem.get_hash_from_data(news_item))):
+                    continue
+                ids.append(cls.add_from_news_item(news_item))
             db.session.commit()
         except Exception as e:
             logger.exception(f"Failed to add news items: {e}")
             return {"error": f"Failed to add news items: {e}"}, 400
 
-        logger.debug(f"Added {len(ids)} news items - {ids}")
+        logger.info(f"Added {len(ids)} news items - {ids}")
         return {"message": f"Added {len(ids)} news items", "ids": ids}, 200
 
     @classmethod
@@ -750,7 +778,7 @@ class NewsItemVote(BaseModel):
 
     @classmethod
     def get_by_filter(cls, item_id, user_id):
-        return cls.query.filter_by(item_id=item_id, user_id=user_id).first()
+        return cls.get_first(db.select(cls).filter_by(item_id=item_id, user_id=user_id))
 
     @classmethod
     def get_user_vote(cls, item_id, user_id):

@@ -14,7 +14,7 @@ class NewsItemAttribute(BaseModel):
     __tablename__ = "news_item_attribute"
 
     id: Mapped[str] = db.Column(db.String(64), primary_key=True)
-    key: Mapped[str] = db.Column(db.String(), nullable=False)
+    key: Mapped[str] = db.Column(db.String(), nullable=False, index=True)
     value: Mapped[str] = db.Column(db.String(), nullable=False)
     binary_mime_type: Mapped[str] = db.Column(db.String())
     binary_data: Mapped = deferred(db.Column(db.LargeBinary))

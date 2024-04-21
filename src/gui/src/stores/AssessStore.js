@@ -17,6 +17,7 @@ import { useFilterStore } from './FilterStore'
 import { stringify, parse } from 'zipson'
 import { ref, computed } from 'vue'
 import { staticWeekChartOptions } from '@/utils/helpers'
+import { useMainStore } from '@/stores/MainStore'
 
 export const useAssessStore = defineStore(
   'assess',
@@ -57,10 +58,15 @@ export const useAssessStore = defineStore(
       try {
         loading.value = true
         const filter = useFilterStore()
+        const mainStore = useMainStore()
         console.debug('Updating Stories with Filter', filter.storyFilterQuery)
         const response = await getStories(filter.storyFilterQuery)
         stories.value.items = response.data.items
         stories.value.total_count = response.data.total_count
+        mainStore.setItemCount(
+          response.data.total_count,
+          response.data.items.length
+        )
         weekChartOptions.value.scales.y2.max = response.data.max_item
         loading.value = false
       } catch (error) {

@@ -60,6 +60,11 @@ export const useMainStore = defineStore(
       itemCountFiltered.value = 0
     }
 
+    const setItemCount = (total, filtered) => {
+      itemCountTotal.value = total
+      itemCountFiltered.value = filtered
+    }
+
     const reset = () => {
       itemCountTotal.value = 0
       itemCountFiltered.value = 0
@@ -89,6 +94,7 @@ export const useMainStore = defineStore(
       gitUpstreamTreeUrl,
       updateFromLocalConfig,
       toggleDrawer,
+      setItemCount,
       resetItemCount,
       reset
     }

@@ -169,12 +169,8 @@ class ReportItemType(BaseModel):
             self.id = id
 
     @classmethod
-    def get_all(cls):
-        return cls.query.order_by(ReportItemType.title).all()
-
-    @classmethod
     def get_by_title(cls, title):
-        return cls.query.filter_by(title=title).first()
+        return cls.get_first(db.select(cls).filter_by(title=title))
 
     @classmethod
     def get_filter_query_with_acl(cls, filter_args: dict, user) -> Select:
@@ -237,10 +233,14 @@ class ReportItemType(BaseModel):
 
     @classmethod
     def export(cls, source_ids=None):
+        query = db.select(cls)
         if source_ids:
-            data = cls.query.filter(cls.id.in_(source_ids)).all()  # type: ignore
-        else:
-            data = cls.get_all()
+            query = query.filter(cls.id.in_(source_ids))
+
+        data = cls.get_filtered(query)
+        if not data:
+            return json.dumps({"error": "no sources found"}).encode("utf-8")
+
         export_data = {"version": 1, "data": [report_type.to_export_dict() for report_type in data]}
         return json.dumps(export_data).encode("utf-8")
 

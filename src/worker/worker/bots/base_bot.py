@@ -25,7 +25,7 @@ class BaseBot:
             filter_dict["timefrom"] = limit
 
         filter_dict["no_count"] = True
-        filter_dict["exclude_attrs"] = self.type
+        filter_dict["exclude_attr"] = self.type
 
         return filter_dict
 

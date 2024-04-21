@@ -36,10 +36,6 @@ class PublisherPreset(BaseModel):
         self.parameters = Worker.parse_parameters(type, parameters)
 
     @classmethod
-    def get_all(cls):
-        return cls.query.order_by(db.asc(PublisherPreset.name)).all()
-
-    @classmethod
     def get_filter_query(cls, filter_args: dict) -> Select:
         query = db.select(cls)
 

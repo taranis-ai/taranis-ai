@@ -1,5 +1,5 @@
 from werkzeug.security import generate_password_hash
-from typing import Any
+from typing import Any, Sequence
 from sqlalchemy.sql import Select
 from sqlalchemy.orm import Mapped, relationship
 
@@ -43,20 +43,16 @@ class User(BaseModel):
         self.profile = UserProfile(id=id)
 
     @classmethod
-    def find_by_name(cls, username: str) -> "User":
-        return cls.query.filter_by(username=username).first()
+    def find_by_name(cls, username: str) -> "User|None":
+        return cls.get_first(db.select(cls).filter_by(username=username))
 
     @classmethod
-    def find_by_role(cls, role_id: int) -> "User":
-        return cls.query.join(Role, Role.id == role_id).all()
+    def find_by_role(cls, role_id: int) -> "Sequence[User]":
+        return cls.get_filtered(db.select(cls).join(Role, Role.id == role_id)) or []
 
     @classmethod
-    def find_by_role_name(cls, role_name: str) -> "User":
-        return cls.query.join(Role, Role.name == role_name).all()
-
-    @classmethod
-    def get_all(cls):
-        return cls.query.order_by(db.asc(User.name)).all()
+    def find_by_role_name(cls, role_name: str) -> "Sequence[User]":
+        return cls.get_filtered(db.select(cls).join(Role, Role.name == role_name)) or []
 
     def to_dict(self):
         data = {c.name: getattr(self, c.name) for c in self.__table__.columns if c.name != "password"}

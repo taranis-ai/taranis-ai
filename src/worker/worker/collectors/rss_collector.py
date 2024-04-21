@@ -126,9 +126,9 @@ class RSSCollector(BaseWebCollector):
         content_from_feed, content_location = self.content_from_feed(feed_entry, content_location)
         if content_from_feed:
             content = str(feed_entry[content_location])
-        elif link:
+        if link:
             web_content = self.parse_web_content(link, source["parameters"].get("XPATH", None))
-            content = web_content.get("content")
+            content = content or web_content.get("content")
             author = web_content.get("author") or author
             title = web_content.get("title") or title
             published = web_content.get("published_date") or published

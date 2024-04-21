@@ -1,7 +1,7 @@
 import uuid
 import hashlib
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from typing import Any
 from sqlalchemy.sql import Select
 from sqlalchemy.orm import Mapped, relationship
 
@@ -20,7 +20,7 @@ class NewsItem(BaseModel):
     __tablename__ = "news_item"
 
     id: Mapped[str] = db.Column(db.String(64), primary_key=True)
-    hash: Mapped[str] = db.Column(db.String())
+    hash: Mapped[str] = db.Column(db.String(), index=True, unique=True, nullable=False)
 
     title: Mapped[str] = db.Column(db.String())
     review: Mapped[str] = db.Column(db.String())
@@ -65,21 +65,21 @@ class NewsItem(BaseModel):
         self.source = source
         self.link = link
         self.author = author
-        self.hash = hash or self.get_hash(author, title, link, content)
+        self.hash = hash or self.get_hash(title, link, content)
         self.collected = collected if type(collected) is datetime else datetime.fromisoformat(str(collected))
         self.published = published if type(published) is datetime else datetime.fromisoformat(str(published))
         if attributes:
             self.attributes = NewsItemAttribute.load_multiple(attributes)
 
     @classmethod
-    def get_hash(
-        cls, author: Optional[str] = None, title: Optional[str] = None, link: Optional[str] = None, content: Optional[str] = None
-    ) -> str:
-        strauthor = author or ""
-        strtitle = title or ""
-        strlink = link or ""
-        strcontent = content or ""
-        combined_str = f"{strauthor}{strtitle}{strlink}{strcontent}"
+    def get_hash_from_data(cls, data: dict) -> str:
+        return cls.get_hash(data.get("title", ""), data.get("link", ""), data.get("content", ""))
+
+    @classmethod
+    def get_hash(cls, title: str = "", link: str = "", content: str = "") -> str:
+        if not title and not link and not content:
+            raise ValueError("At least one of the following parameters must be provided: title, link, content")
+        combined_str = f"{title}{link}{content}"
         return hashlib.sha256(combined_str.encode()).hexdigest()
 
     @classmethod
@@ -100,7 +100,8 @@ class NewsItem(BaseModel):
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
-        data["attributes"] = [attribute.to_dict() for attribute in self.attributes]
+        if attributes := self.attributes:
+            data["attributes"] = [attribute.to_dict() for attribute in attributes]
         return data
 
     @classmethod
@@ -154,7 +155,7 @@ class NewsItem(BaseModel):
             self.published = published
 
         self.updated = datetime.now()
-        self.hash = self.get_hash(self.author, self.title, self.link, self.content)
+        self.hash = self.get_hash(self.title, self.link, self.content)
 
         db.session.commit()
         return {"message": f"News Item {self.id} updated", "id": self.id}, 200

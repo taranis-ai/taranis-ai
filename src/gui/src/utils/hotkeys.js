@@ -1,6 +1,6 @@
 import { useHotkeys } from 'vue-use-hotkeys'
 import { useAssessStore } from '@/stores/AssessStore'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 
 export function omniSearchHotkey() {
   useHotkeys('ctrl+k', (event, handler) => {
@@ -57,29 +57,30 @@ export function assessHotkeys() {
 
 export function storyHotkeys() {
   const assessStore = useAssessStore()
+  const router = useRouter()
+  const route = useRoute()
+  const story_id = route.params.id
 
   omniSearchHotkey()
-
-  useHotkeys('esc', (event, handler) => {
-    console.debug(`You pressed ${handler.key}`)
-    assessStore.clearSelection()
-  })
-
-  useHotkeys('ctrl+a', (event, handler) => {
-    event.preventDefault()
-    console.debug(`You pressed ${handler.key}`)
-    assessStore.selectAllItems()
-  })
 
   useHotkeys('ctrl+space', (event, handler) => {
     event.preventDefault()
     console.debug(`You pressed ${handler.key}`)
-    assessStore.markSelectionAsRead()
+    assessStore.markStoryAsRead(story_id)
   })
 
   useHotkeys('ctrl+i', (event, handler) => {
     event.preventDefault()
     console.debug(`You pressed ${handler.key}`)
-    assessStore.markSelectionAsImportant()
+    assessStore.markStoryAsImportant(story_id)
+  })
+
+  useHotkeys('ctrl+e', (event, handler) => {
+    event.preventDefault()
+    console.debug(`You pressed ${handler.key}`)
+    router.push({
+      name: 'storyedit',
+      params: { id: story_id }
+    })
   })
 }

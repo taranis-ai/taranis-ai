@@ -129,9 +129,6 @@ export default defineComponent({
     const resetFilter = () => {
       filterStore.resetFilter()
     }
-    function onTriggeredEventHandler(payload) {
-      console.log(`You have pressed CMD (CTRL) + ${payload.keyString}`)
-    }
 
     onUpdated(() => {
       mainStore.itemCountTotal = stories.value.total_count
@@ -153,8 +150,7 @@ export default defineComponent({
       storyFilter,
       refresh,
       resetFilter,
-      displayMore,
-      onTriggeredEventHandler
+      displayMore
     }
   }
 })
