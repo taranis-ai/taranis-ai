@@ -1,9 +1,12 @@
 from sqlalchemy import func
 from sqlalchemy.orm import Mapped, backref, relationship
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
+
+if TYPE_CHECKING:
+    from core.model.story import Story
 
 
 class NewsItemTag(BaseModel):
