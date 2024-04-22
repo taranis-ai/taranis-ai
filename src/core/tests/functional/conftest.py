@@ -1,7 +1,7 @@
 import pytest
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="class")
 def fake_source(app, request):
     with app.app_context():
         from core.model.osint_source import OSINTSource
@@ -29,7 +29,7 @@ def fake_source(app, request):
         yield source_id
 
 
-@pytest.fixture
+@pytest.fixture(scope="class")
 def news_items_data(app, fake_source):
     with app.app_context():
         from core.model.news_item import NewsItemData
@@ -68,7 +68,7 @@ def news_items_data(app, fake_source):
         yield NewsItemData.load_multiple(news_items_data_list)
 
 
-@pytest.fixture
+@pytest.fixture(scope="class")
 def news_item_aggregates(app, request, news_items_data):
     with app.app_context():
         from core.model.news_item import NewsItemAggregate
@@ -88,7 +88,7 @@ def news_item_aggregates(app, request, news_items_data):
         yield [nia1, nia2]
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="class")
 def cleanup_report_item(app, request):
     with app.app_context():
         from core.model.report_item import ReportItem
