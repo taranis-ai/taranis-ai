@@ -1,7 +1,6 @@
 from sqlalchemy import func
 from sqlalchemy.orm import Mapped, backref, relationship
-from typing import Any, TYPE_CHECKING
-
+from typing import Any, TYPE_CHECKING, Sequence
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 
@@ -42,12 +41,12 @@ class NewsItemTag(BaseModel):
         return [cls(name=row[0], tag_type=row[1]) for row in rows]
 
     @classmethod
-    def get_rows(cls, query, filter_args: dict) -> list["NewsItemTag"]:
+    def get_rows(cls, query, filter_args: dict) -> Sequence["NewsItemTag"]:
         offset = filter_args.get("offset", 0)
         limit = filter_args.get("limit", 20)
         query = query.offset(offset).limit(limit)
-        results = cls.get_filtered(query.distinct().offset(offset).limit(limit))
-        return results or []  # type: ignore
+        results = cls.get_filtered(query)
+        return results or []
 
     @classmethod
     def get_json(cls, filter_args: dict) -> list[dict[str, Any]]:

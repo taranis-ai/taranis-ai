@@ -130,8 +130,8 @@ class Story(BaseModel):
         return query.filter(Story.id.notin_(subquery))
 
     @classmethod
-    def _add_filters_to_query(cls, filter_args: dict, query: Select) -> Select:
-        query = query.join(NewsItem, NewsItem.story_id == Story.id)
+    def get_filter_query(cls, filter_args: dict) -> Select:
+        query = db.select(cls).group_by(cls.id).join(NewsItem, NewsItem.story_id == cls.id)
         query = query.join(OSINTSource, NewsItem.osint_source_id == OSINTSource.id)
 
         if filter_args.get("group"):
@@ -262,8 +262,7 @@ class Story(BaseModel):
 
     @classmethod
     def get_by_filter(cls, filter_args: dict, user: User | None = None):
-        query = db.select(cls).distinct().group_by(Story.id)
-        query = cls._add_filters_to_query(filter_args, query)
+        query = cls.get_filter_query(filter_args)
 
         if user:
             query = cls._add_ACL_check(query, user)
@@ -767,7 +766,7 @@ class NewsItemVote(BaseModel):
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
     like: Mapped[bool] = db.Column(db.Boolean, default=False)
     dislike: Mapped[bool] = db.Column(db.Boolean, default=False)
-    item_id: Mapped[int] = db.Column(db.Integer)
+    item_id: Mapped[str] = db.Column(db.String(64))
     user_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=True)
 
     def __init__(self, item_id, user_id, like=False, dislike=False):
@@ -777,11 +776,11 @@ class NewsItemVote(BaseModel):
         self.dislike = dislike
 
     @classmethod
-    def get_by_filter(cls, item_id, user_id):
+    def get_by_filter(cls, item_id: str, user_id: int):
         return cls.get_first(db.select(cls).filter_by(item_id=item_id, user_id=user_id))
 
     @classmethod
-    def get_user_vote(cls, item_id, user_id):
+    def get_user_vote(cls, item_id: str, user_id: int):
         if vote := cls.get_by_filter(item_id, user_id):
             return {"like": vote.like, "dislike": vote.dislike}
         return {"like": False, "dislike": False}
