@@ -63,6 +63,7 @@
 
 <script>
 import { useAuthStore } from '@/stores/AuthStore'
+import { useMainStore} from "@/stores/MainStore";
 import { defineComponent, ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'

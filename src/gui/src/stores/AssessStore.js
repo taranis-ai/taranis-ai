@@ -180,6 +180,7 @@ export const useAssessStore = defineStore(
           return
         }
         groupAction(storySelection.value)
+        console.log(storySelection.value)
         // Take all the elements from stories.value where the id matches the storySelection.value except the first one and remove them from stories.value, and add them to the first one
         const firstID = storySelection.value.shift()
         const firstStory = stories.value.items.find(

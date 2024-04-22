@@ -222,11 +222,14 @@ class UnGroupStories(Resource):
 class GroupAction(Resource):
     @auth_required("ASSESS_UPDATE")
     def put(self):
+        # logger.info(f"{Resource.dispatch_request()=}")
         user = auth_manager.get_user_from_jwt()
+        logger.info(auth_manager.get_user_from_jwt())
         if not request.is_json:
             return {"error": "Missing JSON in request"}, 400
 
         aggregate_ids = request.json
+        logger.info(f"{aggregate_ids=}")
         if not aggregate_ids:
             return {"error": "No aggregate ids provided"}, 400
         response, code = news_item.NewsItemAggregate.group_aggregate(aggregate_ids, user)

@@ -149,7 +149,7 @@ export const router = createRouter({
         default: () => import('@/views/users/settings/UserView.vue'),
         nav: () => import('@/views/nav/UserNav.vue')
       },
-      meta: { requiresAuth: true, requiresPerm: Permissions.ASSETS_CONFIG }
+      meta: { requiresAuth: true }
     },
     {
       path: '/user/settings',
@@ -158,7 +158,7 @@ export const router = createRouter({
         default: () => import('@/views/users/settings/UserSettings.vue'),
         nav: () => import('@/views/nav/UserNav.vue')
       },
-      meta: { requiresAuth: true, requiresPerm: Permissions.ASSETS_CONFIG }
+      meta: { requiresAuth: true }
     },
     {
       path: '/config/dashboard',

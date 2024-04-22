@@ -1,13 +1,12 @@
 from playwright.sync_api import Playwright, sync_playwright, expect
 
 
-def test_run(playwright: Playwright) -> None:
+def test_(playwright: Playwright) -> None:
     browser = playwright.chromium.launch(headless=False)
-    context = browser.new_context(storage_state="codegen_api_conf.json", viewport={"width": 1920, "height": 1080})
+    context = browser.new_context(viewport={"width": 1920, "height": 1080})
     # context.tracing.start(name='trace', screenshots=True, snapshots=True)
     page = context.new_page()
     page.goto("http://localhost:8081/")
-    page.goto("http://localhost:8081/login")
 
     page.get_by_placeholder("Username").fill("admin")
     page.get_by_placeholder("Username").press("Tab")
