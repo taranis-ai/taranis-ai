@@ -41,10 +41,10 @@
         }
     },
     "assess": {
-        "aggregate_description": "Description",
-        "aggregate_detail": "Aggregate Detail",
-        "aggregate_info": "Info",
-        "aggregate_title": "Title",
+        "story_description": "Description",
+        "story_detail": "Detail",
+        "story_info": "Info",
+        "story_title": "Title",
         "article": "Article",
         "attributes": "Attributes",
         "author": "Author",
@@ -71,7 +71,7 @@
             "filter_in_analyze": "Show/hide news items in analysis",
             "filter_read": "Show/hide unread news items",
             "filter_relevant": "Show/hide relevant news items",
-            "group_items": "Group news items into aggregate",
+            "group_items": "Group news items into story",
             "important_item": "Mark news item as important",
             "important_items": "Mark news items as important",
             "like_item": "Like news item",
@@ -96,8 +96,8 @@
                 }
             },
             "toggle_selection": "Toggle news items selection mode",
-            "ungroup_item": "Ungroup news item from aggregate",
-            "ungroup_items": "Ungroup news items from aggregate"
+            "ungroup_item": "Ungroup news item from story",
+            "ungroup_items": "Ungroup news items from story"
         }
     },
     "asset": {
@@ -160,7 +160,6 @@
         "update": "Update"
     },
     "card_item": {
-        "aggregated_items": "Aggregated News Items",
         "collected": "Collected",
         "created": "Created",
         "description": "Description",
@@ -174,18 +173,20 @@
         "username": "Username"
     },
     "enter": {
+        "title": "Title",
         "content": "Content",
         "description": "Description",
-        "error": "Could not create news item.",
-        "failed": "Failed to create or update news item",
         "link": "Link",
         "published": "Published",
         "review": "Review",
         "source": "Source",
-        "successful": "News item was successfully created"
+        "comment": "Comment",
+        "summary": "Summary",
+        "comment_placeholder": "Enter your comment here...\n\n\n",
+        "summary_placeholder": "Enter your summary here...\n\n\n"
     },
     "error": {
-        "aggregate_in_use": "Some of selected aggregates or news items are already assigned to a report item",
+        "story_in_use": "Some of selected stories are already assigned to a report item",
         "server_error": "Unknown server error..."
     },
     "form": {

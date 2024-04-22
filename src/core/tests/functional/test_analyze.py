@@ -56,15 +56,14 @@ class TestAnalyzeApi(BaseTest):
         response = self.assert_get_ok(client, f"report-items/{report_id}/stories", auth_header=auth_header)
         assert isinstance(response.get_json(), list), "The response should be a list of stories."
 
-    def test_update_report_stories(self, client, auth_header, cleanup_report_item, news_item_aggregates):
+    def test_update_report_stories(self, client, auth_header, cleanup_report_item, stories):
         """
         This test sends a PUT request to the /api/analyze/report-items/<report_id>/stories endpoint to update stories within a report.
         It expects the updated stories to be reflected in the response
         """
         report_id = cleanup_report_item["id"]
-        stories_ids = [story.id for story in news_item_aggregates]
 
-        response = self.assert_put_ok(client, f"report-items/{report_id}/stories", json_data=stories_ids, auth_header=auth_header)
+        response = self.assert_put_ok(client, f"report-items/{report_id}/stories", json_data=stories, auth_header=auth_header)
         response_data = response.get_json()
 
         assert "Successfully updated Report Item" in response_data.get("message"), "The update operation should return a success message."

@@ -1,99 +1,110 @@
 <template>
-  <v-bottom-navigation density="compact">
-    <v-row no-gutters>
-      <v-col
-        v-if="storySelection.length > 0"
-        :cols="startCols"
-        class="story-toolbar toolbar-start"
-      >
-        <v-btn
-          text="add to report"
-          size="small"
-          prepend-icon="mdi-google-circles-communities"
-          @click.stop="actionClicked('addToReport')"
-        />
-        <v-btn
-          text="merge"
-          size="small"
-          prepend-icon="mdi-merge"
-          @click.stop="actionClicked('merge')"
-        />
-        <v-btn
-          text="mark as read"
-          size="small"
-          :ripple="false"
-          prepend-icon="mdi-eye-check-outline"
-          @click.stop="actionClicked('markAsRead')"
-        />
-        <v-btn
-          text="mark as important"
-          size="small"
-          :ripple="false"
-          prepend-icon="mdi-star"
-          @click.stop="actionClicked('markAsImportant')"
-        />
-      </v-col>
-      <v-col
-        v-if="storySelection.length > 0"
-        :cols="startCols / 2"
-        class="story-toolbar toolbar-end"
-      >
-        <v-btn size="small" @click.stop="deselect">
-          <template #prepend>
-            <v-icon icon="mdi-selection-remove" size="small" class="mr-2" />
-          </template>
-          deselect
-        </v-btn>
-        <span class="mx-4">
-          Stories selected: <strong>{{ storySelection.length }}</strong>
-        </span>
-      </v-col>
-      <v-col
-        v-if="newsItemSelection.length > 0"
-        :cols="startCols"
-        class="news-item-toolbar toolbar-start"
-      >
-        <v-btn
-          :ripple="false"
-          size="small"
-          prepend-icon="mdi-close-circle-outline"
-          @click.stop="actionClicked('remove')"
-        >
-          remove
-          <v-tooltip activator="parent" text="remove from story" />
-        </v-btn>
-      </v-col>
-      <v-col
-        v-if="newsItemSelection.length > 0"
-        :cols="startCols / 2"
-        class="news-item-toolbar toolbar-end"
-      >
-        <v-btn size="small" @click.stop="deselect">
-          <template #prepend>
-            <v-icon icon="mdi-selection-remove" size="small" class="mr-2" />
-          </template>
-          deselect
-        </v-btn>
-        <span class="mx-4">
-          News Items selected: <strong>{{ newsItemSelection.length }}</strong>
-        </span>
-      </v-col>
-    </v-row>
-    <v-dialog v-model="sharingDialog" width="auto">
-      <popup-share-items
-        :item-ids="storySelection"
-        @close="sharingDialog = false"
-      />
-    </v-dialog>
-  </v-bottom-navigation>
+  <v-bottom-sheet
+    v-model="activeSelection"
+    persistent
+    scroll-strategy="none"
+    :retain-focus="false"
+    :no-click-animation="true"
+    :scrim="false"
+  >
+    <v-card v-if="storySelection.length > 0" class="story-toolbar">
+      <v-card-text>
+        <v-row no-gutters>
+          <v-col class="toolbar-start">
+            <v-btn
+              text="add to report"
+              variant="outlined"
+              color="white"
+              prepend-icon="mdi-google-circles-communities"
+              @click.stop="actionClicked('addToReport')"
+            />
+            <v-btn
+              v-if="storySelection.length > 1"
+              text="merge"
+              prepend-icon="mdi-merge"
+              variant="outlined"
+              class="ml-4"
+              @click.stop="actionClicked('merge')"
+            />
+            <v-btn
+              v-if="showUnGroup"
+              text="ungroup"
+              variant="outlined"
+              prepend-icon="mdi-ungroup"
+              class="ml-4"
+              @click.stop="actionClicked('unGroup')"
+            />
+            <v-btn
+              text="mark as read"
+              variant="outlined"
+              prepend-icon="mdi-eye-check-outline"
+              class="ml-4"
+              @click.stop="actionClicked('markAsRead')"
+            />
+            <v-btn
+              text="mark as important"
+              variant="outlined"
+              prepend-icon="mdi-star"
+              class="ml-4"
+              @click.stop="actionClicked('markAsImportant')"
+            />
+          </v-col>
+          <v-col class="toolbar-end">
+            <v-btn
+              text="deselect"
+              variant="outlined"
+              prepend-icon="mdi-selection-remove"
+              @click.stop="deselectStories"
+            />
+            <span class="mx-8">
+              Stories selected: <strong>{{ storySelection.length }}</strong>
+            </span>
+          </v-col>
+        </v-row>
+        <v-dialog v-model="sharingDialog" width="auto">
+          <popup-share-items
+            :item-ids="storySelection"
+            @close="sharingDialog = false"
+          />
+        </v-dialog>
+      </v-card-text>
+    </v-card>
+    <v-card v-if="newsItemSelection.length > 0" class="news-item-toolbar">
+      <v-card-text>
+        <v-row no-gutters>
+          <v-col class="toolbar-start">
+            <v-btn
+              variant="outlined"
+              prepend-icon="mdi-close-circle-outline"
+              @click.stop="actionClicked('remove')"
+            >
+              remove
+              <v-tooltip activator="parent" text="remove from story" />
+            </v-btn>
+          </v-col>
+          <v-col class="toolbar-end">
+            <v-btn
+              variant="outlined"
+              text="deselect"
+              prepend-icon="mdi-selection-remove"
+              @click.stop="deselectNews"
+            />
+            <span class="mx-4">
+              News Items selected:
+              <strong>{{ newsItemSelection.length }}</strong>
+            </span>
+          </v-col>
+        </v-row>
+      </v-card-text>
+    </v-card>
+  </v-bottom-sheet>
 </template>
 
 <script>
-import { groupAction, unGroupNewsItems, unGroupStories } from '@/api/assess'
+import { unGroupNewsItems } from '@/api/assess'
 import PopupShareItems from '@/components/popups/PopupShareItems.vue'
 import { useAssessStore } from '@/stores/AssessStore'
 
-import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import { storeToRefs } from 'pinia'
 import { ref, computed } from 'vue'
 
@@ -104,37 +115,29 @@ export default {
   },
   setup() {
     const assessStore = useAssessStore()
-    const { storySelection, newsItemSelection } = storeToRefs(assessStore)
+
+    const { storySelection, activeSelection, newsItemSelection } =
+      storeToRefs(assessStore)
     const sharingDialog = ref(false)
 
-    const startCols = computed(() => {
-      if (
-        storySelection.value.length > 0 &&
-        newsItemSelection.value.length > 0
-      ) {
-        return 4
-      }
-      return 8
+    const showUnGroup = computed(() => {
+      if (storySelection.value.length !== 1) return false
+
+      const story = assessStore.getStoryByID(storySelection.value[0])
+      if (story === undefined || story.news_items.length < 2) return false
+
+      return true
     })
 
     const actionClicked = (action) => {
       if (action === 'merge') {
-        groupAction(storySelection.value)
-          .then(() => {
-            notifySuccess('Items merged')
-            assessStore.clearSelection()
-            assessStore.updateNewsItems()
-          })
-          .catch((err) => {
-            notifyFailure('Failed to merge items')
-            console.log(err)
-          })
+        assessStore.groupStories()
       } else if (action === 'addToReport') {
         sharingDialog.value = true
       } else if (action === 'remove') {
         unGroupNewsItems(newsItemSelection.value)
       } else if (action === 'unGroup') {
-        unGroupStories(storySelection.value)
+        assessStore.ungroupStories()
       } else if (action === 'markAsRead') {
         assessStore.markSelectionAsRead()
       } else if (action === 'markAsImportant') {
@@ -142,17 +145,23 @@ export default {
       }
     }
 
-    const deselect = () => {
-      assessStore.clearSelection()
+    function deselectStories() {
+      assessStore.clearStorySelection()
+    }
+
+    function deselectNews() {
+      assessStore.clearNewsItemSelection()
     }
 
     return {
       sharingDialog,
       storySelection,
       newsItemSelection,
-      startCols,
+      activeSelection,
+      showUnGroup,
       actionClicked,
-      deselect
+      deselectStories,
+      deselectNews
     }
   }
 }

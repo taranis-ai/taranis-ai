@@ -1,10 +1,15 @@
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { defineStore } from 'pinia'
+import { useAssessStore } from './AssessStore'
+import { useAnalyzeStore } from './AnalyzeStore'
+import { usePublishStore } from './PublishStore'
+import { router } from '@/router'
+import { getQueryStringFromNestedObject } from '@/utils/query'
 
 export const useFilterStore = defineStore(
   'filter',
   () => {
-    const newsItemsFilter = ref({
+    const storyFilter = ref({
       offset: undefined,
       limit: undefined,
       page: undefined,
@@ -22,6 +27,11 @@ export const useFilterStore = defineStore(
       important: undefined
     })
 
+    const storyPage = ref(0)
+    const storyFilterQuery = ref(null)
+    const reportFilterQuery = ref(null)
+    const productFilterQuery = ref(null)
+
     const assetFilter = ref({
       offset: undefined,
       limit: undefined,
@@ -35,8 +45,7 @@ export const useFilterStore = defineStore(
       search: undefined,
       sort: undefined,
       range: undefined,
-      completed: undefined,
-      incompleted: undefined
+      completed: undefined
     })
 
     const productFilter = ref({
@@ -47,26 +56,70 @@ export const useFilterStore = defineStore(
       range: undefined
     })
 
-    const chartFilter = ref({
-      threshold: 20,
-      y2max: undefined
-    })
-
     const highlight = ref(true)
     const showWeekChart = ref(false)
     const compactView = ref(false)
     const compactViewSetByUser = ref(false)
 
+    watch(
+      storyFilter,
+      (filter) => {
+        const newFilterQuery = getQueryStringFromNestedObject(filter)
+
+        if (newFilterQuery === storyFilterQuery.value) {
+          return
+        }
+        storyFilterQuery.value = newFilterQuery
+        router.push({ query: filter })
+        const assessStore = useAssessStore()
+        assessStore.updateStories()
+      },
+      { deep: true }
+    )
+
+    watch(
+      reportFilter,
+      (filter) => {
+        const newFilterQuery = getQueryStringFromNestedObject(filter)
+
+        if (newFilterQuery === reportFilterQuery.value) {
+          return
+        }
+        reportFilterQuery.value = newFilterQuery
+        router.push({ query: filter })
+        const analyzeStore = useAnalyzeStore()
+        analyzeStore.updateReportItems()
+      },
+      { deep: true }
+    )
+
+    watch(
+      productFilter,
+      (filter) => {
+        const newFilterQuery = getQueryStringFromNestedObject(filter)
+
+        if (newFilterQuery === productFilterQuery.value) {
+          return
+        }
+        productFilterQuery.value = newFilterQuery
+        router.push({ query: filter })
+        const productStore = usePublishStore()
+        productStore.updateProducts()
+      },
+      { deep: true }
+    )
+
     // Getters
     const getFilterTags = computed(() => {
-      if (typeof newsItemsFilter.value.tags === 'string') {
-        return [newsItemsFilter.value.tags]
+      if (typeof storyFilter.value.tags === 'string') {
+        return [storyFilter.value.tags]
       }
-      return newsItemsFilter.value.tags
+      return storyFilter.value.tags
     })
 
     // Actions
-    function setFilter(filter) {
+
+    function parseFilter(filter) {
       if (filter.tags && typeof filter.tags === 'string') {
         filter.tags = [filter.tags]
       }
@@ -76,35 +129,45 @@ export const useFilterStore = defineStore(
       if (filter.limit && typeof filter.limit === 'string') {
         filter.limit = parseInt(filter.limit)
       }
-      newsItemsFilter.value = filter
+      return filter
+    }
+
+    function setFilter(rawFilter) {
+      const filter = parseFilter(rawFilter)
+      if (filter.page && typeof filter.page === 'string') {
+        storyPage.value = parseInt(filter.page)
+      }
+      storyFilter.value = filter
     }
 
     function appendTag(tag) {
-      if (newsItemsFilter.value.tags) {
-        if (typeof newsItemsFilter.value.tags === 'string') {
-          newsItemsFilter.value.tags = [newsItemsFilter.value.tags]
+      if (storyFilter.value.tags) {
+        if (typeof storyFilter.value.tags === 'string') {
+          storyFilter.value.tags = [storyFilter.value.tags]
         }
-        if (!newsItemsFilter.value.tags.includes(tag)) {
-          newsItemsFilter.value.tags.push(tag)
+        if (!storyFilter.value.tags.includes(tag)) {
+          storyFilter.value.tags.push(tag)
         }
       } else {
-        newsItemsFilter.value.tags = [tag]
+        storyFilter.value.tags = [tag]
       }
     }
 
     function nextPage() {
-      const offset = newsItemsFilter.value.offset || 0
-      const limit = newsItemsFilter.value.limit || 20
-
-      newsItemsFilter.value.offset = offset + limit
+      if (typeof storyPage.value === 'number') {
+        storyPage.value += 1
+      } else {
+        storyPage.value = 2
+      }
+      return storyPage.value
     }
 
     function updateFilter(filter) {
       Object.keys(filter).forEach((element) => {
         if (element == 'tags' && typeof filter[element] === 'string') {
-          newsItemsFilter.value[element] = [filter[element]]
+          storyFilter.value[element] = [filter[element]]
         } else {
-          newsItemsFilter.value[element] = filter[element]
+          storyFilter.value[element] = filter[element]
         }
       })
     }
@@ -122,7 +185,7 @@ export const useFilterStore = defineStore(
     }
 
     function setReportFilter(filter) {
-      reportFilter.value = filter
+      reportFilter.value = parseFilter(filter)
     }
 
     function updateProductFilter(filter) {
@@ -132,7 +195,7 @@ export const useFilterStore = defineStore(
     }
 
     function setProductFilter(filter) {
-      productFilter.value = filter
+      productFilter.value = parseFilter(filter)
     }
 
     function setUserFilters(profile) {
@@ -141,11 +204,11 @@ export const useFilterStore = defineStore(
     }
 
     function resetFilter() {
-      newsItemsFilter.value = {
+      storyFilter.value = {
         offset: undefined,
         limit: undefined,
-        page: undefined,
         search: undefined,
+        page: undefined,
         sort: undefined,
         range: undefined,
         timefrom: undefined,
@@ -158,6 +221,7 @@ export const useFilterStore = defineStore(
         relevant: undefined,
         important: undefined
       }
+      storyPage.value = 0
       assetFilter.value = {
         offset: undefined,
         limit: undefined,
@@ -170,8 +234,7 @@ export const useFilterStore = defineStore(
         search: undefined,
         sort: undefined,
         range: undefined,
-        completed: undefined,
-        incompleted: undefined
+        completed: undefined
       }
       productFilter.value = {
         offset: undefined,
@@ -184,11 +247,14 @@ export const useFilterStore = defineStore(
 
     // Return state, getters, and actions
     return {
-      newsItemsFilter,
+      storyFilter,
+      storyPage,
+      storyFilterQuery,
+      reportFilterQuery,
+      productFilterQuery,
       assetFilter,
       reportFilter,
       productFilter,
-      chartFilter,
       highlight,
       showWeekChart,
       compactView,

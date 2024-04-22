@@ -46,10 +46,10 @@
     },
     "assess": {
       "add_news_item": "Pridať novinky",
-      "aggregate_description": "Popis",
-      "aggregate_detail": "Súhrnný detail",
-      "aggregate_info": "Info",
-      "aggregate_title": "Názov",
+      "story_description": "Popis",
+      "story_detail": "Súhrnný detail",
+      "story_info": "Info",
+      "story_title": "Názov",
       "article": "Článok",
       "attributes": "Atribúty",
       "author": "Autor",
@@ -192,7 +192,6 @@
       "update": "Aktualizovať"
     },
     "card_item": {
-      "aggregated_items": "Súhrnné novinky",
       "collected": "Zozbierané",
       "created": "Vytvorené",
       "description": "Popis",
@@ -218,7 +217,7 @@
       "title": "Názov"
     },
     "error": {
-      "aggregate_in_use": "Niektoré z vybraných súhrnov alebo noviniek sú už priradené k položke zostavy",
+      "story_in_use": "Niektoré z vybraných súhrnov alebo noviniek sú už priradené k položke zostavy",
       "server_error": "Neznáma chyba servera..."
     },
     "form": {

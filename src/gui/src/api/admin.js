@@ -12,6 +12,10 @@ export function deleteAllTags() {
   return apiService.post('/admin/delete-tags')
 }
 
+export function clearQueues() {
+  return apiService.post('/admin/clear-queues')
+}
+
 export function ungroupAllStories() {
   return apiService.post('/admin/ungroup-stories')
 }

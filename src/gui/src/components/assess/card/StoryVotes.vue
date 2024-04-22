@@ -58,7 +58,7 @@ export default {
     const voted = ref(props.story.user_vote)
 
     const vote = (vote) => {
-      assessStore.voteOnNewsItemAggregate(props.story.id, vote)
+      assessStore.voteOnStory(props.story.id, vote)
       updateVote(vote)
     }
 

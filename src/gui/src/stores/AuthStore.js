@@ -13,7 +13,6 @@ export const useAuthStore = defineStore('authenticator', {
   state: () => ({
     jwt: '',
     login_uri: '/login',
-    logout_uri: '/logout',
     user: {},
     sub: '',
     exp: 0
@@ -38,7 +37,7 @@ export const useAuthStore = defineStore('authenticator', {
         return error
       }
     },
-    logout() {
+    async logout() {
       this.clearJwtToken()
       this.$reset()
       const userStore = useUserStore()
@@ -47,10 +46,10 @@ export const useAuthStore = defineStore('authenticator', {
       const sseStore = useSseStore()
       const mainStore = useMainStore()
       const configStore = useConfigStore()
-      configStore.$reset()
+      configStore.reset()
       mainStore.reset()
       sseStore.resetSSE()
-      assessStore.$reset()
+      assessStore.reset()
       router.push({ name: 'login' })
     },
     async refresh() {

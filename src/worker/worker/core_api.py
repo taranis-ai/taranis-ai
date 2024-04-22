@@ -107,18 +107,14 @@ class CoreApi:
         except Exception:
             return None
 
-    def get_news_items_data(self, limit) -> dict | None:
+    def get_news_items(self, limit) -> dict | None:
         try:
-            return self.api_get("/bots/news-item-data", params={"limit": limit})
+            return self.api_get("/bots/news-item", params={"limit": limit})
         except Exception:
             return None
 
-    def get_news_items_aggregate(self, filter_dict: dict) -> list:
-        try:
-            return self.api_get("/worker/news-item-aggregates", params=filter_dict) or []
-        except Exception:
-            logger.exception("get_news_items_aggregate failed")
-            return []
+    def get_stories(self, filter_dict: dict) -> list:
+        return self.api_get("/worker/stories", params=filter_dict)
 
     def get_tags(self) -> dict | None:
         return self.api_get("/worker/tags")
@@ -129,16 +125,16 @@ class CoreApi:
         except Exception:
             return None
 
-    def update_news_item_data(self, id, data) -> dict | None:
+    def update_news_item(self, news_id: str, data) -> dict | None:
         try:
-            return self.api_put(url=f"/bots/news-item-data/{id}", json_data=data)
+            return self.api_put(url=f"/bots/news-item/{news_id}", json_data=data)
         except Exception:
             return None
 
-    def update_news_items_aggregate_summary(self, id, summary: str) -> dict | None:
+    def update_story_summary(self, story_id, summary: str) -> dict | None:
         try:
             data = {"summary": summary}
-            return self.api_put(url=f"/bots/aggregate/{id}/summary", json_data=data)
+            return self.api_put(url=f"/bots/story/{story_id}/summary", json_data=data)
         except Exception:
             return None
 
@@ -148,9 +144,9 @@ class CoreApi:
         except Exception:
             return None
 
-    def update_news_item_attributes(self, id, attributes) -> dict | None:
+    def update_news_item_attributes(self, news_id: str, attributes) -> dict | None:
         try:
-            return self.api_put(url=f"/bots/news-item-data/{id}/attributes", json_data=attributes)
+            return self.api_put(url=f"/bots/news-item/{news_id}/attributes", json_data=attributes)
         except Exception:
             return None
 
@@ -190,7 +186,7 @@ class CoreApi:
     def news_items_grouping(self, data):
         try:
             response = requests.put(
-                f"{self.api_url}/bots/news-item-aggregates/group",
+                f"{self.api_url}/bots/stories/group",
                 json=data,
                 headers=self.headers,
                 timeout=self.timeout,
@@ -202,7 +198,7 @@ class CoreApi:
     def news_items_grouping_multiple(self, data):
         try:
             response = requests.put(
-                f"{self.api_url}/bots/news-item-aggregates/group-multiple",
+                f"{self.api_url}/bots/stories/group-multiple",
                 json=data,
                 headers=self.headers,
                 timeout=self.timeout,

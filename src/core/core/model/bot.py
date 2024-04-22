@@ -1,28 +1,33 @@
-from typing import Any
-from sqlalchemy import or_, and_, func
-from sqlalchemy.orm import joinedload
 import uuid
+from typing import Any, Sequence
 
-from core.managers.db_manager import db
+from sqlalchemy import func
+from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.sql import Select
+
 from core.log import logger
+from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.model.parameter_value import ParameterValue
 from core.model.worker import BOT_TYPES, Worker
+from core.model.queue import ScheduleEntry
 
 
 class Bot(BaseModel):
-    id = db.Column(db.String(64), primary_key=True)
-    name: Any = db.Column(db.String(), nullable=False)
-    description: Any = db.Column(db.String())
-    type = db.Column(db.Enum(BOT_TYPES))
-    index = db.Column(db.Integer, unique=True, nullable=False)
-    parameters: Any = db.relationship("ParameterValue", secondary="bot_parameter_value", cascade="all, delete")
+    __tablename__ = "bot"
 
-    def __init__(self, name, type, description=None, parameters=None, id=None):
+    id: Mapped[str] = db.Column(db.String(64), primary_key=True)
+    name: Mapped[str] = db.Column(db.String(), nullable=False)
+    description: Mapped[str] = db.Column(db.String())
+    type: Mapped[BOT_TYPES] = db.Column(db.Enum(BOT_TYPES))
+    index: Mapped[int] = db.Column(db.Integer, unique=True, nullable=False)
+    parameters: Mapped[list[ParameterValue]] = relationship("ParameterValue", secondary="bot_parameter_value", cascade="all, delete")
+
+    def __init__(self, name: str, type: str | BOT_TYPES, description: str = "", parameters=None, id: str | None = None):
         self.id = id or str(uuid.uuid4())
         self.name = name
         self.description = description
-        self.type = type
+        self.type = type if isinstance(type, BOT_TYPES) else BOT_TYPES(type.lower())
         self.index = Bot.get_highest_index() + 1
         self.parameters = Worker.parse_parameters(type, parameters)
 
@@ -56,70 +61,69 @@ class Bot(BaseModel):
 
     @classmethod
     def index_exists(cls, index):
-        return cls.query.filter_by(index=index).count() > 0
-
-    @classmethod
-    def add(cls, data) -> tuple[dict, int]:
-        bot = cls.from_dict(data)
-        db.session.add(bot)
-        db.session.commit()
-        return {"message": f"Bot {bot.name} added", "id": f"{bot.id}"}, 201
-
-    @classmethod
-    def get_first(cls):
-        return cls.query.first()
+        return db.select(cls).where(index=index).scalar()
 
     @classmethod
     def filter_by_type(cls, type: str) -> "Bot | None":
         filter_type = type.lower()
         if filter_type not in [types.value for types in BOT_TYPES]:
             return None
-        return cls.query.filter_by(type=filter_type).first()
+        return db.select(cls).where(type=filter_type).scalar_one()
 
     @classmethod
     def get_all_by_type(cls, type):
-        return cls.query.filter_by(type=type).all()
+        return cls.get_filtered(db.select(cls).where(type=type))
 
     @classmethod
-    def get_by_filter(cls, search):
-        query = cls.query
-
-        if search:
-            query = query.filter(
-                or_(
-                    Bot.name.ilike(f"%{search}%"),
-                    Bot.description.ilike(f"%{search}%"),  # type: ignore
-                )
-            )
-
-        return query.order_by(db.asc(Bot.name)).all(), query.count()
-
-    @classmethod
-    def get_all_json(cls, search):
-        bots, count = cls.get_by_filter(search)
-        items = [bot.to_dict() for bot in bots]
-        return {"total_count": count, "items": items}
-
-    @classmethod
-    def get_post_collection(cls):
-        # This should return all bots where the parameter with the KEY RUN_AFTER_COLLECTOR has the value True
-        bots = (
-            cls.query.join(BotParameterValue, Bot.id == BotParameterValue.bot_id)
+    def get_post_collection(cls) -> Sequence[str]:
+        stmt = (
+            db.select(cls.id)
+            .join(BotParameterValue, cls.id == BotParameterValue.bot_id)
             .join(ParameterValue, BotParameterValue.parameter_value_id == ParameterValue.id)
-            .filter(and_(ParameterValue.parameter == "RUN_AFTER_COLLECTOR", ParameterValue.value == "true"))
-            .options(joinedload(Bot.parameters))
-            .order_by(Bot.index)
-            .all()
+            .filter(db.and_(ParameterValue.parameter == "RUN_AFTER_COLLECTOR", ParameterValue.value == "true"))
+            .order_by(cls.index)
         )
 
-        return [bot.id for bot in bots]
+        return db.session.execute(stmt).scalars().all()
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters}
         return data
 
+    def schedule_bot(self):
+        if interval := ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL"):
+            entry = self.to_task_dict(interval)
+            ScheduleEntry.add_or_update(entry)
+            logger.info(f"Schedule for bot {self.id} updated with - {entry}")
+            return {"message": f"Schedule for bot {self.id} updated"}, 200
+        return {"message": "Bot has no refresh interval"}, 200
+
+    def unschedule_bot(self):
+        entry_id = f"bot_{self.id}_{self.type}"
+        ScheduleEntry.delete(entry_id)
+        logger.info(f"Schedule for bot {self.id} removed")
+        return {"message": f"Schedule for bot {self.id} removed"}, 200
+
+    def to_task_dict(self, interval):
+        return {
+            "id": f"bot_{self.id}_{self.type}",
+            "task": "bot_task",
+            "schedule": interval,
+            "args": [self.id],
+            "options": {"queue": "bots"},
+        }
+
+    @classmethod
+    def get_filter_query(cls, filter_args: dict) -> Select:
+        query = db.select(cls)
+
+        if search := filter_args.get("search"):
+            query = query.filter(db.or_(Bot.name.ilike(f"%{search}%"), Bot.description.ilike(f"%{search}%")))
+
+        return query
+
 
 class BotParameterValue(BaseModel):
-    bot_id = db.Column(db.String, db.ForeignKey("bot.id", ondelete="CASCADE"), primary_key=True)
-    parameter_value_id = db.Column(db.Integer, db.ForeignKey("parameter_value.id"), primary_key=True)
+    bot_id: Mapped[str] = db.Column(db.String, db.ForeignKey("bot.id", ondelete="CASCADE"), primary_key=True)
+    parameter_value_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("parameter_value.id"), primary_key=True)

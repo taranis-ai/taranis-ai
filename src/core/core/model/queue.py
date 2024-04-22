@@ -1,5 +1,6 @@
 from typing import Any
-from datetime import datetime
+from datetime import datetime, timedelta
+from sqlalchemy.orm import Mapped
 
 from core.managers.db_manager import db
 from core.log import logger
@@ -7,18 +8,22 @@ from core.model.base_model import BaseModel
 
 
 class ScheduleEntry(BaseModel):
-    id = db.Column(db.String, primary_key=True)
-    task = db.Column(db.String)
-    schedule = db.Column(db.String)
-    args = db.Column(db.String)
-    last_run_at = db.Column(db.DateTime)
-    next_run_time = db.Column(db.DateTime)
-    total_run_count = db.Column(db.Integer)
+    __tablename__ = "schedule_entry"
 
-    def __init__(self, id, task, schedule, args):
+    id: Mapped[str] = db.Column(db.String, primary_key=True)
+    task: Mapped[str] = db.Column(db.String)
+    schedule: Mapped[str] = db.Column(db.String)
+    args: Mapped[str] = db.Column(db.String)
+    options: Any = db.Column(db.JSON)
+    last_run_at: Mapped[datetime] = db.Column(db.DateTime)
+    next_run_time: Mapped[datetime] = db.Column(db.DateTime)
+    total_run_count: Mapped[int] = db.Column(db.Integer)
+
+    def __init__(self, id, task, schedule, options, args):
         self.id = id
         self.task = task
         self.schedule = schedule
+        self.options = options
         self.args = args
         self.total_run_count = 0
 
@@ -89,11 +94,17 @@ class ScheduleEntry(BaseModel):
                 data["schedule"] = schedule * 60
             elif isinstance(schedule, str) and schedule.isdigit():
                 data["schedule"] = int(schedule) * 60
+            elif isinstance(schedule, str) and ":" in schedule:
+                data["schedule"] = self.worker_at_hour(schedule)
             else:
                 data["schedule"] = 600 * 60
         data["last_run_at"] = self.last_run_at.isoformat() if self.last_run_at else None
         return data
 
-    @classmethod
-    def count_all(cls):
-        return cls.query.count()
+    def worker_at_hour(self, schedule):
+        now = datetime.now()
+        scheduled_time = datetime.strptime(schedule, "%H:%M")
+        next_run = now.replace(hour=scheduled_time.hour, minute=scheduled_time.minute, second=0, microsecond=0)
+        if now >= next_run:
+            next_run += timedelta(days=1)
+        return (next_run - now).total_seconds()

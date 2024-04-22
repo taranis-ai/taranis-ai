@@ -1,10 +1,5 @@
-import datetime
-import hashlib
-import uuid
 import requests
 import logging
-import lxml.html
-from trafilatura import bare_extraction
 
 from worker.log import logger
 from worker.collectors.base_web_collector import BaseWebCollector
@@ -19,8 +14,8 @@ class SimpleWebCollector(BaseWebCollector):
 
         self.news_items = []
         self.web_url = None
-        self.feed_url = None
         self.xpath = None
+        self.last_modified = None
         logger_trafilatura = logging.getLogger("trafilatura")
         logger_trafilatura.setLevel(logging.WARNING)
 
@@ -50,50 +45,11 @@ class SimpleWebCollector(BaseWebCollector):
 
     def preview_collector(self, source):
         self.parse_source(source)
-        news_item = self.parse_web_content(self.web_url, source["id"])
+        news_item = self.news_item_from_article(self.web_url, source["id"])
+        if news_item.get("error"):
+            return news_item.get("error")
 
         return self.preview([news_item], source)
-
-    def parse_web_content(self, web_url, source_id: str) -> dict[str, str | datetime.datetime | list]:
-        html_content, published_date = self.html_from_article(web_url)
-        if not html_content:
-            raise ValueError("Website returned no content")
-        author, title = self.extract_meta(html_content)
-
-        if self.xpath:
-            content = self.xpath_extraction(html_content, self.xpath)
-        else:
-            extract_document = bare_extraction(html_content, with_metadata=True, include_comments=False, url=web_url)
-            author = extract_document["author"] or ""
-            title = extract_document["title"] or ""
-            content = extract_document["text"] or ""
-
-        for_hash: str = author + title + web_url
-
-        return {
-            "id": str(uuid.uuid4()),
-            "hash": hashlib.sha256(for_hash.encode()).hexdigest(),
-            "title": title,
-            "review": "",
-            "source": web_url,
-            "link": web_url,
-            "published": published_date,
-            "author": author,
-            "collected": datetime.datetime.now(),
-            "content": content,
-            "osint_source_id": source_id,
-            "attributes": [],
-        }
-
-    def extract_meta(self, html_content):
-        html_content = lxml.html.fromstring(html_content)
-        author = ""
-        title = html_content.findtext(".//title", default="")
-
-        if meta_tags := html_content.xpath("//meta[@name='author']"):
-            author = meta_tags[0].get("content", "")
-
-        return author, title
 
     def web_collector(self, source):
         response = requests.head(self.web_url, headers=self.headers, proxies=self.proxies)
@@ -111,10 +67,11 @@ class SimpleWebCollector(BaseWebCollector):
             return "Last-Modified < Last-Attempted"
 
         try:
-            news_item = self.parse_web_content(self.web_url, source["id"])
+            news_item = self.news_item_from_article(self.web_url, source["id"], self.xpath)
+            if news_item.get("error"):
+                return news_item.get("error")
         except ValueError as e:
             logger.error(f"Simple Web Collector for {self.web_url} failed with error: {str(e)}")
-            return str(e)
 
         self.publish([news_item], source)
         return None

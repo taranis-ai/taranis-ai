@@ -6,10 +6,11 @@ from requests.auth import HTTPBasicAuth
 from core.log import logger
 from core.model.queue import ScheduleEntry
 from kombu.exceptions import OperationalError
+from kombu import Queue
 
 queue_manager: "QueueManager"
 periodic_tasks = [
-    {"id": "cleanup_token_blacklist", "task": "cleanup_token_blacklist", "schedule": "daily", "args": []},
+    {"id": "cleanup_token_blacklist", "task": "cleanup_token_blacklist", "schedule": "daily", "args": [], "options": {"queue": "misc"}},
 ]
 
 
@@ -20,6 +21,7 @@ class QueueManager:
         self.mgmt_api = f"http://{app.config['QUEUE_BROKER_HOST']}:15672/api/"
         self.queue_user = app.config["QUEUE_BROKER_USER"]
         self.queue_password = app.config["QUEUE_BROKER_PASSWORD"]
+        self.queue_names = ["misc", "bots", "celery", "collectors", "presenters", "publishers"]
 
     def init_app(self, app: Flask):
         celery_app = Celery(app.name)
@@ -29,29 +31,34 @@ class QueueManager:
         return celery_app
 
     def post_init(self):
+        self.clear_queues()
         self.add_periodic_tasks()
         self.update_task_queue_from_osint_sources()
         self.schedule_word_list_gathering()
+        logger.debug(f"{self.get_queued_tasks()=}")
 
     def add_periodic_tasks(self):
         for task in periodic_tasks:
             ScheduleEntry.add_or_update(task)
 
+    def clear_queues(self):
+        with queue_manager.celery.connection() as conn:
+            for queue_name in set(self.queue_names):
+                queue = Queue(name=queue_name, channel=conn)
+                queue.purge()
+            logger.info("All queues cleared")
+
     def update_task_queue_from_osint_sources(self):
         from core.model.osint_source import OSINTSource
 
-        sources = OSINTSource.get_all()
-        for source in sources:
-            ScheduleEntry.add_or_update(source.to_task_dict())
+        [source.schedule_osint_source() for source in OSINTSource.get_all()]
 
     def schedule_word_list_gathering(self):
         from core.model.word_list import WordList
 
-        word_lists = WordList.get_all_empty()
+        word_lists = WordList.get_all_empty() or []
         for word_list in word_lists:
-            self.celery.send_task(
-                "gather_word_list", args=[word_list.id], task_id=f"gather_word_list_{word_list.id}", bind=True, queue="misc"
-            )
+            self.celery.send_task("gather_word_list", args=[word_list.id], task_id=f"gather_word_list_{word_list.id}", queue="misc")
 
     def get_queued_tasks(self):
         if self.error:
@@ -104,7 +111,7 @@ class QueueManager:
         return {"status": task.state}, 202
 
     def collect_osint_source(self, source_id: str):
-        if self.send_task("collector_task", args=[source_id], queue="collectors"):
+        if self.send_task("collector_task", args=[source_id, True], queue="collectors"):
             logger.info(f"Collect for source {source_id} scheduled")
             return {"message": f"Refresh for source {source_id} scheduled"}, 200
         return {"error": "Could not reach rabbitmq"}, 500
@@ -121,18 +128,21 @@ class QueueManager:
             return {"error": "Could not reach rabbitmq"}, 500
         sources = OSINTSource.get_all()
         for source in sources:
-            self.send_task("collector_task", args=[source.id], queue="collectors")
+            self.send_task("collector_task", args=[source.id, True], queue="collectors")
             logger.info(f"Collect for source {source.id} scheduled")
         return {"message": f"Refresh for source {len(sources)} scheduled"}, 200
 
     def gather_word_list(self, word_list_id: int):
-        if self.send_task("gather_word_list", args=[word_list_id], queue="misc"):
+        if self.send_task("gather_word_list", args=[word_list_id], queue="misc", task_id=f"gather_word_list_{word_list_id}"):
             logger.info(f"Gathering for WordList {word_list_id} scheduled")
             return {"message": f"Gathering for WordList {word_list_id} scheduled"}, 200
         return {"error": "Could not reach rabbitmq"}, 500
 
-    def execute_bot_task(self, bot_id: int):
-        if self.send_task("bot_task", args=[bot_id], queue="bots"):
+    def execute_bot_task(self, bot_id: int, filter: dict | None = None):
+        bot_args: dict[str, int | dict] = {"bot_id": bot_id}
+        if filter:
+            bot_args["filter"] = filter
+        if self.send_task("bot_task", kwargs=bot_args, queue="bots"):
             logger.info(f"Executing Bot {bot_id} scheduled")
             return {"message": f"Executing Bot {bot_id} scheduled", "id": bot_id}, 200
         return {"error": "Could not reach rabbitmq"}, 500
@@ -149,34 +159,32 @@ class QueueManager:
             return {"message": f"Publishing Product: {product_id} with publisher: {publisher_id} scheduled"}, 200
         return {"error": "Could not reach rabbitmq"}, 500
 
-    def get_bot_signature(self, bot_id: list, source_id: str):
-        return self.celery.signature("bot_task", kwargs={"bot_id": bot_id, "filter": {"SOURCE": source_id}})
+    def get_bot_signature(self, bot_id: str, source_id: str):
+        return self.celery.signature("bot_task", kwargs={"bot_id": bot_id, "filter": {"SOURCE": source_id}}, queue="bots", immutable=True)
 
     def post_collection_bots(self, source_id: str):
         from core.model.bot import Bot
 
-        post_collection_bots = Bot.get_post_collection()
+        post_collection_bots = list(Bot.get_post_collection())
 
         current_bot = self.get_bot_signature(post_collection_bots.pop(0), source_id)
 
         try:
-            for bot_id in post_collection_bots:
-                next_bot = self.get_bot_signature(bot_id, source_id)
-                current_bot.apply_async(link=next_bot, link_error=next_bot, queue="bots")
-                current_bot = next_bot
+            bot_chain = [self.get_bot_signature(bot_id, source_id) for bot_id in post_collection_bots]
+            current_bot.apply_async(link=bot_chain, link_error=bot_chain, queue="bots", ignore_result=True)
             return {"message": f"Post collection bots scheduled for source {source_id}"}, 200
         except Exception as e:
             return {"error": "Could schedule post collection bots", "details": str(e)}, 500
 
 
-def initialize(app: Flask, first_worker: bool):
+def initialize(app: Flask, initial_setup: bool = True):
     global queue_manager
     queue_manager = QueueManager(app)
     try:
         with queue_manager.celery.connection() as conn:
             conn.ensure_connection(max_retries=3)
             queue_manager.error = ""
-        if first_worker:
+        if initial_setup:
             logger.info(f"QueueManager initialized: {queue_manager.celery.broker_connection().as_uri()}")
             queue_manager.post_init()
     except OperationalError:

@@ -1,8 +1,5 @@
 # Taranis AI
 
-> [!WARNING]
-> This Software is still in an alpha stage and breaking changes are still common. A stable release is planned for April 2nd 2024. See our [Milestones](https://github.com/taranis-ai/taranis-ai/milestones) for details.
-
 ![Logo](./resources/images/logo.svg)
 
 Taranis AI is an advanced Open-Source Intelligence (OSINT) tool, leveraging Artificial Intelligence to revolutionize information gathering and situational analysis.

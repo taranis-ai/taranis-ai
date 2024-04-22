@@ -187,7 +187,7 @@ def pre_seed_default_user():
     from core.model.user import User
     from core.model.role import Role
 
-    user_count = User.get_all_json()["total_count"]
+    user_count = User.get_filtered_count(User.get_filter_query({}))
     if user_count > 0:
         return
 
@@ -202,21 +202,21 @@ def pre_seed_default_user():
         )
 
     if not User.find_by_name(username="admin") and not User.find_by_role_name(role_name="Admin"):
-        admin_role = Role.filter_by_name("Admin").id
-        User.add(
-            {
-                "username": "admin",
-                "name": "Arthur Dent",
-                "roles": [
-                    {
-                        "id": admin_role,
-                    },
-                ],
-                "permissions": [],
-                "organization": {"id": 1},
-                "password": Config.PRE_SEED_PASSWORD_ADMIN,
-            }
-        )
+        if admin_role := Role.filter_by_name("Admin"):
+            User.add(
+                {
+                    "username": "admin",
+                    "name": "Arthur Dent",
+                    "roles": [
+                        {
+                            "id": admin_role.id,
+                        },
+                    ],
+                    "permissions": [],
+                    "organization": {"id": 1},
+                    "password": Config.PRE_SEED_PASSWORD_ADMIN,
+                }
+            )
 
     if not Organization.get(2):
         Organization.add(
@@ -233,7 +233,7 @@ def pre_seed_default_user():
         )
 
     if not User.find_by_name(username="user"):
-        user_role = Role.filter_by_name("User").id
+        user_role = Role.filter_by_name("User").id  # type: ignore
         User.add(
             {
                 "username": "user",

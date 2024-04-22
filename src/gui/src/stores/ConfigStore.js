@@ -22,250 +22,342 @@ import {
   getQueueStatus,
   getQueueTasks
 } from '@/api/config'
+import { ref, computed } from 'vue'
 
-export const useConfigStore = defineStore('config', {
-  state: () => ({
-    acls: { total_count: 0, items: [] },
-    attributes: { total_count: 0, items: [] },
-    bots: { total_count: 0, items: [] },
-    organizations: { total_count: 0, items: [] },
-    osint_sources: { total_count: 0, items: [] },
-    osint_source_groups: { total_count: 0, items: [] },
-    parameters: [],
-    permissions: { total_count: 0, items: [] },
-    product_types: { total_count: 0, items: [] },
-    publisher: { total_count: 0, items: [] },
-    report_item_types: { total_count: 0, items: [] },
-    roles: { total_count: 0, items: [] },
-    users: { total_count: 0, items: [] },
-    templates: { total_count: 0, items: [] },
-    word_lists: { total_count: 0, items: [] },
-    schedule: [],
-    workers: [],
-    worker_types: { total_count: 0, items: [] },
-    queue_status: {},
-    queue_tasks: []
-  }),
-  getters: {
-    getUserByID: (state) => (user_id) => {
-      return state.users.items.find((user) => user.id === user_id) || null
-    },
-    getOSINTSourceNameByID: (state) => (osint_source_id) => {
+export const useConfigStore = defineStore(
+  'config',
+  () => {
+    const acls = ref({ total_count: 0, items: [] })
+    const attributes = ref({ total_count: 0, items: [] })
+    const bots = ref({ total_count: 0, items: [] })
+    const organizations = ref({ count: 0, items: [] })
+    const osint_sources = ref({ total_count: 0, items: [] })
+    const osint_source_groups = ref({ total_count: 0, items: [] })
+    const parameters = ref([])
+    const permissions = ref({ total_count: 0, items: [] })
+    const product_types = ref({ total_count: 0, items: [] })
+    const publisher = ref({ total_count: 0, items: [] })
+    const report_item_types = ref({ total_count: 0, items: [] })
+    const roles = ref({ total_count: 0, items: [] })
+    const users = ref({ total_count: 0, items: [] })
+    const templates = ref({ total_count: 0, items: [] })
+    const word_lists = ref({ total_count: 0, items: [] })
+    const schedule = ref([])
+    const workers = ref([])
+    const worker_types = ref({ total_count: 0, items: [] })
+    const queue_status = ref({})
+    const queue_tasks = ref([])
+
+    const getUserByID = computed(() => (user_id) => {
+      return users.value.items.find((user) => user.id === user_id) || null
+    })
+
+    const getOSINTSourceNameByID = computed(() => (osint_source_id) => {
       return (
-        state.osint_sources.items.find(
+        osint_sources.value.items.find(
           (osint_source) => osint_source.id === osint_source_id
         ).name || osint_source_id
       )
-    },
-    collector_types: (state) => {
-      return state.worker_types.items.filter((worker_type) =>
+    })
+
+    const collector_types = computed(() => {
+      return worker_types.value.items.filter((worker_type) =>
         worker_type.type.endsWith('collector')
       )
-    },
-    bot_types: (state) => {
-      return state.worker_types.items.filter((worker_type) =>
+    })
+
+    const bot_types = computed(() => {
+      return worker_types.value.items.filter((worker_type) =>
         worker_type.type.endsWith('bot')
       )
-    },
-    publisher_types: (state) => {
-      return state.worker_types.items.filter((worker_type) =>
+    })
+
+    const publisher_types = computed(() => {
+      return worker_types.value.items.filter((worker_type) =>
         worker_type.type.endsWith('publisher')
       )
-    },
-    presenter_types: (state) => {
-      return state.worker_types.items.filter((worker_type) =>
+    })
+
+    const presenter_types = computed(() => {
+      return worker_types.value.items.filter((worker_type) =>
         worker_type.type.endsWith('presenter')
       )
-    },
-    collector_word_lists: (state) => {
-      return state.word_lists.items.filter((word_list) =>
+    })
+
+    const collector_word_lists = computed(() => {
+      return word_lists.value.items.filter((word_list) =>
         word_list.usage.some((usage) => usage.includes('COLLECTOR'))
       )
+    })
+
+    const enhanced_schedule = computed(() => {
+      return schedule.value.map((item) => {
+        if (item.task === 'collector_task') {
+          item.args = getOSINTSourceNameByID.value(item.args)
+        }
+        return item
+      })
+    })
+
+    async function loadAttributes(data) {
+      try {
+        const response = await getAllAttributes(data)
+        attributes.value = response.data
+      } catch (error) {
+        notifyFailure(error)
+      }
+    }
+
+    async function loadBots(data) {
+      try {
+        const response = await getAllBots(data)
+        bots.value = response.data
+      } catch (error) {
+        notifyFailure(error)
+      }
+    }
+
+    async function loadReportTypes(data) {
+      try {
+        const response = await getAllReportTypes(data)
+        report_item_types.value = response.data
+      } catch (error) {
+        notifyFailure(error)
+      }
+    }
+
+    async function loadProductTypes(data) {
+      try {
+        const response = await getAllProductTypes(data)
+        product_types.value = response.data
+      } catch (error) {
+        notifyFailure(error)
+      }
+    }
+
+    async function loadPermissions(data) {
+      try {
+        const response = await getAllPermissions(data)
+        permissions.value = response.data
+      } catch (error) {
+        notifyFailure(error)
+      }
+    }
+
+    async function loadRoles(data) {
+      try {
+        const response = await getAllRoles(data)
+        roles.value = response.data
+      } catch (error) {
+        notifyFailure(error)
+      }
+    }
+
+    async function loadACLEntries(data) {
+      try {
+        const response = await getAllACLEntries(data)
+        acls.value = response.data
+      } catch (error) {
+        notifyFailure(error)
+      }
+    }
+
+    async function loadOrganizations(data) {
+      try {
+        const response = await getAllOrganizations(data)
+        console.debug('loadOrganizations', response.data)
+        organizations.value = response.data
+      } catch (error) {
+        notifyFailure(error)
+      }
+    }
+
+    async function loadUsers(data) {
+      try {
+        const response = await getAllUsers(data)
+        users.value = response.data
+      } catch (error) {
+        notifyFailure(error)
+      }
+    }
+
+    async function loadWordLists(data) {
+      try {
+        const response = await getAllWordLists(data)
+        word_lists.value = response.data
+      } catch (error) {
+        notifyFailure(error)
+      }
+    }
+
+    async function loadOSINTSources(data) {
+      try {
+        const response = await getAllOSINTSources(data)
+        osint_sources.value = response.data
+      } catch (error) {
+        notifyFailure(error)
+      }
+    }
+
+    async function loadWorkerTypes(data) {
+      try {
+        const response = await getAllWorkerTypes(data)
+        worker_types.value = response.data
+      } catch (error) {
+        notifyFailure(error)
+      }
+    }
+
+    async function loadOSINTSourceGroups(filter) {
+      try {
+        const response = await getAllOSINTSourceGroups(filter)
+        osint_source_groups.value = response.data
+      } catch (error) {
+        notifyFailure(error)
+      }
+    }
+
+    async function loadPublisher(data) {
+      try {
+        const response = await getAllPublisher(data)
+        publisher.value = response.data
+      } catch (error) {
+        notifyFailure(error)
+      }
+    }
+
+    async function loadParameters(data) {
+      try {
+        const response = await getAllParameters(data)
+        parameters.value = response.data
+      } catch (error) {
+        notifyFailure(error)
+      }
+    }
+
+    async function loadTemplates(data) {
+      try {
+        const response = await getAllTemplates(data)
+        templates.value = response.data
+      } catch (error) {
+        notifyFailure(error)
+      }
+    }
+
+    async function loadSchedule(data) {
+      try {
+        const response = await getAllSchedule(data)
+        schedule.value = response.data
+      } catch (error) {
+        notifyFailure(error)
+      }
+    }
+
+    async function loadQueueStatus(data) {
+      try {
+        const response = await getQueueStatus(data)
+        queue_status.value = response.data
+      } catch (error) {
+        const error_message = getMessageFromError(error)
+        queue_status.value = error_message
+        notifyFailure(error_message)
+      }
+    }
+
+    async function loadQueueTasks(data) {
+      try {
+        const response = await getQueueTasks(data)
+        queue_tasks.value = response.data
+      } catch (error) {
+        notifyFailure(error)
+      }
+    }
+
+    async function loadWorkers(data) {
+      try {
+        const response = await getAllWorkers(data)
+        workers.value = response.data
+      } catch (error) {
+        notifyFailure(error)
+      }
+    }
+
+    function reset() {
+      acls.value = { total_count: 0, items: [] }
+      attributes.value = { total_count: 0, items: [] }
+      bots.value = { total_count: 0, items: [] }
+      organizations.value = []
+      osint_sources.value = { total_count: 0, items: [] }
+      osint_source_groups.value = { total_count: 0, items: [] }
+      parameters.value = []
+      permissions.value = { total_count: 0, items: [] }
+      product_types.value = { total_count: 0, items: [] }
+      publisher.value = { total_count: 0, items: [] }
+      report_item_types.value = { total_count: 0, items: [] }
+      roles.value = { total_count: 0, items: [] }
+      users.value = { total_count: 0, items: [] }
+      templates.value = { total_count: 0, items: [] }
+      word_lists.value = { total_count: 0, items: [] }
+      schedule.value = []
+      workers.value = []
+      worker_types.value = { total_count: 0, items: [] }
+      queue_status.value = {}
+      queue_tasks.value = []
+    }
+
+    return {
+      acls,
+      attributes,
+      bots,
+      organizations,
+      osint_sources,
+      osint_source_groups,
+      parameters,
+      permissions,
+      product_types,
+      publisher,
+      report_item_types,
+      roles,
+      users,
+      templates,
+      word_lists,
+      schedule,
+      workers,
+      worker_types,
+      queue_status,
+      queue_tasks,
+      getUserByID,
+      getOSINTSourceNameByID,
+      collector_types,
+      bot_types,
+      publisher_types,
+      presenter_types,
+      collector_word_lists,
+      enhanced_schedule,
+      loadAttributes,
+      loadBots,
+      loadReportTypes,
+      loadProductTypes,
+      loadPermissions,
+      loadRoles,
+      loadACLEntries,
+      loadOrganizations,
+      loadUsers,
+      loadWordLists,
+      loadOSINTSources,
+      loadWorkerTypes,
+      loadOSINTSourceGroups,
+      loadPublisher,
+      loadParameters,
+      loadTemplates,
+      loadSchedule,
+      loadQueueStatus,
+      loadQueueTasks,
+      loadWorkers,
+      reset
     }
   },
-  actions: {
-    loadAttributes(data) {
-      return getAllAttributes(data)
-        .then((response) => {
-          this.attributes = response.data
-        })
-        .catch((error) => {
-          notifyFailure(error)
-        })
-    },
-    loadBots(data) {
-      return getAllBots(data)
-        .then((response) => {
-          this.bots = response.data
-        })
-        .catch((error) => {
-          notifyFailure(error)
-        })
-    },
-    loadReportTypes(data) {
-      return getAllReportTypes(data)
-        .then((response) => {
-          this.report_item_types = response.data
-        })
-        .catch((error) => {
-          notifyFailure(error)
-        })
-    },
-    loadProductTypes(data) {
-      return getAllProductTypes(data)
-        .then((response) => {
-          this.product_types = response.data
-        })
-        .catch((error) => {
-          notifyFailure(error)
-        })
-    },
-    loadPermissions(data) {
-      return getAllPermissions(data)
-        .then((response) => {
-          this.permissions = response.data
-        })
-        .catch((error) => {
-          notifyFailure(error)
-        })
-    },
-    loadRoles(data) {
-      return getAllRoles(data)
-        .then((response) => {
-          this.roles = response.data
-        })
-        .catch((error) => {
-          notifyFailure(error)
-        })
-    },
-    loadACLEntries(data) {
-      return getAllACLEntries(data)
-        .then((response) => {
-          this.acls = response.data
-        })
-        .catch((error) => {
-          notifyFailure(error)
-        })
-    },
-    loadOrganizations(data) {
-      return getAllOrganizations(data)
-        .then((response) => {
-          this.organizations = response.data
-        })
-        .catch((error) => {
-          notifyFailure(error)
-        })
-    },
-    loadUsers(data) {
-      return getAllUsers(data)
-        .then((response) => {
-          this.users = response.data
-        })
-        .catch((error) => {
-          notifyFailure(error)
-        })
-    },
-    loadWordLists(data) {
-      return getAllWordLists(data)
-        .then((response) => {
-          this.word_lists = response.data
-        })
-        .catch((error) => {
-          notifyFailure(error)
-        })
-    },
-    loadOSINTSources(data) {
-      return getAllOSINTSources(data)
-        .then((response) => {
-          this.osint_sources = response.data
-        })
-        .catch((error) => {
-          notifyFailure(error)
-        })
-    },
-    loadWorkerTypes(data) {
-      return getAllWorkerTypes(data)
-        .then((response) => {
-          this.worker_types = response.data
-        })
-        .catch((error) => {
-          notifyFailure(error)
-        })
-    },
-    loadOSINTSourceGroups(filter) {
-      return getAllOSINTSourceGroups(filter)
-        .then((response) => {
-          this.osint_source_groups = response.data
-        })
-        .catch((error) => {
-          notifyFailure(error)
-        })
-    },
-    loadPublisher(data) {
-      return getAllPublisher(data)
-        .then((response) => {
-          this.publisher = response.data
-        })
-        .catch((error) => {
-          notifyFailure(error)
-        })
-    },
-    loadParameters(data) {
-      return getAllParameters(data)
-        .then((response) => {
-          this.parameters = response.data
-        })
-        .catch((error) => {
-          notifyFailure(error)
-        })
-    },
-    async loadTemplates(data) {
-      return getAllTemplates(data)
-        .then((response) => {
-          this.templates = response.data
-        })
-        .catch((error) => {
-          notifyFailure(error)
-        })
-    },
-    async loadSchedule(data) {
-      return getAllSchedule(data)
-        .then((response) => {
-          this.schedule = response.data
-        })
-        .catch((error) => {
-          notifyFailure(error)
-        })
-    },
-    async loadQueueStatus(data) {
-      return getQueueStatus(data)
-        .then((response) => {
-          this.queue_status = response.data
-        })
-        .catch((error) => {
-          const error_message = getMessageFromError(error)
-          this.queue_status = error_message
-          notifyFailure(error_message)
-        })
-    },
-    async loadQueueTasks(data) {
-      return getQueueTasks(data)
-        .then((response) => {
-          this.queue_tasks = response.data
-        })
-        .catch((error) => {
-          notifyFailure(error)
-        })
-    },
-    async loadWorkers(data) {
-      return getAllWorkers(data)
-        .then((response) => {
-          this.workers = response.data
-        })
-        .catch((error) => {
-          notifyFailure(error)
-        })
-    }
-  },
-  persist: true
-})
+  {
+    persist: true
+  }
+)

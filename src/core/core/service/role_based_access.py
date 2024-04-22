@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from sqlalchemy import cast, String, select
 from sqlalchemy.orm import aliased
-from sqlalchemy.orm.query import Query
+from sqlalchemy.sql import Select
 from sqlalchemy.sql.expression import true
 
 from core.managers.db_manager import db
@@ -37,26 +37,27 @@ class RoleBasedAccessService:
         return bool(matches_resource and is_enabled and has_required_access)
 
     @classmethod
-    def filter_query_with_tlp(cls, query: Query, user: User) -> Query:
-        from core.model.news_item import NewsItemAggregateNewsItemAttribute, NewsItemAttribute, NewsItemAggregate
+    def filter_query_with_tlp(cls, query: Select, user: User) -> Select:
+        from core.model.story import Story, StoryNewsItemAttribute
+        from core.model.news_item_attribute import NewsItemAttribute
 
         user_tlp_level = user.get_highest_tlp()
         if not user_tlp_level or user_tlp_level.value == "red":
             return query
 
         tlp_attribute_subquery = (
-            db.session.query(NewsItemAggregateNewsItemAttribute.news_item_aggregate_id)
-            .join(NewsItemAttribute, NewsItemAttribute.id == NewsItemAggregateNewsItemAttribute.news_item_attribute_id)
+            select(StoryNewsItemAttribute.story_id)
+            .join(NewsItemAttribute, NewsItemAttribute.id == StoryNewsItemAttribute.news_item_attribute_id)
             .filter(
                 NewsItemAttribute.key == "TLP", NewsItemAttribute.value.in_([level.value for level in TLPLevel if level <= user_tlp_level])
             )
             .subquery()
         )
 
-        return query.filter(NewsItemAggregate.id.in_(tlp_attribute_subquery))
+        return query.filter(Story.id.in_(tlp_attribute_subquery))
 
     @classmethod
-    def filter_report_query_with_tlp(cls, query: Query, user: User) -> Query:
+    def filter_report_query_with_tlp(cls, query: Select, user: User) -> Select:
         from core.model.report_item import ReportItem, ReportItemAttribute, AttributeType
 
         user_tlp_level = user.get_highest_tlp()
@@ -64,7 +65,7 @@ class RoleBasedAccessService:
             return query
 
         tlp_attribute_subquery = (
-            db.session.query(ReportItemAttribute.report_item_id)
+            select(ReportItemAttribute.report_item_id)
             .filter(
                 ReportItemAttribute.attribute_type == AttributeType.TLP,
                 ReportItemAttribute.value.in_([level.value for level in TLPLevel if level <= user_tlp_level]),
@@ -75,7 +76,7 @@ class RoleBasedAccessService:
         return query.filter(ReportItem.id.in_(tlp_attribute_subquery))
 
     @classmethod
-    def filter_query_with_acl(cls, query: Query, rbac_query: RBACQuery) -> Query:
+    def filter_query_with_acl(cls, query: Select, rbac_query: RBACQuery) -> Select:
         role_ids = [role.id for role in rbac_query.user.roles]
         item_type = rbac_query.resource_type
         if not RoleBasedAccess.is_enabled_for_type(item_type):
@@ -87,9 +88,9 @@ class RoleBasedAccessService:
 
         # Query to find item_ids accessible by any of the roles or check for wildcard access
         access_check_subquery = (
-            db.session.query(role_based_access_alias.item_id)
+            select(role_based_access_alias.item_id)
             .join(rbac_role_alias, role_based_access_alias.id == rbac_role_alias.acl_id)
-            .filter(
+            .where(
                 role_based_access_alias.item_type == item_type,
                 role_based_access_alias.enabled == true(),
                 rbac_role_alias.role_id.in_(role_ids),
@@ -97,7 +98,7 @@ class RoleBasedAccessService:
             .distinct()
         ).subquery()
 
-        if db.session.query(db.exists().where(access_check_subquery.c.item_id == "*")).scalar():
+        if db.session.execute(select(db.exists().where(access_check_subquery.c.item_id == "*"))).scalar():
             return query
 
         if item_type in ["report_item_type", "product_type", "word_list"]:
@@ -105,7 +106,7 @@ class RoleBasedAccessService:
         else:
             id_field = model_class.id
 
-        return query.filter(id_field.in_(select(access_check_subquery)))  # type: ignore
+        return query.where(id_field.in_(access_check_subquery))  # type: ignore
 
     @classmethod
     def get_model_class(cls, resource_type: str):

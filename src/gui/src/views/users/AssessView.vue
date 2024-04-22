@@ -1,12 +1,12 @@
 <template>
   <div class="w-100">
     <v-infinite-scroll
-      v-if="newsItems.items.length > 0 && !pagination"
+      v-if="stories.total_count > 0 && !pagination"
       empty-text="All items loaded"
       color="primary"
       @load="displayMore"
     >
-      <template v-for="item in newsItems.items" :key="item">
+      <template v-for="item in stories.items" :key="item">
         <card-story :story="item" @refresh="refresh(item.id)" />
       </template>
       <template #loading>
@@ -21,8 +21,8 @@
       </template>
     </v-infinite-scroll>
 
-    <v-container v-else-if="newsItems.items.length > 0 && pagination" fluid>
-      <template v-for="item in newsItems.items" :key="item">
+    <v-container v-else-if="stories.total_count > 0 && pagination" fluid>
+      <template v-for="item in stories.items" :key="item">
         <card-story :story="item" @refresh="refresh(item.id)" />
       </template>
       <v-row class="justify-center mt-10 mb-10">
@@ -34,7 +34,7 @@
       </v-row>
     </v-container>
     <v-row
-      v-if="newsItems.items.length == 0"
+      v-if="stories.total_count == 0"
       class="align-center justify-center mt-5"
     >
       <v-col cols="12">
@@ -49,14 +49,14 @@
         <v-btn block class="mx-4" @click="resetFilter()">Reset Filter</v-btn>
       </v-col>
     </v-row>
-    <assess-selection-toolbar v-if="activeSelection" />
+    <assess-selection-toolbar />
   </div>
 </template>
 
 <script>
 import CardStory from '@/components/assess/CardStory.vue'
 import AssessSelectionToolbar from '@/components/assess/AssessSelectionToolbar.vue'
-import { defineComponent, computed, onUnmounted, onUpdated } from 'vue'
+import { defineComponent, computed, onDeactivated, onUpdated } from 'vue'
 import { useAssessStore } from '@/stores/AssessStore'
 import { useFilterStore } from '@/stores/FilterStore'
 import { useMainStore } from '@/stores/MainStore'
@@ -73,29 +73,29 @@ export default defineComponent({
     const assessStore = useAssessStore()
     const filterStore = useFilterStore()
     const mainStore = useMainStore()
-    const { newsItems, activeSelection, loading } = storeToRefs(assessStore)
-    const { newsItemsFilter } = storeToRefs(filterStore)
+    const { stories, loading } = storeToRefs(assessStore)
+    const { storyFilter } = storeToRefs(filterStore)
 
     assessHotkeys()
     const moreToLoad = computed(() => {
-      const offset = newsItemsFilter.value.offset
-        ? parseInt(newsItemsFilter.value.offset)
+      const offset = storyFilter.value.offset
+        ? parseInt(storyFilter.value.offset)
         : 0
-      const length = offset + newsItems.value.items.length
-      return length < newsItems.value.total_count
+      const length = offset + stories.value.items.length
+      return length < stories.value.total_count
     })
 
     const page = computed({
       get: () => {
-        return Number(newsItemsFilter.value.page) || 1
+        return Number(storyFilter.value.page) + 1 || 0
       },
       set: (val) => {
-        newsItemsFilter.value.page = String(val)
+        storyFilter.value.page = String(val - 1)
       }
     })
     const numberOfPages = computed(() => {
       const count = Math.ceil(
-        newsItems.value.total_count / (newsItemsFilter.value.limit || 20)
+        stories.value.total_count / (storyFilter.value.limit || 20)
       )
       return count > 0 ? count : 1
     })
@@ -105,7 +105,7 @@ export default defineComponent({
     }
 
     const pagination = computed(() => {
-      return Boolean(newsItemsFilter.value.timeto)
+      return Boolean(storyFilter.value.timeto)
     })
 
     const displayMore = async ({ done }) => {
@@ -115,47 +115,42 @@ export default defineComponent({
         return
       }
       if (loading.value) {
+        setTimeout(async () => {
+          loading.value = false
+        }, 2000)
         return
       }
-      await assessStore.appendNewsItems()
-      done('ok')
-    }
-    const nextPage = () => {
-      filterStore.nextPage()
+      if (await assessStore.appendStories()) {
+        done('ok')
+      }
+      done('empty')
     }
 
     const resetFilter = () => {
       filterStore.resetFilter()
     }
-    function onTriggeredEventHandler(payload) {
-      console.log(`You have pressed CMD (CTRL) + ${payload.keyString}`)
-    }
 
     onUpdated(() => {
-      mainStore.itemCountTotal = newsItems.value.total_count
-      mainStore.itemCountFiltered = newsItems.value.items.length
+      mainStore.itemCountTotal = stories.value.total_count
+      mainStore.itemCountFiltered = stories.value.items.length
     })
 
-    onUnmounted(() => {
+    onDeactivated(() => {
       assessStore.clearSelection()
-      mainStore.itemCountTotal = 0
-      mainStore.itemCountFiltered = 0
+      mainStore.resetItemCount()
     })
 
     return {
-      newsItems,
+      stories,
       moreToLoad,
-      activeSelection,
       numberOfPages,
       page,
       loading,
       pagination,
-      newsItemsFilter,
+      storyFilter,
       refresh,
-      nextPage,
       resetFilter,
-      displayMore,
-      onTriggeredEventHandler
+      displayMore
     }
   }
 })

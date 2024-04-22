@@ -30,6 +30,23 @@
           <v-row>
             <v-col cols="6">
               <v-card
+                title="Clear all Worker Queues"
+                text="Delete all messages from all worker queues. This action cannot be undone."
+              >
+                <v-card-actions>
+                  <v-btn
+                    variant="elevated"
+                    block
+                    color="red"
+                    text="Delete all Worker Queues"
+                    @click="purgeQueues"
+                  />
+                </v-card-actions>
+              </v-card>
+            </v-col>
+
+            <v-col cols="6">
+              <v-card
                 title="Delete all Tags"
                 text="Delete all tags from all Stories in the system. Reverting the Action of the NER, Wordlist, and Tagging Bots. This action cannot be undone."
               >
@@ -55,7 +72,7 @@
                     block
                     color="red"
                     text="Ungroup all Stories"
-                    @click="ungroupStories"
+                    @click="ungroupAllStoriesAction"
                   />
                 </v-card-actions>
               </v-card>
@@ -93,7 +110,8 @@ import {
   updateAdminSettings,
   deleteAllTags,
   ungroupAllStories,
-  resetDatabase
+  resetDatabase,
+  clearQueues
 } from '@/api/admin'
 import { computed, ref } from 'vue'
 export default {
@@ -107,9 +125,29 @@ export default {
       get: () => tlpLevel.value,
       set: (value) => {
         tlpLevel.value = value
-        updateAdminSettings({ default_tlp_level: value })
+        updateSettings()
       }
     })
+
+    async function purgeQueues() {
+      try {
+        const result = await clearQueues()
+        notifySuccess(result)
+      } catch (error) {
+        notifyFailure(error)
+      }
+    }
+
+    async function updateSettings() {
+      try {
+        const result = await updateAdminSettings({
+          default_tlp_level: tlpLevel.value
+        })
+        notifySuccess(result)
+      } catch (error) {
+        notifyFailure(error)
+      }
+    }
 
     async function getSettings() {
       try {
@@ -128,7 +166,7 @@ export default {
         notifyFailure(error)
       }
     }
-    async function ungroupStories() {
+    async function ungroupAllStoriesAction() {
       try {
         const result = await ungroupAllStories()
         notifySuccess(result)
@@ -144,7 +182,14 @@ export default {
         notifyFailure(error)
       }
     }
-    return { deleteTags, ungroupStories, deleteEverything, tlpLevels, tlp }
+    return {
+      deleteTags,
+      ungroupAllStoriesAction,
+      deleteEverything,
+      purgeQueues,
+      tlpLevels,
+      tlp
+    }
   }
 }
 </script>

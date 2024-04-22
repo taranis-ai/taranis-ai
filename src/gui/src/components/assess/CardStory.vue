@@ -12,6 +12,25 @@
       <v-row class="pl-2">
         <v-col class="d-flex">
           <v-row class="py-1 px-1">
+            <v-col cols="12" class="meta-info-col" :lg="meta_cols">
+              <story-meta-info
+                :story="story"
+                :detail-view="openSummary"
+                :report-view="reportView"
+              />
+              <WeekChart
+                v-if="openSummary"
+                class="mt-5"
+                :chart-height="180"
+                :story="story"
+              />
+            </v-col>
+            <v-col v-if="!openSummary && showWeekChart" cols="2">
+              <WeekChart
+                :chart-height="detailView ? 300 : 100"
+                :story="story"
+              />
+            </v-col>
             <v-col cols="12" :lg="content_cols">
               <v-container class="d-flex pa-0">
                 <div
@@ -54,30 +73,10 @@
               </v-container>
 
               <summarized-content
+                :compact="compactView"
                 :open="openSummary"
                 :is-summarized="is_summarized"
                 :content="getDescription"
-              />
-            </v-col>
-
-            <v-col cols="12" class="meta-info-col" :lg="meta_cols">
-              <story-meta-info
-                :story="story"
-                :detail-view="openSummary"
-                :report-view="reportView"
-              />
-              <week-chart
-                v-if="showWeekChart && openSummary"
-                class="mt-5"
-                :chart-height="180"
-                :story="story"
-              />
-            </v-col>
-            <v-col v-if="showWeekChart && !openSummary" cols="12" lg="2">
-              <week-chart
-                :chart-height="detailView ? 300 : 100"
-                :chart-width="detailView ? 800 : 100"
-                :story="story"
               />
             </v-col>
           </v-row>
@@ -124,9 +123,8 @@ import { ref, computed } from 'vue'
 import { useAssessStore } from '@/stores/AssessStore'
 import { useFilterStore } from '@/stores/FilterStore'
 import { highlight_text, getAssessSharingIcon } from '@/utils/helpers'
-import { unGroupStories } from '@/api/assess'
 import { storeToRefs } from 'pinia'
-import WeekChart from '@/components/assess/card/WeekChart.vue'
+import ChartWrapper from '@/components/assess/card/ChartWrapper.vue'
 
 export default {
   name: 'CardStory',
@@ -135,7 +133,7 @@ export default {
     StoryActions,
     StoryMetaInfo,
     SummarizedContent,
-    WeekChart
+    WeekChart: ChartWrapper
   },
   props: {
     story: {
@@ -159,10 +157,7 @@ export default {
     const { showWeekChart, compactView } = storeToRefs(useFilterStore())
 
     const showStory = computed(() => {
-      return (
-        props.story.news_items.length > 0 &&
-        'news_item_data' in props.story.news_items[0]
-      )
+      return props.story.news_items.length > 0
     })
 
     const item_important = computed(() =>
@@ -176,7 +171,7 @@ export default {
       if (props.reportView) {
         return 6
       }
-      return 8
+      return 9
     })
 
     const meta_cols = computed(() => {
@@ -225,7 +220,7 @@ export default {
 
     const getDescription = computed(() => {
       const { description, summary, news_items } = props.story
-      const defaultContent = news_items[0].news_item_data.content
+      const defaultContent = news_items[0].content
 
       return openSummary.value
         ? defaultContent
@@ -255,27 +250,8 @@ export default {
       assessStore.selectStory(props.story.id)
     }
 
-    function markAsRead() {
-      assessStore.readNewsItemAggregate(props.story.id)
-    }
-
-    function markAsImportant() {
-      assessStore.importantNewsItemAggregate(props.story.id)
-    }
-
     function emitRefresh() {
       emit('refresh')
-    }
-
-    function ungroup() {
-      unGroupStories([props.story.id]).then(() => {
-        emit('refresh')
-      })
-    }
-
-    function moveSelection() {
-      // assessStore.moveSelectionToStory(props.story.id, newsItemSelection.value)
-      console.debug('move selection to story', newsItemSelection.value)
     }
 
     return {
@@ -286,6 +262,7 @@ export default {
       meta_cols,
       showStory,
       card_class,
+      compactView,
       item_important,
       news_item_length,
       news_item_title_class,
@@ -299,11 +276,7 @@ export default {
       showWeekChart,
       getSharingIcon,
       openCard,
-      ungroup,
       toggleSelection,
-      markAsRead,
-      markAsImportant,
-      moveSelection,
       emitRefresh
     }
   }

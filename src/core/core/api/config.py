@@ -1,7 +1,7 @@
 import io
 
-from flask import request, send_file, jsonify
-from flask_restx import Resource, Namespace, Api
+from flask import request, send_file, jsonify, Flask
+from flask.views import MethodView
 
 from core.managers import (
     auth_manager,
@@ -27,20 +27,23 @@ from core.model import (
     worker,
 )
 from core.model.permission import Permission
+from core.managers.decorators import extract_args
 
 
-class DictionariesReload(Resource):
+class DictionariesReload(MethodView):
     @auth_required("CONFIG_ATTRIBUTE_UPDATE")
     def post(self, dictionary_type):
         attribute.Attribute.load_dictionaries(dictionary_type)
         return {"message": "success"}, 200
 
 
-class ACLEntries(Resource):
+class ACLEntries(MethodView):
     @auth_required("CONFIG_ACL_ACCESS")
-    def get(self):
-        search = request.args.get(key="search", default=None)
-        return role_based_access.RoleBasedAccess.get_all_json(search)
+    @extract_args("search")
+    def get(self, acl_id=None, filter_args=None):
+        if acl_id:
+            return role_based_access.RoleBasedAccess.get_for_api(acl_id)
+        return role_based_access.RoleBasedAccess.get_all_for_api(filter_args, True)
 
     @auth_required("CONFIG_ACL_CREATE")
     def post(self):
@@ -56,21 +59,19 @@ class ACLEntries(Resource):
         return role_based_access.RoleBasedAccess.delete(acl_id)
 
 
-class Attributes(Resource):
+class Attributes(MethodView):
+    @auth_required(["CONFIG_ATTRIBUTE_ACCESS", "ANALYZE_ACCESS"])
+    @extract_args("search")
+    def get(self, attribute_id=None, filter_args=None):
+        if attribute_id:
+            return attribute.Attribute.get_for_api(attribute_id)
+
+        return attribute.Attribute.get_all_for_api(filter_args, True)
+
     @auth_required("CONFIG_ATTRIBUTE_CREATE")
     def post(self):
         attribute_result = attribute.Attribute.add(request.json)
         return {"message": "Attribute added", "id": attribute_result.id}, 201
-
-    @auth_required(["CONFIG_ATTRIBUTE_ACCESS", "ANALYZE_ACCESS"])
-    def get(self, attribute_id=None):
-        if attribute_id:
-            if result := attribute.Attribute.get(attribute_id):
-                return result.to_dict()
-            return {"error": "Attribute not found"}, 404
-
-        search = request.args.get(key="search", default=None)
-        return attribute.Attribute.get_all_json(search)
 
     @auth_required("CONFIG_ATTRIBUTE_UPDATE")
     def put(self, attribute_id):
@@ -81,13 +82,13 @@ class Attributes(Resource):
         return attribute.Attribute.delete(attribute_id)
 
 
-class AttributeEnums(Resource):
+class AttributeEnums(MethodView):
     @auth_required("CONFIG_ATTRIBUTE_ACCESS")
-    def get(self, attribute_id):
-        search = request.args.get(key="search", default=None)
-        offset = request.args.get(key="offset", default=0)
-        limit = request.args.get(key="limit", default=10)
-        return attribute.AttributeEnum.get_for_attribute_json(attribute_id, search, offset, limit)
+    @extract_args("search", "offset", "limit")
+    def get(self, attribute_id=None, filter_args=None):
+        if attribute_id:
+            return attribute.AttributeEnum.get_for_api(attribute_id)
+        return attribute.AttributeEnum.get_all_for_api(filter_args, True)
 
     @auth_required("CONFIG_ATTRIBUTE_UPDATE")
     def post(self, attribute_id):
@@ -103,7 +104,7 @@ class AttributeEnums(Resource):
         return attribute.AttributeEnum.delete(enum_id)
 
 
-class ReportItemTypesImport(Resource):
+class ReportItemTypesImport(MethodView):
     @auth_required("CONFIG_REPORT_TYPE_CREATE")
     def post(self):
         return {"error": "Not implemented"}, 400
@@ -114,7 +115,7 @@ class ReportItemTypesImport(Resource):
         # return {"error": "No file provided"}, 400
 
 
-class ReportItemTypesExport(Resource):
+class ReportItemTypesExport(MethodView):
     @auth_required("CONFIG_REPORT_TYPE_ACCESS")
     def get(self):
         source_ids = request.args.getlist("ids")
@@ -129,11 +130,14 @@ class ReportItemTypesExport(Resource):
         )
 
 
-class ReportItemTypes(Resource):
+class ReportItemTypes(MethodView):
     @auth_required("CONFIG_REPORT_TYPE_ACCESS")
-    def get(self):
-        search = request.args.get(key="search", default=None)
-        return report_item_type.ReportItemType.get_all_json(search, auth_manager.get_user_from_jwt(), False)
+    @extract_args("search")
+    def get(self, type_id=None, filter_args=None):
+        if type_id:
+            return report_item_type.ReportItemType.get_for_api(type_id)
+        user = auth_manager.get_user_from_jwt()
+        return report_item_type.ReportItemType.get_all_for_api(filter_args, True, user)
 
     @auth_required("CONFIG_REPORT_TYPE_CREATE")
     def post(self):
@@ -156,14 +160,14 @@ class ReportItemTypes(Resource):
         return report_item_type.ReportItemType.delete(type_id)
 
 
-class ProductTypes(Resource):
+class ProductTypes(MethodView):
     @auth_required("CONFIG_PRODUCT_TYPE_ACCESS")
-    def get(self, type_id=None):
+    @extract_args("search")
+    def get(self, type_id=None, filter_args=None):
         if type_id:
-            detail_product = product_type.ProductType.get(type_id)
-            return detail_product.get_detail_json() if detail_product else ({"error": "Product type not found"}, 404)
-        search = request.args.get(key="search", default=None)
-        return jsonify(product_type.ProductType.get_all_json(search, auth_manager.get_user_from_jwt(), False))
+            return product_type.ProductType.get_for_api(type_id)
+        user = auth_manager.get_user_from_jwt()
+        return product_type.ProductType.get_all_for_api(filter_args, True, user)
 
     @auth_required("CONFIG_PRODUCT_TYPE_CREATE")
     def post(self):
@@ -172,31 +176,34 @@ class ProductTypes(Resource):
 
     @auth_required("CONFIG_PRODUCT_TYPE_UPDATE")
     def put(self, type_id):
-        return product_type.ProductType.update(type_id, request.json)
+        user = auth_manager.get_user_from_jwt()
+        return product_type.ProductType.update(type_id, request.json, user)
 
     @auth_required("CONFIG_PRODUCT_TYPE_DELETE")
     def delete(self, type_id):
         return product_type.ProductType.delete(type_id)
 
 
-class Parameters(Resource):
+class Parameters(MethodView):
     @auth_required("CONFIG_ACCESS")
     def get(self):
         return worker.Worker.get_parameter_map(), 200
 
 
-class Permissions(Resource):
+class Permissions(MethodView):
     @auth_required("CONFIG_ACCESS")
-    def get(self):
-        search = request.args.get(key="search", default=None)
-        return Permission.get_all_json(search)
+    @extract_args("search")
+    def get(self, filter_args=None):
+        return Permission.get_all_for_api(filter_args, True)
 
 
-class Roles(Resource):
+class Roles(MethodView):
     @auth_required("CONFIG_ROLE_ACCESS")
-    def get(self):
-        search = request.args.get(key="search", default=None)
-        return role.Role.get_all_json(search)
+    @extract_args("search")
+    def get(self, role_id=None, filter_args=None):
+        if role_id:
+            return role.Role.get_for_api(role_id)
+        return role.Role.get_all_for_api(filter_args, True)
 
     @auth_required("CONFIG_ROLE_CREATE")
     def post(self):
@@ -214,7 +221,7 @@ class Roles(Resource):
         return role.Role.delete(role_id)
 
 
-class Templates(Resource):
+class Templates(MethodView):
     @auth_required("CONFIG_PRODUCT_TYPE_ACCESS")
     def get(self, template_path=None):
         if template_path:
@@ -239,11 +246,13 @@ class Templates(Resource):
         return {"error": "Could not delete template"}, 500
 
 
-class Organizations(Resource):
+class Organizations(MethodView):
     @auth_required("CONFIG_ORGANIZATION_ACCESS")
-    def get(self):
-        search = request.args.get(key="search", default=None)
-        return organization.Organization.get_all_json(search)
+    @extract_args("search")
+    def get(self, organization_id=None, filter_args=None):
+        if organization_id:
+            return organization.Organization.get_for_api(organization_id)
+        return organization.Organization.get_all_for_api(filter_args, True)
 
     @auth_required("CONFIG_ORGANIZATION_CREATE")
     def post(self):
@@ -259,11 +268,13 @@ class Organizations(Resource):
         return organization.Organization.delete(organization_id)
 
 
-class Users(Resource):
+class Users(MethodView):
     @auth_required("CONFIG_USER_ACCESS")
-    def get(self):
-        search = request.args.get(key="search", default=None)
-        return user.User.get_all_json(search)
+    @extract_args("search")
+    def get(self, user_id=None, filter_args=None):
+        if user_id:
+            return user.User.get_for_api(user_id)
+        return user.User.get_all_for_api(filter_args, True)
 
     @auth_required("CONFIG_USER_CREATE")
     def post(self):
@@ -277,7 +288,7 @@ class Users(Resource):
     @auth_required("CONFIG_USER_UPDATE")
     def put(self, user_id):
         try:
-            return user.User.update(user_id, request.json), 200
+            return user.User.update(user_id, request.json)
         except Exception:
             logger.exception()
             return {"error": "Could not update user"}, 400
@@ -285,17 +296,19 @@ class Users(Resource):
     @auth_required("CONFIG_USER_DELETE")
     def delete(self, user_id):
         try:
-            return user.User.delete(user_id), 200
+            return user.User.delete(user_id)
         except Exception:
             logger.exception()
             return {"error": "Could not delete user"}, 400
 
 
-class Bots(Resource):
+class Bots(MethodView):
     @auth_required("CONFIG_BOT_ACCESS")
-    def get(self):
-        search = request.args.get(key="search", default=None)
-        return bot.Bot.get_all_json(search)
+    @extract_args("search")
+    def get(self, bot_id=None, filter_args=None):
+        if bot_id:
+            return bot.Bot.get_for_api(bot_id)
+        return bot.Bot.get_all_for_api(filter_args, True)
 
     @auth_required("CONFIG_BOT_UPDATE")
     def put(self, bot_id):
@@ -306,31 +319,32 @@ class Bots(Resource):
 
     @auth_required("CONFIG_BOT_CREATE")
     def post(self):
-        return bot.Bot.add(request.json)
+        new_bot = bot.Bot.add(request.json)
+        return {"message": f"Bot {new_bot.name} created", "id": new_bot.id}, 201
 
     @auth_required("CONFIG_BOT_DELETE")
     def delete(self, bot_id):
         return bot.Bot.delete(bot_id)
 
 
-class BotExecute(Resource):
+class BotExecute(MethodView):
     def post(self, bot_id):
         return queue_manager.queue_manager.execute_bot_task(bot_id)
 
 
-class QueueStatus(Resource):
+class QueueStatus(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
     def get(self):
         return queue_manager.queue_manager.get_queue_status()
 
 
-class QueueTasks(Resource):
+class QueueTasks(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
     def get(self):
         return queue_manager.queue_manager.get_queued_tasks()
 
 
-class QueueSchedule(Resource):
+class QueueSchedule(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
     def get(self):
         try:
@@ -341,15 +355,14 @@ class QueueSchedule(Resource):
             logger.log_debug_trace()
 
 
-class OSINTSources(Resource):
+class OSINTSources(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
-    def get(self, source_id=None):
+    @extract_args("search")
+    def get(self, source_id=None, filter_args=None):
         if source_id:
-            source = osint_source.OSINTSource.get(source_id)
-            return source.to_dict() if source else ("OSINT source not found", 404)
-        search = request.args.get(key="search", default=None)
-        result_dict = osint_source.OSINTSource.get_all_json(search)
-        return result_dict, 200
+            return osint_source.OSINTSource.get_for_api(source_id)
+        user = auth_manager.get_user_from_jwt()
+        return osint_source.OSINTSource.get_all_for_api(filter_args=filter_args, with_count=True, user=user)
 
     @auth_required("CONFIG_OSINT_SOURCE_CREATE")
     def post(self):
@@ -372,7 +385,7 @@ class OSINTSources(Resource):
         return {"message": f"OSINT Source {source.name} deleted", "id": f"{source_id}"}, 200
 
 
-class OSINTSourceCollect(Resource):
+class OSINTSourceCollect(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def post(self, source_id=None):
         if source_id:
@@ -380,7 +393,7 @@ class OSINTSourceCollect(Resource):
         return queue_manager.queue_manager.collect_all_osint_sources()
 
 
-class OSINTSourcePreview(Resource):
+class OSINTSourcePreview(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def get(self, source_id):
         task_id = f"source_preview_{source_id}"
@@ -394,7 +407,7 @@ class OSINTSourcePreview(Resource):
         return queue_manager.queue_manager.preview_osint_source(source_id)
 
 
-class OSINTSourcesExport(Resource):
+class OSINTSourcesExport(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
     def get(self):
         source_ids = request.args.getlist("ids")
@@ -409,7 +422,7 @@ class OSINTSourcesExport(Resource):
         )
 
 
-class OSINTSourcesImport(Resource):
+class OSINTSourcesImport(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_CREATE")
     def post(self):
         if file := request.files.get("file"):
@@ -420,11 +433,16 @@ class OSINTSourcesImport(Resource):
         return {"error": "No file provided"}, 400
 
 
-class OSINTSourceGroups(Resource):
+class OSINTSourceGroups(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_ACCESS")
-    def get(self):
-        search = request.args.get(key="search", default=None)
-        return osint_source.OSINTSourceGroup.get_all_json(search, auth_manager.get_user_from_jwt(), False)
+    @extract_args("search")
+    def get(self, group_id=None, filter_args=None):
+        user = auth_manager.get_user_from_jwt()
+        if not user:
+            return {"error": "User not found"}, 404
+        if group_id:
+            return osint_source.OSINTSourceGroup.get_for_api(group_id)
+        return osint_source.OSINTSourceGroup.get_all_for_api(filter_args=filter_args, with_count=True, user=user)
 
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_CREATE")
     def post(self):
@@ -440,26 +458,31 @@ class OSINTSourceGroups(Resource):
         return osint_source.OSINTSourceGroup.delete(group_id)
 
 
-class Presenters(Resource):
-    def get(self):
-        search = request.args.get(key="search", default=None)
-        return worker.Worker.get_all_json({"search": search, "category": "presenter"})
-
-
-class Publishers(Resource):
-    def get(self):
-        search = request.args.get(key="search", default=None)
-        return worker.Worker.get_all_json({"search": search, "category": "publisher"})
-
-
-class PublisherPresets(Resource):
+class Presenters(MethodView):
     @auth_required("CONFIG_PUBLISHER_ACCESS")
-    def get(self, preset_id=None):
+    @extract_args("search")
+    def get(self, filter_args=None):
+        filter_args = filter_args or {}
+        filter_args["category"] = "publisher"
+        return worker.Worker.get_all_for_api(filter_args)
+
+
+class Publishers(MethodView):
+    @auth_required("CONFIG_PUBLISHER_ACCESS")
+    @extract_args("search")
+    def get(self, filter_args=None):
+        filter_args = filter_args or {}
+        filter_args["category"] = "publisher"
+        return worker.Worker.get_all_for_api(filter_args)
+
+
+class PublisherPresets(MethodView):
+    @auth_required("CONFIG_PUBLISHER_ACCESS")
+    @extract_args("search")
+    def get(self, preset_id=None, filter_args=None):
         if preset_id:
-            preset = publisher_preset.PublisherPreset.get(preset_id)
-            return preset.to_dict() if preset else ({"error": "Publisher preset not found"}, 404)
-        search = request.args.get(key="search", default=None)
-        return publisher_preset.PublisherPreset.get_all_json(search)
+            return publisher_preset.PublisherPreset.get_for_api(preset_id)
+        return publisher_preset.PublisherPreset.get_all_for_api(filter_args, True)
 
     @auth_required("CONFIG_PUBLISHER_CREATE")
     def post(self):
@@ -475,15 +498,14 @@ class PublisherPresets(Resource):
         return publisher_preset.PublisherPreset.delete(preset_id)
 
 
-class WordLists(Resource):
+class WordLists(MethodView):
     @auth_required("CONFIG_WORD_LIST_ACCESS")
-    def get(self, word_list_id=None):
+    @extract_args("search", "usage")
+    def get(self, word_list_id=None, filter_args=None):
         if word_list_id:
-            word_list_result = word_list.WordList.get(word_list_id)
-            return word_list_result.to_dict() if word_list_result else ({"error": "Word list not found"}, 404)
-        search = request.args.get(key="search", default=None)
-        usage = request.args.get(key="usage", default=None)
-        return word_list.WordList.get_all_json({"search": search, "usage": usage}, auth_manager.get_user_from_jwt(), False)
+            return word_list.WordList.get_for_api(word_list_id)
+        user = auth_manager.get_user_from_jwt()
+        return word_list.WordList.get_all_for_api(filter_args=filter_args, with_count=True, user=user)
 
     @auth_required("CONFIG_WORD_LIST_CREATE")
     def post(self):
@@ -499,7 +521,7 @@ class WordLists(Resource):
         return word_list.WordList.update(word_list_id, request.json)
 
 
-class WordListImport(Resource):
+class WordListImport(MethodView):
     @auth_required("CONFIG_WORD_LIST_UPDATE")
     def post(self):
         if file := request.files.get("file"):
@@ -509,7 +531,7 @@ class WordListImport(Resource):
         return {"error": "No file provided"}, 400
 
 
-class WordListExport(Resource):
+class WordListExport(MethodView):
     @auth_required("CONFIG_WORD_LIST_UPDATE")
     def get(self):
         source_ids = request.args.getlist("ids")
@@ -524,66 +546,79 @@ class WordListExport(Resource):
         )
 
 
-class WordListGather(Resource):
+class WordListGather(MethodView):
     @auth_required("CONFIG_WORD_LIST_UPDATE")
     def put(self, word_list_id):
         return queue_manager.queue_manager.gather_word_list(word_list_id)
 
 
-class Workers(Resource):
+class Workers(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
     def get(self):
         return queue_manager.queue_manager.ping_workers()
 
 
-class WorkerTypes(Resource):
+class WorkerTypes(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
-    def get(self):
-        search = request.args.get(key="search", default=None)
-        filter_args = {"search": search}
-        return worker.Worker.get_all_json(filter_args)
+    @extract_args("search", "category", "type")
+    def get(self, filter_args=None):
+        return worker.Worker.get_all_for_api(filter_args, True)
 
     @auth_required("CONFIG_WORKER_ACCESS")
     def post(self):
         return worker.Worker.add(request.json)
 
 
-def initialize(api: Api):
-    namespace = Namespace("config", description="Configuration operations")
-
-    namespace.add_resource(ACLEntries, "/acls/<int:acl_id>", "/acls")
-    namespace.add_resource(Attributes, "/attributes/<int:attribute_id>", "/attributes")
-    namespace.add_resource(AttributeEnums, "/attributes/<int:attribute_id>/enums/<int:enum_id>", "/attributes/<int:attribute_id>/enums")
-    namespace.add_resource(BotExecute, "/bots/<string:bot_id>/execute")
-    namespace.add_resource(Bots, "/bots", "/bots/<string:bot_id>")
-    namespace.add_resource(DictionariesReload, "/reload-enum-dictionaries/<string:dictionary_type>")
-    namespace.add_resource(Organizations, "/organizations/<int:organization_id>", "/organizations")
-    namespace.add_resource(OSINTSources, "/osint-sources/<string:source_id>", "/osint-sources")
-    namespace.add_resource(OSINTSourceCollect, "/osint-sources/<string:source_id>/collect", "/osint-sources/collect")
-    namespace.add_resource(OSINTSourcePreview, "/osint-sources/<string:source_id>/preview")
-    namespace.add_resource(OSINTSourceGroups, "/osint-source-groups/<string:group_id>", "/osint-source-groups")
-    namespace.add_resource(OSINTSourcesExport, "/export-osint-sources")
-    namespace.add_resource(OSINTSourcesImport, "/import-osint-sources")
-    namespace.add_resource(Parameters, "/parameters")
-    namespace.add_resource(Permissions, "/permissions")
-    namespace.add_resource(Presenters, "/presenters")
-    namespace.add_resource(ProductTypes, "/product-types/<int:type_id>", "/product-types")
-    namespace.add_resource(Templates, "/templates/<string:template_path>", "/templates")
-    namespace.add_resource(PublisherPresets, "/publishers-presets/<string:preset_id>", "/publishers-presets")
-    namespace.add_resource(Publishers, "/publishers")
-    namespace.add_resource(QueueStatus, "/workers/queue-status")
-    namespace.add_resource(QueueSchedule, "/workers/schedule")
-    namespace.add_resource(QueueTasks, "/workers/tasks")
-    namespace.add_resource(ReportItemTypes, "/report-item-types/<int:type_id>", "/report-item-types")
-    namespace.add_resource(ReportItemTypesExport, "/export-report-item-types")
-    namespace.add_resource(ReportItemTypesImport, "/import-report-item-types")
-    namespace.add_resource(Roles, "/roles/<int:role_id>", "/roles")
-    namespace.add_resource(Users, "/users/<int:user_id>", "/users")
-    namespace.add_resource(WordListGather, "/word-lists/<int:word_list_id>/gather")
-    namespace.add_resource(WordListExport, "/export-word-lists")
-    namespace.add_resource(WordListImport, "/import-word-lists")
-    namespace.add_resource(WordLists, "/word-lists/<int:word_list_id>", "/word-lists")
-    namespace.add_resource(Workers, "/workers")
-    namespace.add_resource(WorkerTypes, "/worker-types")
-
-    api.add_namespace(namespace, path="/config")
+def initialize(app: Flask):
+    base_route = "/api/config"
+    app.add_url_rule(f"{base_route}/acls", view_func=ACLEntries.as_view("acls"))
+    app.add_url_rule(f"{base_route}/acls/<int:acl_id>", view_func=ACLEntries.as_view("acl"))
+    app.add_url_rule(f"{base_route}/attributes", view_func=Attributes.as_view("attributes"))
+    app.add_url_rule(f"{base_route}/attributes/<int:attribute_id>", view_func=Attributes.as_view("attribute"))
+    app.add_url_rule(f"{base_route}/attributes/<int:attribute_id>/enums", view_func=AttributeEnums.as_view("attribute_enums"))
+    app.add_url_rule(f"{base_route}/attributes/<int:attribute_id>/enums/<int:enum_id>", view_func=AttributeEnums.as_view("attribute_enum"))
+    app.add_url_rule(f"{base_route}/bots", view_func=Bots.as_view("bots_config"))
+    app.add_url_rule(f"{base_route}/bots/<string:bot_id>", view_func=Bots.as_view("bot_config"))
+    app.add_url_rule(f"{base_route}/bots/<string:bot_id>/execute", view_func=BotExecute.as_view("bot_execute"))
+    app.add_url_rule(
+        f"{base_route}/dictionaries-reload/<string:dictionary_type>", view_func=DictionariesReload.as_view("dictionaries_reload")
+    )
+    app.add_url_rule(f"{base_route}/organizations", view_func=Organizations.as_view("organizations"))
+    app.add_url_rule(f"{base_route}/organizations/<int:organization_id>", view_func=Organizations.as_view("organization"))
+    app.add_url_rule(f"{base_route}/osint-sources", view_func=OSINTSources.as_view("osint_sources"))
+    app.add_url_rule(f"{base_route}/osint-sources/<string:source_id>", view_func=OSINTSources.as_view("osint_source"))
+    app.add_url_rule(f"{base_route}/osint-sources/<string:source_id>/collect", view_func=OSINTSourceCollect.as_view("osint_source_collect"))
+    app.add_url_rule(f"{base_route}/osint-sources/collect", view_func=OSINTSourceCollect.as_view("osint_sources_collect"))
+    app.add_url_rule(f"{base_route}/osint-sources/<string:source_id>/preview", view_func=OSINTSourcePreview.as_view("osint_source_preview"))
+    app.add_url_rule(f"{base_route}/osint-source-groups", view_func=OSINTSourceGroups.as_view("osint_source_groups_config"))
+    app.add_url_rule(f"{base_route}/osint-source-groups/<string:group_id>", view_func=OSINTSourceGroups.as_view("osint_source_group"))
+    app.add_url_rule(f"{base_route}/export-osint-sources", view_func=OSINTSourcesExport.as_view("osint_sources_export"))
+    app.add_url_rule(f"{base_route}/import-osint-sources", view_func=OSINTSourcesImport.as_view("osint_sources_import"))
+    app.add_url_rule(f"{base_route}/parameters", view_func=Parameters.as_view("parameters"))
+    app.add_url_rule(f"{base_route}/permissions", view_func=Permissions.as_view("permissions"))
+    app.add_url_rule(f"{base_route}/presenters", view_func=Presenters.as_view("presenters"))
+    app.add_url_rule(f"{base_route}/product-types", view_func=ProductTypes.as_view("product_types_config"))
+    app.add_url_rule(f"{base_route}/product-types/<int:type_id>", view_func=ProductTypes.as_view("product_type"))
+    app.add_url_rule(f"{base_route}/templates", view_func=Templates.as_view("templates"))
+    app.add_url_rule(f"{base_route}/templates/<string:template_path>", view_func=Templates.as_view("template"))
+    app.add_url_rule(f"{base_route}/publishers", view_func=Publishers.as_view("publishers"))
+    app.add_url_rule(f"{base_route}/publishers-presets", view_func=PublisherPresets.as_view("publishers_presets"))
+    app.add_url_rule(f"{base_route}/publishers-presets/<string:preset_id>", view_func=PublisherPresets.as_view("publisher_preset"))
+    app.add_url_rule(f"{base_route}/workers/queue-status", view_func=QueueStatus.as_view("queue_status"))
+    app.add_url_rule(f"{base_route}/workers/schedule", view_func=QueueSchedule.as_view("queue_schedule_config"))
+    app.add_url_rule(f"{base_route}/workers/tasks", view_func=QueueTasks.as_view("queue_tasks"))
+    app.add_url_rule(f"{base_route}/report-item-types", view_func=ReportItemTypes.as_view("report_item_types"))
+    app.add_url_rule(f"{base_route}/report-item-types/<int:type_id>", view_func=ReportItemTypes.as_view("report_item_type"))
+    app.add_url_rule(f"{base_route}/export-report-item-types", view_func=ReportItemTypesExport.as_view("report_item_types_export"))
+    app.add_url_rule(f"{base_route}/import-report-item-types", view_func=ReportItemTypesImport.as_view("report_item_types_import"))
+    app.add_url_rule(f"{base_route}/roles", view_func=Roles.as_view("roles"))
+    app.add_url_rule(f"{base_route}/roles/<int:role_id>", view_func=Roles.as_view("role"))
+    app.add_url_rule(f"{base_route}/users", view_func=Users.as_view("users"))
+    app.add_url_rule(f"{base_route}/users/<int:user_id>", view_func=Users.as_view("user"))
+    app.add_url_rule(f"{base_route}/word-lists", view_func=WordLists.as_view("word_lists"))
+    app.add_url_rule(f"{base_route}/word-lists/<int:word_list_id>", view_func=WordLists.as_view("word_list"))
+    app.add_url_rule(f"{base_route}/word-lists/<int:word_list_id>/gather", view_func=WordListGather.as_view("word_list_gather"))
+    app.add_url_rule(f"{base_route}/export-word-lists", view_func=WordListExport.as_view("word_list_export"))
+    app.add_url_rule(f"{base_route}/import-word-lists", view_func=WordListImport.as_view("word_list_import"))
+    app.add_url_rule(f"{base_route}/workers", view_func=Workers.as_view("workers"))
+    app.add_url_rule(f"{base_route}/worker-types", view_func=WorkerTypes.as_view("worker_types"))

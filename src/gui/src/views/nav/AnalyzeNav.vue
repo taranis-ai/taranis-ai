@@ -39,14 +39,12 @@
 </template>
 
 <script>
-import { computed, onMounted, onUnmounted, watch } from 'vue'
-import { useAnalyzeStore } from '@/stores/AnalyzeStore'
+import { computed, onUnmounted } from 'vue'
 import { useFilterStore } from '@/stores/FilterStore'
 import FilterNavigation from '@/components/common/FilterNavigation.vue'
 import dateChips from '@/components/common/filter/dateChips.vue'
 import filterButton from '@/components/common/filter/filterButton.vue'
 import { storeToRefs } from 'pinia'
-import { useRoute } from 'vue-router'
 import { router } from '@/router'
 
 export default {
@@ -58,19 +56,14 @@ export default {
   },
   setup() {
     const filterStore = useFilterStore()
-    const analyzeStore = useAnalyzeStore()
     const { reportFilter } = storeToRefs(filterStore)
-    const { updateReportFilter, setReportFilter } = filterStore
-    const updateReportItems = analyzeStore.updateReportItems
-
-    const route = useRoute()
 
     const search = computed({
       get() {
         return reportFilter.value.search
       },
       set(value) {
-        updateReportFilter({ search: value })
+        filterStore.updateReportFilter({ search: value })
       }
     })
 
@@ -78,31 +71,13 @@ export default {
       router.push('/report/')
     }
 
-    onMounted(() => {
-      const query = Object.fromEntries(
-        Object.entries(route.query).filter(([, v]) => v != null)
-      )
-      updateReportFilter(query)
-    })
-
     onUnmounted(() => {
-      setReportFilter({})
+      filterStore.setReportFilter({})
     })
-
-    watch(
-      reportFilter,
-      (filter, prevFilter) => {
-        console.debug('filter changed', filter, prevFilter)
-        updateReportItems()
-      },
-      { deep: true }
-    )
 
     return {
-      reportFilter,
-      updateReportFilter,
-      updateReportItems,
       search,
+      reportFilter,
       addReport
     }
   }
@@ -112,29 +87,5 @@ export default {
 <style lang="scss">
 button {
   display: flex !important;
-}
-
-button.vertical-button .v-btn__append,
-button.vertical-button .v-btn__append i {
-  margin-left: auto;
-  font-size: 100% !important;
-}
-
-.vertical-button-group {
-  display: flex;
-  flex-direction: column;
-  height: 100% !important;
-}
-
-.vertical-button {
-  width: 100%;
-  justify-content: flex-start;
-}
-
-.vertical-button-group .v-icon,
-.vertical-button .v-icon {
-  margin-right: 0.6rem;
-  color: rgb(var(--v-theme-primary)) !important;
-  font-size: 1.3rem !important;
 }
 </style>

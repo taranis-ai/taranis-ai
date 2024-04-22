@@ -1,7 +1,7 @@
 import os
 from typing import Any
-from sqlalchemy import or_, Column, String
-from sqlalchemy.orm import Mapped
+from sqlalchemy.sql.expression import Select
+from sqlalchemy.orm import Mapped, relationship
 
 from core.managers.db_manager import db
 from core.log import logger
@@ -15,30 +15,26 @@ from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 
 
 class ProductType(BaseModel):
-    id = db.Column(db.Integer, primary_key=True)
-    title: Column[String] = db.Column(db.String(64), unique=True, nullable=False)
-    description: Column[String] = db.Column(db.String())
-    type: Any = db.Column(db.Enum(PRESENTER_TYPES))
+    __tablename__ = "product_type"
 
-    parameters: Mapped[list["ParameterValue"]] = db.relationship(
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    title: Mapped[str] = db.Column(db.String(64), unique=True, nullable=False)
+    description: Mapped[str] = db.Column(db.String())
+    type: Mapped[PRESENTER_TYPES] = db.Column(db.Enum(PRESENTER_TYPES))
+
+    parameters: Mapped[list["ParameterValue"]] = relationship(
         "ParameterValue", secondary="product_type_parameter_value", cascade="all, delete"
-    )  # type: ignore
-    report_types: Mapped[list["ReportItemType"]] = db.relationship(
-        "ReportItemType", secondary="product_type_report_type", cascade="all, delete"
-    )  # type: ignore
+    )
+    report_types: Mapped[list["ReportItemType"]] = relationship("ReportItemType", secondary="product_type_report_type", cascade="all, delete")
 
-    def __init__(self, title, type, description=None, parameters=None, report_types=None, id=None):
-        self.id = id
+    def __init__(self, title, type, description="", parameters=None, report_types=None, id=None):
+        if id:
+            self.id = id
         self.title = title
         self.type = type
-        if description:
-            self.description = description
+        self.description = description
         self.parameters = Worker.parse_parameters(type, parameters)
         self.report_types = [ReportItemType.get(report_type) for report_type in report_types] if report_types else []
-
-    @classmethod
-    def get_all(cls):
-        return cls.query.order_by(db.asc(ProductType.title)).all()
 
     def allowed_with_acl(self, user, require_write_access) -> bool:
         if not RoleBasedAccess.is_enabled() or not user:
@@ -49,35 +45,52 @@ class ProductType(BaseModel):
         return RoleBasedAccessService.user_has_access_to_resource(query)
 
     @classmethod
-    def get_by_filter(cls, search, user, acl_check):
-        query = cls.query.distinct().group_by(ProductType.id)
+    def get_filter_query(cls, filter_args: dict) -> Select:
+        query = db.select(cls)
 
-        if acl_check:
-            rbac = RBACQuery(user=user, resource_type=ItemType.PRODUCT_TYPE)
-            query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
-
-        if search:
-            query = query.filter(
-                or_(
-                    ProductType.title.ilike(f"%{search}%"),
-                    ProductType.description.ilike(f"%{search}%"),
+        if search := filter_args.get("search"):
+            query = query.where(
+                db.or_(
+                    cls.title.ilike(f"%{search}%"),
+                    cls.description.ilike(f"%{search}%"),
                 )
             )
 
-        return query.order_by(db.asc(ProductType.title)).all(), query.count()
+        return query.order_by(db.asc(cls.title))
 
     @classmethod
-    def get_all_json(cls, search, user, acl_check):
-        product_types, count = cls.get_by_filter(search, user, acl_check)
-        items = [product_type.to_dict() for product_type in product_types]
-        return {"total_count": count, "items": items, "templates": get_presenter_templates()}
+    def get_filter_query_with_acl(cls, filter_args: dict, user) -> Select:
+        query = cls.get_filter_query(filter_args)
+        rbac = RBACQuery(user=user, resource_type=ItemType.PRODUCT_TYPE)
+        query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
+        return query
 
     @classmethod
-    def update(cls, preset_id, data):
-        product_type = cls.get(preset_id)
+    def get_all_for_api(cls, filter_args: dict | None, with_count: bool = False, user=None) -> tuple[dict[str, Any], int]:
+        filter_args = filter_args or {}
+        logger.debug(f"Filtering {cls.__name__} with {filter_args}")
+        if user:
+            query = cls.get_filter_query_with_acl(filter_args, user)
+        else:
+            query = cls.get_filter_query(filter_args)
+        items = cls.get_filtered(query)
+        if not items:
+            return {"items": []}, 404
+        if with_count:
+            count = cls.get_filtered_count(query)
+            return {"total_count": count, "items": cls.to_list(items), "templates": get_presenter_templates()}, 200
+        return {"items": cls.to_list(items), "templates": get_presenter_templates()}, 200
+
+    @classmethod
+    def update(cls, product_type_id: int, data, user=None) -> tuple[dict, int]:
+        product_type = cls.get(product_type_id)
         if not product_type:
-            logger.error(f"Could not find product type with id {preset_id}")
-            return {"error": f"Could not find product type with id {preset_id}"}, 404
+            logger.error(f"Could not find product type with id {product_type_id}")
+            return {"error": f"Could not find product type with id {product_type_id}"}, 404
+        if user and not product_type.allowed_with_acl(user, require_write_access=True):
+            logger.error(f"User {user} does not have write access to product type {product_type_id}")
+            return {"error": f"User {user} does not have write access to product type {product_type_id}"}, 403
+
         if title := data.get("title"):
             product_type.title = title
 
@@ -123,8 +136,14 @@ class ProductType(BaseModel):
         return data
 
     @classmethod
-    def get_by_type(cls, type) -> "ProductType":
-        return cls.query.filter_by(type=type).first()
+    def get_for_api(cls, item_id) -> tuple[dict[str, Any], int]:
+        if item := cls.get(item_id):
+            return item.get_detail_json(), 200
+        return {"error": f"{cls.__name__} {item_id} not found"}, 404
+
+    @classmethod
+    def get_by_type(cls, product_type: PRESENTER_TYPES) -> "ProductType|None":
+        return cls.get_first(db.select(cls).filter_by(type=product_type))
 
     def get_mimetype(self) -> str:
         if self.type.startswith("image"):

@@ -1,9 +1,11 @@
 
 repos:
-  - repo: https://github.com/psf/black
-    rev: 23.3.0
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.1
     hooks:
-      - id: black
+      - id: ruff
+        files: ^(src/core|src/worker)
+      - id: ruff-format
         files: ^(src/core|src/worker)
 
   - repo: local
@@ -17,6 +19,6 @@ repos:
         pass_filenames: false
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v4.6.0
     hooks:
       - id: trailing-whitespace

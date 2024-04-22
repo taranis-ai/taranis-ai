@@ -12,9 +12,6 @@ class TestAuthenticator(BaseAuthenticator):
     def __str__(self):
         return f"Authenticator: {self.get_authenticator_name()} Users: {users}"
 
-    def get_required_credentials(self):
-        return ["username", "password"]
-
     def authenticate(self, credentials: dict[str, str]) -> tuple[dict[str, str], int]:
         logger.log_debug(f"TEST AUTH with {credentials}")
         if credentials is None:

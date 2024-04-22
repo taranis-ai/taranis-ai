@@ -1,7 +1,7 @@
 <template>
   <div v-if="tags" class="story-tag-list">
     <v-tooltip
-      v-for="(tag, i) in [...new Set(tags.slice(0, limit))]"
+      v-for="(tag, i) in tags"
       :key="i"
       location="top"
       transition="fade-transition"
@@ -69,10 +69,6 @@ export default defineComponent({
     tags: {
       type: Array,
       required: true
-    },
-    limit: {
-      type: Number,
-      default: 5
     },
     truncate: {
       type: Boolean,

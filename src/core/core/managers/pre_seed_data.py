@@ -11,6 +11,12 @@ workers = [
             {"parameter": "TLP_LEVEL", "rules": "tlp"},
             {"parameter": "MAX_ARTICLE_AGE", "type": "number"},
             {"parameter": "REFRESH_INTERVAL", "type": "number"},
+            {"parameter": "DIGEST_SPLITTING", "type": "switch"},
+            {
+                "parameter": "DIGEST_SPLITTING_LIMIT",
+                "type": "number",
+                "rules": "digest_splitting_limit",
+            },
         ],
         "type": "RSS_COLLECTOR",
     },
@@ -109,7 +115,7 @@ workers = [
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
             {"parameter": "REFRESH_INTERVAL", "type": "number"},
         ],
-        "description": "Bot for grouping news items into aggregates",
+        "description": "Bot for grouping news items into stories",
     },
     {
         "type": "NLP_BOT",
@@ -162,7 +168,7 @@ workers = [
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
             {"parameter": "REFRESH_INTERVAL", "type": "number"},
         ],
-        "description": "Bot for summarizing news items aggregates",
+        "description": "Bot for summarizing stories",
     },
     {
         "type": "WORDLIST_BOT",
@@ -203,7 +209,13 @@ workers = [
         "type": "FTP_PUBLISHER",
         "name": "FTP Publisher",
         "description": "Publisher for publishing to FTP server",
-        "parameters": ["FTP_URL"],
+        "parameters": {"parameter": "FTP_URL", "rules": "required"},
+    },
+    {
+        "type": "SFTP_PUBLISHER",
+        "name": "SFTP Publisher",
+        "description": "Publisher for publishing to SFTP server",
+        "parameters": [{"parameter": "SFTP_URL", "rules": "required"}, {"parameter": "PRIVATE_KEY"}],
     },
     {
         "type": "EMAIL_PUBLISHER",

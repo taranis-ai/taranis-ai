@@ -1,6 +1,7 @@
 import { createWebHistory, createRouter } from 'vue-router'
 import Home from '@/views/Home.vue'
 import { useAuthStore } from './stores/AuthStore'
+import { useFilterStore } from './stores/FilterStore'
 import Permissions from '@/services/auth/permissions'
 
 export const router = createRouter({
@@ -59,7 +60,11 @@ export const router = createRouter({
         default: () => import('@/views/users/AssessView.vue'),
         nav: () => import('@/views/nav/AssessNav.vue')
       },
-      meta: { requiresAuth: true, requiresPerm: Permissions.ASSESS_ACCESS }
+      meta: {
+        requiresAuth: true,
+        requiresPerm: Permissions.ASSESS_ACCESS,
+        title: 'Assess'
+      }
     },
     {
       path: '/analyze',
@@ -69,7 +74,11 @@ export const router = createRouter({
         default: () => import('@/views/users/AnalyzeView.vue'),
         nav: () => import('@/views/nav/AnalyzeNav.vue')
       },
-      meta: { requiresAuth: true, requiresPerm: Permissions.ANALYZE_ACCESS }
+      meta: {
+        requiresAuth: true,
+        requiresPerm: Permissions.ANALYZE_ACCESS,
+        title: 'Analyze'
+      }
     },
     {
       path: '/report/:id?',
@@ -87,7 +96,11 @@ export const router = createRouter({
         default: () => import('@/views/users/PublishView.vue'),
         nav: () => import('@/views/nav/PublishNav.vue')
       },
-      meta: { requiresAuth: true, requiresPerm: Permissions.PUBLISH_ACCESS }
+      meta: {
+        requiresAuth: true,
+        requiresPerm: Permissions.PUBLISH_ACCESS,
+        title: 'Publish'
+      }
     },
     {
       path: '/product/:id?',
@@ -136,7 +149,7 @@ export const router = createRouter({
         default: () => import('@/views/users/settings/UserView.vue'),
         nav: () => import('@/views/nav/UserNav.vue')
       },
-      meta: { requiresAuth: true, requiresPerm: Permissions.ASSETS_CONFIG }
+      meta: { requiresAuth: true }
     },
     {
       path: '/user/settings',
@@ -145,7 +158,7 @@ export const router = createRouter({
         default: () => import('@/views/users/settings/UserSettings.vue'),
         nav: () => import('@/views/nav/UserNav.vue')
       },
-      meta: { requiresAuth: true, requiresPerm: Permissions.ASSETS_CONFIG }
+      meta: { requiresAuth: true }
     },
     {
       path: '/config/dashboard',
@@ -155,7 +168,11 @@ export const router = createRouter({
         default: () => import('@/views/admin/DashBoardConfigView.vue'),
         nav: () => import('@/views/nav/ConfigNav.vue')
       },
-      meta: { requiresAuth: true, requiresPerm: Permissions.CONFIG_ACCESS }
+      meta: {
+        requiresAuth: true,
+        requiresPerm: Permissions.CONFIG_ACCESS,
+        title: 'Administration'
+      }
     },
     {
       path: '/config/organizations',
@@ -399,4 +416,36 @@ router.beforeEach((to) => {
     return { name: 'forbidden' }
   }
   return true
+})
+
+router.afterEach((to) => {
+  if (to.meta.title) {
+    document.title = `Taranis AI | ${to.meta.title}`
+  } else {
+    document.title = 'Taranis AI'
+  }
+  if (to.name === 'assess') {
+    const filterStore = useFilterStore()
+    const query = Object.fromEntries(
+      Object.entries(to.query).filter(([, v]) => v != null)
+    )
+    filterStore.setFilter(query)
+    console.debug('assess with query', query)
+  }
+  if (to.name === 'analyze') {
+    const filterStore = useFilterStore()
+    const query = Object.fromEntries(
+      Object.entries(to.query).filter(([, v]) => v != null)
+    )
+    filterStore.setReportFilter(query)
+    console.debug('analyze with query', query)
+  }
+  if (to.name === 'publish') {
+    const filterStore = useFilterStore()
+    const query = Object.fromEntries(
+      Object.entries(to.query).filter(([, v]) => v != null)
+    )
+    filterStore.setProductFilter(query)
+    console.debug('publish with query', query)
+  }
 })
