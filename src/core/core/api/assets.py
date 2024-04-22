@@ -3,8 +3,7 @@ from flask.views import MethodView
 
 from core.managers import auth_manager
 from core.managers.auth_manager import auth_required
-from core.model import asset, attribute
-from core.model.attribute import AttributeType
+from core.model import asset
 from core.managers.decorators import extract_args
 
 
@@ -20,7 +19,7 @@ class AssetGroups(MethodView):
 
         filter_args = filter_args or {}
         filter_args["organization"] = user.organization
-        return asset.AssetGroup.get_all_for_api(filter_args)
+        return asset.AssetGroup.get_all_for_api(filter_args=filter_args, with_count=True, user=user)
 
     @auth_required("ASSETS_CONFIG")
     def post(self):
@@ -59,7 +58,7 @@ class Assets(MethodView):
             return asset.Asset.get_for_api(asset_id, user.organization)
         filter_args = filter_args or {}
         filter_args["organization"] = user.organization
-        return asset.Asset.get_all_for_api(filter_args)
+        return asset.Asset.get_all_for_api(filter_args=filter_args, with_count=True, user=user)
 
     @auth_required("ASSETS_CREATE")
     def post(self):
@@ -95,13 +94,6 @@ class AssetVulnerability(MethodView):
         return {"error": "User not found"}, 404
 
 
-class GetAttributeCPE(MethodView):
-    @auth_required("ASSETS_ACCESS")
-    def get(self):
-        cpe = attribute.Attribute.filter_by_type(AttributeType.CPE)
-        return cpe.id
-
-
 def initialize(app: Flask):
     base_route = "/api"
     app.add_url_rule(f"{base_route}/assets", view_func=Assets.as_view("assets"))
@@ -112,4 +104,3 @@ def initialize(app: Flask):
     )
     app.add_url_rule(f"{base_route}/asset-groups", view_func=AssetGroups.as_view("asset_groups"))
     app.add_url_rule(f"{base_route}/asset-groups/<string:group_id>", view_func=AssetGroups.as_view("asset_group"))
-    app.add_url_rule(f"{base_route}/asset-attributes/cpe", view_func=GetAttributeCPE.as_view("cpe"))

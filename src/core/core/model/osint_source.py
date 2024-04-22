@@ -34,10 +34,10 @@ class OSINTSource(BaseModel):
     groups: Mapped[list["OSINTSourceGroup"]] = relationship("OSINTSourceGroup", secondary="osint_source_group_osint_source")
 
     icon: Any = deferred(db.Column(db.LargeBinary))
-    state = db.Column(db.SmallInteger, default=0)
-    last_collected = db.Column(db.DateTime, default=None)
-    last_attempted = db.Column(db.DateTime, default=None)
-    last_error_message = db.Column(db.String, default=None)
+    state: Mapped[int] = db.Column(db.SmallInteger, default=0)
+    last_collected: Mapped[datetime] = db.Column(db.DateTime, default=None)
+    last_attempted: Mapped[datetime] = db.Column(db.DateTime, default=None)
+    last_error_message: Mapped[str | None] = db.Column(db.String, default=None, nullable=True)
 
     def __init__(self, name: str, description: str, type: str | COLLECTOR_TYPES, parameters=None, icon=None, id=None):
         self.id = id or str(uuid.uuid4())
@@ -297,6 +297,8 @@ class OSINTSourceParameterValue(BaseModel):
 
 
 class OSINTSourceGroup(BaseModel):
+    __tablename__ = "osint_source_group"
+
     id: Mapped[str] = db.Column(db.String(64), primary_key=True)
     name: Mapped[str] = db.Column(db.String(), nullable=False)
     description: Mapped[str] = db.Column(db.String())

@@ -1,7 +1,6 @@
 <template>
   <v-container fluid>
     <asset
-      v-if="readyToRender"
       :edit="edit"
       :asset-prop="asset"
       @assetcreated="assetcreated"
@@ -10,7 +9,7 @@
 </template>
 
 <script>
-import { ref, onMounted } from 'vue'
+import { ref, onBeforeMount } from 'vue'
 import { getAsset } from '@/api/assets'
 import { notifySuccess } from '@/utils/helpers'
 import Asset from '@/components/assets/Asset.vue'
@@ -24,24 +23,23 @@ export default {
   setup() {
     const route = useRoute()
 
-    const default_asset = ref({
+    const defaultAsset = ref({
       name: '',
       serial: '',
       description: '',
       asset_cpes: [],
       group: null
     })
-    const asset = ref(default_asset.value)
+    const asset = ref(defaultAsset.value)
     const edit = ref(true)
-    const readyToRender = ref(false)
 
     const loadAsset = async () => {
-      if (route.params.id && route.params.id !== '0') {
-        const response = await getAsset(this.$route.params.id)
+      if (route.params.id) {
+        const response = await getAsset(route.params.id)
         return response.data
       } else {
         edit.value = false
-        return default_asset.value
+        return defaultAsset.value
       }
     }
 
@@ -50,15 +48,13 @@ export default {
       edit.value = true
     }
 
-    onMounted(async () => {
+    onBeforeMount(async () => {
       asset.value = await loadAsset()
-      readyToRender.value = true
     })
 
     return {
       asset,
       edit,
-      readyToRender,
       assetcreated
     }
   }

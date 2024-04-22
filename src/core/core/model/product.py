@@ -23,6 +23,7 @@ class Product(BaseModel):
     description: Mapped[str] = db.Column(db.String())
 
     created: Mapped[datetime] = db.Column(db.DateTime, default=datetime.now)
+    auto_publish: Mapped[bool] = db.Column(db.Boolean, default=False)
 
     product_type_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("product_type.id"))
     product_type: Mapped["ProductType"] = relationship("ProductType")

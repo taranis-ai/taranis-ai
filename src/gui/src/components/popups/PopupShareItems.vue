@@ -48,8 +48,9 @@ export default {
   },
   emits: ['close'],
   setup(props, { emit }) {
-    const reportItemSelection = ref(null)
     const analyzeStore = useAnalyzeStore()
+    const reportItemSelection = ref(analyzeStore.last_report)
+    console.debug(analyzeStore.last_report)
 
     const reportItems = computed(() => analyzeStore.getReportItemsList)
 

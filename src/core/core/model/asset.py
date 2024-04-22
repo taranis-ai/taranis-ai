@@ -42,12 +42,8 @@ class Asset(BaseModel):
         if len(cpes) <= 0:
             return []
 
-        return (
-            db.session.query(cls)
-            .join(AssetCpe, cls.id == AssetCpe.asset_id)
-            .filter(db.or_(*[AssetCpe.value.like(cpe) for cpe in cpes]))
-            .distinct()
-            .all()
+        return cls.get_filtered(
+            db.select(cls).join(AssetCpe, cls.id == AssetCpe.asset_id).filter(db.or_(*[AssetCpe.value.like(cpe) for cpe in cpes])).distinct()
         )
 
     @classmethod
@@ -139,7 +135,7 @@ class Asset(BaseModel):
         return query
 
     def to_dict(self):
-        data = {c.name: getattr(self, c.name) for c in self.__table__.columns}
+        data = super().to_dict()
         data["asset_cpes"] = [asset_cpe.id for asset_cpe in self.asset_cpes if asset_cpe]
         data["vulnerabilities"] = [vulnerability.id for vulnerability in self.vulnerabilities]
         return data
