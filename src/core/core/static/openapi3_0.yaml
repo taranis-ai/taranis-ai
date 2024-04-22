@@ -1543,7 +1543,7 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
         '404':
           $ref: "#/components/schemas/notFound"
-  
+
   /config/attributes:
     get:
       tags: [config]

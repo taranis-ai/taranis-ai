@@ -10,11 +10,13 @@
         </v-expansion-panel-title>
         <v-expansion-panel-text>
           <v-list dense>
-            <v-list-item v-for="asset in assets_by_group[group.id]" :key="asset.id">
+            <v-list-item
+              v-for="asset in assets_by_group[group.id]"
+              :key="asset.id"
+            >
               <v-list-item-title>{{ asset.name }}</v-list-item-title>
               <v-list-item-subtitle>
-                Serial: {{ asset.serial }}
-                Description: {{ asset.description }}
+                Serial: {{ asset.serial }} Description: {{ asset.description }}
               </v-list-item-subtitle>
             </v-list-item>
           </v-list>

@@ -184,7 +184,7 @@ export default {
         ['red', 'amber', 'amber+strict', 'green', 'clear', undefined].includes(
           v
         ) ||
-        'Invalid TLP allowed values: red, amber, amber+strict, green, clear',
+        'Invalid TLP allowed values: red, amber, amber+strict, green, clear'
     }
 
     const { d } = useI18n()

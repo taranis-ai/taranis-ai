@@ -58,7 +58,7 @@ jobs:
       - name: Install dependencies
         working-directory: src/worker
         run: pip install -e .[dev]
-      
+
       - name: Lint with ruff
         uses: chartboost/ruff-action@v1
         with:

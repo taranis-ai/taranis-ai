@@ -1,4 +1,9 @@
-import { getAllProducts, getAllProductTypes, getProduct, getRenderdProduct } from '@/api/publish'
+import {
+  getAllProducts,
+  getAllProductTypes,
+  getProduct,
+  getRenderdProduct
+} from '@/api/publish'
 import { useFilterStore } from './FilterStore'
 import { defineStore } from 'pinia'
 

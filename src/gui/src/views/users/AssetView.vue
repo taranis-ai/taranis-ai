@@ -1,10 +1,6 @@
 <template>
   <v-container fluid>
-    <asset
-      :edit="edit"
-      :asset-prop="asset"
-      @assetcreated="assetcreated"
-    />
+    <asset :edit="edit" :asset-prop="asset" @assetcreated="assetcreated" />
   </v-container>
 </template>
 
