@@ -1,6 +1,7 @@
 from celery import Celery
 from flask import Flask
 import requests
+import contextlib
 from requests.auth import HTTPBasicAuth
 
 from core.log import logger
@@ -44,8 +45,9 @@ class QueueManager:
     def clear_queues(self):
         with queue_manager.celery.connection() as conn:
             for queue_name in set(self.queue_names):
-                queue = Queue(name=queue_name, channel=conn)
-                queue.purge()
+                with contextlib.suppress(Exception):
+                    queue = Queue(name=queue_name, channel=conn)
+                    queue.purge()
             logger.info("All queues cleared")
 
     def update_task_queue_from_osint_sources(self):

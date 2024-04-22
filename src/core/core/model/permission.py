@@ -1,8 +1,12 @@
+from typing import TYPE_CHECKING
 from sqlalchemy.sql.expression import Select
 from sqlalchemy.orm import Mapped, relationship
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
+
+if TYPE_CHECKING:
+    from core.model.role import Role
 
 
 class Permission(BaseModel):

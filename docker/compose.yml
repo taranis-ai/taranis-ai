@@ -15,7 +15,7 @@ services:
     environment:
       NGINX_WORKERS: "4"
       NGINX_CONNECTIONS: "16"
-      TARANIS_CORE_UPSTREAM: "${TARANIS_CORE_UPSTREAM:-core}"
+      TARANIS_CORE_UPSTREAM: "${TARANIS_CORE_UPSTREAM:-core:8080}"
       TARANIS_SENTRY_DSN: "${TARANIS_SENTRY_DSN:-}"
     logging:
       driver: "json-file"
