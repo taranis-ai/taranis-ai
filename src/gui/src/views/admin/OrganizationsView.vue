@@ -31,7 +31,6 @@ import {
 import { useConfigStore } from '@/stores/ConfigStore'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import { ref, onMounted, computed } from 'vue'
-import { useMainStore } from '@/stores/MainStore'
 import { storeToRefs } from 'pinia'
 
 export default {
@@ -42,7 +41,6 @@ export default {
   },
   setup() {
     const store = useConfigStore()
-    const mainStore = useMainStore()
     const { organizations } = storeToRefs(store)
     const formData = ref({})
     const edit = ref(false)
@@ -94,10 +92,7 @@ export default {
     const updateData = () => {
       showForm.value = false
 
-      store.loadOrganizations().then(() => {
-        mainStore.itemCountTotal = organizations.value.total_count
-        mainStore.itemCountFiltered = organizations.value.items.length
-      })
+      store.loadOrganizations()
     }
 
     const editTitle = computed(() => {

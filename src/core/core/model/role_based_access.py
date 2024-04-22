@@ -1,4 +1,5 @@
-from sqlalchemy import or_, Column, String, Boolean
+from sqlalchemy import or_
+from sqlalchemy.sql.expression import Select, true
 from sqlalchemy.orm import Mapped
 from typing import Any
 from enum import StrEnum, auto
@@ -19,24 +20,25 @@ class ItemType(StrEnum):
 class RoleBasedAccess(BaseModel):
     __tablename__ = "role_based_access"
 
-    id = db.Column(db.Integer, primary_key=True)
-    name: Column[String] = db.Column(db.String(64), unique=True, nullable=False)
-    description: Column[String] = db.Column(db.String())
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    name: Mapped[str] = db.Column(db.String(64), unique=True, nullable=False)
+    description: Mapped[str] = db.Column(db.String())
 
-    item_type: Column = db.Column(db.Enum(ItemType))
-    item_id: Column[String] = db.Column(db.String(64))
+    item_type: Mapped = db.Column(db.Enum(ItemType))
+    item_id: Mapped[str] = db.Column(db.String(64))
 
     roles: Mapped[list[Role]] = db.relationship(Role, secondary="rbac_role", back_populates="acls")  # type: ignore
 
-    read_only: Column[Boolean] = db.Column(db.Boolean, default=True)
-    enabled: Column[Boolean] = db.Column(db.Boolean, default=True)
+    read_only: Mapped[bool] = db.Column(db.Boolean, default=True)
+    enabled: Mapped[bool] = db.Column(db.Boolean, default=True)
 
-    def __init__(self, name, description, item_type, item_id, roles=None, read_only=None, enabled=None, id=None):
-        self.id = id
+    def __init__(self, name: str, description: str, item_type, item_id: str, roles=None, read_only=None, enabled=None, id=None):
+        if id:
+            self.id = id
         self.name = name
         self.description = description
         self.item_type = item_type
-        self.item_id = str(item_id)  # type: ignore
+        self.item_id = item_id
         if read_only is not None:
             self.read_only = read_only
         if enabled is not None:
@@ -46,35 +48,32 @@ class RoleBasedAccess(BaseModel):
 
     @classmethod
     def is_enabled(cls) -> bool:
-        return cls.query.filter_by(enabled=True).count() > 0
+        query = db.select(db.exists().where(cls.enabled == true()))
+        return db.session.execute(query).scalar_one()
 
     @classmethod
     def is_enabled_for_type(cls, item_type) -> bool:
-        return cls.query.filter_by(enabled=True).filter_by(item_type=item_type).count() > 0
+        query = db.select(db.exists().where(cls.enabled == true()).where(cls.item_type == item_type))
+        return db.session.execute(query).scalar_one()
+
+    def to_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
+        data["roles"] = [role.id for role in self.roles if role]
+        return data
 
     @classmethod
-    def get_by_filter(cls, filter_params: dict[str, Any]):
-        result = cls.query
-        if search := filter_params.get("search"):
-            result = result.filter(
+    def get_filter_query(cls, filter_args: dict) -> Select:
+        query = db.select(cls)
+
+        if search := filter_args.get("search"):
+            query = query.where(
                 or_(
                     cls.name.ilike(f"%{search}%"),
                     cls.description.ilike(f"%{search}%"),
                 )
             )
 
-        return result.all(), result.count()
-
-    @classmethod
-    def get_all_json(cls, search):
-        acls, count = cls.get_by_filter({"search": search})
-        items = [acl.to_dict() for acl in acls]
-        return {"total_count": count, "items": items}
-
-    def to_dict(self) -> dict[str, Any]:
-        data = super().to_dict()
-        data["roles"] = [role.id for role in self.roles if role]
-        return data
+        return query.order_by(db.asc(cls.name))
 
     @classmethod
     def update(cls, acl_id: int, data) -> tuple[dict, int]:

@@ -1,20 +1,18 @@
-from flask_restx import Resource, Namespace, Api
-from flask import request
+from flask import request, Flask
+from flask.views import MethodView
 
 from core.managers import auth_manager
-from core.managers.auth_manager import auth_required
-from core.model import product_type, publisher_preset
 from core.model.user import User
 
 
-class UserInfo(Resource):
+class UserInfo(MethodView):
     def get(self):
         if user := auth_manager.get_user_from_jwt():
             return user.to_detail_dict(), 200
         return {"message": "User not found"}, 404
 
 
-class UserProfile(Resource):
+class UserProfile(MethodView):
     def get(self):
         if user := auth_manager.get_user_from_jwt():
             return user.get_profile_json()
@@ -31,23 +29,8 @@ class UserProfile(Resource):
         return User.update_profile(user, request.json)
 
 
-class UserProductTypes(Resource):
-    @auth_required("PUBLISH_ACCESS")
-    def get(self):
-        return product_type.ProductType.get_all_json(None, auth_manager.get_user_from_jwt(), False)
-
-
-class UserPublisherPresets(Resource):
-    @auth_required("PUBLISH_ACCESS")
-    def get(self):
-        return publisher_preset.PublisherPreset.get_all_json(None)
-
-
-def initialize(api: Api):
-    namespace = Namespace("users", description="User API")
-
-    namespace.add_resource(UserInfo, "/")
-    namespace.add_resource(UserProfile, "/profile")
-    namespace.add_resource(UserProductTypes, "/my-product-types")
-    namespace.add_resource(UserPublisherPresets, "/my-publisher-presets")
-    api.add_namespace(namespace, path="/users")
+def initialize(app: Flask):
+    base_route = "/api/users"
+    app.add_url_rule(f"{base_route}/", view_func=UserInfo.as_view("user_info"))
+    app.add_url_rule(f"{base_route}/profile", view_func=UserProfile.as_view("user_profile"))
+    app.add_url_rule(f"{base_route}/profile/", view_func=UserProfile.as_view("user_profile_"))

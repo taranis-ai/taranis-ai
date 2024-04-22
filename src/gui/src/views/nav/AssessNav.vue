@@ -225,8 +225,7 @@ export default {
     const assessStore = useAssessStore()
     const filterStore = useFilterStore()
 
-    const { OSINTSourceGroupsList, OSINTSourcesList } =
-      storeToRefs(assessStore)
+    const { OSINTSourceGroupsList, OSINTSourcesList } = storeToRefs(assessStore)
     const { mdAndDown, smAndUp } = useDisplay()
 
     const {

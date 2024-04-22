@@ -14,7 +14,7 @@ Please note it is important to use the abovementioned version of
 Clone via git
 ```
 git clone --depth 1  https://github.com/taranis-ai/taranis-ai
-cd Taranis-NG/docker/
+cd taranis-ai/docker/
 ```
 
 ## Configuration
@@ -63,7 +63,7 @@ git clone https://github.com/taranis-ai/taranis-ai
 Afterwards go to the cloned repository and launch the `docker build` command for the specific container image, like so:
 
 ```bash
-cd Taranis-NG
+cd Taranis AI
 docker build -t taranis-core . -f ./docker/Dockerfile.core
 docker build -t taranis-gui . -f ./docker/Dockerfile.gui
 docker build -t taranis-worker . -f ./docker/Dockerfile.worker
@@ -95,7 +95,7 @@ Any configuration options are available at [https://hub.docker.com/_/postgres](h
 | `QUEUE_BROKER_PASSWORD`     | RabbitMQ password | `supersecret` |
 | `PRE_SEED_PASSWORD_ADMIN`   | Initial password for `admin` | `admin` |
 | `PRE_SEED_PASSWORD_USER`    | Initial password for `user` | `user` |
-| `API_KEY`                   | API Key for communication with workers | `changeme` |
+| `API_KEY`                   | API Key for communication with workers | `supersecret` |
 | `DEBUG`                     | Debug logging | `True` |
 | `DB_URL`                    | PostgreSQL database URL. | `127.0.0.1` |
 | `DB_DATABASE`               | PostgreSQL database name. | `taranis` |
@@ -104,9 +104,8 @@ Any configuration options are available at [https://hub.docker.com/_/postgres](h
 | `DB_POOL_SIZE`              | SQLAlchemy QueuePool number of active connections to the database. | `100` |
 | `DB_POOL_RECYCLE`           | SQLAlchemy QueuePool maximum connection age. | `300` |
 | `DB_POOL_TIMEOUT`           | SQLAlchemy QueuePool connection timeout. | `5` |
-| `JWT_SECRET_KEY`            | JWT token secret key. | `changeme` |
+| `JWT_SECRET_KEY`            | JWT token secret key. | `supersecret` |
 | `WORKERS_PER_CORE`          | Number of gunicorn worker threads to spawn per CPU core. | `4` |
-| `SKIP_DEFAULT_COLLECTOR`    | Set to `true` to prevent initialization of a default docker collector at first run | `` |
 
 
 ### `worker`, `beat`
@@ -114,7 +113,7 @@ Any configuration options are available at [https://hub.docker.com/_/postgres](h
 | Environment variable        | Description | Example |
 |-----------------------------|-------------|----------|
 | `TARANIS_CORE_URL`          | URL of the Taranis NG core API. | `http://127.0.0.1:8080/api` |
-| `API_KEY`                   | Shared API key. | `changeme` |
+| `API_KEY`                   | Shared API key. | `supersecret` |
 | `QUEUE_BROKER_HOST`         | RabbitMQ Host address | `rabbitmq` |
 | `QUEUE_BROKER_USER`         | RabbitMQ user | `taranis` |
 | `QUEUE_BROKER_PASSWORD`     | RabbitMQ password | `supersecret` |

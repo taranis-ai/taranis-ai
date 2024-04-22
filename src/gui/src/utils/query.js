@@ -26,4 +26,3 @@ export function getQueryStringFromNestedObject(filterObject) {
     })
     .join('&')
 }
-

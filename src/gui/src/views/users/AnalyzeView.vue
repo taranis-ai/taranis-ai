@@ -48,7 +48,7 @@ import { useFilterStore } from '@/stores/FilterStore'
 import { useMainStore } from '@/stores/MainStore'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
-import { onMounted, ref, computed } from 'vue'
+import { onMounted, ref, computed, onUnmounted } from 'vue'
 
 export default {
   name: 'AnalyzeView',
@@ -72,10 +72,8 @@ export default {
     )
 
     const updateData = () => {
-      analyzeStore.loadReportItems().then(() => {
-        mainStore.itemCountTotal = report_items.value.total_count
-        mainStore.itemCountFiltered = report_items.value.items.length
-      })
+      mainStore.itemCountTotal = report_items.value.total_count
+      mainStore.itemCountFiltered = report_items.value.items.length
       analyzeStore.loadReportTypes()
     }
 
@@ -108,6 +106,11 @@ export default {
 
     onMounted(() => {
       updateData()
+    })
+
+    onUnmounted(() => {
+      filterStore.setReportFilter({})
+      mainStore.resetItemCount()
     })
 
     return {

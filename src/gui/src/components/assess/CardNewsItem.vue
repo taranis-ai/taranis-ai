@@ -13,6 +13,9 @@
       <v-row class="pl-2">
         <v-col class="d-flex">
           <v-row class="py-1 px-1">
+            <v-col cols="12" class="meta-info-col mr-n1" :lg="meta_cols">
+              <news-meta-info :news-item="newsItem" />
+            </v-col>
             <v-col cols="12" :lg="content_cols" class="mr-1">
               <v-container class="d-flex pa-0">
                 <h2
@@ -26,10 +29,6 @@
                 :is_summarized="false"
                 :content="description"
               />
-            </v-col>
-
-            <v-col cols="12" class="meta-info-col mr-n1" :lg="meta_cols">
-              <news-meta-info :news-item="newsItem" />
             </v-col>
           </v-row>
         </v-col>
@@ -87,9 +86,7 @@ export default {
     const { compactView } = storeToRefs(useFilterStore())
 
     const description = computed(
-      () =>
-        props.newsItem.news_item_data?.content ||
-        props.newsItem.news_item_data?.review
+      () => props.newsItem?.content || props.newsItem?.review
     )
 
     const content_cols = computed(() => {
@@ -107,7 +104,7 @@ export default {
       openSummary.value = !openSummary.value
     }
 
-    const title = computed(() => props.newsItem.news_item_data?.title)
+    const title = computed(() => props.newsItem?.title)
 
     const toggleSelection = () => {
       assessStore.selectNewsItem(props.newsItem.id)

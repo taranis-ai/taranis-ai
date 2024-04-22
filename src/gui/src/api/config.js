@@ -1,9 +1,5 @@
 import { apiService } from '@/main'
 
-export function reloadDictionaries(type) {
-  return apiService.post(`/config/reload-enum-dictionaries/${type}`)
-}
-
 export function getAllAttributes(filter_data) {
   const filter = apiService.getQueryStringFromNestedObject(filter_data)
   return apiService.get(`/config/attributes?${filter}`)
@@ -287,7 +283,6 @@ export function previewOSINTSSource(source_id) {
 export function getOSINTSSourcePreview(source_id) {
   return apiService.get(`/config/osint-sources/${source_id}/preview`)
 }
-
 
 export function collectAllOSINTSSources() {
   return apiService.post('/config/osint-sources/collect')

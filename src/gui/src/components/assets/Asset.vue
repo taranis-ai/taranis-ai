@@ -15,7 +15,7 @@
       <v-row no-gutters>
         <v-col cols="6">
           <v-text-field
-            v-model="form.name"
+            v-model="asset.name"
             :label="$t('form.name')"
             :rules="required"
           />
@@ -25,15 +25,17 @@
         </v-col>
         <v-col cols="12">
           <v-textarea
-            v-model="form.description"
-            :label="$t('asset.description')"
+            v-model="asset.description"
+            :label="$t('form.description')"
           />
         </v-col>
         <v-col cols="12">
           <v-select
             v-model="asset.group"
             :label="$t('asset.group')"
-            :items="asset_groups"
+            :items="asset_groups.items"
+            item-value="id"
+            item-title="name"
           />
         </v-col>
       </v-row>
@@ -55,34 +57,30 @@ import { createAsset, updateAsset } from '@/api/assets'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import { useAssetsStore } from '@/stores/AssetsStore'
 import { useI18n } from 'vue-i18n'
+import { storeToRefs } from 'pinia'
+import { useRouter } from 'vue-router'
 
 export default {
-  name: 'AssetView',
+  name: 'AssetItem',
   props: {
     assetProp: { type: Object, required: true },
     edit: { type: Boolean, default: false }
   },
-  setup(props) {
+  emits: ['assetcreated'],
+  setup(props, { emit }) {
     const { t } = useI18n()
     const assetsStore = useAssetsStore()
 
     const required = ref([(v) => !!v || 'Required'])
     const vulnerabilities = ref([])
     const asset = ref(props.assetProp)
+    const { asset_groups } = storeToRefs(assetsStore)
+    const router = useRouter()
 
     const container_title = computed(() => {
       return props.edit
         ? `${t('button.edit')} asset`
         : `${t('button.add_new')} asset`
-    })
-
-    const asset_groups = computed(() => {
-      return assetsStore.asset_groups.map((item) => {
-        return {
-          title: item.name,
-          value: item.id
-        }
-      })
     })
 
     const saveAsset = () => {
@@ -97,7 +95,8 @@ export default {
       } else {
         createAsset(asset.value)
           .then(() => {
-            notifySuccess('asset.successful')
+            router.push('/asset/' + response.data.id)
+            emit('assetcreated', response.data.id)
           })
           .catch(() => {
             notifyFailure('asset.failed')

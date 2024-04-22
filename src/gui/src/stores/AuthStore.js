@@ -46,7 +46,7 @@ export const useAuthStore = defineStore('authenticator', {
       const sseStore = useSseStore()
       const mainStore = useMainStore()
       const configStore = useConfigStore()
-      configStore.$reset()
+      configStore.reset()
       mainStore.reset()
       sseStore.resetSSE()
       assessStore.reset()

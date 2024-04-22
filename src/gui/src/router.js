@@ -149,7 +149,7 @@ export const router = createRouter({
         default: () => import('@/views/users/settings/UserView.vue'),
         nav: () => import('@/views/nav/UserNav.vue')
       },
-      meta: { requiresAuth: true, requiresPerm: Permissions.ASSETS_CONFIG }
+      meta: { requiresAuth: true }
     },
     {
       path: '/user/settings',
@@ -158,7 +158,7 @@ export const router = createRouter({
         default: () => import('@/views/users/settings/UserSettings.vue'),
         nav: () => import('@/views/nav/UserNav.vue')
       },
-      meta: { requiresAuth: true, requiresPerm: Permissions.ASSETS_CONFIG }
+      meta: { requiresAuth: true }
     },
     {
       path: '/config/dashboard',
@@ -430,6 +430,22 @@ router.afterEach((to) => {
       Object.entries(to.query).filter(([, v]) => v != null)
     )
     filterStore.setFilter(query)
-    console.debug('loaded with query', query)
+    console.debug('assess with query', query)
+  }
+  if (to.name === 'analyze') {
+    const filterStore = useFilterStore()
+    const query = Object.fromEntries(
+      Object.entries(to.query).filter(([, v]) => v != null)
+    )
+    filterStore.setReportFilter(query)
+    console.debug('analyze with query', query)
+  }
+  if (to.name === 'publish') {
+    const filterStore = useFilterStore()
+    const query = Object.fromEntries(
+      Object.entries(to.query).filter(([, v]) => v != null)
+    )
+    filterStore.setProductFilter(query)
+    console.debug('publish with query', query)
   }
 })

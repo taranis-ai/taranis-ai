@@ -15,7 +15,6 @@ class TwitterCollector(BaseCollector):
     def collect(self, source):
         try:
             news_items = []
-            attributes = []
 
             search_keywords = source["parameters"]["SEARCH_KEYWORDS"].replace(" ", "")
             keywords_list = search_keywords.split(",")

@@ -1,5 +1,4 @@
 <template>
-  <!-- <div> -->
   <table class="story-meta-info">
     <tr>
       <td v-if="!compactView">
@@ -54,16 +53,12 @@
     </tr>
 
     <article-info
-      :news-item-data="story.news_items[0].news_item_data"
+      :news-item="story.news_items[0]"
       :compact-view="compactView"
     />
     <author-info
       v-if="detailView && story.news_items.length === 1"
-      :news-item-data="story.news_items[0].news_item_data"
-    />
-    <source-info
-      v-if="detailView && story.news_items.length < 2"
-      :news-item-data="story.news_items[0].news_item_data"
+      :news-item="story.news_items[0]"
     />
     <v-dialog v-model="showTagDialog" width="auto">
       <popup-edit-tags
@@ -73,19 +68,16 @@
       />
     </v-dialog>
   </table>
-  <!-- </div> -->
 </template>
 
 <script>
 import TagList from '@/components/assess/card/TagList.vue'
-// import WeekChart from '@/components/assess/card/WeekChart.vue'
 import { useFilterStore } from '@/stores/FilterStore'
 import { useI18n } from 'vue-i18n'
 import { computed, ref } from 'vue'
 import { useDisplay } from 'vuetify'
 import { storeToRefs } from 'pinia'
 import ArticleInfo from '@/components/assess/card/ArticleInfo.vue'
-import SourceInfo from '@/components/assess/card/SourceInfo.vue'
 import AuthorInfo from '@/components/assess/card/AuthorInfo.vue'
 import PopupEditTags from '@/components/popups/PopupEditTags.vue'
 import StoryVotes from '@/components/assess/card/StoryVotes.vue'
@@ -95,11 +87,9 @@ export default {
   components: {
     PopupEditTags,
     ArticleInfo,
-    SourceInfo,
     AuthorInfo,
     StoryVotes,
     TagList
-    // WeekChart
   },
   props: {
     story: {
@@ -121,9 +111,7 @@ export default {
 
     const published_dates = computed(() => {
       const pub_dates = props.story.news_items
-        ? props.story.news_items
-            .map((item) => item.news_item_data.published)
-            .sort()
+        ? props.story.news_items.map((item) => item.published).sort()
         : []
 
       if (pub_dates.length === 0) {

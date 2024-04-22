@@ -48,10 +48,9 @@ export default {
   },
   emits: ['close'],
   setup(props, { emit }) {
-    const reportItemSelection = ref(null)
     const analyzeStore = useAnalyzeStore()
-
-    const { loadReportItems } = analyzeStore
+    const reportItemSelection = ref(analyzeStore.last_report)
+    console.debug(analyzeStore.last_report)
 
     const reportItems = computed(() => analyzeStore.getReportItemsList)
 
@@ -65,7 +64,7 @@ export default {
     }
 
     onMounted(() => {
-      loadReportItems()
+      analyzeStore.loadReportItems()
     })
 
     return {

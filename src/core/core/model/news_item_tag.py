@@ -1,4 +1,5 @@
-from sqlalchemy import orm, func
+from sqlalchemy import func
+from sqlalchemy.orm import Mapped, backref, relationship
 from typing import Any
 
 from core.managers.db_manager import db
@@ -6,27 +7,21 @@ from core.model.base_model import BaseModel
 
 
 class NewsItemTag(BaseModel):
-    id = db.Column(db.Integer, primary_key=True)
-    name: Any = db.Column(db.String(255))
-    tag_type: Any = db.Column(db.String(255))
-    n_i_a_id = db.Column(db.ForeignKey("news_item_aggregate.id"))
-    n_i_a = db.relationship("NewsItemAggregate", backref=orm.backref("tags", cascade="all, delete-orphan"))
+    __tablename__ = "news_item_tag"
+
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    name: Mapped[str] = db.Column(db.String(255))
+    tag_type: Mapped[str] = db.Column(db.String(255))
+    story_id: Mapped[str] = db.Column(db.ForeignKey("story.id"))
+    story: Mapped["Story"] = relationship("Story", backref=backref("tags", cascade="all, delete-orphan"))
 
     def __init__(self, name, tag_type):
-        self.id = None
         self.name = name
         self.tag_type = tag_type
 
     @classmethod
-    def delete_all_tags(cls):
-        tags = cls.query.all()
-        for tag in tags:
-            db.session.delete(tag)
-        db.session.commit()
-
-    @classmethod
     def get_filtered_tags(cls, filter_args: dict) -> list["NewsItemTag"]:
-        query = cls.query.with_entities(cls.name, cls.tag_type)
+        query = db.select(cls.name, cls.tag_type)
 
         if search := filter_args.get("search"):
             query = query.filter(cls.name.ilike(f"%{search}%"))
@@ -47,8 +42,9 @@ class NewsItemTag(BaseModel):
     def get_rows(cls, query, filter_args: dict) -> list["NewsItemTag"]:
         offset = filter_args.get("offset", 0)
         limit = filter_args.get("limit", 20)
-
-        return query.distinct().offset(offset).limit(limit).all()
+        query = query.offset(offset).limit(limit)
+        results = cls.get_filtered(query.distinct().offset(offset).limit(limit))
+        return results or []  # type: ignore
 
     @classmethod
     def get_json(cls, filter_args: dict) -> list[dict[str, Any]]:
@@ -61,10 +57,8 @@ class NewsItemTag(BaseModel):
         return [tag.name for tag in tags]
 
     @classmethod
-    def remove_by_aggregate(cls, aggregate):
-        tags = cls.query.filter_by(n_i_a_id=aggregate.id).all()
-        for tag in tags:
-            db.session.delete(tag)
+    def remove_by_story(cls, story):
+        db.delete(cls).where(cls.story_id == story.id).execute()
         db.session.commit()
 
     def to_dict(self) -> dict[str, Any]:
@@ -78,20 +72,24 @@ class NewsItemTag(BaseModel):
 
     @classmethod
     def find_by_name(cls, tag_name: str) -> "NewsItemTag | None":
-        return cls.query.filter(cls.name.ilike(tag_name)).first()
+        return cls.get_first(db.select(cls).filter(cls.name.ilike(tag_name)))
 
     @classmethod
     def get_n_biggest_tags_by_type(cls, tag_type: str, n: int, offset: int = 0) -> dict[str, dict]:
-        query = (
-            cls.query.with_entities(cls.name, func.count(cls.name).label("name_count"))
+        stmt = (
+            db.select(cls.name, func.count(cls.name).label("name_count"))
             .filter(cls.tag_type == tag_type)
             .group_by(cls.name)
             .order_by(db.desc("name_count"))
             .offset(offset)
             .limit(n)
-            .all()
         )
-        return {row[0]: {"name": row[0], "size": row[1]} for row in query}
+
+        # Executing the query and fetching results
+        result = db.session.execute(stmt).all()
+
+        # Mapping the results to a dictionary as per the function's return type
+        return {row[0]: {"name": row[0], "size": row[1]} for row in result}
 
     @classmethod
     def apply_sort(cls, query, sort_str: str):
@@ -112,11 +110,11 @@ class NewsItemTag(BaseModel):
 
     @classmethod
     def get_cluster_by_filter(cls, filter):
-        query = cls.query.with_entities(cls.name, func.count(cls.name).label("size"))
+        query = db.select(cls).with_only_columns(cls.name, func.count(cls.name).label("size"))
         if tag_type := filter.get("tag_type"):
             query = query.filter(cls.tag_type == tag_type).group_by(cls.name)
 
-        count = query.count()
+        count = cls.get_filtered_count(query)
 
         if search := filter.get("search"):
             query = query.filter(cls.name.ilike(f"%{search}%"))
@@ -128,19 +126,17 @@ class NewsItemTag(BaseModel):
         if limit := filter.get("limit"):
             query = query.limit(limit)
 
-        items = {row[0]: {"name": row[0], "size": row[1]} for row in query.all()}
+        results = db.session.execute(query).all()
+        items = {row[0]: {"name": row[0], "size": row[1]} for row in results}
 
         return {"total_count": count, "items": list(items.values())}
 
     @classmethod
     def get_tag_types(cls) -> list[tuple[str, int]]:
-        query = (
-            cls.query.with_entities(cls.tag_type, func.count(cls.name).label("type_count"))
-            .group_by(cls.tag_type)
-            .order_by(db.desc("type_count"))
-            .all()
-        )
-        return [(row[0], row[1]) for row in query]
+        items = db.session.execute(
+            db.select(cls.tag_type, func.count(cls.name).label("type_count")).group_by(cls.tag_type).order_by(db.desc("type_count"))
+        ).all()
+        return [(row[0], row[1]) for row in items] if items else []
 
     @classmethod
     def parse_tags(cls, tags: list | dict) -> dict[str, "NewsItemTag"]:

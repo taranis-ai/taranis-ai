@@ -38,7 +38,6 @@ import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import { storeToRefs } from 'pinia'
 
 import { useConfigStore } from '@/stores/ConfigStore'
-import { useMainStore } from '@/stores/MainStore'
 
 export default defineComponent({
   name: 'ReportTypes',
@@ -49,7 +48,6 @@ export default defineComponent({
   },
   setup() {
     const configStore = useConfigStore()
-    const mainStore = useMainStore()
     const selected = ref([])
     const formData = ref({})
     const edit = ref(false)
@@ -58,11 +56,7 @@ export default defineComponent({
     const { report_item_types, attributes } = storeToRefs(configStore)
 
     const updateData = () => {
-      configStore.loadReportTypes().then(() => {
-        mainStore.itemCountTotal = report_item_types.value.total_count
-        mainStore.itemCountFiltered = report_item_types.value.items.length
-      })
-      configStore.loadAttributes()
+      Promise.all([configStore.loadReportTypes(), configStore.loadAttributes()])
     }
 
     const formUpdated = () => {

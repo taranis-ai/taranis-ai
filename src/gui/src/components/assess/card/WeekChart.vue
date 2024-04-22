@@ -66,13 +66,10 @@ export default {
 
     const story_items = computed(() =>
       props.story.news_items.reduce((acc, item) => {
-        const day = new Date(item.news_item_data.published).toLocaleDateString(
-          undefined,
-          {
-            day: '2-digit',
-            month: '2-digit'
-          }
-        )
+        const day = new Date(item.published).toLocaleDateString(undefined, {
+          day: '2-digit',
+          month: '2-digit'
+        })
         acc[day] = (acc[day] || 0) + 1
         return acc
       }, {})

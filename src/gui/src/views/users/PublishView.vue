@@ -16,7 +16,7 @@
 </template>
 
 <script>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, onUnmounted } from 'vue'
 import DataTable from '@/components/common/DataTable.vue'
 import { deleteProduct } from '@/api/publish'
 import { usePublishStore } from '@/stores/PublishStore'
@@ -55,7 +55,6 @@ export default {
     })
 
     const updateData = async () => {
-      await publishStore.loadProducts()
       await publishStore.loadProductTypes()
       mainStore.itemCountTotal = products.value.total_count
       mainStore.itemCountFiltered = products.value.items.length
@@ -82,6 +81,10 @@ export default {
 
     onMounted(() => {
       updateData()
+    })
+
+    onUnmounted(() => {
+      mainStore.resetItemCount()
     })
 
     return {

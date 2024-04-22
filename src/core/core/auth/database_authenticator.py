@@ -14,9 +14,6 @@ class DatabaseAuthenticator(BaseAuthenticator):
     def __str__(self):
         return f"Authenticator: {self.get_authenticator_name()} DB: {self.get_database_uri()}"
 
-    def get_required_credentials(self):
-        return ["username", "password"]
-
     def authenticate(self, credentials: dict[str, str]) -> tuple[dict[str, str], int]:
         if credentials is None:
             return BaseAuthenticator.generate_error()

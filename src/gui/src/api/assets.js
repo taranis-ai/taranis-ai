@@ -52,8 +52,3 @@ export function deleteAsset(asset) {
 export function findAttributeCPE() {
   return apiService.get('/asset-attributes/cpe')
 }
-
-export function getCPEAttributeEnums(filter_data) {
-  const filter = apiService.getQueryStringFromNestedObject(filter_data)
-  return apiService.get(`/asset-attributes/cpe/enums?${filter}`)
-}

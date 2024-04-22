@@ -93,10 +93,10 @@ class BaseCollector:
         item["osint_source_id"] = item.get("osint_source_id", source.get("id"))
         item["attributes"] = item.get("attributes", [])
         item["title"] = self.sanitize_html(item.get("title", ""))
-        item["review"] = self.sanitize_html(item.get("review", ""))
         item["content"] = self.sanitize_html(item.get("content", ""))
-        item["author"] = self.sanitize_html(item.get("author", ""))
-        item["source"] = self.sanitize_url(item.get("source", ""))
+        item["review"] = item.get("review", "")
+        item["author"] = item.get("author", "")
+        item["source"] = item.get("source", "")
         item["link"] = self.sanitize_url(item.get("link", ""))
         item["hash"] = item.get("hash", hashlib.sha256((item["author"] + item["title"] + item["link"]).encode()).hexdigest())
         return item

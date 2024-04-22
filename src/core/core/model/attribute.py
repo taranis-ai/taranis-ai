@@ -1,6 +1,8 @@
 import os
 from xml.etree.ElementTree import iterparse
 from sqlalchemy import func, or_
+from sqlalchemy.sql import Select
+from sqlalchemy.orm import Mapped, relationship
 from enum import Enum, auto
 from typing import Any
 
@@ -30,71 +32,58 @@ class AttributeType(Enum):
 
 
 class AttributeEnum(BaseModel):
-    id = db.Column(db.Integer, primary_key=True)
-    index: Any = db.Column(db.Integer)
-    value: Any = db.Column(db.String(), nullable=False)
-    description: Any = db.Column(db.String())
-    imported = db.Column(db.Boolean, default=False)
+    __tablename__ = "attribute_enum"
 
-    attribute_id: Any = db.Column(db.Integer, db.ForeignKey("attribute.id", ondelete="CASCADE"))
-    attribute: Any = db.relationship("Attribute", cascade="all, delete")
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    index: Mapped[int] = db.Column(db.Integer)
+    value: Mapped[str] = db.Column(db.String(), nullable=False)
+    description: Mapped[str] = db.Column(db.String())
+    imported: Mapped[bool] = db.Column(db.Boolean, default=False)
 
-    def __init__(self, index, value, description, id=None):
-        self.id = id
+    attribute_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("attribute.id", ondelete="CASCADE"))
+    attribute: Mapped["Attribute"] = relationship("Attribute", cascade="all, delete")
+
+    def __init__(self, index: int, value: str, description: str, id=None):
+        if id:
+            self.id = id
         self.index = index
         self.value = value
         self.description = description
 
     @classmethod
-    def count_for_attribute(cls, attribute_id) -> int:
-        return cls.query.filter_by(attribute_id=attribute_id).count()
-
-    @classmethod
     def get_all_for_attribute(cls, attribute_id):
-        return cls.query.filter_by(attribute_id=attribute_id).order_by(db.asc(cls.index)).all()
+        return cls.get_filtered(db.select(cls).filter_by(attribute_id=attribute_id).order_by(db.asc(cls.index))) or []
 
     @classmethod
-    def get_for_attribute(cls, attribute_id, search, offset, limit):
-        query = cls.query.filter_by(attribute_id=attribute_id)
-        if search:
-            search_string = f"%{search}%"
+    def get_filter_query(cls, filter_args: dict) -> Select:
+        query = db.select(cls)
+
+        if search := filter_args.get("search"):
             query = query.filter(
                 or_(
-                    AttributeEnum.value.ilike(search_string),
-                    AttributeEnum.description.ilike(search_string),
+                    AttributeEnum.value.ilike(f"%{search}%"),
+                    AttributeEnum.description.ilike(f"%{search}%"),
                 )
             )
-
-        query = query.order_by(db.asc(AttributeEnum.index))
-
-        return query.offset(offset).limit(limit).all(), query.count()
+        return query.order_by(db.asc(AttributeEnum.index))
 
     @classmethod
     def find_by_value(cls, attribute_id, value):
-        return cls.query.filter_by(attribute_id=attribute_id).filter(func.lower(AttributeEnum.value) == value.lower()).first()
-
-    @classmethod
-    def get_for_attribute_json(cls, attribute_id, search, offset, limit):
-        attribute_enums, total_count = cls.get_for_attribute(attribute_id, search, offset, limit)
-        items = [attribute_enum.to_dict() for attribute_enum in attribute_enums]
-        return {
-            "total_count": total_count,
-            "items": items,
-        }
+        return cls.get_first(db.select(cls).filter_by(attribute_id=attribute_id).filter(func.lower(AttributeEnum.value) == value.lower()))
 
     @classmethod
     def delete_for_attribute(cls, attribute_id):
-        cls.query.filter_by(attribute_id=attribute_id).delete()
+        db.select(cls).filter_by(attribute_id=attribute_id).delete()
         db.session.commit()
 
     @classmethod
     def delete_imported_for_attribute(cls, attribute_id):
-        cls.query.filter_by(attribute_id=attribute_id, imported=True).delete()
+        db.select(cls).filter_by(attribute_id=attribute_id, imported=True).delete()
         db.session.commit()
 
     @classmethod
     def update(cls, enum_id, data) -> tuple[dict, int]:
-        attribute_enum = cls.query.get(enum_id)
+        attribute_enum = cls.get(enum_id)
         if not attribute_enum:
             return {"error": "Attribute Enum not found"}, 404
         for key, value in data.items():
@@ -102,18 +91,6 @@ class AttributeEnum(BaseModel):
                 setattr(attribute_enum, key, value)
         db.session.commit()
         return {"message": f"Attribute Enum {attribute_enum.id} updated", "id": attribute_enum.id}, 200
-
-    @classmethod
-    def delete(cls, attribute_enum_id) -> tuple[dict, int]:
-        cls.query.get(attribute_enum_id).delete()
-        db.session.commit()
-        return {"message": f"Attribute Enum {attribute_enum_id} deleted", "id": attribute_enum_id}, 200
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "AttributeEnum":
-        if attribute_data := data.pop("attribute", None):
-            data["attribute"] = Attribute.from_dict(attribute_data)
-        return cls(**data)
 
     def to_dict(self):
         data = {c.name: getattr(self, c.name) for c in self.__table__.columns}
@@ -125,14 +102,17 @@ class AttributeEnum(BaseModel):
 
 
 class Attribute(BaseModel):
-    id = db.Column(db.Integer, primary_key=True)
-    name: Any = db.Column(db.String(), nullable=False)
-    description: Any = db.Column(db.String())
-    type = db.Column(db.Enum(AttributeType))
-    default_value = db.Column(db.String(), default="")
+    __tablename__ = "attribute"
 
-    def __init__(self, name, description, attribute_type, default_value="", id=None):
-        self.id = id
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    name: Mapped[str] = db.Column(db.String(), nullable=False)
+    description: Mapped[str] = db.Column(db.String())
+    type: Mapped[AttributeType] = db.Column(db.Enum(AttributeType))
+    default_value: Mapped[str] = db.Column(db.String(), default="")
+
+    def __init__(self, name: str, description: str, attribute_type, default_value: str = "", id=None):
+        if id:
+            self.id = id
         self.name = name
         self.description = description
         self.type = attribute_type
@@ -145,33 +125,26 @@ class Attribute(BaseModel):
         return cls(**data)
 
     @classmethod
-    def filter_by_type(cls, attribute_type):
-        return cls.query.filter_by(type=attribute_type).first()
+    def filter_by_type(cls, attribute_type) -> "Attribute|None":
+        return cls.get_first(db.select(cls).filter_by(type=attribute_type))
 
     @classmethod
     def filter_by_name(cls, name):
-        return cls.query.filter_by(name=name).first()
+        return cls.get_first(db.select(cls).filter_by(name=name))
 
     @classmethod
-    def get_by_filter(cls, search):
-        query = cls.query
+    def get_filter_query(cls, filter_args: dict) -> Select:
+        query = db.select(cls)
 
-        if search:
-            search_string = f"%{search}%"
-            query = query.filter(
+        if search := filter_args.get("search"):
+            query = query.where(
                 or_(
-                    Attribute.name.ilike(search_string),
-                    Attribute.description.ilike(search_string),
+                    cls.name.ilike(f"%{search}%"),
+                    cls.description.ilike(f"%{search}%"),
                 )
             )
 
-        return query.order_by(db.asc(Attribute.name)).all(), query.count()
-
-    @classmethod
-    def get_all_json(cls, search):
-        attributes, total_count = cls.get_by_filter(search)
-        items = [attribute.to_dict() for attribute in attributes]
-        return {"total_count": total_count, "items": items}
+        return query.order_by(db.asc(cls.name))
 
     @classmethod
     def create_attribute_with_enum(cls, data):
@@ -179,6 +152,8 @@ class Attribute(BaseModel):
         cls.add(data)
 
         attribute = cls.filter_by_name(data["name"])
+        if not attribute:
+            return
         attribute_enums = AttributeEnum.load_multiple(attribute_enmus)
         for attribute_enum in attribute_enums:
             attribute_enum.attribute_id = attribute.id
@@ -187,7 +162,7 @@ class Attribute(BaseModel):
 
     @classmethod
     def update(cls, attribute_id, data) -> tuple[dict, int]:
-        attribute = cls.query.get(attribute_id)
+        attribute = cls.get(attribute_id)
         if not attribute:
             return {"error": "Attribute not found"}, 404
         for key, value in data.items():
@@ -198,7 +173,11 @@ class Attribute(BaseModel):
 
     @classmethod
     def load_cve_from_file(cls, file_path):
-        attribute = cls.query.filter_by(type=AttributeType.CVE).first()
+        attribute = cls.get_first(db.select(cls).filter_by(type=AttributeType.CVE))
+        if not attribute:
+            attribute = Attribute("CVE", "Common Vulnerabilities and Exposures", AttributeType.CVE)
+            db.session.add(attribute)
+            db.session.commit()
         AttributeEnum.delete_imported_for_attribute(attribute.id)
 
         item_count = 0
@@ -209,7 +188,7 @@ class Attribute(BaseModel):
                 if element.tag == "{http://cve.mitre.org/cve/downloads/1.0}desc":
                     desc = element.text
                 elif element.tag == "{http://cve.mitre.org/cve/downloads/1.0}item":
-                    attribute_enum = AttributeEnum(None, item_count, element.attrib["name"], desc)
+                    attribute_enum = AttributeEnum(item_count, element.attrib["name"], desc)
                     attribute_enum.attribute_id = attribute.id
                     attribute_enum.imported = True
                     db.session.add(attribute_enum)
@@ -227,7 +206,12 @@ class Attribute(BaseModel):
 
     @classmethod
     def load_cpe_from_file(cls, file_path):
-        attribute = cls.query.filter_by(type=AttributeType.CPE).first()
+        attribute = cls.get_first(db.select(cls).filter_by(type=AttributeType.CPE))
+        if not attribute:
+            attribute = Attribute("CPE", "Common Platform Enumeration", AttributeType.CPE)
+            db.session.add(attribute)
+            db.session.commit()
+
         AttributeEnum.delete_imported_for_attribute(attribute.id)
 
         item_count = 0
@@ -238,7 +222,7 @@ class Attribute(BaseModel):
                 if element.tag == "{http://cpe.mitre.org/dictionary/2.0}title":
                     desc = element.text
                 elif element.tag == "{http://cpe.mitre.org/dictionary/2.0}cpe-item":
-                    attribute_enum = AttributeEnum(None, item_count, element.attrib["name"], desc)
+                    attribute_enum = AttributeEnum(item_count, element.attrib["name"], desc)
                     attribute_enum.attribute_id = attribute.id
                     attribute_enum.imported = True
                     db.session.add(attribute_enum)

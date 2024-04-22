@@ -1,5 +1,3 @@
-import sys
-
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from core.managers.db_seed_manager import pre_seed
@@ -20,17 +18,14 @@ def is_db_empty():
     return len(tables) == 0
 
 
-def initialize(app, first_worker):
+def initialize(app, initial_setup: bool = True):
     db.init_app(app)
     migrate.init_app(app, db)
 
-    if "db" in sys.argv:  # called via flask db
-        return
+    if initial_setup:
+        logger.info(f"Connecting Database: {app.config.get('SQLALCHEMY_DATABASE_URI')}")
 
-    if not first_worker:
-        return
-
-    if is_db_empty():
+    if is_db_empty() and initial_setup:
         logger.debug("Create new Database")
         db.create_all()
         pre_seed(db)

@@ -1,6 +1,8 @@
 from sqlalchemy import or_
-from sqlalchemy.orm import Mapped
-from typing import Any
+from sqlalchemy.sql.expression import Select
+from sqlalchemy.orm import Mapped, relationship
+import contextlib
+from typing import Optional
 from enum import StrEnum
 
 from core.managers.db_manager import db
@@ -17,15 +19,18 @@ class TLPLevel(StrEnum):
 
 
 class Role(BaseModel):
-    id = db.Column(db.Integer, primary_key=True)
-    name: Any = db.Column(db.String(64), unique=True, nullable=False)
-    description: Any = db.Column(db.String())
-    tlp_level = db.Column(db.Enum(TLPLevel))
-    permissions: Mapped[list[Permission]] = db.relationship(Permission, secondary="role_permission", back_populates="roles")  # type: ignore
-    acls = db.relationship("RoleBasedAccess", secondary="rbac_role")  # type: ignore
+    __tablename__ = "role"
+
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    name: Mapped[str] = db.Column(db.String(64), unique=True, nullable=False)
+    description: Mapped[str] = db.Column(db.String())
+    tlp_level: Mapped[Optional[TLPLevel]] = db.Column(db.Enum(TLPLevel), nullable=True)
+    permissions: Mapped[list[Permission]] = relationship(Permission, secondary="role_permission", back_populates="roles")
+    acls = relationship("RoleBasedAccess", secondary="rbac_role")
 
     def __init__(self, name, description=None, tlp_level=None, permissions=None, id=None):
-        self.id = id
+        if id:
+            self.id = id
         self.name = name
         if description:
             self.description = description
@@ -37,39 +42,25 @@ class Role(BaseModel):
                     self.permissions.append(permission)
 
     @classmethod
-    def filter_by_name(cls, role_name):
-        return cls.query.filter_by(name=role_name).first()
+    def filter_by_name(cls, role_name) -> "Role|None":
+        return cls.get_first(db.select(cls).filter_by(name=role_name))
 
     @classmethod
-    def get_all(cls):
-        return cls.query.order_by(db.asc(Role.name)).all()
+    def get_filter_query(cls, filter_args: dict) -> Select:
+        query = db.select(cls)
 
-    @classmethod
-    def get_by_filter(cls, search):
-        query = cls.query
-
-        if search is not None:
-            query = query.filter(
+        if search := filter_args.get("search"):
+            query = query.where(
                 or_(
-                    Role.name.ilike(f"%{search}%"),
-                    Role.description.ilike(f"%{search}%"),
+                    cls.name.ilike(f"%{search}%"),
+                    cls.description.ilike(f"%{search}%"),
                 )
             )
 
-        return query.order_by(db.asc(Role.name)).all(), query.count()
-
-    @classmethod
-    def get_all_json(cls, search):
-        roles, count = cls.get_by_filter(search)
-        items = [role.to_dict() for role in roles]
-        return {"total_count": count, "items": items}
-
-    @classmethod
-    def load_multiple(cls, json_data: list[dict[str, Any]]) -> list["Role"]:
-        return [cls.from_dict(data) for data in json_data]
+        return query.order_by(db.asc(cls.name))
 
     def to_dict(self):
-        data = {c.name: getattr(self, c.name) for c in self.__table__.columns}
+        data = super().to_dict()
         data["permissions"] = self.get_permissions()
         return data
 
@@ -80,17 +71,23 @@ class Role(BaseModel):
         }
 
     def get_permissions(self):
-        return [permission.id for permission in self.permissions if permission]  # type: ignore
+        return [permission.id for permission in self.permissions if permission]
+
+    def get_tlp_level(self, tlp_level: str) -> TLPLevel | None:
+        with contextlib.suppress(ValueError):
+            return TLPLevel(tlp_level)
+        return None
 
     @classmethod
     def update(cls, role_id: int, data: dict) -> tuple[dict, int]:
-        role = cls.query.get(role_id)
-        if role is None:
+        role = cls.get(role_id)
+        if not role:
             return {"error": "Role not found"}, 404
         if name := data.get("name"):
             role.name = name
-        role.description = data.get("description")
-        role.tlp_level = data.get("tlp_level")
+        role.description = str(data.get("description"))
+        if tlp_level := data.get("tlp_level"):
+            role.tlp_level = role.get_tlp_level(tlp_level)
         permissions = data.get("permissions", [])
         role.permissions = [Permission.get(permission_id) for permission_id in permissions]
         db.session.commit()

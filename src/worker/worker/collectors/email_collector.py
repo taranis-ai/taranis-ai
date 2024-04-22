@@ -47,8 +47,6 @@ class EmailCollector(BaseCollector):
             content = ""
             url = ""
             link = ""
-            key = ""
-            value = ""
 
             date_tuple = email.utils.parsedate_tz(email_message["Date"])
             local_date = datetime.datetime.fromtimestamp(email.utils.mktime_tz(date_tuple))
@@ -86,8 +84,6 @@ class EmailCollector(BaseCollector):
                 if part.get("Content-Disposition") is None:
                     pass
 
-                file_name = part.get_filename()
-
                 # if file_name:
                 #     binary_mime_type = part.get_content_type()
                 #     binary_value = part.get_payload()
@@ -113,7 +109,6 @@ class EmailCollector(BaseCollector):
                 i = len(data[0].split())
 
                 for x in range(i):
-                    attributes = []
                     latest_email_uid = data[0].split()[x]
                     result, email_data = connection.uid("fetch", latest_email_uid, "(RFC822)")
                     raw_email = email_data[0][1]
@@ -142,8 +137,6 @@ class EmailCollector(BaseCollector):
                 num_messages = len(connection.list()[1])
 
                 for i in range(num_messages):
-                    attributes = []
-
                     raw_email = b"\n".join(connection.retr(i + 1)[1])
                     email_message = email.message_from_bytes(raw_email)
 

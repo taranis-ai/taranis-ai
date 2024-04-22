@@ -1,5 +1,6 @@
-from sqlalchemy import or_
+from sqlalchemy.sql import Select
 from typing import Any
+from sqlalchemy.orm import Mapped, relationship
 
 from core.managers.db_manager import db
 from core.model.address import Address
@@ -7,15 +8,18 @@ from core.model.base_model import BaseModel
 
 
 class Organization(BaseModel):
-    id = db.Column(db.Integer, primary_key=True)
-    name: Any = db.Column(db.String(), nullable=False)
-    description: Any = db.Column(db.String())
+    __tablename__ = "organization"
 
-    address_id = db.Column(db.Integer, db.ForeignKey("address.id"))
-    address: Any = db.relationship("Address", cascade="all")
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    name: Mapped[str] = db.Column(db.String(), nullable=False)
+    description: Mapped[str] = db.Column(db.String())
 
-    def __init__(self, name, description=None, address=None, id=None):
-        self.id = id
+    address_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("address.id"))
+    address: Mapped["Address"] = relationship("Address", cascade="all")
+
+    def __init__(self, name: str, description: str | None = None, address=None, id: int | None = None):
+        if id:
+            self.id = id
         self.name = name
         if description:
             self.description = description
@@ -34,28 +38,18 @@ class Organization(BaseModel):
         }
 
     @classmethod
-    def get_all(cls):
-        return cls.query.order_by(db.asc(Organization.name)).all()
+    def get_filter_query(cls, filter_args: dict) -> Select:
+        query = db.select(cls)
 
-    @classmethod
-    def get_by_filter(cls, search):
-        query = cls.query
-
-        if search:
-            query = query.filter(
-                or_(
-                    Organization.name.ilike(f"%{search}%"),
-                    Organization.description.ilike(f"%{search}%"),
+        if search := filter_args.get("search"):
+            query = query.where(
+                db.or_(
+                    cls.name.ilike(f"%{search}%"),
+                    cls.description.ilike(f"%{search}%"),
                 )
             )
 
-        return query.order_by(db.asc(Organization.name)).all(), query.count()
-
-    @classmethod
-    def get_all_json(cls, search):
-        organizations, count = cls.get_by_filter(search)
-        items = [organization.to_dict() for organization in organizations]
-        return {"total_count": count, "items": items}
+        return query.order_by(db.asc(cls.name))
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Organization":

@@ -35,7 +35,6 @@
 
 <script>
 import { getAttributeEnums } from '@/api/analyze'
-import { getCPEAttributeEnums } from '@/api/assets'
 
 export default {
   name: 'EnumSelector',
@@ -43,10 +42,6 @@ export default {
     attributeId: {
       type: Number,
       required: true
-    },
-    cpeOnly: {
-      type: Boolean,
-      default: true
     }
   },
   emits: ['enum-selected'],
@@ -84,24 +79,14 @@ export default {
     },
 
     updateAttributeEnums() {
-      if (this.cpeOnly === true) {
-        getCPEAttributeEnums({
-          search: this.search,
-          offset: (this.current_page - 1) * this.current_page_size,
-          limit: this.current_page_size
-        }).then((response) => {
-          this.processResponse(response)
-        })
-      } else {
-        getAttributeEnums({
-          attribute_id: this.attributeId,
-          search: this.search,
-          offset: (this.current_page - 1) * this.current_page_size,
-          limit: this.current_page_size
-        }).then((response) => {
-          this.processResponse(response)
-        })
-      }
+      getAttributeEnums({
+        attribute_id: this.attributeId,
+        search: this.search,
+        offset: (this.current_page - 1) * this.current_page_size,
+        limit: this.current_page_size
+      }).then((response) => {
+        this.processResponse(response)
+      })
     },
 
     processResponse(response) {

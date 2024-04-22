@@ -85,7 +85,7 @@
 
     <v-dialog v-model="deleteDialog" width="auto">
       <popup-delete-item
-        :title="newsItem.news_item_data.title"
+        :title="newsItem.title"
         @delete-item="deleteItem()"
         @close="deleteDialog = false"
       />
@@ -98,8 +98,8 @@ import PopupDeleteItem from '@/components/popups/PopupDeleteItem.vue'
 import { notifySuccess, notifyFailure } from '@/utils/helpers.js'
 import {
   deleteNewsItem,
-  importantNewsItemAggregate,
-  readNewsItemAggregate,
+  importantStory,
+  readStory,
   unGroupNewsItems
 } from '@/api/assess'
 import { ref, computed } from 'vue'
@@ -137,15 +137,15 @@ export default {
     }
 
     const allow_edit = computed(() => {
-      return Boolean(props.newsItem?.news_item_data?.source == 'manual')
+      return Boolean(props.newsItem?.source == 'manual')
     })
 
     const markAsRead = () => {
-      readNewsItemAggregate(props.newsItem.id)
+      readStory(props.newsItem.id)
     }
 
     const markAsImportant = () => {
-      importantNewsItemAggregate(props.newsItem.id)
+      importantStory(props.newsItem.id)
     }
 
     const deleteItem = () => {

@@ -338,10 +338,6 @@ paths:
           in: query
           schema:
             type: string
-        - name: incompleted
-          in: query
-          schema:
-            type: string
         - name: range
           in: query
           schema:
@@ -397,7 +393,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/report_item.new'
+              $ref: '#/components/schemas/report_item'
       responses:
         '200':
           description: the ID of the newly created report item
@@ -452,14 +448,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/modify_report_item'
+              $ref: '#/components/schemas/modify_item'
       responses:
         '200':
           description: the updated report item
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/modify_report_item'
+                $ref: '#/components/schemas/modify_item'
         '400':
           description: invalid request
         '401':
@@ -573,32 +569,6 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
         '404':
           $ref: "#/components/schemas/notFound"
-  /assess/osint-source-groups:
-    get:
-      tags: [assess]
-      description: get all OSINT source groups
-      responses:
-        '200':
-          description: all OSINT source groups
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  total_count:
-                    type: integer
-                  items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/osint_source_group'
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
   /assess/osint-source-group-list:
     get:
       tags: [assess]
@@ -655,7 +625,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/news_item_data'
+              $ref: '#/components/schemas/news_item'
       responses:
         '200':
           description: the OSINT source ID of the created news item as SSEs
@@ -679,7 +649,7 @@ paths:
           description: Unprocessable Entity
         '500':
           description: Adding news item failed
-  /assess/news-item-aggregates:
+  /assess/stories:
     get:
       tags: [assess]
       description: get stories by filters
@@ -756,7 +726,7 @@ paths:
                   items:
                     type: array
                     items:
-                      $ref: '#/components/schemas/news_item_aggregate'
+                      $ref: '#/components/schemas/story'
         '400':
           description: erronous input data
         '401':
@@ -846,7 +816,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/resp.auth.error'
         '500':
-          description: aggregate in use
+          description: story in use
           content:
             application/json:
               schema:
@@ -854,27 +824,25 @@ paths:
         '404':
           $ref: "#/components/schemas/notFound"
 
-  /assess/news-item-aggregates/{aggregate_id}:
+  /assess/story/{story_id}:
     parameters:
-      - name: aggregate_id
+      - name: story_id
         in: path
         required: true
         schema:
-          type: integer
-          minimum: 1
-          format: int32
+          type: string
     get:
       tags: [assess]
-      description: get the specified news item aggregate
+      description: get the specified story
       responses:
         '200':
-          description: the news item aggregate
+          description: the story
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/news_item_aggregate'
+                $ref: '#/components/schemas/story'
         '400':
-          description: invalid aggregate_id
+          description: invalid story_id
         '401':
           description: authorization error
           content:
@@ -885,7 +853,7 @@ paths:
           $ref: "#/components/schemas/notFound"
     put:
       tags: [assess]
-      description: modify the specified news item aggregate
+      description: modify the specified story
       requestBody:
         content:
           application/json:
@@ -906,15 +874,13 @@ paths:
                   type: string
       responses:
         '200':
-          description: the OSINT source IDs of the modified news aggregate
+          description: message if modification was successful
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  type: string
+                $ref: '#/components/schemas/modify_item'
         '400':
-          description: invalid aggregate_id
+          description: invalid story_id
 
         '401':
           description: authorization error
@@ -926,17 +892,16 @@ paths:
           $ref: "#/components/schemas/notFound"
     delete:
       tags: [assess]
-      description: delete the specified news item aggregate
+      description: delete the specified story
       responses:
         '200':
-          description: the news item aggregate was deleted
+          description: the story was deleted
           content:
             application/json:
               schema:
-                type: string
-                example: success
+                $ref: '#/components/schemas/modify_item'
         '400':
-          description: invalid aggregate_id
+          description: invalid story_id
 
         '401':
           description: authorization error
@@ -945,32 +910,30 @@ paths:
               schema:
                 $ref: '#/components/schemas/resp.auth.error'
         '500':
-          description: aggregate in use
+          description: story in use
           content:
             application/json:
               schema:
                 type: string
-                example: aggregate_in_use
+                example: "Story is in use"
         '404':
           $ref: "#/components/schemas/notFound"
-  /assess/news-item-aggregates/group:
+  /assess/stories/group:
     put:
       tags: [assess]
-      description: Group News Items to an Aggregates
+      description: Group News Items to an Story
       requestBody:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                aggregate_ids:
-                  type: array
-                  items:
-                    type: integer
+              type: array
+              minItems: 2
+              items:
+                type: string
 
       responses:
         '200':
-          description: successfully grouped news items to an aggregate
+          description: successfully grouped news items to an story
           content:
             application/json:
               schema:
@@ -987,10 +950,10 @@ paths:
         '404':
           $ref: "#/components/schemas/notFound"
 
-  /assess/news-item-aggregates/ungroup:
+  /assess/stories/ungroup:
     put:
       tags: [assess]
-      description: Remove News Items from an Aggregate
+      description: Remove News Items from an story
       requestBody:
         content:
           application/json:
@@ -1000,7 +963,7 @@ paths:
                 type: integer
       responses:
         '200':
-          description: successfully removed news items from an aggregate
+          description: successfully removed news items from an story
           content:
             application/json:
               schema:
@@ -1017,41 +980,6 @@ paths:
         '404':
           $ref: "#/components/schemas/notFound"
 
-  /assess/news-item-data/{item_data_id}/attributes/{attribute_id}/file:
-    parameters:
-      - name: item_data_id
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: attribute_id
-        in: path
-        required: true
-        schema:
-          type: integer
-          minimum: 1
-          format: int32
-    get:
-      tags: [assess]
-      description: download attachment
-      responses:
-        '200':
-          description: the specified attachment
-          content:
-            application/octet-stream:
-              schema:
-                type: string
-                format: binary
-        '400':
-          description: erronous input data
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
   /assets/asset-groups:
     get:
       tags: [assets]
@@ -1405,9 +1333,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/resp.auth.error'
 
-  /worker/news-item-aggregates:
+  /worker/stories:
     get:
-      description: Get news item aggregates
+      description: Get stories
       responses:
         '200':
           description: OK
@@ -1496,7 +1424,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/resp.auth.error'
 
-  /bots/news-item-data:
+  /bots/news-item:
     get:
       tags: [bots]
       description: get all news items
@@ -1514,7 +1442,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/news_item_data'
+                  $ref: '#/components/schemas/news_item'
         '401':
           description: authorization error
           content:
@@ -1523,9 +1451,9 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
         '404':
           $ref: "#/components/schemas/notFound"
-  /bots/news-item-aggregate/{news_item_aggregate_id}/tags:
+  /worker/tags:
     parameters:
-      - name: news_item_aggregate_id
+      - name: story_id
         in: path
         required: true
         schema:
@@ -1557,9 +1485,9 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
         '404':
           $ref: "#/components/schemas/notFound"
-  /bots/news-item-data/{news_item_data_id}/attributes:
+  /bots/news-item/{news_item_id}/attributes:
     parameters:
-      - name: news_item_data_id
+      - name: news_item_id
         in: path
         required: true
         schema:
@@ -1587,21 +1515,21 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
         '404':
           $ref: "#/components/schemas/notFound"
-  /bots/news-item-aggregates/group:
+  /bots/stories/group:
     put:
       tags: [bots]
-      description: Group News Items to an Aggregates
+      description: Group News Items to a Story
       requestBody:
         content:
           application/json:
             schema:
               type: array
               items:
-                type: integer
+                type: string
 
       responses:
         '200':
-          description: successfully grouped news items to an aggregate
+          description: successfully grouped news items to a story
           content:
             application/json:
               schema:
@@ -1616,84 +1544,6 @@ paths:
         '404':
           $ref: "#/components/schemas/notFound"
 
-  /bots/word-list/{word_list_id}/entries/{entry_name}:
-    parameters:
-      - name: word_list_id
-        in: path
-        required: true
-        schema:
-          type: integer
-      - name: entry_name
-        in: path
-        required: true
-        schema:
-          type: string
-    delete:
-      tags: [bots]
-      description: delete an entry
-      responses:
-        '200':
-          description: successfully deleted entry
-          content:
-            application/json:
-              schema:
-                type: object
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-    put:
-      tags: [bots]
-      description: update wordlist entries
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: array
-              items:
-                $ref: '#/components/schemas/wordlist_entry.new'
-      responses:
-        '200':
-          description: successfully updated entries
-          content:
-            application/json:
-              schema:
-                type: object
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-
-  /config/reload-enum-dictionaries/{dictionary_type}:
-    parameters:
-      - name: dictionary_type
-        in: path
-        required: true
-        schema:
-          type: string
-    post:
-      tags: [config]
-      description: reload dictionaries
-      # TODO: this should be an HTTP POST/PUT request
-      responses:
-        '200':
-          description: successfully reloaded dictionaries
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
   /config/attributes:
     get:
       tags: [config]
@@ -3922,20 +3772,6 @@ components:
         id:
           type: integer
 
-    report_item.new:
-      allOf:
-        - $ref: '#/components/schemas/report_item.base'
-        - type: object
-          properties:
-            news_item_aggregates:
-              type: array
-              items:
-                type: integer
-            attributes:
-              type: array
-              items:
-                $ref: '#/components/schemas/report_item_attribute'
-
     report_item_attribute:
       type: object
       properties:
@@ -3980,10 +3816,10 @@ components:
         - $ref: '#/components/schemas/report_item.base'
         - type: object
           properties:
-            news_item_aggregates:
+            stories:
               type: array
               items:
-                $ref: '#/components/schemas/news_item_aggregate'
+                $ref: '#/components/schemas/story'
             attributes:
               type: array
               items:
@@ -4084,7 +3920,7 @@ components:
       required:
         - key
         - value
-    news_item_data:
+    news_item:
       type: object
       additionalProperties: false
       properties:
@@ -4121,25 +3957,7 @@ components:
         - review
         - source
         - content
-    news_item.base:
-      type: object
-      properties:
-        id:
-          type: integer
-        likes:
-          type: integer
-        dislikes:
-          type: integer
-        read:
-          type: boolean
-        important:
-          type: boolean
-        me_like:
-          type: boolean
-        me_dislike:
-          type: boolean
-        news_items_data:
-          $ref: '#/components/schemas/news_item_data'
+
     news_item_tag:
       type: object
       properties:
@@ -4149,26 +3967,11 @@ components:
           type: string
         tag_type:
           type: string
-        n_i_d:
-          type: array
-          items:
-            $ref: '#/components/schemas/news_item_data'
-    news_item.presentation:
-      allOf:
-        - $ref: '#/components/schemas/news_item.base'
-        - $ref: '#/components/schemas/acl_entry_status'
-    news_item:
-      allOf:
-        - $ref: '#/components/schemas/news_item.base'
-        - type: object
-          properties:
-            news_item_data:
-              $ref: '#/components/schemas/news_item_data'
-    news_item_aggregate:
+    story:
       type: object
       properties:
         id:
-          type: integer
+          type: string
         title:
           type: string
         description:
@@ -4186,10 +3989,6 @@ components:
           type: boolean
         important:
           type: boolean
-        me_like:
-          type: boolean
-        me_dislike:
-          type: boolean
         in_reports_count:
           type: integer
         tags:
@@ -4199,14 +3998,14 @@ components:
         news_items:
           type: array
           items:
-            $ref: '#/components/schemas/news_item.presentation'
-    news_item_aggregate.id:
+            $ref: '#/components/schemas/news_item'
+    story.id:
       type: object
       properties:
         id:
-          type: integer
+          type: string
 
-    modify_report_item:
+    modify_item:
       type: object
       properties:
         message:
@@ -4395,21 +4194,6 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/user.base'
-
-    modify_group_action:
-      type: object
-      properties:
-        action:
-          type: string
-          enum: [GROUP, UNGROUP, LIKE, DISLIKE, IMPORTANT, READ]
-        items:
-          type: object
-          properties:
-            type:
-              type: string
-              enum: [AGGREGATE]
-            id:
-              type: string
 
     bot:
       type: object

@@ -1,7 +1,6 @@
 import { apiService } from '@/main'
 
-export function getAllReportItems(filter_data) {
-  const filter = apiService.getQueryStringFromNestedObject(filter_data)
+export function getAllReportItems(filter) {
   return apiService.get(`/analyze/report-items?${filter}`)
 }
 
@@ -25,14 +24,14 @@ export function updateReportItem(report_item_id, data) {
   return apiService.put(`/analyze/report-items/${report_item_id}`, data)
 }
 
-export function addAggregatesToReportItem(report_item_id, data) {
+export function addStoriesToReportItem(report_item_id, data) {
   return apiService.post(
     `/analyze/report-items/${report_item_id}/stories`,
     data
   )
 }
 
-export function setAggregatesToReportItem(report_item_id, data) {
+export function setStoriesToReportItem(report_item_id, data) {
   return apiService.put(`/analyze/report-items/${report_item_id}/stories`, data)
 }
 
