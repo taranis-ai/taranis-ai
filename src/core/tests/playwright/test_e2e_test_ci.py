@@ -1,10 +1,8 @@
-#!/usr/bin/env python3
 import re
-
-from playwright.sync_api import Playwright, expect
 import time
 import os
 import pytest
+from playwright.sync_api import Playwright, expect
 
 taranis_url = os.getenv("TARANIS_URL", "http://localhost:8081")
 
@@ -35,8 +33,8 @@ def scroll_to_the_bottom(page):
 
 
 @pytest.mark.e2e
-def test_e2e(playwright: Playwright, news_item_aggregates, video_dir="videos/") -> None:
-    browser = playwright.chromium.launch(headless=False, slow_mo=1000)
+def test_e2e_ci(playwright: Playwright, news_item_aggregates, video_dir="videos/") -> None:
+    browser = playwright.chromium.launch(headless=True)
     context = browser.new_context(
         record_video_dir=video_dir,
         viewport={"width": 1920, "height": 1080},

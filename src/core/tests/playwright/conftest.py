@@ -20,14 +20,13 @@ def fake_source(app, request):
         if not OSINTSource.get(source_id):
             OSINTSource.add(source_data)
 
-        # def teardown():
-        #     with app.app_context():
-        #         OSINTSource.delete(source_id)
-        #
-        # request.addfinalizer(teardown)
+        def teardown():
+            with app.app_context():
+                OSINTSource.delete(source_id)
+
+        request.addfinalizer(teardown)
 
         yield source_id
-
 
 
 @pytest.fixture
@@ -78,14 +77,12 @@ def news_item_aggregates(app, request, news_items_data):
         nia1 = NewsItemAggregate.create_new(news_items_data[0])
         nia2 = NewsItemAggregate.create_new(news_items_data[1])
 
-        # def teardown():
-        #     user = User.find_by_name("admin")
-        #     news_item_aggregates, _ = NewsItemAggregate.get_by_filter({})
-        #     for aggregate in news_item_aggregates:
-        #         aggregate.delete(user)
-        #
-        # request.addfinalizer(teardown)
+        def teardown():
+            user = User.find_by_name("admin")
+            news_item_aggregates, _ = NewsItemAggregate.get_by_filter({})
+            for aggregate in news_item_aggregates:
+                aggregate.delete(user)
+
+        request.addfinalizer(teardown)
 
         yield [nia1, nia2]
-
-
