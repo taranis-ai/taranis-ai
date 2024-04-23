@@ -24,7 +24,7 @@ class IOCBot(BaseBot):
 
     def execute(self, parameters=None):
         if not (data := self.get_stories(parameters)):
-            return None
+            return {"message": "No new stories found"}
 
         extracted_keywords = {}
 
@@ -40,6 +40,7 @@ class IOCBot(BaseBot):
 
         logger.debug(extracted_keywords)
         self.core_api.update_tags(extracted_keywords, self.type)
+        return {"message": f"Extracted {len(extracted_keywords)} IOCs"}
 
     def extract_ioc(self, text: str):
         ioc_data = find_iocs(text=text, included_ioc_types=self.included_ioc_types)

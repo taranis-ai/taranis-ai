@@ -57,8 +57,8 @@ export const useAnalyzeStore = defineStore(
       )
     })
 
-    async function loadReportItems(data) {
-      const response = await getAllReportItems(data)
+    async function loadReportItems() {
+      const response = await getAllReportItems('')
       report_items.value = response.data
     }
 

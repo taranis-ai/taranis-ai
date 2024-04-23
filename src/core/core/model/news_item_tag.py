@@ -60,7 +60,7 @@ class NewsItemTag(BaseModel):
 
     @classmethod
     def remove_by_story(cls, story):
-        db.delete(cls).where(cls.story_id == story.id).execute()
+        db.delete(cls).where(cls.story_id == story.id)
         db.session.commit()
 
     def to_dict(self) -> dict[str, Any]:

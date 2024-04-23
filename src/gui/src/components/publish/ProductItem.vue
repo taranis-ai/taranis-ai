@@ -92,7 +92,6 @@
               <v-col cols="12">
                 <v-btn
                   v-if="edit"
-                  v-bind="props"
                   color="primary"
                   class="mt-3"
                   :disabled="renderedProduct === null"

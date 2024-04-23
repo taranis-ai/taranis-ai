@@ -1,6 +1,6 @@
 def test_is_alive(client):
     response = client.get("/api/isalive")
-    assert b'"isalive": true' in response.data
+    assert {"isalive": True} == response.json
 
 
 def test_is_alive_fail(client):

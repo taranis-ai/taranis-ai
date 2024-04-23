@@ -182,6 +182,8 @@
         "source": "Source",
         "comment": "Comment",
         "summary": "Summary",
+        "add_to_story": "Add to story",
+        "content_placeholder": "Enter your content here...\n\n\n",
         "comment_placeholder": "Enter your comment here...\n\n\n",
         "summary_placeholder": "Enter your summary here...\n\n\n"
     },

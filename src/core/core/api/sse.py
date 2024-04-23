@@ -7,17 +7,17 @@ from core.managers.sse_manager import sse_manager
 from core.log import logger
 
 
-def stream():
-    messages = sse_manager.sse.listen()
-    time.sleep(0.5)
-    yield sse_manager.sse.format_sse(data={"connected": f"{datetime.now().isoformat()}"}, event="connected")
-    while True:
-        yield messages.get()
-
-
 def sse_request():
     try:
         verify_jwt_in_request()
+
+        def stream():
+            messages = sse_manager.sse.listen()
+            time.sleep(0.5)
+            yield sse_manager.sse.format_sse(data={"connected": f"{datetime.now().isoformat()}"}, event="connected")
+            while True:
+                yield messages.get()
+
         return Response(stream_with_context(stream()), mimetype="text/event-stream")
     except Exception as e:
         logger.error(f"Error in sse_request: {e}")

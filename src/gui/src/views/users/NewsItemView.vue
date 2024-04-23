@@ -2,13 +2,12 @@
   <v-container v-if="news_item" fluid>
     <card-news-item :news-item="news_item" :detail-view="true" />
   </v-container>
-  <not-found-card v-else :item-id="news_item_id" item-type="News Item" />
+  <not-found-card v-else :item-id="itemId" item-type="News Item" />
 </template>
 
 <script>
 import { ref, onMounted } from 'vue'
 import { getNewsItem } from '@/api/assess'
-import { useRoute } from 'vue-router'
 import NotFoundCard from '@/components/common/NotFoundCard.vue'
 import CardNewsItem from '@/components/assess/CardNewsItem.vue'
 
@@ -18,25 +17,27 @@ export default {
     CardNewsItem,
     NotFoundCard
   },
-  setup() {
+  props: {
+    itemId: {
+      type: String,
+      required: true
+    }
+  },
+  setup(props) {
     const news_item = ref(null)
-    const route = useRoute()
-    const news_item_id = route.params.id
-
     onMounted(async () => {
       news_item.value = await loadNewsItem()
     })
 
     async function loadNewsItem() {
-      if (news_item_id) {
-        const response = await getNewsItem(news_item_id)
+      if (props.itemId) {
+        const response = await getNewsItem(props.itemId)
         return response.data
       }
     }
 
     return {
       news_item,
-      news_item_id,
       loadNewsItem
     }
   }

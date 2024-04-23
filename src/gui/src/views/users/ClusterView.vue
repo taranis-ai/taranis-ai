@@ -1,27 +1,23 @@
 <template>
-  <v-container v-if="tag_type" fluid>
-    <tag-table :tag-type="tag_type" />
+  <v-container v-if="cluster" fluid>
+    <tag-table :tag-type="cluster" />
   </v-container>
 </template>
 
 <script>
-import { computed } from 'vue'
 import TagTable from '@/components/common/TagTable.vue'
-import { useRoute } from 'vue-router'
 
 export default {
   name: 'ClusterView',
   components: {
     TagTable
   },
-  setup() {
-    const route = useRoute()
-
-    const tag_type = computed(() => route.params.cluster)
-
-    return {
-      tag_type
+  props: {
+    cluster: {
+      type: String,
+      required: true
     }
-  }
+  },
+  setup() {}
 }
 </script>
