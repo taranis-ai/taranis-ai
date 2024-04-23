@@ -16,7 +16,7 @@ def highlight_element(locator, duration=2):
     locator.evaluate("element => element.classList.add('highlight-element')")
     time.sleep(duration)
     locator.evaluate("element => element.classList.remove('highlight-element')")
-    locator.page.evaluate(f"style => style.remove()", style_tag)
+    locator.page.evaluate("style => style.remove()", style_tag)
 
     return locator
 
@@ -33,10 +33,10 @@ def scroll_to_the_bottom(page):
 
 
 @pytest.mark.e2e_ci
-def test_e2e_ci(playwright: Playwright, news_item_aggregates, video_dir="videos/") -> None:
+def test_e2e_ci(playwright: Playwright, stories, video_dir="videos/") -> None:
     browser = playwright.chromium.launch(headless=True)
     context = browser.new_context(
-        record_video_dir=video_dir,
+        # record_video_dir=video_dir,
         viewport={"width": 1920, "height": 1080},
         record_video_size={"width": 1810, "height": 1000},
     )
@@ -65,10 +65,16 @@ def test_e2e_ci(playwright: Playwright, news_item_aggregates, video_dir="videos/
     expect(page.get_by_role("main")).to_contain_text("TEST CONTENT XXXX")
     expect(page.get_by_role("main")).to_contain_text("Mobile World Congress 2023")
     expect(page.get_by_role("main")).to_contain_text("TEST CONTENT YYYY")
-    highlight_element(page.locator("div:nth-child(3) > div:nth-child(2) > div > div:nth-child(2) > .ml-auto > button").first).click()
+    highlight_element(
+        page.locator(
+            "div:nth-child(3) > div:nth-child(2) > div > div:nth-child(2) > .ml-auto > button"
+        ).first
+    ).click()
     expect(page.get_by_role("main")).to_contain_text("TEST CONTENT YYYY")
     highlight_element(page.locator(".v-col-lg-8").first).click()
-    highlight_element(page.get_by_text("Mobile World Congress 2023TEST CONTENT YYYY")).click()
+    highlight_element(
+        page.get_by_text("Mobile World Congress 2023TEST CONTENT YYYY")
+    ).click()
     highlight_element(page.get_by_role("button", name="merge")).click()
     expect(page.get_by_role("main")).to_contain_text("(2)")
     highlight_element(page.get_by_role("link", name="Analyze")).click()
@@ -93,27 +99,48 @@ def test_e2e_ci(playwright: Playwright, news_item_aggregates, video_dir="videos/
     expect(page.locator("tbody")).to_contain_text("1")
     highlight_element(page.get_by_role("link", name="Publish")).click()
     highlight_element(page.get_by_role("button", name="New Product")).click()
-    highlight_element(page.get_by_role("combobox").locator("div").filter(has_text="Product TypeProduct Type").locator("div")).click()
+    highlight_element(
+        page.get_by_role("combobox")
+        .locator("div")
+        .filter(has_text="Product TypeProduct Type")
+        .locator("div")
+    ).click()
     highlight_element(page.get_by_role("option", name="Default TEXT Presenter")).click()
     highlight_element(page.get_by_label("Title")).click()
     highlight_element(page.get_by_label("Title")).fill("Test Product")
     highlight_element(page.get_by_label("Description")).click()
     highlight_element(page.get_by_label("Description")).fill("Test Description")
     highlight_element(page.get_by_role("button", name="Create")).click()
-    expect(page.get_by_role("main").locator("header").get_by_role("button", name="Render Product")).to_be_visible()
-    expect(page.locator("div").filter(has_text=re.compile(r"^Render Product$")).get_by_role("button")).to_be_visible()
-    expect(page.locator("div").filter(has_text=re.compile(r"^Render Product first, to enable publishing$")).nth(1)).to_be_visible()
+    expect(
+        page.get_by_role("main")
+        .locator("header")
+        .get_by_role("button", name="Render Product")
+    ).to_be_visible()
+    expect(
+        page.locator("div")
+        .filter(has_text=re.compile(r"^Render Product$"))
+        .get_by_role("button")
+    ).to_be_visible()
+    expect(
+        page.locator("div")
+        .filter(has_text=re.compile(r"^Render Product first, to enable publishing$"))
+        .nth(1)
+    ).to_be_visible()
     expect(page.get_by_role("button", name="Save")).to_be_visible()
     highlight_element(page.get_by_role("link", name="Analyze")).click()
     highlight_element(page.get_by_role("cell", name="false")).click()
-    highlight_element(page.get_by_role("textbox", name="title")).fill("Test Title of Report")
+    highlight_element(page.get_by_role("textbox", name="title")).fill(
+        "Test Title of Report"
+    )
     highlight_element(page.get_by_label("Quote")).fill("Test Quote")
     highlight_element(page.get_by_label("Ransomware")).click()
     highlight_element(page.get_by_label("Ransomware")).fill("Test Ransomware Name")
     highlight_element(page.get_by_label("Actor")).click()
     highlight_element(page.get_by_label("Actor")).fill("Test APT")
     highlight_element(
-        page.locator("div:nth-child(3) > div > .v-input > .v-input__control > .v-field > .v-field__field > .v-field__input")
+        page.locator(
+            "div:nth-child(3) > div > .v-input > .v-input__control > .v-field > .v-field__field > .v-field__input"
+        )
     ).click()
     highlight_element(page.get_by_role("option", name="Energy", exact=True)).click()
     highlight_element(page.get_by_label("Comment")).fill("Test Sector Comment")
@@ -125,7 +152,11 @@ def test_e2e_ci(playwright: Playwright, news_item_aggregates, video_dir="videos/
     expect(page.get_by_label("Side-by-side")).to_be_visible()
     expect(page.locator(".v-switch__track").first).to_be_visible()
     expect(page.get_by_label("Completed")).to_be_visible()
-    expect(page.locator("div:nth-child(4) > .v-input__control > .v-selection-control > .v-selection-control__wrapper")).to_be_visible()
+    expect(
+        page.locator(
+            "div:nth-child(4) > .v-input__control > .v-selection-control > .v-selection-control__wrapper"
+        )
+    ).to_be_visible()
     highlight_element(page.get_by_label("Side-by-side")).check()
     highlight_element(page.get_by_label("Completed")).check()
     highlight_element(page.get_by_role("button", name="Save")).click()
