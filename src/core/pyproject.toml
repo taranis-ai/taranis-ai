@@ -52,7 +52,7 @@ fallback_version = "0.0.0"
 root = "../.."
 
 [project.optional-dependencies]
-dev = ["ruff", "pytest", "pytest-celery", "sqlalchemy-stubs", "schemathesis", "build", "wheel", "setuptools", "setuptools_scm", "pytest-playwright"]
+dev = ["ruff", "pytest", "pytest-celery", "sqlalchemy-stubs", "schemathesis", "build", "wheel", "setuptools", "setuptools_scm", "pytest-playwright", "pytest-docker-compose-v2"]
 
 [project.urls]
 "Source Code" = "https://github.com/taranis-ai/taranis-ai"
@@ -66,6 +66,7 @@ line-length = 142
 target-version = "py312"
 
 [tool.pytest.ini_options]
+plugins = ["pytest-docker-compose"]
 markers = [
     "e2e: marks tests as to run only when calling with --run-e2e option",
     "e2e_ci: marks tests as to run only when calling with --run-e2e-ci option"
