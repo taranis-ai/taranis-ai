@@ -1,12 +1,15 @@
 <template>
-  <codemirror
-    v-model="data"
-    class="editor"
-    :placeholder="placeholder"
-    :extensions="extensions"
-    :style="{ 'min-height': '8em' }"
-    :disabled="disabled"
-  />
+  <div>
+    <h3 v-if="header">{{ header }}</h3>
+    <codemirror
+      v-model="data"
+      class="editor"
+      :placeholder="placeholder"
+      :extensions="extensions"
+      :style="{ 'min-height': '8em' }"
+      :disabled="disabled"
+    />
+  </div>
 </template>
 
 <script>
@@ -25,7 +28,8 @@ export default {
   props: {
     header: {
       type: String,
-      default: 'Article Content'
+      required: false,
+      default: ''
     },
     placeholder: {
       type: String,

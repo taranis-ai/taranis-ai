@@ -31,7 +31,7 @@
         {{ $t('button.save') }}
       </v-btn>
       <v-btn
-        v-if="report_item.news_item_aggregates.length"
+        v-if="report_item.stories.length"
         prepend-icon="mdi-delete-outline"
         color="error"
         variant="flat"
@@ -105,14 +105,14 @@
           </v-col>
           <v-col :cols="verticalView ? 6 : 12" class="pa-5">
             <v-alert
-              v-if="edit && report_item.news_item_aggregates.length == 0"
+              v-if="edit && report_item.stories.length == 0"
               dense
               outlined
               type="info"
               :text="$t('report_item.no_stories')"
             />
             <card-story
-              v-for="story in report_item.news_item_aggregates"
+              v-for="story in report_item.stories"
               :key="story.id"
               :story="story"
               :report-view="true"
@@ -133,7 +133,7 @@ import { createReportItem, updateReportItem } from '@/api/analyze'
 import AttributeItem from '@/components/analyze/AttributeItem.vue'
 import CardStory from '@/components/assess/CardStory.vue'
 import { notifyFailure, notifySuccess } from '@/utils/helpers'
-import { setAggregatesToReportItem } from '@/api/analyze'
+import { setStoriesToReportItem } from '@/api/analyze'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
@@ -165,7 +165,7 @@ export default {
     const required = ref([(v) => !!v || 'Required'])
     provide(
       'report_stories',
-      report_item.value.news_item_aggregates.map((story) => ({
+      report_item.value.stories.map((story) => ({
         value: story.id,
         title: story.title
       }))
@@ -211,9 +211,9 @@ export default {
     }
 
     const removeAllFromReport = () => {
-      setAggregatesToReportItem(report_item.value.id, [])
+      setStoriesToReportItem(report_item.value.id, [])
         .then(() => {
-          report_item.value.news_item_aggregates = []
+          report_item.value.stories = []
           notifySuccess('Removed all from report')
         })
         .catch(() => {
@@ -222,16 +222,13 @@ export default {
     }
 
     const removeFromReport = (story_id) => {
-      report_item.value.news_item_aggregates =
-        report_item.value.news_item_aggregates.filter(
-          (story) => story.id !== story_id
-        )
-
-      const aggregate_ids = report_item.value.news_item_aggregates.map(
-        (story) => story.id
+      report_item.value.stories = report_item.value.stories.filter(
+        (story) => story.id !== story_id
       )
 
-      setAggregatesToReportItem(report_item.value.id, aggregate_ids)
+      const story_ids = report_item.value.stories.map((story) => story.id)
+
+      setStoriesToReportItem(report_item.value.id, story_ids)
         .then(() => {
           notifySuccess('Removed from report')
         })

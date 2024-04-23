@@ -20,6 +20,7 @@
               icon="mdi-open-in-new"
             />
           </a>
+          <source-info :news-item="newsItem" />
         </template>
         <span>{{ article?.link }}</span>
       </v-tooltip>
@@ -29,12 +30,16 @@
 
 <script>
 import { getCleanHostname } from '@/utils/helpers.js'
+import SourceInfo from '@/components/assess/card/SourceInfo.vue'
 import { computed } from 'vue'
 
 export default {
   name: 'ArticleInfo',
+  components: {
+    SourceInfo
+  },
   props: {
-    newsItemData: {
+    newsItem: {
       type: Object,
       required: true
     },
@@ -45,11 +50,11 @@ export default {
   },
   setup(props) {
     const article = computed(() => {
-      return props.newsItemData
+      return props.newsItem
         ? {
-            name: getCleanHostname(props.newsItemData.link),
-            link: props.newsItemData.link,
-            type: props.newsItemData.osint_source_id
+            name: getCleanHostname(props.newsItem.link),
+            link: props.newsItem.link,
+            type: props.newsItem.osint_source_id
           }
         : null
     })

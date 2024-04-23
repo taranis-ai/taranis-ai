@@ -25,15 +25,15 @@
       <v-row no-gutters>
         <v-col cols="12">
           <v-text-field
-            v-model="asset.name"
+            v-model="assetGroup.name"
             :label="$t('form.name')"
             :rules="required"
           />
         </v-col>
         <v-col cols="12">
           <v-textarea
-            v-model="asset.description"
-            :label="$t('asset.description')"
+            v-model="assetGroup.description"
+            :label="$t('form.description')"
           />
         </v-col>
       </v-row>
@@ -53,7 +53,7 @@ import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import { useI18n } from 'vue-i18n'
 
 export default {
-  name: 'AssetGroupView',
+  name: 'AssetGroupItem',
   props: {
     assetGroupProp: { type: Object, required: true },
     edit: { type: Boolean, default: false }
@@ -63,7 +63,7 @@ export default {
 
     const required = ref([(v) => !!v || 'Required'])
     const vulnerabilities = ref([])
-    const asset = ref(props.assetGroupProp)
+    const assetGroup = ref(props.assetGroupProp)
 
     const container_title = computed(() => {
       return props.edit
@@ -73,7 +73,7 @@ export default {
 
     const saveAssetGroup = () => {
       if (props.edit) {
-        updateAssetGroup(asset.value)
+        updateAssetGroup(assetGroup.value)
           .then(() => {
             notifySuccess('asset.successful_edit')
           })
@@ -81,7 +81,7 @@ export default {
             notifyFailure('asset.failed')
           })
       } else {
-        createAssetGroup(asset.value)
+        createAssetGroup(assetGroup.value)
           .then(() => {
             notifySuccess('asset.successful')
           })
@@ -92,7 +92,7 @@ export default {
     }
 
     const deleteGroup = () => {
-      deleteAssetGroup(asset.value)
+      deleteAssetGroup(assetGroup.value)
         .then(() => {
           notifySuccess('asset.successful_delete')
         })
@@ -102,13 +102,13 @@ export default {
     }
 
     const update = (cpes) => {
-      asset.value.asset_cpes = cpes
+      assetGroup.value.asset_cpes = cpes
     }
 
     return {
       required,
       vulnerabilities,
-      asset,
+      assetGroup,
       container_title,
       saveAssetGroup,
       deleteGroup,

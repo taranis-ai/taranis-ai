@@ -50,10 +50,6 @@ def initialize(app):
     # queue_manager.schedule_job_every_day("00:00", cleanup_token_blacklist)
 
 
-def get_required_credentials():
-    return current_authenticator.get_required_credentials()
-
-
 def authenticate(credentials: dict[str, str]) -> tuple[dict[str, Any], int]:
     return current_authenticator.authenticate(credentials)
 
@@ -62,8 +58,8 @@ def refresh(user):
     return current_authenticator.refresh(user)
 
 
-def logout(token):
-    return current_authenticator.logout(token)
+def logout(jti):
+    return current_authenticator.logout(jti)
 
 
 def no_auth(fn):

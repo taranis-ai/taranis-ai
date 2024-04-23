@@ -20,7 +20,7 @@ export default {
 
     onBeforeMount(async () => {
       const response = await getNewsItem(route.params.id)
-      news_item.value = response.data.news_item_data
+      news_item.value = response.data
       news_item.value.id = response.data.id
     })
 

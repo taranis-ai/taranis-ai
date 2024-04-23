@@ -13,11 +13,6 @@ def test_auth_login_fail(client):
     assert response.status_code == 401
 
 
-def test_auth_logout(client):
-    response = client.get("/api/auth/logout")
-    assert response.status_code == 200
-
-
 def test_auth_login(client):
     body = {"username": "user", "password": "test"}
     response = client.post("/api/auth/login", json=body)
@@ -32,4 +27,9 @@ def test_user_profile(client, auth_header):
     response = client.get("/api/users/profile", headers=auth_header)
     assert response.json
     assert response.data
+    assert response.status_code == 200
+
+
+def test_auth_logout(client, auth_header):
+    response = client.get("/api/auth/logout", headers=auth_header)
     assert response.status_code == 200

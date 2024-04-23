@@ -8,7 +8,7 @@ maintainers = [{ name = "AIT", email = "benjamin.akhras@ait.ac.at" }]
 classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Framework :: Flask",
     "Topic :: Security",
 ]
@@ -18,14 +18,14 @@ dependencies = [
     "Flask-Cors",
     "Flask-JWT-Extended",
     "Flask-Migrate",
-    "flask-restx",
     "Flask-SQLAlchemy",
+    "flask_caching",
     "click",
     "celery",
-    "SQLAlchemy==1.4.51",
+    "SQLAlchemy",
     "pydantic-settings",
     "python-dotenv",
-    "gunicorn",
+    "granian",
     "psycogreen",
     "psycopg2",
     "swagger-ui-py",
@@ -52,7 +52,7 @@ fallback_version = "0.0.0"
 root = "../.."
 
 [project.optional-dependencies]
-dev = ["ruff", "pytest", "pytest-celery", "sqlalchemy-stubs", "schemathesis", "build", "wheel", "setuptools", "setuptools_scm", "pytest-playwright", "pytest-docker-compose-v2"]
+dev = ["ruff", "pytest", "pytest-celery", "sqlalchemy2-stubs", "schemathesis", "build", "wheel", "setuptools", "setuptools_scm", "pytest-playwright", "pytest-docker-compose-v2"]
 
 [project.urls]
 "Source Code" = "https://github.com/taranis-ai/taranis-ai"

@@ -1,29 +1,31 @@
 from datetime import datetime
-from typing import Any
+from sqlalchemy.orm import Mapped
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 
 
 class TokenBlacklist(BaseModel):
-    id = db.Column(db.Integer, primary_key=True)
-    token: Any = db.Column(db.String(), nullable=False)
-    created = db.Column(db.DateTime, default=datetime.now)
+    __tablename__ = "token_blacklist"
+
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    token: Mapped[str] = db.Column(db.String(), nullable=False)
+    created: Mapped[datetime] = db.Column(db.DateTime, default=datetime.now)
 
     def __init__(self, token):
-        self.id = None
         self.token = token
 
     @classmethod
-    def add(cls, token):
+    def add(cls, token: str):
         db.session.add(TokenBlacklist(token))
         db.session.commit()
 
     @classmethod
-    def invalid(cls, token):
-        return db.session.query(db.exists().where(TokenBlacklist.token == token)).scalar()
+    def invalid(cls, token: str) -> bool:
+        query = db.select(db.exists().where(cls.token == token))
+        return db.session.execute(query).scalar_one()
 
     @classmethod
     def delete_older(cls, check_time):
-        db.session.query(TokenBlacklist).filter(TokenBlacklist.created < check_time).delete()
+        db.select(TokenBlacklist).filter(TokenBlacklist.created < check_time).delete()
         db.session.commit()

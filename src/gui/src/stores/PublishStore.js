@@ -1,4 +1,9 @@
-import { getAllProducts, getAllProductTypes, getProduct, getRenderdProduct } from '@/api/publish'
+import {
+  getAllProducts,
+  getAllProductTypes,
+  getProduct,
+  getRenderdProduct
+} from '@/api/publish'
 import { useFilterStore } from './FilterStore'
 import { defineStore } from 'pinia'
 
@@ -42,7 +47,7 @@ export const usePublishStore = defineStore('publish', {
     },
     async updateProducts() {
       const filter = useFilterStore()
-      const response = await getAllProducts(filter.productFilter)
+      const response = await getAllProducts(filter.productFilterQuery)
       this.products = response.data
     },
     sseProductRendered(data) {

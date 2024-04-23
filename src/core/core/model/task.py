@@ -1,22 +1,28 @@
 import json
+from sqlalchemy.orm import Mapped
+
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 
 
 class Task(BaseModel):
-    id = db.Column(db.String, primary_key=True)
-    result = db.Column(db.String, nullable=True)
-    status = db.Column(db.String, nullable=True)
+    __tablename__ = "task"
+
+    id: Mapped[str] = db.Column(db.String, primary_key=True)
+    result: Mapped[str] = db.Column(db.String, nullable=True)
+    status: Mapped[str] = db.Column(db.String, nullable=True)
 
     def __init__(self, result=None, status=None, id=None):
-        self.id = id
-        self.result = json.dumps(result) if result else None
-        self.status = status
+        if id:
+            self.id = id
+        if status:
+            self.status = status
+        self.result = json.dumps(result) if result else ""
 
     @classmethod
     def add_or_update(cls, entry_data):
         if entry := cls.get(entry_data["id"]):
-            entry.result = json.dumps(entry_data["result"]) if entry_data["result"] else None
+            entry.result = json.dumps(entry_data["result"]) if entry_data["result"] else ""
             entry.status = entry_data.get("status")
             db.session.commit()
             return entry, 200

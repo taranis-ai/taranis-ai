@@ -1,6 +1,7 @@
-from sqlalchemy import or_
 from werkzeug.security import generate_password_hash
-from typing import Any
+from typing import Any, Sequence
+from sqlalchemy.sql import Select
+from sqlalchemy.orm import Mapped, relationship
 
 from core.managers.db_manager import db
 from core.model.role import Role
@@ -12,73 +13,46 @@ from core.model.role import TLPLevel
 
 
 class User(BaseModel):
-    id = db.Column(db.Integer, primary_key=True)
-    username: Any = db.Column(db.String(64), unique=True, nullable=False)
-    name: Any = db.Column(db.String(), nullable=False)
-    password: Any = db.Column(db.String(), nullable=True)
+    __tablename__ = "user"
 
-    organization_id = db.Column(db.Integer, db.ForeignKey("organization.id"))
-    organization: Any = db.relationship("Organization")
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    username: Mapped[str] = db.Column(db.String(64), unique=True, nullable=False)
+    name: Mapped[str] = db.Column(db.String(), nullable=False)
+    password: Mapped[str] = db.Column(db.String(), nullable=True)
 
-    roles: Any = db.relationship(Role, secondary="user_role", cascade="all, delete")
-    permissions: Any = db.relationship(Permission, secondary="user_permission", cascade="all, delete")
+    organization_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("organization.id"))
+    organization: Mapped[Organization] = relationship(Organization)
 
-    profile_id = db.Column(db.Integer, db.ForeignKey("user_profile.id", ondelete="CASCADE"))
-    profile = db.relationship("UserProfile", cascade="all, delete")
+    roles: Mapped[list[Role]] = relationship(Role, secondary="user_role", cascade="all, delete")
+    permissions: Mapped[list[Permission]] = relationship(Permission, secondary="user_permission", cascade="all, delete")
 
-    def __init__(self, username, name, organization, roles, permissions, password=None, id=None):
-        self.id = id
+    profile_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("user_profile.id", ondelete="CASCADE"))
+    profile: Mapped["UserProfile"] = relationship("UserProfile", cascade="all, delete")
+
+    def __init__(self, username: str, name: str, organization: int, roles: list[int], permissions: list[str], password=None, id=None):
+        if id:
+            self.id = id
         self.username = username
         self.name = name
-        if password:
-            self.password = generate_password_hash(password)
+        if not password:
+            raise ValueError("Password is required")
+        self.password = generate_password_hash(password)
         self.organization = Organization.get(organization)
         self.roles = [Role.get(role) for role in roles]
         self.permissions = [Permission.get(permission) for permission in permissions]
         self.profile = UserProfile(id=id)
 
     @classmethod
-    def find_by_name(cls, username: str) -> "User":
-        return cls.query.filter_by(username=username).first()
+    def find_by_name(cls, username: str) -> "User|None":
+        return cls.get_first(db.select(cls).filter_by(username=username))
 
     @classmethod
-    def find_by_id(cls, user_id) -> "User":
-        return cls.query.get(user_id)
+    def find_by_role(cls, role_id: int) -> "Sequence[User]":
+        return cls.get_filtered(db.select(cls).join(Role, Role.id == role_id)) or []
 
     @classmethod
-    def find_by_role(cls, role_id: int) -> "User":
-        return cls.query.join(Role, Role.id == role_id).all()
-
-    @classmethod
-    def find_by_role_name(cls, role_name: str) -> "User":
-        return cls.query.join(Role, Role.name == role_name).all()
-
-    @classmethod
-    def get_all(cls):
-        return cls.query.order_by(db.asc(User.name)).all()
-
-    @classmethod
-    def get_by_filter(cls, search, organization):
-        query = cls.query
-
-        if organization:
-            query = query.filter(User.organization_id == organization.id)
-
-        if search is not None:
-            query = query.filter(
-                or_(
-                    User.name.ilike(f"%{search}%"),
-                    User.username.ilike(f"%{search}%"),
-                )
-            )
-
-        return query.order_by(db.asc(User.name)).all(), query.count()
-
-    @classmethod
-    def get_all_json(cls, search=None):
-        users, count = cls.get_by_filter(search, None)
-        items = [user.to_dict() for user in users]
-        return {"total_count": count, "items": items}
+    def find_by_role_name(cls, role_name: str) -> "Sequence[User]":
+        return cls.get_filtered(db.select(cls).join(Role, Role.name == role_name)) or []
 
     def to_dict(self):
         data = {c.name: getattr(self, c.name) for c in self.__table__.columns if c.name != "password"}
@@ -101,8 +75,6 @@ class User(BaseModel):
     @classmethod
     def add(cls, data) -> "User":
         item = cls.from_dict(data)
-        if not item.password:
-            raise ValueError("Password is required")
         db.session.add(item)
         db.session.commit()
         return item
@@ -168,6 +140,18 @@ class User(BaseModel):
         result = super().delete(id)
         UserProfile.delete(id)
         return result
+
+    @classmethod
+    def get_filter_query(cls, filter_args: dict) -> Select:
+        query = db.select(cls)
+
+        if organization := filter_args.get("organization"):
+            query = query.where(User.organization_id == organization.id)
+
+        if search := filter_args.get("search"):
+            query = query.filter(db.or_(User.name.ilike(f"%{search}%"), User.username.ilike(f"%{search}%")))
+
+        return query.order_by(db.asc(User.name))
 
 
 class UserRole(BaseModel):

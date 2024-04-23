@@ -1,5 +1,5 @@
-from flask_restx import Resource, Namespace, Api
-from flask import request
+from flask import request, Flask
+from flask.views import MethodView
 
 from core.managers.auth_manager import api_key_required
 from core.model.task import Task as TaskModel
@@ -7,7 +7,7 @@ from core.log import logger
 from core.model.word_list import WordList
 
 
-class Task(Resource):
+class Task(MethodView):
     @api_key_required
     def get(self, task_id: str):
         if result := TaskModel.get(task_id):
@@ -38,8 +38,7 @@ class Task(Resource):
         return {"status": "success"}, 201
 
 
-def initialize(api: Api):
-    namespace = Namespace("tasks", description="Celery Task API")
-
-    namespace.add_resource(Task, "/", "/<string:task_id>")
-    api.add_namespace(namespace, path="/tasks")
+def initialize(app: Flask):
+    app.add_url_rule("/api/tasks", view_func=Task.as_view("tasks"))
+    app.add_url_rule("/api/tasks/", view_func=Task.as_view("tasks_"))
+    app.add_url_rule("/api/tasks/<string:task_id>", view_func=Task.as_view("task"))

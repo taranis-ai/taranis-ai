@@ -1,5 +1,6 @@
 from typing import Any
 from datetime import datetime, timedelta
+from sqlalchemy.orm import Mapped
 
 from core.managers.db_manager import db
 from core.log import logger
@@ -7,14 +8,16 @@ from core.model.base_model import BaseModel
 
 
 class ScheduleEntry(BaseModel):
-    id = db.Column(db.String, primary_key=True)
-    task = db.Column(db.String)
-    schedule = db.Column(db.String)
-    args = db.Column(db.String)
-    options = db.Column(db.JSON)
-    last_run_at = db.Column(db.DateTime)
-    next_run_time = db.Column(db.DateTime)
-    total_run_count = db.Column(db.Integer)
+    __tablename__ = "schedule_entry"
+
+    id: Mapped[str] = db.Column(db.String, primary_key=True)
+    task: Mapped[str] = db.Column(db.String)
+    schedule: Mapped[str] = db.Column(db.String)
+    args: Mapped[str] = db.Column(db.String)
+    options: Any = db.Column(db.JSON)
+    last_run_at: Mapped[datetime] = db.Column(db.DateTime)
+    next_run_time: Mapped[datetime] = db.Column(db.DateTime)
+    total_run_count: Mapped[int] = db.Column(db.Integer)
 
     def __init__(self, id, task, schedule, options, args):
         self.id = id
@@ -105,7 +108,3 @@ class ScheduleEntry(BaseModel):
         if now >= next_run:
             next_run += timedelta(days=1)
         return (next_run - now).total_seconds()
-
-    @classmethod
-    def count_all(cls):
-        return cls.query.count()

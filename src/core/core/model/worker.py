@@ -1,7 +1,8 @@
-from sqlalchemy import or_
 import uuid
 from typing import Any
 from enum import StrEnum, auto
+from sqlalchemy.sql import Select
+from sqlalchemy.orm import Mapped, relationship
 
 from core.managers.db_manager import db
 from core.model.parameter_value import ParameterValue
@@ -83,12 +84,14 @@ class WORKER_CATEGORY(StrEnum):
 
 
 class Worker(BaseModel):
-    id = db.Column(db.String(64), primary_key=True)
-    name: Any = db.Column(db.String(), nullable=False)
-    description: Any = db.Column(db.String())
-    type: Any = db.Column(db.Enum(WORKER_TYPES), nullable=False)
-    category: Any = db.Column(db.Enum(WORKER_CATEGORY), nullable=False)
-    parameters: Any = db.relationship("ParameterValue", secondary="worker_parameter_value", cascade="all")
+    __tablename__ = "worker"
+
+    id: Mapped[str] = db.Column(db.String(64), primary_key=True)
+    name: Mapped[str] = db.Column(db.String(), nullable=False)
+    description: Mapped[str] = db.Column(db.String())
+    type: Mapped[WORKER_TYPES] = db.Column(db.Enum(WORKER_TYPES), nullable=False)
+    category: Mapped[WORKER_CATEGORY] = db.Column(db.Enum(WORKER_CATEGORY), nullable=False)
+    parameters: Mapped[list["ParameterValue"]] = relationship("ParameterValue", secondary="worker_parameter_value", cascade="all")
 
     def __init__(self, name, description, type, parameters):
         self.id = str(uuid.uuid4())
@@ -108,47 +111,38 @@ class Worker(BaseModel):
         return {"message": f"Worker {worker.name} added", "id": worker.id}, 201
 
     @classmethod
-    def get_first(cls):
-        return cls.query.first()
-
-    @classmethod
-    def get_type(cls, id) -> "Worker":
+    def get_type(cls, id) -> "WORKER_TYPES":
         if worker := cls.get(id):
             return worker.type
-        else:
-            raise ValueError
+        raise ValueError(f"Worker {id} not found")
 
     @classmethod
-    def get_by_filter(cls, filter_args: dict):
-        query = cls.query
+    def get_filter_query(cls, filter_args: dict) -> Select:
+        query = db.select(cls)
 
         if search := filter_args.get("search"):
-            query = query.filter(
-                or_(
+            query = query.where(
+                db.or_(
                     Worker.name.ilike(f"%{search}%"),
                     Worker.description.ilike(f"%{search}%"),
                 )
             )
 
         if category := filter_args.get("category"):
-            query = query.filter(Worker.category == category)
+            if bool(WORKER_CATEGORY(category)):
+                query = query.where(Worker.category == category)
 
         if type := filter_args.get("type"):
-            query = query.filter(Worker.type == type)
+            if bool(WORKER_TYPES(type)):
+                query = query.where(Worker.type == type)
 
-        return query.order_by(db.asc(Worker.name)).all(), query.count()
-
-    @classmethod
-    def filter_by_type(cls, type):
-        return cls.query.filter_by(type=type).first()
+        return query.order_by(db.asc(Worker.name))
 
     @classmethod
-    def get_all_json(cls, filter_args: dict):
-        workers, count = cls.get_by_filter(filter_args)
-        items = [worker.to_worker_info_dict() for worker in workers]
-        return {"total_count": count, "items": items}
+    def filter_by_type(cls, worker_type) -> "Worker | None":
+        return db.session.execute(db.select(cls).filter(cls.type == worker_type)).scalar_one_or_none()
 
-    def to_worker_info_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "name": self.name,
@@ -158,15 +152,11 @@ class Worker(BaseModel):
             "parameters": {parameter.parameter: parameter.value for parameter in self.parameters},
         }
 
-    def to_dict(self) -> dict[str, Any]:
-        data = super().to_dict()
-        data["parameters"] = [pv.to_dict() for pv in self.parameters]
-        return data
-
     @classmethod
     def get_parameters(cls, worker_type: str) -> list[ParameterValue]:
-        parameters = cls.query.filter(cls.type == worker_type).first().parameters
-        return [parameter.get_copy() for parameter in parameters]
+        if worker := cls.filter_by_type(worker_type):
+            return [parameter.get_copy() for parameter in worker.parameters]
+        return []
 
     @classmethod
     def parse_parameters(cls, worker_type: str, parameters) -> list[ParameterValue]:
@@ -212,9 +202,8 @@ class Worker(BaseModel):
         }
 
         if parameter.parameter in ["TAGGING_WORDLISTS"]:
-            data["items"] = [
-                {"name": wordlist.name, "description": wordlist.description} for wordlist in WordList.get_by_filter({"usage": 4})[0]
-            ]
+            word_lists = WordList.get_by_filter({"usage": 4})
+            data["items"] = [{"name": wordlist.name, "description": wordlist.description} for wordlist in word_lists] if word_lists else []
             data["headers"] = [{"title": "Name", "key": "name"}, {"title": "Description", "key": "description"}]
             data["value"] = []
             data["disabled"] = True

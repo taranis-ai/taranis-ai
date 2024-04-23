@@ -6,9 +6,6 @@ from core.model.user import User
 
 
 class BaseAuthenticator:
-    def get_required_credentials(self):
-        return []
-
     def get_authenticator_name(self):
         return ""
 
@@ -22,9 +19,8 @@ class BaseAuthenticator:
         return BaseAuthenticator.generate_jwt(user.username)
 
     @staticmethod
-    def logout(token):
-        if token is not None:
-            TokenBlacklist.add(token)
+    def logout(jti):
+        TokenBlacklist.add(jti)
 
     @staticmethod
     def initialize(app):

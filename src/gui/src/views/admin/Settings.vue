@@ -30,6 +30,23 @@
           <v-row>
             <v-col cols="6">
               <v-card
+                title="Clear all Worker Queues"
+                text="Delete all messages from all worker queues. This action cannot be undone."
+              >
+                <v-card-actions>
+                  <v-btn
+                    variant="elevated"
+                    block
+                    color="red"
+                    text="Delete all Worker Queues"
+                    @click="purgeQueues"
+                  />
+                </v-card-actions>
+              </v-card>
+            </v-col>
+
+            <v-col cols="6">
+              <v-card
                 title="Delete all Tags"
                 text="Delete all tags from all Stories in the system. Reverting the Action of the NER, Wordlist, and Tagging Bots. This action cannot be undone."
               >
@@ -93,7 +110,8 @@ import {
   updateAdminSettings,
   deleteAllTags,
   ungroupAllStories,
-  resetDatabase
+  resetDatabase,
+  clearQueues
 } from '@/api/admin'
 import { computed, ref } from 'vue'
 export default {
@@ -110,6 +128,15 @@ export default {
         updateSettings()
       }
     })
+
+    async function purgeQueues() {
+      try {
+        const result = await clearQueues()
+        notifySuccess(result)
+      } catch (error) {
+        notifyFailure(error)
+      }
+    }
 
     async function updateSettings() {
       try {
@@ -159,6 +186,7 @@ export default {
       deleteTags,
       ungroupAllStoriesAction,
       deleteEverything,
+      purgeQueues,
       tlpLevels,
       tlp
     }

@@ -1,6 +1,8 @@
 import { ref, computed, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { useAssessStore } from './AssessStore'
+import { useAnalyzeStore } from './AnalyzeStore'
+import { usePublishStore } from './PublishStore'
 import { router } from '@/router'
 import { getQueryStringFromNestedObject } from '@/utils/query'
 
@@ -26,23 +28,9 @@ export const useFilterStore = defineStore(
     })
 
     const storyPage = ref(0)
-    const filterQuery = ref(null)
-
-    watch(
-      storyFilter,
-      (filter) => {
-        const newFilterQuery = getQueryStringFromNestedObject(filter)
-
-        if (newFilterQuery === filterQuery.value) {
-          return
-        }
-        filterQuery.value = newFilterQuery
-        router.push({ query: filter })
-        const assessStore = useAssessStore()
-        assessStore.updateStories()
-      },
-      { deep: true }
-    )
+    const storyFilterQuery = ref(null)
+    const reportFilterQuery = ref(null)
+    const productFilterQuery = ref(null)
 
     const assetFilter = ref({
       offset: undefined,
@@ -57,8 +45,7 @@ export const useFilterStore = defineStore(
       search: undefined,
       sort: undefined,
       range: undefined,
-      completed: undefined,
-      incompleted: undefined
+      completed: undefined
     })
 
     const productFilter = ref({
@@ -74,6 +61,54 @@ export const useFilterStore = defineStore(
     const compactView = ref(false)
     const compactViewSetByUser = ref(false)
 
+    watch(
+      storyFilter,
+      (filter) => {
+        const newFilterQuery = getQueryStringFromNestedObject(filter)
+
+        if (newFilterQuery === storyFilterQuery.value) {
+          return
+        }
+        storyFilterQuery.value = newFilterQuery
+        router.push({ query: filter })
+        const assessStore = useAssessStore()
+        assessStore.updateStories()
+      },
+      { deep: true }
+    )
+
+    watch(
+      reportFilter,
+      (filter) => {
+        const newFilterQuery = getQueryStringFromNestedObject(filter)
+
+        if (newFilterQuery === reportFilterQuery.value) {
+          return
+        }
+        reportFilterQuery.value = newFilterQuery
+        router.push({ query: filter })
+        const analyzeStore = useAnalyzeStore()
+        analyzeStore.updateReportItems()
+      },
+      { deep: true }
+    )
+
+    watch(
+      productFilter,
+      (filter) => {
+        const newFilterQuery = getQueryStringFromNestedObject(filter)
+
+        if (newFilterQuery === productFilterQuery.value) {
+          return
+        }
+        productFilterQuery.value = newFilterQuery
+        router.push({ query: filter })
+        const productStore = usePublishStore()
+        productStore.updateProducts()
+      },
+      { deep: true }
+    )
+
     // Getters
     const getFilterTags = computed(() => {
       if (typeof storyFilter.value.tags === 'string') {
@@ -83,7 +118,8 @@ export const useFilterStore = defineStore(
     })
 
     // Actions
-    function setFilter(filter) {
+
+    function parseFilter(filter) {
       if (filter.tags && typeof filter.tags === 'string') {
         filter.tags = [filter.tags]
       }
@@ -93,6 +129,11 @@ export const useFilterStore = defineStore(
       if (filter.limit && typeof filter.limit === 'string') {
         filter.limit = parseInt(filter.limit)
       }
+      return filter
+    }
+
+    function setFilter(rawFilter) {
+      const filter = parseFilter(rawFilter)
       if (filter.page && typeof filter.page === 'string') {
         storyPage.value = parseInt(filter.page)
       }
@@ -144,7 +185,7 @@ export const useFilterStore = defineStore(
     }
 
     function setReportFilter(filter) {
-      reportFilter.value = filter
+      reportFilter.value = parseFilter(filter)
     }
 
     function updateProductFilter(filter) {
@@ -154,7 +195,7 @@ export const useFilterStore = defineStore(
     }
 
     function setProductFilter(filter) {
-      productFilter.value = filter
+      productFilter.value = parseFilter(filter)
     }
 
     function setUserFilters(profile) {
@@ -193,8 +234,7 @@ export const useFilterStore = defineStore(
         search: undefined,
         sort: undefined,
         range: undefined,
-        completed: undefined,
-        incompleted: undefined
+        completed: undefined
       }
       productFilter.value = {
         offset: undefined,
@@ -209,7 +249,9 @@ export const useFilterStore = defineStore(
     return {
       storyFilter,
       storyPage,
-      filterQuery,
+      storyFilterQuery,
+      reportFilterQuery,
+      productFilterQuery,
       assetFilter,
       reportFilter,
       productFilter,

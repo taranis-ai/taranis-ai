@@ -39,17 +39,15 @@ class BotTask(Task):
     def execute_by_config(self, bot_config: dict, filter: dict | None = None):
         bot_type = bot_config.get("type")
         if not bot_type:
-            logger.error("Bot has no type")
-            return
+            raise ValueError("Bot has no type")
 
         bot = self.bots.get(bot_type)
         if not bot:
-            return "Bot type not implemented"
+            raise ValueError("Bot type not implemented")
 
         bot_params = bot_config.get("parameters")
         if not bot_params:
-            logger.error("Bot with has no params")
-            return
+            raise ValueError("Bot with has no parameters")
 
         if filter:
             bot_params |= filter

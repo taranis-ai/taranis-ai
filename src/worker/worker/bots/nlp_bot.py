@@ -7,52 +7,46 @@ from flair.nn import Classifier
 
 
 class NLPBot(BaseBot):
-    type = "NLP_BOT"
-    name = "NLP Bot"
-    description = "Bot for naturale language processing of news items"
-
     def __init__(self):
         super().__init__()
+        self.type = "NLP_BOT"
+        self.name = "NLP Bot"
+        self.description = "Bot for naturale language processing of news items"
+
         logger.debug("Setup NER Model...")
         self.ner_multi = Classifier.load("flair/ner-multi")
         torch.set_num_threads(1)  # https://github.com/pytorch/pytorch/issues/36191
         self.extraction_line_limit = 20
 
     def execute(self, parameters=None):
-        if not parameters:
-            return
-        try:
-            if not (data := self.get_stories(parameters)):
-                return "Error getting news items"
+        if not (data := self.get_stories(parameters)):
+            return None
 
-            all_keywords = {k: v for news_item in data for k, v in news_item["tags"].items()}
+        all_keywords = {k: v for news_item in data for k, v in news_item["tags"].items()}
 
-            update_result = {}
+        update_result = {}
 
-            for i, aggregate in enumerate(data):
-                if attributes := aggregate.get("news_item_attributes", {}):
-                    if self.type in [d["key"] for d in attributes if "key" in d]:
-                        logger.debug(f"Skipping {aggregate['id']} because it has attributes: {attributes}")
-                        continue
-                if i % max(len(data) // 10, 1) == 0:
-                    logger.debug(f"Extracting NER from {aggregate['id']}: {i}/{len(data)}")
-                    self.core_api.update_tags(update_result, self.type)
-                    update_result = {}
+        for i, story in enumerate(data):
+            if attributes := story.get("news_item_attributes", {}):
+                if self.type in [d["key"] for d in attributes if "key" in d]:
+                    logger.debug(f"Skipping {story['id']} because it has attributes: {attributes}")
+                    continue
+            if i % max(len(data) // 5, 1) == 0:
+                logger.debug(f"Extracting NER from {story['id']}: {i}/{len(data)}")
+                self.core_api.update_tags(update_result, self.type)
+                update_result = {}
 
-                current_keywords = self.extract_keywords(aggregate, all_keywords)
-                all_keywords |= current_keywords
-                update_result[aggregate["id"]] = current_keywords
-            self.core_api.update_tags(update_result, self.type)
+            current_keywords = self.extract_keywords(story, all_keywords)
+            all_keywords |= current_keywords
+            update_result[story["id"]] = current_keywords
+        self.core_api.update_tags(update_result, self.type)
 
-        except Exception:
-            logger.log_debug_trace(f"Error running Bot: {self.type}")
-
-    def extract_keywords(self, aggregate: dict, all_keywords: dict) -> dict:
-        current_keywords = aggregate.get("tags", {})
+    def extract_keywords(self, story: dict, all_keywords: dict) -> dict:
+        current_keywords = story.get("tags", {})
         # drop "name" from current_keywords
         current_keywords = {k: v for k, v in current_keywords.items() if k != "name"}
-        aggregate_content = "\n".join(news_item["news_item_data"]["content"] for news_item in aggregate["news_items"])
-        lines = self.get_first_and_last_n_lines(aggregate_content)
+        story_content = "\n".join(news_item["content"] for news_item in story["news_items"])
+        lines = self.get_first_and_last_n_lines(story_content)
         for line in lines:
             current_keywords |= self.extract_ner(line, all_keywords, self.ner_multi)
         return current_keywords

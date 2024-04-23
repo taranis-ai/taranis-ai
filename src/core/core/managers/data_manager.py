@@ -107,6 +107,6 @@ def delete_template(presenter_template: str) -> bool:
         return False
 
 
-def initialize(first_worker: bool) -> None:
-    if first_worker:
+def initialize(initial_setup: bool = True) -> None:
+    if initial_setup:
         sync_presenter_templates_to_data()

@@ -1,5 +1,5 @@
-from flask import request, abort
-from flask_restx import Resource, Namespace, Api
+from flask import request, abort, Flask
+from flask.views import MethodView
 
 from core.managers import asset_manager, auth_manager
 from core.managers.sse_manager import sse_manager
@@ -8,13 +8,13 @@ from core.managers.auth_manager import auth_required
 from core.model import report_item, report_item_type
 
 
-class ReportTypes(Resource):
+class ReportTypes(MethodView):
     @auth_required("ANALYZE_ACCESS")
     def get(self):
-        return report_item_type.ReportItemType.get_all_json(None, auth_manager.get_user_from_jwt(), True)
+        return report_item_type.ReportItemType.get_all_for_api(filter_args=None, with_count=False, user=auth_manager.get_user_from_jwt())
 
 
-class ReportStories(Resource):
+class ReportStories(MethodView):
     @auth_required("ANALYZE_ACCESS")
     def get(self, report_item_id):
         return report_item.ReportItem.get_story_ids(report_item_id)
@@ -36,18 +36,17 @@ class ReportStories(Resource):
         return report_item.ReportItem.add_stories(report_item_id, request_data, auth_manager.get_user_from_jwt())
 
 
-class ReportItem(Resource):
+class ReportItem(MethodView):
     @auth_required("ANALYZE_ACCESS")
     def get(self, report_item_id=None):
         if report_item_id:
-            result_json = report_item.ReportItem.get_detail_json(report_item_id)
-            return (result_json, 200) if result_json else ("Could not get report item", 404)
-        filter_keys = ["search", "completed", "incompleted", "range", "sort", "group"]
+            return report_item.ReportItem.get_for_api(report_item_id)
+        filter_keys = ["search", "completed", "range", "sort", "group"]
         filter_args: dict[str, str | int] = {k: v for k, v in request.args.items() if k in filter_keys}
 
         filter_args["offset"] = min(int(request.args.get("offset", 0)), (2**31) - 1)
         filter_args["limit"] = min(int(request.args.get("limit", 20)), 200)
-        return report_item.ReportItem.get_json(filter_args, auth_manager.get_user_from_jwt())
+        return report_item.ReportItem.get_all_for_api(filter_args=filter_args, with_count=True, user=auth_manager.get_user_from_jwt())
 
     @auth_required("ANALYZE_CREATE")
     def post(self):
@@ -80,7 +79,7 @@ class ReportItem(Resource):
         return result, code
 
 
-class CloneReportItem(Resource):
+class CloneReportItem(MethodView):
     @auth_required("ANALYZE_CREATE")
     def post(self, report_item_id):
         try:
@@ -94,13 +93,13 @@ class CloneReportItem(Resource):
         return result, status
 
 
-class ReportItemLocks(Resource):
+class ReportItemLocks(MethodView):
     @auth_required("ANALYZE_UPDATE")
     def get(self, report_item_id):
         return sse_manager.to_report_item_json(report_item_id)
 
 
-class ReportItemLock(Resource):
+class ReportItemLock(MethodView):
     @auth_required("ANALYZE_UPDATE")
     def put(self, report_item_id):
         user = auth_manager.get_user_from_jwt()
@@ -113,7 +112,7 @@ class ReportItemLock(Resource):
             return str(ex), 500
 
 
-class ReportItemUnlock(Resource):
+class ReportItemUnlock(MethodView):
     @auth_required("ANALYZE_UPDATE")
     def put(self, report_item_id):
         user = auth_manager.get_user_from_jwt()
@@ -126,19 +125,13 @@ class ReportItemUnlock(Resource):
             return str(ex), 500
 
 
-def initialize(api: Api):
-    namespace = Namespace("analyze", description="Analyze API")
-    namespace.add_resource(ReportTypes, "/report-types")
-    namespace.add_resource(ReportItem, "/report-items/<string:report_item_id>", "/report-items")
-    namespace.add_resource(CloneReportItem, "/report-items/<string:report_item_id>/clone")
-    namespace.add_resource(ReportStories, "/report-items/<string:report_item_id>/stories")
-    namespace.add_resource(ReportItemLocks, "/report-items/<string:report_item_id>/locks")
-    namespace.add_resource(
-        ReportItemLock,
-        "/report-items/<string:report_item_id>/lock",
-    )
-    namespace.add_resource(
-        ReportItemUnlock,
-        "/report-items/<string:report_item_id>/unlock",
-    )
-    api.add_namespace(namespace, path="/analyze")
+def initialize(app: Flask):
+    base_route = "/api/analyze"
+    app.add_url_rule(f"{base_route}/report-types", view_func=ReportTypes.as_view("report_types"))
+    app.add_url_rule(f"{base_route}/report-items", view_func=ReportItem.as_view("report_items"))
+    app.add_url_rule(f"{base_route}/report-items/<string:report_item_id>", view_func=ReportItem.as_view("report_item"))
+    app.add_url_rule(f"{base_route}/report-items/<string:report_item_id>/clone", view_func=CloneReportItem.as_view("clone_report_item"))
+    app.add_url_rule(f"{base_route}/report-items/<string:report_item_id>/stories", view_func=ReportStories.as_view("report_stories"))
+    app.add_url_rule(f"{base_route}/report-items/<string:report_item_id>/locks", view_func=ReportItemLocks.as_view("report_item_locks"))
+    app.add_url_rule(f"{base_route}/report-items/<string:report_item_id>/lock", view_func=ReportItemLock.as_view("report_item_lock"))
+    app.add_url_rule(f"{base_route}/report-items/<string:report_item_id>/unlock", view_func=ReportItemUnlock.as_view("report_item_unlock"))

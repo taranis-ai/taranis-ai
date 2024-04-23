@@ -1,6 +1,68 @@
 version: "3.9"
 
 services:
+  gui:
+    # This is the entrypoint for all requests
+    ports:
+    - "${TARANIS_PORT:-8080}:80"
+    depends_on:
+      - core
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-gui:${TARANIS_TAG:-latest}"
+    environment:
+      NGINX_WORKERS: "4"
+      NGINX_CONNECTIONS: "16"
+      TARANIS_CORE_UPSTREAM: "${TARANIS_CORE_UPSTREAM:-core:8080}"
+      TARANIS_SENTRY_DSN: "${TARANIS_SENTRY_DSN:-}"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
+  core:
+    depends_on:
+      database:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-core:${TARANIS_TAG:-latest}"
+    ports:
+      - "${TARANIS_CORE_PORT:-8081}:${8080}"
+    environment:
+      DB_URL: "${DB_URL:-database}"
+      DB_DATABASE: "${DB_DATABASE:-taranis}"
+      DB_USER: "${DB_USER:-taranis}"
+      DB_PASSWORD: "${POSTGRES_PASSWORD:-taranis}"
+      DB_POOL_SIZE: 100
+      DB_POOL_RECYCLE: 300
+      DB_POOL_TIMEOUT: 5
+
+      JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
+      TARANIS_AUTHENTICATOR: "${TARANIS_AUTHENTICATOR:-database}"
+
+      QUEUE_BROKER_HOST: "rabbitmq"
+      QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
+      QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-taranis}"
+
+      PRE_SEED_PASSWORD_ADMIN: "${PRE_SEED_PASSWORD_ADMIN:-admin}"
+      PRE_SEED_PASSWORD_USER: "${PRE_SEED_PASSWORD_USER:-user}"
+      SECRET_KEY: "${API_KEY}"
+      API_KEY: "${API_KEY}"
+      DEBUG: "${DEBUG:-False}"
+    volumes:
+      - "core_data:/data"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
   database:
     image: "docker.io/library/postgres:${POSTGRES_TAG:-14-alpine}"
     # ports:
@@ -27,46 +89,6 @@ services:
         max-size: "200k"
         max-file: "10"
 
-  core:
-    depends_on:
-      database:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: on-failure
-        max_attempts: 3
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-core:${TARANIS_TAG:-latest}"
-    ports:
-      - "${TARANIS_CORE_PORT:-8081}:${TARANIS_CORE_LISTEN_PORT:-80}"
-    environment:
-      DB_URL: "${DB_URL:-database}"
-      DB_DATABASE: "${DB_DATABASE:-taranis}"
-      DB_USER: "${DB_USER:-taranis}"
-      DB_PASSWORD: "${POSTGRES_PASSWORD:-taranis}"
-      DB_POOL_SIZE: 100
-      DB_POOL_RECYCLE: 300
-      DB_POOL_TIMEOUT: 5
-
-      JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
-      TARANIS_AUTHENTICATOR: "${TARANIS_AUTHENTICATOR:-database}"
-
-      QUEUE_BROKER_HOST: "rabbitmq"
-      QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
-      QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-taranis}"
-
-      PRE_SEED_PASSWORD_ADMIN: "${PRE_SEED_PASSWORD_ADMIN:-admin}"
-      PRE_SEED_PASSWORD_USER: "${PRE_SEED_PASSWORD_USER:-user}"
-      SECRET_KEY: "${API_KEY}"
-      API_KEY: "${API_KEY}"
-      DEBUG: "${DEBUG:-False}"
-      PORT: "${TARANIS_CORE_LISTEN_PORT:-80}"
-    volumes:
-      - "core_data:/data"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "200k"
-        max-file: "10"
 
   beat:
     depends_on:
@@ -83,6 +105,7 @@ services:
       QUEUE_BROKER_HOST: "rabbitmq"
       QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
       QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-taranis}"
+      WORKER_TYPES: '[]'
       DEBUG: "${DEBUG:-False}"
     logging:
       driver: "json-file"
@@ -90,7 +113,7 @@ services:
         max-size: "200k"
         max-file: "10"
 
-  worker:
+  collector:
     depends_on:
       - rabbitmq
     deploy:
@@ -104,6 +127,7 @@ services:
       QUEUE_BROKER_HOST: "rabbitmq"
       QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
       QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-taranis}"
+      WORKER_TYPES: '["Collectors", "Bots"]'
       DEBUG: "${DEBUG:-False}"
     logging:
       driver: "json-file"
@@ -111,21 +135,23 @@ services:
         max-size: "200k"
         max-file: "10"
 
-  gui:
+
+  publisher:
     depends_on:
-      - core
+      - rabbitmq
     deploy:
       restart_policy:
         condition: on-failure
         max_attempts: 3
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-gui:${TARANIS_TAG:-latest}"
-    ports:
-      - "${TARANIS_PORT:-8080}:80"
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-worker:${TARANIS_TAG:-latest}"
     environment:
-      NGINX_WORKERS: "4"
-      NGINX_CONNECTIONS: "16"
-      TARANIS_CORE_UPSTREAM: "${TARANIS_CORE_UPSTREAM:-core}"
-      TARANIS_SENTRY_DSN: "${TARANIS_SENTRY_DSN:-}"
+      TARANIS_CORE_URL: "http://core/api"
+      API_KEY: "${API_KEY}"
+      QUEUE_BROKER_HOST: "rabbitmq"
+      QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
+      QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-taranis}"
+      WORKER_TYPES: '["Presenters", "Publishers"]'
+      DEBUG: "${DEBUG:-False}"
     logging:
       driver: "json-file"
       options:

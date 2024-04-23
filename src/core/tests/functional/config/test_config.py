@@ -132,10 +132,10 @@ class TestWordListConfigApi(BaseTest):
 
     def test_get_word_lists(self, client, auth_header, cleanup_word_lists):
         response = self.assert_get_ok(client, "word-lists", auth_header)
-        total_count = response.get_json()["total_count"]
+        count = response.get_json()["total_count"]
         word_lists = response.get_json()["items"]
 
-        assert total_count > 0
+        assert count > 0
         assert len(word_lists) > 0
 
         response = self.assert_get_ok(client, f"word-lists/{cleanup_word_lists['id']}", auth_header)
@@ -166,7 +166,7 @@ class TestUserConfigApi(BaseTest):
             "name": "Testy McTestFace",
         }
         response = self.assert_put_ok(client, uri=f"users/{user_id}", json_data=user_data, auth_header=auth_header)
-        assert response.json[0]["message"] == f"User {user_id} updated"
+        assert response.json["message"] == f"User {user_id} updated"
 
     def test_get_user(self, client, auth_header, cleanup_user):
         user_id = cleanup_user["id"]
@@ -180,7 +180,11 @@ class TestUserConfigApi(BaseTest):
     def test_delete_user(self, client, auth_header, cleanup_user):
         user_id = cleanup_user["id"]
         response = self.assert_delete_ok(client, uri=f"users/{user_id}", auth_header=auth_header)
-        assert response.json[0]["message"] == f"User {user_id} deleted"
+        assert response.json["message"] == f"User {user_id} deleted"
+
+
+class TestRoleConfigApi(BaseTest):
+    base_uri = "/api/config"
 
     def test_create_role(self, client, auth_header, cleanup_role):
         response = self.assert_post_ok(client, uri="roles", json_data=cleanup_role, auth_header=auth_header)
@@ -190,6 +194,7 @@ class TestUserConfigApi(BaseTest):
     def test_modify_role(self, client, auth_header, cleanup_role):
         role_data = {
             "description": "Roly McRoleFace",
+            "tlp_level": "clear",
         }
         role_id = cleanup_role["id"]
         response = self.assert_put_ok(client, uri=f"roles/{role_id}", json_data=role_data, auth_header=auth_header)
@@ -201,12 +206,17 @@ class TestUserConfigApi(BaseTest):
         assert response.json["total_count"] == 1
         assert response.json["items"][0]["name"] == cleanup_role["name"]
         assert response.json["items"][0]["description"] == "Roly McRoleFace"
+        assert response.json["items"][0]["tlp_level"] == "clear"
         assert response.json["items"][0]["id"] == role_id
 
     def test_delete_role(self, client, auth_header, cleanup_role):
         role_id = cleanup_role["id"]
         response = self.assert_delete_ok(client, uri=f"roles/{role_id}", auth_header=auth_header)
         assert response.json["message"] == f"Role {role_id} deleted"
+
+
+class TestOrganizationConfigApi(BaseTest):
+    base_uri = "/api/config"
 
     def test_create_organization(self, client, auth_header, cleanup_organization):
         response = self.assert_post_ok(client, uri="organizations", json_data=cleanup_organization, auth_header=auth_header)
@@ -241,7 +251,7 @@ class TestBotConfigApi(BaseTest):
 
     def test_create_bot(self, client, auth_header, cleanup_bot):
         response = self.assert_post_ok(client, uri="bots", json_data=cleanup_bot, auth_header=auth_header)
-        assert response.json["message"] == f"Bot {cleanup_bot['name']} added"
+        assert response.json["message"] == f"Bot {cleanup_bot['name']} created"
         assert response.json["id"] == cleanup_bot["id"]
 
     def test_modify_bot(self, client, auth_header, cleanup_bot):
@@ -318,6 +328,8 @@ class TestProductTypes(BaseTest):
         product_type_type = cleanup_product_types["type"]
         response = self.assert_get_ok(client, uri=f"product-types?search={product_type_type}", auth_header=auth_header)
         assert response.json["items"][0]["type"] == product_type_type
+        assert response.json["total_count"] == 1
+        assert response.json["templates"]
 
     def test_delete_product_type(self, client, auth_header, cleanup_product_types):
         product_type_id = cleanup_product_types["id"]
@@ -428,6 +440,7 @@ class TestWorkerTypes(BaseTest):
         assert response.json["items"][0]["name"] == cleanup_worker_types["name"]
         assert response.json["items"][0]["description"] == cleanup_worker_types["description"]
         assert response.json["items"][0]["type"] == cleanup_worker_types["type"]
+        print(response.json["items"][0])
         assert response.json["items"][0]["parameters"]["REGULAR_EXPRESSION"] == cleanup_worker_types["parameters"]["REGULAR_EXPRESSION"]
         assert response.json["items"][0]["parameters"]["ITEM_FILTER"] == cleanup_worker_types["parameters"]["ITEM_FILTER"]
         assert response.json["items"][0]["parameters"]["RUN_AFTER_COLLECTOR"] == cleanup_worker_types["parameters"]["RUN_AFTER_COLLECTOR"]

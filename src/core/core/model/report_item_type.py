@@ -1,5 +1,6 @@
 from typing import Any
-from sqlalchemy import or_
+from sqlalchemy.sql.expression import Select
+from sqlalchemy.orm import Mapped, relationship
 import json
 
 from core.managers.db_manager import db
@@ -10,21 +11,24 @@ from core.service.role_based_access import RoleBasedAccessService, RBACQuery
 
 
 class AttributeGroupItem(BaseModel):
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(), nullable=False)
-    description = db.Column(db.String())
+    __tablename__ = "attribute_group_item"
 
-    index = db.Column(db.Integer)
-    multiple = db.Column(db.Boolean, default=False)
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    title: Mapped[str] = db.Column(db.String(), nullable=False)
+    description: Mapped[str] = db.Column(db.String())
 
-    attribute_group_id = db.Column(db.Integer, db.ForeignKey("attribute_group.id", ondelete="CASCADE"))
-    attribute_group = db.relationship("AttributeGroup")
+    index: Mapped[int] = db.Column(db.Integer)
+    multiple: Mapped[bool] = db.Column(db.Boolean, default=False)
 
-    attribute_id = db.Column(db.Integer, db.ForeignKey("attribute.id"))
-    attribute = db.relationship("Attribute")
+    attribute_group_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("attribute_group.id", ondelete="CASCADE"))
+    attribute_group: Mapped["AttributeGroup"] = relationship("AttributeGroup")
 
-    def __init__(self, title, description, index, attribute_id=None, attribute=None, multiple=False, id=None):
-        self.id = id
+    attribute_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("attribute.id"))
+    attribute: Mapped["Attribute"] = relationship("Attribute")
+
+    def __init__(self, title: str, description: str, index: int, attribute_id=None, attribute=None, multiple=False, id=None):
+        if id:
+            self.id = id
         self.title = title
         self.description = description
         self.index = index
@@ -35,7 +39,7 @@ class AttributeGroupItem(BaseModel):
                 attribute_id = attr.id
 
         if not attribute_id:
-            raise Exception("AttributeGroupItem requires either attribute_id or attribute")
+            raise ValueError("AttributeGroupItem requires either attribute_id or attribute")
 
         self.attribute_id = attribute_id
 
@@ -68,23 +72,26 @@ class AttributeGroupItem(BaseModel):
 
 
 class AttributeGroup(BaseModel):
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String())
-    description = db.Column(db.String())
+    __tablename__ = "attribute_group"
 
-    index = db.Column(db.Integer)
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    title: Mapped[str] = db.Column(db.String())
+    description: Mapped[str] = db.Column(db.String())
 
-    report_item_type_id = db.Column(db.Integer, db.ForeignKey("report_item_type.id", ondelete="CASCADE"))
-    report_item_type = db.relationship("ReportItemType")
+    index: Mapped[int] = db.Column(db.Integer)
 
-    attribute_group_items: Any = db.relationship(
+    report_item_type_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("report_item_type.id", ondelete="CASCADE"))
+    report_item_type: Mapped["ReportItemType"] = relationship("ReportItemType")
+
+    attribute_group_items: Mapped[list["AttributeGroupItem"]] = relationship(
         "AttributeGroupItem",
         back_populates="attribute_group",
         cascade="all, delete-orphan",
     )
 
     def __init__(self, title, description, index, attribute_group_items=None, id=None):
-        self.id = id
+        if id:
+            self.id = id
         self.title = title
         self.description = description
         self.index = index
@@ -142,17 +149,19 @@ class AttributeGroup(BaseModel):
 
 
 class ReportItemType(BaseModel):
-    id = db.Column(db.Integer, primary_key=True)
-    title: Any = db.Column(db.String())
-    description: Any = db.Column(db.String())
+    __tablename__ = "report_item_type"
 
-    attribute_groups: Any = db.relationship(
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    title: Mapped[str] = db.Column(db.String())
+    description: Mapped[str] = db.Column(db.String())
+
+    attribute_groups: Mapped[list["AttributeGroup"]] = relationship(
         "AttributeGroup",
         back_populates="report_item_type",
         cascade="all, delete-orphan",
     )
 
-    def __init__(self, title, description=None, attribute_groups=None, id=None):
+    def __init__(self, title: str, description: str = "", attribute_groups=None, id: int | None = None):
         self.title = title
         self.description = description
         self.attribute_groups = AttributeGroup.load_multiple(attribute_groups) if attribute_groups else []
@@ -160,12 +169,15 @@ class ReportItemType(BaseModel):
             self.id = id
 
     @classmethod
-    def get_all(cls):
-        return cls.query.order_by(ReportItemType.title).all()
+    def get_by_title(cls, title):
+        return cls.get_first(db.select(cls).filter_by(title=title))
 
     @classmethod
-    def get_by_title(cls, title):
-        return cls.query.filter_by(title=title).first()
+    def get_filter_query_with_acl(cls, filter_args: dict, user) -> Select:
+        query = cls.get_filter_query(filter_args)
+        rbac = RBACQuery(user=user, resource_type=ItemType.REPORT_ITEM_TYPE)
+        query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
+        return query
 
     def allowed_with_acl(self, user, require_write_access) -> bool:
         if not RoleBasedAccess.is_enabled() or not user:
@@ -178,29 +190,18 @@ class ReportItemType(BaseModel):
         return RoleBasedAccessService.user_has_access_to_resource(query)
 
     @classmethod
-    def get_by_filter(cls, search, user, acl_check):
-        query = cls.query.distinct().group_by(ReportItemType.id)
+    def get_filter_query(cls, filter_args: dict) -> Select:
+        query = db.select(cls)
 
-        if acl_check:
-            rbac = RBACQuery(user=user, resource_type=ItemType.REPORT_ITEM_TYPE)
-            query = RoleBasedAccessService.filter_query_with_acl(query, rbac)
-
-        if search:
-            search_string = f"%{search}%"
-            query = query.filter(
-                or_(
-                    ReportItemType.title.ilike(search_string),
-                    ReportItemType.description.ilike(search_string),
+        if search := filter_args.get("search"):
+            query = query.where(
+                db.or_(
+                    cls.title.ilike(f"%{search}%"),
+                    cls.description.ilike(f"%{search}%"),
                 )
             )
 
-        return query.order_by(db.asc(ReportItemType.title)).all(), query.count()
-
-    @classmethod
-    def get_all_json(cls, search, user, acl_check):
-        report_item_types, count = cls.get_by_filter(search, user, acl_check)
-        items = [report_item_type.to_dict() for report_item_type in report_item_types]
-        return {"total_count": count, "items": items}
+        return query.order_by(db.asc(cls.title))
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
@@ -232,10 +233,14 @@ class ReportItemType(BaseModel):
 
     @classmethod
     def export(cls, source_ids=None):
+        query = db.select(cls)
         if source_ids:
-            data = cls.query.filter(cls.id.in_(source_ids)).all()  # type: ignore
-        else:
-            data = cls.get_all()
+            query = query.filter(cls.id.in_(source_ids))
+
+        data = cls.get_filtered(query)
+        if not data:
+            return json.dumps({"error": "no sources found"}).encode("utf-8")
+
         export_data = {"version": 1, "data": [report_type.to_export_dict() for report_type in data]}
         return json.dumps(export_data).encode("utf-8")
 

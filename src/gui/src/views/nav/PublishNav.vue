@@ -32,13 +32,12 @@
 </template>
 
 <script>
-import { computed, onMounted, onUnmounted, watch } from 'vue'
+import { computed, onUnmounted, watch } from 'vue'
 import { usePublishStore } from '@/stores/PublishStore'
 import { useFilterStore } from '@/stores/FilterStore'
 import FilterNavigation from '@/components/common/FilterNavigation.vue'
 import dateChips from '@/components/common/filter/dateChips.vue'
 import { storeToRefs } from 'pinia'
-import { useRoute } from 'vue-router'
 import { router } from '@/router'
 
 export default {
@@ -54,8 +53,6 @@ export default {
     const { updateProductFilter, setProductFilter } = filterStore
     const updateProducts = publishStore.updateProducts
 
-    const route = useRoute()
-
     const search = computed({
       get() {
         return productFilter.value.search
@@ -68,13 +65,6 @@ export default {
     function addProduct() {
       router.push('/product/')
     }
-
-    onMounted(() => {
-      const query = Object.fromEntries(
-        Object.entries(route.query).filter(([, v]) => v != null)
-      )
-      updateProductFilter(query)
-    })
 
     onUnmounted(() => {
       setProductFilter({})
