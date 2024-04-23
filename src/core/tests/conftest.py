@@ -7,20 +7,34 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 
 load_dotenv(dotenv_path="tests/.env", override=True)
 
+
 def pytest_addoption(parser):
     parser.addoption("--run-e2e", action="store_true", default=False, help="run e2e tests")
+    parser.addoption("--run-e2e-ci", action="store_true", default=False, help="run e2e tests for CI")
+
 
 def pytest_collection_modifyitems(config, items):
-    if config.getoption("--run-e2e"):
-        skip_other = pytest.mark.skip(reason="not an e2e test")
-        for item in items:
-            if "e2e" not in item.keywords:
-                item.add_marker(skip_other)
+    run_e2e = config.getoption("--run-e2e")
+    run_e2e_ci = config.getoption("--run-e2e-ci")
+
+    if run_e2e or run_e2e_ci:
+        if run_e2e:
+            skip_non_e2e = pytest.mark.skip(reason="not a local e2e test")
+            for item in items:
+                if "e2e" not in item.keywords:
+                    item.add_marker(skip_non_e2e)
+
+        if run_e2e_ci:
+            skip_non_e2e_ci = pytest.mark.skip(reason="not an e2e CI test")
+            for item in items:
+                if "e2e_ci" not in item.keywords:
+                    item.add_marker(skip_non_e2e_ci)
     else:
-        skip_e2e = pytest.mark.skip(reason="need --run-e2e option to run e2e tests")
+        skip_e2e = pytest.mark.skip(reason="need --run-e2e or --run-e2e-ci option to run e2e tests")
         for item in items:
-            if "e2e" in item.keywords:
+            if "e2e" in item.keywords or "e2e-ci" in item.keywords:
                 item.add_marker(skip_e2e)
+
 
 @pytest.fixture(scope="session")
 def app(request):

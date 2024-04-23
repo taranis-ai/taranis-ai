@@ -32,7 +32,7 @@ def scroll_to_the_bottom(page):
         current += scroll_pixels
 
 
-@pytest.mark.e2e
+@pytest.mark.e2e_ci
 def test_e2e_ci(playwright: Playwright, news_item_aggregates, video_dir="videos/") -> None:
     browser = playwright.chromium.launch(headless=True)
     context = browser.new_context(

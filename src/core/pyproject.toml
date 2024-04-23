@@ -67,7 +67,8 @@ target-version = "py312"
 
 [tool.pytest.ini_options]
 markers = [
-    "e2e: marks tests as to run only when calling with --run-e2e option"
+    "e2e: marks tests as to run only when calling with --run-e2e option",
+    "e2e_ci: marks tests as to run only when calling with --run-e2e-ci option"
 ]
 filterwarnings = [
     "ignore:.*_app_ctx_stack.*:DeprecationWarning",
