@@ -29,12 +29,10 @@ def fake_source(app, request):
         yield source_id
 
 
-@pytest.fixture
-def news_items_data(app, fake_source):
+@pytest.fixture(scope="session")
+def news_items(app, fake_source):
     with app.app_context():
-        from core.model.news_item import NewsItemData
-
-        news_items_data_list = [
+        news_items_list = [
             {
                 "id": "1be00eef-6ade-4818-acfc-25029531a9a5",
                 "content": "TEST CONTENT YYYY",
@@ -43,7 +41,6 @@ def news_items_data(app, fake_source):
                 "author": "",
                 "collected": "2022-02-21T15:00:14.086285",
                 "hash": "82e6e99403686a1072d0fb2013901b843a6725ba8ac4266270f62b7614ec1adf",
-                "attributes": [],
                 "review": "",
                 "link": "https://www.some.other.link/2023.html",
                 "osint_source_id": fake_source,
@@ -57,7 +54,6 @@ def news_items_data(app, fake_source):
                 "author": "",
                 "collected": "2023-01-20T15:00:14.086285",
                 "hash": "e270c3a7d87051dea6c3dc14234451f884b427c32791862dacdd7a3e3d318da6",
-                "attributes": [],
                 "review": "Claudia Plattner wird ab 1. Juli 2023 das Bundesamt für Sicherheitin der Informationstechnik (BSI) leiten.",
                 "link": "https: //www.some.other.link/BSI-Praesidentin_230207.html",
                 "osint_source_id": fake_source,
@@ -65,24 +61,22 @@ def news_items_data(app, fake_source):
             },
         ]
 
-        yield NewsItemData.load_multiple(news_items_data_list)
+        yield news_items_list
 
 
-@pytest.fixture
-def news_item_aggregates(app, request, news_items_data):
+@pytest.fixture(scope="session")
+def stories(app, request, news_items):
     with app.app_context():
-        from core.model.news_item import NewsItemAggregate
-        from core.model.user import User
+        from core.model.story import Story
+        from core.model.report_item import ReportItem
 
-        nia1 = NewsItemAggregate.create_new(news_items_data[0])
-        nia2 = NewsItemAggregate.create_new(news_items_data[1])
+        story_ids = Story.add_news_items(news_items)[0].get("ids")
 
         def teardown():
-            user = User.find_by_name("admin")
-            news_item_aggregates, _ = NewsItemAggregate.get_by_filter({})
-            for aggregate in news_item_aggregates:
-                aggregate.delete(user)
+            with app.app_context():
+                ReportItem.delete_all()
+                Story.delete_all()
 
         request.addfinalizer(teardown)
 
-        yield [nia1, nia2]
+        yield story_ids
