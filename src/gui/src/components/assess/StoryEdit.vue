@@ -31,6 +31,11 @@
             :header="$t('enter.summary')"
             :placeholder="$t('enter.summary_placeholder')"
           />
+          <v-btn
+            prepend-icon="mdi-auto-fix"
+            text="AI based summary"
+            @click="triggerSummaryBot"
+          />
           <v-spacer class="pt-1"></v-spacer>
           <v-btn block class="mt-5" type="submit" color="success">
             {{ $t('button.update') }}
@@ -106,12 +111,21 @@ export default {
       router.push('/story/' + props.storyProp.id)
     }
 
+    async function triggerSummaryBot() {
+      try {
+        notifyFailure('Not implemented yet')
+      } catch (e) {
+        notifyFailure(e)
+      }
+    }
+
     return {
       panels,
       story,
       form,
       rules,
-      submit
+      submit,
+      triggerSummaryBot
     }
   }
 }

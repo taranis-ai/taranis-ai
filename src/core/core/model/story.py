@@ -351,6 +351,14 @@ class Story(BaseModel):
         ).id
 
     @classmethod
+    def add_single_news_item(cls, news_item: dict) -> tuple[dict, int]:
+        if NewsItem.identical(news_item.get("hash", NewsItem.get_hash_from_data(news_item))):
+            return {"error": "News Item already exists"}, 400
+        story_id = cls.add_from_news_item(news_item)
+        db.session.commit()
+        return {"message": "success", "id": story_id}, 200
+
+    @classmethod
     def add_news_items(cls, news_items_list: list[dict]):
         ids = []
         try:

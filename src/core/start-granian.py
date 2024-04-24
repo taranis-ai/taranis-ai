@@ -20,8 +20,10 @@ port = int(os.getenv("GRANIAN_PORT", 8080))
 def app_loader(target):
     if target != "core":
         raise RuntimeError("Should never get there")
+    # return create_asgi_app(initial_setup=False)
     return create_app(initial_setup=False)
 
 
+# create_asgi_app(initial_setup=True)
 create_app(initial_setup=True)
 Granian("core", interface=Interfaces.WSGI, address=address, port=port, log_level=loglevel, workers=workers).serve(target_loader=app_loader)

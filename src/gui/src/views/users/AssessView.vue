@@ -6,7 +6,7 @@
       color="primary"
       @load="displayMore"
     >
-      <template v-for="item in stories.items" :key="item">
+      <template v-for="item in stories.items" :key="item.id">
         <card-story :story="item" @refresh="refresh(item.id)" />
       </template>
       <template #loading>
@@ -22,7 +22,7 @@
     </v-infinite-scroll>
 
     <v-container v-else-if="stories.total_count > 0 && pagination" fluid>
-      <template v-for="item in stories.items" :key="item">
+      <template v-for="item in stories.items" :key="item.id">
         <card-story :story="item" @refresh="refresh(item.id)" />
       </template>
       <v-row class="justify-center mt-10 mb-10">

@@ -1,6 +1,5 @@
 <template>
   <v-card
-    v-if="showStory"
     :ripple="false"
     flat
     :rounded="false"
@@ -156,10 +155,6 @@ export default {
 
     const { showWeekChart, compactView } = storeToRefs(useFilterStore())
 
-    const showStory = computed(() => {
-      return props.story.news_items.length > 0
-    })
-
     const item_important = computed(() =>
       'important' in props.story ? props.story.important : false
     )
@@ -260,7 +255,6 @@ export default {
       selected,
       content_cols,
       meta_cols,
-      showStory,
       card_class,
       compactView,
       item_important,

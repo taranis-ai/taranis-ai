@@ -43,7 +43,7 @@ class NewsItems(MethodView):
         if not data_json:
             return {"error": "No NewsItems in JSON Body"}, 422
 
-        result, status = story.Story.add_news_items([data_json])
+        result, status = story.Story.add_single_news_item(data_json)
         sse_manager.news_items_updated()
         return result, status
 

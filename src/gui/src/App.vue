@@ -30,6 +30,7 @@ import { useAuthStore } from '@/stores/AuthStore'
 // import { useSseStore } from '@/stores/SseStore'
 import { storeToRefs } from 'pinia'
 import { useDisplay } from 'vuetify'
+import { sseHandler } from '@/utils/sse'
 
 export default defineComponent({
   name: 'App',
@@ -49,6 +50,8 @@ export default defineComponent({
     //     sseStore.connectSSE()
     //   }
     // }
+
+    sseHandler()
 
     watch(display, (val) => {
       console.debug('Display:', val)

@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     DATA_FOLDER: str = "./taranis_data"
     CACHE_TYPE: str = "SimpleCache"
     CACHE_DEFAULT_TIMEOUT: int = 300
+    SSE_URL: str = "http://sse:8088/publish"
 
     @model_validator(mode="after")  # type: ignore
     def set_sqlalchemy_uri(self) -> "Settings":

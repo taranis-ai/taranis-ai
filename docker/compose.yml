@@ -43,7 +43,6 @@ services:
       DB_POOL_RECYCLE: 300
       DB_POOL_TIMEOUT: 5
 
-      JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
       TARANIS_AUTHENTICATOR: "${TARANIS_AUTHENTICATOR:-database}"
 
       QUEUE_BROKER_HOST: "rabbitmq"
@@ -54,6 +53,7 @@ services:
 
       PRE_SEED_PASSWORD_ADMIN: "${PRE_SEED_PASSWORD_ADMIN:-admin}"
       PRE_SEED_PASSWORD_USER: "${PRE_SEED_PASSWORD_USER:-user}"
+      JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
       SECRET_KEY: "${API_KEY}"
       API_KEY: "${API_KEY}"
       DEBUG: "${DEBUG:-False}"

@@ -1,59 +1,44 @@
 <template>
   <div v-if="tags" class="story-tag-list">
-    <v-tooltip
+    <v-chip
       v-for="(tag, i) in tags"
       :key="i"
-      location="top"
-      transition="fade-transition"
+      class="py-3 mr-1 mt-1"
+      :color="labelcolor(tag.tag_type)"
+      link
+      label
+      density="compact"
+      :variant="truncate ? 'tonal' : 'elevated'"
+      elevation="0"
+      size="x-small"
+      :prepend-icon="tagIcon(tag.tag_type)"
+      @click.stop="updateTags(tag.name)"
     >
-      <template #activator="{ props }">
-        <v-chip
-          v-bind="props"
-          class="py-3 mr-1 mt-1"
-          :color="labelcolor(tag.tag_type)"
-          link
-          label
-          density="compact"
-          :variant="truncate ? 'tonal' : 'elevated'"
-          elevation="0"
-          size="x-small"
-          @click.stop="updateTags(tag.name)"
-        >
-          <template #prepend>
-            <v-icon :icon="tagIcon(tag.tag_type)" size="x-small" class="mr-2" />
-          </template>
-
-          <span class="d-inline-block text-truncate tag-content">
-            {{ tag.name }}
-          </span>
-        </v-chip>
-      </template>
-
-      <span>
-        <v-icon start :icon="tagIcon(tag.tag_type)" size="x-small" />
-        {{ tag.name }} - {{ tag.tag_type }}
+      <span class="d-inline-block text-truncate tag-content">
+        {{ tag.name }}
       </span>
-    </v-tooltip>
-    <v-tooltip v-if="editable" text="edit tags" location="bottom">
-      <template #activator="{ props }">
-        <v-chip
-          v-bind="props"
-          class="py-3 mr-1 mt-1"
-          color="primary"
-          link
-          label
-          density="compact"
-          variant="tonal"
-          elevation="0"
-          size="small"
-          icon="mdi-tag-hidden"
-          @click.prevent="$emit('edit')"
-        >
-          <!-- edit -->
-          <v-icon icon="mdi-pencil-outline" size="small" />
-        </v-chip>
-      </template>
-    </v-tooltip>
+      <v-tooltip
+        activator="parent"
+        :text="`${tag.name} - ${tag.tag_type}`"
+        location="top"
+      />
+    </v-chip>
+    <v-chip
+      v-if="editable"
+      class="py-3 mr-1 mt-1"
+      color="primary"
+      link
+      label
+      density="compact"
+      variant="tonal"
+      elevation="0"
+      size="small"
+      icon="mdi-tag-hidden"
+      @click.prevent="$emit('edit')"
+    >
+      <v-icon icon="mdi-pencil-outline" size="small" />
+      <v-tooltip activator="parent" text="edit tags" location="top" />
+    </v-chip>
   </div>
 </template>
 
@@ -148,7 +133,7 @@ export default defineComponent({
 <style scoped>
 .story-tag-list {
   display: flex;
-  flex-wrap: v-bind(flex_wrap);
+  flex-wrap: wrap;
 }
 .tag-content {
   max-width: v-bind(max_width);

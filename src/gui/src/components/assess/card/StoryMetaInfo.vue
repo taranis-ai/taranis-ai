@@ -18,18 +18,15 @@
       </td>
     </tr>
 
-    <tr
-      v-if="!compactView && story.tags && story.tags.length > 0 && !reportView"
-    >
+    <tr v-if="!compactView && story.tags && !reportView">
       <td>
         <strong> Tags: </strong>
       </td>
       <td>
         <tag-list
-          :tags="[...new Set(story.tags.slice(0, tagLimit))]"
+          :tags="filteredTags"
           :truncate="!detailView"
           :color="detailView"
-          :wrap="showWeekChart || detailView"
           :editable="detailView"
           @edit="editTags()"
         />
@@ -158,6 +155,10 @@ export default {
       return limit
     })
 
+    const filteredTags = computed(() => {
+      return [...new Set(props.story.tags.slice(0, tagLimit.value))]
+    })
+
     const getPublishedDate = computed(() => {
       const pubDateNew = new Date(published_dates.value[0])
       const pubDateNewStr = d(pubDateNew, 'long')
@@ -183,7 +184,7 @@ export default {
       published_dates,
       published_date_outdated,
       getPublishedDate,
-      tagLimit,
+      filteredTags,
       editTags,
       t
     }

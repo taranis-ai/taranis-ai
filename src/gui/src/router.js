@@ -14,11 +14,25 @@ export const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
-      path: '/enter',
+      path: '/assess',
+      name: 'assess',
+      components: {
+        default: () => import('@/views/users/AssessView.vue'),
+        nav: () => import('@/views/nav/AssessNav.vue')
+      },
+      meta: {
+        requiresAuth: true,
+        requiresPerm: Permissions.ASSESS_ACCESS,
+        title: 'Assess'
+      }
+    },
+    {
+      path: '/enter/:storyId?',
       name: 'enter',
       components: {
         default: () => import('@/views/users/EnterView.vue')
       },
+      props: true,
       meta: { requiresAuth: true, requiresPerm: Permissions.ASSESS_CREATE }
     },
     {
@@ -49,15 +63,6 @@ export const router = createRouter({
       meta: { requiresAuth: true, requiresPerm: Permissions.ASSESS_ACCESS }
     },
     {
-      path: '/enter/:storyId',
-      name: 'entertostory',
-      components: {
-        default: () => import('@/views/users/EnterView.vue')
-      },
-      props: true,
-      meta: { requiresAuth: true, requiresPerm: Permissions.ASSESS_UPDATE }
-    },
-    {
       path: '/story/:storyId/edit',
       name: 'storyedit',
       components: {
@@ -65,19 +70,6 @@ export const router = createRouter({
       },
       props: true,
       meta: { requiresAuth: true, requiresPerm: Permissions.ASSESS_UPDATE }
-    },
-    {
-      path: '/assess',
-      name: 'assess',
-      components: {
-        default: () => import('@/views/users/AssessView.vue'),
-        nav: () => import('@/views/nav/AssessNav.vue')
-      },
-      meta: {
-        requiresAuth: true,
-        requiresPerm: Permissions.ASSESS_ACCESS,
-        title: 'Assess'
-      }
     },
     {
       path: '/analyze',

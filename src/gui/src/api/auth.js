@@ -4,6 +4,6 @@ export function authenticate(userData) {
   return apiService.post('/auth/login', userData)
 }
 
-export function refresh() {
+export function authRefresh() {
   return apiService.get('/auth/refresh')
 }

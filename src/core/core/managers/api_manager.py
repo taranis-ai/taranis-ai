@@ -31,7 +31,6 @@ def initialize(app):
     core_api.user.initialize(app)
     core_api.task.initialize(app)
     core_api.worker.initialize(app)
-    core_api.sse.initialize(app)
 
 
 def handle_bad_request(e):

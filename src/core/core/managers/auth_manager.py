@@ -148,7 +148,7 @@ def get_user_from_jwt() -> User | None:
     try:
         verify_jwt_in_request()
     except JWTExtendedException:
-        logger.exception()
+        logger.store_auth_error_activity("Missing JWT")
         return None
     identity = get_jwt_identity()
 
