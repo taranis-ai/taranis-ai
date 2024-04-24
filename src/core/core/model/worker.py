@@ -171,6 +171,35 @@ class Worker(BaseModel):
         return parsed_parameters + missing_parameters
 
     @classmethod
+    def update_worker_and_parameters(cls, worker_id, updates) -> tuple[dict, int]:
+        session = db.session
+        worker = cls.get(worker_id)
+        if not worker:
+            return {"error": "Worker not found"}, 404
+
+        if "name" in updates:
+            worker.name = updates["name"]
+        if "description" in updates:
+            worker.description = updates["description"]
+
+        parameter_updates = updates.get("parameters", {})
+        updated_parameters = []
+        for parameter in worker.parameters:
+            if parameter.id in parameter_updates:
+                param_update = parameter_updates[parameter.id]
+                if "value" in param_update:
+                    parameter.value = param_update["value"]
+                if "rules" in param_update:
+                    parameter.rules = param_update["rules"]
+                updated_parameters.append(parameter.id)
+
+        session.commit()
+        return {
+            "message": "Worker and parameters updated successfully",
+            "updated_parameters": updated_parameters,
+        }, 200
+
+    @classmethod
     def _get_or_create_parameters(cls, parameters) -> list[ParameterValue]:
         return ParameterValue.get_or_create_from_list(parameters=parameters)
 
@@ -204,7 +233,10 @@ class Worker(BaseModel):
         if parameter.parameter in ["TAGGING_WORDLISTS"]:
             word_lists = WordList.get_by_filter({"usage": 4})
             data["items"] = [{"name": wordlist.name, "description": wordlist.description} for wordlist in word_lists] if word_lists else []
-            data["headers"] = [{"title": "Name", "key": "name"}, {"title": "Description", "key": "description"}]
+            data["headers"] = [
+                {"title": "Name", "key": "name"},
+                {"title": "Description", "key": "description"},
+            ]
             data["value"] = []
             data["disabled"] = True
 

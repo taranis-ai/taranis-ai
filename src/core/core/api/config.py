@@ -9,7 +9,12 @@ from core.managers import (
 )
 from core.log import logger
 from core.managers.auth_manager import auth_required
-from core.managers.data_manager import get_template_as_base64, write_base64_to_file, get_presenter_templates, delete_template
+from core.managers.data_manager import (
+    get_template_as_base64,
+    write_base64_to_file,
+    get_presenter_templates,
+    delete_template,
+)
 from core.model import (
     attribute,
     bot,
@@ -152,7 +157,10 @@ class ReportItemTypes(MethodView):
     @auth_required("CONFIG_REPORT_TYPE_UPDATE")
     def put(self, type_id):
         if item := report_item_type.ReportItemType.update(type_id, request.json):
-            return {"message": f"Report item type {item.title} updated", "id": f"{item.id}"}, 200
+            return {
+                "message": f"Report item type {item.title} updated",
+                "id": f"{item.id}",
+            }, 200
         return {"error": f"Report item type with ID: {type_id} not found"}, 404
 
     @auth_required("CONFIG_REPORT_TYPE_DELETE")
@@ -188,6 +196,21 @@ class Parameters(MethodView):
     @auth_required("CONFIG_ACCESS")
     def get(self):
         return worker.Worker.get_parameter_map(), 200
+
+    @auth_required("CONFIG_ACCESS")
+    def post(self):
+        data = request.get_json()
+        result = worker.Worker.add(data)
+        return result
+
+    @auth_required("CONFIG_ACCESS")
+    def put(self, worker_id):
+        updates = request.get_json()
+        return worker.Worker.update_worker_and_parameters(worker_id, updates)
+
+    @auth_required("CONFIG_ACCESS")
+    def delete(self, parameter_id):
+        return worker.Worker.delete(parameter_id)
 
 
 class Permissions(MethodView):
@@ -236,7 +259,10 @@ class Templates(MethodView):
             return {"error": "No data provided"}, 400
         template_path = request.json.pop("path")
         if write_base64_to_file(request.json.get("data"), template_path):
-            return {"message": "Template updated or created", "path": template_path}, 200
+            return {
+                "message": "Template updated or created",
+                "path": template_path,
+            }, 200
         return {"error": "Could not write template to file"}, 500
 
     @auth_required("CONFIG_PRODUCT_TYPE_DELETE")
@@ -280,7 +306,10 @@ class Users(MethodView):
     def post(self):
         try:
             new_user = user.User.add(request.json)
-            return {"message": f"User {new_user.username} created", "id": new_user.id}, 201
+            return {
+                "message": f"User {new_user.username} created",
+                "id": new_user.id,
+            }, 201
         except Exception:
             logger.exception()
             return "Could not create user", 400
@@ -314,7 +343,10 @@ class Bots(MethodView):
     def put(self, bot_id):
         if updated_bot := bot.Bot.update(bot_id, request.json):
             logger.debug(f"Successfully updated {updated_bot}")
-            return {"message": f"Successfully upated {updated_bot.name}", "id": f"{updated_bot.id}"}, 200
+            return {
+                "message": f"Successfully upated {updated_bot.name}",
+                "id": f"{updated_bot.id}",
+            }, 200
         return {"error": f"Error updateing {bot_id}"}, 500
 
     @auth_required("CONFIG_BOT_CREATE")
@@ -367,13 +399,19 @@ class OSINTSources(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_CREATE")
     def post(self):
         if source := osint_source.OSINTSource.add(request.json):
-            return {"id": source.id, "message": "OSINT source created successfully"}, 201
+            return {
+                "id": source.id,
+                "message": "OSINT source created successfully",
+            }, 201
         return {"error": "OSINT source could not be created"}, 400
 
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def put(self, source_id):
         if source := osint_source.OSINTSource.update(source_id, request.json):
-            return {"message": f"OSINT Source {source.name} updated", "id": f"{source_id}"}, 200
+            return {
+                "message": f"OSINT Source {source.name} updated",
+                "id": f"{source_id}",
+            }, 200
         return {"error": f"OSINT Source with ID: {source_id} not found"}, 404
 
     @auth_required("CONFIG_OSINT_SOURCE_DELETE")
@@ -382,7 +420,10 @@ class OSINTSources(MethodView):
         if not source:
             return {"error": f"OSINT Source with ID: {source_id} not found"}, 404
         osint_source.OSINTSource.delete(source_id)
-        return {"message": f"OSINT Source {source.name} deleted", "id": f"{source_id}"}, 200
+        return {
+            "message": f"OSINT Source {source.name} deleted",
+            "id": f"{source_id}",
+        }, 200
 
 
 class OSINTSourceCollect(MethodView):
@@ -429,7 +470,11 @@ class OSINTSourcesImport(MethodView):
             sources = osint_source.OSINTSource.import_osint_sources(file)
             if sources is None:
                 return {"error": "Unable to import"}, 400
-            return {"sources": sources, "count": len(sources), "message": "Successfully imported sources"}
+            return {
+                "sources": sources,
+                "count": len(sources),
+                "message": "Successfully imported sources",
+            }
         return {"error": "No file provided"}, 400
 
 
@@ -447,7 +492,10 @@ class OSINTSourceGroups(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_CREATE")
     def post(self):
         source_group = osint_source.OSINTSourceGroup.add(request.json)
-        return {"id": source_group.id, "message": "OSINT source group created successfully"}, 200
+        return {
+            "id": source_group.id,
+            "message": "OSINT source group created successfully",
+        }, 200
 
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_UPDATE")
     def put(self, group_id):
@@ -487,7 +535,10 @@ class PublisherPresets(MethodView):
     @auth_required("CONFIG_PUBLISHER_CREATE")
     def post(self):
         pub_result = publisher_preset.PublisherPreset.add(request.json)
-        return {"id": pub_result.id, "message": "Publisher preset created successfully"}, 200
+        return {
+            "id": pub_result.id,
+            "message": "Publisher preset created successfully",
+        }, 200
 
     @auth_required("CONFIG_PUBLISHER_UPDATE")
     def put(self, preset_id):
@@ -526,7 +577,11 @@ class WordListImport(MethodView):
     def post(self):
         if file := request.files.get("file"):
             if wls := word_list.WordList.import_word_lists(file):
-                return {"word_lists": [wl.id for wl in wls], "count": len(wls), "message": "Successfully imported word lists"}
+                return {
+                    "word_lists": [wl.id for wl in wls],
+                    "count": len(wls),
+                    "message": "Successfully imported word lists",
+                }
             return {"error": "Unable to import"}, 400
         return {"error": "No file provided"}, 400
 
@@ -574,51 +629,136 @@ def initialize(app: Flask):
     app.add_url_rule(f"{base_route}/acls", view_func=ACLEntries.as_view("acls"))
     app.add_url_rule(f"{base_route}/acls/<int:acl_id>", view_func=ACLEntries.as_view("acl"))
     app.add_url_rule(f"{base_route}/attributes", view_func=Attributes.as_view("attributes"))
-    app.add_url_rule(f"{base_route}/attributes/<int:attribute_id>", view_func=Attributes.as_view("attribute"))
-    app.add_url_rule(f"{base_route}/attributes/<int:attribute_id>/enums", view_func=AttributeEnums.as_view("attribute_enums"))
-    app.add_url_rule(f"{base_route}/attributes/<int:attribute_id>/enums/<int:enum_id>", view_func=AttributeEnums.as_view("attribute_enum"))
+    app.add_url_rule(
+        f"{base_route}/attributes/<int:attribute_id>",
+        view_func=Attributes.as_view("attribute"),
+    )
+    app.add_url_rule(
+        f"{base_route}/attributes/<int:attribute_id>/enums",
+        view_func=AttributeEnums.as_view("attribute_enums"),
+    )
+    app.add_url_rule(
+        f"{base_route}/attributes/<int:attribute_id>/enums/<int:enum_id>",
+        view_func=AttributeEnums.as_view("attribute_enum"),
+    )
     app.add_url_rule(f"{base_route}/bots", view_func=Bots.as_view("bots_config"))
     app.add_url_rule(f"{base_route}/bots/<string:bot_id>", view_func=Bots.as_view("bot_config"))
-    app.add_url_rule(f"{base_route}/bots/<string:bot_id>/execute", view_func=BotExecute.as_view("bot_execute"))
     app.add_url_rule(
-        f"{base_route}/dictionaries-reload/<string:dictionary_type>", view_func=DictionariesReload.as_view("dictionaries_reload")
+        f"{base_route}/bots/<string:bot_id>/execute",
+        view_func=BotExecute.as_view("bot_execute"),
+    )
+    app.add_url_rule(
+        f"{base_route}/dictionaries-reload/<string:dictionary_type>",
+        view_func=DictionariesReload.as_view("dictionaries_reload"),
     )
     app.add_url_rule(f"{base_route}/organizations", view_func=Organizations.as_view("organizations"))
-    app.add_url_rule(f"{base_route}/organizations/<int:organization_id>", view_func=Organizations.as_view("organization"))
+    app.add_url_rule(
+        f"{base_route}/organizations/<int:organization_id>",
+        view_func=Organizations.as_view("organization"),
+    )
     app.add_url_rule(f"{base_route}/osint-sources", view_func=OSINTSources.as_view("osint_sources"))
-    app.add_url_rule(f"{base_route}/osint-sources/<string:source_id>", view_func=OSINTSources.as_view("osint_source"))
-    app.add_url_rule(f"{base_route}/osint-sources/<string:source_id>/collect", view_func=OSINTSourceCollect.as_view("osint_source_collect"))
-    app.add_url_rule(f"{base_route}/osint-sources/collect", view_func=OSINTSourceCollect.as_view("osint_sources_collect"))
-    app.add_url_rule(f"{base_route}/osint-sources/<string:source_id>/preview", view_func=OSINTSourcePreview.as_view("osint_source_preview"))
-    app.add_url_rule(f"{base_route}/osint-source-groups", view_func=OSINTSourceGroups.as_view("osint_source_groups_config"))
-    app.add_url_rule(f"{base_route}/osint-source-groups/<string:group_id>", view_func=OSINTSourceGroups.as_view("osint_source_group"))
-    app.add_url_rule(f"{base_route}/export-osint-sources", view_func=OSINTSourcesExport.as_view("osint_sources_export"))
-    app.add_url_rule(f"{base_route}/import-osint-sources", view_func=OSINTSourcesImport.as_view("osint_sources_import"))
+    app.add_url_rule(
+        f"{base_route}/osint-sources/<string:source_id>",
+        view_func=OSINTSources.as_view("osint_source"),
+    )
+    app.add_url_rule(
+        f"{base_route}/osint-sources/<string:source_id>/collect",
+        view_func=OSINTSourceCollect.as_view("osint_source_collect"),
+    )
+    app.add_url_rule(
+        f"{base_route}/osint-sources/collect",
+        view_func=OSINTSourceCollect.as_view("osint_sources_collect"),
+    )
+    app.add_url_rule(
+        f"{base_route}/osint-sources/<string:source_id>/preview",
+        view_func=OSINTSourcePreview.as_view("osint_source_preview"),
+    )
+    app.add_url_rule(
+        f"{base_route}/osint-source-groups",
+        view_func=OSINTSourceGroups.as_view("osint_source_groups_config"),
+    )
+    app.add_url_rule(
+        f"{base_route}/osint-source-groups/<string:group_id>",
+        view_func=OSINTSourceGroups.as_view("osint_source_group"),
+    )
+    app.add_url_rule(
+        f"{base_route}/export-osint-sources",
+        view_func=OSINTSourcesExport.as_view("osint_sources_export"),
+    )
+    app.add_url_rule(
+        f"{base_route}/import-osint-sources",
+        view_func=OSINTSourcesImport.as_view("osint_sources_import"),
+    )
     app.add_url_rule(f"{base_route}/parameters", view_func=Parameters.as_view("parameters"))
     app.add_url_rule(f"{base_route}/permissions", view_func=Permissions.as_view("permissions"))
     app.add_url_rule(f"{base_route}/presenters", view_func=Presenters.as_view("presenters"))
-    app.add_url_rule(f"{base_route}/product-types", view_func=ProductTypes.as_view("product_types_config"))
-    app.add_url_rule(f"{base_route}/product-types/<int:type_id>", view_func=ProductTypes.as_view("product_type"))
+    app.add_url_rule(
+        f"{base_route}/product-types",
+        view_func=ProductTypes.as_view("product_types_config"),
+    )
+    app.add_url_rule(
+        f"{base_route}/product-types/<int:type_id>",
+        view_func=ProductTypes.as_view("product_type"),
+    )
     app.add_url_rule(f"{base_route}/templates", view_func=Templates.as_view("templates"))
-    app.add_url_rule(f"{base_route}/templates/<string:template_path>", view_func=Templates.as_view("template"))
+    app.add_url_rule(
+        f"{base_route}/templates/<string:template_path>",
+        view_func=Templates.as_view("template"),
+    )
     app.add_url_rule(f"{base_route}/publishers", view_func=Publishers.as_view("publishers"))
-    app.add_url_rule(f"{base_route}/publishers-presets", view_func=PublisherPresets.as_view("publishers_presets"))
-    app.add_url_rule(f"{base_route}/publishers-presets/<string:preset_id>", view_func=PublisherPresets.as_view("publisher_preset"))
-    app.add_url_rule(f"{base_route}/workers/queue-status", view_func=QueueStatus.as_view("queue_status"))
-    app.add_url_rule(f"{base_route}/workers/schedule", view_func=QueueSchedule.as_view("queue_schedule_config"))
+    app.add_url_rule(
+        f"{base_route}/publishers-presets",
+        view_func=PublisherPresets.as_view("publishers_presets"),
+    )
+    app.add_url_rule(
+        f"{base_route}/publishers-presets/<string:preset_id>",
+        view_func=PublisherPresets.as_view("publisher_preset"),
+    )
+    app.add_url_rule(
+        f"{base_route}/workers/queue-status",
+        view_func=QueueStatus.as_view("queue_status"),
+    )
+    app.add_url_rule(
+        f"{base_route}/workers/schedule",
+        view_func=QueueSchedule.as_view("queue_schedule_config"),
+    )
     app.add_url_rule(f"{base_route}/workers/tasks", view_func=QueueTasks.as_view("queue_tasks"))
-    app.add_url_rule(f"{base_route}/report-item-types", view_func=ReportItemTypes.as_view("report_item_types"))
-    app.add_url_rule(f"{base_route}/report-item-types/<int:type_id>", view_func=ReportItemTypes.as_view("report_item_type"))
-    app.add_url_rule(f"{base_route}/export-report-item-types", view_func=ReportItemTypesExport.as_view("report_item_types_export"))
-    app.add_url_rule(f"{base_route}/import-report-item-types", view_func=ReportItemTypesImport.as_view("report_item_types_import"))
+    app.add_url_rule(
+        f"{base_route}/report-item-types",
+        view_func=ReportItemTypes.as_view("report_item_types"),
+    )
+    app.add_url_rule(
+        f"{base_route}/report-item-types/<int:type_id>",
+        view_func=ReportItemTypes.as_view("report_item_type"),
+    )
+    app.add_url_rule(
+        f"{base_route}/export-report-item-types",
+        view_func=ReportItemTypesExport.as_view("report_item_types_export"),
+    )
+    app.add_url_rule(
+        f"{base_route}/import-report-item-types",
+        view_func=ReportItemTypesImport.as_view("report_item_types_import"),
+    )
     app.add_url_rule(f"{base_route}/roles", view_func=Roles.as_view("roles"))
     app.add_url_rule(f"{base_route}/roles/<int:role_id>", view_func=Roles.as_view("role"))
     app.add_url_rule(f"{base_route}/users", view_func=Users.as_view("users"))
     app.add_url_rule(f"{base_route}/users/<int:user_id>", view_func=Users.as_view("user"))
     app.add_url_rule(f"{base_route}/word-lists", view_func=WordLists.as_view("word_lists"))
-    app.add_url_rule(f"{base_route}/word-lists/<int:word_list_id>", view_func=WordLists.as_view("word_list"))
-    app.add_url_rule(f"{base_route}/word-lists/<int:word_list_id>/gather", view_func=WordListGather.as_view("word_list_gather"))
-    app.add_url_rule(f"{base_route}/export-word-lists", view_func=WordListExport.as_view("word_list_export"))
-    app.add_url_rule(f"{base_route}/import-word-lists", view_func=WordListImport.as_view("word_list_import"))
+    app.add_url_rule(
+        f"{base_route}/word-lists/<int:word_list_id>",
+        view_func=WordLists.as_view("word_list"),
+    )
+    app.add_url_rule(
+        f"{base_route}/word-lists/<int:word_list_id>/gather",
+        view_func=WordListGather.as_view("word_list_gather"),
+    )
+    app.add_url_rule(
+        f"{base_route}/export-word-lists",
+        view_func=WordListExport.as_view("word_list_export"),
+    )
+    app.add_url_rule(
+        f"{base_route}/import-word-lists",
+        view_func=WordListImport.as_view("word_list_import"),
+    )
     app.add_url_rule(f"{base_route}/workers", view_func=Workers.as_view("workers"))
     app.add_url_rule(f"{base_route}/worker-types", view_func=WorkerTypes.as_view("worker_types"))
