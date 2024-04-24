@@ -1,13 +1,15 @@
+#!/usr/bin/env python3
 import re
+
+from playwright.sync_api import sync_playwright, expect
 import time
 import os
 import pytest
-from playwright.sync_api import Playwright, expect
 
 taranis_url = os.getenv("TARANIS_URL", "http://localhost:8081")
 
 
-def highlight_element(locator, duration=2):
+def highlight_element(locator, duration: int = 2):
     style_content = """
     .highlight-element { background-color: yellow; outline: 4px solid red; }
     """
@@ -17,7 +19,6 @@ def highlight_element(locator, duration=2):
     time.sleep(duration)
     locator.evaluate("element => element.classList.remove('highlight-element')")
     locator.page.evaluate("style => style.remove()", style_tag)
-
     return locator
 
 
@@ -32,13 +33,18 @@ def scroll_to_the_bottom(page):
         current += scroll_pixels
 
 
-@pytest.mark.e2e_ci
-def test_e2e_ci(playwright: Playwright, stories, video_dir="videos/") -> None:
-    browser = playwright.chromium.launch(headless=True)
+def run_e2e(playwright,
+            headless=True,
+            video_dir=None,
+            viewport=None,
+            record_video_size=None,
+            slow_mo=1000,
+            ) -> None:
+    browser = playwright.chromium.launch(headless=headless, slow_mo=slow_mo)
     context = browser.new_context(
-        # record_video_dir=video_dir,
-        viewport={"width": 1920, "height": 1080},
-        record_video_size={"width": 1810, "height": 1000},
+        record_video_dir=video_dir,
+        viewport=viewport,
+        record_video_size=record_video_size,
     )
     page = context.new_page()
     page.goto("http://localhost:8081/login")
@@ -53,7 +59,7 @@ def test_e2e_ci(playwright: Playwright, stories, video_dir="videos/") -> None:
     highlight_element(page.get_by_label("Source", exact=True)).click()
 
     highlight_element(page.get_by_role("option", name="Test Source")).click()
-    highlight_element(page.locator("body")).press("Escape")
+    page.locator("body").press("Escape")
 
     expect(page.get_by_role("main")).to_contain_text(
         "Bundesinnenministerin Nancy Faeser wird Claudia Plattner zur neuen BSI-Präsidentin berufen"
@@ -71,10 +77,8 @@ def test_e2e_ci(playwright: Playwright, stories, video_dir="videos/") -> None:
         ).first
     ).click()
     expect(page.get_by_role("main")).to_contain_text("TEST CONTENT YYYY")
-    highlight_element(page.locator(".v-col-lg-8").first).click()
-    highlight_element(
-        page.get_by_text("Mobile World Congress 2023TEST CONTENT YYYY")
-    ).click()
+    highlight_element(page.get_by_role("heading", name="Bundesinnenministerin Nancy")).click()
+    highlight_element(page.get_by_text("Mobile World Congress 2023TEST CONTENT YYYY")).click()
     highlight_element(page.get_by_role("button", name="merge")).click()
     expect(page.get_by_role("main")).to_contain_text("(2)")
     highlight_element(page.get_by_role("link", name="Analyze")).click()
@@ -100,11 +104,7 @@ def test_e2e_ci(playwright: Playwright, stories, video_dir="videos/") -> None:
     highlight_element(page.get_by_role("link", name="Publish")).click()
     highlight_element(page.get_by_role("button", name="New Product")).click()
     highlight_element(
-        page.get_by_role("combobox")
-        .locator("div")
-        .filter(has_text="Product TypeProduct Type")
-        .locator("div")
-    ).click()
+        page.get_by_role("combobox").locator("div").filter(has_text="Product TypeProduct Type").locator("div")).click()
     highlight_element(page.get_by_role("option", name="Default TEXT Presenter")).click()
     highlight_element(page.get_by_label("Title")).click()
     highlight_element(page.get_by_label("Title")).fill("Test Product")
@@ -112,36 +112,22 @@ def test_e2e_ci(playwright: Playwright, stories, video_dir="videos/") -> None:
     highlight_element(page.get_by_label("Description")).fill("Test Description")
     highlight_element(page.get_by_role("button", name="Create")).click()
     expect(
-        page.get_by_role("main")
-        .locator("header")
-        .get_by_role("button", name="Render Product")
-    ).to_be_visible()
-    expect(
-        page.locator("div")
-        .filter(has_text=re.compile(r"^Render Product$"))
-        .get_by_role("button")
-    ).to_be_visible()
-    expect(
-        page.locator("div")
-        .filter(has_text=re.compile(r"^Render Product first, to enable publishing$"))
-        .nth(1)
-    ).to_be_visible()
+        page.get_by_role("main").locator("header").get_by_role("button", name="Render Product")).to_be_visible()
+    expect(page.locator("div").filter(has_text=re.compile(r"^Render Product$")).get_by_role("button")).to_be_visible()
+    expect(page.locator("div").filter(has_text=re.compile(r"^Render Product first, to enable publishing$")).nth(
+        1)).to_be_visible()
     expect(page.get_by_role("button", name="Save")).to_be_visible()
     highlight_element(page.get_by_role("link", name="Analyze")).click()
+    page.locator("#input-16").fill("Test Title of Report")
     highlight_element(page.get_by_role("cell", name="false")).click()
-    highlight_element(page.get_by_role("textbox", name="title")).fill(
-        "Test Title of Report"
-    )
+    highlight_element(page.get_by_role("textbox", name="title")).fill("Test Title of Report")
     highlight_element(page.get_by_label("Quote")).fill("Test Quote")
     highlight_element(page.get_by_label("Ransomware")).click()
     highlight_element(page.get_by_label("Ransomware")).fill("Test Ransomware Name")
     highlight_element(page.get_by_label("Actor")).click()
     highlight_element(page.get_by_label("Actor")).fill("Test APT")
-    highlight_element(
-        page.locator(
-            "div:nth-child(3) > div > .v-input > .v-input__control > .v-field > .v-field__field > .v-field__input"
-        )
-    ).click()
+    highlight_element(page.locator(
+        "div:nth-child(3) > div > .v-input > .v-input__control > .v-field > .v-field__field > .v-field__input")).click()
     highlight_element(page.get_by_role("option", name="Energy", exact=True)).click()
     highlight_element(page.get_by_label("Comment")).fill("Test Sector Comment")
     highlight_element(page.get_by_role("button", name="Save")).click()
@@ -152,68 +138,22 @@ def test_e2e_ci(playwright: Playwright, stories, video_dir="videos/") -> None:
     expect(page.get_by_label("Side-by-side")).to_be_visible()
     expect(page.locator(".v-switch__track").first).to_be_visible()
     expect(page.get_by_label("Completed")).to_be_visible()
-    expect(
-        page.locator(
-            "div:nth-child(4) > .v-input__control > .v-selection-control > .v-selection-control__wrapper"
-        )
-    ).to_be_visible()
+    expect(page.locator("div:nth-child(4) > .v-input__control > .v-selection-control > .v-selection-control__wrapper")).to_be_visible()
     highlight_element(page.get_by_label("Side-by-side")).check()
     highlight_element(page.get_by_label("Completed")).check()
     highlight_element(page.get_by_role("button", name="Save")).click()
     highlight_element(page.get_by_role("link", name="Analyze")).click()
+    highlight_element(page.locator("#input-16")).fill("Test Title of Report")
     expect(page.locator("tbody")).to_contain_text("true")
     highlight_element(page.get_by_role("link", name="Publish")).click()
+    highlight_element(page.locator("#input-79")).fill("Test Product")
     highlight_element(page.get_by_role("cell", name="Test Product")).click()
-    expect(page.locator("tbody")).to_contain_text("complete")
+    expect(page.locator("tbody")).to_contain_text("complete").click()
+    highlight_element(page.get_by_role("link", name="Assess")).click()
+    highlight_element(page.get_by_role("heading", name="Bundesinnenministerin Nancy").first).click()
+    highlight_element(page.get_by_role("button", name="ungroup")).click()
 
-    # old
-    # browser = playwright.chromium.launch(headless=False, slow_mo=1000)
-    # context = browser.new_context(
-    #     # record_video_dir="videos/",
-    #     viewport={"width": 1920, "height": 1080},
-    #     record_video_size={"width": 1810, "height": 1000},
-    # )
-    #
-    # page = context.new_page()
-    # page.goto(f"{taranis_url}/login")
-    # highlight_element(page.get_by_placeholder("Username"))
-    #
-    # page.get_by_placeholder("Username").fill("admin")
-    # highlight_element(page.get_by_placeholder("Password"))
-    # page.get_by_placeholder("Password").fill("admin")
-    # highlight_element(page.locator("role=button")).click()
-    #
-    # highlight_element(page.locator('role=link[name="Assess"]').first).click()
-    # highlight_element(page.get_by_role("button", name="relevance")).click()
-    # highlight_element(page.get_by_role("button", name="Expand [12]")).click()
-    # highlight_element(page.get_by_role("button", name="Collapse [12]")).click()
-    # highlight_element(page.locator(".v-col-sm-12 > a").first).click()
-    # scroll_to_the_bottom(page)
-    # highlight_element(page.get_by_role("link", name="Dashboard")).click()
-    # highlight_element(page.get_by_role("link", name="Lazarus Group")).click()
-    # highlight_element(page.get_by_role("button", name="Expand [6]")).click()
-    # highlight_element(page.get_by_text("Spain", exact=True)).click()
-    # highlight_element(page.get_by_role("link", name="open")).click()
-    # highlight_element(page.get_by_role("button", name="add to Report")).click()
-    # highlight_element(page.get_by_role("button", name="Select Report Open")).click()
-    # highlight_element(page.get_by_text("Weekly report")).click()
-    # highlight_element(page.get_by_role("button", name="share")).click()
-    # highlight_element(page.get_by_role("link", name="Analyze")).click()
-    # highlight_element(page.get_by_role("cell", name="Weekly report")).click()
-    # highlight_element(page.get_by_role("button", name="Vulnerability", exact=True)).click()
-    # highlight_element(page.get_by_role("button", name="Open", exact=True)).click()
-    # highlight_element(page.get_by_text("Unauthorized access to the system")).click()
-    # highlight_element(page.get_by_label("Description")).click()
-    # page.get_by_label("Description").fill("Espionage in North Korea").click()
-    # # page.get_by_label("Completed").check()
-    # highlight_element(page.get_by_role("button", name="Save")).click()
-    # highlight_element(page.get_by_role("link", name="Publish")).click()
-    # highlight_element(page.get_by_role("cell", name="Events of the 25th week")).click()
-    # highlight_element(page.get_by_role("button", name="Render Product")).click()
-    # page.reload()
-    #
-
-    video_path = page.video.path() if page.video.path() else None
+    video_path = page.video.path() or None
     context.close()
     browser.close()
 
@@ -226,3 +166,20 @@ def test_e2e_ci(playwright: Playwright, stories, video_dir="videos/") -> None:
         print(f"Video saved as: {new_path}")
     else:
         print("No video was recorded.")
+
+
+@pytest.mark.e2e
+def test_e2e_local(stories):
+    with sync_playwright() as playwright:
+        run_e2e(playwright,
+                headless=False,
+                video_dir="videos/",
+                viewport={"width": 1920, "height": 1080},
+                record_video_size={"width": 1810, "height": 1000},
+                )
+
+
+@pytest.mark.e2e_ci
+def test_e2e_ci(stories):
+    with sync_playwright() as playwright:
+        run_e2e(playwright)

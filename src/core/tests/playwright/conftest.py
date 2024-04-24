@@ -20,13 +20,13 @@ def fake_source(app, request):
         if not OSINTSource.get(source_id):
             OSINTSource.add(source_data)
 
-        def teardown():
-            with app.app_context():
-                OSINTSource.delete(source_id)
-
-        request.addfinalizer(teardown)
-
-        yield source_id
+        # def teardown():
+        #     with app.app_context():
+        #         OSINTSource.delete(source_id)
+        #
+        # request.addfinalizer(teardown)
+        #
+        # yield source_id
 
 
 @pytest.fixture(scope="session")
@@ -72,11 +72,11 @@ def stories(app, request, news_items):
 
         story_ids = Story.add_news_items(news_items)[0].get("ids")
 
-        def teardown():
-            with app.app_context():
-                ReportItem.delete_all()
-                Story.delete_all()
-
-        request.addfinalizer(teardown)
+        # def teardown():
+        #     with app.app_context():
+        #         ReportItem.delete_all()
+        #         Story.delete_all()
+        #
+        # request.addfinalizer(teardown)
 
         yield story_ids
