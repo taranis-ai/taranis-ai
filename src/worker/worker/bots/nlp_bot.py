@@ -20,26 +20,30 @@ class NLPBot(BaseBot):
 
     def execute(self, parameters=None):
         if not (data := self.get_stories(parameters)):
-            return None
+            return {"message": "No new stories found"}
 
         all_keywords = {k: v for news_item in data for k, v in news_item["tags"].items()}
 
         update_result = {}
+        tag_count = 0
 
         for i, story in enumerate(data):
             if attributes := story.get("news_item_attributes", {}):
                 if self.type in [d["key"] for d in attributes if "key" in d]:
                     logger.debug(f"Skipping {story['id']} because it has attributes: {attributes}")
                     continue
-            if i % max(len(data) // 5, 1) == 0:
+            if i % max(len(data) // 4, 1) == 0:
                 logger.debug(f"Extracting NER from {story['id']}: {i}/{len(data)}")
                 self.core_api.update_tags(update_result, self.type)
+                tag_count += len(update_result)
                 update_result = {}
 
             current_keywords = self.extract_keywords(story, all_keywords)
             all_keywords |= current_keywords
             update_result[story["id"]] = current_keywords
         self.core_api.update_tags(update_result, self.type)
+        tag_count += len(update_result)
+        return {"message": f"Extracted {tag_count} tags"}
 
     def extract_keywords(self, story: dict, all_keywords: dict) -> dict:
         current_keywords = story.get("tags", {})

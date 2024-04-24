@@ -13,15 +13,19 @@
 import { ref, onBeforeMount } from 'vue'
 import { getProduct } from '@/api/publish'
 import ProductItem from '@/components/publish/ProductItem.vue'
-import { useRoute } from 'vue-router'
 
 export default {
   name: 'ProductView',
   components: {
     ProductItem
   },
-  setup() {
-    const route = useRoute()
+  props: {
+    productId: {
+      type: String,
+      required: true
+    }
+  },
+  setup(props) {
     const defaultProduct = ref({
       id: null,
       title: '',
@@ -34,9 +38,9 @@ export default {
     const readyToRender = ref(false)
 
     const loadProducts = async () => {
-      console.debug('Loading product', route.params.id)
-      if (route.params.id) {
-        const response = await getProduct(route.params.id)
+      console.debug('Loading product', props.productId)
+      if (props.productId) {
+        const response = await getProduct(props.productId)
         return response.data
       }
       edit.value = false

@@ -5,7 +5,6 @@
 <script>
 import StoryEdit from '@/components/assess/StoryEdit.vue'
 import { ref, onBeforeMount } from 'vue'
-import { useRoute } from 'vue-router'
 import { getStory } from '@/api/assess'
 
 export default {
@@ -13,13 +12,17 @@ export default {
   components: {
     StoryEdit
   },
-  setup() {
-    const route = useRoute()
-
+  props: {
+    storyId: {
+      type: String,
+      required: true
+    }
+  },
+  setup(props) {
     const story = ref(null)
 
     onBeforeMount(async () => {
-      const response = await getStory(route.params.id)
+      const response = await getStory(props.storyId)
       story.value = response.data
     })
 

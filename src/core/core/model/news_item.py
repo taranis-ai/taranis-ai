@@ -48,12 +48,12 @@ class NewsItem(BaseModel):
         source: str,
         content: str,
         osint_source_id: str,
-        review="",
-        author="",
-        link="",
-        published=datetime.now(),
-        collected=datetime.now(),
-        hash=None,
+        review: str = "",
+        author: str = "",
+        link: str = "",
+        published: datetime | str = datetime.now(),
+        collected: datetime | str = datetime.now(),
+        hash: str | None = None,
         attributes=None,
         id=None,
     ):
@@ -66,8 +66,8 @@ class NewsItem(BaseModel):
         self.link = link
         self.author = author
         self.hash = hash or self.get_hash(title, link, content)
-        self.collected = collected if type(collected) is datetime else datetime.fromisoformat(str(collected))
-        self.published = published if type(published) is datetime else datetime.fromisoformat(str(published))
+        self.collected = collected if isinstance(collected, datetime) else datetime.fromisoformat(collected)
+        self.published = published if isinstance(published, datetime) else datetime.fromisoformat(published)
         if attributes:
             self.attributes = NewsItemAttribute.load_multiple(attributes)
 

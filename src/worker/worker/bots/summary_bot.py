@@ -3,8 +3,6 @@ from worker.log import logger
 
 import torch
 from transformers import (
-    BartTokenizer,
-    BartForConditionalGeneration,
     AutoTokenizer,
     AutoModelForSeq2SeqLM,
 )
@@ -17,21 +15,20 @@ class SummaryBot(BaseBot):
         self.name = "Summary generation Bot"
         self.description = "Bot to generate summaries for stories"
         self.summary_threshold = 750
+        self.language = "en"
         logger.debug("Setup Summarization Model...")
         torch.set_num_threads(1)  # https://github.com/pytorch/pytorch/issues/36191
         self.set_summarization_model()
 
     def set_summarization_model(self) -> None:
-        self.sum_model_name_en = "facebook/bart-large-cnn"
-        self.sum_model_en = BartForConditionalGeneration.from_pretrained(self.sum_model_name_en)
-        self.sum_tokenizer_en = BartTokenizer.from_pretrained(self.sum_model_name_en)
-        self.sum_model_name_de = "T-Systems-onsite/mt5-small-sum-de-en-v2"
-        self.sum_model_de = AutoModelForSeq2SeqLM.from_pretrained(self.sum_model_name_de)
-        self.sum_tokenizer_de = AutoTokenizer.from_pretrained(self.sum_model_name_de, use_fast=False)
+        self.model_names = {"en": "facebook/bart-large-cnn", "de": "T-Systems-onsite/mt5-small-sum-de-en-v2"}
+        self.models = {}
+        self.tokenizers = {}
+        for lang, model_name in self.model_names.items():
+            self.models[lang] = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+            self.tokenizers[lang] = AutoTokenizer.from_pretrained(model_name, use_fast=True)
 
     def execute(self, parameters=None):
-        if not parameters:
-            return
         try:
             if not (data := self.get_stories(parameters)):
                 return "Error getting news items"
@@ -53,53 +50,21 @@ class SummaryBot(BaseBot):
 
                 logger.debug(f"Created summary for : {story['id']}")
 
-        except Exception:
-            logger.log_debug_trace(f"Error running Bot: {self.type}")
+        except Exception as e:
+            logger.log_debug_trace(f"Error running Bot: {self.type} - {str(e)}")
+            return f"Error running Bot - {str(e)}"
 
-    def predict_summary(self, text_to_summarize: str, pct_min_length: float = 0.2) -> str:
-        return "SUMMARY NOT IMPLEMENTED"
-        # nb_tokens = len(text_to_summarize.split(" "))
-        # min_length = int(nb_tokens * pct_min_length)
-        # max_length = nb_tokens
-        # sum_model = None
-        # sum_tokenizer = None
+    def predict_summary(self, text_to_summarize: str) -> str:
+        min_length = int(len(text_to_summarize.split()) * 0.2)
+        max_length = len(text_to_summarize.split())
+        model = self.models.get(self.language)
+        tokenizer = self.tokenizers.get(self.language)
 
-        # if self.language == "de":
-        #     sum_model = self.sum_model_de
-        #     sum_tokenizer = self.sum_tokenizer_de
+        if not model or not tokenizer:
+            logger.error(f"Model or Tokenizer not found for language {self.language}")
+            return ""
 
-        # elif self.language == "en":
-        #     sum_model = self.sum_model_en
-        #     sum_tokenizer = self.sum_tokenizer_en
+        input_ids = tokenizer(text_to_summarize, return_tensors="pt", padding=True, truncation=True, max_length=1024)["input_ids"]
+        summary_ids = model.generate(input_ids, min_length=min_length, max_length=max_length, no_repeat_ngram_size=2, num_beams=4)
 
-        # if not sum_model or not sum_tokenizer:
-        #     return ""
-
-        # logger.debug(
-        #     f"Summarizing {max_length} tokens with min_length={min_length} and max_length={max_length}"
-        # )
-
-        # input_ids = sum_tokenizer(
-        #     text_to_summarize,
-        #     max_length=1024,
-        #     padding=True,
-        #     truncation=True,
-        #     return_tensors="pt",
-        # )["input_ids"]
-
-        # if input_ids is None:
-        #     return ""
-
-        # summary_ids = sum_model.generate(  # type: ignore
-        #     input_ids=input_ids,
-        #     min_length=min_length,
-        #     max_length=max_length,
-        #     no_repeat_ngram_size=2,
-        #     num_beams=6,
-        # )
-
-        # return sum_tokenizer.batch_decode(
-        #     summary_ids,
-        #     skip_special_tokens=True,
-        #     clean_up_tokenization_spaces=False,
-        # )[0]
+        return tokenizer.decode(summary_ids[0], skip_special_tokens=True)

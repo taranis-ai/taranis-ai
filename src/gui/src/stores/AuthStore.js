@@ -6,6 +6,7 @@ import { useSseStore } from './SseStore'
 import { useAssessStore } from './AssessStore'
 import { useMainStore } from './MainStore'
 import { useConfigStore } from './ConfigStore'
+import { useAnalyzeStore } from './AnalyzeStore'
 import { defineStore } from 'pinia'
 import { router } from '@/router'
 
@@ -46,10 +47,12 @@ export const useAuthStore = defineStore('authenticator', {
       const sseStore = useSseStore()
       const mainStore = useMainStore()
       const configStore = useConfigStore()
+      const analyzeStore = useAnalyzeStore()
       configStore.reset()
       mainStore.reset()
       sseStore.resetSSE()
       assessStore.reset()
+      analyzeStore.reset()
       router.push({ name: 'login' })
     },
     async refresh() {

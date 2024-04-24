@@ -17,19 +17,17 @@ class WordlistBot(BaseBot):
 
         word_list_entries = self._get_word_list_entries()
         if not word_list_entries:
-            logger.debug("No word list entries found")
-            return
+            return {"message": "No word list entries found"}
 
         if not (data := self.get_stories(parameters)):
-            return
+            return {"message": "No new stories found"}
 
         found_tags = self._find_tags_for_stories(data, word_list_entries, override_existing_tags, ignore_case)
         if not found_tags:
-            logger.debug("No tags found")
-            return
+            return {"message": "No tags found"}
 
-        logger.debug(found_tags)
         self.core_api.update_tags(found_tags, self.type)
+        return {"message": f"Extracted {len(found_tags)} tags"}
 
     @staticmethod
     def _set_ignore_case_flag(parameters):

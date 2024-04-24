@@ -3,13 +3,12 @@
     <card-story :story="story" :detail-view="true" />
     <assess-selection-toolbar />
   </v-container>
-  <not-found-card v-else :item-id="story_id" item-type="Story" />
+  <not-found-card v-else :item-id="storyId" item-type="Story" />
 </template>
 
 <script>
 import { computed, onMounted } from 'vue'
 import CardStory from '@/components/assess/CardStory.vue'
-import { useRoute } from 'vue-router'
 import { useAssessStore } from '@/stores/AssessStore'
 import AssessSelectionToolbar from '@/components/assess/AssessSelectionToolbar.vue'
 import NotFoundCard from '@/components/common/NotFoundCard.vue'
@@ -22,20 +21,24 @@ export default {
     NotFoundCard,
     AssessSelectionToolbar
   },
-  setup() {
+  props: {
+    storyId: {
+      type: String,
+      required: true
+    }
+  },
+  setup(props) {
     const assessStore = useAssessStore()
 
-    const route = useRoute()
-    const story_id = route.params.id
     storyHotkeys()
 
     const story = computed(() => {
-      return assessStore.stories.items.find((item) => item.id == story_id)
+      return assessStore.stories.items.find((item) => item.id == props.storyId)
     })
 
     const loadStories = async () => {
-      if (story_id) {
-        assessStore.updateStoryByID(story_id)
+      if (props.storyId) {
+        assessStore.updateStoryByID(props.storyId)
       }
     }
 
@@ -46,8 +49,7 @@ export default {
     })
 
     return {
-      story,
-      story_id
+      story
     }
   }
 }

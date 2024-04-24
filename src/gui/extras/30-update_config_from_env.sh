@@ -43,9 +43,9 @@ unless (-e $CONFIG_FILE) {
     close $fh;
 }
 
-# Iterate over all environment variables that start with TARANIS_NG
+# Iterate over all environment variables that start with TARANIS_
 foreach my $key (sort keys %ENV) {
-    if ($key =~ /^TARANIS_NG/) {
+    if ($key =~ /^TARANIS_/) {
         my $value = $ENV{$key};
         if (defined $value && $value ne '') {
             add_to_json($key, $value, $CONFIG_FILE);

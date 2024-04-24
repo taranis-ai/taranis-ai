@@ -15,7 +15,7 @@ services:
     environment:
       NGINX_WORKERS: "4"
       NGINX_CONNECTIONS: "16"
-      TARANIS_CORE_UPSTREAM: "${TARANIS_CORE_UPSTREAM:-core:8080}"
+      TARANIS_CORE_UPSTREAM: "${TARANIS_CORE_UPSTREAM:-core:${TARANIS_CORE_LISTEN_PORT:-8080}}"
       TARANIS_SENTRY_DSN: "${TARANIS_SENTRY_DSN:-}"
     logging:
       driver: "json-file"
@@ -32,8 +32,8 @@ services:
         condition: on-failure
         max_attempts: 3
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-core:${TARANIS_TAG:-latest}"
-    ports:
-      - "${TARANIS_CORE_PORT:-8081}:${8080}"
+    # ports:
+    #   - "${TARANIS_CORE_PORT:-8081}:${TARANIS_CORE_LISTEN_PORT:-8080}"
     environment:
       DB_URL: "${DB_URL:-database}"
       DB_DATABASE: "${DB_DATABASE:-taranis}"
@@ -49,6 +49,8 @@ services:
       QUEUE_BROKER_HOST: "rabbitmq"
       QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
       QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-taranis}"
+
+      GRANIAN_PORT: "${TARANIS_CORE_LISTEN_PORT:-8080}"
 
       PRE_SEED_PASSWORD_ADMIN: "${PRE_SEED_PASSWORD_ADMIN:-admin}"
       PRE_SEED_PASSWORD_USER: "${PRE_SEED_PASSWORD_USER:-user}"
