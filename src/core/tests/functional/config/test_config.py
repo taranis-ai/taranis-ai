@@ -342,7 +342,7 @@ class TestPermissions(BaseTest):
 
     def test_get_permission(self, client, auth_header):
         response = self.assert_get_ok(client, uri="permissions", auth_header=auth_header)
-        assert response.json["total_count"] == 68
+        assert response.json["total_count"] == 69
 
 
 class TestAcls(BaseTest):

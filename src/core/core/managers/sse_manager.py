@@ -16,8 +16,8 @@ class SSEManager:
     def get_headers(self) -> dict:
         return {"Authorization": self.api_key, "Content-type": "application/json"}
 
-    def publish(self, json_data):
-        if self.broker_error > 3:
+    def publish(self, json_data) -> bool:
+        if self.broker_error > 3 or Config.DISABLE_SSE:
             return False
         try:
             response = requests.post(url=self.sse_url, headers=self.headers, json=json_data, timeout=self.timeout)

@@ -1,4 +1,5 @@
 from tests.functional.helpers import BaseTest
+import uuid
 
 
 class TestAssessApi(BaseTest):
@@ -48,7 +49,7 @@ class TestAssessApi(BaseTest):
         assert response.content_type == "application/json"
         assert response.data
         assert response.status_code == 200
-        assert len(response.get_json()["ids"]) == 1
+        assert uuid.UUID(response.get_json()["id"], version=4)
 
     def test_post_AddNewsItem_unauth(self, client, cleanup_news_item):
         """

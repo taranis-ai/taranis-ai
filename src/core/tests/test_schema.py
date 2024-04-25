@@ -1,14 +1,11 @@
 import schemathesis
 import logging
-import hypothesis
+from dotenv import load_dotenv
 from hypothesis import settings, HealthCheck
+
 from core.__init__ import create_app
 
-logger = logging.getLogger(__file__)
-logger.setLevel(logging.INFO)
-
-
-logger.debug(f"Hypothesis Settings{hypothesis.settings}")
+load_dotenv(dotenv_path="tests/.env", override=True)
 
 app = create_app()
 schema = schemathesis.from_wsgi("/api/doc/swagger.json", app, skip_deprecated_operations=True)
@@ -38,27 +35,19 @@ def test_assess(case, auth_header):
     case.validate_response(response, additional_checks=(check_401,))
 
 
-@schema.parametrize(endpoint="^/api/analyze")
-@settings(max_examples=5, suppress_health_check=(HealthCheck.function_scoped_fixture,))
+@schema.parametrize(endpoint="^/api/dashboard")
+@settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
+def test_dashboard(case, auth_header):
+    response = case.call_wsgi(headers=auth_header)
+    case.validate_response(response, additional_checks=(check_401,))
+
+
+@schema.parametrize(endpoint=r"^/api/(?!auth|isalive)")
+@settings(max_examples=2, suppress_health_check=(HealthCheck.function_scoped_fixture,))
 def test_analyze_no_auth(case, auth_header_no_permissions, caplog):
     with caplog.at_level(logging.CRITICAL):
         response = case.call_wsgi(headers=auth_header_no_permissions)
         case.validate_response(response, additional_checks=(check_not_401,))
-
-
-@schema.parametrize(endpoint="^/api/assess")
-@settings(max_examples=5, suppress_health_check=(HealthCheck.function_scoped_fixture,))
-def test_assess_no_auth(case, auth_header_no_permissions, caplog):
-    with caplog.at_level(logging.CRITICAL):
-        response = case.call_wsgi(headers=auth_header_no_permissions)
-        case.validate_response(response, additional_checks=(check_not_401,))
-
-
-# @schema.parametrize(endpoint="^/api/dashboard")
-# @settings(suppress_health_check=(HealthCheck.function_scoped_fixture,))
-# def test_dashboard(case, auth_header):
-#     response = case.call_wsgi(headers=auth_header)
-#     case.validate_response(response)
 
 
 # @schema.parametrize(endpoint="^/api/worker")

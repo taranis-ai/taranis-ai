@@ -2,8 +2,6 @@ import pytest
 from dotenv import load_dotenv
 from sqlalchemy.orm import scoped_session, sessionmaker
 
-# from sqlalchemy import event
-# from sqlalchemy.orm import sessionmaker
 
 load_dotenv(dotenv_path="tests/.env", override=True)
 

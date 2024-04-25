@@ -25,7 +25,7 @@ class Role(BaseModel):
     name: Mapped[str] = db.Column(db.String(64), unique=True, nullable=False)
     description: Mapped[str] = db.Column(db.String())
     tlp_level: Mapped[Optional[TLPLevel]] = db.Column(db.Enum(TLPLevel), nullable=True)
-    permissions: Mapped[list[Permission]] = relationship(Permission, secondary="role_permission", back_populates="roles")
+    permissions: Mapped[list["Permission"]] = relationship("Permission", secondary="role_permission", back_populates="roles")
     acls = relationship("RoleBasedAccess", secondary="rbac_role")
 
     def __init__(self, name, description=None, tlp_level=None, permissions=None, id=None):
@@ -37,9 +37,7 @@ class Role(BaseModel):
         if tlp_level:
             self.tlp_level = tlp_level
         if permissions:
-            for permission_id in permissions:
-                if permission := Permission.get(permission_id):
-                    self.permissions.append(permission)
+            self.permissions = [Permission.get(permission_id) for permission_id in permissions]
 
     @classmethod
     def filter_by_name(cls, role_name) -> "Role|None":

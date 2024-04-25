@@ -1,10 +1,11 @@
-from flask import request, Flask
+from flask import request, Flask, abort
 from flask.views import MethodView
 
 from core.managers import auth_manager
 from core.managers.auth_manager import auth_required
 from core.model import asset
 from core.managers.decorators import extract_args
+from core.log import logger
 
 
 class AssetGroups(MethodView):
@@ -12,8 +13,9 @@ class AssetGroups(MethodView):
     @extract_args("search")
     def get(self, group_id=None, filter_args=None):
         user = auth_manager.get_user_from_jwt()
+        logger.info(f"User: {user}")
         if not user:
-            return {"error": "User not found"}, 404
+            return abort(401)
         if group_id:
             return asset.AssetGroup.get_for_api(group_id, user.organization)
 
@@ -25,7 +27,7 @@ class AssetGroups(MethodView):
     def post(self):
         user = auth_manager.get_user_from_jwt()
         if not user:
-            return {"error": "User not found"}, 404
+            return abort(401)
         data = request.json
         if not data:
             return {"error": "No data provided"}, 400
@@ -37,13 +39,13 @@ class AssetGroups(MethodView):
     def delete(self, group_id):
         if user := auth_manager.get_user_from_jwt():
             return asset.AssetGroup.delete(user.organization, group_id)
-        return {"error": "User not found"}, 404
+        return abort(401)
 
     @auth_required("ASSETS_CONFIG")
     def put(self, group_id):
         if user := auth_manager.get_user_from_jwt():
             return asset.AssetGroup.update(user.organization, group_id, request.json)
-        return {"error": "User not found"}, 404
+        return abort(401)
 
 
 class Assets(MethodView):
@@ -52,7 +54,7 @@ class Assets(MethodView):
     def get(self, asset_id=None, filter_args=None):
         user = auth_manager.get_user_from_jwt()
         if not user:
-            return {"error": "User not found"}, 404
+            return abort(401)
 
         if asset_id:
             return asset.Asset.get_for_api(asset_id, user.organization)
@@ -62,11 +64,9 @@ class Assets(MethodView):
 
     @auth_required("ASSETS_CREATE")
     def post(self):
-        user = auth_manager.get_user_from_jwt()
-        if not user:
-            return {"error": "User not found"}, 404
-        data = request.json
-        if not data:
+        if not (user := auth_manager.get_user_from_jwt()):
+            return abort(401)
+        if not (data := request.json):
             return {"error": "No data provided"}, 400
         return asset.Asset.add(user.organization, data)
 
@@ -74,13 +74,13 @@ class Assets(MethodView):
     def put(self, asset_id):
         if user := auth_manager.get_user_from_jwt():
             return asset.Asset.update(user.organization, asset_id, request.json)
-        return {"error": "User not found"}, 404
+        return abort(401)
 
     @auth_required("ASSETS_CREATE")
     def delete(self, asset_id):
         if user := auth_manager.get_user_from_jwt():
             return asset.Asset.delete(user.organization, asset_id)
-        return {"error": "User not found"}, 404
+        return abort(401)
 
 
 class AssetVulnerability(MethodView):
@@ -91,7 +91,7 @@ class AssetVulnerability(MethodView):
             return {"message": "Missing solved field"}, 400
         if user := auth_manager.get_user_from_jwt():
             return asset.Asset.solve_vulnerability(user.organization, asset_id, vulnerability_id, data["solved"])
-        return {"error": "User not found"}, 404
+        return abort(401)
 
 
 def initialize(app: Flask):

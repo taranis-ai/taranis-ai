@@ -193,8 +193,6 @@ paths:
                   isalive:
                     type: boolean
                     example: True
-        '404':
-          $ref: "#/components/schemas/notFound"
   /users/profile:
     get:
       tags: [users]
@@ -246,58 +244,6 @@ paths:
           $ref: "#/components/schemas/notFound"
         '500':
           description: Internal server error
-  /users/my-product-types:
-    get:
-      tags: [users]
-      description: get the user's product types
-      responses:
-        '200':
-          description: the user's product types
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  total_count:
-                    type: integer
-                  items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/product_type'
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-  /users/my-publisher-presets:
-    get:
-      tags: [users]
-      description: get the user's publisher presets
-      responses:
-        '200':
-          description: the user's publisher presets
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  total_count:
-                    type: integer
-                  items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/publisher_preset'
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
 
   /analyze/report-types:
     get:
@@ -980,7 +926,7 @@ paths:
         '404':
           $ref: "#/components/schemas/notFound"
 
-  /assets/asset-groups:
+  /asset-groups:
     get:
       tags: [assets]
       description: get and add to the user's asset groups
@@ -1029,7 +975,7 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
         '404':
           $ref: "#/components/schemas/notFound"
-  /assets/asset-groups/{group_id}:
+  /asset-groups/{group_id}:
     parameters:
       - name: group_id
         in: path
@@ -1077,233 +1023,6 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
         '404':
           $ref: "#/components/schemas/notFound"
-  /assets/asset-groups/{group_id}/assets:
-    parameters:
-      - name: group_id
-        in: path
-        required: true
-        schema:
-          type: string
-    get:
-      tags: [assets]
-      description: get all the group's assets
-      parameters:
-        - name: search
-          in: query
-          schema:
-            type: string
-        - name: sort
-          in: query
-          schema:
-            type: string
-        - name: vulnerable
-          in: query
-          schema:
-            type: string
-      responses:
-        '200':
-          description: DESCRIPTION
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  total_count:
-                    type: integer
-                  items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/asset.presentation'
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-    post:
-      tags: [assets]
-      description: add an assets to the group
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/asset'
-      responses:
-        '200':
-          description: the asset has been added
-          content:
-            application/json:
-              schema:
-                type: string
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-  /assets/asset-groups/{group_id}/assets/{asset_id}:
-    parameters:
-      - name: group_id
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: asset_id
-        in: path
-        required: true
-        schema:
-          type: integer
-    put:
-      tags: [assets]
-      description: update asset
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/asset'
-      responses:
-        '200':
-          description: the asset has been updated
-          content:
-            application/json:
-              schema:
-                type: string
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-    delete:
-      tags: [assets]
-      description: delete the asset
-      responses:
-        '200':
-          description: the asset has been deleted
-          content:
-            application/json:
-              schema:
-                type: string
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-
-  /assets/asset-groups/{group_id}/assets/{asset_id}/vulnerabilities/{vulnerability_id}:
-    parameters:
-      - name: group_id
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: asset_id
-        in: path
-        required: true
-        schema:
-          type: integer
-      - name: vulnerability_id
-        in: path
-        required: true
-        schema:
-          type: integer
-    put:
-      tags: [assets]
-      description: update the status of the vulnerability
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                solved:
-                  type: boolean
-      responses:
-        '200':
-          description: the status of the vulnerability has been updated
-          content:
-            application/json:
-              schema:
-                type: string
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-  /assets/attributes/cpe:
-    get:
-      tags: [assets]
-      description: get CPE attribute
-      responses:
-        '200':
-          description: the attribute ID
-          content:
-            application/json:
-              schema:
-                type: string
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-  /assets/attributes/cpe/enums:
-    get:
-      tags: [assets]
-      description: get CPE attribute enums
-      parameters:
-        - name: search
-          in: query
-          schema:
-            type: string
-        - name: offset
-          in: query
-          schema:
-            type: integer
-            minimum: 0
-            format: int32
-        - name: limit
-          in: query
-          schema:
-            type: string
-      responses:
-        '200':
-          description: the attribute enums
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  total_count:
-                    type: integer
-                  items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/attribute_enum'
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-
-
   /worker/osint-sources/{source_id}:
     get:
       description: Get OSINT source by ID
@@ -1319,6 +1038,12 @@ paths:
           description: OK
         '404':
           description: Not found
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
 
   /worker/bots:
     get:
@@ -1601,6 +1326,9 @@ paths:
         required: true
         schema:
           type: integer
+          minimum: 1
+          maximum: 100000
+
     put:
       tags: [config]
       description: update attribute
@@ -1641,6 +1369,9 @@ paths:
         required: true
         schema:
           type: integer
+          minimum: 1
+          maximum: 100000
+
     get:
       tags: [config]
       description: get attribute enum
@@ -1701,11 +1432,17 @@ paths:
         required: true
         schema:
           type: integer
+          minimum: 1
+          maximum: 100000
+
       - name: enum_id
         in: path
         required: true
         schema:
           type: integer
+          minimum: 1
+          maximum: 100000
+
     put:
       tags: [config]
       description: update attribute enum
@@ -1798,6 +1535,9 @@ paths:
         required: true
         schema:
           type: integer
+          minimum: 1
+          maximum: 100000
+
     put:
       tags: [config]
       description: update report item type
@@ -1888,6 +1628,9 @@ paths:
         required: true
         schema:
           type: integer
+          minimum: 1
+          maximum: 100000
+
     put:
       tags: [config]
       description: update product type
@@ -2009,6 +1752,9 @@ paths:
         required: true
         schema:
           type: integer
+          minimum: 1
+          maximum: 100000
+
     put:
       tags: [config]
       description: update role
@@ -2099,6 +1845,9 @@ paths:
         required: true
         schema:
           type: integer
+          minimum: 1
+          maximum: 100000
+
     put:
       tags: [config]
       description: update ACL entry
@@ -2189,6 +1938,9 @@ paths:
         required: true
         schema:
           type: integer
+          minimum: 1
+          maximum: 100000
+
     put:
       tags: [config]
       description: update organization
@@ -2282,6 +2034,8 @@ paths:
         required: true
         schema:
           type: integer
+          minimum: 1
+          maximum: 100000
     put:
       tags: [config]
       description: update user
@@ -2445,6 +2199,8 @@ paths:
         required: true
         schema:
           type: integer
+          minimum: 1
+          maximum: 100000
     put:
       tags: [config]
       operationId: WordListGather
@@ -2492,6 +2248,12 @@ paths:
                     type: string
                   url:
                     type: string
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
         '500':
           description: could not connect to RabbitMQ
           content:
@@ -2516,7 +2278,12 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/scheduled_task'
-
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
   /config/parameters:
     get:
       tags: [config]
@@ -2653,7 +2420,7 @@ paths:
         in: path
         required: true
         schema:
-          type: integer
+          type: string
     delete:
       tags: [config]
       description: delete bot
@@ -2692,7 +2459,7 @@ paths:
         in: path
         required: true
         schema:
-          type: integer
+          type: string
     post:
       tags: [config]
       description: execute bot
@@ -2764,6 +2531,9 @@ paths:
         required: true
         schema:
           type: integer
+          minimum: 1
+          maximum: 100000
+
     put:
       tags: [config]
       description: update wordlist
@@ -2887,7 +2657,7 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
         '404':
           $ref: "#/components/schemas/notFound"
-  /osint-sources/{osint_source_id}/collect:
+  /config/osint-sources/{osint_source_id}/collect:
     parameters:
       - name: osint_source_id
         in: path
@@ -2920,7 +2690,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/resp.auth.error'
-  /osint-sources/collect:
+  /config/osint-sources/collect:
     post:
       tags: [config]
       description: collect all OSINT sources
@@ -3097,7 +2867,7 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
         '404':
           $ref: "#/components/schemas/notFound"
-  /config/publisher-preset:
+  /config/publishers-presets:
     get:
       tags: [config]
       description: get all publisher preset
@@ -3147,13 +2917,13 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
         '404':
           $ref: "#/components/schemas/notFound"
-  /config/publisher-preset/{preset_id}:
+  /config/publishers-presets/{preset_id}:
     parameters:
       - name: preset_id
         in: path
         required: true
         schema:
-          type: integer
+          type: string
     put:
       tags: [config]
       description: update publisher preset
@@ -3189,7 +2959,7 @@ paths:
           $ref: "#/components/schemas/notFound"
   /dashboard/trending-clusters:
     get:
-      tags: [trending-clusters]
+      tags: [dashboard]
       description: get trending clusters
       responses:
         '200':
@@ -3213,7 +2983,7 @@ paths:
           description: Internal server error
   /dashboard:
     get:
-      tags: [dashboard-data]
+      tags: [dashboard]
       description: get dashboard data
       responses:
         '200':
@@ -3325,7 +3095,7 @@ paths:
         in: path
         required: true
         schema:
-          type: integer
+          type: string
     get:
       tags: [publish]
       description: get product details
@@ -3377,19 +3147,33 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
         '404':
           $ref: "#/components/schemas/notFound"
-  /publish/products/{product_id}/overview:
+  /publish/products/{product_id}/render:
     parameters:
       - name: product_id
         in: path
         required: true
         schema:
-          type: integer
+          type: string
     get:
       tags: [publish]
-      description: download an overview of the specific product
+      description: download a rendered product
       responses:
         '200':
           description: the product data as a download
+        '401':
+          description: authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp.auth.error'
+        '404':
+          $ref: "#/components/schemas/notFound"
+    post:
+      tags: [publish]
+      description: render a product
+      responses:
+        '200':
+          description: success
         '401':
           description: authorization error
           content:
@@ -3404,7 +3188,7 @@ paths:
         in: path
         required: true
         schema:
-          type: integer
+          type: string
       - name: publisher_id
         in: path
         required: true
@@ -3954,9 +3738,9 @@ components:
             $ref: '#/components/schemas/news_item_attribute'
       required:
         - title
-        - review
         - source
         - content
+        - osint_source_id
 
     news_item_tag:
       type: object

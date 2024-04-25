@@ -328,6 +328,7 @@ class Bots(MethodView):
 
 
 class BotExecute(MethodView):
+    @auth_required("BOT_EXECUTE")
     def post(self, bot_id):
         return queue_manager.queue_manager.execute_bot_task(bot_id)
 
@@ -437,8 +438,7 @@ class OSINTSourceGroups(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_ACCESS")
     @extract_args("search")
     def get(self, group_id=None, filter_args=None):
-        user = auth_manager.get_user_from_jwt()
-        if not user:
+        if not (user := auth_manager.get_user_from_jwt()):
             return {"error": "User not found"}, 404
         if group_id:
             return osint_source.OSINTSourceGroup.get_for_api(group_id)
@@ -451,7 +451,10 @@ class OSINTSourceGroups(MethodView):
 
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_UPDATE")
     def put(self, group_id):
-        return osint_source.OSINTSourceGroup.update(group_id, request.json)
+        user = auth_manager.get_user_from_jwt()
+        if not (data := request.json):
+            return {"error": "No data provided"}, 400
+        return osint_source.OSINTSourceGroup.update(group_id, data, user=user)
 
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_DELETE")
     def delete(self, group_id):

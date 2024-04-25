@@ -38,7 +38,7 @@ export function sseHandler() {
       retries: 3,
       delay: 1000,
       onFailed() {
-        notifyFailure('Failed to connect EventSource after 3 retries')
+        notifyFailure(`Failed to connect to ${sseEndpoint} after 3 retries`)
         mainStore.sseConnectionError = true
       }
     }
