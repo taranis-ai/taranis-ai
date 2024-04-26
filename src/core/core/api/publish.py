@@ -1,7 +1,8 @@
 from flask import Response, request, Flask
 from flask.views import MethodView
+from flask_jwt_extended import current_user
 
-from core.managers import auth_manager, queue_manager
+from core.managers import queue_manager
 from core.managers.auth_manager import auth_required
 from core.model import product, product_type
 
@@ -9,7 +10,7 @@ from core.model import product, product_type
 class ProductTypes(MethodView):
     @auth_required("PUBLISH_ACCESS")
     def get(self):
-        return product_type.ProductType.get_all_for_api(None, with_count=False, user=auth_manager.get_user_from_jwt())
+        return product_type.ProductType.get_all_for_api(None, with_count=False, user=current_user)
 
 
 class Products(MethodView):
@@ -24,7 +25,7 @@ class Products(MethodView):
         filter_args["limit"] = min(int(request.args.get("limit", 20)), 200)
         filter_args["offset"] = int(request.args.get("offset", 0))
 
-        return product.Product.get_all_for_api(filter_args=filter_args, with_count=True, user=auth_manager.get_user_from_jwt())
+        return product.Product.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
 
     @auth_required("PUBLISH_CREATE")
     def post(self):

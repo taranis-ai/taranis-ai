@@ -35,7 +35,7 @@ class BaseAuthenticator:
         if user := User.find_by_name(username):
             logger.store_user_activity(user, "LOGIN", "Successful")
             access_token = create_access_token(
-                identity=user.username,
+                identity=user,
                 additional_claims={"user_claims": {"id": user.id, "name": user.name, "roles": user.get_roles()}},
             )
 

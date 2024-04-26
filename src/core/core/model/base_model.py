@@ -87,7 +87,7 @@ class BaseModel(db.Model):
         return [obj.to_dict() for obj in objects]
 
     @classmethod
-    def get(cls: Type[T], item_id) -> T | None:
+    def get(cls: Type[T], item_id: str | int) -> T | None:
         if (isinstance(item_id, int) and (item_id < 0 or item_id > 2**63 - 1)) or item_id is None:
             return None
         return db.session.get(cls, item_id)

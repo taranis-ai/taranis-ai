@@ -31,7 +31,7 @@ See [taranis.ai](https://taranis.ai/documentation/overview/) for documentation o
 | :-------- | :-------- | :------------------------------------ |
 | Backend   | core      | Backend for communication with the Database and offering REST Endpoints to workers and frontend |
 | Frontend  | gui       | Vuejs3 based Frontend |
-| Woker     | worker    | Celery Worker offering collectors, bots, presenters and publisher features |
+| Worker    | worker    | Celery Worker offering collectors, bots, presenters and publisher features |
 | Worker    | beat      | Celery Beat instance for scheduling tasks |
 
 
@@ -40,6 +40,7 @@ See [taranis.ai](https://taranis.ai/documentation/overview/) for documentation o
 | :-------------- | :------------------- | :------------------------------------ |
 | Database        | database             | Supported are PostgreSQL and SQLite with PostgreSQL as our primary citizen |
 | Message-broker  | rabbitmq             | Message Broker for distribution of Workers and Publish Subscribe Queue Management |
+| SSE             | sse                  | [SSE Broker](https://github.com/taranis-ai/sse-broker) |
 
 
 ## Features

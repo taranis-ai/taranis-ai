@@ -36,7 +36,9 @@ This Template needs excatly one Report
         {{ story.news_items[0].content }}
         {%- endif %}
         </p>
-        <a href="{{ story.news_items[0].link }}">{{ story.news_items[0].link }}</a>
+        {% for item in story.news_items -%}
+        <a href="{{ item.link }}">{{ item.link }}</a>
+        {%- endfor %}
         <hr>
         {%- endif %}
         {%- endfor %}

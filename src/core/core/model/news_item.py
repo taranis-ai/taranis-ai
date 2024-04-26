@@ -72,10 +72,6 @@ class NewsItem(BaseModel):
             self.attributes = NewsItemAttribute.load_multiple(attributes)
 
     @classmethod
-    def get_hash_from_data(cls, data: dict) -> str:
-        return cls.get_hash(data.get("title", ""), data.get("link", ""), data.get("content", ""))
-
-    @classmethod
     def get_hash(cls, title: str = "", link: str = "", content: str = "") -> str:
         if not title and not link and not content:
             raise ValueError("At least one of the following parameters must be provided: title, link, content")
