@@ -2,6 +2,10 @@ upstream core {
   server ${TARANIS_CORE_UPSTREAM};
 }
 
+upstream sse {
+  server ${TARANIS_SSE_UPSTREAM};
+}
+
 server {
     listen       80;
     server_name  _;

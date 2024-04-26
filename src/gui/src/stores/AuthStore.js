@@ -1,4 +1,4 @@
-import { authenticate, authRefresh } from '@/api/auth'
+import { authenticate, authRefresh, authLogout } from '@/api/auth'
 import { apiService } from '@/main'
 import { Base64 } from 'js-base64'
 import { useUserStore } from './UserStore'
@@ -43,6 +43,7 @@ export const useAuthStore = defineStore(
     }
 
     async function logout() {
+      await authLogout()
       reset()
       const userStore = useUserStore()
       const assessStore = useAssessStore()

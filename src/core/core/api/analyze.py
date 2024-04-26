@@ -1,7 +1,8 @@
 from flask import request, abort, Flask
 from flask.views import MethodView
+from flask_jwt_extended import current_user
 
-from core.managers import asset_manager, auth_manager
+from core.managers import asset_manager
 from core.managers.sse_manager import sse_manager
 from core.log import logger
 from core.managers.auth_manager import auth_required
@@ -11,7 +12,7 @@ from core.model import report_item, report_item_type
 class ReportTypes(MethodView):
     @auth_required("ANALYZE_ACCESS")
     def get(self):
-        return report_item_type.ReportItemType.get_all_for_api(filter_args=None, with_count=False, user=auth_manager.get_user_from_jwt())
+        return report_item_type.ReportItemType.get_all_for_api(filter_args=None, with_count=False, user=current_user)
 
 
 class ReportStories(MethodView):
@@ -25,7 +26,7 @@ class ReportStories(MethodView):
         if not isinstance(request_data, list):
             logger.debug("No data in request")
             return "No data in request", 400
-        return report_item.ReportItem.set_stories(report_item_id, request_data, auth_manager.get_user_from_jwt())
+        return report_item.ReportItem.set_stories(report_item_id, request_data, current_user)
 
     @auth_required("ANALYZE_UPDATE")
     def post(self, report_item_id):
@@ -33,7 +34,7 @@ class ReportStories(MethodView):
         if not isinstance(request_data, list):
             logger.debug("No data in request")
             return "No data in request", 400
-        return report_item.ReportItem.add_stories(report_item_id, request_data, auth_manager.get_user_from_jwt())
+        return report_item.ReportItem.add_stories(report_item_id, request_data, current_user)
 
 
 class ReportItem(MethodView):
@@ -46,12 +47,12 @@ class ReportItem(MethodView):
 
         filter_args["offset"] = min(int(request.args.get("offset", 0)), (2**31) - 1)
         filter_args["limit"] = min(int(request.args.get("limit", 20)), 200)
-        return report_item.ReportItem.get_all_for_api(filter_args=filter_args, with_count=True, user=auth_manager.get_user_from_jwt())
+        return report_item.ReportItem.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
 
     @auth_required("ANALYZE_CREATE")
     def post(self):
         try:
-            new_report_item, status = report_item.ReportItem.add(request.json, auth_manager.get_user_from_jwt())
+            new_report_item, status = report_item.ReportItem.add(request.json, current_user)
         except Exception as ex:
             logger.exception()
             abort(400, f"Error adding report item: {ex}")
@@ -69,7 +70,7 @@ class ReportItem(MethodView):
         if not request_data:
             logger.debug("No data in request")
             return "No data in request", 400
-        return report_item.ReportItem.update_report_item(report_item_id, request_data, auth_manager.get_user_from_jwt())
+        return report_item.ReportItem.update_report_item(report_item_id, request_data, current_user)
 
     @auth_required("ANALYZE_DELETE")
     def delete(self, report_item_id):
@@ -83,7 +84,7 @@ class CloneReportItem(MethodView):
     @auth_required("ANALYZE_CREATE")
     def post(self, report_item_id):
         try:
-            result, status = report_item.ReportItem.clone(report_item_id, auth_manager.get_user_from_jwt())
+            result, status = report_item.ReportItem.clone(report_item_id, current_user)
         except Exception as ex:
             logger.exception()
             abort(400, f"Error cloning report item: {ex}")
@@ -102,7 +103,7 @@ class ReportItemLocks(MethodView):
 class ReportItemLock(MethodView):
     @auth_required("ANALYZE_UPDATE")
     def put(self, report_item_id):
-        user = auth_manager.get_user_from_jwt()
+        user = current_user
         if not user:
             abort(401, "User not found")
         try:
@@ -115,7 +116,7 @@ class ReportItemLock(MethodView):
 class ReportItemUnlock(MethodView):
     @auth_required("ANALYZE_UPDATE")
     def put(self, report_item_id):
-        user = auth_manager.get_user_from_jwt()
+        user = current_user
         if not user:
             abort(401, "User not found")
         try:

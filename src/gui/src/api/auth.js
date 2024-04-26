@@ -7,3 +7,7 @@ export function authenticate(userData) {
 export function authRefresh() {
   return apiService.get('/auth/refresh')
 }
+
+export function authLogout() {
+  return apiService.delete('/auth/logout')
+}

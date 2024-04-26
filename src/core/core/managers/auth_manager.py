@@ -1,13 +1,8 @@
 from datetime import datetime, timedelta
 from functools import wraps
-from flask import request
+from flask import request, Flask
 from typing import Any
-from flask_jwt_extended import (
-    JWTManager,
-    get_jwt,
-    get_jwt_identity,
-    verify_jwt_in_request,
-)
+from flask_jwt_extended import JWTManager, get_jwt, get_jwt_identity, verify_jwt_in_request, current_user
 from flask_jwt_extended.exceptions import JWTExtendedException
 
 # from core.managers import queue_manager
@@ -17,11 +12,12 @@ from core.auth.test_authenticator import TestAuthenticator
 from core.auth.database_authenticator import DatabaseAuthenticator
 from core.model.token_blacklist import TokenBlacklist
 from core.model.user import User
+
 from core.config import Config
 
 current_authenticator = TestAuthenticator()
-
 api_key = Config.API_KEY
+jwt = JWTManager()
 
 
 def cleanup_token_blacklist(app):
@@ -29,10 +25,11 @@ def cleanup_token_blacklist(app):
         TokenBlacklist.delete_older(datetime.now() - timedelta(days=1))
 
 
-def initialize(app):
+def initialize(app: Flask):
     global current_authenticator
+    global jwt
 
-    JWTManager(app)
+    jwt.init_app(app)
 
     authenticator = app.config.get("TARANIS_AUTHENTICATOR", None)
     if authenticator == "openid":
@@ -47,14 +44,12 @@ def initialize(app):
     with app.app_context():
         current_authenticator.initialize(app)
 
-    # queue_manager.schedule_job_every_day("00:00", cleanup_token_blacklist)
-
 
 def authenticate(credentials: dict[str, str]) -> tuple[dict[str, Any], int]:
     return current_authenticator.authenticate(credentials)
 
 
-def refresh(user):
+def refresh(user: "User"):
     return current_authenticator.refresh(user)
 
 
@@ -90,13 +85,7 @@ def auth_required(permissions: list | str):
                 logger.store_auth_error_activity(f"Missing identity in JWT: {get_jwt()}")
                 return error
 
-            # load user
-            user = User.find_by_name(identity)
-            if not user:
-                logger.store_user_auth_error_activity(identity, "", "Could not find User for JWT identity")
-                return error
-
-            permission_claims = user.get_permissions()
+            permission_claims = current_user.get_permissions()
 
             # is there at least one match with the permissions required by the call?
             if not permissions_set.intersection(permission_claims):
@@ -144,12 +133,18 @@ def get_access_key():
     return request.headers["Authorization"].replace("Bearer ", "")
 
 
-def get_user_from_jwt() -> User | None:
-    try:
-        verify_jwt_in_request()
-    except JWTExtendedException:
-        logger.store_auth_error_activity("Missing JWT")
-        return None
-    identity = get_jwt_identity()
-
+@jwt.user_lookup_loader
+def user_lookup_callback(_jwt_header, jwt_data):
+    identity = jwt_data[Config.JWT_IDENTITY_CLAIM]
     return User.find_by_name(identity) if identity else None
+
+
+@jwt.user_identity_loader
+def user_identity_lookup(user: "User"):
+    return user.username
+
+
+@jwt.token_in_blocklist_loader
+def check_if_token_is_revoked(jwt_header, jwt_payload: dict):
+    jti = jwt_payload["jti"]
+    return TokenBlacklist.invalid(jti)

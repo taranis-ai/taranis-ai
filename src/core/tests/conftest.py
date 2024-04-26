@@ -63,10 +63,11 @@ def session(db, request):
 @pytest.fixture(scope="session")
 def access_token(app):
     from flask_jwt_extended import create_access_token
+    from core.model.user import User
 
     with app.app_context():
         return create_access_token(
-            identity="admin",
+            identity=User.find_by_name("admin"),
             additional_claims={
                 "user_claims": {
                     "id": "admin",
@@ -90,10 +91,11 @@ def api_header():
 @pytest.fixture(scope="session")
 def access_token_user_permissions(app):
     from flask_jwt_extended import create_access_token
+    from core.model.user import User
 
     with app.app_context():
         return create_access_token(
-            identity="user",
+            identity=User.find_by_name("user"),
             additional_claims={
                 "user_claims": {
                     "id": "user",
@@ -108,9 +110,16 @@ def access_token_user_permissions(app):
 def access_token_no_permissions(app):
     from flask_jwt_extended import create_access_token
 
+    class FakeUser:
+        @property
+        def username(self):
+            return "nobody"
+
+    nobody = FakeUser()
+
     with app.app_context():
         return create_access_token(
-            identity="nobody",
+            identity=nobody,
             additional_claims={
                 "user_claims": {
                     "id": "nobody",

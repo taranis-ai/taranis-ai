@@ -128,8 +128,8 @@ class User(BaseModel):
     def get_current_organization_name(self):
         return self.organization.name if self.organization else ""
 
-    def get_profile_json(self) -> tuple[dict, int]:
-        return self.profile.to_dict(), 200
+    def get_profile(self) -> dict:
+        return self.profile.to_dict()
 
     @classmethod
     def update_profile(cls, user: "User", data) -> tuple[dict, int]:

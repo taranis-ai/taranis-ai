@@ -145,7 +145,7 @@ paths:
                 $ref: '#/components/schemas/resp.auth.error'
 
   /auth/logout:
-    get:
+    delete:
       tags:
         - auth
       description: invalidate API token (i.e. logout)
