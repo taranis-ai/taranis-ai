@@ -51,6 +51,11 @@ See [taranis.ai](https://taranis.ai/documentation/overview/) for documentation o
 * Multi-Format Output: Generates a variety of end products, including structured reports and PDF files, tailored to specific informational needs.
 * Seamless Publishing: Facilitates the effortless publication of finalized intelligence products, ensuring timely dissemination of critical information.
 
+### OpenAPI
+
+An [OpenAPI spec](./src/core/core/static/openapi3_1.yaml) for the REST API is included but not 100% yet.
+<img src="https://validator.swagger.io/validator?url=https://raw.githubusercontent.com/taranis-ai/taranis-ai/master/src/core/core/static/openapi3_1.yaml">
+
 
 ### Hardware requirements
 To use all NLP features make sure to have at least: 16 GB RAM, 4 CPU cores and 50GB of disk storage.

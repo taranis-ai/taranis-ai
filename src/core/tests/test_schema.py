@@ -8,6 +8,7 @@ from core.__init__ import create_app
 load_dotenv(dotenv_path="tests/.env", override=True)
 
 app = create_app()
+schemathesis.experimental.OPEN_API_3_1.enable()
 schema = schemathesis.from_wsgi("/api/doc/swagger.json", app, skip_deprecated_operations=True)
 
 
