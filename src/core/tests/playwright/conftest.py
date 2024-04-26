@@ -1,8 +1,27 @@
 import pytest
+import os
 
 
 @pytest.fixture(scope="session")
-def fake_source(app, request):
+def docker_compose_file(pytestconfig):
+    return os.path.join("../../docker", "compose.yml")
+
+
+@pytest.fixture(scope="session")
+def http_service(docker_ip, docker_services):
+    """Ensure that HTTP service is up and responsive."""
+
+    # `port_for` takes a container port and returns the corresponding host port
+    port = docker_services.port_for("dev-taranis", 8081)
+    url = "http://{}:{}".format(docker_ip, port)
+    docker_services.wait_until_responsive(
+        timeout=30.0, pause=0.1, check=lambda: is_responsive(url)
+    )
+    return url
+
+
+@pytest.fixture(scope="session")
+def fake_source(app, request, docker_compose_file, docker_services, http_service):
     with app.app_context():
         from core.model.osint_source import OSINTSource
 
