@@ -7,6 +7,11 @@ import os
 import pytest
 
 taranis_url = os.getenv("TARANIS_URL", "http://localhost:8081")
+print(taranis_url)
+# os.environ["SQLALCHEMY_DATABASE_URI"] = "postgresql+psycopg2://taranis:supersecret@localhost/taranis"
+# os.environ["API_KEY"] = "supersecret"
+# os.environ["SECRET_KEY"] = "supersecret"
+# os.unsetenv("PRE_SEED_PASSWORD_USER")
 
 
 def highlight_element(locator, duration: int = 2):
@@ -47,7 +52,7 @@ def run_e2e(playwright,
         record_video_size=record_video_size,
     )
     page = context.new_page()
-    page.goto("http://localhost:8081/login")
+    page.goto(taranis_url)
     highlight_element(page.get_by_placeholder("Username"))
 
     page.get_by_placeholder("Username").fill("admin")
@@ -181,11 +186,5 @@ def test_e2e_local(stories):
 
 @pytest.mark.e2e_ci
 def test_e2e_ci(stories):
-    # with sync_playwright() as playwright:
-    #     run_e2e(playwright)
-    # import requests
-    # status = 200
-    # response = requests.get(http_service + "/status/{}".format(status))
-    #
-    # assert response.status_code == status
-    assert True
+    with sync_playwright() as playwright:
+        run_e2e(playwright)

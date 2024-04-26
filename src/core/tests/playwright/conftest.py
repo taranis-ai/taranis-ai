@@ -2,7 +2,7 @@ import subprocess
 import pytest
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def temporary_taranis_instance():
     # result = subprocess.run(['pwd'], capture_output=True, text=True)
     result = subprocess.run(
@@ -46,13 +46,13 @@ def fake_source(app, request, temporary_taranis_instance):
         if not OSINTSource.get(source_id):
             OSINTSource.add(source_data)
 
-        # def teardown():
-        #     with app.app_context():
-        #         OSINTSource.delete(source_id)
-        #
-        # request.addfinalizer(teardown)
-        #
-        # yield source_id
+        def teardown():
+            with app.app_context():
+                OSINTSource.delete(source_id)
+
+        request.addfinalizer(teardown)
+
+        yield source_id
 
 
 @pytest.fixture(scope="session")
@@ -94,15 +94,15 @@ def news_items(app, fake_source):
 def stories(app, request, news_items):
     with app.app_context():
         from core.model.story import Story
-        # from core.model.report_item import ReportItem
+        from core.model.report_item import ReportItem
 
         story_ids = Story.add_news_items(news_items)[0].get("ids")
 
-        # def teardown():
-        #     with app.app_context():
-        #         ReportItem.delete_all()
-        #         Story.delete_all()
-        #
-        # request.addfinalizer(teardown)
+        def teardown():
+            with app.app_context():
+                ReportItem.delete_all()
+                Story.delete_all()
+
+        request.addfinalizer(teardown)
 
         yield story_ids
