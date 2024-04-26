@@ -68,7 +68,7 @@ def news_items(app, fake_source):
 def stories(app, request, news_items):
     with app.app_context():
         from core.model.story import Story
-        from core.model.report_item import ReportItem
+        # from core.model.report_item import ReportItem
 
         story_ids = Story.add_news_items(news_items)[0].get("ids")
 

@@ -59,13 +59,9 @@ jobs:
         working-directory: src/docker/dev
         run: pip install -e .[dev]
 
-      - name: pytest docker compose
-        working-directory: src/docker/dev
-        run: pytest --docker-compose=compose.yml
-
       - name: test
         working-directory: src/core
-        run: pytest --run-e2e-ci
+        run: pytest --docker-compose=../../docker/dev/compose.yml --run-e2e-ci
 
   test_worker:
     name: pytest worker
