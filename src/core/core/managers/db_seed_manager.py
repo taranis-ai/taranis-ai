@@ -81,8 +81,8 @@ def pre_seed_permissions():
     from core.model.permission import Permission
     from core.managers.pre_seed_data import permissions
 
-    for p in permissions:
-        Permission.add(*p)
+    Permission.add_multiple(permissions)
+    print(Permission.get("BOT_EXECUTE"))
 
 
 def pre_seed_roles():
@@ -108,6 +108,7 @@ def pre_seed_roles():
             "ANALYZE_CREATE",
             "ANALYZE_UPDATE",
             "ANALYZE_DELETE",
+            "BOT_EXECUTE",
             "PUBLISH_ACCESS",
             "PUBLISH_CREATE",
             "PUBLISH_UPDATE",
@@ -252,16 +253,17 @@ def pre_seed_default_user():
 
 def pre_seed_assets():
     from core.model.asset import AssetGroup
-    from core.model.user import User
+    from core.model.organization import Organization
 
     if AssetGroup.get("default"):
         return
-    users = User.get_all()
+    if not (org := Organization.get(1)):
+        return
     AssetGroup.add(
         {
             "name": "Default",
             "description": "Default group for uncategorized assets",
-            "organization": users[0].organization,
+            "organization": org,
             "id": "default",
         }
     )

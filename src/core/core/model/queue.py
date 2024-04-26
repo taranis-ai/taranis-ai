@@ -44,11 +44,11 @@ class ScheduleEntry(BaseModel):
     @classmethod
     def sync(cls, entries: list["ScheduleEntry"]):
         for entry in entries:
-            if existing_entry := cls.get(entry.id):
+            if existing_entry := cls.get(str(entry.id)):
                 existing_entry.schedule = entry.schedule
                 existing_entry.args = entry.args
                 existing_entry.last_run_at = entry.last_run_at
-                existing_entry.total_run_count = entry.total_run_count
+                existing_entry.total_run_count = existing_entry.total_run_count + 1
             else:
                 db.session.add(entry)
             db.session.commit()
@@ -108,3 +108,9 @@ class ScheduleEntry(BaseModel):
         if now >= next_run:
             next_run += timedelta(days=1)
         return (next_run - now).total_seconds()
+
+    @classmethod
+    def get_for_worker(cls, item_id) -> tuple[dict[str, Any], int]:
+        if item := cls.get(item_id):
+            return item.to_worker_dict(), 200
+        return {"error": f"{cls.__name__} {item_id} not found"}, 404

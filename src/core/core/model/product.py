@@ -107,10 +107,10 @@ class Product(BaseModel):
 
     @classmethod
     def update_render_for_id(cls, product_id: str, render_result):
-        product = cls.get(product_id)
-        if not product:
+        if not (product := cls.get(product_id)):
             return {"error": f"Product {product_id} not found"}, 404
         if product.update_render(render_result):
+            logger.debug(f"Render result for Product {product_id} updated")
             return {"message": f"Product {product_id} updated"}, 200
         return {"error": f"Product {product_id} not updated"}, 500
 
@@ -146,6 +146,12 @@ class Product(BaseModel):
 
         db.session.commit()
         return {"message": f"Product {product_id} updated", "id": product_id}, 200
+
+    @classmethod
+    def get_for_worker(cls, item_id) -> tuple[dict[str, Any], int]:
+        if item := cls.get(item_id):
+            return item.to_worker_dict(), 200
+        return {"error": f"{cls.__name__} {item_id} not found"}, 404
 
 
 class ProductReportItem(BaseModel):

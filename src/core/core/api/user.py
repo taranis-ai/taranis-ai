@@ -1,32 +1,26 @@
 from flask import request, Flask
 from flask.views import MethodView
 
-from core.managers import auth_manager
 from core.model.user import User
+from flask_jwt_extended import jwt_required, current_user
 
 
 class UserInfo(MethodView):
+    @jwt_required()
     def get(self):
-        if user := auth_manager.get_user_from_jwt():
-            return user.to_detail_dict(), 200
-        return {"message": "User not found"}, 404
+        return current_user.to_detail_dict(), 200
 
 
 class UserProfile(MethodView):
+    @jwt_required()
     def get(self):
-        if user := auth_manager.get_user_from_jwt():
-            return user.get_profile_json()
-        return {"message": "User not found"}, 404
+        return current_user.get_profile(), 200
 
+    @jwt_required()
     def put(self):
-        # sourcery skip: use-named-expression
-        user = auth_manager.get_user_from_jwt()
-        if not user:
-            return {"message": "User not found"}, 404
-        json_data = request.json
-        if not json_data:
-            return {"message": "No input data provided"}, 400
-        return User.update_profile(user, request.json)
+        if not (json_data := request.json):
+            return {"error": "No input data provided"}, 400
+        return User.update_profile(current_user, json_data)
 
 
 def initialize(app: Flask):

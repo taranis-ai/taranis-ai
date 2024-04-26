@@ -29,7 +29,9 @@ Co-Handler:  {{ report.co_handler }}
 {{ story.news_items[0].content }}
 {%- endif %}
 ---------------------------------------------
-{{ story.news_items[0].link }}
+{% for item in story.news_items -%}
+{{ item.link }}
+{%- endfor %}
 
 {%- endif %}
 {%- endfor %}
@@ -53,7 +55,9 @@ Co-Handler:  {{ report.co_handler }}
 {{ story.news_items[0].content }}
 {%- endif %}
 ---------------------------------------------
-{{ story.news_items[0].link }}
+{% for item in story.news_items -%}
+{{ item.link }}
+{%- endfor %}
 
 {%- endif %}
 {%- endfor %}

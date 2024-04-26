@@ -157,9 +157,10 @@ export default {
 
       try {
         const result = await addNewsItem(news_item.value)
-        const new_story = result.data.ids[0]
+        let new_story = result.data.id
         if (props.storyId) {
           await groupAction([props.storyId, new_story])
+          new_story = props.storyId
         }
         notifySuccess(result)
         router.push('/story/' + new_story)

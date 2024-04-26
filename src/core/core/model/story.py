@@ -5,6 +5,7 @@ from sqlalchemy import or_, func
 from sqlalchemy.orm import aliased, Mapped, relationship
 from sqlalchemy.sql.expression import false, null
 from sqlalchemy.sql import Select
+from sqlalchemy.exc import IntegrityError
 
 from collections import Counter
 
@@ -58,7 +59,7 @@ class Story(BaseModel):
         self.id = id or str(uuid.uuid4())
         self.title = title
         self.description = description
-        self.created = created if isinstance(created, datetime) else datetime.fromisoformat(created)
+        self.created = self.get_creation_date(created)
         self.read = read
         self.important = important
         self.summary = summary
@@ -66,6 +67,13 @@ class Story(BaseModel):
         self.news_items = self.load_news_items(news_items)
         if attributes:
             self.attributes = NewsItemAttribute.load_multiple(attributes)
+
+    def get_creation_date(self, created):
+        if isinstance(created, datetime):
+            return created
+        if isinstance(created, str):
+            return datetime.fromisoformat(created)
+        return datetime.now()
 
     def load_news_items(self, news_items):
         if isinstance(news_items[0], dict):
@@ -351,14 +359,43 @@ class Story(BaseModel):
         ).id
 
     @classmethod
+    def check_news_item_data(cls, news_item: dict) -> dict | None:
+        title = news_item.get("title", "")
+        link = news_item.get("link", "")
+        content = news_item.get("content", "")
+        if not title and not link and not content:
+            return {"error": "At least one of the following parameters must be provided: title, link, content"}
+        return None
+
+    @classmethod
+    def add_single_news_item(cls, news_item: dict) -> tuple[dict, int]:
+        if err := cls.check_news_item_data(news_item):
+            return err, 400
+        try:
+            story_id = cls.add_from_news_item(news_item)
+            db.session.commit()
+        except IntegrityError:
+            logger.warning("NewsItem already exists")
+            return {"error": "NewsItem already exists"}, 400
+        except Exception as e:
+            logger.exception(f"Failed to add news items: {e}")
+            return {"error": f"Failed to add news items: {e}"}, 400
+
+        return {"message": "success", "id": story_id}, 200
+
+    @classmethod
     def add_news_items(cls, news_items_list: list[dict]):
         ids = []
         try:
             for news_item in news_items_list:
-                if NewsItem.identical(news_item.get("hash", NewsItem.get_hash_from_data(news_item))):
+                if err := cls.check_news_item_data(news_item):
+                    logger.warning(err)
                     continue
                 ids.append(cls.add_from_news_item(news_item))
             db.session.commit()
+        except IntegrityError:
+            logger.warning("NewsItem already exists")
+            return {"error": "NewsItem already exists"}, 400
         except Exception as e:
             logger.exception(f"Failed to add news items: {e}")
             return {"error": f"Failed to add news items: {e}"}, 400

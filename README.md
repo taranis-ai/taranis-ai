@@ -31,7 +31,7 @@ See [taranis.ai](https://taranis.ai/documentation/overview/) for documentation o
 | :-------- | :-------- | :------------------------------------ |
 | Backend   | core      | Backend for communication with the Database and offering REST Endpoints to workers and frontend |
 | Frontend  | gui       | Vuejs3 based Frontend |
-| Woker     | worker    | Celery Worker offering collectors, bots, presenters and publisher features |
+| Worker    | worker    | Celery Worker offering collectors, bots, presenters and publisher features |
 | Worker    | beat      | Celery Beat instance for scheduling tasks |
 
 
@@ -40,6 +40,7 @@ See [taranis.ai](https://taranis.ai/documentation/overview/) for documentation o
 | :-------------- | :------------------- | :------------------------------------ |
 | Database        | database             | Supported are PostgreSQL and SQLite with PostgreSQL as our primary citizen |
 | Message-broker  | rabbitmq             | Message Broker for distribution of Workers and Publish Subscribe Queue Management |
+| SSE             | sse                  | [SSE Broker](https://github.com/taranis-ai/sse-broker) |
 
 
 ## Features
@@ -49,6 +50,12 @@ See [taranis.ai](https://taranis.ai/documentation/overview/) for documentation o
 * Analyst-Friendly Workflow: Offers a streamlined process where analysts can easily convert unstructured news into structured report items, optimizing the data transformation journey.
 * Multi-Format Output: Generates a variety of end products, including structured reports and PDF files, tailored to specific informational needs.
 * Seamless Publishing: Facilitates the effortless publication of finalized intelligence products, ensuring timely dissemination of critical information.
+
+### OpenAPI
+<img src="https://validator.swagger.io/validator?url=https://raw.githubusercontent.com/taranis-ai/taranis-ai/master/src/core/core/static/openapi3_1.yaml">
+
+An [OpenAPI spec](./src/core/core/static/openapi3_1.yaml) for the REST API is included and can be accessed in a running installation under `config/openapi`.
+
 
 
 ### Hardware requirements

@@ -15,7 +15,7 @@ def initialize(app):
     app.register_error_handler(401, handle_unauthorized)
     app.register_error_handler(404, handle_not_found)
 
-    openapi_yaml = Path(__file__).parent.parent / "static" / "openapi3_0.yaml"
+    openapi_yaml = Path(__file__).parent.parent / "static" / "openapi3_1.yaml"
     api_doc(app, config_path=openapi_yaml, url_prefix="/api/doc", editor=False)
 
     core_api.admin.initialize(app)
@@ -31,7 +31,6 @@ def initialize(app):
     core_api.user.initialize(app)
     core_api.task.initialize(app)
     core_api.worker.initialize(app)
-    core_api.sse.initialize(app)
 
 
 def handle_bad_request(e):

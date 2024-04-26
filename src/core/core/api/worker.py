@@ -32,12 +32,7 @@ class AddNewsItems(MethodView):
 class QueueScheduleEntry(MethodView):
     @api_key_required
     def get(self, schedule_id: str):
-        try:
-            if schedule := ScheduleEntry.get(schedule_id):
-                return schedule.to_worker_dict(), 200
-            return {"error": f"Schedule with id {schedule_id} not found"}, 404
-        except Exception:
-            logger.exception()
+        return ScheduleEntry.get_for_worker(schedule_id)
 
 
 class NextRunTime(MethodView):
@@ -66,11 +61,9 @@ class QueueSchedule(MethodView):
     @api_key_required
     def put(self):
         try:
-            data = request.json
-            if not data:
+            if not (data := request.json):
                 return {"error": "No data provided"}, 400
-            entries = [ScheduleEntry.from_dict(entry) for entry in data]
-            if not entries:
+            if not (entries := [ScheduleEntry.from_dict(entry) for entry in data]):
                 return {"error": "No entries provided"}, 400
             return ScheduleEntry.sync(entries), 200
         except Exception:
@@ -80,23 +73,15 @@ class QueueSchedule(MethodView):
 class Products(MethodView):
     @api_key_required
     def get(self, product_id: int):
-        try:
-            if prod := Product.get(product_id):
-                return prod.to_worker_dict(), 200
-            return {"error": f"Product with id {product_id} not found"}, 404
-        except Exception:
-            logger.exception()
+        return Product.get_for_worker(product_id)
 
     @api_key_required
     def put(self, product_id: str):
-        try:
-            if render_result := request.data:
-                sse_manager.product_rendered({"id": product_id})
-                return Product.update_render_for_id(product_id, render_result)
+        if render_result := request.data:
+            sse_manager.product_rendered({"id": product_id})
+            return Product.update_render_for_id(product_id, render_result)
 
-            return {"error": "Error reading file"}, 400
-        except Exception:
-            logger.exception()
+        return {"error": "Error reading file"}, 400
 
 
 class ProductsRender(MethodView):
@@ -122,12 +107,7 @@ class Presenters(MethodView):
 class Publishers(MethodView):
     @api_key_required
     def get(self, publisher: str):
-        try:
-            if pub := PublisherPreset.get(publisher):
-                return pub.to_dict(), 200
-            return {"error": f"Publisher with id {publisher} not found"}, 404
-        except Exception:
-            logger.exception()
+        return PublisherPreset.get_for_api(publisher)
 
 
 class Sources(MethodView):
@@ -234,8 +214,7 @@ class BotInfo(MethodView):
 class PostCollectionBots(MethodView):
     @api_key_required
     def put(self):
-        data = request.json
-        if not data:
+        if not (data := request.json):
             return {"error": "No data provided"}, 400
         if source_id := data.get("source_id", None):
             return queue_manager.queue_manager.post_collection_bots(source_id=source_id)

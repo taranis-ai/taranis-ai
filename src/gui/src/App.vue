@@ -27,9 +27,9 @@ import MainMenu from '@/components/MainMenu.vue'
 import Notification from '@/components/common/Notification.vue'
 import { defineComponent, onMounted, watch } from 'vue'
 import { useAuthStore } from '@/stores/AuthStore'
-// import { useSseStore } from '@/stores/SseStore'
 import { storeToRefs } from 'pinia'
 import { useDisplay } from 'vuetify'
+import { sseHandler } from '@/utils/sse'
 
 export default defineComponent({
   name: 'App',
@@ -41,18 +41,14 @@ export default defineComponent({
     const { isAuthenticated, timeToRefresh } = storeToRefs(useAuthStore())
     const authStore = useAuthStore()
     const { name: display } = useDisplay()
-    // const sseStore = useSseStore()
-    // const { isConnected } = storeToRefs(sseStore)
-
-    // if (!isConnected.value) {
-    //   if (isAuthenticated.value) {
-    //     sseStore.connectSSE()
-    //   }
-    // }
 
     watch(display, (val) => {
       console.debug('Display:', val)
     })
+
+    if (isAuthenticated.value) {
+      sseHandler()
+    }
 
     onMounted(() => {
       isAuthenticated.value || authStore.logout()

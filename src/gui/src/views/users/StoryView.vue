@@ -36,16 +36,10 @@ export default {
       return assessStore.stories.items.find((item) => item.id == props.storyId)
     })
 
-    const loadStories = async () => {
-      if (props.storyId) {
-        assessStore.updateStoryByID(props.storyId)
-      }
-    }
-
     onMounted(async () => {
       const assessStore = useAssessStore()
       assessStore.updateOSINTSources()
-      loadStories()
+      assessStore.updateStoryByID(props.storyId)
     })
 
     return {
