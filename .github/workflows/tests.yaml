@@ -56,12 +56,12 @@ jobs:
           key: ${{ hashFiles('src/core/pyproject.toml') }}
 
       - name: Install dependencies
-        working-directory: src/docker/dev
+        working-directory: src/core
         run: pip install -e .[dev]
 
       - name: test
         working-directory: src/core
-        run: pytest --docker-compose=../../docker/dev/compose.yml --run-e2e-ci
+        run: pytest --run-e2e-ci
 
   test_worker:
     name: pytest worker

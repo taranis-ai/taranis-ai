@@ -52,7 +52,7 @@ fallback_version = "0.0.0"
 root = "../.."
 
 [project.optional-dependencies]
-dev = ["ruff", "pytest", "pytest-celery", "sqlalchemy2-stubs", "schemathesis", "build", "wheel", "setuptools", "setuptools_scm", "pytest-playwright", "pytest-docker"]
+dev = ["ruff", "pytest", "pytest-celery", "sqlalchemy2-stubs", "schemathesis", "build", "wheel", "setuptools", "setuptools_scm", "pytest-playwright"]
 
 [project.urls]
 "Source Code" = "https://github.com/taranis-ai/taranis-ai"

@@ -1,27 +1,34 @@
+import subprocess
 import pytest
-import os
 
 
-@pytest.fixture(scope="session")
-def docker_compose_file(pytestconfig):
-    return os.path.join("../../docker", "compose.yml")
-
-
-@pytest.fixture(scope="session")
-def http_service(docker_ip, docker_services):
-    """Ensure that HTTP service is up and responsive."""
-
-    # `port_for` takes a container port and returns the corresponding host port
-    port = docker_services.port_for("dev-taranis", 8081)
-    url = "http://{}:{}".format(docker_ip, port)
-    docker_services.wait_until_responsive(
-        timeout=30.0, pause=0.1, check=lambda: is_responsive(url)
+@pytest.fixture
+def temporary_taranis_instance():
+    # result = subprocess.run(['pwd'], capture_output=True, text=True)
+    result = subprocess.run(
+        ["chmod", "+x", "./tests/playwright/temporary_taranis_instance.sh"],
+        capture_output=True,
+        text=True,
     )
-    return url
+    result = subprocess.run(
+        ["./tests/playwright/temporary_taranis_instance.sh", "up"],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        pytest.fail(
+            f"Script failed with return code {result.returncode}: {result.stdout} {result.stderr}"
+        )
+    yield result.stdout
+    result = subprocess.run(
+        ["./tests/playwright/temporary_taranis_instance.sh", "down"],
+        capture_output=True,
+        text=True,
+    )
 
 
 @pytest.fixture(scope="session")
-def fake_source(app, request, docker_compose_file, docker_services, http_service):
+def fake_source(app, request, temporary_taranis_instance):
     with app.app_context():
         from core.model.osint_source import OSINTSource
 
