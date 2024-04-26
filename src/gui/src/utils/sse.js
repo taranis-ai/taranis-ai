@@ -3,6 +3,7 @@ import { useAnalyzeStore } from '@/stores/AnalyzeStore'
 import { usePublishStore } from '@/stores/PublishStore'
 import { useMainStore } from '@/stores/MainStore'
 import { useAuthStore } from '@/stores/AuthStore'
+import { useUserStore } from '@/stores/UserStore'
 import { watch } from 'vue'
 import { useEventSource } from '@vueuse/core'
 import { notifyFailure } from '@/utils/helpers'
@@ -17,6 +18,7 @@ export function sseHandler() {
   const publishStore = usePublishStore()
   const mainStore = useMainStore()
   const authStore = useAuthStore()
+  const userStore = useUserStore()
   const sseEndpoint = `${mainStore.coreSSEURL}?jwt=${authStore.jwt}`
 
   if (mainStore.sseConnectionError) {
@@ -40,9 +42,16 @@ export function sseHandler() {
       onFailed() {
         notifyFailure(`Failed to connect to ${sseEndpoint} after 3 retries`)
         mainStore.sseConnectionError = true
+        userStore.sseConnectionState = 'ERROR'
       }
     }
   })
+
+  if (mainStore.sseConnectionError) {
+    return
+  }
+
+  userStore.sseConnectionState = status.value
 
   watch(status, (val) => {
     console.debug('SSE Status:', val)

@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   gui:
     # This is the entrypoint for all requests
@@ -181,6 +179,9 @@ services:
     image: "${DOCKER_IMAGE_NAMESPACE}/sse-broker:latest"
     # ports:
     #  - "${TARANIS_SSE_PORT:-8088}:8088"
+    environment:
+      JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
+      API_KEY: "${API_KEY}"
     logging:
       driver: "json-file"
       options:

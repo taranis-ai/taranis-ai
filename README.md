@@ -52,9 +52,10 @@ See [taranis.ai](https://taranis.ai/documentation/overview/) for documentation o
 * Seamless Publishing: Facilitates the effortless publication of finalized intelligence products, ensuring timely dissemination of critical information.
 
 ### OpenAPI
-
-An [OpenAPI spec](./src/core/core/static/openapi3_1.yaml) for the REST API is included but not 100% yet.
 <img src="https://validator.swagger.io/validator?url=https://raw.githubusercontent.com/taranis-ai/taranis-ai/master/src/core/core/static/openapi3_1.yaml">
+
+An [OpenAPI spec](./src/core/core/static/openapi3_1.yaml) for the REST API is included and can be accessed in a running installation under `config/openapi`.
+
 
 
 ### Hardware requirements
