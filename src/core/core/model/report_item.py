@@ -64,7 +64,7 @@ class ReportItem(BaseModel):
         self.completed = completed
         self.report_item_cpes = []
         if stories is not None:
-            self.stories = [s for s in (Story.get(story_id) for story_id in stories) if s is not None]
+            self.stories = Story.get_bulk(stories)
 
     @classmethod
     def count_all(cls, is_completed):
@@ -271,7 +271,7 @@ class ReportItem(BaseModel):
         if err or not report_item:
             return err, status
 
-        items = [s for s in (Story.get(item_id) for item_id in item_ids) if s is not None]
+        items = Story.get_bulk(item_ids)
         report_item.stories.extend(items)
         db.session.commit()
 
@@ -311,7 +311,7 @@ class ReportItem(BaseModel):
 
         story_ids = data.get("story_ids")
         if story_ids is not None:
-            report_item.stories = [s for s in (Story.get(story_id) for story_id in story_ids) if s is not None]
+            report_item.stories = Story.get_bulk(story_ids)
 
         db.session.commit()
 
@@ -338,7 +338,7 @@ class ReportItem(BaseModel):
 class ReportItemAttribute(BaseModel):
     __tablename__ = "report_item_attribute"
 
-    id = db.Column(db.Integer, primary_key=True)
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
     value: Mapped[str] = db.Column(db.String())
 
     title: Mapped[str] = db.Column(db.String())
@@ -365,7 +365,8 @@ class ReportItemAttribute(BaseModel):
         render_data=None,
         id=None,
     ):
-        self.id = id
+        if id:
+            self.id = id
         self.value = value or ""
         self.title = title or ""
         self.description = description or ""
