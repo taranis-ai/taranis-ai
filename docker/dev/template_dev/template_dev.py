@@ -132,9 +132,7 @@ def generate(product, template) -> dict[str, bytes | str]:
         tmpl = env.from_string(template)
         product["current_date"] = datetime.datetime.now().strftime("%Y-%m-%d")
 
-        output_text = tmpl.render(data=product).encode("utf-8")
-
-        return output_text
+        return tmpl.render(data=product).encode("utf-8")
     except Exception as error:
         return {"error": str(error)}
 

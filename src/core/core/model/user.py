@@ -55,7 +55,8 @@ class User(BaseModel):
         return cls.get_filtered(db.select(cls).join(Role, Role.name == role_name)) or []
 
     def to_dict(self):
-        data = {c.name: getattr(self, c.name) for c in self.__table__.columns if c.name != "password"}
+        data = super().to_dict()
+        del data["password"]
         data["organization"] = data.pop("organization_id")
         data["roles"] = [role.id for role in self.roles if role]
         data["permissions"] = [permission.id for permission in self.permissions if permission]
@@ -85,16 +86,17 @@ class User(BaseModel):
         if not user:
             return {"error": f"User {user_id} not found"}, 404
         data.pop("id", None)
-        if update_organization := data.pop("organization", None):
-            user.organization = Organization.get(update_organization)
-        if not (update_roles := data.pop("roles", None)):
-            user.roles = data.get("roles", [])
-        else:
-            user.roles = [Role.get(role_id) for role_id in update_roles]
-        if not (update_permissions := data.pop("permissions", None)):
-            user.permissions = data.get("permissions", [])
-        else:
-            user.permissions = [Permission.get(permission_id) for permission_id in update_permissions]
+        if organization := data.pop("organization", None):
+            if update_org := Organization.get(organization):
+                user.organization = update_org
+        if roles := data.pop("roles", None):
+            update_roles = [Role.get(role_id) for role_id in roles]
+            update_roles = [r for r in update_roles if r is not None]
+            user.roles = update_roles
+        if permissions := data.pop("permissions", None):
+            update_permissions = [Permission.get(permission_id) for permission_id in permissions]
+            update_permissions = [p for p in update_permissions if p is not None]
+            user.permissions = update_permissions
         if update_password := data.pop("password", None):
             user.password = generate_password_hash(update_password)
         if update_name := data.pop("name", None):

@@ -82,7 +82,6 @@ def pre_seed_permissions():
     from core.managers.pre_seed_data import permissions
 
     Permission.add_multiple(permissions)
-    print(Permission.get("BOT_EXECUTE"))
 
 
 def pre_seed_roles():

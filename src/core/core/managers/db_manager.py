@@ -1,15 +1,13 @@
 from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
-from core.managers.db_seed_manager import pre_seed
-from sqlalchemy.engine import reflection
-from core.log import logger
-
-from sqlalchemy.engine import Engine
+from sqlalchemy.engine import reflection, Engine
 from sqlalchemy import event
 from sqlite3 import Connection as SQLite3Connection
 
+from core.managers.db_seed_manager import pre_seed
+from core.managers.db_migration_manager import migrate
+from core.log import logger
+
 db = SQLAlchemy()
-migrate = Migrate()
 
 
 def is_db_empty():
@@ -20,7 +18,6 @@ def is_db_empty():
 
 def initialize(app, initial_setup: bool = True):
     db.init_app(app)
-    migrate.init_app(app, db)
 
     if initial_setup:
         logger.info(f"Connecting Database: {app.config.get('SQLALCHEMY_DATABASE_URI')}")
@@ -30,7 +27,7 @@ def initialize(app, initial_setup: bool = True):
         db.create_all()
         pre_seed(db)
     else:
-        logger.debug("Make sure to call: `flask db upgrade`")
+        migrate(app, initial_setup)
 
 
 @event.listens_for(Engine, "connect")

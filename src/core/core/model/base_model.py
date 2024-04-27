@@ -17,11 +17,9 @@ class BaseModel(db.Model):
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}"
-        # return f"{self.__class__.__name__} {self.to_json()}"
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}"
-        # return f"{self.__class__.__name__} {self.to_json()}"
 
     def update(self, item: dict[str, Any]) -> tuple[dict, int]:
         for key, value in item.items():
@@ -29,7 +27,7 @@ class BaseModel(db.Model):
                 setattr(self, key, value)
 
         db.session.commit()
-        return {"message": f"Successfully updated {self.id}"}, 200
+        return {"message": "Successfully updated"}, 200
 
     def to_dict(self) -> dict[str, Any]:
         table = getattr(self, "__table__", None)
@@ -111,7 +109,7 @@ class BaseModel(db.Model):
         query = db.select(cls)
 
         if search := filter_args.get("search"):
-            query = query.filter(cls.id.ilike(f"%{search}%"))
+            query = query.filter(cls.id.ilike(f"%{search}%"))  # type: ignore
 
         return query
 
