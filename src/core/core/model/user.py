@@ -23,8 +23,8 @@ class User(BaseModel):
     organization_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("organization.id"))
     organization: Mapped[Organization] = relationship(Organization)
 
-    roles: Mapped[list[Role]] = relationship(Role, secondary="user_role", cascade="all, delete")
-    permissions: Mapped[list[Permission]] = relationship(Permission, secondary="user_permission", cascade="all, delete")
+    roles: Mapped[list[Role]] = relationship(Role, secondary="user_role")
+    permissions: Mapped[list[Permission]] = relationship(Permission, secondary="user_permission")
 
     profile_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("user_profile.id", ondelete="CASCADE"))
     profile: Mapped["UserProfile"] = relationship("UserProfile", cascade="all, delete")
@@ -37,9 +37,10 @@ class User(BaseModel):
         if not password:
             raise ValueError("Password is required")
         self.password = generate_password_hash(password)
-        self.organization = Organization.get(organization)
-        self.roles = [Role.get(role) for role in roles]
-        self.permissions = [Permission.get(permission) for permission in permissions]
+        if org := Organization.get(organization):
+            self.organization = org
+        self.roles = [r for r in (Role.get(role) for role in roles) if r is not None]
+        self.permissions = [p for p in (Permission.get(permission_id) for permission_id in permissions) if p is not None]
         self.profile = UserProfile(id=id)
 
     @classmethod
@@ -90,13 +91,9 @@ class User(BaseModel):
             if update_org := Organization.get(organization):
                 user.organization = update_org
         if roles := data.pop("roles", None):
-            update_roles = [Role.get(role_id) for role_id in roles]
-            update_roles = [r for r in update_roles if r is not None]
-            user.roles = update_roles
+            user.roles = [r for r in (Role.get(role) for role in roles) if r is not None]
         if permissions := data.pop("permissions", None):
-            update_permissions = [Permission.get(permission_id) for permission_id in permissions]
-            update_permissions = [p for p in update_permissions if p is not None]
-            user.permissions = update_permissions
+            user.permissions = [p for p in (Permission.get(permission_id) for permission_id in permissions) if p is not None]
         if update_password := data.pop("password", None):
             user.password = generate_password_hash(update_password)
         if update_name := data.pop("name", None):
@@ -157,13 +154,13 @@ class User(BaseModel):
 
 
 class UserRole(BaseModel):
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), primary_key=True)
-    role_id = db.Column(db.Integer, db.ForeignKey("role.id", ondelete="CASCADE"), primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), primary_key=True)
+    role_id = db.Column(db.Integer, db.ForeignKey("role.id", ondelete="SET NULL"), primary_key=True)
 
 
 class UserPermission(BaseModel):
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), primary_key=True)
-    permission_id = db.Column(db.String, db.ForeignKey("permission.id", ondelete="CASCADE"), primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), primary_key=True)
+    permission_id = db.Column(db.String, db.ForeignKey("permission.id", ondelete="SET NULL"), primary_key=True)
 
 
 class UserProfile(BaseModel):

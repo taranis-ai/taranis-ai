@@ -35,7 +35,7 @@ class Asset(BaseModel):
         self.serial = serial
         self.description = description
         self.asset_group_id = group if isinstance(group, str) else group.id
-        self.asset_cpes = [AssetCpe.get(cpe) for cpe in asset_cpes] if asset_cpes else []
+        self.asset_cpes = [a for a in (AssetCpe.get(cpe) for cpe in asset_cpes) if a] if asset_cpes else []
 
     @classmethod
     def get_by_cpe(cls, cpes):
@@ -196,7 +196,7 @@ class AssetVulnerability(BaseModel):
     asset_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("asset.id"))
     asset: Mapped["Asset"] = relationship("Asset", back_populates="vulnerabilities")
 
-    report_item_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("report_item.id", ondelete="CASCADE"))
+    report_item_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("report_item.id"))
     report_item: Mapped["ReportItem"] = relationship("ReportItem")
 
     def __init__(self, asset_id, report_item_id):
@@ -216,7 +216,7 @@ class AssetGroup(BaseModel):
     description: Mapped[str] = db.Column(db.String())
 
     organization_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("organization.id"))
-    organization: Mapped["Organization"] = relationship("Organization")
+    organization: Mapped["Organization|None"] = relationship("Organization")
 
     def __init__(self, name, description, organization, id=None):
         self.id = id or str(uuid.uuid4())
@@ -297,7 +297,7 @@ class AssetCpe(BaseModel):
     value: Mapped[str] = db.Column(db.String())
 
     asset_id = db.Column(db.Integer, db.ForeignKey("asset.id"))
-    asset = db.relationship("Asset")
+    asset = relationship("Asset")
 
     def __init__(self, value):
         self.value = value

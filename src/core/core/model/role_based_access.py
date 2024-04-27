@@ -1,6 +1,6 @@
 from sqlalchemy import or_
 from sqlalchemy.sql.expression import Select, true
-from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import Mapped, relationship
 from typing import Any
 from enum import StrEnum, auto
 
@@ -27,7 +27,7 @@ class RoleBasedAccess(BaseModel):
     item_type: Mapped = db.Column(db.Enum(ItemType))
     item_id: Mapped[str] = db.Column(db.String(64))
 
-    roles: Mapped[list[Role]] = db.relationship(Role, secondary="rbac_role", back_populates="acls")  # type: ignore
+    roles: Mapped[list["Role"]] = relationship("Role", secondary="rbac_role", back_populates="acls")
 
     read_only: Mapped[bool] = db.Column(db.Boolean, default=True)
     enabled: Mapped[bool] = db.Column(db.Boolean, default=True)
@@ -44,7 +44,7 @@ class RoleBasedAccess(BaseModel):
         if enabled is not None:
             self.enabled = enabled
         if roles:
-            self.roles = [Role.get(role_id) for role_id in roles]
+            self.roles = [r for r in (Role.get(role_id) for role_id in roles) if r is not None]
 
     @classmethod
     def is_enabled(cls) -> bool:
@@ -84,7 +84,7 @@ class RoleBasedAccess(BaseModel):
             if not hasattr(acl, key) or key == "id":
                 continue
             elif key == "roles":
-                acl.roles = [Role.get(role_id) for role_id in value]
+                acl.roles = [r for r in (Role.get(role_id) for role_id in value) if r is not None]
             elif key == "item_id":
                 value = str(value)
             else:
@@ -96,5 +96,5 @@ class RoleBasedAccess(BaseModel):
 class RBACRole(BaseModel):
     __tablename__ = "rbac_role"
 
-    acl_id = db.Column(db.Integer, db.ForeignKey("role_based_access.id", ondelete="CASCADE"), primary_key=True)
+    acl_id = db.Column(db.Integer, db.ForeignKey("role_based_access.id", ondelete="SET NULL"), primary_key=True)
     role_id = db.Column(db.Integer, db.ForeignKey("role.id", ondelete="CASCADE"), primary_key=True)
