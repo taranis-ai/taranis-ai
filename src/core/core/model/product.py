@@ -40,7 +40,7 @@ class Product(BaseModel):
         self.title = title
         self.description = description
         self.product_type_id = product_type_id
-        self.report_items = [r for r in (ReportItem.get(report_item) for report_item in report_items) if r] if report_items else []
+        self.report_items = ReportItem.get_bulk(report_items) if report_items else []
 
     @classmethod
     def get_filter_query_with_acl(cls, filter_args: dict, user: User) -> Select:
@@ -142,7 +142,7 @@ class Product(BaseModel):
 
         report_items = data.get("report_items")
         if report_items is not None:
-            product.report_items = [r for r in (ReportItem.get(report_item) for report_item in report_items) if r]
+            product.report_items = ReportItem.get_bulk(report_items)
 
         db.session.commit()
         return {"message": f"Product {product_id} updated", "id": product_id}, 200

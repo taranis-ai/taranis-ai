@@ -39,8 +39,8 @@ class User(BaseModel):
         self.password = generate_password_hash(password)
         if org := Organization.get(organization):
             self.organization = org
-        self.roles = [r for r in (Role.get(role) for role in roles) if r is not None]
-        self.permissions = [p for p in (Permission.get(permission_id) for permission_id in permissions) if p is not None]
+        self.roles = Role.get_bulk(roles)
+        self.permissions = Permission.get_bulk(permissions)
         self.profile = UserProfile(id=id)
 
     @classmethod
@@ -91,9 +91,9 @@ class User(BaseModel):
             if update_org := Organization.get(organization):
                 user.organization = update_org
         if roles := data.pop("roles", None):
-            user.roles = [r for r in (Role.get(role) for role in roles) if r is not None]
+            user.roles = Role.get_bulk(roles)
         if permissions := data.pop("permissions", None):
-            user.permissions = [p for p in (Permission.get(permission_id) for permission_id in permissions) if p is not None]
+            user.permissions = Permission.get_bulk(permissions)
         if update_password := data.pop("password", None):
             user.password = generate_password_hash(update_password)
         if update_name := data.pop("name", None):

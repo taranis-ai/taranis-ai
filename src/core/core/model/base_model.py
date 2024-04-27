@@ -3,6 +3,7 @@ from datetime import datetime
 from enum import Enum
 import json
 from sqlalchemy.sql import Select
+from sqlalchemy.orm import Mapped
 import sqlalchemy
 
 from core.managers.db_manager import db
@@ -14,6 +15,8 @@ T = TypeVar("T", bound="BaseModel")
 class BaseModel(db.Model):
     __allow_unmapped__ = True
     __abstract__ = True
+
+    id: Mapped[int | str]
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}"
@@ -95,6 +98,10 @@ class BaseModel(db.Model):
         return db.session.execute(db.select(cls)).scalars().all()
 
     @classmethod
+    def get_bulk(cls: Type[T], item_ids: list[int] | list[str]) -> list[T]:
+        return list(db.session.execute(db.select(cls).filter(cls.id.in_(item_ids))).scalars().all())
+
+    @classmethod
     def get_for_api(cls, item_id) -> tuple[dict[str, Any], int]:
         if item := cls.get(item_id):
             return item.to_dict(), 200
@@ -109,7 +116,7 @@ class BaseModel(db.Model):
         query = db.select(cls)
 
         if search := filter_args.get("search"):
-            query = query.filter(cls.id.ilike(f"%{search}%"))  # type: ignore
+            query = query.filter(cls.id.ilike(f"%{search}%"))
 
         return query
 

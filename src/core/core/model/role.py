@@ -37,7 +37,7 @@ class Role(BaseModel):
         if tlp_level:
             self.tlp_level = tlp_level
         if permissions:
-            self.permissions = [p for p in (Permission.get(permission_id) for permission_id in permissions) if p]
+            self.permissions = Permission.get_bulk(permissions)
 
     @classmethod
     def filter_by_name(cls, role_name) -> "Role|None":
@@ -87,7 +87,7 @@ class Role(BaseModel):
         if tlp_level := data.get("tlp_level"):
             role.tlp_level = role.get_tlp_level(tlp_level)
         permissions = data.get("permissions", [])
-        role.permissions = [p for p in (Permission.get(permission_id) for permission_id in permissions) if p is not None]
+        role.permissions = Permission.get_bulk(permissions)
         db.session.commit()
         return {"message": f"Succussfully updated {role.name}", "id": f"{role.id}"}, 201
 

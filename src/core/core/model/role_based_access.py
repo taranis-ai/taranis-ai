@@ -44,7 +44,7 @@ class RoleBasedAccess(BaseModel):
         if enabled is not None:
             self.enabled = enabled
         if roles:
-            self.roles = [r for r in (Role.get(role_id) for role_id in roles) if r is not None]
+            self.roles = Role.get_bulk(roles)
 
     @classmethod
     def is_enabled(cls) -> bool:
@@ -84,7 +84,7 @@ class RoleBasedAccess(BaseModel):
             if not hasattr(acl, key) or key == "id":
                 continue
             elif key == "roles":
-                acl.roles = [r for r in (Role.get(role_id) for role_id in value) if r is not None]
+                acl.roles = Role.get_bulk(value)
             elif key == "item_id":
                 value = str(value)
             else:
