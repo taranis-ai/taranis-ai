@@ -5,6 +5,7 @@ import json
 from sqlalchemy.sql import Select
 from sqlalchemy.orm import Mapped
 import sqlalchemy
+from typing import TYPE_CHECKING
 
 from core.managers.db_manager import db
 from core.log import logger
@@ -16,7 +17,8 @@ class BaseModel(db.Model):
     __allow_unmapped__ = True
     __abstract__ = True
 
-    id: Mapped[int | str]
+    if TYPE_CHECKING:
+        id: Mapped[int | str]
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}"

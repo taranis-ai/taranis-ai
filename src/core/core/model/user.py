@@ -21,10 +21,10 @@ class User(BaseModel):
     password: Mapped[str] = db.Column(db.String(), nullable=True)
 
     organization_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("organization.id"))
-    organization: Mapped[Organization] = relationship(Organization)
+    organization: Mapped["Organization"] = relationship("Organization")
 
-    roles: Mapped[list[Role]] = relationship(Role, secondary="user_role")
-    permissions: Mapped[list[Permission]] = relationship(Permission, secondary="user_permission")
+    roles: Mapped[list["Role"]] = relationship("Role", secondary="user_role")
+    permissions: Mapped[list["Permission"]] = relationship("Permission", secondary="user_permission")
 
     profile_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("user_profile.id", ondelete="CASCADE"))
     profile: Mapped["UserProfile"] = relationship("UserProfile", cascade="all, delete")
@@ -164,18 +164,19 @@ class UserPermission(BaseModel):
 
 
 class UserProfile(BaseModel):
-    id = db.Column(db.Integer, primary_key=True)
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
 
-    dark_theme = db.Column(db.Boolean, default=False)
-    split_view = db.Column(db.Boolean, default=False)
-    compact_view = db.Column(db.Boolean, default=False)
-    show_charts = db.Column(db.Boolean, default=False)
+    dark_theme: Mapped[bool] = db.Column(db.Boolean, default=False)
+    split_view: Mapped[bool] = db.Column(db.Boolean, default=False)
+    compact_view: Mapped[bool] = db.Column(db.Boolean, default=False)
+    show_charts: Mapped[bool] = db.Column(db.Boolean, default=False)
 
     hotkeys: Any = db.Column(db.JSON)
-    language = db.Column(db.String(2), default="en")
+    language: Mapped[str] = db.Column(db.String(2), default="en")
 
-    def __init__(self, dark_theme=False, hotkeys=None, split_view=None, compact_view=None, show_charts=None, language="en", id=None):
-        self.id = id
+    def __init__(self, dark_theme=False, hotkeys=None, split_view=False, compact_view=False, show_charts=False, language="en", id=None):
+        if id:
+            self.id = id
         self.dark_theme = dark_theme
         self.split_view = split_view
         self.compact_view = compact_view
