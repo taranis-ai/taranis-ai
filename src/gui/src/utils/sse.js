@@ -7,9 +7,10 @@ import { useUserStore } from '@/stores/UserStore'
 import { watch } from 'vue'
 import { useEventSource } from '@vueuse/core'
 import { notifyFailure } from '@/utils/helpers'
+import { sseConnected } from '@/api/user'
 
-function defaultHandler(event) {
-  console.debug('Default handler:', event)
+function defaultHandler(data) {
+  console.info('Default handler:', data)
 }
 
 export function sseHandler() {
@@ -35,7 +36,7 @@ export function sseHandler() {
 
   const events = Object.keys(eventHandlers)
 
-  const { status, data } = useEventSource(sseEndpoint, events, {
+  const { status, data, event } = useEventSource(sseEndpoint, events, {
     autoReconnect: {
       retries: 3,
       delay: 1000,
@@ -53,11 +54,16 @@ export function sseHandler() {
 
   userStore.sseConnectionState = status.value
 
-  watch(status, (val) => {
-    console.debug('SSE Status:', val)
-  })
+  if (status.value === 'CONNECTING') {
+    setTimeout(() => {
+      sseConnected()
+    }, 1000)
+  }
 
   watch(data, (val) => {
-    console.debug('Data:', val)
+    console.debug(`SSE Data: ${val} - Event: ${event.value}`)
+    if (event.value in eventHandlers) {
+      eventHandlers[event.value](val)
+    }
   })
 }

@@ -11,3 +11,7 @@ export function updateProfile(data) {
 export function getUserDetails() {
   return apiService.get('/users/')
 }
+
+export function sseConnected() {
+  return apiService.post('/users/sse-connected')
+}

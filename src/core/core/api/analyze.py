@@ -60,7 +60,7 @@ class ReportItem(MethodView):
             abort(401, "Unauthorized")
         if status == 200 and new_report_item:
             asset_manager.report_item_changed(new_report_item)
-            sse_manager.report_item_updated({"id": new_report_item.id, "action": "add"})
+            sse_manager.report_item_updated(new_report_item.id)
 
         return new_report_item.to_detail_dict(), status
 
@@ -76,7 +76,7 @@ class ReportItem(MethodView):
     def delete(self, report_item_id):
         result, code = report_item.ReportItem.delete(report_item_id)
         if code == 200:
-            sse_manager.report_item_updated({"id": report_item_id, "action": "delete"})
+            sse_manager.report_item_updated(report_item_id)
         return result, code
 
 
@@ -89,7 +89,7 @@ class CloneReportItem(MethodView):
             logger.exception()
             abort(400, f"Error cloning report item: {ex}")
         if status == 200:
-            sse_manager.report_item_updated({"id": result["id"], "action": "add"})
+            sse_manager.report_item_updated(result["id"])
 
         return result, status
 
