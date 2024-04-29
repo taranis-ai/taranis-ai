@@ -21,10 +21,10 @@ class User(BaseModel):
     password: Mapped[str] = db.Column(db.String(), nullable=True)
 
     organization_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("organization.id"))
-    organization: Mapped[Organization] = relationship(Organization)
+    organization: Mapped["Organization"] = relationship("Organization")
 
-    roles: Mapped[list[Role]] = relationship(Role, secondary="user_role", cascade="all, delete")
-    permissions: Mapped[list[Permission]] = relationship(Permission, secondary="user_permission", cascade="all, delete")
+    roles: Mapped[list["Role"]] = relationship("Role", secondary="user_role")
+    permissions: Mapped[list["Permission"]] = relationship("Permission", secondary="user_permission")
 
     profile_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("user_profile.id", ondelete="CASCADE"))
     profile: Mapped["UserProfile"] = relationship("UserProfile", cascade="all, delete")
@@ -37,9 +37,10 @@ class User(BaseModel):
         if not password:
             raise ValueError("Password is required")
         self.password = generate_password_hash(password)
-        self.organization = Organization.get(organization)
-        self.roles = [Role.get(role) for role in roles]
-        self.permissions = [Permission.get(permission) for permission in permissions]
+        if org := Organization.get(organization):
+            self.organization = org
+        self.roles = Role.get_bulk(roles)
+        self.permissions = Permission.get_bulk(permissions)
         self.profile = UserProfile(id=id)
 
     @classmethod
@@ -55,7 +56,8 @@ class User(BaseModel):
         return cls.get_filtered(db.select(cls).join(Role, Role.name == role_name)) or []
 
     def to_dict(self):
-        data = {c.name: getattr(self, c.name) for c in self.__table__.columns if c.name != "password"}
+        data = super().to_dict()
+        del data["password"]
         data["organization"] = data.pop("organization_id")
         data["roles"] = [role.id for role in self.roles if role]
         data["permissions"] = [permission.id for permission in self.permissions if permission]
@@ -85,16 +87,13 @@ class User(BaseModel):
         if not user:
             return {"error": f"User {user_id} not found"}, 404
         data.pop("id", None)
-        if update_organization := data.pop("organization", None):
-            user.organization = Organization.get(update_organization)
-        if not (update_roles := data.pop("roles", None)):
-            user.roles = data.get("roles", [])
-        else:
-            user.roles = [Role.get(role_id) for role_id in update_roles]
-        if not (update_permissions := data.pop("permissions", None)):
-            user.permissions = data.get("permissions", [])
-        else:
-            user.permissions = [Permission.get(permission_id) for permission_id in update_permissions]
+        if organization := data.pop("organization", None):
+            if update_org := Organization.get(organization):
+                user.organization = update_org
+        if roles := data.pop("roles", None):
+            user.roles = Role.get_bulk(roles)
+        if permissions := data.pop("permissions", None):
+            user.permissions = Permission.get_bulk(permissions)
         if update_password := data.pop("password", None):
             user.password = generate_password_hash(update_password)
         if update_name := data.pop("name", None):
@@ -155,28 +154,29 @@ class User(BaseModel):
 
 
 class UserRole(BaseModel):
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), primary_key=True)
-    role_id = db.Column(db.Integer, db.ForeignKey("role.id", ondelete="CASCADE"), primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), primary_key=True)
+    role_id = db.Column(db.Integer, db.ForeignKey("role.id", ondelete="SET NULL"), primary_key=True)
 
 
 class UserPermission(BaseModel):
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), primary_key=True)
-    permission_id = db.Column(db.String, db.ForeignKey("permission.id", ondelete="CASCADE"), primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), primary_key=True)
+    permission_id = db.Column(db.String, db.ForeignKey("permission.id", ondelete="SET NULL"), primary_key=True)
 
 
 class UserProfile(BaseModel):
-    id = db.Column(db.Integer, primary_key=True)
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
 
-    dark_theme = db.Column(db.Boolean, default=False)
-    split_view = db.Column(db.Boolean, default=False)
-    compact_view = db.Column(db.Boolean, default=False)
-    show_charts = db.Column(db.Boolean, default=False)
+    dark_theme: Mapped[bool] = db.Column(db.Boolean, default=False)
+    split_view: Mapped[bool] = db.Column(db.Boolean, default=False)
+    compact_view: Mapped[bool] = db.Column(db.Boolean, default=False)
+    show_charts: Mapped[bool] = db.Column(db.Boolean, default=False)
 
     hotkeys: Any = db.Column(db.JSON)
-    language = db.Column(db.String(2), default="en")
+    language: Mapped[str] = db.Column(db.String(2), default="en")
 
-    def __init__(self, dark_theme=False, hotkeys=None, split_view=None, compact_view=None, show_charts=None, language="en", id=None):
-        self.id = id
+    def __init__(self, dark_theme=False, hotkeys=None, split_view=False, compact_view=False, show_charts=False, language="en", id=None):
+        if id:
+            self.id = id
         self.dark_theme = dark_theme
         self.split_view = split_view
         self.compact_view = compact_view

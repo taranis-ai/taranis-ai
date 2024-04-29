@@ -82,7 +82,6 @@ def pre_seed_permissions():
     from core.managers.pre_seed_data import permissions
 
     Permission.add_multiple(permissions)
-    print(Permission.get("BOT_EXECUTE"))
 
 
 def pre_seed_roles():
@@ -208,11 +207,7 @@ def pre_seed_default_user():
                 {
                     "username": "admin",
                     "name": "Arthur Dent",
-                    "roles": [
-                        {
-                            "id": admin_role.id,
-                        },
-                    ],
+                    "roles": [admin_role.id],
                     "permissions": [],
                     "organization": {"id": 1},
                     "password": Config.PRE_SEED_PASSWORD_ADMIN,
@@ -239,11 +234,7 @@ def pre_seed_default_user():
             {
                 "username": "user",
                 "name": "Terry Pratchett",
-                "roles": [
-                    {
-                        "id": user_role,
-                    },
-                ],
+                "roles": [user_role],
                 "permissions": [],
                 "organization": {"id": 2},
                 "password": Config.PRE_SEED_PASSWORD_USER,

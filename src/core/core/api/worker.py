@@ -72,13 +72,13 @@ class QueueSchedule(MethodView):
 
 class Products(MethodView):
     @api_key_required
-    def get(self, product_id: int):
+    def get(self, product_id: str):
         return Product.get_for_worker(product_id)
 
     @api_key_required
     def put(self, product_id: str):
         if render_result := request.data:
-            sse_manager.product_rendered({"id": product_id})
+            sse_manager.product_rendered(product_id)
             return Product.update_render_for_id(product_id, render_result)
 
         return {"error": "Error reading file"}, 400
@@ -86,7 +86,7 @@ class Products(MethodView):
 
 class ProductsRender(MethodView):
     @api_key_required
-    def get(self, product_id):
+    def get(self, product_id: str):
         if product_data := Product.get_render(product_id):
             return Response(product_data["blob"], headers={"Content-Type": product_data["mime_type"]}, status=200)
         return {"error": f"Product {product_id} not found"}, 404
@@ -255,8 +255,8 @@ def initialize(app: Flask):
     app.add_url_rule(f"{beat_url}/next-run-time", view_func=NextRunTime.as_view("next_run_time"))
     app.add_url_rule(f"{worker_url}/osint-sources/<string:source_id>", view_func=Sources.as_view("osint_sources_worker"))
     app.add_url_rule(f"{worker_url}/osint-sources/<string:source_id>/icon", view_func=SourceIcon.as_view("osint_sources_worker_icon"))
-    app.add_url_rule(f"{worker_url}/products/<int:product_id>", view_func=Products.as_view("products_worker"))
-    app.add_url_rule(f"{worker_url}/products/<int:product_id>/render", view_func=ProductsRender.as_view("products_render_worker"))
+    app.add_url_rule(f"{worker_url}/products/<string:product_id>", view_func=Products.as_view("products_worker"))
+    app.add_url_rule(f"{worker_url}/products/<string:product_id>/render", view_func=ProductsRender.as_view("products_render_worker"))
     app.add_url_rule(f"{worker_url}/presenters/<string:presenter>", view_func=Presenters.as_view("presenters_worker"))
     app.add_url_rule(f"{worker_url}/publishers/<string:publisher>", view_func=Publishers.as_view("publishers_worker"))
     app.add_url_rule(f"{worker_url}/news-items", view_func=AddNewsItems.as_view("news_items_worker"))

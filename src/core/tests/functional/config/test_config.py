@@ -341,8 +341,10 @@ class TestPermissions(BaseTest):
     base_uri = "/api/config"
 
     def test_get_permission(self, client, auth_header):
+        from core.managers.pre_seed_data import permissions
+
         response = self.assert_get_ok(client, uri="permissions", auth_header=auth_header)
-        assert response.json["total_count"] == 69
+        assert response.json["total_count"] == len(permissions)
 
 
 class TestAcls(BaseTest):
