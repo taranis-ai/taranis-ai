@@ -58,13 +58,12 @@ dev = ["ruff", "pytest", "pytest-celery", "sqlalchemy2-stubs", "schemathesis", "
 [project.urls]
 "Source Code" = "https://github.com/taranis-ai/taranis-ai"
 
-[tool.black]
-line-length = "142"
-target-version = ["py311"]
-
 [tool.ruff]
 line-length = 142
 target-version = "py312"
+
+[tool.ruff.lint.isort]
+lines-after-imports = 2
 
 [tool.pytest.ini_options]
 filterwarnings = [
