@@ -15,13 +15,13 @@ from core.service.news_item import NewsItemService
 class OSINTSourceGroupsList(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self):
-        return osint_source.OSINTSourceGroup.get_all_for_api(filter_args=None, user=current_user)
+        return osint_source.OSINTSourceGroup.get_all_for_assess_api(user=current_user)
 
 
 class OSINTSourcesList(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self):
-        return osint_source.OSINTSource.get_all_for_api(filter_args=None, user=current_user)
+        return osint_source.OSINTSource.get_all_for_assess_api(user=current_user)
 
 
 class NewsItems(MethodView):

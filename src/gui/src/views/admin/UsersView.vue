@@ -16,20 +16,32 @@
       @edit-item="editItem"
       @add-item="addItem"
       @update-items="updateData"
-    />
+      @selection-change="selectionChange"
+    >
+      <template #titlebar>
+        <ImportExport @import="importData" @export="exportData" />
+      </template>
+    </DataTable>
     <UserForm
       v-if="showForm"
       :user-prop="user"
       :edit="edit"
       @updated="formUpdated"
-    ></UserForm>
+    />
   </v-container>
 </template>
 
 <script>
 import DataTable from '@/components/common/DataTable.vue'
 import UserForm from '@/components/config/user/UserForm.vue'
-import { deleteUser, createUser, updateUser } from '@/api/config'
+import ImportExport from '@/components/config/ImportExport.vue'
+import {
+  deleteUser,
+  createUser,
+  updateUser,
+  importUsers,
+  exportUsers
+} from '@/api/config'
 import { ref, onMounted } from 'vue'
 import { useConfigStore } from '@/stores/ConfigStore'
 import { useMainStore } from '@/stores/MainStore'
@@ -39,6 +51,7 @@ import { storeToRefs } from 'pinia'
 export default {
   name: 'UsersView',
   components: {
+    ImportExport,
     DataTable,
     UserForm
   },
@@ -127,6 +140,24 @@ export default {
       selected.value = new_selection
     }
 
+    async function importData(data) {
+      try {
+        await importUsers(data)
+        updateData()
+        notifySuccess(`Successfully imported ${data.get('file').name}`)
+      } catch (error) {
+        notifyFailure(`Failed to import ${data.get('file').name}`)
+      }
+    }
+
+    async function exportData() {
+      let queryString = ''
+      if (selected.value.length > 0) {
+        queryString = 'ids=' + selected.value.join('&ids=')
+      }
+      await exportUsers(queryString)
+    }
+
     onMounted(() => {
       updateData()
     })
@@ -146,9 +177,10 @@ export default {
       deleteItem,
       createItem,
       updateItem,
+      importData,
+      exportData,
       selectionChange
     }
   }
 }
 </script>
-showForm = false

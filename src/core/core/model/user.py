@@ -1,3 +1,4 @@
+import json
 from werkzeug.security import generate_password_hash
 from typing import Any, Sequence
 from sqlalchemy.sql import Select
@@ -151,6 +152,49 @@ class User(BaseModel):
             query = query.filter(db.or_(User.name.ilike(f"%{search}%"), User.username.ilike(f"%{search}%")))
 
         return query.order_by(db.asc(User.name))
+
+    @classmethod
+    def parse_json(cls, content) -> list | None:
+        file_content = json.loads(content)
+        return cls.load_json_content(content=file_content)
+
+    @classmethod
+    def load_json_content(cls, content) -> list:
+        if content.get("version") != 1:
+            raise ValueError("Invalid JSON file")
+        if not content.get("data"):
+            raise ValueError("No data found")
+        return content["data"]
+
+    def to_export_dict(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "username": self.username,
+        }
+
+    @classmethod
+    def export(cls, user_ids=None) -> bytes:
+        query = db.select(cls)
+        if user_ids:
+            query = query.filter(cls.id.in_(user_ids))
+
+        data = cls.get_filtered(query)
+        export_data = {"version": 1, "data": [user.to_export_dict() for user in data]} if data else {}
+        return json.dumps(export_data).encode("utf-8")
+
+    @classmethod
+    def import_users(cls, file) -> list | None:
+        data = cls.parse_user_import_json(file)
+
+        return None if data is None else cls.add_multiple(data)
+
+    @classmethod
+    def parse_user_import_json(cls, file) -> list | None:
+        file_data = file.read().decode("utf8")
+        if file.content_type == "application/json":
+            return cls.parse_json(file_data)
+
+        return None
 
 
 class UserRole(BaseModel):

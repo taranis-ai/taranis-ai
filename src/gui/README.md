@@ -16,7 +16,8 @@ npm install
 
 ### Developing
 
-You can run the GUI on the local machine, and edit it with your favorite IDE or text editor. The application will react to your changes in real time. Depending on whether you expose your API directly on `http://localhost:5000` (see `docker-compose.yml`), via Traefik on `https://localhost:4443`, or on a public IP and host name, you may need to change the following environment variables.
+You can run the GUI on the local machine, and edit it with your favorite IDE or text editor. The application will react to your changes in real time.
+Depending on whether you expose your API directly on `http://localhost:5000` see [compose.yml](../../docker/compose.yml)
 
 ```
 # env variables

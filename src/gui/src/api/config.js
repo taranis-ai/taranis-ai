@@ -215,6 +215,17 @@ export function deleteUser(user) {
   return apiService.delete(`/config/users/${user.id}`)
 }
 
+export function importUsers(form_data) {
+  return apiService.upload('/config/import-users', form_data)
+}
+
+export function exportUsers(filter) {
+  return apiService.download(
+    `/config/export-users?${filter}`,
+    'users_export.json'
+  )
+}
+
 export function getAllWordLists(filter_data) {
   const filter = apiService.getQueryStringFromNestedObject(filter_data)
   return apiService.get(`/config/word-lists?${filter}`)
