@@ -8,9 +8,9 @@ from core.managers.db_manager import db
 from core.model.role import Role
 from core.model.permission import Permission
 from core.model.organization import Organization
-
 from core.model.base_model import BaseModel
 from core.model.role import TLPLevel
+from core.log import logger
 
 
 class User(BaseModel):
@@ -30,7 +30,9 @@ class User(BaseModel):
     profile_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("user_profile.id", ondelete="CASCADE"))
     profile: Mapped["UserProfile"] = relationship("UserProfile", cascade="all, delete")
 
-    def __init__(self, username: str, name: str, organization: int, roles: list[int], permissions: list[str], password=None, id=None):
+    def __init__(
+        self, username: str, name: str, organization: int, roles: list[int], permissions: list[str] | None = None, password=None, id=None
+    ):
         if id:
             self.id = id
         self.username = username
@@ -41,7 +43,7 @@ class User(BaseModel):
         if org := Organization.get(organization):
             self.organization = org
         self.roles = Role.get_bulk(roles)
-        self.permissions = Permission.get_bulk(permissions)
+        self.permissions = Permission.get_bulk(permissions) if permissions else []
         self.profile = UserProfile(id=id)
 
     @classmethod
@@ -174,6 +176,7 @@ class User(BaseModel):
 
     @classmethod
     def export(cls, user_ids=None) -> bytes:
+        logger.debug(f"Exporting users: {user_ids}")
         query = db.select(cls)
         if user_ids:
             query = query.filter(cls.id.in_(user_ids))
@@ -183,18 +186,9 @@ class User(BaseModel):
         return json.dumps(export_data).encode("utf-8")
 
     @classmethod
-    def import_users(cls, file) -> list | None:
-        data = cls.parse_user_import_json(file)
-
-        return None if data is None else cls.add_multiple(data)
-
-    @classmethod
-    def parse_user_import_json(cls, file) -> list | None:
-        file_data = file.read().decode("utf8")
-        if file.content_type == "application/json":
-            return cls.parse_json(file_data)
-
-        return None
+    def import_users(cls, user_list) -> list | None:
+        logger.debug(f"Importing users: {user_list}")
+        return None if user_list is None else cls.add_multiple(user_list)
 
 
 class UserRole(BaseModel):

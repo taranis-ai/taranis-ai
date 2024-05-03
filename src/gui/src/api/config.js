@@ -216,12 +216,12 @@ export function deleteUser(user) {
 }
 
 export function importUsers(form_data) {
-  return apiService.upload('/config/import-users', form_data)
+  return apiService.post('/config/users-import', form_data)
 }
 
 export function exportUsers(filter) {
   return apiService.download(
-    `/config/export-users?${filter}`,
+    `/config/users-export?${filter}`,
     'users_export.json'
   )
 }

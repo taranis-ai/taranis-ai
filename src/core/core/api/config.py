@@ -265,6 +265,29 @@ class Organizations(MethodView):
         return organization.Organization.delete(organization_id)
 
 
+class UsersImport(MethodView):
+    @auth_required("CONFIG_USER_UPDATE")
+    def post(self):
+        if users := user.User.import_users(request.json):
+            return {"users": [u.id for u in users], "count": len(users), "message": "Successfully imported users"}
+        return {"error": "Unable to import"}, 400
+
+
+class UsersExport(MethodView):
+    @auth_required("CONFIG_USER_ACCESS")
+    def get(self):
+        user_ids = request.args.getlist("ids")
+        data = user.User.export(user_ids)
+        if data is None:
+            return {"error": "Unable to export"}, 400
+        return send_file(
+            io.BytesIO(data),
+            download_name="users_export.json",
+            mimetype="application/json",
+            as_attachment=True,
+        )
+
+
 class Users(MethodView):
     @auth_required("CONFIG_USER_ACCESS")
     @extract_args("search")
@@ -609,6 +632,8 @@ def initialize(app: Flask):
     app.add_url_rule(f"{base_route}/roles", view_func=Roles.as_view("roles"))
     app.add_url_rule(f"{base_route}/roles/<int:role_id>", view_func=Roles.as_view("role"))
     app.add_url_rule(f"{base_route}/users", view_func=Users.as_view("users"))
+    app.add_url_rule(f"{base_route}/users-import", view_func=UsersImport.as_view("users_import"))
+    app.add_url_rule(f"{base_route}/users-export", view_func=UsersExport.as_view("users_export"))
     app.add_url_rule(f"{base_route}/users/<int:user_id>", view_func=Users.as_view("user"))
     app.add_url_rule(f"{base_route}/word-lists", view_func=WordLists.as_view("word_lists"))
     app.add_url_rule(f"{base_route}/word-lists/<int:word_list_id>", view_func=WordLists.as_view("word_list"))

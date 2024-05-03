@@ -19,7 +19,15 @@
       @selection-change="selectionChange"
     >
       <template #titlebar>
-        <ImportExport @import="importData" @export="exportData" />
+        <v-btn
+          color="green-darken-3"
+          dark
+          class="ml-4"
+          prepend-icon="mdi-import"
+          text="Import"
+          @click="showImportForm = !showImportForm"
+        />
+        <ImportExport :show-import="false" @export="exportData" />
       </template>
     </DataTable>
     <UserForm
@@ -28,19 +36,21 @@
       :edit="edit"
       @updated="formUpdated"
     />
+    <UserImportForm v-if="showImportForm" @import="importData" />
   </v-container>
 </template>
 
 <script>
 import DataTable from '@/components/common/DataTable.vue'
 import UserForm from '@/components/config/user/UserForm.vue'
+import UserImportForm from '@/components/config/user/UserImportForm.vue'
 import ImportExport from '@/components/config/ImportExport.vue'
 import {
   deleteUser,
   createUser,
   updateUser,
-  importUsers,
-  exportUsers
+  exportUsers,
+  importUsers
 } from '@/api/config'
 import { ref, onMounted } from 'vue'
 import { useConfigStore } from '@/stores/ConfigStore'
@@ -53,13 +63,15 @@ export default {
   components: {
     ImportExport,
     DataTable,
-    UserForm
+    UserForm,
+    UserImportForm
   },
   setup() {
     const store = useConfigStore()
     const { users } = storeToRefs(store)
     const mainStore = useMainStore()
     const showForm = ref(false)
+    const showImportForm = ref(false)
     const selected = ref([])
     const user = ref({})
     const edit = ref(false)
@@ -140,22 +152,23 @@ export default {
       selected.value = new_selection
     }
 
-    async function importData(data) {
-      try {
-        await importUsers(data)
-        updateData()
-        notifySuccess(`Successfully imported ${data.get('file').name}`)
-      } catch (error) {
-        notifyFailure(`Failed to import ${data.get('file').name}`)
-      }
-    }
-
     async function exportData() {
       let queryString = ''
       if (selected.value.length > 0) {
         queryString = 'ids=' + selected.value.join('&ids=')
       }
       await exportUsers(queryString)
+    }
+
+    async function importData(data) {
+      console.debug(data)
+      try {
+        await importUsers(data)
+        updateData()
+        notifySuccess('Successfully imported')
+      } catch (error) {
+        notifyFailure('Failed to import')
+      }
     }
 
     onMounted(() => {
@@ -177,8 +190,9 @@ export default {
       deleteItem,
       createItem,
       updateItem,
-      importData,
+      showImportForm,
       exportData,
+      importData,
       selectionChange
     }
   }

@@ -395,14 +395,14 @@
         "name": "Name",
         "organization": "Organization",
         "password": "Password",
-        "password_check": "Retype Password",
         "permissions": "Permissions",
         "removed": "User was successfully removed",
         "removed_error": "User is in use and could not be deleted",
         "roles": "Roles",
         "successful": "New user was successfully added",
         "successful_edit": "User was successfully updated",
-        "username": "Username"
+        "username": "Username",
+        "import": "Import"
     },
     "user_menu": {
         "logout": "Logout",
