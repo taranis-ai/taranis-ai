@@ -18,52 +18,37 @@ class BaseCollector:
 
         self.core_api = CoreApi()
 
-    def filter_by_word_list(self, news_items, source):
-        if not source["word_lists"]:
+    def filter_by_word_list(self, news_items: list, word_lists: list) -> list:
+        if not word_lists:
             return news_items
-        include_list = set()
-        exclude_list = set()
 
-        for word_list in source["word_lists"]:
-            if "COLLECTOR_INCLUDELIST" in word_list["usage"]:
-                for entry in word_list["entries"]:
-                    include_list.add(entry["value"])
+        include_patterns: frozenset[str] = {
+            re.compile(r"\b" + re.escape(entry["value"]) + r"\b", re.IGNORECASE)
+            for word_list in word_lists
+            if "COLLECTOR_INCLUDELIST" in word_list["usage"]
+            for entry in word_list["entries"]
+        }
 
-            if "COLLECTOR_EXCLUDELIST" in word_list["usage"]:
-                for entry in word_list["entries"]:
-                    exclude_list.add(entry["value"])
+        exclude_patterns: frozenset[str] = {
+            re.compile(r"\b" + re.escape(entry["value"]) + r"\b", re.IGNORECASE)
+            for word_list in word_lists
+            if "COLLECTOR_EXCLUDELIST" in word_list["usage"]
+            for entry in word_list["entries"]
+        }
+        if not include_patterns and not exclude_patterns:
+            return news_items
 
-        items = (
-            [
-                item
-                for item in news_items
-                if any(
-                    re.search(r"\b" + re.escape(word) + r"\b", "".join(item["title"] + item["review"] + item["content"]), re.IGNORECASE)
-                    for word in include_list
-                )
-            ]
-            if include_list
-            else news_items
-        )
-
-        if exclude_list:
-            items = [
-                item
-                for item in items
-                if not any(
-                    re.search(r"\b" + re.escape(word) + r"\b", "".join(item["title"] + item["review"] + item["content"]), re.IGNORECASE)
-                    for word in exclude_list
-                )
-            ]
-
-        return items
+        return [
+            item
+            for item in news_items
+            if (not include_patterns or any(pattern.search(item["title"] + item["content"]) for pattern in include_patterns))
+            and (not exclude_patterns or all(not pattern.search(item["title"] + item["content"]) for pattern in exclude_patterns))
+        ]
 
     def add_tlp(self, news_items, tlp_level):
         for item in news_items:
             item["attributes"].append({"key": "TLP", "value": tlp_level})
         return news_items
-
-    # Use filtered_items for further processing
 
     def collect(self, source: dict, manual: bool = False):
         pass
@@ -107,8 +92,8 @@ class BaseCollector:
         return news_items
 
     def process_news_items(self, news_items: list[dict], source: dict) -> list[dict]:
-        if "word_lists" in source:
-            news_items = self.filter_by_word_list(news_items, source)
+        if word_lists := source.get("word_lists"):
+            news_items = self.filter_by_word_list(news_items, word_lists)
         if tlp_level := source["parameters"].get("TLP_LEVEL", None):
             news_items = self.add_tlp(news_items, tlp_level)
 

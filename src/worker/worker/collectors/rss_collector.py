@@ -30,13 +30,13 @@ class RSSCollector(BaseWebCollector):
         logger_trafilatura.setLevel(logging.WARNING)
 
     def parse_source(self, source):
+        super().parse_source(source)
         self.feed_url = source["parameters"].get("FEED_URL")
         if not self.feed_url:
             logger.warning("No FEED_URL set")
             return {"error": "No FEED_URL set"}
 
         self.digest_splitting_limit = int(source["parameters"].get("DIGEST_SPLITTING_LIMIT", 30))
-        super().parse_source(source)
 
     def collect(self, source, manual: bool = False):
         self.parse_source(source)

@@ -25,7 +25,7 @@
           class="ml-4"
           prepend-icon="mdi-import"
           text="Import"
-          @click="showImportForm = !showImportForm"
+          @click="importClicked"
         />
         <ImportExport :show-import="false" @export="exportData" />
       </template>
@@ -37,6 +37,14 @@
       @updated="formUpdated"
     />
     <UserImportForm v-if="showImportForm" @import="importData" />
+    <v-alert
+      v-for="item in importResult"
+      :key="item.username"
+      :title="item.username"
+      type="success"
+      closable
+      :text="item.password"
+    />
   </v-container>
 </template>
 
@@ -72,6 +80,8 @@ export default {
     const mainStore = useMainStore()
     const showForm = ref(false)
     const showImportForm = ref(false)
+    const showImportResult = ref(false)
+    const importResult = ref([])
     const selected = ref([])
     const user = ref({})
     const edit = ref(false)
@@ -152,6 +162,11 @@ export default {
       selected.value = new_selection
     }
 
+    function importClicked() {
+      showForm.value = false
+      showImportForm.value = !showImportForm.value
+    }
+
     async function exportData() {
       let queryString = ''
       if (selected.value.length > 0) {
@@ -161,11 +176,14 @@ export default {
     }
 
     async function importData(data) {
-      console.debug(data)
       try {
-        await importUsers(data)
+        const result = await importUsers(data)
         updateData()
-        notifySuccess('Successfully imported')
+        notifySuccess(result.data.message)
+        showImportForm.value = false
+        showImportResult.value = true
+        importResult.value = result.data.users
+        console.debug(importResult.value)
       } catch (error) {
         notifyFailure('Failed to import')
       }
@@ -190,7 +208,10 @@ export default {
       deleteItem,
       createItem,
       updateItem,
+      importClicked,
       showImportForm,
+      showImportResult,
+      importResult,
       exportData,
       importData,
       selectionChange

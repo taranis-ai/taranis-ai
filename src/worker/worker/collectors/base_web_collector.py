@@ -67,12 +67,16 @@ class BaseWebCollector(BaseCollector):
             return text, published_date
         return "", published_date
 
-    def xpath_extraction(self, html_content, xpath: str) -> str | None:
+    def xpath_extraction(self, html_content, xpath: str, get_content: bool = True) -> str | None:
         document = lxml.html.fromstring(html_content)
         if not document.xpath(xpath):
             logger.error(f"No content found for XPath: {xpath}")
             return None
-        return document.xpath(xpath)[0].text_content()
+        first_element = document.xpath(xpath)[0]
+        if get_content:
+            return first_element.text_content()
+
+        return lxml.html.tostring(first_element).decode()
 
     def clean_url(self, url: str) -> str:
         return url.split("?")[0].split("#")[0]
@@ -131,7 +135,6 @@ class BaseWebCollector(BaseCollector):
 
     def get_urls(self, html_content: str) -> list:
         soup = BeautifulSoup(html_content, "html.parser")
-
         return [a["href"] for a in soup.find_all("a", href=True)]
 
     def parse_digests(self) -> list[dict] | str:

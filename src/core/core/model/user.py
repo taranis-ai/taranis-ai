@@ -1,4 +1,5 @@
 import json
+import secrets
 from werkzeug.security import generate_password_hash
 from typing import Any, Sequence
 from sqlalchemy.sql import Select
@@ -186,9 +187,17 @@ class User(BaseModel):
         return json.dumps(export_data).encode("utf-8")
 
     @classmethod
-    def import_users(cls, user_list) -> list | None:
+    def import_users(cls, user_list: list) -> list:
         logger.debug(f"Importing users: {user_list}")
-        return None if user_list is None else cls.add_multiple(user_list)
+        result = []
+        for user in user_list:
+            if cls.find_by_name(user["username"]):
+                logger.warning(f"User {user['username']} already exists")
+                continue
+            user["password"] = secrets.token_urlsafe(16)
+            cls.add(user)
+            result.append({"username": user["username"], "password": user["password"]})
+        return result
 
 
 class UserRole(BaseModel):

@@ -38,7 +38,7 @@ class OSINTSource(BaseModel):
     groups: Mapped[list["OSINTSourceGroup"]] = relationship("OSINTSourceGroup", secondary="osint_source_group_osint_source")
 
     icon: Any = deferred(db.Column(db.LargeBinary))
-    state: Mapped[int] = db.Column(db.SmallInteger, default=0)
+    state: Mapped[int] = db.Column(db.SmallInteger, default=-1)
     last_collected: Mapped[datetime] = db.Column(db.DateTime, default=None)
     last_attempted: Mapped[datetime] = db.Column(db.DateTime, default=None)
     last_error_message: Mapped[str | None] = db.Column(db.String, default=None, nullable=True)

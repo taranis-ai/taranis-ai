@@ -22,14 +22,14 @@ class SimpleWebCollector(BaseWebCollector):
         logger_trafilatura.setLevel(logging.WARNING)
 
     def parse_source(self, source):
+        super().parse_source(source)
         self.web_url = source["parameters"].get("WEB_URL", None)
         if not self.web_url:
-            logger.warning("No WEB_URL set")
+            logger.error("No WEB_URL set")
             return {"error": "No WEB_URL set"}
 
         self.digest_splitting_limit = int(source["parameters"].get("DIGEST_SPLITTING_LIMIT", 30))
         self.xpath = source["parameters"].get("XPATH", "")
-        super().parse_source(source)
 
     def collect(self, source):
         self.parse_source(source)
@@ -48,8 +48,13 @@ class SimpleWebCollector(BaseWebCollector):
         return self.preview(news_items, source)
 
     def handle_digests(self) -> list[dict] | str:
-        web_content = self.parse_web_content(self.web_url, self.xpath)
-        self.split_digest_urls = self.get_urls(web_content["content"])
+        if not self.xpath:
+            raise ValueError("No XPATH set for digest splitting")
+
+        web_content, _ = self.web_content_from_article(self.web_url)
+        content = self.xpath_extraction(web_content, self.xpath, False)
+        logger.debug(content)
+        self.split_digest_urls = self.get_urls(content)
         logger.info(f"RSS-Feed {self.source_id} returned {len(self.split_digest_urls)} available URLs")
 
         return self.parse_digests()
