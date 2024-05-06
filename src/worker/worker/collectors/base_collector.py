@@ -35,15 +35,15 @@ class BaseCollector:
             if "COLLECTOR_EXCLUDELIST" in word_list["usage"]
             for entry in word_list["entries"]
         }
-        if not include_patterns and not exclude_patterns:
-            return news_items
+        if include_patterns or exclude_patterns:
+            return [
+                item
+                for item in news_items
+                if (not include_patterns or any(pattern.search(item["title"] + item["content"]) for pattern in include_patterns))
+                and (not exclude_patterns or all(not pattern.search(item["title"] + item["content"]) for pattern in exclude_patterns))
+            ]
 
-        return [
-            item
-            for item in news_items
-            if (not include_patterns or any(pattern.search(item["title"] + item["content"]) for pattern in include_patterns))
-            and (not exclude_patterns or all(not pattern.search(item["title"] + item["content"]) for pattern in exclude_patterns))
-        ]
+        return news_items
 
     def add_tlp(self, news_items, tlp_level):
         for item in news_items:
