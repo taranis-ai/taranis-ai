@@ -154,7 +154,7 @@ class SourceIcon(MethodView):
 class Stories(MethodView):
     @api_key_required
     def get(self):
-        filter_keys = ["search", "in_report", "timefrom", "sort", "range", "limit", "no_count", "exclude_attr"]
+        filter_keys = ["search", "in_report", "timefrom", "sort", "range", "limit", "no_count", "exclude_attr", "story_id"]
         filter_args: dict[str, str | int | list] = {k: v for k, v in request.args.items() if k in filter_keys}
         filter_list_keys = ["source", "group"]
         for key in filter_list_keys:

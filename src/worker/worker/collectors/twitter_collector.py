@@ -12,7 +12,7 @@ class TwitterCollector(BaseCollector):
     name = "Twitter Collector"
     description = "Collector for gathering data from Twitter"
 
-    def collect(self, source):
+    def collect(self, source, manual: bool = False):
         try:
             news_items = []
 

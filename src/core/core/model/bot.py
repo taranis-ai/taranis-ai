@@ -64,15 +64,14 @@ class Bot(BaseModel):
         return db.select(cls).where(index=index).scalar()
 
     @classmethod
-    def filter_by_type(cls, type: str) -> "Bot | None":
-        filter_type = type.lower()
-        if filter_type not in [types.value for types in BOT_TYPES]:
+    def filter_by_type(cls, filter_type: str) -> "Bot | None":
+        if filter_type.lower() not in [types.value for types in BOT_TYPES]:
             return None
-        return db.select(cls).where(type=filter_type).scalar_one()
+        return db.session.execute(db.select(cls).where(cls.type == filter_type.lower())).scalar_one_or_none()
 
     @classmethod
-    def get_all_by_type(cls, type):
-        return cls.get_filtered(db.select(cls).where(type=type))
+    def get_all_by_type(cls, filter_type: str):
+        return cls.get_filtered(db.select(cls).where(cls.type == filter_type))
 
     @classmethod
     def get_post_collection(cls) -> Sequence[str]:

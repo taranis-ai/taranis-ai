@@ -31,12 +31,12 @@ class SimpleWebCollector(BaseWebCollector):
         self.digest_splitting_limit = int(source["parameters"].get("DIGEST_SPLITTING_LIMIT", 30))
         self.xpath = source["parameters"].get("XPATH", "")
 
-    def collect(self, source):
+    def collect(self, source, manual: bool = False):
         self.parse_source(source)
         logger.info(f"Website {source['id']} Starting collector for url: {self.web_url}")
 
         try:
-            return self.web_collector(source)
+            return self.web_collector(source, manual)
         except Exception as e:
             logger.exception()
             logger.error(f"Simple Web Collector for {self.web_url} failed with error: {str(e)}")
@@ -65,7 +65,7 @@ class SimpleWebCollector(BaseWebCollector):
             return self.handle_digests()
         return [self.news_item_from_article(self.web_url, self.xpath)]
 
-    def web_collector(self, source):
+    def web_collector(self, source, manual: bool = False):
         response = requests.head(self.web_url, headers=self.headers, proxies=self.proxies)
         if not response or not response.ok:
             logger.info(f"Website {source['id']} returned no content")
@@ -76,7 +76,7 @@ class SimpleWebCollector(BaseWebCollector):
             self.update_favicon(self.web_url, self.source_id)
         last_modified = self.get_last_modified(response)
         self.last_modified = last_modified
-        if last_modified and last_attempted and last_modified < last_attempted:
+        if last_modified and last_attempted and last_modified < last_attempted and not manual:
             logger.debug(f"Last-Modified: {last_modified} < Last-Attempted {last_attempted} skipping")
             return "Last-Modified < Last-Attempted"
 

@@ -90,7 +90,7 @@ class BotsInfo(MethodView):
     @api_key_required
     def put(self, bot_id):
         if bot_result := bot.Bot.update(bot_id, request.json):
-            return {"message": f"Bot {bot_result['name']} updated", "id": bot_result["id"]}, 200
+            return {"message": f"Bot {bot_result.name} updated", "id": bot_result.id}, 200
         return {"message": f"Bot {bot_id} not found"}, 404
 
 
