@@ -25,7 +25,7 @@ class Permission(BaseModel):
         self.description = description
 
     @classmethod
-    def add(cls, id, name, description) -> str:
+    def add(cls, id: str, name: str, description: str) -> str:
         if permission := cls.get(id):
             return f"{permission.name} already exists."
         permission = cls(id=id, name=name, description=description)

@@ -54,9 +54,12 @@
           </v-col>
         </v-row>
       </v-form>
-      <v-alert v-if="login_error !== undefined" dense type="error" text>{{
-        $t(login_error)
-      }}</v-alert>
+      <v-alert
+        v-if="login_error !== undefined"
+        dense
+        type="error"
+        :text="$t(login_error)"
+      />
     </div>
   </v-container>
 </template>

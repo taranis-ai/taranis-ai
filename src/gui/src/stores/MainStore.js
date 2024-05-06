@@ -16,6 +16,7 @@ export const useMainStore = defineStore(
     const upstreamRepoUrl = ref('')
     const buildDate = ref(new Date().toISOString())
     const notification = ref({ message: '', type: '', show: false })
+    const sseConnectionError = ref(false)
 
     // Getters
     const getItemCount = computed(() => {
@@ -76,6 +77,7 @@ export const useMainStore = defineStore(
       gitInfo.value = ''
       buildDate.value = new Date().toISOString()
       notification.value = { message: '', type: '', show: false }
+      sseConnectionError.value = false
     }
 
     return {
@@ -91,6 +93,7 @@ export const useMainStore = defineStore(
       notification,
       getItemCount,
       upstreamTreeUrl,
+      sseConnectionError,
       gitUpstreamTreeUrl,
       updateFromLocalConfig,
       toggleDrawer,

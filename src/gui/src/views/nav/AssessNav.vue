@@ -280,12 +280,12 @@ export default {
       }
     })
 
-    onBeforeMount(() => {
+    onBeforeMount(async () => {
       assessStore.updateOSINTSourceGroupsList()
       assessStore.updateOSINTSources()
     })
 
-    const resetFilter = () => {
+    function resetFilter() {
       assessStore.reset()
       filterStore.resetFilter()
       assessStore.updateOSINTSources()

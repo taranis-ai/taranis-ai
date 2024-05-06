@@ -22,6 +22,7 @@ export const useUserStore = defineStore(
     const language = ref('en')
     const drawer_visible = ref(true)
     const drawer_set_by_user = ref(false)
+    const sseConnectionState = ref('CLOSED')
     const filterStore = useFilterStore()
 
     const reset_user = () => {
@@ -39,6 +40,7 @@ export const useUserStore = defineStore(
       drawer_set_by_user.value = false
       drawer_visible.value = true
       language.value = 'en'
+      sseConnectionState.value = 'CLOSED'
     }
 
     const loadUser = () => {
@@ -95,6 +97,7 @@ export const useUserStore = defineStore(
       organization,
       drawer_visible,
       drawer_set_by_user,
+      sseConnectionState,
       hotkeys,
       split_view,
       compact_view,

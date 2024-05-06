@@ -5,6 +5,7 @@ from sqlalchemy import or_, func
 from sqlalchemy.orm import aliased, Mapped, relationship
 from sqlalchemy.sql.expression import false, null
 from sqlalchemy.sql import Select
+from sqlalchemy.exc import IntegrityError
 
 from collections import Counter
 
@@ -28,6 +29,7 @@ class Story(BaseModel):
     title: Mapped[str] = db.Column(db.String())
     description: Mapped[str] = db.Column(db.String())
     created: Mapped[datetime] = db.Column(db.DateTime)
+    updated: Mapped[datetime] = db.Column(db.DateTime, default=datetime.now)
 
     read: Mapped[bool] = db.Column(db.Boolean, default=False)
     important: Mapped[bool] = db.Column(db.Boolean, default=False)
@@ -57,10 +59,7 @@ class Story(BaseModel):
         self.id = id or str(uuid.uuid4())
         self.title = title
         self.description = description
-        if isinstance(created, str):
-            created = datetime.fromisoformat(created)
-        else:
-            self.created = created
+        self.created = self.get_creation_date(created)
         self.read = read
         self.important = important
         self.summary = summary
@@ -68,6 +67,13 @@ class Story(BaseModel):
         self.news_items = self.load_news_items(news_items)
         if attributes:
             self.attributes = NewsItemAttribute.load_multiple(attributes)
+
+    def get_creation_date(self, created):
+        if isinstance(created, datetime):
+            return created
+        if isinstance(created, str):
+            return datetime.fromisoformat(created)
+        return datetime.now()
 
     def load_news_items(self, news_items):
         if isinstance(news_items[0], dict):
@@ -134,6 +140,9 @@ class Story(BaseModel):
         query = db.select(cls).group_by(cls.id).join(NewsItem, NewsItem.story_id == cls.id)
         query = query.join(OSINTSource, NewsItem.osint_source_id == OSINTSource.id)
 
+        if item_id := filter_args.get("id"):
+            return query.filter(cls.id == item_id)
+
         if filter_args.get("group"):
             query = query.outerjoin(OSINTSourceGroupOSINTSource, OSINTSource.id == OSINTSourceGroupOSINTSource.osint_source_id)
             query = query.outerjoin(OSINTSourceGroup, OSINTSourceGroupOSINTSource.osint_source_group_id == OSINTSourceGroup.id)
@@ -186,11 +195,10 @@ class Story(BaseModel):
                 Story.id == ReportItemStory.story_id,
             )
         if in_report == "false":
-            query = query.outerjoin(
+            query = query.join(
                 ReportItemStory,
                 Story.id == ReportItemStory.story_id,
-            )
-            query = query.filter(ReportItemStory.story_id == null())
+            ).filter(ReportItemStory.story_id == null())
 
         if tags := filter_args.get("tags"):
             for tag in tags:
@@ -213,13 +221,13 @@ class Story(BaseModel):
                 days = int(filter_range[4:])
                 date_limit -= timedelta(days=days)
 
-            query = query.filter(NewsItem.published >= date_limit)
+            query = query.filter(cls.created >= date_limit)
 
         if timefrom := filter_args.get("timefrom"):
-            query = query.filter(NewsItem.published >= datetime.fromisoformat(timefrom))
+            query = query.filter(cls.created >= datetime.fromisoformat(timefrom))
 
         if timeto := filter_args.get("timeto"):
-            query = query.filter(NewsItem.published <= datetime.fromisoformat(timeto))
+            query = query.filter(cls.updated <= datetime.fromisoformat(timeto))
 
         return query
 
@@ -227,19 +235,22 @@ class Story(BaseModel):
     def _add_sorting_to_query(cls, filter_args: dict, query):
         if sort := filter_args.get("sort", "date_desc").lower():
             if sort == "date_desc":
-                query = query.group_by(NewsItem.published).order_by(db.desc(NewsItem.published), db.desc(cls.id))
+                query = query.order_by(db.desc(cls.created))
 
             elif sort == "date_asc":
-                query = query.group_by(NewsItem.published).order_by(db.asc(NewsItem.published), db.asc(cls.id))
+                query = query.order_by(db.asc(cls.created))
 
             elif sort == "relevance_desc":
-                query = query.order_by(db.desc(cls.relevance), db.desc(cls.id))
+                query = query.order_by(db.desc(cls.relevance))
 
             elif sort == "relevance_asc":
-                query = query.order_by(db.asc(cls.relevance), db.asc(cls.id))
+                query = query.order_by(db.asc(cls.relevance))
 
-            elif sort == "source":
-                query = query.order_by(db.desc(OSINTSource.name), db.desc(cls.id))
+            elif sort == "updated_desc":
+                query = query.order_by(db.desc(cls.updated))
+
+            elif sort == "updated_asc":
+                query = query.order_by(db.asc(cls.updated))
 
         return query
 
@@ -262,18 +273,17 @@ class Story(BaseModel):
 
     @classmethod
     def get_by_filter(cls, filter_args: dict, user: User | None = None):
-        query = cls.get_filter_query(filter_args)
-
+        base_query = cls.get_filter_query(filter_args)
         if user:
-            query = cls._add_ACL_check(query, user)
-            query = cls._add_TLP_check(query, user)
+            base_query = cls._add_ACL_check(base_query, user)
+            base_query = cls._add_TLP_check(base_query, user)
 
-        query = cls._add_sorting_to_query(filter_args, query)
+        query = cls._add_sorting_to_query(filter_args, base_query)
         query = cls._add_paging_to_query(filter_args, query)
 
         if filter_args.get("no_count", False):
             return cls.get_filtered(query), 0
-        return cls.get_filtered(query), cls.get_filtered_count(query)
+        return cls.get_filtered(query), cls.get_filtered_count(base_query)
 
     @classmethod
     def get_date_counts(cls, news_items: list[dict[str, Any]]) -> Counter:
@@ -349,14 +359,43 @@ class Story(BaseModel):
         ).id
 
     @classmethod
+    def check_news_item_data(cls, news_item: dict) -> dict | None:
+        title = news_item.get("title", "")
+        link = news_item.get("link", "")
+        content = news_item.get("content", "")
+        if not title and not link and not content:
+            return {"error": "At least one of the following parameters must be provided: title, link, content"}
+        return None
+
+    @classmethod
+    def add_single_news_item(cls, news_item: dict) -> tuple[dict, int]:
+        if err := cls.check_news_item_data(news_item):
+            return err, 400
+        try:
+            story_id = cls.add_from_news_item(news_item)
+            db.session.commit()
+        except IntegrityError:
+            logger.warning("NewsItem already exists")
+            return {"error": "NewsItem already exists"}, 400
+        except Exception as e:
+            logger.exception(f"Failed to add news items: {e}")
+            return {"error": f"Failed to add news items: {e}"}, 400
+
+        return {"message": "success", "id": story_id}, 200
+
+    @classmethod
     def add_news_items(cls, news_items_list: list[dict]):
         ids = []
         try:
             for news_item in news_items_list:
-                if NewsItem.identical(news_item.get("hash", NewsItem.get_hash_from_data(news_item))):
+                if err := cls.check_news_item_data(news_item):
+                    logger.warning(err)
                     continue
                 ids.append(cls.add_from_news_item(news_item))
             db.session.commit()
+        except IntegrityError:
+            logger.warning("NewsItem already exists")
+            return {"error": "NewsItem already exists"}, 400
         except Exception as e:
             logger.exception(f"Failed to add news items: {e}")
             return {"error": f"Failed to add news items: {e}"}, 400
@@ -572,7 +611,6 @@ class Story(BaseModel):
     @classmethod
     def group_stories(cls, story_ids: list[str], user: User | None = None):
         try:
-            logger.debug(story_ids)
             if len(story_ids) < 2 or any(not isinstance(a_id, str) or len(a_id) == 0 for a_id in story_ids):
                 return {"error": "at least two valid Story ids needed"}, 404
 
@@ -595,10 +633,10 @@ class Story(BaseModel):
 
             cls.update_stories(processed_stories)
             db.session.commit()
-            return {"message": "success"}, 200
-        except Exception:
-            logger.log_debug_trace("Grouping Stories Failed")
-            return {"error": "Grouping Stories Failed"}, 500
+            return {"message": "Clustering Stories successful", "id": first_story.id}, 200
+        except Exception as e:
+            logger.exception(f"Grouping Stories Failed - {str(e)}")
+            return {"error": f"Grouping Stories Failed - {str(e)}"}, 500
 
     @classmethod
     def ungroup_multiple_stories(cls, story_ids: list[int], user: User | None = None):
@@ -612,16 +650,16 @@ class Story(BaseModel):
         try:
             story = Story.get(story_id)
             if not story:
-                return {"error": "not_found"}, 404
+                return {"error": "Story not found"}, 404
             for news_item in story.news_items[:]:
                 if user is None or news_item.allowed_with_acl(user, True):
                     cls.create_from_item(news_item)
             cls.update_stories({story})
             db.session.commit()
-            return {"message": "success"}, 200
-        except Exception:
-            logger.log_debug_trace("Ungrouping Stories Failed")
-            return {"error": "ungroup failed"}, 500
+            return {"message": "Ungrouping Stories successful"}, 200
+        except Exception as e:
+            logger.exception(f"Ungrouping Stories Failed - {str(e)}")
+            return {"error": f"Ungrouping Stories failed - {str(e)}"}, 500
 
     @classmethod
     def remove_news_items_from_story(cls, newsitem_ids: list, user: User | None = None):
@@ -647,7 +685,7 @@ class Story(BaseModel):
             return {"error": "ungroup failed"}, 500
 
     @classmethod
-    def update_stories(cls, stories: set):
+    def update_stories(cls, stories: set["Story"]):
         for story in stories:
             try:
                 story.update_status()
@@ -677,6 +715,11 @@ class Story(BaseModel):
             return
 
         self.update_tlp()
+        self.update_timestamps()
+
+    def update_timestamps(self):
+        self.updated = datetime.now()
+        self.created = min(news_item.published for news_item in self.news_items)
 
     def update_tlp(self):
         highest_tlp = None

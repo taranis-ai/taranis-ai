@@ -54,8 +54,11 @@
       </v-chip>
     </template>
     <template #item.state="{ item }">
-      <v-chip :color="item.state > 0 ? 'red' : 'green'" variant="outlined">
-        {{ item.state > 0 ? 'error' : 'ok' }}
+      <v-chip
+        :color="item.state > 0 ? 'red' : item.state < 0 ? 'primary' : 'green'"
+        variant="outlined"
+      >
+        {{ item.state > 0 ? 'error' : item.state < 0 ? 'undefined' : 'ok' }}
       </v-chip>
     </template>
 

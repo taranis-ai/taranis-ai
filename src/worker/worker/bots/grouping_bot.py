@@ -18,7 +18,7 @@ class GroupingBot(BaseBot):
             raise ValueError("GroupingBot requires REGULAR_EXPRESSION parameter")
 
         if not (data := self.get_stories(parameters)):
-            return None
+            return {"message": "No new stories found"}
 
         findings = defaultdict(list)
         for story in data:
@@ -33,9 +33,11 @@ class GroupingBot(BaseBot):
                         break
 
         if not findings:
-            return
+            return {"message": "No Groups found"}
 
         for group, ids in findings.items():
             if len(ids) > 1:
                 logger.debug(f"Grouping: {group} with: {ids}")
                 self.core_api.news_items_grouping(ids)
+
+        return {"message": f"Grouped {len(findings)} groups"}

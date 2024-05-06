@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   gui:
     # This is the entrypoint for all requests
@@ -15,7 +13,8 @@ services:
     environment:
       NGINX_WORKERS: "4"
       NGINX_CONNECTIONS: "16"
-      TARANIS_CORE_UPSTREAM: "${TARANIS_CORE_UPSTREAM:-core:8080}"
+      TARANIS_CORE_UPSTREAM: "${TARANIS_CORE_UPSTREAM:-core:${TARANIS_CORE_LISTEN_PORT:-8080}}"
+      TARANIS_SSE_UPSTREAM: "${TARANIS_SSE_UPSTREAM:-sse:8088}"
       TARANIS_SENTRY_DSN: "${TARANIS_SENTRY_DSN:-}"
     logging:
       driver: "json-file"
@@ -32,8 +31,8 @@ services:
         condition: on-failure
         max_attempts: 3
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-core:${TARANIS_TAG:-latest}"
-    ports:
-      - "${TARANIS_CORE_PORT:-8081}:${8080}"
+    # ports:
+    #   - "${TARANIS_CORE_PORT:-8081}:${TARANIS_CORE_LISTEN_PORT:-8080}"
     environment:
       DB_URL: "${DB_URL:-database}"
       DB_DATABASE: "${DB_DATABASE:-taranis}"
@@ -43,15 +42,17 @@ services:
       DB_POOL_RECYCLE: 300
       DB_POOL_TIMEOUT: 5
 
-      JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
       TARANIS_AUTHENTICATOR: "${TARANIS_AUTHENTICATOR:-database}"
 
       QUEUE_BROKER_HOST: "rabbitmq"
       QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
       QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-taranis}"
 
+      GRANIAN_PORT: "${TARANIS_CORE_LISTEN_PORT:-8080}"
+
       PRE_SEED_PASSWORD_ADMIN: "${PRE_SEED_PASSWORD_ADMIN:-admin}"
       PRE_SEED_PASSWORD_USER: "${PRE_SEED_PASSWORD_USER:-user}"
+      JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
       SECRET_KEY: "${API_KEY}"
       API_KEY: "${API_KEY}"
       DEBUG: "${DEBUG:-False}"
@@ -100,7 +101,7 @@ services:
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-worker:${TARANIS_TAG:-latest}"
     command: "--app worker beat"
     environment:
-      TARANIS_CORE_URL: "http://core/api"
+      TARANIS_CORE_URL: "${TARANIS_CORE_URL:-http://core:8080/api}"
       API_KEY: "${API_KEY}"
       QUEUE_BROKER_HOST: "rabbitmq"
       QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
@@ -122,7 +123,7 @@ services:
         max_attempts: 3
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-worker:${TARANIS_TAG:-latest}"
     environment:
-      TARANIS_CORE_URL: "http://core/api"
+      TARANIS_CORE_URL: "${TARANIS_CORE_URL:-http://core:8080/api}"
       API_KEY: "${API_KEY}"
       QUEUE_BROKER_HOST: "rabbitmq"
       QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
@@ -145,7 +146,7 @@ services:
         max_attempts: 3
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-worker:${TARANIS_TAG:-latest}"
     environment:
-      TARANIS_CORE_URL: "http://core/api"
+      TARANIS_CORE_URL: "${TARANIS_CORE_URL:-http://core:8080/api}"
       API_KEY: "${API_KEY}"
       QUEUE_BROKER_HOST: "rabbitmq"
       QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
@@ -173,6 +174,21 @@ services:
       options:
         max-size: "200k"
         max-file: "10"
+
+  sse:
+    image: "${DOCKER_IMAGE_NAMESPACE}/sse-broker:latest"
+    # ports:
+    #  - "${TARANIS_SSE_PORT:-8088}:8088"
+    environment:
+      JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
+      API_KEY: "${API_KEY}"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+
+
 
 volumes:
   database_data:

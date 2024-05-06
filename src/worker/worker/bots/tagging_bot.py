@@ -1,7 +1,6 @@
 import re
 
 from .base_bot import BaseBot
-from worker.log import logger
 
 
 class TaggingBot(BaseBot):
@@ -17,7 +16,7 @@ class TaggingBot(BaseBot):
             raise ValueError("TaggingBot requires REGULAR_EXPRESSION parameter")
 
         if not (data := self.get_stories(parameters)):
-            return None
+            return {"message": "No new stories found"}
 
         found_tags = {}
         for story in data:
@@ -37,7 +36,7 @@ class TaggingBot(BaseBot):
             found_tags[story["id"]] = findings
 
         if not found_tags:
-            logger.debug("No tags found")
-            return
+            return {"message": "No tags found"}
 
         self.core_api.update_tags(found_tags, self.type)
+        return {"message": f"Extracted {len(found_tags)} tags"}

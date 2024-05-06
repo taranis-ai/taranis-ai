@@ -1,6 +1,9 @@
+import os
+
+
 def test_is_alive(client):
     response = client.get("/api/isalive")
-    assert b'"isalive": true' in response.data
+    assert {"isalive": True} == response.json
 
 
 def test_is_alive_fail(client):
@@ -14,7 +17,7 @@ def test_auth_login_fail(client):
 
 
 def test_auth_login(client):
-    body = {"username": "user", "password": "test"}
+    body = {"username": "user", "password": os.getenv("PRE_SEED_PASSWORD_USER")}
     response = client.post("/api/auth/login", json=body)
     assert response.status_code == 200
 
@@ -31,5 +34,5 @@ def test_user_profile(client, auth_header):
 
 
 def test_auth_logout(client, auth_header):
-    response = client.get("/api/auth/logout", headers=auth_header)
+    response = client.delete("/api/auth/logout", headers=auth_header)
     assert response.status_code == 200

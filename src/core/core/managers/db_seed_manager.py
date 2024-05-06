@@ -68,7 +68,11 @@ def pre_seed_workers():
     from core.model.bot import Bot
 
     for w in workers:
-        Worker.add(w)
+        if worker := Worker.filter_by_type(w["type"]):
+            # TODO IMPLEMENT
+            worker.update(w)
+        else:
+            Worker.add(w)
 
     for b in bots:
         Bot.add(b)
@@ -81,8 +85,7 @@ def pre_seed_permissions():
     from core.model.permission import Permission
     from core.managers.pre_seed_data import permissions
 
-    for p in permissions:
-        Permission.add(*p)
+    Permission.add_multiple(permissions)
 
 
 def pre_seed_roles():
@@ -108,6 +111,7 @@ def pre_seed_roles():
             "ANALYZE_CREATE",
             "ANALYZE_UPDATE",
             "ANALYZE_DELETE",
+            "BOT_EXECUTE",
             "PUBLISH_ACCESS",
             "PUBLISH_CREATE",
             "PUBLISH_UPDATE",
@@ -207,11 +211,7 @@ def pre_seed_default_user():
                 {
                     "username": "admin",
                     "name": "Arthur Dent",
-                    "roles": [
-                        {
-                            "id": admin_role.id,
-                        },
-                    ],
+                    "roles": [admin_role.id],
                     "permissions": [],
                     "organization": {"id": 1},
                     "password": Config.PRE_SEED_PASSWORD_ADMIN,
@@ -238,11 +238,7 @@ def pre_seed_default_user():
             {
                 "username": "user",
                 "name": "Terry Pratchett",
-                "roles": [
-                    {
-                        "id": user_role,
-                    },
-                ],
+                "roles": [user_role],
                 "permissions": [],
                 "organization": {"id": 2},
                 "password": Config.PRE_SEED_PASSWORD_USER,
@@ -252,16 +248,17 @@ def pre_seed_default_user():
 
 def pre_seed_assets():
     from core.model.asset import AssetGroup
-    from core.model.user import User
+    from core.model.organization import Organization
 
     if AssetGroup.get("default"):
         return
-    users = User.get_all()
+    if not (org := Organization.get(1)):
+        return
     AssetGroup.add(
         {
             "name": "Default",
             "description": "Default group for uncategorized assets",
-            "organization": users[0].organization,
+            "organization": org,
             "id": "default",
         }
     )

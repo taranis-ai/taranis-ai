@@ -17,12 +17,16 @@ def file_loader(filename):
 
 @pytest.fixture
 def rss_collector():
-    return collectors.RSSCollector()
+    collector = collectors.RSSCollector()
+    collector.source_id = "test_source"
+    yield collector
 
 
 @pytest.fixture
 def simple_web_collector():
-    return collectors.SimpleWebCollector()
+    collector = collectors.SimpleWebCollector()
+    collector.source_id = "test_source"
+    yield collector
 
 
 @pytest.fixture

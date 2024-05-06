@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     DB_DATABASE: str = "taranis"
     DB_USER: str = "taranis"
     DB_PASSWORD: str = "supersecret"
-    SQLALCHEMY_SCHEMA: str = "postgresql+psycopg2"
+    SQLALCHEMY_SCHEMA: str = "postgresql"
     SQLALCHEMY_ECHO: bool = False
     SQLALCHEMY_TRACK_MODIFICATIONS: bool = False
     SQLALCHEMY_DATABASE_URI: str | None = None
@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     DATA_FOLDER: str = "./taranis_data"
     CACHE_TYPE: str = "SimpleCache"
     CACHE_DEFAULT_TIMEOUT: int = 300
+    SSE_URL: str = "http://sse:8088/publish"
+    DISABLE_SSE: bool = False
 
     @model_validator(mode="after")  # type: ignore
     def set_sqlalchemy_uri(self) -> "Settings":

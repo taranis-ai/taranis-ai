@@ -76,13 +76,12 @@ build-backend = "setuptools.build_meta"
 fallback_version = "0.0.0"
 root = "../.."
 
-[tool.black]
-line-length = "142"
-target-version = ["py311"]
-
 [tool.ruff]
 line-length = 142
 target-version = "py311"
+
+[tool.ruff.lint.isort]
+lines-after-imports = 2
 
 [tool.pytest.ini_options]
 filterwarnings = [

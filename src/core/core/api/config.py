@@ -2,9 +2,9 @@ import io
 
 from flask import request, send_file, jsonify, Flask
 from flask.views import MethodView
+from flask_jwt_extended import current_user
 
 from core.managers import (
-    auth_manager,
     queue_manager,
 )
 from core.log import logger
@@ -141,8 +141,7 @@ class ReportItemTypes(MethodView):
     def get(self, type_id=None, filter_args=None):
         if type_id:
             return report_item_type.ReportItemType.get_for_api(type_id)
-        user = auth_manager.get_user_from_jwt()
-        return report_item_type.ReportItemType.get_all_for_api(filter_args, True, user)
+        return report_item_type.ReportItemType.get_all_for_api(filter_args, True, current_user)
 
     @auth_required("CONFIG_REPORT_TYPE_CREATE")
     def post(self):
@@ -174,8 +173,7 @@ class ProductTypes(MethodView):
     def get(self, type_id=None, filter_args=None):
         if type_id:
             return product_type.ProductType.get_for_api(type_id)
-        user = auth_manager.get_user_from_jwt()
-        return product_type.ProductType.get_all_for_api(filter_args, True, user)
+        return product_type.ProductType.get_all_for_api(filter_args, True, current_user)
 
     @auth_required("CONFIG_PRODUCT_TYPE_CREATE")
     def post(self):
@@ -184,8 +182,7 @@ class ProductTypes(MethodView):
 
     @auth_required("CONFIG_PRODUCT_TYPE_UPDATE")
     def put(self, type_id):
-        user = auth_manager.get_user_from_jwt()
-        return product_type.ProductType.update(type_id, request.json, user)
+        return product_type.ProductType.update(type_id, request.json, current_user)
 
     @auth_required("CONFIG_PRODUCT_TYPE_DELETE")
     def delete(self, type_id):
@@ -288,6 +285,32 @@ class Organizations(MethodView):
         return organization.Organization.delete(organization_id)
 
 
+class UsersImport(MethodView):
+    @auth_required("CONFIG_USER_UPDATE")
+    def post(self):
+        user_list = request.json
+        if not isinstance(user_list, list):
+            return {"error": "Invalid data format"}, 400
+        if users := user.User.import_users(user_list):
+            return {"users": users, "count": len(users), "message": "Successfully imported users"}
+        return {"error": "Unable to import"}, 400
+
+
+class UsersExport(MethodView):
+    @auth_required("CONFIG_USER_ACCESS")
+    def get(self):
+        user_ids = request.args.getlist("ids")
+        data = user.User.export(user_ids)
+        if data is None:
+            return {"error": "Unable to export"}, 400
+        return send_file(
+            io.BytesIO(data),
+            download_name="users_export.json",
+            mimetype="application/json",
+            as_attachment=True,
+        )
+
+
 class Users(MethodView):
     @auth_required("CONFIG_USER_ACCESS")
     @extract_args("search")
@@ -354,6 +377,7 @@ class Bots(MethodView):
 
 
 class BotExecute(MethodView):
+    @auth_required("BOT_EXECUTE")
     def post(self, bot_id):
         return queue_manager.queue_manager.execute_bot_task(bot_id)
 
@@ -387,8 +411,7 @@ class OSINTSources(MethodView):
     def get(self, source_id=None, filter_args=None):
         if source_id:
             return osint_source.OSINTSource.get_for_api(source_id)
-        user = auth_manager.get_user_from_jwt()
-        return osint_source.OSINTSource.get_all_for_api(filter_args=filter_args, with_count=True, user=user)
+        return osint_source.OSINTSource.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
 
     @auth_required("CONFIG_OSINT_SOURCE_CREATE")
     def post(self):
@@ -476,12 +499,9 @@ class OSINTSourceGroups(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_ACCESS")
     @extract_args("search")
     def get(self, group_id=None, filter_args=None):
-        user = auth_manager.get_user_from_jwt()
-        if not user:
-            return {"error": "User not found"}, 404
         if group_id:
             return osint_source.OSINTSourceGroup.get_for_api(group_id)
-        return osint_source.OSINTSourceGroup.get_all_for_api(filter_args=filter_args, with_count=True, user=user)
+        return osint_source.OSINTSourceGroup.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
 
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_CREATE")
     def post(self):
@@ -493,7 +513,9 @@ class OSINTSourceGroups(MethodView):
 
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_UPDATE")
     def put(self, group_id):
-        return osint_source.OSINTSourceGroup.update(group_id, request.json)
+        if not (data := request.json):
+            return {"error": "No data provided"}, 400
+        return osint_source.OSINTSourceGroup.update(group_id, data, user=current_user)
 
     @auth_required("CONFIG_OSINT_SOURCE_GROUP_DELETE")
     def delete(self, group_id):
@@ -549,8 +571,7 @@ class WordLists(MethodView):
     def get(self, word_list_id=None, filter_args=None):
         if word_list_id:
             return word_list.WordList.get_for_api(word_list_id)
-        user = auth_manager.get_user_from_jwt()
-        return word_list.WordList.get_all_for_api(filter_args=filter_args, with_count=True, user=user)
+        return word_list.WordList.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
 
     @auth_required("CONFIG_WORD_LIST_CREATE")
     def post(self):
@@ -738,6 +759,8 @@ def initialize(app: Flask):
     app.add_url_rule(f"{base_route}/roles", view_func=Roles.as_view("roles"))
     app.add_url_rule(f"{base_route}/roles/<int:role_id>", view_func=Roles.as_view("role"))
     app.add_url_rule(f"{base_route}/users", view_func=Users.as_view("users"))
+    app.add_url_rule(f"{base_route}/users-import", view_func=UsersImport.as_view("users_import"))
+    app.add_url_rule(f"{base_route}/users-export", view_func=UsersExport.as_view("users_export"))
     app.add_url_rule(f"{base_route}/users/<int:user_id>", view_func=Users.as_view("user"))
     app.add_url_rule(f"{base_route}/word-lists", view_func=WordLists.as_view("word_lists"))
     app.add_url_rule(

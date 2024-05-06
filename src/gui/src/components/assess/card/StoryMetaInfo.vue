@@ -18,18 +18,15 @@
       </td>
     </tr>
 
-    <tr
-      v-if="!compactView && story.tags && story.tags.length > 0 && !reportView"
-    >
+    <tr v-if="!compactView && story.tags && !reportView">
       <td>
         <strong> Tags: </strong>
       </td>
       <td>
         <tag-list
-          :tags="[...new Set(story.tags.slice(0, tagLimit))]"
+          :tags="filteredTags"
           :truncate="!detailView"
           :color="detailView"
-          :wrap="showWeekChart || detailView"
           :editable="detailView"
           @edit="editTags()"
         />
@@ -73,6 +70,7 @@
 <script>
 import TagList from '@/components/assess/card/TagList.vue'
 import { useFilterStore } from '@/stores/FilterStore'
+import { useMainStore } from '@/stores/MainStore'
 import { useI18n } from 'vue-i18n'
 import { computed, ref } from 'vue'
 import { useDisplay } from 'vuetify'
@@ -106,6 +104,7 @@ export default {
     const { d, t } = useI18n()
     const { name: displayName } = useDisplay()
     const { showWeekChart, compactView } = storeToRefs(useFilterStore())
+    const { drawerVisible } = storeToRefs(useMainStore())
 
     const showTagDialog = ref(false)
 
@@ -136,16 +135,28 @@ export default {
       if (props.detailView) {
         return 20
       }
+      let limit = 2 // Default value
       switch (displayName.value) {
         case 'lg':
-          return 3
+          limit = 3
+          break
         case 'xl':
-          return 4
+          limit = 4
+          break
         case 'xxl':
-          return 5
+          limit = 5
+          break
         default:
-          return 2
+          limit = 2
       }
+      if (drawerVisible.value) {
+        limit -= 1
+      }
+      return limit
+    })
+
+    const filteredTags = computed(() => {
+      return [...new Set(props.story.tags.slice(0, tagLimit.value))]
     })
 
     const getPublishedDate = computed(() => {
@@ -173,7 +184,7 @@ export default {
       published_dates,
       published_date_outdated,
       getPublishedDate,
-      tagLimit,
+      filteredTags,
       editTags,
       t
     }

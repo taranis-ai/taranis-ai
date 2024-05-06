@@ -2,7 +2,7 @@ import uuid
 import json
 import base64
 from datetime import datetime
-from typing import Any, Sequence
+from typing import Any, Sequence, TYPE_CHECKING
 from sqlalchemy.orm import deferred, Mapped, relationship
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql import Select
@@ -16,6 +16,10 @@ from core.model.base_model import BaseModel
 from core.model.queue import ScheduleEntry
 from core.model.worker import COLLECTOR_TYPES, Worker
 from core.service.role_based_access import RoleBasedAccessService, RBACQuery
+
+
+if TYPE_CHECKING:
+    from core.model.user import User
 
 
 class OSINTSource(BaseModel):
@@ -34,7 +38,7 @@ class OSINTSource(BaseModel):
     groups: Mapped[list["OSINTSourceGroup"]] = relationship("OSINTSourceGroup", secondary="osint_source_group_osint_source")
 
     icon: Any = deferred(db.Column(db.LargeBinary))
-    state: Mapped[int] = db.Column(db.SmallInteger, default=0)
+    state: Mapped[int] = db.Column(db.SmallInteger, default=-1)
     last_collected: Mapped[datetime] = db.Column(db.DateTime, default=None)
     last_attempted: Mapped[datetime] = db.Column(db.DateTime, default=None)
     last_error_message: Mapped[str | None] = db.Column(db.String, default=None, nullable=True)
@@ -93,25 +97,33 @@ class OSINTSource(BaseModel):
         [data.pop(key, None) for key in drop_keys if key in data]
         return cls(**data)
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters if parameter.value}
         data["icon"] = base64.b64encode(self.icon).decode("utf-8") if self.icon else None
         return data
 
-    def to_worker_dict(self):
+    def to_worker_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data.pop("icon", None)
         data["word_lists"] = []
         for group in self.groups:
-            data["word_lists"].extend([word_list.to_dict() for word_list in group.word_lists])
+            data["word_lists"].extend([word_list.to_dict() for word_list in group.word_lists if word_list])
         data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters if parameter.value}
         return data
 
-    def to_task_id(self):
+    def to_assess_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "icon": base64.b64encode(self.icon).decode("utf-8") if self.icon else None,
+            "name": self.name,
+            "type": self.type,
+        }
+
+    def to_task_id(self) -> str:
         return f"osint_source_{self.id}_{self.type}"
 
-    def get_schedule(self):
+    def get_schedule(self) -> str:
         refresh_interval = ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL")
         return refresh_interval or "480"
 
@@ -253,7 +265,7 @@ class OSINTSource(BaseModel):
         return data
 
     @classmethod
-    def add_multiple_with_group(cls, sources, groups) -> list:
+    def add_multiple_with_group(cls, sources, groups) -> list[str]:
         index_to_id_mapping = {}
         for data in sources:
             idx = data.pop("group_idx", None)
@@ -272,7 +284,7 @@ class OSINTSource(BaseModel):
         return list(index_to_id_mapping.values())
 
     @classmethod
-    def import_osint_sources(cls, file):
+    def import_osint_sources(cls, file) -> list[str]:
         file_data = file.read()
         json_data = json.loads(file_data.decode("utf8"))
         groups = []
@@ -289,6 +301,18 @@ class OSINTSource(BaseModel):
         ids = cls.add_multiple_with_group(data, groups)
         logger.debug(f"Imported {len(ids)} sources")
         return ids
+
+    @classmethod
+    def get_all_for_assess_api(cls, user=None) -> tuple[dict[str, Any], int]:
+        filter_args = {}
+        if user:
+            query = cls.get_filter_query_with_acl(filter_args, user)
+        else:
+            query = cls.get_filter_query(filter_args)
+        if items := cls.get_filtered(query):
+            return {"items": [item.to_assess_dict() for item in items]}, 200
+
+        return {"items": []}, 404
 
 
 class OSINTSourceParameterValue(BaseModel):
@@ -316,8 +340,8 @@ class OSINTSourceGroup(BaseModel):
         self.name = name
         self.description = description
         self.default = default
-        self.osint_sources = [OSINTSource.get(osint_source) for osint_source in osint_sources] if osint_sources else []
-        self.word_lists = [WordList.get(word_list) for word_list in word_lists] if word_lists else []
+        self.osint_sources = OSINTSource.get_bulk(osint_sources or []) or []
+        self.word_lists = WordList.get_bulk(word_lists or [])
 
     @classmethod
     def get_all_without_default(cls):
@@ -369,7 +393,7 @@ class OSINTSourceGroup(BaseModel):
             ],
         }
 
-    def allowed_with_acl(self, user, require_write_access) -> bool:
+    def allowed_with_acl(self, user: "User | None", require_write_access) -> bool:
         if not RoleBasedAccess.is_enabled() or not user:
             return True
 
@@ -379,39 +403,65 @@ class OSINTSourceGroup(BaseModel):
 
         return RoleBasedAccessService.user_has_access_to_resource(query)
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data["osint_sources"] = [osint_source.id for osint_source in self.osint_sources if osint_source]
         data["word_lists"] = [word_list.id for word_list in self.word_lists if word_list]
         return data
 
     @classmethod
-    def delete(cls, osint_source_group_id):
+    def delete(cls, osint_source_group_id: str, user: "User | None" = None) -> tuple[dict, int]:
         osint_source_group = cls.get(osint_source_group_id)
         if not osint_source_group:
             return {"message": "No Sourcegroup found"}, 404
         if osint_source_group.default is True:
             return {"message": "could_not_delete_default_group"}, 400
+
+        if not osint_source_group.allowed_with_acl(user=user, require_write_access=True):
+            return {"error": "User not allowed to update this group"}, 403
+
         db.session.delete(osint_source_group)
         db.session.commit()
         return {"message": f"Successfully deleted {osint_source_group.id}"}, 200
 
     @classmethod
-    def update(cls, osint_source_group_id, data):
+    def update(cls, osint_source_group_id: str, data: dict, user: "User | None" = None) -> tuple[dict, int]:
         osint_source_group = cls.get(osint_source_group_id)
         if osint_source_group is None:
             return {"error": "OSINT Source Group not found"}, 404
 
+        if not osint_source_group.allowed_with_acl(user=user, require_write_access=True):
+            return {"error": "User not allowed to update this group"}, 403
+
         if name := data.get("name"):
             osint_source_group.name = name
 
-        osint_source_group.description = data.get("description")
+        if description := data.get("description"):
+            osint_source_group.description = description
         osint_sources = data.get("osint_sources", [])
-        osint_source_group.osint_sources = [OSINTSource.get(osint_source) for osint_source in osint_sources]
+        osint_source_group.osint_sources = OSINTSource.get_bulk(osint_sources)
         word_lists = data.get("word_lists", [])
-        osint_source_group.word_lists = [WordList.get(word_list) for word_list in word_lists]
+        osint_source_group.word_lists = WordList.get_bulk(word_lists)
         db.session.commit()
         return {"message": f"Successfully updated {osint_source_group.name}", "id": f"{osint_source_group.id}"}, 201
+
+    def to_assess_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "name": self.name,
+        }
+
+    @classmethod
+    def get_all_for_assess_api(cls, user=None) -> tuple[dict[str, Any], int]:
+        filter_args = {}
+        if user:
+            query = cls.get_filter_query_with_acl(filter_args, user)
+        else:
+            query = cls.get_filter_query(filter_args)
+        if items := cls.get_filtered(query):
+            return {"items": [item.to_assess_dict() for item in items]}, 200
+
+        return {"items": []}, 404
 
 
 class OSINTSourceGroupOSINTSource(BaseModel):

@@ -16,20 +16,50 @@
       @edit-item="editItem"
       @add-item="addItem"
       @update-items="updateData"
-    />
+      @selection-change="selectionChange"
+    >
+      <template #titlebar>
+        <v-btn
+          color="green-darken-3"
+          dark
+          class="ml-4"
+          prepend-icon="mdi-import"
+          text="Import"
+          @click="importClicked"
+        />
+        <ImportExport :show-import="false" @export="exportData" />
+      </template>
+    </DataTable>
     <UserForm
       v-if="showForm"
       :user-prop="user"
       :edit="edit"
       @updated="formUpdated"
-    ></UserForm>
+    />
+    <UserImportForm v-if="showImportForm" @import="importData" />
+    <v-alert
+      v-for="item in importResult"
+      :key="item.username"
+      :title="item.username"
+      type="success"
+      closable
+      :text="item.password"
+    />
   </v-container>
 </template>
 
 <script>
 import DataTable from '@/components/common/DataTable.vue'
 import UserForm from '@/components/config/user/UserForm.vue'
-import { deleteUser, createUser, updateUser } from '@/api/config'
+import UserImportForm from '@/components/config/user/UserImportForm.vue'
+import ImportExport from '@/components/config/ImportExport.vue'
+import {
+  deleteUser,
+  createUser,
+  updateUser,
+  exportUsers,
+  importUsers
+} from '@/api/config'
 import { ref, onMounted } from 'vue'
 import { useConfigStore } from '@/stores/ConfigStore'
 import { useMainStore } from '@/stores/MainStore'
@@ -39,14 +69,19 @@ import { storeToRefs } from 'pinia'
 export default {
   name: 'UsersView',
   components: {
+    ImportExport,
     DataTable,
-    UserForm
+    UserForm,
+    UserImportForm
   },
   setup() {
     const store = useConfigStore()
     const { users } = storeToRefs(store)
     const mainStore = useMainStore()
     const showForm = ref(false)
+    const showImportForm = ref(false)
+    const showImportResult = ref(false)
+    const importResult = ref([])
     const selected = ref([])
     const user = ref({})
     const edit = ref(false)
@@ -127,6 +162,33 @@ export default {
       selected.value = new_selection
     }
 
+    function importClicked() {
+      showForm.value = false
+      showImportForm.value = !showImportForm.value
+    }
+
+    async function exportData() {
+      let queryString = ''
+      if (selected.value.length > 0) {
+        queryString = 'ids=' + selected.value.join('&ids=')
+      }
+      await exportUsers(queryString)
+    }
+
+    async function importData(data) {
+      try {
+        const result = await importUsers(data)
+        updateData()
+        notifySuccess(result.data.message)
+        showImportForm.value = false
+        showImportResult.value = true
+        importResult.value = result.data.users
+        console.debug(importResult.value)
+      } catch (error) {
+        notifyFailure('Failed to import')
+      }
+    }
+
     onMounted(() => {
       updateData()
     })
@@ -146,9 +208,14 @@ export default {
       deleteItem,
       createItem,
       updateItem,
+      importClicked,
+      showImportForm,
+      showImportResult,
+      importResult,
+      exportData,
+      importData,
       selectionChange
     }
   }
 }
 </script>
-showForm = false

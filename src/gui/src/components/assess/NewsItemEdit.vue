@@ -51,7 +51,7 @@
 
         <code-editor
           v-model:content="news_item.content"
-          :placeholder="placeholder"
+          :placeholder="$t('enter.content_placeholder')"
         />
       </v-card-text>
     </v-card>
@@ -70,7 +70,7 @@
 
 <script>
 import { computed, ref, onMounted } from 'vue'
-import { addNewsItem, patchNewsItem } from '@/api/assess'
+import { addNewsItem, patchNewsItem, groupAction } from '@/api/assess'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import { useUserStore } from '@/stores/UserStore'
 import CodeEditor from '@/components/common/CodeEditor.vue'
@@ -89,6 +89,11 @@ export default {
       type: Object,
       default: () => {},
       required: false
+    },
+    storyId: {
+      type: String,
+      default: '',
+      required: false
     }
   },
   setup(props) {
@@ -98,6 +103,9 @@ export default {
     const router = useRouter()
     const { t } = useI18n()
     const submitText = computed(() => {
+      if (props.storyId) {
+        return t('enter.add_to_story')
+      }
       return edit.value ? t('button.update') : t('button.create')
     })
 
@@ -108,7 +116,7 @@ export default {
       link: '',
       source: 'manual',
       osint_source_id: 'manual',
-      author: '',
+      author: userStore.name,
       published: new Date(),
       collected: '',
       attributes: []
@@ -144,25 +152,22 @@ export default {
         return
       }
 
-      news_item.value.author = userStore.name
       const d = new Date()
       news_item.value.collected = d.toISOString()
 
       try {
         const result = await addNewsItem(news_item.value)
-
+        let new_story = result.data.id
+        if (props.storyId) {
+          await groupAction([props.storyId, new_story])
+          new_story = props.storyId
+        }
         notifySuccess(result)
-        router.push('/story/' + result.data.ids[0])
+        router.push('/story/' + new_story)
       } catch (e) {
         notifyFailure(e)
       }
     }
-
-    const placeholder = `Article content here...
-
-
-
-    `
 
     onMounted(() => {
       if (props.newsItemProp) {
@@ -174,7 +179,6 @@ export default {
       news_item,
       form,
       rules,
-      placeholder,
       readOnly,
       submitText,
       submit

@@ -1,8 +1,8 @@
 from flask import request, Flask
 from flask.views import MethodView
 from urllib.parse import unquote
+from flask_jwt_extended import current_user
 
-from core.managers import auth_manager
 from core.managers.sse_manager import sse_manager
 from core.log import logger
 from core.managers.auth_manager import auth_required
@@ -15,26 +15,25 @@ from core.service.news_item import NewsItemService
 class OSINTSourceGroupsList(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self):
-        return osint_source.OSINTSourceGroup.get_all_for_api(filter_args=None, user=auth_manager.get_user_from_jwt())
+        return osint_source.OSINTSourceGroup.get_all_for_assess_api(user=current_user)
 
 
 class OSINTSourcesList(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self):
-        return osint_source.OSINTSource.get_all_for_api(filter_args=None, user=auth_manager.get_user_from_jwt())
+        return osint_source.OSINTSource.get_all_for_assess_api(user=current_user)
 
 
 class NewsItems(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self):
-        user = auth_manager.get_user_from_jwt()
         filter_keys = ["search" "read", "important", "relevant", "in_analyze", "range", "sort"]
         filter_args: dict[str, str | int] = {k: v for k, v in request.args.items() if k in filter_keys}
 
         filter_args["limit"] = min(int(request.args.get("limit", 20)), 1000)
         page = int(request.args.get("page", 0))
         filter_args["offset"] = min(int(request.args.get("offset", page * filter_args["limit"])), (2**31) - 1)
-        return news_item.NewsItem.get_all_for_api(filter_args, user)
+        return news_item.NewsItem.get_all_for_api(filter_args, current_user)
 
     @auth_required("ASSESS_CREATE")
     @validate_json
@@ -43,7 +42,7 @@ class NewsItems(MethodView):
         if not data_json:
             return {"error": "No NewsItems in JSON Body"}, 422
 
-        result, status = story.Story.add_news_items([data_json])
+        result, status = story.Story.add_single_news_item(data_json)
         sse_manager.news_items_updated()
         return result, status
 
@@ -56,30 +55,20 @@ class NewsItem(MethodView):
     @auth_required("ASSESS_UPDATE")
     @validate_json
     def put(self, item_id):
-        user = auth_manager.get_user_from_jwt()
-        if not user:
-            return {"error": "Invalid User"}, 403
-        response, code = NewsItemService.update(item_id, request.json, user)
+        response, code = NewsItemService.update(item_id, request.json, current_user)
         sse_manager.news_items_updated()
         return response, code
 
     @auth_required("ASSESS_UPDATE")
     @validate_json
     def patch(self, item_id):
-        user = auth_manager.get_user_from_jwt()
-        if not user:
-            return {"error": "Invalid User"}, 403
-        response, code = NewsItemService.update(item_id, request.json, user)
+        response, code = NewsItemService.update(item_id, request.json, current_user)
         sse_manager.news_items_updated()
         return response, code
 
     @auth_required("ASSESS_DELETE")
     def delete(self, item_id):
-        user = auth_manager.get_user_from_jwt()
-        if not user:
-            return {"error": "Invalid User"}, 403
-
-        response, code = NewsItemService.delete(item_id, user)
+        response, code = NewsItemService.delete(item_id, current_user)
         sse_manager.news_items_updated()
         return response, code
 
@@ -115,7 +104,7 @@ class Stories(MethodView):
             filter_args["offset"] = min(offset, (2**31) - 1)
 
             logger.debug(filter_args)
-            return story.Story.get_by_filter_json(filter_args, auth_manager.get_user_from_jwt())
+            return story.Story.get_by_filter_json(filter_args, current_user)
         except Exception:
             logger.exception("Failed to get Stories")
             return {"error": "Failed to get Stories"}, 400
@@ -155,29 +144,25 @@ class Story(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self, story_id: str):
         logger.debug(f"Getting story {story_id}")
-        user = auth_manager.get_user_from_jwt()
-        return story.Story.get_for_api(story_id, user)
+        return story.Story.get_for_api(story_id, current_user)
 
     @auth_required("ASSESS_UPDATE")
     @validate_json
     def put(self, story_id):
-        user = auth_manager.get_user_from_jwt()
-        response, code = story.Story.update(story_id, request.json, user)
+        response, code = story.Story.update(story_id, request.json, current_user)
         sse_manager.news_items_updated()
         return response, code
 
     @auth_required("ASSESS_DELETE")
     def delete(self, story_id):
-        user = auth_manager.get_user_from_jwt()
-        response, code = story.Story.delete_by_id(story_id, user)
+        response, code = story.Story.delete_by_id(story_id, current_user)
         sse_manager.news_items_updated()
         return response, code
 
     @auth_required("ASSESS_UPDATE")
     @validate_json
     def patch(self, story_id):
-        user = auth_manager.get_user_from_jwt()
-        response, code = story.Story.update(story_id, request.json, user)
+        response, code = story.Story.update(story_id, request.json, current_user)
         return response, code
 
 
@@ -185,12 +170,9 @@ class UnGroupNewsItem(MethodView):
     @auth_required("ASSESS_UPDATE")
     @validate_json
     def put(self):
-        user = auth_manager.get_user_from_jwt()
-
-        newsitem_ids = request.json
-        if not newsitem_ids:
+        if not (newsitem_ids := request.json):
             return {"error": "No news item ids provided"}, 400
-        response, code = story.Story.remove_news_items_from_story(newsitem_ids, user)
+        response, code = story.Story.remove_news_items_from_story(newsitem_ids, current_user)
         sse_manager.news_items_updated()
         return response, code
 
@@ -199,11 +181,9 @@ class UnGroupStories(MethodView):
     @auth_required("ASSESS_UPDATE")
     @validate_json
     def put(self):
-        user = auth_manager.get_user_from_jwt()
-        story_ids = request.json
-        if not story_ids:
+        if not (story_ids := request.json):
             return {"error": "No story ids provided"}, 400
-        response, code = story.Story.ungroup_multiple_stories(story_ids, user)
+        response, code = story.Story.ungroup_multiple_stories(story_ids, current_user)
         sse_manager.news_items_updated()
         return response, code
 
@@ -212,11 +192,9 @@ class GroupAction(MethodView):
     @auth_required("ASSESS_UPDATE")
     @validate_json
     def put(self):
-        user = auth_manager.get_user_from_jwt()
-        story_ids = request.json
-        if not story_ids:
+        if not (story_ids := request.json):
             return {"error": "No story ids provided"}, 400
-        response, code = story.Story.group_stories(story_ids, user)
+        response, code = story.Story.group_stories(story_ids, current_user)
         sse_manager.news_items_updated()
         return response, code
 

@@ -14,46 +14,6 @@ export const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
-      path: '/enter',
-      name: 'enter',
-      components: {
-        default: () => import('@/views/users/EnterView.vue')
-      },
-      meta: { requiresAuth: true, requiresPerm: Permissions.ASSESS_CREATE }
-    },
-    {
-      path: '/newsitem/:id',
-      name: 'newsitem',
-      components: {
-        default: () => import('@/views/users/NewsItemView.vue')
-      },
-      meta: { requiresAuth: true, requiresPerm: Permissions.ASSESS_ACCESS }
-    },
-    {
-      path: '/newsitem/:id/edit',
-      name: 'newsitemedit',
-      components: {
-        default: () => import('@/views/users/NewsItemEditView.vue')
-      },
-      meta: { requiresAuth: true, requiresPerm: Permissions.ASSESS_UPDATE }
-    },
-    {
-      path: '/story/:id',
-      name: 'story',
-      components: {
-        default: () => import('@/views/users/StoryView.vue')
-      },
-      meta: { requiresAuth: true, requiresPerm: Permissions.ASSESS_ACCESS }
-    },
-    {
-      path: '/story/:id/edit',
-      name: 'storyedit',
-      components: {
-        default: () => import('@/views/users/StoryEditView.vue')
-      },
-      meta: { requiresAuth: true, requiresPerm: Permissions.ASSESS_UPDATE }
-    },
-    {
       path: '/assess',
       name: 'assess',
       components: {
@@ -65,6 +25,51 @@ export const router = createRouter({
         requiresPerm: Permissions.ASSESS_ACCESS,
         title: 'Assess'
       }
+    },
+    {
+      path: '/enter/:storyId?',
+      name: 'enter',
+      components: {
+        default: () => import('@/views/users/EnterView.vue')
+      },
+      props: true,
+      meta: { requiresAuth: true, requiresPerm: Permissions.ASSESS_CREATE }
+    },
+    {
+      path: '/newsitem/:itemId',
+      name: 'newsitem',
+      components: {
+        default: () => import('@/views/users/NewsItemView.vue')
+      },
+      props: true,
+      meta: { requiresAuth: true, requiresPerm: Permissions.ASSESS_ACCESS }
+    },
+    {
+      path: '/newsitem/:itemId/edit',
+      name: 'newsitemedit',
+      components: {
+        default: () => import('@/views/users/NewsItemEditView.vue')
+      },
+      props: true,
+      meta: { requiresAuth: true, requiresPerm: Permissions.ASSESS_UPDATE }
+    },
+    {
+      path: '/story/:storyId',
+      name: 'story',
+      components: {
+        default: () => import('@/views/users/StoryView.vue')
+      },
+      props: true,
+      meta: { requiresAuth: true, requiresPerm: Permissions.ASSESS_ACCESS }
+    },
+    {
+      path: '/story/:storyId/edit',
+      name: 'storyedit',
+      components: {
+        default: () => import('@/views/users/StoryEditView.vue')
+      },
+      props: true,
+      meta: { requiresAuth: true, requiresPerm: Permissions.ASSESS_UPDATE }
     },
     {
       path: '/analyze',
@@ -81,11 +86,12 @@ export const router = createRouter({
       }
     },
     {
-      path: '/report/:id?',
+      path: '/report/:reportId?',
       name: 'report',
       components: {
         default: () => import('@/views/users/ReportView.vue')
       },
+      props: true,
       meta: { requiresAuth: true, requiresPerm: Permissions.ASSESS_ACCESS }
     },
     {
@@ -103,11 +109,12 @@ export const router = createRouter({
       }
     },
     {
-      path: '/product/:id?',
+      path: '/product/:productId?',
       name: 'product',
       components: {
         default: () => import('@/views/users/ProductView.vue')
       },
+      props: true,
       meta: { requiresAuth: true, requiresPerm: Permissions.ASSESS_ACCESS }
     },
     {
@@ -138,6 +145,7 @@ export const router = createRouter({
     {
       path: '/cluster/:cluster',
       name: 'cluster',
+      props: true,
       components: {
         default: () => import('@/views/users/ClusterView.vue')
       }

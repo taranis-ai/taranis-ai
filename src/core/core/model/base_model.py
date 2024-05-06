@@ -3,7 +3,9 @@ from datetime import datetime
 from enum import Enum
 import json
 from sqlalchemy.sql import Select
+from sqlalchemy.orm import Mapped
 import sqlalchemy
+from typing import TYPE_CHECKING
 
 from core.managers.db_manager import db
 from core.log import logger
@@ -15,13 +17,14 @@ class BaseModel(db.Model):
     __allow_unmapped__ = True
     __abstract__ = True
 
+    if TYPE_CHECKING:
+        id: Mapped[int | str]
+
     def __str__(self) -> str:
         return f"{self.__class__.__name__}"
-        # return f"{self.__class__.__name__} {self.to_json()}"
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}"
-        # return f"{self.__class__.__name__} {self.to_json()}"
 
     def update(self, item: dict[str, Any]) -> tuple[dict, int]:
         for key, value in item.items():
@@ -29,7 +32,7 @@ class BaseModel(db.Model):
                 setattr(self, key, value)
 
         db.session.commit()
-        return {"message": f"Successfully updated {self.id}"}, 200
+        return {"message": "Successfully updated"}, 200
 
     def to_dict(self) -> dict[str, Any]:
         table = getattr(self, "__table__", None)
@@ -87,7 +90,7 @@ class BaseModel(db.Model):
         return [obj.to_dict() for obj in objects]
 
     @classmethod
-    def get(cls: Type[T], item_id) -> T | None:
+    def get(cls: Type[T], item_id: str | int) -> T | None:
         if (isinstance(item_id, int) and (item_id < 0 or item_id > 2**63 - 1)) or item_id is None:
             return None
         return db.session.get(cls, item_id)
@@ -95,6 +98,10 @@ class BaseModel(db.Model):
     @classmethod
     def get_all(cls: Type[T]) -> Sequence[T] | None:
         return db.session.execute(db.select(cls)).scalars().all()
+
+    @classmethod
+    def get_bulk(cls: Type[T], item_ids: list[int] | list[str]) -> list[T]:
+        return list(db.session.execute(db.select(cls).filter(cls.id.in_(item_ids))).scalars().all())
 
     @classmethod
     def get_for_api(cls, item_id) -> tuple[dict[str, Any], int]:

@@ -6,7 +6,7 @@ class TestAnalyzeApi(BaseTest):
 
     def test_create_Report(self, client, auth_header, cleanup_report_item):
         """
-        This test queries the /api/analyze/report-items endpoint with a POST request.
+        POST to /api/analyze/report-items endpoint to create a report.
         It expects a valid data and a valid status-code
         """
         response = self.assert_post_ok(client, "report-items", auth_header=auth_header, json_data=cleanup_report_item)
@@ -14,7 +14,7 @@ class TestAnalyzeApi(BaseTest):
 
     def test_get_Reports(self, client, auth_header, cleanup_report_item):
         """
-        This test queries the /api/analyze/report-items endpoint.
+        GET /api/analyze/report-items endpoint.
         It expects a valid data and a valid status-code
         """
         response = self.assert_get_ok(client, "report-items", auth_header)
@@ -25,7 +25,7 @@ class TestAnalyzeApi(BaseTest):
 
     def test_update_report(self, client, auth_header, cleanup_report_item):
         """
-        This test sends a PUT request to the /api/analyze/report-items/<report_id> endpoint to update an existing report
+        PUT to /api/analyze/report-items/<report_id> endpoint to update an existing report
         It expects the response to reflect the updated report information
         """
         updated_data = {"title": "Updated Report Title"}
@@ -38,7 +38,7 @@ class TestAnalyzeApi(BaseTest):
 
     def test_clone_report(self, client, auth_header, cleanup_report_item):
         """
-        This test sends a POST request to the /api/analyze/report-items/<report_id>/clone endpoint to clone an existing report.
+        POST to /api/analyze/report-items/<report_id>/clone endpoint to clone an existing report.
         It expects the response to include the cloned report's details
         """
         report_id = cleanup_report_item["id"]
@@ -48,7 +48,7 @@ class TestAnalyzeApi(BaseTest):
 
     def test_get_report_stories(self, client, auth_header, cleanup_report_item):
         """
-        This test queries the /api/analyze/report-items/<report_id>/stories endpoint with a GET request to retrieve stories associated with a report.
+        GET /api/analyze/report-items/<report_id>/stories to retrieve stories associated with a report.
         It expects a list of stories in the response
         """
         report_id = cleanup_report_item["id"]
@@ -58,7 +58,7 @@ class TestAnalyzeApi(BaseTest):
 
     def test_update_report_stories(self, client, auth_header, cleanup_report_item, stories):
         """
-        This test sends a PUT request to the /api/analyze/report-items/<report_id>/stories endpoint to update stories within a report.
+        PUT to /api/analyze/report-items/<report_id>/stories endpoint to update stories within a report.
         It expects the updated stories to be reflected in the response
         """
         report_id = cleanup_report_item["id"]
@@ -70,7 +70,7 @@ class TestAnalyzeApi(BaseTest):
 
     def test_delete_report(self, client, auth_header, cleanup_report_item):
         """
-        This test sends a DELETE request to the /api/analyze/report-items/<report_id> endpoint to remove a report.
+        DELETE to /api/analyze/report-items/<report_id> endpoint to remove a report.
         It expects a successful deletion indicated by a 204 No Content status code
         """
         report_id = cleanup_report_item["id"]

@@ -13,15 +13,19 @@
 import { ref, onBeforeMount } from 'vue'
 import { getReportItem } from '@/api/analyze'
 import ReportItem from '@/components/analyze/ReportItem.vue'
-import { useRoute } from 'vue-router'
 
 export default {
   name: 'ReportView',
   components: {
     ReportItem
   },
-  setup() {
-    const route = useRoute()
+  props: {
+    reportId: {
+      type: String,
+      required: true
+    }
+  },
+  setup(props) {
     const default_report_item = ref({
       title: '',
       completed: false,
@@ -33,9 +37,9 @@ export default {
     const readyToRender = ref(false)
 
     const loadReportItem = async () => {
-      console.debug('Loading report item', route.params.id)
-      if (route.params.id) {
-        const response = await getReportItem(route.params.id)
+      console.debug('Loading report item', props.reportId)
+      if (props.reportId) {
+        const response = await getReportItem(props.reportId)
         return response.data
       }
       edit.value = false

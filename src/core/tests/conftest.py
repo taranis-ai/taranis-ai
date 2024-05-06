@@ -1,11 +1,17 @@
+import os
+import sys
 import pytest
 from dotenv import load_dotenv
 from sqlalchemy.orm import scoped_session, sessionmaker
 
-# from sqlalchemy import event
-# from sqlalchemy.orm import sessionmaker
+base_dir = os.path.dirname(os.path.abspath(__file__))
+env_file = os.path.join(base_dir, ".env")
+current_path = os.getcwd()
 
-load_dotenv(dotenv_path="tests/.env", override=True)
+if not current_path.endswith("src/core"):
+    sys.exit("Tests must be run from within src/core")
+
+load_dotenv(dotenv_path=env_file, override=True)
 
 
 @pytest.fixture(scope="session")
@@ -65,10 +71,11 @@ def session(db, request):
 @pytest.fixture(scope="session")
 def access_token(app):
     from flask_jwt_extended import create_access_token
+    from core.model.user import User
 
     with app.app_context():
         return create_access_token(
-            identity="admin",
+            identity=User.find_by_name("admin"),
             additional_claims={
                 "user_claims": {
                     "id": "admin",
@@ -92,10 +99,11 @@ def api_header():
 @pytest.fixture(scope="session")
 def access_token_user_permissions(app):
     from flask_jwt_extended import create_access_token
+    from core.model.user import User
 
     with app.app_context():
         return create_access_token(
-            identity="user",
+            identity=User.find_by_name("user"),
             additional_claims={
                 "user_claims": {
                     "id": "user",
@@ -110,9 +118,16 @@ def access_token_user_permissions(app):
 def access_token_no_permissions(app):
     from flask_jwt_extended import create_access_token
 
+    class FakeUser:
+        @property
+        def username(self):
+            return "nobody"
+
+    nobody = FakeUser()
+
     with app.app_context():
         return create_access_token(
-            identity="nobody",
+            identity=nobody,
             additional_claims={
                 "user_claims": {
                     "id": "nobody",

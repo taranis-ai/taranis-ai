@@ -5,7 +5,6 @@
 <script>
 import NewsItemEdit from '@/components/assess/NewsItemEdit.vue'
 import { ref, onBeforeMount } from 'vue'
-import { useRoute } from 'vue-router'
 import { getNewsItem } from '@/api/assess'
 
 export default {
@@ -13,13 +12,17 @@ export default {
   components: {
     NewsItemEdit
   },
-  setup() {
-    const route = useRoute()
-
+  props: {
+    itemId: {
+      type: String,
+      required: true
+    }
+  },
+  setup(props) {
     const news_item = ref(null)
 
     onBeforeMount(async () => {
-      const response = await getNewsItem(route.params.id)
+      const response = await getNewsItem(props.itemId)
       news_item.value = response.data
       news_item.value.id = response.data.id
     })

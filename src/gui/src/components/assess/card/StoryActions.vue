@@ -237,10 +237,6 @@
             "
           />
         </v-list-item>
-        <v-list-item :to="`/story/${story.id}/edit`">
-          <v-tooltip activator="parent" text="edit story" location="start" />
-          <v-icon icon="mdi-book-edit-outline" />
-        </v-list-item>
 
         <v-list-item @click.stop="shareViaMail">
           <v-tooltip activator="parent" location="start" text="send via mail" />
@@ -279,11 +275,29 @@
             text="move selection to story"
           />
         </v-list-item>
+        <v-list-item :to="`/story/${story.id}/edit`">
+          <v-tooltip activator="parent" text="edit story" location="start" />
+          <v-icon icon="mdi-book-edit-outline" />
+        </v-list-item>
+
         <v-list-item
           v-if="allow_edit"
           :to="`/newsitem/${story.news_items[0].id}/edit`"
         >
-          <v-icon icon="mdi-pencil-outline" title="edit" />
+          <v-icon icon="mdi-pencil-outline" title="edit news item" />
+          <v-tooltip
+            activator="parent"
+            location="start"
+            text="edit news item"
+          />
+        </v-list-item>
+        <v-list-item :to="`/enter/${story.id}`">
+          <v-icon icon="mdi-pencil" title="create news item" />
+          <v-tooltip
+            activator="parent"
+            location="start"
+            text="create news item"
+          />
         </v-list-item>
         <v-list-item @click.stop="deleteDialog = true">
           <v-icon icon="mdi-delete-outline" title="delete" />

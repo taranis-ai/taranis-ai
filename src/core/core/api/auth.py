@@ -1,7 +1,7 @@
 from urllib.parse import quote
 from flask import redirect, make_response, request, Flask
 from flask.views import MethodView
-from flask_jwt_extended import jwt_required, get_jwt, verify_jwt_in_request
+from flask_jwt_extended import jwt_required, get_jwt, current_user
 
 
 from core.managers import auth_manager
@@ -29,18 +29,15 @@ class Login(MethodView):
 class Refresh(MethodView):
     @jwt_required()
     def get(self):
-        return auth_manager.refresh(auth_manager.get_user_from_jwt())
+        return auth_manager.refresh(current_user)
 
 
 class Logout(MethodView):
-    def get(self):
-        try:
-            verify_jwt_in_request()
-            jti = get_jwt()["jti"]
-            auth_manager.logout(jti)
-            return {"message": "Successfully logged out"}, 200
-        except Exception:
-            return {"error": "Failed to log out"}, 500
+    @jwt_required()
+    def delete(self):
+        jti = get_jwt()["jti"]
+        auth_manager.logout(jti)
+        return {"message": "Successfully logged out"}, 200
 
 
 def initialize(app: Flask):

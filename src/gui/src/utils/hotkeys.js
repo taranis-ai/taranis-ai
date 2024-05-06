@@ -2,6 +2,8 @@ import { useHotkeys } from 'vue-use-hotkeys'
 import { useAssessStore } from '@/stores/AssessStore'
 import { useRouter, useRoute } from 'vue-router'
 
+// TODO: Consider switching to https://vueuse.org/core/useMagicKeys/
+
 export function omniSearchHotkey() {
   useHotkeys('ctrl+k', (event, handler) => {
     event.preventDefault()

@@ -63,7 +63,6 @@ def cleanup_word_lists(app, request):
 
         def teardown():
             with app.app_context():
-                [WordList.delete(source.id) for source in WordList.get_all() if source.name == "Test wordlist"]
                 if WordList.get(42):
                     print("Deleting test word list 42")
                     WordList.delete(42)

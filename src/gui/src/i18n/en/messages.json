@@ -182,6 +182,8 @@
         "source": "Source",
         "comment": "Comment",
         "summary": "Summary",
+        "add_to_story": "Add to story",
+        "content_placeholder": "Enter your content here...\n\n\n",
         "comment_placeholder": "Enter your comment here...\n\n\n",
         "summary_placeholder": "Enter your summary here...\n\n\n"
     },
@@ -393,14 +395,14 @@
         "name": "Name",
         "organization": "Organization",
         "password": "Password",
-        "password_check": "Retype Password",
         "permissions": "Permissions",
         "removed": "User was successfully removed",
         "removed_error": "User is in use and could not be deleted",
         "roles": "Roles",
         "successful": "New user was successfully added",
         "successful_edit": "User was successfully updated",
-        "username": "Username"
+        "username": "Username",
+        "import": "Import"
     },
     "user_menu": {
         "logout": "Logout",

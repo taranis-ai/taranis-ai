@@ -1,6 +1,6 @@
-openapi: 3.0.3
+openapi: 3.1.0
 info:
-  title: Taranis
+  title: Taranis AI
   contact:
     name: Benjamin Akhras
     email: benjamin.akhras@ait.ac.at
@@ -8,17 +8,18 @@ info:
     The Taranis API provides endpoints for the Taranis is an OSINT gathering and analysis tool.
   license:
     name: EUPL-1.2
-  version: 0.1.8
+    url: https://eupl.eu/1.2/en/
+  version: 0.5.0
 externalDocs:
   description: GitHub
   url: https://github.com/taranis-ai/taranis-ai/
 servers:
   - url: /api
     description: default
-  - url: https://dev.taranis.cyberrange.rocks/api
-    description: dev
-  - url: https://taranis.cyberrange.rocks/api
-    description: main
+  - url: https://dev.taranis.ai/api
+    description: master
+  - url: https://stage.taranis.ai/api
+    description: stage
 tags:
   - name: auth
     description: session-related functionality
@@ -77,18 +78,11 @@ paths:
           description: resource not found
         '401':
           description: authentication error (username + password)
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
         '500':
           description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
 
     get:
       tags:
@@ -109,13 +103,9 @@ paths:
         '400':
           description: invalid goto url
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
         '500':
           description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
 
   /auth/refresh:
     get:
@@ -130,22 +120,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/resp.auth.JWT'
         '401':
-          description: authentication error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
         '500':
           description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
 
   /auth/logout:
-    get:
+    delete:
       tags:
         - auth
       description: invalidate API token (i.e. logout)
@@ -168,13 +150,9 @@ paths:
         '400':
           description: invalid goto url
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
         '500':
           description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
 
   /isalive:
     get:
@@ -192,11 +170,11 @@ paths:
                 properties:
                   isalive:
                     type: boolean
-                    example: True
-        '404':
-          $ref: "#/components/schemas/notFound"
+                    examples: [True]
   /users/profile:
     get:
+      security:
+      - UserAuth: []
       tags: [users]
       description: get the user's profile
       responses:
@@ -207,20 +185,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/user_profile'
         '401':
-          description: authentication error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
         '500':
           description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
     put:
+      security:
+      - UserAuth: []
       tags: [users]
       description: update the user's profile
       requestBody:
@@ -237,70 +209,16 @@ paths:
               schema:
                 $ref: '#/components/schemas/user_profile'
         '401':
-          description: authentication error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
         '500':
           description: Internal server error
-  /users/my-product-types:
-    get:
-      tags: [users]
-      description: get the user's product types
-      responses:
-        '200':
-          description: the user's product types
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  total_count:
-                    type: integer
-                  items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/product_type'
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-  /users/my-publisher-presets:
-    get:
-      tags: [users]
-      description: get the user's publisher presets
-      responses:
-        '200':
-          description: the user's publisher presets
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  total_count:
-                    type: integer
-                  items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/publisher_preset'
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
 
   /analyze/report-types:
     get:
+      security:
+      - UserAuth: []
       tags: [analyze]
       description: get the types of report items
       responses:
@@ -318,15 +236,13 @@ paths:
                     items:
                       $ref: '#/components/schemas/report_item_type'
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
   /analyze/report-items:
     get:
+      security:
+      - UserAuth: []
       tags: [analyze]
       description: get the report items
       parameters:
@@ -377,15 +293,13 @@ paths:
                     items:
                       $ref: '#/components/schemas/report_item'
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
 
     post:
+      security:
+      - UserAuth: []
       tags: [analyze]
       description: add report item
       requestBody:
@@ -400,18 +314,15 @@ paths:
           content:
             application/text:
               schema:
-                type: integer
-                example: 42
+                type: string
+                examples:
+                  - "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
         '400':
           description: invalid input data
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
 
   /analyze/report-items/{report_item_id}:
     parameters:
@@ -421,6 +332,8 @@ paths:
         schema:
           type: string
     get:
+      security:
+      - UserAuth: []
       tags: [analyze]
       description: get a specific report item
       responses:
@@ -433,14 +346,12 @@ paths:
         '400':
           description: invalid request
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
     put:
+      security:
+      - UserAuth: []
       tags: [analyze]
       description: modify a specific report item
       requestBody:
@@ -459,14 +370,12 @@ paths:
         '400':
           description: invalid request
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
     delete:
+      security:
+      - UserAuth: []
       tags: [analyze]
       description: delete a specific report item
       responses:
@@ -476,17 +385,12 @@ paths:
             application/text:
               schema:
                 type: string
-                example: success
         '400':
           description: invalid request
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
   /analyze/report-items/{report_item_id}/locks:
     parameters:
       - name: report_item_id
@@ -495,6 +399,8 @@ paths:
         schema:
           type: string
     get:
+      security:
+      - UserAuth: []
       tags: [analyze]
       operationId: ReportItemLocks
       description: get a report item's field locks
@@ -508,13 +414,9 @@ paths:
         '400':
           description: invalid request
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
   /analyze/report-items/{report_item_id}/lock:
     parameters:
       - name: report_item_id
@@ -523,6 +425,8 @@ paths:
         schema:
           type: string
     put:
+      security:
+      - UserAuth: []
       tags: [analyze]
       description: lock the specified field
       responses:
@@ -535,13 +439,9 @@ paths:
         '400':
           description: invalid request
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
   /analyze/report-items/{report_item_id}/unlock:
     parameters:
       - name: report_item_id
@@ -550,6 +450,8 @@ paths:
         schema:
           type: string
     put:
+      security:
+      - UserAuth: []
       tags: [analyze]
       description: unlock the specified field
       responses:
@@ -562,15 +464,13 @@ paths:
         '400':
           description: invalid request
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
   /assess/osint-source-group-list:
     get:
+      security:
+      - UserAuth: []
       tags: [assess]
       description: get all the user's OSINT source groups
       responses:
@@ -588,15 +488,13 @@ paths:
                     items:
                       $ref: '#/components/schemas/osint_source_group'
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
   /assess/osint-sources-list:
     get:
+      security:
+      - UserAuth: []
       tags: [assess]
       description: get manual OSINT sources
       responses:
@@ -610,15 +508,13 @@ paths:
                   items:
                     $ref: '#/components/schemas/osint_source'
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
   /assess/news-items:
     post:
+      security:
+      - UserAuth: []
       tags: [assess]
       description: add news item
       requestBody:
@@ -636,13 +532,9 @@ paths:
         '400':
           description: failed to decode the request body
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
         '409':
           description: news item already exists
         '422':
@@ -651,6 +543,8 @@ paths:
           description: Adding news item failed
   /assess/stories:
     get:
+      security:
+      - UserAuth: []
       tags: [assess]
       description: get stories by filters
       parameters:
@@ -730,13 +624,9 @@ paths:
         '400':
           description: erronous input data
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
   /assess/news-items/{item_id}:
     parameters:
       - name: item_id
@@ -747,6 +637,8 @@ paths:
           minimum: 1
           format: int32
     get:
+      security:
+      - UserAuth: []
       tags: [assess]
       description: get the specified news item
       responses:
@@ -758,14 +650,12 @@ paths:
                 type: object
 
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
     put:
+      security:
+      - UserAuth: []
       tags: [assess]
       description: modify the specified news item
       requestBody:
@@ -790,14 +680,12 @@ paths:
         '400':
           description: erronous input data
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
     delete:
+      security:
+      - UserAuth: []
       tags: [assess]
       description: delete the specified news item
       responses:
@@ -810,11 +698,7 @@ paths:
         '400':
           description: cant delete news item
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '500':
           description: story in use
           content:
@@ -822,7 +706,7 @@ paths:
               schema:
                 type: object
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
 
   /assess/story/{story_id}:
     parameters:
@@ -832,6 +716,8 @@ paths:
         schema:
           type: string
     get:
+      security:
+      - UserAuth: []
       tags: [assess]
       description: get the specified story
       responses:
@@ -844,14 +730,12 @@ paths:
         '400':
           description: invalid story_id
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
     put:
+      security:
+      - UserAuth: []
       tags: [assess]
       description: modify the specified story
       requestBody:
@@ -883,14 +767,12 @@ paths:
           description: invalid story_id
 
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
     delete:
+      security:
+      - UserAuth: []
       tags: [assess]
       description: delete the specified story
       responses:
@@ -904,22 +786,20 @@ paths:
           description: invalid story_id
 
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '500':
           description: story in use
           content:
             application/json:
               schema:
                 type: string
-                example: "Story is in use"
+                examples: ["Story is in use"]
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
   /assess/stories/group:
     put:
+      security:
+      - UserAuth: []
       tags: [assess]
       description: Group News Items to an Story
       requestBody:
@@ -942,16 +822,14 @@ paths:
         '400':
           description: no newsitem_ids provided
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
 
   /assess/stories/ungroup:
     put:
+      security:
+      - UserAuth: []
       tags: [assess]
       description: Remove News Items from an story
       requestBody:
@@ -972,16 +850,14 @@ paths:
         '400':
           description: no newsitem_ids provided
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
 
-  /assets/asset-groups:
+  /asset-groups:
     get:
+      security:
+      - UserAuth: []
       tags: [assets]
       description: get and add to the user's asset groups
       responses:
@@ -999,14 +875,12 @@ paths:
                     items:
                       $ref: '#/components/schemas/asset_group.presentation'
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
     post:
+      security:
+      - UserAuth: []
       tags: [assets]
       description: add new asset to the user's asset groups
       requestBody:
@@ -1022,14 +896,10 @@ paths:
               schema:
                 type: string
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
-  /assets/asset-groups/{group_id}:
+          $ref: "#/components/responses/404NotFound"
+  /asset-groups/{group_id}:
     parameters:
       - name: group_id
         in: path
@@ -1037,6 +907,8 @@ paths:
         schema:
           type: string
     put:
+      security:
+      - UserAuth: []
       tags: [assets]
       description: update an asset group
       requestBody:
@@ -1052,14 +924,12 @@ paths:
               schema:
                 type: string
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
     delete:
+      security:
+      - UserAuth: []
       tags: [assets]
       description: delete an asset group
       responses:
@@ -1070,242 +940,14 @@ paths:
               schema:
                 type: string
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
-  /assets/asset-groups/{group_id}/assets:
-    parameters:
-      - name: group_id
-        in: path
-        required: true
-        schema:
-          type: string
-    get:
-      tags: [assets]
-      description: get all the group's assets
-      parameters:
-        - name: search
-          in: query
-          schema:
-            type: string
-        - name: sort
-          in: query
-          schema:
-            type: string
-        - name: vulnerable
-          in: query
-          schema:
-            type: string
-      responses:
-        '200':
-          description: DESCRIPTION
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  total_count:
-                    type: integer
-                  items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/asset.presentation'
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-    post:
-      tags: [assets]
-      description: add an assets to the group
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/asset'
-      responses:
-        '200':
-          description: the asset has been added
-          content:
-            application/json:
-              schema:
-                type: string
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-  /assets/asset-groups/{group_id}/assets/{asset_id}:
-    parameters:
-      - name: group_id
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: asset_id
-        in: path
-        required: true
-        schema:
-          type: integer
-    put:
-      tags: [assets]
-      description: update asset
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/asset'
-      responses:
-        '200':
-          description: the asset has been updated
-          content:
-            application/json:
-              schema:
-                type: string
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-    delete:
-      tags: [assets]
-      description: delete the asset
-      responses:
-        '200':
-          description: the asset has been deleted
-          content:
-            application/json:
-              schema:
-                type: string
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-
-  /assets/asset-groups/{group_id}/assets/{asset_id}/vulnerabilities/{vulnerability_id}:
-    parameters:
-      - name: group_id
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: asset_id
-        in: path
-        required: true
-        schema:
-          type: integer
-      - name: vulnerability_id
-        in: path
-        required: true
-        schema:
-          type: integer
-    put:
-      tags: [assets]
-      description: update the status of the vulnerability
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                solved:
-                  type: boolean
-      responses:
-        '200':
-          description: the status of the vulnerability has been updated
-          content:
-            application/json:
-              schema:
-                type: string
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-  /assets/attributes/cpe:
-    get:
-      tags: [assets]
-      description: get CPE attribute
-      responses:
-        '200':
-          description: the attribute ID
-          content:
-            application/json:
-              schema:
-                type: string
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-  /assets/attributes/cpe/enums:
-    get:
-      tags: [assets]
-      description: get CPE attribute enums
-      parameters:
-        - name: search
-          in: query
-          schema:
-            type: string
-        - name: offset
-          in: query
-          schema:
-            type: integer
-            minimum: 0
-            format: int32
-        - name: limit
-          in: query
-          schema:
-            type: string
-      responses:
-        '200':
-          description: the attribute enums
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  total_count:
-                    type: integer
-                  items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/attribute_enum'
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
-
+          $ref: "#/components/responses/404NotFound"
 
   /worker/osint-sources/{source_id}:
     get:
+      security:
+      - APIKey: []
       description: Get OSINT source by ID
       parameters:
         - name: source_id
@@ -1319,35 +961,69 @@ paths:
           description: OK
         '404':
           description: Not found
+        '401':
+          $ref: "#/components/responses/401Unauthorized"
 
   /worker/bots:
     get:
+      security:
+      - APIKey: []
       description: Get all bots
       responses:
         '200':
           description: OK
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
 
   /worker/stories:
     get:
+      security:
+      - APIKey: []
       description: Get stories
       responses:
         '200':
           description: OK
         '401':
-          description: authorization error
+          $ref: "#/components/responses/401Unauthorized"
+  /worker/tags:
+    get:
+      security:
+      - APIKey: []
+      description: Get all tags
+      responses:
+        '200':
+          description: OK
+        '401':
+          $ref: "#/components/responses/401Unauthorized"
+
+    put:
+      security:
+      - APIKey: []
+      tags: [bots]
+      description: update news item tags
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: tag has been updated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/resp.auth.error'
+                type: string
+        '400':
+          description: invalid tag or no tag provided
+        '401':
+          $ref: "#/components/responses/401Unauthorized"
+        '404':
+          $ref: "#/components/responses/404NotFound"
 
   /beat/schedule:
     get:
+      security:
+      - APIKey: []
       description: Get all schedule entries
       responses:
         '200':
@@ -1355,13 +1031,11 @@ paths:
         '404':
           description: Not found
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
 
     put:
+      security:
+      - APIKey: []
       description: Sync schedule entries
       requestBody:
         required: true
@@ -1377,13 +1051,11 @@ paths:
         '400':
           description: Bad request
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
   /beat/schedule/{schedule_id}:
     get:
+      security:
+      - APIKey: []
       description: Get schedule entry by ID
       parameters:
         - name: schedule_id
@@ -1398,13 +1070,11 @@ paths:
         '404':
           description: Not found
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
   /beat/next-run-time:
     put:
+      security:
+      - APIKey: []
       description: Update next run time
       requestBody:
         required: true
@@ -1418,14 +1088,12 @@ paths:
         '400':
           description: Bad request
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
 
   /bots/news-item:
     get:
+      security:
+      - APIKey: []
       tags: [bots]
       description: get all news items
       parameters:
@@ -1444,47 +1112,10 @@ paths:
                 items:
                   $ref: '#/components/schemas/news_item'
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
-  /worker/tags:
-    parameters:
-      - name: story_id
-        in: path
-        required: true
-        schema:
-          type: string
-    put:
-      tags: [bots]
-      description: update news item tags
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: array
-              items:
-                type: string
-      responses:
-        '200':
-          description: tag has been updated
-          content:
-            application/json:
-              schema:
-                type: string
-        '400':
-          description: invalid tag or no tag provided
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
+
   /bots/news-item/{news_item_id}/attributes:
     parameters:
       - name: news_item_id
@@ -1493,6 +1124,8 @@ paths:
         schema:
           type: string
     put:
+      security:
+      - APIKey: []
       tags: [bots]
       description: update news item attributes
       requestBody:
@@ -1508,15 +1141,13 @@ paths:
               schema:
                 type: string
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
   /bots/stories/group:
     put:
+      security:
+      - APIKey: []
       tags: [bots]
       description: Group News Items to a Story
       requestBody:
@@ -1536,16 +1167,14 @@ paths:
                 items:
                   type: string
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
 
   /config/attributes:
     get:
+      security:
+      - UserAuth: []
       tags: [config]
       description: get attributes
       parameters:
@@ -1568,14 +1197,12 @@ paths:
                     items:
                       $ref: '#/components/schemas/attribute'
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
     post:
+      security:
+      - UserAuth: []
       tags: [config]
       description: add attribute
       requestBody:
@@ -1587,13 +1214,9 @@ paths:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
   /config/attributes/{attribute_id}:
     parameters:
       - name: attribute_id
@@ -1601,7 +1224,12 @@ paths:
         required: true
         schema:
           type: integer
+          minimum: 1
+          maximum: 100000
+
     put:
+      security:
+      - UserAuth: []
       tags: [config]
       description: update attribute
       requestBody:
@@ -1613,27 +1241,21 @@ paths:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
     delete:
+      security:
+      - UserAuth: []
       tags: [config]
       description: delete attribute
       responses:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
   /config/attributes/{attribute_id}/enums:
     parameters:
       - name: attribute_id
@@ -1641,7 +1263,12 @@ paths:
         required: true
         schema:
           type: integer
+          minimum: 1
+          maximum: 100000
+
     get:
+      security:
+      - UserAuth: []
       tags: [config]
       description: get attribute enum
       parameters:
@@ -1661,14 +1288,12 @@ paths:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
     post:
+      security:
+      - UserAuth: []
       tags: [config]
       description: add attribute enums
       requestBody:
@@ -1687,13 +1312,9 @@ paths:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
   /config/attributes/{attribute_id}/enums/{enum_id}:
     parameters:
       - name: attribute_id
@@ -1701,14 +1322,22 @@ paths:
         required: true
         schema:
           type: integer
+          minimum: 1
+          maximum: 100000
+
       - name: enum_id
         in: path
         required: true
         schema:
           type: integer
+          minimum: 1
+          maximum: 100000
+
     put:
       tags: [config]
       description: update attribute enum
+      security:
+        - UserAuth: []
       requestBody:
         content:
           application/json:
@@ -1720,31 +1349,27 @@ paths:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
     delete:
       tags: [config]
       description: delete attribute enum
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
   /config/report-item-types:
     get:
       tags: [config]
       description: get report item types
+      security:
+        - UserAuth: []
       parameters:
         - name: search
           in: query
@@ -1765,16 +1390,14 @@ paths:
                     items:
                       $ref: '#/components/schemas/report_item_type.presentation'
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
     post:
       tags: [config]
       description: add report item type
+      security:
+        - UserAuth: []
       requestBody:
         content:
           application/json:
@@ -1784,13 +1407,9 @@ paths:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
   /config/report-item-types/{type_id}:
     parameters:
       - name: type_id
@@ -1798,9 +1417,14 @@ paths:
         required: true
         schema:
           type: integer
+          minimum: 1
+          maximum: 100000
+
     put:
       tags: [config]
       description: update report item type
+      security:
+        - UserAuth: []
       requestBody:
         content:
           application/json:
@@ -1810,31 +1434,27 @@ paths:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
     delete:
       tags: [config]
       description: delete report item type
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
   /config/product-types:
     get:
       tags: [config]
       description: get all product types
+      security:
+        - UserAuth: []
       parameters:
         - name: search
           in: query
@@ -1855,16 +1475,14 @@ paths:
                     items:
                       $ref: '#/components/schemas/product_type'
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
     post:
       tags: [config]
       description: add product type
+      security:
+        - UserAuth: []
       requestBody:
         content:
           application/json:
@@ -1874,13 +1492,9 @@ paths:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
   /config/product-types/{type_id}:
     parameters:
       - name: type_id
@@ -1888,9 +1502,14 @@ paths:
         required: true
         schema:
           type: integer
+          minimum: 1
+          maximum: 100000
+
     put:
       tags: [config]
       description: update product type
+      security:
+        - UserAuth: []
       requestBody:
         content:
           application/json:
@@ -1900,31 +1519,27 @@ paths:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
     delete:
       tags: [config]
       description: delete product type
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
   /config/permissions:
     get:
       tags: [config]
       description: get all permissions
+      security:
+        - UserAuth: []
       parameters:
         - name: search
           in: query
@@ -1945,17 +1560,15 @@ paths:
                     items:
                       $ref: '#/components/schemas/permission'
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
   /config/roles:
     get:
       tags: [config]
       description: get all roles
+      security:
+        - UserAuth: []
       parameters:
         - name: search
           in: query
@@ -1976,16 +1589,12 @@ paths:
                     items:
                       $ref: '#/components/schemas/role'
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/401Unauthorized"
     post:
       tags: [config]
       description: add role
+      security:
+        - UserAuth: []
       requestBody:
         content:
           application/json:
@@ -1995,13 +1604,9 @@ paths:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
   /config/roles/{role_id}:
     parameters:
       - name: role_id
@@ -2009,9 +1614,14 @@ paths:
         required: true
         schema:
           type: integer
+          minimum: 1
+          maximum: 100000
+
     put:
       tags: [config]
       description: update role
+      security:
+        - UserAuth: []
       requestBody:
         content:
           application/json:
@@ -2021,31 +1631,27 @@ paths:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
     delete:
       tags: [config]
       description: delete role
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
   /config/acls:
     get:
       tags: [config]
       description: get all ACL entries
+      security:
+        - UserAuth: []
       parameters:
         - name: search
           in: query
@@ -2066,16 +1672,14 @@ paths:
                     items:
                       $ref: '#/components/schemas/acl_entry.presentation'
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
     post:
       tags: [config]
       description: add ACL entry
+      security:
+        - UserAuth: []
       requestBody:
         content:
           application/json:
@@ -2085,13 +1689,9 @@ paths:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
   /config/acls/{acl_id}:
     parameters:
       - name: acl_id
@@ -2099,9 +1699,14 @@ paths:
         required: true
         schema:
           type: integer
+          minimum: 1
+          maximum: 100000
+
     put:
       tags: [config]
       description: update ACL entry
+      security:
+        - UserAuth: []
       requestBody:
         content:
           application/json:
@@ -2111,31 +1716,27 @@ paths:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
     delete:
       tags: [config]
       description: delete ACL entry
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
   /config/organizations:
     get:
       tags: [config]
       description: get all organizations
+      security:
+        - UserAuth: []
       parameters:
         - name: search
           in: query
@@ -2156,16 +1757,14 @@ paths:
                     items:
                       $ref: '#/components/schemas/organization.presentation'
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
     post:
       tags: [config]
       description: add organization
+      security:
+        - UserAuth: []
       requestBody:
         content:
           application/json:
@@ -2175,13 +1774,9 @@ paths:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
   /config/organizations/{organization_id}:
     parameters:
       - name: organization_id
@@ -2189,9 +1784,14 @@ paths:
         required: true
         schema:
           type: integer
+          minimum: 1
+          maximum: 100000
+
     put:
       tags: [config]
       description: update organization
+      security:
+        - UserAuth: []
       requestBody:
         content:
           application/json:
@@ -2201,32 +1801,28 @@ paths:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
     delete:
       tags: [config]
       description: delete organization
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
 
   /config/users:
     get:
       tags: [config]
       description: get all users
+      security:
+        - UserAuth: []
       parameters:
         - name: search
           in: query
@@ -2247,16 +1843,14 @@ paths:
                     items:
                       $ref: '#/components/schemas/user.presentation'
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
     post:
       tags: [config]
       description: add user
+      security:
+        - UserAuth: []
       requestBody:
         content:
           application/json:
@@ -2268,13 +1862,9 @@ paths:
         '400':
           description: could not create user in external auth system
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
   /config/users/{user_id}:
     parameters:
       - name: user_id
@@ -2282,9 +1872,13 @@ paths:
         required: true
         schema:
           type: integer
+          minimum: 1
+          maximum: 100000
     put:
       tags: [config]
       description: update user
+      security:
+        - UserAuth: []
       requestBody:
         content:
           application/json:
@@ -2296,34 +1890,30 @@ paths:
         '400':
           description: could not update user
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
     delete:
       tags: [config]
       description: delete user
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
         '400':
           description: could not delete user
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
   /config/workers:
     get:
       tags: [config]
       operationId: Workers
       description: get all workers connected for CELERY (via RabbitMQ)
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
@@ -2334,11 +1924,7 @@ paths:
                 items:
                   type: string
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '500':
           description: could not connect to RabbitMQ
   /config/worker-types:
@@ -2346,6 +1932,8 @@ paths:
       tags: [config]
       operationId: WorkerTypesGet
       description: get all worker types
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
@@ -2354,15 +1942,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/worker_type'
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
     post:
       tags: [config]
       operationId: WorkerTypesPut
       description: create new worker type
+      security:
+        - UserAuth: []
       requestBody:
         content:
           application/json:
@@ -2372,11 +1958,7 @@ paths:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
 
   /config/export-word-lists:
     parameters:
@@ -2389,6 +1971,8 @@ paths:
     get:
       tags: [config]
       description: export Wordlists
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
@@ -2397,17 +1981,15 @@ paths:
               schema:
                 $ref: '#/components/schemas/wordlist'
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
   /config/import-word-lists:
     post:
       tags: [config]
       description: import Wordlists
+      security:
+        - UserAuth: []
       requestBody:
         content:
           multipart/form-data:
@@ -2425,19 +2007,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/wordlist'
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
         '405':
           description: method not allowed
           content:
             'application/json': { }
             'application/xml': { }
-
   /config/word-lists/{word_list_id}/gather:
     parameters:
       - name: word_list_id
@@ -2445,10 +2022,14 @@ paths:
         required: true
         schema:
           type: integer
+          minimum: 1
+          maximum: 100000
     put:
       tags: [config]
       operationId: WordListGather
       description: gather wordlist entries
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
@@ -2460,11 +2041,7 @@ paths:
                   message:
                     type: string
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '500':
           description: could not connect to RabbitMQ
           content:
@@ -2480,6 +2057,8 @@ paths:
       tags: [config]
       operationId: WorkersQueueStatus
       description: get queue status for all workers
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
@@ -2492,6 +2071,8 @@ paths:
                     type: string
                   url:
                     type: string
+        '401':
+          $ref: "#/components/responses/401Unauthorized"
         '500':
           description: could not connect to RabbitMQ
           content:
@@ -2502,26 +2083,13 @@ paths:
                   error:
                     type: string
 
-  /config/workers/schedule:
-    get:
-      tags: [config]
-      description: get all scheduled tasks
-      operationId: QueueSchedule
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/scheduled_task'
-
   /config/parameters:
     get:
       tags: [config]
       description: get all parameters
       operationId: Parameters
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
@@ -2532,17 +2100,15 @@ paths:
                 items:
                   $ref: '#/components/schemas/parameter'
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
 
   /config/presenters:
     get:
       tags: [config]
       description: get all presenters
       operationId: Presenters
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
@@ -2558,17 +2124,15 @@ paths:
                     items:
                       $ref: '#/components/schemas/worker_type'
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
 
   /config/publishers:
     get:
       tags: [config]
       description: get all publishers
       operationId: Publishers
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
@@ -2584,11 +2148,7 @@ paths:
                     items:
                       $ref: '#/components/schemas/worker_type'
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
   /config/bots:
     get:
       tags: [config]
@@ -2599,6 +2159,8 @@ paths:
           in: query
           schema:
             type: string
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
@@ -2614,11 +2176,7 @@ paths:
                     items:
                       $ref: '#/components/schemas/bot'
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
     post:
       tags: [config]
       description: add bot
@@ -2628,6 +2186,8 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/bot'
+      security:
+        - UserAuth: []
       responses:
         '201':
           description: success
@@ -2641,11 +2201,7 @@ paths:
                   message:
                     type: string
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
 
   /config/bots/{bot_id}:
     parameters:
@@ -2653,20 +2209,18 @@ paths:
         in: path
         required: true
         schema:
-          type: integer
+          type: string
     delete:
       tags: [config]
       description: delete bot
       operationId: BotsDelete
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
     put:
       tags: [config]
       description: update bot
@@ -2676,15 +2230,13 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/bot'
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
 
   /config/bots/{bot_id}/execute:
     parameters:
@@ -2692,20 +2244,18 @@ paths:
         in: path
         required: true
         schema:
-          type: integer
+          type: string
     post:
       tags: [config]
       description: execute bot
       operationId: BotExecute
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
 
   /config/word-lists:
     get:
@@ -2716,6 +2266,8 @@ paths:
           in: query
           schema:
             type: string
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
@@ -2731,13 +2283,9 @@ paths:
                     items:
                       $ref: '#/components/schemas/wordlist'
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
     post:
       tags: [config]
       description: add wordlist
@@ -2746,17 +2294,15 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/wordlist'
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
   /config/word-lists/{word_list_id}:
     parameters:
       - name: word_list_id
@@ -2764,6 +2310,9 @@ paths:
         required: true
         schema:
           type: integer
+          minimum: 1
+          maximum: 100000
+
     put:
       tags: [config]
       description: update wordlist
@@ -2772,31 +2321,27 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/wordlist'
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
     delete:
       tags: [config]
       description: delete wordlist
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
   /config/osint-sources:
     get:
       tags: [config]
@@ -2806,6 +2351,8 @@ paths:
           in: query
           schema:
             type: string
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
@@ -2821,13 +2368,9 @@ paths:
                     items:
                       $ref: '#/components/schemas/osint_source'
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
     post:
       tags: [config]
       description: add OSINT source
@@ -2836,17 +2379,15 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/osint_source'
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
   /config/osint-sources/{osint_source_id}:
     parameters:
       - name: osint_source_id
@@ -2862,32 +2403,28 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/osint_source'
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
     delete:
       tags: [config]
       description: delete OSINT source
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
-  /osint-sources/{osint_source_id}/collect:
+          $ref: "#/components/responses/404NotFound"
+  /config/osint-sources/{osint_source_id}/collect:
     parameters:
       - name: osint_source_id
         in: path
@@ -2907,6 +2444,8 @@ paths:
                   type: array
                   items:
                     type: string
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
@@ -2915,12 +2454,8 @@ paths:
               schema:
                 type: object
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-  /osint-sources/collect:
+          $ref: "#/components/responses/401Unauthorized"
+  /config/osint-sources/collect:
     post:
       tags: [config]
       description: collect all OSINT sources
@@ -2934,6 +2469,8 @@ paths:
                   type: array
                   items:
                     type: string
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
@@ -2942,11 +2479,7 @@ paths:
               schema:
                 type: object
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
 
   /config/export-osint-sources:
     parameters:
@@ -2959,6 +2492,8 @@ paths:
     get:
       tags: [config]
       description: export OSINT sources
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
@@ -2967,13 +2502,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/osint_source.export'
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
   /config/import-osint-sources:
     post:
       tags: [config]
@@ -2987,6 +2518,8 @@ paths:
                 file:
                   type: string
                   format: json
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
@@ -2995,13 +2528,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/osint_source'
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
         '405':
           description: method not allowed
           content:
@@ -3016,6 +2545,8 @@ paths:
           in: query
           schema:
             type: string
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
@@ -3031,13 +2562,9 @@ paths:
                     items:
                       $ref: '#/components/schemas/osint_source_group'
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
     post:
       tags: [config]
       description: add OSINT source group
@@ -3046,17 +2573,15 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/osint_source_group'
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
   /config/osint-source-groups/{group_id}:
     parameters:
       - name: group_id
@@ -3072,32 +2597,28 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/osint_source_group'
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
     delete:
       tags: [config]
       description: delete OSINT source group
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
-  /config/publisher-preset:
+          $ref: "#/components/responses/404NotFound"
+  /config/publishers-presets:
     get:
       tags: [config]
       description: get all publisher preset
@@ -3106,6 +2627,8 @@ paths:
           in: query
           schema:
             type: string
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
@@ -3121,13 +2644,9 @@ paths:
                     items:
                       $ref: '#/components/schemas/publisher_preset.presentation'
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
     post:
       tags: [config]
       description: add publisher preset
@@ -3136,24 +2655,22 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/publisher_preset'
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
-  /config/publisher-preset/{preset_id}:
+          $ref: "#/components/responses/404NotFound"
+  /config/publishers-presets/{preset_id}:
     parameters:
       - name: preset_id
         in: path
         required: true
         schema:
-          type: integer
+          type: string
     put:
       tags: [config]
       description: update publisher preset
@@ -3162,35 +2679,33 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/publisher_preset'
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
     delete:
       tags: [config]
       description: delete publisher preset
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
   /dashboard/trending-clusters:
     get:
-      tags: [trending-clusters]
+      tags: [dashboard]
       description: get trending clusters
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
@@ -3202,19 +2717,17 @@ paths:
                   clusters:
                     type: integer
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
         '500':
           description: Internal server error
   /dashboard:
     get:
-      tags: [dashboard-data]
+      tags: [dashboard]
       description: get dashboard data
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
@@ -3237,13 +2750,9 @@ paths:
                     type: string
                     format: date-time
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
         '500':
           description: Internal server error
   /publish/products:
@@ -3271,6 +2780,8 @@ paths:
           in: query
           schema:
             type: integer
+      security:
+        - UserAuth: []
       responses:
         '200':
           description: success
@@ -3283,52 +2794,28 @@ paths:
                     type: integer
                   items:
                     type: array
-                    items:
-                      $ref: '#/components/schemas/product'
-        '400':
-          description: resource not found
+                    content:
+                      application/json:
+                        schema:
+                          type: string
+                          examples:
+                            - "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
-    post:
-      tags: [publish]
-      description: add product
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/product'
-      responses:
-        '200':
-          description: success
-          content:
-            application/json:
-              schema:
-                type: string
-                example: ID of newly created product
-        '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
-        '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
   /publish/products/{product_id}:
     parameters:
       - name: product_id
         in: path
         required: true
         schema:
-          type: integer
+          type: string
     get:
       tags: [publish]
       description: get product details
+      security:
+      - UserAuth: []
       responses:
         '200':
           description: success
@@ -3337,16 +2824,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/product'
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
     put:
       tags: [publish]
       description: update product details
+      security:
+      - UserAuth: []
       requestBody:
         content:
           application/json:
@@ -3356,55 +2841,59 @@ paths:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
     delete:
       tags: [publish]
+      security:
+      - UserAuth: []
       description: delete product
       responses:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
-  /publish/products/{product_id}/overview:
+          $ref: "#/components/responses/404NotFound"
+  /publish/products/{product_id}/render:
     parameters:
       - name: product_id
         in: path
         required: true
         schema:
-          type: integer
+          type: string
     get:
       tags: [publish]
-      description: download an overview of the specific product
+      description: download a rendered product
+      security:
+      - UserAuth: []
       responses:
         '200':
           description: the product data as a download
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
+    post:
+      tags: [publish]
+      description: render a product
+      security:
+      - UserAuth: []
+      responses:
+        '200':
+          description: success
+        '401':
+          $ref: "#/components/responses/401Unauthorized"
+        '404':
+          $ref: "#/components/responses/404NotFound"
   /publish/products/{product_id}/publishers/{publisher_id}:
     parameters:
       - name: product_id
         in: path
         required: true
         schema:
-          type: integer
+          type: string
       - name: publisher_id
         in: path
         required: true
@@ -3413,17 +2902,15 @@ paths:
     post:
       tags: [publish]
       description: generate a specific product at a specific publisher
+      security:
+      - UserAuth: []
       responses:
         '200':
           description: success
         '401':
-          description: authorization error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resp.auth.error'
+          $ref: "#/components/responses/401Unauthorized"
         '404':
-          $ref: "#/components/schemas/notFound"
+          $ref: "#/components/responses/404NotFound"
 components:
   schemas:
     #requests
@@ -3433,29 +2920,24 @@ components:
       properties:
         username:
           type: string
-          example: 936@xkcd.com
+          examples:
+            - "user"
+            - "admin"
         password:
           type: string
-          example: correct horse battery staple
+          examples:
+            - "correct horse battery staple"
       required:
         - username
         - password
 
-    #responses
-
-    notFound:
-      description: "Not found response"
 
     resp.auth.JWT:
       type: object
       properties:
         access_token:
           type: string
-    resp.auth.error:
-      type: object
-      properties:
-        error:
-          type: string
+
 
     #general
 
@@ -3513,13 +2995,15 @@ components:
       properties:
         id:
           type: integer
-          example: 42
+          examples: [42]
         username:
           type: string
-          example: alice@example.com
+          examples:
+            - "user"
         name:
           type: string
-          example: Alice
+          examples:
+            - "Alice"
         password:
           type: string
     user:
@@ -3562,16 +3046,16 @@ components:
       properties:
         dark_theme:
           type: boolean
-          example: False
+          examples: [False]
         compact_view:
           type: boolean
-          example: False
+          examples: [False]
         show_charts:
           type: boolean
-          example: True
+          examples: [True]
         split_view:
           type: boolean
-          example: False
+          examples: [False]
         hotkeys:
           type: array
           items:
@@ -3954,9 +3438,9 @@ components:
             $ref: '#/components/schemas/news_item_attribute'
       required:
         - title
-        - review
         - source
         - content
+        - osint_source_id
 
     news_item_tag:
       type: object
@@ -4325,3 +3809,17 @@ components:
       scheme: bearer
       bearerFormat: JWT
 
+  responses:
+    404NotFound:
+      description: "Not found response"
+    401Unauthorized:
+      description: authorization error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+    405MethodNotAllowed:
+      description: method not allowed

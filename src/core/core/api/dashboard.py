@@ -2,7 +2,6 @@ from flask import request, Flask
 from flask.views import MethodView
 from flask_jwt_extended import jwt_required
 
-from core.log import logger
 from core.model.news_item import NewsItem
 from core.model.story import Story
 from core.model.news_item_tag import NewsItemTag
@@ -37,38 +36,26 @@ class Dashboard(MethodView):
 class TrendingClusters(MethodView):
     @jwt_required()
     def get(self):
-        try:
-            return NewsItemTagService.get_largest_tag_types()
-        except Exception as e:
-            logger.log_debug_trace()
-            return {"error": str(e)}, 400
+        return NewsItemTagService.get_largest_tag_types()
 
 
 class StoryClusters(MethodView):
     @jwt_required()
     def get(self):
-        try:
-            days = int(request.args.get("days", 7))
-            limit = int(request.args.get("limit", 12))
-            return Story.get_story_clusters(days, limit)
-        except Exception as e:
-            logger.log_debug_trace()
-            return {"error": str(e)}, 400
+        days = int(request.args.get("days", 7))
+        limit = int(request.args.get("limit", 12))
+        return Story.get_story_clusters(days, limit)
 
 
 class ClusterByType(MethodView):
     @jwt_required()
     def get(self, tag_type: str):
-        try:
-            per_page = min(int(request.args.get("per_page", 50)), 100)
-            page = int(request.args.get("page", 0))
-            sort = request.args.get("sort_by")
-            offset = min(((page - 1) * per_page), (2**31) - 1)
-            filter_args = {"tag_type": tag_type, "limit": per_page, "offset": offset, "sort": sort}
-            return NewsItemTag.get_cluster_by_filter(filter_args)
-        except Exception as e:
-            logger.log_debug_trace()
-            return {"error": str(e)}, 400
+        per_page = min(int(request.args.get("per_page", 50)), 100)
+        page = int(request.args.get("page", 0))
+        sort = request.args.get("sort_by")
+        offset = min(((page - 1) * per_page), (2**31) - 1)
+        filter_args = {"tag_type": tag_type, "limit": per_page, "offset": offset, "sort": sort}
+        return NewsItemTag.get_cluster_by_filter(filter_args)
 
 
 class BuildInfo(MethodView):

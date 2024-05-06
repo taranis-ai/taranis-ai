@@ -15,7 +15,7 @@ class Organization(BaseModel):
     description: Mapped[str] = db.Column(db.String())
 
     address_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("address.id"))
-    address: Mapped["Address"] = relationship("Address", cascade="all")
+    address: Mapped["Address|None"] = relationship("Address", cascade="all")
 
     def __init__(self, name: str, description: str | None = None, address=None, id: int | None = None):
         if id:
@@ -26,7 +26,7 @@ class Organization(BaseModel):
         self.address = Address.from_dict(address) if address else None
 
     def to_dict(self):
-        data = {c.name: getattr(self, c.name) for c in self.__table__.columns}
+        data = super().to_dict()
         data["address"] = self.address.to_dict() if self.address else None
         data.pop("address_id")
         return data
