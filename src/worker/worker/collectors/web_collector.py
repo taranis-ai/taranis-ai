@@ -412,7 +412,7 @@ class WebCollector(BaseCollector):
         subprocess.Popen(["tor"])
         time.sleep(3)
 
-    def collect(self, source):
+    def collect(self, source, manual: bool = False):
         """Collects news items from this source (main function)"""
 
         self.source = source

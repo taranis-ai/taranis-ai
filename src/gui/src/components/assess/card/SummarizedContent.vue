@@ -1,6 +1,6 @@
 <template>
   <span :class="contentClass">
-    <v-tooltip v-if="isSummarized" top>
+    <v-tooltip v-if="isSummarized" text="Summary">
       <template #activator="{ props }">
         <v-icon v-bind="props" icon="mdi-text-short" />
       </template>

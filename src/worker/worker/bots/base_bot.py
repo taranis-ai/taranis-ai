@@ -19,7 +19,11 @@ class BaseBot:
         if item_filter := parameters.pop("ITEM_FILTER", None):
             filter_dict = {k: v[0] if len(v) == 1 else v for k, v in parse_qs(item_filter).items()}
 
-        filter_dict |= {k.lower(): v for k, v in parameters.items()}
+        filter_dict |= {k.lower(): v for k, v in parameters.get("filter").items()}
+
+        if "story_id" in filter_dict:
+            return filter_dict
+
         if "timefrom" not in filter_dict:
             limit = (datetime.datetime.now() - datetime.timedelta(days=7)).isoformat()
             filter_dict["timefrom"] = limit

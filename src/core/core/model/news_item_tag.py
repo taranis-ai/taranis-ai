@@ -1,5 +1,5 @@
 from sqlalchemy import func
-from sqlalchemy.orm import Mapped, backref, relationship
+from sqlalchemy.orm import Mapped, relationship
 from typing import Any, TYPE_CHECKING, Sequence
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
@@ -15,7 +15,7 @@ class NewsItemTag(BaseModel):
     name: Mapped[str] = db.Column(db.String(255))
     tag_type: Mapped[str] = db.Column(db.String(255))
     story_id: Mapped[str] = db.Column(db.ForeignKey("story.id"))
-    story: Mapped["Story"] = relationship("Story", backref=backref("tags", cascade="all, delete-orphan"))
+    story: Mapped["Story"] = relationship("Story", back_populates="tags")
 
     def __init__(self, name, tag_type):
         self.name = name

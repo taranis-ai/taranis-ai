@@ -190,8 +190,10 @@ export function createOrganization(organization) {
 }
 
 export function updateOrganization(organization) {
-  const { id } = organization
-  return apiService.put(`/config/organizations/${id}`, organization)
+  return apiService.put(
+    `/config/organizations/${organization.id}`,
+    organization
+  )
 }
 
 export function deleteOrganization(organization) {

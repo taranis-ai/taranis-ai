@@ -58,7 +58,7 @@
 
 <script>
 import { ref } from 'vue'
-import { patchStory } from '@/api/assess'
+import { patchStory, triggerBot } from '@/api/assess'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import CodeEditor from '@/components/common/CodeEditor.vue'
 import EditTags from '@/components/assess/EditTags.vue'
@@ -113,7 +113,8 @@ export default {
 
     async function triggerSummaryBot() {
       try {
-        notifyFailure('Not implemented yet')
+        const result = await triggerBot('summary_bot', props.storyProp.id)
+        notifySuccess(result.data.message)
       } catch (e) {
         notifyFailure(e)
       }

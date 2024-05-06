@@ -52,7 +52,7 @@ export function assessHotkeys() {
     console.debug(`You pressed ${handler.key}`)
     router.push({
       name: 'storyedit',
-      params: { id: assessStore.storySelection[0] }
+      params: { storyId: assessStore.storySelection[0] }
     })
   })
 }
@@ -82,7 +82,7 @@ export function storyHotkeys() {
     console.debug(`You pressed ${handler.key}`)
     router.push({
       name: 'storyedit',
-      params: { id: story_id }
+      params: { storyId: story_id }
     })
   })
 }

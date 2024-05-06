@@ -17,7 +17,7 @@ class EmailCollector(BaseCollector):
     name = "EMAIL Collector"
     description = "Collector for gathering data from emails"
 
-    def collect(self, source):
+    def collect(self, source, manual: bool = False):
         news_items = []
 
         email_server_type = source["parameters"]["EMAIL_SERVER_TYPE"]

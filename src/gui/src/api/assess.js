@@ -89,3 +89,10 @@ export function unGroupNewsItems(data) {
 export function deleteNewsItem(news_item_id) {
   return apiService.delete(`/assess/news-items/${news_item_id}`)
 }
+
+export function triggerBot(bot_id, story_id) {
+  return apiService.post('/assess/stories/botactions', {
+    bot_id: bot_id,
+    story_id: story_id
+  })
+}

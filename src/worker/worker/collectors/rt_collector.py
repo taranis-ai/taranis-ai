@@ -54,7 +54,7 @@ class RTCollector(BaseWebCollector):
         if tickets := self.rt_collector(source):
             return self.preview(tickets, source)
 
-    def collect(self, source):
+    def collect(self, source, manual: bool = False):
         if err := self.setup_collector(source):
             raise ValueError(err)
 
