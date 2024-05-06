@@ -23,7 +23,7 @@ export function getTopStories() {
 
 export function getTags(filter_data) {
   const filter = apiService.getQueryStringFromNestedObject(filter_data)
-  return apiService.get(`/assess/tags?${filter}`)
+  return apiService.get(`/assess/taglist?${filter}`)
 }
 
 export function addNewsItem(data) {

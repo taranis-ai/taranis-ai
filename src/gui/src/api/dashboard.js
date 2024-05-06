@@ -4,7 +4,10 @@ export function getDashboardData() {
   return apiService.get('/dashboard')
 }
 
-export function getTrendingClusters() {
+export function getTrendingClusters(days = null) {
+  if (days) {
+    return apiService.get(`/dashboard/trending-clusters?days=${days}`)
+  }
   return apiService.get('/dashboard/trending-clusters')
 }
 

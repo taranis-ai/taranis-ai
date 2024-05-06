@@ -1,5 +1,17 @@
 <template>
   <v-container fluid>
+    <v-row no-gutters align="center" justify="center">
+      <v-btn-toggle
+        v-model="trendingClusterScope"
+        class="mb-1"
+        rounded="xl"
+        @update:model-value="toggleScope"
+      >
+        <v-btn value="0">All</v-btn>
+        <v-btn value="2">Trending</v-btn>
+        <v-btn value="7">Ongoing</v-btn>
+      </v-btn-toggle>
+    </v-row>
     <v-row no-gutters>
       <dash-board-card v-for="cluster in clusters" :key="cluster.name">
         <template #title>
@@ -57,7 +69,7 @@ import DashBoardCard from '@/components/common/DashBoardCard.vue'
 import TrendingCard from '@/components/common/TrendingCard.vue'
 import { useDashboardStore } from '@/stores/DashboardStore'
 import { useMainStore } from '@/stores/MainStore'
-import { onMounted, defineComponent } from 'vue'
+import { onMounted, defineComponent, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 
 export default defineComponent({
@@ -70,6 +82,11 @@ export default defineComponent({
     const mainStore = useMainStore()
     const dashboardStore = useDashboardStore()
     const { dashboard_data, clusters } = storeToRefs(dashboardStore)
+    const trendingClusterScope = ref(0)
+
+    function toggleScope() {
+      dashboardStore.loadClusters(trendingClusterScope.value)
+    }
 
     onMounted(() => {
       dashboardStore.loadDashboardData()
@@ -77,8 +94,10 @@ export default defineComponent({
       mainStore.resetItemCount()
     })
     return {
+      trendingClusterScope,
       dashboard_data,
-      clusters
+      clusters,
+      toggleScope
     }
   }
 })

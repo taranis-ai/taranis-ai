@@ -127,7 +127,9 @@ export default defineComponent({
     }
 
     const resetFilter = () => {
+      assessStore.reset()
       filterStore.resetFilter()
+      assessStore.updateStories()
     }
 
     onUpdated(() => {

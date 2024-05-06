@@ -28,9 +28,9 @@ export const useDashboardStore = defineStore('dashboard', {
         notifyFailure(error.message)
       }
     },
-    async loadClusters() {
+    async loadClusters(days = null) {
       try {
-        const response = await getTrendingClusters()
+        const response = await getTrendingClusters(days)
         this.clusters = response.data
       } catch (error) {
         notifyFailure(error.message)

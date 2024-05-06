@@ -36,7 +36,8 @@ class Dashboard(MethodView):
 class TrendingClusters(MethodView):
     @jwt_required()
     def get(self):
-        return NewsItemTagService.get_largest_tag_types()
+        days = int(request.args.get("days", 7))
+        return NewsItemTagService.get_largest_tag_types(days)
 
 
 class StoryClusters(MethodView):

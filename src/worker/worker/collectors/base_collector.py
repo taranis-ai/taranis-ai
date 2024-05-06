@@ -57,6 +57,8 @@ class BaseCollector:
         logger.error("Preview not implemented")
 
     def sanitize_html(self, html: str):
+        if not html:
+            return ""
         html = re.sub(r"(?i)(&nbsp;|\xa0)", " ", html, re.DOTALL)
         return BeautifulSoup(html, "lxml").text
 

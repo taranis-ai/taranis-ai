@@ -19,7 +19,8 @@ class BaseBot:
         if item_filter := parameters.pop("ITEM_FILTER", None):
             filter_dict = {k: v[0] if len(v) == 1 else v for k, v in parse_qs(item_filter).items()}
 
-        filter_dict |= {k.lower(): v for k, v in parameters.get("filter").items()}
+        if param_filter := parameters.get("filter"):
+            filter_dict |= {k.lower(): v for k, v in param_filter.items()}
 
         if "story_id" in filter_dict:
             return filter_dict

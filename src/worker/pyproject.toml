@@ -7,11 +7,11 @@ maintainers = [{ name = "AIT", email = "benjamin.akhras@ait.ac.at" }]
 classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Framework :: Celery",
     "Topic :: Security",
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
     # Core
     "celery",

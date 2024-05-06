@@ -32,18 +32,6 @@
             </v-col>
             <v-col cols="12" :lg="content_cols">
               <v-container class="d-flex pa-0">
-                <div
-                  v-if="story_in_reports > 0"
-                  class="story-shared-icons-container"
-                >
-                  <v-icon
-                    v-for="n in story_in_reports"
-                    :key="n"
-                    class="story-shared-icon"
-                    :style="getSharingIcon(n)"
-                    icon="mdi-share"
-                  />
-                </div>
                 <h2
                   v-dompurify-html="highlighted_title"
                   class="mb-1 mt-0"
@@ -121,7 +109,7 @@ import CardNewsItem from '@/components/assess/CardNewsItem.vue'
 import { ref, computed } from 'vue'
 import { useAssessStore } from '@/stores/AssessStore'
 import { useFilterStore } from '@/stores/FilterStore'
-import { highlight_text, getAssessSharingIcon } from '@/utils/helpers'
+import { highlight_text } from '@/utils/helpers'
 import { storeToRefs } from 'pinia'
 import ChartWrapper from '@/components/assess/card/ChartWrapper.vue'
 
@@ -191,10 +179,6 @@ export default {
       return longestText.length + 11 + 'ch'
     })
 
-    const story_in_reports = computed(() => {
-      return props.story ? props.story.in_reports_count : 0
-    })
-
     const is_summarized = computed(() => {
       return props.story.summary !== undefined && props.story.summary !== ''
     })
@@ -233,10 +217,6 @@ export default {
       }
     })
 
-    function getSharingIcon(index) {
-      return getAssessSharingIcon(index, story_in_reports.value)
-    }
-
     function openCard() {
       openSummary.value = !openSummary.value
     }
@@ -262,13 +242,11 @@ export default {
       news_item_title_class,
       highlighted_title,
       minButtonWidth,
-      story_in_reports,
       is_summarized,
       newsItemSelection,
       getDescription,
       colorBasedOnLength,
       showWeekChart,
-      getSharingIcon,
       openCard,
       toggleSelection,
       emitRefresh
@@ -338,17 +316,5 @@ export default {
   width: 7px;
   z-index: 2;
   background: #e9c645 !important;
-}
-
-.story-shared-icons-container {
-  margin-right: 28px;
-  margin-left: -8px;
-  margin-top: 10px;
-  width: max-content; /* Adjust as needed */
-  height: 24px; /* Adjust based on base icon size */
-}
-
-.story-shared-icon {
-  transition: all 0.3s ease;
 }
 </style>

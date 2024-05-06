@@ -46,10 +46,6 @@ export default defineComponent({
       console.debug('Display:', val)
     })
 
-    if (isAuthenticated.value) {
-      sseHandler()
-    }
-
     onMounted(() => {
       isAuthenticated.value || authStore.logout()
 
@@ -61,6 +57,7 @@ export default defineComponent({
           }
         }, timeToRefresh.value)
       }
+      sseHandler()
     })
 
     return {

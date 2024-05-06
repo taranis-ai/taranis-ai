@@ -80,7 +80,8 @@ class Story(BaseModel):
         if isinstance(news_items[0], dict):
             return NewsItem.load_multiple(news_items)
         elif isinstance(news_items[0], str):
-            return [NewsItem.get(item_id) for item_id in news_items]  # type: ignore
+            news_items = [NewsItem.get(item_id) for item_id in news_items]
+            return [news_item for news_item in news_items if news_item]
         elif isinstance(news_items[0], NewsItem):
             return news_items
         return []

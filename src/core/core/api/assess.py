@@ -120,7 +120,7 @@ class StoryTags(MethodView):
             default_min_size = 0 if search else 3
             min_size = int(request.args.get("min_size", default_min_size))
             filter_args = {"limit": limit, "offset": offset, "search": search, "min_size": min_size}
-            return news_item_tag.NewsItemTag.get_json(filter_args)
+            return news_item_tag.NewsItemTag.get_filtered_tags(filter_args)
         except Exception as ex:
             logger.log_debug(ex)
             return {"error": "Failed to get Tags"}, 400
