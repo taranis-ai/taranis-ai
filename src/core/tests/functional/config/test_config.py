@@ -445,3 +445,44 @@ class TestWorkerTypes(BaseTest):
         assert response.json["items"][0]["parameters"]["ITEM_FILTER"] == cleanup_worker_types["parameters"]["ITEM_FILTER"]
         assert response.json["items"][0]["parameters"]["RUN_AFTER_COLLECTOR"] == cleanup_worker_types["parameters"]["RUN_AFTER_COLLECTOR"]
         assert response.json["items"][0]["parameters"]["REFRESH_INTERVAL"] == cleanup_worker_types["parameters"]["REFRESH_INTERVAL"]
+
+    def test_modify_workers(self, client, auth_header, cleanup_worker_types):
+        worker_id = cleanup_worker_types["id"]
+        update_data = {
+            "name": "Updated Worker Name",
+            "description": "Updated description of the worker",
+            "parameters": {cleanup_worker_types["parameters"][0]["id"]: {"value": "new value", "rules": "new rules"}},
+        }
+
+        response = self.assert_put_ok(
+            client,
+            uri=f"parameters/{worker_id}",
+            json_data=update_data,
+            auth_header=auth_header,
+        )
+
+        assert response.status_code == 200, f"Expected status code 200, got {response.status_code}"
+        assert response.json["message"] == "Worker and parameters updated successfully", "Unexpected response message"
+        assert (
+            cleanup_worker_types["parameters"][0]["id"] in response.json["updated_parameters"]
+        ), "Parameter ID not in the updated parameters list"
+
+    def test_get_parameters(self, client, auth_header, cleanup_worker_types):
+        response = self.assert_get_ok(
+            client,
+            uri=f"parameters",
+            auth_header=auth_header,
+        )
+
+        assert response.status_code == 200, "Expected status code 200, got {response.status_code}"
+
+        parameter_map = response.json
+        assert isinstance(parameter_map, dict), "Expected a dictionary in the parameter map response."
+
+    def test_delete_parameters(self, client, auth_header, cleanup_worker_types):
+        worker_id = cleanup_worker_types["id"]
+        parameter_id = cleanup_worker_types["parameters"]["REGULAR_EXPRESSION"]
+
+        response = self.assert_delete_ok(client, uri=f"parameters/{worker_id}/{parameter_id}", auth_header=auth_header)
+
+        assert response.status_code == 404, "Parameter was not deleted successfully"

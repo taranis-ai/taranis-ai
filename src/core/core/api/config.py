@@ -198,19 +198,13 @@ class Parameters(MethodView):
         return worker.Worker.get_parameter_map(), 200
 
     @auth_required("CONFIG_ACCESS")
-    def post(self):
-        data = request.get_json()
-        result = worker.Worker.add(data)
-        return result
-
-    @auth_required("CONFIG_ACCESS")
     def put(self, worker_id):
         updates = request.get_json()
         return worker.Worker.update_worker_and_parameters(worker_id, updates)
 
     @auth_required("CONFIG_ACCESS")
-    def delete(self, parameter_id):
-        return worker.Worker.delete(parameter_id)
+    def delete(self, worker_id, parameter_id):
+        return worker.Worker.delete_parameter(worker_id, parameter_id)
 
 
 class Permissions(MethodView):
@@ -690,6 +684,8 @@ def initialize(app: Flask):
         view_func=OSINTSourcesImport.as_view("osint_sources_import"),
     )
     app.add_url_rule(f"{base_route}/parameters", view_func=Parameters.as_view("parameters"))
+    app.add_url_rule(f"{base_route}/parameters/<int:worker_id>", view_func=Parameters.as_view("parameters_id"))
+    app.add_url_rule(f"{base_route}/parameters/<int:worker_id>/<int:parameter_id>", view_func=Parameters.as_view("parameter_and_worker_id"))
     app.add_url_rule(f"{base_route}/permissions", view_func=Permissions.as_view("permissions"))
     app.add_url_rule(f"{base_route}/presenters", view_func=Presenters.as_view("presenters"))
     app.add_url_rule(

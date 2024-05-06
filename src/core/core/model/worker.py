@@ -93,8 +93,8 @@ class Worker(BaseModel):
     category: Mapped[WORKER_CATEGORY] = db.Column(db.Enum(WORKER_CATEGORY), nullable=False)
     parameters: Mapped[list["ParameterValue"]] = relationship("ParameterValue", secondary="worker_parameter_value", cascade="all")
 
-    def __init__(self, name, description, type, parameters):
-        self.id = str(uuid.uuid4())
+    def __init__(self, name, description, type, parameters, id=None):
+        self.id = id or str(uuid.uuid4())
         self.name = name
         self.description = description
         self.type = type
@@ -198,6 +198,21 @@ class Worker(BaseModel):
             "message": "Worker and parameters updated successfully",
             "updated_parameters": updated_parameters,
         }, 200
+
+    @classmethod
+    def delete_parameter(cls, worker_id, parameter_id):
+        worker = cls.get(worker_id)
+        session = db.session
+        if worker:
+            parameter = ParameterValue.query.get(parameter_id)
+            if parameter and parameter in worker.parameters:
+                worker.parameters.remove(parameter)
+                session.commit()
+                return {"message": f"Parameter {parameter_id} deleted from worker {worker_id} successfully"}, 200
+            else:
+                return {"error": f"Parameter {parameter_id} not found in worker {worker_id}"}, 404
+        else:
+            return {"error": f"Worker {worker_id} not found"}, 404
 
     @classmethod
     def _get_or_create_parameters(cls, parameters) -> list[ParameterValue]:

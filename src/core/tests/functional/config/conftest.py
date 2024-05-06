@@ -310,6 +310,7 @@ def cleanup_worker_types(app, request):
         from core.model.worker import Worker
 
         worker_types_data = {
+            "id": 42,
             "name": "Worker type",
             "description": "Desc of worker type",
             "type": "web_collector",
