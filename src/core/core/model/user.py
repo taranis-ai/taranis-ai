@@ -1,3 +1,5 @@
+import json
+import secrets
 from werkzeug.security import generate_password_hash
 from typing import Any, Sequence
 from sqlalchemy.sql import Select
@@ -7,9 +9,9 @@ from core.managers.db_manager import db
 from core.model.role import Role
 from core.model.permission import Permission
 from core.model.organization import Organization
-
 from core.model.base_model import BaseModel
 from core.model.role import TLPLevel
+from core.log import logger
 
 
 class User(BaseModel):
@@ -29,7 +31,9 @@ class User(BaseModel):
     profile_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("user_profile.id", ondelete="CASCADE"))
     profile: Mapped["UserProfile"] = relationship("UserProfile", cascade="all, delete")
 
-    def __init__(self, username: str, name: str, organization: int, roles: list[int], permissions: list[str], password=None, id=None):
+    def __init__(
+        self, username: str, name: str, organization: int, roles: list[int], permissions: list[str] | None = None, password=None, id=None
+    ):
         if id:
             self.id = id
         self.username = username
@@ -40,7 +44,7 @@ class User(BaseModel):
         if org := Organization.get(organization):
             self.organization = org
         self.roles = Role.get_bulk(roles)
-        self.permissions = Permission.get_bulk(permissions)
+        self.permissions = Permission.get_bulk(permissions) if permissions else []
         self.profile = UserProfile(id=id)
 
     @classmethod
@@ -151,6 +155,49 @@ class User(BaseModel):
             query = query.filter(db.or_(User.name.ilike(f"%{search}%"), User.username.ilike(f"%{search}%")))
 
         return query.order_by(db.asc(User.name))
+
+    @classmethod
+    def parse_json(cls, content) -> list | None:
+        file_content = json.loads(content)
+        return cls.load_json_content(content=file_content)
+
+    @classmethod
+    def load_json_content(cls, content) -> list:
+        if content.get("version") != 1:
+            raise ValueError("Invalid JSON file")
+        if not content.get("data"):
+            raise ValueError("No data found")
+        return content["data"]
+
+    def to_export_dict(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "username": self.username,
+        }
+
+    @classmethod
+    def export(cls, user_ids=None) -> bytes:
+        logger.debug(f"Exporting users: {user_ids}")
+        query = db.select(cls)
+        if user_ids:
+            query = query.filter(cls.id.in_(user_ids))
+
+        data = cls.get_filtered(query)
+        export_data = {"version": 1, "data": [user.to_export_dict() for user in data]} if data else {}
+        return json.dumps(export_data).encode("utf-8")
+
+    @classmethod
+    def import_users(cls, user_list: list) -> list:
+        logger.debug(f"Importing users: {user_list}")
+        result = []
+        for user in user_list:
+            if cls.find_by_name(user["username"]):
+                logger.warning(f"User {user['username']} already exists")
+                continue
+            user["password"] = secrets.token_urlsafe(16)
+            cls.add(user)
+            result.append({"username": user["username"], "password": user["password"]})
+        return result
 
 
 class UserRole(BaseModel):

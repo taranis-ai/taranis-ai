@@ -4,7 +4,7 @@ from sqlalchemy import event
 from sqlite3 import Connection as SQLite3Connection
 
 from core.managers.db_seed_manager import pre_seed
-from core.managers.db_migration_manager import migrate
+from core.managers.db_migration_manager import migrate, mark
 from core.log import logger
 
 db = SQLAlchemy()
@@ -26,6 +26,7 @@ def initialize(app, initial_setup: bool = True):
         logger.debug("Create new Database")
         db.create_all()
         pre_seed(db)
+        mark(app, initial_setup)
     else:
         migrate(app, initial_setup)
 

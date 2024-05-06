@@ -59,7 +59,7 @@ def test_rt_collector_ticket_transaction(rt_mock, rt_collector):
 def test_simple_web_collector_collect(simple_web_collector_mock, simple_web_collector):
     from worker.tests.testdata import web_collector_url, web_collector_result_title, web_collector_result_content
 
-    result_item = simple_web_collector.news_item_from_article(web_collector_url, "test_source")
+    result_item = simple_web_collector.news_item_from_article(web_collector_url)
 
     assert result_item["title"] == web_collector_result_title
     # assert result_item["author"] == "John Doe"
@@ -68,9 +68,7 @@ def test_simple_web_collector_collect(simple_web_collector_mock, simple_web_coll
 
 @pytest.mark.parametrize("input_news_items", [news_items, news_items[2:], news_items[:: len(news_items) - 1], [news_items[-1]]])
 def test_filter_by_word_list_empty_wordlist(rss_collector, input_news_items):
-    from worker.tests.testdata import source_empty_wordlist
-
-    emptylist_results = rss_collector.filter_by_word_list(input_news_items, source_empty_wordlist)
+    emptylist_results = rss_collector.filter_by_word_list(input_news_items, [])
 
     assert emptylist_results == input_news_items
 
@@ -80,9 +78,9 @@ def test_filter_by_word_list_empty_wordlist(rss_collector, input_news_items):
     [(news_items, news_items[:2]), (news_items[2:], []), (news_items[:: len(news_items) - 1], [news_items[0]]), ([news_items[-1]], [])],
 )
 def test_filter_by_word_list_include_list(rss_collector, input_news_items, expected_news_items):
-    from worker.tests.testdata import source_include_list
+    from worker.tests.testdata import include_list
 
-    include_list_results = rss_collector.filter_by_word_list(input_news_items, source_include_list)
+    include_list_results = rss_collector.filter_by_word_list(input_news_items, include_list)
 
     assert include_list_results == expected_news_items
 
@@ -97,9 +95,9 @@ def test_filter_by_word_list_include_list(rss_collector, input_news_items, expec
     ],
 )
 def test_filter_by_word_list_exclude_list(rss_collector, input_news_items, expected_news_items):
-    from worker.tests.testdata import source_exclude_list
+    from worker.tests.testdata import exclude_list
 
-    exclude_list_results = rss_collector.filter_by_word_list(input_news_items, source_exclude_list)
+    exclude_list_results = rss_collector.filter_by_word_list(input_news_items, exclude_list)
 
     assert exclude_list_results == expected_news_items
 
@@ -109,9 +107,9 @@ def test_filter_by_word_list_exclude_list(rss_collector, input_news_items, expec
     [(news_items, news_items[:2]), (news_items[2:], []), (news_items[:: len(news_items) - 1], [news_items[0]]), ([news_items[-1]], [])],
 )
 def test_filter_by_word_list_include_multiple_list(rss_collector, input_news_items, expected_news_items):
-    from worker.tests.testdata import source_include_multiple_list
+    from worker.tests.testdata import include_multiple_list
 
-    include_list_results = rss_collector.filter_by_word_list(input_news_items, source_include_multiple_list)
+    include_list_results = rss_collector.filter_by_word_list(input_news_items, include_multiple_list)
 
     assert include_list_results == expected_news_items
 
@@ -126,9 +124,9 @@ def test_filter_by_word_list_include_multiple_list(rss_collector, input_news_ite
     ],
 )
 def test_filter_by_word_list_exclude_multiple_list(rss_collector, input_news_items, expected_news_items):
-    from worker.tests.testdata import source_exclude_multiple_list
+    from worker.tests.testdata import exclude_multiple_list
 
-    exclude_list_results = rss_collector.filter_by_word_list(input_news_items, source_exclude_multiple_list)
+    exclude_list_results = rss_collector.filter_by_word_list(input_news_items, exclude_multiple_list)
 
     assert exclude_list_results == expected_news_items
 
@@ -138,9 +136,9 @@ def test_filter_by_word_list_exclude_multiple_list(rss_collector, input_news_ite
     [(news_items, [news_items[0]]), (news_items[2:], []), (news_items[:: len(news_items) - 1], [news_items[0]]), ([news_items[-1]], [])],
 )
 def test_filter_by_word_list_include_exclude_list(rss_collector, input_news_items, expected_news_items):
-    from worker.tests.testdata import source_include_list_exclude_list
+    from worker.tests.testdata import include_exclude_list
 
-    include_exclude_list_results = rss_collector.filter_by_word_list(input_news_items, source_include_list_exclude_list)
+    include_exclude_list_results = rss_collector.filter_by_word_list(input_news_items, include_exclude_list)
 
     assert include_exclude_list_results == expected_news_items
 
@@ -150,8 +148,8 @@ def test_filter_by_word_list_include_exclude_list(rss_collector, input_news_item
     [(news_items, [news_items[0]]), (news_items[2:], []), (news_items[:: len(news_items) - 1], [news_items[0]]), ([news_items[-1]], [])],
 )
 def test_filter_by_word_list_include_exclude_multiple_lists(rss_collector, input_news_items, expected_news_items):
-    from worker.tests.testdata import source_include_multiple_list_exclude_multiple_list
+    from worker.tests.testdata import multiple_include_exclude_list
 
-    include_exclude_list_results = rss_collector.filter_by_word_list(input_news_items, source_include_multiple_list_exclude_multiple_list)
+    include_exclude_list_results = rss_collector.filter_by_word_list(input_news_items, multiple_include_exclude_list)
 
     assert include_exclude_list_results == expected_news_items

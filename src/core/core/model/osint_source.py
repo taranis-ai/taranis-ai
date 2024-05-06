@@ -38,7 +38,7 @@ class OSINTSource(BaseModel):
     groups: Mapped[list["OSINTSourceGroup"]] = relationship("OSINTSourceGroup", secondary="osint_source_group_osint_source")
 
     icon: Any = deferred(db.Column(db.LargeBinary))
-    state: Mapped[int] = db.Column(db.SmallInteger, default=0)
+    state: Mapped[int] = db.Column(db.SmallInteger, default=-1)
     last_collected: Mapped[datetime] = db.Column(db.DateTime, default=None)
     last_attempted: Mapped[datetime] = db.Column(db.DateTime, default=None)
     last_error_message: Mapped[str | None] = db.Column(db.String, default=None, nullable=True)
@@ -97,25 +97,33 @@ class OSINTSource(BaseModel):
         [data.pop(key, None) for key in drop_keys if key in data]
         return cls(**data)
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters if parameter.value}
         data["icon"] = base64.b64encode(self.icon).decode("utf-8") if self.icon else None
         return data
 
-    def to_worker_dict(self):
+    def to_worker_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data.pop("icon", None)
         data["word_lists"] = []
         for group in self.groups:
-            data["word_lists"].extend([word_list.to_dict() for word_list in group.word_lists])
+            data["word_lists"].extend([word_list.to_dict() for word_list in group.word_lists if word_list])
         data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters if parameter.value}
         return data
 
-    def to_task_id(self):
+    def to_assess_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "icon": base64.b64encode(self.icon).decode("utf-8") if self.icon else None,
+            "name": self.name,
+            "type": self.type,
+        }
+
+    def to_task_id(self) -> str:
         return f"osint_source_{self.id}_{self.type}"
 
-    def get_schedule(self):
+    def get_schedule(self) -> str:
         refresh_interval = ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL")
         return refresh_interval or "480"
 
@@ -294,6 +302,18 @@ class OSINTSource(BaseModel):
         logger.debug(f"Imported {len(ids)} sources")
         return ids
 
+    @classmethod
+    def get_all_for_assess_api(cls, user=None) -> tuple[dict[str, Any], int]:
+        filter_args = {}
+        if user:
+            query = cls.get_filter_query_with_acl(filter_args, user)
+        else:
+            query = cls.get_filter_query(filter_args)
+        if items := cls.get_filtered(query):
+            return {"items": [item.to_assess_dict() for item in items]}, 200
+
+        return {"items": []}, 404
+
 
 class OSINTSourceParameterValue(BaseModel):
     osint_source_id: Mapped[str] = db.Column(db.String, db.ForeignKey("osint_source.id", ondelete="CASCADE"), primary_key=True)
@@ -320,8 +340,8 @@ class OSINTSourceGroup(BaseModel):
         self.name = name
         self.description = description
         self.default = default
-        self.osint_sources = [OSINTSource.get(osint_source) for osint_source in osint_sources] if osint_sources else []
-        self.word_lists = [WordList.get(word_list) for word_list in word_lists] if word_lists else []
+        self.osint_sources = OSINTSource.get_bulk(osint_sources or []) or []
+        self.word_lists = WordList.get_bulk(word_lists or [])
 
     @classmethod
     def get_all_without_default(cls):
@@ -419,11 +439,29 @@ class OSINTSourceGroup(BaseModel):
         if description := data.get("description"):
             osint_source_group.description = description
         osint_sources = data.get("osint_sources", [])
-        osint_source_group.osint_sources = [OSINTSource.get(osint_source) for osint_source in osint_sources]
+        osint_source_group.osint_sources = OSINTSource.get_bulk(osint_sources)
         word_lists = data.get("word_lists", [])
-        osint_source_group.word_lists = [WordList.get(word_list) for word_list in word_lists]
+        osint_source_group.word_lists = WordList.get_bulk(word_lists)
         db.session.commit()
         return {"message": f"Successfully updated {osint_source_group.name}", "id": f"{osint_source_group.id}"}, 201
+
+    def to_assess_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "name": self.name,
+        }
+
+    @classmethod
+    def get_all_for_assess_api(cls, user=None) -> tuple[dict[str, Any], int]:
+        filter_args = {}
+        if user:
+            query = cls.get_filter_query_with_acl(filter_args, user)
+        else:
+            query = cls.get_filter_query(filter_args)
+        if items := cls.get_filtered(query):
+            return {"items": [item.to_assess_dict() for item in items]}, 200
+
+        return {"items": []}, 404
 
 
 class OSINTSourceGroupOSINTSource(BaseModel):

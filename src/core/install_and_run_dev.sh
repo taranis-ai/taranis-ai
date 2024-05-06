@@ -10,5 +10,5 @@ fi
 
 source .venv/bin/activate
 
-# Run the app
 python -m flask run
+

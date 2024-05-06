@@ -17,7 +17,7 @@
       @selection-change="selectionChange"
     >
       <template #titlebar>
-        <ImportExport @import="importData" @export="exportData"></ImportExport>
+        <ImportExport @import="importData" @export="exportData" />
         <v-btn
           dark
           color="blue-grey"

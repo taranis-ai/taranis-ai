@@ -68,7 +68,11 @@ def pre_seed_workers():
     from core.model.bot import Bot
 
     for w in workers:
-        Worker.add(w)
+        if worker := Worker.filter_by_type(w["type"]):
+            # TODO IMPLEMENT
+            worker.update(w)
+        else:
+            Worker.add(w)
 
     for b in bots:
         Bot.add(b)

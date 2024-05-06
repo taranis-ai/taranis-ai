@@ -3,6 +3,7 @@ import logging
 
 from worker.log import logger
 from worker.collectors.base_web_collector import BaseWebCollector
+from worker.types import NewsItem
 
 
 class SimpleWebCollector(BaseWebCollector):
@@ -16,20 +17,18 @@ class SimpleWebCollector(BaseWebCollector):
         self.web_url = None
         self.xpath = None
         self.last_modified = None
+        self.digest_splitting_limit = None
         logger_trafilatura = logging.getLogger("trafilatura")
         logger_trafilatura.setLevel(logging.WARNING)
 
     def parse_source(self, source):
+        super().parse_source(source)
         self.web_url = source["parameters"].get("WEB_URL", None)
         if not self.web_url:
-            logger.warning("No WEB_URL set")
+            logger.error("No WEB_URL set")
             return {"error": "No WEB_URL set"}
 
-        self.set_proxies(source["parameters"].get("PROXY_SERVER", None))
-
-        if user_agent := source["parameters"].get("USER_AGENT", None):
-            self.headers = {"User-Agent": user_agent}
-
+        self.digest_splitting_limit = int(source["parameters"].get("DIGEST_SPLITTING_LIMIT", 30))
         self.xpath = source["parameters"].get("XPATH", "")
 
     def collect(self, source):
@@ -45,11 +44,26 @@ class SimpleWebCollector(BaseWebCollector):
 
     def preview_collector(self, source):
         self.parse_source(source)
-        news_item = self.news_item_from_article(self.web_url, source["id"])
-        if news_item.get("error"):
-            return news_item.get("error")
+        news_items = self.gather_news_items(source)
+        return self.preview(news_items, source)
 
-        return self.preview([news_item], source)
+    def handle_digests(self) -> list[dict] | str:
+        if not self.xpath:
+            raise ValueError("No XPATH set for digest splitting")
+
+        web_content, _ = self.web_content_from_article(self.web_url)
+        content = self.xpath_extraction(web_content, self.xpath, False)
+        logger.debug(content)
+        self.split_digest_urls = self.get_urls(content)
+        logger.info(f"RSS-Feed {self.source_id} returned {len(self.split_digest_urls)} available URLs")
+
+        return self.parse_digests()
+
+    def gather_news_items(self, source) -> list[NewsItem]:
+        digest_splitting = source["parameters"].get("DIGEST_SPLITTING", False)
+        if digest_splitting == "true":
+            return self.handle_digests()
+        return [self.news_item_from_article(self.web_url, self.xpath)]
 
     def web_collector(self, source):
         response = requests.head(self.web_url, headers=self.headers, proxies=self.proxies)
@@ -59,7 +73,7 @@ class SimpleWebCollector(BaseWebCollector):
 
         last_attempted = self.get_last_attempted(source)
         if not last_attempted:
-            self.update_favicon(self.web_url, source["id"])
+            self.update_favicon(self.web_url, self.source_id)
         last_modified = self.get_last_modified(response)
         self.last_modified = last_modified
         if last_modified and last_attempted and last_modified < last_attempted:
@@ -67,11 +81,9 @@ class SimpleWebCollector(BaseWebCollector):
             return "Last-Modified < Last-Attempted"
 
         try:
-            news_item = self.news_item_from_article(self.web_url, source["id"], self.xpath)
-            if news_item.get("error"):
-                return news_item.get("error")
+            news_items = self.gather_news_items(source)
         except ValueError as e:
             logger.error(f"Simple Web Collector for {self.web_url} failed with error: {str(e)}")
 
-        self.publish([news_item], source)
+        self.publish(news_items, source)
         return None

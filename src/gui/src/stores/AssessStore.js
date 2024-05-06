@@ -78,6 +78,7 @@ export const useAssessStore = defineStore(
       try {
         loading.value = true
         const filter = useFilterStore()
+        const mainStore = useMainStore()
 
         const page = filter.nextPage()
 
@@ -108,7 +109,10 @@ export const useAssessStore = defineStore(
         }
 
         stories.value.items = [...stories.value.items, ...uniqueNewItems]
-
+        mainStore.setItemCount(
+          stories.value.total_count,
+          stories.value.items.length
+        )
         weekChartOptions.value.scales.y2.max = response.data.max_item
         loading.value = false
         return true
