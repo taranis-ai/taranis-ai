@@ -93,12 +93,12 @@ class AttributeEnum(BaseModel):
         return {"message": f"Attribute Enum {attribute_enum.id} updated", "id": attribute_enum.id}, 200
 
     def to_dict(self):
-        data = {c.name: getattr(self, c.name) for c in self.__table__.columns}
+        data = super().to_dict()
         data["attribute"] = self.attribute.to_dict()
         return data
 
     def to_small_dict(self):
-        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+        return super().to_dict()
 
 
 class Attribute(BaseModel):
@@ -180,28 +180,8 @@ class Attribute(BaseModel):
             db.session.commit()
         AttributeEnum.delete_imported_for_attribute(attribute.id)
 
-        item_count = 0
-        block_item_count = 0
-        desc = ""
-        for event, element in iterparse(file_path, events=("start", "end")):
-            if event == "end":
-                if element.tag == "{http://cve.mitre.org/cve/downloads/1.0}desc":
-                    desc = element.text
-                elif element.tag == "{http://cve.mitre.org/cve/downloads/1.0}item":
-                    attribute_enum = AttributeEnum(item_count, element.attrib["name"], desc)
-                    attribute_enum.attribute_id = attribute.id
-                    attribute_enum.imported = True
-                    db.session.add(attribute_enum)
-                    item_count += 1
-                    block_item_count += 1
-                    element.clear()
-                    desc = ""
-                    if block_item_count == 1000:
-                        logger.log_debug(f"Processed CVE items: {item_count}")
-                        block_item_count = 0
-                        db.session.commit()
-
-        logger.log_debug(f"Processed CVE items: {str(item_count)}")
+        logger.error("Loading CVEs from file is not implemented yet")
+        # TODO: Implement parser for https://github.com/CVEProject/cvelistV5
         db.session.commit()
 
     @classmethod
@@ -273,10 +253,7 @@ class Attribute(BaseModel):
         return switcher.get(self.type, "mdi-textbox")
 
     def to_dict(self):
-        data = {
-            c.name: getattr(self, c.name).name if isinstance(getattr(self, c.name), Enum) else getattr(self, c.name)
-            for c in self.__table__.columns
-        }
+        data = super().to_dict()
         attribute_enums = AttributeEnum.get_all_for_attribute(self.id)
         data["attribute_enums"] = [attribute_enum.to_small_dict() for attribute_enum in attribute_enums]
         data["type"] = self.type.name
@@ -284,10 +261,7 @@ class Attribute(BaseModel):
         return data
 
     def to_report_item_dict(self):
-        data = {
-            c.name: getattr(self, c.name).name if isinstance(getattr(self, c.name), Enum) else getattr(self, c.name)
-            for c in self.__table__.columns
-        }
+        data = super().to_dict()
         attribute_enums = AttributeEnum.get_all_for_attribute(self.id)
         data["attribute_enums"] = [attribute_enum.to_small_dict() for attribute_enum in attribute_enums]
         data["type"] = self.type.name

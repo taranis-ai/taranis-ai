@@ -65,7 +65,7 @@ class QueueManager:
     def get_queued_tasks(self):
         if self.error:
             return {"error": "QueueManager not initialized"}, 500
-        response = requests.get(f"{self.mgmt_api}queues/", auth=HTTPBasicAuth(self.queue_user, self.queue_password))
+        response = requests.get(f"{self.mgmt_api}queues/", auth=HTTPBasicAuth(self.queue_user, self.queue_password), timeout=5)
         if not response.ok:
             logger.error(response.text)
             return {"error": "Could not reach rabbitmq"}, 500
