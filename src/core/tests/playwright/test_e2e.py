@@ -12,12 +12,6 @@ taranis_url = os.getenv("TARANIS_URL", "http://localhost:8081")
 print(taranis_url)
 
 
-# os.environ["SQLALCHEMY_DATABASE_URI"] = "postgresql+psycopg2://taranis:supersecret@localhost/taranis"
-# os.environ["API_KEY"] = "supersecret"
-# os.environ["SECRET_KEY"] = "supersecret"
-# os.unsetenv("PRE_SEED_PASSWORD_USER")
-
-
 def highlight_element(locator, duration):
     style_content = """
     .highlight-element { background-color: yellow; outline: 4px solid red; }
