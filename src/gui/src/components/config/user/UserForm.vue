@@ -1,7 +1,7 @@
 <template>
   <v-container fluid class="mt-5 pt-0">
     <span v-if="edit">ID: {{ user.id }}</span>
-    <v-form id="form" ref="form" validate-on="submit" @submit.prevent="add">
+    <v-form id="form" ref="form" validate-on="submit" @submit.prevent="addUser">
       <v-row no-gutters>
         <v-col cols="6" class="pa-1">
           <v-text-field
@@ -23,20 +23,21 @@
         <v-col cols="6" class="pa-1">
           <v-text-field
             ref="password"
-            v-model="pwd"
-            type="password"
+            v-model="user.password"
+            :type="showPassword ? 'text' : 'password'"
+            :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
             :rules="passwordRules"
             autocomplete="new-password"
             :label="$t('user.password')"
+            @click:append-inner="showPassword = !showPassword"
           />
         </v-col>
         <v-col cols="6" class="pa-1">
-          <v-text-field
-            v-model="repwd"
-            type="password"
-            :rules="passwordRules"
-            autocomplete="new-password"
-            :label="$t('user.password_check')"
+          <v-btn
+            color="primary"
+            class="mt-4"
+            text="generate password"
+            @click="user.password = generatePassword()"
           />
         </v-col>
       </v-row>
@@ -126,8 +127,7 @@ export default {
       { title: 'Description', key: 'description' }
     ]
 
-    const pwd = ref('')
-    const repwd = ref('')
+    const showPassword = ref(false)
     const user = ref(props.userProp)
     const roles = computed(() => store.roles.items)
     const organizations = computed(() => store.organizations.items)
@@ -140,31 +140,25 @@ export default {
     })
 
     const rules = {
-      required: (value) => Boolean(value) || 'Required.',
-      matchPassword: (value) => {
-        if (!props.edit) {
-          return Boolean(value) || 'Required.'
-        }
-        if (!value && !pwd.value) {
-          return true
-        }
-        return value === pwd.value || 'Passwords must match.'
-      }
+      required: (value) => Boolean(value) || 'Required.'
     }
     const passwordRules = computed(() => {
-      return props.edit
-        ? [rules.matchPassword]
-        : [rules.required, rules.matchPassword]
+      return props.edit ? [] : [rules.required]
     })
 
-    const add = async () => {
+    function generatePassword(
+      length = 20,
+      characters = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz~!@-#$'
+    ) {
+      return Array.from(crypto.getRandomValues(new Uint32Array(length)))
+        .map((x) => characters[x % characters.length])
+        .join('')
+    }
+
+    async function addUser() {
       const { valid } = await form.value.validate()
       if (!valid) {
         return
-      }
-
-      if (props.edit === false || pwd.value !== '') {
-        user.value.password = pwd.value
       }
 
       if (props.edit) {
@@ -203,11 +197,11 @@ export default {
       permissions,
       organizations,
       form,
-      pwd,
-      repwd,
+      showPassword,
       passwordRules,
       user,
-      add
+      generatePassword,
+      addUser
     }
   },
   watch: {
@@ -217,3 +211,10 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+input::-ms-clear,
+input::-ms-reveal {
+  display: none;
+}
+</style>

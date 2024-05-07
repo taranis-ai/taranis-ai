@@ -18,8 +18,6 @@ check_if_installed() {
         ca-certificates
         build-essential
         software-properties-common
-        python3.11
-        python3.11-dev
         nodejs
         docker-ce
         docker-compose-plugin
@@ -77,12 +75,6 @@ setup_nodejs() {
     sudo apt-get install -y nodejs
 }
 
-# Install Python 3.11
-install_python() {
-    sudo add-apt-repository -y ppa:deadsnakes/ppa
-    sudo apt-get update
-    sudo apt-get install -y python3.11 python3.11-dev
-}
 
 main() {
     [[ -f ./docker/dev/.installed ]] && exit 0
@@ -93,7 +85,6 @@ main() {
     install_astral
     install_docker
     setup_nodejs
-    install_python
     touch ./docker/dev/.installed
 }
 

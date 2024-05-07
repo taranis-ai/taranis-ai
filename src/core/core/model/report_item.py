@@ -64,7 +64,7 @@ class ReportItem(BaseModel):
         self.completed = completed
         self.report_item_cpes = []
         if stories is not None:
-            self.stories = [Story.get(story_id) for story_id in stories]
+            self.stories = Story.get_bulk(stories)
 
     @classmethod
     def count_all(cls, is_completed):
@@ -271,7 +271,7 @@ class ReportItem(BaseModel):
         if err or not report_item:
             return err, status
 
-        items = [Story.get(item_id) for item_id in item_ids]
+        items = Story.get_bulk(item_ids)
         report_item.stories.extend(items)
         db.session.commit()
 
@@ -311,7 +311,7 @@ class ReportItem(BaseModel):
 
         story_ids = data.get("story_ids")
         if story_ids is not None:
-            report_item.stories = [Story.get(story_id) for story_id in story_ids]
+            report_item.stories = Story.get_bulk(story_ids)
 
         db.session.commit()
 
@@ -338,20 +338,20 @@ class ReportItem(BaseModel):
 class ReportItemAttribute(BaseModel):
     __tablename__ = "report_item_attribute"
 
-    id = db.Column(db.Integer, primary_key=True)
-    value: Any = db.Column(db.String())
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    value: Mapped[str] = db.Column(db.String())
 
-    title = db.Column(db.String())
-    description = db.Column(db.String())
+    title: Mapped[str] = db.Column(db.String())
+    description: Mapped[str] = db.Column(db.String())
 
-    index = db.Column(db.Integer)
-    multiple = db.Column(db.Boolean, default=False)
-    attribute_type: AttributeType = db.Column(db.Enum(AttributeType))
-    group_title = db.Column(db.String())
+    index: Mapped[int] = db.Column(db.Integer)
+    multiple: Mapped[bool] = db.Column(db.Boolean, default=False)
+    attribute_type: Mapped[AttributeType] = db.Column(db.Enum(AttributeType))
+    group_title: Mapped[str] = db.Column(db.String())
     render_data = db.Column(db.JSON)
 
     report_item_id = db.Column(db.String(64), db.ForeignKey("report_item.id", ondelete="CASCADE"), nullable=True)
-    report_item = db.relationship("ReportItem")
+    report_item = relationship("ReportItem")
 
     def __init__(
         self,
@@ -365,16 +365,17 @@ class ReportItemAttribute(BaseModel):
         render_data=None,
         id=None,
     ):
-        self.id = id
+        if id:
+            self.id = id
         self.value = value or ""
-        self.title = title
-        self.description = description
-        self.index = index
-        self.multiple = multiple
+        self.title = title or ""
+        self.description = description or ""
+        self.index = index or 0
+        self.multiple = multiple or False
         if attribute_type and attribute_type in AttributeType:
             self.attribute_type = attribute_type
         self.render_data = render_data
-        self.group_title = group_title
+        self.group_title = group_title or ""
 
     @classmethod
     def update_values_from_report(cls, attribute_data):

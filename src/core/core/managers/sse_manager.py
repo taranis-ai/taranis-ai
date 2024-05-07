@@ -2,6 +2,7 @@ import requests
 from datetime import datetime
 
 from core.config import Config
+from core.log import logger
 
 
 class SSEManager:
@@ -14,7 +15,7 @@ class SSEManager:
         self.broker_error = 0
 
     def get_headers(self) -> dict:
-        return {"Authorization": self.api_key, "Content-type": "application/json"}
+        return {"X-API-KEY": self.api_key, "Content-type": "application/json"}
 
     def publish(self, json_data) -> bool:
         if self.broker_error > 3 or Config.DISABLE_SSE:
@@ -22,12 +23,17 @@ class SSEManager:
         try:
             response = requests.post(url=self.sse_url, headers=self.headers, json=json_data, timeout=self.timeout)
             if not response.ok:
+                logger.debug(f"Failed to publish to SSE: {response.text}")
                 self.broker_error += 1
 
+            logger.debug(f"Publishing to SSE: {json_data}")
             return response.ok
         except requests.exceptions.RequestException:
             self.broker_error += 1
             return False
+
+    def connected(self):
+        self.publish({"data": "Connected", "event": "connected"})
 
     def news_items_updated(self):
         self.publish({"data": "News Item Updated", "event": "news-items-updated"})
@@ -55,10 +61,7 @@ class SSEManager:
         self.report_item_locks[report_item_id] = {"user_id": user_id, "lock_time": datetime.now()}
         self.publish(
             {
-                "data": {
-                    "report_item_id": report_item_id,
-                    "user_id": user_id,
-                },
+                "data": report_item_id,
                 "event": "report-item-locked",
             }
         )
@@ -73,10 +76,7 @@ class SSEManager:
 
         self.publish(
             {
-                "data": {
-                    "report_item_id": report_item_id,
-                    "user_id": user_id,
-                },
+                "data": report_item_id,
                 "event": "report-item-unlocked",
             }
         )

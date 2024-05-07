@@ -12,12 +12,12 @@ classifiers = [
     "Framework :: Flask",
     "Topic :: Security",
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
     "Flask",
     "Flask-Cors",
     "Flask-JWT-Extended",
-    "Flask-Migrate",
+    "yoyo-migrations",
     "Flask-SQLAlchemy",
     "flask_caching",
     "click",
@@ -31,7 +31,8 @@ dependencies = [
     "swagger-ui-py",
     "requests",
     "authlib",
-    "sseclient"
+    "sseclient",
+    "setuptools"
 ]
 dynamic = ["version"]
 
@@ -52,18 +53,17 @@ fallback_version = "0.0.0"
 root = "../.."
 
 [project.optional-dependencies]
-dev = ["ruff", "pytest", "pytest-celery", "sqlalchemy2-stubs", "schemathesis", "build", "wheel", "setuptools", "setuptools_scm", "pytest-playwright"]
+dev = ["ruff", "pytest", "pytest-celery", "sqlalchemy2-stubs", "schemathesis", "build", "wheel", "setuptools_scm", "pytest-playwright"]
 
 [project.urls]
 "Source Code" = "https://github.com/taranis-ai/taranis-ai"
 
-[tool.black]
-line-length = "142"
-target-version = ["py311"]
-
 [tool.ruff]
 line-length = 142
 target-version = "py312"
+
+[tool.ruff.lint.isort]
+lines-after-imports = 2
 
 [tool.pytest.ini_options]
 markers = [

@@ -16,6 +16,14 @@
           icon="mdi-alert-outline"
         />
       </td>
+      <div v-if="story_in_reports > 0" class="shared-icons-container">
+        <v-icon
+          v-for="n in story_in_reports"
+          :key="n"
+          :style="getSharingIcon(n)"
+          icon="mdi-share"
+        />
+      </div>
     </tr>
 
     <tr v-if="!compactView && story.tags && !reportView">
@@ -75,6 +83,7 @@ import { useI18n } from 'vue-i18n'
 import { computed, ref } from 'vue'
 import { useDisplay } from 'vuetify'
 import { storeToRefs } from 'pinia'
+import { getAssessSharingIcon } from '@/utils/helpers'
 import ArticleInfo from '@/components/assess/card/ArticleInfo.vue'
 import AuthorInfo from '@/components/assess/card/AuthorInfo.vue'
 import PopupEditTags from '@/components/popups/PopupEditTags.vue'
@@ -159,6 +168,10 @@ export default {
       return [...new Set(props.story.tags.slice(0, tagLimit.value))]
     })
 
+    const story_in_reports = computed(() => {
+      return props.story ? props.story.in_reports_count : 0
+    })
+
     const getPublishedDate = computed(() => {
       const pubDateNew = new Date(published_dates.value[0])
       const pubDateNewStr = d(pubDateNew, 'long')
@@ -177,15 +190,21 @@ export default {
       showTagDialog.value = true
     }
 
+    function getSharingIcon(index) {
+      return getAssessSharingIcon(index, story_in_reports.value)
+    }
+
     return {
       compactView,
       showWeekChart,
       showTagDialog,
       published_dates,
       published_date_outdated,
+      story_in_reports,
       getPublishedDate,
       filteredTags,
       editTags,
+      getSharingIcon,
       t
     }
   }
@@ -203,7 +222,13 @@ export default {
 .story-meta-info tr td {
   vertical-align: top;
 }
-.story-meta-info tr td:first-child {
-  padding-right: 10px;
+
+.story-meta-info tr td:last-child {
+  width: 100%;
+}
+
+.shared-icons-container {
+  position: absolute;
+  margin-left: -20px;
 }
 </style>

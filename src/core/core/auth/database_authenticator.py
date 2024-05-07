@@ -8,11 +8,8 @@ class DatabaseAuthenticator(BaseAuthenticator):
     def get_authenticator_name(self):
         return "DatabaseAuthenticator"
 
-    def get_database_uri(self):
-        return "DatabaseAuthenticator"
-
     def __str__(self):
-        return f"Authenticator: {self.get_authenticator_name()} DB: {self.get_database_uri()}"
+        return f"Authenticator: {self.get_authenticator_name()}"
 
     def authenticate(self, credentials: dict[str, str]) -> tuple[dict[str, str], int]:
         if credentials is None:

@@ -15,13 +15,13 @@ from core.service.news_item import NewsItemService
 class OSINTSourceGroupsList(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self):
-        return osint_source.OSINTSourceGroup.get_all_for_api(filter_args=None, user=current_user)
+        return osint_source.OSINTSourceGroup.get_all_for_assess_api(user=current_user)
 
 
 class OSINTSourcesList(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self):
-        return osint_source.OSINTSource.get_all_for_api(filter_args=None, user=current_user)
+        return osint_source.OSINTSource.get_all_for_assess_api(user=current_user)
 
 
 class NewsItems(MethodView):
@@ -120,7 +120,7 @@ class StoryTags(MethodView):
             default_min_size = 0 if search else 3
             min_size = int(request.args.get("min_size", default_min_size))
             filter_args = {"limit": limit, "offset": offset, "search": search, "min_size": min_size}
-            return news_item_tag.NewsItemTag.get_json(filter_args)
+            return news_item_tag.NewsItemTag.get_filtered_tags(filter_args)
         except Exception as ex:
             logger.log_debug(ex)
             return {"error": "Failed to get Tags"}, 400

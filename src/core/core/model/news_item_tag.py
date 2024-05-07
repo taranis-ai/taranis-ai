@@ -1,6 +1,7 @@
 from sqlalchemy import func
-from sqlalchemy.orm import Mapped, backref, relationship
-from typing import Any, TYPE_CHECKING, Sequence
+from sqlalchemy.orm import Mapped, relationship
+
+from typing import Any, TYPE_CHECKING
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 
@@ -15,14 +16,15 @@ class NewsItemTag(BaseModel):
     name: Mapped[str] = db.Column(db.String(255))
     tag_type: Mapped[str] = db.Column(db.String(255))
     story_id: Mapped[str] = db.Column(db.ForeignKey("story.id"))
-    story: Mapped["Story"] = relationship("Story", backref=backref("tags", cascade="all, delete-orphan"))
+    story: Mapped["Story"] = relationship("Story", back_populates="tags")
 
     def __init__(self, name, tag_type):
         self.name = name
         self.tag_type = tag_type
 
     @classmethod
-    def get_filtered_tags(cls, filter_args: dict) -> list["NewsItemTag"]:
+    def get_filtered_tags(cls, filter_args: dict) -> dict[str, str]:
+        # sourcery skip: identity-comprehension
         query = db.select(cls.name, cls.tag_type)
 
         if search := filter_args.get("search"):
@@ -37,26 +39,16 @@ class NewsItemTag(BaseModel):
             # order by size
             query = query.order_by(func.count(cls.name).desc())
 
-        rows = cls.get_rows(query, filter_args)
-        return [cls(name=row[0], tag_type=row[1]) for row in rows]
-
-    @classmethod
-    def get_rows(cls, query, filter_args: dict) -> Sequence["NewsItemTag"]:
         offset = filter_args.get("offset", 0)
         limit = filter_args.get("limit", 20)
         query = query.offset(offset).limit(limit)
-        results = cls.get_filtered(query)
-        return results or []
-
-    @classmethod
-    def get_json(cls, filter_args: dict) -> list[dict[str, Any]]:
-        tags = cls.get_filtered_tags(filter_args)
-        return [tag.to_small_dict() for tag in tags]
+        result = db.session.execute(query).tuples()
+        return {name: tag_type for name, tag_type in result}
 
     @classmethod
     def get_list(cls, filter_args: dict) -> list[str]:
         tags = cls.get_filtered_tags(filter_args)
-        return [tag.name for tag in tags]
+        return list(tags.keys())
 
     @classmethod
     def remove_by_story(cls, story):
@@ -75,23 +67,6 @@ class NewsItemTag(BaseModel):
     @classmethod
     def find_by_name(cls, tag_name: str) -> "NewsItemTag | None":
         return cls.get_first(db.select(cls).filter(cls.name.ilike(tag_name)))
-
-    @classmethod
-    def get_n_biggest_tags_by_type(cls, tag_type: str, n: int, offset: int = 0) -> dict[str, dict]:
-        stmt = (
-            db.select(cls.name, func.count(cls.name).label("name_count"))
-            .filter(cls.tag_type == tag_type)
-            .group_by(cls.name)
-            .order_by(db.desc("name_count"))
-            .offset(offset)
-            .limit(n)
-        )
-
-        # Executing the query and fetching results
-        result = db.session.execute(stmt).all()
-
-        # Mapping the results to a dictionary as per the function's return type
-        return {row[0]: {"name": row[0], "size": row[1]} for row in result}
 
     @classmethod
     def apply_sort(cls, query, sort_str: str):

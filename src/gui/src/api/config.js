@@ -190,8 +190,10 @@ export function createOrganization(organization) {
 }
 
 export function updateOrganization(organization) {
-  const { id } = organization
-  return apiService.put(`/config/organizations/${id}`, organization)
+  return apiService.put(
+    `/config/organizations/${organization.id}`,
+    organization
+  )
 }
 
 export function deleteOrganization(organization) {
@@ -213,6 +215,17 @@ export function updateUser(user) {
 
 export function deleteUser(user) {
   return apiService.delete(`/config/users/${user.id}`)
+}
+
+export function importUsers(form_data) {
+  return apiService.post('/config/users-import', form_data)
+}
+
+export function exportUsers(filter) {
+  return apiService.download(
+    `/config/users-export?${filter}`,
+    'users_export.json'
+  )
 }
 
 export function getAllWordLists(filter_data) {

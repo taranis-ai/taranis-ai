@@ -1,23 +1,23 @@
 <template>
   <div>
     <v-btn
+      v-if="showImport"
       color="green-darken-3"
       dark
       class="ml-4"
       prepend-icon="mdi-import"
+      text="Import"
       @click="importClick"
-    >
-      Import
-    </v-btn>
+    />
     <v-btn
+      v-if="showExport"
       color="teal-darken-4"
       dark
       class="ml-4"
       prepend-icon="mdi-export"
+      text="Export"
       @click="exportFile"
-    >
-      Export
-    </v-btn>
+    />
     <input
       ref="fileInput"
       :accept="accepts"
@@ -37,6 +37,14 @@ export default {
     accepts: {
       type: String,
       default: 'application/json'
+    },
+    showImport: {
+      type: Boolean,
+      default: true
+    },
+    showExport: {
+      type: Boolean,
+      default: true
     }
   },
   emits: ['import', 'export'],

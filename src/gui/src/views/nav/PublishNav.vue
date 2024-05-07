@@ -32,8 +32,7 @@
 </template>
 
 <script>
-import { computed, onUnmounted, watch } from 'vue'
-import { usePublishStore } from '@/stores/PublishStore'
+import { computed, onUnmounted } from 'vue'
 import { useFilterStore } from '@/stores/FilterStore'
 import FilterNavigation from '@/components/common/FilterNavigation.vue'
 import dateChips from '@/components/common/filter/dateChips.vue'
@@ -48,17 +47,14 @@ export default {
   },
   setup() {
     const filterStore = useFilterStore()
-    const publishStore = usePublishStore()
     const { productFilter } = storeToRefs(filterStore)
-    const { updateProductFilter, setProductFilter } = filterStore
-    const updateProducts = publishStore.updateProducts
 
     const search = computed({
       get() {
         return productFilter.value.search
       },
       set(value) {
-        updateProductFilter({ search: value })
+        filterStore.updateProductFilter({ search: value })
       }
     })
 
@@ -67,23 +63,12 @@ export default {
     }
 
     onUnmounted(() => {
-      setProductFilter({})
+      filterStore.setProductFilter({})
     })
-
-    watch(
-      productFilter,
-      (filter, prevFilter) => {
-        console.debug('filter changed', filter, prevFilter)
-        updateProducts()
-      },
-      { deep: true }
-    )
 
     return {
       search,
       productFilter,
-      updateProductFilter,
-      updateProducts,
       addProduct
     }
   }

@@ -33,7 +33,7 @@
 </template>
 
 <script>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onBeforeMount, computed } from 'vue'
 import { getTags } from '@/api/assess'
 import { tagIconFromType } from '@/utils/helpers'
 
@@ -101,7 +101,7 @@ export default {
       })
     }
 
-    onMounted(() => {
+    onBeforeMount(async () => {
       querySelections({ search: search.value })
     })
 

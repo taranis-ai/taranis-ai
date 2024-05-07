@@ -42,6 +42,7 @@ class Story(BaseModel):
     summary: Mapped[str] = db.Column(db.Text, default="")
     news_items: Mapped[list["NewsItem"]] = relationship("NewsItem")
     attributes: Mapped[list["NewsItemAttribute"]] = relationship("NewsItemAttribute", secondary="story_news_item_attribute")
+    tags: Mapped[list["NewsItemTag"]] = relationship("NewsItemTag", back_populates="story", cascade="all, delete-orphan")
 
     def __init__(
         self,
@@ -75,11 +76,12 @@ class Story(BaseModel):
             return datetime.fromisoformat(created)
         return datetime.now()
 
-    def load_news_items(self, news_items):
+    def load_news_items(self, news_items) -> list["NewsItem"]:
         if isinstance(news_items[0], dict):
             return NewsItem.load_multiple(news_items)
         elif isinstance(news_items[0], str):
-            return [NewsItem.get(item_id) for item_id in news_items]
+            news_items = [NewsItem.get(item_id) for item_id in news_items]
+            return [news_item for news_item in news_items if news_item]
         elif isinstance(news_items[0], NewsItem):
             return news_items
         return []
@@ -140,7 +142,7 @@ class Story(BaseModel):
         query = db.select(cls).group_by(cls.id).join(NewsItem, NewsItem.story_id == cls.id)
         query = query.join(OSINTSource, NewsItem.osint_source_id == OSINTSource.id)
 
-        if item_id := filter_args.get("id"):
+        if item_id := filter_args.get("story_id"):
             return query.filter(cls.id == item_id)
 
         if filter_args.get("group"):
@@ -409,6 +411,8 @@ class Story(BaseModel):
         if not story:
             return {"error": "Story not found", "id": f"{story_id}"}, 404
 
+        logger.debug(data)
+
         if "vote" in data and user:
             story.vote(data["vote"], user.id)
 
@@ -431,8 +435,9 @@ class Story(BaseModel):
             cls.reset_tags(story_id)
             cls.update_tags(story_id, data["tags"])
 
-        if "summary" in data:
-            cls.summary = data["summary"]
+        if summary := data.get("summary"):
+            logger.debug("Updating summary")
+            story.summary = summary
 
         if "attributes" in data:
             story.update_attributes(data["attributes"])
@@ -598,10 +603,10 @@ class Story(BaseModel):
                     continue
                 if user is None or news_item.allowed_with_acl(user, True):
                     story.news_items.append(news_item)
-                    story.relevance += news_item.relevance + 1
+                    story.relevance += 1
                     story.add(story)
                     story.update_status()
-            cls.update_stories(story)
+            cls.update_stories({story})
             db.session.commit()
             return {"message": "success"}, 200
         except Exception:
@@ -669,8 +674,9 @@ class Story(BaseModel):
                 news_item = NewsItem.get(item)
                 if not news_item:
                     continue
-                if not news_item.allowed_with_acl(user, True):
-                    continue
+                if user:
+                    if not news_item.allowed_with_acl(user, True):
+                        continue
                 story = Story.get(news_item.story_id)
                 if not story:
                     continue

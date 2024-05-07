@@ -50,5 +50,5 @@ class BotTask(Task):
             raise ValueError("Bot with has no parameters")
 
         if filter:
-            bot_params |= filter
+            bot_params["filter"] = filter
         return bot.execute(bot_params)

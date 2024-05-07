@@ -6,6 +6,7 @@ import lxml.html
 import dateutil.parser as dateparser
 from urllib.parse import urlparse
 from trafilatura import extract, extract_metadata
+from bs4 import BeautifulSoup
 
 from worker.log import logger
 from worker.collectors.base_collector import BaseCollector
@@ -21,6 +22,14 @@ class BaseWebCollector(BaseCollector):
 
         self.proxies = None
         self.headers = {}
+        self.source_id = None
+
+    def parse_source(self, source):
+        self.set_proxies(source["parameters"].get("PROXY_SERVER", None))
+        if user_agent := source["parameters"].get("USER_AGENT", None):
+            self.headers = {"User-Agent": user_agent}
+
+        self.source_id = source["id"]
 
     def set_proxies(self, proxy_server: str):
         self.proxies = {"http": proxy_server, "https": proxy_server, "ftp": proxy_server}
@@ -58,12 +67,16 @@ class BaseWebCollector(BaseCollector):
             return text, published_date
         return "", published_date
 
-    def xpath_extraction(self, html_content, xpath: str) -> str | None:
+    def xpath_extraction(self, html_content, xpath: str, get_content: bool = True) -> str | None:
         document = lxml.html.fromstring(html_content)
         if not document.xpath(xpath):
             logger.error(f"No content found for XPath: {xpath}")
             return None
-        return document.xpath(xpath)[0].text_content()
+        first_element = document.xpath(xpath)[0]
+        if get_content:
+            return first_element.text_content()
+
+        return lxml.html.tostring(first_element).decode()
 
     def clean_url(self, url: str) -> str:
         return url.split("?")[0].split("#")[0]
@@ -80,7 +93,7 @@ class BaseWebCollector(BaseCollector):
 
         return author or "", title or ""
 
-    def news_item_from_article(self, web_url: str, source_id: str, xpath: str = "") -> NewsItem:
+    def news_item_from_article(self, web_url: str, xpath: str = "") -> NewsItem:
         web_content = self.parse_web_content(web_url, xpath)
         return self.create_news_item(
             web_content["author"],
@@ -88,7 +101,7 @@ class BaseWebCollector(BaseCollector):
             web_content["content"],
             web_url,
             web_content["published_date"],
-            source_id,
+            self.source_id,
         ).to_dict()
 
     def parse_web_content(self, web_url, xpath: str = "") -> dict[str, str | datetime.datetime | None]:
@@ -119,3 +132,22 @@ class BaseWebCollector(BaseCollector):
             web_url=web_url,
             published_date=published_date,
         )
+
+    def get_urls(self, html_content: str) -> list:
+        soup = BeautifulSoup(html_content, "html.parser")
+        return [a["href"] for a in soup.find_all("a", href=True)]
+
+    def parse_digests(self) -> list[dict] | str:
+        news_items = []
+        max_elements = min(len(self.split_digest_urls), self.digest_splitting_limit)
+        for split_digest_url in self.split_digest_urls[:max_elements]:
+            try:
+                news_items.append(self.news_item_from_article(split_digest_url))
+            except ValueError as e:
+                logger.warning(f"RSS-Feed {self.source_id} failed to parse digest with error: {str(e)}")
+                continue
+            except Exception as e:
+                logger.error(f"RSS Collector failed digest splitting with error: {str(e)}")
+                raise e
+
+        return news_items

@@ -1,9 +1,17 @@
+import os
+import sys
 import pytest
 from dotenv import load_dotenv
 from sqlalchemy.orm import scoped_session, sessionmaker
 
+base_dir = os.path.dirname(os.path.abspath(__file__))
+env_file = os.path.join(base_dir, ".env")
+current_path = os.getcwd()
 
-load_dotenv(dotenv_path="tests/.env", override=True)
+if not current_path.endswith("src/core"):
+    sys.exit("Tests must be run from within src/core")
+
+load_dotenv(dotenv_path=env_file, override=True)
 
 
 def pytest_addoption(parser):

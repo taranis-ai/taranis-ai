@@ -61,7 +61,8 @@ class NewsItem(BaseModel):
         self.title = title
         self.review = review
         self.content = content
-        self.osint_source = OSINTSource.get(osint_source_id)
+        if osint_source := OSINTSource.get(osint_source_id):
+            self.osint_source = osint_source
         self.source = source
         self.link = link
         self.author = author

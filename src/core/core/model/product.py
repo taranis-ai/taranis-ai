@@ -40,7 +40,7 @@ class Product(BaseModel):
         self.title = title
         self.description = description
         self.product_type_id = product_type_id
-        self.report_items = [ReportItem.get(report_item) for report_item in report_items] if report_items else []
+        self.report_items = ReportItem.get_bulk(report_items) if report_items else []
 
     @classmethod
     def get_filter_query_with_acl(cls, filter_args: dict, user: User) -> Select:
@@ -142,21 +142,21 @@ class Product(BaseModel):
 
         report_items = data.get("report_items")
         if report_items is not None:
-            product.report_items = [ReportItem.get(report_item) for report_item in report_items]
+            product.report_items = ReportItem.get_bulk(report_items)
 
         db.session.commit()
         return {"message": f"Product {product_id} updated", "id": product_id}, 200
 
     @classmethod
-    def get_for_worker(cls, item_id) -> tuple[dict[str, Any], int]:
+    def get_for_worker(cls, item_id: str) -> tuple[dict[str, Any], int]:
         if item := cls.get(item_id):
             return item.to_worker_dict(), 200
         return {"error": f"{cls.__name__} {item_id} not found"}, 404
 
 
 class ProductReportItem(BaseModel):
-    product_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("product.id", ondelete="CASCADE"), primary_key=True)
-    report_item_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("report_item.id", ondelete="CASCADE"), primary_key=True)
+    product_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("product.id", ondelete="SET NULL"), primary_key=True)
+    report_item_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("report_item.id", ondelete="SET NULL"), primary_key=True)
 
     @classmethod
     def assigned(cls, report_id) -> bool:

@@ -89,7 +89,7 @@ class Worker(BaseModel):
     id: Mapped[str] = db.Column(db.String(64), primary_key=True)
     name: Mapped[str] = db.Column(db.String(), nullable=False)
     description: Mapped[str] = db.Column(db.String())
-    type: Mapped[WORKER_TYPES] = db.Column(db.Enum(WORKER_TYPES), nullable=False)
+    type: Mapped[WORKER_TYPES] = db.Column(db.Enum(WORKER_TYPES), nullable=False, unique=True)
     category: Mapped[WORKER_CATEGORY] = db.Column(db.Enum(WORKER_CATEGORY), nullable=False)
     parameters: Mapped[list["ParameterValue"]] = relationship("ParameterValue", secondary="worker_parameter_value", cascade="all")
 

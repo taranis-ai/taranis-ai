@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     DB_DATABASE: str = "taranis"
     DB_USER: str = "taranis"
     DB_PASSWORD: str = "supersecret"
-    SQLALCHEMY_SCHEMA: str = "postgresql+psycopg2"
+    SQLALCHEMY_SCHEMA: str = "postgresql"
     SQLALCHEMY_ECHO: bool = False
     SQLALCHEMY_TRACK_MODIFICATIONS: bool = False
     SQLALCHEMY_DATABASE_URI: str | None = None

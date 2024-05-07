@@ -14,7 +14,7 @@ class SummaryBot(BaseBot):
         self.type = "SUMMARY_BOT"
         self.name = "Summary generation Bot"
         self.description = "Bot to generate summaries for stories"
-        self.summary_threshold = 750
+        self.summary_threshold = 1000
         self.language = "en"
         logger.debug("Setup Summarization Model...")
         torch.set_num_threads(1)  # https://github.com/pytorch/pytorch/issues/36191
@@ -34,19 +34,17 @@ class SummaryBot(BaseBot):
                 return "Error getting news items"
 
             for story in data:
-                content_to_summarize = ""
+                news_items = story.get("news_items", [])
+                item_threshold: int = self.summary_threshold // len(news_items)
+                content_to_summarize = "".join(news_item["content"][:item_threshold] + news_item["title"] for news_item in news_items)
 
-                for news_item in story["news_items"]:
-                    content = news_item["content"] + news_item["review"] + news_item["title"]
-                    content_to_summarize += content
-
-                if not story.get("summary"):
-                    try:
-                        if summary := self.predict_summary(content_to_summarize[: self.summary_threshold]):
-                            logger.debug(f"Generated summary for {story['id']}: {summary}")
-                            self.core_api.update_story_summary(story["id"], summary)
-                    except Exception:
-                        logger.log_debug_trace(f"Could not generate summary for {story['id']}")
+                logger.debug(f"Summarizing {story['id']} with {len(content_to_summarize)} characters")
+                try:
+                    if summary := self.predict_summary(content_to_summarize[: self.summary_threshold]):
+                        self.core_api.update_story_summary(story["id"], summary)
+                except Exception:
+                    logger.log_debug_trace(f"Could not generate summary for {story['id']}")
+                    continue
 
                 logger.debug(f"Created summary for : {story['id']}")
 
