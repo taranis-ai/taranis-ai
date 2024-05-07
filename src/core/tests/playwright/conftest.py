@@ -1,4 +1,6 @@
 import subprocess
+import time
+
 import pytest
 import requests
 
@@ -23,6 +25,7 @@ def start_gui(start_core):
 
 @pytest.fixture(scope="session")
 def feed_source(start_gui, headers):
+    time.sleep(20)
     source_data = {
         "id": "99",
         "description": "This is a test source",
