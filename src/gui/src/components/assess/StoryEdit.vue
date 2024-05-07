@@ -22,7 +22,7 @@
           <attributes-table v-model="story.attributes" />
 
           <code-editor
-            v-model:content="story.comment"
+            v-model:content="story.comments"
             :header="$t('enter.comment')"
             :placeholder="$t('enter.comment_placeholder')"
           />
@@ -100,7 +100,7 @@ export default {
         const result = await patchStory(props.storyProp.id, {
           title: story.value.title,
           tags: story.value.tags,
-          comment: story.value.comment,
+          comments: story.value.comments,
           summary: story.value.summary,
           attributes: story.value.attributes
         })

@@ -1,9 +1,11 @@
 import uuid
 import hashlib
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, Sequence
 from sqlalchemy.sql import Select
 from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 
 from core.managers.db_manager import db
@@ -100,6 +102,38 @@ class NewsItem(BaseModel):
         if attributes := self.attributes:
             data["attributes"] = [attribute.to_dict() for attribute in attributes]
         return data
+
+    def upsert(self):
+        """Insert a NewsItem into the database or skip if hash exists."""
+        if db.engine.dialect.name == "postgresql":
+            insert_stmt = pg_insert(NewsItem)
+        else:
+            insert_stmt = sqlite_insert(NewsItem)
+
+        stmt = insert_stmt.values(self.to_upsert_dict()).on_conflict_do_nothing(index_elements=["hash"]).returning(NewsItem)
+
+        result = db.session.execute(stmt)
+        return result.scalar_one()
+
+    @classmethod
+    def upsert_from_dict(cls, news_item: dict) -> "NewsItem":
+        item = cls.from_dict(news_item)
+        return item.upsert()
+
+    @classmethod
+    def upsert_multiple(cls, news_items: Sequence["NewsItem | None"]) -> list["NewsItem"]:
+        updated_news_items = []
+        for news_item in news_items:
+            if news_item is not None:
+                news_item.upsert()
+                updated_news_items.append(news_item)
+        return updated_news_items
+
+    def to_upsert_dict(self) -> dict[str, Any]:
+        table = getattr(self, "__table__", None)
+        if table is None:
+            return {}
+        return {c.name: getattr(self, c.name) for c in table.columns}
 
     @classmethod
     def update_news_item_lang(cls, news_item_id, lang):

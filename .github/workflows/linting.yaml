@@ -26,9 +26,8 @@ jobs:
         run: pip install -e .[dev]
 
       - name: Lint with ruff
-        uses: chartboost/ruff-action@v1
-        with:
-          src: './src/core'
+        working-directory: src/core
+        run: ruff --output-format=github .
 
       - name: Update playwright
         working-directory: src/core
@@ -45,7 +44,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: Cache pip dependencies
         uses: actions/cache@v4
@@ -59,9 +58,8 @@ jobs:
         run: pip install -e .[dev]
 
       - name: Lint with ruff
-        uses: chartboost/ruff-action@v1
-        with:
-          src: './src/worker'
+        working-directory: src/worker
+        run: ruff --output-format=github .
 
       - name: test
         working-directory: src/worker

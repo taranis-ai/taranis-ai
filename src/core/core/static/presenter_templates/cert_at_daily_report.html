@@ -30,15 +30,15 @@ This Template needs excatly one Report
         {% if story.id|string == group_id -%}
         <h3>{{ story.title }}</h3>
         <p>
-        {% if story.summary is defined and story.summary|length -%}
+        {% if story.summary|length -%}
         {{ story.summary }}
         {% else -%}
         {{ story.news_items[0].content }}
         {%- endif %}
         </p>
         {% for item in story.news_items -%}
-        <a href="{{ item.link }}">{{ item.link }}</a>
-        {%- endfor %}
+        <p><a href="{{ item.link }}">{{ item.link }}</a></p>
+        {% endfor %}
         <hr>
         {%- endif %}
         {%- endfor %}

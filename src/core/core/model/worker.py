@@ -210,6 +210,35 @@ class Worker(BaseModel):
 
         return data
 
+    def update(self, item: dict[str, Any]) -> tuple[dict, int]:
+        if name := item.get("name"):
+            self.name = name
+        if description := item.get("description"):
+            self.description = description
+
+        if update_parameters := item.get("parameters"):
+            self._update_parameters(update_parameters)
+
+        db.session.commit()
+        return {
+            "message": "Worker and parameters updated successfully",
+        }, 200
+
+    def _update_parameters(self, update_parameters: list):
+        updated_parameter_names = {param["parameter"] for param in update_parameters}
+        existing_parameters = {param.parameter: param for param in self.parameters}
+
+        for update_parameter in update_parameters:
+            param_name = update_parameter.get("parameter")
+            if param_name in existing_parameters:
+                parameter = existing_parameters[param_name]
+                parameter.value = update_parameter.get("value", parameter.value)
+                parameter.rules = ",".join(update_parameter.get("rules", []))
+            else:
+                self.parameters.append(ParameterValue.from_dict(update_parameter))
+        self.parameters = [p for p in self.parameters if p.parameter in updated_parameter_names]
+        return self.parameters
+
 
 class WorkerParameterValue(BaseModel):
     worker_id = db.Column(db.String, db.ForeignKey("worker.id", ondelete="CASCADE"), primary_key=True)
