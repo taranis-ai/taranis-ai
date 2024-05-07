@@ -21,7 +21,7 @@ Co-Handler:  {{ report.co_handler }}
 {% for story in stories -%}
 {% if story.id|string == group_id -%}
 
-∗∗∗ {{ story.title }} ∗∗∗
+*** {{ story.title }} ***
 ---------------------------------------------
 {% if story.summary is defined and story.summary|length -%}
 {{ story.summary }}
@@ -31,7 +31,7 @@ Co-Handler:  {{ report.co_handler }}
 ---------------------------------------------
 {% for item in story.news_items -%}
 {{ item.link }}
-{%- endfor %}
+{% endfor %}
 
 {%- endif %}
 {%- endfor %}
@@ -47,7 +47,7 @@ Co-Handler:  {{ report.co_handler }}
 {% for story in stories -%}
 {% if story.id|string == group_id -%}
 
-∗∗∗ {{ story.title }} ∗∗∗
+*** {{ story.title }} ***
 ---------------------------------------------
 {% if story.summary is defined and story.summary|length -%}
 {{ story.summary }}
@@ -57,7 +57,7 @@ Co-Handler:  {{ report.co_handler }}
 ---------------------------------------------
 {% for item in story.news_items -%}
 {{ item.link }}
-{%- endfor %}
+{% endfor %}
 
 {%- endif %}
 {%- endfor %}

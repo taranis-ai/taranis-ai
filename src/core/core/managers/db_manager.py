@@ -3,7 +3,7 @@ from sqlalchemy.engine import reflection, Engine
 from sqlalchemy import event
 from sqlite3 import Connection as SQLite3Connection
 
-from core.managers.db_seed_manager import pre_seed
+from core.managers.db_seed_manager import pre_seed, pre_seed_update
 from core.managers.db_migration_manager import migrate, mark
 from core.log import logger
 
@@ -25,10 +25,11 @@ def initialize(app, initial_setup: bool = True):
     if is_db_empty() and initial_setup:
         logger.debug("Create new Database")
         db.create_all()
-        pre_seed(db)
+        pre_seed()
         mark(app, initial_setup)
     else:
         migrate(app, initial_setup)
+        pre_seed_update()
 
 
 @event.listens_for(Engine, "connect")

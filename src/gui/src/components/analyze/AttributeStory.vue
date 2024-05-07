@@ -36,7 +36,7 @@ export default {
       props.modelValue
         .split(',')
         .filter((v) => v)
-        .map((val) => parseInt(val))
+        .map((val) => val)
     )
 
     const updateSelected = (val) => {

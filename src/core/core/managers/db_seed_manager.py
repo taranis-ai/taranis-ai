@@ -2,7 +2,7 @@ from core.log import logger
 from core.config import Config
 
 
-def pre_seed(db):
+def pre_seed():
     try:
         pre_seed_permissions()
         logger.debug("Permissions seeded")
@@ -16,10 +16,10 @@ def pre_seed(db):
         pre_seed_default_user()
         logger.debug("Default users seeded")
 
-        pre_seed_attributes(db)
+        pre_seed_attributes()
         logger.debug("Attributes seeded")
 
-        pre_seed_report_items(db)
+        pre_seed_report_items()
         logger.debug("Report items seeded")
 
         pre_seed_wordlists()
@@ -37,6 +37,20 @@ def pre_seed(db):
     except Exception:
         logger.exception()
         logger.critical("Pre Seed failed")
+
+
+def pre_seed_update():
+    from core.managers.pre_seed_data import workers
+    from core.model.worker import Worker
+
+    pre_seed_source_groups()
+    pre_seed_manual_source()
+
+    for w in workers:
+        if worker := Worker.filter_by_type(w["type"]):
+            worker.update(w)
+        else:
+            Worker.add(w)
 
 
 def pre_seed_source_groups():
@@ -68,11 +82,7 @@ def pre_seed_workers():
     from core.model.bot import Bot
 
     for w in workers:
-        if worker := Worker.filter_by_type(w["type"]):
-            # TODO IMPLEMENT
-            worker.update(w)
-        else:
-            Worker.add(w)
+        Worker.add(w)
 
     for b in bots:
         Bot.add(b)
@@ -127,7 +137,7 @@ def pre_seed_roles():
         )
 
 
-def pre_seed_attributes(db):
+def pre_seed_attributes():
     from core.model.attribute import Attribute
 
     base_attr = {
@@ -168,7 +178,7 @@ def pre_seed_attributes(db):
             Attribute.create_attribute_with_enum(attr)
 
 
-def pre_seed_report_items(db):
+def pre_seed_report_items():
     from core.model.report_item_type import ReportItemType
     from core.managers.pre_seed_data import report_types
 

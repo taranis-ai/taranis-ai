@@ -78,6 +78,7 @@ class Story(BaseModel):
 
     def load_news_items(self, news_items) -> list["NewsItem"]:
         if isinstance(news_items[0], dict):
+            # return [NewsItem.upsert_from_dict(news_item) for news_item in news_items]
             return NewsItem.load_multiple(news_items)
         elif isinstance(news_items[0], str):
             news_items = [NewsItem.get(item_id) for item_id in news_items]
@@ -350,15 +351,19 @@ class Story(BaseModel):
         return items
 
     @classmethod
-    def add_from_news_item(cls, news_item: dict):
-        return Story.add(
-            {
-                "title": news_item.get("title"),
-                "description": news_item.get("review", news_item.get("content")),
-                "created": news_item.get("published"),
-                "news_items": [news_item],
-            }
-        ).id
+    def add_from_news_item(cls, news_item: dict) -> str | None:
+        try:
+            return cls.add(
+                {
+                    "title": news_item.get("title"),
+                    "description": news_item.get("review", news_item.get("content")),
+                    "created": news_item.get("published"),
+                    "news_items": [news_item],
+                }
+            ).id
+        except IntegrityError:
+            logger.warning("NewsItem already exists")
+            return None
 
     @classmethod
     def check_news_item_data(cls, news_item: dict) -> dict | None:
@@ -374,11 +379,10 @@ class Story(BaseModel):
         if err := cls.check_news_item_data(news_item):
             return err, 400
         try:
-            story_id = cls.add_from_news_item(news_item)
-            db.session.commit()
-        except IntegrityError:
-            logger.warning("NewsItem already exists")
-            return {"error": "NewsItem already exists"}, 400
+            if story_id := cls.add_from_news_item(news_item):
+                db.session.commit()
+            else:
+                return {"error": "NewsItem already exists"}, 400
         except Exception as e:
             logger.exception(f"Failed to add news items: {e}")
             return {"error": f"Failed to add news items: {e}"}, 400
@@ -393,11 +397,9 @@ class Story(BaseModel):
                 if err := cls.check_news_item_data(news_item):
                     logger.warning(err)
                     continue
-                ids.append(cls.add_from_news_item(news_item))
+                if story_id := cls.add_from_news_item(news_item):
+                    ids.append(story_id)
             db.session.commit()
-        except IntegrityError:
-            logger.warning("NewsItem already exists")
-            return {"error": "NewsItem already exists"}, 400
         except Exception as e:
             logger.exception(f"Failed to add news items: {e}")
             return {"error": f"Failed to add news items: {e}"}, 400
@@ -653,7 +655,7 @@ class Story(BaseModel):
     @classmethod
     def ungroup_story(cls, story_id: int, user: User | None = None):
         try:
-            story = Story.get(story_id)
+            story = cls.get(story_id)
             if not story:
                 return {"error": "Story not found"}, 404
             for news_item in story.news_items[:]:
