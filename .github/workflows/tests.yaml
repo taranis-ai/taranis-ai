@@ -59,23 +59,9 @@ jobs:
         working-directory: src/core
         run: pip install -e .[dev]
 
-      - name: Setup test context
-        working-directory: src/core/tests
-        run: |
-          echo -e "API_KEY=supersecret\nSECRET_KEY=supersecret\nFLASK_DEBUG=1\nDEBUG=true\nSQLALCHEMY_DATABASE_URI='postgresql+psycopg2://taranis:supersecret@localhost/taranis'\nPRESERVE_CONTEXT_ON_EXCEPTION=False\nDISABLE_SSE=True" > .env
-
       - name: test
         working-directory: src/core
         run: pytest --run-e2e-ci
-        env:
-          API_KEY: supersecret
-          SECRET_KEY: supersecret
-          FLASK_DEBUG: 1
-          DEBUG: true
-          SQLALCHEMY_DATABASE_URI: "postgresql+psycopg2://taranis:supersecret@localhost/taranis"
-          PRESERVE_CONTEXT_ON_EXCEPTION: False
-          DISABLE_SSE: True
-          TARANIS_URL: "http://localhost:8085"
 
   test_worker:
     name: pytest worker

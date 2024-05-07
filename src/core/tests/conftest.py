@@ -7,12 +7,8 @@ load_dotenv(dotenv_path="tests/.env", override=True)
 
 
 def pytest_addoption(parser):
-    parser.addoption(
-        "--run-e2e", action="store_true", default=False, help="run e2e tests"
-    )
-    parser.addoption(
-        "--run-e2e-ci", action="store_true", default=False, help="run e2e tests for CI"
-    )
+    parser.addoption("--run-e2e", action="store_true", default=False, help="run e2e tests")
+    parser.addoption("--run-e2e-ci", action="store_true", default=False, help="run e2e tests for CI")
 
 
 def pytest_collection_modifyitems(config, items):
@@ -32,9 +28,7 @@ def pytest_collection_modifyitems(config, items):
                 if "e2e_ci" not in item.keywords:
                     item.add_marker(skip_non_e2e_ci)
     else:
-        skip_e2e = pytest.mark.skip(
-            reason="need --run-e2e or --run-e2e-ci option to run e2e tests"
-        )
+        skip_e2e = pytest.mark.skip(reason="need --run-e2e or --run-e2e-ci option to run e2e tests")
         for item in items:
             if "e2e" in item.keywords or "e2e_ci" in item.keywords:
                 item.add_marker(skip_e2e)

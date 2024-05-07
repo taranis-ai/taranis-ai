@@ -8,22 +8,24 @@ fi
 
 case "$1" in
     up)
-#      # DB
-#      cd "$(git rev-parse --show-toplevel)/docker/dev" || echo "Error: Failed to navigate to the Docker directory.";
-#      docker compose up -d database
-
       # GUI
-      cd "$(git rev-parse --show-toplevel)/src/gui" || echo "Error: Failed to navigate to the Docker directory.";
-      pwd
-      npm run dev
-      sleep 5
+      cd "$(git rev-parse --show-toplevel)/src/gui" || echo "Error: Failed to navigate to the GUI directory.";
+      npm run dev &>/dev/null &
 
       # CORE
-      cd "$(git rev-parse --show-toplevel)/src/core/tests" || echo "Error: Failed to navigate to the Docker directory.";
-      source .env.e2e_extras
-#        FLASK_APP=../run.py FLASK_RUN_PORT=5000 flask run &>/dev/null &
-      FLASK_APP=../run.py FLASK_RUN_PORT SQLALCHEMY_DATABASE_URI flask run
+      cd "$(git rev-parse --show-toplevel)/src/core/tests" || echo "Error: Failed to navigate to the test directory.";
+      FLASK_APP=../run.py flask run &>/dev/null &
+      sleep 5
+      ;;
+    down)
+      # Cleanup
+        cleanup() {
+        echo "Cleaning up background jobs:"
+        kill $(jobs -p)
+        echo "All background jobs have been terminated."
+        }
 
+        trap cleanup EXIT
       ;;
     *)
       echo "Invalid argument: $1"

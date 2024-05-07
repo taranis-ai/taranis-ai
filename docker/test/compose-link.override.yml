@@ -1,7 +1,0 @@
-services:
-  database:
-    ports:
-      - "6543:5432"
-  sse:
-     ports:
-      - "8089:8088"
