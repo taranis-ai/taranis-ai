@@ -7,7 +7,6 @@ on:
 
 jobs:
   test_e2e:
-    needs: test_core
     name: pytest e2e
     runs-on: ubuntu-22.04
     steps:
