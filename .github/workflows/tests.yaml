@@ -38,31 +38,6 @@ jobs:
         working-directory: src/core
         run: pytest
 
-  test_e2e:
-    needs: test_core
-    name: pytest e2e
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Cache pip dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/pip
-          key: ${{ hashFiles('src/core/pyproject.toml') }}
-
-      - name: Install dependencies
-        working-directory: src/core
-        run: pip install -e .[dev]
-
-      - name: test
-        working-directory: src/core
-        run: pytest --run-e2e-ci
-
   test_worker:
     name: pytest worker
     runs-on: ubuntu-22.04

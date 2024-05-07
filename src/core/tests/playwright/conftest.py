@@ -1,24 +1,29 @@
 import subprocess
+import time
 import pytest
 import requests
 
-headers = {
-    "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTcxNDY3NTMzNywianRpIjoiZTA3NjRiZmQtMDUzOC00NDg4LTljZmMtY2NkZmFjZGM2MGU2IiwidHlwZSI6ImFjY2VzcyIsInN1YiI6ImFkbWluIiwibmJmIjoxNzE0Njc1MzM3LCJjc3JmIjoiZWRmOTc2NTktNzAxMy00NzViLTg3ZDUtNTM0NTczM2VmY2NlIiwidXNlcl9jbGFpbXMiOnsiaWQiOjEsIm5hbWUiOiJBcnRodXIgRGVudCIsInJvbGVzIjpbMV19fQ.siZID18vdHC1tyQnW8B9KuwqU-B2QJZHPBpknAyB-qg"
-}
+
+@pytest.fixture(scope="session")
+def headers():
+    return {
+        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTcxNDY3NTMzNywianRpIjoiZTA3NjRiZmQtMDUzOC00NDg4LTljZmMtY2NkZmFjZGM2MGU2IiwidHlwZSI6ImFjY2VzcyIsInN1YiI6ImFkbWluIiwibmJmIjoxNzE0Njc1MzM3LCJjc3JmIjoiZWRmOTc2NTktNzAxMy00NzViLTg3ZDUtNTM0NTczM2VmY2NlIiwidXNlcl9jbGFpbXMiOnsiaWQiOjEsIm5hbWUiOiJBcnRodXIgRGVudCIsInJvbGVzIjpbMV19fQ.siZID18vdHC1tyQnW8B9KuwqU-B2QJZHPBpknAyB-qg"
+    }
 
 
 @pytest.fixture(scope="session")
-def temporary_taranis_instance():
-    subprocess.run(["chmod", "+x", "./tests/playwright/temporary_taranis_instance.sh", "&>/dev/null &"])
-    result = subprocess.run(["./tests/playwright/temporary_taranis_instance.sh", "up", "&>/dev/null &"])
-    if result.returncode != 0:
-        pytest.fail("Script failed")
-    yield result.stdout
-    subprocess.run(["./tests/playwright/temporary_taranis_instance.sh", "down"])
+def start_core():
+    subprocess.Popen(["flask", "run"])
 
 
 @pytest.fixture(scope="session")
-def feed_source(temporary_taranis_instance):
+def start_gui(start_core):
+    subprocess.Popen(["npm", "run", "build"], cwd="../gui")
+    subprocess.Popen(["python", "-m", "http.server", "8081"], cwd="../gui/dist")
+
+
+@pytest.fixture(scope="session")
+def feed_source(start_gui, headers):
     source_data = {
         "id": "99",
         "description": "This is a test source",
@@ -37,7 +42,7 @@ def feed_source(temporary_taranis_instance):
 
 
 @pytest.fixture(scope="session")
-def news_items(feed_source):
+def news_items(feed_source, headers):
     news_item_1 = {
         "id": "1be00eef-6ade-4818-acfc-25029531a9a5",
         "content": "TEST CONTENT YYYY",
