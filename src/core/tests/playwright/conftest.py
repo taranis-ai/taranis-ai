@@ -1,5 +1,4 @@
 import subprocess
-import time
 import pytest
 import requests
 
