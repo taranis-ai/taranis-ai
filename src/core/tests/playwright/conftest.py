@@ -1,7 +1,14 @@
+import subprocess
 import pytest
 from playwright.sync_api import sync_playwright
 
 
+@pytest.fixture(scope="session")
+def build_gui():
+    subprocess.Popen(["npm", "run", "build"], cwd="../gui")
+
+
+# Optional add build_gui
 @pytest.fixture(scope="session")
 def e2e_server(app, live_server):
     live_server.app = app
