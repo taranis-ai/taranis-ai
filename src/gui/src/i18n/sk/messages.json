@@ -82,12 +82,6 @@
         "like_item": "Ako novinka",
         "like_items": "Ako novinky",
         "open_source": "Otvorte zdroj správy na novej karte",
-        "range": {
-          "ALL": "Zobraziť všetky novinky",
-          "MONTH": "Zobraziť novinky za posledný mesiac",
-          "TODAY": "Zobraziť dnešné novinky",
-          "WEEK": "Zobraziť novinky za posledný týždeň"
-        },
         "read_item": "Označiť novinku ako prečítanú",
         "read_items": "Označiť novinky ako prečítané",
         "sort": {

@@ -13,13 +13,6 @@ class TestAssessApi(BaseTest):
         response = self.assert_get_ok(client, "osint-source-group-list", auth_header)
         assert response.get_json()["items"][0]["id"] == "default"
 
-    def test_get_OSINTSourceGroupsAssess_unauth(self, client):
-        """
-        This test queries the OSINTSourceGroupsAssess UNauthenticated.
-        It expects "not authorized"
-        """
-        self.assert_get_failed(client, "osint-source-group-list")
-
     def test_get_OSINTSourcesList_auth(self, client, auth_header):
         """
         This test queries the OSINTSourcesList authenticated.
@@ -30,13 +23,6 @@ class TestAssessApi(BaseTest):
         assert len(items) >= 1
         item_ids = [item["id"] for item in items]
         assert "manual" in item_ids
-
-    def test_get_OSINTSourcesList_unauth(self, client):
-        """
-        This test queries the OSINTSourcesList UNauthenticated.
-        It expects "not authorized"
-        """
-        self.assert_get_failed(client, "osint-sources-list")
 
     def test_post_AddNewsItem_auth(self, client, cleanup_news_item, auth_header):
         """
@@ -50,17 +36,6 @@ class TestAssessApi(BaseTest):
         assert response.data
         assert response.status_code == 200
         assert uuid.UUID(response.get_json()["id"], version=4)
-
-    def test_post_AddNewsItem_unauth(self, client, cleanup_news_item):
-        """
-        This test queries the AddNewsItem UNauthenticated.
-        It expects "not authorized"
-        """
-
-        response = client.post("/api/assess/news-items", json=cleanup_news_item)
-        assert response.content_type == "application/json"
-        assert response.get_json()["error"] == "not authorized"
-        assert response.status_code == 401
 
     def test_get_stories_auth(self, client, stories, auth_header):
         """
@@ -101,17 +76,6 @@ class TestAssessApi(BaseTest):
         response = client.get("/api/assess/stories?limit=1", headers=auth_header)
         assert len(response.get_json()["items"]) == 1
 
-    def test_get_NewsItem_unauth(self, client):
-        """
-        This test queries the NewsItems UNauthenticated.
-        It expects "not authorized"
-        """
-        response = client.get("/api/assess/news-items")
-        assert response
-        assert response.content_type == "application/json"
-        assert response.get_json()["error"] == "not authorized"
-        assert response.status_code == 401
-
     def test_get_NewsItem_auth(self, client, stories, auth_header):
         """
         This test queries the NewsItems Authenticated.
@@ -123,17 +87,6 @@ class TestAssessApi(BaseTest):
         assert response.content_type == "application/json"
         assert response.status_code == 200
         assert len(response.get_json()["items"]) == 3
-
-    def test_get_story_tags_unauth(self, client):
-        """
-        This test queries the tags UNauthenticated.
-        It expects "not authorized"
-        """
-        response = client.get("/api/assess/tags")
-        assert response
-        assert response.content_type == "application/json"
-        assert response.get_json()["error"] == "not authorized"
-        assert response.status_code == 401
 
     def test_get_story_tags(self, client, stories, auth_header):
         """

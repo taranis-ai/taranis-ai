@@ -82,12 +82,6 @@
             "like_item": "Nachrichtenelement mögen",
             "like_items": "Nachrichtenelemente mögen",
             "open_source": "Quelle des Nachrichtenelements in einem neuen Tab öffnen",
-            "range": {
-                "ALL": "Alle Nachrichtenelemente anzeigen",
-                "MONTH": "Nachrichtenelemente des letzten Monats anzeigen",
-                "TODAY": "Heutige Nachrichtenelemente anzeigen",
-                "WEEK": "Nachrichtenelemente der letzten Woche anzeigen"
-            },
             "read_item": "Nachrichtenelement als gelesen markieren",
             "read_items": "Nachrichtenelemente als gelesen markieren",
             "sort": {
