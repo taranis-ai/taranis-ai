@@ -1,15 +1,10 @@
 #!/usr/bin/env python3
 import re
 
-from playwright.sync_api import sync_playwright, expect
+from playwright.sync_api import expect
 import time
 import os
 import pytest
-
-app = None
-
-taranis_url = os.getenv("TARANIS_URL", "http://localhost:8081")
-print(taranis_url)
 
 
 def highlight_element(locator, duration):
@@ -37,19 +32,10 @@ def scroll_to_the_bottom(page):
 
 
 def run_e2e(
-    playwright,
-    headless=True,
-    video_dir=None,
-    viewport=None,
-    record_video_size=None,
-    wait=1,
+    context,
+    taranis_url,
+    wait=2,
 ) -> None:
-    browser = playwright.chromium.launch(headless=headless)
-    context = browser.new_context(
-        record_video_dir=video_dir,
-        viewport=viewport,
-        record_video_size=record_video_size,
-    )
     page = context.new_page()
     page.goto(taranis_url)
     (page.get_by_placeholder("Username"))
@@ -150,35 +136,24 @@ def run_e2e(
     highlight_element(page.get_by_role("heading", name="Bundesinnenministerin Nancy").first, wait).click()
     highlight_element(page.get_by_role("button", name="ungroup"), wait).click()
 
-    video_path = page.video.path() or None
-    context.close()
-    browser.close()
-
-    if video_path:
+    if video_path := page.video.path() or None:
         original_path = video_path
-        print(original_path)
-        new_path = os.path.join(video_dir, "e2e_test.webm")
-        print(new_path)
+        new_path = os.path.join("videos/", "e2e_test.webm")
         os.rename(original_path, new_path)
         print(f"Video saved as: {new_path}")
-    else:
-        print("No video was recorded.")
 
 
 @pytest.mark.e2e
-def test_e2e_local(news_items):
-    with sync_playwright() as playwright:
-        run_e2e(
-            playwright,
-            headless=False,
-            wait=2,
-            video_dir="videos/",
-            viewport={"width": 1920, "height": 1080},
-            record_video_size={"width": 1810, "height": 1000},
-        )
+def test_e2e_local(e2e_server, chrome_browser, stories):
+    run_e2e(
+        context=chrome_browser,
+        taranis_url=e2e_server.url(),
+    )
 
 
 @pytest.mark.e2e_ci
-def test_e2e_ci(news_items):
-    with sync_playwright() as playwright:
-        run_e2e(playwright)
+def test_e2e_ci(e2e_server, stories, chrome_browser_headless):
+    run_e2e(
+        context=chrome_browser_headless,
+        taranis_url=e2e_server.url(),
+    )

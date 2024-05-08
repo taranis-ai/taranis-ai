@@ -14,39 +14,20 @@ if not current_path.endswith("src/core"):
 load_dotenv(dotenv_path=env_file, override=True)
 
 
-def pytest_addoption(parser):
-    parser.addoption("--run-e2e", action="store_true", default=False, help="run e2e tests")
-    parser.addoption("--run-e2e-ci", action="store_true", default=False, help="run e2e tests for CI")
-
-
-def pytest_collection_modifyitems(config, items):
-    run_e2e = config.getoption("--run-e2e")
-    run_e2e_ci = config.getoption("--run-e2e-ci")
-
-    if run_e2e or run_e2e_ci:
-        if run_e2e:
-            skip_non_e2e = pytest.mark.skip(reason="not a local e2e test")
-            for item in items:
-                if "e2e" not in item.keywords:
-                    item.add_marker(skip_non_e2e)
-
-        if run_e2e_ci:
-            skip_non_e2e_ci = pytest.mark.skip(reason="not an e2e CI test")
-            for item in items:
-                if "e2e_ci" not in item.keywords:
-                    item.add_marker(skip_non_e2e_ci)
-    else:
-        skip_e2e = pytest.mark.skip(reason="need --run-e2e or --run-e2e-ci option to run e2e tests")
-        for item in items:
-            if "e2e" in item.keywords or "e2e_ci" in item.keywords:
-                item.add_marker(skip_e2e)
-
-
 @pytest.fixture(scope="session")
 def app(request):
     from core.__init__ import create_app
 
-    yield create_app()
+    app = create_app()
+    app.config.update(
+        {
+            "TESTING": True,
+            "DEBUG": True,
+            "SERVER_NAME": "localhost",
+        }
+    )
+
+    yield app
 
 
 @pytest.fixture(scope="session")
@@ -183,3 +164,29 @@ def auth_header_user_permissions(access_token_user_permissions):
         "Authorization": f"Bearer {access_token_user_permissions}",
         "Content-type": "application/json",
     }
+
+
+def pytest_addoption(parser):
+    group = parser.getgroup("e2e")
+    group.addoption("--run-e2e", action="store_const", const="e2e", default=None, help="run e2e tests")
+    group.addoption("--run-e2e-ci", action="store_const", const="e2e_ci", default=None, help="run e2e tests for CI")
+
+
+def skip_for_e2e(e2e_test: str, items):
+    skip_non_e2e = pytest.mark.skip(reason=f"skip for {e2e_test} test")
+    for item in items:
+        if e2e_test not in item.keywords:
+            item.add_marker(skip_non_e2e)
+
+
+def pytest_collection_modifyitems(config, items):
+    if e2e_type := config.getoption("--run-e2e-ci") or config.getoption("--run-e2e"):
+        config.option.no_start_live_server = True
+        skip_for_e2e(e2e_type, items)
+        return
+
+    for item in items:
+        skip_e2e = pytest.mark.skip(reason="need --run-e2e or --run-e2e-ci option to run e2e tests")
+        for item in items:
+            if "e2e" in item.keywords or "e2e_ci" in item.keywords:
+                item.add_marker(skip_e2e)

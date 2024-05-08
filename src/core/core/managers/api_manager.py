@@ -1,9 +1,11 @@
+import os
 from swagger_ui import api_doc
 from flask import jsonify
 from pathlib import Path
 from flask_caching import Cache
 from flask_cors import CORS
 
+from core.log import logger
 import core.api as core_api
 
 
@@ -31,6 +33,10 @@ def initialize(app):
     core_api.user.initialize(app)
     core_api.task.initialize(app)
     core_api.worker.initialize(app)
+
+    if "test_e2e" in os.getenv("PYTEST_CURRENT_TEST", ""):
+        logger.info("Initializing frontend for e2e tests")
+        core_api.frontend.initialize(app)
 
 
 def handle_bad_request(e):

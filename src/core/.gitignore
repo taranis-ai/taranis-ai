@@ -4,3 +4,4 @@ worker_init.flag
 .env
 __pycache__/
 *.pyc
+videos/
