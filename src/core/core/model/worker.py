@@ -248,10 +248,7 @@ class Worker(BaseModel):
         if parameter.parameter in ["TAGGING_WORDLISTS"]:
             word_lists = WordList.get_by_filter({"usage": 4})
             data["items"] = [{"name": wordlist.name, "description": wordlist.description} for wordlist in word_lists] if word_lists else []
-            data["headers"] = [
-                {"title": "Name", "key": "name"},
-                {"title": "Description", "key": "description"},
-            ]
+            data["headers"] = [{"title": "Name", "key": "name"}, {"title": "Description", "key": "description"}]
             data["value"] = []
             data["disabled"] = True
 
