@@ -15,10 +15,19 @@ load_dotenv(dotenv_path=env_file, override=True)
 
 
 @pytest.fixture(scope="session")
-def app(request):
+def app():
     from core.__init__ import create_app
 
-    yield create_app()
+    app = create_app()
+    app.config.update(
+        {
+            "TESTING": True,
+            "DEBUG": True,
+            "SERVER_NAME": "localhost",
+        }
+    )
+
+    yield app
 
 
 @pytest.fixture(scope="session")
@@ -88,7 +97,10 @@ def access_token(app):
 
 @pytest.fixture
 def auth_header(access_token):
-    return {"Authorization": f"Bearer {access_token}", "Content-type": "application/json"}
+    return {
+        "Authorization": f"Bearer {access_token}",
+        "Content-type": "application/json",
+    }
 
 
 @pytest.fixture
@@ -140,9 +152,43 @@ def access_token_no_permissions(app):
 
 @pytest.fixture
 def auth_header_no_permissions(access_token_no_permissions):
-    return {"Authorization": f"Bearer {access_token_no_permissions}", "Content-type": "application/json"}
+    return {
+        "Authorization": f"Bearer {access_token_no_permissions}",
+        "Content-type": "application/json",
+    }
 
 
 @pytest.fixture
 def auth_header_user_permissions(access_token_user_permissions):
-    return {"Authorization": f"Bearer {access_token_user_permissions}", "Content-type": "application/json"}
+    return {
+        "Authorization": f"Bearer {access_token_user_permissions}",
+        "Content-type": "application/json",
+    }
+
+
+def pytest_addoption(parser):
+    group = parser.getgroup("e2e")
+    group.addoption("--run-e2e", action="store_const", const="e2e", default=None, help="run e2e tests")
+    group.addoption("--run-e2e-ci", action="store_const", const="e2e_ci", default=None, help="run e2e tests for CI")
+
+
+def skip_for_e2e(e2e_test: str, items):
+    skip_non_e2e = pytest.mark.skip(reason=f"skip for {e2e_test} test")
+    for item in items:
+        if e2e_test not in item.keywords:
+            item.add_marker(skip_non_e2e)
+
+
+def pytest_collection_modifyitems(config, items):
+    if e2e_type := config.getoption("--run-e2e-ci") or config.getoption("--run-e2e"):
+        config.option.start_live_server = False
+        config.option.headed = e2e_type == "e2e"
+
+        skip_for_e2e(e2e_type, items)
+        return
+
+    for item in items:
+        skip_e2e = pytest.mark.skip(reason="need --run-e2e or --run-e2e-ci option to run e2e tests")
+        for item in items:
+            if "e2e" in item.keywords or "e2e_ci" in item.keywords:
+                item.add_marker(skip_e2e)

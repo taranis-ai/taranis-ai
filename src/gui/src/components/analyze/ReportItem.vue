@@ -51,6 +51,7 @@
               </v-col>
               <v-col cols="4" class="pr-3">
                 <v-select
+                  id="report_item_selector"
                   v-model="report_item.report_item_type_id"
                   :disabled="edit"
                   item-title="title"
