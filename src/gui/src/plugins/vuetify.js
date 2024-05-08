@@ -85,6 +85,7 @@ export const vuetify = createVuetify({
       mdi
     }
   },
+  mobileBreakpoint: 'xs',
   display: {
     thresholds: {
       xs: 600,

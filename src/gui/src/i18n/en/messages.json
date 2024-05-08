@@ -77,12 +77,6 @@
             "like_item": "Like news item",
             "like_items": "Like news items",
             "open_source": "Open news item's source in a new tab",
-            "range": {
-                "ALL": "Show all news items",
-                "MONTH": "Show news items for the last month",
-                "TODAY": "Show today's news items",
-                "WEEK": "Show news items for the last week"
-            },
             "read_item": "Mark news item as read",
             "read_items": "Mark news items as read",
             "sort": {
