@@ -7,6 +7,7 @@ from sqlalchemy.orm import Mapped, relationship
 from core.managers.db_manager import db
 from core.model.parameter_value import ParameterValue
 from core.model.base_model import BaseModel
+from core.log import logger
 
 
 class COLLECTOR_TYPES(StrEnum):
@@ -217,26 +218,24 @@ class Worker(BaseModel):
             self.description = description
 
         if update_parameters := item.get("parameters"):
+            logger.debug(update_parameters)
             self._update_parameters(update_parameters)
 
         db.session.commit()
-        return {
-            "message": "Worker and parameters updated successfully",
-        }, 200
+        return self.to_dict(), 200
 
     def _update_parameters(self, update_parameters: list):
-        updated_parameter_names = {param["parameter"] for param in update_parameters}
+        updated_params = {param.parameter: param for param in ParameterValue.get_or_create_from_list(update_parameters)}
         existing_parameters = {param.parameter: param for param in self.parameters}
 
-        for update_parameter in update_parameters:
-            param_name = update_parameter.get("parameter")
+        for param_name, update_parameter in updated_params.items():
             if param_name in existing_parameters:
                 parameter = existing_parameters[param_name]
-                parameter.value = update_parameter.get("value", parameter.value)
-                parameter.rules = ",".join(update_parameter.get("rules", []))
+                parameter.value = update_parameter.value
+                parameter.rules = update_parameter.rules
             else:
-                self.parameters.append(ParameterValue.from_dict(update_parameter))
-        self.parameters = [p for p in self.parameters if p.parameter in updated_parameter_names]
+                self.parameters.append(update_parameter)
+        self.parameters = [p for p in self.parameters if p.parameter in updated_params]
         return self.parameters
 
 

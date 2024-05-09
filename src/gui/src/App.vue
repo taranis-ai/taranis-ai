@@ -57,7 +57,9 @@ export default defineComponent({
           }
         }, timeToRefresh.value)
       }
-      sseHandler()
+      if (isAuthenticated.value) {
+        sseHandler()
+      }
     })
 
     return {

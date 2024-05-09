@@ -9,6 +9,10 @@ class BaseTest:
         response = client.post(f"{self.base_uri}/{uri}", json=json_data, headers=auth_header)
         return self.assert_json_ok(response)
 
+    def assert_patch_ok(self, client, uri, json_data, auth_header):
+        response = client.patch(f"{self.base_uri}/{uri}", json=json_data, headers=auth_header)
+        return self.assert_json_ok(response)
+
     def assert_post_data_ok(self, client, uri, data, auth_header):
         auth_header["Content-type"] = "multipart/form-data"
         response = client.post(f"{self.base_uri}/{uri}", data=data, headers=auth_header)

@@ -130,7 +130,7 @@
 import { ref, computed, onMounted, provide } from 'vue'
 import { useAnalyzeStore } from '@/stores/AnalyzeStore'
 import { useUserStore } from '@/stores/UserStore'
-import { createReportItem, updateReportItem } from '@/api/analyze'
+import { createReportItem } from '@/api/analyze'
 import AttributeItem from '@/components/analyze/AttributeItem.vue'
 import CardStory from '@/components/assess/CardStory.vue'
 import { notifyFailure, notifySuccess } from '@/utils/helpers'
@@ -190,13 +190,13 @@ export default {
         return
       }
       if (props.edit) {
-        updateReportItem(report_item.value.id, report_item.value)
-          .then((response) => {
-            notifySuccess(`Report with ID ${response.data.id} updated`)
-          })
-          .catch(() => {
-            notifyFailure('Failed to update report item')
-          })
+        const update_report_item = {
+          title: report_item.value.title,
+          completed: report_item.value.completed,
+          attributes: report_item.value.attributes
+        }
+
+        store.patchReportItem(report_item.value.id, update_report_item)
       } else {
         createReportItem(report_item.value)
           .then((response) => {

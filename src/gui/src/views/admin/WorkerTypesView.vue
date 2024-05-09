@@ -26,8 +26,9 @@ import EditConfig from '@/components/config/EditConfig.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useConfigStore } from '@/stores/ConfigStore'
 import { useMainStore } from '@/stores/MainStore'
-import { notifyFailure, baseFormat } from '@/utils/helpers'
+import { notifyFailure, baseFormat, notifySuccess } from '@/utils/helpers'
 import { storeToRefs } from 'pinia'
+import { patchWorkerType } from '@/api/config'
 
 export default {
   name: 'WorkerTypesView',
@@ -62,8 +63,7 @@ export default {
       for (const key in parameters.value) {
         result[key] = parameters.value[key].map((param) => {
           return {
-            ...param,
-            disabled: true
+            ...param
           }
         })
       }
@@ -71,7 +71,7 @@ export default {
     })
 
     // methods
-    const updateData = () => {
+    function updateData() {
       configStore.loadWorkerTypes().then(() => {
         mainStore.itemCountTotal = worker_types.value.total_count
         mainStore.itemCountFiltered = worker_types.value.items.length
@@ -79,13 +79,21 @@ export default {
       configStore.loadParameters()
     }
 
-    const editItem = (item) => {
+    function editItem(item) {
       formData.value = item
       showForm.value = true
     }
 
-    const handleSubmit = () => {
-      notifyFailure('Worker Types cannot be edited')
+    function handleSubmit(submittedData) {
+      patchWorkerType(submittedData)
+        .then(() => {
+          notifySuccess('Worker Type updated')
+          showForm.value = false
+          updateData()
+        })
+        .catch((error) => {
+          notifyFailure(error)
+        })
     }
 
     onMounted(() => {

@@ -3,6 +3,7 @@ import {
   getAllReportTypes,
   getReportItem,
   cloneReportItem,
+  updateReportItem,
   addStoriesToReportItem
 } from '@/api/analyze'
 
@@ -86,6 +87,21 @@ export const useAnalyzeStore = defineStore(
       }
     }
 
+    async function patchReportItem(report_item_id, data) {
+      try {
+        const response = await updateReportItem(report_item_id, data)
+        notifySuccess(response.data.message)
+      } catch (error) {
+        notifyFailure(error)
+      }
+      report_items.value.items = report_items.value.items.map((item) => {
+        if (item.id === report_item_id) {
+          return { ...item, ...data }
+        }
+        return item
+      })
+    }
+
     async function cloneReport(report_item_id) {
       try {
         const response = await cloneReportItem(report_item_id)
@@ -134,6 +150,7 @@ export const useAnalyzeStore = defineStore(
       getReportItemsList,
       getReportItemsTableData,
       getReportItemsByIDs,
+      patchReportItem,
       loadReportItems,
       updateReportItems,
       updateReportByID,

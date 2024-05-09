@@ -433,17 +433,20 @@ class TestAttributes(BaseTest):
 class TestWorkerTypes(BaseTest):
     base_uri = "/api/config"
 
-    def test_create_worker_types(self, client, auth_header, cleanup_worker_types):
-        response = self.assert_post_ok(client, uri="worker-types", json_data=cleanup_worker_types, auth_header=auth_header)
-        assert response.json["message"] == f"Worker {cleanup_worker_types['name']} added"
-
     def test_get_worker_types(self, client, cleanup_worker_types, auth_header):
         response = self.assert_get_ok(client, uri=f"worker-types?search={cleanup_worker_types['name']}", auth_header=auth_header)
         assert response.json["items"][0]["name"] == cleanup_worker_types["name"]
         assert response.json["items"][0]["description"] == cleanup_worker_types["description"]
         assert response.json["items"][0]["type"] == cleanup_worker_types["type"]
-        print(response.json["items"][0])
-        assert response.json["items"][0]["parameters"]["REGULAR_EXPRESSION"] == cleanup_worker_types["parameters"]["REGULAR_EXPRESSION"]
-        assert response.json["items"][0]["parameters"]["ITEM_FILTER"] == cleanup_worker_types["parameters"]["ITEM_FILTER"]
-        assert response.json["items"][0]["parameters"]["RUN_AFTER_COLLECTOR"] == cleanup_worker_types["parameters"]["RUN_AFTER_COLLECTOR"]
-        assert response.json["items"][0]["parameters"]["REFRESH_INTERVAL"] == cleanup_worker_types["parameters"]["REFRESH_INTERVAL"]
+        assert response.json["items"][0]["parameters"] == cleanup_worker_types["parameters"]
+
+    def test_patch_worker_types(self, client, cleanup_worker_types, auth_header):
+        update_data = {"name": "Worky McWorkerFace"}
+
+        response = self.assert_patch_ok(
+            client, uri=f"worker-types/{cleanup_worker_types['id']}", json_data=update_data, auth_header=auth_header
+        )
+        assert response.json["name"] == update_data["name"]
+        assert response.json["description"] == cleanup_worker_types["description"]
+        assert response.json["type"] == cleanup_worker_types["type"]
+        assert response.json["parameters"] == cleanup_worker_types["parameters"]

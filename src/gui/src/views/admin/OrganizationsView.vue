@@ -101,19 +101,19 @@ export default {
         : 'Add Organization'
     })
 
-    const addItem = () => {
+    function addItem() {
       formData.value = {}
       edit.value = false
       showForm.value = true
     }
 
-    const editItem = (item) => {
+    function editItem(item) {
       formData.value = item
       edit.value = true
       showForm.value = true
     }
 
-    const handleSubmit = (submittedData) => {
+    function handleSubmit(submittedData) {
       if (edit.value) {
         updateItem(submittedData)
       } else {
@@ -121,7 +121,7 @@ export default {
       }
     }
 
-    const deleteItem = (item) => {
+    function deleteItem(item) {
       deleteOrganization(item)
         .then(() => {
           notifySuccess(`Successfully deleted ${item.name}`)
@@ -132,7 +132,7 @@ export default {
         })
     }
 
-    const createItem = (item) => {
+    function createItem(item) {
       createOrganization(item)
         .then(() => {
           notifySuccess(`Successfully created ${item.name}`)
@@ -143,7 +143,7 @@ export default {
         })
     }
 
-    const updateItem = (item) => {
+    function updateItem(item) {
       updateOrganization(item)
         .then(() => {
           notifySuccess(`Successfully updated ${item.name}`)

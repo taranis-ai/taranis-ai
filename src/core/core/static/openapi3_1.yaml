@@ -1943,7 +1943,7 @@ paths:
                 $ref: '#/components/schemas/worker_type'
         '401':
           $ref: "#/components/responses/401Unauthorized"
-    post:
+    patch:
       tags: [config]
       operationId: WorkerTypesPut
       description: create new worker type

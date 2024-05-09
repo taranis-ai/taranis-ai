@@ -56,7 +56,7 @@ export const useConfigStore = defineStore(
       return (
         osint_sources.value.items.find(
           (osint_source) => osint_source.id === osint_source_id
-        ).name || osint_source_id
+        )?.name || osint_source_id
       )
     })
 

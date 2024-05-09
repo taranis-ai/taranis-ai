@@ -573,21 +573,25 @@ class WordListGather(MethodView):
         return queue_manager.queue_manager.gather_word_list(word_list_id)
 
 
-class Workers(MethodView):
+class WorkerInstances(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
     def get(self):
         return queue_manager.queue_manager.ping_workers()
 
 
-class WorkerTypes(MethodView):
+class Workers(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
     @extract_args("search", "category", "type")
     def get(self, filter_args=None):
         return worker.Worker.get_all_for_api(filter_args, True)
 
     @auth_required("CONFIG_WORKER_ACCESS")
-    def post(self):
-        return worker.Worker.add(request.json)
+    def patch(self, worker_id):
+        if not request.json:
+            return {"error": "No data provided"}, 400
+        if update_worker := worker.Worker.get(worker_id):
+            return update_worker.update(request.json)
+        return {"error": "Worker not found"}, 404
 
 
 def initialize(app: Flask):
@@ -625,9 +629,6 @@ def initialize(app: Flask):
     app.add_url_rule(f"{base_route}/publishers", view_func=Publishers.as_view("publishers"))
     app.add_url_rule(f"{base_route}/publishers-presets", view_func=PublisherPresets.as_view("publishers_presets"))
     app.add_url_rule(f"{base_route}/publishers-presets/<string:preset_id>", view_func=PublisherPresets.as_view("publisher_preset"))
-    app.add_url_rule(f"{base_route}/workers/queue-status", view_func=QueueStatus.as_view("queue_status"))
-    app.add_url_rule(f"{base_route}/workers/schedule", view_func=QueueSchedule.as_view("queue_schedule_config"))
-    app.add_url_rule(f"{base_route}/workers/tasks", view_func=QueueTasks.as_view("queue_tasks"))
     app.add_url_rule(f"{base_route}/report-item-types", view_func=ReportItemTypes.as_view("report_item_types"))
     app.add_url_rule(f"{base_route}/report-item-types/<int:type_id>", view_func=ReportItemTypes.as_view("report_item_type"))
     app.add_url_rule(f"{base_route}/export-report-item-types", view_func=ReportItemTypesExport.as_view("report_item_types_export"))
@@ -643,5 +644,9 @@ def initialize(app: Flask):
     app.add_url_rule(f"{base_route}/word-lists/<int:word_list_id>/gather", view_func=WordListGather.as_view("word_list_gather"))
     app.add_url_rule(f"{base_route}/export-word-lists", view_func=WordListExport.as_view("word_list_export"))
     app.add_url_rule(f"{base_route}/import-word-lists", view_func=WordListImport.as_view("word_list_import"))
-    app.add_url_rule(f"{base_route}/workers", view_func=Workers.as_view("workers"))
-    app.add_url_rule(f"{base_route}/worker-types", view_func=WorkerTypes.as_view("worker_types"))
+    app.add_url_rule(f"{base_route}/workers", view_func=WorkerInstances.as_view("workers"))
+    app.add_url_rule(f"{base_route}/workers/queue-status", view_func=QueueStatus.as_view("queue_status"))
+    app.add_url_rule(f"{base_route}/workers/schedule", view_func=QueueSchedule.as_view("queue_schedule_config"))
+    app.add_url_rule(f"{base_route}/workers/tasks", view_func=QueueTasks.as_view("queue_tasks"))
+    app.add_url_rule(f"{base_route}/worker-types", view_func=Workers.as_view("worker_types"))
+    app.add_url_rule(f"{base_route}/worker-types/<string:worker_id>", view_func=Workers.as_view("worker_type_patch"))

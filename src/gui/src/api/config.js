@@ -139,6 +139,10 @@ export function getAllWorkerTypes(filter_data) {
   return apiService.get(`/config/worker-types?${filter}`)
 }
 
+export function patchWorkerType(worker_data) {
+  return apiService.patch(`/config/worker-types/${worker_data.id}`, worker_data)
+}
+
 export function getAllParameters() {
   return apiService.get('/config/parameters')
 }

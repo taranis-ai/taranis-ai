@@ -89,8 +89,8 @@ export default {
     const { enhanced_schedule, workers, queue_status, queue_tasks } =
       storeToRefs(configStore)
 
-    const updateData = () => {
-      Promise.all([
+    async function updateData() {
+      await Promise.all([
         configStore.loadOSINTSources(),
         configStore.loadQueueStatus(),
         configStore.loadSchedule(),

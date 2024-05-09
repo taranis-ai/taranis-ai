@@ -231,11 +231,11 @@ def cleanup_product_types(app, request):
 
 
 @pytest.fixture(scope="session")
-def cleanup_acls(app, request):
+def cleanup_acls(app):
     with app.app_context():
         from core.model.role_based_access import RoleBasedAccess
 
-        acl_data = {
+        yield {
             "id": 42,
             "name": "test_acl_unique",
             "description": "Test ACL",
@@ -244,23 +244,17 @@ def cleanup_acls(app, request):
             "roles": [],
         }
 
-        def teardown():
-            with app.app_context():
-                if RoleBasedAccess.get(42):
-                    print("Deleting test ACL 42")
-                    RoleBasedAccess.delete(42)
-
-        request.addfinalizer(teardown)
-
-        yield acl_data
+        if RoleBasedAccess.get(42):
+            print("Deleting test ACL 42")
+            RoleBasedAccess.delete(42)
 
 
 @pytest.fixture(scope="session")
-def cleanup_publisher_preset(app, request):
+def cleanup_publisher_preset(app):
     with app.app_context():
         from core.model.publisher_preset import PublisherPreset
 
-        publisher_preset_data = {
+        yield {
             "id": "44",
             "name": "test_publisher_preset",
             "description": "Test ACL",
@@ -268,23 +262,17 @@ def cleanup_publisher_preset(app, request):
             "parameters": {"FTP_URL": "ftp_url_entry"},
         }
 
-        def teardown():
-            with app.app_context():
-                if PublisherPreset.get(44):
-                    print("Deleting test publisher preset 44")
-                    PublisherPreset.delete(44)
-
-        request.addfinalizer(teardown)
-
-        yield publisher_preset_data
+        if PublisherPreset.get(44):
+            print("Deleting test publisher preset 44")
+            PublisherPreset.delete(44)
 
 
 @pytest.fixture(scope="session")
-def cleanup_attribute(app, request):
+def cleanup_attribute(app):
     with app.app_context():
         from core.model.attribute import Attribute
 
-        attribute_data = {
+        yield {
             "id": 42,
             "name": "Attribute name",
             "description": "Simple attribute desc",
@@ -292,41 +280,15 @@ def cleanup_attribute(app, request):
             "default_value": "2234",
         }
 
-        def teardown():
-            with app.app_context():
-                if Attribute.get(42):
-                    print("Deleting test attribute 42")
-                    Attribute.delete(42)
-
-        request.addfinalizer(teardown)
-
-        yield attribute_data
+        if Attribute.get(42):
+            print("Deleting test attribute 42")
+            Attribute.delete(42)
 
 
 @pytest.fixture(scope="session")
-def cleanup_worker_types(app, request):
+def cleanup_worker_types(app):
     with app.app_context():
         from core.model.worker import Worker
 
-        worker_types_data = {
-            "name": "Worker type",
-            "description": "Desc of worker type",
-            "type": "web_collector",
-            "parameters": {
-                "REGULAR_EXPRESSION": "Reg Exp",
-                "ITEM_FILTER": "Item Filter",
-                "RUN_AFTER_COLLECTOR": "Run After Collector",
-                "REFRESH_INTERVAL": "Refresh Interval",
-            },
-        }
-
-        # Because id is not assignable, the teardown is not possible. Any thoughts?
-        def teardown():
-            with app.app_context():
-                if Worker.get(42):
-                    print("Deleting test attribute 42")
-                    Worker.delete(42)
-
-        request.addfinalizer(teardown)
-
-        yield worker_types_data
+        if rss_worker := Worker.filter_by_type("rss_collector"):
+            yield rss_worker.to_dict()

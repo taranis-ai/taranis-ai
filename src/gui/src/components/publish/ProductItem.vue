@@ -150,11 +150,7 @@
 
 <script>
 import { ref, computed, onMounted, watch } from 'vue'
-import {
-  createProduct,
-  updateProduct,
-  triggerRenderProduct
-} from '@/api/publish'
+import { createProduct, triggerRenderProduct } from '@/api/publish'
 import PopupPublishProduct from '../popups/PopupPublishProduct.vue'
 import { useI18n } from 'vue-i18n'
 import { useAnalyzeStore } from '@/stores/AnalyzeStore'
@@ -240,15 +236,7 @@ export default {
       const { valid } = await form.value.validate()
       if (!valid) return
       if (props.edit) {
-        updateProduct(product.value)
-          .then((response) => {
-            console.debug('Updated product', response.data.id)
-            notifySuccess('Product updated ' + response.data.id)
-          })
-          .catch((error) => {
-            console.error(error)
-            notifyFailure("Couldn't update product")
-          })
+        publishStore.patchProduct(product.value)
       } else {
         createProduct(product.value)
           .then((response) => {
