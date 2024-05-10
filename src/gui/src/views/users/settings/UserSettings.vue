@@ -113,11 +113,11 @@ export default {
 
     const sseLabel = computed(() => {
       if (sseConnectionState.value === 'CONNECTING')
-        return 'Connecting... to ' + coreSSEURL.value
+        return 'SSE Connecting... to ' + coreSSEURL.value
       if (sseConnectionState.value === 'OPEN')
-        return 'Connected to ' + coreSSEURL.value
+        return 'SSE Connected to ' + coreSSEURL.value
       if (sseConnectionState.value === 'CLOSED')
-        return 'Disconnected from ' + coreSSEURL.value
+        return 'SSE is not Connected. SSEURL: ' + coreSSEURL.value
       return 'Error Connecting to SSE ' + coreSSEURL.value
     })
 

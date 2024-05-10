@@ -18,6 +18,7 @@
       </router-view>
     </v-main>
 
+    <HotKeysDialog v-if="isAuthenticated" />
     <Notification v-if="isAuthenticated" />
   </v-app>
 </template>
@@ -25,6 +26,7 @@
 <script>
 import MainMenu from '@/components/MainMenu.vue'
 import Notification from '@/components/common/Notification.vue'
+import HotKeysDialog from '@/components/common/HotKeysDialog.vue'
 import { defineComponent, onMounted, watch } from 'vue'
 import { useAuthStore } from '@/stores/AuthStore'
 import { storeToRefs } from 'pinia'
@@ -35,7 +37,8 @@ export default defineComponent({
   name: 'App',
   components: {
     MainMenu,
-    Notification
+    Notification,
+    HotKeysDialog
   },
   setup() {
     const { isAuthenticated, timeToRefresh } = storeToRefs(useAuthStore())

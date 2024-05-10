@@ -17,6 +17,7 @@ export const useMainStore = defineStore(
     const buildDate = ref(new Date().toISOString())
     const notification = ref({ message: '', type: '', show: false })
     const sseConnectionError = ref(false)
+    const hotkeyDialogVisible = ref(false)
 
     // Getters
     const getItemCount = computed(() => {
@@ -78,6 +79,7 @@ export const useMainStore = defineStore(
       buildDate.value = new Date().toISOString()
       notification.value = { message: '', type: '', show: false }
       sseConnectionError.value = false
+      hotkeyDialogVisible.value = false
     }
 
     return {
@@ -94,6 +96,7 @@ export const useMainStore = defineStore(
       getItemCount,
       upstreamTreeUrl,
       sseConnectionError,
+      hotkeyDialogVisible,
       gitUpstreamTreeUrl,
       updateFromLocalConfig,
       toggleDrawer,

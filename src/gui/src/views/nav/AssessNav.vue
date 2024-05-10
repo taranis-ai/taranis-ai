@@ -181,15 +181,18 @@
             color="primary"
             prepend-icon="mdi-reload"
             block
+            text="reset filter"
             @click="resetFilter()"
-          >
-            reset filter
-          </v-btn>
+          />
         </v-col>
         <v-col cols="12" class="py-2">
-          <v-btn color="primary" block to="enter" prepend-icon="mdi-pencil">
-            create new item
-          </v-btn>
+          <v-btn
+            color="primary"
+            block
+            to="enter"
+            prepend-icon="mdi-pencil"
+            text="create new item"
+          />
         </v-col>
       </v-row>
     </template>

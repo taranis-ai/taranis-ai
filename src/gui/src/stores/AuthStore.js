@@ -31,6 +31,7 @@ export const useAuthStore = defineStore(
 
     async function login(userData) {
       try {
+        reset()
         const response = await authenticate(userData)
         setJwtToken(response.data.access_token)
         const userStore = useUserStore()
@@ -45,16 +46,6 @@ export const useAuthStore = defineStore(
     async function logout() {
       await authLogout()
       reset()
-      const userStore = useUserStore()
-      const assessStore = useAssessStore()
-      const mainStore = useMainStore()
-      const configStore = useConfigStore()
-      const analyzeStore = useAnalyzeStore()
-      userStore.reset_user()
-      configStore.reset()
-      mainStore.reset()
-      assessStore.reset()
-      analyzeStore.reset()
       router.push({ name: 'login' })
     }
 
@@ -95,6 +86,16 @@ export const useAuthStore = defineStore(
       user.value = {}
       sub.value = ''
       exp.value = 0
+      const userStore = useUserStore()
+      const assessStore = useAssessStore()
+      const mainStore = useMainStore()
+      const configStore = useConfigStore()
+      const analyzeStore = useAnalyzeStore()
+      userStore.reset_user()
+      configStore.reset()
+      mainStore.reset()
+      assessStore.reset()
+      analyzeStore.reset()
     }
 
     return {

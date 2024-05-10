@@ -34,6 +34,16 @@
       </v-row>
 
       <slot name="navdrawer"></slot>
+      <v-row class="ml-0 mr-0">
+        <v-col cols="12">
+          <v-btn
+            block
+            prepend-icon="mdi-keyboard"
+            text="Show Hotkeys"
+            @click="hotkeyDialogVisible = !hotkeyDialogVisible"
+          />
+        </v-col>
+      </v-row>
     </v-container>
   </v-navigation-drawer>
 </template>
@@ -65,7 +75,7 @@ export default {
     const timeout = ref(null)
     const store = useMainStore()
 
-    const { drawerVisible } = storeToRefs(store)
+    const { drawerVisible, hotkeyDialogVisible } = storeToRefs(store)
 
     const limitState = computed({
       get: () => props.limit,
@@ -100,7 +110,8 @@ export default {
       itemsPerPage,
       limitState,
       searchState,
-      drawerVisible
+      drawerVisible,
+      hotkeyDialogVisible
     }
   }
 }

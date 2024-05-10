@@ -6,7 +6,6 @@ import { useAuthStore } from '@/stores/AuthStore'
 import { useUserStore } from '@/stores/UserStore'
 import { watch } from 'vue'
 import { useEventSource } from '@vueuse/core'
-import { notifyFailure } from '@/utils/helpers'
 import { sseConnected } from '@/api/user'
 
 function defaultHandler(data) {
@@ -41,7 +40,7 @@ export function sseHandler() {
       retries: 3,
       delay: 1000,
       onFailed() {
-        notifyFailure(`Failed to connect to ${sseEndpoint} after 3 retries`)
+        console.error(`Failed to connect to ${sseEndpoint} after 3 retries`)
         mainStore.sseConnectionError = true
         userStore.sseConnectionState = 'ERROR'
       }

@@ -74,17 +74,9 @@ export default defineComponent({
     const filterStore = useFilterStore()
     const mainStore = useMainStore()
     const { stories, loading } = storeToRefs(assessStore)
-    const { storyFilter } = storeToRefs(filterStore)
+    const { storyFilter, storyPage } = storeToRefs(filterStore)
 
     assessHotkeys()
-    const moreToLoad = computed(() => {
-      const offset = storyFilter.value.offset
-        ? parseInt(storyFilter.value.offset)
-        : 0
-      const length = offset + stories.value.items.length
-      return length < stories.value.total_count
-    })
-
     const page = computed({
       get: () => {
         return Number(storyFilter.value.page) + 1 || 0
@@ -100,6 +92,10 @@ export default defineComponent({
       return count > 0 ? count : 1
     })
 
+    const moreToLoad = computed(() => {
+      return storyPage.value + 1 < numberOfPages.value
+    })
+
     const refresh = (id) => {
       assessStore.updateStoryByID(id)
     }
@@ -109,7 +105,6 @@ export default defineComponent({
     })
 
     const displayMore = async ({ done }) => {
-      console.debug('displayMore', loading.value)
       if (!moreToLoad.value) {
         done('empty')
         return
@@ -123,7 +118,6 @@ export default defineComponent({
       if (await assessStore.appendStories()) {
         done('ok')
       }
-      done('empty')
     }
 
     const resetFilter = () => {
