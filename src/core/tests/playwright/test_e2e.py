@@ -11,6 +11,7 @@ import pytest
 class TestEndToEnd:
     wait_duration = 2
     ci_run = False
+    produce_artifacts = False
 
     def highlight_element(self, locator):
         if self.ci_run:
@@ -60,6 +61,8 @@ class TestEndToEnd:
         self.highlight_element(page.get_by_text("Mobile World Congress 2023TEST CONTENT YYYY")).click()
         self.highlight_element(page.get_by_role("button", name="merge")).click()
         expect(page.get_by_role("main")).to_contain_text("(2)")
+        if self.produce_artifacts:
+            page.screenshot(path="tests/playwright/screenshots/assess_final.png")
         self.highlight_element(page.locator(".ml-auto > button").first).click()
 
     def test_e2e_analyze(self, taranis_frontend: Page):
@@ -72,7 +75,7 @@ class TestEndToEnd:
         # expect(page.get_by_role("listbox")).to_contain_text("Disinformation")
         # expect(page.get_by_role("listbox")).to_contain_text("OSINT Report")
         # expect(page.get_by_role("listbox")).to_contain_text("Vulnerability Report")
-        # self.highlight_element(page.get_by_role("option", name="Disinformation")).click()
+        # self.highlight_element(page.get_by_role("option", name="CERT Report")).click()
         # self.highlight_element(page.get_by_label("Title")).click()
         # self.highlight_element(page.get_by_label("Title")).fill("Test Title")
         # self.highlight_element(page.get_by_role("button", name="Save")).click()
@@ -91,7 +94,7 @@ class TestEndToEnd:
         self.highlight_element(page.get_by_role("link", name="Publish").first).click()
         expect(page).to_have_title("Taranis AI | Publish", timeout=5000)
         self.highlight_element(page.get_by_role("button", name="New Product")).click()
-        self.highlight_element(page.get_by_role("combobox").locator("div").filter(has_text="Product TypeProduct Type").locator("div")).click()
+        self.highlight_element(page.get_by_role("combobox").locator("div").filter(has_text="Product Type").locator("div")).click()
         self.highlight_element(page.get_by_role("option", name="Default TEXT Presenter")).click()
         self.highlight_element(page.get_by_label("Title")).click()
         self.highlight_element(page.get_by_label("Title")).fill("Test Product")

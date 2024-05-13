@@ -20,7 +20,7 @@
     "@intlify/unplugin-vue-i18n": "^2.0.0",
     "@mdi/font": "^7.4.47",
     "@sentry/vue": "^7.114.0",
-    "@vuepic/vue-datepicker": "^8.5.1",
+    "@vuepic/vue-datepicker": "^8.6.0",
     "@vueuse/core": "^10.9.0",
     "axios": "^1.6.8",
     "codemirror": "^6.0.1",
@@ -36,7 +36,7 @@
     "vue-i18n": "^9.13.1",
     "vue-router": "^4.3.2",
     "vue-use-hotkeys": "^0.4.0",
-    "vuetify": "^3.6.4",
+    "vuetify": "^3.6.5",
     "zipson": "^0.2.12"
   },
   "devDependencies": {
@@ -44,7 +44,7 @@
     "@vue/eslint-config-prettier": "^9.0.0",
     "@vue/eslint-config-typescript": "^12.0.0",
     "prettier": "^3.2.5",
-    "sass": "^1.77.0",
+    "sass": "^1.77.1",
     "typescript": "^5.4.5",
     "vite": "^5.2.11",
     "vite-plugin-vuetify": "^2.0.3",

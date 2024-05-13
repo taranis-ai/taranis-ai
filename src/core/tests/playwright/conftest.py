@@ -11,6 +11,8 @@ def build_gui():
 @pytest.fixture(scope="class")
 def e2e_ci(request):
     request.cls.ci_run = request.config.getoption("--run-e2e-ci") == "e2e_ci"
+    request.cls.wait_duration = int(request.config.getoption("--highlight-delay"))
+    request.cls.produce_artifacts = request.config.getoption("--produce-artifacts")
 
 
 # Optional add build_gui
@@ -25,18 +27,15 @@ def e2e_server(app, live_server, stories):
 
 
 @pytest.fixture(scope="session")
-def browser_context_args(browser_context_args):
-    return {
-        **browser_context_args,
-        "viewport": {"width": 1920, "height": 1080},
-        "record_video_size": {"width": 1810, "height": 1000},
-        "record_video_dir": "videos/",
-    }
+def browser_context_args(browser_context_args, request):
+    if request.config.getoption("--produce-artifacts"):
+        return {**browser_context_args, "record_video_dir": "tests/playwright/videos", "viewport": {"width": 1920, "height": 1080}}
+    return {**browser_context_args, "viewport": {"width": 1920, "height": 1080}}
 
 
 @pytest.fixture(scope="session")
-def taranis_frontend(e2e_server, browser: Browser):
-    context = browser.new_context()
+def taranis_frontend(e2e_server, browser_context_args, browser: Browser):
+    context = browser.new_context(**browser_context_args)
     page = context.new_page()
     page.goto(e2e_server.url())
     yield page
