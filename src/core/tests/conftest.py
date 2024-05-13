@@ -170,6 +170,8 @@ def pytest_addoption(parser):
     group = parser.getgroup("e2e")
     group.addoption("--run-e2e", action="store_const", const="e2e", default=None, help="run e2e tests")
     group.addoption("--run-e2e-ci", action="store_const", const="e2e_ci", default=None, help="run e2e tests for CI")
+    group.addoption("--highlight-delay", action="store", default="2", help="delay for highlighting elements in e2e tests")
+    group.addoption("--produce-artifacts", action="store_true", default=False, help="create screenshots and record video")
 
 
 def skip_for_e2e(e2e_test: str, items):
@@ -183,6 +185,7 @@ def pytest_collection_modifyitems(config, items):
     if e2e_type := config.getoption("--run-e2e-ci") or config.getoption("--run-e2e"):
         config.option.start_live_server = False
         config.option.headed = e2e_type == "e2e"
+        config.option.tracing = "on"
 
         skip_for_e2e(e2e_type, items)
         return
