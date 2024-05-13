@@ -9,7 +9,7 @@ def build_gui():
 
 
 @pytest.fixture(scope="class")
-def e2e_ci(request):
+def e2e_ci(build_gui, request):
     request.cls.ci_run = request.config.getoption("--run-e2e-ci") == "e2e_ci"
     request.cls.wait_duration = int(request.config.getoption("--highlight-delay"))
     request.cls.produce_artifacts = request.config.getoption("--produce-artifacts")
