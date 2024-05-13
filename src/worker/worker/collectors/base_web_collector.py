@@ -102,7 +102,7 @@ class BaseWebCollector(BaseCollector):
             web_url,
             web_content["published_date"],
             self.source_id,
-        ).to_dict()
+        )
 
     def parse_web_content(self, web_url, xpath: str = "") -> dict[str, str | datetime.datetime | None]:
         web_content, published_date = self.web_content_from_article(web_url)
@@ -138,7 +138,7 @@ class BaseWebCollector(BaseCollector):
         soup = BeautifulSoup(html_content, "html.parser")
         return [a["href"] for a in soup.find_all("a", href=True)]
 
-    def parse_digests(self) -> list[dict] | str:
+    def parse_digests(self) -> list[NewsItem] | str:
         news_items = []
         max_elements = min(len(self.split_digest_urls), self.digest_splitting_limit)
         for split_digest_url in self.split_digest_urls[:max_elements]:

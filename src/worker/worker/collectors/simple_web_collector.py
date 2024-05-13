@@ -47,7 +47,7 @@ class SimpleWebCollector(BaseWebCollector):
         news_items = self.gather_news_items(source)
         return self.preview(news_items, source)
 
-    def handle_digests(self) -> list[dict] | str:
+    def handle_digests(self) -> list[NewsItem] | str:
         if not self.xpath:
             raise ValueError("No XPATH set for digest splitting")
 

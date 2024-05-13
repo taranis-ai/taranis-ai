@@ -9,6 +9,7 @@ import email.utils
 import socket
 
 from worker.log import logger
+from worker.types import NewsItem
 from .base_collector import BaseCollector
 
 
@@ -64,20 +65,19 @@ class EmailCollector(BaseCollector):
 
                 for_hash = author + title + message_id
 
-                news_item = {
-                    "id": str(uuid.uuid4()),
-                    "hash": hashlib.sha256(for_hash.encode()).hexdigest(),
-                    "title": title,
-                    "review": review,
-                    "source": url,
-                    "link": link,
-                    "published": published,
-                    "author": author,
-                    "collected": datetime.datetime.now(),
-                    "content": content,
-                    "osint_source_id": source["id"],
-                    "attributes": [],
-                }
+                news_item = NewsItem(
+                    id=str(uuid.uuid4()),
+                    hash=hashlib.sha256(for_hash.encode()).hexdigest(),
+                    title=title,
+                    content=content,
+                    review=review,
+                    web_url=url,
+                    link=link,
+                    published_date=published,
+                    author=author,
+                    collected=datetime.datetime.now(),
+                    osint_source_id=source["id"]
+                )
 
                 if part.get_content_maintype() == "multipart":
                     pass
