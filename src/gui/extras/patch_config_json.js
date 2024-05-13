@@ -11,3 +11,9 @@ if (gitInfo && gitInfo.trim() !== '') {
 }
 
 fs.writeFileSync(configPath, JSON.stringify(configJson, null, 2))
+
+const localConfigPath = path.join(__dirname, '../dist/config.local.json')
+
+if (fs.existsSync(localConfigPath)) {
+  fs.unlinkSync(localConfigPath)
+}

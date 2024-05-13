@@ -5,7 +5,7 @@ from playwright.sync_api import Browser
 
 @pytest.fixture(scope="session")
 def build_gui():
-    subprocess.Popen(["npm", "run", "build"], cwd="../gui")
+    yield subprocess.call(["npm", "run", "build"], cwd="../gui")
 
 
 @pytest.fixture(scope="class")
