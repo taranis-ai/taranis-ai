@@ -30,9 +30,9 @@ class TestEndToEnd:
     def test_e2e_login(self, taranis_frontend: Page):
         page = taranis_frontend
         ###
-        # expect(page).to_have_title("Uncomment and halt test run for test writing purposes", timeout=0)
+        expect(page).to_have_title("Uncomment and halt test run for test writing purposes", timeout=0)
         ###
-        expect(page).to_have_title("Taranis AI", timeout=500)
+        # expect(page).to_have_title("Taranis AI", timeout=500)
         self.highlight_element(page.get_by_placeholder("Username"))
         page.get_by_placeholder("Username").fill("admin")
         self.highlight_element(page.get_by_placeholder("Password"))

@@ -14,6 +14,12 @@ fs.writeFileSync(configPath, JSON.stringify(configJson, null, 2))
 
 const localConfigPath = path.join(__dirname, '../dist/config.local.json')
 
-if (fs.existsSync(localConfigPath)) {
-  fs.unlinkSync(localConfigPath)
+try {
+  fs.unlinkSync(localConfigPath);
+} catch (err) {
+  if (err.code === 'ENOENT') {
+    // File not found, do nothing
+  } else {
+    console.error('An error occurred:', err);
+  }
 }
