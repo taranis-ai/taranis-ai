@@ -29,10 +29,12 @@ class TestEndToEnd:
 
     def test_e2e_login(self, taranis_frontend: Page):
         page = taranis_frontend
-        # Codegen to write new tests using the test instance
-        # expect(page).to_have_title("Taranis AI | Assess", timeout=0)
-        expect(page).to_have_title("Taranis AI", timeout=5000)
-        self.highlight_element(page.get_by_placeholder("Username").fill("admin"))
+        ###
+        # expect(page).to_have_title("Uncomment and halt test run for test writing purposes", timeout=0)
+        ###
+        expect(page).to_have_title("Taranis AI", timeout=500)
+        self.highlight_element(page.get_by_placeholder("Username"))
+        page.get_by_placeholder("Username").fill("admin")
         self.highlight_element(page.get_by_placeholder("Password"))
         page.get_by_placeholder("Password").fill("admin")
         self.highlight_element(page.locator("role=button")).click()
@@ -41,7 +43,7 @@ class TestEndToEnd:
     def test_e2e_assess(self, taranis_frontend: Page):
         page = taranis_frontend
         self.highlight_element(page.get_by_role("link", name="Assess").first).click()
-        expect(page).to_have_title("Taranis AI | Assess", timeout=5000)
+        expect(page).to_have_title("Taranis AI | Assess", timeout=1000)
 
         self.highlight_element(page.get_by_label("Source", exact=True)).click()
 
@@ -62,6 +64,8 @@ class TestEndToEnd:
         expect(page.get_by_role("main")).to_contain_text("TEST CONTENT YYYY")
         self.highlight_element(page.get_by_role("heading", name="Bundesinnenministerin Nancy")).click()
         self.highlight_element(page.get_by_text("Mobile World Congress 2023TEST CONTENT YYYY")).click()
+        page.screenshot(path="./tests/playwright/screenshots/screenshot_assess_before_merge.png")
+
         self.highlight_element(page.get_by_role("button", name="merge")).click()
         expect(page.get_by_role("main")).to_contain_text("(2)")
         if self.produce_artifacts:
@@ -74,24 +78,25 @@ class TestEndToEnd:
         self.highlight_element(page.get_by_role("link", name="Analyze").first).click()
         expect(page).to_have_title("Taranis AI | Analyze", timeout=5000)
         self.highlight_element(page.get_by_role("button", name="New Report")).click()
-        # self.highlight_element(page.locator("_vue=[id='report_item_type]")).click()
-        # expect(page.get_by_role("combobox")).to_contain_text("CERT Report")
-        # expect(page.get_by_role("combobox")).to_contain_text("Disinformation")
-        # expect(page.get_by_role("combobox")).to_contain_text("OSINT Report")
-        # expect(page.get_by_role("combobox")).to_contain_text("Vulnerability Report")
-        # self.highlight_element(page.get_by_text("CERT Report")).click()
-        # self.highlight_element(page.get_by_label("Title")).click()
-        # self.highlight_element(page.get_by_label("Title")).fill("Test Title")
-        # self.highlight_element(page.get_by_role("button", name="Save")).click()
-        # self.highlight_element(page.get_by_role("link", name="Assess")).click()
-        # self.highlight_element(page.get_by_role("main").get_by_role("button").nth(1)).click()
-        # self.highlight_element(page.get_by_role("dialog").get_by_label("Open")).click()
-        # self.highlight_element(page.get_by_role("option", name="Test Title")).click()
-        # self.highlight_element(page.get_by_role("button", name="share")).click()
-        # self.highlight_element(page.get_by_role("link", name="Analyze")).click()
-        # expect(page.locator("tbody")).to_contain_text("Disinformation")
-        # expect(page.locator("tbody")).to_contain_text("Test Title")
-        # expect(page.locator("tbody")).to_contain_text("1")
+        self.highlight_element(page.get_by_role("combobox")).click()
+        # page.click("#report_item_selector")
+        expect(page.get_by_role("listbox")).to_contain_text("CERT Report")
+        expect(page.get_by_role("listbox")).to_contain_text("Disinformation")
+        expect(page.get_by_role("listbox")).to_contain_text("OSINT Report")
+        expect(page.get_by_role("listbox")).to_contain_text("Vulnerability Report")
+        self.highlight_element(page.get_by_text("CERT Report")).click()
+        self.highlight_element(page.get_by_label("Title")).click()
+        self.highlight_element(page.get_by_label("Title")).fill("Test Title")
+        self.highlight_element(page.get_by_role("button", name="Save")).click()
+        self.highlight_element(page.get_by_role("link", name="Assess")).click()
+        self.highlight_element(page.get_by_role("main").get_by_role("button").nth(1)).click()
+        self.highlight_element(page.get_by_role("dialog").get_by_label("Open")).click()
+        self.highlight_element(page.get_by_role("option", name="Test Title")).click()
+        self.highlight_element(page.get_by_role("button", name="share")).click()
+        self.highlight_element(page.get_by_role("link", name="Analyze")).click()
+        expect(page.locator("tbody")).to_contain_text("CERT Report")
+        expect(page.locator("tbody")).to_contain_text("Test Title")
+        expect(page.locator("tbody")).to_contain_text("1")
         page.screenshot(path="./tests/playwright/screenshots/screenshot_analyze.png")
 
     def test_e2e_publish(self, taranis_frontend: Page):
