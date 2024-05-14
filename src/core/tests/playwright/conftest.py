@@ -28,9 +28,14 @@ def e2e_server(app, live_server, stories):
 
 @pytest.fixture(scope="session")
 def browser_context_args(browser_context_args, browser_type_launch_args, request):
-    browser_type_launch_args["args"] = ["--start-maximized"]
+    browser_type_launch_args["args"] = ["--window-size=1964,1211"]
     if request.config.getoption("--produce-artifacts"):
-        return {**browser_context_args, "record_video_dir": "tests/playwright/videos", "no_viewport": True, "record_video_size": {"width": 2560, "height": 1305}}
+        return {
+            **browser_context_args,
+            "record_video_dir": "tests/playwright/videos",
+            "no_viewport": True,
+            "record_video_size": {"width": 1920, "height": 1080},
+        }
     return {**browser_context_args, "no_viewport": True}
 
 
