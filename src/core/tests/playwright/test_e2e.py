@@ -13,6 +13,26 @@ class TestEndToEnd:
     ci_run = False
     produce_artifacts = False
 
+    def scroll_to_the_bottom(self, page, scroll_step=300, max_attempts=10):
+        last_height = page.evaluate("document.documentElement.scrollHeight")
+        attempts = 0
+
+        while True:
+            page.evaluate(f"window.scrollBy(0, {scroll_step})")
+            time.sleep(0.5)
+
+            new_height = page.evaluate("document.documentElement.scrollHeight")
+
+            if new_height == last_height:
+                attempts += 1
+            else:
+                attempts = 0
+
+            if attempts >= max_attempts:
+                break
+
+            last_height = new_height
+
     def highlight_element(self, locator):
         if self.ci_run:
             return locator
@@ -30,7 +50,7 @@ class TestEndToEnd:
     def test_e2e_login(self, taranis_frontend: Page):
         page = taranis_frontend
         ###
-        expect(page).to_have_title("Uncomment and halt test run for test writing purposes", timeout=0)
+        # expect(page).to_have_title("Uncomment and halt test run for test writing purposes", timeout=0)
         ###
         # expect(page).to_have_title("Taranis AI", timeout=500)
         self.highlight_element(page.get_by_placeholder("Username"))
@@ -43,6 +63,26 @@ class TestEndToEnd:
     def test_e2e_assess(self, taranis_frontend: Page):
         page = taranis_frontend
         self.highlight_element(page.get_by_role("link", name="Assess").first).click()
+
+        self.scroll_to_the_bottom(page)
+
+        # page.get_by_text("Genetic Engineering Data Theft by APT81APT81 targets national research labs to").click()
+        # page.get_by_text("Global Telecommunications Disrupted by APT80APT80 hacks into satellite").click()
+        # page.get_by_text("Olympic Website DDoS Attacks by APT79APT79 conducts large-scale denial of").click()
+        # page.get_by_text("Espionage in Aerospace Industries by APT78APT78 targets aerospace industries").click()
+        # page.get_by_text("Power Grid Disruptions in Asia by APT77APT77 deploys disruptive attacks against").click()
+        # page.get_by_text("Pharmaceutical Trade Secrets Theft by APT76APT76 implicated in stealing trade").click()
+        # page.get_by_text("International Media Manipulation by APT75APT75 uses sophisticated cyber attacks").click()
+        # page.get_by_text("Smart City Sabotage by APT74 in EuropeAPT74 involved in sabotaging smart city").click()
+        # page.get_by_role("button", name="merge").click()
+        #
+        # page.get_by_text("APT73 Exploits Global Shipping Container SystemsAPT73 exploits vulnerabilities").click()
+        # page.get_by_text("Major Data Breach at International Museum by APT72APT72 orchestrates major data").click()
+        # page.get_by_text("Industrial IoT Disruptions by APT71APT71 exploits industrial IoT devices to").click()
+        # page.get_by_text("IoT Botnet Expansion by APT61APT61 exploits vulnerabilities in IoT devices to").click()
+        # page.get_by_text("Airport Surveillance Concerns by APT70APT70's new cyber surveillance tools").click()
+        # page.get_by_role("button", name="merge").click()
+
         expect(page).to_have_title("Taranis AI | Assess", timeout=1000)
 
         self.highlight_element(page.get_by_label("Source", exact=True)).click()

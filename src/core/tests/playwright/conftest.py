@@ -79,19 +79,6 @@ def stories(app, fake_source):
 
         news_items_list = [
             {
-                "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lkl4",
-                "content": "APT62's operation exposes vulnerability in public transportation networks, leading to data breaches.",
-                "source": "https://www.transportsecuritynews.com/RSSNewsfeed.xml",
-                "title": "Public Transport Vulnerability Exposed by APT62",
-                "author": "Claire Harrison",
-                "collected": "2025-04-01T09:30:30.123456",
-                "hash": "a5c1945b722e4e44b9f0a8cf99c4157f1d9f86bf6ac2026e7f0013a451a9beff",
-                "review": "",
-                "link": "https://www.transportsecuritytoday.com/apt62-2025.html",
-                "osint_source_id": fake_source,
-                "published": "2025-04-01T10:00:00+01:00",
-            },
-            {
                 "id": "1be00eef-6ade-4818-acfc-25029531a9a5",
                 "content": "TEST CONTENT YYYY",
                 "source": "https: //www.some.link/RSSNewsfeed.xml",
@@ -116,6 +103,19 @@ def stories(app, fake_source):
                 "link": "https: //www.some.other.link/BSI-Praesidentin_230207.html",
                 "osint_source_id": fake_source,
                 "published": "2023-01-20T19:15:00+01:00",
+            },
+            {
+                "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lkl4",
+                "content": "APT62's operation exposes vulnerability in public transportation networks, leading to data breaches.",
+                "source": "https://www.transportsecuritynews.com/RSSNewsfeed.xml",
+                "title": "Public Transport Vulnerability Exposed by APT62",
+                "author": "Claire Harrison",
+                "collected": "2025-04-01T09:30:30.123456",
+                "hash": "a5c1945b722e4e44b9f0a8cf99c4157f1d9f86bf6ac2026e7f0013a451a9beff",
+                "review": "",
+                "link": "https://www.transportsecuritytoday.com/apt62-2025.html",
+                "osint_source_id": fake_source,
+                "published": "2025-04-01T10:00:00+01:00",
             },
             {
                 "id": "22a13c88-8a0f-476c-b847-9e21b26311d4",
