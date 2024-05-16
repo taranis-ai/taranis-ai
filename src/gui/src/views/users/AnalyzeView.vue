@@ -30,7 +30,7 @@
             color="secondary"
             @click.stop="cloneReport(item.id)"
           >
-            mdi-file
+            mdi-content-copy
           </v-icon>
         </template>
         <span>Clone Report</span>
