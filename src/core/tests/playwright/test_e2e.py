@@ -54,9 +54,6 @@ class TestEndToEnd:
 
     def test_e2e_login(self, taranis_frontend: Page):
         page = taranis_frontend
-        ###
-        # expect(page).to_have_title("Uncomment and halt test run for test writing purposes", timeout=0)
-        ###
         expect(page).to_have_title("Taranis AI", timeout=5000)
         self.highlight_element(page.get_by_placeholder("Username"))
         page.get_by_placeholder("Username").fill("admin")
@@ -149,7 +146,6 @@ class TestEndToEnd:
             self.highlight_element(page.get_by_role("button", name="merge")).click()
 
         def assert_stories():
-            # expect(page).to_have_title("Uncomment and halt test run for test writing purposes", timeout=0)
             expect(page.get_by_role("main")).to_contain_text(
                 "Global Stock Exchange Disruption by APT64 (11) APT62's operation exposes vulnerability in public transportation networks, leading to data breaches."
             )
@@ -231,8 +227,9 @@ class TestEndToEnd:
         go_to_assess()
         self.highlight_element(page.get_by_role("button", name="relevance")).click()
         assert_stories()
+        # uncomment when frontend is fixed
         # self.highlight_element(page.get_by_role("button", name="show charts")).click()
-        # page.locator("canvas").first.check()
+        # page.locator("canvas").first.wait_for()
         page.screenshot(path="./tests/playwright/screenshots/screenshot_assess.png")
 
         expect(page).to_have_title("Taranis AI | Assess", timeout=1000)
@@ -248,7 +245,6 @@ class TestEndToEnd:
             self.highlight_element(page.get_by_role("button", name="New Report")).click()
             self.highlight_element(page.get_by_role("combobox")).click()
 
-            # page.click("#report_item_selector")
             expect(page.get_by_role("listbox")).to_contain_text("CERT Report")
             expect(page.get_by_role("listbox")).to_contain_text("Disinformation")
             expect(page.get_by_role("listbox")).to_contain_text("OSINT Report")
@@ -308,8 +304,7 @@ class TestEndToEnd:
             self.highlight_element(page.get_by_label("timeframe")).fill("12/2/2024 - 21/2/2024")
             self.highlight_element(page.get_by_label("handler", exact=True)).fill("John Doe")
             self.highlight_element(page.get_by_label("co_handler")).fill("Arthur Doyle")
-            # page.locator("div:nth-child(4) > div > .v-input > .v-input__details").click()
-            page.get_by_label("Open").nth(1).click()
+            self.highlight_element(page.get_by_label("Open").nth(1)).click()
             self.highlight_element(page.get_by_role("option", name="Global Mining Espionage by")).click()
             self.highlight_element(page.get_by_role("option", name="Patient Data Harvesting by")).click()
             self.highlight_element(page.get_by_label("Close")).click()
@@ -327,7 +322,7 @@ class TestEndToEnd:
             expect(page.locator("tbody")).to_contain_text("1")
 
         def tag_filter(base_url):
-            page.goto(f"{base_url}") # needed for a refresh; any other reload is failing to load from the live_server
+            page.goto(f"{base_url}")  # needed for a refresh; any other reload is failing to load from the live_server
             self.highlight_element(page.get_by_role("link", name="Assess").first).click()
             self.highlight_element(page.get_by_role("button", name="relevance")).click()
             self.highlight_element(page.get_by_label("Tags", exact=True)).click()
