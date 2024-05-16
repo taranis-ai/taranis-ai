@@ -1,15 +1,31 @@
 # Playwright guide
 
-### Run tests and generate a video
-*IMPORTANT: The tests are dependend on the `https://e2e.taranis.ai/e2e_test_db.sql` dump. Please restore it beforhand.*
-
-Example:
+## Running tests
+### Run fast tests in headless mode
+From `src/core` folder run:
 ```bash
-export TARANIS_URL="http://taranis" # Or wherever your version of Taranis is Running
-python test_local_playwright.py
+pytest --run-e2e-ci
 ```
 
-### To use Playwright Codegen tool, use `--save-storage` flag
+### Run tests in headful mode
+From `src/core` folder run:
 ```bash
-playwright codegen localhost:8081 --save-storage=codegen_api_conf.json
+pytest --run-e2e
 ```
+
+Other flags:
+- `--produce-artifacts` - record a video (save to `src/core/tests/playwright/videos`)
+- `--highlight-delay=<float>` - control time (seconds) to highlight elements in the video (`default=2`)
+
+## Use Playwright Codegen tool to generate tests
+```bash
+playwright codegen --viewport-size=1920,1080 localhost:<port>
+```
+
+To use the preseeded test instance for writing tests, place:
+
+```python
+expect(page).to_have_title("Uncomment and halt test run for test writing purposes", timeout=0)
+
+```
+where desired, to stop the test execution and allow to connect to the instance with Codegen tool.

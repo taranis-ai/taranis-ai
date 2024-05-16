@@ -48,6 +48,8 @@ def browser_context_args(browser_context_args, browser_type_launch_args, request
 @pytest.fixture(scope="session")
 def taranis_frontend(e2e_server, browser_context_args, browser: Browser):
     context = browser.new_context(**browser_context_args)
+    # Drop timeout from 30s to 10s
+    context.set_default_timeout(10000)
     page = context.new_page()
     page.goto(e2e_server.url())
     yield page
