@@ -61,9 +61,9 @@ def test_simple_web_collector_collect(simple_web_collector_mock, simple_web_coll
 
     result_item = simple_web_collector.news_item_from_article(web_collector_url)
 
-    assert result_item["title"] == web_collector_result_title
-    # assert result_item["author"] == "John Doe"
-    assert result_item["content"].startswith(web_collector_result_content)
+    assert result_item.title == web_collector_result_title
+    # assert result_item.author == "John Doe"
+    assert result_item.content.startswith(web_collector_result_content)
 
 
 @pytest.mark.parametrize("input_news_items", [news_items, news_items[2:], news_items[:: len(news_items) - 1], [news_items[-1]]])
