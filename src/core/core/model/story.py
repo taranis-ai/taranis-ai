@@ -5,7 +5,6 @@ from sqlalchemy import or_, func
 from sqlalchemy.orm import aliased, Mapped, relationship
 from sqlalchemy.sql.expression import false, null
 from sqlalchemy.sql import Select
-from sqlalchemy.exc import IntegrityError
 
 from collections import Counter
 
@@ -352,6 +351,8 @@ class Story(BaseModel):
 
     @classmethod
     def add_from_news_item(cls, news_item: dict) -> str | None:
+        if NewsItem.identical(news_item.get("hash")):
+            return None
         try:
             return cls.add(
                 {
@@ -361,8 +362,8 @@ class Story(BaseModel):
                     "news_items": [news_item],
                 }
             ).id
-        except IntegrityError:
-            logger.warning("NewsItem already exists")
+        except Exception as e:
+            logger.warning(f"Error creating NewsItem - {str(e)}")
             return None
 
     @classmethod
@@ -412,8 +413,6 @@ class Story(BaseModel):
         story = cls.get(story_id)
         if not story:
             return {"error": "Story not found", "id": f"{story_id}"}, 404
-
-        logger.debug(data)
 
         if "vote" in data and user:
             story.vote(data["vote"], user.id)

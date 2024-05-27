@@ -37,6 +37,7 @@ dependencies = [
 
     # Bots
     "scipy==1.12.0",
+    "matplotlib==3.8.4",
     "ioc-finder",
     "ioc-fanger",
     "flair",
