@@ -39,3 +39,7 @@ class NewsItemService:
         news_item.delete_item()
         story.update_status()
         return {"message": "News Item deleted", "id": news_item_id}, 200
+
+    @classmethod
+    def has_related_news_items(cls, osint_source_id: str) -> bool:
+        return db.session.execute(db.select(db.exists().where(NewsItem.osint_source_id == osint_source_id))).scalar_one()

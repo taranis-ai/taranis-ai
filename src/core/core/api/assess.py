@@ -103,7 +103,6 @@ class Stories(MethodView):
             offset = int(request.args.get("offset", page * filter_args["limit"]))
             filter_args["offset"] = min(offset, (2**31) - 1)
 
-            logger.debug(filter_args)
             return story.Story.get_by_filter_json(filter_args, current_user)
         except Exception:
             logger.exception("Failed to get Stories")

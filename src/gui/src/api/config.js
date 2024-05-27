@@ -309,8 +309,9 @@ export function updateOSINTSource(source) {
   return apiService.put(`/config/osint-sources/${source.id}`, source)
 }
 
-export function deleteOSINTSource(source) {
-  return apiService.delete(`/config/osint-sources/${source.id}`)
+export function deleteOSINTSource(source, force = false) {
+  const force_query = force ? '?force=true' : ''
+  return apiService.delete(`/config/osint-sources/${source.id}${force_query}`)
 }
 
 export function importOSINTSources(form_data) {

@@ -1,4 +1,4 @@
-venv/
+*venv/
 worker_init.flag
 .envrc
 .env

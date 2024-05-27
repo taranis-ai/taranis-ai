@@ -26,6 +26,7 @@ from core.model import (
     task,
     worker,
 )
+from core.service.news_item import NewsItemService
 from core.model.permission import Permission
 from core.managers.decorators import extract_args
 
@@ -142,7 +143,6 @@ class ReportItemTypes(MethodView):
     def post(self):
         try:
             item = report_item_type.ReportItemType.add(request.json)
-            logger.debug(f"INPUT: {request.json} \n\n OUTPUT: {item}")
             return {"message": f"ReportItemType {item.title} added", "id": item.id}, 201
         except Exception:
             logger.exception("Failed to add report item type")
@@ -401,11 +401,14 @@ class OSINTSources(MethodView):
 
     @auth_required("CONFIG_OSINT_SOURCE_DELETE")
     def delete(self, source_id):
-        source = osint_source.OSINTSource.get(source_id)
-        if not source:
-            return {"error": f"OSINT Source with ID: {source_id} not found"}, 404
-        osint_source.OSINTSource.delete(source_id)
-        return {"message": f"OSINT Source {source.name} deleted", "id": f"{source_id}"}, 200
+        force = request.args.get("force", default=False, type=bool)
+        if not force and NewsItemService.has_related_news_items(source_id):
+            return {
+                "error": f"""OSINT Source with ID: {source_id} has related News Items.
+                To delete this item and all related News Items, set the 'force' flag."""
+            }, 409
+
+        return osint_source.OSINTSource.delete(source_id, force=force)
 
 
 class OSINTSourceCollect(MethodView):

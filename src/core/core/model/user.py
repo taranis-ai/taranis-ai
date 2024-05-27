@@ -201,13 +201,13 @@ class User(BaseModel):
 
 
 class UserRole(BaseModel):
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), primary_key=True)
-    role_id = db.Column(db.Integer, db.ForeignKey("role.id", ondelete="SET NULL"), primary_key=True)
+    user_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("user.id"), primary_key=True)
+    role_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("role.id", ondelete="SET NULL"), primary_key=True)
 
 
 class UserPermission(BaseModel):
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), primary_key=True)
-    permission_id = db.Column(db.String, db.ForeignKey("permission.id", ondelete="SET NULL"), primary_key=True)
+    user_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("user.id"), primary_key=True)
+    permission_id: Mapped[str] = db.Column(db.String, db.ForeignKey("permission.id", ondelete="SET NULL"), primary_key=True)
 
 
 class UserProfile(BaseModel):

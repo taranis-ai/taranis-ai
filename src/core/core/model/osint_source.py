@@ -17,7 +17,6 @@ from core.model.queue import ScheduleEntry
 from core.model.worker import COLLECTOR_TYPES, Worker
 from core.service.role_based_access import RoleBasedAccessService, RBACQuery
 
-
 if TYPE_CHECKING:
     from core.model.user import User
 
@@ -170,17 +169,18 @@ class OSINTSource(BaseModel):
         return osint_source
 
     @classmethod
-    def delete(cls, id) -> tuple[str, int]:
-        if source := cls.get(id):
-            try:
-                source.unschedule_osint_source()
-                db.session.delete(source)
-                db.session.commit()
-                return f"{cls.__name__} {id} deleted", 200
-            except IntegrityError as e:
-                logger.warning(f"IntegrityError: {e.orig}")
+    def delete(cls, source_id: str, force: bool = False) -> tuple[dict, int]:
+        if not (source := cls.get(source_id)):
+            return {"error": f"OSINT Source with ID: {source_id} not found"}, 404
 
-        return f"{cls.__name__} {id} not found", 404
+        try:
+            source.unschedule_osint_source()
+            db.session.delete(source)
+            db.session.commit()
+            return {"message": f"OSINT Source {source.name} deleted", "id": f"{source_id}"}, 200
+        except IntegrityError as e:
+            logger.warning(f"IntegrityError: {e.orig}")
+            return {"error": f"Deleting OSINT Source with ID: {source_id} failed {str(e)}"}, 500
 
     def update_status(self, error_message=None):
         self.last_attempted = datetime.now()

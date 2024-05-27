@@ -61,6 +61,14 @@
       :title="editTitle"
       @submit="handleSubmit"
     />
+    <v-dialog v-model="showDeletePopup" width="auto">
+      <popup-delete-item
+        :title="`Delete Source ${itemToDelete.name}?`"
+        message="Delete the source and all gathered News Items permanently."
+        @delete-item="forceDeleteItem(itemToDelete)"
+        @close="showDeletePopup = false"
+      />
+    </v-dialog>
   </v-container>
 </template>
 
@@ -68,6 +76,7 @@
 import DataTable from '@/components/common/DataTable.vue'
 import EditConfig from '@/components/config/EditConfig.vue'
 import ImportExport from '@/components/config/ImportExport.vue'
+import PopupDeleteItem from '@/components/popups/PopupDeleteItem.vue'
 import {
   deleteOSINTSource,
   createOSINTSource,
@@ -90,7 +99,8 @@ export default {
   components: {
     DataTable,
     EditConfig,
-    ImportExport
+    ImportExport,
+    PopupDeleteItem
   },
   setup() {
     const configStore = useConfigStore()
@@ -111,6 +121,8 @@ export default {
     const formData = ref({})
     const edit = ref(false)
     const showForm = ref(false)
+    const showDeletePopup = ref(false)
+    const itemToDelete = ref({})
 
     const formFormat = computed(() => {
       let base = [
@@ -215,15 +227,31 @@ export default {
       showForm.value = false
     }
 
-    const deleteItem = (item) => {
-      deleteOSINTSource(item)
-        .then(() => {
-          notifySuccess(`Successfully deleted ${item.name}`)
-          updateData()
-        })
-        .catch(() => {
-          notifyFailure(`Failed to delete ${item.name}`)
-        })
+    async function forceDeleteItem(item) {
+      showDeletePopup.value = false
+      itemToDelete.value = {}
+      try {
+        const response = await deleteOSINTSource(item, true)
+        notifySuccess(response.data)
+        updateData()
+      } catch (error) {
+        notifyFailure(error)
+      }
+    }
+
+    async function deleteItem(item) {
+      try {
+        const response = await deleteOSINTSource(item)
+        notifySuccess(response.data)
+        updateData()
+      } catch (error) {
+        if (error.response.status === 409) {
+          showDeletePopup.value = true
+          itemToDelete.value = item
+          return
+        }
+        notifyFailure(error)
+      }
     }
 
     const createItem = (item) => {
@@ -312,6 +340,8 @@ export default {
       formData,
       editTitle,
       showForm,
+      showDeletePopup,
+      itemToDelete,
       formFormat,
       updateData,
       addItem,
@@ -324,6 +354,7 @@ export default {
       exportData,
       collectSource,
       previewSource,
+      forceDeleteItem,
       collectAllSources,
       selectionChange
     }
