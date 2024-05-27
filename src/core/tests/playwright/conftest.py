@@ -1,10 +1,24 @@
+import os
 import pytest
 import subprocess
 from playwright.sync_api import Browser
 
 
 @pytest.fixture(scope="session")
-def build_gui():
+def install_node_modules():
+    try:
+        if not os.path.isdir("../gui/node_modules"):
+            print("Building node_modules")
+            print(os.path.isdir("../gui/node_modules"))
+            result = subprocess.call(["npm", "install"], cwd="../gui")
+            if result != 0:
+                raise Exception("Install failed with status code: {}".format(result))
+    except Exception as e:
+        pytest.fail(str(e))
+
+
+@pytest.fixture(scope="session")
+def build_gui(install_node_modules):
     try:
         result = subprocess.call(["npm", "run", "build"], cwd="../gui")
         if result != 0:
@@ -14,16 +28,24 @@ def build_gui():
         pytest.fail(str(e))
 
 
+# Optional add build_gui
+@pytest.fixture(scope="session")
+def check_gui_build():
+    print("Checking GUI build")
+    if not os.path.isdir("../gui/dist"):
+        print("Please, build the GUI first")
+    assert os.path.isdir("../gui/dist")
+
+
 @pytest.fixture(scope="class")
 def e2e_ci(request):
     request.cls.ci_run = request.config.getoption("--run-e2e-ci") == "e2e_ci"
-    request.cls.wait_duration = int(request.config.getoption("--highlight-delay"))
+    request.cls.wait_duration = float(request.config.getoption("--highlight-delay"))
     request.cls.produce_artifacts = request.config.getoption("--produce-artifacts")
 
 
-# Optional add build_gui
 @pytest.fixture(scope="session")
-def e2e_server(app, live_server, stories):
+def e2e_server(app, live_server, stories, check_gui_build):
     import core.api as core_api
 
     core_api.frontend.initialize(app)
@@ -112,12 +134,12 @@ def stories(app, fake_source):
                 "source": "https://www.transportsecuritynews.com/RSSNewsfeed.xml",
                 "title": "Public Transport Vulnerability Exposed by APT62",
                 "author": "Claire Harrison",
-                "collected": "2025-04-01T09:30:30.123456",
+                "collected": "2024-04-01T09:30:30.123456",
                 "hash": "a5c1945b722e4e44b9f0a8cf99c4157f1d9f86bf6ac2026e7f0013a451a9beff",
                 "review": "",
-                "link": "https://www.transportsecuritytoday.com/apt62-2025.html",
+                "link": "https://www.transportsecuritytoday.com/apt62-2024.html",
                 "osint_source_id": fake_source,
-                "published": "2025-04-01T10:00:00+01:00",
+                "published": "2024-04-01T10:00:00+01:00",
             },
             {
                 "id": "22a13c88-8a0f-476c-b847-9e21b26311d4",
@@ -273,7 +295,7 @@ def stories(app, fake_source):
                 "review": "",
                 "link": "https://www.cryptosecuritytoday.com/apt43-2024.html",
                 "osint_source_id": fake_source,
-                "published": "2024-06-12T16:00:00+01:00",
+                "published": "2024-05-12T16:00:00+01:00",
             },
             {
                 "id": "39f423d0-7e15-4bda-93c2-90f5b1e19b3d",
@@ -281,12 +303,12 @@ def stories(app, fake_source):
                 "source": "https://www.retailsecurityupdates.com/RSSNewsfeed.xml",
                 "title": "Online Retail Disruptions by APT44",
                 "author": "Sophie Turner",
-                "collected": "2024-07-20T11:20:30.123456",
+                "collected": "2024-05-20T11:20:30.123456",
                 "hash": "h7d2945b722e4e44b9f0a8cf99c4157f1d9f86bf6ac1526e7f0013a451a9befd",
                 "review": "",
                 "link": "https://www.retailcyberwatch.com/apt44-2024.html",
                 "osint_source_id": fake_source,
-                "published": "2024-07-20T12:00:00+01:00",
+                "published": "2024-05-20T12:00:00+01:00",
             },
             {
                 "id": "8d33a3c0-ae67-4f98-ac61-90e3b5e1988c",
@@ -294,12 +316,12 @@ def stories(app, fake_source):
                 "source": "https://www.energysecuritynews.com/RSSNewsfeed.xml",
                 "title": "National Power Grid Sabotage by APT45",
                 "author": "Richard James",
-                "collected": "2024-08-15T12:45:00.086285",
+                "collected": "2024-05-15T12:45:00.086285",
                 "hash": "i8e3e99403686a1072d0fb2013901b843a6725ba8ac1626270f62b7614ec1b5d",
                 "review": "",
                 "link": "https://www.energysecurityupdate.com/apt45-2024.html",
                 "osint_source_id": fake_source,
-                "published": "2024-08-15T13:30:00+01:00",
+                "published": "2024-05-15T13:30:00+01:00",
             },
             {
                 "id": "fe12d397-5d2d-4cbc-9a80-3f18105b2970",
@@ -307,12 +329,12 @@ def stories(app, fake_source):
                 "source": "https://www.financialsecurity.org/RSSNewsfeed.xml",
                 "title": "Data Breaches in Banking by APT46",
                 "author": "Megan Clarke",
-                "collected": "2024-09-30T09:00:14.086285",
+                "collected": "2024-05-30T09:00:14.086285",
                 "hash": "j9f6f99403686a1072d0fb2013901b843a6725ba8ac1726270f62b7614ec1c6f",
                 "review": "",
                 "link": "https://www.bankingsecurityfocus.com/apt46-2024.html",
                 "osint_source_id": fake_source,
-                "published": "2024-09-30T10:15:00+01:00",
+                "published": "2024-05-30T10:15:00+01:00",
             },
             {
                 "id": "ad23b3d0-9f10-4bd8-bf62-81f5b1c19b4e",
@@ -320,12 +342,12 @@ def stories(app, fake_source):
                 "source": "https://www.marketmanipulationnews.com/RSSNewsfeed.xml",
                 "title": "Stock Market Manipulation by APT47",
                 "author": "Nathan Ross",
-                "collected": "2024-10-11T14:20:30.123456",
+                "collected": "2024-05-11T14:20:30.123456",
                 "hash": "k0g3h945b722e4e44b9f0a8cf99d3157f1d9f86bf6ac1826e7f0013a451a9cdd",
                 "review": "",
                 "link": "https://www.financialintegritywatch.com/apt47-2024.html",
                 "osint_source_id": fake_source,
-                "published": "2024-10-11T15:00:00+01:00",
+                "published": "2024-05-11T15:00:00+01:00",
             },
             {
                 "id": "be34c3e0-cf17-4f89-bd61-92e4b5f1989d",
@@ -333,12 +355,12 @@ def stories(app, fake_source):
                 "source": "https://www.satellitecomsecurity.com/RSSNewsfeed.xml",
                 "title": "Satellite Communications Disrupted by APT48",
                 "author": "Olivia Green",
-                "collected": "2024-11-05T10:45:00.086285",
+                "collected": "2024-05-05T10:45:00.086285",
                 "hash": "l1h4i99403686a1072d0fb2013901b843a6725ba8ac1926270f62b7614ec1d7g",
                 "review": "",
                 "link": "https://www.spacecomsecupdate.com/apt48-2024.html",
                 "osint_source_id": fake_source,
-                "published": "2024-11-05T11:30:00+01:00",
+                "published": "2024-05-05T11:30:00+01:00",
             },
             {
                 "id": "cf45d4f0-d018-4cda-c063-83g6c2e1ab5f",
@@ -346,12 +368,12 @@ def stories(app, fake_source):
                 "source": "https://www.antivirusfails.com/RSSNewsfeed.xml",
                 "title": "New Malware by APT49 Evades Detection",
                 "author": "Peter Franklin",
-                "collected": "2024-12-25T16:00:30.123456",
+                "collected": "2024-05-25T16:00:30.123456",
                 "hash": "m2i5j0a7d87051dea6c3dc14234451f884b427c32791862dacdd7a3e3d318da7",
                 "review": "",
                 "link": "https://www.antiviruswatch.com/apt49-2024.html",
                 "osint_source_id": fake_source,
-                "published": "2024-12-25T17:00:00+01:00",
+                "published": "2024-05-25T17:00:00+01:00",
             },
             {
                 "id": "dg56e5g1-e119-5edb-d064-94h7d3f2bc6g",
@@ -359,12 +381,12 @@ def stories(app, fake_source):
                 "source": "https://www.defensenetworknews.com/RSSNewsfeed.xml",
                 "title": "Classified Data Theft by APT50",
                 "author": "Rachel Evans",
-                "collected": "2025-01-15T11:15:30.123456",
+                "collected": "2024-01-15T11:15:30.123456",
                 "hash": "n3j6k1b8e8d97051dea6c3dc14234451f884b427c32791862dacdd7a3e3d319d8",
                 "review": "",
-                "link": "https://www.nationalsecurityupdates.com/apt50-2025.html",
+                "link": "https://www.nationalsecurityupdates.com/apt50-2024.html",
                 "osint_source_id": fake_source,
-                "published": "2025-01-15T12:00:00+01:00",
+                "published": "2024-01-15T12:00:00+01:00",
             },
             {
                 "id": "eh67f6h2-f220-6fec-e065-95i8e4g3cd7h",
@@ -372,12 +394,12 @@ def stories(app, fake_source):
                 "source": "https://www.pharmasecuritynews.com/RSSNewsfeed.xml",
                 "title": "Cyber-Espionage in Pharma by APT51",
                 "author": "Michelle Liu",
-                "collected": "2025-02-28T09:30:14.086285",
+                "collected": "2024-02-28T09:30:14.086285",
                 "hash": "o4k7l2c9f9f08151fea6d4ed25345561g995c438438a2937edbfe8f4e4d320e9",
                 "review": "",
-                "link": "https://www.pharmasecurityfocus.com/apt51-2025.html",
+                "link": "https://www.pharmasecurityfocus.com/apt51-2024.html",
                 "osint_source_id": fake_source,
-                "published": "2025-02-28T10:15:00+01:00",
+                "published": "2024-02-28T10:15:00+01:00",
             },
             {
                 "id": "6f7f1182-5874-4b99-ade7-ea007ba1ecef",
@@ -385,12 +407,12 @@ def stories(app, fake_source):
                 "source": "https://www.cloudtechnews.com/RSSNewsfeed.xml",
                 "title": "New Cloud Rootkit by APT52 Exposed",
                 "author": "Steve Harrison",
-                "collected": "2025-03-01T12:00:30.123456",
+                "collected": "2024-03-01T12:00:30.123456",
                 "hash": "p5m8n3b722e4e44b9f0a8cf99d4257f1d9f86bf6ac2026e7f0013a451a9cfdd",
                 "review": "",
-                "link": "https://www.cloudsecuritytoday.com/apt52-2025.html",
+                "link": "https://www.cloudsecuritytoday.com/apt52-2024.html",
                 "osint_source_id": fake_source,
-                "published": "2025-03-01T12:45:00+01:00",
+                "published": "2024-03-01T12:45:00+01:00",
             },
             {
                 "id": "7g8g2293-6985-5ca0-bcf8-fb118cb2fdef",
@@ -398,12 +420,12 @@ def stories(app, fake_source):
                 "source": "https://www.diplomacysecurityupdates.com/RSSNewsfeed.xml",
                 "title": "Diplomatic Espionage by APT53 in Europe",
                 "author": "Angela Meyer",
-                "collected": "2025-04-02T10:20:14.086285",
+                "collected": "2024-04-02T10:20:14.086285",
                 "hash": "q6n9o4c99403686a1072d0fb2014a1b843a6725ba8ac2326270f62b7614ed2de",
                 "review": "",
-                "link": "https://www.diplomaticsecurityfocus.com/apt53-2025.html",
+                "link": "https://www.diplomaticsecurityfocus.com/apt53-2024.html",
                 "osint_source_id": fake_source,
-                "published": "2025-04-02T11:00:00+01:00",
+                "published": "2024-04-02T11:00:00+01:00",
             },
             {
                 "id": "8h9h3304-7a96-6db1-cdg9-gc229dc3gefg",
@@ -411,12 +433,12 @@ def stories(app, fake_source):
                 "source": "https://www.industrialsecuritynews.com/RSSNewsfeed.xml",
                 "title": "Industrial Malware Threat by APT54",
                 "author": "Brian Scott",
-                "collected": "2025-05-03T13:30:30.123456",
+                "collected": "2024-05-03T13:30:30.123456",
                 "hash": "r7o0p5d8f87051dea6c3dc15356462f884b428d438a2948edcfe9g5f5e4321fa",
                 "review": "",
-                "link": "https://www.industrialsecuritytoday.com/apt54-2025.html",
+                "link": "https://www.industrialsecuritytoday.com/apt54-2024.html",
                 "osint_source_id": fake_source,
-                "published": "2025-05-03T14:15:00+01:00",
+                "published": "2024-05-03T14:15:00+01:00",
             },
             {
                 "id": "9i1i4415-8ba7-7ec2-deh0-hd33edf4hfgh",
@@ -424,12 +446,12 @@ def stories(app, fake_source):
                 "source": "https://www.softwaredesignsecurity.com/RSSNewsfeed.xml",
                 "title": "Malicious Code Injection by APT55",
                 "author": "Cynthia Reed",
-                "collected": "2025-06-04T14:40:14.086285",
-                "hash": "s8p1q6e99403686a1072d0fb2025b1b843a6736ba8ad2562780g73c8725e3f5b",
+                "collected": "2024-05-04T14:40:14.086285",
+                "hash": "s8p1q6e99403686a1072d0fb2024b1b843a6736ba8ad2562780g73c8725e3f5b",
                 "review": "",
-                "link": "https://www.softwaresecurityfocus.com/apt55-2025.html",
+                "link": "https://www.softwaresecurityfocus.com/apt55-2024.html",
                 "osint_source_id": fake_source,
-                "published": "2025-06-04T15:25:00+01:00",
+                "published": "2024-05-04T15:25:00+01:00",
             },
             {
                 "id": "0j2j5526-9c98-8fd3-efi1-ie44feg5igih",
@@ -437,12 +459,12 @@ def stories(app, fake_source):
                 "source": "https://www.govsecurityupdates.com/RSSNewsfeed.xml",
                 "title": "Cross-Border Hacking by APT56",
                 "author": "Derek Foster",
-                "collected": "2025-07-05T15:50:30.123456",
+                "collected": "2024-05-05T15:50:30.123456",
                 "hash": "t9q2r7f9g97051dea6d4ed26467563g995c439549b3159fecgf0ah6j6k5623gb",
                 "review": "",
-                "link": "https://www.governmentcyberwatch.com/apt56-2025.html",
+                "link": "https://www.governmentcyberwatch.com/apt56-2024.html",
                 "osint_source_id": fake_source,
-                "published": "2025-07-05T16:35:00+01:00",
+                "published": "2024-05-05T16:35:00+01:00",
             },
             {
                 "id": "1k3k6637-ade9-9ge4-fgj2-jf55gfh6jijk",
@@ -450,12 +472,12 @@ def stories(app, fake_source):
                 "source": "https://www.startupsecuritynews.com/RSSNewsfeed.xml",
                 "title": "Intellectual Property Theft by APT57",
                 "author": "Emily Watson",
-                "collected": "2025-08-06T16:01:14.086285",
+                "collected": "2024-05-06T16:01:14.086285",
                 "hash": "u0r3s8g0a7d87152feb7e5fe37478672ha0dc551e4c33278fdcge1i7j8l674hc",
                 "review": "",
-                "link": "https://www.startupsecurityupdate.com/apt57-2025.html",
+                "link": "https://www.startupsecurityupdate.com/apt57-2024.html",
                 "osint_source_id": fake_source,
-                "published": "2025-08-06T17:46:00+01:00",
+                "published": "2024-05-06T17:46:00+01:00",
             },
             {
                 "id": "2l4l7748-bfa0-ahf5-ghk3-kg66igh7kjkl",
@@ -463,12 +485,12 @@ def stories(app, fake_source):
                 "source": "https://www.cyberphishingnews.com/RSSNewsfeed.xml",
                 "title": "Advanced Phishing Techniques by APT58",
                 "author": "Frank Mitchell",
-                "collected": "2025-09-07T17:11:30.123456",
+                "collected": "2024-05-07T17:11:30.123456",
                 "hash": "v1s4t9h1i98153gfc8f6gf48579873i3ib1ed662f5d44389geeh2j9k0l7857id",
                 "review": "",
-                "link": "https://www.phishingwatch.com/apt58-2025.html",
+                "link": "https://www.phishingwatch.com/apt58-2024.html",
                 "osint_source_id": fake_source,
-                "published": "2025-09-07T18:00:00+01:00",
+                "published": "2024-05-07T18:00:00+01:00",
             },
             {
                 "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lklm",
@@ -476,12 +498,12 @@ def stories(app, fake_source):
                 "source": "https://www.logisticssecurityupdates.com/RSSNewsfeed.xml",
                 "title": "Ransomware Attack on Logistics by APT59",
                 "author": "Gary Newman",
-                "collected": "2025-10-08T18:21:14.086285",
+                "collected": "2024-05-08T18:21:14.086285",
                 "hash": "w2t5u0j2k98254hgd9g7hg5968a974j4jc2fe773g6e5549ahfi3k1l1m9n896je",
                 "review": "",
-                "link": "https://www.logisticssecuritytoday.com/apt59-2025.html",
+                "link": "https://www.logisticssecuritytoday.com/apt59-2024.html",
                 "osint_source_id": fake_source,
-                "published": "2025-10-08T19:15:00+01:00",
+                "published": "2024-05-08T19:15:00+01:00",
             },
             {
                 "id": "4n6n9960-dhc2-cjk7-ijm5-mi88kjk9mnno",
@@ -489,12 +511,12 @@ def stories(app, fake_source):
                 "source": "https://www.healthcaresafetynews.com/RSSNewsfeed.xml",
                 "title": "Patient Data Harvesting by APT60",
                 "author": "Helen York",
-                "collected": "2025-11-09T19:31:30.123456",
+                "collected": "2024-05-09T19:31:30.123456",
                 "hash": "x3u6v1k3l09365ije0h8ih6a79b085k5kd3gf884h7f665a0jgj4l2m2n0o917kf",
                 "review": "",
-                "link": "https://www.healthcarecyberwatch.com/apt60-2025.html",
+                "link": "https://www.healthcarecyberwatch.com/apt60-2024.html",
                 "osint_source_id": fake_source,
-                "published": "2025-11-09T20:30:00+01:00",
+                "published": "2024-05-09T20:30:00+01:00",
             },
             {
                 "id": "5o7o0071-edd3-dkl8-jkn6-nj99lkl0ooop",
@@ -502,12 +524,12 @@ def stories(app, fake_source):
                 "source": "https://www.iotsecurityupdates.com/RSSNewsfeed.xml",
                 "title": "IoT Botnet Expansion by APT61",
                 "author": "Isaac Taylor",
-                "collected": "2025-12-10T20:41:14.086285",
+                "collected": "2024-05-10T20:41:14.086285",
                 "hash": "y4v7w2m4n10476jkf1i9j7b8c9d196l6le4hg995i8j776b1kgk5m3n3o1p028lg",
                 "review": "",
-                "link": "https://www.iotsecurityfocus.com/apt61-2025.html",
+                "link": "https://www.iotsecurityfocus.com/apt61-2024.html",
                 "osint_source_id": fake_source,
-                "published": "2025-12-10T21:45:00+01:00",
+                "published": "2024-05-10T21:45:00+01:00",
             },
             {
                 "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lkl3",
@@ -515,12 +537,12 @@ def stories(app, fake_source):
                 "source": "https://www.politicalsecurityupdates.com/RSSNewsfeed.xml",
                 "title": "APT63's AI Spear-Phishing Targeting Political Figures",
                 "author": "Martin Meyer",
-                "collected": "2025-05-02T08:40:14.086285",
+                "collected": "2024-05-02T08:40:14.086285",
                 "hash": "b6d1945b722e4e44b9f0a8cf99c4257f1d9f86bf6ac2326270f62b7614ed2de",
                 "review": "",
-                "link": "https://www.politicalsecurityfocus.com/apt63-2025.html",
+                "link": "https://www.politicalsecurityfocus.com/apt63-2024.html",
                 "osint_source_id": fake_source,
-                "published": "2025-05-02T09:15:00+01:00",
+                "published": "2024-05-02T09:15:00+01:00",
             },
             {
                 "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lkl2",
@@ -528,12 +550,12 @@ def stories(app, fake_source):
                 "source": "https://www.financialmarketsecurity.com/RSSNewsfeed.xml",
                 "title": "Global Stock Exchange Disruption by APT64",
                 "author": "Susan Scott",
-                "collected": "2025-06-03T07:50:30.123456",
+                "collected": "2024-05-03T07:50:30.123456",
                 "hash": "c7e2945b722e4e44b9f0a8cf99c4357f1d9f86bf6ac2526e7f0013a451a9befd",
                 "review": "",
-                "link": "https://www.financialsecuritytoday.com/apt64-2025.html",
+                "link": "https://www.financialsecuritytoday.com/apt64-2024.html",
                 "osint_source_id": fake_source,
-                "published": "2025-06-03T08:30:00+01:00",
+                "published": "2024-05-03T08:30:00+01:00",
             },
             {
                 "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lkl1",
@@ -541,12 +563,12 @@ def stories(app, fake_source):
                 "source": "https://www.legalsecurityupdates.com/RSSNewsfeed.xml",
                 "title": "Sensitive Data Leak by APT65",
                 "author": "David Reed",
-                "collected": "2025-07-04T06:20:14.086285",
+                "collected": "2024-05-04T06:20:14.086285",
                 "hash": "d8f3945b722e4e44b9f0a8cf99c4457f1d9f86bf6ac2627f7f0013a451a9c5b",
                 "review": "",
-                "link": "https://www.legalsecurityfocus.com/apt65-2025.html",
+                "link": "https://www.legalsecurityfocus.com/apt65-2024.html",
                 "osint_source_id": fake_source,
-                "published": "2025-07-04T07:05:00+01:00",
+                "published": "2024-05-04T07:05:00+01:00",
             },
             {
                 "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lkl6",
@@ -554,12 +576,12 @@ def stories(app, fake_source):
                 "source": "https://www.municipaltechsecurity.com/RSSNewsfeed.xml",
                 "title": "Municipal Government Ransomware by APT66",
                 "author": "Eric Foster",
-                "collected": "2025-08-05T05:30:30.123456",
+                "collected": "2024-05-05T05:30:30.123456",
                 "hash": "e9g4a5d8f87051dea6c3dc16456462f884b429d438a2948edcfe9g5f5e4321fa",
                 "review": "",
-                "link": "https://www.municipalsecuritytoday.com/apt66-2025.html",
+                "link": "https://www.municipalsecuritytoday.com/apt66-2024.html",
                 "osint_source_id": fake_source,
-                "published": "2025-08-05T06:15:00+01:00",
+                "published": "2024-05-05T06:15:00+01:00",
             },
             {
                 "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lkl7",
@@ -567,12 +589,12 @@ def stories(app, fake_source):
                 "source": "https://www.miningsecurityupdates.com/RSSNewsfeed.xml",
                 "title": "Global Mining Espionage by APT67",
                 "author": "Jessica Watson",
-                "collected": "2025-09-06T04:01:14.086285",
+                "collected": "2024-05-06T04:01:14.086285",
                 "hash": "f0h5i6g0a7d87152feb7e5fe38578672ha0dc562e4c34278fdcge1i7j8l685hc",
                 "review": "",
-                "link": "https://www.miningsecurityupdate.com/apt67-2025.html",
+                "link": "https://www.miningsecurityupdate.com/apt67-2024.html",
                 "osint_source_id": fake_source,
-                "published": "2025-09-06T04:46:00+01:00",
+                "published": "2024-05-06T04:46:00+01:00",
             },
             {
                 "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lkl8",
@@ -580,12 +602,12 @@ def stories(app, fake_source):
                 "source": "https://www.techsecuritynews.com/RSSNewsfeed.xml",
                 "title": "Tech Firms DDoSed by APT68",
                 "author": "Michael Mitchell",
-                "collected": "2025-10-07T03:11:30.123456",
+                "collected": "2024-05-07T03:11:30.123456",
                 "hash": "g1i7j8k2l09365ije0h8ih7b9c9d197l6le5hg996i8j787c1kgk6m4n4o2p039m",
                 "review": "",
-                "link": "https://www.techsecuritywatch.com/apt68-2025.html",
+                "link": "https://www.techsecuritywatch.com/apt68-2024.html",
                 "osint_source_id": fake_source,
-                "published": "2025-10-07T04:00:00+01:00",
+                "published": "2024-05-07T04:00:00+01:00",
             },
             {
                 "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lkl9",
@@ -593,12 +615,12 @@ def stories(app, fake_source):
                 "source": "https://www.warfaretechupdates.com/RSSNewsfeed.xml",
                 "title": "Cyber Warfare in Conflict Zones by APT69",
                 "author": "Gary Newman",
-                "collected": "2025-11-08T02:21:14.086285",
+                "collected": "2024-05-08T02:21:14.086285",
                 "hash": "h2j9k3l1m9n096je0i9j8a8b7c7d198m7md4gf884h8f675b2jgj5l3m4n5o1p0q",
                 "review": "",
-                "link": "https://www.warfaresecuritytoday.com/apt69-2025.html",
+                "link": "https://www.warfaresecuritytoday.com/apt69-2024.html",
                 "osint_source_id": fake_source,
-                "published": "2025-11-08T03:15:00+01:00",
+                "published": "2024-05-08T03:15:00+01:00",
             },
             {
                 "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lk10",
@@ -606,12 +628,12 @@ def stories(app, fake_source):
                 "source": "https://www.airportsecuritynews.com/RSSNewsfeed.xml",
                 "title": "Airport Surveillance Concerns by APT70",
                 "author": "Helen York",
-                "collected": "2025-12-09T01:31:30.123456",
+                "collected": "2024-05-09T01:31:30.123456",
                 "hash": "i3k4l2m5n1o021pgr1h2s3t4u5v6w7x8y9z0a1b2c3d4e5f6g7h8i9j0k1l2m3n4",
                 "review": "",
-                "link": "https://www.airportsecurityfocus.com/apt70-2025.html",
+                "link": "https://www.airportsecurityfocus.com/apt70-2024.html",
                 "osint_source_id": fake_source,
-                "published": "2025-12-09T02:30:00+01:00",
+                "published": "2024-05-09T02:30:00+01:00",
             },
             {
                 "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lk11",
@@ -619,12 +641,12 @@ def stories(app, fake_source):
                 "source": "https://www.industrialiotsecurity.com/RSSNewsfeed.xml",
                 "title": "Industrial IoT Disruptions by APT71",
                 "author": "Isaac Taylor",
-                "collected": "2026-01-10T00:41:14.086285",
+                "collected": "2024-01-10T00:41:14.086285",
                 "hash": "j4k5l6m7n8o9p0q1r2s3t4u5v6w7x8y9z0a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5",
                 "review": "",
-                "link": "https://www.industrialiotwatch.com/apt71-2026.html",
+                "link": "https://www.industrialiotwatch.com/apt71-2024.html",
                 "osint_source_id": fake_source,
-                "published": "2026-01-10T01:45:00+01:00",
+                "published": "2024-01-10T01:45:00+01:00",
             },
             {
                 "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lk12",
@@ -632,12 +654,12 @@ def stories(app, fake_source):
                 "source": "https://www.culturalheritagesecurity.com/RSSNewsfeed.xml",
                 "title": "Major Data Breach at International Museum by APT72",
                 "author": "Tina Roberts",
-                "collected": "2026-02-10T09:30:00.123456",
+                "collected": "2024-02-10T09:30:00.123456",
                 "hash": "k5l6m7n8o9p0q1r2s3t4u5v6w7x8y9z0a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6",
                 "review": "",
-                "link": "https://www.museumsecurityupdate.com/apt72-2026.html",
+                "link": "https://www.museumsecurityupdate.com/apt72-2024.html",
                 "osint_source_id": fake_source,
-                "published": "2026-02-10T10:15:00+01:00",
+                "published": "2024-02-10T10:15:00+01:00",
             },
             {
                 "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lk13",
@@ -645,12 +667,12 @@ def stories(app, fake_source):
                 "source": "https://www.maritimesecurityupdates.com/RSSNewsfeed.xml",
                 "title": "APT73 Exploits Global Shipping Container Systems",
                 "author": "Aaron Carter",
-                "collected": "2026-03-11T08:20:14.086285",
+                "collected": "2024-03-11T08:20:14.086285",
                 "hash": "l6m7n8o9p0q1r2s3t4u5v6w7x8y9z0a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7",
                 "review": "",
-                "link": "https://www.shippingsecurityfocus.com/apt73-2026.html",
+                "link": "https://www.shippingsecurityfocus.com/apt73-2024.html",
                 "osint_source_id": fake_source,
-                "published": "2026-03-11T09:00:00+01:00",
+                "published": "2024-03-11T09:00:00+01:00",
             },
             {
                 "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lk14",
@@ -658,12 +680,12 @@ def stories(app, fake_source):
                 "source": "https://www.smartcitysecuritynews.com/RSSNewsfeed.xml",
                 "title": "Smart City Sabotage by APT74 in Europe",
                 "author": "Bethany White",
-                "collected": "2026-04-12T07:10:30.123456",
+                "collected": "2024-04-12T07:10:30.123456",
                 "hash": "m7n8o9p0q1r2s3t4u5v6w7x8y9z0a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8",
                 "review": "",
-                "link": "https://www.smartcityupdate.com/apt74-2026.html",
+                "link": "https://www.smartcityupdate.com/apt74-2024.html",
                 "osint_source_id": fake_source,
-                "published": "2026-04-12T08:45:00+01:00",
+                "published": "2024-04-12T08:45:00+01:00",
             },
             {
                 "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lk15",
@@ -671,12 +693,12 @@ def stories(app, fake_source):
                 "source": "https://www.mediasecurityupdates.com/RSSNewsfeed.xml",
                 "title": "International Media Manipulation by APT75",
                 "author": "Charles Lee",
-                "collected": "2026-05-13T06:00:14.086285",
+                "collected": "2024-05-13T06:00:14.086285",
                 "hash": "n8o9p0q1r2s3t4u5v6w7x8y9z0a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9",
                 "review": "",
-                "link": "https://www.mediasecurityfocus.com/apt75-2026.html",
+                "link": "https://www.mediasecurityfocus.com/apt75-2024.html",
                 "osint_source_id": fake_source,
-                "published": "2026-05-13T06:35:00+01:00",
+                "published": "2024-05-13T06:35:00+01:00",
             },
             {
                 "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lk16",
@@ -684,12 +706,12 @@ def stories(app, fake_source):
                 "source": "https://www.pharmatechsecurity.com/RSSNewsfeed.xml",
                 "title": "Pharmaceutical Trade Secrets Theft by APT76",
                 "author": "Diana Brooks",
-                "collected": "2026-06-14T05:50:30.123456",
+                "collected": "2024-05-14T05:50:30.123456",
                 "hash": "o9p0q1r2s3t4u5v6w7x8y9z0a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0",
                 "review": "",
-                "link": "https://www.pharmasecuritytoday.com/apt76-2026.html",
+                "link": "https://www.pharmasecuritytoday.com/apt76-2024.html",
                 "osint_source_id": fake_source,
-                "published": "2026-06-14T06:20:00+01:00",
+                "published": "2026-05-14T06:20:00+01:00",
             },
             {
                 "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lk17",
@@ -697,12 +719,12 @@ def stories(app, fake_source):
                 "source": "https://www.energynetworksecurity.com/RSSNewsfeed.xml",
                 "title": "Power Grid Disruptions in Asia by APT77",
                 "author": "Evan Morales",
-                "collected": "2026-07-15T04:40:14.086285",
+                "collected": "2024-05-15T04:40:14.086285",
                 "hash": "p0q1r2s3t4u5v6w7x8y9z0a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1",
                 "review": "",
-                "link": "https://www.powergridsecurityfocus.com/apt77-2026.html",
+                "link": "https://www.powergridsecurityfocus.com/apt77-2024.html",
                 "osint_source_id": fake_source,
-                "published": "2026-07-15T05:05:00+01:00",
+                "published": "2024-05-15T05:05:00+01:00",
             },
             {
                 "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lk18",
@@ -710,12 +732,12 @@ def stories(app, fake_source):
                 "source": "https://www.aerospaceupdates.com/RSSNewsfeed.xml",
                 "title": "Espionage in Aerospace Industries by APT78",
                 "author": "Fiona Garcia",
-                "collected": "2026-08-16T03:30:30.123456",
+                "collected": "2024-05-16T03:30:30.123456",
                 "hash": "q1r2s3t4u5v6w7x8y9z0a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2",
                 "review": "",
-                "link": "https://www.aerospacesecuritytoday.com/apt78-2026.html",
+                "link": "https://www.aerospacesecuritytoday.com/apt78-2024.html",
                 "osint_source_id": fake_source,
-                "published": "2026-08-16T04:15:00+01:00",
+                "published": "2024-05-16T04:15:00+01:00",
             },
             {
                 "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lk19",
@@ -723,12 +745,12 @@ def stories(app, fake_source):
                 "source": "https://www.sportssecurityupdates.com/RSSNewsfeed.xml",
                 "title": "Olympic Website DDoS Attacks by APT79",
                 "author": "Gregory Phillips",
-                "collected": "2026-09-17T02:20:14.086285",
+                "collected": "2024-05-17T02:20:14.086285",
                 "hash": "r2s3t4u5v6w7x8y9z0a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3",
                 "review": "",
-                "link": "https://www.sportseventsecurity.com/apt79-2026.html",
+                "link": "https://www.sportseventsecurity.com/apt79-2024.html",
                 "osint_source_id": fake_source,
-                "published": "2026-09-17T03:00:00+01:00",
+                "published": "2024-05-17T03:00:00+01:00",
             },
             {
                 "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lk20",
@@ -736,12 +758,12 @@ def stories(app, fake_source):
                 "source": "https://www.satellitecommsecurity.com/RSSNewsfeed.xml",
                 "title": "Global Telecommunications Disrupted by APT80",
                 "author": "Holly Jensen",
-                "collected": "2026-10-18T01:10:30.123456",
+                "collected": "2024-05-18T01:10:30.123456",
                 "hash": "s3t4u5v6w7x8y9z0a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4",
                 "review": "",
-                "link": "https://www.telecomsecurityupdate.com/apt80-2026.html",
+                "link": "https://www.telecomsecurityupdate.com/apt80-2024.html",
                 "osint_source_id": fake_source,
-                "published": "2026-10-18T01:45:00+01:00",
+                "published": "2024-05-18T01:45:00+01:00",
             },
             {
                 "id": "3m5m8859-cgb1-bij6-hil4-lh77jij8lk21",
@@ -749,12 +771,12 @@ def stories(app, fake_source):
                 "source": "https://www.researchlabsecurity.com/RSSNewsfeed.xml",
                 "title": "Genetic Engineering Data Theft by APT81",
                 "author": "Irene Thompson",
-                "collected": "2026-11-19T00:00:14.086285",
+                "collected": "2024-05-19T00:00:14.086285",
                 "hash": "t4u5v6w7x8y9z0a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5",
                 "review": "",
-                "link": "https://www.geneticresearchsecurity.com/apt81-2026.html",
+                "link": "https://www.geneticresearchsecurity.com/apt81-2024.html",
                 "osint_source_id": fake_source,
-                "published": "2026-11-19T00:35:00+01:00",
+                "published": "2024-05-19T00:35:00+01:00",
             },
         ]
 

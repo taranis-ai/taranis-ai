@@ -16,6 +16,7 @@ pytest --run-e2e
 Other flags:
 - `--produce-artifacts` - record a video (save to `src/core/tests/playwright/videos`)
 - `--highlight-delay=<float>` - control time (seconds) to highlight elements in the video (`default=2`)
+- `-s` - see all logs on stdout
 
 ## Use Playwright Codegen tool to generate tests
 ```bash
@@ -29,3 +30,9 @@ expect(page).to_have_title("Uncomment and halt test run for test writing purpose
 
 ```
 where desired, to stop the test execution and allow to connect to the instance with Codegen tool.
+
+## Debug mode
+To enter the debug mode use:
+```bash
+PWDEBUG=1 pytest --run-e2e
+```
