@@ -7,7 +7,6 @@ from sqlalchemy.orm import Mapped, relationship
 from core.managers.db_manager import db
 from core.model.parameter_value import ParameterValue
 from core.model.base_model import BaseModel
-from core.log import logger
 
 
 class COLLECTOR_TYPES(StrEnum):
@@ -218,7 +217,6 @@ class Worker(BaseModel):
             self.description = description
 
         if update_parameters := item.get("parameters"):
-            logger.debug(update_parameters)
             self._update_parameters(update_parameters)
 
         db.session.commit()

@@ -11,7 +11,7 @@ from kombu import Queue
 
 queue_manager: "QueueManager"
 periodic_tasks = [
-    {"id": "cleanup_token_blacklist", "task": "cleanup_token_blacklist", "schedule": "daily", "args": [], "options": {"queue": "misc"}},
+    {"id": "cleanup_token_blacklist", "task": "cleanup_token_blacklist", "schedule": "daily", "options": {"queue": "misc"}},
 ]
 
 

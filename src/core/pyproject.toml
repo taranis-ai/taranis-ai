@@ -31,7 +31,6 @@ dependencies = [
     "swagger-ui-py",
     "requests",
     "authlib",
-    "sseclient",
     "setuptools"
 ]
 dynamic = ["version"]

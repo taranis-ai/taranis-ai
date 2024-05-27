@@ -109,11 +109,12 @@ class BaseWebCollector(BaseCollector):
         content = ""
         if xpath:
             content = self.xpath_extraction(web_content, xpath)
-        elif web_content is not None:
+        elif web_content:
             content = extract(web_content, url=web_url)
 
         if not content or not web_content:
-            raise ValueError("No content found")
+            logger.error(f"No content found for url: {web_url}")
+            return {"author": "", "title": "", "content": "", "published_date": None}
 
         author, title = self.extract_meta(web_content, web_url)
         return {"author": author, "title": title, "content": content, "published_date": published_date}

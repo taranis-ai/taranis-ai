@@ -16,7 +16,7 @@
       <v-row class="pb-4">
         <v-row class="mt-4 mb-0">
           <v-col cols="12" sm="12" class="pl-5 d-flex flex-column align-start">
-            <p>This action deletes the item permanently.</p>
+            <p>{{ message }}</p>
 
             <p class="awake-red-color--text">
               <v-icon color="awake-red-color" class="mb-1">
@@ -43,13 +43,21 @@ export default {
     title: {
       type: String,
       required: true
+    },
+    message: {
+      type: String,
+      default: 'This action deletes the item permanently.'
     }
   },
   emits: ['close', 'deleteItem'],
-  methods: {
-    emitDeleteAction() {
-      this.$emit('deleteItem')
-      this.$emit('close')
+  setup(props, { emit }) {
+    function emitDeleteAction() {
+      emit('deleteItem')
+      emit('close')
+    }
+
+    return {
+      emitDeleteAction
     }
   }
 }
