@@ -72,14 +72,12 @@ def auth_required(permissions: list | str):
             error = ({"error": "not authorized"}, 401)
             permissions_set = set(permissions) if isinstance(permissions, list) else {permissions}
 
-            # do we have a JWT token?
             try:
                 verify_jwt_in_request()
-            except JWTExtendedException:
-                logger.store_auth_error_activity("Missing JWT")
+            except JWTExtendedException as ex:
+                logger.exception(str(ex))
                 return error
 
-            # does it encode an identity?
             identity = get_jwt_identity()
             if not identity:
                 logger.store_auth_error_activity(f"Missing identity in JWT: {get_jwt()}")

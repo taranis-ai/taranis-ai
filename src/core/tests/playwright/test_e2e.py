@@ -54,6 +54,7 @@ class TestEndToEnd:
             return
         time.sleep(duration)
 
+    @pytest.mark.e2e_publish
     def test_e2e_login(self, taranis_frontend: Page):
         page = taranis_frontend
         expect(page).to_have_title("Taranis AI", timeout=5000)
@@ -152,10 +153,10 @@ class TestEndToEnd:
         def assert_stories():
             expect(page.get_by_role("main")).to_contain_text("Genetic Engineering Data Theft by APT81 (8) APT74 involved in sabotaging smart")
             expect(page.get_by_role("main")).to_contain_text(
-                "APT73 Exploits Global Shipping Container Systems (5) APT61 exploits vulnerabilities in IoT devices to create a large-scale botnet."
+                "APT73 Exploits Global Shipping Container Systems (5) APT61 exploits vulnerabilities in IoT devices to create a large-scale botnet."  # noqa E501
             )
             expect(page.get_by_role("main")).to_contain_text(
-                "Global Mining Espionage by APT67 (4) APT55 launches a series of attacks on software development firms to inject malicious code into widely used applications."
+                "Global Mining Espionage by APT67 (4) APT55 launches a series of attacks on software development firms to inject malicious code into widely used applications."  # noqa E501
             )
             expect(page.get_by_role("main")).to_contain_text(
                 "Patient Data Harvesting by APT60 (4) APT59's new ransomware targets global shipping and logistics, demanding high ransoms."
@@ -363,6 +364,7 @@ class TestEndToEnd:
 
         page.screenshot(path="./tests/playwright/screenshots/screenshot_analyze.png")
 
+    @pytest.mark.e2e_publish
     def test_e2e_publish(self, taranis_frontend: Page):
         page = taranis_frontend
         self.highlight_element(page.get_by_role("link", name="Publish").first).click()

@@ -11,8 +11,7 @@ def install_node_modules():
             print("Building node_modules")
             print(os.path.isdir("../gui/node_modules"))
             result = subprocess.call(["npm", "install"], cwd="../gui")
-            if result != 0:
-                raise Exception("Install failed with status code: {}".format(result))
+            assert result == 0, f"Install failed with status code: {result}"
     except Exception as e:
         pytest.fail(str(e))
 
@@ -20,21 +19,14 @@ def install_node_modules():
 @pytest.fixture(scope="session")
 def build_gui(install_node_modules):
     try:
-        result = subprocess.call(["npm", "run", "build"], cwd="../gui")
-        if result != 0:
-            raise Exception("Build failed with status code: {}".format(result))
-        yield result
+        if not os.path.isdir("../gui/dist"):
+            print("Building GUI")
+            result = subprocess.call(["npm", "run", "build"], cwd="../gui")
+            assert result == 0, f"Build failed with status code: {result}"
+        else:
+            print("Reusing existing dist folder, delete it to force a rebuild")
     except Exception as e:
         pytest.fail(str(e))
-
-
-# Optional add build_gui
-@pytest.fixture(scope="session")
-def check_gui_build():
-    print("Checking GUI build")
-    if not os.path.isdir("../gui/dist"):
-        print("Please, build the GUI first")
-    assert os.path.isdir("../gui/dist")
 
 
 @pytest.fixture(scope="class")
@@ -45,7 +37,7 @@ def e2e_ci(request):
 
 
 @pytest.fixture(scope="session")
-def e2e_server(app, live_server, stories, check_gui_build):
+def e2e_server(app, live_server, stories, build_gui):
     import core.api as core_api
 
     core_api.frontend.initialize(app)
