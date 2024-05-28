@@ -185,8 +185,6 @@ def pytest_collection_modifyitems(config, items):
     if e2e_type := config.getoption("--run-e2e-ci") or config.getoption("--run-e2e"):
         config.option.start_live_server = False
         config.option.headed = e2e_type == "e2e"
-        config.option.tracing = "on"
-
         skip_for_e2e(e2e_type, items)
         return
 
