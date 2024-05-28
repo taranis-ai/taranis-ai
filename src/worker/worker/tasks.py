@@ -1,10 +1,11 @@
 from celery import Celery
 
 from worker.config import Config
-import worker.misc.misc_tasks  # noqa: F401
 
 
 def setup_tasks(app: Celery):
+    import worker.misc.misc_tasks  # noqa: F401
+
     if "Bots" in Config.WORKER_TYPES:
         from worker.bots.bot_tasks import BotTask
 

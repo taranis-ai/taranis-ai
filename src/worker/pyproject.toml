@@ -25,6 +25,7 @@ dependencies = [
     "feedparser",
     "pyopenssl",
     "lxml",
+    "prefect",
 
     # Publisher
     "pymisp",
