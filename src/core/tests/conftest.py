@@ -1,8 +1,10 @@
+import contextlib
 import os
 import sys
 import pytest
 from dotenv import load_dotenv
 from sqlalchemy.orm import scoped_session, sessionmaker
+from urllib.parse import urlparse
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 env_file = os.path.join(base_dir, ".env")
@@ -28,6 +30,10 @@ def app():
     )
 
     yield app
+
+    with contextlib.suppress(Exception):
+        parsed_uri = urlparse(os.getenv("SQLALCHEMY_DATABASE_URI"))
+        os.remove(f"{parsed_uri.path}")
 
 
 @pytest.fixture(scope="session")
