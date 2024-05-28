@@ -57,6 +57,8 @@ class TestEndToEnd:
     def test_e2e_login(self, taranis_frontend: Page):
         page = taranis_frontend
         expect(page).to_have_title("Taranis AI", timeout=5000)
+        # expect(page.get_by_role("main",)).to_contain_text("Genetic Engineering Data Theft by APT81 (8) APT74 involved in sabotaging smart", timeout=0)
+
         self.highlight_element(page.get_by_placeholder("Username"))
         page.get_by_placeholder("Username").fill("admin")
         self.highlight_element(page.get_by_placeholder("Password"))
@@ -64,11 +66,21 @@ class TestEndToEnd:
         self.highlight_element(page.locator("role=button")).click()
         page.screenshot(path="./tests/playwright/screenshots/screenshot_login.png")
 
-    def test_e2e_assess(self, taranis_frontend: Page):
+    def test_e2e_assess(self, taranis_frontend: Page, e2e_server):
         def go_to_assess():
             self.highlight_element(page.get_by_role("link", name="Assess").first).click()
             page.wait_for_url("**/assess", wait_until="domcontentloaded")
             expect(page).to_have_title("Taranis AI | Assess")
+
+        def paging(base_url):
+            self.highlight_element(page.get_by_placeholder("Until")).click()
+            self.highlight_element(page.locator('[data-test="select-button"]')).click()
+            self.scroll_to_the_bottom(scroll_step=400)
+            self.highlight_element(page.get_by_label("Go to page 2")).click()
+            self.highlight_element(page.get_by_label("Page 2, Current page")).press("Insert")
+            self.highlight_element(page.get_by_label("Go to page 3")).click()
+            self.highlight_element(page.locator("svg").nth(2)).click()
+            page.goto(f"{base_url}")
 
         def story_1():
             self.highlight_element(
@@ -162,6 +174,12 @@ class TestEndToEnd:
             )
             expect(page.get_by_role("main")).to_contain_text("Advanced Phishing Techniques by APT58 (3) APT57 specializes in the theft of")
 
+        def hotkeys():
+            self.highlight_element(page.get_by_text("Genetic Engineering Data Theft by APT81 (8) APT74 involved in sabotaging smart")).click()
+            self.highlight_element(page.get_by_text("APT73 Exploits Global Shipping Container Systems (5) APT61 exploits")).click()
+            self.highlight_element(page.get_by_text("Patient Data Harvesting by APT60 (4) APT59's new ransomware targets global")).click()
+            page.keyboard.press("Control+I")
+
         def interact_with_story():
             self.highlight_element(page.locator("button:nth-child(5)").first).click()
 
@@ -213,6 +231,10 @@ class TestEndToEnd:
             page.screenshot(path="./tests/playwright/screenshots/screenshot_edit_story_2.png")
 
         page = taranis_frontend
+        # Uncomment when paging is fixed
+        # base_url = e2e_server.url()
+        # go_to_assess()
+        # paging(base_url)
         go_to_assess()
         self.scroll_to_the_bottom(page)
         # get_by_label("Items per page")
@@ -226,6 +248,7 @@ class TestEndToEnd:
         # story_6()
         page.mouse.wheel(0, -5000)
         self.highlight_element(page.get_by_role("button", name="relevance")).click()
+        hotkeys()
         assert_stories()
         page.screenshot(path="./tests/playwright/screenshots/screenshot_assess.png")
         interact_with_story()
