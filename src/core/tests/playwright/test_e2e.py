@@ -20,7 +20,7 @@ class TestEndToEnd:
 
         while True:
             page.mouse.wheel(0, scroll_step)
-            time.sleep(0.5)
+            self.short_sleep(0.2)
             new_height = page.evaluate("document.documentElement.scrollHeight")
 
             if new_height == last_height:
@@ -286,27 +286,24 @@ class TestEndToEnd:
             page.get_by_role("button", name="Save").click()
 
         def add_stories_to_report_1():
-            # page.pause()
             # expect(page.get_by_role("main")).to_contain_text("Geneticng smart", timeout=0)
             self.highlight_element(page.get_by_role("link", name="Assess")).click()
             self.highlight_element(page.get_by_role("button", name="relevance")).click()
             self.highlight_element(page.get_by_role("button", name="relevance")).click()
             self.highlight_element(page.get_by_role("button", name="relevance")).click()
-            self.highlight_element(page.locator(".ml-auto > button:nth-child(3)").first).click()
+            page.pause()
+            self.highlight_element(page.locator("button:below(:text('Global Mining Espionage by APT67 (4)'))").first).click()
+            # self.highlight_element(page.locator(".ml-auto > button:nth-child(3)").first).click()
             self.highlight_element(page.get_by_role("dialog").get_by_label("Open")).click()
             self.highlight_element(page.get_by_role("option", name="Test Title")).click()
             self.highlight_element(page.get_by_role("button", name="share")).click()
 
-            self.highlight_element(
-            page.locator("div:nth-child(4) > div:nth-child(2) > div > div:nth-child(2) > .ml-auto > button:nth-child(3)")
-            ).click()
+            self.highlight_element(page.locator("button:below(:text('Advanced Phishing Techniques by APT58 (3)'))").first).click()
             self.highlight_element(page.get_by_role("dialog").get_by_label("Open")).click()
             self.highlight_element(page.get_by_role("option", name="Test Title")).click()
             self.highlight_element(page.get_by_role("button", name="share")).click()
 
-            self.highlight_element(
-                page.locator("div:nth-child(6) > div:nth-child(2) > div > div:nth-child(2) > .ml-auto > button:nth-child(3)")
-            ).click()
+            self.highlight_element(page.locator("button:below(:text('Genetic Engineering Data Theft by APT81 (8)'))").first).click()
             self.highlight_element(page.get_by_role("dialog").get_by_label("Open")).click()
             self.highlight_element(page.get_by_role("option", name="Test Title")).click()
             self.highlight_element(page.get_by_role("button", name="share")).click()

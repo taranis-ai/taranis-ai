@@ -36,3 +36,4 @@ To enter the debug mode use:
 ```bash
 PWDEBUG=1 pytest --run-e2e
 ```
+To halt a test at a certain point, use classic breakpoints, or place `page.pause()` where you want the debugger to stop.
