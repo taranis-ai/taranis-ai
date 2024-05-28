@@ -236,7 +236,9 @@ class TestEndToEnd:
         # go_to_assess()
         # paging(base_url)
         go_to_assess()
-        self.scroll_to_the_bottom(page)
+        # self.scroll_to_the_bottom(page)
+        page.keyboard.down("ArrowDown")
+
         # get_by_label("Items per page")
         # get_by_role("option", name="100")
         story_1()
@@ -250,7 +252,7 @@ class TestEndToEnd:
         self.highlight_element(page.get_by_role("button", name="relevance")).click()
         hotkeys()
         assert_stories()
-        page.screenshot(path="./tests/playwright/screenshots/screenshot_assess.png")
+        page.screenshot(path="./tests/playwright/screenshots/assess_landing_page.png")
         interact_with_story()
 
         # Uncomment when "relevance" button is fixed (ref: Various bugs)
@@ -307,17 +309,19 @@ class TestEndToEnd:
             page.get_by_role("button", name="Save").click()
 
         def add_stories_to_report_1():
+            # page.pause()
+            # expect(page.get_by_role("main")).to_contain_text("Geneticng smart", timeout=0)
             self.highlight_element(page.get_by_role("link", name="Assess")).click()
             self.highlight_element(page.get_by_role("button", name="relevance")).click()
             self.highlight_element(page.get_by_role("button", name="relevance")).click()
             self.highlight_element(page.get_by_role("button", name="relevance")).click()
-            self.highlight_element(page.get_by_role("main").get_by_role("button").nth(1)).click()
+            self.highlight_element(page.locator(".ml-auto > button:nth-child(3)").first).click()
             self.highlight_element(page.get_by_role("dialog").get_by_label("Open")).click()
             self.highlight_element(page.get_by_role("option", name="Test Title")).click()
             self.highlight_element(page.get_by_role("button", name="share")).click()
 
             self.highlight_element(
-                page.locator("div:nth-child(4) > div:nth-child(2) > div > div:nth-child(2) > .ml-auto > button:nth-child(3)")
+            page.locator("div:nth-child(4) > div:nth-child(2) > div > div:nth-child(2) > .ml-auto > button:nth-child(3)")
             ).click()
             self.highlight_element(page.get_by_role("dialog").get_by_label("Open")).click()
             self.highlight_element(page.get_by_role("option", name="Test Title")).click()
