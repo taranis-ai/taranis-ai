@@ -30,9 +30,7 @@ class OSINTSource(BaseModel):
 
     type: Mapped[COLLECTOR_TYPES] = db.Column(db.Enum(COLLECTOR_TYPES))
     parameters: Mapped[list["ParameterValue"]] = relationship(
-        "ParameterValue",
-        secondary="osint_source_parameter_value",
-        cascade="all, delete",
+        "ParameterValue", secondary="osint_source_parameter_value", cascade="all, delete"
     )
     groups: Mapped[list["OSINTSourceGroup"]] = relationship("OSINTSourceGroup", secondary="osint_source_group_osint_source")
 
@@ -333,7 +331,7 @@ class OSINTSourceGroup(BaseModel):
         secondary="osint_source_group_osint_source",
         back_populates="groups",
     )
-    word_lists: Mapped[list["WordList"]] = relationship("WordList", secondary="osint_source_group_word_list")  # type: ignore
+    word_lists: Mapped[list["WordList"]] = relationship("WordList", secondary="osint_source_group_word_list")
 
     def __init__(self, name, description="", osint_sources=None, default=False, word_lists=None, id=None):
         self.id = id or str(uuid.uuid4())
@@ -470,5 +468,5 @@ class OSINTSourceGroupOSINTSource(BaseModel):
 
 
 class OSINTSourceGroupWordList(BaseModel):
-    osint_source_group_id = db.Column(db.String, db.ForeignKey("osint_source_group.id", ondelete="SET NULL"), primary_key=True)
-    word_list_id = db.Column(db.Integer, db.ForeignKey("word_list.id", ondelete="SET NULL"), primary_key=True)
+    osint_source_group_id = db.Column(db.String, db.ForeignKey("osint_source_group.id"), primary_key=True)
+    word_list_id = db.Column(db.Integer, db.ForeignKey("word_list.id"), primary_key=True)
