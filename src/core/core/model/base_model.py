@@ -73,8 +73,9 @@ class BaseModel(db.Model):
 
     @classmethod
     def delete_all(cls: Type[T]) -> tuple[dict[str, Any], int]:
-        sqlalchemy.delete(cls)
+        db.session.execute(db.delete(cls))
         db.session.commit()
+        logger.debug(f"All {cls.__name__} deleted")
         return {"message": f"All {cls.__name__} deleted"}, 200
 
     @classmethod
