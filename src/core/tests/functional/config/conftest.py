@@ -2,7 +2,7 @@ import pytest
 
 
 @pytest.fixture(scope="session")
-def cleanup_sources(app, request):
+def cleanup_sources(app):
     with app.app_context():
         from core.model.osint_source import OSINTSource
 
@@ -16,17 +16,14 @@ def cleanup_sources(app, request):
             "type": "rss_collector",
         }
 
-        def teardown():
-            with app.app_context():
-                [OSINTSource.delete(source.id) for source in OSINTSource.get_all()]
-
-        request.addfinalizer(teardown)
-
         yield source_data
+
+        if OSINTSource.get(source_data["id"]):
+            OSINTSource.delete(source_data["id"])
 
 
 @pytest.fixture(scope="session")
-def cleanup_source_groups(app, request):
+def cleanup_source_groups(app):
     with app.app_context():
         from core.model.osint_source import OSINTSourceGroup
 
@@ -36,19 +33,14 @@ def cleanup_source_groups(app, request):
             "description": "This is a test group",
         }
 
-        def teardown():
-            with app.app_context():
-                if OSINTSourceGroup.get("42"):
-                    print("Deleting test source group 42")
-                    OSINTSourceGroup.delete("42")
-
-        request.addfinalizer(teardown)
-
         yield source_group_data
+
+        if OSINTSourceGroup.get(source_group_data["id"]):
+            OSINTSourceGroup.delete(source_group_data["id"])
 
 
 @pytest.fixture(scope="session")
-def cleanup_word_lists(app, request):
+def cleanup_word_lists(app):
     with app.app_context():
         from core.model.word_list import WordList
 
@@ -61,19 +53,14 @@ def cleanup_word_lists(app, request):
             "entries": [],
         }
 
-        def teardown():
-            with app.app_context():
-                if WordList.get(42):
-                    print("Deleting test word list 42")
-                    WordList.delete(42)
-
-        request.addfinalizer(teardown)
-
         yield word_list_data
+
+        if WordList.get(word_list_data["id"]):
+            WordList.delete(word_list_data["id"])
 
 
 @pytest.fixture(scope="session")
-def cleanup_user(app, request):
+def cleanup_user(app):
     with app.app_context():
         from core.model.user import User
 
@@ -87,19 +74,14 @@ def cleanup_user(app, request):
             "password": "testpassword",
         }
 
-        def teardown():
-            with app.app_context():
-                if User.get(42):
-                    print("Deleting test user 42")
-                    User.delete(42)
-
-        request.addfinalizer(teardown)
-
         yield user_data
+
+        if User.get(user_data["id"]):
+            User.delete(user_data["id"])
 
 
 @pytest.fixture(scope="session")
-def cleanup_role(app, request):
+def cleanup_role(app):
     with app.app_context():
         from core.model.role import Role
 
@@ -110,19 +92,14 @@ def cleanup_role(app, request):
             "permissions": ["ANALYZE_ACCESS", "ANALYZE_CREATE", "ANALYZE_DELETE"],
         }
 
-        def teardown():
-            with app.app_context():
-                if Role.get(42):
-                    print("Deleting test user 42")
-                    Role.delete(42)
-
-        request.addfinalizer(teardown)
-
         yield role_data
+
+        if Role.get(role_data["id"]):
+            Role.delete(role_data["id"])
 
 
 @pytest.fixture(scope="session")
-def cleanup_organization(app, request):
+def cleanup_organization(app):
     with app.app_context():
         from core.model.organization import Organization
 
@@ -133,19 +110,14 @@ def cleanup_organization(app, request):
             "address": {"street": "testStreet", "city": "testCity"},
         }
 
-        def teardown():
-            with app.app_context():
-                if Organization.get(42):
-                    print("Deleting test org 42")
-                    Organization.delete(42)
-
-        request.addfinalizer(teardown)
-
         yield organization_data
+
+        if Organization.get(organization_data["id"]):
+            Organization.delete(organization_data["id"])
 
 
 @pytest.fixture(scope="session")
-def cleanup_bot(app, request):
+def cleanup_bot(app):
     with app.app_context():
         from core.model.bot import Bot
 
@@ -157,19 +129,14 @@ def cleanup_bot(app, request):
             "parameters": {"SOURCE_GROUP": "default", "RUN_AFTER_COLLECTOR": "true"},
         }
 
-        def teardown():
-            with app.app_context():
-                if Bot.get("42"):
-                    print("Deleting test bot 42")
-                    Bot.delete("42")
-
-        request.addfinalizer(teardown)
-
         yield bot_data
+
+        if Bot.get(bot_data["id"]):
+            Bot.delete(bot_data["id"])
 
 
 @pytest.fixture(scope="session")
-def cleanup_report_item_type(app, request):
+def cleanup_report_item_type(app):
     with app.app_context():
         from core.model.report_item_type import ReportItemType
 
@@ -195,19 +162,14 @@ def cleanup_report_item_type(app, request):
             ],
         }
 
-        def teardown():
-            with app.app_context():
-                if ReportItemType.get(42):
-                    print("Deleting Report Type 42")
-                    ReportItemType.delete(42)
-
-        request.addfinalizer(teardown)
-
         yield report_type_data
+
+        if ReportItemType.get(report_type_data["id"]):
+            ReportItemType.delete(report_type_data["id"])
 
 
 @pytest.fixture(scope="session")
-def cleanup_product_types(app, request):
+def cleanup_product_types(app):
     with app.app_context():
         from core.model.product_type import ProductType
 
@@ -219,15 +181,10 @@ def cleanup_product_types(app, request):
             "description": "Product type desc",
         }
 
-        def teardown():
-            with app.app_context():
-                if ProductType.get(42):
-                    print("Deleting test product type 42")
-                    ProductType.delete(42)
-
-        request.addfinalizer(teardown)
-
         yield product_type_data
+
+        if ProductType.get(product_type_data["id"]):
+            ProductType.delete(product_type_data["id"])
 
 
 @pytest.fixture(scope="session")
@@ -235,7 +192,7 @@ def cleanup_acls(app):
     with app.app_context():
         from core.model.role_based_access import RoleBasedAccess
 
-        yield {
+        rbac_data = {
             "id": 42,
             "name": "test_acl_unique",
             "description": "Test ACL",
@@ -244,9 +201,10 @@ def cleanup_acls(app):
             "roles": [],
         }
 
-        if RoleBasedAccess.get(42):
-            print("Deleting test ACL 42")
-            RoleBasedAccess.delete(42)
+        yield rbac_data
+
+        if RoleBasedAccess.get(rbac_data["id"]):
+            RoleBasedAccess.delete(rbac_data["id"])
 
 
 @pytest.fixture(scope="session")
@@ -254,17 +212,18 @@ def cleanup_publisher_preset(app):
     with app.app_context():
         from core.model.publisher_preset import PublisherPreset
 
-        yield {
-            "id": "44",
+        publisher_presets = {
+            "id": "42",
             "name": "test_publisher_preset",
             "description": "Test ACL",
             "type": "ftp_publisher",
             "parameters": {"FTP_URL": "ftp_url_entry"},
         }
 
-        if PublisherPreset.get(44):
-            print("Deleting test publisher preset 44")
-            PublisherPreset.delete(44)
+        yield publisher_presets
+
+        if PublisherPreset.get(publisher_presets["id"]):
+            PublisherPreset.delete(publisher_presets["id"])
 
 
 @pytest.fixture(scope="session")
@@ -272,7 +231,7 @@ def cleanup_attribute(app):
     with app.app_context():
         from core.model.attribute import Attribute
 
-        yield {
+        attribute_data = {
             "id": 42,
             "name": "Attribute name",
             "description": "Simple attribute desc",
@@ -280,9 +239,10 @@ def cleanup_attribute(app):
             "default_value": "2234",
         }
 
-        if Attribute.get(42):
-            print("Deleting test attribute 42")
-            Attribute.delete(42)
+        yield attribute_data
+
+        if Attribute.get(attribute_data["id"]):
+            Attribute.delete(attribute_data["id"])
 
 
 @pytest.fixture(scope="session")

@@ -353,7 +353,7 @@ class TestAcls(BaseTest):
     def test_create_acl(self, client, auth_header, cleanup_acls):
         response = self.assert_post_ok(client, uri="acls", json_data=cleanup_acls, auth_header=auth_header)
         assert response.json["message"] == "ACL created"
-        assert response.json["id"] == 42
+        assert response.json["id"] == cleanup_acls["id"]
 
     def test_modify_acl(self, client, auth_header, cleanup_acls):
         acl_id = cleanup_acls["id"]
@@ -381,7 +381,7 @@ class TestPublisherPreset(BaseTest):
     def test_create_publisher_preset(self, client, auth_header, cleanup_publisher_preset):
         response = self.assert_post_ok(client, uri="publishers-presets", json_data=cleanup_publisher_preset, auth_header=auth_header)
         assert response.json["message"] == "Publisher preset created successfully"
-        assert response.json["id"] == "44"
+        assert response.json["id"] == cleanup_publisher_preset["id"]
 
     def test_modify_publisher_preset(self, client, auth_header, cleanup_publisher_preset):
         publisher_data = {"description": "new description"}
@@ -402,7 +402,7 @@ class TestPublisherPreset(BaseTest):
     def test_delete_publisher_preset(self, client, auth_header, cleanup_publisher_preset):
         publisher_preset_id = cleanup_publisher_preset["id"]
         response = self.assert_delete_ok(client, uri=f"publishers-presets/{publisher_preset_id}", auth_header=auth_header)
-        assert response.json["message"] == "PublisherPreset 44 deleted"
+        assert response.json["message"] == "PublisherPreset 42 deleted"
 
 
 class TestAttributes(BaseTest):
@@ -410,7 +410,7 @@ class TestAttributes(BaseTest):
 
     def test_create_attribute(self, client, auth_header, cleanup_attribute):
         response = self.assert_post_ok(client, uri="attributes", json_data=cleanup_attribute, auth_header=auth_header)
-        assert response.json["id"] == 42
+        assert response.json["id"] == cleanup_attribute["id"]
         assert response.json["message"] == "Attribute added"
 
     def test_modify_attribute(self, client, auth_header, cleanup_attribute):

@@ -55,6 +55,7 @@ class NewsItem(BaseModel):
         link: str = "",
         published: datetime | str = datetime.now(),
         collected: datetime | str = datetime.now(),
+        language: str = "",
         hash: str | None = None,
         attributes=None,
         id=None,
@@ -68,6 +69,7 @@ class NewsItem(BaseModel):
         self.source = source
         self.link = link
         self.author = author
+        self.language = language
         self.hash = hash or self.get_hash(title, link, content)
         self.collected = collected if isinstance(collected, datetime) else datetime.fromisoformat(collected)
         self.published = published if isinstance(published, datetime) else datetime.fromisoformat(published)

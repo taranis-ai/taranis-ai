@@ -94,7 +94,7 @@ class ReportItem(BaseModel):
 
     def to_dict(self):
         data = super().to_dict()
-        data["stories"] = len(self.stories)
+        data["stories"] = [story.id for story in self.stories]
         return data
 
     def get_attribute_dict(self) -> dict[str, dict[str, dict[str, Any]]]:
@@ -256,8 +256,7 @@ class ReportItem(BaseModel):
 
     @classmethod
     def get_report_item_and_check_permission(cls, report_id: str, user: User) -> tuple[Optional["ReportItem"], dict, int]:
-        report_item = cls.get(report_id)
-        if not report_item:
+        if not (report_item := cls.get(report_id)):
             return None, {"error": "Report Item not Found"}, 404
 
         if not report_item.allowed_with_acl(user, True):

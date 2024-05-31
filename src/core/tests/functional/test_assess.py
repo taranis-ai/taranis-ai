@@ -82,8 +82,6 @@ class TestAssessApi(BaseTest):
         It expects valid NewsItems
         """
         response = client.get("/api/assess/news-items", headers=auth_header)
-        assert response
-        assert response.data
         assert response.content_type == "application/json"
         assert response.status_code == 200
         assert len(response.get_json()["items"]) == 3
@@ -106,8 +104,6 @@ class TestAssessApi(BaseTest):
         assert response[1] == 200
 
         response = client.get("/api/assess/tags", headers=auth_header)
-        assert response
-        assert response.data
         assert len(response.get_json()) == 0
         assert response.content_type == "application/json"
         assert response.status_code == 200

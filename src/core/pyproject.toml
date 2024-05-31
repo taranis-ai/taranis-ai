@@ -67,7 +67,8 @@ lines-after-imports = 2
 [tool.pytest.ini_options]
 markers = [
     "e2e: marks tests as to run only when calling with --run-e2e option",
-    "e2e_ci: marks tests as to run only when calling with --run-e2e-ci option"
+    "e2e_ci: marks tests as to run only when calling with --run-e2e-ci option",
+    "e2e_publish: marks only the tests related to publishing in from the e2e test"
 ]
 filterwarnings = [
     "ignore:.*_app_ctx_stack.*:DeprecationWarning",

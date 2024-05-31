@@ -1,8 +1,10 @@
+import contextlib
 import os
 import sys
 import pytest
 from dotenv import load_dotenv
 from sqlalchemy.orm import scoped_session, sessionmaker
+from urllib.parse import urlparse
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 env_file = os.path.join(base_dir, ".env")
@@ -29,6 +31,10 @@ def app():
 
     yield app
 
+    with contextlib.suppress(Exception):
+        parsed_uri = urlparse(os.getenv("SQLALCHEMY_DATABASE_URI"))
+        os.remove(f"{parsed_uri.path}")
+
 
 @pytest.fixture(scope="session")
 def client(app):
@@ -48,33 +54,28 @@ def db_persistent_session(app):
 
 
 @pytest.fixture(scope="session")
-def db(app, request):
+def db(app):
     with app.app_context():
         from core.managers.db_manager import db
 
-        def teardown():
-            db.drop_all()
-
-        request.addfinalizer(teardown)
-
         yield db
 
+        db.drop_all()
 
-@pytest.fixture()
-def session(db, request):
+
+@pytest.fixture
+def session(db):
     """Creates a new database session for a test."""
     connection = db.engine.connect()
     transaction = connection.begin()
 
     db.session = scoped_session(session_factory=sessionmaker(bind=connection))
 
-    def teardown():
-        transaction.rollback()
-        connection.close()
-        db.session.remove()
+    yield db.session
 
-    request.addfinalizer(teardown)
-    return db.session
+    transaction.rollback()
+    connection.close()
+    db.session.remove()
 
 
 @pytest.fixture(scope="session")
@@ -148,6 +149,14 @@ def access_token_no_permissions(app):
                 }
             },
         )
+
+
+@pytest.fixture
+def clear_blacklist(app):
+    from core.model.token_blacklist import TokenBlacklist
+
+    with app.app_context():
+        TokenBlacklist.delete_all()
 
 
 @pytest.fixture
