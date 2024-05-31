@@ -49,6 +49,58 @@ class TestEndToEnd:
         locator.page.evaluate("style => style.remove()", style_tag)
         return locator
 
+    def add_keystroke_overlay(self, page):
+        if self.ci_run:
+            return
+        style_content = """
+            .keystroke-overlay {
+                position: fixed;
+                bottom: 10px;
+                right: 10px;
+                padding: 10px 20px;
+                background-color: grey;
+                color: white;
+                font-family: Arial, sans-serif;
+                font-size: 48px;
+                border: 3px solid red;
+                border-radius: 5px;
+                z-index: 10000;
+                display: none;
+            }
+            """
+        page.add_style_tag(content=style_content)
+
+        # Inject the overlay div
+        page.evaluate("""
+            const overlay = document.createElement('div');
+            overlay.className = 'keystroke-overlay';
+            document.body.appendChild(overlay);
+            """)
+
+        # Add event listener to capture keystrokes and display them
+        page.evaluate("""
+            document.addEventListener('keydown', (event) => {
+                let keys = [];
+                if (event.ctrlKey) keys.push('Control');
+                if (event.shiftKey) keys.push('Shift');
+                if (event.altKey) keys.push('Alt');
+                if (event.metaKey) keys.push('Meta');  // For Mac Command key
+                if (event.key && !['Control', 'Shift', 'Alt', 'Meta'].includes(event.key)) {
+                    keys.push(event.key === ' ' ? 'Space' : event.key);
+                }
+                if (event.key === 'Escape') {
+                    keys = ['Escape'];
+                }
+                const overlay = document.querySelector('.keystroke-overlay');
+                overlay.textContent = keys.join('+');
+                overlay.style.display = 'block';
+
+                setTimeout(() => {
+                    overlay.style.display = 'none';
+                }, 2000);  // Display for 2 seconds
+            });
+            """)
+
     def short_sleep(self, duration=0.2):
         if self.ci_run:
             return
@@ -57,6 +109,8 @@ class TestEndToEnd:
     @pytest.mark.e2e_publish
     def test_e2e_login(self, taranis_frontend: Page):
         page = taranis_frontend
+        self.add_keystroke_overlay(page)
+
         expect(page).to_have_title("Taranis AI", timeout=5000)
 
         self.highlight_element(page.get_by_placeholder("Username"))
@@ -71,6 +125,42 @@ class TestEndToEnd:
             self.highlight_element(page.get_by_role("link", name="Assess").first).click()
             page.wait_for_url("**/assess", wait_until="domcontentloaded")
             expect(page).to_have_title("Taranis AI | Assess")
+
+        def assert_hotkey_menu():
+            expect(page.get_by_role("listbox")).to_contain_text("General")
+            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + Shift + L")
+            expect(page.get_by_role("listbox")).to_contain_text("Open the HotKeys Legend.")
+            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + K")
+            expect(page.get_by_role("listbox")).to_contain_text("Focus the Search Bar.")
+            expect(page.get_by_role("listbox")).to_contain_text("Assess")
+            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + Space")
+            expect(page.get_by_role("listbox")).to_contain_text(
+                "Mark all selected items as read (if all are read already, mark them as unread)."
+            )
+            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + I")
+            expect(page.get_by_role("listbox")).to_contain_text("Mark all selected items as important.")
+            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + A")
+            expect(page.get_by_role("listbox")).to_contain_text("Select all items currently loaded.")
+            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + Shift + S")
+            expect(page.get_by_role("listbox")).to_contain_text("Add selected items to last report.")
+            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + E")
+            expect(page.get_by_role("listbox")).to_contain_text("Open Edit View of Story")
+            expect(page.get_by_role("listbox")).to_contain_text("Stories")
+            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + M")
+            expect(page.get_by_role("listbox")).to_contain_text("Create a new story.")
+            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + Space")
+            expect(page.get_by_role("listbox")).to_contain_text(
+                "Mark all selected items as read (if all are read already, mark them as unread)."
+            )
+            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + I")
+            expect(page.get_by_role("listbox")).to_contain_text("Mark all selected items as important.")
+            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + Shift + S")
+            expect(page.get_by_role("listbox")).to_contain_text("Add open story to last report.")
+            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + E")
+            expect(page.get_by_role("listbox")).to_contain_text("Open Edit View of Story")
+            expect(page.get_by_role("listbox")).to_contain_text("Reports")
+            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + M")
+            expect(page.get_by_role("listbox")).to_contain_text("Create a new report.")
 
         def paging(base_url):
             self.highlight_element(page.get_by_placeholder("Until")).click()
@@ -231,21 +321,29 @@ class TestEndToEnd:
             page.screenshot(path="./tests/playwright/screenshots/screenshot_edit_story_2.png")
 
         page = taranis_frontend
-        # Uncomment when paging is fixed
+        self.add_keystroke_overlay(page)
+        # TODO: Uncomment when paging is fixed
         # base_url = e2e_server.url()
         # go_to_assess()
         # paging(base_url)
+
         go_to_assess()
+        page.keyboard.press("Control+Shift+L")
+        assert_hotkey_menu()
+        self.short_sleep(duration=2)
+        page.keyboard.press("Escape")
+
         self.scroll_to_the_bottom(page)
 
-        # get_by_label("Items per page")
-        # get_by_role("option", name="100")
+        # self.highlight_element(page.get_by_label("Items per page")).click()
+        # self.highlight_element(page.get_by_role("option", name="100")).click()
+
         story_1()
         story_2()
         story_3()
         story_4()
         story_5()
-        # Uncomment when infinite scroll is fixed
+        # TODO: Uncomment when infinite scroll is fixed
         # story_6()
         page.mouse.wheel(0, -5000)
         self.highlight_element(page.get_by_role("button", name="relevance")).click()
@@ -254,11 +352,11 @@ class TestEndToEnd:
         page.screenshot(path="./tests/playwright/screenshots/assess_landing_page.png")
         interact_with_story()
 
-        # Uncomment when "relevance" button is fixed (ref: Various bugs)
+        # TODO: Uncomment when "relevance" button is fixed (ref: Various bugs)
         # go_to_assess()
         # assert_stories()
 
-        # uncomment when frontend is fixed
+        # TODO: uncomment when frontend charts is fixed
         # self.highlight_element(page.get_by_role("button", name="show charts")).click()
         # page.locator("canvas").first.wait_for()
 
@@ -359,6 +457,8 @@ class TestEndToEnd:
             page.screenshot(path="./tests/playwright/screenshots/screenshot_assess_by_tag.png")
 
         page = taranis_frontend
+        self.add_keystroke_overlay(page)
+
         go_to_analyze()
         report_1()
         go_to_analyze()
@@ -383,6 +483,8 @@ class TestEndToEnd:
     @pytest.mark.e2e_publish
     def test_e2e_publish(self, taranis_frontend: Page):
         page = taranis_frontend
+        self.add_keystroke_overlay(page)
+
         self.highlight_element(page.get_by_role("link", name="Publish").first).click()
         page.wait_for_url("**/publish", wait_until="domcontentloaded")
         expect(page).to_have_title("Taranis AI | Publish")

@@ -101,7 +101,9 @@ def stories(app, news_items_list):
             random_hours = random.randint(1, 4)
             new_time = now - timedelta(hours=random_hours)
             item.update({"published": new_time.isoformat()})
-            
+            item.update({"collected": new_time.isoformat()})
+
+
     _generate_timestamp()
 
     with app.app_context():
