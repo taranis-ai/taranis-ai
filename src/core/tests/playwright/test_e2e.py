@@ -58,7 +58,6 @@ class TestEndToEnd:
     def test_e2e_login(self, taranis_frontend: Page):
         page = taranis_frontend
         expect(page).to_have_title("Taranis AI", timeout=5000)
-        # expect(page.get_by_role("main",)).to_contain_text("Genetic Engineering Data Theft by APT81 (8) APT74 involved in sabotaging smart", timeout=0)
 
         self.highlight_element(page.get_by_placeholder("Username"))
         page.get_by_placeholder("Username").fill("admin")
