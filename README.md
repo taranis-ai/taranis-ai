@@ -23,7 +23,7 @@ For Development read our [Dev Setup Guide](./docker/dev/README.md)
 
 See [ADVANCED OSINT ANALYSIS FOR NIS AUTHORITIES, CSIRT TEAMS AND ORGANISATIONS](./doc/2023_IKTSichKonf_AWAKE_v3.pdf) for a presentation about the current features.
 
-See [taranis.ai](https://taranis.ai/documentation/overview/) for documentation of user stories and deployment guides.
+See [taranis.ai](https://taranis.ai/docs/) for documentation of user stories and deployment guides.
 
 
 ## Services
