@@ -1,8 +1,10 @@
+from sqlalchemy import func
 from datetime import datetime, timedelta
+
 from core.model.story import Story
 from core.model.news_item_tag import NewsItemTag
 from core.managers.db_manager import db
-from sqlalchemy import func
+from core.log import logger
 
 
 class NewsItemTagService:
@@ -48,25 +50,25 @@ class NewsItemTagService:
         return results
 
     @classmethod
-    def get_n_biggest_tags_by_type(cls, tag_type: str, n: int, days: int = 0) -> dict[str, dict]:
+    def get_n_biggest_tags_by_type(cls, tag_type: str, n: int, days: int = 0) -> list[dict]:
         stmt = db.select(NewsItemTag.name, func.count(NewsItemTag.name).label("name_count")).filter(NewsItemTag.tag_type == tag_type)
 
         if days > 0:
             date_threshold = datetime.now() - timedelta(days=days)
             stmt = stmt.join(Story, NewsItemTag.story_id == Story.id).filter(Story.created >= date_threshold)
 
-        stmt = stmt.group_by(NewsItemTag.name).order_by(db.desc("name_count")).limit(n)
+        stmt = stmt.group_by(NewsItemTag.name).order_by(func.count(NewsItemTag.name).desc()).limit(n)
 
         result = db.session.execute(stmt).all()
-
-        return {row[0]: {"name": row[0], "size": row[1]} for row in result}
+        return [{"name": row[0], "size": row[1]} for row in result]
 
     @classmethod
-    def get_largest_tag_types(cls, days: int) -> dict:
+    def get_largest_tag_types(cls, days: int) -> list:
         tag_types_with_count = NewsItemTag.get_tag_types()
-        largest_tag_types = {}
+        logger.debug(f"Tag types with count: {tag_types_with_count}")
+        largest_tag_types = []
         for tag_type, count in tag_types_with_count:
             if tags := cls.get_n_biggest_tags_by_type(tag_type, 5, days=days):
-                largest_tag_types[tag_type] = {"size": count, "name": tag_type, "tags": tags}
+                largest_tag_types.append({"size": count, "name": tag_type, "tags": tags})
 
         return largest_tag_types
