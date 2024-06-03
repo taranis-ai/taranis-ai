@@ -2712,10 +2712,18 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  clusters:
-                    type: integer
+                type: array
+                items:
+                  type: object
+                  properties:
+                    size:
+                      type: integer
+                    name:
+                      type: string
+                    tags:
+                      type: array
+                      items:
+                        type: object
         '401':
           $ref: "#/components/responses/401Unauthorized"
         '404':
@@ -2794,12 +2802,6 @@ paths:
                     type: integer
                   items:
                     type: array
-                    content:
-                      application/json:
-                        schema:
-                          type: string
-                          examples:
-                            - "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
         '401':
           $ref: "#/components/responses/401Unauthorized"
         '404':

@@ -107,7 +107,7 @@ class NewsItemTag(BaseModel):
     @classmethod
     def get_tag_types(cls) -> list[tuple[str, int]]:
         items = db.session.execute(
-            db.select(cls.tag_type, func.count(cls.name).label("type_count")).group_by(cls.tag_type).order_by(db.desc("type_count"))
+            db.select(cls.tag_type, func.count(cls.name).label("type_count")).group_by(cls.tag_type).order_by(func.count(cls.name).desc())
         ).all()
         return [(row[0], row[1]) for row in items] if items else []
 
