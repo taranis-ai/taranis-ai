@@ -183,7 +183,7 @@ def pytest_addoption(parser):
     group.addoption("--produce-artifacts", action="store_true", default=False, help="create screenshots and record video")
 
     docs_group = parser.getgroup("docs")
-    docs_group.addoption("--doc-pictures", action="store_true", default=False, help="generate documentation screenshots")
+    docs_group.addoption("--e2e-admin", action="store_true", default=False, help="generate documentation screenshots")
 
 def skip_for_e2e(e2e_test: str, items):
     skip_non_e2e = pytest.mark.skip(reason=f"skip for {e2e_test} test")
@@ -191,28 +191,30 @@ def skip_for_e2e(e2e_test: str, items):
         if e2e_test not in item.keywords:
             item.add_marker(skip_non_e2e)
 
-
-def skip_for_doc_pictures(items):
-    skip_non_doc_pictures = pytest.mark.skip(reason="need --doc-pictures option to run tests marked with doc_pictures")
+def skip_for_e2e_admin(items):
+    skip_non_doc_pictures = pytest.mark.skip(reason="need --e2e-admin option to run tests marked with e2e_admin")
     for item in items:
-        if "doc_pictures" not in item.keywords:
+        if "e2e_admin" not in item.keywords:
             item.add_marker(skip_non_doc_pictures)
 
-
 def pytest_collection_modifyitems(config, items):
-    if e2e_type := config.getoption("--run-e2e-ci") or config.getoption("--run-e2e"):
+    e2e_type = config.getoption("--run-e2e-ci") or config.getoption("--run-e2e")
+    e2e_admin = config.getoption("--e2e-admin")
+
+    if e2e_type:
         config.option.start_live_server = False
         config.option.headed = e2e_type == "e2e"
         skip_for_e2e(e2e_type, items)
         return
 
-    if config.getoption("--doc-pictures"):
+    if e2e_admin:
         config.option.start_live_server = False
         config.option.headed = True
-        skip_for_doc_pictures(items)
+        skip_for_e2e_admin(items)
         return
 
-    skip_e2e = pytest.mark.skip(reason="need --run-e2e or --run-e2e-ci option to run e2e tests")
+    # Skip all e2e and e2e_admin tests if no relevant flag is provided
+    skip_all = pytest.mark.skip(reason="need --run-e2e, --run-e2e-ci, or --e2e-admin option to run these tests")
     for item in items:
-        if "e2e" in item.keywords or "e2e_ci" in item.keywords:
-            item.add_marker(skip_e2e)
+        if "e2e" in item.keywords or "e2e_ci" in item.keywords or "e2e_admin" in item.keywords:
+            item.add_marker(skip_all)

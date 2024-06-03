@@ -5,7 +5,7 @@ from playwright.sync_api import Page
 import pytest
 
 
-@pytest.mark.doc_pictures
+@pytest.mark.e2e_admin
 class TestDocPictures:
     wait_duration = 0
     ci_run = True

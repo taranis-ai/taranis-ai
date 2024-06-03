@@ -69,7 +69,7 @@ markers = [
     "e2e: marks tests as to run only when calling with --run-e2e option",
     "e2e_ci: marks tests as to run only when calling with --run-e2e-ci option",
     "e2e_publish: marks only the tests related to publishing in from the e2e test",
-    "doc_pictures: marks tests that produce pictures for the documentation"
+    "e2e_admin: marks tests that produce pictures for the documentation"
 ]
 filterwarnings = [
     "ignore:.*_app_ctx_stack.*:DeprecationWarning",
