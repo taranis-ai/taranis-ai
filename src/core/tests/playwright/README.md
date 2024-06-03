@@ -29,10 +29,11 @@ To use the preseeded test instance for writing tests, place:
 expect(page).to_have_title("Uncomment and halt test run for test writing purposes", timeout=0)
 
 ```
-where desired, to stop the test execution and allow to connect to the instance with Codegen tool.
+Where desired, to stop the test execution and allow to connect to the instance with Codegen tool.
 
 ## Debug mode
-To enter the debug mode use:
+To enter the debug mode, use:
 ```bash
-PWDEBUG=1 pytest --run-e2e
+PWDEBUG=1 pytest <--flag>
 ```
+To halt a test at a certain point, use classic breakpoints, or place `page.pause()` where you want the debugger to stop.

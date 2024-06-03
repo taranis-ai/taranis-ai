@@ -20,7 +20,7 @@ class TestEndToEnd:
 
         while True:
             page.mouse.wheel(0, scroll_step)
-            time.sleep(0.5)
+            self.short_sleep(0.2)
             new_height = page.evaluate("document.documentElement.scrollHeight")
 
             if new_height == last_height:
@@ -49,6 +49,58 @@ class TestEndToEnd:
         locator.page.evaluate("style => style.remove()", style_tag)
         return locator
 
+    def add_keystroke_overlay(self, page):
+        if self.ci_run:
+            return
+        style_content = """
+            .keystroke-overlay {
+                position: fixed;
+                bottom: 10px;
+                right: 10px;
+                padding: 10px 20px;
+                background-color: grey;
+                color: white;
+                font-family: Arial, sans-serif;
+                font-size: 48px;
+                border: 3px solid red;
+                border-radius: 5px;
+                z-index: 10000;
+                display: none;
+            }
+            """
+        page.add_style_tag(content=style_content)
+
+        # Inject the overlay div
+        page.evaluate("""
+            const overlay = document.createElement('div');
+            overlay.className = 'keystroke-overlay';
+            document.body.appendChild(overlay);
+            """)
+
+        # Add event listener to capture keystrokes and display them
+        page.evaluate("""
+            document.addEventListener('keydown', (event) => {
+                let keys = [];
+                if (event.ctrlKey) keys.push('Control');
+                if (event.shiftKey) keys.push('Shift');
+                if (event.altKey) keys.push('Alt');
+                if (event.metaKey) keys.push('Meta');  // For Mac Command key
+                if (event.key && !['Control', 'Shift', 'Alt', 'Meta'].includes(event.key)) {
+                    keys.push(event.key === ' ' ? 'Space' : event.key);
+                }
+                if (event.key === 'Escape') {
+                    keys = ['Escape'];
+                }
+                const overlay = document.querySelector('.keystroke-overlay');
+                overlay.textContent = keys.join('+');
+                overlay.style.display = 'block';
+
+                setTimeout(() => {
+                    overlay.style.display = 'none';
+                }, 2000);  // Display for 2 seconds
+            });
+            """)
+
     def short_sleep(self, duration=0.2):
         if self.ci_run:
             return
@@ -57,7 +109,10 @@ class TestEndToEnd:
     @pytest.mark.e2e_publish
     def test_e2e_login(self, taranis_frontend: Page):
         page = taranis_frontend
+        self.add_keystroke_overlay(page)
+
         expect(page).to_have_title("Taranis AI", timeout=5000)
+
         self.highlight_element(page.get_by_placeholder("Username"))
         page.get_by_placeholder("Username").fill("admin")
         self.highlight_element(page.get_by_placeholder("Password"))
@@ -65,11 +120,57 @@ class TestEndToEnd:
         self.highlight_element(page.locator("role=button")).click()
         page.screenshot(path="./tests/playwright/screenshots/screenshot_login.png")
 
-    def test_e2e_assess(self, taranis_frontend: Page):
+    def test_e2e_assess(self, taranis_frontend: Page, e2e_server):
         def go_to_assess():
             self.highlight_element(page.get_by_role("link", name="Assess").first).click()
             page.wait_for_url("**/assess", wait_until="domcontentloaded")
             expect(page).to_have_title("Taranis AI | Assess")
+
+        def assert_hotkey_menu():
+            expect(page.get_by_role("listbox")).to_contain_text("General")
+            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + Shift + L")
+            expect(page.get_by_role("listbox")).to_contain_text("Open the HotKeys Legend.")
+            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + K")
+            expect(page.get_by_role("listbox")).to_contain_text("Focus the Search Bar.")
+            expect(page.get_by_role("listbox")).to_contain_text("Assess")
+            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + Space")
+            expect(page.get_by_role("listbox")).to_contain_text(
+                "Mark all selected items as read (if all are read already, mark them as unread)."
+            )
+            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + I")
+            expect(page.get_by_role("listbox")).to_contain_text("Mark all selected items as important.")
+            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + A")
+            expect(page.get_by_role("listbox")).to_contain_text("Select all items currently loaded.")
+            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + Shift + S")
+            expect(page.get_by_role("listbox")).to_contain_text("Add selected items to last report.")
+            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + E")
+            expect(page.get_by_role("listbox")).to_contain_text("Open Edit View of Story")
+            expect(page.get_by_role("listbox")).to_contain_text("Stories")
+            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + M")
+            expect(page.get_by_role("listbox")).to_contain_text("Create a new story.")
+            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + Space")
+            expect(page.get_by_role("listbox")).to_contain_text(
+                "Mark all selected items as read (if all are read already, mark them as unread)."
+            )
+            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + I")
+            expect(page.get_by_role("listbox")).to_contain_text("Mark all selected items as important.")
+            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + Shift + S")
+            expect(page.get_by_role("listbox")).to_contain_text("Add open story to last report.")
+            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + E")
+            expect(page.get_by_role("listbox")).to_contain_text("Open Edit View of Story")
+            expect(page.get_by_role("listbox")).to_contain_text("Reports")
+            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + M")
+            expect(page.get_by_role("listbox")).to_contain_text("Create a new report.")
+
+        def paging(base_url):
+            self.highlight_element(page.get_by_placeholder("Until")).click()
+            self.highlight_element(page.locator('[data-test="select-button"]')).click()
+            self.scroll_to_the_bottom(scroll_step=400)
+            self.highlight_element(page.get_by_label("Go to page 2")).click()
+            self.highlight_element(page.get_by_label("Page 2, Current page")).press("Insert")
+            self.highlight_element(page.get_by_label("Go to page 3")).click()
+            self.highlight_element(page.locator("svg").nth(2)).click()
+            page.goto(f"{base_url}")
 
         def story_1():
             self.highlight_element(
@@ -163,6 +264,12 @@ class TestEndToEnd:
             )
             expect(page.get_by_role("main")).to_contain_text("Advanced Phishing Techniques by APT58 (3) APT57 specializes in the theft of")
 
+        def hotkeys():
+            self.highlight_element(page.get_by_text("Genetic Engineering Data Theft by APT81 (8) APT74 involved in sabotaging smart")).click()
+            self.highlight_element(page.get_by_text("APT73 Exploits Global Shipping Container Systems (5) APT61 exploits")).click()
+            self.highlight_element(page.get_by_text("Patient Data Harvesting by APT60 (4) APT59's new ransomware targets global")).click()
+            page.keyboard.press("Control+I")
+
         def interact_with_story():
             self.highlight_element(page.locator("button:nth-child(5)").first).click()
 
@@ -214,28 +321,42 @@ class TestEndToEnd:
             page.screenshot(path="./tests/playwright/screenshots/screenshot_edit_story_2.png")
 
         page = taranis_frontend
+        self.add_keystroke_overlay(page)
+        # TODO: Uncomment when paging is fixed
+        # base_url = e2e_server.url()
+        # go_to_assess()
+        # paging(base_url)
+
         go_to_assess()
+        page.keyboard.press("Control+Shift+L")
+        assert_hotkey_menu()
+        self.short_sleep(duration=2)
+        page.keyboard.press("Escape")
+
         self.scroll_to_the_bottom(page)
-        # get_by_label("Items per page")
-        # get_by_role("option", name="100")
+
+        # self.highlight_element(page.get_by_label("Items per page")).click()
+        # self.highlight_element(page.get_by_role("option", name="100")).click()
+
         story_1()
         story_2()
         story_3()
         story_4()
         story_5()
-        # Uncomment when infinite scroll is fixed
+        # TODO: Uncomment when infinite scroll is fixed
         # story_6()
         page.mouse.wheel(0, -5000)
         self.highlight_element(page.get_by_role("button", name="relevance")).click()
+        hotkeys()
         assert_stories()
         page.screenshot(path="./tests/playwright/screenshots/assess_landing_page.png")
         interact_with_story()
 
-        # Uncomment when "relevance" button is fixed (ref: Various bugs)
+        # TODO: Uncomment when "relevance" button is fixed (ref: Various bugs)
         # go_to_assess()
         # assert_stories()
 
-        # uncomment when frontend is fixed
+        # TODO: uncomment when frontend charts is fixed
         # self.highlight_element(page.get_by_role("button", name="show charts")).click()
         # page.locator("canvas").first.wait_for()
 
@@ -289,21 +410,17 @@ class TestEndToEnd:
             self.highlight_element(page.get_by_role("button", name="relevance")).click()
             self.highlight_element(page.get_by_role("button", name="relevance")).click()
             self.highlight_element(page.get_by_role("button", name="relevance")).click()
-            self.highlight_element(page.locator(".ml-auto > button:nth-child(3)").first).click()
+            self.highlight_element(page.locator("button:below(:text('Global Mining Espionage by APT67 (4)'))").first).click()
             self.highlight_element(page.get_by_role("dialog").get_by_label("Open")).click()
             self.highlight_element(page.get_by_role("option", name="Test Title")).click()
             self.highlight_element(page.get_by_role("button", name="share")).click()
 
-            self.highlight_element(
-                page.locator("div:nth-child(4) > div:nth-child(2) > div > div:nth-child(2) > .ml-auto > button:nth-child(3)")
-            ).click()
+            self.highlight_element(page.locator("button:below(:text('Advanced Phishing Techniques by APT58 (3)'))").first).click()
             self.highlight_element(page.get_by_role("dialog").get_by_label("Open")).click()
             self.highlight_element(page.get_by_role("option", name="Test Title")).click()
             self.highlight_element(page.get_by_role("button", name="share")).click()
 
-            self.highlight_element(
-                page.locator("div:nth-child(6) > div:nth-child(2) > div > div:nth-child(2) > .ml-auto > button:nth-child(3)")
-            ).click()
+            self.highlight_element(page.locator("button:below(:text('Genetic Engineering Data Theft by APT81 (8)'))").first).click()
             self.highlight_element(page.get_by_role("dialog").get_by_label("Open")).click()
             self.highlight_element(page.get_by_role("option", name="Test Title")).click()
             self.highlight_element(page.get_by_role("button", name="share")).click()
@@ -340,6 +457,8 @@ class TestEndToEnd:
             page.screenshot(path="./tests/playwright/screenshots/screenshot_assess_by_tag.png")
 
         page = taranis_frontend
+        self.add_keystroke_overlay(page)
+
         go_to_analyze()
         report_1()
         go_to_analyze()
@@ -364,6 +483,8 @@ class TestEndToEnd:
     @pytest.mark.e2e_publish
     def test_e2e_publish(self, taranis_frontend: Page):
         page = taranis_frontend
+        self.add_keystroke_overlay(page)
+
         self.highlight_element(page.get_by_role("link", name="Publish").first).click()
         page.wait_for_url("**/publish", wait_until="domcontentloaded")
         expect(page).to_have_title("Taranis AI | Publish")
