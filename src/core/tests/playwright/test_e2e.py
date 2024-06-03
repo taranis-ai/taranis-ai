@@ -15,6 +15,8 @@ class TestEndToEnd:
     produce_artifacts = False
 
     def scroll_to_the_bottom(self, page, scroll_step=300, max_attempts=10):
+        if self.ci_run:
+            scroll_step = 1000
         last_height = page.evaluate("document.documentElement.scrollHeight")
         attempts = 0
 
@@ -360,7 +362,7 @@ class TestEndToEnd:
         # self.highlight_element(page.get_by_role("button", name="show charts")).click()
         # page.locator("canvas").first.wait_for()
 
-    def test_e2e_analyze(self, e2e_server, taranis_frontend: Page):
+    def test_e2e_analyze(self, e2e_server, taranis_frontend: Page, pic_prefix=""):
         base_url = e2e_server.url()
 
         def go_to_analyze():
@@ -377,8 +379,8 @@ class TestEndToEnd:
             expect(page.get_by_role("listbox")).to_contain_text("OSINT Report")
             expect(page.get_by_role("listbox")).to_contain_text("Vulnerability Report")
 
-            self.short_sleep(duration=0.5)
-            page.screenshot(path="./tests/playwright/screenshots/screenshot_new_report.png")
+            time.sleep(0.5)
+            page.screenshot(path=f"./tests/playwright/screenshots/{pic_prefix}screenshot_new_report.png")
 
             self.highlight_element(page.get_by_text("CERT Report")).click()
             self.highlight_element(page.get_by_label("Title")).fill("Test Title")
@@ -441,7 +443,7 @@ class TestEndToEnd:
             self.highlight_element(page.get_by_label("Side-by-side")).check()
             self.highlight_element(page.get_by_role("button", name="Save")).click()
             time.sleep(1)
-            page.screenshot(path="./tests/playwright/screenshots/screenshot_report_with_data.png")
+            page.screenshot(path=f"./tests/playwright/screenshots/{pic_prefix}screenshot_report_with_data.png")
 
         def assert_analyze():
             expect(page.locator("tbody")).to_contain_text("CERT Report")

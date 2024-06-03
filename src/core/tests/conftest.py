@@ -182,12 +182,21 @@ def pytest_addoption(parser):
     group.addoption("--highlight-delay", action="store", default="2", help="delay for highlighting elements in e2e tests")
     group.addoption("--produce-artifacts", action="store_true", default=False, help="create screenshots and record video")
 
+    docs_group = parser.getgroup("docs")
+    docs_group.addoption("--doc-pictures", action="store_true", default=False, help="generate documentation screenshots")
 
 def skip_for_e2e(e2e_test: str, items):
     skip_non_e2e = pytest.mark.skip(reason=f"skip for {e2e_test} test")
     for item in items:
         if e2e_test not in item.keywords:
             item.add_marker(skip_non_e2e)
+
+
+def skip_for_doc_pictures(items):
+    skip_non_doc_pictures = pytest.mark.skip(reason="need --doc-pictures option to run tests marked with doc_pictures")
+    for item in items:
+        if "doc_pictures" not in item.keywords:
+            item.add_marker(skip_non_doc_pictures)
 
 
 def pytest_collection_modifyitems(config, items):
@@ -197,8 +206,13 @@ def pytest_collection_modifyitems(config, items):
         skip_for_e2e(e2e_type, items)
         return
 
+    if config.getoption("--doc-pictures"):
+        config.option.start_live_server = False
+        config.option.headed = True
+        skip_for_doc_pictures(items)
+        return
+
+    skip_e2e = pytest.mark.skip(reason="need --run-e2e or --run-e2e-ci option to run e2e tests")
     for item in items:
-        skip_e2e = pytest.mark.skip(reason="need --run-e2e or --run-e2e-ci option to run e2e tests")
-        for item in items:
-            if "e2e" in item.keywords or "e2e_ci" in item.keywords:
-                item.add_marker(skip_e2e)
+        if "e2e" in item.keywords or "e2e_ci" in item.keywords:
+            item.add_marker(skip_e2e)
