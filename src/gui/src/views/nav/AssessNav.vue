@@ -75,7 +75,7 @@
         <v-col cols="12" class="pt-1">
           <date-filter
             v-model="storyFilter.timefrom"
-            placeholder="From"
+            placeholder="Fist Day"
             :default-date="defaultFromDate"
           />
         </v-col>
@@ -83,7 +83,7 @@
         <v-col cols="12" class="pt-1">
           <date-filter
             v-model="storyFilter.timeto"
-            placeholder="Until"
+            placeholder="Last Day"
             :default-date="new Date()"
             :max-date="
               storyFilter.timefrom instanceof Date
@@ -139,7 +139,16 @@
           </v-btn>
         </v-col>
         <v-col cols="12" class="pt-0">
+          <v-tooltip
+            activator="parent"
+            :text="
+              xxl
+                ? 'Show Charts in Story Cards'
+                : 'Only possible on FullHD screens'
+            "
+          />
           <v-btn
+            :disabled="!xxl"
             class="vertical-button toggle-button py-2 px-4 mb-1"
             :class="
               showWeekChart
@@ -229,7 +238,7 @@ export default {
     const filterStore = useFilterStore()
 
     const { OSINTSourceGroupsList, OSINTSourcesList } = storeToRefs(assessStore)
-    const { mdAndDown, smAndUp } = useDisplay()
+    const { mdAndDown, smAndUp, xxl } = useDisplay()
 
     const {
       storyFilter,
@@ -302,6 +311,7 @@ export default {
     }
 
     return {
+      xxl,
       search,
       mdAndDown,
       smAndUp,

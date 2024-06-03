@@ -199,9 +199,9 @@ export default {
 
     const getDescription = computed(() => {
       const { description, summary, news_items } = props.story
-      const defaultContent = news_items[0].content
+      const defaultContent = news_items[0]?.content
 
-      return openSummary.value
+      return openSummary.value || props.detailView
         ? defaultContent
         : summary || description || defaultContent
     })

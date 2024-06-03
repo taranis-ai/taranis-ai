@@ -70,37 +70,33 @@ class NewsItemTag(BaseModel):
 
     @classmethod
     def apply_sort(cls, query, sort_str: str):
-        if not sort_str:
-            return query
+        if sort_str == "size_desc":
+            return query.order_by(func.count(cls.name).desc())
+        elif sort_str == "size_asc":
+            return query.order_by(func.count(cls.name).asc())
+        elif sort_str == "name_asc":
+            return query.order_by(cls.name.asc())
+        elif sort_str == "name_desc":
+            return query.order_by(cls.name.desc())
 
-        parts = sort_str.split("_")
-        if len(parts) != 2:
-            return query
-
-        column_name, sort_order = parts
-        column = getattr(cls, column_name, None)
-        if not column:
-            return query
-
-        query = query.order_by(column if sort_order == "asc" else db.desc(column))
         return query
 
     @classmethod
-    def get_cluster_by_filter(cls, filter):
+    def get_cluster_by_filter(cls, filter_args: dict):
         query = db.select(cls).with_only_columns(cls.name, func.count(cls.name).label("size"))
-        if tag_type := filter.get("tag_type"):
+        if tag_type := filter_args.get("tag_type"):
             query = query.filter(cls.tag_type == tag_type).group_by(cls.name)
 
         count = cls.get_filtered_count(query)
 
-        if search := filter.get("search"):
+        if search := filter_args.get("search"):
             query = query.filter(cls.name.ilike(f"%{search}%"))
-        if sort := filter.get("sort", "sort_desc"):
+        if sort := filter_args.get("sort", "size_desc"):
             query = cls.apply_sort(query, sort)
 
-        if offset := filter.get("offset"):
+        if offset := filter_args.get("offset"):
             query = query.offset(offset)
-        if limit := filter.get("limit"):
+        if limit := filter_args.get("limit"):
             query = query.limit(limit)
 
         results = db.session.execute(query).all()

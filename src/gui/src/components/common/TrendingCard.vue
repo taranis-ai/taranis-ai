@@ -10,12 +10,15 @@
     <v-divider class="mt-2 mb-2" />
   </v-card-title>
   <v-card-text>
-    <div v-for="item in cluster.tags" :key="item.id">
-      <router-link :to="'/assess?tags=' + item.name">
+    <div v-for="item in cluster.tags" :key="item.id" class="d-flex">
+      <router-link
+        :to="'/assess?tags=' + item.name"
+        class="tag-item align-left"
+      >
         {{ item.name }}
       </router-link>
-      <v-icon class="mr-2"> mdi-chevron-right </v-icon>
-      <span class="ml-5"> {{ item.size }} </span>
+      <v-icon> mdi-chevron-right </v-icon>
+      <span class="ml-4"> {{ item.size }} </span>
     </div>
   </v-card-text>
 </template>
@@ -48,3 +51,14 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+.tag-item {
+  display: inline-block;
+  min-width: 142px;
+  max-width: 142px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+</style>
