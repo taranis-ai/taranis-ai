@@ -9,10 +9,21 @@ import pytest
 @pytest.mark.e2e
 @pytest.mark.e2e_ci
 @pytest.mark.usefixtures("e2e_ci")
-class TestEndToEnd:
+class TestEndToEndUser:
     wait_duration = 2
     ci_run = False
     produce_artifacts = False
+    
+
+    def smooth_scroll(self, locator):
+        locator.evaluate("""
+            element => {
+                element.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center'
+                });
+            }
+        """)
 
     def scroll_to_the_bottom(self, page, scroll_step=300, max_attempts=10):
         if self.ci_run:
@@ -35,7 +46,7 @@ class TestEndToEnd:
 
             last_height = new_height
 
-    def highlight_element(self, locator, transition: bool = True):
+    def highlight_element(self, locator, scroll: bool = True, transition: bool = True):
         if self.ci_run:
             return locator
         style_content = """
@@ -43,6 +54,9 @@ class TestEndToEnd:
         """
 
         wait_duration = self.wait_duration if transition else 1
+
+        if scroll:
+            self.smooth_scroll(locator)
 
         style_tag = locator.page.add_style_tag(content=style_content)
         locator.evaluate("element => element.classList.add('highlight-element')")
@@ -99,7 +113,7 @@ class TestEndToEnd:
 
                 setTimeout(() => {
                     overlay.style.display = 'none';
-                }, 2000);  // Display for 2 seconds
+                }, 1000);  // Display for 1 seconds
             });
             """)
 
@@ -270,11 +284,14 @@ class TestEndToEnd:
             self.highlight_element(page.get_by_text("Genetic Engineering Data Theft by APT81 (8) APT74 involved in sabotaging smart")).click()
             self.highlight_element(page.get_by_text("APT73 Exploits Global Shipping Container Systems (5) APT61 exploits")).click()
             self.highlight_element(page.get_by_text("Patient Data Harvesting by APT60 (4) APT59's new ransomware targets global")).click()
+            self.short_sleep(0.5)
             page.keyboard.press("Control+I")
+            self.short_sleep(duration=1)
+
 
         def interact_with_story():
             self.highlight_element(page.locator("button:nth-child(5)").first).click()
-
+            time.sleep(0.5)
             page.screenshot(path="./tests/playwright/screenshots/screenshot_story_options.png")
 
             self.highlight_element(page.locator('[id^="v-menu-"] div > div > a:nth-of-type(1) > div > i').first).click()
@@ -302,23 +319,23 @@ class TestEndToEnd:
             page.get_by_label("Tags", exact=True).press("Enter")
             self.highlight_element(page.get_by_title("Close")).click()
 
-            self.highlight_element(page.get_by_role("button", name="Add New Key-Value")).click()
-            self.highlight_element(page.get_by_label("Key")).click()
-            self.highlight_element(page.get_by_label("Key")).fill("test_key")
-            self.highlight_element(page.get_by_label("Value")).click()
-            self.highlight_element(page.get_by_label("Value")).fill("dangerous")
-            self.highlight_element(page.get_by_role("button", name="Add", exact=True)).click()
+            self.highlight_element(page.get_by_role("button", name="Add New Key-Value"), scroll=False).click()
+            self.highlight_element(page.get_by_label("Key"), scroll=False).click()
+            self.highlight_element(page.get_by_label("Key"), scroll=False).fill("test_key")
+            self.highlight_element(page.get_by_label("Value"), scroll=False).click()
+            self.highlight_element(page.get_by_label("Value"), scroll=False).fill("dangerous")
+            self.highlight_element(page.get_by_role("button", name="Add", exact=True), scroll=False).click()
 
-            self.highlight_element(page.locator(".cm-activeLine").first).click()
-            self.highlight_element(page.locator("#form div").filter(has_text="Comment91›Enter your comment").get_by_role("textbox")).fill(
+            self.highlight_element(page.locator(".cm-activeLine").first, scroll=False).click()
+            self.highlight_element(page.locator("#form div").filter(has_text="Comment91›Enter your comment").get_by_role("textbox"), scroll=False).fill(
                 "I like this story, it needs to be reviewed."
             )
-            self.highlight_element(page.locator("#form div").filter(has_text="Summary91›Enter your summary").get_by_role("textbox")).fill(
+            self.highlight_element(page.locator("#form div").filter(has_text="Summary91›Enter your summary").get_by_role("textbox"), scroll=False).fill(
                 "This story informs about the current security state."
             )
 
             page.screenshot(path="./tests/playwright/screenshots/screenshot_edit_story_1.png")
-            self.highlight_element(page.get_by_role("button", name="Update")).click()
+            self.highlight_element(page.get_by_role("button", name="Update"), scroll=False).click()
             self.short_sleep(0.5)
             page.screenshot(path="./tests/playwright/screenshots/screenshot_edit_story_2.png")
 
@@ -331,11 +348,16 @@ class TestEndToEnd:
 
         go_to_assess()
         page.keyboard.press("Control+Shift+L")
+        self.short_sleep(duration=1)
         assert_hotkey_menu()
         self.short_sleep(duration=2)
         page.keyboard.press("Escape")
+        self.short_sleep(duration=1)
 
-        self.scroll_to_the_bottom(page)
+        self.smooth_scroll(page.locator("div:nth-child(21)").first)
+        self.smooth_scroll(page.locator("div:nth-child(41) > div:nth-child(2) > div"))
+        self.smooth_scroll(page.locator("div:nth-child(53) > div:nth-child(2) > div"))
+        
 
         # self.highlight_element(page.get_by_label("Items per page")).click()
         # self.highlight_element(page.get_by_role("option", name="100")).click()
@@ -348,7 +370,7 @@ class TestEndToEnd:
         # TODO: Uncomment when infinite scroll is fixed
         # story_6()
         page.mouse.wheel(0, -5000)
-        self.highlight_element(page.get_by_role("button", name="relevance")).click()
+        self.highlight_element(page.get_by_role("button", name="relevance"), scroll=False).click()
         hotkeys()
         assert_stories()
         page.screenshot(path="./tests/playwright/screenshots/assess_landing_page.png")
@@ -409,9 +431,9 @@ class TestEndToEnd:
 
         def add_stories_to_report_1():
             self.highlight_element(page.get_by_role("link", name="Assess")).click()
-            self.highlight_element(page.get_by_role("button", name="relevance")).click()
-            self.highlight_element(page.get_by_role("button", name="relevance")).click()
-            self.highlight_element(page.get_by_role("button", name="relevance")).click()
+            self.highlight_element(page.get_by_role("button", name="relevance"), scroll=False).click()
+            self.highlight_element(page.get_by_role("button", name="relevance"), scroll=False).click()
+            self.highlight_element(page.get_by_role("button", name="relevance"), scroll=False).click()
             self.highlight_element(page.locator("button:below(:text('Global Mining Espionage by APT67 (4)'))").first).click()
             self.highlight_element(page.get_by_role("dialog").get_by_label("Open")).click()
             self.highlight_element(page.get_by_role("option", name="Test Title")).click()
@@ -429,19 +451,19 @@ class TestEndToEnd:
 
         def modify_report_1():
             self.highlight_element(page.get_by_role("cell", name="Test Title")).click()
-            self.highlight_element(page.get_by_label("date")).fill("17/3/2024")
-            self.highlight_element(page.get_by_label("timeframe")).fill("12/2/2024 - 21/2/2024")
-            self.highlight_element(page.get_by_label("handler", exact=True)).fill("John Doe")
-            self.highlight_element(page.get_by_label("co_handler")).fill("Arthur Doyle")
-            self.highlight_element(page.get_by_label("Open").nth(1)).click()
-            self.highlight_element(page.get_by_role("option", name="Global Mining Espionage by")).click()
-            self.highlight_element(page.get_by_role("option", name="Advanced Phishing Techniques")).click()
-            self.highlight_element(page.get_by_label("Close")).click()
-            self.highlight_element(page.get_by_label("Open").nth(2)).click()
-            self.highlight_element(page.get_by_role("option", name="Genetic Engineering Data")).click()
-            self.highlight_element(page.get_by_label("Close")).click()
-            self.highlight_element(page.get_by_label("Side-by-side")).check()
-            self.highlight_element(page.get_by_role("button", name="Save")).click()
+            self.highlight_element(page.get_by_label("date"), scroll=False).fill("17/3/2024")
+            self.highlight_element(page.get_by_label("timeframe"), scroll=False).fill("12/2/2024 - 21/2/2024")
+            self.highlight_element(page.get_by_label("handler", exact=True), scroll=False).fill("John Doe")
+            self.highlight_element(page.get_by_label("co_handler"), scroll=False).fill("Arthur Doyle")
+            self.highlight_element(page.get_by_label("Open").nth(1), scroll=False).click()
+            self.highlight_element(page.get_by_role("option", name="Global Mining Espionage by"), scroll=False).click()
+            self.highlight_element(page.get_by_role("option", name="Advanced Phishing Techniques"), scroll=False).click()
+            self.highlight_element(page.get_by_label("Close"), scroll=False).click()
+            self.highlight_element(page.get_by_label("Open").nth(2), scroll=False).click()
+            self.highlight_element(page.get_by_role("option", name="Genetic Engineering Data"), scroll=False).click()
+            self.highlight_element(page.get_by_label("Close"), scroll=False).click()
+            self.highlight_element(page.get_by_label("Side-by-side"), scroll=False).check()
+            self.highlight_element(page.get_by_role("button", name="Save"), scroll=False).click()
             time.sleep(1)
             page.screenshot(path=f"./tests/playwright/screenshots/{pic_prefix}screenshot_report_with_data.png")
 
@@ -453,7 +475,7 @@ class TestEndToEnd:
         def tag_filter(base_url):
             page.goto(f"{base_url}")  # needed for a refresh; any other reload is failing to load from the live_server
             self.highlight_element(page.get_by_role("link", name="Assess").first).click()
-            self.highlight_element(page.get_by_role("button", name="relevance")).click()
+            self.highlight_element(page.get_by_role("button", name="relevance"), scroll=False).click()
             self.highlight_element(page.get_by_label("Tags", exact=True)).click()
             self.highlight_element(page.locator("div").filter(has_text=re.compile(r"^APT75$")).nth(1)).click()
             page.screenshot(path="./tests/playwright/screenshots/screenshot_assess_by_tag.png")

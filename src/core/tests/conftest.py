@@ -181,9 +181,8 @@ def pytest_addoption(parser):
     group.addoption("--run-e2e-ci", action="store_const", const="e2e_ci", default=None, help="run e2e tests for CI")
     group.addoption("--highlight-delay", action="store", default="2", help="delay for highlighting elements in e2e tests")
     group.addoption("--produce-artifacts", action="store_true", default=False, help="create screenshots and record video")
+    group.addoption("--e2e-admin", action="store_true", default=False, help="generate documentation screenshots")
 
-    docs_group = parser.getgroup("docs")
-    docs_group.addoption("--e2e-admin", action="store_true", default=False, help="generate documentation screenshots")
 
 def skip_for_e2e(e2e_test: str, items):
     skip_non_e2e = pytest.mark.skip(reason=f"skip for {e2e_test} test")
@@ -191,11 +190,13 @@ def skip_for_e2e(e2e_test: str, items):
         if e2e_test not in item.keywords:
             item.add_marker(skip_non_e2e)
 
+
 def skip_for_e2e_admin(items):
     skip_non_doc_pictures = pytest.mark.skip(reason="need --e2e-admin option to run tests marked with e2e_admin")
     for item in items:
         if "e2e_admin" not in item.keywords:
             item.add_marker(skip_non_doc_pictures)
+
 
 def pytest_collection_modifyitems(config, items):
     e2e_type = config.getoption("--run-e2e-ci") or config.getoption("--run-e2e")
