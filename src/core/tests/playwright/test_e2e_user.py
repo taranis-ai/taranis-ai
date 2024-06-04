@@ -13,7 +13,6 @@ class TestEndToEndUser:
     wait_duration = 2
     ci_run = False
     produce_artifacts = False
-    
 
     def smooth_scroll(self, locator):
         locator.evaluate("""
@@ -24,27 +23,6 @@ class TestEndToEndUser:
                 });
             }
         """)
-
-    def scroll_to_the_bottom(self, page, scroll_step=300, max_attempts=10):
-        if self.ci_run:
-            scroll_step = 1000
-        last_height = page.evaluate("document.documentElement.scrollHeight")
-        attempts = 0
-
-        while True:
-            page.mouse.wheel(0, scroll_step)
-            self.short_sleep(0.2)
-            new_height = page.evaluate("document.documentElement.scrollHeight")
-
-            if new_height == last_height:
-                attempts += 1
-            else:
-                attempts = 0
-
-            if attempts >= max_attempts:
-                break
-
-            last_height = new_height
 
     def highlight_element(self, locator, scroll: bool = True, transition: bool = True):
         if self.ci_run:
@@ -136,7 +114,7 @@ class TestEndToEndUser:
         self.highlight_element(page.locator("role=button")).click()
         page.screenshot(path="./tests/playwright/screenshots/screenshot_login.png")
 
-    def test_e2e_assess(self, taranis_frontend: Page, e2e_server):
+    def test_e2e_assess(self, taranis_frontend: Page, e2e_server, pic_prefix=""):
         def go_to_assess():
             self.highlight_element(page.get_by_role("link", name="Assess").first).click()
             page.wait_for_url("**/assess", wait_until="domcontentloaded")
@@ -288,7 +266,6 @@ class TestEndToEndUser:
             page.keyboard.press("Control+I")
             self.short_sleep(duration=1)
 
-
         def interact_with_story():
             self.highlight_element(page.locator("button:nth-child(5)").first).click()
             time.sleep(0.5)
@@ -327,12 +304,12 @@ class TestEndToEndUser:
             self.highlight_element(page.get_by_role("button", name="Add", exact=True), scroll=False).click()
 
             self.highlight_element(page.locator(".cm-activeLine").first, scroll=False).click()
-            self.highlight_element(page.locator("#form div").filter(has_text="Comment91›Enter your comment").get_by_role("textbox"), scroll=False).fill(
-                "I like this story, it needs to be reviewed."
-            )
-            self.highlight_element(page.locator("#form div").filter(has_text="Summary91›Enter your summary").get_by_role("textbox"), scroll=False).fill(
-                "This story informs about the current security state."
-            )
+            self.highlight_element(
+                page.locator("#form div").filter(has_text="Comment91›Enter your comment").get_by_role("textbox"), scroll=False
+            ).fill("I like this story, it needs to be reviewed.")
+            self.highlight_element(
+                page.locator("#form div").filter(has_text="Summary91›Enter your summary").get_by_role("textbox"), scroll=False
+            ).fill("This story informs about the current security state.")
 
             page.screenshot(path="./tests/playwright/screenshots/screenshot_edit_story_1.png")
             self.highlight_element(page.get_by_role("button", name="Update"), scroll=False).click()
@@ -357,7 +334,6 @@ class TestEndToEndUser:
         self.smooth_scroll(page.locator("div:nth-child(21)").first)
         self.smooth_scroll(page.locator("div:nth-child(41) > div:nth-child(2) > div"))
         self.smooth_scroll(page.locator("div:nth-child(53) > div:nth-child(2) > div"))
-        
 
         # self.highlight_element(page.get_by_label("Items per page")).click()
         # self.highlight_element(page.get_by_role("option", name="100")).click()
@@ -373,7 +349,7 @@ class TestEndToEndUser:
         self.highlight_element(page.get_by_role("button", name="relevance"), scroll=False).click()
         hotkeys()
         assert_stories()
-        page.screenshot(path="./tests/playwright/screenshots/assess_landing_page.png")
+        page.screenshot(path=f"./tests/playwright/screenshots/{pic_prefix}assess_landing_page.png")
         interact_with_story()
 
         # TODO: Uncomment when "relevance" button is fixed (ref: Various bugs)
@@ -402,7 +378,7 @@ class TestEndToEndUser:
             expect(page.get_by_role("listbox")).to_contain_text("Vulnerability Report")
 
             time.sleep(0.5)
-            page.screenshot(path=f"./tests/playwright/screenshots/{pic_prefix}screenshot_new_report.png")
+            page.screenshot(path=f"./tests/playwright/screenshots/{pic_prefix}report_item_add.png")
 
             self.highlight_element(page.get_by_text("CERT Report")).click()
             self.highlight_element(page.get_by_label("Title")).fill("Test Title")
@@ -465,7 +441,7 @@ class TestEndToEndUser:
             self.highlight_element(page.get_by_label("Side-by-side"), scroll=False).check()
             self.highlight_element(page.get_by_role("button", name="Save"), scroll=False).click()
             time.sleep(1)
-            page.screenshot(path=f"./tests/playwright/screenshots/{pic_prefix}screenshot_report_with_data.png")
+            page.screenshot(path=f"./tests/playwright/screenshots/{pic_prefix}report_item_view.png")
 
         def assert_analyze():
             expect(page.locator("tbody")).to_contain_text("CERT Report")
@@ -502,7 +478,7 @@ class TestEndToEndUser:
         tag_filter(base_url)
         go_to_analyze()
 
-        page.screenshot(path="./tests/playwright/screenshots/screenshot_analyze.png")
+        page.screenshot(path=f"./tests/playwright/screenshots/{pic_prefix}analyze_view.png")
 
     @pytest.mark.e2e_publish
     def test_e2e_publish(self, taranis_frontend: Page):
