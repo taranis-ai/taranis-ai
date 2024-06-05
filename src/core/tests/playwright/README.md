@@ -14,6 +14,7 @@ pytest --run-e2e
 ```
 
 Other flags:
+- `--e2e-admin` - end to end tests of admin section; generate pictures for documentation (also User sections)
 - `--produce-artifacts` - record a video (save to `src/core/tests/playwright/videos`)
 - `--highlight-delay=<float>` - control time (seconds) to highlight elements in the video (`default=2`)
 - `-s` - see all logs on stdout
@@ -36,4 +37,19 @@ To enter the debug mode, use:
 ```bash
 PWDEBUG=1 pytest <--flag>
 ```
-To halt a test at a certain point, use classic breakpoints, or place `page.pause()` where you want the debugger to stop.
+To halt a test at a certain point, use classic breakpoints, or place `page.pause()` where you want the debugger to stop (works also without `PWDEBUG=1`).
+
+## Pictures for documentation
+To generate most of the pictures for documentation, run:
+```bash
+pytest --e2e-admin
+```
+
+To copy the pictures to the documentation repository, use [this](https://github.com/taranis-ai/taranis.ai/blob/master/scripts/sync_new_pictures.sh) script.
+
+It takes two arguments:
+```bash
+./sync_new_pictures.sh <path/to/screenshot/folder_in_taranis-ai> <path_to_taranis.ai/static/docs>
+```
+
+Script has variables to influence dest. subdirectories of respective pictures. Change as needed.
