@@ -4,18 +4,18 @@
 ### Run fast tests in headless mode
 From `src/core` folder run:
 ```bash
-pytest --run-e2e-ci
+pytest --e2e-user-ci
 ```
 
 ### Run tests in headful mode
 From `src/core` folder run:
 ```bash
-pytest --run-e2e
+pytest --e2e-user
 ```
 
 Other flags:
 - `--e2e-admin` - end to end tests of admin section; generate pictures for documentation (also User sections)
-- `--produce-artifacts` - record a video (save to `src/core/tests/playwright/videos`)
+- `--record-video` - record a video (save to `src/core/tests/playwright/videos`)
 - `--highlight-delay=<float>` - control time (seconds) to highlight elements in the video (`default=2`)
 - `-s` - see all logs on stdout
 
@@ -53,3 +53,7 @@ It takes two arguments:
 ```
 
 Script has variables to influence dest. subdirectories of respective pictures. Change as needed.
+
+## DB file for E2E
+Defined in `tests/.env`.
+When tests are stopped from command line, remove the database file manually. 

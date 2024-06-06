@@ -6,13 +6,13 @@ import time
 import pytest
 
 
-@pytest.mark.e2e
-@pytest.mark.e2e_ci
+@pytest.mark.e2e_user
+@pytest.mark.e2e_user_ci
 @pytest.mark.usefixtures("e2e_ci")
 class TestEndToEndUser:
     wait_duration = 2
     ci_run = False
-    produce_artifacts = False
+    record_video = False
 
     def smooth_scroll(self, locator):
         locator.evaluate("""
@@ -334,6 +334,7 @@ class TestEndToEndUser:
         self.smooth_scroll(page.locator("div:nth-child(21)").first)
         self.smooth_scroll(page.locator("div:nth-child(41) > div:nth-child(2) > div"))
         self.smooth_scroll(page.locator("div:nth-child(53) > div:nth-child(2) > div"))
+        self.short_sleep(duration=1)
 
         # self.highlight_element(page.get_by_label("Items per page")).click()
         # self.highlight_element(page.get_by_role("option", name="100")).click()
@@ -349,7 +350,7 @@ class TestEndToEndUser:
         self.highlight_element(page.get_by_role("button", name="relevance"), scroll=False).click()
         hotkeys()
         assert_stories()
-        page.screenshot(path=f"./tests/playwright/screenshots/{pic_prefix}assess_landing_page.png")
+        page.screenshot(path="./tests/playwright/screenshots/assess_landing_page.png")
         interact_with_story()
 
         # TODO: Uncomment when "relevance" button is fixed (ref: Various bugs)
@@ -381,7 +382,7 @@ class TestEndToEndUser:
             page.screenshot(path=f"./tests/playwright/screenshots/{pic_prefix}report_item_add.png")
 
             self.highlight_element(page.get_by_text("CERT Report")).click()
-            self.highlight_element(page.get_by_label("Title")).fill("Test Title")
+            self.highlight_element(page.get_by_label("Title")).fill("Test Report")
             self.highlight_element(page.get_by_role("button", name="Save")).click()
 
         def report_2():
@@ -412,21 +413,21 @@ class TestEndToEndUser:
             self.highlight_element(page.get_by_role("button", name="relevance"), scroll=False).click()
             self.highlight_element(page.locator("button:below(:text('Global Mining Espionage by APT67 (4)'))").first).click()
             self.highlight_element(page.get_by_role("dialog").get_by_label("Open")).click()
-            self.highlight_element(page.get_by_role("option", name="Test Title")).click()
+            self.highlight_element(page.get_by_role("option", name="Test Report")).click()
             self.highlight_element(page.get_by_role("button", name="share")).click()
 
             self.highlight_element(page.locator("button:below(:text('Advanced Phishing Techniques by APT58 (3)'))").first).click()
             self.highlight_element(page.get_by_role("dialog").get_by_label("Open")).click()
-            self.highlight_element(page.get_by_role("option", name="Test Title")).click()
+            self.highlight_element(page.get_by_role("option", name="Test Report")).click()
             self.highlight_element(page.get_by_role("button", name="share")).click()
 
             self.highlight_element(page.locator("button:below(:text('Genetic Engineering Data Theft by APT81 (8)'))").first).click()
             self.highlight_element(page.get_by_role("dialog").get_by_label("Open")).click()
-            self.highlight_element(page.get_by_role("option", name="Test Title")).click()
+            self.highlight_element(page.get_by_role("option", name="Test Report")).click()
             self.highlight_element(page.get_by_role("button", name="share")).click()
 
         def modify_report_1():
-            self.highlight_element(page.get_by_role("cell", name="Test Title")).click()
+            self.highlight_element(page.get_by_role("cell", name="Test Report")).click()
             self.highlight_element(page.get_by_label("date"), scroll=False).fill("17/3/2024")
             self.highlight_element(page.get_by_label("timeframe"), scroll=False).fill("12/2/2024 - 21/2/2024")
             self.highlight_element(page.get_by_label("handler", exact=True), scroll=False).fill("John Doe")
@@ -445,7 +446,7 @@ class TestEndToEndUser:
 
         def assert_analyze():
             expect(page.locator("tbody")).to_contain_text("CERT Report")
-            expect(page.locator("tbody")).to_contain_text("Test Title")
+            expect(page.locator("tbody")).to_contain_text("Test Report")
             expect(page.locator("tbody")).to_contain_text("1")
 
         def tag_filter(base_url):

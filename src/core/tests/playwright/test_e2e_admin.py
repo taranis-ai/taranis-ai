@@ -10,7 +10,7 @@ import pytest
 class TestEndToEndAdmin:
     wait_duration = 0
     ci_run = True
-    produce_artifacts = False
+    record_video = False
 
     def test_doc_login(self, taranis_frontend: Page):
         from tests.playwright.test_e2e_user import TestEndToEndUser
@@ -234,6 +234,5 @@ class TestEndToEndAdmin:
         e2e.test_e2e_assess(taranis_frontend=page, e2e_server=e2e_server, pic_prefix="docs_")
         print(e2e_server.url())
         e2e.test_e2e_analyze(e2e_server=e2e_server, taranis_frontend=page, pic_prefix="docs_")
-        page.pause()
 
         delete_multiple_reports()
