@@ -230,6 +230,7 @@ class Worker(BaseModel):
             if param_name in existing_parameters:
                 parameter = existing_parameters[param_name]
                 parameter.value = update_parameter.value
+                parameter.type = update_parameter.type
                 parameter.rules = update_parameter.rules
             else:
                 self.parameters.append(update_parameter)

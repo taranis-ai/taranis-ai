@@ -61,7 +61,8 @@ class Bot(BaseModel):
 
     @classmethod
     def index_exists(cls, index):
-        return db.select(cls).where(index=index).scalar()
+        query = db.select(db.exists().where(cls.index == index))
+        return db.session.execute(query).scalar_one()
 
     @classmethod
     def filter_by_type(cls, filter_type: str) -> "Bot | None":

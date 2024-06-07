@@ -108,6 +108,12 @@ services:
       QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-taranis}"
       WORKER_TYPES: '[]'
       DEBUG: "${DEBUG:-False}"
+    healthcheck:
+      test: ["CMD-SHELL", "celery inspect ping --destination celery@$$QUEUE_BROKER_HOST"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
     logging:
       driver: "json-file"
       options:
@@ -130,6 +136,12 @@ services:
       QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-taranis}"
       WORKER_TYPES: '["Collectors", "Bots"]'
       DEBUG: "${DEBUG:-False}"
+    healthcheck:
+      test: ["CMD-SHELL", "celery inspect ping --destination celery@$$QUEUE_BROKER_HOST"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
     logging:
       driver: "json-file"
       options:
@@ -153,6 +165,12 @@ services:
       QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-taranis}"
       WORKER_TYPES: '["Presenters", "Publishers"]'
       DEBUG: "${DEBUG:-False}"
+    healthcheck:
+      test: ["CMD-SHELL", "celery inspect ping --destination celery@$$QUEUE_BROKER_HOST"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
     logging:
       driver: "json-file"
       options:

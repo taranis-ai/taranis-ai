@@ -18,13 +18,16 @@
                 :report-view="reportView"
               />
               <WeekChart
-                v-if="openSummary"
+                v-if="openSummary && !reportView && !detailView"
                 class="mt-5"
                 :chart-height="180"
                 :story="story"
               />
             </v-col>
-            <v-col v-if="!openSummary && showWeekChart" cols="2">
+            <v-col
+              v-if="!openSummary && showWeekChart && !reportView && !detailView"
+              cols="2"
+            >
               <WeekChart
                 :chart-height="detailView ? 300 : 100"
                 :story="story"

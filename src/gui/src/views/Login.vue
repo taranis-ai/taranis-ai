@@ -39,7 +39,7 @@
               prepend-icon="mdi-lock-outline"
               type="password"
               :rules="[acceptPassword]"
-              autocomplete="password"
+              autocomplete="current-password"
               required
             />
           </v-col>

@@ -27,7 +27,7 @@ jobs:
 
       - name: Lint with ruff
         working-directory: src/core
-        run: ruff --output-format=github .
+        run: ruff check --output-format=github .
 
       - name: Update playwright
         working-directory: src/core
@@ -59,7 +59,7 @@ jobs:
 
       - name: Lint with ruff
         working-directory: src/worker
-        run: ruff --output-format=github .
+        run: ruff check --output-format=github .
 
       - name: test
         working-directory: src/worker

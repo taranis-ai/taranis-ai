@@ -10,7 +10,7 @@ workers = [
             {"parameter": "PROXY_SERVER"},
             {"parameter": "TLP_LEVEL", "rules": "tlp"},
             {"parameter": "MAX_ARTICLE_AGE", "type": "number"},
-            {"parameter": "REFRESH_INTERVAL", "type": "number"},
+            {"parameter": "REFRESH_INTERVAL"},
             {"parameter": "DIGEST_SPLITTING", "type": "switch"},
             {
                 "parameter": "DIGEST_SPLITTING_LIMIT",
@@ -31,7 +31,7 @@ workers = [
             {"parameter": "EMAIL_PASSWORD"},
             {"parameter": "PROXY_SERVER"},
             {"parameter": "TLP_LEVEL", "rules": "tlp"},
-            {"parameter": "REFRESH_INTERVAL", "type": "number"},
+            {"parameter": "REFRESH_INTERVAL"},
         ],
         "type": "EMAIL_COLLECTOR",
     },
@@ -108,7 +108,7 @@ workers = [
             {"parameter": "ATTRIBUTE_NAME"},
             {"parameter": "ITEM_FILTER"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
-            {"parameter": "REFRESH_INTERVAL", "type": "number"},
+            {"parameter": "REFRESH_INTERVAL"},
         ],
         "description": "Bot for news items analysis",
     },
@@ -119,7 +119,7 @@ workers = [
             {"parameter": "REGULAR_EXPRESSION"},
             {"parameter": "ITEM_FILTER"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
-            {"parameter": "REFRESH_INTERVAL", "type": "number"},
+            {"parameter": "REFRESH_INTERVAL"},
         ],
         "description": "Bot for grouping news items into stories",
     },
@@ -129,7 +129,7 @@ workers = [
         "parameters": [
             {"parameter": "ITEM_FILTER"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
-            {"parameter": "REFRESH_INTERVAL", "type": "number"},
+            {"parameter": "REFRESH_INTERVAL"},
         ],
         "description": "Bot for naturale language processing of news items",
     },
@@ -139,7 +139,7 @@ workers = [
         "parameters": [
             {"parameter": "ITEM_FILTER"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
-            {"parameter": "REFRESH_INTERVAL", "type": "number"},
+            {"parameter": "REFRESH_INTERVAL"},
         ],
         "description": "Bot for extracting indicators of compromise from news items",
     },
@@ -150,7 +150,7 @@ workers = [
             {"parameter": "KEYWORDS"},
             {"parameter": "ITEM_FILTER"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
-            {"parameter": "REFRESH_INTERVAL", "type": "number"},
+            {"parameter": "REFRESH_INTERVAL"},
         ],
         "description": "Bot for tagging news items",
     },
@@ -162,7 +162,7 @@ workers = [
                 "parameter": "ITEM_FILTER",
             },
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
-            {"parameter": "REFRESH_INTERVAL", "type": "number"},
+            {"parameter": "REFRESH_INTERVAL"},
         ],
         "description": "Bot for Story Clustering",
     },
@@ -172,7 +172,7 @@ workers = [
         "parameters": [
             {"parameter": "ITEM_FILTER"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
-            {"parameter": "REFRESH_INTERVAL", "type": "number"},
+            {"parameter": "REFRESH_INTERVAL"},
         ],
         "description": "Bot for summarizing stories",
     },
@@ -183,7 +183,7 @@ workers = [
             {"parameter": "ITEM_FILTER"},
             {"parameter": "TAGGING_WORDLISTS", "type": "table"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
-            {"parameter": "REFRESH_INTERVAL", "type": "number"},
+            {"parameter": "REFRESH_INTERVAL"},
         ],
         "description": "Bot for tagging news items by wordlist",
     },
@@ -272,7 +272,7 @@ bots = [
         "parameters": [
             {"parameter": "ITEM_FILTER"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch", "value": "true"},
-            {"parameter": "REFRESH_INTERVAL", "type": "number"},
+            {"parameter": "REFRESH_INTERVAL"},
         ],
     },
     {
@@ -282,7 +282,7 @@ bots = [
         "parameters": [
             {"parameter": "ITEM_FILTER"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch", "value": "true"},
-            {"parameter": "REFRESH_INTERVAL", "type": "number"},
+            {"parameter": "REFRESH_INTERVAL"},
         ],
     },
     {
@@ -292,7 +292,7 @@ bots = [
         "parameters": [
             {"parameter": "ITEM_FILTER"},
             {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch", "value": "true"},
-            {"parameter": "REFRESH_INTERVAL", "type": "number"},
+            {"parameter": "REFRESH_INTERVAL"},
         ],
     },
     {
