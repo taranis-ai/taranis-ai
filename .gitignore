@@ -39,3 +39,4 @@ src/.env
 *.njsproj
 *.sln
 *.sw?
+/.python-version
