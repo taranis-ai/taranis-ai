@@ -118,7 +118,7 @@ class OSINTSource(BaseModel):
         }
 
     def to_task_id(self) -> str:
-        return f"osint_source_{self.id}_{self.type}"
+        return f"{self.__tablename__}_{self.id}_{self.type}"
 
     def get_schedule(self) -> str:
         refresh_interval = ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL")
@@ -221,7 +221,7 @@ class OSINTSource(BaseModel):
 
     @classmethod
     def export_osint_sources(cls, source_ids=None) -> bytes:
-        query = db.select(cls)
+        query = db.select(cls).where(cls.type != COLLECTOR_TYPES.MANUAL_COLLECTOR)
         if source_ids:
             query = query.filter(cls.id.in_(source_ids))
 

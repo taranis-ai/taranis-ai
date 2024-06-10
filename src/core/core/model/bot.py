@@ -49,6 +49,7 @@ class Bot(BaseModel):
                 if not Bot.index_exists(index):
                     bot.index = index
             db.session.commit()
+            bot.schedule_bot()
             return bot
         except Exception:
             logger.log_debug_trace("Update Bot Parameters Failed")
@@ -91,8 +92,11 @@ class Bot(BaseModel):
         data["parameters"] = {parameter.parameter: parameter.value for parameter in self.parameters}
         return data
 
+    def to_task_id(self) -> str:
+        return f"{self.__tablename__}_{self.id}_{self.type}"
+
     def schedule_bot(self):
-        if interval := ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL"):
+        if interval := self.get_schedule():
             entry = self.to_task_dict(interval)
             ScheduleEntry.add_or_update(entry)
             logger.info(f"Schedule for bot {self.id} updated with - {entry}")
@@ -100,18 +104,22 @@ class Bot(BaseModel):
         return {"message": "Bot has no refresh interval"}, 200
 
     def unschedule_bot(self):
-        entry_id = f"bot_{self.id}_{self.type}"
+        entry_id = self.to_task_id()
         ScheduleEntry.delete(entry_id)
         logger.info(f"Schedule for bot {self.id} removed")
         return {"message": f"Schedule for bot {self.id} removed"}, 200
 
-    def to_task_dict(self, interval):
+    def get_schedule(self) -> str | None:
+        refresh_interval = ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL")
+        return refresh_interval or None
+
+    def to_task_dict(self, interval: str):
         return {
-            "id": f"bot_{self.id}_{self.type}",
-            "task": "bot_task",
+            "id": self.to_task_id(),
+            "task": "collector_task",
             "schedule": interval,
             "args": [self.id],
-            "options": {"queue": "bots"},
+            "options": {"queue": "bots", "task_id": self.to_task_id()},
         }
 
     @classmethod

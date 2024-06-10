@@ -109,7 +109,7 @@ services:
       WORKER_TYPES: '[]'
       DEBUG: "${DEBUG:-False}"
     healthcheck:
-      test: ["CMD-SHELL", "celery inspect ping --destination celery@$$QUEUE_BROKER_HOST"]
+      test: ["CMD-SHELL", "WORKER_TYPES='[]' celery --app worker celery inspect ping --destination $$QUEUE_BROKER_USER@$$QUEUE_BROKER_HOST"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -137,7 +137,7 @@ services:
       WORKER_TYPES: '["Collectors", "Bots"]'
       DEBUG: "${DEBUG:-False}"
     healthcheck:
-      test: ["CMD-SHELL", "celery inspect ping --destination celery@$$QUEUE_BROKER_HOST"]
+      test: ["CMD-SHELL", "WORKER_TYPES='[]' celery --app worker celery inspect ping --destination $$QUEUE_BROKER_USER@$$QUEUE_BROKER_HOST"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -166,7 +166,7 @@ services:
       WORKER_TYPES: '["Presenters", "Publishers"]'
       DEBUG: "${DEBUG:-False}"
     healthcheck:
-      test: ["CMD-SHELL", "celery inspect ping --destination celery@$$QUEUE_BROKER_HOST"]
+      test: ["CMD-SHELL", "WORKER_TYPES='[]' celery --app worker celery inspect ping --destination $$QUEUE_BROKER_USER@$$QUEUE_BROKER_HOST"]
       interval: 30s
       timeout: 10s
       retries: 3
