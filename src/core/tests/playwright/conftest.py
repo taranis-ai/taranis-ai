@@ -33,9 +33,9 @@ def build_gui(install_node_modules):
 
 @pytest.fixture(scope="class")
 def e2e_ci(request):
-    request.cls.ci_run = request.config.getoption("--run-e2e-ci") == "e2e_ci"
+    request.cls.ci_run = request.config.getoption("--e2e-user-ci") == "e2e_user_ci"
     request.cls.wait_duration = float(request.config.getoption("--highlight-delay"))
-    request.cls.produce_artifacts = request.config.getoption("--produce-artifacts")
+    request.cls.record_video = request.config.getoption("--record-video")
 
 
 @pytest.fixture(scope="session")
@@ -51,7 +51,15 @@ def e2e_server(app, live_server, stories, build_gui):
 @pytest.fixture(scope="session")
 def browser_context_args(browser_context_args, browser_type_launch_args, request):
     browser_type_launch_args["args"] = ["--window-size=1964,1211"]
-    if request.config.getoption("--produce-artifacts"):
+
+    if request.config.getoption("--e2e-admin"):
+        browser_type_launch_args["args"] = ["--window-size=1640,1338"]
+
+
+    if request.config.getoption("--record-video"):
+        if request.config.getoption("--e2e-admin"):
+            browser_type_launch_args["args"] = ["--window-size=1964,1211"]
+            print("Screenshots in --e2e-admin mode are not of optimal resolution")
         return {
             **browser_context_args,
             "record_video_dir": "tests/playwright/videos",
