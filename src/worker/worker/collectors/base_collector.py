@@ -75,17 +75,16 @@ class BaseCollector:
         return datetime.datetime.now().isoformat()
 
     def sanitize_news_item(self, item: NewsItem, source: dict) -> NewsItem:
-        if not item.id:
-            item.id = str(uuid.uuid4())
+        if not item.osint_source_id:
+            item.osint_source_id = str(uuid.uuid4())
         item.published_date = self.sanitize_date(item.published_date)
         item.collected_date = self.sanitize_date(item.collected_date)
-        item.source_id = source.get("id", item.source_id)
+        item.osint_source_id = source.get("id", item.osint_source_id)
         item.attributes = item.attributes or []
         item.title = self.sanitize_html(item.title)
         item.content = self.sanitize_html(item.content)
         item.review = item.review or ""
         item.author = item.author or ""
-        item.source = item.source or ""
         item.web_url = self.sanitize_url(item.web_url)
         item.hash = item.hash or hashlib.sha256((item.author + item.title + item.web_url).encode()).hexdigest()
         return item
@@ -108,5 +107,6 @@ class BaseCollector:
     def publish(self, news_items: list[NewsItem], source: dict):
         news_items = self.process_news_items(news_items, source)
         logger.info(f"Publishing {len(news_items)} news items to core api")
-        self.core_api.add_news_items(news_items)
+        news_items_dicts = [item.to_dict() for item in news_items]
+        self.core_api.add_news_items(news_items_dicts)
         self.core_api.update_osintsource_status(source["id"], None)

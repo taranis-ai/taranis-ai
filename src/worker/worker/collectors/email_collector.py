@@ -47,7 +47,6 @@ class EmailCollector(BaseCollector):
             review = ""
             content = ""
             url = ""
-            link = ""
 
             date_tuple = email.utils.parsedate_tz(email_message["Date"])
             local_date = datetime.datetime.fromtimestamp(email.utils.mktime_tz(date_tuple))
@@ -66,17 +65,16 @@ class EmailCollector(BaseCollector):
                 for_hash = author + title + message_id
 
                 news_item = NewsItem(
-                    id=str(uuid.uuid4()),
+                    osint_source_id=source["id"],
                     hash=hashlib.sha256(for_hash.encode()).hexdigest(),
                     title=title,
                     content=content,
                     review=review,
+                    language=source.get("language", ""),
                     web_url=url,
-                    link=link,
                     published_date=published,
                     author=author,
-                    collected=datetime.datetime.now(),
-                    osint_source_id=source["id"]
+                    collected_date=datetime.datetime.now()
                 )
 
                 if part.get_content_maintype() == "multipart":

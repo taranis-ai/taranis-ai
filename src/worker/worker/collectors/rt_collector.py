@@ -146,16 +146,16 @@ class RTCollector(BaseWebCollector):
         for_hash: str = str(ticket_id) + ticket_content
 
         return NewsItem(
-            id=str(ticket_id),
+            osint_source_id=source.get("id"),
             hash=hashlib.sha256(for_hash.encode()).hexdigest(),
             title=ticket_subject,
             content=ticket_content,
-            review="",
             web_url=f"{self.base_url}{self.ticket_path}{ticket_id}",
             published_date=datetime.datetime.fromisoformat(ticket_published),
             author=ticket_author,
             collected_date=datetime.datetime.now(),
-            source_id=source.get("id"),
+            language=source.get("language", ""),
+            review=source.get("review", ""),
             attributes=[]
         )
 

@@ -55,7 +55,7 @@ class SimpleWebCollector(BaseWebCollector):
         content = self.xpath_extraction(web_content, self.xpath, False)
         logger.debug(content)
         self.split_digest_urls = self.get_urls(content)
-        logger.info(f"RSS-Feed {self.source_id} returned {len(self.split_digest_urls)} available URLs")
+        logger.info(f"RSS-Feed {self.osint_source_id} returned {len(self.split_digest_urls)} available URLs")
 
         return self.parse_digests()
 
@@ -73,7 +73,7 @@ class SimpleWebCollector(BaseWebCollector):
 
         last_attempted = self.get_last_attempted(source)
         if not last_attempted:
-            self.update_favicon(self.web_url, self.source_id)
+            self.update_favicon(self.web_url, self.osint_source_id)
         last_modified = self.get_last_modified(response)
         self.last_modified = last_modified
         if last_modified and last_attempted and last_modified < last_attempted and not manual:

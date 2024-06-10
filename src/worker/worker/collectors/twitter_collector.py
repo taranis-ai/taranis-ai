@@ -66,22 +66,20 @@ class TwitterCollector(BaseCollector):
                     published = tweet.created_at
                     title = f"Twitter post from @{author}"
                     content = ""
-                    url = ""
 
                     for_hash = author + tweet_id + str(preview)
 
                     news_item = NewsItem(
-                        id=str(uuid.uuid4()),
+                        osint_source_id=source["id"],
                         hash=hashlib.sha256(for_hash.encode()).hexdigest(),
                         title=title,
                         review=preview.decode("utf-8"),
-                        web_url=url,
-                        link=link,
+                        web_url=link,
                         published_date=published,
                         author=author,
                         collected_date=datetime.datetime.now(),
                         content=content,
-                        source_id=source["id"],
+                        language=source.get("language", ""),
                         attributes=[]
                     )
 
@@ -90,4 +88,4 @@ class TwitterCollector(BaseCollector):
             self.publish(news_items, source)
         except Exception:
             logger.exception()
-            logger.error(f"Could not collect Tweeets {source['id']}")
+            logger.error(f"Could not collect Tweets {source['id']}")

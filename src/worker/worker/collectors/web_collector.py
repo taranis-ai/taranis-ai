@@ -653,12 +653,13 @@ class WebCollector(BaseCollector):
         for_hash: str = author + title + link
 
         news_item = NewsItem(
-            source_id=self.source["id"],
+            osint_source_id=self.source["id"],
             hash=hashlib.sha256(for_hash.encode()).hexdigest(),
             author=author,
             title=title,
             content=article_full_text,
             web_url=link,
+            language=self.source.get("language", ""),
             published_date=published,
             collected_date=datetime.datetime.now(),
             review=article_description,

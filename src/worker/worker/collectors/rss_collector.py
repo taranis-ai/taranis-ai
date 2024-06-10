@@ -120,13 +120,15 @@ class RSSCollector(BaseWebCollector):
         for_hash: str = author + title + self.clean_url(link)
 
         return NewsItem(
-            source_id=source["id"],
+            osint_source_id=source["id"],
             hash=hashlib.sha256(for_hash.encode()).hexdigest(),
             author=author,
             title=title,
             content=content,
             web_url=link,
             published_date=published,
+            language=source.get("language", ""),
+            review=source.get("review", ""),
         )
 
     # TODO: This function is renamed because of inheritance issues. Notice that @feed is/was not used in the function.
@@ -183,7 +185,7 @@ class RSSCollector(BaseWebCollector):
 
     def handle_digests(self, feed_entries: list[feedparser.FeedParserDict]) -> list[dict] | str:
         self.split_digest_urls = self.get_digest_url_list(feed_entries)
-        logger.info(f"RSS-Feed {self.source_id} returned {len(self.split_digest_urls)} available URLs")
+        logger.info(f"RSS-Feed {self.osint_source_id} returned {len(self.split_digest_urls)} available URLs")
 
         return self.parse_digests()
 
