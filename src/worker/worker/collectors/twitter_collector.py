@@ -1,6 +1,5 @@
 import datetime
 import hashlib
-import uuid
 import tweepy
 
 from .base_collector import BaseCollector

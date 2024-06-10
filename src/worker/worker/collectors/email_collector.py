@@ -1,6 +1,5 @@
 import datetime
 import hashlib
-import uuid
 import imaplib
 import poplib
 from email import policy
