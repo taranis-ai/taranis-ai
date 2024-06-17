@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     COLORED_LOGS: bool = True
     BUILD_DATE: datetime = datetime.now()
     GIT_INFO: dict[str, str] | None = None
-    DATA_FOLDER: str = "./taranis_data"
+    DATA_FOLDER: str = "./taranis_data" # When started with Docker, the path is /app/data
     CACHE_TYPE: str = "SimpleCache"
     CACHE_DEFAULT_TIMEOUT: int = 300
     SSE_URL: str = "http://sse:8088/publish"
