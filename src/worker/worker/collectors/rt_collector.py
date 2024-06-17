@@ -6,6 +6,7 @@ import requests
 
 from worker.log import logger
 from worker.collectors.base_web_collector import BaseWebCollector
+from worker.types import NewsItem
 
 
 class RTCollector(BaseWebCollector):
@@ -123,7 +124,7 @@ class RTCollector(BaseWebCollector):
         ticket_content = attachment.get("Content")
         return self.decode64(ticket_content)
 
-    def get_ticket_data(self, ticket_id: int, source) -> dict:
+    def get_ticket_data(self, ticket_id: int, source) -> NewsItem:
         ticket_transaction = self.get_ticket_transaction(ticket_id)
         ticket_attachment_id, ticket_published, ticket_author = self.get_content_attachment_data(ticket_transaction)
 
@@ -144,20 +145,19 @@ class RTCollector(BaseWebCollector):
         ticket_content = self.get_ticket_content(attachment.json())
         for_hash: str = str(ticket_id) + ticket_content
 
-        return {
-            "id": str(ticket_id),
-            "hash": hashlib.sha256(for_hash.encode()).hexdigest(),
-            "title": ticket_subject,
-            "review": "",
-            "source": self.base_url,
-            "link": f"{self.base_url}{self.ticket_path}{ticket_id}",
-            "published": datetime.datetime.fromisoformat(ticket_published),
-            "author": ticket_author,
-            "collected": datetime.datetime.now(),
-            "content": ticket_content,
-            "osint_source_id": source.get("id"),
-            "attributes": [],
-        }
+        return NewsItem(
+            osint_source_id=source.get("id"),
+            hash=hashlib.sha256(for_hash.encode()).hexdigest(),
+            title=ticket_subject,
+            content=ticket_content,
+            web_url=f"{self.base_url}{self.ticket_path}{ticket_id}",
+            published_date=datetime.datetime.fromisoformat(ticket_published),
+            author=ticket_author,
+            collected_date=datetime.datetime.now(),
+            language=source.get("language", ""),
+            review=source.get("review", ""),
+            attributes=[]
+        )
 
     def get_tickets(self, ticket_ids: list, source) -> list:
         return [self.get_ticket_data(ticket_id, source) for ticket_id in ticket_ids]
