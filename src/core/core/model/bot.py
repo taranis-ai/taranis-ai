@@ -116,7 +116,7 @@ class Bot(BaseModel):
     def to_task_dict(self, interval: str):
         return {
             "id": self.to_task_id(),
-            "task": "collector_task",
+            "task": "bot_task",
             "schedule": interval,
             "args": [self.id],
             "options": {"queue": "bots", "task_id": self.to_task_id()},
