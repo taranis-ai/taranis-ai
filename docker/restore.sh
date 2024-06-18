@@ -14,7 +14,7 @@ check_volume_empty() {
     local temp_container="temp_${volume_name}_checker"
 
     # Check if volume is empty by trying to list files in it
-    if docker compose run --rm --name "$temp_container" -v "$volume_name:/volume" busybox find /volume -mindepth 1 -print -quit | grep -q .; then
+    if docker run --rm --name "$temp_container" -v "$volume_name:/volume" busybox find /volume -mindepth 1 -print -quit | grep -q .; then
         echo "Error: Volume $volume_name is not empty. Restore aborted."
         exit 1
     fi
