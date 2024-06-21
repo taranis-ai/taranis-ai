@@ -57,7 +57,7 @@ services:
       API_KEY: "${API_KEY}"
       DEBUG: "${DEBUG:-False}"
     volumes:
-      - "core_data:/data"
+      - "core_data:/app/data"
     logging:
       driver: "json-file"
       options:
