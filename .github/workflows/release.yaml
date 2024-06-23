@@ -1,0 +1,50 @@
+name: Release on pushed tags
+
+on:
+  push:
+    tags:
+      - '*'
+
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Get tag name
+        run: echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
+      - name: Update env.sample
+        run: |
+          sed -i 's/^TARANIS_TAG=.*/TARANIS_TAG=${{ env.tag }}/' docker/env.sample
+
+      - name: Create zip of repository
+        run: zip -r "${{ env.tag }}.zip" .
+
+      - name: Create tar.gz of repository
+        run: tar -czvf "${{ env.tag }}.tar.gz" .
+
+      - name: Verify changes
+        run: |
+          echo "Tag: ${{ env.tag }}"
+          cat docker/env.sample
+          ls -l "${{ env.tag }}.zip"
+          ls -l "${{ env.tag }}.tar.gz"
+
+      # - name: Release
+      #   uses: softprops/action-gh-release@v2
+      #   if: startsWith(github.ref, 'refs/tags/')
+      #   with:
+      #     tag_name: ${{ env.tag }}
+      #     release_name: ${{ env.tag }}
+      #     body: ${{ github.event.head_commit.message }}
+      #     files: |
+      #       dokcer/env.sample
+      #       docker/compose.yml
+      #       "${{ env.tag }}.zip"
+      #       "${{ env.tag }}.tar.gz"
