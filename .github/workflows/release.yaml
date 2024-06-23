@@ -35,15 +35,14 @@ jobs:
           outPath: ${{ runner.temp }}/${{ env.tag }}.tar.gz
 
       - name: Create zip of repository
-        run: zip -r "${{ runner.temp }}/${{ env.tag }}.zip" .
+        run: zip -r ${{ runner.temp }}/${{ env.tag }}.zip .
 
 
-      - name: Verify changes
+      - name: Verify new assets
         run: |
-          echo "Tag: ${{ env.tag }}"
           cat ${{ runner.temp }}/env.sample
-          ls -l "${{ runner.temp }}/${{ env.tag }}.zip"
-          ls -l "${{ runner.temp }}/${{ env.tag }}.tar.gz"
+          ls -l ${{ runner.temp }}/${{ env.tag }}.zip
+          ls -l ${{ runner.temp }}/${{ env.tag }}.tar.gz
 
       # - name: Release
       #   uses: softprops/action-gh-release@v2
@@ -53,7 +52,7 @@ jobs:
       #     release_name: ${{ env.tag }}
       #     body: ${{ github.event.head_commit.message }}
       #     files: |
-      #       dokcer/env.sample
       #       docker/compose.yml
-      #       "${{ env.tag }}.zip"
-      #       "${{ env.tag }}.tar.gz"
+      #       ${{ runner.temp }}/env.sample
+      #       ${{ runner.temp }}/${{ env.tag }}.zip
+      #       ${{ runner.temp }}/${{ env.tag }}.tar.gz
