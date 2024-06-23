@@ -4,31 +4,29 @@ on:
   push:
     tags:
       - '*'
-
+  # TODO: remove
   pull_request:
-    branches:
-      - master
 
 jobs:
   release:
     runs-on: ubuntu-22.04
+    # TODO: remove
     env:
       tag: test.0.9.2
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
+      # TODO: uncomment
       # - name: Get tag name
       #   run: echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
       - name: Update env.sample
         run: |
-          sed -i 's/^TARANIS_TAG=.*/TARANIS_TAG=${{ env.tag }}/' docker/env.sample
-          cat docker/env.sample
-          # cp docker/env.sample ${{ runner.temp }}
+          cp docker/env.sample ${{ runner.temp }}
+          sed -i 's/^TARANIS_TAG=.*/TARANIS_TAG=${{ env.tag }}/' ${{ runner.temp }}/env.sample
       
-      - name: Compress action step
+      - name: Create tar.gz of repository
         uses: a7ul/tar-action@v1.2.0
         id: compress
         with:
@@ -37,14 +35,13 @@ jobs:
           outPath: ${{ runner.temp }}/${{ env.tag }}.tar.gz
 
       - name: Create zip of repository
-        run: |
-          zip -r "${{ runner.temp }}/${{ env.tag }}.zip" .
+        run: zip -r "${{ runner.temp }}/${{ env.tag }}.zip" .
 
 
       - name: Verify changes
         run: |
           echo "Tag: ${{ env.tag }}"
-          cat docker/env.sample
+          cat ${{ runner.temp }}/env.sample
           ls -l "${{ runner.temp }}/${{ env.tag }}.zip"
           ls -l "${{ runner.temp }}/${{ env.tag }}.tar.gz"
 
