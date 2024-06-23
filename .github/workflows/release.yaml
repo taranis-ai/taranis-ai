@@ -10,31 +10,43 @@ on:
       - master
 
 jobs:
-  build:
+  release:
     runs-on: ubuntu-22.04
+    env:
+      tag: test.0.9.2
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
       
-      - name: Get tag name
-        run: echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+      # - name: Get tag name
+      #   run: echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
       - name: Update env.sample
         run: |
           sed -i 's/^TARANIS_TAG=.*/TARANIS_TAG=${{ env.tag }}/' docker/env.sample
+          cat docker/env.sample
+          # cp docker/env.sample ${{ runner.temp }}
+      
+      - name: Compress action step
+        uses: a7ul/tar-action@v1.2.0
+        id: compress
+        with:
+          command: c
+          files: .
+          outPath: ${{ runner.temp }}/${{ env.tag }}.tar.gz
 
       - name: Create zip of repository
-        run: zip -r "${{ env.tag }}.zip" .
+        run: |
+          zip -r "${{ runner.temp }}/${{ env.tag }}.zip" .
 
-      - name: Create tar.gz of repository
-        run: tar -czvf "${{ env.tag }}.tar.gz" .
 
       - name: Verify changes
         run: |
           echo "Tag: ${{ env.tag }}"
           cat docker/env.sample
-          ls -l "${{ env.tag }}.zip"
-          ls -l "${{ env.tag }}.tar.gz"
+          ls -l "${{ runner.temp }}/${{ env.tag }}.zip"
+          ls -l "${{ runner.temp }}/${{ env.tag }}.tar.gz"
 
       # - name: Release
       #   uses: softprops/action-gh-release@v2
