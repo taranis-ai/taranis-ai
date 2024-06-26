@@ -24,7 +24,10 @@ check_volume_empty() {
 restore_postgresql() {
     local backup_file="$1"
     echo "Restoring PostgreSQL database from $backup_file..."
-    docker compose exec -T database psql -U taranis postgres -v ON_ERROR_STOP=1 < "$backup_file"
+    # dropdb taranis -U taranis --force
+    # createuser --superuser -U taranis tmp
+    # createdb --owner taranis -U taranis taranis
+    docker compose exec -T database psql -U taranis -v ON_ERROR_STOP=1 < "$backup_file"
 }
 
 # Function to restore data to a Docker volume
@@ -32,7 +35,7 @@ restore_volume_data() {
     local backup_file="$1"
     local volume_name="$2"
     echo "Restoring data to $volume_name from $backup_file..."
-    docker compose run --rm -v "$volume_name:/data" busybox tar xzvf "$backup_file" -C /data
+    docker run --rm -v "$volume_name:/data" -v ./backups:/backups:Z busybox tar xzvf "$backup_file" -C /data
 }
 
 # Main script execution starts here
