@@ -3,9 +3,11 @@ import {
   getAllProductTypes,
   getProduct,
   getRenderdProduct,
+  deleteProduct,
   updateProduct
 } from '@/api/publish'
 import { useFilterStore } from './FilterStore'
+import { useMainStore } from './MainStore'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { notifyFailure, notifySuccess } from '@/utils/helpers'
@@ -18,8 +20,8 @@ export const usePublishStore = defineStore(
     const renderedProduct = ref(null)
     const renderedProductMimeType = ref(null)
 
-    async function loadProducts(data) {
-      const response = await getAllProducts(data)
+    async function loadProducts() {
+      const response = await getAllProducts()
       products.value = response.data
     }
     async function loadProductTypes(data) {
@@ -77,13 +79,41 @@ export const usePublishStore = defineStore(
 
     async function updateProducts() {
       const filter = useFilterStore()
-      const response = await getAllProducts(filter.productFilterQuery)
-      products.value = response.data
+      const mainStore = useMainStore()
+      try {
+        const response = await getAllProducts(filter.productFilterQuery)
+        products.value = response.data
+        mainStore.itemCountTotal = products.value.total_count
+        mainStore.itemCountFiltered = products.value.items.length
+      } catch (error) {
+        products.value = { total_count: 0, items: [] }
+        notifyFailure(error)
+      }
+    }
+
+    async function removeProduct(product) {
+      const product_id = product.id || product
+      try {
+        const response = await deleteProduct(product_id)
+        products.value.items = products.value.items.filter(
+          (item) => item.id !== product_id
+        )
+        notifySuccess(response.data.message)
+      } catch (error) {
+        notifyFailure(error)
+      }
     }
 
     function sseProductRendered(data) {
       console.log('Product rendered:', data)
       loadRenderedProduct(data.id)
+    }
+
+    function reset() {
+      products.value = { total_count: 0, items: [] }
+      product_types.value = { total_count: 0, items: [] }
+      renderedProduct.value = null
+      renderedProductMimeType.value = null
     }
 
     return {
@@ -97,7 +127,9 @@ export const usePublishStore = defineStore(
       updateProductByID,
       loadRenderedProduct,
       updateProducts,
-      sseProductRendered
+      removeProduct,
+      sseProductRendered,
+      reset
     }
   },
   {

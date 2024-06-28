@@ -174,9 +174,9 @@ export default {
 
     const getPublishedDate = computed(() => {
       const pubDateNew = new Date(published_dates.value[0])
-      const pubDateNewStr = d(pubDateNew, 'long')
+      const pubDateNewStr = d(pubDateNew, 'long', 'sv-SE')
       const pubDateOld = new Date(published_dates.value[1])
-      const pubDateOldStr = d(pubDateOld, 'long')
+      const pubDateOldStr = d(pubDateOld, 'long', 'sv-SE')
       if (pubDateNew && pubDateOld) {
         return pubDateNewStr === pubDateOldStr
           ? pubDateNewStr

@@ -204,6 +204,7 @@ export default {
             emit('reportcreated', response.data.id)
             notifySuccess(`Report with ID ${response.data.id} created`)
             report_item.value = response.data
+            store.updateReportItems()
           })
           .catch(() => {
             notifyFailure('Failed to create report item')

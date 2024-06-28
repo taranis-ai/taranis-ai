@@ -232,7 +232,7 @@ export default {
         : `${t('button.create')} product`
     })
 
-    const saveProduct = async () => {
+    async function saveProduct() {
       const { valid } = await form.value.validate()
       if (!valid) return
       if (props.edit) {
@@ -245,10 +245,10 @@ export default {
             router.push('/product/' + new_id)
             emit('productcreated', new_id)
             notifySuccess('Product created ' + new_id)
+            publishStore.loadProducts()
           })
           .catch((error) => {
-            console.error(error)
-            notifyFailure("Couldn't create product")
+            notifyFailure(error)
           })
       }
     }

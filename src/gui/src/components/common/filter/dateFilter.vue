@@ -4,7 +4,9 @@
     :name="'dateFilter-' + placeholder"
     :placeholder="placeholder"
     :max-date="maxDatePlus"
+    format="yyyy-MM-dd HH:mm:ss"
     time-picker-inline
+    auto-apply
     clearable
     space-confirm
     @open="openMenu()"
@@ -13,6 +15,7 @@
 
 <script>
 import { ref, computed, watch } from 'vue'
+import { useUserStore } from '@/stores/UserStore'
 
 export default {
   name: 'DateFilter',
@@ -38,6 +41,12 @@ export default {
   emits: ['update:modelValue'],
   setup(props, { emit }) {
     const selected = ref(props.modelValue)
+    const userStore = useUserStore()
+
+    const locale = computed(() => {
+      return userStore.language
+    })
+
     const maxDatePlus = computed(() => {
       const newDate = new Date(props.maxDate.getTime())
       newDate.setHours(newDate.getHours() + 1)
@@ -69,6 +78,7 @@ export default {
 
     return {
       openMenu,
+      locale,
       maxDatePlus,
       selected: computed({
         get: () => Date.parse(selected.value),
