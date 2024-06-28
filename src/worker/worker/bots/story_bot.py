@@ -22,7 +22,7 @@ class StoryBot(BaseBot):
         logger.info(f"Clustering {len(data)} news items")
         if all(len(story["news_items"]) == 1 for story in data):
             corpus = create_corpus(data)
-            initial_clustering.delay(json.dumps(corpus, cls=CorpusEncoder), queue="bots")
+            initial_clustering.apply_async(args=[json.dumps(corpus, cls=CorpusEncoder)], queue="bots")
         else:
             already_clustered, to_cluster = self.separate_data(data)
             clustering_results = incremental_clustering_v2(to_cluster, already_clustered)
@@ -34,6 +34,7 @@ class StoryBot(BaseBot):
         clustering_results = to_json_events(events)
         logger.info(f"Clustering results: {clustering_results['event_clusters']}")
         self.core_api.news_items_grouping_multiple(clustering_results["event_clusters"])
+        return f"Clustering {len(clustering_results["event_clusters"])} news items"
 
     def separate_data(self, data):
         already_clustered = []

@@ -30,6 +30,21 @@
       <v-icon icon="mdi-magnify" />
     </v-btn>
 
+    <v-tooltip v-if="detailView || reportView" text="edit story">
+      <template #activator="{ props }">
+        <v-btn
+          v-ripple="false"
+          color="#919191"
+          variant="tonal"
+          class="item-action-btn"
+          density="compact"
+          v-bind="props"
+          icon="mdi-book-edit-outline"
+          :to="`/story/${story.id}/edit`"
+        />
+      </template>
+    </v-tooltip>
+
     <v-btn
       v-if="!reportView && (!compactView || openSummary)"
       v-ripple="false"
@@ -154,20 +169,6 @@
             v-bind="props"
             icon="mdi-pencil-outline"
             :to="`/newsitem/${story.news_items[0].id}/edit`"
-          />
-        </template>
-      </v-tooltip>
-      <v-tooltip v-if="detailView" text="edit story">
-        <template #activator="{ props }">
-          <v-btn
-            v-ripple="false"
-            color="#919191"
-            variant="tonal"
-            class="item-action-btn"
-            density="compact"
-            v-bind="props"
-            icon="mdi-book-edit-outline"
-            :to="`/story/${story.id}/edit`"
           />
         </template>
       </v-tooltip>
