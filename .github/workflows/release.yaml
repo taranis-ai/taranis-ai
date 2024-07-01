@@ -3,7 +3,7 @@ name: Release on pushed tags
 on:
   push:
     tags:
-      - '*'
+      - '[0-9]+.[0-9]+.[0-9]+''
   # TODO: remove
   pull_request:
 
@@ -25,24 +25,11 @@ jobs:
         run: |
           cp docker/env.sample ${{ runner.temp }}
           sed -i 's/^TARANIS_TAG=.*/TARANIS_TAG=${{ env.tag }}/' ${{ runner.temp }}/env.sample
-      
-      - name: Create tar.gz of repository
-        uses: a7ul/tar-action@v1.2.0
-        id: compress
-        with:
-          command: c
-          files: .
-          outPath: ${{ runner.temp }}/${{ env.tag }}.tar.gz
 
-      - name: Create zip of repository
-        run: zip -r ${{ runner.temp }}/${{ env.tag }}.zip .
-
-
-      - name: Verify new assets
+      - name: Verify new env.sample
         run: |
           cat ${{ runner.temp }}/env.sample
-          ls -l ${{ runner.temp }}/${{ env.tag }}.zip
-          ls -l ${{ runner.temp }}/${{ env.tag }}.tar.gz
+
 
       # - name: Release
       #   uses: softprops/action-gh-release@v2
