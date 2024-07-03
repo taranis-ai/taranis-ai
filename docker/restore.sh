@@ -24,10 +24,9 @@ restore_postgresql() {
     local volume_name="${compose_project_name}_${2}"
     echo "Restoring PostgreSQL database from $backup_file..."
     docker run --rm -d \
-        -e POSTGRES_DB="${DB_DATABASE:-taranis}" \
-        -e POSTGRES_USER="${DB_USER:-taranis}" \
         -e POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-taranis}" \
-        -v ./$backup_dir:/docker-entrypoint-initdb.d \
+        -v ./$backup_dir:/tmp \
+        -v ./db_init.sh:/docker-entrypoint-initdb.d/db_init.sh \
         -v $volume_name:/var/lib/postgresql/data \
         --name "${compose_project_name}_database_restore" docker.io/library/postgres:14
 }
@@ -35,12 +34,13 @@ restore_postgresql() {
 # Function to restore data to a Docker volume
 restore_volume_data() {
     local backup_file="$1"
+    echo $backup_file
     local volume_name="${compose_project_name}_${2}"
 
     echo "Restoring data to $volume_name from $backup_file..."
     docker run --rm -d --name "${compose_project_name}_core_restore" \
     -v "$volume_name:/app/data" -v ./backups:/backups:z busybox \
-    tar -xzvf '$backup_file' -C /app/data
+    tar -xzvf "$backup_file" -C /app/data
 }
 
 # Main script execution starts here
@@ -76,7 +76,7 @@ check_volume_exists "core_data"
 check_volume_exists "database_data"
 
 # Perform the actual restore operations
-restore_postgresql "$database_backup_file" "database_data"
 restore_volume_data "$core_data_backup_file" "core_data"
+restore_postgresql "$database_backup_file" "database_data"
 
 echo "Restore completed successfully."
