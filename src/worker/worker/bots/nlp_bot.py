@@ -7,16 +7,21 @@ from flair.nn import Classifier
 
 
 class NLPBot(BaseBot):
-    def __init__(self):
+    def __init__(self, language="en"):
         super().__init__()
         self.type = "NLP_BOT"
         self.name = "NLP Bot"
         self.description = "Bot for naturale language processing of news items"
+        self.language = language
 
         logger.debug("Setup NER Model...")
-        self.ner_multi = Classifier.load("flair/ner-multi")
+        self.set_ner_model()
         torch.set_num_threads(1)  # https://github.com/pytorch/pytorch/issues/36191
         self.extraction_line_limit = 20
+
+    def set_ner_model(self):
+        self.set_language(self.language)
+        self.ner_multi = Classifier.load(self.models[self.language]["NLP_BOT"])
 
     def execute(self, parameters=None):
         if not (data := self.get_stories(parameters)):

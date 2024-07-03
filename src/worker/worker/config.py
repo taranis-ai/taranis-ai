@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     QUEUE_BROKER_URL: str | None = None
     QUEUE_BROKER_VHOST: str = "/"
     CELERY: dict[str, Any] | None = None
+    NLP_LANGUAGES: list[Literal["en", "de"]] = ["en", "de"]
 
     @model_validator(mode="after")
     def set_celery(self):

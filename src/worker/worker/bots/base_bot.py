@@ -1,8 +1,10 @@
 from worker.log import logger
 from worker.core_api import CoreApi
 from urllib.parse import parse_qs
+from config import Config
 import datetime
-
+import json
+import os
 
 class BaseBot:
     def __init__(self):
@@ -10,6 +12,9 @@ class BaseBot:
         self.type = "BASE_BOT"
         self.name = "Base Bot"
         self.description = "Base abstract type for all bots"
+        self.language = None
+        self.models = {}
+        self.tokenizers = {}
 
     def execute(self):
         pass
@@ -52,3 +57,47 @@ class BaseBot:
     def refresh(self):
         logger.info(f"Refreshing Bot: {self.type} ...")
         self.execute()
+
+    def load_supported_languages(self):
+        supported_languages_path = os.path.join(os.path.dirname(__file__), 'supported_languages.json')
+        with open(supported_languages_path, 'r') as file:
+            self.supported_languages = json.load(file)
+
+    def initialize_models(self):
+        self.models = {}
+        self.tokenizers = {}
+        for ln in Config.NLP_LANGUAGES:
+            if ln in self.supported_languages:
+                self.models[ln] = {
+                    "SUMMARY_BOT": self.load_model(self.supported_languages[ln]["SUMMARY_BOT"]),
+                    "NLP_BOT": self.load_model(self.supported_languages[ln]["NLP_BOT"]),
+                    "STORY_BOT": self.load_model(self.supported_languages[ln]["STORY_BOT"])
+                }
+                self.tokenizers[ln] = {
+                    "SUMMARY_BOT": self.load_tokenizer(self.supported_languages[ln]["SUMMARY_BOT"]),
+                    "NLP_BOT": self.load_tokenizer(self.supported_languages[ln]["NLP_BOT"]),
+                    "STORY_BOT": None  # StoryBot may not need a tokenizer ?
+                }
+
+    @staticmethod
+    def load_model(model_name):
+        from transformers import AutoModelForSeq2SeqLM, AutoModel
+        from sentence_transformers import SentenceTransformer
+        if "bart" in model_name or "t5" in model_name:  # Example model types
+            return AutoModelForSeq2SeqLM.from_pretrained(model_name)
+        elif "sentence-transformers" in model_name:  # For SentenceTransformer models
+            return SentenceTransformer(model_name)
+        else:
+            return AutoModel.from_pretrained(model_name)
+
+    @staticmethod
+    def load_tokenizer(model_name):
+        from transformers import AutoTokenizer
+        return AutoTokenizer.from_pretrained(model_name, use_fast=True)
+
+    def set_language(self, language: str):
+        if language not in self.models:
+            raise ValueError(f"No models configured for language: {language}")
+        self.language = language
+        self.model = self.models[language]  # Default model type
+        self.tokenizer = self.models[language]  # Default tokenizer type
