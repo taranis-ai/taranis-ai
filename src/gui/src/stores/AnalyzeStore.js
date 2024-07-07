@@ -4,12 +4,14 @@ import {
   getReportItem,
   cloneReportItem,
   updateReportItem,
+  deleteReportItem,
   addStoriesToReportItem
 } from '@/api/analyze'
 
 import { defineStore } from 'pinia'
 import { useFilterStore } from './FilterStore'
 import { useAssessStore } from './AssessStore'
+import { useMainStore } from './MainStore'
 import { i18n } from '@/i18n/i18n'
 import { notifyFailure, notifySuccess } from '@/utils/helpers'
 import { ref, computed } from 'vue'
@@ -22,7 +24,7 @@ const mapReportItem = (item, report_item_types) => {
     created: i18n.global.d(item.created, 'long'),
     type: report_item_types.find((type) => type.id === item.report_item_type_id)
       ?.title,
-    stories: item.stories
+    stories: item.stories.length
   }
 }
 
@@ -65,8 +67,16 @@ export const useAnalyzeStore = defineStore(
 
     async function updateReportItems() {
       const filterStore = useFilterStore()
-      const response = await getAllReportItems(filterStore.reportFilterQuery)
-      report_items.value = response.data
+      const mainStore = useMainStore()
+      try {
+        const response = await getAllReportItems(filterStore.reportFilterQuery)
+        report_items.value = response.data
+        mainStore.itemCountTotal = report_items.value.total_count
+        mainStore.itemCountFiltered = report_items.value.items.length
+      } catch (error) {
+        report_items.value = { total_count: 0, items: [] }
+        notifyFailure(error)
+      }
     }
 
     async function updateReportByID(report_item_id) {
@@ -137,6 +147,19 @@ export const useAnalyzeStore = defineStore(
       updateReportByID(data.id)
     }
 
+    async function removeReport(report_item) {
+      const report_item_id = report_item.id || report_item
+      try {
+        const response = await deleteReportItem(report_item_id)
+        report_items.value.items = report_items.value.items.filter(
+          (item) => item.id !== report_item_id
+        )
+        notifySuccess(response.data.message)
+      } catch (error) {
+        notifyFailure(error)
+      }
+    }
+
     function reset() {
       report_items.value = { total_count: 0, items: [] }
       report_item_types.value = { total_count: 0, items: [] }
@@ -156,6 +179,7 @@ export const useAnalyzeStore = defineStore(
       updateReportByID,
       cloneReport,
       loadReportTypes,
+      removeReport,
       addStoriesToReport,
       sseReportItemUpdate,
       reset

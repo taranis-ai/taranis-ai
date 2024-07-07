@@ -55,6 +55,7 @@ class BaseModel(db.Model):
             db.session.delete(item)
             db.session.commit()
             return {"message": f"{cls.__name__} {id} deleted"}, 200
+        logger.warning(f"{cls.__name__} {id} not found")
         return {"error": f"{cls.__name__} {id} not found"}, 404
 
     @classmethod

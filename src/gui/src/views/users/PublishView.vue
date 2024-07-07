@@ -18,10 +18,8 @@
 <script>
 import { ref, onMounted, computed, onUnmounted } from 'vue'
 import DataTable from '@/components/common/DataTable.vue'
-import { deleteProduct } from '@/api/publish'
 import { usePublishStore } from '@/stores/PublishStore'
 import { useMainStore } from '@/stores/MainStore'
-import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -54,25 +52,13 @@ export default {
       })
     })
 
-    const updateData = async () => {
+    async function updateData() {
       await publishStore.loadProductTypes()
-      mainStore.itemCountTotal = products.value.total_count
-      mainStore.itemCountFiltered = products.value.items.length
+      await publishStore.updateProducts()
     }
 
     const editItem = (item) => {
       router.push('/product/' + item.id)
-    }
-
-    const deleteItem = (item) => {
-      deleteProduct(item)
-        .then(() => {
-          notifySuccess(`Successfully deleted ${item.title}`)
-          updateData()
-        })
-        .catch(() => {
-          notifyFailure(`Failed to delete ${item.title}`)
-        })
     }
 
     const selectionChange = (new_selection) => {
@@ -80,7 +66,7 @@ export default {
     }
 
     onMounted(() => {
-      updateData()
+      publishStore.loadProductTypes()
     })
 
     onUnmounted(() => {
@@ -93,7 +79,7 @@ export default {
       products_data,
       updateData,
       editItem,
-      deleteItem,
+      deleteItem: publishStore.removeProduct,
       selectionChange
     }
   }

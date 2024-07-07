@@ -41,8 +41,6 @@
 
 <script>
 import DataTable from '@/components/common/DataTable.vue'
-import { deleteReportItem } from '@/api/analyze'
-import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import { useAnalyzeStore } from '@/stores/AnalyzeStore'
 import { useFilterStore } from '@/stores/FilterStore'
 import { useMainStore } from '@/stores/MainStore'
@@ -71,10 +69,9 @@ export default {
       () => analyzeStore.getReportItemsTableData
     )
 
-    const updateData = () => {
-      mainStore.itemCountTotal = report_items.value.total_count
-      mainStore.itemCountFiltered = report_items.value.items.length
-      analyzeStore.loadReportTypes()
+    async function updateData() {
+      await analyzeStore.loadReportTypes()
+      await analyzeStore.updateReportItems()
     }
 
     const addItem = () => {
@@ -83,17 +80,6 @@ export default {
 
     const editItem = (item) => {
       router.push('/report/' + item.id)
-    }
-
-    const deleteItem = (item) => {
-      deleteReportItem(item)
-        .then((response) => {
-          notifySuccess(response)
-          updateData()
-        })
-        .catch((error) => {
-          notifyFailure(error)
-        })
     }
 
     const cloneReport = (item_id) => {
@@ -105,11 +91,10 @@ export default {
     }
 
     onMounted(() => {
-      updateData()
+      analyzeStore.loadReportTypes()
     })
 
     onUnmounted(() => {
-      filterStore.setReportFilter({})
       mainStore.resetItemCount()
     })
 
@@ -123,7 +108,7 @@ export default {
       updateData,
       addItem,
       editItem,
-      deleteItem,
+      deleteItem: analyzeStore.removeReport,
       cloneReport,
       selectionChange
     }

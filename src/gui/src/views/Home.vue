@@ -7,9 +7,18 @@
         rounded="xl"
         @update:model-value="toggleScope"
       >
-        <v-btn value="0">All</v-btn>
-        <v-btn value="2">Trending</v-btn>
-        <v-btn value="7">Ongoing</v-btn>
+        <v-btn value="0">
+          <v-tooltip activator="parent">Complete Database</v-tooltip>
+          All
+        </v-btn>
+        <v-btn value="2">
+          <v-tooltip activator="parent">Last 2 days</v-tooltip>
+          Trending
+        </v-btn>
+        <v-btn value="7">
+          <v-tooltip activator="parent">Last 7 days</v-tooltip>
+          Ongoing
+        </v-btn>
       </v-btn-toggle>
     </v-row>
     <v-row no-gutters>

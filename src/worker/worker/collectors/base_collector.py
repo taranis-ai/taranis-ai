@@ -8,6 +8,7 @@ from urllib.parse import quote
 
 from worker.log import logger
 from worker.core_api import CoreApi
+from worker.types import NewsItem
 
 
 class BaseCollector:
@@ -18,7 +19,7 @@ class BaseCollector:
 
         self.core_api = CoreApi()
 
-    def filter_by_word_list(self, news_items: list, word_lists: list) -> list:
+    def filter_by_word_list(self, news_items: list[NewsItem], word_lists: list) -> list[NewsItem]:
         if not word_lists:
             return news_items
 
@@ -39,15 +40,15 @@ class BaseCollector:
             return [
                 item
                 for item in news_items
-                if (not include_patterns or any(pattern.search(item["title"] + item["content"]) for pattern in include_patterns))
-                and (not exclude_patterns or all(not pattern.search(item["title"] + item["content"]) for pattern in exclude_patterns))
+                if (not include_patterns or any(pattern.search(item.title + item.content) for pattern in include_patterns))
+                and (not exclude_patterns or all(not pattern.search(item.title + item.content) for pattern in exclude_patterns))
             ]
 
         return news_items
 
-    def add_tlp(self, news_items, tlp_level):
+    def add_tlp(self, news_items: list[NewsItem], tlp_level: str) -> list[NewsItem]:
         for item in news_items:
-            item["attributes"].append({"key": "TLP", "value": tlp_level})
+            item.attributes.append({"key": "TLP", "value": tlp_level})
         return news_items
 
     def collect(self, source: dict, manual: bool = False):
@@ -73,27 +74,27 @@ class BaseCollector:
                 return datetime.datetime.fromisoformat(date).isoformat()
         return datetime.datetime.now().isoformat()
 
-    def sanitize_news_item(self, item: dict, source: dict):
-        item["id"] = item.get("id", str(uuid.uuid4()))
-        item["published"] = self.sanitize_date(item.get("published"))
-        item["collected"] = self.sanitize_date(item.get("collected"))
-        item["osint_source_id"] = item.get("osint_source_id", source.get("id"))
-        item["attributes"] = item.get("attributes", [])
-        item["title"] = self.sanitize_html(item.get("title", ""))
-        item["content"] = self.sanitize_html(item.get("content", ""))
-        item["review"] = item.get("review", "")
-        item["author"] = item.get("author", "")
-        item["source"] = item.get("source", "")
-        item["link"] = self.sanitize_url(item.get("link", ""))
-        item["hash"] = item.get("hash", hashlib.sha256((item["author"] + item["title"] + item["link"]).encode()).hexdigest())
+    def sanitize_news_item(self, item: NewsItem, source: dict) -> NewsItem:
+        if not item.osint_source_id:
+            item.osint_source_id = str(uuid.uuid4())
+        item.published_date = self.sanitize_date(item.published_date)
+        item.collected_date = self.sanitize_date(item.collected_date)
+        item.osint_source_id = source.get("id", item.osint_source_id)
+        item.attributes = item.attributes or []
+        item.title = self.sanitize_html(item.title)
+        item.content = self.sanitize_html(item.content)
+        item.review = item.review or ""
+        item.author = item.author or ""
+        item.web_url = self.sanitize_url(item.web_url)
+        item.hash = item.hash or hashlib.sha256((item.author + item.title + item.web_url).encode()).hexdigest()
         return item
 
-    def preview(self, news_items: list[dict], source: dict):
+    def preview(self, news_items: list[NewsItem], source: dict):
         news_items = self.process_news_items(news_items, source)
         logger.info(f"Previewing {len(news_items)} news items")
         return news_items
 
-    def process_news_items(self, news_items: list[dict], source: dict) -> list[dict]:
+    def process_news_items(self, news_items: list[NewsItem], source: dict) -> list[NewsItem]:
         if word_lists := source.get("word_lists"):
             news_items = self.filter_by_word_list(news_items, word_lists)
         if tlp_level := source["parameters"].get("TLP_LEVEL", None):
@@ -103,8 +104,9 @@ class BaseCollector:
             item = self.sanitize_news_item(item, source)
         return news_items
 
-    def publish(self, news_items: list[dict], source: dict):
+    def publish(self, news_items: list[NewsItem], source: dict):
         news_items = self.process_news_items(news_items, source)
         logger.info(f"Publishing {len(news_items)} news items to core api")
-        self.core_api.add_news_items(news_items)
+        news_items_dicts = [item.to_dict() for item in news_items]
+        self.core_api.add_news_items(news_items_dicts)
         self.core_api.update_osintsource_status(source["id"], None)

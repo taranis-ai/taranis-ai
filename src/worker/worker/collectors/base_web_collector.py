@@ -22,14 +22,14 @@ class BaseWebCollector(BaseCollector):
 
         self.proxies = None
         self.headers = {}
-        self.source_id = None
+        self.osint_source_id = None
 
     def parse_source(self, source):
         self.set_proxies(source["parameters"].get("PROXY_SERVER", None))
         if user_agent := source["parameters"].get("USER_AGENT", None):
             self.headers = {"User-Agent": user_agent}
 
-        self.source_id = source["id"]
+        self.osint_source_id = source["id"]
 
     def set_proxies(self, proxy_server: str):
         self.proxies = {"http": proxy_server, "https": proxy_server, "ftp": proxy_server}
@@ -47,7 +47,7 @@ class BaseWebCollector(BaseCollector):
                 return None
         return None
 
-    def update_favicon(self, web_url: str, source_id: str):
+    def update_favicon(self, web_url: str, osint_source_id: str):
         # TODO: Try getting apple-touch-icon first
         icon_url = f"{urlparse(web_url).scheme}://{urlparse(web_url).netloc}/favicon.ico"
         r = requests.get(icon_url, headers=self.headers, proxies=self.proxies)
@@ -55,7 +55,7 @@ class BaseWebCollector(BaseCollector):
             return None
 
         icon_content = {"file": (r.headers.get("content-disposition", "file"), r.content)}
-        self.core_api.update_osint_source_icon(source_id, icon_content)
+        self.core_api.update_osint_source_icon(osint_source_id, icon_content)
         return None
 
     def web_content_from_article(self, web_url: str) -> tuple[str, datetime.datetime | None]:
@@ -101,8 +101,10 @@ class BaseWebCollector(BaseCollector):
             web_content["content"],
             web_url,
             web_content["published_date"],
-            self.source_id,
-        ).to_dict()
+            self.osint_source_id,
+            web_content["language"],
+            web_content["review"],
+        )
 
     def parse_web_content(self, web_url, xpath: str = "") -> dict[str, str | datetime.datetime | None]:
         web_content, published_date = self.web_content_from_article(web_url)
@@ -114,38 +116,40 @@ class BaseWebCollector(BaseCollector):
 
         if not content or not web_content:
             logger.error(f"No content found for url: {web_url}")
-            return {"author": "", "title": "", "content": "", "published_date": None}
+            return {"author": "", "title": "", "content": "", "published_date": None, "language": "", "review": ""}
 
         author, title = self.extract_meta(web_content, web_url)
-        return {"author": author, "title": title, "content": content, "published_date": published_date}
+        return {"author": author, "title": title, "content": content, "published_date": published_date, "language": "", "review": ""}
 
     def create_news_item(
-        self, author: str, title: str, content: str, web_url: str, published_date: datetime.datetime | None, source_id: str
+        self, author: str, title: str, content: str, web_url: str, published_date: datetime.datetime | None, osint_source_id: str, language: str = None, review: str = None
     ) -> NewsItem:
         for_hash: str = author + title + self.clean_url(web_url)
 
         return NewsItem(
-            source_id=source_id,
+            osint_source_id=osint_source_id,
             hash=hashlib.sha256(for_hash.encode()).hexdigest(),
             author=author,
             title=title,
             content=content,
             web_url=web_url,
             published_date=published_date,
+            language=language,
+            review=review,
         )
 
     def get_urls(self, html_content: str) -> list:
         soup = BeautifulSoup(html_content, "html.parser")
         return [a["href"] for a in soup.find_all("a", href=True)]
 
-    def parse_digests(self) -> list[dict] | str:
+    def parse_digests(self) -> list[NewsItem] | str:
         news_items = []
         max_elements = min(len(self.split_digest_urls), self.digest_splitting_limit)
         for split_digest_url in self.split_digest_urls[:max_elements]:
             try:
                 news_items.append(self.news_item_from_article(split_digest_url))
             except ValueError as e:
-                logger.warning(f"RSS-Feed {self.source_id} failed to parse digest with error: {str(e)}")
+                logger.warning(f"RSS-Feed {self.osint_source_id} failed to parse digest with error: {str(e)}")
                 continue
             except Exception as e:
                 logger.error(f"RSS Collector failed digest splitting with error: {str(e)}")

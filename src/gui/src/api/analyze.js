@@ -16,8 +16,8 @@ export function cloneReportItem(report_item_id) {
   return apiService.post(`/analyze/report-items/${report_item_id}/clone`)
 }
 
-export function deleteReportItem(report_item) {
-  return apiService.delete(`/analyze/report-items/${report_item.id}`)
+export function deleteReportItem(report_item_id) {
+  return apiService.delete(`/analyze/report-items/${report_item_id}`)
 }
 
 export function updateReportItem(report_item_id, data) {
