@@ -1,7 +1,7 @@
 from worker.log import logger
 from worker.core_api import CoreApi
 from urllib.parse import parse_qs
-from config import Config
+from worker.config import Config
 import datetime
 import json
 import os
@@ -15,6 +15,8 @@ class BaseBot:
         self.language = None
         self.models = {}
         self.tokenizers = {}
+        self.classifiers = {}
+        self.initialize_models()
 
     def execute(self):
         pass
@@ -58,26 +60,26 @@ class BaseBot:
         logger.info(f"Refreshing Bot: {self.type} ...")
         self.execute()
 
-    def load_supported_languages(self):
-        supported_languages_path = os.path.join(os.path.dirname(__file__), 'supported_languages.json')
-        with open(supported_languages_path, 'r') as file:
-            self.supported_languages = json.load(file)
-
     def initialize_models(self):
-        self.models = {}
-        self.tokenizers = {}
-        for ln in Config.NLP_LANGUAGES:
-            if ln in self.supported_languages:
-                self.models[ln] = {
-                    "SUMMARY_BOT": self.load_model(self.supported_languages[ln]["SUMMARY_BOT"]),
-                    "NLP_BOT": self.load_model(self.supported_languages[ln]["NLP_BOT"]),
-                    "STORY_BOT": self.load_model(self.supported_languages[ln]["STORY_BOT"])
+        logger.debug(f"{Config.LANGUAGE_MODEL_MAPPING=}")
+        for lang, model in Config.LANGUAGE_MODEL_MAPPING.items():
+            if self.type == "STORY_BOT":
+                self.models[lang] = {
+                    "STORY_BOT": self.load_model(model["STORY_BOT"])
                 }
-                self.tokenizers[ln] = {
-                    "SUMMARY_BOT": self.load_tokenizer(self.supported_languages[ln]["SUMMARY_BOT"]),
-                    "NLP_BOT": self.load_tokenizer(self.supported_languages[ln]["NLP_BOT"]),
-                    "STORY_BOT": None  # StoryBot may not need a tokenizer ?
+            elif self.type == "SUMMARY_BOT":
+                self.tokenizers[lang] = {
+                    "SUMMARY_BOT": self.load_tokenizer(model["SUMMARY_BOT"]),
                 }
+            elif self.type == "NLP_BOT":
+                self.classifiers[lang] = {
+                    "NLP_BOT": self.load_classifier(model["NLP_BOT"])
+                }
+
+    @staticmethod
+    def load_classifier(model_name):
+        from flair.nn import Classifier
+        return Classifier.load(model_name)
 
     @staticmethod
     def load_model(model_name):
