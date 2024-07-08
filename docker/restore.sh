@@ -23,7 +23,9 @@ restore_postgresql() {
     local backup_file="$1"
     local volume_name="${compose_project_name}_${2}"
     echo "Restoring PostgreSQL database from $backup_file..."
-    docker run --rm -d \
+    docker run --rm \
+        -e POSTGRES_DB="${DB_DATABASE:-taranis}" \
+        -e POSTGRES_USER="${DB_USER:-taranis}" \
         -e POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-taranis}" \
         -v ./$backup_dir:/tmp \
         -v ./db_init.sh:/docker-entrypoint-initdb.d/db_init.sh \
@@ -56,12 +58,13 @@ fi
 
 backup_dir=$1
 backup_dir="${backup_dir%/}"
-database_backup_file="$backup_dir/database_backup.sql"
+database_backup_file="$backup_dir/database_backup.tar"
 core_data_backup_file="$backup_dir/core_data.tar.gz"
 compose_project_name=${COMPOSE_PROJECT_NAME:-$(basename $(pwd))}
 
 
 # Validate backup files exist
+# TODO: check if user chooses the file instead of the directory
 if [ ! -f "$database_backup_file" ] ; then
     echo "Error: Backup file $database_backup_file was not found in the specified directory."
     exit 1
