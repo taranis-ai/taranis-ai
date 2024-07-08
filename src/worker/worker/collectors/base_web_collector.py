@@ -141,18 +141,27 @@ class BaseWebCollector(BaseCollector):
     def get_urls(self, html_content: str) -> list:
         soup = BeautifulSoup(html_content, "html.parser")
         return [a["href"] for a in soup.find_all("a", href=True)]
+    
+    def check_relative_url(self, url: str):
+        if not url.startswith("/"):
+            return url
+        parsed_url = urlparse(self.web_url)
+        base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
+        logger.warning(f"Relative URL found: {url}, manually trying to prepend the base URL ({base_url}). This may not work.")
+        return base_url + url
 
     def parse_digests(self) -> list[NewsItem] | str:
         news_items = []
         max_elements = min(len(self.split_digest_urls), self.digest_splitting_limit)
         for split_digest_url in self.split_digest_urls[:max_elements]:
+            absolute_url = self.check_relative_url(split_digest_url)
             try:
-                news_items.append(self.news_item_from_article(split_digest_url))
+                news_items.append(self.news_item_from_article(absolute_url))
             except ValueError as e:
-                logger.warning(f"RSS-Feed {self.osint_source_id} failed to parse digest with error: {str(e)}")
+                logger.warning(f"{self.type}: {self.osint_source_id} failed to parse the digest with error: {str(e)}")
                 continue
             except Exception as e:
-                logger.error(f"RSS Collector failed digest splitting with error: {str(e)}")
+                logger.error(f"{self.type} failed digest splitting with error: {str(e)}")
                 raise e
 
         return news_items
