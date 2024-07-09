@@ -69,16 +69,13 @@ class BaseWebCollector(BaseCollector):
 
     def xpath_extraction(self, html_content, xpath: str, get_content: bool = True) -> str | None:
         document = lxml.html.fromstring(html_content)
-        xpath_check = document.xpath(xpath)
-        logger.debug(f"Checking result for XPATH {xpath}: {xpath_check}")
+        logger.debug(f"Checking result for XPATH {xpath}: {document.xpath(xpath)}")
         if not document.xpath(xpath):
             logger.error(f"No content found for XPath: {xpath}")
             return None
         first_element = document.xpath(xpath)[0]
         if get_content:
             return first_element.text_content()
-
-        # logger.debug(f"Content found with XPATH: {lxml.html.tostring(first_element).decode()}")
 
         return lxml.html.tostring(first_element).decode()
 
@@ -144,16 +141,9 @@ class BaseWebCollector(BaseCollector):
 
     def get_urls(self, html_content: str) -> list:
         soup = BeautifulSoup(html_content, "html.parser")
-        a = [a['href'] for a in soup.find_all("a", href=True)]
-        return [self.check_relative_url(url) for url in a]
-    
-    def check_relative_url(self, url: str):
-        if not url.startswith("/"):
-            return url
-        parsed_url = urlparse(self.web_url)
-        base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
-        logger.warning(f"Relative URL found: {url}, manually trying to prepend the base URL ({base_url}). This may not work.")
-        return urljoin(base_url, url)
+        urls = [a['href'] for a in soup.find_all("a", href=True)]
+        return [urljoin(self.web_url, url) for url in urls]
+
 
     def parse_digests(self) -> list[NewsItem] | str:
         news_items = []
