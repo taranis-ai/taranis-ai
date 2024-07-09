@@ -144,9 +144,7 @@ class BaseModel(db.Model):
             query = cls.get_filter_query_with_acl(filter_args, user)
         else:
             query = cls.get_filter_query(filter_args)
-        items = cls.get_filtered(query)
-        if not items:
-            return {"items": []}, 404
+        items = cls.get_filtered(query) or []
         if with_count:
             count = cls.get_filtered_count(query)
             return {"total_count": count, "items": cls.to_list(items)}, 200

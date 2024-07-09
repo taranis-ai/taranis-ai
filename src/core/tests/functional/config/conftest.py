@@ -70,7 +70,6 @@ def cleanup_user(app):
             "name": "Test User",
             "organization": 1,
             "roles": [2],
-            "permissions": ["ANALYZE_ACCESS", "ANALYZE_CREATE", "ANALYZE_DELETE"],
             "password": "testpassword",
         }
 

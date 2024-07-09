@@ -3,7 +3,7 @@ from worker.log import logger
 import py3langid
 import torch
 from flair.data import Sentence
-from flair.nn import Classifier
+from flair.models import SequenceTagger
 
 
 class NLPBot(BaseBot):
@@ -14,7 +14,7 @@ class NLPBot(BaseBot):
         self.description = "Bot for naturale language processing of news items"
 
         logger.debug("Setup NER Model...")
-        self.ner_multi = Classifier.load("flair/ner-multi")
+        self.ner_multi = SequenceTagger.load("flair/ner-multi")
         torch.set_num_threads(1)  # https://github.com/pytorch/pytorch/issues/36191
         self.extraction_line_limit = 20
 

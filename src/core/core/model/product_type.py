@@ -75,7 +75,7 @@ class ProductType(BaseModel):
             query = cls.get_filter_query(filter_args)
         items = cls.get_filtered(query)
         if not items:
-            return {"items": []}, 404
+            return {"items": []}, 200
         if with_count:
             count = cls.get_filtered_count(query)
             return {"total_count": count, "items": cls.to_list(items), "templates": get_presenter_templates()}, 200

@@ -25,6 +25,7 @@
         <VueDatePicker
           v-model="news_item.published"
           name="published"
+          position="left"
           :placeholder="$t('enter.published')"
           :max-date="new Date()"
           time-picker-inline
@@ -33,11 +34,10 @@
           class="mb-5"
         />
 
-        <v-textarea
-          v-model="news_item.review"
-          :label="$t('enter.review')"
-          name="review"
-          :rules="[rules.required]"
+        <code-editor
+          v-model:content="news_item.content"
+          class="mb-3"
+          :placeholder="$t('enter.content_placeholder')"
         />
 
         <v-text-field
@@ -47,12 +47,13 @@
           type="text"
         />
 
-        <attributes-table v-model="news_item.attributes" />
-
-        <code-editor
-          v-model:content="news_item.content"
-          :placeholder="$t('enter.content_placeholder')"
+        <v-textarea
+          v-model="news_item.review"
+          :label="$t('enter.comment')"
+          name="review"
         />
+
+        <attributes-table v-model="news_item.attributes" />
       </v-card-text>
     </v-card>
     <v-spacer class="pt-2"></v-spacer>

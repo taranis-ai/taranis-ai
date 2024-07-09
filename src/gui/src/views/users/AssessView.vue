@@ -1,7 +1,7 @@
 <template>
   <div class="w-100">
     <v-infinite-scroll
-      v-if="stories.total_count > 0 && !pagination"
+      v-if="stories.items.length > 0 && !pagination"
       empty-text="All items loaded"
       color="primary"
       @load="displayMore"
@@ -21,7 +21,7 @@
       </template>
     </v-infinite-scroll>
 
-    <v-container v-else-if="stories.total_count > 0 && pagination" fluid>
+    <v-container v-else-if="stories.items.length > 0 && pagination" fluid>
       <template v-for="item in stories.items" :key="item.id">
         <card-story :story="item" @refresh="refresh(item.id)" />
       </template>
@@ -34,7 +34,7 @@
       </v-row>
     </v-container>
     <v-row
-      v-if="stories.total_count == 0"
+      v-if="stories.items.length == 0 && !loading"
       class="align-center justify-center mt-5"
     >
       <v-col cols="12">
@@ -47,6 +47,16 @@
       </v-col>
       <v-col cols="6">
         <v-btn block class="mx-4" @click="resetFilter()">Reset Filter</v-btn>
+      </v-col>
+    </v-row>
+    <v-row v-else-if="loading" class="align-center justify-center mt-5">
+      <v-col cols="12">
+        <v-alert
+          :value="true"
+          type="info"
+          text="Loading items ..."
+          class="mx-4 text-center text-h5"
+        />
       </v-col>
     </v-row>
     <assess-selection-toolbar />

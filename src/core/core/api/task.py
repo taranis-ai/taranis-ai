@@ -1,10 +1,12 @@
 from flask import request, Flask
 from flask.views import MethodView
+from datetime import datetime, timedelta
 
 from core.managers.auth_manager import api_key_required
 from core.model.task import Task as TaskModel
 from core.log import logger
 from core.model.word_list import WordList
+from core.model.token_blacklist import TokenBlacklist
 
 
 class Task(MethodView):
@@ -21,21 +23,26 @@ class Task(MethodView):
             return {"error": "task_id not found"}, 400
 
         task_id = data.get("task_id")
-
-        logger.debug(f"Task ID: {task_id} - {data.get('status')}")
-
         result = data.get("result")
+        status = data.get("status")
 
-        if not result or "error" in result:
-            logger.error(f"Task ID: {task_id} - {result}")
+        logger.debug(f"{task_id=} - {result=} - {status=}")
+
+        if not result or not status:
+            logger.error(f"{task_id=} - {result=} - {status=}")
             return {"status": "error"}, 400
 
         if task_id.startswith("gather_word_list"):
             WordList.update_word_list(**result)
-        else:
-            task_data = {"id": task_id, "result": result, "status": data.get("status")}
+        elif task_id.startswith("cleanup_token_blacklist"):
+            TokenBlacklist.delete_older(datetime.now() - timedelta(days=1))
+        elif task_id.startswith("presenter_task"):
+            task_data = {"id": result.get("product_id"), "result": result.get("message"), "status": status}
             TaskModel.add_or_update(task_data)
-        return {"status": "success"}, 201
+        else:
+            task_data = {"id": task_id, "result": result, "status": status}
+            TaskModel.add_or_update(task_data)
+        return {"status": status}, 201
 
 
 def initialize(app: Flask):

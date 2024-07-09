@@ -53,7 +53,6 @@ class SimpleWebCollector(BaseWebCollector):
 
         web_content, _ = self.web_content_from_article(self.web_url)
         content = self.xpath_extraction(web_content, self.xpath, False)
-        logger.debug(content)
         self.split_digest_urls = self.get_urls(content)
         logger.info(f"RSS-Feed {self.osint_source_id} returned {len(self.split_digest_urls)} available URLs")
 

@@ -9,20 +9,20 @@
     }"
     @click="toggleSelection"
   >
-    <v-container fluid style="min-height: 112px" class="pa-0 pl-0">
+    <v-container fluid style="min-height: 100px" class="pa-0 pl-0">
       <v-row class="pl-2">
         <v-col class="d-flex">
           <v-row class="py-1 px-1">
-            <v-col cols="12" class="meta-info-col mr-n1" :lg="meta_cols">
+            <v-col :cols="meta_cols" class="meta-info-col mr-n1">
               <news-meta-info :news-item="newsItem" />
             </v-col>
-            <v-col cols="12" :lg="content_cols" class="mr-1">
-              <v-container class="d-flex pa-0">
+            <v-col :cols="content_cols" class="mr-1">
+              <div class="d-flex pa-0">
                 <h2
                   v-dompurify-html="title"
                   class="mb-1 mt-0 news-item-title"
                 />
-              </v-container>
+              </div>
 
               <summarized-content
                 :open="openSummary"
@@ -54,6 +54,7 @@ import { useAssessStore } from '@/stores/AssessStore'
 import { ref, computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useFilterStore } from '@/stores/FilterStore'
+import { useDisplay } from 'vuetify'
 
 export default {
   name: 'CardNewsItem',
@@ -84,12 +85,16 @@ export default {
       assessStore.newsItemSelection.includes(props.newsItem.id)
     )
     const { compactView } = storeToRefs(useFilterStore())
+    const { mdAndDown } = useDisplay()
 
     const description = computed(
       () => props.newsItem?.content || props.newsItem?.review
     )
 
     const content_cols = computed(() => {
+      if (mdAndDown.value) {
+        return 12
+      }
       if (props.reportView || compactView.value || props.detailView) {
         return 10
       }
@@ -97,6 +102,9 @@ export default {
     })
 
     const meta_cols = computed(() => {
+      if (mdAndDown.value) {
+        return 12
+      }
       return 12 - content_cols.value
     })
 

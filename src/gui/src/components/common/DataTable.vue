@@ -99,14 +99,16 @@
     </template>
     <template v-if="items.length < itemsPerPage" #bottom />
     <template #no-data>
-      <v-alert title="No Data Found" type="warning">
-        <v-btn
-          color="primary"
-          text="Refresh"
-          repend-icon="mdi-refresh"
-          @click.stop="updateItems()"
-        />
-      </v-alert>
+      <slot name="nodata">
+        <v-alert title="No Data Found" type="warning">
+          <v-btn
+            color="primary"
+            text="Refresh"
+            repend-icon="mdi-refresh"
+            @click.stop="updateItems()"
+          />
+        </v-alert>
+      </slot>
     </template>
   </v-data-table>
 </template>

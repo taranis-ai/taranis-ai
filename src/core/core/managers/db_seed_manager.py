@@ -222,7 +222,6 @@ def pre_seed_default_user():
                     "username": "admin",
                     "name": "Arthur Dent",
                     "roles": [admin_role.id],
-                    "permissions": [],
                     "organization": {"id": 1},
                     "password": Config.PRE_SEED_PASSWORD_ADMIN,
                 }
@@ -249,7 +248,6 @@ def pre_seed_default_user():
                 "username": "user",
                 "name": "Terry Pratchett",
                 "roles": [user_role],
-                "permissions": [],
                 "organization": {"id": 2},
                 "password": Config.PRE_SEED_PASSWORD_USER,
             }

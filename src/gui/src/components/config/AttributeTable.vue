@@ -52,8 +52,8 @@
               <v-row>
                 <v-col>
                   <v-checkbox
-                    v-model="edited_attribute.multiple"
-                    :label="$t('attribute.multiple')"
+                    v-model="edited_attribute.required"
+                    :label="$t('attribute.required')"
                   />
                 </v-col>
               </v-row>
@@ -157,7 +157,7 @@ export default {
       attribute_id: -1,
       title: '',
       description: '',
-      multiple: false,
+      required: false,
       attribute: []
     })
     const default_attribute = ref({
@@ -165,11 +165,11 @@ export default {
       attribute_id: -1,
       title: '',
       description: '',
-      multiple: false,
+      required: false,
       attribute: []
     })
 
-    const headers = computed(() => [
+    const headers = [
       {
         title: 'Type',
         key: 'attribute_id',
@@ -178,9 +178,9 @@ export default {
       },
       { title: 'Name', key: 'title', sortable: false },
       { title: 'Description', key: 'description', sortable: false },
-      { title: 'Multiple', key: 'multiple', sortable: false },
+      { title: 'Required', key: 'required', sortable: false },
       { title: 'Actions', key: 'actions', align: 'right', sortable: false }
-    ])
+    ]
 
     const formTitle = computed(() =>
       edited_index.value === -1 ? 'Add Attribute' : 'Edit Attribute'

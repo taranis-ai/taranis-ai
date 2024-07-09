@@ -54,7 +54,7 @@ class RoleBasedAccessService:
             .subquery()
         )
 
-        return query.filter(Story.id.in_(tlp_attribute_subquery))
+        return query.filter(Story.id.in_(tlp_attribute_subquery))  # type: ignore
 
     @classmethod
     def filter_report_query_with_tlp(cls, query: Select, user: User) -> Select:
@@ -73,7 +73,7 @@ class RoleBasedAccessService:
             .subquery()
         )
 
-        return query.filter(ReportItem.id.in_(tlp_attribute_subquery))
+        return query.filter(ReportItem.id.in_(tlp_attribute_subquery))  # type: ignore
 
     @classmethod
     def filter_query_with_acl(cls, query: Select, rbac_query: RBACQuery) -> Select:

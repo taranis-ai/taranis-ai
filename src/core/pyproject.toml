@@ -75,3 +75,6 @@ filterwarnings = [
     "ignore:.*_app_ctx_stack.*:DeprecationWarning",
     "ignore::DeprecationWarning"
 ]
+
+[tool.coverage.run]
+branch = true

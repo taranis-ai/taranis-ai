@@ -76,7 +76,6 @@
 
 <script setup>
 import { ref } from 'vue'
-import { defineProps, defineEmits } from 'vue'
 
 const props = defineProps({
   modelValue: { type: Array, required: true, default: () => [] }

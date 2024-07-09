@@ -178,7 +178,7 @@ class ReportItem(BaseModel):
                     "title": attribute_group_item.title,
                     "description": attribute_group_item.description,
                     "index": attribute_group_item.index,
-                    "multiple": attribute_group_item.multiple,
+                    "multiple": attribute_group_item.required,
                     "attribute_type": attribute_group_item.attribute.type,
                     "group_title": attribute_group.title,
                     "render_data": {},
