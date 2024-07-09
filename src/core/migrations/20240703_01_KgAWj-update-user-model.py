@@ -16,5 +16,7 @@ steps = [
         DROP TABLE IF EXISTS public.user_profile;
         ALTER TABLE attribute_group_item
         RENAME COLUMN multiple TO required;
+        ALTER TABLE report_item_attribute
+        RENAME COLUMN multiple TO required;
     """)
 ]
