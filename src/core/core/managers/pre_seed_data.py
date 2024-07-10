@@ -435,7 +435,6 @@ report_types = [
                         "title": "Links",
                         "description": "Links",
                         "index": 8,
-                        "multiple": True,
                         "attribute": "Text",
                     },
                 ],
@@ -449,14 +448,12 @@ report_types = [
                         "title": "Affected Systems",
                         "description": "Affected Systems",
                         "index": 0,
-                        "multiple": True,
                         "attribute": "CPE",
                     },
                     {
                         "title": "IOC",
                         "description": "IOC",
                         "index": 1,
-                        "multiple": True,
                         "attribute": "Text",
                     },
                     {
@@ -483,8 +480,8 @@ report_types = [
                     {"title": "timeframe", "description": "Timeframe", "index": 1, "attribute": "Text"},
                     {"title": "handler", "description": "Handler", "index": 2, "attribute": "Text"},
                     {"title": "co_handler", "description": "CO-Handler", "index": 3, "attribute": "Text"},
-                    {"title": "news", "description": "News", "index": 4, "attribute": "Story", "multiple": True},
-                    {"title": "vulnerabilities", "description": "Vulnerabilities", "index": 5, "attribute": "Story", "multiple": True},
+                    {"title": "news", "description": "News", "index": 4, "attribute": "Story", "required": True},
+                    {"title": "vulnerabilities", "description": "Vulnerabilities", "index": 5, "attribute": "Story", "required": True},
                 ],
             }
         ],

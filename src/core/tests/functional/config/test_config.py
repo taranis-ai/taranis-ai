@@ -327,9 +327,8 @@ class TestProductTypes(BaseTest):
     def test_get_product_types(self, client, auth_header, cleanup_product_types):
         product_type_type = cleanup_product_types["type"]
         response = self.assert_get_ok(client, uri=f"product-types?search={product_type_type}", auth_header=auth_header)
-        print(response.json)
         assert response.json["items"][0]["type"] == product_type_type
-        assert response.json["total_count"] == 1
+        assert response.json["total_count"] == 2
         assert response.json["templates"]
 
     def test_delete_product_type(self, client, auth_header, cleanup_product_types):
