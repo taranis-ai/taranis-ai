@@ -88,3 +88,18 @@ class SimpleWebCollector(BaseWebCollector):
 
         self.publish(news_items, source)
         return None
+
+if __name__ == "__main__":
+    collector = SimpleWebCollector()
+    # collector.collect({"id": "test", "parameters": {
+    #     "WEB_URL": "https://en.interfax.com.ua/news/latest.html",
+    #     "USER_AGENT": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    #     "XPATH": "//div[@class='articles-section-view']",
+    #     "DIGEST_SPLITTING": "true"
+    #     }})
+    collector.collect({"id": "test", "parameters": {
+    "WEB_URL": "https://rubryka.com/en",
+    # "USER_AGENT": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "XPATH": "/html/body/main/section[1]/div/div[1]/div[2]/div[2]",
+    "DIGEST_SPLITTING": "true"
+    }})
