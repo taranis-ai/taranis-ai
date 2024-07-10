@@ -104,7 +104,7 @@
           <v-btn
             color="primary"
             text="Refresh"
-            repend-icon="mdi-refresh"
+            prepend-icon="mdi-refresh"
             @click.stop="updateItems()"
           />
         </v-alert>

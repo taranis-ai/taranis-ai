@@ -158,7 +158,7 @@ class RSSCollector(BaseWebCollector):
         if not r.ok:
             return None
 
-        if "image" not in r.headers.get("content-type"):
+        if "image" not in r.headers.get("content-type", ""):
             return None
 
         icon_content = {"file": (r.headers.get("content-disposition", "file"), r.content)}

@@ -53,6 +53,7 @@ class ProductType(BaseModel):
                 db.or_(
                     cls.title.ilike(f"%{search}%"),
                     cls.description.ilike(f"%{search}%"),
+                    cls.type.ilike(f"%{search}%"),
                 )
             )
 

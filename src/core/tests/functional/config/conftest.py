@@ -154,7 +154,7 @@ def cleanup_report_item_type(app):
                             "attribute_id": 1,
                             "title": "Test Attribute Group Item",
                             "description": "This is a test attribute group item",
-                            "multiple": False,
+                            "required": False,
                         }
                     ],
                 }

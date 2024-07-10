@@ -50,7 +50,8 @@ class TestAssessApi(BaseTest):
         assert response.status_code == 200
 
         response = client.get("/api/assess/stories?search=notexistent", headers=auth_header)
-        assert response.status_code == 404
+        assert response.status_code == 200
+        assert len(response.get_json()["items"]) == 0
 
         response = client.get("/api/assess/stories?notexistent=notexist", headers=auth_header)
         assert response.get_json()["total_count"] > 0
@@ -65,7 +66,7 @@ class TestAssessApi(BaseTest):
         assert len(response.get_json()["items"]) == 0
 
         response = client.get("/api/assess/stories?range=DAY", headers=auth_header)
-        assert response.status_code == 404
+        assert response.status_code == 200
 
         response = client.get("/api/assess/stories?sort=DATE_DESC", headers=auth_header)
         assert response.get_json()["total_count"] > 0
