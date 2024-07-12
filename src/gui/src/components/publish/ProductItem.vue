@@ -296,7 +296,7 @@ export default {
 
     function downloadProduct() {
       let bytes
-      if (render_html.value) {
+      if (render_html.value || renderedProductMimeType.value === 'text/plain') {
         bytes = new TextEncoder().encode(renderedProduct.value)
       } else {
         bytes = base64ToArrayBuffer(renderedProduct.value)

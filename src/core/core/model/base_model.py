@@ -32,7 +32,7 @@ class BaseModel(db.Model):
                 setattr(self, key, value)
 
         db.session.commit()
-        return {"message": "Successfully updated"}, 200
+        return {"message": f"{self.__class__.__name__} successfully updated"}, 200
 
     def to_dict(self) -> dict[str, Any]:
         table = getattr(self, "__table__", None)

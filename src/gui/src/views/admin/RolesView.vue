@@ -29,7 +29,7 @@
 import DataTable from '@/components/common/DataTable.vue'
 import EditConfig from '@/components/config/EditConfig.vue'
 import { deleteRole, createRole, updateRole } from '@/api/config'
-import { ref, onMounted, computed } from 'vue'
+import { ref, onBeforeMount, computed } from 'vue'
 import { useConfigStore } from '@/stores/ConfigStore'
 import { useMainStore } from '@/stores/MainStore'
 import { storeToRefs } from 'pinia'
@@ -93,7 +93,7 @@ export default {
       }
     ])
 
-    const updateData = () => {
+    function updateData() {
       showForm.value = false
 
       store.loadRoles().then(() => {
@@ -103,7 +103,7 @@ export default {
       store.loadPermissions().then()
     }
 
-    const addItem = () => {
+    function addItem() {
       formData.value = objectFromFormat(formFormat.value)
       delete formData.value['id']
       edit.value = false
@@ -166,7 +166,7 @@ export default {
       selected.value = new_selection
     }
 
-    onMounted(() => {
+    onBeforeMount(() => {
       updateData()
     })
 

@@ -30,7 +30,7 @@ export const useConfigStore = defineStore(
     const acls = ref({ total_count: 0, items: [] })
     const attributes = ref({ total_count: 0, items: [] })
     const bots = ref({ total_count: 0, items: [] })
-    const organizations = ref({ count: 0, items: [] })
+    const organizations = ref({ total_count: 0, items: [] })
     const osint_sources = ref({ total_count: 0, items: [] })
     const osint_source_groups = ref({ total_count: 0, items: [] })
     const parameters = ref([])
@@ -165,7 +165,6 @@ export const useConfigStore = defineStore(
     async function loadOrganizations(data) {
       try {
         const response = await getAllOrganizations(data)
-        console.debug('loadOrganizations', response.data)
         organizations.value = response.data
       } catch (error) {
         notifyFailure(error)
