@@ -38,48 +38,12 @@
             :rules="[rules.required]"
           />
         </v-col>
-        <v-col
-          v-if="attribute.attribute_enums.length > 0"
-          cols="12"
-          class="pl-1"
-        >
-          <v-data-table
-            :items="attribute.attribute_enums"
-            :headers="attribute_enum_headers"
-          >
-            <template #top>
-              <v-toolbar-title class="ml-3 text-center">
-                Enums
-              </v-toolbar-title>
-            </template>
-            <template #item.actions="{ item }">
-              <div class="d-inline-flex">
-                <v-tooltip left>
-                  <template #activator="{ props }">
-                    <v-icon
-                      v-bind="props"
-                      icon="mdi-pencil"
-                      @click.stop="editItem(item)"
-                    />
-                  </template>
-                  <span>Edit</span>
-                </v-tooltip>
-                <v-tooltip left>
-                  <template #activator="{ props }">
-                    <v-icon
-                      v-bind="props"
-                      color="red"
-                      icon="mdi-delete"
-                      @click.stop="deleteItem(item)"
-                    />
-                  </template>
-                  <span>Delete</span>
-                </v-tooltip>
-              </div>
-            </template>
-
-            <template v-if="attribute.attribute_enums.length < 10" #bottom />
-          </v-data-table>
+        <v-col v-if="attribute.type === 'ENUM'" cols="12" class="pl-1">
+          <attributes-table
+            v-model="attribute.attribute_enums"
+            :header-filter="['description', 'value', 'actions', 'order']"
+            :order="true"
+          />
         </v-col>
       </v-row>
       <v-row no-gutters>
@@ -134,9 +98,13 @@
 
 <script>
 import { ref, watch } from 'vue'
+import AttributesTable from '@/components/common/AttributesTable.vue'
 
 export default {
   name: 'AttributeForm',
+  components: {
+    AttributesTable
+  },
   props: {
     attributeProp: {
       type: Object,

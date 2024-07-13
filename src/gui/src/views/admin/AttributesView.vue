@@ -53,7 +53,14 @@ export default {
     }
 
     const addItem = () => {
-      formData.value = {}
+      formData.value = {
+        attribute_enums: [],
+        default_value: '',
+        description: '',
+        name: '',
+        type: ''
+      }
+
       edit.value = false
       showForm.value = true
     }

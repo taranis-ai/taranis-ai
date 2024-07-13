@@ -75,7 +75,7 @@ import { addNewsItem, patchNewsItem, groupAction } from '@/api/assess'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import { useUserStore } from '@/stores/UserStore'
 import CodeEditor from '@/components/common/CodeEditor.vue'
-import AttributesTable from '@/components/assess/AttributesTable.vue'
+import AttributesTable from '@/components/common/AttributesTable.vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 

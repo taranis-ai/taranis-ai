@@ -26,8 +26,6 @@ class Task(MethodView):
         result = data.get("result")
         status = data.get("status")
 
-        logger.debug(f"{task_id=} - {result=} - {status=}")
-
         if not result or not status:
             logger.error(f"{task_id=} - {result=} - {status=}")
             return {"status": "error"}, 400

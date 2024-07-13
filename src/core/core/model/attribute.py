@@ -92,6 +92,8 @@ class AttributeEnum(BaseModel):
 
     @classmethod
     def add_or_update(cls, data):
+        if "id" not in data:
+            return cls.add(data), 201
         if entry := cls.get(data["id"]):
             entry.update(data)
             db.session.commit()
@@ -154,17 +156,16 @@ class Attribute(BaseModel):
 
     @classmethod
     def add(cls, data):
-        attribute_enums = data.pop("attribute_enums", [])
-
+        attribute_enums = data.pop("attribute_enums", None)
         item = cls.from_dict(data)
         db.session.add(item)
         db.session.commit()
 
         if attribute_enums:
-            attribute_enums = AttributeEnum.load_multiple(attribute_enums)
-            for attribute_enum in attribute_enums:
-                attribute_enum.attribute_id = item.id
-                db.session.add(attribute_enum)
+            for enum in attribute_enums:
+                enum["attribute_id"] = item.id
+                AttributeEnum.add_or_update(enum)
+
             db.session.commit()
 
         return item
@@ -175,11 +176,11 @@ class Attribute(BaseModel):
         if not attribute:
             return {"error": "Attribute not found"}, 404
 
-        if "attribute_enums" in data:
-            attribute_enums = data.pop("attribute_enums")
+        if attribute_enums := data.pop("attribute_enums", None):
             used_enums = [enum["id"] for enum in attribute_enums if "id" in enum]
             AttributeEnum.delete_unused(attribute_id, used_enums)
             for enum in attribute_enums:
+                enum["attribute_id"] = attribute_id
                 AttributeEnum.add_or_update(enum)
 
         for key, value in data.items():
