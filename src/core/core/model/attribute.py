@@ -1,10 +1,11 @@
 import os
-from xml.etree.ElementTree import iterparse
-from sqlalchemy import func, or_
-from sqlalchemy.sql import Select
-from sqlalchemy.orm import Mapped, relationship
 from enum import Enum, auto
 from typing import Any
+from xml.etree.ElementTree import iterparse
+
+from sqlalchemy import func, or_
+from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.sql import Select
 
 from core.log import logger
 from core.managers.db_manager import db
