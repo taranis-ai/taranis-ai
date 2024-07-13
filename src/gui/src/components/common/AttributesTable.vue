@@ -95,9 +95,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue'])
 const showDialog = ref(false)
-const newItem = ref({ value: '' })
-newItem.value[props.keyField] = ''
-
+const newItem = ref({})
 const headers = ref([])
 
 function headerTransform(key) {
@@ -122,18 +120,20 @@ function headerTransform(key) {
   return { title: key, key: key }
 }
 
-if (props.headerFilter.length > 0) {
-  headers.value = props.headerFilter.map((key) => headerTransform(key))
-} else if (props.items.length > 0) {
-  headers.value = Object.keys(props.items[0]).map((key) => headerTransform(key))
-}
-
 const fields = computed(() => {
-  // all items from headerFilter but remove 'actions' and 'order' if they are present
   return props.headerFilter.filter(
     (key) => key !== 'actions' && key !== 'order'
   )
 })
+
+function resetNewItem() {
+  fields.value.forEach((field) => {
+    newItem.value[field] = ''
+  })
+  if (props.order) {
+    newItem.value['index'] = props.modelValue.length
+  }
+}
 
 function updateValue() {
   emit('update:modelValue', [...props.modelValue])
@@ -142,9 +142,7 @@ function updateValue() {
 function addItem() {
   const updatedItems = [...props.modelValue, { ...newItem.value }]
   emit('update:modelValue', updatedItems)
-  newItem.value[props.keyField] = ''
-  newItem.value['value'] = ''
-  newItem.value['index'] = updatedItems.length
+  resetNewItem()
   showDialog.value = false
 }
 
@@ -169,4 +167,11 @@ function setIndex(item, newIndex) {
     emit('update:modelValue', updatedItems)
   }
 }
+
+if (props.headerFilter.length > 0) {
+  headers.value = props.headerFilter.map((key) => headerTransform(key))
+} else if (props.items.length > 0) {
+  headers.value = Object.keys(props.items[0]).map((key) => headerTransform(key))
+}
+resetNewItem()
 </script>
