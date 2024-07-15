@@ -2,6 +2,7 @@
 
 import os
 import multiprocessing
+import sentry_sdk
 from granian import Granian
 from granian.constants import Interfaces
 from granian.log import LogLevels
@@ -24,4 +25,15 @@ def app_loader(target):
 
 
 create_app(initial_setup=True)
+sentry_sdk.init(
+dsn="https://examplePublicKey@o0.ingest.sentry.io/0",
+    # Set traces_sample_rate to 1.0 to capture 100%
+    # of transactions for tracing.
+    traces_sample_rate=1.0,
+    # Set profiles_sample_rate to 1.0 to profile 100%
+    # of sampled transactions.
+    # We recommend adjusting this value in production.
+    profiles_sample_rate=1.0,
+)
+
 Granian("core", interface=Interfaces.WSGI, address=address, port=port, log_level=loglevel, workers=workers).serve(target_loader=app_loader)
