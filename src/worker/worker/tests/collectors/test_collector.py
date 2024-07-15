@@ -65,6 +65,16 @@ def test_simple_web_collector_collect(simple_web_collector_mock, simple_web_coll
     # assert result_item.author == "John Doe"
     assert result_item.content.startswith(web_collector_result_content)
 
+def test_simple_web_collector_digest_splitting(simple_web_collector_mock, simple_web_collector):
+    from worker.tests.testdata import web_collector_source_data
+
+    web_collector_source_data["parameters"]["XPATH"] = "//*"
+    web_collector_source_data["parameters"]["DIGEST_SPLITTING"] = "true"
+    web_collector_source_data["parameters"]["DIGEST_SPLITTING_LIMIT"] = 2
+    result = simple_web_collector.collect(web_collector_source_data)
+
+    assert result is None
+
 
 @pytest.mark.parametrize("input_news_items", [news_items, news_items[2:], news_items[:: len(news_items) - 1], [news_items[-1]]])
 def test_filter_by_word_list_empty_wordlist(rss_collector, input_news_items):

@@ -44,8 +44,8 @@ class SimpleWebCollector(BaseWebCollector):
 
     def preview_collector(self, source):
         self.parse_source(source)
-        news_items = self.gather_news_items(source)
-        return self.preview(news_items, source)
+        self.news_items = self.gather_news_items(source)
+        return self.preview(self.news_items, source)
 
     def handle_digests(self) -> list[NewsItem] | str:
         if not self.xpath:
@@ -82,24 +82,9 @@ class SimpleWebCollector(BaseWebCollector):
             return "Last-Modified < Last-Attempted"
 
         try:
-            news_items = self.gather_news_items(source)
+            self.news_items = self.gather_news_items(source)
         except ValueError as e:
             logger.error(f"Simple Web Collector for {self.web_url} failed with error: {str(e)}")
 
-        self.publish(news_items, source)
+        self.publish(self.news_items, source)
         return None
-
-if __name__ == "__main__":
-    collector = SimpleWebCollector()
-    # collector.collect({"id": "test", "parameters": {
-    #     "WEB_URL": "https://en.interfax.com.ua/news/latest.html",
-    #     "USER_AGENT": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    #     "XPATH": "//div[@class='articles-section-view']",
-    #     "DIGEST_SPLITTING": "true"
-    #     }})
-    collector.collect({"id": "test", "parameters": {
-    "WEB_URL": "https://rubryka.com/en",
-    # "USER_AGENT": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    "XPATH": "/html/body/main/section[1]/div/div[1]/div[2]/div[2]",
-    "DIGEST_SPLITTING": "true"
-    }})
