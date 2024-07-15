@@ -199,8 +199,8 @@ class RSSCollector(BaseWebCollector):
     def preview_collector(self, source):
         self.parse_source(source)
         feed = self.get_feed()
-        news_items = self.get_news_items(feed, source)
-        return self.preview(news_items, source)
+        self.news_items = self.get_news_items(feed, source)
+        return self.preview(self.news_items, source)
 
     def rss_collector(self, source, manual: bool = False):
         feed = self.get_feed()
