@@ -2,6 +2,7 @@ import { useHotkeys } from 'vue-use-hotkeys'
 import { useAssessStore } from '@/stores/AssessStore'
 import { useAnalyzeStore } from '@/stores/AnalyzeStore'
 import { useMainStore } from '@/stores/MainStore'
+import { useFilterStore } from '@/stores/FilterStore'
 import { useRouter, useRoute } from 'vue-router'
 
 // TODO: Consider switching to https://vueuse.org/core/useMagicKeys/
@@ -30,6 +31,7 @@ export function hotKeysLegend() {
 export function assessHotkeys() {
   const assessStore = useAssessStore()
   const analyzeStore = useAnalyzeStore()
+  const filterStore = useFilterStore()
   const router = useRouter()
 
   omniSearchHotkey()
@@ -83,6 +85,12 @@ export function assessHotkeys() {
       name: 'storyedit',
       params: { storyId: assessStore.storySelection[0] }
     })
+  })
+
+  useHotkeys('ctrl+esc', (event, handler) => {
+    event.preventDefault()
+    console.debug(`You pressed ${handler.key}`)
+    filterStore.resetFilter()
   })
 
   useHotkeys('ctrl+m', (event, handler) => {

@@ -178,7 +178,7 @@ class ReportItem(BaseModel):
                     "title": attribute_group_item.title,
                     "description": attribute_group_item.description,
                     "index": attribute_group_item.index,
-                    "multiple": attribute_group_item.multiple,
+                    "required": attribute_group_item.required,
                     "attribute_type": attribute_group_item.attribute.type,
                     "group_title": attribute_group.title,
                     "render_data": {},
@@ -344,7 +344,7 @@ class ReportItemAttribute(BaseModel):
     description: Mapped[str] = db.Column(db.String())
 
     index: Mapped[int] = db.Column(db.Integer)
-    multiple: Mapped[bool] = db.Column(db.Boolean, default=False)
+    required: Mapped[bool] = db.Column(db.Boolean, default=False)
     attribute_type: Mapped[AttributeType] = db.Column(db.Enum(AttributeType))
     group_title: Mapped[str] = db.Column(db.String())
     render_data = db.Column(db.JSON)
@@ -358,7 +358,7 @@ class ReportItemAttribute(BaseModel):
         title=None,
         description=None,
         index=None,
-        multiple=None,
+        required=None,
         attribute_type=None,
         group_title=None,
         render_data=None,
@@ -370,7 +370,7 @@ class ReportItemAttribute(BaseModel):
         self.title = title or ""
         self.description = description or ""
         self.index = index or 0
-        self.multiple = multiple or False
+        self.required = required or False
         if attribute_type and attribute_type in AttributeType:
             self.attribute_type = attribute_type
         self.render_data = render_data
@@ -378,7 +378,6 @@ class ReportItemAttribute(BaseModel):
 
     @classmethod
     def update_values_from_report(cls, attribute_data):
-        # TODO: Add functionality to update multiple attributes at once, if muliple is True
         for attribute_dicts in attribute_data.values():
             for attribute_id, data in attribute_dicts.items():
                 if report_item_attribute := cls.get(attribute_id):
@@ -400,7 +399,7 @@ class ReportItemAttribute(BaseModel):
             "title": self.title,
             "description": self.description,
             "index": self.index,
-            "multiple": self.multiple,
+            "required": self.required,
             "type": self.attribute_type.name,
             "group_title": self.group_title,
             "render_data": self.render_data,
@@ -415,7 +414,7 @@ class ReportItemAttribute(BaseModel):
             title=self.title,
             description=self.description,
             index=self.index,
-            multiple=self.multiple,
+            required=self.required,
             attribute_type=self.attribute_type,
             group_title=self.group_title,
             render_data=self.render_data,

@@ -83,28 +83,6 @@ class Attributes(MethodView):
         return attribute.Attribute.delete(attribute_id)
 
 
-class AttributeEnums(MethodView):
-    @auth_required("CONFIG_ATTRIBUTE_ACCESS")
-    @extract_args("search", "offset", "limit")
-    def get(self, attribute_id=None, filter_args=None):
-        if attribute_id:
-            return attribute.AttributeEnum.get_for_api(attribute_id)
-        return attribute.AttributeEnum.get_all_for_api(filter_args, True)
-
-    @auth_required("CONFIG_ATTRIBUTE_UPDATE")
-    def post(self, attribute_id):
-        result = attribute.AttributeEnum.add(request.json)
-        return {"message": "Attribute enum added", "id": result.id}, 201
-
-    @auth_required("CONFIG_ATTRIBUTE_UPDATE")
-    def put(self, attribute_id, enum_id):
-        return attribute.AttributeEnum.update(enum_id, request.json)
-
-    @auth_required("CONFIG_ATTRIBUTE_UPDATE")
-    def delete(self, attribute_id, enum_id):
-        return attribute.AttributeEnum.delete(enum_id)
-
-
 class ReportItemTypesImport(MethodView):
     @auth_required("CONFIG_REPORT_TYPE_CREATE")
     def post(self):
@@ -603,8 +581,6 @@ def initialize(app: Flask):
     app.add_url_rule(f"{base_route}/acls/<int:acl_id>", view_func=ACLEntries.as_view("acl"))
     app.add_url_rule(f"{base_route}/attributes", view_func=Attributes.as_view("attributes"))
     app.add_url_rule(f"{base_route}/attributes/<int:attribute_id>", view_func=Attributes.as_view("attribute"))
-    app.add_url_rule(f"{base_route}/attributes/<int:attribute_id>/enums", view_func=AttributeEnums.as_view("attribute_enums"))
-    app.add_url_rule(f"{base_route}/attributes/<int:attribute_id>/enums/<int:enum_id>", view_func=AttributeEnums.as_view("attribute_enum"))
     app.add_url_rule(f"{base_route}/bots", view_func=Bots.as_view("bots_config"))
     app.add_url_rule(f"{base_route}/bots/<string:bot_id>", view_func=Bots.as_view("bot_config"))
     app.add_url_rule(f"{base_route}/bots/<string:bot_id>/execute", view_func=BotExecute.as_view("bot_execute"))

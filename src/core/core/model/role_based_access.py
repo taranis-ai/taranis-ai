@@ -1,8 +1,9 @@
-from sqlalchemy import or_
-from sqlalchemy.sql.expression import Select, true
-from sqlalchemy.orm import Mapped, relationship
-from typing import Any
 from enum import StrEnum, auto
+from typing import Any
+
+from sqlalchemy import or_
+from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.sql.expression import Select, true
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
@@ -83,7 +84,7 @@ class RoleBasedAccess(BaseModel):
         for key, value in data.items():
             if not hasattr(acl, key) or key == "id":
                 continue
-            elif key == "roles":
+            if key == "roles":
                 acl.roles = Role.get_bulk(value)
             elif key == "item_id":
                 value = str(value)

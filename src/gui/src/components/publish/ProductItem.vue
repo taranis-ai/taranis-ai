@@ -114,6 +114,7 @@
         </v-col>
         <v-col v-if="showPreview" :cols="6" class="pa-5">
           <div v-if="renderedProduct">
+            {{ JSON.stringify(renderedProduct) }}
             <span v-if="render_html" v-dompurify-html="renderedProduct"></span>
 
             <object
@@ -128,6 +129,24 @@
               {{ renderedProduct }}
             </pre>
           </div>
+          <div v-else-if="renderError">
+            <v-row class="justify-center mb-4">
+              <h2>Failed to render Product</h2>
+            </v-row>
+            <v-row class="justify-center mt-5">
+              <pre>
+                {{ renderError }}
+              </pre>
+            </v-row>
+            <v-row class="justify-center mt-5">
+              <v-btn
+                variant="outlined"
+                prepend-icon="mdi-eye-outline"
+                :text="$t('product.render')"
+                @click="rerenderProduct()"
+              />
+            </v-row>
+          </div>
           <div v-else>
             <v-row class="justify-center mb-4">
               <h2>No rendered Product Found</h2>
@@ -136,10 +155,9 @@
               <v-btn
                 variant="outlined"
                 prepend-icon="mdi-eye-outline"
+                :text="$t('product.render')"
                 @click="rerenderProduct()"
-              >
-                <span>{{ $t('product.render') }}</span>
-              </v-btn>
+              />
             </v-row>
           </div>
         </v-col>
@@ -187,7 +205,7 @@ export default {
       publishDialog.value = true
     })
 
-    const { renderedProduct, renderedProductMimeType } =
+    const { renderedProduct, renderedProductMimeType, renderError } =
       storeToRefs(publishStore)
 
     renderedProduct.value = null
@@ -278,7 +296,7 @@ export default {
 
     function downloadProduct() {
       let bytes
-      if (render_html.value) {
+      if (render_html.value || renderedProductMimeType.value === 'text/plain') {
         bytes = new TextEncoder().encode(renderedProduct.value)
       } else {
         bytes = base64ToArrayBuffer(renderedProduct.value)
@@ -337,6 +355,7 @@ export default {
       preset,
       container_title,
       product_types,
+      renderError,
       publishDialog,
       showPreview,
       reportItems,

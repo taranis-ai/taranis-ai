@@ -49,7 +49,8 @@ export default {
 
     const maxDatePlus = computed(() => {
       const newDate = new Date(props.maxDate.getTime())
-      newDate.setHours(newDate.getHours() + 1)
+      newDate.setHours(23)
+      newDate.setMinutes(59)
       return newDate
     })
 

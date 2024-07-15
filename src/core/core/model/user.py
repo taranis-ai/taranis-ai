@@ -7,7 +7,6 @@ from sqlalchemy.orm import Mapped, relationship
 
 from core.managers.db_manager import db
 from core.model.role import Role
-from core.model.permission import Permission
 from core.model.organization import Organization
 from core.model.base_model import BaseModel
 from core.model.role import TLPLevel
@@ -26,14 +25,9 @@ class User(BaseModel):
     organization: Mapped["Organization"] = relationship("Organization")
 
     roles: Mapped[list["Role"]] = relationship("Role", secondary="user_role")
-    permissions: Mapped[list["Permission"]] = relationship("Permission", secondary="user_permission")
+    profile: Mapped["dict"] = db.Column(db.JSON)
 
-    profile_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("user_profile.id", ondelete="CASCADE"))
-    profile: Mapped["UserProfile"] = relationship("UserProfile", cascade="all, delete")
-
-    def __init__(
-        self, username: str, name: str, organization: int, roles: list[int], permissions: list[str] | None = None, password=None, id=None
-    ):
+    def __init__(self, username: str, name: str, organization: int, roles: list[int], password=None, id=None):
         if id:
             self.id = id
         self.username = username
@@ -44,8 +38,14 @@ class User(BaseModel):
         if org := Organization.get(organization):
             self.organization = org
         self.roles = Role.get_bulk(roles)
-        self.permissions = Permission.get_bulk(permissions) if permissions else []
-        self.profile = UserProfile(id=id)
+        self.profile = {
+            "dark_theme": False,
+            "hotkeys": {},
+            "split_view": False,
+            "compact_view": False,
+            "show_charts": False,
+            "language": "en",
+        }
 
     @classmethod
     def find_by_name(cls, username: str) -> "User|None":
@@ -64,7 +64,7 @@ class User(BaseModel):
         del data["password"]
         data["organization"] = data.pop("organization_id")
         data["roles"] = [role.id for role in self.roles if role]
-        data["permissions"] = [permission.id for permission in self.permissions if permission]
+        data["permissions"] = (self.get_permissions(),)
         return data
 
     def to_detail_dict(self):
@@ -75,7 +75,7 @@ class User(BaseModel):
             "organization": self.organization.to_user_dict(),
             "roles": [role.to_user_dict() for role in self.roles if role],
             "permissions": self.get_permissions(),
-            "profile": self.profile.to_dict(),
+            "profile": self.profile,
         }
 
     @classmethod
@@ -96,8 +96,6 @@ class User(BaseModel):
                 user.organization = update_org
         if roles := data.pop("roles", None):
             user.roles = Role.get_bulk(roles)
-        if permissions := data.pop("permissions", None):
-            user.permissions = Permission.get_bulk(permissions)
         if update_password := data.pop("password", None):
             user.password = generate_password_hash(update_password)
         if update_name := data.pop("name", None):
@@ -108,13 +106,8 @@ class User(BaseModel):
         db.session.commit()
         return {"message": f"User {user_id} updated", "id": user_id}, 200
 
-    def get_permissions(self):
-        all_permissions = {permission.id for permission in self.permissions if permission}
-
-        for role in self.roles:
-            if role:
-                all_permissions.update(role.get_permissions())
-        return list(all_permissions)
+    def get_permissions(self) -> list[str]:
+        return [permission for role in self.roles if role for permission in role.get_permissions()]
 
     def get_roles(self):
         return [role.id for role in self.roles]
@@ -130,19 +123,6 @@ class User(BaseModel):
 
     def get_current_organization_name(self):
         return self.organization.name if self.organization else ""
-
-    def get_profile(self) -> dict:
-        return self.profile.to_dict()
-
-    @classmethod
-    def update_profile(cls, user: "User", data) -> tuple[dict, int]:
-        return user.profile.update(data)
-
-    @classmethod
-    def delete(cls, id: int) -> tuple[dict[str, Any], int]:
-        result = super().delete(id)
-        UserProfile.delete(id)
-        return result
 
     @classmethod
     def get_filter_query(cls, filter_args: dict) -> Select:
@@ -175,6 +155,15 @@ class User(BaseModel):
             "username": self.username,
         }
 
+    def get_profile(self) -> dict:
+        return self.profile
+
+    @classmethod
+    def update_profile(cls, user: "User", data: dict) -> tuple[dict, int]:
+        user.profile = data
+        db.session.commit()
+        return {"message": "Profile updated"}, 200
+
     @classmethod
     def export(cls, user_ids=None) -> bytes:
         logger.debug(f"Exporting users: {user_ids}")
@@ -203,51 +192,3 @@ class User(BaseModel):
 class UserRole(BaseModel):
     user_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("user.id"), primary_key=True)
     role_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("role.id", ondelete="SET NULL"), primary_key=True)
-
-
-class UserPermission(BaseModel):
-    user_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("user.id"), primary_key=True)
-    permission_id: Mapped[str] = db.Column(db.String, db.ForeignKey("permission.id", ondelete="SET NULL"), primary_key=True)
-
-
-class UserProfile(BaseModel):
-    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
-
-    dark_theme: Mapped[bool] = db.Column(db.Boolean, default=False)
-    split_view: Mapped[bool] = db.Column(db.Boolean, default=False)
-    compact_view: Mapped[bool] = db.Column(db.Boolean, default=False)
-    show_charts: Mapped[bool] = db.Column(db.Boolean, default=False)
-
-    hotkeys: Any = db.Column(db.JSON)
-    language: Mapped[str] = db.Column(db.String(2), default="en")
-
-    def __init__(self, dark_theme=False, hotkeys=None, split_view=False, compact_view=False, show_charts=False, language="en", id=None):
-        if id:
-            self.id = id
-        self.dark_theme = dark_theme
-        self.split_view = split_view
-        self.compact_view = compact_view
-        self.show_charts = show_charts
-        self.hotkeys = hotkeys or {}
-        self.language = language
-
-    def to_dict(self):
-        return {
-            "split_view": self.split_view,
-            "compact_view": self.compact_view,
-            "show_charts": self.show_charts,
-            "dark_theme": self.dark_theme,
-            "hotkeys": self.hotkeys,
-            "language": self.language,
-        }
-
-    def update(self, data) -> tuple[dict[str, Any], int]:
-        self.dark_theme = data.pop("dark_theme", self.dark_theme)
-        self.language = data.pop("language", self.language)
-        self.split_view = data.pop("split_view", self.split_view)
-        self.compact_view = data.pop("compact_view", self.compact_view)
-        self.show_charts = data.pop("show_charts", self.show_charts)
-        self.hotkeys = data.pop("hotkeys", self.hotkeys)
-
-        db.session.commit()
-        return {"message": "UserProfile updated", "id": f"{self.id}"}, 200

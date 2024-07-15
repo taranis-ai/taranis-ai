@@ -5,6 +5,7 @@ from worker.presenters.base_presenter import BasePresenter
 from worker.log import logger
 from worker.core_api import CoreApi
 from requests.exceptions import ConnectionError
+from celery.exceptions import Ignore
 
 
 class PresenterTask(Task):
@@ -58,32 +59,39 @@ class PresenterTask(Task):
 
         return None, f"Presenter {presenter_type} not implemented"
 
+    def raise_error(self, err: str, product_id: int):
+        self.update_state(state="FAILURE", meta={"message": err, "product_id": product_id})
+        logger.error(f"Error rendering product {product_id}: {err}")
+        raise Ignore()
+
     def run(self, product_id: int):
         err = None
 
         product, err = self.get_product(product_id)
         if err or not product:
-            return err
+            self.raise_error(err, product_id)
 
         presenter, err = self.get_presenter(product)
         if err or not presenter:
-            return err
+            self.raise_error(err, product_id)
 
         type_id: int = int(product["type_id"])
         template, err = self.get_template(type_id)
         if err or not product:
-            return err
+            self.raise_error(err, product_id)
 
         logger.info(f"Rendering product {product_id} with presenter {presenter.type}")
 
-        rendered_product = presenter.generate(product, template)
+        try:
+            rendered_product = presenter.generate(product, template)
+        except Exception as e:
+            self.raise_error(str(e), product_id)
+
         if not rendered_product:
-            return "Error generating product"
-        if "error" in rendered_product:
-            return rendered_product["error"]
+            self.raise_error("Presenter returned no content", product_id)
 
         self.core_api.upload_rendered_product(
             product_id,
             rendered_product,
         )
-        return "Product rendered successfully"
+        return {"product_id": product_id, "message": f"Product: {product_id} rendered successfully"}

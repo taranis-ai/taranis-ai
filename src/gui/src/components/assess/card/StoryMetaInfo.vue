@@ -4,7 +4,7 @@
       <td v-if="!compactView">
         <strong>{{ t('assess.published') }}:</strong>
       </td>
-      <td>
+      <td class="text-no-wrap">
         <span :class="published_date_outdated ? 'text-error' : ''">
           {{ getPublishedDate }}
         </span>
@@ -16,14 +16,14 @@
           icon="mdi-alert-outline"
         />
       </td>
-      <div v-if="story_in_reports > 0" class="shared-icons-container">
+      <td v-if="story_in_reports > 0" class="shared-icons-container">
         <v-icon
           v-for="n in story_in_reports"
           :key="n"
           :style="getSharingIcon(n)"
           icon="mdi-share"
         />
-      </div>
+      </td>
     </tr>
 
     <tr v-if="!compactView && story.tags && !reportView">
@@ -228,7 +228,8 @@ export default {
 }
 
 .shared-icons-container {
-  position: absolute;
-  margin-left: -20px;
+  width: 30%;
+  text-align: right;
+  padding-right: 20px;
 }
 </style>

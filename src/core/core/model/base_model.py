@@ -1,14 +1,15 @@
-from typing import Any, TypeVar, Type, Sequence
+import json
 from datetime import datetime
 from enum import Enum
-import json
-from sqlalchemy.sql import Select
-from sqlalchemy.orm import Mapped
-import sqlalchemy
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Sequence, Type, TypeVar
 
-from core.managers.db_manager import db
+from sqlalchemy import func
+from sqlalchemy.orm import Mapped
+from sqlalchemy.sql import Select
+
 from core.log import logger
+from core.managers.db_manager import db
+
 
 T = TypeVar("T", bound="BaseModel")
 
@@ -32,7 +33,7 @@ class BaseModel(db.Model):
                 setattr(self, key, value)
 
         db.session.commit()
-        return {"message": "Successfully updated"}, 200
+        return {"message": f"{self.__class__.__name__} successfully updated"}, 200
 
     def to_dict(self) -> dict[str, Any]:
         table = getattr(self, "__table__", None)
@@ -144,9 +145,7 @@ class BaseModel(db.Model):
             query = cls.get_filter_query_with_acl(filter_args, user)
         else:
             query = cls.get_filter_query(filter_args)
-        items = cls.get_filtered(query)
-        if not items:
-            return {"items": []}, 404
+        items = cls.get_filtered(query) or []
         if with_count:
             count = cls.get_filtered_count(query)
             return {"total_count": count, "items": cls.to_list(items)}, 200
@@ -154,10 +153,10 @@ class BaseModel(db.Model):
 
     @classmethod
     def get_filtered_count(cls: Type[T], query: Select) -> int:
-        count_query = db.select(sqlalchemy.func.count()).select_from(query).order_by(None).offset(None).limit(None)
+        count_query = db.select(func.count()).select_from(query).order_by(None).offset(None).limit(None)
         return db.session.execute(count_query).scalar() or 0
 
     @classmethod
     def get_count(cls: Type[T]) -> int:
-        count_query = db.select(sqlalchemy.func.count()).select_from(cls)
+        count_query = db.select(func.count()).select_from(cls)
         return db.session.execute(count_query).scalar() or 0

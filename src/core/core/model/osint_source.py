@@ -310,7 +310,7 @@ class OSINTSource(BaseModel):
         if items := cls.get_filtered(query):
             return {"items": [item.to_assess_dict() for item in items]}, 200
 
-        return {"items": []}, 404
+        return {"items": []}, 200
 
 
 class OSINTSourceParameterValue(BaseModel):

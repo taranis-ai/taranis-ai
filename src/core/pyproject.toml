@@ -75,3 +75,22 @@ filterwarnings = [
     "ignore:.*_app_ctx_stack.*:DeprecationWarning",
     "ignore::DeprecationWarning"
 ]
+
+[tool.coverage.run]
+branch = true
+
+[tool.pylint.'MESSAGES CONTROL']
+max-line-length = 142
+disable = """
+    missing-module-docstring,
+    missing-class-docstring,
+    missing-function-docstring
+"""
+
+[tool.mypy]
+explicit_package_bases = true
+namespace-packages = true
+exclude = [
+    '__main__.py',
+    'tests/'
+]

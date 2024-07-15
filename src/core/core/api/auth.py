@@ -4,7 +4,9 @@ from flask.views import MethodView
 from flask_jwt_extended import jwt_required, get_jwt, current_user
 
 
+from core.auth.external_authenticator import ExternalAuthenticator
 from core.managers import auth_manager
+from core.config import Config
 
 
 class Login(MethodView):
@@ -13,6 +15,8 @@ class Login(MethodView):
         return make_response(redirect(quote(request.args.get(key="gotoUrl", default="/"))))
 
     def post(self):
+        if Config.TARANIS_AUTHENTICATOR == "ExternalAuthenticator":
+            return auth_manager.authenticate(ExternalAuthenticator.get_credentials(request.headers))
         if not request.json and not request.form:
             return {"error": "No data provided"}, 400
 

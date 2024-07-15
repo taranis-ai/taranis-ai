@@ -19,10 +19,16 @@ export const usePublishStore = defineStore(
     const product_types = ref({ total_count: 0, items: [] })
     const renderedProduct = ref(null)
     const renderedProductMimeType = ref(null)
+    const renderError = ref(null)
 
     async function loadProducts() {
-      const response = await getAllProducts()
-      products.value = response.data
+      try {
+        const response = await getAllProducts()
+        products.value = response.data
+      } catch (error) {
+        products.value = { total_count: 0, items: [] }
+        notifyFailure(error.message)
+      }
     }
     async function loadProductTypes(data) {
       const response = await getAllProductTypes(data)
@@ -47,9 +53,17 @@ export const usePublishStore = defineStore(
     }
 
     async function loadRenderedProduct(product_id) {
-      const response = await getRenderdProduct(product_id)
-      renderedProduct.value = response.data
-      renderedProductMimeType.value = response.headers['content-type']
+      try {
+        const response = await getRenderdProduct(product_id)
+        if (response.data.error !== undefined) {
+          renderError.value = response.data.error
+          return
+        }
+        renderedProduct.value = response.data
+        renderedProductMimeType.value = response.headers['content-type']
+      } catch (error) {
+        renderError.value = error.message
+      }
     }
 
     async function patchProduct(product) {
@@ -87,7 +101,7 @@ export const usePublishStore = defineStore(
         mainStore.itemCountFiltered = products.value.items.length
       } catch (error) {
         products.value = { total_count: 0, items: [] }
-        notifyFailure(error)
+        notifyFailure(error.message)
       }
     }
 
@@ -112,6 +126,7 @@ export const usePublishStore = defineStore(
     function reset() {
       products.value = { total_count: 0, items: [] }
       product_types.value = { total_count: 0, items: [] }
+      renderError.value = null
       renderedProduct.value = null
       renderedProductMimeType.value = null
     }
@@ -121,6 +136,7 @@ export const usePublishStore = defineStore(
       product_types,
       renderedProduct,
       renderedProductMimeType,
+      renderError,
       patchProduct,
       loadProducts,
       loadProductTypes,

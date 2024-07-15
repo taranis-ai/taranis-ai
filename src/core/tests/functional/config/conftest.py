@@ -70,7 +70,6 @@ def cleanup_user(app):
             "name": "Test User",
             "organization": 1,
             "roles": [2],
-            "permissions": ["ANALYZE_ACCESS", "ANALYZE_CREATE", "ANALYZE_DELETE"],
             "password": "testpassword",
         }
 
@@ -155,7 +154,7 @@ def cleanup_report_item_type(app):
                             "attribute_id": 1,
                             "title": "Test Attribute Group Item",
                             "description": "This is a test attribute group item",
-                            "multiple": False,
+                            "required": False,
                         }
                     ],
                 }

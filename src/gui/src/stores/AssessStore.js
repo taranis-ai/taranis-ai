@@ -71,6 +71,7 @@ export const useAssessStore = defineStore(
         loading.value = false
       } catch (error) {
         loading.value = false
+        stories.value = { total_count: 0, items: [] }
         notifyFailure(error.message)
       }
     }

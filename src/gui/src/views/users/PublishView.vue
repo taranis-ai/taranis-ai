@@ -4,6 +4,7 @@
     :header-filter="['title', 'created', 'type', 'reports', 'actions']"
     :add-button="false"
     :search-bar="false"
+    :items-per-page="productFilter.limit"
     @delete-item="deleteItem"
     @edit-item="editItem"
     @update-items="updateData"
@@ -11,6 +12,24 @@
   >
     <template #titlebar>
       <h2>Products</h2>
+    </template>
+    <template #nodata>
+      <v-alert title="No Products Found" type="warning">
+        <v-btn
+          class="w-25 mr-2"
+          color="primary"
+          text="Reset Filter"
+          prepend-icon="mdi-refresh"
+          @click="resetFilter()"
+        />
+        <v-btn
+          color="primary"
+          class="w-25 ml-2"
+          text="Create new Product"
+          prepend-icon="mdi-chart-box-plus-outline"
+          @click="createProduct()"
+        />
+      </v-alert>
     </template>
   </DataTable>
 </template>
@@ -23,6 +42,7 @@ import { useMainStore } from '@/stores/MainStore'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { useFilterStore } from '@/stores/FilterStore'
 
 export default {
   name: 'ProductView',
@@ -34,9 +54,11 @@ export default {
     const publishStore = usePublishStore()
     const selected = ref([])
     const router = useRouter()
+    const filterStore = useFilterStore()
     const { d } = useI18n()
 
     const { products, product_types } = storeToRefs(publishStore)
+    const { productFilter } = storeToRefs(filterStore)
 
     const products_data = computed(() => {
       return products.value.items.map((item) => {
@@ -57,12 +79,20 @@ export default {
       await publishStore.updateProducts()
     }
 
-    const editItem = (item) => {
+    function editItem(item) {
       router.push('/product/' + item.id)
     }
 
-    const selectionChange = (new_selection) => {
+    function selectionChange(new_selection) {
       selected.value = new_selection
+    }
+
+    function createProduct() {
+      router.push('/product/')
+    }
+
+    function resetFilter() {
+      filterStore.resetFilter()
     }
 
     onMounted(() => {
@@ -77,8 +107,11 @@ export default {
       selected,
       products,
       products_data,
+      productFilter,
       updateData,
       editItem,
+      createProduct,
+      resetFilter,
       deleteItem: publishStore.removeProduct,
       selectionChange
     }

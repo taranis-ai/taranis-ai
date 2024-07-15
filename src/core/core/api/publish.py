@@ -1,10 +1,11 @@
-from flask import Response, request, Flask
+from flask import request, Flask
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 
 from core.managers import queue_manager
 from core.managers.auth_manager import auth_required
-from core.model import product, product_type
+from core.model import product_type, product
+from core.service.product import ProductService
 
 
 class ProductTypes(MethodView):
@@ -15,7 +16,7 @@ class ProductTypes(MethodView):
 
 class Products(MethodView):
     @auth_required("PUBLISH_ACCESS")
-    def get(self, product_id=None):
+    def get(self, product_id: str | None = None):
         if product_id:
             return product.Product.get_for_api(product_id)
 
@@ -33,30 +34,28 @@ class Products(MethodView):
         return {"message": "New Product created", "id": new_product.id}, 201
 
     @auth_required("PUBLISH_UPDATE")
-    def put(self, product_id):
+    def put(self, product_id: str):
         return product.Product.update(product_id, request.json)
 
     @auth_required("PUBLISH_DELETE")
-    def delete(self, product_id):
+    def delete(self, product_id: str):
         return product.Product.delete(product_id)
 
 
 class PublishProduct(MethodView):
     @auth_required("PUBLISH_PRODUCT")
-    def post(self, product_id, publisher_id):
+    def post(self, product_id: str, publisher_id: str):
         return queue_manager.queue_manager.publish_product(product_id, publisher_id)
 
 
 class ProductsRender(MethodView):
     @auth_required("PUBLISH_ACCESS")
-    def post(self, product_id):
+    def post(self, product_id: str):
         return queue_manager.queue_manager.generate_product(product_id)
 
     @auth_required("PUBLISH_ACCESS")
-    def get(self, product_id):
-        if product_data := product.Product.get_render(product_id):
-            return Response(product_data["blob"], headers={"Content-Type": product_data["mime_type"]}, status=200)
-        return {"error": f"Product {product_id} not found"}, 404
+    def get(self, product_id: str):
+        return ProductService.get_render(product_id)
 
 
 def initialize(app: Flask):
