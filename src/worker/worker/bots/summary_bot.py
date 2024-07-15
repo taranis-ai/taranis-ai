@@ -1,12 +1,7 @@
 from .base_bot import BaseBot
 from worker.log import logger
-from worker import Config
 
 import torch
-from transformers import (
-    AutoTokenizer,
-    AutoModelForSeq2SeqLM,
-)
 
 
 class SummaryBot(BaseBot):
@@ -17,14 +12,8 @@ class SummaryBot(BaseBot):
         self.description = "Bot to generate summaries for stories"
         self.summary_threshold = 1000
         self.language = language
-        logger.debug("Setup Summarization Model...")
+        self.initialize_models()
         torch.set_num_threads(1)  # https://github.com/pytorch/pytorch/issues/36191
-        self.set_summarization_model()
-
-    def set_summarization_model(self) -> None:
-        self.model_name = Config.models[self.language]["SUMMARY_BOT"]
-        self.model = AutoModelForSeq2SeqLM.from_pretrained(self.model_name)
-        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, use_fast=True)
 
     def execute(self, parameters=None):
         try:

@@ -4,6 +4,7 @@ from urllib.parse import parse_qs
 from worker.config import Config
 import datetime
 
+
 class BaseBot:
     def __init__(self):
         self.core_api = CoreApi()
@@ -11,10 +12,7 @@ class BaseBot:
         self.name = "Base Bot"
         self.description = "Base abstract type for all bots"
         self.language = None
-        self.models = {}
-        self.tokenizers = {}
-        self.classifiers = {}
-        self.initialize_models()
+        self.model = None
 
     def execute(self):
         pass
@@ -59,30 +57,31 @@ class BaseBot:
         self.execute()
 
     def initialize_models(self):
-        logger.debug(f"{Config.LANGUAGE_MODEL_MAPPING=}")
         for lang, model in Config.LANGUAGE_MODEL_MAPPING.items():
+            if lang != self.language:  # TODO REWRITE this to iterate only over correct language
+                continue
+
             if self.type == "STORY_BOT":
-                self.models[lang] = {
-                    "STORY_BOT": self.load_model(model["STORY_BOT"])
-                }
+                self.model = self.load_model(model["STORY_BOT"])
+                self.tokenizer = self.load_tokenizer(model["STORY_BOT"])
             elif self.type == "SUMMARY_BOT":
-                self.tokenizers[lang] = {
+                self.tokenizer = {
                     "SUMMARY_BOT": self.load_tokenizer(model["SUMMARY_BOT"]),
                 }
             elif self.type == "NLP_BOT":
-                self.classifiers[lang] = {
-                    "NLP_BOT": self.load_classifier(model["NLP_BOT"])
-                }
+                self.model = self.load_classifier(model["NLP_BOT"])
 
     @staticmethod
     def load_classifier(model_name):
         from flair.nn import Classifier
+
         return Classifier.load(model_name)
 
     @staticmethod
     def load_model(model_name):
         from transformers import AutoModelForSeq2SeqLM, AutoModel
         from sentence_transformers import SentenceTransformer
+
         if "bart" in model_name or "t5" in model_name:  # Example model types
             return AutoModelForSeq2SeqLM.from_pretrained(model_name)
         elif "sentence-transformers" in model_name:  # For SentenceTransformer models
@@ -90,14 +89,7 @@ class BaseBot:
         else:
             return AutoModel.from_pretrained(model_name)
 
-    @staticmethod
-    def load_tokenizer(model_name):
+    def load_tokenizer(self, model_name):
         from transformers import AutoTokenizer
-        return AutoTokenizer.from_pretrained(model_name, use_fast=True)
 
-    def set_language(self, language: str):
-        if language not in self.models:
-            raise ValueError(f"No models configured for language: {language}")
-        self.language = language
-        self.model = self.models[language]  # Default model type
-        self.tokenizer = self.models[language]  # Default tokenizer type
+        return AutoTokenizer.from_pretrained(model_name, use_fast=True)
