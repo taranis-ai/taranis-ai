@@ -3,8 +3,6 @@ from worker.core_api import CoreApi
 from urllib.parse import parse_qs
 from worker.config import Config
 import datetime
-import json
-import os
 
 class BaseBot:
     def __init__(self):

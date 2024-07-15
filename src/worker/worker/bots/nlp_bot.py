@@ -3,8 +3,6 @@ from worker.log import logger
 import py3langid
 import torch
 from flair.data import Sentence
-from flair.nn import Classifier
-
 
 class NLPBot(BaseBot):
     def __init__(self, language="en"):
