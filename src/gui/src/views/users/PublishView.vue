@@ -15,20 +15,24 @@
     </template>
     <template #nodata>
       <v-alert title="No Products Found" type="warning">
-        <v-btn
-          class="w-25 mr-2"
-          color="primary"
-          text="Reset Filter"
-          prepend-icon="mdi-refresh"
-          @click="resetFilter()"
-        />
-        <v-btn
-          color="primary"
-          class="w-25 ml-2"
-          text="Create new Product"
-          prepend-icon="mdi-chart-box-plus-outline"
-          @click="createProduct()"
-        />
+        <v-row no-gutters class="mt-5">
+          <v-btn
+            class="mr-2"
+            min-width="48%"
+            color="primary"
+            text="Reset Filter"
+            prepend-icon="mdi-refresh"
+            @click="resetFilter()"
+          />
+          <v-btn
+            color="primary"
+            min-width="48%"
+            class="ml-2"
+            text="Create new Product"
+            prepend-icon="mdi-chart-box-plus-outline"
+            @click="createProduct()"
+          />
+        </v-row>
       </v-alert>
     </template>
   </DataTable>

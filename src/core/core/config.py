@@ -46,7 +46,10 @@ class Settings(BaseSettings):
         return self
 
     TARANIS_AUTHENTICATOR: Literal["database", "openid", "external", "test"] = "database"
-    EXTERNAL_AUTH_HEADER: str = "X-SSL-Client-S-DN-CN"
+    EXTERNAL_AUTH_USER: str = "X-REROUTE-USER"
+    EXTERNAL_AUTH_ROLES: str = "X-REROUTE-ROLES"
+    EXTERNAL_AUTH_NAME: str = "X-REROUTE-NAME"
+    EXTERNAL_AUTH_ORGANIZATION: str = "X-REROUTE-ORGANIZATION"
 
     OPENID_CLIENT_ID: str | None = None
     OPENID_CLIENT_SECRET: str | None = None

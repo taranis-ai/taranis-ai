@@ -114,7 +114,6 @@
         </v-col>
         <v-col v-if="showPreview" :cols="6" class="pa-5">
           <div v-if="renderedProduct">
-            {{ JSON.stringify(renderedProduct) }}
             <span v-if="render_html" v-dompurify-html="renderedProduct"></span>
 
             <object
@@ -134,9 +133,7 @@
               <h2>Failed to render Product</h2>
             </v-row>
             <v-row class="justify-center mt-5">
-              <pre>
-                {{ renderError }}
-              </pre>
+              <pre>{{ renderError }}</pre>
             </v-row>
             <v-row class="justify-center mt-5">
               <v-btn

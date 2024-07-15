@@ -37,20 +37,24 @@
     </template>
     <template #nodata>
       <v-alert title="No Reports Found" type="warning">
-        <v-btn
-          class="w-25 mr-2"
-          color="primary"
-          text="Reset Filter"
-          prepend-icon="mdi-refresh"
-          @click="resetFilter()"
-        />
-        <v-btn
-          color="primary"
-          class="w-25 ml-2"
-          text="Create new Report"
-          prepend-icon="mdi-chart-box-plus-outline"
-          @click="createReport()"
-        />
+        <v-row no-gutters class="mt-5">
+          <v-btn
+            color="primary"
+            class="mr-2"
+            min-width="48%"
+            text="Reset Filter"
+            prepend-icon="mdi-refresh"
+            @click="resetFilter()"
+          />
+          <v-btn
+            color="primary"
+            class="ml-2"
+            min-width="48%"
+            text="Create new Report"
+            prepend-icon="mdi-chart-box-plus-outline"
+            @click="createReport()"
+          />
+        </v-row>
       </v-alert>
     </template>
   </DataTable>

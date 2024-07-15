@@ -160,12 +160,12 @@ export default {
         return 12
       }
       if (compactView.value || xxl.value) {
-        return 10 - navSub
+        return 10
       }
       if (props.reportView) {
         return 6
       }
-      return 9 - navSub
+      return 10 - navSub
     })
 
     const meta_cols = computed(() => {

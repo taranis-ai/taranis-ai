@@ -32,9 +32,8 @@ class User(BaseModel):
             self.id = id
         self.username = username
         self.name = name
-        if not password:
-            raise ValueError("Password is required")
-        self.password = generate_password_hash(password)
+        if password:
+            self.password = generate_password_hash(password)
         if org := Organization.get(organization):
             self.organization = org
         self.roles = Role.get_bulk(roles)
