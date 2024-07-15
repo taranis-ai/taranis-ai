@@ -45,7 +45,8 @@ class Settings(BaseSettings):
             self.SQLALCHEMY_ENGINE_OPTIONS = {"connect_args": {"timeout": 10}}
         return self
 
-    TARANIS_AUTHENTICATOR: Literal["database", "openid", "test"] = "database"
+    TARANIS_AUTHENTICATOR: Literal["database", "openid", "external", "test"] = "database"
+    EXTERNAL_AUTH_HEADER: str = "X-SSL-Client-S-DN-CN"
 
     OPENID_CLIENT_ID: str | None = None
     OPENID_CLIENT_SECRET: str | None = None

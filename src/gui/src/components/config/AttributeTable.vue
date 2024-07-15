@@ -93,7 +93,7 @@
     </v-toolbar>
 
     <v-data-table :headers="headers" :items="attribute_contents">
-      <template #item.actions="{ item }">
+      <template #item.actions="{ item, index }">
         <div class="d-inline-flex">
           <v-tooltip left>
             <template #activator="{ props }">
@@ -111,7 +111,7 @@
                 v-bind="props"
                 color="red"
                 icon="mdi-delete"
-                @click.stop="deleteItem(item)"
+                @click.stop="deleteItem(index)"
               />
             </template>
             <span>Delete</span>
@@ -213,8 +213,7 @@ export default {
       close()
     }
 
-    const deleteItem = (item) => {
-      const index = attribute_contents.value.indexOf(item)
+    const deleteItem = (index) => {
       attribute_contents.value.splice(index, 1)
     }
 

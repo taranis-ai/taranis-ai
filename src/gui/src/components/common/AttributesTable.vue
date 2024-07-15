@@ -39,7 +39,7 @@
                   v-bind="tprops"
                   color="red"
                   icon="mdi-delete"
-                  @click.stop="deleteItem(item)"
+                  @click.stop="deleteItem(index)"
                 />
               </template>
             </v-tooltip>
