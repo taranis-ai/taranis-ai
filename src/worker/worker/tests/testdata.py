@@ -286,6 +286,7 @@ exclude_multiple_list = [
 ]
 
 web_collector_url = "https://raw.example.com/testweb.html"
+web_collector_ref_url = "https://raw.example.com/test/url/index.html"
 web_collector_result_content = "In an era where digital security is paramount, the role of National Computer Emergency Response Teams (CERTs) has never been more critical."
 web_collector_fav_icon_url = "https://raw.example.com/favicon.ico"
 web_collector_source_data = {"id": 1, "parameters": {"WEB_URL": "https://raw.example.com/testweb.html"}}
