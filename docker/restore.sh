@@ -28,12 +28,14 @@ restore_postgresql() {
         -e POSTGRES_USER="${DB_USER:-taranis}" \
         -e POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-taranis}" \
         -v ./$backup_dir:/tmp \
-        -v ./db_init.sh:/docker-entrypoint-initdb.d/db_init.sh \
+        -v ./db_init.sh:/docker-entrypoint-initdb.d/db_init.sh:z \
         -v $volume_name:/var/lib/postgresql/data \
         --name "${compose_project_name}_database_restore" docker.io/library/postgres:14
+    
+    if [ $? -ne 0 ]; then echo "Database restoration failed"; exit 1; fi
 }
 
-# Function to restore data to a Docker volume
+# Function to restore core data to a Docker volume
 restore_volume_data() {
     local backup_file="$1"
     echo $backup_file
@@ -43,6 +45,8 @@ restore_volume_data() {
     docker run --rm -d --name "${compose_project_name}_core_restore" \
     -v "$volume_name:/app/data" -v ./backups:/backups:z busybox \
     tar -xzvf "$backup_file" -C /app/data
+
+    if [ $? -ne 0 ]; then echo "Core volume restoration failed"; exit 1; fi
 }
 
 # Main script execution starts here
@@ -60,19 +64,22 @@ backup_dir=$1
 backup_dir="${backup_dir%/}"
 database_backup_file="$backup_dir/database_backup.tar"
 core_data_backup_file="$backup_dir/core_data.tar.gz"
-compose_project_name=${COMPOSE_PROJECT_NAME:-$(basename $(pwd))}
+compose_project_name="${COMPOSE_PROJECT_NAME:-$(basename $(pwd))}"
 
 
 # Validate backup files exist
-# TODO: check if user chooses the file instead of the directory
-if [ ! -f "$database_backup_file" ] ; then
-    echo "Error: Backup file $database_backup_file was not found in the specified directory."
-    exit 1
-elif [ ! -f "$core_data_backup_file" ] ; then
-    echo "Error: Backup file $core_data_backup_file was not found in the specified directory."
-    exit 1
+
+if [ -f "$backup_dir" ]; then
+  echo "$backup_dir is a file, choose a directory containing backup files."
+  exit 1
 fi
 
+if [ ! -f "$database_backup_file" ] ; then
+    echo "Error: Backup file $database_backup_file was not found in the specified directory: $backup_dir. Ensure that the directory contains both the database and core data backup files."
+    exit 1
+elif [ ! -f "$core_data_backup_file" ] ; then
+echo "Error: Backup file $core_data_backup_file was not found in the specified directory: $backup_dir. Ensure that the directory contains both the database and core data backup files."
+fi
 # Check if the necessary volumes are empty
 echo "Checking if the necessary volumes are empty..."
 check_volume_exists "core_data"
