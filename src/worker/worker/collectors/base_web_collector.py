@@ -4,7 +4,7 @@ import hashlib
 import requests
 import lxml.html
 import dateutil.parser as dateparser
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
 from trafilatura import extract, extract_metadata
 from bs4 import BeautifulSoup
 
@@ -69,6 +69,7 @@ class BaseWebCollector(BaseCollector):
 
     def xpath_extraction(self, html_content, xpath: str, get_content: bool = True) -> str | None:
         document = lxml.html.fromstring(html_content)
+        logger.debug(f"Checking result for XPATH {xpath}: {document.xpath(xpath)}")
         if not document.xpath(xpath):
             logger.error(f"No content found for XPath: {xpath}")
             return None
@@ -140,7 +141,9 @@ class BaseWebCollector(BaseCollector):
 
     def get_urls(self, html_content: str) -> list:
         soup = BeautifulSoup(html_content, "html.parser")
-        return [a["href"] for a in soup.find_all("a", href=True)]
+        urls = [a['href'] for a in soup.find_all("a", href=True)]
+        return [urljoin(self.web_url, url) for url in urls]
+
 
     def parse_digests(self) -> list[NewsItem] | str:
         news_items = []
@@ -149,10 +152,10 @@ class BaseWebCollector(BaseCollector):
             try:
                 news_items.append(self.news_item_from_article(split_digest_url))
             except ValueError as e:
-                logger.warning(f"RSS-Feed {self.osint_source_id} failed to parse digest with error: {str(e)}")
+                logger.warning(f"{self.type}: {self.osint_source_id} failed to parse the digest with error: {str(e)}")
                 continue
             except Exception as e:
-                logger.error(f"RSS Collector failed digest splitting with error: {str(e)}")
+                logger.error(f"{self.type} failed digest splitting with error: {str(e)}")
                 raise e
 
         return news_items

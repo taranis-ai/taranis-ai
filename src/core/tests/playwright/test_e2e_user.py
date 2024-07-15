@@ -370,7 +370,7 @@ class TestEndToEndUser:
             expect(page).to_have_title("Taranis AI | Analyze")
 
         def report_1():
-            self.highlight_element(page.get_by_role("button", name="New Report")).click()
+            self.highlight_element(page.get_by_role("button", name="New Report").first).click()
             self.highlight_element(page.get_by_role("combobox")).click()
 
             expect(page.get_by_role("listbox")).to_contain_text("CERT Report")
@@ -489,7 +489,7 @@ class TestEndToEndUser:
         self.highlight_element(page.get_by_role("link", name="Publish").first).click()
         page.wait_for_url("**/publish", wait_until="domcontentloaded")
         expect(page).to_have_title("Taranis AI | Publish")
-        self.highlight_element(page.get_by_role("button", name="New Product")).click()
+        self.highlight_element(page.get_by_role("button", name="New Product").first).click()
         self.highlight_element(page.get_by_role("combobox").locator("div").filter(has_text="Product Type").locator("div")).click()
         self.highlight_element(page.get_by_role("option", name="Default TEXT Presenter")).click()
         self.highlight_element(page.get_by_label("Title")).click()

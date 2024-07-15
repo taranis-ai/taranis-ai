@@ -218,7 +218,7 @@ class RSSCollector(BaseWebCollector):
 
         logger.info(f"RSS-Feed {source['id']} returned feed with {len(feed['entries'])} entries")
 
-        news_items = self.get_news_items(feed, source)
+        self.news_items = self.get_news_items(feed, source)
 
-        self.publish(news_items, source)
+        self.publish(self.news_items, source)
         return None
