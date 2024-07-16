@@ -17,7 +17,7 @@ jobs:
 
       - name: Get tag name
         run: |
-          git tag -n 3 -a 2.1.0 -m "xyz feature is released in this tag.\n\nSigned-off-by: xyz \n Some text"
+          git tag -a 2.1.0 -m "xyz feature is released in this tag.\n\nSigned-off-by: xyz \n Some text"
           echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
       - name: Update env.sample
@@ -32,7 +32,6 @@ jobs:
       - name: Get tag message
         id: get_tag_message
         run: |
-          git tag -n 3 -a 2.1.0 -m "xyz feature is released in this tag.\n\nSigned-off-by: xyz \n Some text"
           TAG_MESSAGE=$(git for-each-ref --format='%(contents)' "refs/tags/${{ env.tag }}")
           echo "tag_message=$TAG_MESSAGE" >> $GITHUB_ENV
 
