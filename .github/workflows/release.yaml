@@ -20,9 +20,9 @@ jobs:
           git config --global user.email "you@example.com"
           git config --global user.name "Your Name"
           git tag -a 2.1.0 -m 'xyz feature is released in this tag.
-          Signed-off-by: xyz 
-          Some text 
-          Some more text'
+          > My favourite text
+          > Some text 
+          > Some more text'
           echo "tag_message=$(git tag -n3 --format='%(contents)' 2.1.0)" >> $GITHUB_ENV
           
 
