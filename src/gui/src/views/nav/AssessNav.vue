@@ -148,7 +148,7 @@
             "
           />
           <v-btn
-            :disabled="!xxl"
+            :disabled="disableWeekChart"
             class="vertical-button toggle-button py-2 px-4 mb-1"
             :class="
               showWeekChart
@@ -280,6 +280,10 @@ export default {
       }
     })
 
+    const disableWeekChart = computed(() => {
+      return !xxl.value || compactView.value
+    })
+
     const now = new Date()
     now.setDate(now.getDate() - 1)
     now.setHours(18, 0, 0, 0)
@@ -321,6 +325,7 @@ export default {
       showWeekChart,
       compactView,
       filter_range,
+      disableWeekChart,
       defaultFromDate,
       OSINTSourcesList,
       OSINTSourceGroupsList,

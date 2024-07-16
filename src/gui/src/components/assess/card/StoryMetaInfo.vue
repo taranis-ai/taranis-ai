@@ -46,11 +46,7 @@
           @edit="editTags()"
         />
       </td>
-    </tr>
-
-    <tr v-if="!compactView && !reportView">
-      <td><strong>Relevance:</strong></td>
-      <td>
+      <td :bgcolor="relevanceColor">
         {{ story.relevance }}
       </td>
     </tr>
@@ -175,6 +171,19 @@ export default {
       return [...new Set(props.story.tags.slice(0, tagLimit.value))]
     })
 
+    const relevanceColor = computed(() => {
+      if (props.story.relevance > 10) {
+        return 'red'
+      }
+      if (props.story.relevance > 5) {
+        return 'orange'
+      }
+      if (props.story.relevance > 2) {
+        return 'green'
+      }
+      return 'grey'
+    })
+
     const story_in_reports = computed(() => {
       return props.story ? props.story.in_reports_count : 0
     })
@@ -206,6 +215,7 @@ export default {
       showWeekChart,
       showTagDialog,
       published_dates,
+      relevanceColor,
       published_date_outdated,
       story_in_reports,
       getPublishedDate,
