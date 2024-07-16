@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - '[0-9]+.[0-9]+.[0-9]+'
+  # TODO: remove
+  pull_request:
 
 jobs:
   release:
@@ -25,14 +27,22 @@ jobs:
         run: |
           cat ${{ runner.temp }}/env.sample
 
+      - name: Get tag message
+        id: get_tag_message
+        run: |
+          git tag -n 3 -a 2.1.0 -m "xyz feature is released in this tag.\n\nSigned-off-by: xyz \n Some text"
+          TAG_MESSAGE=$(git for-each-ref --format='%(contents)' "refs/tags/${{ env.tag }}")
+          echo "tag_message=$TAG_MESSAGE" >> $GITHUB_ENV
 
-      - name: Release
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          tag_name: ${{ env.tag }}
-          release_name: ${{ env.tag }}
-          body: ${{ github.event.head_commit.message }}
-          files: |
-            docker/compose.yml
-            ${{ runner.temp }}/env.sample
+    #   - name: Release
+    #    uses: softprops/action-gh-release@v2
+    #    if: startsWith(github.ref, 'refs/tags/')
+    #    with:
+    #      tag_name: ${{ env.tag }}
+    #      release_name: ${{ env.tag }}
+    #      body: ${{ env.tag_message }}
+    #     generate_release_notes: true
+    #    appendBody: true
+    #   files: |
+    #    docker/compose.yml
+    #   ${{ runner.temp }}/env.sample
