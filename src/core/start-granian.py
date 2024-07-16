@@ -16,6 +16,7 @@ if os.getenv("DEBUG", "false").lower() == "true":
 workers = int(os.getenv("GRANIAN_WORKERS", multiprocessing.cpu_count()))
 address = os.getenv("GRANIAN_ADDRESS", "0.0.0.0")
 port = int(os.getenv("GRANIAN_PORT", 8080))
+sentry_address = os.getenv("SENTRY_ADDRESS", "")
 
 
 def app_loader(target):
@@ -26,7 +27,7 @@ def app_loader(target):
 
 create_app(initial_setup=True)
 sentry_sdk.init(
-dsn="https://examplePublicKey@o0.ingest.sentry.io/0",
+dsn=sentry_address,
     # Set traces_sample_rate to 1.0 to capture 100%
     # of transactions for tracing.
     traces_sample_rate=1.0,

@@ -20,6 +20,7 @@ def create_app(initial_setup: bool = True):
 
 
 def initialize_managers(app: Flask, initial_setup: bool = False):
+    1/0
     db_manager.initialize(app, initial_setup)
     auth_manager.initialize(app)
     api_manager.initialize(app)
