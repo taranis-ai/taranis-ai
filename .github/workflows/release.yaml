@@ -17,6 +17,8 @@ jobs:
 
       - name: Get tag name
         run: |
+          git config --global user.email "you@example.com"
+          git config --global user.name "Your Name"
           git tag -a 2.1.0 -m "xyz feature is released in this tag.\n\nSigned-off-by: xyz \n Some text"
           echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
