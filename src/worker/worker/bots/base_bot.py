@@ -71,7 +71,8 @@ class BaseBot:
                 logger.error("STORY_BOT model not found in configuration for the given language.")
         elif self.type == "SUMMARY_BOT":
             if "SUMMARY_BOT" in model_mapping:
-                self.tokenizer = {"SUMMARY_BOT": self.load_tokenizer(model_mapping["SUMMARY_BOT"])}
+                self.model = self.load_model(model_mapping["SUMMARY_BOT"])
+                self.tokenizer = self.load_tokenizer(model_mapping["SUMMARY_BOT"])
             else:
                 logger.error("SUMMARY_BOT model not found in configuration for the given language.")
         elif self.type == "NLP_BOT":
