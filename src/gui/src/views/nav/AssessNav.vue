@@ -190,9 +190,11 @@
             color="primary"
             prepend-icon="mdi-reload"
             block
-            text="reset filter"
             @click="resetFilter()"
-          />
+          >
+            reset filter
+            <v-tooltip activator="parent" location="start" text="[ctrl+esc]" />
+          </v-btn>
         </v-col>
         <v-col cols="12" class="py-2">
           <v-btn

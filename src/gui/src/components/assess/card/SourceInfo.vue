@@ -4,7 +4,6 @@
       <img
         v-if="icon"
         v-bind="props"
-        class="ml-4"
         :src="'data:image/png;base64,' + icon"
         :alt="source?.name"
         height="32"

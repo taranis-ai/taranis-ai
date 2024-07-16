@@ -7,11 +7,11 @@
     :class="card_class"
     @click="toggleSelection"
   >
-    <v-container fluid style="min-height: 112px" class="pa-0 pl-2">
+    <v-container fluid style="min-height: 100px" class="pa-0 pl-2">
       <v-row class="pl-2">
         <v-col class="d-flex">
           <v-row class="py-1 px-1">
-            <v-col cols="12" class="meta-info-col" :lg="meta_cols">
+            <v-col :cols="meta_cols" class="meta-info-col">
               <story-meta-info
                 :story="story"
                 :detail-view="openSummary"
@@ -33,8 +33,8 @@
                 :story="story"
               />
             </v-col>
-            <v-col cols="12" :lg="content_cols">
-              <v-container class="d-flex pa-0">
+            <v-col :cols="content_cols">
+              <div class="d-flex">
                 <h2
                   v-dompurify-html="highlighted_title"
                   class="mb-1 mt-0"
@@ -60,7 +60,7 @@
                   />
                   ({{ news_item_length }})
                 </a>
-              </v-container>
+              </div>
 
               <summarized-content
                 :compact="compactView"
@@ -115,6 +115,8 @@ import { useFilterStore } from '@/stores/FilterStore'
 import { highlight_text } from '@/utils/helpers'
 import { storeToRefs } from 'pinia'
 import ChartWrapper from '@/components/assess/card/ChartWrapper.vue'
+import { useDisplay } from 'vuetify'
+import { useMainStore } from '@/stores/MainStore'
 
 export default {
   name: 'CardStory',
@@ -138,6 +140,7 @@ export default {
     const viewDetails = ref(false)
     const openSummary = ref(props.detailView)
     const assessStore = useAssessStore()
+    const { mdAndDown, xxl } = useDisplay()
 
     const { newsItemSelection } = storeToRefs(assessStore)
     const selected = computed(() =>
@@ -145,22 +148,30 @@ export default {
     )
 
     const { showWeekChart, compactView } = storeToRefs(useFilterStore())
+    const { drawerVisible } = storeToRefs(useMainStore())
 
     const item_important = computed(() =>
       'important' in props.story ? props.story.important : false
     )
 
     const content_cols = computed(() => {
-      if (compactView.value) {
+      const navSub = drawerVisible.value ? 1 : 0
+      if (mdAndDown.value) {
+        return 12
+      }
+      if (compactView.value || xxl.value) {
         return 10
       }
       if (props.reportView) {
         return 6
       }
-      return 9
+      return 10 - navSub
     })
 
     const meta_cols = computed(() => {
+      if (mdAndDown.value) {
+        return 12
+      }
       if (showWeekChart.value && !openSummary.value) {
         return 12 - content_cols.value - 2
       }
@@ -258,7 +269,7 @@ export default {
 }
 </script>
 
-<style lang="scss">
+<style lang="scss" scoped>
 .v-card__overlay {
   background-color: white !important;
 }

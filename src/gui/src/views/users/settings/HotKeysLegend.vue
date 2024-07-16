@@ -69,6 +69,10 @@ export default {
       {
         title: 'Ctrl + M',
         subtitle: 'Create a new report.'
+      },
+      {
+        title: 'Ctrl + Esc',
+        subtitle: 'Reset Filter'
       }
     ]
     return {

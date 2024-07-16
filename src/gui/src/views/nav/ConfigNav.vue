@@ -100,7 +100,7 @@ export default {
       {
         icon: 'mdi-application-variable-outline',
         title: 'nav_menu.attributes',
-        route: '/config/reportitems/attributes',
+        route: '/config/attributes',
         permission: 'CONFIG_ATTRIBUTE_ACCESS'
       },
       {

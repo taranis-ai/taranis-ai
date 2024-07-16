@@ -149,14 +149,14 @@ class QueueManager:
             return {"message": f"Executing Bot {bot_id} scheduled", "id": bot_id}, 200
         return {"error": "Could not reach rabbitmq"}, 500
 
-    def generate_product(self, product_id: int):
-        if self.send_task("presenter_task", args=[product_id], queue="presenters"):
+    def generate_product(self, product_id: str):
+        if self.send_task("presenter_task", args=[product_id], queue="presenters", task_id=f"presenter_task_{product_id}"):
             logger.info(f"Generating Product {product_id} scheduled")
             return {"message": f"Generating Product {product_id} scheduled"}, 200
         return {"error": "Could not reach rabbitmq"}, 500
 
-    def publish_product(self, product_id: int, publisher_id: str):
-        if self.send_task("publisher_task", args=[product_id, publisher_id], queue="publishers"):
+    def publish_product(self, product_id: str, publisher_id: str):
+        if self.send_task("publisher_task", args=[product_id, publisher_id], queue="publishers", task_id=f"publisher_task_{product_id}"):
             logger.info(f"Publishing Product: {product_id} with publisher: {publisher_id} scheduled")
             return {"message": f"Publishing Product: {product_id} with publisher: {publisher_id} scheduled"}, 200
         return {"error": "Could not reach rabbitmq"}, 500

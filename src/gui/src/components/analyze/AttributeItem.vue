@@ -158,7 +158,7 @@ export default {
   }
 }
 </script>
-<style>
+<style scoped>
 .hint-text {
   color: #888;
   font-size: 0.85rem;

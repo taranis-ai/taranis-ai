@@ -75,7 +75,7 @@
     </v-tooltip>
 
     <v-tooltip
-      v-if="!reportView"
+      v-if="!reportView && (!compactView || openSummary)"
       :text="story.read ? 'mark as unread' : 'mark as read'"
     >
       <template #activator="{ props }">
@@ -201,7 +201,7 @@
         />
       </template>
 
-      <v-list dense>
+      <v-list density="compact" width="56px">
         <v-list-item v-if="compactView" :to="'/story/' + story.id">
           <v-tooltip
             activator="parent"
@@ -218,12 +218,11 @@
           <v-icon icon="mdi-google-circles-communities" />
         </v-list-item>
         <v-list-item
-          v-if="detailView"
+          v-if="detailView || compactView"
           :prepend-icon="
             !story.read ? 'mdi-eye-outline' : 'mdi-eye-off-outline'
           "
           class="hidden-xl-only"
-          title="mark as read"
           @click.stop="markAsRead()"
         />
         <v-list-item @click.stop="markAsImportant()">
@@ -442,7 +441,7 @@ export default {
 }
 </script>
 
-<style lang="scss">
+<style lang="scss" scoped>
 .item-action-btn {
   padding: 8px !important;
   margin: 1px !important;

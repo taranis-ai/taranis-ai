@@ -1,10 +1,11 @@
 import os
-from xml.etree.ElementTree import iterparse
-from sqlalchemy import func, or_
-from sqlalchemy.sql import Select
-from sqlalchemy.orm import Mapped, relationship
 from enum import Enum, auto
 from typing import Any
+from xml.etree.ElementTree import iterparse
+
+from sqlalchemy import func, or_
+from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.sql import Select
 
 from core.log import logger
 from core.managers.db_manager import db
@@ -43,12 +44,15 @@ class AttributeEnum(BaseModel):
     attribute_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("attribute.id", ondelete="CASCADE"))
     attribute: Mapped["Attribute"] = relationship("Attribute", cascade="all, delete")
 
-    def __init__(self, index: int, value: str, description: str, id=None):
+    def __init__(self, index: int, value: str, description: str, attribute_id: int | None = None, imported: bool = False, id=None):
         if id:
             self.id = id
         self.index = index
         self.value = value
         self.description = description
+        self.imported = imported
+        if attribute_id:
+            self.attribute_id = attribute_id
 
     @classmethod
     def get_all_for_attribute(cls, attribute_id):
@@ -73,24 +77,28 @@ class AttributeEnum(BaseModel):
 
     @classmethod
     def delete_for_attribute(cls, attribute_id):
-        db.select(cls).filter_by(attribute_id=attribute_id).delete()
+        db.session.execute(db.delete(cls).where(cls.attribute_id == attribute_id))
+        db.session.commit()
+
+    @classmethod
+    def delete_unused(cls, attribute_id, used_enums):
+        db.session.execute(db.delete(cls).where(cls.attribute_id == attribute_id).where(cls.id.notin_(used_enums)))
         db.session.commit()
 
     @classmethod
     def delete_imported_for_attribute(cls, attribute_id):
-        db.select(cls).filter_by(attribute_id=attribute_id, imported=True).delete()
+        db.session.execute(db.delete(cls).where(cls.attribute_id == attribute_id, imported=True))
         db.session.commit()
 
     @classmethod
-    def update(cls, enum_id, data) -> tuple[dict, int]:
-        attribute_enum = cls.get(enum_id)
-        if not attribute_enum:
-            return {"error": "Attribute Enum not found"}, 404
-        for key, value in data.items():
-            if hasattr(attribute_enum, key) and key != "id":
-                setattr(attribute_enum, key, value)
-        db.session.commit()
-        return {"message": f"Attribute Enum {attribute_enum.id} updated", "id": attribute_enum.id}, 200
+    def add_or_update(cls, data):
+        if "id" not in data:
+            return cls.add(data), 201
+        if entry := cls.get(data["id"]):
+            entry.update(data)
+            db.session.commit()
+            return entry, 200
+        return cls.add(data), 201
 
     def to_dict(self):
         data = super().to_dict()
@@ -147,27 +155,38 @@ class Attribute(BaseModel):
         return query.order_by(db.asc(cls.name))
 
     @classmethod
-    def create_attribute_with_enum(cls, data):
-        attribute_enmus = data.pop("attribute_enums", [])
-        cls.add(data)
-
-        attribute = cls.filter_by_name(data["name"])
-        if not attribute:
-            return
-        attribute_enums = AttributeEnum.load_multiple(attribute_enmus)
-        for attribute_enum in attribute_enums:
-            attribute_enum.attribute_id = attribute.id
-            db.session.add(attribute_enum)
+    def add(cls, data):
+        attribute_enums = data.pop("attribute_enums", None)
+        item = cls.from_dict(data)
+        db.session.add(item)
         db.session.commit()
+
+        if attribute_enums:
+            for enum in attribute_enums:
+                enum["attribute_id"] = item.id
+                AttributeEnum.add_or_update(enum)
+
+            db.session.commit()
+
+        return item
 
     @classmethod
     def update(cls, attribute_id, data) -> tuple[dict, int]:
         attribute = cls.get(attribute_id)
         if not attribute:
             return {"error": "Attribute not found"}, 404
+
+        if attribute_enums := data.pop("attribute_enums", None):
+            used_enums = [enum["id"] for enum in attribute_enums if "id" in enum]
+            AttributeEnum.delete_unused(attribute_id, used_enums)
+            for enum in attribute_enums:
+                enum["attribute_id"] = attribute_id
+                AttributeEnum.add_or_update(enum)
+
         for key, value in data.items():
             if hasattr(attribute, key) and key != "id":
                 setattr(attribute, key, value)
+
         db.session.commit()
         return {"message": f"Attribute {attribute.name} updated", "id": attribute_id}, 200
 

@@ -30,7 +30,7 @@ import {
 } from '@/api/config'
 import { useConfigStore } from '@/stores/ConfigStore'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
-import { ref, onMounted, computed } from 'vue'
+import { ref, onBeforeMount, computed } from 'vue'
 import { storeToRefs } from 'pinia'
 
 export default {
@@ -89,17 +89,16 @@ export default {
       }
     ])
 
-    const updateData = () => {
-      showForm.value = false
-
-      store.loadOrganizations()
-    }
-
     const editTitle = computed(() => {
       return edit.value
         ? `Edit Organization: '${formData.value['name']}'`
         : 'Add Organization'
     })
+
+    function updateData() {
+      showForm.value = false
+      store.loadOrganizations()
+    }
 
     function addItem() {
       formData.value = {}
@@ -154,7 +153,7 @@ export default {
         })
     }
 
-    onMounted(() => {
+    onBeforeMount(() => {
       updateData()
     })
 
