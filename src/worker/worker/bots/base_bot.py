@@ -57,19 +57,30 @@ class BaseBot:
         self.execute()
 
     def initialize_models(self):
-        for lang, model in Config.LANGUAGE_MODEL_MAPPING.items():
-            if lang != self.language:  # TODO REWRITE this to iterate only over correct language
-                continue
+        if self.language not in Config.LANGUAGE_MODEL_MAPPING:
+            logger.error(f"Language {self.language} not found in configuration.")
+            return
 
-            if self.type == "STORY_BOT":
-                self.model = self.load_model(model["STORY_BOT"])
-                self.tokenizer = self.load_tokenizer(model["STORY_BOT"])
-            elif self.type == "SUMMARY_BOT":
-                self.tokenizer = {
-                    "SUMMARY_BOT": self.load_tokenizer(model["SUMMARY_BOT"]),
-                }
-            elif self.type == "NLP_BOT":
-                self.model = self.load_classifier(model["NLP_BOT"])
+        model_mapping = Config.LANGUAGE_MODEL_MAPPING[self.language]
+
+        if self.type == "STORY_BOT":
+            if "STORY_BOT" in model_mapping:
+                self.model = self.load_model(model_mapping["STORY_BOT"])
+                self.tokenizer = self.load_tokenizer(model_mapping["STORY_BOT"])
+            else:
+                logger.error("STORY_BOT model not found in configuration for the given language.")
+        elif self.type == "SUMMARY_BOT":
+            if "SUMMARY_BOT" in model_mapping:
+                self.tokenizer = {"SUMMARY_BOT": self.load_tokenizer(model_mapping["SUMMARY_BOT"])}
+            else:
+                logger.error("SUMMARY_BOT model not found in configuration for the given language.")
+        elif self.type == "NLP_BOT":
+            if "NLP_BOT" in model_mapping:
+                self.model = self.load_classifier(model_mapping["NLP_BOT"])
+            else:
+                logger.error("NLP_BOT model not found in configuration for the given language.")
+        else:
+            logger.error(f"Unknown bot type: {self.type}")
 
     @staticmethod
     def load_classifier(model_name):
