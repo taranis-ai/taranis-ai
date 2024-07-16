@@ -3,23 +3,18 @@ name: Release on pushed tags
 on:
   push:
     tags:
-      - '[0-9]+.[0-9]+.[0-9]+''
-  # TODO: remove
-  pull_request:
+      - '[0-9]+.[0-9]+.[0-9]+'
 
 jobs:
   release:
     runs-on: ubuntu-22.04
-    # TODO: remove
-    env:
-      tag: test.0.9.2
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      # TODO: uncomment
-      # - name: Get tag name
-      #   run: echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
+      - name: Get tag name
+        run: echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
       - name: Update env.sample
         run: |
@@ -31,15 +26,13 @@ jobs:
           cat ${{ runner.temp }}/env.sample
 
 
-      # - name: Release
-      #   uses: softprops/action-gh-release@v2
-      #   if: startsWith(github.ref, 'refs/tags/')
-      #   with:
-      #     tag_name: ${{ env.tag }}
-      #     release_name: ${{ env.tag }}
-      #     body: ${{ github.event.head_commit.message }}
-      #     files: |
-      #       docker/compose.yml
-      #       ${{ runner.temp }}/env.sample
-      #       ${{ runner.temp }}/${{ env.tag }}.zip
-      #       ${{ runner.temp }}/${{ env.tag }}.tar.gz
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          tag_name: ${{ env.tag }}
+          release_name: ${{ env.tag }}
+          body: ${{ github.event.head_commit.message }}
+          files: |
+            docker/compose.yml
+            ${{ runner.temp }}/env.sample
