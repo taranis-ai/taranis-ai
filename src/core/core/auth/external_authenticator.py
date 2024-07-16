@@ -19,6 +19,7 @@ class ExternalAuthenticator(BaseAuthenticator):
         self.name: str = "ExternalAuthenticator"
 
     def authenticate(self, credentials: dict[str, str]) -> tuple[dict[str, str], int]:
+        logger.debug(f"{credentials=}")
         username = credentials.get("username")
         if not username:
             return BaseAuthenticator.generate_error()
