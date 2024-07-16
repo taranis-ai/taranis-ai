@@ -14,13 +14,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Get tag name
-        run: echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+        run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
       - name: Update env.sample
         run: |
           cp docker/env.sample ${{ runner.temp }}
-          sed -i 's/^TARANIS_TAG=.*/TARANIS_TAG=${{ env.tag }}/' ${{ runner.temp }}/env.sample
+          sed -i 's/^TARANIS_TAG=.*/TARANIS_TAG=${{ env.TAG }}/' ${{ runner.temp }}/env.sample
 
       - name: Verify new env.sample
         run: |
@@ -37,7 +38,7 @@ jobs:
         run: echo ${{ env.TAG_MESSAGE }}
 
       - name: Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v2.0.6
         if: startsWith(github.ref, 'refs/tags/')
         with:
           generate_release_notes: true
