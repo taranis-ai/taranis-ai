@@ -16,7 +16,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Get tag name
-        run: echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+        run: |
+          git tag -n 3 -a 2.1.0 -m "xyz feature is released in this tag.\n\nSigned-off-by: xyz \n Some text"
+          echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
       - name: Update env.sample
         run: |
