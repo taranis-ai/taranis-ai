@@ -4,27 +4,18 @@ on:
   push:
     tags:
       - '[0-9]+.[0-9]+.[0-9]+'
-  # TODO: remove
-  pull_request:
 
 jobs:
   release:
     runs-on: ubuntu-22.04
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Get tag name
-        run: |
-          git config --global user.email "you@example.com"
-          git config --global user.name "Your Name"
-          git tag -a 2.1.0 -m 'xyz feature is released in this tag.
-          > My favourite text
-          > Some text 
-          > Some more text'
-          echo "tag_message=$(git tag -n3 --format='%(contents)' 2.1.0)" >> $GITHUB_ENV
-          
+        run: echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
       - name: Update env.sample
         run: |
@@ -36,20 +27,22 @@ jobs:
           cat ${{ runner.temp }}/env.sample
 
       - name: Get tag message
-        id: get_tag_message
         run: |
-          TAG_MESSAGE=$(git for-each-ref --format='%(contents)' "refs/tags/${{ env.tag }}")
-          echo "tag_message=$TAG_MESSAGE" >> $GITHUB_ENV
+          git fetch --depth=1 origin +refs/tags/*:refs/tags/*
+          echo "TAG_MESSAGE<<EOF" >> $GITHUB_ENV
+          echo "$(git tag -l --format='%(contents)' ${GITHUB_REF#refs/*/})" >> $GITHUB_ENV   
+          echo "EOF" >> $GITHUB_ENV       
 
-    #   - name: Release
-    #    uses: softprops/action-gh-release@v2
-    #    if: startsWith(github.ref, 'refs/tags/')
-    #    with:
-    #      tag_name: ${{ env.tag }}
-    #      release_name: ${{ env.tag }}
-    #      body: ${{ env.tag_message }}
-    #     generate_release_notes: true
-    #    appendBody: true
-    #   files: |
-    #    docker/compose.yml
-    #   ${{ runner.temp }}/env.sample
+      - name: Verify tag message
+        run: echo ${{ env.TAG_MESSAGE }}
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          generate_release_notes: true
+          append_body: true
+          body: ${{ env.TAG_MESSAGE }}
+          files: |
+            docker/compose.yml
+            ${{ runner.temp }}/env.sample
