@@ -37,6 +37,10 @@ class Settings(BaseSettings):
     SSE_URL: str = "http://sse:8088/publish"
     DISABLE_SSE: bool = False
 
+    SENTRY_DSN: str | None = None
+    SENTRY_TRACES_SAMPLE_RATE: float = 1.0
+    SENTRY_PROFILES_SAMPLE_RATE: float = 1.0
+
     @model_validator(mode="after")  # type: ignore
     def set_sqlalchemy_uri(self) -> "Settings":
         if not self.SQLALCHEMY_DATABASE_URI or len(self.SQLALCHEMY_DATABASE_URI) < 1:
