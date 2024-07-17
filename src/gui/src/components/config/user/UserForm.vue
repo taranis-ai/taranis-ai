@@ -20,7 +20,7 @@
             name="name"
           />
         </v-col>
-        <v-col cols="6" class="pa-1">
+        <v-col v-if="!externalAuth" cols="6" class="pa-1">
           <v-text-field
             ref="password"
             v-model="user.password"
@@ -32,7 +32,7 @@
             @click:append-inner="showPassword = !showPassword"
           />
         </v-col>
-        <v-col cols="6" class="pa-1">
+        <v-col v-if="!externalAuth" cols="6" class="pa-1">
           <v-btn
             color="primary"
             class="mt-4"
@@ -46,6 +46,7 @@
         <v-col cols="6" class="pr-1">
           <v-select
             v-model="user.organization"
+            :disabled="externalAuth"
             item-title="name"
             item-value="id"
             :hint="$t('user.organization')"
@@ -61,6 +62,7 @@
             :headers="headers"
             :items="roles"
             show-select
+            :item-selectable="name"
           >
             <template #top>
               <v-toolbar-title class="ml-3 text-center">
@@ -83,6 +85,8 @@ import { createUser, updateUser } from '@/api/config'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useConfigStore } from '@/stores/ConfigStore'
+import { useAuthStore } from '@/stores/AuthStore'
+import { storeToRefs } from 'pinia'
 
 export default {
   name: 'UserForm',
@@ -99,9 +103,11 @@ export default {
   },
   emits: ['updated'],
   setup(props, { emit }) {
-    const store = useConfigStore()
-    const { loadOrganizations, loadRoles } = store
+    const configStore = useConfigStore()
+    const authStore = useAuthStore()
     const form = ref(null)
+
+    const { externalAuth } = storeToRefs(authStore)
 
     const headers = [
       {
@@ -114,8 +120,8 @@ export default {
 
     const showPassword = ref(false)
     const user = ref(props.userProp)
-    const roles = computed(() => store.roles.items)
-    const organizations = computed(() => store.organizations.items)
+    const roles = computed(() => configStore.roles.items)
+    const organizations = computed(() => configStore.organizations.items)
 
     const rules = {
       required: (value) => Boolean(value) || 'Required.'
@@ -139,32 +145,24 @@ export default {
         return
       }
 
-      if (props.edit) {
-        updateUser(user.value)
-          .then(() => {
-            form.value.reset()
-            notifySuccess('user.successful_edit')
-            emit('updated')
-          })
-          .catch(() => {
-            notifyFailure('user.error')
-          })
-      } else {
-        createUser(user.value)
-          .then(() => {
-            form.value.reset()
-            notifySuccess('user.successful')
-            emit('updated')
-          })
-          .catch(() => {
-            notifyFailure('user.error')
-          })
+      try {
+        if (props.edit) {
+          await updateUser(user.value)
+          notifySuccess('user.successful_edit')
+        } else {
+          await createUser(user.value)
+          notifySuccess('user.successful')
+        }
+        form.value.reset()
+        emit('updated')
+      } catch (error) {
+        notifyFailure('user.error')
       }
     }
 
     onMounted(() => {
-      loadOrganizations()
-      loadRoles()
+      configStore.loadOrganizations()
+      configStore.loadRoles()
     })
 
     watch(
@@ -182,6 +180,7 @@ export default {
       form,
       showPassword,
       passwordRules,
+      externalAuth,
       user,
       generatePassword,
       addUser

@@ -14,7 +14,7 @@
           style="max-width: 600px"
         />
       </v-row>
-      <ExternalLogin v-if="authMethod === 'external'" />
+      <ExternalLogin v-if="externalAuth" />
       <LoginForm v-else />
     </div>
   </v-container>
@@ -28,7 +28,7 @@ import { storeToRefs } from 'pinia'
 
 const authStore = useAuthStore()
 
-const { authMethod } = storeToRefs(authStore)
+const { externalAuth } = storeToRefs(authStore)
 
 authStore.setAuthMethod()
 </script>

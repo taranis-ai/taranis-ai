@@ -36,6 +36,8 @@ export const useAuthStore = defineStore(
       () => new Date() > new Date(exp.value * 1000 - 300 * 1000)
     )
 
+    const externalAuth = computed(() => authMethod.value === 'external')
+
     async function setAuthMethod() {
       try {
         const response = await getAuthMethod()
@@ -131,6 +133,7 @@ export const useAuthStore = defineStore(
       expirationDate,
       needTokenRefresh,
       authMethod,
+      externalAuth,
       setAuthMethod,
       login,
       logout,
