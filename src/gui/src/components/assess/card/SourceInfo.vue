@@ -1,14 +1,16 @@
 <template>
   <v-tooltip class="mr-5">
     <template #activator="{ props }">
-      <img
-        v-if="icon"
-        v-bind="props"
-        :src="'data:image/png;base64,' + icon"
-        :alt="source?.name"
-        :height="height"
-      />
-      <v-icon v-else v-bind="props" :icon="typeIcon" />
+      <div class="article-source-icon">
+        <img
+          v-if="icon"
+          v-bind="props"
+          :src="'data:image/png;base64,' + icon"
+          :alt="source?.name"
+          :height="height"
+        />
+        <v-icon v-else v-bind="props" :icon="typeIcon" />
+      </div>
     </template>
     <span>{{ source?.name }}</span>
   </v-tooltip>
@@ -61,3 +63,12 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+.article-source-icon {
+  max-width: 30px;
+  max-height: 30px;
+  overflow: hidden;
+  border-radius: 7px;
+}
+</style>
