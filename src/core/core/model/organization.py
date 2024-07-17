@@ -31,6 +31,10 @@ class Organization(BaseModel):
         data.pop("address_id")
         return data
 
+    @classmethod
+    def get_by_name(cls, name: str) -> "Organization | None":
+        return cls.get_first(db.select(cls).filter_by(name=name))
+
     def to_user_dict(self):
         return {
             "id": self.id,

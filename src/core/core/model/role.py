@@ -77,6 +77,10 @@ class Role(BaseModel):
         return None
 
     @classmethod
+    def get_roles_by_names(cls, role_names: list[str]) -> list["Role"]:
+        return list(cls.get_filtered(db.select(cls).filter(cls.name.in_(role_names))) or [])
+
+    @classmethod
     def update(cls, role_id: int, data: dict) -> tuple[dict, int]:
         role = cls.get(role_id)
         if not role:

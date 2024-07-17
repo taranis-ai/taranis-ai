@@ -4,6 +4,8 @@ from flask_jwt_extended import create_access_token
 from core.auth.base_authenticator import BaseAuthenticator
 from core.config import Config
 from core.model.user import User
+from core.model.organization import Organization
+from core.model.role import Role
 from core.log import logger
 
 
@@ -25,6 +27,8 @@ class ExternalAuthenticator(BaseAuthenticator):
             return BaseAuthenticator.generate_error()
 
         user = self.create_user_if_not_exists(username, credentials)
+        if not user:
+            return BaseAuthenticator.generate_error()
         logger.store_user_activity(user, "LOGIN", "Successful")
 
         access_token = create_access_token(
@@ -43,12 +47,20 @@ class ExternalAuthenticator(BaseAuthenticator):
             "organization": headers.get(Config.EXTERNAL_AUTH_ORGANIZATION, ""),
         }
 
-    def create_user_if_not_exists(self, username: str, credentials: dict[str, str]) -> "User":
-        name = credentials.get("name")
-        organization = credentials.get("organization")
-        roles = credentials.get("roles")
-
+    def create_user_if_not_exists(self, username: str, credentials: dict[str, str]) -> "User | None":
         if user := User.find_by_name(username):
             return user
 
-        return User.add({"username": username, "name": name, "organization": organization, "roles": roles})
+        organization = Organization.get_by_name(credentials.get("organization", ""))
+        if not organization:
+            logger.warning(f"Couldn't create user {username} because organization {credentials.get('organization')} doesn't exist")
+            return None
+
+        roles = Role.get_roles_by_names(credentials.get("roles", "").split(","))
+        if not roles:
+            logger.warning(f"Couldn't create user {username} because roles {credentials.get('roles')} don't exist")
+            return None
+
+        return User.add(
+            {"username": username, "name": credentials.get("name"), "organization": organization.id, "roles": [role.id for role in roles]}
+        )
