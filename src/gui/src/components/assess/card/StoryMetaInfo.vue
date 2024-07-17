@@ -43,11 +43,11 @@
           :truncate="!detailView"
           :color="detailView"
           :editable="detailView"
-          @edit="editTags()"
+          @edit="editTags"
         />
       </td>
-      <td :bgcolor="relevanceColor">
-        {{ story.relevance }}
+      <td>
+        <relevance-indicator :relevance="story.relevance" />
       </td>
     </tr>
 
@@ -91,6 +91,7 @@ import ArticleInfo from '@/components/assess/card/ArticleInfo.vue'
 import AuthorInfo from '@/components/assess/card/AuthorInfo.vue'
 import PopupEditTags from '@/components/popups/PopupEditTags.vue'
 import StoryVotes from '@/components/assess/card/StoryVotes.vue'
+import RelevanceIndicator from '@/components/assess/card/RelevanceIndicator.vue'
 
 export default {
   name: 'StoryMetaInfo',
@@ -99,7 +100,8 @@ export default {
     ArticleInfo,
     AuthorInfo,
     StoryVotes,
-    TagList
+    TagList,
+    RelevanceIndicator
   },
   props: {
     story: {
@@ -171,19 +173,6 @@ export default {
       return [...new Set(props.story.tags.slice(0, tagLimit.value))]
     })
 
-    const relevanceColor = computed(() => {
-      if (props.story.relevance > 10) {
-        return 'red'
-      }
-      if (props.story.relevance > 5) {
-        return 'orange'
-      }
-      if (props.story.relevance > 2) {
-        return 'green'
-      }
-      return 'grey'
-    })
-
     const story_in_reports = computed(() => {
       return props.story ? props.story.in_reports_count : 0
     })
@@ -215,7 +204,6 @@ export default {
       showWeekChart,
       showTagDialog,
       published_dates,
-      relevanceColor,
       published_date_outdated,
       story_in_reports,
       getPublishedDate,
@@ -238,10 +226,17 @@ export default {
 
 .story-meta-info tr td {
   vertical-align: top;
+  width: 100%;
 }
 
-.story-meta-info tr td:last-child {
-  width: 100%;
+.story-meta-info tr td:nth-child(1) {
+  width: 30px;
+  padding-right: 5px;
+}
+
+.story-meta-info tr td:nth-child(3) {
+  width: 30px;
+  text-align: center;
 }
 
 .shared-icons-container {
