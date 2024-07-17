@@ -1,4 +1,7 @@
 from flask import Flask
+import sentry_sdk
+import os
+from dotenv import load_dotenv
 
 from core.managers import (
     db_manager,
@@ -10,6 +13,7 @@ from core.managers import (
 
 
 def create_app(initial_setup: bool = True):
+    sentry_init()
     app = Flask(__name__)
     app.config.from_object("core.config.Config")
 
@@ -19,8 +23,21 @@ def create_app(initial_setup: bool = True):
     return app
 
 
+def sentry_init():
+    load_dotenv()
+    sentry_sdk.init(
+        dsn = os.getenv("SENTRY_DSN"),
+        # Set traces_sample_rate to 1.0 to capture 100%
+        # of transactions for tracing.
+        traces_sample_rate = os.getenv("SENTRY_TRACES_SAMPLE_RATE", 1.0),
+        # Set profiles_sample_rate to 1.0 to profile 100%
+        # of sampled transactions.
+        # We recommend adjusting this value in production.
+        profiles_sample_rate=os.getenv("SENTRY_PROFILES_SAMPLE_RATE", 1.0)
+    )
+
+
 def initialize_managers(app: Flask, initial_setup: bool = False):
-    1/0
     db_manager.initialize(app, initial_setup)
     auth_manager.initialize(app)
     api_manager.initialize(app)
