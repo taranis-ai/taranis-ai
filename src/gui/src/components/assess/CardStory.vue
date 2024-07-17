@@ -71,7 +71,7 @@
             </v-col>
           </v-row>
         </v-col>
-        <v-col class="action-bar mr-2">
+        <v-col class="action-bar mr-1">
           <story-actions
             :story="story"
             :detail-view="detailView"
@@ -80,6 +80,7 @@
             @open-details="openCard()"
             @refresh="emitRefresh()"
             @remove-from-report="$emit('remove-from-report')"
+            @click.stop
           />
         </v-col>
       </v-row>
@@ -286,6 +287,13 @@ export default {
       rgb(var(--v-theme-primary)) 10%,
       #ffffff
     );
+    & .action-bar {
+      background-color: color-mix(
+        in srgb,
+        rgb(var(--v-theme-primary)) 10%,
+        #ebebeb
+      );
+    }
   }
 }
 
