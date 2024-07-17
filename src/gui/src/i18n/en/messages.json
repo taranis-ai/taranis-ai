@@ -194,6 +194,7 @@
     "login": {
         "backend_error": "Taranis Core Backend error",
         "error": "Username or password is incorrect",
+        "external_error": "Missing Authentication Headers",
         "password": "Password",
         "submit": "Login",
         "title": "Please Login",

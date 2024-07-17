@@ -1,0 +1,42 @@
+name: Release on pushed tags
+
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+
+jobs:
+  release:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get tag name
+        run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
+      - name: Update env.sample
+        run: |
+          cp docker/env.sample ${{ runner.temp }}
+          sed -i 's/^TARANIS_TAG=.*/TARANIS_TAG=${{ env.TAG }}/' ${{ runner.temp }}/env.sample
+
+      - name: Get Tag Message
+        run: |
+          git fetch --depth=1 origin +refs/tags/*:refs/tags/*
+          echo "### ${{ env.TAG }}" >> $GITHUB_STEP_SUMMARY
+          git tag -l --format='%(contents)' ${{ env.TAG }} >> $GITHUB_STEP_SUMMARY
+          git tag -l --format='%(contents)' ${{ env.TAG }} >> ${{ runner.temp }}/release_body.md
+
+      - name: Release
+        uses: softprops/action-gh-release@v2.0.6
+        with:
+          generate_release_notes: true
+          append_body: true
+          body_path: ${{ runner.temp }}/release_body.md
+          files: |
+            docker/compose.yml
+            ${{ runner.temp }}/env.sample
+

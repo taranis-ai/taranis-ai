@@ -58,8 +58,8 @@ def sync_presenter_templates_to_data() -> None:
         if dest_path.exists():
             current_hash = file_hash(dest_path)
 
-        if not dest_path.exists() or template_hashes.get(file.name) == current_hash:
-            logger.debug(f"Updeting {dest_path} with newer version.")
+        if not dest_path.exists() or template_hashes.get(file.name) != current_hash:
+            logger.debug(f"Updating {dest_path} with newer version.")
             copy(file, dest_path)
             template_hashes[file.name] = current_hash
 

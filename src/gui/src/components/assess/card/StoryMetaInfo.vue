@@ -5,8 +5,15 @@
         <strong>{{ t('assess.published') }}:</strong>
       </td>
       <td class="text-no-wrap">
-        <span :class="published_date_outdated ? 'text-error' : ''">
-          {{ getPublishedDate }}
+        <span
+          v-if="getPublishedDate.length > 1"
+          :class="published_date_outdated ? 'text-error' : ''"
+        >
+          {{ getPublishedDate[0] }}<br />
+          {{ getPublishedDate[1] }}
+        </span>
+        <span v-else :class="published_date_outdated ? 'text-error' : ''">
+          {{ getPublishedDate[0] }}
         </span>
         <v-icon
           v-if="published_date_outdated"
@@ -179,10 +186,10 @@ export default {
       const pubDateOldStr = d(pubDateOld, 'long', 'sv-SE')
       if (pubDateNew && pubDateOld) {
         return pubDateNewStr === pubDateOldStr
-          ? pubDateNewStr
-          : `${pubDateOldStr} - ${pubDateNewStr}`
+          ? [pubDateNewStr]
+          : [pubDateOldStr, pubDateNewStr]
       }
-      return ''
+      return ['']
     })
 
     function editTags() {
