@@ -1,6 +1,7 @@
-from flask import Flask
-import sentry_sdk
 import os
+import sentry_sdk
+
+from flask import Flask
 from dotenv import load_dotenv
 
 from core.managers import (
@@ -29,11 +30,11 @@ def sentry_init():
         dsn = os.getenv("SENTRY_DSN"),
         # Set traces_sample_rate to 1.0 to capture 100%
         # of transactions for tracing.
-        traces_sample_rate = os.getenv("SENTRY_TRACES_SAMPLE_RATE", 1.0),
+        traces_sample_rate = float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", 1.0)),
         # Set profiles_sample_rate to 1.0 to profile 100%
         # of sampled transactions.
         # We recommend adjusting this value in production.
-        profiles_sample_rate=os.getenv("SENTRY_PROFILES_SAMPLE_RATE", 1.0)
+        profiles_sample_rate=float(os.getenv("SENTRY_PROFILES_SAMPLE_RATE", 1.0))
     )
 
 
