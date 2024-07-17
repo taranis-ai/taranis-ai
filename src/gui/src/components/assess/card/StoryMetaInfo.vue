@@ -1,5 +1,5 @@
 <template>
-  <table class="story-meta-info">
+  <table class="story-meta-info" :class="compactView ? 'compact-view' : ''">
     <tr>
       <td v-if="!compactView">
         <strong>{{ t('assess.published') }}:</strong>
@@ -229,12 +229,12 @@ export default {
   width: 100%;
 }
 
-.story-meta-info tr td:nth-child(1) {
+.story-meta-info:not(.compact-view) tr td:nth-child(1) {
   width: 30px;
   padding-right: 5px;
 }
 
-.story-meta-info tr td:nth-child(3) {
+.story-meta-info:not(.compact-view) tr td:nth-child(3) {
   width: 30px;
   text-align: center;
 }
