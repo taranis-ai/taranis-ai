@@ -75,7 +75,7 @@
         <v-col cols="12" class="pt-1">
           <date-filter
             v-model="storyFilter.timefrom"
-            placeholder="Fist Day"
+            placeholder="First Day"
             :default-date="defaultFromDate"
           />
         </v-col>
