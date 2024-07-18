@@ -49,6 +49,8 @@ See [dev Readme](/dev/README.md) for a quick way to get a development environmen
 
 Open `http://<url>:<TARANIS_PORT>/config/sources` and click [Import] to import json-file with sources (see below)
 
+## Advanced monitoring
+Taranis AI supports advanced monitoring of `core` and `database` using (Sentry)[https://docs.sentry.io/]. It can be enabled by setting `SENTRY_DSN` environment variable.
 
 ## Advanced build methods
 
@@ -106,6 +108,10 @@ Any configuration options are available at [https://hub.docker.com/_/postgres](h
 | `DB_POOL_TIMEOUT`           | SQLAlchemy QueuePool connection timeout. | `5` |
 | `JWT_SECRET_KEY`            | JWT token secret key. | `supersecret` |
 | `WORKERS_PER_CORE`          | Number of gunicorn worker threads to spawn per CPU core. | `4` |
+| `SENTRY_DSN`                  | DSN address for sentry | `https://<id>.ingest.de.sentry.io/<id>` |
+| `SENTRY_TRACES_SAMPLE_RATE`   | Trace sample rate      | `1.0` |
+| `SENTRY_PROFILES_SAMPLE_RATE` | Profile sample rate    | `1.0` |
+
 
 
 ### `worker`, `beat`
@@ -129,15 +135,3 @@ Any configuration options are available at [https://hub.docker.com/_/postgres](h
 | `TARANIS_SENTRY_DSN`    | Sentry DSN | '' |
 | `NGINX_WORKERS`         | Number of nginx worker threads to spawn. | `4` |
 | `NGINX_CONNECTIONS`     | Maximum number of allowed connections per one worker thread. | `16` |
-
-
-### `sentry`
-| Environment variable          | Description | Example |
-|-------------------------------|-------------|----------|
-| `SENTRY_DSN`                  | DSN address for sentry | `https://<id>.ingest.de.sentry.io/<id>` |
-| `SENTRY_TRACES_SAMPLE_RATE`   | Trace sample rate      | `1.0` |
-| `SENTRY_PROFILES_SAMPLE_RATE` | Profile sample rate    | `1.0` |
-
-
-## Advanced monitoring
-Taranis AI supports advanced monitoring using (Sentry)[https://docs.sentry.io/].
