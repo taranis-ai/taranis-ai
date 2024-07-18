@@ -35,28 +35,20 @@
     </v-container>
     <v-row
       v-if="stories.items.length == 0 && !loading"
-      class="align-center justify-center mt-5"
+      class="align-center justify-center"
     >
       <v-col cols="12">
-        <v-alert
-          :value="true"
-          type="info"
-          text="No items found. Please change your filter."
-          class="mx-4 text-center text-h5"
-        />
+        <v-empty-state
+          icon="mdi-magnify"
+          text="Try adjusting your search terms or filters."
+          title="No items match."
+          class="my-5"
+        ></v-empty-state>
       </v-col>
-      <v-col cols="6">
-        <v-btn block class="mx-4" @click="resetFilter()">Reset Filter</v-btn>
-      </v-col>
-    </v-row>
-    <v-row v-else-if="loading" class="align-center justify-center mt-5">
-      <v-col cols="12">
-        <v-alert
-          :value="true"
-          type="info"
-          text="Loading items ..."
-          class="mx-4 text-center text-h5"
-        />
+      <v-col cols="12" sm="6" md="2">
+        <v-btn block prepend-icon="mdi-refresh" @click="resetFilter()"
+          >reset filter</v-btn
+        >
       </v-col>
     </v-row>
     <assess-selection-toolbar />
