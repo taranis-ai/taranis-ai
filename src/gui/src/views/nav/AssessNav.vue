@@ -76,6 +76,7 @@
           <date-filter
             v-model="storyFilter.timefrom"
             placeholder="First Day"
+            :timeto="storyFilter.timeto"
             :default-date="defaultFromDate"
           />
         </v-col>
@@ -84,12 +85,8 @@
           <date-filter
             v-model="storyFilter.timeto"
             placeholder="Last Day"
+            :timefrom="storyFilter.timefrom"
             :default-date="new Date()"
-            :max-date="
-              storyFilter.timefrom instanceof Date
-                ? storyFilter.timefrom
-                : new Date()
-            "
           />
         </v-col>
         <v-col cols="12" class="pt-1">

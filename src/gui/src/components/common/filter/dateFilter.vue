@@ -1,16 +1,19 @@
 <template>
-  <VueDatePicker
-    v-model="selected"
-    :name="'dateFilter-' + placeholder"
-    :placeholder="placeholder"
-    :max-date="maxDatePlus"
-    format="yyyy-MM-dd HH:mm:ss"
-    time-picker-inline
-    auto-apply
-    clearable
-    space-confirm
-    @open="openMenu()"
-  />
+  <div>
+    <VueDatePicker
+      v-model="selected"
+      :name="'dateFilter-' + placeholder"
+      :placeholder="placeholder"
+      :min-date="minDate"
+      :max-date="maxDate"
+      format="yyyy-MM-dd HH:mm:ss"
+      time-picker-inline
+      auto-apply
+      clearable
+      space-confirm
+      @open="openMenu()"
+    />
+  </div>
 </template>
 
 <script>
@@ -28,9 +31,13 @@ export default {
       type: String,
       default: 'Enter date'
     },
-    maxDate: {
-      type: Date,
-      default: new Date()
+    timeto: {
+      type: String,
+      default: null
+    },
+    timefrom: {
+      type: String,
+      default: null
     },
     defaultDate: {
       type: Date,
@@ -47,8 +54,22 @@ export default {
       return userStore.language
     })
 
-    const maxDatePlus = computed(() => {
-      const newDate = new Date(props.maxDate.getTime())
+    const minDate = computed(() => {
+      if (props.timefrom) {
+        const newDate = new Date(props.timefrom)
+        newDate.setHours(23)
+        newDate.setMinutes(59)
+        return newDate
+      } else {
+        return null
+      }
+    })
+
+    const maxDate = computed(() => {
+      let newDate = new Date()
+      if (props.timeto) {
+        newDate = new Date(props.timeto)
+      }
       newDate.setHours(23)
       newDate.setMinutes(59)
       return newDate
@@ -80,9 +101,10 @@ export default {
     return {
       openMenu,
       locale,
-      maxDatePlus,
+      minDate,
+      maxDate,
       selected: computed({
-        get: () => Date.parse(selected.value),
+        get: () => (selected.value ? new Date(selected.value) : null),
         set: updateSelected
       })
     }
