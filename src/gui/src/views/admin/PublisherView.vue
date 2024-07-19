@@ -1,22 +1,31 @@
 <template>
-  <v-container fluid>
-    <DataTable
-      :items="publisher.items"
-      :add-button="true"
-      :header-filter="['name', 'description', 'type', 'actions']"
-      @delete-item="deleteItem"
-      @edit-item="editItem"
-      @add-item="addItem"
-      @update-items="updateData"
-    />
-    <EditConfig
-      v-if="showForm"
-      :config-data="formData"
-      :form-format="formFormat"
-      :parameters="parameters"
-      :title="editTitle"
-      @submit="handleSubmit"
-    />
+  <v-container fluid class="pa-2">
+    <v-row no-gutters>
+      <v-col class="pa-2 mt-2">
+        <h1>Publisher Settings</h1>
+      </v-col>
+    </v-row>
+    <v-row no-gutters>
+      <v-col class="pa-2">
+        <DataTable
+          :items="publisher.items"
+          :add-button="true"
+          :header-filter="['name', 'description', 'type', 'actions']"
+          @delete-item="deleteItem"
+          @edit-item="editItem"
+          @add-item="addItem"
+          @update-items="updateData"
+        />
+        <EditConfig
+          v-if="showForm"
+          :config-data="formData"
+          :form-format="formFormat"
+          :parameters="parameters"
+          :title="editTitle"
+          @submit="handleSubmit"
+        />
+      </v-col>
+    </v-row>
   </v-container>
 </template>
 

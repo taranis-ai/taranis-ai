@@ -4,8 +4,9 @@
       <v-btn-toggle
         v-model="trendingClusterScope"
         class="mb-1"
-        rounded="xl"
+        variant="tonal"
         @update:model-value="toggleScope"
+        selected-class="active-toggle"
       >
         <v-btn value="0">
           <v-tooltip activator="parent">Complete Database</v-tooltip>
@@ -111,3 +112,13 @@ export default defineComponent({
   }
 })
 </script>
+
+<style>
+.active-toggle.v-btn--active {
+  background-color: rgb(var(--v-theme-primary));
+  color: white;
+  border: none;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+</style>

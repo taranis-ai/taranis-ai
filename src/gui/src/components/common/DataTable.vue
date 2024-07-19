@@ -4,7 +4,7 @@
     :headers="headers"
     :items="items"
     :search="search"
-    class="elevation-1"
+    class="data-table-base"
     show-select
     :model-value="selected"
     :items-per-page="itemsPerPage"
@@ -12,7 +12,7 @@
     @click:row="rowClick"
   >
     <template #top>
-      <v-card v-if="showTop">
+      <v-card v-if="showTop" elevation="0">
         <v-card-title>
           <v-row no-gutters>
             <v-text-field
@@ -21,6 +21,7 @@
               append-inner-icon="mdi-magnify"
               density="compact"
               label="Search"
+              variant="outlined"
               single-line
               class="mr-4"
               hide-details
@@ -88,8 +89,8 @@
           <template #activator="{ props }">
             <v-icon
               v-bind="props"
-              color="red"
-              icon="mdi-delete"
+              color="error"
+              icon="mdi-delete-outline"
               @click.stop="deleteItem(item)"
             />
           </template>
@@ -100,14 +101,13 @@
     <template v-if="items.length < itemsPerPage" #bottom />
     <template #no-data>
       <slot name="nodata">
-        <v-alert title="No Data Found" type="warning">
+        <v-empty-state icon="mdi-magnify" title="No Data Found." class="my-5">
           <v-btn
-            color="primary"
-            text="Refresh"
+            text="refresh"
             prepend-icon="mdi-refresh"
             @click.stop="updateItems()"
           />
-        </v-alert>
+        </v-empty-state>
       </slot>
     </template>
   </v-data-table>
@@ -243,3 +243,17 @@ export default defineComponent({
   }
 })
 </script>
+
+<style lang="scss">
+.data-table-base {
+  border: 2px solid white;
+  transition: 180ms;
+  box-shadow: 1px 2px 9px 0px rgba(0, 0, 0, 0.15);
+  flex-grow: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  margin: 4px;
+  padding: 12px;
+}
+</style>

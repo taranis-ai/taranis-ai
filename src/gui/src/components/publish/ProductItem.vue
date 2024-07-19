@@ -49,6 +49,7 @@
                   :disabled="edit"
                   :rules="required"
                   required
+                  menu-icon="mdi-chevron-down"
                 />
               </v-col>
               <v-col cols="6" class="pr-3">

@@ -1,21 +1,37 @@
 <template>
-  <v-container fluid>
-    <DataTable
-      v-model:items="attributes.items"
-      :add-button="true"
-      :header-filter="['tag', 'id', 'name', 'description', 'type', 'actions']"
-      sort-by-item="id"
-      @delete-item="deleteItem"
-      @edit-item="editItem"
-      @add-item="addItem"
-      @update-items="updateData"
-    />
-    <AttributeForm
-      v-if="showForm"
-      :attribute-prop="formData"
-      :edit="edit"
-      @submit="handleSubmit"
-    />
+  <v-container fluid class="pa-2">
+    <v-row no-gutters>
+      <v-col class="pa-2 mt-2">
+        <h1>Attributes Settings</h1>
+      </v-col>
+    </v-row>
+    <v-row no-gutters>
+      <v-col class="pa-2">
+        <DataTable
+          v-model:items="attributes.items"
+          :add-button="true"
+          :header-filter="[
+            'tag',
+            'id',
+            'name',
+            'description',
+            'type',
+            'actions'
+          ]"
+          sort-by-item="id"
+          @delete-item="deleteItem"
+          @edit-item="editItem"
+          @add-item="addItem"
+          @update-items="updateData"
+        />
+        <AttributeForm
+          v-if="showForm"
+          :attribute-prop="formData"
+          :edit="edit"
+          @submit="handleSubmit"
+        />
+      </v-col>
+    </v-row>
   </v-container>
 </template>
 

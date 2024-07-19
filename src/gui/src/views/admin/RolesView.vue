@@ -1,27 +1,36 @@
 <template>
-  <v-container fluid>
-    <DataTable
-      :items="roles.items"
-      :add-button="true"
-      :header-filter="[
-        'id',
-        'name',
-        'description',
-        'permissions.length',
-        'actions'
-      ]"
-      @delete-item="deleteItem"
-      @edit-item="editItem"
-      @add-item="addItem"
-      @update-items="updateData"
-    />
-    <EditConfig
-      v-if="showForm"
-      :config-data="formData"
-      :form-format="formFormat"
-      :title="editTitle"
-      @submit="handleSubmit"
-    />
+  <v-container fluid class="pa-2">
+    <v-row no-gutters>
+      <v-col class="pa-2 mt-2">
+        <h1>Roles Settings</h1>
+      </v-col>
+    </v-row>
+    <v-row no-gutters>
+      <v-col class="pa-2">
+        <DataTable
+          :items="roles.items"
+          :add-button="true"
+          :header-filter="[
+            'id',
+            'name',
+            'description',
+            'permissions.length',
+            'actions'
+          ]"
+          @delete-item="deleteItem"
+          @edit-item="editItem"
+          @add-item="addItem"
+          @update-items="updateData"
+        />
+        <EditConfig
+          v-if="showForm"
+          :config-data="formData"
+          :form-format="formFormat"
+          :title="editTitle"
+          @submit="handleSubmit"
+        />
+      </v-col>
+    </v-row>
   </v-container>
 </template>
 

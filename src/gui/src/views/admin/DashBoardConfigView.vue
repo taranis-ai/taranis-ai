@@ -1,5 +1,10 @@
 <template>
-  <v-container fluid>
+  <v-container fluid class="pa-2">
+    <v-row no-gutters>
+      <v-col class="pa-2 mt-2">
+        <h1>Dashboard Settings</h1>
+      </v-col>
+    </v-row>
     <v-row no-gutters>
       <dash-board-card link-to="/assess" link-text="Assess" cols="6">
         <template #content>
