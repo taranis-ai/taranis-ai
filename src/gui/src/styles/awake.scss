@@ -26,6 +26,10 @@ $awake-green-color: #77bb70;
 $awake-yellow-color: #e9c645;
 $awake-red-color: #d18e8e;
 
+html {
+  background: #f3f3f3;
+}
+
 .item-action-btn.btn-group button,
 button.item-action-btn,
 a.item-action-btn {
@@ -74,7 +78,6 @@ a.item-action-btn {
 .meta-info-col {
   border-right: 1px solid #c0c0c0;
 }
-
 
 button.vertical-button .v-btn__append,
 button.vertical-button .v-btn__append i {

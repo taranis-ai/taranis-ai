@@ -1,10 +1,10 @@
 <template>
   <v-menu close-on-back close-on-content-click>
     <template #activator="{ props }">
-      <v-btn icon="mdi-account" v-bind="props" />
+      <v-btn icon="mdi-account-outline" v-bind="props" />
     </template>
     <v-list>
-      <v-list-item prepend-icon="mdi-account" @click="userview">
+      <v-list-item prepend-icon="mdi-account-outline" @click="userview">
         <v-list-item-title>{{ name }}</v-list-item-title>
       </v-list-item>
       <v-divider></v-divider>

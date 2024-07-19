@@ -198,7 +198,7 @@
             color="primary"
             block
             to="enter"
-            prepend-icon="mdi-pencil"
+            prepend-icon="mdi-pencil-outline"
             text="create new item"
           />
         </v-col>
