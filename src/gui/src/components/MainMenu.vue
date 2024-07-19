@@ -22,13 +22,31 @@
       />
     </v-app-bar-title>
 
-    <div v-if="showItemCount && mdAndUp" class="mr-10">
+    <div v-if="showItemCount && mdAndUp" class="mr-4 menu-item-info">
       <span>
         total items: <strong>{{ itemCountTotal }}</strong>
       </span>
       <span v-if="isFiltered">
-        / displayed items: <strong>{{ itemCountFiltered }}</strong>
+        / displayed: <strong>{{ itemCountFiltered }}</strong>
       </span>
+      <v-tooltip activator="parent" location="bottom">
+        <v-icon icon="mdi-eye-check-outline" size="x-small" class="mr-1" />
+        read: <strong>{{ itemCountRead }}</strong
+        ><br />
+        <v-icon icon="mdi-eye-off-outline" size="x-small" class="mr-1" />
+        unread: <strong>{{ itemCountUnread }}</strong>
+        <br />
+        <v-icon icon="mdi-star-check-outline" size="x-small" class="mr-1" />
+        important: <strong>{{ itemCountImportant }}</strong>
+        <br />
+        <v-icon
+          icon="mdi-google-circles-communities"
+          size="x-small"
+          class="mr-1"
+        />
+        in report: <strong>{{ itemCountInReport }}</strong>
+        <br />
+      </v-tooltip>
     </div>
 
     <v-text-field
@@ -36,11 +54,11 @@
       id="omni-search"
       v-model="searchState"
       placeholder="search"
-      varint="outlined"
+      variant="outlined"
       hide-details
       density="compact"
       prepend-inner-icon="mdi-magnify"
-      class="mr-5 ml-5 omni-search"
+      class="mx-3 omni-search"
     />
 
     <template #append>
@@ -68,12 +86,12 @@
           <v-btn
             variant="text"
             :ripple="false"
+            :rounded="false"
             :to="button.route"
             :prepend-icon="button.icon"
+            class="main-menu-btn"
           >
-            <span class="main-menu-item">
-              {{ $t(button.title) }}
-            </span>
+            <span class="main-menu-item"> {{ $t(button.title) }} </span>
           </v-btn>
         </div>
         <user-menu />
@@ -147,6 +165,23 @@ export default defineComponent({
         : itemCountFiltered.value !== itemCountTotal.value
     })
 
+    const itemCountRead = computed(() => {
+      // TODO: Get value from store
+      return 0
+    })
+    const itemCountUnread = computed(() => {
+      // TODO: Get value from store
+      return 0
+    })
+    const itemCountImportant = computed(() => {
+      // TODO: Get value from store
+      return 0
+    })
+    const itemCountInReport = computed(() => {
+      // TODO: Get value from store
+      return 0
+    })
+
     const navClicked = () => {
       mainStore.toggleDrawer()
     }
@@ -196,7 +231,7 @@ export default defineComponent({
       },
       {
         title: 'main_menu.publish',
-        icon: 'mdi-publish',
+        icon: 'mdi-arrow-collapse-up',
         permission: 'PUBLISH_ACCESS',
         route: '/publish'
       },
@@ -227,7 +262,11 @@ export default defineComponent({
       drawerVisible,
       showNavButton,
       buttonList,
-      navClicked
+      navClicked,
+      itemCountRead,
+      itemCountUnread,
+      itemCountImportant,
+      itemCountInReport
     }
   }
 })
@@ -239,10 +278,31 @@ export default defineComponent({
   height: 100%;
 }
 
-.v-btn--active i {
-  color: #7468e8;
+.main-menu-btn.v-btn:hover,
+.v-btn--active {
+  color: rgb(var(--v-theme-primary));
+  padding-top: 4px;
+  border-bottom: 4px solid rgb(var(--v-theme-primary));
 }
+
+.main-menu-btn.v-btn {
+  height: calc(var(--v-btn-height) + 12px) !important;
+  & .v-btn__overlay {
+    background-color: transparent;
+  }
+}
+
 .omni-search {
-  max-width: 300px;
+  transition: max-width 100ms ease-in-out;
+  max-width: 192px;
+}
+
+.omni-search:focus-within {
+  max-width: 800px;
+}
+
+.menu-item-info span {
+  color: #969696;
+  cursor: help;
 }
 </style>
