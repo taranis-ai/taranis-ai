@@ -4,11 +4,18 @@
     dark
     close-on-content-click
     min-height="4.5em"
-    class="notification"
-    :color="notification.type"
-    :timer="true"
+    :rounded="false"
+    variant="flat"
+    offset="0"
+    width="100%"
+    max-width="100%"
+    class="notification opacity-90 d-block h-100"
+    content-class="bottom-0"
+    :timer="notification.type"
     :timeout="20000"
     :text="notificationContent"
+    :color="notification.type"
+    style="z-index: 100"
   />
 </template>
 
@@ -42,8 +49,8 @@ export default defineComponent({
 })
 </script>
 
-<style scoped>
-.notification {
-  bottom: 50px !important;
+<style lang="scss">
+.notification .v-progress-linear__determinate {
+  filter: brightness(0.7) !important;
 }
 </style>
