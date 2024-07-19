@@ -1,7 +1,7 @@
 <template>
   <v-form id="form" ref="form" @submit.prevent="authenticate">
     <v-row no-gutters justify="center" align-content="center" class="mt-5">
-      <v-col cols="8" sm="5">
+      <v-col cols="8" sm="5" class="d-flex justify-center">
         <v-text-field
           ref="userfield"
           v-model="username"
@@ -12,12 +12,13 @@
           variant="outlined"
           :rules="[acceptUser]"
           autocomplete="username"
+          max-width="440px"
           required
         />
       </v-col>
     </v-row>
     <v-row no-gutters justify="center" align-content="center" class="mb-3">
-      <v-col cols="8" sm="5">
+      <v-col cols="8" sm="5" class="d-flex justify-center">
         <v-text-field
           v-model="password"
           :placeholder="$t('login.password')"
@@ -27,12 +28,13 @@
           variant="outlined"
           :rules="[acceptPassword]"
           autocomplete="current-password"
+          max-width="440px"
           required
         />
       </v-col>
     </v-row>
     <v-row no-gutters justify="center" align-content="center">
-      <v-col cols="8" sm="2" class="d-flex">
+      <v-col cols="8" sm="5" class="d-flex" style="max-width: 440px">
         <v-btn
           color="primary"
           prepend-icon="mdi-login-variant"
