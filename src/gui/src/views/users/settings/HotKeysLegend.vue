@@ -1,6 +1,16 @@
 <template>
-  <v-card title="Keyboard Shurtcuts">
-    <v-card-subtitle>
+  <v-card class="pa-5">
+    <v-card-title>
+      Keyboard Shurtcuts
+      <v-icon
+        icon="mdi-close"
+        class="float-right"
+        right
+        size="small"
+        @click="hotkeyDialogVisible = false"
+      />
+    </v-card-title>
+    <v-card-subtitle class="pb-5">
       HotKeys are currently static only
       <a
         href="https://github.com/taranis-ai/taranis-ai/issues/137"
@@ -15,9 +25,14 @@
 </template>
 
 <script>
+import { useMainStore } from '@/stores/MainStore'
+import { storeToRefs } from 'pinia'
+
 export default {
   name: 'HotKeysLegend',
   setup() {
+    const { hotkeyDialogVisible } = storeToRefs(useMainStore())
+
     const hotkeys = [
       { type: 'subheader', title: 'General' },
       {
@@ -76,7 +91,8 @@ export default {
       }
     ]
     return {
-      hotkeys
+      hotkeys,
+      hotkeyDialogVisible
     }
   }
 }

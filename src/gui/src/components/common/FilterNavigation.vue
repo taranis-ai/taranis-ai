@@ -38,9 +38,10 @@
         <v-col cols="12">
           <v-btn
             block
-            prepend-icon="mdi-keyboard"
+            variant="plain"
+            prepend-icon="mdi-keyboard-outline"
             text="Show Hotkeys"
-            @click="hotkeyDialogVisible = !hotkeyDialogVisible"
+            @mouseenter="hotkeyDialogVisible = !hotkeyDialogVisible"
           />
         </v-col>
       </v-row>
