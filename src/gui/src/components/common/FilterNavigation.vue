@@ -30,6 +30,7 @@
           variant="outlined"
           density="compact"
           hide-details
+          menu-icon="mdi-chevron-down"
         />
       </v-row>
 

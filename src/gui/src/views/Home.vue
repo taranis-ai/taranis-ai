@@ -35,7 +35,7 @@
 
       <dash-board-card link-to="/assess" link-text="Assess">
         <template #content>
-          <v-icon class="mr-2"> mdi-email-multiple </v-icon>
+          <v-icon class="mr-2"> mdi-email-multiple-outline </v-icon>
           <span class="caption">
             There are
             <strong>{{ dashboard_data.total_news_items }}</strong> total Assess
@@ -45,7 +45,7 @@
       </dash-board-card>
       <dash-board-card link-to="/analyze" link-text="Analyze">
         <template #content>
-          <v-icon class="mr-2"> mdi-account </v-icon>
+          <v-icon class="mr-2"> mdi-account-outline </v-icon>
           <span class="caption">
             There are <b>{{ dashboard_data.report_items_completed }}</b>
             completed analyses.

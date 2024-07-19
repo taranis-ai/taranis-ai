@@ -292,7 +292,7 @@
           />
         </v-list-item>
         <v-list-item :to="`/enter/${story.id}`">
-          <v-icon icon="mdi-pencil" title="create news item" />
+          <v-icon icon="mdi-pencil-outline" title="create news item" />
           <v-tooltip
             activator="parent"
             location="start"

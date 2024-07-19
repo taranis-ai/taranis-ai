@@ -100,6 +100,7 @@
       :readonly="readOnly"
       :label="attributeItem.title"
       :items="attributeItem.attribute_enums"
+      menu-icon="mdi-chevron-down"
     >
       <!-- TODO: Use MyAssets for Autocomplete -->
     </v-autocomplete>

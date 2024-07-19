@@ -13,37 +13,37 @@ export default {
   data: () => ({
     links: [
       {
-        icon: 'mdi-monitor-dashboard',
+        icon: 'mdi-view-dashboard-variant-outline',
         title: 'nav_menu.dashboard',
         route: '/config/dashboard'
       },
       {
-        icon: 'mdi-account-group',
+        icon: 'mdi-account-group-outline',
         title: 'nav_menu.users',
         route: '/config/users',
         permission: 'CONFIG_USER_ACCESS'
       },
       {
-        icon: 'mdi-office-building',
+        icon: 'mdi-office-building-outline',
         title: 'nav_menu.organizations',
         route: '/config/organizations',
         permission: 'CONFIG_ORGANIZATION_ACCESS'
       },
       {
-        icon: 'mdi-account-arrow-right',
+        icon: 'mdi-account-arrow-right-outline',
         title: 'nav_menu.roles',
         route: '/config/roles',
         permission: 'CONFIG_ROLE_ACCESS'
       },
       {
-        icon: 'mdi-lock-check',
+        icon: 'mdi-lock-check-outline',
         title: 'nav_menu.acls',
         route: '/config/acls',
         permission: 'CONFIG_ACL_ACCESS',
         divider: true
       },
       {
-        icon: 'mdi-account-hard-hat',
+        icon: 'mdi-account-hard-hat-outline',
         title: 'nav_menu.workers',
         route: '/config/workers',
         permission: 'CONFIG_WORKER_ACCESS'
@@ -61,7 +61,7 @@ export default {
         permission: 'CONFIG_OSINT_SOURCE_ACCESS'
       },
       {
-        icon: 'mdi-folder-multiple',
+        icon: 'mdi-folder-multiple-outline',
         title: 'nav_menu.osint_source_groups',
         route: '/config/sourcegroups',
         permission: 'CONFIG_OSINT_SOURCE_GROUP_ACCESS',
@@ -92,7 +92,7 @@ export default {
         permission: 'CONFIG_PUBLISHER_ACCESS'
       },
       {
-        icon: 'mdi-robot',
+        icon: 'mdi-robot-outline',
         title: 'nav_menu.bots',
         route: '/config/bots',
         permission: 'CONFIG_BOT_ACCESS'
@@ -111,7 +111,11 @@ export default {
         divider: true
       },
       { icon: 'mdi-api', title: 'nav_menu.openapi', route: '/config/openapi' },
-      { icon: 'mdi-cog', title: 'nav_menu.settings', route: '/config/settings' }
+      {
+        icon: 'mdi-cog-outline',
+        title: 'nav_menu.settings',
+        route: '/config/settings'
+      }
     ]
   })
 }

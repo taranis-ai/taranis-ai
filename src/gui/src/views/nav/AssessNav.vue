@@ -41,6 +41,7 @@
             clear-icon="mdi-close"
             multiple
             density="compact"
+            menu-icon="mdi-chevron-down"
           />
         </v-col>
 
@@ -57,6 +58,7 @@
             clear-icon="mdi-close"
             multiple
             density="compact"
+            menu-icon="mdi-chevron-down"
           />
         </v-col>
       </v-row>

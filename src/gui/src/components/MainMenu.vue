@@ -207,7 +207,7 @@ export default defineComponent({
     const buttons = [
       {
         title: 'main_menu.dashboard',
-        icon: 'mdi-monitor-dashboard',
+        icon: 'mdi-view-dashboard-variant-outline',
         permission: 'ASSESS_ACCESS',
         route: '/'
       },
