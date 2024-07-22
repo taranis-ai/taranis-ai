@@ -143,11 +143,19 @@ class Story(BaseModel):
         total_count_subquery = db.select(func.count()).select_from(subquery).scalar_subquery()
         read_count_subquery = db.select(func.count()).select_from(subquery).where(subquery.c.read == true()).scalar_subquery()
         important_count_subquery = db.select(func.count()).select_from(subquery).where(subquery.c.important == true()).scalar_subquery()
+        in_reports_count_subquery = (
+            db.select(func.count())
+            .select_from(subquery)
+            .join(ReportItemStory, ReportItemStory.story_id == subquery.c.id)
+            .distinct()
+            .scalar_subquery()
+        )
 
         count_query = db.select(
             read_count_subquery.label("read_count"),
             important_count_subquery.label("important_count"),
             total_count_subquery.label("total_count"),
+            in_reports_count_subquery.label("in_reports_count"),
         )
 
         return db.session.execute(count_query).one()
@@ -308,6 +316,7 @@ class Story(BaseModel):
             "total_count": additional_counts.total_count,
             "read_count": additional_counts.read_count,
             "important_count": additional_counts.important_count,
+            "in_reports_count": additional_counts.in_reports_count,
         }
 
         return stories, count_dict
@@ -347,7 +356,7 @@ class Story(BaseModel):
             items.append(item)
 
         if count:
-            return {"items": items, "max_item": max_item_count} | count, 200
+            return {"items": items, "max_item": max_item_count, "counts": count}, 200
 
         return {"items": items}, 200
 
