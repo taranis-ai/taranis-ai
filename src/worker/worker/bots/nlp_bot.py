@@ -1,22 +1,22 @@
 from .base_bot import BaseBot
 from worker.log import logger
 import py3langid
-import torch
 from flair.data import Sentence
 from flair.models import SequenceTagger
 
 
 class NLPBot(BaseBot):
-    def __init__(self):
+    def __init__(self, language="en"):
         super().__init__()
         self.type = "NLP_BOT"
         self.name = "NLP Bot"
         self.description = "Bot for naturale language processing of news items"
+        self.language = language
+        self.initialize_models()
 
         logger.debug("Setup NER Model...")
         self.ner_multi = SequenceTagger.load("flair/ner-multi")
-        torch.set_num_threads(1)  # https://github.com/pytorch/pytorch/issues/36191
-        self.extraction_line_limit = 20
+
 
     def execute(self, parameters=None):
         if not (data := self.get_stories(parameters)):
@@ -52,7 +52,7 @@ class NLPBot(BaseBot):
         story_content = "\n".join(news_item["content"] for news_item in story["news_items"])
         lines = self.get_first_and_last_n_lines(story_content)
         for line in lines:
-            current_keywords |= self.extract_ner(line, all_keywords, self.ner_multi)
+            current_keywords |= self.extract_ner(line, all_keywords)
         return current_keywords
 
     def get_first_and_last_n_lines(self, content: str) -> list:
@@ -62,9 +62,9 @@ class NLPBot(BaseBot):
             return lines[:ll] + lines[ll:]
         return lines[:ll] + lines[-ll:]
 
-    def extract_ner(self, text: str, all_keywords, ner_model) -> dict:
+    def extract_ner(self, text: str, all_keywords) -> dict:
         sentence = Sentence(text)
-        ner_model.predict(sentence)
+        self.model.predict(sentence)
         current_keywords = {}
         for ent in sentence.get_labels():
             tag = ent.data_point.text

@@ -7,13 +7,15 @@ import json
 
 
 class StoryBot(BaseBot):
-    def __init__(self):
+    def __init__(self, language="en"):
         super().__init__()
         import story_clustering  # noqa: F401
 
         self.type = "STORY_BOT"
         self.name = "Story Clustering Bot"
         self.description = "Bot for clustering NewsItems to stories via natural language processing"
+        self.language = language
+        self.initialize_models()
 
     def execute(self, parameters=None):
         if not (data := self.get_stories(parameters)):

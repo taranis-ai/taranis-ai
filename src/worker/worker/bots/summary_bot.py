@@ -2,31 +2,18 @@ from .base_bot import BaseBot
 from worker.log import logger
 
 import torch
-from transformers import (
-    AutoTokenizer,
-    AutoModelForSeq2SeqLM,
-)
 
 
 class SummaryBot(BaseBot):
-    def __init__(self):
+    def __init__(self, language="en"):
         super().__init__()
         self.type = "SUMMARY_BOT"
         self.name = "Summary generation Bot"
         self.description = "Bot to generate summaries for stories"
         self.summary_threshold = 1000
-        self.language = "en"
-        logger.debug("Setup Summarization Model...")
+        self.language = language
+        self.initialize_models()
         torch.set_num_threads(1)  # https://github.com/pytorch/pytorch/issues/36191
-        self.set_summarization_model()
-
-    def set_summarization_model(self) -> None:
-        self.model_names = {"en": "facebook/bart-large-cnn", "de": "T-Systems-onsite/mt5-small-sum-de-en-v2"}
-        self.models = {}
-        self.tokenizers = {}
-        for lang, model_name in self.model_names.items():
-            self.models[lang] = AutoModelForSeq2SeqLM.from_pretrained(model_name)
-            self.tokenizers[lang] = AutoTokenizer.from_pretrained(model_name, use_fast=True)
 
     def execute(self, parameters=None):
         try:
@@ -55,8 +42,8 @@ class SummaryBot(BaseBot):
     def predict_summary(self, text_to_summarize: str) -> str:
         min_length = int(len(text_to_summarize.split()) * 0.2)
         max_length = len(text_to_summarize.split())
-        model = self.models.get(self.language)
-        tokenizer = self.tokenizers.get(self.language)
+        model = self.model
+        tokenizer = self.tokenizer
 
         if not model or not tokenizer:
             logger.error(f"Model or Tokenizer not found for language {self.language}")
