@@ -6,11 +6,11 @@ from core.model.user import User
 
 
 class BaseAuthenticator:
-    def get_authenticator_name(self):
-        return ""
+    def __init__(self):
+        self.name: str = ""
 
     def __str__(self):
-        return f"Authenticator: {self.get_authenticator_name()}"
+        return f"Authenticator: {self.name}"
 
     def authenticate(self, credentials):
         return BaseAuthenticator.generate_error()
@@ -21,10 +21,6 @@ class BaseAuthenticator:
     @staticmethod
     def logout(jti):
         TokenBlacklist.add(jti)
-
-    @staticmethod
-    def initialize(app):
-        pass
 
     @staticmethod
     def generate_error() -> tuple[dict[str, str], int]:

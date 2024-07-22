@@ -3,8 +3,12 @@ from yoyo import get_backend
 from core.log import logger
 
 
+def is_postgresql(uri: str) -> bool:
+    return "postgresql" in uri
+
+
 def migrate(app, initial_setup: bool = True):
-    if initial_setup:
+    if initial_setup and is_postgresql(app.config.get("SQLALCHEMY_DATABASE_URI")):
         logger.info(f"Migrating Database: {app.config.get('SQLALCHEMY_DATABASE_URI')}")
         backend = get_backend(app.config.get("SQLALCHEMY_DATABASE_URI"))
         migrations = read_migrations("migrations")

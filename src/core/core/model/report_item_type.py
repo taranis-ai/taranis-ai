@@ -1,7 +1,7 @@
+import json
 from typing import Any
 from sqlalchemy.sql.expression import Select
 from sqlalchemy.orm import Mapped, relationship
-import json
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
@@ -18,7 +18,7 @@ class AttributeGroupItem(BaseModel):
     description: Mapped[str] = db.Column(db.String())
 
     index: Mapped[int] = db.Column(db.Integer)
-    multiple: Mapped[bool] = db.Column(db.Boolean, default=False)
+    required: Mapped[bool] = db.Column(db.Boolean, default=False)
 
     attribute_group_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("attribute_group.id", ondelete="CASCADE"))
     attribute_group: Mapped["AttributeGroup"] = relationship("AttributeGroup")
@@ -26,13 +26,13 @@ class AttributeGroupItem(BaseModel):
     attribute_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("attribute.id"))
     attribute: Mapped["Attribute"] = relationship("Attribute")
 
-    def __init__(self, title: str, description: str, index: int, attribute_id=None, attribute=None, multiple=False, id=None):
+    def __init__(self, title: str, description: str, index: int, attribute_id=None, attribute=None, required=False, id=None):
         if id:
             self.id = id
         self.title = title
         self.description = description
         self.index = index
-        self.multiple = multiple
+        self.required = required
 
         if attribute:
             if attr := Attribute.filter_by_name(attribute):
@@ -61,7 +61,7 @@ class AttributeGroupItem(BaseModel):
         return data
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "ReportItemType":
+    def from_dict(cls, data: dict[str, Any]) -> "AttributeGroupItem":
         data.pop("attribute_group_id", None)
         return cls(**data)
 
@@ -130,7 +130,7 @@ class AttributeGroup(BaseModel):
                     attribute_group_item.title = updated_attribute_group_item.title
                     attribute_group_item.description = updated_attribute_group_item.description
                     attribute_group_item.index = updated_attribute_group_item.index
-                    attribute_group_item.multiple = updated_attribute_group_item.multiple
+                    attribute_group_item.required = updated_attribute_group_item.required
                     attribute_group_item.attribute_id = updated_attribute_group_item.attribute_id
                     found = True
                     break
@@ -261,20 +261,20 @@ class ReportItemType(BaseModel):
         return cls.add_multiple(data)
 
     @classmethod
-    def delete(cls, id: int) -> tuple[dict[str, Any], int]:
+    def delete(cls, item_id: int) -> tuple[dict[str, Any], int]:
         from core.model.report_item import ReportItem
         from core.model.product_type import ProductType
 
-        report_type = cls.get(id)
+        report_type = cls.get(item_id)
         if not report_type:
             return {"error": "Report type not found"}, 404
 
-        if ReportItem.query.filter_by(report_item_type_id=id).first():
+        if ReportItem.query.filter_by(report_item_type_id=item_id).first():
             return {"error": "Report type is used in a report"}, 409
 
-        if ProductType.query.filter(ProductType.report_types.any(id=id)).first():  # type: ignore
+        if ProductType.query.filter(ProductType.report_types.any(id=item_id)).first():  # type: ignore
             return {"error": "Report is used in a product type"}, 409
 
         db.session.delete(report_type)
         db.session.commit()
-        return {"message": f"ReportItemType {id} deleted"}, 200
+        return {"message": f"ReportItemType {item_id} deleted"}, 200

@@ -8,14 +8,15 @@ from flask_jwt_extended.exceptions import JWTExtendedException
 # from core.managers import queue_manager
 from core.log import logger
 from core.auth.openid_authenticator import OpenIDAuthenticator
-from core.auth.test_authenticator import TestAuthenticator
+from core.auth.dev_authenticator import DevAuthenticator
 from core.auth.database_authenticator import DatabaseAuthenticator
+from core.auth.external_authenticator import ExternalAuthenticator
 from core.model.token_blacklist import TokenBlacklist
 from core.model.user import User
 
 from core.config import Config
 
-current_authenticator = TestAuthenticator()
+current_authenticator = DatabaseAuthenticator()
 api_key = Config.API_KEY
 jwt = JWTManager()
 
@@ -33,16 +34,15 @@ def initialize(app: Flask):
 
     authenticator = app.config.get("TARANIS_AUTHENTICATOR", None)
     if authenticator == "openid":
-        current_authenticator = OpenIDAuthenticator()
+        current_authenticator = OpenIDAuthenticator(app)
     elif authenticator == "database":
         current_authenticator = DatabaseAuthenticator()
-    elif authenticator == "test":
-        current_authenticator = TestAuthenticator()
+    elif authenticator == "dev":
+        current_authenticator = DevAuthenticator()
+    elif authenticator == "external":
+        current_authenticator = ExternalAuthenticator()
     else:
         raise ValueError(f"Unknown authenticator: {authenticator}")
-
-    with app.app_context():
-        current_authenticator.initialize(app)
 
 
 def authenticate(credentials: dict[str, str]) -> tuple[dict[str, Any], int]:

@@ -87,4 +87,9 @@ def collector_preview(osint_source_id: str):
         return err
 
     collector, err = collector.get_collector(source)
-    return err if err or not collector else collector.preview_collector(source)
+    if err or not collector:
+        return err
+
+    result = collector.preview_collector(source)
+    logger.debug(result)
+    return result

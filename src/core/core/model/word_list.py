@@ -248,7 +248,7 @@ class WordListEntry(BaseModel):
         word_list = WordList.get(word_list_id)
         if not word_list:
             return "WordList not found", 404
-        db.delete(cls).where(cls.word_list_id == word_list_id).where(cls.value == value).execute()
+        db.session.execute(db.delete(cls).where(cls.word_list_id == word_list_id).where(cls.value == value))
         db.session.commit()
 
     @classmethod

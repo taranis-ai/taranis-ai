@@ -230,10 +230,10 @@ class NewsItem(BaseModel):
                 query = query.order_by(db.asc(cls.published))
 
         if timefrom := filter_args.get("timefrom"):
-            query = query.filter(NewsItem.published >= datetime.fromisoformat(timefrom))
+            query = query.filter(cls.published >= datetime.fromisoformat(timefrom))
 
         if timeto := filter_args.get("timeto"):
-            query = query.filter(NewsItem.published <= datetime.fromisoformat(timeto))
+            query = query.filter(cls.published <= datetime.fromisoformat(timeto))
 
         offset = filter_args.get("offset", 0)
         limit = filter_args.get("limit", 20)

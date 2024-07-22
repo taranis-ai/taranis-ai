@@ -1,74 +1,83 @@
 <template>
-  <v-container fluid>
-    <DataTable
-      :items="osint_sources"
-      :header-filter="[
-        'icon',
-        'state',
-        'name',
-        'parameters.FEED_URL',
-        'actions'
-      ]"
-      :add-button="true"
-      @edit-item="editItem"
-      @delete-item="deleteItem"
-      @add-item="addItem"
-      @update-items="updateData"
-      @selection-change="selectionChange"
-    >
-      <template #titlebar>
-        <ImportExport @import="importData" @export="exportData" />
-        <v-btn
-          dark
-          color="blue-grey"
-          class="ml-4"
-          prepend-icon="mdi-run"
-          @click="collectAllSources"
+  <v-container fluid class="pa-2">
+    <v-row no-gutters>
+      <v-col class="pa-2 mt-2">
+        <h1>OSINT Sources Settings</h1>
+      </v-col>
+    </v-row>
+    <v-row no-gutters>
+      <v-col class="pa-2">
+        <DataTable
+          :items="osint_sources"
+          :header-filter="[
+            'icon',
+            'state',
+            'name',
+            'parameters.FEED_URL',
+            'actions'
+          ]"
+          :add-button="true"
+          @edit-item="editItem"
+          @delete-item="deleteItem"
+          @add-item="addItem"
+          @update-items="updateData"
+          @selection-change="selectionChange"
         >
-          Collect Sources
-        </v-btn>
-      </template>
-      <template #actionColumn="source">
-        <v-tooltip left>
-          <template #activator="{ props }">
-            <v-icon
-              v-bind="props"
-              color="secondary"
-              icon="mdi-run"
-              @click.stop="collectSource(source.item)"
-            />
+          <template #titlebar>
+            <ImportExport @import="importData" @export="exportData" />
+            <v-btn
+              dark
+              color="blue-grey"
+              class="ml-4"
+              prepend-icon="mdi-run"
+              @click="collectAllSources"
+            >
+              Collect Sources
+            </v-btn>
           </template>
-          <span>Collect Source</span>
-        </v-tooltip>
-        <v-tooltip left>
-          <template #activator="{ props }">
-            <v-icon
-              v-bind="props"
-              color="secondary"
-              icon="mdi-file-find"
-              @click.stop="previewSource(source.item)"
-            />
+          <template #actionColumn="source">
+            <v-tooltip left>
+              <template #activator="{ props }">
+                <v-icon
+                  v-bind="props"
+                  color="secondary"
+                  icon="mdi-run"
+                  @click.stop="collectSource(source.item)"
+                />
+              </template>
+              <span>Collect Source</span>
+            </v-tooltip>
+            <v-tooltip left>
+              <template #activator="{ props }">
+                <v-icon
+                  v-bind="props"
+                  color="secondary"
+                  icon="mdi-file-find"
+                  @click.stop="previewSource(source.item)"
+                />
+              </template>
+              <span>Preview Source</span>
+            </v-tooltip>
           </template>
-          <span>Preview Source</span>
-        </v-tooltip>
-      </template>
-    </DataTable>
-    <EditConfig
-      v-if="showForm"
-      :config-data="formData"
-      :form-format="formFormat"
-      :parameters="parameters"
-      :title="editTitle"
-      @submit="handleSubmit"
-    />
-    <v-dialog v-model="showDeletePopup" width="auto">
-      <popup-delete-item
-        :title="`Delete Source ${itemToDelete.name}?`"
-        message="Delete the source and all gathered News Items permanently."
-        @delete-item="forceDeleteItem(itemToDelete)"
-        @close="showDeletePopup = false"
-      />
-    </v-dialog>
+        </DataTable>
+        <EditConfig
+          v-if="showForm"
+          :config-data="formData"
+          :form-format="formFormat"
+          :parameters="parameters"
+          :title="editTitle"
+          @submit="handleSubmit"
+        />
+        <v-dialog v-model="showDeletePopup" width="auto">
+          <popup-delete-item
+            :title="`Delete Source ${itemToDelete.name}?`"
+            message="Delete the source and all gathered News Items permanently."
+            @delete-item="forceDeleteItem(itemToDelete)"
+            @close="showDeletePopup = false"
+          />
+        </v-dialog>
+      </v-col>
+    </v-row>
   </v-container>
 </template>
 

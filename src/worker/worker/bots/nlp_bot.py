@@ -14,8 +14,9 @@ class NLPBot(BaseBot):
         self.language = language
         self.initialize_models()
 
-        torch.set_num_threads(1)  # https://github.com/pytorch/pytorch/issues/36191
-        self.extraction_line_limit = 20
+        logger.debug("Setup NER Model...")
+        self.ner_multi = SequenceTagger.load("flair/ner-multi")
+
 
     def execute(self, parameters=None):
         if not (data := self.get_stories(parameters)):

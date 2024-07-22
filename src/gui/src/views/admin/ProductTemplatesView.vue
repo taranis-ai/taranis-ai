@@ -1,49 +1,58 @@
 <template>
-  <v-container fluid>
-    <DataTable
-      v-model:items="templates.items"
-      :add-button="true"
-      :header-filter="['path', 'actions']"
-      @delete-item="deleteItem"
-      @edit-item="editItem"
-      @add-item="addItem"
-      @update-items="updateData"
-      @selection-change="selectionChange"
-    >
-      <template #titlebar>
-        <v-btn
-          v-if="selected.length === 1"
-          color="blue-grey"
-          dark
-          class="ml-4"
-          prepend-icon="mdi-content-copy"
-          @click="copyTemplate"
+  <v-container fluid class="pa-2">
+    <v-row no-gutters>
+      <v-col class="pa-2 mt-2">
+        <h1>Product Templates Settings</h1>
+      </v-col>
+    </v-row>
+    <v-row no-gutters>
+      <v-col class="pa-2">
+        <DataTable
+          v-model:items="templates.items"
+          :add-button="true"
+          :header-filter="['path', 'actions']"
+          @delete-item="deleteItem"
+          @edit-item="editItem"
+          @add-item="addItem"
+          @update-items="updateData"
+          @selection-change="selectionChange"
         >
-          Copy Template
-        </v-btn>
-      </template>
-
-      <template #actionColumn="data">
-        <v-tooltip left>
-          <template #activator="{ props }">
-            <v-icon
-              v-bind="props"
+          <template #titlebar>
+            <v-btn
+              v-if="selected.length === 1"
               color="blue-grey"
-              icon="mdi-content-copy"
-              @click.stop="copyTemplate(data.item)"
-            />
+              dark
+              class="ml-4"
+              prepend-icon="mdi-content-copy"
+              @click="copyTemplate"
+            >
+              Copy Template
+            </v-btn>
           </template>
-          <span>Copy Template</span>
-        </v-tooltip>
-      </template>
-    </DataTable>
-    <TemplateForm
-      v-if="showForm"
-      :template-data="templateData"
-      :template-name="templateName"
-      :edit="edit"
-      @updated="handleSubmit"
-    />
+
+          <template #actionColumn="data">
+            <v-tooltip left>
+              <template #activator="{ props }">
+                <v-icon
+                  v-bind="props"
+                  color="blue-grey"
+                  icon="mdi-content-copy"
+                  @click.stop="copyTemplate(data.item)"
+                />
+              </template>
+              <span>Copy Template</span>
+            </v-tooltip>
+          </template>
+        </DataTable>
+        <TemplateForm
+          v-if="showForm"
+          :template-data="templateData"
+          :template-name="templateName"
+          :edit="edit"
+          @updated="handleSubmit"
+        />
+      </v-col>
+    </v-row>
   </v-container>
 </template>
 

@@ -41,6 +41,7 @@
             clear-icon="mdi-close"
             multiple
             density="compact"
+            menu-icon="mdi-chevron-down"
           />
         </v-col>
 
@@ -57,6 +58,7 @@
             clear-icon="mdi-close"
             multiple
             density="compact"
+            menu-icon="mdi-chevron-down"
           />
         </v-col>
       </v-row>
@@ -75,7 +77,9 @@
         <v-col cols="12" class="pt-1">
           <date-filter
             v-model="storyFilter.timefrom"
-            placeholder="Fist Day"
+            placeholder="First Day"
+            tooltip-text="Filter Stories starting from this date"
+            :timeto="storyFilter.timeto"
             :default-date="defaultFromDate"
           />
         </v-col>
@@ -84,12 +88,9 @@
           <date-filter
             v-model="storyFilter.timeto"
             placeholder="Last Day"
+            tooltip-text="Filter Stories ending on this date"
+            :timefrom="storyFilter.timefrom"
             :default-date="new Date()"
-            :max-date="
-              storyFilter.timefrom instanceof Date
-                ? storyFilter.timefrom
-                : new Date()
-            "
           />
         </v-col>
         <v-col cols="12" class="pt-1">
@@ -148,7 +149,7 @@
             "
           />
           <v-btn
-            :disabled="!xxl"
+            :disabled="disableWeekChart"
             class="vertical-button toggle-button py-2 px-4 mb-1"
             :class="
               showWeekChart
@@ -190,16 +191,18 @@
             color="primary"
             prepend-icon="mdi-reload"
             block
-            text="reset filter"
             @click="resetFilter()"
-          />
+          >
+            reset filter
+            <v-tooltip activator="parent" location="start" text="[ctrl+esc]" />
+          </v-btn>
         </v-col>
         <v-col cols="12" class="py-2">
           <v-btn
             color="primary"
             block
             to="enter"
-            prepend-icon="mdi-pencil"
+            prepend-icon="mdi-pencil-outline"
             text="create new item"
           />
         </v-col>
@@ -278,6 +281,10 @@ export default {
       }
     })
 
+    const disableWeekChart = computed(() => {
+      return !xxl.value || compactView.value
+    })
+
     const now = new Date()
     now.setDate(now.getDate() - 1)
     now.setHours(18, 0, 0, 0)
@@ -319,6 +326,7 @@ export default {
       showWeekChart,
       compactView,
       filter_range,
+      disableWeekChart,
       defaultFromDate,
       OSINTSourcesList,
       OSINTSourceGroupsList,

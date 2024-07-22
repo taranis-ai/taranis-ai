@@ -1,9 +1,14 @@
 <template>
-  <v-container fluid>
+  <v-container fluid class="pa-2">
+    <v-row no-gutters>
+      <v-col class="pa-2 mt-2">
+        <h1>Dashboard Settings</h1>
+      </v-col>
+    </v-row>
     <v-row no-gutters>
       <dash-board-card link-to="/assess" link-text="Assess" cols="6">
         <template #content>
-          <v-icon class="mr-2"> mdi-email-multiple </v-icon>
+          <v-icon class="mr-2"> mdi-email-multiple-outline </v-icon>
           <span class="caption">
             There are
             <strong>{{ dashboard_data.total_news_items }}</strong> total Assess
@@ -24,7 +29,7 @@
     <v-row no-gutters>
       <dash-board-card link-to="/analyze" link-text="Analyze">
         <template #content>
-          <v-icon class="mr-2"> mdi-account </v-icon>
+          <v-icon class="mr-2"> mdi-account-outline </v-icon>
           <span class="caption">
             There are <b>{{ dashboard_data.report_items_completed }}</b>
             completed analyses.
@@ -59,14 +64,14 @@
       </dash-board-card>
       <dash-board-card link-to="#" link-text="Database">
         <template #content>
-          <v-icon class="mr-2" color="blue"> mdi-database </v-icon>
+          <v-icon class="mr-2" color="blue"> mdi-database-outline </v-icon>
           <span class="caption"
             >There are <b>{{ dashboard_data.total_database_items }}</b> live
             items.</span
           >
           <v-divider inset></v-divider>
 
-          <v-icon class="mr-2"> mdi-database-check </v-icon>
+          <v-icon class="mr-2"> mdi-database-check-outline </v-icon>
           <span class="caption">There are <b>0</b> archived items.</span>
         </template>
       </dash-board-card>

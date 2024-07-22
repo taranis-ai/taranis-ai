@@ -310,7 +310,7 @@ class Story(BaseModel):
         max_item_count = 0
 
         if not stories:
-            return {"items": []}, 404
+            return {"items": []}, 200
 
         for story in stories:
             item = cls.get_item_dict(story, user)

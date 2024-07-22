@@ -1,12 +1,19 @@
 <template>
-  <table class="story-meta-info">
+  <table class="story-meta-info" :class="compactView ? 'compact-view' : ''">
     <tr>
       <td v-if="!compactView">
         <strong>{{ t('assess.published') }}:</strong>
       </td>
-      <td>
-        <span :class="published_date_outdated ? 'text-error' : ''">
-          {{ getPublishedDate }}
+      <td class="text-no-wrap">
+        <span
+          v-if="getPublishedDate.length > 1"
+          :class="published_date_outdated ? 'text-error' : ''"
+        >
+          {{ getPublishedDate[0] }}<br />
+          {{ getPublishedDate[1] }}
+        </span>
+        <span v-else :class="published_date_outdated ? 'text-error' : ''">
+          {{ getPublishedDate[0] }}
         </span>
         <v-icon
           v-if="published_date_outdated"
@@ -16,14 +23,14 @@
           icon="mdi-alert-outline"
         />
       </td>
-      <div v-if="story_in_reports > 0" class="shared-icons-container">
+      <td v-if="story_in_reports > 0" class="shared-icons-container">
         <v-icon
           v-for="n in story_in_reports"
           :key="n"
           :style="getSharingIcon(n)"
           icon="mdi-share"
         />
-      </div>
+      </td>
     </tr>
 
     <tr v-if="!compactView && story.tags && !reportView">
@@ -36,15 +43,11 @@
           :truncate="!detailView"
           :color="detailView"
           :editable="detailView"
-          @edit="editTags()"
+          @edit="editTags"
         />
       </td>
-    </tr>
-
-    <tr v-if="!compactView && !reportView">
-      <td><strong>Relevance:</strong></td>
       <td>
-        {{ story.relevance }}
+        <relevance-indicator :relevance="story.relevance" />
       </td>
     </tr>
 
@@ -88,6 +91,7 @@ import ArticleInfo from '@/components/assess/card/ArticleInfo.vue'
 import AuthorInfo from '@/components/assess/card/AuthorInfo.vue'
 import PopupEditTags from '@/components/popups/PopupEditTags.vue'
 import StoryVotes from '@/components/assess/card/StoryVotes.vue'
+import RelevanceIndicator from '@/components/assess/card/RelevanceIndicator.vue'
 
 export default {
   name: 'StoryMetaInfo',
@@ -96,7 +100,8 @@ export default {
     ArticleInfo,
     AuthorInfo,
     StoryVotes,
-    TagList
+    TagList,
+    RelevanceIndicator
   },
   props: {
     story: {
@@ -179,10 +184,10 @@ export default {
       const pubDateOldStr = d(pubDateOld, 'long', 'sv-SE')
       if (pubDateNew && pubDateOld) {
         return pubDateNewStr === pubDateOldStr
-          ? pubDateNewStr
-          : `${pubDateOldStr} - ${pubDateNewStr}`
+          ? [pubDateNewStr]
+          : [pubDateOldStr, pubDateNewStr]
       }
-      return ''
+      return ['']
     })
 
     function editTags() {
@@ -221,14 +226,22 @@ export default {
 
 .story-meta-info tr td {
   vertical-align: top;
-}
-
-.story-meta-info tr td:last-child {
   width: 100%;
 }
 
+.story-meta-info:not(.compact-view) tr td:nth-child(1) {
+  width: 30px;
+  padding-right: 5px;
+}
+
+.story-meta-info:not(.compact-view) tr td:nth-child(3) {
+  width: 30px;
+  text-align: center;
+}
+
 .shared-icons-container {
-  position: absolute;
-  margin-left: -20px;
+  width: 30%;
+  text-align: right;
+  padding-right: 20px;
 }
 </style>

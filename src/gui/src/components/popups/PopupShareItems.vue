@@ -9,6 +9,7 @@
         label="Select Report"
         no-data-text="No reports found"
         :items="reportItems"
+        menu-icon="mdi-chevron-down"
       />
     </v-card-text>
     <v-card-actions class="mt-1">

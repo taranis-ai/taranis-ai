@@ -1,21 +1,21 @@
 <template>
-  <v-card-title>
+  <v-card-title class="d-flex justify-space-between">
     <span>
-      <v-icon :icon="tagIcon" />
+      <v-icon :icon="tagIcon" color="primary" class="mr-3" size="small" />
       <router-link :to="`/cluster/${tagType}`">
         {{ tagText }}
       </router-link>
     </span>
     <span class="ml-5"> Cluster size: {{ cluster.size }}</span>
-    <v-divider class="mt-2 mb-2" />
   </v-card-title>
+  <v-divider class="mt-2 mb-2" />
   <v-card-text>
     <v-list density="compact">
       <div v-for="item in cluster.tags" :key="item.id">
         <v-list-item
           :to="'/assess?tags=' + item.name"
           :title="item.name"
-          class="tag-item"
+          class="tag-item text-black"
         >
           <template #append>
             <span> {{ item.size }} </span>

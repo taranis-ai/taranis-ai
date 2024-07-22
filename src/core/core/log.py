@@ -1,18 +1,18 @@
-from flask import request
-import re
-import os
-import logging.handlers
-import sys
-import socket
 import logging
+import logging.handlers
+import re
+import socket
+import sys
 import traceback
 from typing import Optional
+
+from flask import request
 
 from core.config import Config
 
 
 class TaranisLogger:
-    def __init__(self, module: str, debug: bool, colored: bool, gunicorn: bool, syslog_address: Optional[tuple[str, int]]):
+    def __init__(self, module: str, debug: bool, colored: bool, syslog_address: Optional[tuple[str, int]]):
         self.module = module
         stream_handler = logging.StreamHandler(stream=sys.stdout)
         if colored:
@@ -27,9 +27,6 @@ class TaranisLogger:
                 print("Unable to connect to syslog server!")
 
         lloggers = [logging.getLogger()]
-
-        if gunicorn:
-            lloggers = [logging.getLogger("gunicorn.error")]
 
         for llogger in lloggers:
             llogger.handlers.clear()
@@ -221,5 +218,4 @@ class Logger(TaranisLogger):
         self.logger.debug(f"User: {user.name} activity_type: {activity_type} activity_detail: {activity_detail}")
 
 
-gunicorn = "gunicorn" in os.environ.get("SERVER_SOFTWARE", "")
-logger = Logger(module=Config.MODULE_ID, colored=Config.COLORED_LOGS, debug=Config.DEBUG, gunicorn=gunicorn, syslog_address=None)
+logger = Logger(module=Config.MODULE_ID, colored=Config.COLORED_LOGS, debug=Config.DEBUG, syslog_address=None)

@@ -1,4 +1,9 @@
-import { authenticate, authRefresh, authLogout } from '@/api/auth'
+import {
+  authenticate,
+  authRefresh,
+  authLogout,
+  getAuthMethod
+} from '@/api/auth'
 import { apiService } from '@/main'
 import { Base64 } from 'js-base64'
 import { useUserStore } from './UserStore'
@@ -18,6 +23,8 @@ export const useAuthStore = defineStore(
     const sub = ref('')
     const exp = ref(0)
 
+    const authMethod = ref('')
+
     const isAuthenticated = computed(
       () => new Date() < new Date(exp.value * 1000)
     )
@@ -29,6 +36,16 @@ export const useAuthStore = defineStore(
       () => new Date() > new Date(exp.value * 1000 - 300 * 1000)
     )
 
+    async function setAuthMethod() {
+      try {
+        const response = await getAuthMethod()
+        authMethod.value = response.data.auth_method
+      } catch (error) {
+        authMethod.value = ''
+        console.error(error)
+      }
+    }
+
     async function login(userData) {
       try {
         reset()
@@ -39,13 +56,15 @@ export const useAuthStore = defineStore(
       } catch (error) {
         reset()
         console.error(error)
-        return error
+        throw error
       }
     }
 
     async function logout() {
       try {
-        await authLogout()
+        if (jwt.value !== '' || localStorage.ACCESS_TOKEN !== '') {
+          await authLogout()
+        }
       } catch (error) {
         console.error(error)
       }
@@ -111,6 +130,8 @@ export const useAuthStore = defineStore(
       timeToRefresh,
       expirationDate,
       needTokenRefresh,
+      authMethod,
+      setAuthMethod,
       login,
       logout,
       refresh,

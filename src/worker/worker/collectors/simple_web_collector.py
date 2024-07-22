@@ -57,7 +57,7 @@ class SimpleWebCollector(BaseWebCollector):
             logger.info(f"Digest splitting {self.osint_source_id} returned {len(self.split_digest_urls)} available URLs")
 
             return self.parse_digests()
-        
+
         return []
 
     def gather_news_items(self, source) -> list[NewsItem]:

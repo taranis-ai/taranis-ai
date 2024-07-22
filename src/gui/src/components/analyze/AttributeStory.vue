@@ -9,6 +9,7 @@
     clearable
     variant="outlined"
     no-data-text="No Stories found"
+    menu-icon="mdi-chevron-down"
   />
 </template>
 

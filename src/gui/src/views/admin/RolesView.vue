@@ -1,27 +1,36 @@
 <template>
-  <v-container fluid>
-    <DataTable
-      :items="roles.items"
-      :add-button="true"
-      :header-filter="[
-        'id',
-        'name',
-        'description',
-        'permissions.length',
-        'actions'
-      ]"
-      @delete-item="deleteItem"
-      @edit-item="editItem"
-      @add-item="addItem"
-      @update-items="updateData"
-    />
-    <EditConfig
-      v-if="showForm"
-      :config-data="formData"
-      :form-format="formFormat"
-      :title="editTitle"
-      @submit="handleSubmit"
-    />
+  <v-container fluid class="pa-2">
+    <v-row no-gutters>
+      <v-col class="pa-2 mt-2">
+        <h1>Roles Settings</h1>
+      </v-col>
+    </v-row>
+    <v-row no-gutters>
+      <v-col class="pa-2">
+        <DataTable
+          :items="roles.items"
+          :add-button="true"
+          :header-filter="[
+            'id',
+            'name',
+            'description',
+            'permissions.length',
+            'actions'
+          ]"
+          @delete-item="deleteItem"
+          @edit-item="editItem"
+          @add-item="addItem"
+          @update-items="updateData"
+        />
+        <EditConfig
+          v-if="showForm"
+          :config-data="formData"
+          :form-format="formFormat"
+          :title="editTitle"
+          @submit="handleSubmit"
+        />
+      </v-col>
+    </v-row>
   </v-container>
 </template>
 
@@ -29,7 +38,7 @@
 import DataTable from '@/components/common/DataTable.vue'
 import EditConfig from '@/components/config/EditConfig.vue'
 import { deleteRole, createRole, updateRole } from '@/api/config'
-import { ref, onMounted, computed } from 'vue'
+import { ref, onBeforeMount, computed } from 'vue'
 import { useConfigStore } from '@/stores/ConfigStore'
 import { useMainStore } from '@/stores/MainStore'
 import { storeToRefs } from 'pinia'
@@ -93,7 +102,7 @@ export default {
       }
     ])
 
-    const updateData = () => {
+    function updateData() {
       showForm.value = false
 
       store.loadRoles().then(() => {
@@ -103,7 +112,7 @@ export default {
       store.loadPermissions().then()
     }
 
-    const addItem = () => {
+    function addItem() {
       formData.value = objectFromFormat(formFormat.value)
       delete formData.value['id']
       edit.value = false
@@ -166,7 +175,7 @@ export default {
       selected.value = new_selection
     }
 
-    onMounted(() => {
+    onBeforeMount(() => {
       updateData()
     })
 

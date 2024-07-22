@@ -218,15 +218,6 @@ class CoreApi:
             logger.exception("Cannot add Newsitem")
             return False
 
-    def cleanup_token_blacklist(self):
-        try:
-            url = f"{self.api_url}/worker/token-blacklist"
-            response = requests.post(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
-            return self.check_response(response, url)
-        except Exception:
-            logger.exception("Cannot cleanup token blacklist")
-            return False
-
     def store_task_result(self, data) -> dict | None:
         try:
             return self.api_post(url="/tasks/", json_data=data)

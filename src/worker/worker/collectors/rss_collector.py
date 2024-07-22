@@ -133,7 +133,6 @@ class RSSCollector(BaseWebCollector):
 
     # TODO: This function is renamed because of inheritance issues. Notice that @feed is/was not used in the function.
     def get_last_modified_feed(self, feed_content: requests.Response, feed: feedparser.FeedParserDict) -> datetime.datetime | None:
-        feed = feedparser.parse(feed_content.content)
         if last_modified := feed_content.headers.get("Last-Modified"):
             return dateparser.parse(last_modified, ignoretz=True)
         elif last_modified := feed.get(
@@ -157,6 +156,9 @@ class RSSCollector(BaseWebCollector):
             icon_url = str(icon[0].get("href"))
         r = requests.get(icon_url, headers=self.headers, proxies=self.proxies, timeout=self.timeout)
         if not r.ok:
+            return None
+
+        if "image" not in r.headers.get("content-type", ""):
             return None
 
         icon_content = {"file": (r.headers.get("content-disposition", "file"), r.content)}

@@ -12,8 +12,8 @@
         {{ collected_date }}
       </td>
     </tr>
-    <article-info :news-item="newsItem" :compact-view="compactView" />
-    <author-info :news-item="newsItem" :compact-view="compactView" />
+    <article-info :news-item="newsItem" />
+    <author-info :news-item="newsItem" />
   </table>
 </template>
 

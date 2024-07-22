@@ -71,6 +71,7 @@ export const useAssessStore = defineStore(
         loading.value = false
       } catch (error) {
         loading.value = false
+        stories.value = { total_count: 0, items: [] }
         notifyFailure(error.message)
       }
     }
@@ -150,10 +151,49 @@ export const useAssessStore = defineStore(
     async function voteOnStory(id, vote) {
       try {
         await voteStory(id, vote)
+        updateVote(id, vote)
       } catch (error) {
         notifyFailure(error)
       }
     }
+
+    function updateVote(id, vote) {
+      const story = stories.value.items.find((item) => item.id === id)
+
+      if (vote === 'like') {
+        if (story.user_vote.like) {
+          story.likes -= 1
+          story.relevance -= 1
+          story.user_vote.like = false
+        } else if (story.user_vote.dislike) {
+          story.dislikes -= 1
+          story.likes += 1
+          story.relevance += 2
+          story.user_vote = { like: true, dislike: false }
+        } else {
+          story.likes += 1
+          story.relevance += 1
+          story.user_vote.like = true
+        }
+      }
+      if (vote === 'dislike') {
+        if (story.user_vote.dislike) {
+          story.dislikes -= 1
+          story.relevance += 1
+          story.user_vote.dislike = false
+        } else if (story.user_vote.like) {
+          story.likes -= 1
+          story.dislikes += 1
+          story.relevance -= 2
+          story.user_vote = { like: false, dislike: true }
+        } else {
+          story.dislikes += 1
+          story.relevance -= 1
+          story.user_vote.dislike = true
+        }
+      }
+    }
+
     async function updateTags(id, tags) {
       try {
         const result = await updateStoryTags(id, tags)

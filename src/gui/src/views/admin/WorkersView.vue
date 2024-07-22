@@ -1,69 +1,82 @@
 <template>
-  <v-container fluid>
-    <v-row>
-      <v-card
-        title="RabbitMQ"
-        class="mt-2 mb-2"
-        width="100%"
-        :subtitle="queue_status.url"
-      >
-        <v-card-text>
-          <span v-if="queue_status.status" class="font-weight-bold">
-            Status: {{ queue_status.status }}
-          </span>
-          <span v-else class="text-red-lighten-1">
-            Error: {{ queue_status }}
-          </span>
-        </v-card-text>
-      </v-card>
+  <v-container fluid class="pa-2">
+    <v-row no-gutters>
+      <v-col class="pa-2 mt-2">
+        <h1>Workers Settings</h1>
+      </v-col>
     </v-row>
-    <v-row>
-      <DataTable
-        :items="workers"
-        :add-button="false"
-        :header-filter="['name', 'status']"
-      >
-        <template #titlebar>
-          <v-col cols="12" class="mt-3">
-            <h1>Workers</h1>
-          </v-col>
-        </template>
-      </DataTable>
+    <v-row no-gutters>
+      <v-col class="pa-2">
+        <v-card
+          title="RabbitMQ"
+          class="mx-auto pa-4 workers-config-card"
+          width="100%"
+          :subtitle="queue_status.url"
+        >
+          <v-card-text>
+            <span v-if="queue_status.status" class="font-weight-bold">
+              Status: {{ queue_status.status }}
+            </span>
+            <span v-else class="text-red-lighten-1">
+              Error: {{ queue_status }}
+            </span>
+          </v-card-text>
+        </v-card>
+      </v-col>
     </v-row>
-    <v-row class="mt-5">
-      <DataTable
-        :items="queue_tasks"
-        :add-button="false"
-        :header-filter="['name', 'messages']"
-      >
-        <template #titlebar>
-          <v-col cols="12" class="mt-3">
-            <h1>Tasks</h1>
-          </v-col>
-        </template>
-      </DataTable>
+    <v-row no-gutters>
+      <v-col class="pa-2">
+        <DataTable
+          :items="workers"
+          :add-button="false"
+          :header-filter="['name', 'status']"
+        >
+          <template #titlebar>
+            <v-col cols="12" class="mt-3">
+              <h3 class="text-primary">Workers</h3>
+            </v-col>
+          </template>
+        </DataTable>
+      </v-col>
     </v-row>
-    <v-row class="mt-5">
-      <DataTable
-        :items="enhanced_schedule"
-        :add-button="false"
-        :header-filter="[
-          'task',
-          'schedule',
-          'args',
-          'last_run_at',
-          'total_run_count',
-          'actions'
-        ]"
-        @delete-item="deleteItem"
-        @selection-change="selectionChange"
-      >
-        <template #titlebar>
-          <v-col cols="12" class="mt-3">
-            <h1>Schedule</h1>
-          </v-col>
-        </template>
-      </DataTable>
+    <v-row no-gutters>
+      <v-col class="pa-2">
+        <DataTable
+          :items="queue_tasks"
+          :add-button="false"
+          :header-filter="['name', 'messages']"
+        >
+          <template #titlebar>
+            <v-col cols="12" class="mt-3">
+              <h3 class="text-primary">Tasks</h3>
+            </v-col>
+          </template>
+        </DataTable>
+      </v-col>
+    </v-row>
+    <v-row no-gutters>
+      <v-col class="pa-2">
+        <DataTable
+          :items="enhanced_schedule"
+          :add-button="false"
+          :header-filter="[
+            'task',
+            'schedule',
+            'args',
+            'last_run_at',
+            'total_run_count',
+            'actions'
+          ]"
+          @delete-item="deleteItem"
+          @selection-change="selectionChange"
+        >
+          <template #titlebar>
+            <v-col cols="12" class="mt-3">
+              <h3 class="text-primary">Schedule</h3>
+            </v-col>
+          </template>
+        </DataTable>
+      </v-col>
     </v-row>
   </v-container>
 </template>
@@ -126,3 +139,15 @@ export default {
   }
 }
 </script>
+
+<style lang="scss" scoped>
+.workers-config-card {
+  border: 2px solid white;
+  transition: 180ms;
+  box-shadow: 1px 2px 9px 0px rgba(0, 0, 0, 0.15);
+
+  & a {
+    color: rgb(var(--v-theme-primary));
+  }
+}
+</style>

@@ -15,7 +15,6 @@
     :items-per-page="reportFilter.limit"
     @delete-item="deleteItem"
     @edit-item="editItem"
-    @add-item="addItem"
     @update-items="updateData"
     @selection-change="selectionChange"
   >
@@ -35,6 +34,28 @@
         </template>
         <span>Clone Report</span>
       </v-tooltip>
+    </template>
+    <template #nodata>
+      <v-alert title="No Reports Found" type="warning">
+        <v-row no-gutters class="mt-5">
+          <v-btn
+            color="primary"
+            class="mr-2"
+            min-width="48%"
+            text="Reset Filter"
+            prepend-icon="mdi-refresh"
+            @click="resetFilter()"
+          />
+          <v-btn
+            color="primary"
+            class="ml-2"
+            min-width="48%"
+            text="Create new Report"
+            prepend-icon="mdi-chart-box-plus-outline"
+            @click="createReport()"
+          />
+        </v-row>
+      </v-alert>
     </template>
   </DataTable>
 </template>
@@ -74,20 +95,20 @@ export default {
       await analyzeStore.updateReportItems()
     }
 
-    const addItem = () => {
+    function createReport() {
       router.push('/report/')
     }
 
-    const editItem = (item) => {
+    function editItem(item) {
       router.push('/report/' + item.id)
     }
 
-    const cloneReport = (item_id) => {
-      analyzeStore.cloneReport(item_id)
+    function selectionChange(new_selection) {
+      selected.value = new_selection.map((item) => item.id)
     }
 
-    const selectionChange = (new_selection) => {
-      selected.value = new_selection.map((item) => item.id)
+    function resetFilter() {
+      filterStore.resetFilter()
     }
 
     onMounted(() => {
@@ -106,10 +127,11 @@ export default {
       selected,
       sortBy,
       updateData,
-      addItem,
+      createReport,
+      resetFilter,
       editItem,
       deleteItem: analyzeStore.removeReport,
-      cloneReport,
+      cloneReport: analyzeStore.cloneReport,
       selectionChange
     }
   }

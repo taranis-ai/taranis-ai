@@ -7,11 +7,15 @@
     :class="card_class"
     @click="toggleSelection"
   >
-    <v-container fluid style="min-height: 112px" class="pa-0 pl-2">
+    <v-container fluid style="min-height: 100px" class="pa-0 pl-2">
       <v-row class="pl-2">
         <v-col class="d-flex">
           <v-row class="py-1 px-1">
-            <v-col cols="12" class="meta-info-col" :lg="meta_cols">
+            <v-col
+              :cols="meta_cols"
+              class="meta-info-col"
+              :class="smAndDown ? 'no-border' : ''"
+            >
               <story-meta-info
                 :story="story"
                 :detail-view="openSummary"
@@ -25,7 +29,13 @@
               />
             </v-col>
             <v-col
-              v-if="!openSummary && showWeekChart && !reportView && !detailView"
+              v-if="
+                !openSummary &&
+                showWeekChart &&
+                !reportView &&
+                !detailView &&
+                !mdAndDown
+              "
               cols="2"
             >
               <WeekChart
@@ -33,8 +43,8 @@
                 :story="story"
               />
             </v-col>
-            <v-col cols="12" :lg="content_cols">
-              <v-container class="d-flex pa-0">
+            <v-col>
+              <div class="d-flex">
                 <h2
                   v-dompurify-html="highlighted_title"
                   class="mb-1 mt-0"
@@ -60,7 +70,7 @@
                   />
                   ({{ news_item_length }})
                 </a>
-              </v-container>
+              </div>
 
               <summarized-content
                 :compact="compactView"
@@ -71,7 +81,7 @@
             </v-col>
           </v-row>
         </v-col>
-        <v-col class="action-bar mr-2">
+        <v-col class="action-bar mr-1">
           <story-actions
             :story="story"
             :detail-view="detailView"
@@ -80,6 +90,7 @@
             @open-details="openCard()"
             @refresh="emitRefresh()"
             @remove-from-report="$emit('remove-from-report')"
+            @click.stop
           />
         </v-col>
       </v-row>
@@ -115,6 +126,8 @@ import { useFilterStore } from '@/stores/FilterStore'
 import { highlight_text } from '@/utils/helpers'
 import { storeToRefs } from 'pinia'
 import ChartWrapper from '@/components/assess/card/ChartWrapper.vue'
+import { useDisplay } from 'vuetify'
+import { useMainStore } from '@/stores/MainStore'
 
 export default {
   name: 'CardStory',
@@ -138,6 +151,7 @@ export default {
     const viewDetails = ref(false)
     const openSummary = ref(props.detailView)
     const assessStore = useAssessStore()
+    const { mdAndDown, smAndDown, xxl } = useDisplay()
 
     const { newsItemSelection } = storeToRefs(assessStore)
     const selected = computed(() =>
@@ -145,24 +159,38 @@ export default {
     )
 
     const { showWeekChart, compactView } = storeToRefs(useFilterStore())
+    const { drawerVisible } = storeToRefs(useMainStore())
 
     const item_important = computed(() =>
       'important' in props.story ? props.story.important : false
     )
 
     const content_cols = computed(() => {
-      if (compactView.value) {
+      const navSub = drawerVisible.value ? 1 : 0
+      if (smAndDown.value) {
+        return 12
+      }
+      if (compactView.value || xxl.value) {
         return 10
       }
       if (props.reportView) {
         return 6
       }
-      return 9
+      return 10 - navSub
     })
 
     const meta_cols = computed(() => {
+      if (smAndDown.value) {
+        return 12
+      }
       if (showWeekChart.value && !openSummary.value) {
-        return 12 - content_cols.value - 2
+        return 12 - content_cols.value
+      }
+      if (showWeekChart.value && openSummary.value) {
+        return 2
+      }
+      if (compactView.value && !mdAndDown.value) {
+        return 1
       }
       return 12 - content_cols.value
     })
@@ -252,13 +280,15 @@ export default {
       showWeekChart,
       openCard,
       toggleSelection,
-      emitRefresh
+      emitRefresh,
+      mdAndDown,
+      smAndDown
     }
   }
 }
 </script>
 
-<style lang="scss">
+<style lang="scss" scoped>
 .v-card__overlay {
   background-color: white !important;
 }
@@ -275,6 +305,20 @@ export default {
       rgb(var(--v-theme-primary)) 10%,
       #ffffff
     );
+    & .action-bar {
+      background-color: color-mix(
+        in srgb,
+        rgb(var(--v-theme-primary)) 10%,
+        #ebebeb
+      );
+    }
+  }
+}
+
+.meta-info-col {
+  min-width: 240px !important;
+  &.no-border {
+    border-right: 0;
   }
 }
 

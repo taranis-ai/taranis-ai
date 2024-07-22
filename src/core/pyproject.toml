@@ -65,6 +65,7 @@ target-version = "py312"
 lines-after-imports = 2
 
 [tool.pytest.ini_options]
+pythonpath = ["."]
 markers = [
     "e2e_user: marks tests as to run only when calling with --run-e2e option",
     "e2e_user_ci: marks tests as to run only when calling with --run-e2e-ci option",
@@ -74,4 +75,23 @@ markers = [
 filterwarnings = [
     "ignore:.*_app_ctx_stack.*:DeprecationWarning",
     "ignore::DeprecationWarning"
+]
+
+[tool.coverage.run]
+branch = true
+
+[tool.pylint.'MESSAGES CONTROL']
+max-line-length = 142
+disable = """
+    missing-module-docstring,
+    missing-class-docstring,
+    missing-function-docstring
+"""
+
+[tool.mypy]
+explicit_package_bases = true
+namespace-packages = true
+exclude = [
+    '__main__.py',
+    'tests/'
 ]

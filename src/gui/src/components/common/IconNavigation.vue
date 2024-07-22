@@ -3,25 +3,27 @@
     v-if="filteredLinks.length > 0 && drawerVisible"
     color="cx-drawer-bg"
     class="sidebar"
-    :width="width"
+    :width="300"
     :permanent="true"
   >
-    <v-list nav>
+    <v-list nav class="ma-2 config-menu">
       <div v-for="link in filteredLinks" :key="link.route">
-        <v-list-item :to="link.route" class="d-flex justify-center">
-          <v-list-item-title class="d-flex justify-center">
-            <v-icon
-              v-if="link.deprecated"
-              color="yellow-accent-4"
-              icon="mdi-alert-outline"
-            />
-            <v-icon :icon="link.icon" />
-          </v-list-item-title>
-
-          <v-list-item-subtitle class="d-flex text-center text-caption">
-            {{ $t(link.title) }}
-          </v-list-item-subtitle>
+        <v-list-item
+          :to="link.route"
+          class="d-flex mb-1"
+          active-class="bg-primary"
+          density="compact"
+        >
+          <v-icon
+            v-if="link.deprecated"
+            color="yellow-accent-4"
+            icon="mdi-alert-outline"
+            class="mr-5"
+          />
+          <v-icon :icon="link.icon" class="mr-3" />
+          {{ $t(link.title) }}
         </v-list-item>
+
         <v-divider v-if="link.divider" />
       </div>
     </v-list>
@@ -64,3 +66,12 @@ export default {
   }
 }
 </script>
+
+<style scoped lang="scss">
+.config-menu i {
+  color: rgb(var(--v-theme-primary));
+}
+.config-menu .bg-primary i {
+  color: white;
+}
+</style>

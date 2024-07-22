@@ -1,22 +1,31 @@
 <template>
-  <v-container fluid>
-    <DataTable
-      v-model:items="organizations.items"
-      :add-button="true"
-      :header-filter="['id', 'name', 'description', 'actions']"
-      sort-by-item="id"
-      @delete-item="deleteItem"
-      @edit-item="editItem"
-      @add-item="addItem"
-      @update-items="updateData"
-    />
-    <EditConfig
-      v-if="showForm"
-      :config-data="formData"
-      :form-format="formFormat"
-      :title="editTitle"
-      @submit="handleSubmit"
-    ></EditConfig>
+  <v-container fluid class="pa-2">
+    <v-row no-gutters>
+      <v-col class="pa-2 mt-2">
+        <h1>Organizations Settings</h1>
+      </v-col>
+    </v-row>
+    <v-row no-gutters>
+      <v-col class="pa-2">
+        <DataTable
+          v-model:items="organizations.items"
+          :add-button="true"
+          :header-filter="['id', 'name', 'description', 'actions']"
+          sort-by-item="id"
+          @delete-item="deleteItem"
+          @edit-item="editItem"
+          @add-item="addItem"
+          @update-items="updateData"
+        />
+        <EditConfig
+          v-if="showForm"
+          :config-data="formData"
+          :form-format="formFormat"
+          :title="editTitle"
+          @submit="handleSubmit"
+        />
+      </v-col>
+    </v-row>
   </v-container>
 </template>
 
@@ -30,7 +39,7 @@ import {
 } from '@/api/config'
 import { useConfigStore } from '@/stores/ConfigStore'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
-import { ref, onMounted, computed } from 'vue'
+import { ref, onBeforeMount, computed } from 'vue'
 import { storeToRefs } from 'pinia'
 
 export default {
@@ -89,17 +98,16 @@ export default {
       }
     ])
 
-    const updateData = () => {
-      showForm.value = false
-
-      store.loadOrganizations()
-    }
-
     const editTitle = computed(() => {
       return edit.value
         ? `Edit Organization: '${formData.value['name']}'`
         : 'Add Organization'
     })
+
+    function updateData() {
+      showForm.value = false
+      store.loadOrganizations()
+    }
 
     function addItem() {
       formData.value = {}
@@ -154,7 +162,7 @@ export default {
         })
     }
 
-    onMounted(() => {
+    onBeforeMount(() => {
       updateData()
     })
 

@@ -123,7 +123,7 @@
         "import": "Import",
         "import_from_csv": "Import from CSV",
         "load_csv_file": "Load CSV File",
-        "multiple": "Multiple Occurrence",
+        "required": "Required",
         "new_attribute": "New Attribute",
         "new_constant": "New Constant",
         "reload_cpe": "Reload CPE Dictionary",
@@ -177,9 +177,9 @@
         "comment": "Comment",
         "summary": "Summary",
         "add_to_story": "Add to story",
-        "content_placeholder": "Enter your content here...\n\n\n",
-        "comment_placeholder": "Enter your comment here...\n\n\n",
-        "summary_placeholder": "Enter your summary here...\n\n\n"
+        "content_placeholder": "Enter your content here...\n\n\n\n\n",
+        "comment_placeholder": "Enter your comment here...\n\n\n\n\n",
+        "summary_placeholder": "Enter your summary here...\n\n\n\n\n"
     },
     "error": {
         "story_in_use": "Some of selected stories are already assigned to a report item",
@@ -194,6 +194,7 @@
     "login": {
         "backend_error": "Taranis Core Backend error",
         "error": "Username or password is incorrect",
+        "external_error": "Missing Authentication Headers",
         "password": "Password",
         "submit": "Login",
         "title": "Please Login",
