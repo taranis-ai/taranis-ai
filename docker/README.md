@@ -54,7 +54,7 @@ Open `http://<url>:<TARANIS_PORT>/config/sources` and click [Import] to import j
 
 ## Advanced monitoring
 
-Taranis AI supports advanced monitoring of `gui`, `core` and `database` using (Sentry)[https://docs.sentry.io/]. It can be enabled by setting `SENTRY_DSN` environment variable.
+Taranis AI supports advanced monitoring of `gui`, `core` and `database` using (Sentry)[https://docs.sentry.io/]. It can be enabled by setting respective `SENTRY_DSN` environment variables described below.
 
 
 ## Advanced build methods
@@ -96,24 +96,22 @@ Any configuration options are available at [https://hub.docker.com/\_/postgres](
 
 ### `core`
 
-| Environment variable          | Description                            | Default       |
-| ----------------------------- | -------------------------------------- | ------------- |
-| `TARANIS_AUTHENTICATOR`       | Authentication method for users.       | `database`    |
-| `QUEUE_BROKER_HOST`           | RabbitMQ Host address                  | `rabbitmq`    |
-| `QUEUE_BROKER_USER`           | RabbitMQ user                          | `taranis`     |
-| `QUEUE_BROKER_PASSWORD`       | RabbitMQ password                      | `supersecret` |
-| `PRE_SEED_PASSWORD_ADMIN`     | Initial password for `admin`           | `admin`       |
-| `PRE_SEED_PASSWORD_USER`      | Initial password for `user`            | `user`        |
-| `API_KEY`                     | API Key for communication with workers | `supersecret` |
-| `DEBUG`                       | Debug logging                          | `False`       |
-| `DB_URL`                      | PostgreSQL database URL                | `localhost`   |
-| `DB_DATABASE`                 | PostgreSQL database name               | `taranis`     |
-| `DB_USER`                     | PostgreSQL database user               | `taranis`     |
-| `DB_PASSWORD`                 | PostgreSQL database password           | `supersecret` |
-| `JWT_SECRET_KEY`              | JWT token secret key.                  | `supersecret` |
-| `TARANIS_CORE_SENTRY_DSN`     | DSN address for sentry                 | ''            |
-| `SENTRY_TRACES_SAMPLE_RATE`   | Trace sample rate                      | `1.0`         |
-| `SENTRY_PROFILES_SAMPLE_RATE` | Profile sample rate                    | `1.0`         |
+| Environment variable          | Description                                | Default       |
+| ----------------------------- | ------------------------------------------ | ------------- |
+| `TARANIS_AUTHENTICATOR`       | Authentication method for users.           | `database`    |
+| `QUEUE_BROKER_HOST`           | RabbitMQ Host address                      | `rabbitmq`    |
+| `QUEUE_BROKER_USER`           | RabbitMQ user                              | `taranis`     |
+| `QUEUE_BROKER_PASSWORD`       | RabbitMQ password                          | `supersecret` |
+| `PRE_SEED_PASSWORD_ADMIN`     | Initial password for `admin`               | `admin`       |
+| `PRE_SEED_PASSWORD_USER`      | Initial password for `user`                | `user`        |
+| `API_KEY`                     | API Key for communication with workers     | `supersecret` |
+| `DEBUG`                       | Debug logging                              | `False`       |
+| `DB_URL`                      | PostgreSQL database URL                    | `localhost`   |
+| `DB_DATABASE`                 | PostgreSQL database name                   | `taranis`     |
+| `DB_USER`                     | PostgreSQL database user                   | `taranis`     |
+| `DB_PASSWORD`                 | PostgreSQL database password               | `supersecret` |
+| `JWT_SECRET_KEY`              | JWT token secret key.                      | `supersecret` |
+| `TARANIS_CORE_SENTRY_DSN`     | DSN address for Sentry; includes DB as well| ''            |
 
 ### `worker`, `beat`
 

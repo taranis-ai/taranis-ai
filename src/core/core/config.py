@@ -38,8 +38,6 @@ class Settings(BaseSettings):
     DISABLE_SSE: bool = False
 
     TARANIS_CORE_SENTRY_DSN: str | None = None
-    SENTRY_TRACES_SAMPLE_RATE: float = 1.0
-    SENTRY_PROFILES_SAMPLE_RATE: float = 1.0
 
     @model_validator(mode="after")  # type: ignore
     def set_sqlalchemy_uri(self) -> "Settings":
