@@ -54,7 +54,8 @@ Open `http://<url>:<TARANIS_PORT>/config/sources` and click [Import] to import j
 
 ## Advanced monitoring
 
-Taranis AI supports advanced monitoring of `core` and `database` using (Sentry)[https://docs.sentry.io/]. It can be enabled by setting `SENTRY_DSN` environment variable.
+Taranis AI supports advanced monitoring of `gui`, `core` and `database` using (Sentry)[https://docs.sentry.io/]. It can be enabled by setting `SENTRY_DSN` environment variable.
+
 
 ## Advanced build methods
 
