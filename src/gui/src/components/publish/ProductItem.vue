@@ -26,12 +26,8 @@
         variant="flat"
         @click="saveProduct"
       >
-        <span v-if="edit">
-          {{ $t('button.save') }}
-        </span>
-        <span v-else>
-          {{ $t('button.create') }}
-        </span>
+        {{ $t('button.save') }}
+        <v-tooltip activator="parent" text="[ctrl+shift+s]" location="bottom" />
       </v-btn>
     </v-toolbar>
     <v-card-text>
@@ -201,6 +197,12 @@ export default {
       event.preventDefault()
       console.debug(`You pressed ${handler.key}`)
       publishDialog.value = true
+    })
+
+    useHotkeys('ctrl+shift+s', (event, handler) => {
+      console.debug(`You pressed ${handler.key}`)
+      event.preventDefault()
+      saveProduct()
     })
 
     const { renderedProduct, renderedProductMimeType, renderError } =

@@ -110,6 +110,7 @@
       v-model="input"
       :readonly="readOnly"
       :title="attributeItem.title"
+      :report-item-id="reportItemId"
     />
   </div>
 </template>
@@ -135,6 +136,10 @@ export default {
     },
     attributeItem: {
       type: Object,
+      required: true
+    },
+    reportItemId: {
+      type: String,
       required: true
     },
     readOnly: { type: Boolean, default: false }

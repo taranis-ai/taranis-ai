@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from typing import Any, Sequence
 from sqlalchemy import or_, func
 from sqlalchemy.orm import aliased, Mapped, relationship
-from sqlalchemy.sql.expression import false, null
+from sqlalchemy.sql.expression import false, null, true
 from sqlalchemy.sql import Select
 
 from collections import Counter
@@ -136,6 +136,21 @@ class Story(BaseModel):
 
         # Apply the filter using NOT IN to exclude stories found in the subquery
         return query.filter(Story.id.notin_(subquery))
+
+    @classmethod
+    def get_additional_counts(cls, filter_query):
+        subquery = filter_query.subquery()
+        total_count_subquery = db.select(func.count()).select_from(subquery).scalar_subquery()
+        read_count_subquery = db.select(func.count()).select_from(subquery).where(subquery.c.read == true()).scalar_subquery()
+        important_count_subquery = db.select(func.count()).select_from(subquery).where(subquery.c.important == true()).scalar_subquery()
+
+        count_query = db.select(
+            read_count_subquery.label("read_count"),
+            important_count_subquery.label("important_count"),
+            total_count_subquery.label("total_count"),
+        )
+
+        return db.session.execute(count_query).one()
 
     @classmethod
     def get_filter_query(cls, filter_args: dict) -> Select:
@@ -284,8 +299,18 @@ class Story(BaseModel):
         query = cls._add_paging_to_query(filter_args, query)
 
         if filter_args.get("no_count", False):
-            return cls.get_filtered(query), 0
-        return cls.get_filtered(query), cls.get_filtered_count(base_query)
+            return cls.get_filtered(query), None
+
+        stories = cls.get_filtered(query)
+        additional_counts = cls.get_additional_counts(base_query)
+
+        count_dict = {
+            "total_count": additional_counts.total_count,
+            "read_count": additional_counts.read_count,
+            "important_count": additional_counts.important_count,
+        }
+
+        return stories, count_dict
 
     @classmethod
     def get_date_counts(cls, news_items: list[dict[str, Any]]) -> Counter:
@@ -315,15 +340,16 @@ class Story(BaseModel):
         for story in stories:
             item = cls.get_item_dict(story, user)
 
-            current_max_item = cls.get_max_item_count(item["news_items"])
-            max_item_count = max(max_item_count, current_max_item)
+            if count:
+                current_max_item = cls.get_max_item_count(item["news_items"])
+                max_item_count = max(max_item_count, current_max_item)
 
             items.append(item)
 
-        if filter_args.get("no_count", False):
-            return {"items": items, "max_item": max_item_count}, 200
+        if count:
+            return {"items": items, "max_item": max_item_count} | count, 200
 
-        return {"total_count": count, "items": items, "max_item": max_item_count}
+        return {"items": items}, 200
 
     @classmethod
     def get_for_worker(cls, filter_args: dict) -> list[dict[str, Any]]:

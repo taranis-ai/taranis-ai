@@ -28,6 +28,7 @@
         class="ml-4"
         @click="saveReportItem"
       >
+        <v-tooltip activator="parent" text="[ctrl+shift+s]" location="bottom" />
         {{ $t('button.save') }}
       </v-btn>
       <v-btn
@@ -97,6 +98,7 @@
                           v-model:value="attribute.value"
                           :read-only="!edit"
                           :attribute-item="attribute"
+                          :report-item-id="report_item.id"
                         />
                       </div>
                     </v-expansion-panel-text>
@@ -128,7 +130,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, provide } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useAnalyzeStore } from '@/stores/AnalyzeStore'
 import { useUserStore } from '@/stores/UserStore'
 import { createReportItem } from '@/api/analyze'
@@ -139,6 +141,7 @@ import { setStoriesToReportItem } from '@/api/analyze'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
+import { useHotkeys } from 'vue-use-hotkeys'
 
 export default {
   name: 'ReportItem',
@@ -165,14 +168,30 @@ export default {
         : []
     )
     const required = ref([(v) => !!v || 'Required'])
-    provide(
-      'report_stories',
-      report_item.value.stories.map((story) => ({
-        value: story.id,
-        title: story.title
-      }))
+    const { report_item_types, report_item_stories } = storeToRefs(store)
+
+    const used_story_ids = computed(() =>
+      Object.values(report_item.value.attributes.Data)
+        .filter((item) => item.type === 'STORY')
+        .map((item) => item.value.split(','))
+        .flat()
     )
-    const { report_item_types } = storeToRefs(store)
+
+    watch(
+      () => used_story_ids.value,
+      () => {
+        setReportItemStories()
+      }
+    )
+
+    function setReportItemStories() {
+      report_item_stories.value[report_item.value.id] =
+        report_item.value.stories.map((story) => ({
+          value: story.id,
+          title: story.title,
+          used: used_story_ids.value.includes(story.id)
+        }))
+    }
 
     const container_title = computed(() =>
       props.edit
@@ -182,9 +201,16 @@ export default {
 
     onMounted(() => {
       store.loadReportTypes()
+      setReportItemStories()
     })
 
-    const saveReportItem = async () => {
+    useHotkeys('ctrl+shift+s', (event, handler) => {
+      console.debug(`You pressed ${handler.key}`)
+      event.preventDefault()
+      saveReportItem()
+    })
+
+    async function saveReportItem() {
       const { valid } = await form.value.validate()
       if (!valid) {
         notifyFailure('Please correct the errors before saving.')
@@ -196,24 +222,27 @@ export default {
           completed: report_item.value.completed,
           attributes: report_item.value.attributes
         }
+        try {
+          store.patchReportItem(report_item.value.id, update_report_item)
+        } catch (error) {
+          notifyFailure('Failed to update report item')
+        }
+        return
+      }
 
-        store.patchReportItem(report_item.value.id, update_report_item)
-      } else {
-        createReportItem(report_item.value)
-          .then((response) => {
-            router.push('/report/' + response.data.id)
-            emit('reportcreated', response.data.id)
-            notifySuccess(`Report with ID ${response.data.id} created`)
-            report_item.value = response.data
-            store.updateReportItems()
-          })
-          .catch(() => {
-            notifyFailure('Failed to create report item')
-          })
+      try {
+        const response = createReportItem(report_item.value)
+        router.push('/report/' + response.data.id)
+        emit('reportcreated', response.data.id)
+        notifySuccess(`Report with ID ${response.data.id} created`)
+        report_item.value = response.data
+        store.updateReportItems()
+      } catch (error) {
+        notifyFailure('Failed to create report item')
       }
     }
 
-    const removeAllFromReport = () => {
+    function removeAllFromReport() {
       setStoriesToReportItem(report_item.value.id, [])
         .then(() => {
           report_item.value.stories = []
@@ -224,7 +253,7 @@ export default {
         })
     }
 
-    const removeFromReport = (story_id) => {
+    function removeFromReport(story_id) {
       report_item.value.stories = report_item.value.stories.filter(
         (story) => story.id !== story_id
       )

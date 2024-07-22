@@ -3,18 +3,35 @@
     v-model="selected"
     :readonly="readOnly"
     :label="title"
-    :items="stories"
+    :items="report_item_stories[reportItemId]"
     :multiple="multiple"
     closable-chips
+    center-affix
     clearable
     variant="outlined"
     no-data-text="No Stories found"
     menu-icon="mdi-chevron-down"
-  />
+    @update:model-value="updateValue"
+  >
+    <template #item="{ props, item }">
+      <v-list-item v-bind="props" :base-color="item.raw.used ? 'grey' : ''">
+        <template #title>
+          {{ item.raw.title }}
+          <v-icon
+            :icon="
+              item.raw.used ? 'mdi-checkbox-outline' : 'mdi-close-box-outline'
+            "
+          />
+        </template>
+      </v-list-item>
+    </template>
+  </v-autocomplete>
 </template>
 
 <script>
-import { computed, inject, ref } from 'vue'
+import { computed, ref } from 'vue'
+import { useAnalyzeStore } from '@/stores/AnalyzeStore'
+import { storeToRefs } from 'pinia'
 
 export default {
   name: 'AttributeStory',
@@ -27,12 +44,19 @@ export default {
       type: String,
       default: 'Stories'
     },
+    reportItemId: {
+      type: String,
+      required: true
+    },
     readOnly: { type: Boolean, default: false },
     multiple: { type: Boolean, default: true }
   },
   emits: ['update:modelValue'],
   setup(props, { emit }) {
-    const stories = inject('report_stories')
+    const store = useAnalyzeStore()
+
+    const { report_item_stories } = storeToRefs(store)
+
     const selected = ref(
       props.modelValue
         .split(',')
@@ -40,9 +64,13 @@ export default {
         .map((val) => val)
     )
 
-    const updateSelected = (val) => {
+    function updateValue(val) {
+      console.debug(val)
+      // emit('update:modelValue', val)
+    }
+
+    function updateSelected(val) {
       selected.value = val
-      console.debug('updateSelected', val)
       emit('update:modelValue', val.filter((v) => v).join(','))
     }
 
@@ -51,7 +79,8 @@ export default {
         get: () => selected.value,
         set: updateSelected
       }),
-      stories
+      report_item_stories,
+      updateValue
     }
   }
 }
