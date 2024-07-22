@@ -49,7 +49,7 @@ class Settings(BaseSettings):
             self.SQLALCHEMY_ENGINE_OPTIONS = {"connect_args": {"timeout": 10}}
         return self
 
-    TARANIS_AUTHENTICATOR: Literal["database", "openid", "external", "test"] = "database"
+    TARANIS_AUTHENTICATOR: Literal["database", "openid", "external", "dev"] = "database"
     EXTERNAL_AUTH_USER: str = "X-REROUTE-USER"
     EXTERNAL_AUTH_ROLES: str = "X-REROUTE-ROLES"
     EXTERNAL_AUTH_NAME: str = "X-REROUTE-NAME"

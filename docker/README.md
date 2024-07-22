@@ -89,9 +89,9 @@ Any configuration options are available at [https://hub.docker.com/_/postgres](h
 
 ### `core`
 
-| Environment variable        | Description | Example |
+| Environment variable        | Description | Default |
 |-----------------------------|-------------|----------|
-| `TARANIS_AUTHENTICATOR`  | Authentication method for users. | `database` |
+| `TARANIS_AUTHENTICATOR`     | Authentication method for users. | `database` |
 | `QUEUE_BROKER_HOST`         | RabbitMQ Host address | `rabbitmq` |
 | `QUEUE_BROKER_USER`         | RabbitMQ user | `taranis` |
 | `QUEUE_BROKER_PASSWORD`     | RabbitMQ password | `supersecret` |
@@ -118,7 +118,7 @@ Any configuration options are available at [https://hub.docker.com/_/postgres](h
 
 | Environment variable        | Description | Example |
 |-----------------------------|-------------|----------|
-| `TARANIS_CORE_URL`          | URL of the Taranis NG core API. | `http://127.0.0.1:8080/api` |
+| `TARANIS_CORE_URL`          | URL of the Taranis AI core API. | `http://127.0.0.1:8080/api` |
 | `API_KEY`                   | Shared API key. | `supersecret` |
 | `QUEUE_BROKER_HOST`         | RabbitMQ Host address | `rabbitmq` |
 | `QUEUE_BROKER_USER`         | RabbitMQ user | `taranis` |
