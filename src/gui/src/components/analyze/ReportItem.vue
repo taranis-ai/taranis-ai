@@ -60,6 +60,7 @@
                   no-data-text="No Report Types available - please create one under Admin > Report Types"
                   :items="report_item_types.items"
                   :label="$t('report_item.report_type')"
+                  menu-icon="mdi-chevron-down"
                 />
               </v-col>
               <v-col cols="8" class="pr-3">

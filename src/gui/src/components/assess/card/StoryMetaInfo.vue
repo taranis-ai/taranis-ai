@@ -1,5 +1,5 @@
 <template>
-  <table class="story-meta-info">
+  <table class="story-meta-info" :class="compactView ? 'compact-view' : ''">
     <tr>
       <td v-if="!compactView">
         <strong>{{ t('assess.published') }}:</strong>
@@ -43,15 +43,11 @@
           :truncate="!detailView"
           :color="detailView"
           :editable="detailView"
-          @edit="editTags()"
+          @edit="editTags"
         />
       </td>
-    </tr>
-
-    <tr v-if="!compactView && !reportView">
-      <td><strong>Relevance:</strong></td>
       <td>
-        {{ story.relevance }}
+        <relevance-indicator :relevance="story.relevance" />
       </td>
     </tr>
 
@@ -95,6 +91,7 @@ import ArticleInfo from '@/components/assess/card/ArticleInfo.vue'
 import AuthorInfo from '@/components/assess/card/AuthorInfo.vue'
 import PopupEditTags from '@/components/popups/PopupEditTags.vue'
 import StoryVotes from '@/components/assess/card/StoryVotes.vue'
+import RelevanceIndicator from '@/components/assess/card/RelevanceIndicator.vue'
 
 export default {
   name: 'StoryMetaInfo',
@@ -103,7 +100,8 @@ export default {
     ArticleInfo,
     AuthorInfo,
     StoryVotes,
-    TagList
+    TagList,
+    RelevanceIndicator
   },
   props: {
     story: {
@@ -228,10 +226,17 @@ export default {
 
 .story-meta-info tr td {
   vertical-align: top;
+  width: 100%;
 }
 
-.story-meta-info tr td:last-child {
-  width: 100%;
+.story-meta-info:not(.compact-view) tr td:nth-child(1) {
+  width: 30px;
+  padding-right: 5px;
+}
+
+.story-meta-info:not(.compact-view) tr td:nth-child(3) {
+  width: 30px;
+  text-align: center;
 }
 
 .shared-icons-container {

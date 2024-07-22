@@ -44,6 +44,7 @@
           :disabled="item['disabled']"
           :items="item.items"
           clearable
+          menu-icon="mdi-chevron-down"
         />
         <v-switch
           v-if="item.type === 'switch'"

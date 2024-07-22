@@ -1,22 +1,17 @@
 <template>
-  <v-container class="login-container flex-column">
-    <div class="ma-auto" style="max-width: 900px">
-      <v-row
-        no-gutters
-        justify="center"
-        align-content="center"
-        style="margin-bottom: 4rem"
-      >
+  <v-container class="login-container d-flex flex-column pa-0 ma-auto">
+    <v-row no-gutters justify="center" align-content="center" class="mb-5">
+      <v-col cols="10" sm="5" class="d-flex justify-center">
         <img
           src="@/assets/taranis-logo-login.svg"
           alt="taranis logo"
-          class="mb-5 pb-5"
-          style="max-width: 600px"
+          class="mb-5"
+          style="max-width: 500px"
         />
-      </v-row>
-      <ExternalLogin v-if="authMethod === 'external'" />
-      <LoginForm v-else />
-    </div>
+      </v-col>
+    </v-row>
+    <ExternalLogin v-if="authMethod === 'external'" />
+    <LoginForm v-else />
   </v-container>
 </template>
 

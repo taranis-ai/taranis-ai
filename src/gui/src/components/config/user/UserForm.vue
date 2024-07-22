@@ -52,8 +52,8 @@
             :label="$t('user.organization')"
             :items="organizations"
             :rules="[rules.required]"
-          >
-          </v-select>
+            menu-icon="mdi-chevron-down"
+          />
         </v-col>
         <v-col cols="12" class="pl-1">
           <v-data-table

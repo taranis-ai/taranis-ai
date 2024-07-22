@@ -11,7 +11,11 @@
       <v-row class="pl-2">
         <v-col class="d-flex">
           <v-row class="py-1 px-1">
-            <v-col :cols="meta_cols" class="meta-info-col">
+            <v-col
+              :cols="meta_cols"
+              class="meta-info-col"
+              :class="smAndDown ? 'no-border' : ''"
+            >
               <story-meta-info
                 :story="story"
                 :detail-view="openSummary"
@@ -25,7 +29,13 @@
               />
             </v-col>
             <v-col
-              v-if="!openSummary && showWeekChart && !reportView && !detailView"
+              v-if="
+                !openSummary &&
+                showWeekChart &&
+                !reportView &&
+                !detailView &&
+                !mdAndDown
+              "
               cols="2"
             >
               <WeekChart
@@ -33,7 +43,7 @@
                 :story="story"
               />
             </v-col>
-            <v-col :cols="content_cols">
+            <v-col>
               <div class="d-flex">
                 <h2
                   v-dompurify-html="highlighted_title"
@@ -71,7 +81,7 @@
             </v-col>
           </v-row>
         </v-col>
-        <v-col class="action-bar mr-2">
+        <v-col class="action-bar mr-1">
           <story-actions
             :story="story"
             :detail-view="detailView"
@@ -80,6 +90,7 @@
             @open-details="openCard()"
             @refresh="emitRefresh()"
             @remove-from-report="$emit('remove-from-report')"
+            @click.stop
           />
         </v-col>
       </v-row>
@@ -140,7 +151,7 @@ export default {
     const viewDetails = ref(false)
     const openSummary = ref(props.detailView)
     const assessStore = useAssessStore()
-    const { mdAndDown, xxl } = useDisplay()
+    const { mdAndDown, smAndDown, xxl } = useDisplay()
 
     const { newsItemSelection } = storeToRefs(assessStore)
     const selected = computed(() =>
@@ -156,7 +167,7 @@ export default {
 
     const content_cols = computed(() => {
       const navSub = drawerVisible.value ? 1 : 0
-      if (mdAndDown.value) {
+      if (smAndDown.value) {
         return 12
       }
       if (compactView.value || xxl.value) {
@@ -169,11 +180,17 @@ export default {
     })
 
     const meta_cols = computed(() => {
-      if (mdAndDown.value) {
+      if (smAndDown.value) {
         return 12
       }
       if (showWeekChart.value && !openSummary.value) {
-        return 12 - content_cols.value - 2
+        return 12 - content_cols.value
+      }
+      if (showWeekChart.value && openSummary.value) {
+        return 2
+      }
+      if (compactView.value && !mdAndDown.value) {
+        return 1
       }
       return 12 - content_cols.value
     })
@@ -263,7 +280,9 @@ export default {
       showWeekChart,
       openCard,
       toggleSelection,
-      emitRefresh
+      emitRefresh,
+      mdAndDown,
+      smAndDown
     }
   }
 }
@@ -286,6 +305,20 @@ export default {
       rgb(var(--v-theme-primary)) 10%,
       #ffffff
     );
+    & .action-bar {
+      background-color: color-mix(
+        in srgb,
+        rgb(var(--v-theme-primary)) 10%,
+        #ebebeb
+      );
+    }
+  }
+}
+
+.meta-info-col {
+  min-width: 240px !important;
+  &.no-border {
+    border-right: 0;
   }
 }
 

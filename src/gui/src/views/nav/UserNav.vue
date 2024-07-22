@@ -12,7 +12,7 @@ export default {
   },
   data: () => ({
     links: [
-      { icon: 'mdi-account', title: 'nav_menu.user', route: '/user' },
+      { icon: 'mdi-account-outline', title: 'nav_menu.user', route: '/user' },
       {
         icon: 'mdi-cog-outline',
         title: 'user_menu.settings',

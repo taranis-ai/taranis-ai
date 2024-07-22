@@ -1,23 +1,19 @@
 <template>
-  <v-tooltip class="mr-5">
-    <template #activator="{ props }">
-      <img
-        v-if="icon"
-        v-bind="props"
-        :src="'data:image/png;base64,' + icon"
-        :alt="source?.name"
-        :height="height"
-      />
-      <v-icon v-else v-bind="props" :icon="typeIcon" />
-    </template>
-    <span>{{ source?.name }}</span>
-  </v-tooltip>
+  <div class="article-source-icon">
+    <v-tooltip activator="parent" class="mr-5" :text="source?.name" />
+    <img
+      v-if="icon"
+      :src="'data:image/png;base64,' + icon"
+      :alt="source?.name"
+      height="30"
+    />
+    <v-icon v-else :icon="typeIcon" />
+  </div>
 </template>
 
 <script>
 import { getSourceInfo } from '@/utils/helpers.js'
 import { computed } from 'vue'
-import { useFilterStore } from '@/stores/FilterStore'
 
 export default {
   name: 'SourceInfo',
@@ -28,8 +24,6 @@ export default {
     }
   },
   setup(props) {
-    const filterStore = useFilterStore()
-
     const source = computed(() => {
       return props.newsItem
         ? getSourceInfo(props.newsItem.osint_source_id)
@@ -38,10 +32,6 @@ export default {
 
     const icon = computed(() => {
       return source.value?.icon
-    })
-
-    const height = computed(() => {
-      return filterStore.compactView ? 24 : 32
     })
 
     const typeIcon = computed(() => {
@@ -55,9 +45,19 @@ export default {
     return {
       source,
       icon,
-      height,
       typeIcon
     }
   }
 }
 </script>
+
+<style scoped>
+.article-source-icon {
+  width: 30px;
+  height: 30px;
+  max-width: 30px;
+  max-height: 30px;
+  overflow: hidden;
+  border-radius: 7px;
+}
+</style>

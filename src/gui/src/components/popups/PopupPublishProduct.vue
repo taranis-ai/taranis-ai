@@ -12,6 +12,7 @@
         item-title="name"
         item-value="id"
         :label="$t('product.publisher')"
+        menu-icon="mdi-chevron-down"
       />
     </v-card-text>
     <v-card-actions class="mt-1">

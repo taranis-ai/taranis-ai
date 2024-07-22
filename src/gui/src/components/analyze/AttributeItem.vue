@@ -28,6 +28,7 @@
       item-value="value"
       :items="attributeItem.render_data.attribute_enums"
       :label="attributeItem.title"
+      menu-icon="mdi-chevron-down"
     />
     <v-radio-group
       v-if="attributeItem.type === 'RADIO'"
@@ -100,6 +101,7 @@
       :readonly="readOnly"
       :label="attributeItem.title"
       :items="attributeItem.attribute_enums"
+      menu-icon="mdi-chevron-down"
     >
       <!-- TODO: Use MyAssets for Autocomplete -->
     </v-autocomplete>

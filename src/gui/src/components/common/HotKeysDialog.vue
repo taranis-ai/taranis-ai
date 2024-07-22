@@ -1,5 +1,5 @@
 <template>
-  <v-dialog v-model="hotkeyDialogVisible">
+  <v-dialog v-model="hotkeyDialogVisible" max-width="600px">
     <HotKeysLegend />
   </v-dialog>
 </template>

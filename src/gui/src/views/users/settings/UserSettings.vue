@@ -58,6 +58,7 @@
               :item-title="(item) => item.value + ' - ' + item.text"
               hint="Select your locale"
               :label="$t('settings.locale')"
+              menu-icon="mdi-chevron-down"
             ></v-autocomplete>
           </v-col>
           <v-col>

@@ -4,7 +4,8 @@
       <v-btn-toggle
         v-model="trendingClusterScope"
         class="mb-1"
-        rounded="xl"
+        variant="tonal"
+        selected-class="active-toggle"
         @update:model-value="toggleScope"
       >
         <v-btn value="0">
@@ -35,7 +36,7 @@
 
       <dash-board-card link-to="/assess" link-text="Assess">
         <template #content>
-          <v-icon class="mr-2"> mdi-email-multiple </v-icon>
+          <v-icon class="mr-2"> mdi-email-multiple-outline </v-icon>
           <span class="caption">
             There are
             <strong>{{ dashboard_data.total_news_items }}</strong> total Assess
@@ -45,7 +46,7 @@
       </dash-board-card>
       <dash-board-card link-to="/analyze" link-text="Analyze">
         <template #content>
-          <v-icon class="mr-2"> mdi-account </v-icon>
+          <v-icon class="mr-2"> mdi-account-outline </v-icon>
           <span class="caption">
             There are <b>{{ dashboard_data.report_items_completed }}</b>
             completed analyses.
@@ -111,3 +112,13 @@ export default defineComponent({
   }
 })
 </script>
+
+<style>
+.active-toggle.v-btn--active {
+  background-color: rgb(var(--v-theme-primary));
+  color: white;
+  border: none;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+</style>

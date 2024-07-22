@@ -36,6 +36,7 @@
             :items="attribute_types"
             clearable
             :rules="[rules.required]"
+            menu-icon="mdi-chevron-down"
           />
         </v-col>
         <v-col v-if="attribute.type === 'ENUM'" cols="12" class="pl-1">

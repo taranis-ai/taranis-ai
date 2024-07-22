@@ -1,22 +1,37 @@
 <template>
-  <v-container fluid>
-    <DataTable
-      v-model:items="worker_types.items"
-      :add-button="false"
-      :header-filter="['name', 'description', 'category', 'type', 'actions']"
-      sort-by-item="category"
-      @edit-item="editItem"
-      @update-items="updateData"
-    >
-    </DataTable>
-    <EditConfig
-      v-if="showForm"
-      :config-data="formData"
-      :form-format="formFormat"
-      :parameters="disabledParameters"
-      title="Worker Type Defaults"
-      @submit="handleSubmit"
-    ></EditConfig>
+  <v-container fluid class="pa-2">
+    <v-row no-gutters>
+      <v-col class="pa-2 mt-2">
+        <h1>Worker Types Settings</h1>
+      </v-col>
+    </v-row>
+    <v-row no-gutters>
+      <v-col class="pa-2">
+        <DataTable
+          v-model:items="worker_types.items"
+          :add-button="false"
+          :header-filter="[
+            'name',
+            'description',
+            'category',
+            'type',
+            'actions'
+          ]"
+          sort-by-item="category"
+          @edit-item="editItem"
+          @update-items="updateData"
+        >
+        </DataTable>
+        <EditConfig
+          v-if="showForm"
+          :config-data="formData"
+          :form-format="formFormat"
+          :parameters="disabledParameters"
+          title="Worker Type Defaults"
+          @submit="handleSubmit"
+        />
+      </v-col>
+    </v-row>
   </v-container>
 </template>
 

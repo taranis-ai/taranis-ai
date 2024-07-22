@@ -1,50 +1,68 @@
 <template>
   <v-form id="form" ref="form" @submit.prevent="authenticate">
-    <v-row no-gutters justify="center" align-content="center">
-      <v-col cols="12">
+    <v-row no-gutters justify="center" align-content="center" class="mt-5">
+      <v-col cols="8" sm="5" class="d-flex justify-center">
         <v-text-field
           ref="userfield"
           v-model="username"
-          class="mx-2"
           :placeholder="$t('login.username')"
           name="username"
-          prepend-icon="mdi-account-outline"
+          prepend-inner-icon="mdi-account-outline"
           type="text"
+          variant="outlined"
           :rules="[acceptUser]"
           autocomplete="username"
+          max-width="440px"
           required
-        />
-      </v-col>
-      <v-col cols="12">
-        <v-text-field
-          v-model="password"
-          class="mx-2"
-          :placeholder="$t('login.password')"
-          name="password"
-          prepend-icon="mdi-lock-outline"
-          type="password"
-          :rules="[acceptPassword]"
-          autocomplete="current-password"
-          required
-        />
-      </v-col>
-      <v-col cols="12" class="d-flex">
-        <v-btn
-          class="ma-auto"
-          icon="mdi-login-variant"
-          type="submit"
-          color="primary"
-          :disabled="loginButtonDisabled"
         />
       </v-col>
     </v-row>
+    <v-row no-gutters justify="center" align-content="center" class="mb-3">
+      <v-col cols="8" sm="5" class="d-flex justify-center">
+        <v-text-field
+          v-model="password"
+          :placeholder="$t('login.password')"
+          name="password"
+          prepend-inner-icon="mdi-lock-outline"
+          type="password"
+          variant="outlined"
+          :rules="[acceptPassword]"
+          autocomplete="current-password"
+          max-width="440px"
+          required
+        />
+      </v-col>
+    </v-row>
+    <v-row no-gutters justify="center" align-content="center">
+      <v-col cols="8" sm="5" class="d-flex" style="max-width: 440px">
+        <v-btn
+          color="primary"
+          prepend-icon="mdi-login-variant"
+          type="submit"
+          class="mb-5"
+          block
+          variant="outlined"
+          :disabled="loginButtonDisabled"
+        >
+          login
+        </v-btn>
+      </v-col>
+    </v-row>
   </v-form>
-  <v-alert
-    v-if="login_error !== undefined"
-    dense
-    type="error"
-    :text="$t(login_error)"
-  />
+  <v-expand-transition>
+    <v-alert
+      v-if="login_error !== undefined"
+      dense
+      type="error"
+      icon="mdi-close-circle-outline"
+      :text="$t(login_error)"
+      location="bottom"
+      position="fixed"
+      :rounded="false"
+      width="100%"
+      class="opacity-90 py-3"
+    />
+  </v-expand-transition>
 </template>
 
 <script>

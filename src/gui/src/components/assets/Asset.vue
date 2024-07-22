@@ -36,6 +36,7 @@
             :items="asset_groups.items"
             item-value="id"
             item-title="name"
+            menu-icon="mdi-chevron-down"
           />
         </v-col>
       </v-row>

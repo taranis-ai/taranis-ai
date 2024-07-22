@@ -99,7 +99,7 @@
             <template #activator="{ props }">
               <v-icon
                 v-bind="props"
-                icon="mdi-pencil"
+                icon="mdi-pencil-outline"
                 @click.stop="editItem(item)"
               />
             </template>

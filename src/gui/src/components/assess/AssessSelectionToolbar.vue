@@ -8,7 +8,7 @@
     :scrim="false"
   >
     <v-card v-if="storySelection.length > 0" class="story-toolbar">
-      <v-card-text>
+      <v-card-text class="pa-3">
         <v-row no-gutters>
           <v-col class="toolbar-start">
             <v-btn
@@ -44,7 +44,7 @@
             <v-btn
               text="mark as important"
               variant="outlined"
-              prepend-icon="mdi-star"
+              prepend-icon="mdi-star-outline"
               class="ml-4"
               @click.stop="actionClicked('markAsImportant')"
             />
@@ -52,7 +52,7 @@
           <v-col class="toolbar-end">
             <v-btn
               text="deselect"
-              variant="outlined"
+              variant="text"
               prepend-icon="mdi-selection-remove"
               @click.stop="deselectStories"
             />
