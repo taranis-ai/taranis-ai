@@ -15,7 +15,7 @@ services:
       NGINX_CONNECTIONS: "16"
       TARANIS_CORE_UPSTREAM: "${TARANIS_CORE_UPSTREAM:-core:8080}"
       TARANIS_SSE_UPSTREAM: "${TARANIS_SSE_UPSTREAM:-sse:8088}"
-      TARANIS_SENTRY_DSN: "${TARANIS_SENTRY_DSN:-}"
+      TARANIS_SENTRY_DSN: "${TARANIS_GUI_SENTRY_DSN:-}"
     logging:
       driver: "json-file"
       options:
@@ -38,10 +38,6 @@ services:
       DB_DATABASE: "${DB_DATABASE:-taranis}"
       DB_USER: "${DB_USER:-taranis}"
       DB_PASSWORD: "${POSTGRES_PASSWORD:-taranis}"
-      DB_POOL_SIZE: 100
-      DB_POOL_RECYCLE: 300
-      DB_POOL_TIMEOUT: 5
-
       TARANIS_AUTHENTICATOR: "${TARANIS_AUTHENTICATOR:-database}"
 
       QUEUE_BROKER_HOST: "rabbitmq"
@@ -49,6 +45,7 @@ services:
       QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-taranis}"
 
       GRANIAN_PORT: "${TARANIS_CORE_LISTEN_PORT:-8080}"
+      SENTRY_DSN: "${TARANIS_CORE_SENTRY_DSN:-}"
 
       PRE_SEED_PASSWORD_ADMIN: "${PRE_SEED_PASSWORD_ADMIN:-admin}"
       PRE_SEED_PASSWORD_USER: "${PRE_SEED_PASSWORD_USER:-user}"

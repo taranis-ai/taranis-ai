@@ -34,7 +34,7 @@ export const useMainStore = defineStore(
         config.TARANIS_CORE_API && config.TARANIS_CORE_API !== '/api'
           ? config.TARANIS_CORE_API.replace('/api', '/sse')
           : '/sse'
-      sentryDSN.value = config.TARANIS_SENTRY_DSN ?? ''
+      sentryDSN.value = config.TARANIS_GUI_SENTRY_DSN ?? ''
       upstreamRepoUrl.value =
         config.TARANIS_UPSTREAM_REPO_URL ??
         'https://github.com/taranis-ai/taranis-ai'
