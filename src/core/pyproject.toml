@@ -31,7 +31,9 @@ dependencies = [
     "swagger-ui-py",
     "requests",
     "authlib",
-    "setuptools"
+    "setuptools",
+    "sentry-sdk[flask]",
+    "sentry-sdk[sqlalchemy]"
 ]
 dynamic = ["version"]
 

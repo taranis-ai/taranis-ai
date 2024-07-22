@@ -37,6 +37,8 @@ class Settings(BaseSettings):
     SSE_URL: str = "http://sse:8088/publish"
     DISABLE_SSE: bool = False
 
+    TARANIS_CORE_SENTRY_DSN: str | None = None
+
     @model_validator(mode="after")  # type: ignore
     def set_sqlalchemy_uri(self) -> "Settings":
         if not self.SQLALCHEMY_DATABASE_URI or len(self.SQLALCHEMY_DATABASE_URI) < 1:
