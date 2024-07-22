@@ -8,7 +8,7 @@ from flask_jwt_extended.exceptions import JWTExtendedException
 # from core.managers import queue_manager
 from core.log import logger
 from core.auth.openid_authenticator import OpenIDAuthenticator
-from core.auth.test_authenticator import TestAuthenticator
+from core.auth.dev_authenticator import DevAuthenticator
 from core.auth.database_authenticator import DatabaseAuthenticator
 from core.auth.external_authenticator import ExternalAuthenticator
 from core.model.token_blacklist import TokenBlacklist
@@ -37,8 +37,8 @@ def initialize(app: Flask):
         current_authenticator = OpenIDAuthenticator(app)
     elif authenticator == "database":
         current_authenticator = DatabaseAuthenticator()
-    elif authenticator == "test":
-        current_authenticator = TestAuthenticator()
+    elif authenticator == "dev":
+        current_authenticator = DevAuthenticator()
     elif authenticator == "external":
         current_authenticator = ExternalAuthenticator()
     else:
