@@ -1,8 +1,8 @@
 from .base_bot import BaseBot
 from worker.log import logger
 import py3langid
-import torch
 from flair.data import Sentence
+from flair.models import SequenceTagger
 
 
 class NLPBot(BaseBot):
