@@ -99,10 +99,7 @@ export default {
       if (smAndDown.value) {
         return 12
       }
-      if (props.reportView || compactView.value || props.detailView) {
-        return 10
-      }
-      return 8
+      return 10
     })
 
     const meta_cols = computed(() => {

@@ -78,6 +78,7 @@
           <date-filter
             v-model="storyFilter.timefrom"
             placeholder="First Day"
+            tooltip-text="Filter Stories starting from this date"
             :timeto="storyFilter.timeto"
             :default-date="defaultFromDate"
           />
@@ -87,6 +88,7 @@
           <date-filter
             v-model="storyFilter.timeto"
             placeholder="Last Day"
+            tooltip-text="Filter Stories ending on this date"
             :timefrom="storyFilter.timefrom"
             :default-date="new Date()"
           />

@@ -22,14 +22,18 @@
       />
     </v-app-bar-title>
 
-    <div v-if="showItemCount && mdAndUp" class="mr-4 menu-item-info">
+    <div
+      v-if="showItemCount && mdAndUp"
+      class="mr-4"
+      :class="showAssessTooltip ? 'menu-item-info' : ''"
+    >
       <span>
         total items: <strong>{{ itemCountTotal }}</strong>
       </span>
       <span v-if="isFiltered">
         / displayed: <strong>{{ itemCountFiltered }}</strong>
       </span>
-      <v-tooltip activator="parent" location="bottom">
+      <v-tooltip v-if="showAssessTooltip" activator="parent" location="bottom">
         <v-icon icon="mdi-eye-check-outline" size="x-small" class="mr-1" />
         read: <strong>{{ itemCountRead }}</strong
         ><br />
@@ -59,7 +63,9 @@
       density="compact"
       prepend-inner-icon="mdi-magnify"
       class="mx-3 omni-search"
-    />
+    >
+      <v-tooltip activator="parent" text="[ctrl+k]" location="bottom" />
+    </v-text-field>
 
     <template #append>
       <v-menu v-if="smAndDown" offset-y class="mx-5">
@@ -186,6 +192,10 @@ export default defineComponent({
       mainStore.toggleDrawer()
     }
 
+    const showAssessTooltip = computed(() => {
+      return route.name === 'assess'
+    })
+
     const showSearchBar = computed(() => {
       return (
         route.name === 'assess' ||
@@ -262,6 +272,7 @@ export default defineComponent({
       drawerVisible,
       showNavButton,
       buttonList,
+      showAssessTooltip,
       navClicked,
       itemCountRead,
       itemCountUnread,
@@ -301,8 +312,7 @@ export default defineComponent({
   max-width: 800px;
 }
 
-.menu-item-info span {
-  color: #969696;
+.menu-item-info {
   cursor: help;
 }
 </style>

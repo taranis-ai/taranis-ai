@@ -4,8 +4,8 @@
       v-model="selected"
       :name="'dateFilter-' + placeholder"
       :placeholder="placeholder"
-      :min-date="minDate"
-      :max-date="maxDate"
+      :min-date="timefrom"
+      :max-date="timeto"
       format="yyyy-MM-dd HH:mm:ss"
       time-picker-inline
       auto-apply
@@ -13,6 +13,7 @@
       space-confirm
       @open="openMenu()"
     />
+    <v-tooltip activator="parent" :text="tooltipText" />
   </div>
 </template>
 
@@ -43,6 +44,11 @@ export default {
       type: Date,
       required: false,
       default: null
+    },
+    tooltipText: {
+      type: String,
+      required: false,
+      default: null
     }
   },
   emits: ['update:modelValue'],
@@ -52,27 +58,6 @@ export default {
 
     const locale = computed(() => {
       return userStore.language
-    })
-
-    const minDate = computed(() => {
-      if (props.timefrom) {
-        const newDate = new Date(props.timefrom)
-        newDate.setHours(23)
-        newDate.setMinutes(59)
-        return newDate
-      } else {
-        return null
-      }
-    })
-
-    const maxDate = computed(() => {
-      let newDate = new Date()
-      if (props.timeto) {
-        newDate = new Date(props.timeto)
-      }
-      newDate.setHours(23)
-      newDate.setMinutes(59)
-      return newDate
     })
 
     function updateSelected(val) {
@@ -101,8 +86,6 @@ export default {
     return {
       openMenu,
       locale,
-      minDate,
-      maxDate,
       selected: computed({
         get: () => (selected.value ? new Date(selected.value) : null),
         set: updateSelected

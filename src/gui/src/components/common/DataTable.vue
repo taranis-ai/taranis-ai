@@ -8,6 +8,7 @@
     show-select
     :model-value="selected"
     :items-per-page="itemsPerPage"
+    :hide-default-footer="items.length < itemsPerPage"
     @update:model-value="emitFilterChange"
     @click:row="rowClick"
   >
@@ -98,7 +99,6 @@
         </v-tooltip>
       </div>
     </template>
-    <template v-if="items.length < itemsPerPage" #bottom />
     <template #no-data>
       <slot name="nodata">
         <v-empty-state icon="mdi-magnify" title="No Data Found." class="my-5">
@@ -121,7 +121,8 @@ export default defineComponent({
   props: {
     items: {
       type: Array,
-      required: true
+      required: true,
+      default: () => []
     },
     addButton: {
       type: Boolean,
@@ -250,7 +251,6 @@ export default defineComponent({
   transition: 180ms;
   box-shadow: 1px 2px 9px 0px rgba(0, 0, 0, 0.15);
   flex-grow: 1;
-  height: 100%;
   display: flex;
   flex-direction: column;
   margin: 4px;

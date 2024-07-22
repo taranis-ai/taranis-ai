@@ -8,7 +8,7 @@
       density="compact"
       @click.stop="vote('like')"
     >
-      <span>{{ likes }}</span>
+      <span>{{ story.likes }}</span>
       <v-icon
         right
         size="small"
@@ -25,7 +25,7 @@
       density="compact"
       @click.stop="vote('dislike')"
     >
-      <span>{{ dislikes }}</span>
+      <span>{{ story.dislikes }}</span>
       <v-icon
         right
         size="small"
@@ -38,7 +38,6 @@
 </template>
 
 <script>
-import { ref } from 'vue'
 import { useAssessStore } from '@/stores/AssessStore'
 
 export default {
@@ -52,55 +51,12 @@ export default {
   setup(props) {
     const assessStore = useAssessStore()
 
-    const likes = ref(props.story.likes)
-    const dislikes = ref(props.story.dislikes)
-    const relevance = ref(props.story.relevance)
-    const voted = ref(props.story.user_vote)
-
-    const vote = (vote) => {
+    function vote(vote) {
       assessStore.voteOnStory(props.story.id, vote)
-      updateVote(vote)
-    }
-
-    function updateVote(vote) {
-      if (vote === 'like') {
-        if (voted.value.like) {
-          likes.value -= 1
-          relevance.value -= 1
-          voted.value.like = false
-        } else if (voted.value.dislike) {
-          dislikes.value -= 1
-          likes.value += 1
-          relevance.value += 2
-          voted.value = { like: true, dislike: false }
-        } else {
-          likes.value += 1
-          relevance.value += 1
-          voted.value.like = true
-        }
-      }
-      if (vote === 'dislike') {
-        if (voted.value.dislike) {
-          dislikes.value -= 1
-          relevance.value += 1
-          voted.value.dislike = false
-        } else if (voted.value.like) {
-          likes.value -= 1
-          dislikes.value += 1
-          relevance.value -= 2
-          voted.value = { like: false, dislike: true }
-        } else {
-          dislikes.value += 1
-          relevance.value -= 1
-          voted.value.dislike = true
-        }
-      }
     }
 
     return {
-      vote,
-      likes,
-      dislikes
+      vote
     }
   }
 }

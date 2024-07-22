@@ -42,7 +42,7 @@
             variant="plain"
             prepend-icon="mdi-keyboard-outline"
             text="Show Hotkeys"
-            @mouseenter="hotkeyDialogVisible = !hotkeyDialogVisible"
+            @click="hotkeyDialogVisible = !hotkeyDialogVisible"
           />
         </v-col>
       </v-row>

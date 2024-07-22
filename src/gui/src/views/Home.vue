@@ -5,8 +5,8 @@
         v-model="trendingClusterScope"
         class="mb-1"
         variant="tonal"
-        @update:model-value="toggleScope"
         selected-class="active-toggle"
+        @update:model-value="toggleScope"
       >
         <v-btn value="0">
           <v-tooltip activator="parent">Complete Database</v-tooltip>
