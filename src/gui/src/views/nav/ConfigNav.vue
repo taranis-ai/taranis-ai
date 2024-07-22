@@ -64,7 +64,13 @@ export default {
         icon: 'mdi-folder-multiple-outline',
         title: 'nav_menu.osint_source_groups',
         route: '/config/sourcegroups',
-        permission: 'CONFIG_OSINT_SOURCE_GROUP_ACCESS',
+        permission: 'CONFIG_OSINT_SOURCE_GROUP_ACCESS'
+      },
+      {
+        icon: 'mdi-robot-outline',
+        title: 'nav_menu.bots',
+        route: '/config/bots',
+        permission: 'CONFIG_BOT_ACCESS',
         divider: true
       },
       {
@@ -72,6 +78,12 @@ export default {
         title: 'nav_menu.report_types',
         route: '/config/reportitems/types',
         permission: 'CONFIG_REPORT_TYPE_ACCESS'
+      },
+      {
+        icon: 'mdi-application-variable-outline',
+        title: 'nav_menu.attributes',
+        route: '/config/attributes',
+        permission: 'CONFIG_ATTRIBUTE_ACCESS'
       },
       {
         icon: 'mdi-file-document-outline',
@@ -90,18 +102,6 @@ export default {
         title: 'nav_menu.publisher',
         route: '/config/publishers',
         permission: 'CONFIG_PUBLISHER_ACCESS'
-      },
-      {
-        icon: 'mdi-robot-outline',
-        title: 'nav_menu.bots',
-        route: '/config/bots',
-        permission: 'CONFIG_BOT_ACCESS'
-      },
-      {
-        icon: 'mdi-application-variable-outline',
-        title: 'nav_menu.attributes',
-        route: '/config/attributes',
-        permission: 'CONFIG_ATTRIBUTE_ACCESS'
       },
       {
         icon: 'mdi-format-list-text',
