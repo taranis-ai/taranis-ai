@@ -24,7 +24,13 @@ export const useAssessStore = defineStore(
   () => {
     const osint_sources = ref({ total_count: 0, items: [] })
     const osint_source_groups = ref({ total_count: 0, items: [] })
-    const stories = ref({ total_count: 0, items: [] })
+    const stories = ref({ items: [] })
+    const storyCounts = ref({
+      total_count: 0,
+      read_count: 0,
+      important_count: 0,
+      in_reports_count: 0
+    })
     const newsItemSelection = ref([])
     const storySelection = ref([])
     const loading = ref(false)
@@ -62,7 +68,7 @@ export const useAssessStore = defineStore(
         console.debug('Updating Stories with Filter', filter.storyFilterQuery)
         const response = await getStories(filter.storyFilterQuery)
         stories.value.items = response.data.items
-        stories.value.total_count = response.data.total_count
+        storyCounts.value = response.data.counts
         mainStore.setItemCount(
           response.data.total_count,
           response.data.items.length
@@ -71,7 +77,7 @@ export const useAssessStore = defineStore(
         loading.value = false
       } catch (error) {
         loading.value = false
-        stories.value = { total_count: 0, items: [] }
+        stories.value = { items: [] }
         notifyFailure(error.message)
       }
     }
@@ -111,7 +117,7 @@ export const useAssessStore = defineStore(
 
         stories.value.items = [...stories.value.items, ...uniqueNewItems]
         mainStore.setItemCount(
-          stories.value.total_count,
+          storyCounts.value.total_count,
           stories.value.items.length
         )
         weekChartOptions.value.scales.y2.max = response.data.max_item
@@ -331,7 +337,10 @@ export const useAssessStore = defineStore(
         }
         return true
       })
-      if (stories.value.items.length === 0 && stories.value.total_count > 0) {
+      if (
+        stories.value.items.length === 0 &&
+        storyCounts.value.total_count > 0
+      ) {
         updateStories()
       }
     }
@@ -339,7 +348,13 @@ export const useAssessStore = defineStore(
     function reset() {
       osint_sources.value = { total_count: 0, items: [] }
       osint_source_groups.value = { total_count: 0, items: [] }
-      stories.value = { total_count: 0, items: [] }
+      stories.value = { items: [] }
+      storyCounts.value = {
+        total_count: 0,
+        read_count: 0,
+        important_count: 0,
+        in_reports_count: 0
+      }
       newsItemSelection.value = []
       storySelection.value = []
       weekChartOptions.value = staticWeekChartOptions
@@ -350,6 +365,7 @@ export const useAssessStore = defineStore(
     return {
       osint_sources,
       osint_source_groups,
+      storyCounts,
       stories,
       newsItemSelection,
       storySelection,

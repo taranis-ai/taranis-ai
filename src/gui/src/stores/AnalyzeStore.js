@@ -34,6 +34,7 @@ export const useAnalyzeStore = defineStore(
     const report_items = ref({ total_count: 0, items: [] })
     const report_item_types = ref({ total_count: 0, items: [] })
     const last_report = ref(null)
+    const report_item_stories = ref({})
 
     const getReportItemsList = computed(() => {
       return report_items.value.items.map((item) => {
@@ -170,6 +171,7 @@ export const useAnalyzeStore = defineStore(
       report_items,
       report_item_types,
       last_report,
+      report_item_stories,
       getReportItemsList,
       getReportItemsTableData,
       getReportItemsByIDs,

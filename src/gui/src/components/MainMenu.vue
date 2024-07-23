@@ -35,20 +35,20 @@
       </span>
       <v-tooltip v-if="showAssessTooltip" activator="parent" location="bottom">
         <v-icon icon="mdi-eye-check-outline" size="x-small" class="mr-1" />
-        read: <strong>{{ itemCountRead }}</strong
+        read: <strong>{{ storyCounts.read_count }}</strong
         ><br />
-        <v-icon icon="mdi-eye-off-outline" size="x-small" class="mr-1" />
+        <!-- <v-icon icon="mdi-eye-off-outline" size="x-small" class="mr-1" />
         unread: <strong>{{ itemCountUnread }}</strong>
-        <br />
+        <br /> -->
         <v-icon icon="mdi-star-check-outline" size="x-small" class="mr-1" />
-        important: <strong>{{ itemCountImportant }}</strong>
+        important: <strong>{{ storyCounts.important_count }}</strong>
         <br />
         <v-icon
           icon="mdi-google-circles-communities"
           size="x-small"
           class="mr-1"
         />
-        in report: <strong>{{ itemCountInReport }}</strong>
+        in report: <strong>{{ storyCounts.in_reports_count }}</strong>
         <br />
       </v-tooltip>
     </div>
@@ -114,6 +114,7 @@ import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/MainStore'
 import { useUserStore } from '@/stores/UserStore'
 import { useFilterStore } from '@/stores/FilterStore'
+import { useAssessStore } from '@/stores/AssessStore'
 import { defineComponent, computed, ref } from 'vue'
 import { useDisplay } from 'vuetify'
 import { useRoute } from 'vue-router'
@@ -125,11 +126,14 @@ export default defineComponent({
     const mainStore = useMainStore()
     const userStore = useUserStore()
     const filterStore = useFilterStore()
+    const assessStore = useAssessStore()
     const { smAndDown, mdAndUp } = useDisplay()
     const route = useRoute()
 
     const { drawerVisible, itemCountTotal, itemCountFiltered, buildDate } =
       storeToRefs(mainStore)
+
+    const { storyCounts } = storeToRefs(assessStore)
 
     const timeout = ref(null)
     const searchState = computed({
@@ -169,23 +173,6 @@ export default defineComponent({
       return itemCountFiltered.value === undefined
         ? false
         : itemCountFiltered.value !== itemCountTotal.value
-    })
-
-    const itemCountRead = computed(() => {
-      // TODO: Get value from store
-      return 0
-    })
-    const itemCountUnread = computed(() => {
-      // TODO: Get value from store
-      return 0
-    })
-    const itemCountImportant = computed(() => {
-      // TODO: Get value from store
-      return 0
-    })
-    const itemCountInReport = computed(() => {
-      // TODO: Get value from store
-      return 0
     })
 
     const navClicked = () => {
@@ -269,15 +256,12 @@ export default defineComponent({
       showItemCount,
       itemCountFiltered,
       itemCountTotal,
+      storyCounts,
       drawerVisible,
       showNavButton,
       buttonList,
       showAssessTooltip,
-      navClicked,
-      itemCountRead,
-      itemCountUnread,
-      itemCountImportant,
-      itemCountInReport
+      navClicked
     }
   }
 })

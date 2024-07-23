@@ -75,7 +75,7 @@ export default defineComponent({
     const assessStore = useAssessStore()
     const filterStore = useFilterStore()
     const mainStore = useMainStore()
-    const { stories, loading } = storeToRefs(assessStore)
+    const { stories, loading, storyCounts } = storeToRefs(assessStore)
     const { storyFilter, storyPage } = storeToRefs(filterStore)
 
     assessHotkeys()
@@ -89,7 +89,7 @@ export default defineComponent({
     })
     const numberOfPages = computed(() => {
       const count = Math.ceil(
-        stories.value.total_count / (storyFilter.value.limit || 20)
+        storyCounts.value.total_count / (storyFilter.value.limit || 20)
       )
       return count > 0 ? count : 1
     })
@@ -129,7 +129,7 @@ export default defineComponent({
     }
 
     onUpdated(() => {
-      mainStore.itemCountTotal = stories.value.total_count
+      mainStore.itemCountTotal = storyCounts.value.total_count
       mainStore.itemCountFiltered = stories.value.items.length
     })
 
