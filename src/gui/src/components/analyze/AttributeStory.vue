@@ -11,7 +11,6 @@
     variant="outlined"
     no-data-text="No Stories found"
     menu-icon="mdi-chevron-down"
-    @update:model-value="updateValue"
   >
     <template #item="{ props, item }">
       <v-list-item v-bind="props" :base-color="item.raw.used ? 'grey' : ''">
@@ -64,11 +63,6 @@ export default {
         .map((val) => val)
     )
 
-    function updateValue(val) {
-      console.debug(val)
-      // emit('update:modelValue', val)
-    }
-
     function updateSelected(val) {
       selected.value = val
       emit('update:modelValue', val.filter((v) => v).join(','))
@@ -79,8 +73,7 @@ export default {
         get: () => selected.value,
         set: updateSelected
       }),
-      report_item_stories,
-      updateValue
+      report_item_stories
     }
   }
 }
