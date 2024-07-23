@@ -615,8 +615,17 @@ paths:
               schema:
                 type: object
                 properties:
-                  total_count:
-                    type: integer
+                  counts:
+                    type: object
+                    properties:
+                      total_count:
+                        type: integer
+                      read_count:
+                        type: integer
+                      important_count:
+                        type: integer
+                      in_report_count:
+                        type: integer
                   items:
                     type: array
                     items:

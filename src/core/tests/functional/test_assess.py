@@ -45,7 +45,7 @@ class TestAssessApi(BaseTest):
         response = client.get("/api/assess/stories", headers=auth_header)
         assert response
         assert response.data
-        assert response.get_json()["total_count"] == 3
+        assert response.get_json()["counts"]["total_count"] == 3
         assert response.content_type == "application/json"
         assert response.status_code == 200
 
@@ -54,7 +54,7 @@ class TestAssessApi(BaseTest):
         assert len(response.get_json()["items"]) == 0
 
         response = client.get("/api/assess/stories?notexistent=notexist", headers=auth_header)
-        assert response.get_json()["total_count"] > 0
+        assert response.get_json()["counts"]["total_count"] > 0
 
         response = client.get("/api/assess/stories?read=true", headers=auth_header)
         assert len(response.get_json()["items"]) == 0
@@ -69,7 +69,7 @@ class TestAssessApi(BaseTest):
         assert response.status_code == 200
 
         response = client.get("/api/assess/stories?sort=DATE_DESC", headers=auth_header)
-        assert response.get_json()["total_count"] > 0
+        assert response.get_json()["counts"]["total_count"] > 0
 
         response = client.get("/api/assess/stories?offset=1", headers=auth_header)
         assert len(response.get_json()["items"]) == 2
