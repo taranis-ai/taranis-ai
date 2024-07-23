@@ -220,7 +220,7 @@ class Story(BaseModel):
                 Story.id == ReportItemStory.story_id,
             )
         if in_report == "false":
-            query = query.join(
+            query = query.outerjoin(
                 ReportItemStory,
                 Story.id == ReportItemStory.story_id,
             ).filter(ReportItemStory.story_id == null())
@@ -249,9 +249,11 @@ class Story(BaseModel):
             query = query.filter(cls.created >= date_limit)
 
         if timefrom := filter_args.get("timefrom"):
+            logger.debug(f"Filtering Stories from {datetime.fromisoformat(timefrom)}")
             query = query.filter(cls.created >= datetime.fromisoformat(timefrom))
 
         if timeto := filter_args.get("timeto"):
+            logger.debug(f"Filtering Stories to {datetime.fromisoformat(timeto)}")
             query = query.filter(cls.updated <= datetime.fromisoformat(timeto))
 
         return query

@@ -129,8 +129,8 @@ export default defineComponent({
     }
 
     onUpdated(() => {
-      mainStore.itemCountTotal = storyCounts.value.total_count
-      mainStore.itemCountFiltered = stories.value.items.length
+      mainStore.itemCountTotal = storyCounts.value?.total_count || 0
+      mainStore.itemCountFiltered = stories.value?.items.length || 0
     })
 
     onDeactivated(() => {

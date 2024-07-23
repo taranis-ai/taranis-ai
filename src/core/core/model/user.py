@@ -43,6 +43,8 @@ class User(BaseModel):
             "split_view": False,
             "compact_view": False,
             "show_charts": False,
+            "infinite_scroll": True,
+            "end_of_shift": "18:00",
             "language": "en",
         }
 

@@ -17,7 +17,7 @@
       <filter-button
         v-if="smAndUp"
         v-model="storyFilter['in_report']"
-        :label="mdAndDown ? '' : 'items in reports'"
+        :label="mdAndDown ? '' : 'in reports'"
         icon="mdi-google-circles-communities"
       />
     </template>
