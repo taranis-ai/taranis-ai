@@ -101,13 +101,13 @@
     </template>
     <template #no-data>
       <slot name="nodata">
-        <v-empty-state icon="mdi-magnify" title="No Data Found." class="my-5">
-          <v-btn
-            text="refresh"
-            prepend-icon="mdi-refresh"
-            @click.stop="updateItems()"
-          />
-        </v-empty-state>
+        <v-empty-state
+          icon="mdi-magnify"
+          title="No Data Found."
+          class="my-5"
+          action-text="Reload Data"
+          @click:action="updateItems()"
+        />
       </slot>
     </template>
   </v-data-table>

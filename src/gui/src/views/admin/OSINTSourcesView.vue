@@ -59,6 +59,24 @@
               <span>Preview Source</span>
             </v-tooltip>
           </template>
+          <template #nodata>
+            <v-empty-state
+              icon="mdi-magnify"
+              title="No OSINTSources Found."
+              class="my-5"
+            >
+              <v-btn
+                text="refresh"
+                prepend-icon="mdi-refresh"
+                @click.stop="updateData"
+              />
+              <v-btn
+                text="load default sources"
+                prepend-icon="mdi-database"
+                @click.stop="loadDefaultSources()"
+              />
+            </v-empty-state>
+          </template>
         </DataTable>
         <EditConfig
           v-if="showForm"
@@ -189,7 +207,7 @@ export default {
       return base
     })
 
-    const updateData = () => {
+    function updateData() {
       configStore.loadOSINTSources().then(() => {
         mainStore.itemCountFiltered = configStore.osint_sources.items.length - 1
         mainStore.itemCountTotal = configStore.osint_sources.total_count - 1
@@ -263,7 +281,7 @@ export default {
       }
     }
 
-    const createItem = (item) => {
+    function createItem(item) {
       createOSINTSource(item)
         .then(() => {
           notifySuccess(`Successfully created ${item.name}`)
@@ -274,7 +292,7 @@ export default {
         })
     }
 
-    const updateItem = (item) => {
+    function updateItem(item) {
       updateOSINTSource(item)
         .then(() => {
           notifySuccess(`Successfully updated ${item.name}`)
@@ -285,18 +303,39 @@ export default {
         })
     }
 
-    const importData = (data) => {
-      importOSINTSources(data)
-        .then(() => {
-          notifySuccess(`Successfully imported ${data.get('file').name}`)
-          setTimeout(updateData(), 1000)
-        })
-        .catch(() => {
-          notifyFailure('Failed to import')
-        })
+    async function loadDefaultSources() {
+      // URL to download the default sources data
+      const url =
+        'https://raw.githubusercontent.com/taranis-ai/taranis-ai/master/doc/default_sources.json'
+
+      try {
+        const response = await fetch(url)
+        if (!response.ok) {
+          throw new Error('Network response was not ok')
+        }
+
+        // Parse the response as JSON
+        const data = await response.json()
+
+        // Assuming importOSINTSources expects a JSON object
+        await importOSINTSources(data)
+        notifySuccess('Successfully imported default sources')
+        setTimeout(updateData, 1000)
+      } catch (error) {
+        notifyFailure('Failed to import default sources')
+      }
     }
 
-    const exportData = () => {
+    async function importData(data) {
+      try {
+        await importOSINTSources(data)
+        notifySuccess(`Successfully imported ${data.get('file').name}`)
+        setTimeout(updateData, 1000)
+      } catch (error) {
+        notifyFailure('Failed to import')
+      }
+    }
+    function exportData() {
       let queryString = ''
       if (selected.value.length > 0) {
         queryString = 'ids=' + selected.value.join('&ids=')
@@ -304,11 +343,11 @@ export default {
       exportOSINTSources(queryString)
     }
 
-    const selectionChange = (new_selection) => {
+    function selectionChange(new_selection) {
       selected.value = new_selection
     }
 
-    const collectAllSources = () => {
+    function collectAllSources() {
       collectAllOSINTSSources()
         .then(() => {
           notifySuccess('Successfully collected all sources')
@@ -318,7 +357,7 @@ export default {
         })
     }
 
-    const collectSource = (source) => {
+    function collectSource(source) {
       collectOSINTSSource(source.id)
         .then(() => {
           notifySuccess(`Successfully collected ${source.name}`)
@@ -328,7 +367,7 @@ export default {
         })
     }
 
-    const previewSource = (source) => {
+    function previewSource(source) {
       previewOSINTSSource(source.id)
         .then(() => {
           router.push({
@@ -365,6 +404,7 @@ export default {
       previewSource,
       forceDeleteItem,
       collectAllSources,
+      loadDefaultSources,
       selectionChange
     }
   }
