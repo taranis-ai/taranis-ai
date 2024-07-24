@@ -39,7 +39,7 @@
 </template>
 
 <script>
-import { ref, onMounted, computed, onUnmounted } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import DataTable from '@/components/common/DataTable.vue'
 import { usePublishStore } from '@/stores/PublishStore'
 import { useMainStore } from '@/stores/MainStore'
@@ -98,10 +98,6 @@ export default {
     function resetFilter() {
       filterStore.resetFilter()
     }
-
-    onMounted(() => {
-      publishStore.loadProductTypes()
-    })
 
     onUnmounted(() => {
       mainStore.resetItemCount()

@@ -1,8 +1,8 @@
 <template>
   <v-card>
     <v-card-title> Publish Product </v-card-title>
-    <v-card-subtitle class="warning-text">
-      <span v-if="incomplete">This Product contains incomplete Reports</span>
+    <v-card-subtitle v-if="incomplete" class="warning-text">
+      This Product contains incomplete Reports
     </v-card-subtitle>
     <v-card-text>
       Select a publisher:

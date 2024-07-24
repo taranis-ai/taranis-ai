@@ -11,7 +11,7 @@
             color="success"
             variant="outlined"
             prepend-icon="mdi-content-save"
-            @click="save()"
+            @click="saveUserSettings()"
           >
             {{ $t('button.save') }}
           </v-btn>
@@ -22,32 +22,52 @@
           <v-col>
             <v-switch
               v-model="split_view"
+              inset
               color="success"
               :label="$t('settings.split_view')"
-            ></v-switch>
+            />
           </v-col>
           <v-col>
             <v-switch
               v-model="dark_theme"
+              inset
               color="success"
               :label="$t('settings.dark_theme')"
-            ></v-switch>
+            />
+          </v-col>
+          <v-col>
+            <v-switch
+              v-model="sseStatus"
+              :label="sseLabel"
+              color="success"
+              inset
+            />
           </v-col>
         </v-row>
         <v-row>
           <v-col>
             <v-switch
               v-model="compact_view"
+              inset
               color="success"
               :label="$t('settings.compact_view')"
-            ></v-switch>
+            />
           </v-col>
           <v-col>
             <v-switch
               v-model="show_charts"
+              inset
               color="success"
               :label="$t('settings.show_charts')"
-            ></v-switch>
+            />
+          </v-col>
+          <v-col>
+            <v-switch
+              v-model="infinite_scroll"
+              inset
+              color="success"
+              :label="$t('settings.infinite_scroll')"
+            />
           </v-col>
         </v-row>
         <v-row>
@@ -59,14 +79,14 @@
               hint="Select your locale"
               :label="$t('settings.locale')"
               menu-icon="mdi-chevron-down"
-            ></v-autocomplete>
+            />
           </v-col>
-          <v-col>
-            <v-switch
-              v-model="sseStatus"
-              :label="sseLabel"
-              color="success"
-              inset
+          <v-col cols="4" offset="1">
+            <VueDatePicker
+              v-model="end_of_shift"
+              time-picker
+              auto-apply
+              :label="$t('settings.end_of_shift')"
             />
           </v-col>
         </v-row>
@@ -77,13 +97,11 @@
 </template>
 
 <script>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useUserStore } from '@/stores/UserStore'
 import { useMainStore } from '@/stores/MainStore'
-import { storeToRefs } from 'pinia'
-import { onMounted } from 'vue'
-import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import HotKeysLegend from './HotKeysLegend.vue'
+import { storeToRefs } from 'pinia'
 import { sseHandler } from '@/utils/sse'
 
 export default {
@@ -101,7 +119,9 @@ export default {
       language,
       compact_view,
       show_charts,
-      sseConnectionState
+      sseConnectionState,
+      infinite_scroll,
+      end_of_shift
     } = storeToRefs(userStore)
 
     const { sseConnectionError, coreSSEURL } = storeToRefs(useMainStore())
@@ -137,22 +157,17 @@ export default {
       }
     })
 
-    const save = () => {
-      userStore
-        .saveUserProfile({
-          split_view: split_view.value,
-          compact_view: compact_view.value,
-          show_charts: show_charts.value,
-          dark_theme: dark_theme.value,
-          hotkeys: hotkeys.value,
-          language: language.value
-        })
-        .then(() => {
-          notifySuccess('notification.successful_update')
-        })
-        .catch(() => {
-          notifyFailure('notification.failed_update')
-        })
+    function saveUserSettings() {
+      userStore.saveUserProfile({
+        split_view: split_view.value,
+        compact_view: compact_view.value,
+        show_charts: show_charts.value,
+        dark_theme: dark_theme.value,
+        hotkeys: hotkeys.value,
+        language: language.value,
+        infinite_scroll: infinite_scroll.value,
+        end_of_shift: end_of_shift.value
+      })
     }
 
     onMounted(() => {
@@ -168,8 +183,10 @@ export default {
       split_view,
       compact_view,
       show_charts,
+      infinite_scroll,
+      end_of_shift,
       hotkeys,
-      save
+      saveUserSettings
     }
   }
 }

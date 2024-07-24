@@ -63,17 +63,21 @@ export const useAssessStore = defineStore(
     async function updateStories() {
       try {
         loading.value = true
-        const filter = useFilterStore()
+        const storyFilter = useFilterStore().storyFilterQuery || ''
         const mainStore = useMainStore()
-        console.debug('Updating Stories with Filter', filter.storyFilterQuery)
-        const response = await getStories(filter.storyFilterQuery)
+        console.debug('Updating Stories with Filter', storyFilter)
+        const response = await getStories(storyFilter)
         stories.value.items = response.data.items
-        storyCounts.value = response.data.counts
-        mainStore.setItemCount(
-          response.data.total_count,
-          response.data.items.length
-        )
-        weekChartOptions.value.scales.y2.max = response.data.max_item
+        if (response.data.counts) {
+          storyCounts.value = response.data.counts
+          mainStore.setItemCount(
+            response.data.counts.total_count,
+            response.data.items.length
+          )
+          weekChartOptions.value.scales.y2.max =
+            response.data.counts.biggest_story
+        }
+
         loading.value = false
       } catch (error) {
         loading.value = false
@@ -120,7 +124,6 @@ export const useAssessStore = defineStore(
           storyCounts.value.total_count,
           stories.value.items.length
         )
-        weekChartOptions.value.scales.y2.max = response.data.max_item
         loading.value = false
         return true
       } catch (error) {
@@ -167,35 +170,35 @@ export const useAssessStore = defineStore(
       const story = stories.value.items.find((item) => item.id === id)
 
       if (vote === 'like') {
-        if (story.user_vote.like) {
+        if (story.user_vote === 'like') {
           story.likes -= 1
           story.relevance -= 1
-          story.user_vote.like = false
-        } else if (story.user_vote.dislike) {
+          story.user_vote = ''
+        } else if (story.user_vote === 'dislike') {
           story.dislikes -= 1
           story.likes += 1
           story.relevance += 2
-          story.user_vote = { like: true, dislike: false }
+          story.user_vote = 'like'
         } else {
           story.likes += 1
           story.relevance += 1
-          story.user_vote.like = true
+          story.user_vote = 'like'
         }
       }
       if (vote === 'dislike') {
-        if (story.user_vote.dislike) {
+        if (story.user_vote === 'dislike') {
           story.dislikes -= 1
           story.relevance += 1
-          story.user_vote.dislike = false
-        } else if (story.user_vote.like) {
+          story.user_vote = ''
+        } else if (story.user_vote === 'like') {
           story.likes -= 1
           story.dislikes += 1
           story.relevance -= 2
-          story.user_vote = { like: false, dislike: true }
+          story.user_vote = 'dislike'
         } else {
           story.dislikes += 1
           story.relevance -= 1
-          story.user_vote.dislike = true
+          story.user_vote = 'dislike'
         }
       }
     }

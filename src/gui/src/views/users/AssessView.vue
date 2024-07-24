@@ -1,7 +1,7 @@
 <template>
   <div class="w-100">
     <v-infinite-scroll
-      v-if="stories.items.length > 0 && !pagination"
+      v-if="stories.items.length > 0 && infiniteScroll"
       empty-text="All items loaded"
       color="primary"
       @load="displayMore"
@@ -21,7 +21,7 @@
       </template>
     </v-infinite-scroll>
 
-    <v-container v-else-if="stories.items.length > 0 && pagination" fluid>
+    <v-container v-else-if="stories.items.length > 0 && !infiniteScroll" fluid>
       <template v-for="item in stories.items" :key="item.id">
         <card-story :story="item" @refresh="refresh(item.id)" />
       </template>
@@ -58,7 +58,7 @@
 <script>
 import CardStory from '@/components/assess/CardStory.vue'
 import AssessSelectionToolbar from '@/components/assess/AssessSelectionToolbar.vue'
-import { defineComponent, computed, onDeactivated, onUpdated } from 'vue'
+import { defineComponent, computed, onUpdated, onUnmounted } from 'vue'
 import { useAssessStore } from '@/stores/AssessStore'
 import { useFilterStore } from '@/stores/FilterStore'
 import { useMainStore } from '@/stores/MainStore'
@@ -76,7 +76,7 @@ export default defineComponent({
     const filterStore = useFilterStore()
     const mainStore = useMainStore()
     const { stories, loading, storyCounts } = storeToRefs(assessStore)
-    const { storyFilter, storyPage } = storeToRefs(filterStore)
+    const { storyFilter, storyPage, infiniteScroll } = storeToRefs(filterStore)
 
     assessHotkeys()
     const page = computed({
@@ -102,10 +102,6 @@ export default defineComponent({
       assessStore.updateStoryByID(id)
     }
 
-    const pagination = computed(() => {
-      return Boolean(storyFilter.value.timeto)
-    })
-
     const displayMore = async ({ done }) => {
       if (!moreToLoad.value) {
         done('empty')
@@ -129,11 +125,11 @@ export default defineComponent({
     }
 
     onUpdated(() => {
-      mainStore.itemCountTotal = storyCounts.value.total_count
-      mainStore.itemCountFiltered = stories.value.items.length
+      mainStore.itemCountTotal = storyCounts.value?.total_count || 0
+      mainStore.itemCountFiltered = stories.value?.items.length || 0
     })
 
-    onDeactivated(() => {
+    onUnmounted(() => {
       assessStore.clearSelection()
       mainStore.resetItemCount()
     })
@@ -142,9 +138,9 @@ export default defineComponent({
       stories,
       moreToLoad,
       numberOfPages,
+      infiniteScroll,
       page,
       loading,
-      pagination,
       storyFilter,
       refresh,
       resetFilter,

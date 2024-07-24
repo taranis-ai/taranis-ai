@@ -4,6 +4,7 @@ import { i18n } from '@/i18n/i18n'
 import { vuetify } from '@/plugins/vuetify'
 import { ref } from 'vue'
 import { useFilterStore } from './FilterStore'
+import { notifyFailure, notifySuccess } from '@/utils/helpers'
 
 export const useUserStore = defineStore(
   'user',
@@ -19,6 +20,8 @@ export const useUserStore = defineStore(
     const compact_view = ref(false)
     const show_charts = ref(false)
     const dark_theme = ref(false)
+    const infinite_scroll = ref(false)
+    const end_of_shift = ref({ hours: 18, minutes: 0 })
     const language = ref('en')
     const sseConnectionState = ref('CLOSED')
     const filterStore = useFilterStore()
@@ -35,11 +38,13 @@ export const useUserStore = defineStore(
       compact_view.value = false
       show_charts.value = false
       dark_theme.value = false
+      infinite_scroll.value = false
+      end_of_shift.value = null
       language.value = 'en'
       sseConnectionState.value = 'CLOSED'
     }
 
-    const loadUser = () => {
+    function loadUser() {
       getUserDetails().then((response) => {
         user_id.value = response.data.id
         name.value = response.data.name
@@ -47,41 +52,42 @@ export const useUserStore = defineStore(
         roles.value = response.data.roles
         permissions.value = response.data.permissions
         organization.value = response.data.organization
-        hotkeys.value = response.data.profile.hotkeys
-        split_view.value = response.data.profile.split_view
-        compact_view.value = response.data.profile.compact_view
-        show_charts.value = response.data.profile.show_charts
-        dark_theme.value = response.data.profile.dark_theme
-        language.value = response.data.profile.language
-        filterStore.setUserFilters(response.data.profile)
+        setUserProfile(response.data.profile)
       })
     }
 
-    const loadUserProfile = () => {
+    function loadUserProfile() {
       getProfile().then((response) => {
         setUserProfile(response.data)
       })
     }
 
-    const saveUserProfile = async (data) => {
-      updateProfile(data).then(() => {
+    async function saveUserProfile(data) {
+      try {
+        const response = await updateProfile(data)
         setUserProfile(data)
-      })
+        notifySuccess(response.data.message)
+      } catch (error) {
+        notifyFailure(error)
+      }
     }
 
-    const hasPermission = (permission) => {
+    function hasPermission(permission) {
       return permissions.value.includes(permission)
     }
 
-    const setUserProfile = (profile) => {
+    function setUserProfile(profile) {
       split_view.value = profile.split_view
       compact_view.value = profile.compact_view
       show_charts.value = profile.show_charts
       dark_theme.value = profile.dark_theme
       language.value = profile.language
+      end_of_shift.value = profile.end_of_shift
+      infinite_scroll.value = profile.infinite_scroll
 
       i18n.global.locale.value = profile.language
       vuetify.theme.global.name.value = profile.dark_theme ? 'dark' : 'light'
+      filterStore.setUserFilters(profile)
     }
 
     return {
@@ -92,6 +98,8 @@ export const useUserStore = defineStore(
       permissions,
       organization,
       sseConnectionState,
+      infinite_scroll,
+      end_of_shift,
       hotkeys,
       split_view,
       compact_view,

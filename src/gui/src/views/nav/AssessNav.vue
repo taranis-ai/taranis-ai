@@ -17,7 +17,7 @@
       <filter-button
         v-if="smAndUp"
         v-model="storyFilter['in_report']"
-        :label="mdAndDown ? '' : 'items in reports'"
+        :label="mdAndDown ? '' : 'in reports'"
         icon="mdi-google-circles-communities"
       />
     </template>
@@ -222,6 +222,7 @@ import FilterNavigation from '@/components/common/FilterNavigation.vue'
 import { computed, onBeforeMount } from 'vue'
 import { useFilterStore } from '@/stores/FilterStore'
 import { useAssessStore } from '@/stores/AssessStore'
+import { useUserStore } from '@/stores/UserStore'
 import { storeToRefs } from 'pinia'
 import { useDisplay } from 'vuetify'
 
@@ -239,6 +240,7 @@ export default {
   setup() {
     const assessStore = useAssessStore()
     const filterStore = useFilterStore()
+    const userStore = useUserStore()
 
     const { OSINTSourceGroupsList, OSINTSourcesList } = storeToRefs(assessStore)
     const { mdAndDown, smAndUp, xxl } = useDisplay()
@@ -251,6 +253,15 @@ export default {
       compactViewSetByUser
     } = storeToRefs(filterStore)
 
+    const defaultFromDate = new Date()
+    defaultFromDate.setDate(defaultFromDate.getDate() - 1)
+    defaultFromDate.setHours(
+      userStore.end_of_shift.hours,
+      userStore.end_of_shift.minutes,
+      0,
+      0
+    )
+
     const filter_range = computed({
       get() {
         return undefined
@@ -259,9 +270,8 @@ export default {
         console.debug('filter_range', value)
         const now = new Date()
         switch (value) {
-          case 'day': {
-            now.setHours(0, 0, 0, 0) // Set to today at 00:00
-            storyFilter.value.timefrom = now.toISOString()
+          case 'shift': {
+            storyFilter.value.timefrom = defaultFromDate.toISOString()
             break
           }
           case 'week': {
@@ -284,11 +294,6 @@ export default {
     const disableWeekChart = computed(() => {
       return !xxl.value || compactView.value
     })
-
-    const now = new Date()
-    now.setDate(now.getDate() - 1)
-    now.setHours(18, 0, 0, 0)
-    const defaultFromDate = now
 
     const search = computed({
       get() {

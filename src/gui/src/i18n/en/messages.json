@@ -373,6 +373,8 @@
         "split_view": "Split View",
         "compact_view": "Compact View",
         "show_charts": "Show Charts",
+        "infinite_scroll": "Infinite Scroll",
+        "end_of_shift": "End of Shift",
         "locale": "Language",
         "user_settings": "User settings"
     },

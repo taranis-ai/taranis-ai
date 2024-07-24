@@ -167,11 +167,16 @@ export default {
         ? Object.keys(report_item.value.attributes)
         : []
     )
+    const report_item_attributes = ref(
+      report_item.value.attributes
+        ? Object.values(report_item.value.attributes)
+        : []
+    )
     const required = ref([(v) => !!v || 'Required'])
     const { report_item_types, report_item_stories } = storeToRefs(store)
 
     const used_story_ids = computed(() =>
-      Object.values(report_item.value.attributes.Data)
+      report_item_attributes.value
         .filter((item) => item.type === 'STORY')
         .map((item) => item.value.split(','))
         .flat()
@@ -231,13 +236,15 @@ export default {
       }
 
       try {
-        const response = createReportItem(report_item.value)
+        const response = await createReportItem(report_item.value)
+        console.debug('Report item created:', response.data)
         router.push('/report/' + response.data.id)
         emit('reportcreated', response.data.id)
         notifySuccess(`Report with ID ${response.data.id} created`)
         report_item.value = response.data
         store.updateReportItems()
       } catch (error) {
+        console.error(error)
         notifyFailure('Failed to create report item')
       }
     }
