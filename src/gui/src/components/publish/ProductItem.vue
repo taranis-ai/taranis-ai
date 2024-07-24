@@ -105,6 +105,7 @@
             <popup-publish-product
               :product-id="product.id"
               :dialog="publishDialog"
+              :incomplete="incompleteReports"
               @close="publishDialog = false"
             />
           </v-dialog>
@@ -224,6 +225,13 @@ export default {
         (item) => item.id === product.value.product_type_id
       )
       return p ? p.report_types : []
+    })
+
+    const incompleteReports = computed(() => {
+      const incomplete = reportItems.value.find((item) => {
+        return product.value.report_items.includes(item.id) && !item.completed
+      })
+      return incomplete ? true : false
     })
 
     const reportItems = computed(() => {
@@ -357,6 +365,7 @@ export default {
       product_types,
       renderError,
       publishDialog,
+      incompleteReports,
       showPreview,
       reportItems,
       renderedProduct,

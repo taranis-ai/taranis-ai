@@ -301,11 +301,20 @@ class Story(BaseModel):
             db.select(NewsItemVote.item_id, NewsItemVote.user_vote_expr.label("user_vote")).filter(NewsItemVote.user_id == user_id).subquery()
         )
 
-        # Join the vote_subquery and include user_vote column
         query = query.outerjoin(vote_subquery, Story.id == vote_subquery.c.item_id)
         query = query.add_columns(func.coalesce(vote_subquery.c.user_vote, "").label("user_vote"))
         query = query.group_by(Story.id, vote_subquery.c.user_vote)
 
+        return query
+
+    @classmethod
+    def enhance_with_report_count(cls, query: Select) -> Select:
+        report_subquery = (
+            db.select(ReportItemStory.story_id, func.count().label("report_count")).group_by(ReportItemStory.story_id).subquery()
+        )
+        query = query.outerjoin(report_subquery, Story.id == report_subquery.c.story_id)
+        query = query.add_columns(func.coalesce(report_subquery.c.report_count, 0).label("report_count"))
+        query = query.group_by(Story.id, report_subquery.c.report_count)
         return query
 
     @classmethod
@@ -314,7 +323,6 @@ class Story(BaseModel):
         if user:
             base_query = cls._add_ACL_check(base_query, user)
             base_query = cls._add_TLP_check(base_query, user)
-            base_query = cls.enhance_with_user_votes(base_query, user.id)
 
         query = cls._add_sorting_to_query(filter_args, base_query)
         query = cls._add_paging_to_query(filter_args, query)
@@ -322,14 +330,18 @@ class Story(BaseModel):
         if filter_args.get("no_count", False):
             return [s.to_dict() for s in cls.get_filtered(query) or []], None
 
-        if filter_args.get("worker", False):
+        if filter_args.get("worker", False) or not user:
             return [s.to_worker_dict() for s in cls.get_filtered(query) or []], None
 
         stories = []
         biggest_story = 0
-        for story, user_vote in db.session.execute(query):
+        query = cls.enhance_with_user_votes(query, user.id)
+        query = cls.enhance_with_report_count(query)
+
+        for story, user_vote, report_count in db.session.execute(query):
             story_data = story.to_dict()  # Assuming Story has a method to_dict()
             story_data["user_vote"] = user_vote
+            story_data["in_reports_count"] = report_count
             biggest_story = max(biggest_story, len(story_data["news_items"]))
             stories.append(story_data)
 

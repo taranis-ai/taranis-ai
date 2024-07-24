@@ -39,7 +39,7 @@
 </template>
 
 <script>
-import { ref, onMounted, computed, onUnmounted } from 'vue'
+import { ref, onBeforeMount, computed, onUnmounted } from 'vue'
 import DataTable from '@/components/common/DataTable.vue'
 import { usePublishStore } from '@/stores/PublishStore'
 import { useMainStore } from '@/stores/MainStore'
@@ -99,8 +99,8 @@ export default {
       filterStore.resetFilter()
     }
 
-    onMounted(() => {
-      publishStore.loadProductTypes()
+    onBeforeMount(() => {
+      updateData()
     })
 
     onUnmounted(() => {

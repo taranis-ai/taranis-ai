@@ -13,6 +13,7 @@ from core.model.base_model import BaseModel
 from core.model.user import User
 from core.model.product_type import ProductType
 from core.service.role_based_access import RoleBasedAccessService, RBACQuery
+from core.managers import queue_manager
 
 
 class Product(BaseModel):
@@ -31,7 +32,7 @@ class Product(BaseModel):
     user_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("user.id"))
     user: Mapped["User"] = relationship("User")
 
-    report_items: Mapped[list["ReportItem"]] = relationship("ReportItem", secondary="product_report_item", cascade="all, delete")
+    report_items: Mapped[list["ReportItem"]] = relationship("ReportItem", secondary="product_report_item")
     last_rendered: Mapped[datetime] = db.Column(db.DateTime)
     render_result = deferred(db.Column(db.Text))
 
@@ -40,7 +41,9 @@ class Product(BaseModel):
         self.title = title
         self.description = description
         self.product_type_id = product_type_id
-        self.report_items = ReportItem.get_bulk(report_items) if report_items else []
+        if report_items is not None:
+            self.report_items = ReportItem.get_bulk(report_items)
+            queue_manager.queue_manager.generate_product(self.id, countdown=5)
 
     @classmethod
     def get_filter_query_with_acl(cls, filter_args: dict, user: User) -> Select:
@@ -143,6 +146,7 @@ class Product(BaseModel):
         report_items = data.get("report_items")
         if report_items is not None:
             product.report_items = ReportItem.get_bulk(report_items)
+            queue_manager.queue_manager.generate_product(product.id)
 
         db.session.commit()
         return {"message": f"Product {product_id} updated", "id": product_id}, 200
@@ -155,8 +159,8 @@ class Product(BaseModel):
 
 
 class ProductReportItem(BaseModel):
-    product_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("product.id", ondelete="SET NULL"), primary_key=True)
-    report_item_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("report_item.id", ondelete="SET NULL"), primary_key=True)
+    product_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("product.id", ondelete="CASCADE"), primary_key=True)
+    report_item_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("report_item.id", ondelete="CASCADE"), primary_key=True)
 
     @classmethod
     def assigned(cls, report_id) -> bool:

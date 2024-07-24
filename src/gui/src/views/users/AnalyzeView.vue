@@ -67,7 +67,7 @@ import { useFilterStore } from '@/stores/FilterStore'
 import { useMainStore } from '@/stores/MainStore'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
-import { onMounted, ref, computed, onUnmounted } from 'vue'
+import { onBeforeMount, ref, computed, onUnmounted } from 'vue'
 
 export default {
   name: 'AnalyzeView',
@@ -111,8 +111,8 @@ export default {
       filterStore.resetFilter()
     }
 
-    onMounted(() => {
-      analyzeStore.loadReportTypes()
+    onBeforeMount(() => {
+      updateData()
     })
 
     onUnmounted(() => {
