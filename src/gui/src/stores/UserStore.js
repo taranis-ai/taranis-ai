@@ -4,6 +4,7 @@ import { i18n } from '@/i18n/i18n'
 import { vuetify } from '@/plugins/vuetify'
 import { ref } from 'vue'
 import { useFilterStore } from './FilterStore'
+import { notifyFailure, notifySuccess } from '@/utils/helpers'
 
 export const useUserStore = defineStore(
   'user',
@@ -20,7 +21,7 @@ export const useUserStore = defineStore(
     const show_charts = ref(false)
     const dark_theme = ref(false)
     const infinite_scroll = ref(false)
-    const end_of_shift = ref(null)
+    const end_of_shift = ref({ hours: 18, minutes: 0 })
     const language = ref('en')
     const sseConnectionState = ref('CLOSED')
     const filterStore = useFilterStore()
@@ -51,15 +52,7 @@ export const useUserStore = defineStore(
         roles.value = response.data.roles
         permissions.value = response.data.permissions
         organization.value = response.data.organization
-        hotkeys.value = response.data.profile.hotkeys
-        split_view.value = response.data.profile.split_view
-        compact_view.value = response.data.profile.compact_view
-        show_charts.value = response.data.profile.show_charts
-        dark_theme.value = response.data.profile.dark_theme
-        infinite_scroll.value = response.data.profile.infinite_scroll
-        end_of_shift.value = response.data.profile.end_of_shift
-        language.value = response.data.profile.language
-        filterStore.setUserFilters(response.data.profile)
+        setUserProfile(response.data.profile)
       })
     }
 
@@ -70,9 +63,13 @@ export const useUserStore = defineStore(
     }
 
     async function saveUserProfile(data) {
-      updateProfile(data).then(() => {
+      try {
+        const response = await updateProfile(data)
         setUserProfile(data)
-      })
+        notifySuccess(response.data.message)
+      } catch (error) {
+        notifyFailure(error)
+      }
     }
 
     function hasPermission(permission) {
@@ -90,6 +87,7 @@ export const useUserStore = defineStore(
 
       i18n.global.locale.value = profile.language
       vuetify.theme.global.name.value = profile.dark_theme ? 'dark' : 'light'
+      filterStore.setUserFilters(profile)
     }
 
     return {

@@ -11,7 +11,7 @@
             color="success"
             variant="outlined"
             prepend-icon="mdi-content-save"
-            @click="save()"
+            @click="saveUserSettings()"
           >
             {{ $t('button.save') }}
           </v-btn>
@@ -97,13 +97,11 @@
 </template>
 
 <script>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useUserStore } from '@/stores/UserStore'
 import { useMainStore } from '@/stores/MainStore'
-import { storeToRefs } from 'pinia'
-import { onMounted } from 'vue'
-import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import HotKeysLegend from './HotKeysLegend.vue'
+import { storeToRefs } from 'pinia'
 import { sseHandler } from '@/utils/sse'
 
 export default {
@@ -159,22 +157,17 @@ export default {
       }
     })
 
-    const save = () => {
-      userStore
-        .saveUserProfile({
-          split_view: split_view.value,
-          compact_view: compact_view.value,
-          show_charts: show_charts.value,
-          dark_theme: dark_theme.value,
-          hotkeys: hotkeys.value,
-          language: language.value
-        })
-        .then(() => {
-          notifySuccess('notification.successful_update')
-        })
-        .catch(() => {
-          notifyFailure('notification.failed_update')
-        })
+    function saveUserSettings() {
+      userStore.saveUserProfile({
+        split_view: split_view.value,
+        compact_view: compact_view.value,
+        show_charts: show_charts.value,
+        dark_theme: dark_theme.value,
+        hotkeys: hotkeys.value,
+        language: language.value,
+        infinite_scroll: infinite_scroll.value,
+        end_of_shift: end_of_shift.value
+      })
     }
 
     onMounted(() => {
@@ -193,7 +186,7 @@ export default {
       infinite_scroll,
       end_of_shift,
       hotkeys,
-      save
+      saveUserSettings
     }
   }
 }

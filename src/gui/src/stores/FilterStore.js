@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { useAssessStore } from './AssessStore'
 import { useAnalyzeStore } from './AnalyzeStore'
 import { usePublishStore } from './PublishStore'
+import { useUserStore } from './UserStore'
 import { router } from '@/router'
 import { getQueryStringFromNestedObject } from '@/utils/query'
 
@@ -115,6 +116,13 @@ export const useFilterStore = defineStore(
         return [storyFilter.value.tags]
       }
       return storyFilter.value.tags
+    })
+
+    const infiniteScroll = computed(() => {
+      if (storyFilter.value.timeto) {
+        return false
+      }
+      return useUserStore().infinite_scroll
     })
 
     // Actions
@@ -260,6 +268,7 @@ export const useFilterStore = defineStore(
       compactView,
       compactViewSetByUser,
       getFilterTags,
+      infiniteScroll,
       setFilter,
       appendTag,
       nextPage,

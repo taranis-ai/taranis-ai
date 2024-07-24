@@ -99,8 +99,15 @@ class NewsItem(BaseModel):
     def has_attribute_value(self, value) -> bool:
         return any(attribute.value == value for attribute in self.attributes)
 
-    def to_dict(self) -> dict[str, Any]:
-        data = super().to_dict()
+    @classmethod
+    def get_for_api(cls, item_id: str, user: User) -> tuple[dict[str, Any], int]:
+        logger.debug(f"Getting {cls.__name__} {item_id}")
+        if item := cls.get(item_id):
+            return item.to_detail_dict(), 200
+        return {"error": f"{cls.__name__} {item_id} not found"}, 404
+
+    def to_detail_dict(self) -> dict[str, Any]:
+        data = self.to_dict()
         if attributes := self.attributes:
             data["attributes"] = [attribute.to_dict() for attribute in attributes]
         return data
