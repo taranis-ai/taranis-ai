@@ -63,23 +63,21 @@ export const useAssessStore = defineStore(
     async function updateStories() {
       try {
         loading.value = true
-        const filter = useFilterStore()
+        const storyFilter = useFilterStore().storyFilterQuery || ''
         const mainStore = useMainStore()
-        console.debug('Updating Stories with Filter', filter.storyFilterQuery)
-        const response = await getStories(filter.storyFilterQuery)
-        if (response.data.items.length === 0) {
-          console.debug('No stories found')
-          loading.value = false
-          return
-        }
+        console.debug('Updating Stories with Filter', storyFilter)
+        const response = await getStories(storyFilter)
         stories.value.items = response.data.items
-        storyCounts.value = response.data.counts
-        mainStore.setItemCount(
-          response.data.counts.total_count,
-          response.data.items.length
-        )
-        weekChartOptions.value.scales.y2.max =
-          response.data.counts.biggest_story
+        if (response.data.counts) {
+          storyCounts.value = response.data.counts
+          mainStore.setItemCount(
+            response.data.counts.total_count,
+            response.data.items.length
+          )
+          weekChartOptions.value.scales.y2.max =
+            response.data.counts.biggest_story
+        }
+
         loading.value = false
       } catch (error) {
         loading.value = false

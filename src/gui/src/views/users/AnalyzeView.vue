@@ -67,7 +67,7 @@ import { useFilterStore } from '@/stores/FilterStore'
 import { useMainStore } from '@/stores/MainStore'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
-import { onBeforeMount, ref, computed, onUnmounted } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 
 export default {
   name: 'AnalyzeView',
@@ -110,10 +110,6 @@ export default {
     function resetFilter() {
       filterStore.resetFilter()
     }
-
-    onBeforeMount(() => {
-      updateData()
-    })
 
     onUnmounted(() => {
       mainStore.resetItemCount()

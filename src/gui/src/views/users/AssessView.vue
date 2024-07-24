@@ -58,13 +58,7 @@
 <script>
 import CardStory from '@/components/assess/CardStory.vue'
 import AssessSelectionToolbar from '@/components/assess/AssessSelectionToolbar.vue'
-import {
-  defineComponent,
-  computed,
-  onUpdated,
-  onBeforeMount,
-  onUnmounted
-} from 'vue'
+import { defineComponent, computed, onUpdated, onUnmounted } from 'vue'
 import { useAssessStore } from '@/stores/AssessStore'
 import { useFilterStore } from '@/stores/FilterStore'
 import { useMainStore } from '@/stores/MainStore'
@@ -138,10 +132,6 @@ export default defineComponent({
     onUnmounted(() => {
       assessStore.clearSelection()
       mainStore.resetItemCount()
-    })
-
-    onBeforeMount(() => {
-      assessStore.updateStories()
     })
 
     return {
