@@ -67,10 +67,15 @@ export const useAssessStore = defineStore(
         const mainStore = useMainStore()
         console.debug('Updating Stories with Filter', filter.storyFilterQuery)
         const response = await getStories(filter.storyFilterQuery)
+        if (response.data.items.length === 0) {
+          console.debug('No stories found')
+          loading.value = false
+          return
+        }
         stories.value.items = response.data.items
         storyCounts.value = response.data.counts
         mainStore.setItemCount(
-          response.data.total_count,
+          response.data.counts.total_count,
           response.data.items.length
         )
         weekChartOptions.value.scales.y2.max =
@@ -121,7 +126,6 @@ export const useAssessStore = defineStore(
           storyCounts.value.total_count,
           stories.value.items.length
         )
-        weekChartOptions.value.scales.y2.max = response.data.biggest_story
         loading.value = false
         return true
       } catch (error) {
