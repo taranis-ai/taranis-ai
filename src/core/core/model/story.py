@@ -327,11 +327,11 @@ class Story(BaseModel):
         query = cls._add_sorting_to_query(filter_args, base_query)
         query = cls._add_paging_to_query(filter_args, query)
 
-        if filter_args.get("no_count", False):
-            return [s.to_dict() for s in cls.get_filtered(query) or []], None
-
         if filter_args.get("worker", False) or not user:
             return [s.to_worker_dict() for s in cls.get_filtered(query) or []], None
+
+        if filter_args.get("no_count", False):
+            return [s.to_dict() for s in cls.get_filtered(query) or []], None
 
         stories = []
         biggest_story = 0
@@ -788,13 +788,13 @@ class Story(BaseModel):
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data["news_items"] = [news_item.to_dict() for news_item in self.news_items]
-        data["tags"] = [tag.to_small_dict() for tag in self.tags[:5]]
+        data["tags"] = [tag.to_dict() for tag in self.tags[:5]]
         return data
 
     def to_detail_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data["news_items"] = [news_item.to_detail_dict() for news_item in self.news_items]
-        data["tags"] = [tag.to_small_dict() for tag in self.tags]
+        data["tags"] = [tag.to_dict() for tag in self.tags]
         if attributes := self.attributes:
             data["attributes"] = [news_item_attribute.to_dict() for news_item_attribute in attributes]
         return data
@@ -802,7 +802,7 @@ class Story(BaseModel):
     def to_worker_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data["news_items"] = [news_item.to_dict() for news_item in self.news_items]
-        data["tags"] = {tag.name: tag.to_dict() for tag in self.tags}
+        data["tags"] = {tag.name: tag.tag_type for tag in self.tags}
         if attributes := self.attributes:
             data["attributes"] = [news_item_attribute.to_dict() for news_item_attribute in attributes]
         return data

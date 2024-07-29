@@ -350,7 +350,7 @@ class QueueSchedule(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
     def get(self):
         try:
-            if schedules := queue.ScheduleEntry.get_all():
+            if schedules := queue.ScheduleEntry.get_all_for_collector():
                 return [sched.to_dict() for sched in schedules], 200
             return {"error": "No schedules found"}, 404
         except Exception:
@@ -372,13 +372,13 @@ class OSINTSources(MethodView):
         return {"error": "OSINT source could not be created"}, 400
 
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
-    def put(self, source_id):
+    def put(self, source_id: str):
         if source := osint_source.OSINTSource.update(source_id, request.json):
             return {"message": f"OSINT Source {source.name} updated", "id": f"{source_id}"}, 200
         return {"error": f"OSINT Source with ID: {source_id} not found"}, 404
 
     @auth_required("CONFIG_OSINT_SOURCE_DELETE")
-    def delete(self, source_id):
+    def delete(self, source_id: str):
         force = request.args.get("force", default=False, type=bool)
         if not force and NewsItemService.has_related_news_items(source_id):
             return {
@@ -387,6 +387,11 @@ class OSINTSources(MethodView):
             }, 409
 
         return osint_source.OSINTSource.delete(source_id, force=force)
+
+    @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
+    def patch(self, source_id: str):
+        state = request.args.get("state", default="enabled", type=str)
+        return osint_source.OSINTSource.toggle_state(source_id, state)
 
 
 class OSINTSourceCollect(MethodView):

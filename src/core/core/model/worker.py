@@ -181,7 +181,7 @@ class Worker(BaseModel):
 
     @classmethod
     def get_parameter_map(cls):
-        if workers := cls.get_all():
+        if workers := cls.get_all_for_collector():
             return {worker.type: cls._generate_parameters_data(worker) for worker in workers}
         return {}
 

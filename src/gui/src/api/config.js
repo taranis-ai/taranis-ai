@@ -297,6 +297,10 @@ export function previewOSINTSSource(source_id) {
   return apiService.post(`/config/osint-sources/${source_id}/preview`)
 }
 
+export function toggleOSINTSSource(source_id, action) {
+  return apiService.patch(`/config/osint-sources/${source_id}?state=${action}`)
+}
+
 export function getOSINTSSourcePreview(source_id) {
   return apiService.get(`/config/osint-sources/${source_id}/preview`)
 }

@@ -32,7 +32,7 @@ class BaseBot:
             limit = (datetime.datetime.now() - datetime.timedelta(days=7)).isoformat()
             filter_dict["timefrom"] = limit
 
-        filter_dict["no_count"] = True
+        filter_dict["worker"] = True
         filter_dict["exclude_attr"] = self.type
 
         return filter_dict

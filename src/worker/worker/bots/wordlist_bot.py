@@ -64,7 +64,7 @@ class WordlistBot(BaseBot):
             if re.search(r"\b" + re.escape(entry) + r"\b", all_content, ignore_case):
                 if entry in existing_tags and not override_existing_tags:
                     continue
-                findings[entry] = {"tag_type": category}
+                findings[entry] = category
 
         return findings
 

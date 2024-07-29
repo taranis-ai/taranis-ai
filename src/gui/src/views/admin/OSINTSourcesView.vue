@@ -61,6 +61,21 @@
               </template>
               <span>Preview Source</span>
             </v-tooltip>
+            <v-tooltip left>
+              <template #activator="{ props }">
+                <v-icon
+                  v-bind="props"
+                  :color="source.item.state > '-2' ? 'green' : 'red'"
+                  :icon="
+                    source.item.state > '-2'
+                      ? 'mdi-toggle-switch-outline'
+                      : 'mdi-toggle-switch-off-outline'
+                  "
+                  @click.stop="toggleState(source.item)"
+                />
+              </template>
+              <span>{{ source.item.state > '-2' ? 'Disable' : 'Enable' }}</span>
+            </v-tooltip>
           </template>
           <template #nodata>
             <v-empty-state
@@ -380,6 +395,10 @@ export default {
         })
     }
 
+    async function toggleState(source) {
+      await configStore.toggleOSINTSSourceState(source)
+    }
+
     return {
       parameters,
       collector_options,
@@ -406,6 +425,7 @@ export default {
       forceDeleteItem,
       collectAllSources,
       loadDefaultSources,
+      toggleState,
       selectionChange
     }
   }

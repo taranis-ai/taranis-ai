@@ -7,7 +7,7 @@
             "type": "rss_collector",
             "parameters": [
                 {
-                    "FEED_URL": "http://cert.at/cert-at.en.blog.rss_2.0.xml"
+                    "FEED_URL": "https://cert.at/cert-at.en.blog.rss_2.0.xml"
                 },
                 {
                     "CONTENT_LOCATION": "description"
@@ -21,7 +21,7 @@
             "type": "rss_collector",
             "parameters": [
                 {
-                    "FEED_URL": "https://www.bsi.bund.de/SiteGlobals/Functions/RSSFeed/RSSNewsfeed/RSSNewsfeed.xml"
+                    "FEED_URL": "https://www.bsi.bund.de/SiteGlobals/Functions/RSSFeed/RSSNewsfeed/RSSNewsfeed_Presse_Veranstaltungen.xml"
                 }
             ],
             "group_idx": 2
@@ -43,7 +43,7 @@
             "type": "rss_collector",
             "parameters": [
                 {
-                    "FEED_URL": "http://www.bmi.gv.at/rss/bmi_presse.xml"
+                    "FEED_URL": "https://www.bmi.gv.at/rss/bmi_presse.xml"
                 }
             ],
             "group_idx": 4
@@ -54,7 +54,7 @@
             "type": "rss_collector",
             "parameters": [
                 {
-                    "FEED_URL": "http://en.blog.nic.cz/feed/"
+                    "FEED_URL": "https://en.blog.nic.cz/feed/"
                 },
                 {
                     "CONTENT_LOCATION": "content:encoded"
@@ -68,7 +68,7 @@
             "type": "rss_collector",
             "parameters": [
                 {
-                    "FEED_URL": "http://cert.at/cert-at.de.all.rss_2.0.xml"
+                    "FEED_URL": "https://cert.at/cert-at.de.all.rss_2.0.xml"
                 },
                 {
                     "CONTENT_LOCATION": "description"
@@ -104,7 +104,7 @@
             "type": "rss_collector",
             "parameters": [
                 {
-                    "FEED_URL": "http://blog.fefe.de/rss.xml?html"
+                    "FEED_URL": "https://blog.fefe.de/rss.xml?html"
                 }
             ],
             "group_idx": 9

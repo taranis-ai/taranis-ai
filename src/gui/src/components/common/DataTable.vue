@@ -56,11 +56,8 @@
       </v-chip>
     </template>
     <template #item.state="{ item }">
-      <v-chip
-        :color="item.state > 0 ? 'red' : item.state < 0 ? 'primary' : 'green'"
-        variant="outlined"
-      >
-        {{ item.state > 0 ? 'error' : item.state < 0 ? 'undefined' : 'ok' }}
+      <v-chip :color="sourceStateMap[item.state].color" variant="outlined">
+        {{ sourceStateMap[item.state].text }}
       </v-chip>
     </template>
 
@@ -115,6 +112,7 @@
 
 <script>
 import { ref, defineComponent, toRaw } from 'vue'
+import { sourceStateMap } from '@/utils/helpers'
 
 export default defineComponent({
   name: 'DataTable',
@@ -232,6 +230,7 @@ export default defineComponent({
       search,
       selected,
       headers,
+      sourceStateMap,
       emitFilterChange,
       customFilter,
       rowClick,

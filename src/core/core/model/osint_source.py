@@ -51,11 +51,12 @@ class OSINTSource(BaseModel):
         self.parameters = Worker.parse_parameters(type, parameters)
 
     @classmethod
-    def get_all(cls) -> Sequence["OSINTSource"]:
+    def get_all_for_collector(cls) -> Sequence["OSINTSource"]:
         return (
             db.session.execute(
                 db.select(cls)
                 .where(cls.type != COLLECTOR_TYPES.MANUAL_COLLECTOR)
+                .where(cls.state != -2)
                 .order_by(
                     db.nulls_first(db.asc(cls.last_collected)),
                     db.nulls_first(db.asc(cls.last_attempted)),
@@ -147,6 +148,22 @@ class OSINTSource(BaseModel):
             return base64.b64decode(s, validate=True)
         except Exception:
             return None
+
+    @classmethod
+    def toggle_state(cls, source_id: str, state: str) -> tuple[dict, int]:
+        osint_source = cls.get(source_id)
+        if not osint_source:
+            return {"error": f"OSINT Source with ID: {source_id} not found"}, 404
+
+        if state == "enable":
+            osint_source.state = -1
+        elif state == "disable":
+            osint_source.state = -2
+        else:
+            return {"error": "Invalid state"}, 400
+
+        db.session.commit()
+        return {"message": f"OSINT Source {osint_source.name} state toggled", "id": f"{source_id}", "state": osint_source.state}, 200
 
     @classmethod
     def update(cls, osint_source_id, data):
