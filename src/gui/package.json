@@ -19,14 +19,14 @@
     "@codemirror/lang-json": "^6.0.1",
     "@intlify/unplugin-vue-i18n": "^2.0.0",
     "@mdi/font": "^7.4.47",
-    "@sentry/vue": "^8.19.0",
+    "@sentry/vue": "^8.20.0",
     "@vuepic/vue-datepicker": "^8.8.1",
     "@vueuse/core": "^10.11.0",
     "axios": "^1.7.2",
     "codemirror": "^6.0.1",
     "js-base64": "^3.7.7",
     "object-hash": "^3.0.0",
-    "pinia": "^2.1.7",
+    "pinia": "^2.2.0",
     "pinia-plugin-persistedstate": "^3.2.1",
     "sse.js": "^2.5.0",
     "vue": "^3.4.31",
@@ -40,14 +40,14 @@
     "zipson": "^0.2.12"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^5.1.0",
+    "@vitejs/plugin-vue": "^5.1.1",
     "@vue/eslint-config-prettier": "^9.0.0",
     "@vue/eslint-config-typescript": "^12.0.0",
     "prettier": "^3.3.3",
     "sass": "^1.77.8",
     "typescript": "^5.5.4",
-    "vite": "^5.3.4",
+    "vite": "^5.3.5",
     "vite-plugin-vuetify": "^2.0.3",
-    "vue-tsc": "^2.0.28"
+    "vue-tsc": "^2.0.29"
   }
 }

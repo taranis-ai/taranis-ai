@@ -24,7 +24,10 @@
           @selection-change="selectionChange"
         >
           <template #titlebar>
-            <ImportExport @import="importData" @export="exportData" />
+            <ImportExport
+              @import="importData"
+              @export="showExportPopup = true"
+            />
             <v-btn
               dark
               color="blue-grey"
@@ -88,10 +91,15 @@
         />
         <v-dialog v-model="showDeletePopup" width="auto">
           <popup-delete-item
-            :title="`Delete Source ${itemToDelete.name}?`"
-            message="Delete the source and all gathered News Items permanently."
             @delete-item="forceDeleteItem(itemToDelete)"
             @close="showDeletePopup = false"
+          />
+        </v-dialog>
+        <v-dialog v-model="showExportPopup" width="auto">
+          <popup-export-source
+            :selected="selected"
+            :total-count="sourceTotalCount"
+            @close="showExportPopup = false"
           />
         </v-dialog>
       </v-col>
@@ -104,11 +112,11 @@ import DataTable from '@/components/common/DataTable.vue'
 import EditConfig from '@/components/config/EditConfig.vue'
 import ImportExport from '@/components/config/ImportExport.vue'
 import PopupDeleteItem from '@/components/popups/PopupDeleteItem.vue'
+import PopupExportSource from '@/components/popups/PopupExportSource.vue'
 import {
   deleteOSINTSource,
   createOSINTSource,
   updateOSINTSource,
-  exportOSINTSources,
   importOSINTSources,
   collectOSINTSSource,
   previewOSINTSSource,
@@ -127,7 +135,8 @@ export default {
     DataTable,
     EditConfig,
     ImportExport,
-    PopupDeleteItem
+    PopupDeleteItem,
+    PopupExportSource
   },
   setup() {
     const configStore = useConfigStore()
@@ -150,6 +159,7 @@ export default {
     const showForm = ref(false)
     const showDeletePopup = ref(false)
     const itemToDelete = ref({})
+    const showExportPopup = ref(false)
 
     const formFormat = computed(() => {
       let base = [
@@ -213,12 +223,14 @@ export default {
         mainStore.itemCountTotal = configStore.osint_sources.total_count - 1
       })
       configStore.loadWorkerTypes().then(() => {
-        collector_options.value = collector_types.value.map((collector) => {
-          return {
-            value: collector.type,
-            title: collector.name
-          }
-        })
+        collector_options.value = collector_types.value
+          .filter((collector) => collector.type !== 'manual_collector')
+          .map((collector) => {
+            return {
+              value: collector.type,
+              title: collector.name
+            }
+          })
       })
       configStore.loadParameters()
     }
@@ -304,23 +316,18 @@ export default {
     }
 
     async function loadDefaultSources() {
-      // URL to download the default sources data
-      const url =
-        'https://raw.githubusercontent.com/taranis-ai/taranis-ai/master/doc/default_sources.json'
+      const url = '/default_sources.json'
 
       try {
         const response = await fetch(url)
         if (!response.ok) {
-          throw new Error('Network response was not ok')
+          notifyFailure('Failed to load default sources')
         }
 
-        // Parse the response as JSON
-        const data = await response.json()
-
-        // Assuming importOSINTSources expects a JSON object
-        await importOSINTSources(data)
-        notifySuccess('Successfully imported default sources')
-        setTimeout(updateData, 1000)
+        const file = await response.blob()
+        const formData = new FormData()
+        formData.append('file', file, 'default_sources.json')
+        await importData(formData)
       } catch (error) {
         notifyFailure('Failed to import default sources')
       }
@@ -332,15 +339,8 @@ export default {
         notifySuccess(`Successfully imported ${data.get('file').name}`)
         setTimeout(updateData, 1000)
       } catch (error) {
-        notifyFailure('Failed to import')
+        notifyFailure('Failed to import sources')
       }
-    }
-    function exportData() {
-      let queryString = ''
-      if (selected.value.length > 0) {
-        queryString = 'ids=' + selected.value.join('&ids=')
-      }
-      exportOSINTSources(queryString)
     }
 
     function selectionChange(new_selection) {
@@ -389,6 +389,8 @@ export default {
       editTitle,
       showForm,
       showDeletePopup,
+      showExportPopup,
+      sourceTotalCount: configStore.osint_sources.total_count - 1,
       itemToDelete,
       formFormat,
       updateData,
@@ -399,7 +401,6 @@ export default {
       createItem,
       updateItem,
       importData,
-      exportData,
       collectSource,
       previewSource,
       forceDeleteItem,
