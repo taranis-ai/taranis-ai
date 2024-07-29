@@ -230,3 +230,14 @@ class CoreApi:
             return requests.get(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
         except Exception:
             return None
+
+    def analyze_news_item(self, news_item):
+        try:
+            response = self.api_post(url=f"/api/worker/bots/sentiment_analysis", json_data=news_item)
+            if response:
+                return response
+            else:
+                logger.error("Sentiment analysis failed")
+                return None
+        except Exception:
+            return None
