@@ -36,11 +36,12 @@
       />
     </div>
     <div v-else>
-      <v-card
-        class="my-5"
-        color="info"
+      <v-empty-state
         title="Loading"
-        subtitle="Please wait while the source is being gathered"
+        class="my-5"
+        action-text="Reload Data"
+        text="Please wait while the source is being gathered"
+        @click:action="loadPreview()"
       />
     </div>
   </v-container>
@@ -48,7 +49,7 @@
 
 <script>
 import { getOSINTSSourcePreview } from '@/api/config'
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 
 export default {
@@ -59,14 +60,26 @@ export default {
     const preview = ref(null)
     const status = ref('')
 
-    getOSINTSSourcePreview(osint_source_id.value).then((response) => {
+    async function loadPreview() {
+      const response = await getOSINTSSourcePreview(osint_source_id.value)
       status.value = response.data.status
       preview.value = response.data.result
+    }
+
+    loadPreview()
+
+    onMounted(async () => {
+      await loadPreview()
+      while (!['SUCCESS', 'ERROR', 'FAILURE'].includes(status.value)) {
+        await new Promise((resolve) => setTimeout(resolve, 5000))
+        await loadPreview()
+      }
     })
 
     return {
       preview,
-      status
+      status,
+      loadPreview
     }
   }
 }

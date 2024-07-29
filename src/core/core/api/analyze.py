@@ -62,7 +62,6 @@ class ReportItem(MethodView):
             asset_manager.report_item_changed(new_report_item)
             sse_manager.report_item_updated(new_report_item.id)
 
-        logger.debug(new_report_item.to_detail_dict())
         return new_report_item.to_detail_dict(), status
 
     @auth_required("ANALYZE_UPDATE")

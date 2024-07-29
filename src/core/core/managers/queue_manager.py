@@ -53,7 +53,7 @@ class QueueManager:
     def update_task_queue_from_osint_sources(self):
         from core.model.osint_source import OSINTSource
 
-        [source.schedule_osint_source() for source in OSINTSource.get_all()]
+        [source.schedule_osint_source() for source in OSINTSource.get_all_for_collector()]
 
     def schedule_word_list_gathering(self):
         from core.model.word_list import WordList
@@ -128,7 +128,7 @@ class QueueManager:
 
         if self.error:
             return {"error": "Could not reach rabbitmq"}, 500
-        sources = OSINTSource.get_all()
+        sources = OSINTSource.get_all_for_collector()
         for source in sources:
             self.send_task("collector_task", args=[source.id, True], queue="collectors")
             logger.info(f"Collect for source {source.id} scheduled")

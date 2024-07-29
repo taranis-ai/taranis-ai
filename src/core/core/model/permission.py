@@ -35,7 +35,7 @@ class Permission(BaseModel):
 
     @classmethod
     def get_all_ids(cls):
-        permissions = cls.get_all()
+        permissions = cls.get_all_for_collector()
         return [permission.id for permission in permissions] if permissions else []
 
     @classmethod

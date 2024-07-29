@@ -58,12 +58,6 @@ class NewsItemTag(BaseModel):
     def to_dict(self) -> dict[str, Any]:
         return {"name": self.name, "tag_type": self.tag_type}
 
-    def to_small_dict(self) -> dict[str, Any]:
-        return {
-            "name": self.name,
-            "tag_type": self.tag_type,
-        }
-
     @classmethod
     def find_by_name(cls, tag_name: str) -> "NewsItemTag | None":
         return cls.get_first(db.select(cls).filter(cls.name.ilike(tag_name)))
@@ -120,7 +114,7 @@ class NewsItemTag(BaseModel):
 
     @classmethod
     def _parse_dict_tags(cls, tags: dict) -> dict[str, "NewsItemTag"]:
-        return {tag_name: NewsItemTag(name=tag_name, tag_type=tag.get("tag_type", "misc")) for tag_name, tag in tags.items()}
+        return {tag_name: NewsItemTag(name=tag_name, tag_type=tag_type) for tag_name, tag_type in tags.items()}
 
     @classmethod
     def _parse_list_tags(cls, tags: list) -> dict[str, "NewsItemTag"]:

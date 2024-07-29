@@ -99,7 +99,7 @@ class BaseModel(db.Model):
         return db.session.get(cls, item_id)
 
     @classmethod
-    def get_all(cls: Type[T]) -> Sequence[T] | None:
+    def get_all_for_collector(cls: Type[T]) -> Sequence[T] | None:
         return db.session.execute(db.select(cls)).scalars().all()
 
     @classmethod

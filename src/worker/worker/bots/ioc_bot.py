@@ -38,7 +38,7 @@ class IOCBot(BaseBot):
             if iocs := self.extract_ioc(story_content):
                 extracted_keywords[story["id"]] = iocs
 
-        logger.debug(extracted_keywords)
+        logger.debug(f"{extracted_keywords=}")
         self.core_api.update_tags(extracted_keywords, self.type)
         return {"message": f"Extracted {len(extracted_keywords)} IOCs"}
 
@@ -47,6 +47,6 @@ class IOCBot(BaseBot):
         result = {}
         for key, iocs in ioc_data.items():
             for ioc in iocs:
-                result[ioc_fanger.fang(str(ioc))] = {"tag_type": key}
+                result[ioc_fanger.fang(str(ioc))] = key
 
         return result

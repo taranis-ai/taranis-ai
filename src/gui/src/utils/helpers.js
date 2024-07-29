@@ -421,3 +421,10 @@ export const staticWeekChartOptions = {
     }
   }
 }
+
+export const sourceStateMap = {
+  '-2': { text: 'Disabled', color: 'red' },
+  '-1': { text: 'Unknown', color: 'grey' },
+  0: { text: 'OK', color: 'green' },
+  1: { text: 'Error', color: 'red' }
+}

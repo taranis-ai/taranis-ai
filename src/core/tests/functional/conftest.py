@@ -102,7 +102,7 @@ def cleanup_report_item(app):
         from core.model.report_item import ReportItem
         from core.model.report_item_type import ReportItemType
 
-        report_types = ReportItemType.get_all()
+        report_types = ReportItemType.get_all_for_collector()
 
         if not report_types:
             raise ValueError("No report types found")
