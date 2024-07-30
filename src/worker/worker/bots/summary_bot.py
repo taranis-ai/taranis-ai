@@ -15,29 +15,27 @@ class SummaryBot(BaseBot):
         self.initialize_models()
         torch.set_num_threads(1)  # https://github.com/pytorch/pytorch/issues/36191
 
-    def execute(self, parameters=None):
-        try:
-            if not (data := self.get_stories(parameters)):
-                return "Error getting news items"
+    def execute(self, parameters: dict | None = None) -> dict:
+        if not parameters:
+            parameters = {}
+        if not (data := self.get_stories(parameters)):
+            return {"message": "No new stories found"}
 
-            for story in data:
-                news_items = story.get("news_items", [])
-                item_threshold: int = self.summary_threshold // len(news_items)
-                content_to_summarize = "".join(news_item["content"][:item_threshold] + news_item["title"] for news_item in news_items)
+        for story in data:
+            news_items = story.get("news_items", [])
+            item_threshold: int = self.summary_threshold // len(news_items)
+            content_to_summarize = "".join(news_item["content"][:item_threshold] + news_item["title"] for news_item in news_items)
 
-                logger.debug(f"Summarizing {story['id']} with {len(content_to_summarize)} characters")
-                try:
-                    if summary := self.predict_summary(content_to_summarize[: self.summary_threshold]):
-                        self.core_api.update_story_summary(story["id"], summary)
-                except Exception:
-                    logger.log_debug_trace(f"Could not generate summary for {story['id']}")
-                    continue
+            logger.debug(f"Summarizing {story['id']} with {len(content_to_summarize)} characters")
+            try:
+                if summary := self.predict_summary(content_to_summarize[: self.summary_threshold]):
+                    self.core_api.update_story_summary(story["id"], summary)
+            except Exception:
+                logger.log_debug_trace(f"Could not generate summary for {story['id']}")
+                continue
 
-                logger.debug(f"Created summary for : {story['id']}")
-
-        except Exception as e:
-            logger.log_debug_trace(f"Error running Bot: {self.type} - {str(e)}")
-            return f"Error running Bot - {str(e)}"
+            logger.debug(f"Created summary for : {story['id']}")
+        return "Summarized stories"
 
     def predict_summary(self, text_to_summarize: str) -> str:
         min_length = int(len(text_to_summarize.split()) * 0.2)

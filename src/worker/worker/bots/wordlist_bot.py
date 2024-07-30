@@ -11,7 +11,9 @@ class WordlistBot(BaseBot):
         self.name = "Wordlist Bot"
         self.description = "Bot for tagging news items by wordlist"
 
-    def execute(self, parameters=None):
+    def execute(self, parameters: dict | None = None):
+        if not parameters:
+            parameters = {}
         ignore_case = self._set_ignore_case_flag(parameters)
         override_existing_tags = parameters.get("OVERRIDE_EXISTING_TAGS", True)
 
@@ -42,11 +44,6 @@ class WordlistBot(BaseBot):
         found_tags = {}
         logger.info(f"Extracting tags from news items: {len(data)}")
         for i, story in enumerate(data):
-            if attributes := story.get("news_item_attributes", {}):
-                if self.type in [d["key"] for d in attributes if "key" in d]:
-                    logger.debug(f"Skipping {story['id']} because it has attributes: {attributes}")
-                    continue
-
             if i % max(len(data) // 10, 1) == 0:
                 logger.debug(f"Extracting words from {story['id']}: {i}/{len(data)}")
             if findings := self._find_tags(story, word_list_entries, override_existing_tags, ignore_case):
