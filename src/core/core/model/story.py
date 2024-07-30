@@ -625,7 +625,7 @@ class Story(BaseModel):
             if bot_type:
                 story.attributes.append(NewsItemAttribute(key=bot_type, value=f"{len(new_tags)}"))
             db.session.commit()
-            return {"message": f"Sucessfully updated story: {story_id}, with {len(tags)} new tags"}, 200
+            return {"message": f"Successfully updated story: {story_id}, with {len(tags)} new tags"}, 200
         except Exception as e:
             logger.log_debug_trace("Update News Item Tags Failed")
             return {"error": str(e)}, 500

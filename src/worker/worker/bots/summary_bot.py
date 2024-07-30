@@ -15,7 +15,7 @@ class SummaryBot(BaseBot):
         self.initialize_models()
         torch.set_num_threads(1)  # https://github.com/pytorch/pytorch/issues/36191
 
-    def execute(self, parameters: dict | None = None):
+    def execute(self, parameters: dict | None = None) -> dict:
         if not parameters:
             parameters = {}
         if not (data := self.get_stories(parameters)):
