@@ -14,8 +14,10 @@ class BaseBot:
         self.language = None
         self.model = None
 
-    def execute(self):
-        pass
+    def execute(self, parameters: dict | None = None) -> dict:
+        if not parameters:
+            parameters = {}
+        return {"message": "No action defined for this bot"}
 
     def get_filter_dict(self, parameters) -> dict:
         filter_dict = {}
@@ -45,7 +47,7 @@ class BaseBot:
             filter_dict["offset"] = limit
         return filter_dict
 
-    def get_stories(self, parameters) -> list:
+    def get_stories(self, parameters: dict = None) -> list:
         filter_dict = self.get_filter_dict(parameters)
         data = self.core_api.get_stories(filter_dict)
         if not data:
@@ -77,7 +79,9 @@ class BaseBot:
                 logger.error("SUMMARY_BOT model not found in configuration for the given language.")
         elif self.type == "NLP_BOT":
             if "NLP_BOT" in model_mapping:
-                self.model = self.load_classifier(model_mapping["NLP_BOT"])
+                from flair.models import SequenceTagger
+
+                self.model = SequenceTagger.load(model_mapping["NLP_BOT"])
             else:
                 logger.error("NLP_BOT model not found in configuration for the given language.")
         else:

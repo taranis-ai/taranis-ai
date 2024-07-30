@@ -2,7 +2,6 @@ from .base_bot import BaseBot
 from worker.log import logger
 import py3langid
 from flair.data import Sentence
-from flair.models import SequenceTagger
 
 
 class NLPBot(BaseBot):
@@ -15,36 +14,44 @@ class NLPBot(BaseBot):
         self.extraction_line_limit = 50
         self.initialize_models()
 
-        logger.debug("Setup NER Model...")
-        self.ner_multi = SequenceTagger.load("flair/ner-multi")
-
-    def execute(self, parameters=None):
-        if not (data := self.get_stories(parameters)):
+    def execute(self, parameters: dict | None = None) -> dict:
+        if not parameters:
+            parameters = {}
+        stories = self.get_stories(parameters)
+        if not stories:
             return {"message": "No new stories found"}
 
-        all_keywords = {k: v for story in data for k, v in story["tags"].items()}
+        all_keywords = self.collect_keywords(stories)
+        batch_mode = parameters.get("batch_mode", len(stories) > 10)
+        tag_count = self.process_stories(stories, all_keywords, batch_mode)
+        return {"message": f"Extracted {tag_count} tags"}
 
+    def collect_keywords(self, stories: list) -> dict:
+        return {k: v for story in stories for k, v in story["tags"].items()}
+
+    def process_stories(self, stories: list, all_keywords: dict, batch_mode: bool) -> int:
         update_result = {}
         tag_count = 0
 
-        for i, story in enumerate(data):
-            if attributes := story.get("news_item_attributes", {}):
-                if self.type in [d["key"] for d in attributes if "key" in d]:
-                    logger.debug(f"Skipping {story['id']} because it has attributes: {attributes}")
-                    continue
-            if i % max(len(data) // 4, 1) == 0:
-                logger.debug(f"Extracting NER from {story['id']}: {i}/{len(data)}")
-                logger.debug(f"{update_result=}")
-                self.core_api.update_tags(update_result, self.type)
-                tag_count += len(update_result)
+        for i, story in enumerate(stories):
+            if batch_mode and i % max(len(stories) // 4, 1) == 0:
+                self.log_progress(story["id"], i, len(stories))
+                tag_count += self.update_tags(update_result)
                 update_result = {}
 
             current_keywords = self.extract_keywords(story, all_keywords)
             all_keywords |= current_keywords
             update_result[story["id"]] = current_keywords
+
+        tag_count += self.update_tags(update_result)
+        return tag_count
+
+    def update_tags(self, update_result: dict) -> int:
         self.core_api.update_tags(update_result, self.type)
-        tag_count += len(update_result)
-        return {"message": f"Extracted {tag_count} tags"}
+        return len(update_result)
+
+    def log_progress(self, story_id: str, current_index: int, total: int) -> None:
+        logger.debug(f"Extracting NER from {story_id}: {current_index}/{total}")
 
     def extract_keywords(self, story: dict, all_keywords: dict) -> dict:
         current_keywords = story.get("tags", {})

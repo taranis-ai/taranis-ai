@@ -12,8 +12,10 @@ class GroupingBot(BaseBot):
         self.description = "Bot for grouping news items into stories"
         self.default_regex = r"CVE-\d{4}-\d{4,7}"
 
-    def execute(self, parameters=None):
-        regexp = parameters.get("REGULAR_EXPRESSION", None)
+    def execute(self, parameters: dict | None = None):
+        if not parameters:
+            parameters = {}
+        regexp = parameters.get("REGULAR_EXPRESSION")
         if not regexp:
             raise ValueError("GroupingBot requires REGULAR_EXPRESSION parameter")
 

@@ -22,23 +22,21 @@ class IOCBot(BaseBot):
             "ipv4_cidrs",
         ]
 
-    def execute(self, parameters=None):
+    def execute(self, parameters: dict | None = None):
+        if not parameters:
+            parameters = {}
         if not (data := self.get_stories(parameters)):
             return {"message": "No new stories found"}
 
         extracted_keywords = {}
 
         for i, story in enumerate(data):
-            if attributes := story.get("news_item_attributes", {}):
-                if self.type in [d["key"] for d in attributes if "key" in d]:
-                    continue
             if i % max(len(data) // 10, 1) == 0:
                 logger.debug(f"Extracting IOCs from {story['id']}: {i}/{len(data)}")
             story_content = " ".join(news_item["content"] for news_item in story["news_items"])
             if iocs := self.extract_ioc(story_content):
                 extracted_keywords[story["id"]] = iocs
 
-        logger.debug(f"{extracted_keywords=}")
         self.core_api.update_tags(extracted_keywords, self.type)
         return {"message": f"Extracted {len(extracted_keywords)} IOCs"}
 

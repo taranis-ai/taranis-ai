@@ -47,7 +47,7 @@ class BotTask(Task):
 
         bot_params = bot_config.get("parameters")
         if not bot_params:
-            raise ValueError("Bot with has no parameters")
+            raise ValueError("Bot has no parameters")
 
         if filter:
             bot_params["filter"] = filter
