@@ -47,7 +47,7 @@ export function notifyFailure(text) {
   store.notification = {
     type: 'red',
     message: errorMessage,
-    timeout: 0,
+    timeout: -1,
     show: true
   }
 }

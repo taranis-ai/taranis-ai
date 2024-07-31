@@ -269,11 +269,11 @@ class ReportItemType(BaseModel):
         if not report_type:
             return {"error": "Report type not found"}, 404
 
-        if ReportItem.query.filter_by(report_item_type_id=item_id).first():
-            return {"error": "Report type is used in a report"}, 409
+        if report := ReportItem.query.filter_by(report_item_type_id=item_id).first():
+            return {"error": f"Report type is used in a report - {report.title}"}, 409
 
-        if ProductType.query.filter(ProductType.report_types.any(id=item_id)).first():  # type: ignore
-            return {"error": "Report is used in a product type"}, 409
+        if product_type := ProductType.query.filter(ProductType.report_types.any(id=item_id)).first():  # type: ignore
+            return {"error": f"Report is used in a product type - {product_type.title}"}, 409
 
         db.session.delete(report_type)
         db.session.commit()
