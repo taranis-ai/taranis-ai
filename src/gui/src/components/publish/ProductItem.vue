@@ -279,16 +279,16 @@ export default {
       }
     }
 
-    function rerenderProduct() {
-      triggerRenderProduct(product.value.id)
-        .then(() => {
-          notifySuccess('Render triggered please refresh the page')
-        })
-        .catch(() => {
-          console.error(
-            'Failed to trigger render for product ' + product.value.id
-          )
-        })
+    async function rerenderProduct() {
+      try {
+        const result = await triggerRenderProduct(product.value.id)
+        notifySuccess(result.data.message)
+        setTimeout(() => {
+          publishStore.loadRenderedProduct(product.value.id)
+        }, 5000)
+      } catch (error) {
+        notifyFailure(error)
+      }
     }
 
     function getExtensionFromMimeType(mimeType) {
@@ -352,7 +352,9 @@ export default {
       analyzeStore.loadReportItems()
       analyzeStore.loadReportTypes()
       if (props.edit) {
-        publishStore.loadRenderedProduct(product.value.id)
+        setTimeout(() => {
+          publishStore.loadRenderedProduct(product.value.id)
+        }, 1000)
       }
     })
 

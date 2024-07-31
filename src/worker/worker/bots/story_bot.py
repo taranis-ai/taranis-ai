@@ -17,9 +17,11 @@ class StoryBot(BaseBot):
         self.language = language
         self.initialize_models()
 
-    def execute(self, parameters=None):
+    def execute(self, parameters: dict | None = None):
+        if not parameters:
+            parameters = {}
         if not (data := self.get_stories(parameters)):
-            return None
+            return {"message": "No new stories found"}
 
         logger.info(f"Clustering {len(data)} news items")
         if all(len(story["news_items"]) == 1 for story in data):

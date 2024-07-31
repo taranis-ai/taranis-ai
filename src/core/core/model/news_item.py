@@ -100,7 +100,7 @@ class NewsItem(BaseModel):
         return any(attribute.value == value for attribute in self.attributes)
 
     @classmethod
-    def get_for_api(cls, item_id: str, user: User) -> tuple[dict[str, Any], int]:
+    def get_for_api(cls, item_id: str, user: User | None = None) -> tuple[dict[str, Any], int]:
         logger.debug(f"Getting {cls.__name__} {item_id}")
         if item := cls.get(item_id):
             return item.to_detail_dict(), 200

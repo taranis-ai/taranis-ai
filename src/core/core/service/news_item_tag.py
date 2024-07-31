@@ -1,3 +1,4 @@
+from typing import TYPE_CHECKING
 from sqlalchemy import func
 from datetime import datetime, timedelta
 
@@ -5,6 +6,10 @@ from core.model.story import Story
 from core.model.news_item_tag import NewsItemTag
 from core.managers.db_manager import db
 from core.log import logger
+
+
+if TYPE_CHECKING:
+    from core.model.report_item import ReportItem
 
 
 class NewsItemTagService:
@@ -72,3 +77,14 @@ class NewsItemTagService:
                 largest_tag_types.append({"size": count, "name": tag_type, "tags": tags})
 
         return largest_tag_types
+
+    @classmethod
+    def add_report_tag(cls, story: "Story", report: "ReportItem"):
+        new_tag = NewsItemTag(name=report.title, tag_type=f"report_{report.id}")
+        story.tags.append(new_tag)
+        db.session.commit()
+
+    @classmethod
+    def remove_report_tag(cls, story: "Story", report_id: str):
+        story.tags = [tag for tag in story.tags if tag.tag_type != f"report_{report_id}"]
+        db.session.commit()

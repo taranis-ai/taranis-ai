@@ -35,6 +35,7 @@ export function notifySuccess(text) {
   store.notification = {
     type: 'success',
     message: successMessage,
+    timeout: 5000,
     show: true
   }
 }
@@ -46,6 +47,7 @@ export function notifyFailure(text) {
   store.notification = {
     type: 'red',
     message: errorMessage,
+    timeout: 0,
     show: true
   }
 }
@@ -420,4 +422,11 @@ export const staticWeekChartOptions = {
       intersect: false
     }
   }
+}
+
+export const sourceStateMap = {
+  '-2': { text: 'Disabled', color: 'red' },
+  '-1': { text: 'Unknown', color: 'grey' },
+  0: { text: 'OK', color: 'green' },
+  1: { text: 'Error', color: 'red' }
 }

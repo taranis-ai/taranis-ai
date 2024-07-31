@@ -5,7 +5,7 @@
       color="green-darken-3"
       dark
       class="ml-4"
-      prepend-icon="mdi-import"
+      prepend-icon="mdi-file-import-outline"
       text="Import"
       @click="importClick"
     />
@@ -14,7 +14,7 @@
       color="teal-darken-4"
       dark
       class="ml-4"
-      prepend-icon="mdi-export"
+      prepend-icon="mdi-file-export-outline"
       text="Export"
       @click="exportFile"
     />

@@ -51,11 +51,12 @@ class OSINTSource(BaseModel):
         self.parameters = Worker.parse_parameters(type, parameters)
 
     @classmethod
-    def get_all(cls) -> Sequence["OSINTSource"]:
+    def get_all_for_collector(cls) -> Sequence["OSINTSource"]:
         return (
             db.session.execute(
                 db.select(cls)
                 .where(cls.type != COLLECTOR_TYPES.MANUAL_COLLECTOR)
+                .where(cls.state != -2)
                 .order_by(
                     db.nulls_first(db.asc(cls.last_collected)),
                     db.nulls_first(db.asc(cls.last_attempted)),
@@ -149,6 +150,22 @@ class OSINTSource(BaseModel):
             return None
 
     @classmethod
+    def toggle_state(cls, source_id: str, state: str) -> tuple[dict, int]:
+        osint_source = cls.get(source_id)
+        if not osint_source:
+            return {"error": f"OSINT Source with ID: {source_id} not found"}, 404
+
+        if state == "enable":
+            osint_source.state = -1
+        elif state == "disable":
+            osint_source.state = -2
+        else:
+            return {"error": "Invalid state"}, 400
+
+        db.session.commit()
+        return {"message": f"OSINT Source {osint_source.name} state toggled", "id": f"{source_id}", "state": osint_source.state}, 200
+
+    @classmethod
     def update(cls, osint_source_id, data):
         osint_source = cls.get(osint_source_id)
         if not osint_source:
@@ -207,7 +224,7 @@ class OSINTSource(BaseModel):
         logger.info(f"Schedule for source {self.id} removed")
         return {"message": f"Schedule for source {self.id} removed"}, 200
 
-    def to_export_dict(self, id_to_index_map: dict):
+    def to_export_dict(self, id_to_index_map: dict, wtih_groups: bool = False) -> dict[str, Any]:
         export_dict = {
             "name": self.name,
             "description": self.description,
@@ -215,12 +232,12 @@ class OSINTSource(BaseModel):
             "parameters": [parameter.to_dict() for parameter in self.parameters if parameter.value],
         }
         # test if source is in a group that is not default
-        if any(group for group in self.groups if not group.default):
+        if wtih_groups and any(group for group in self.groups if not group.default):
             export_dict["group_idx"] = id_to_index_map.get(self.id)
         return export_dict
 
     @classmethod
-    def export_osint_sources(cls, source_ids=None) -> bytes:
+    def export_osint_sources(cls, source_ids: list[str] | None = None, with_groups: bool = False) -> bytes:
         query = db.select(cls).where(cls.type != COLLECTOR_TYPES.MANUAL_COLLECTOR)
         if source_ids:
             query = query.filter(cls.id.in_(source_ids))
@@ -237,8 +254,8 @@ class OSINTSource(BaseModel):
         groups = OSINTSourceGroup.get_all_without_default() or []
         export_data = {
             "version": 3,
-            "sources": [osint_source.to_export_dict(id_to_index_map) for osint_source in data],
-            "groups": [group.to_export_dict(id_to_index_map) for group in groups],
+            "sources": [osint_source.to_export_dict(id_to_index_map, with_groups) for osint_source in data],
+            "groups": [group.to_export_dict(id_to_index_map) for group in groups] if with_groups else [],
         }
         logger.debug(f"Exporting {len(export_data['sources'])} sources")
         return json.dumps(export_data).encode("utf-8")

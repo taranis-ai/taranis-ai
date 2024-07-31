@@ -109,10 +109,10 @@ class TestAssessApi(BaseTest):
         assert response.content_type == "application/json"
         assert response.status_code == 200
         response = client.get("/api/assess/tags?min_size=1", headers=auth_header)
-        assert len(response.get_json()) == 3
+        assert len(response.get_json()) == 4
         response = client.get("/api/assess/tags?search=fo&min_size=1", headers=auth_header)
         assert len(response.get_json()) == 1
         response = client.get("/api/assess/tags?limit=1&min_size=1", headers=auth_header)
         assert len(response.get_json()) == 1
         response = client.get("/api/assess/tags?offset=1&min_size=1", headers=auth_header)
-        assert len(response.get_json()) == 2
+        assert len(response.get_json()) == 3
