@@ -17,6 +17,7 @@ workers = [
                 "type": "number",
                 "rules": "digest_splitting_limit",
             },
+            {"parameter": "ADDITIONAL_HEADERS"}
         ],
         "type": "RSS_COLLECTOR",
     },
@@ -50,6 +51,7 @@ workers = [
                 "type": "number",
                 "rules": "digest_splitting_limit",
             },
+            {"parameter": "ADDITIONAL_HEADERS"}
         ],
         "type": "SIMPLE_WEB_COLLECTOR",
     },
@@ -97,6 +99,7 @@ workers = [
             {"parameter": "BASE_URL", "rules": "required"},
             {"parameter": "RT_TOKEN", "rules": "required"},
             {"parameter": "TLP_LEVEL", "rules": "tlp"},
+            {"parameter": "ADDITIONAL_HEADERS"}
         ],
         "type": "RT_COLLECTOR",
     },
