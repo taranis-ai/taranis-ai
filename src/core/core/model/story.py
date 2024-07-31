@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timedelta
-from typing import Any, Sequence
+from typing import Any, Sequence, TYPE_CHECKING
 from sqlalchemy import or_, func
 from sqlalchemy.orm import aliased, Mapped, relationship
 from sqlalchemy.sql.expression import false, null, true
@@ -18,6 +18,9 @@ from core.model.osint_source import OSINTSourceGroup, OSINTSource, OSINTSourceGr
 from core.model.news_item import NewsItem
 from core.model.news_item_attribute import NewsItemAttribute
 from core.service.role_based_access import RBACQuery, RoleBasedAccessService
+
+if TYPE_CHECKING:
+    from core.model.report_item import ReportItem
 
 
 class Story(BaseModel):
@@ -784,6 +787,15 @@ class Story(BaseModel):
         if highest_tlp:
             logger.debug(f"Setting TLP level {highest_tlp} for story {self.id}")
             NewsItemAttribute.set_or_update(self.attributes, "TLP", highest_tlp.value)
+
+    def add_report_tag(self, report: "ReportItem"):
+        new_tag = NewsItemTag(name=report.title, tag_type=f"report_{report.id}")
+        self.tags.append(new_tag)
+        db.session.commit()
+
+    def remove_report_tag(self, report_id: str):
+        self.tags = [tag for tag in self.tags if tag.tag_type != f"report_{report_id}"]
+        db.session.commit()
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()

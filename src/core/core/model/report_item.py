@@ -265,16 +265,19 @@ class ReportItem(BaseModel):
         return report_item, {}, 200
 
     @classmethod
-    def add_stories(cls, report_id: str, item_ids: list[int], user: User) -> tuple[dict, int]:
+    def add_stories(cls, report_id: str, story_ids: list[str], user: User) -> tuple[dict, int]:
         report_item, err, status = cls.get_report_item_and_check_permission(report_id, user)
         if err or not report_item:
             return err, status
 
-        items = Story.get_bulk(item_ids)
-        report_item.stories.extend(items)
+        stories = Story.get_bulk(story_ids)
+        report_item.stories.extend(stories)
         db.session.commit()
 
-        return {"message": f"Successfully added {item_ids} to {report_item.id}"}, 200
+        for story in stories:
+            story.add_report_tag(report_item)
+
+        return {"message": f"Successfully added {story_ids} to {report_item.id}"}, 200
 
     @classmethod
     def remove_stories(cls, report_id: str, story_ids: list[int], user: User) -> tuple[dict, int]:
@@ -282,8 +285,11 @@ class ReportItem(BaseModel):
         if err or not report_item:
             return err, status
 
-        items = [Story.get(item_id) for item_id in story_ids]
-        report_item.stories = [item for item in report_item.stories if item not in items]
+        stories_to_remove = [story for story in (Story.get(item_id) for item_id in story_ids) if story is not None]
+        for story in stories_to_remove:
+            story.remove_report_tag(report_item.id)
+
+        report_item.stories = [story for story in report_item.stories if story not in stories_to_remove]
         db.session.commit()
 
         return {"message": f"Successfully removed {story_ids} from {report_item.id}"}, 200
@@ -291,6 +297,26 @@ class ReportItem(BaseModel):
     @classmethod
     def set_stories(cls, report_id: str, story_ids: list, user: User) -> tuple[dict, int]:
         return cls.update_report_item(report_id, {"story_ids": story_ids}, user)
+
+    def update_stories(self, story_ids: list[str]):
+        new_stories = Story.get_bulk(story_ids)
+        new_story_ids_set = set(story_ids)
+
+        existing_story_ids_set = {story.id for story in self.stories}
+
+        # Identify stories to add and remove
+        stories_to_add = [story for story in new_stories if story.id not in existing_story_ids_set]
+        stories_to_remove = [story for story in self.stories if story.id not in new_story_ids_set]
+
+        # Add new stories and their tags
+        for story in stories_to_add:
+            story.add_report_tag(self)
+            self.stories.append(story)
+
+        # Remove old stories and their tags
+        for story in stories_to_remove:
+            story.remove_report_tag(self.id)
+            self.stories.remove(story)
 
     @classmethod
     def update_report_item(cls, report_id: str, data: dict, user: User) -> tuple[dict, int]:
@@ -310,7 +336,7 @@ class ReportItem(BaseModel):
 
         story_ids = data.get("story_ids")
         if story_ids is not None:
-            report_item.stories = Story.get_bulk(story_ids)
+            report_item.update_stories(story_ids)
 
         db.session.commit()
 
