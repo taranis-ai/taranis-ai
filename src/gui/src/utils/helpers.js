@@ -35,6 +35,7 @@ export function notifySuccess(text) {
   store.notification = {
     type: 'success',
     message: successMessage,
+    timeout: 5000,
     show: true
   }
 }
@@ -46,6 +47,7 @@ export function notifyFailure(text) {
   store.notification = {
     type: 'red',
     message: errorMessage,
+    timeout: 0,
     show: true
   }
 }

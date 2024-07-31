@@ -17,6 +17,7 @@ from core.model.user import User
 from core.log import logger
 from core.model.attribute import AttributeType, AttributeEnum
 from core.service.role_based_access import RBACQuery, RoleBasedAccessService
+from core.service.news_item_tag import NewsItemTagService
 
 
 class ReportItem(BaseModel):
@@ -275,7 +276,7 @@ class ReportItem(BaseModel):
         db.session.commit()
 
         for story in stories:
-            story.add_report_tag(report_item)
+            NewsItemTagService.add_report_tag(story, report_item)
 
         return {"message": f"Successfully added {story_ids} to {report_item.id}"}, 200
 
@@ -287,7 +288,7 @@ class ReportItem(BaseModel):
 
         stories_to_remove = [story for story in (Story.get(item_id) for item_id in story_ids) if story is not None]
         for story in stories_to_remove:
-            story.remove_report_tag(report_item.id)
+            NewsItemTagService.remove_report_tag(story, report_item.id)
 
         report_item.stories = [story for story in report_item.stories if story not in stories_to_remove]
         db.session.commit()
@@ -310,12 +311,12 @@ class ReportItem(BaseModel):
 
         # Add new stories and their tags
         for story in stories_to_add:
-            story.add_report_tag(self)
+            NewsItemTagService.add_report_tag(story, self)
             self.stories.append(story)
 
         # Remove old stories and their tags
         for story in stories_to_remove:
-            story.remove_report_tag(self.id)
+            NewsItemTagService.remove_report_tag(story, self.id)
             self.stories.remove(story)
 
     @classmethod
