@@ -14,6 +14,14 @@
       :label="attributeItem.title"
       :hint="attributeItem.description"
     />
+    <v-text-field
+      v-if="attributeItem.type === 'NUMBER'"
+      v-model="input"
+      :readonly="readOnly"
+      :label="attributeItem.title"
+      type="number"
+      :hint="attributeItem.description"
+    />
     <v-checkbox
       v-if="attributeItem.type === 'BOOLEAN'"
       v-model="input"
@@ -112,6 +120,12 @@
       :title="attributeItem.title"
       :report-item-id="reportItemId"
     />
+    <AttributeAttachment
+      v-if="attributeItem.type === 'ATTACHMENT'"
+      v-model="input"
+      :readonly="readOnly"
+      :title="attributeItem.title"
+    />
   </div>
 </template>
 
@@ -119,6 +133,7 @@
 import { ref, computed } from 'vue'
 import CodeEditor from '../common/CodeEditor.vue'
 import AttributeTLP from './AttributeTLP.vue'
+import AttributeAttachment from './AttributeAttachment.vue'
 import AttributeStory from './AttributeStory.vue'
 
 export default {
@@ -126,7 +141,8 @@ export default {
   components: {
     CodeEditor,
     AttributeTLP,
-    AttributeStory
+    AttributeStory,
+    AttributeAttachment
   },
   props: {
     value: {

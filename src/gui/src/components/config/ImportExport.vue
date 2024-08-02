@@ -55,7 +55,7 @@ export default {
       fileInput.value.click()
     }
 
-    const fileSelected = (event) => {
+    function fileSelected(event) {
       const file = event.target.files[0]
       const formData = new FormData()
       formData.append('file', file)
