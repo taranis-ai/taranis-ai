@@ -17,15 +17,28 @@
               color="white"
               prepend-icon="mdi-google-circles-communities"
               @click.stop="actionClicked('addToReport')"
-            />
+            >
+              <v-tooltip
+                activator="parent"
+                text="[ctrl+shift+s]"
+                location="top"
+              />
+              add to report
+            </v-btn>
             <v-btn
               v-if="storySelection.length > 1"
-              text="merge"
               prepend-icon="mdi-merge"
               variant="outlined"
               class="ml-4"
               @click.stop="actionClicked('merge')"
-            />
+            >
+              <v-tooltip
+                activator="parent"
+                text="[ctrl+shift+g]"
+                location="top"
+              />
+              merge
+            </v-btn>
             <v-btn
               v-if="showUnGroup"
               text="ungroup"
@@ -35,27 +48,41 @@
               @click.stop="actionClicked('unGroup')"
             />
             <v-btn
-              text="mark as read"
               variant="outlined"
               prepend-icon="mdi-eye-check-outline"
               class="ml-4"
               @click.stop="actionClicked('markAsRead')"
-            />
+            >
+              <v-tooltip
+                activator="parent"
+                text="[ctrl+Space]"
+                location="top"
+              />
+              mark as read
+            </v-btn>
             <v-btn
-              text="mark as important"
               variant="outlined"
               prepend-icon="mdi-star-outline"
               class="ml-4"
               @click.stop="actionClicked('markAsImportant')"
-            />
+            >
+              <v-tooltip activator="parent" text="[ctrl+i]" location="top" />
+              mark as important
+            </v-btn>
           </v-col>
           <v-col class="toolbar-end">
             <v-btn
-              text="deselect"
               variant="text"
               prepend-icon="mdi-selection-remove"
               @click.stop="deselectStories"
-            />
+            >
+              <v-tooltip
+                activator="parent"
+                text="[ESC] deselect all stories"
+                location="top"
+              />
+              deselect
+            </v-btn>
             <span class="mx-8">
               Stories selected: <strong>{{ storySelection.length }}</strong>
             </span>
@@ -88,7 +115,13 @@
               text="deselect"
               prepend-icon="mdi-selection-remove"
               @click.stop="deselectNews"
-            />
+            >
+              <v-tooltip
+                activator="parent"
+                text="[ESC] deselect all news items"
+              />
+              deselect
+            </v-btn>
             <span class="mx-4">
               News Items selected:
               <strong>{{ newsItemSelection.length }}</strong>
