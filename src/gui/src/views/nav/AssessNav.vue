@@ -17,7 +17,7 @@
       <filter-button
         v-if="smAndUp"
         v-model="storyFilter['in_report']"
-        :label="mdAndDown ? '' : 'items in reports'"
+        :label="mdAndDown ? '' : 'in reports'"
         icon="mdi-google-circles-communities"
       />
     </template>
@@ -41,6 +41,7 @@
             clear-icon="mdi-close"
             multiple
             density="compact"
+            menu-icon="mdi-chevron-down"
           />
         </v-col>
 
@@ -57,6 +58,7 @@
             clear-icon="mdi-close"
             multiple
             density="compact"
+            menu-icon="mdi-chevron-down"
           />
         </v-col>
       </v-row>
@@ -75,7 +77,9 @@
         <v-col cols="12" class="pt-1">
           <date-filter
             v-model="storyFilter.timefrom"
-            placeholder="From"
+            placeholder="First Day"
+            tooltip-text="Filter Stories starting from this date"
+            :timeto="storyFilter.timeto"
             :default-date="defaultFromDate"
           />
         </v-col>
@@ -83,13 +87,10 @@
         <v-col cols="12" class="pt-1">
           <date-filter
             v-model="storyFilter.timeto"
-            placeholder="Until"
+            placeholder="Last Day"
+            tooltip-text="Filter Stories ending on this date"
+            :timefrom="storyFilter.timefrom"
             :default-date="new Date()"
-            :max-date="
-              storyFilter.timefrom instanceof Date
-                ? storyFilter.timefrom
-                : new Date()
-            "
           />
         </v-col>
         <v-col cols="12" class="pt-1">
@@ -139,7 +140,16 @@
           </v-btn>
         </v-col>
         <v-col cols="12" class="pt-0">
+          <v-tooltip
+            activator="parent"
+            :text="
+              xxl
+                ? 'Show Charts in Story Cards'
+                : 'Only possible on FullHD screens'
+            "
+          />
           <v-btn
+            :disabled="disableWeekChart"
             class="vertical-button toggle-button py-2 px-4 mb-1"
             :class="
               showWeekChart
@@ -181,16 +191,18 @@
             color="primary"
             prepend-icon="mdi-reload"
             block
-            text="reset filter"
             @click="resetFilter()"
-          />
+          >
+            reset filter
+            <v-tooltip activator="parent" location="start" text="[ctrl+esc]" />
+          </v-btn>
         </v-col>
         <v-col cols="12" class="py-2">
           <v-btn
             color="primary"
             block
             to="enter"
-            prepend-icon="mdi-pencil"
+            prepend-icon="mdi-pencil-outline"
             text="create new item"
           />
         </v-col>
@@ -210,6 +222,7 @@ import FilterNavigation from '@/components/common/FilterNavigation.vue'
 import { computed, onBeforeMount } from 'vue'
 import { useFilterStore } from '@/stores/FilterStore'
 import { useAssessStore } from '@/stores/AssessStore'
+import { useUserStore } from '@/stores/UserStore'
 import { storeToRefs } from 'pinia'
 import { useDisplay } from 'vuetify'
 
@@ -227,9 +240,10 @@ export default {
   setup() {
     const assessStore = useAssessStore()
     const filterStore = useFilterStore()
+    const userStore = useUserStore()
 
     const { OSINTSourceGroupsList, OSINTSourcesList } = storeToRefs(assessStore)
-    const { mdAndDown, smAndUp } = useDisplay()
+    const { mdAndDown, smAndUp, xxl } = useDisplay()
 
     const {
       storyFilter,
@@ -239,6 +253,15 @@ export default {
       compactViewSetByUser
     } = storeToRefs(filterStore)
 
+    const defaultFromDate = new Date()
+    defaultFromDate.setDate(defaultFromDate.getDate() - 1)
+    defaultFromDate.setHours(
+      userStore.end_of_shift.hours,
+      userStore.end_of_shift.minutes,
+      0,
+      0
+    )
+
     const filter_range = computed({
       get() {
         return undefined
@@ -247,9 +270,8 @@ export default {
         console.debug('filter_range', value)
         const now = new Date()
         switch (value) {
-          case 'day': {
-            now.setHours(0, 0, 0, 0) // Set to today at 00:00
-            storyFilter.value.timefrom = now.toISOString()
+          case 'shift': {
+            storyFilter.value.timefrom = defaultFromDate.toISOString()
             break
           }
           case 'week': {
@@ -269,10 +291,9 @@ export default {
       }
     })
 
-    const now = new Date()
-    now.setDate(now.getDate() - 1)
-    now.setHours(18, 0, 0, 0)
-    const defaultFromDate = now
+    const disableWeekChart = computed(() => {
+      return !xxl.value || compactView.value
+    })
 
     const search = computed({
       get() {
@@ -302,6 +323,7 @@ export default {
     }
 
     return {
+      xxl,
       search,
       mdAndDown,
       smAndUp,
@@ -309,6 +331,7 @@ export default {
       showWeekChart,
       compactView,
       filter_range,
+      disableWeekChart,
       defaultFromDate,
       OSINTSourcesList,
       OSINTSourceGroupsList,

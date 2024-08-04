@@ -615,8 +615,17 @@ paths:
               schema:
                 type: object
                 properties:
-                  total_count:
-                    type: integer
+                  counts:
+                    type: object
+                    properties:
+                      total_count:
+                        type: integer
+                      read_count:
+                        type: integer
+                      important_count:
+                        type: integer
+                      in_report_count:
+                        type: integer
                   items:
                     type: array
                     items:
@@ -1249,114 +1258,6 @@ paths:
       - UserAuth: []
       tags: [config]
       description: delete attribute
-      responses:
-        '200':
-          description: success
-        '401':
-          $ref: "#/components/responses/401Unauthorized"
-        '404':
-          $ref: "#/components/responses/404NotFound"
-  /config/attributes/{attribute_id}/enums:
-    parameters:
-      - name: attribute_id
-        in: path
-        required: true
-        schema:
-          type: integer
-          minimum: 1
-          maximum: 100000
-
-    get:
-      security:
-      - UserAuth: []
-      tags: [config]
-      description: get attribute enum
-      parameters:
-        - name: search
-          in: query
-          schema:
-            type: string
-        - name: offset
-          in: query
-          schema:
-            type: integer
-        - name: limit
-          in: query
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: success
-        '401':
-          $ref: "#/components/responses/401Unauthorized"
-        '404':
-          $ref: "#/components/responses/404NotFound"
-    post:
-      security:
-      - UserAuth: []
-      tags: [config]
-      description: add attribute enums
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                delete_existing:
-                  type: boolean
-                items:
-                  type: array
-                  items:
-                    $ref: '#/components/schemas/attribute_enum'
-      responses:
-        '200':
-          description: success
-        '401':
-          $ref: "#/components/responses/401Unauthorized"
-        '404':
-          $ref: "#/components/responses/404NotFound"
-  /config/attributes/{attribute_id}/enums/{enum_id}:
-    parameters:
-      - name: attribute_id
-        in: path
-        required: true
-        schema:
-          type: integer
-          minimum: 1
-          maximum: 100000
-
-      - name: enum_id
-        in: path
-        required: true
-        schema:
-          type: integer
-          minimum: 1
-          maximum: 100000
-
-    put:
-      tags: [config]
-      description: update attribute enum
-      security:
-        - UserAuth: []
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: array
-              items:
-                $ref: '#/components/schemas/attribute_enum'
-      responses:
-        '200':
-          description: success
-        '401':
-          $ref: "#/components/responses/401Unauthorized"
-        '404':
-          $ref: "#/components/responses/404NotFound"
-    delete:
-      tags: [config]
-      description: delete attribute enum
-      security:
-        - UserAuth: []
       responses:
         '200':
           description: success
@@ -2712,10 +2613,18 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  clusters:
-                    type: integer
+                type: array
+                items:
+                  type: object
+                  properties:
+                    size:
+                      type: integer
+                    name:
+                      type: string
+                    tags:
+                      type: array
+                      items:
+                        type: object
         '401':
           $ref: "#/components/responses/401Unauthorized"
         '404':
@@ -2794,12 +2703,6 @@ paths:
                     type: integer
                   items:
                     type: array
-                    content:
-                      application/json:
-                        schema:
-                          type: string
-                          examples:
-                            - "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
         '401':
           $ref: "#/components/responses/401Unauthorized"
         '404':
@@ -3410,6 +3313,11 @@ components:
       properties:
         id:
           type: string
+        story_id:
+          type: string
+          readOnly: true
+        language:
+          type: string
         hash:
           type: string
         title:
@@ -3423,11 +3331,15 @@ components:
         published:
           type: string
           format: date-time
-        author:
-          type: string
         collected:
           type: string
           format: date-time
+        updated:
+          type: string
+          format: date-time
+          readOnly: true
+        author:
+          type: string
         osint_source_id:
           type: string
         content:
@@ -3478,7 +3390,12 @@ components:
         tags:
           type: array
           items:
-            type: string
+            type: object
+            properties:
+              name:
+                type: string
+              tag_type:
+                type: string
         news_items:
           type: array
           items:

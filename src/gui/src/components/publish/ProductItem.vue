@@ -26,12 +26,8 @@
         variant="flat"
         @click="saveProduct"
       >
-        <span v-if="edit">
-          {{ $t('button.save') }}
-        </span>
-        <span v-else>
-          {{ $t('button.create') }}
-        </span>
+        {{ $t('button.save') }}
+        <v-tooltip activator="parent" text="[ctrl+shift+s]" location="bottom" />
       </v-btn>
     </v-toolbar>
     <v-card-text>
@@ -49,6 +45,7 @@
                   :disabled="edit"
                   :rules="required"
                   required
+                  menu-icon="mdi-chevron-down"
                 />
               </v-col>
               <v-col cols="6" class="pr-3">
@@ -108,6 +105,7 @@
             <popup-publish-product
               :product-id="product.id"
               :dialog="publishDialog"
+              :incomplete="incompleteReports"
               @close="publishDialog = false"
             />
           </v-dialog>
@@ -128,6 +126,22 @@
               {{ renderedProduct }}
             </pre>
           </div>
+          <div v-else-if="renderError">
+            <v-row class="justify-center mb-4">
+              <h2>Failed to render Product</h2>
+            </v-row>
+            <v-row class="justify-center mt-5">
+              <pre>{{ renderError }}</pre>
+            </v-row>
+            <v-row class="justify-center mt-5">
+              <v-btn
+                variant="outlined"
+                prepend-icon="mdi-eye-outline"
+                :text="$t('product.render')"
+                @click="rerenderProduct()"
+              />
+            </v-row>
+          </div>
           <div v-else>
             <v-row class="justify-center mb-4">
               <h2>No rendered Product Found</h2>
@@ -136,10 +150,9 @@
               <v-btn
                 variant="outlined"
                 prepend-icon="mdi-eye-outline"
+                :text="$t('product.render')"
                 @click="rerenderProduct()"
-              >
-                <span>{{ $t('product.render') }}</span>
-              </v-btn>
+              />
             </v-row>
           </div>
         </v-col>
@@ -187,7 +200,13 @@ export default {
       publishDialog.value = true
     })
 
-    const { renderedProduct, renderedProductMimeType } =
+    useHotkeys('ctrl+shift+s', (event, handler) => {
+      console.debug(`You pressed ${handler.key}`)
+      event.preventDefault()
+      saveProduct()
+    })
+
+    const { renderedProduct, renderedProductMimeType, renderError } =
       storeToRefs(publishStore)
 
     renderedProduct.value = null
@@ -206,6 +225,13 @@ export default {
         (item) => item.id === product.value.product_type_id
       )
       return p ? p.report_types : []
+    })
+
+    const incompleteReports = computed(() => {
+      const incomplete = reportItems.value.find((item) => {
+        return product.value.report_items.includes(item.id) && !item.completed
+      })
+      return incomplete ? true : false
     })
 
     const reportItems = computed(() => {
@@ -232,7 +258,7 @@ export default {
         : `${t('button.create')} product`
     })
 
-    const saveProduct = async () => {
+    async function saveProduct() {
       const { valid } = await form.value.validate()
       if (!valid) return
       if (props.edit) {
@@ -245,24 +271,24 @@ export default {
             router.push('/product/' + new_id)
             emit('productcreated', new_id)
             notifySuccess('Product created ' + new_id)
+            publishStore.loadProducts()
           })
           .catch((error) => {
-            console.error(error)
-            notifyFailure("Couldn't create product")
+            notifyFailure(error)
           })
       }
     }
 
-    function rerenderProduct() {
-      triggerRenderProduct(product.value.id)
-        .then(() => {
-          notifySuccess('Render triggered please refresh the page')
-        })
-        .catch(() => {
-          console.error(
-            'Failed to trigger render for product ' + product.value.id
-          )
-        })
+    async function rerenderProduct() {
+      try {
+        const result = await triggerRenderProduct(product.value.id)
+        notifySuccess(result.data.message)
+        setTimeout(() => {
+          publishStore.loadRenderedProduct(product.value.id)
+        }, 5000)
+      } catch (error) {
+        notifyFailure(error)
+      }
     }
 
     function getExtensionFromMimeType(mimeType) {
@@ -278,7 +304,7 @@ export default {
 
     function downloadProduct() {
       let bytes
-      if (render_html.value) {
+      if (render_html.value || renderedProductMimeType.value === 'text/plain') {
         bytes = new TextEncoder().encode(renderedProduct.value)
       } else {
         bytes = base64ToArrayBuffer(renderedProduct.value)
@@ -326,7 +352,9 @@ export default {
       analyzeStore.loadReportItems()
       analyzeStore.loadReportTypes()
       if (props.edit) {
-        publishStore.loadRenderedProduct(product.value.id)
+        setTimeout(() => {
+          publishStore.loadRenderedProduct(product.value.id)
+        }, 1000)
       }
     })
 
@@ -337,7 +365,9 @@ export default {
       preset,
       container_title,
       product_types,
+      renderError,
       publishDialog,
+      incompleteReports,
       showPreview,
       reportItems,
       renderedProduct,

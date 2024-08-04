@@ -31,3 +31,11 @@ class Task(BaseModel):
     def to_dict(self):
         result = json.loads(self.result) if self.result else None
         return {"id": self.id, "result": result, "status": self.status}
+
+    @classmethod
+    def get_failed(cls, task_id: str) -> "Task | None":
+        return db.session.execute(db.select(cls).where(cls.id == task_id).where(cls.status == "FAILURE")).scalar()
+
+    @classmethod
+    def get_successful(cls, task_id: str) -> "Task | None":
+        return db.session.execute(db.select(cls).where(cls.id == task_id).where(cls.status == "SUCCESS")).scalar()

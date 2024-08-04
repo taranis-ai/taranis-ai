@@ -52,10 +52,14 @@ def sync_presenter_templates_to_data() -> None:
     dest.mkdir(parents=True, exist_ok=True)
 
     for file in filter(Path.is_file, src.glob("*")):
-        dest_path = dest / file.name
         current_hash = file_hash(file)
+        dest_path = dest / file.name
 
-        if not dest_path.exists() or template_hashes.get(file.name) == current_hash:
+        if dest_path.exists():
+            current_hash = file_hash(dest_path)
+
+        if not dest_path.exists() or template_hashes.get(file.name) != current_hash:
+            logger.debug(f"Updating {dest_path} with newer version.")
             copy(file, dest_path)
             template_hashes[file.name] = current_hash
 

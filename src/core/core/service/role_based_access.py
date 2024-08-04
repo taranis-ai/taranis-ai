@@ -54,7 +54,7 @@ class RoleBasedAccessService:
             .subquery()
         )
 
-        return query.filter(Story.id.in_(tlp_attribute_subquery))
+        return query.filter(Story.id.in_(tlp_attribute_subquery))  # type: ignore
 
     @classmethod
     def filter_report_query_with_tlp(cls, query: Select, user: User) -> Select:
@@ -73,7 +73,7 @@ class RoleBasedAccessService:
             .subquery()
         )
 
-        return query.filter(ReportItem.id.in_(tlp_attribute_subquery))
+        return query.filter(ReportItem.id.in_(tlp_attribute_subquery))  # type: ignore
 
     @classmethod
     def filter_query_with_acl(cls, query: Select, rbac_query: RBACQuery) -> Select:
@@ -110,23 +110,28 @@ class RoleBasedAccessService:
 
     @classmethod
     def get_model_class(cls, resource_type: str):
+        """
+        Get the SQLAlchemy model class for a given resource type.
+        """
+
         from core.model.osint_source import OSINTSource, OSINTSourceGroup
         from core.model.word_list import WordList
         from core.model.report_item import ReportItemType
         from core.model.product_type import ProductType
 
-        """
-        Get the SQLAlchemy model class for a given resource type.
-        """
         if resource_type == "osint_source":
             return OSINTSource
-        elif resource_type == "osint_source_group":
+
+        if resource_type == "osint_source_group":
             return OSINTSourceGroup
-        elif resource_type == "word_list":
+
+        if resource_type == "word_list":
             return WordList
-        elif resource_type == "report_item_type":
+
+        if resource_type == "report_item_type":
             return ReportItemType
-        elif resource_type == "product_type":
+
+        if resource_type == "product_type":
             return ProductType
-        else:
-            raise ValueError(f"Unknown resource type: {resource_type}")
+
+        raise ValueError(f"Unknown resource type: {resource_type}")

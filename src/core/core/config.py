@@ -31,11 +31,13 @@ class Settings(BaseSettings):
     COLORED_LOGS: bool = True
     BUILD_DATE: datetime = datetime.now()
     GIT_INFO: dict[str, str] | None = None
-    DATA_FOLDER: str = "./taranis_data"
+    DATA_FOLDER: str = "./taranis_data"  # When started with Docker, the path is /app/data
     CACHE_TYPE: str = "SimpleCache"
     CACHE_DEFAULT_TIMEOUT: int = 300
     SSE_URL: str = "http://sse:8088/publish"
     DISABLE_SSE: bool = False
+
+    TARANIS_CORE_SENTRY_DSN: str | None = None
 
     @model_validator(mode="after")  # type: ignore
     def set_sqlalchemy_uri(self) -> "Settings":
@@ -45,7 +47,11 @@ class Settings(BaseSettings):
             self.SQLALCHEMY_ENGINE_OPTIONS = {"connect_args": {"timeout": 10}}
         return self
 
-    TARANIS_AUTHENTICATOR: Literal["database", "openid", "test"] = "database"
+    TARANIS_AUTHENTICATOR: Literal["database", "openid", "external", "dev"] = "database"
+    EXTERNAL_AUTH_USER: str = "X-REROUTE-USER"
+    EXTERNAL_AUTH_ROLES: str = "X-REROUTE-ROLES"
+    EXTERNAL_AUTH_NAME: str = "X-REROUTE-NAME"
+    EXTERNAL_AUTH_ORGANIZATION: str = "X-REROUTE-ORGANIZATION"
 
     OPENID_CLIENT_ID: str | None = None
     OPENID_CLIENT_SECRET: str | None = None

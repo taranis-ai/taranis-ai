@@ -10,8 +10,10 @@ class TaggingBot(BaseBot):
         self.name = "Tagging Bot"
         self.description = "Bot for tagging news items based on regular expressions"
 
-    def execute(self, parameters=None):
-        regexp = parameters.get("REGULAR_EXPRESSION", None)
+    def execute(self, parameters: dict | None = None):
+        if not parameters:
+            parameters = {}
+        regexp = parameters.get("REGULAR_EXPRESSION")
         if not regexp:
             raise ValueError("TaggingBot requires REGULAR_EXPRESSION parameter")
 

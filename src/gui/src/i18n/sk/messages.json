@@ -148,7 +148,7 @@
       "import": "Importovať",
       "import_from_csv": "Importovať z CSV",
       "load_csv_file": "Načítať súbor CSV",
-      "multiple": "Viacnásobný výskyt",
+      "required": "Required",
       "name": "názov",
       "new_attribute": "Nový atribút",
       "new_constant": "Nová konštanta",

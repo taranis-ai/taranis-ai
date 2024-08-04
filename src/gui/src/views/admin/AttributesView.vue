@@ -1,29 +1,44 @@
 <template>
-  <v-container fluid>
-    <DataTable
-      v-model:items="attributes.items"
-      :add-button="true"
-      :header-filter="['tag', 'id', 'name', 'description', 'actions']"
-      sort-by-item="id"
-      @delete-item="deleteItem"
-      @edit-item="editItem"
-      @add-item="addItem"
-      @update-items="updateData"
-    />
-    <EditConfig
-      v-if="showForm"
-      :config-data="formData"
-      :form-format="formFormat"
-      :title="editTitle"
-      @submit="handleSubmit"
-    ></EditConfig>
+  <v-container fluid class="pa-2">
+    <v-row no-gutters>
+      <v-col class="pa-2 mt-2">
+        <h1>Attributes Settings</h1>
+      </v-col>
+    </v-row>
+    <v-row no-gutters>
+      <v-col class="pa-2">
+        <DataTable
+          v-model:items="attributes.items"
+          :add-button="true"
+          :header-filter="[
+            'tag',
+            'id',
+            'name',
+            'description',
+            'type',
+            'actions'
+          ]"
+          sort-by-item="id"
+          @delete-item="deleteItem"
+          @edit-item="editItem"
+          @add-item="addItem"
+          @update-items="updateData"
+        />
+        <AttributeForm
+          v-if="showForm"
+          :attribute-prop="formData"
+          :edit="edit"
+          @submit="handleSubmit"
+        />
+      </v-col>
+    </v-row>
   </v-container>
 </template>
 
 <script>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import DataTable from '@/components/common/DataTable.vue'
-import EditConfig from '@/components/config/EditConfig.vue'
+import AttributeForm from '@/components/config/AttributeForm.vue'
 import { deleteAttribute, createAttribute, updateAttribute } from '@/api/config'
 import { useConfigStore } from '@/stores/ConfigStore'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
@@ -34,63 +49,13 @@ export default {
   name: 'AttributesView',
   components: {
     DataTable,
-    EditConfig
+    AttributeForm
   },
   setup() {
     const formData = ref({})
     const edit = ref(false)
     const showForm = ref(false)
 
-    const formFormat = [
-      {
-        name: 'id',
-        label: 'ID',
-        type: 'text',
-        disabled: true
-      },
-      {
-        name: 'name',
-        label: 'Name',
-        type: 'text',
-        rules: ['required']
-      },
-      {
-        name: 'description',
-        label: 'Description',
-        type: 'textarea',
-        rules: ['required']
-      },
-      {
-        name: 'default_value',
-        label: 'Default Value',
-        type: 'text'
-      },
-      {
-        name: 'type',
-        label: 'Type',
-        type: 'select',
-        items: [
-          'STRING',
-          'NUMBER',
-          'BOOLEAN',
-          'RADIO',
-          'ENUM',
-          'TEXT',
-          'RICH_TEXT',
-          'DATE',
-          'TIME',
-          'DATE_TIME',
-          'LINK',
-          'ATTACHMENT',
-          'TLP',
-          'CVE',
-          'CPE',
-          'CVSS',
-          'STORY'
-        ],
-        rules: ['required']
-      }
-    ]
     const configStore = useConfigStore()
     const mainStore = useMainStore()
 
@@ -103,14 +68,15 @@ export default {
       })
     }
 
-    const editTitle = computed(() => {
-      return edit.value
-        ? `Edit Attribute: '${formData.value['name']}'`
-        : 'Add Attribute'
-    })
-
     const addItem = () => {
-      formData.value = {}
+      formData.value = {
+        attribute_enums: [],
+        default_value: '',
+        description: '',
+        name: '',
+        type: ''
+      }
+
       edit.value = false
       showForm.value = true
     }
@@ -134,7 +100,7 @@ export default {
       showForm.value = false
     }
 
-    const deleteItem = (item) => {
+    function deleteItem(item) {
       if (!item.default) {
         deleteAttribute(item)
           .then(() => {
@@ -147,7 +113,7 @@ export default {
       }
     }
 
-    const createItem = (item) => {
+    function createItem(item) {
       createAttribute(item)
         .then(() => {
           notifySuccess(`Successfully created ${item.name}`)
@@ -158,7 +124,7 @@ export default {
         })
     }
 
-    const updateItem = (item) => {
+    function updateItem(item) {
       updateAttribute(item)
         .then(() => {
           notifySuccess(`Successfully updated ${item.name}`)
@@ -174,9 +140,8 @@ export default {
     })
 
     return {
+      edit,
       formData,
-      editTitle,
-      formFormat,
       attributes,
       showForm,
       addItem,

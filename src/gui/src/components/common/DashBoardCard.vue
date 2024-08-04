@@ -1,6 +1,6 @@
 <template>
-  <v-col :cols="cols" class="pa-2 mb-8">
-    <v-card class="mt-4 mx-auto">
+  <v-col :cols="cols" class="pa-2 d-flex">
+    <v-card class="mx-auto pa-4 dashboard-card w-100">
       <slot name="title">
         <v-card-title>
           <router-link v-if="linkTo != '#'" :to="linkTo">
@@ -29,3 +29,17 @@ export default {
   }
 }
 </script>
+
+<style lang="scss">
+.dashboard-card {
+  border: 2px solid white;
+  transition: 180ms;
+  box-shadow: 1px 2px 9px 0px rgba(0, 0, 0, 0.15);
+  flex-grow: 1;
+  height: 100%;
+
+  & a {
+    color: rgb(var(--v-theme-primary));
+  }
+}
+</style>

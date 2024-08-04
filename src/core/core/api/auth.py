@@ -4,7 +4,10 @@ from flask.views import MethodView
 from flask_jwt_extended import jwt_required, get_jwt, current_user
 
 
+from core.auth.external_authenticator import ExternalAuthenticator
 from core.managers import auth_manager
+from core.config import Config
+from core.log import logger
 
 
 class Login(MethodView):
@@ -13,6 +16,9 @@ class Login(MethodView):
         return make_response(redirect(quote(request.args.get(key="gotoUrl", default="/"))))
 
     def post(self):
+        if Config.TARANIS_AUTHENTICATOR == "external":
+            logger.debug(f"{request.headers=}")
+            return auth_manager.authenticate(ExternalAuthenticator.get_credentials(request.headers))
         if not request.json and not request.form:
             return {"error": "No data provided"}, 400
 
@@ -40,8 +46,14 @@ class Logout(MethodView):
         return {"message": "Successfully logged out"}, 200
 
 
+class AuthMethod(MethodView):
+    def get(self):
+        return {"auth_method": Config.TARANIS_AUTHENTICATOR}, 200
+
+
 def initialize(app: Flask):
     base_route = "/api/auth"
     app.add_url_rule(f"{base_route}/login", view_func=Login.as_view("login"))
     app.add_url_rule(f"{base_route}/refresh", view_func=Refresh.as_view("refresh"))
     app.add_url_rule(f"{base_route}/logout", view_func=Logout.as_view("logout"))
+    app.add_url_rule(f"{base_route}/method", view_func=AuthMethod.as_view("auth_method"))

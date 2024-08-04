@@ -52,17 +52,11 @@ class NewsItemTag(BaseModel):
 
     @classmethod
     def remove_by_story(cls, story):
-        db.delete(cls).where(cls.story_id == story.id)
+        db.session.execute(db.delete(cls).where(cls.story_id == story.id))
         db.session.commit()
 
     def to_dict(self) -> dict[str, Any]:
         return {"name": self.name, "tag_type": self.tag_type}
-
-    def to_small_dict(self) -> dict[str, Any]:
-        return {
-            "name": self.name,
-            "tag_type": self.tag_type,
-        }
 
     @classmethod
     def find_by_name(cls, tag_name: str) -> "NewsItemTag | None":
@@ -70,37 +64,33 @@ class NewsItemTag(BaseModel):
 
     @classmethod
     def apply_sort(cls, query, sort_str: str):
-        if not sort_str:
-            return query
+        if sort_str == "size_desc":
+            return query.order_by(func.count(cls.name).desc())
+        elif sort_str == "size_asc":
+            return query.order_by(func.count(cls.name).asc())
+        elif sort_str == "name_asc":
+            return query.order_by(cls.name.asc())
+        elif sort_str == "name_desc":
+            return query.order_by(cls.name.desc())
 
-        parts = sort_str.split("_")
-        if len(parts) != 2:
-            return query
-
-        column_name, sort_order = parts
-        column = getattr(cls, column_name, None)
-        if not column:
-            return query
-
-        query = query.order_by(column if sort_order == "asc" else db.desc(column))
         return query
 
     @classmethod
-    def get_cluster_by_filter(cls, filter):
+    def get_cluster_by_filter(cls, filter_args: dict):
         query = db.select(cls).with_only_columns(cls.name, func.count(cls.name).label("size"))
-        if tag_type := filter.get("tag_type"):
+        if tag_type := filter_args.get("tag_type"):
             query = query.filter(cls.tag_type == tag_type).group_by(cls.name)
 
         count = cls.get_filtered_count(query)
 
-        if search := filter.get("search"):
+        if search := filter_args.get("search"):
             query = query.filter(cls.name.ilike(f"%{search}%"))
-        if sort := filter.get("sort", "sort_desc"):
+        if sort := filter_args.get("sort", "size_desc"):
             query = cls.apply_sort(query, sort)
 
-        if offset := filter.get("offset"):
+        if offset := filter_args.get("offset"):
             query = query.offset(offset)
-        if limit := filter.get("limit"):
+        if limit := filter_args.get("limit"):
             query = query.limit(limit)
 
         results = db.session.execute(query).all()
@@ -111,7 +101,7 @@ class NewsItemTag(BaseModel):
     @classmethod
     def get_tag_types(cls) -> list[tuple[str, int]]:
         items = db.session.execute(
-            db.select(cls.tag_type, func.count(cls.name).label("type_count")).group_by(cls.tag_type).order_by(db.desc("type_count"))
+            db.select(cls.tag_type, func.count(cls.name).label("type_count")).group_by(cls.tag_type).order_by(func.count(cls.name).desc())
         ).all()
         return [(row[0], row[1]) for row in items] if items else []
 
@@ -124,7 +114,7 @@ class NewsItemTag(BaseModel):
 
     @classmethod
     def _parse_dict_tags(cls, tags: dict) -> dict[str, "NewsItemTag"]:
-        return {tag_name: NewsItemTag(name=tag_name, tag_type=tag.get("tag_type", "misc")) for tag_name, tag in tags.items()}
+        return {tag_name: NewsItemTag(name=tag_name, tag_type=tag_type) for tag_name, tag_type in tags.items()}
 
     @classmethod
     def _parse_list_tags(cls, tags: list) -> dict[str, "NewsItemTag"]:

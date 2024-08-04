@@ -31,7 +31,9 @@ dependencies = [
     "swagger-ui-py",
     "requests",
     "authlib",
-    "setuptools"
+    "setuptools",
+    "sentry-sdk[flask]",
+    "sentry-sdk[sqlalchemy]"
 ]
 dynamic = ["version"]
 
@@ -65,11 +67,33 @@ target-version = "py312"
 lines-after-imports = 2
 
 [tool.pytest.ini_options]
+pythonpath = ["."]
 markers = [
-    "e2e: marks tests as to run only when calling with --run-e2e option",
-    "e2e_ci: marks tests as to run only when calling with --run-e2e-ci option"
+    "e2e_user: marks tests as to run only when calling with --run-e2e option",
+    "e2e_user_ci: marks tests as to run only when calling with --run-e2e-ci option",
+    "e2e_publish: marks only the tests related to publishing in from the e2e test",
+    "e2e_admin: marks tests that produce pictures for the documentation"
 ]
 filterwarnings = [
     "ignore:.*_app_ctx_stack.*:DeprecationWarning",
     "ignore::DeprecationWarning"
+]
+
+[tool.coverage.run]
+branch = true
+
+[tool.pylint.'MESSAGES CONTROL']
+max-line-length = 142
+disable = """
+    missing-module-docstring,
+    missing-class-docstring,
+    missing-function-docstring
+"""
+
+[tool.mypy]
+explicit_package_bases = true
+namespace-packages = true
+exclude = [
+    '__main__.py',
+    'tests/'
 ]

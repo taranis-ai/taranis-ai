@@ -71,7 +71,7 @@ export default {
   margin-bottom: 0px !important;
   overflow: hidden;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 1;
   line-clamp: 3;
   -webkit-box-orient: vertical;
   min-height: 1.5em;

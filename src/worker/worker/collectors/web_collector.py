@@ -20,6 +20,7 @@ import re
 
 from .base_collector import BaseCollector
 from worker.log import logger
+from worker.types import NewsItem
 
 import traceback
 
@@ -651,33 +652,29 @@ class WebCollector(BaseCollector):
         article_description = article_description or ""
         for_hash: str = author + title + link
 
-        news_item = {
-            "id": str(uuid.uuid4()),
-            "hash": hashlib.sha256(for_hash.encode()).hexdigest(),
-            "title": title,
-            "review": article_description,
-            "source": self.web_url,
-            "link": link,
-            "published": published,
-            "author": author,
-            "collected": datetime.datetime.now(),
-            "content": article_full_text,
-            "osint_source_id": self.source["id"],
-            "attributes": [],
-        }
+        news_item = NewsItem(
+            osint_source_id=self.source["id"],
+            hash=hashlib.sha256(for_hash.encode()).hexdigest(),
+            author=author,
+            title=title,
+            content=article_full_text,
+            web_url=link,
+            language=self.source.get("language", ""),
+            published_date=published,
+            collected_date=datetime.datetime.now(),
+            review=article_description,
+            attributes=[]
+        )
 
         if self.selectors["additional_id"]:
             value = self.__find_element_text_by(browser, self.selectors["additional_id"])
             if value:
-                key = "Additional_ID"
-                binary_mime_type = ""
-                binary_value = ""
-                attribute = {
+                news_item.attributes.append({
                     "id": uuid.uuid4(),
-                    "key": key,
+                    "key": "Additional_ID",
                     "value": value,
-                    "binary_mime_type": binary_mime_type,
-                    "binary_value": binary_value,
-                }
-                news_item["attributes"].append(attribute)
+                    "binary_mime_type": "",
+                    "binary_value": ""
+                })
+
         return news_item

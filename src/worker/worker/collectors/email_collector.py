@@ -1,6 +1,5 @@
 import datetime
 import hashlib
-import uuid
 import imaplib
 import poplib
 from email import policy
@@ -9,6 +8,7 @@ import email.utils
 import socket
 
 from worker.log import logger
+from worker.types import NewsItem
 from .base_collector import BaseCollector
 
 
@@ -46,7 +46,6 @@ class EmailCollector(BaseCollector):
             review = ""
             content = ""
             url = ""
-            link = ""
 
             date_tuple = email.utils.parsedate_tz(email_message["Date"])
             local_date = datetime.datetime.fromtimestamp(email.utils.mktime_tz(date_tuple))
@@ -64,20 +63,18 @@ class EmailCollector(BaseCollector):
 
                 for_hash = author + title + message_id
 
-                news_item = {
-                    "id": str(uuid.uuid4()),
-                    "hash": hashlib.sha256(for_hash.encode()).hexdigest(),
-                    "title": title,
-                    "review": review,
-                    "source": url,
-                    "link": link,
-                    "published": published,
-                    "author": author,
-                    "collected": datetime.datetime.now(),
-                    "content": content,
-                    "osint_source_id": source["id"],
-                    "attributes": [],
-                }
+                news_item = NewsItem(
+                    osint_source_id=source["id"],
+                    hash=hashlib.sha256(for_hash.encode()).hexdigest(),
+                    title=title,
+                    content=content,
+                    review=review,
+                    language=source.get("language", ""),
+                    web_url=url,
+                    published_date=published,
+                    author=author,
+                    collected_date=datetime.datetime.now()
+                )
 
                 if part.get_content_maintype() == "multipart":
                     pass

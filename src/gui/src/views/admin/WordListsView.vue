@@ -1,43 +1,52 @@
 <template>
-  <v-container fluid>
-    <DataTable
-      v-model:items="word_lists.items"
-      :add-button="true"
-      :header-filter="['name', 'description', 'usage', 'actions']"
-      @delete-item="deleteItem"
-      @edit-item="editItem"
-      @add-item="addItem"
-      @selection-change="selectionChange"
-      @update-items="updateData"
-    >
-      <template #titlebar>
-        <ImportExport
-          accepts="application/json, text/csv"
-          @import="importData"
-          @export="exportData"
-        />
-      </template>
-      <template #actionColumn="source">
-        <v-tooltip left>
-          <template #activator="{ props }">
-            <v-icon
-              v-bind="props"
-              color="secondary"
-              icon="mdi-update"
-              @click.stop="updateWordListEntries(source.item)"
+  <v-container fluid class="pa-2">
+    <v-row no-gutters>
+      <v-col class="pa-2 mt-2">
+        <h1>Wordlists Settings</h1>
+      </v-col>
+    </v-row>
+    <v-row no-gutters>
+      <v-col class="pa-2">
+        <DataTable
+          v-model:items="word_lists.items"
+          :add-button="true"
+          :header-filter="['name', 'description', 'usage', 'actions']"
+          @delete-item="deleteItem"
+          @edit-item="editItem"
+          @add-item="addItem"
+          @selection-change="selectionChange"
+          @update-items="updateData"
+        >
+          <template #titlebar>
+            <ImportExport
+              accepts="application/json, text/csv"
+              @import="importData"
+              @export="exportData"
             />
           </template>
-          <span>Update Wordlist</span>
-        </v-tooltip>
-      </template>
-    </DataTable>
-    <EditConfig
-      v-if="showForm"
-      :config-data="formData"
-      :form-format="formFormat"
-      :title="editTitle"
-      @submit="handleSubmit"
-    />
+          <template #actionColumn="source">
+            <v-tooltip left>
+              <template #activator="{ props }">
+                <v-icon
+                  v-bind="props"
+                  color="secondary"
+                  icon="mdi-update"
+                  @click.stop="updateWordListEntries(source.item)"
+                />
+              </template>
+              <span>Update Wordlist</span>
+            </v-tooltip>
+          </template>
+        </DataTable>
+        <EditConfig
+          v-if="showForm"
+          :config-data="formData"
+          :form-format="formFormat"
+          :title="editTitle"
+          @submit="handleSubmit"
+        />
+      </v-col>
+    </v-row>
   </v-container>
 </template>
 

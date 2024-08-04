@@ -1,24 +1,33 @@
 <template>
-  <v-container fluid>
-    <DataTable
-      v-model:items="osint_source_groups.items"
-      :add-button="true"
-      :header-filter="['default', 'name', 'description', 'actions']"
-      sort-by-item="name"
-      @delete-item="deleteItem"
-      @edit-item="editItem"
-      @add-item="addItem"
-      @selection-change="selectionChange"
-      @update-items="updateData"
-    >
-    </DataTable>
-    <EditConfig
-      v-if="showForm"
-      :config-data="formData"
-      :form-format="formFormat"
-      :title="editTitle"
-      @submit="handleSubmit"
-    ></EditConfig>
+  <v-container fluid class="pa-2">
+    <v-row no-gutters>
+      <v-col class="pa-2 mt-2">
+        <h1>OSINT Source Groups Settings</h1>
+      </v-col>
+    </v-row>
+    <v-row no-gutters>
+      <v-col class="pa-2">
+        <DataTable
+          v-model:items="osint_source_groups.items"
+          :add-button="true"
+          :header-filter="['default', 'name', 'description', 'actions']"
+          sort-by-item="name"
+          @delete-item="deleteItem"
+          @edit-item="editItem"
+          @add-item="addItem"
+          @selection-change="selectionChange"
+          @update-items="updateData"
+        >
+        </DataTable>
+        <EditConfig
+          v-if="showForm"
+          :config-data="formData"
+          :form-format="formFormat"
+          :title="editTitle"
+          @submit="handleSubmit"
+        />
+      </v-col>
+    </v-row>
   </v-container>
 </template>
 

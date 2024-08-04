@@ -56,8 +56,5 @@ def sftp_mock(request):
     with mockssh.Server(users) as s:
         yield s
 
-    def teardown():
-        for product in glob.glob(f"{product_text['title']}*"):
-            os.remove(product)
-
-    request.addfinalizer(teardown)
+    for product in glob.glob(f"{product_text['title']}*"):
+        os.remove(product)

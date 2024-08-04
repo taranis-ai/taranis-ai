@@ -1,12 +1,11 @@
 <template>
   <div>
     <h3 v-if="header">{{ header }}</h3>
-    <codemirror
+    <code-mirror
       v-model="data"
-      class="editor"
+      basic
+      wrap
       :placeholder="placeholder"
-      :extensions="extensions"
-      :style="{ 'min-height': '8em' }"
       :disabled="disabled"
     />
   </div>
@@ -14,16 +13,12 @@
 
 <script>
 import { computed } from 'vue'
-import { Codemirror } from 'vue-codemirror'
-import { basicSetup } from 'codemirror'
-
-import { html } from '@codemirror/lang-html'
-import { json } from '@codemirror/lang-json'
+import CodeMirror from 'vue-codemirror6'
 
 export default {
   name: 'CodeEditor',
   components: {
-    Codemirror
+    CodeMirror
   },
   props: {
     header: {
@@ -33,7 +28,7 @@ export default {
     },
     placeholder: {
       type: String,
-      default: 'Enter content here...'
+      default: 'Enter content here...\n\n\n\n\n'
     },
     content: {
       type: String,
@@ -46,8 +41,6 @@ export default {
   },
   emits: ['update:content'],
   setup(props, { emit }) {
-    const extensions = [html(), json(), basicSetup]
-
     const data = computed({
       get() {
         return props.content
@@ -58,14 +51,13 @@ export default {
     })
 
     return {
-      data,
-      extensions
+      data
     }
   }
 }
 </script>
 
-<style>
+<style scoped>
 .editor {
   height: 242px;
   max-height: 242px;

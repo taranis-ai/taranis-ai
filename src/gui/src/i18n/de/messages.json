@@ -148,7 +148,7 @@
         "import": "Importieren",
         "import_from_csv": "Importieren aus CSV",
         "load_csv_file": "CSV-Datei laden",
-        "multiple": "Mehrfaches Vorkommen",
+        "required": "Pflichtfeld",
         "name": "Name",
         "new_attribute": "Neues Attribut",
         "new_constant": "Neue Konstante",

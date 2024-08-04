@@ -1,29 +1,21 @@
 <template>
   <tr>
-    <td v-if="!compactView" style="max-width: 110px" class="py-0">
+    <td v-if="!compactView" style="max-width: 90px" class="py-0">
       <strong>{{ $t('assess.article') }}:</strong>
     </td>
-    <td class="py-0" @click.stop>
+    <td class="py-0">
       <v-tooltip>
         <template #activator="{ props }">
-          <a
-            class="text-primary"
-            v-bind="props"
-            :href="article?.link"
-            target="_blank"
-          >
+          <a v-bind="props" :href="article?.link" target="_blank" @click.stop>
             {{ article?.name }}
-            <v-icon
-              class="ml-2"
-              size="x-small"
-              color="primary"
-              icon="mdi-open-in-new"
-            />
+            <v-icon size="x-small" color="primary" icon="mdi-open-in-new" />
           </a>
-          <source-info :news-item="newsItem" />
         </template>
         <span>{{ article?.link }}</span>
       </v-tooltip>
+    </td>
+    <td class="text-right">
+      <source-info :news-item="newsItem" />
     </td>
   </tr>
 </template>
@@ -32,6 +24,8 @@
 import { getCleanHostname } from '@/utils/helpers.js'
 import SourceInfo from '@/components/assess/card/SourceInfo.vue'
 import { computed } from 'vue'
+import { useFilterStore } from '@/stores/FilterStore'
+import { storeToRefs } from 'pinia'
 
 export default {
   name: 'ArticleInfo',
@@ -42,10 +36,6 @@ export default {
     newsItem: {
       type: Object,
       required: true
-    },
-    compactView: {
-      type: Boolean,
-      default: false
     }
   },
   setup(props) {
@@ -59,8 +49,12 @@ export default {
         : null
     })
 
+    const filterStore = useFilterStore()
+    const { compactView } = storeToRefs(filterStore)
+
     return {
-      article
+      article,
+      compactView
     }
   }
 }

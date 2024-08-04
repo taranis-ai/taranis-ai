@@ -16,26 +16,28 @@
             type="text"
             :rules="[rules.required]"
           />
+          <code-editor
+            v-model:content="story.summary"
+            :header="$t('enter.summary')"
+            :placeholder="$t('enter.summary_placeholder')"
+          />
 
-          <edit-tags v-model="story.tags" />
-
-          <attributes-table v-model="story.attributes" />
+          <v-btn
+            prepend-icon="mdi-auto-fix"
+            text="AI based summary"
+            @click="triggerSummaryBot"
+          />
 
           <code-editor
             v-model:content="story.comments"
             :header="$t('enter.comment')"
             :placeholder="$t('enter.comment_placeholder')"
           />
-          <code-editor
-            v-model:content="story.summary"
-            :header="$t('enter.summary')"
-            :placeholder="$t('enter.summary_placeholder')"
-          />
-          <v-btn
-            prepend-icon="mdi-auto-fix"
-            text="AI based summary"
-            @click="triggerSummaryBot"
-          />
+
+          <edit-tags v-model="story.tags" />
+
+          <attributes-table v-model="story.attributes" />
+
           <v-spacer class="pt-1"></v-spacer>
           <v-btn block class="mt-5" type="submit" color="success">
             {{ $t('button.update') }}
@@ -62,7 +64,7 @@ import { patchStory, triggerBot } from '@/api/assess'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import CodeEditor from '@/components/common/CodeEditor.vue'
 import EditTags from '@/components/assess/EditTags.vue'
-import AttributesTable from '@/components/assess/AttributesTable.vue'
+import AttributesTable from '@/components/common/AttributesTable.vue'
 import { useRouter } from 'vue-router'
 
 export default {

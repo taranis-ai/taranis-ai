@@ -5,15 +5,10 @@ from core.model.user import User
 
 
 class DatabaseAuthenticator(BaseAuthenticator):
-    def get_authenticator_name(self):
-        return "DatabaseAuthenticator"
-
-    def __str__(self):
-        return f"Authenticator: {self.get_authenticator_name()}"
+    def __init__(self):
+        self.name: str = "DatabaseAuthenticator"
 
     def authenticate(self, credentials: dict[str, str]) -> tuple[dict[str, str], int]:
-        if credentials is None:
-            return BaseAuthenticator.generate_error()
         username = credentials.get("username")
         password = credentials.get("password")
         if username is None or password is None:

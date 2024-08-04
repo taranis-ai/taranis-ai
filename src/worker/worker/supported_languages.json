@@ -1,0 +1,12 @@
+{
+    "en": {
+        "SUMMARY_BOT": "facebook/bart-large-cnn",
+        "NLP_BOT": "flair/ner-multi",
+        "STORY_BOT": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+    },
+    "de": {
+        "SUMMARY_BOT": "T-Systems-onsite/mt5-small-sum-de-en-v2",
+        "NLP_BOT": "flair/ner-multi",
+        "STORY_BOT": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+    }
+}

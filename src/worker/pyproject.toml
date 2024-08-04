@@ -45,7 +45,7 @@ dependencies = [
     "transformers",
     "py3langid",
     "nltk",
-    "taranis-story-clustering==0.8.0"
+    "taranis-story-clustering==0.8.1"
 ]
 dynamic = ["version"]
 
@@ -90,3 +90,11 @@ filterwarnings = [
     "ignore:.*_app_ctx_stack.*:DeprecationWarning",
     "ignore::DeprecationWarning"
 ]
+
+[tool.pylint.'MESSAGES CONTROL']
+max-line-length = 142
+disable = """
+    missing-module-docstring,
+    missing-class-docstring,
+    missing-function-docstring
+"""

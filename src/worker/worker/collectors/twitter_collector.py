@@ -1,10 +1,10 @@
 import datetime
 import hashlib
-import uuid
 import tweepy
 
 from .base_collector import BaseCollector
 from worker.log import logger
+from worker.types import NewsItem
 
 
 class TwitterCollector(BaseCollector):
@@ -65,28 +65,26 @@ class TwitterCollector(BaseCollector):
                     published = tweet.created_at
                     title = f"Twitter post from @{author}"
                     content = ""
-                    url = ""
 
                     for_hash = author + tweet_id + str(preview)
 
-                    news_item = {
-                        "id": str(uuid.uuid4()),
-                        "hash": hashlib.sha256(for_hash.encode()).hexdigest(),
-                        "title": title,
-                        "review": preview,
-                        "source": url,
-                        "link": link,
-                        "published": published,
-                        "author": author,
-                        "collected": datetime.datetime.now(),
-                        "content": content,
-                        "osint_source_id": source["id"],
-                        "attributes": [],
-                    }
+                    news_item = NewsItem(
+                        osint_source_id=source["id"],
+                        hash=hashlib.sha256(for_hash.encode()).hexdigest(),
+                        title=title,
+                        review=preview.decode("utf-8"),
+                        web_url=link,
+                        published_date=published,
+                        author=author,
+                        collected_date=datetime.datetime.now(),
+                        content=content,
+                        language=source.get("language", ""),
+                        attributes=[]
+                    )
 
                     news_items.append(news_item)
 
             self.publish(news_items, source)
         except Exception:
             logger.exception()
-            logger.error(f"Could not collect Tweeets {source['id']}")
+            logger.error(f"Could not collect Tweets {source['id']}")

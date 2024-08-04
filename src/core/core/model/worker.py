@@ -181,7 +181,7 @@ class Worker(BaseModel):
 
     @classmethod
     def get_parameter_map(cls):
-        if workers := cls.get_all():
+        if workers := cls.get_all_for_collector():
             return {worker.type: cls._generate_parameters_data(worker) for worker in workers}
         return {}
 
@@ -230,6 +230,7 @@ class Worker(BaseModel):
             if param_name in existing_parameters:
                 parameter = existing_parameters[param_name]
                 parameter.value = update_parameter.value
+                parameter.type = update_parameter.type
                 parameter.rules = update_parameter.rules
             else:
                 self.parameters.append(update_parameter)

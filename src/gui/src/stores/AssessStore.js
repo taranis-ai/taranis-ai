@@ -24,7 +24,13 @@ export const useAssessStore = defineStore(
   () => {
     const osint_sources = ref({ total_count: 0, items: [] })
     const osint_source_groups = ref({ total_count: 0, items: [] })
-    const stories = ref({ total_count: 0, items: [] })
+    const stories = ref({ items: [] })
+    const storyCounts = ref({
+      total_count: 0,
+      read_count: 0,
+      important_count: 0,
+      in_reports_count: 0
+    })
     const newsItemSelection = ref([])
     const storySelection = ref([])
     const loading = ref(false)
@@ -57,20 +63,25 @@ export const useAssessStore = defineStore(
     async function updateStories() {
       try {
         loading.value = true
-        const filter = useFilterStore()
+        const storyFilter = useFilterStore().storyFilterQuery || ''
         const mainStore = useMainStore()
-        console.debug('Updating Stories with Filter', filter.storyFilterQuery)
-        const response = await getStories(filter.storyFilterQuery)
+        console.debug('Updating Stories with Filter', storyFilter)
+        const response = await getStories(storyFilter)
         stories.value.items = response.data.items
-        stories.value.total_count = response.data.total_count
-        mainStore.setItemCount(
-          response.data.total_count,
-          response.data.items.length
-        )
-        weekChartOptions.value.scales.y2.max = response.data.max_item
+        if (response.data.counts) {
+          storyCounts.value = response.data.counts
+          mainStore.setItemCount(
+            response.data.counts.total_count,
+            response.data.items.length
+          )
+          weekChartOptions.value.scales.y2.max =
+            response.data.counts.biggest_story
+        }
+
         loading.value = false
       } catch (error) {
         loading.value = false
+        stories.value = { items: [] }
         notifyFailure(error.message)
       }
     }
@@ -110,10 +121,9 @@ export const useAssessStore = defineStore(
 
         stories.value.items = [...stories.value.items, ...uniqueNewItems]
         mainStore.setItemCount(
-          stories.value.total_count,
+          storyCounts.value.total_count,
           stories.value.items.length
         )
-        weekChartOptions.value.scales.y2.max = response.data.max_item
         loading.value = false
         return true
       } catch (error) {
@@ -150,10 +160,49 @@ export const useAssessStore = defineStore(
     async function voteOnStory(id, vote) {
       try {
         await voteStory(id, vote)
+        updateVote(id, vote)
       } catch (error) {
         notifyFailure(error)
       }
     }
+
+    function updateVote(id, vote) {
+      const story = stories.value.items.find((item) => item.id === id)
+
+      if (vote === 'like') {
+        if (story.user_vote === 'like') {
+          story.likes -= 1
+          story.relevance -= 1
+          story.user_vote = ''
+        } else if (story.user_vote === 'dislike') {
+          story.dislikes -= 1
+          story.likes += 1
+          story.relevance += 2
+          story.user_vote = 'like'
+        } else {
+          story.likes += 1
+          story.relevance += 1
+          story.user_vote = 'like'
+        }
+      }
+      if (vote === 'dislike') {
+        if (story.user_vote === 'dislike') {
+          story.dislikes -= 1
+          story.relevance += 1
+          story.user_vote = ''
+        } else if (story.user_vote === 'like') {
+          story.likes -= 1
+          story.dislikes += 1
+          story.relevance -= 2
+          story.user_vote = 'dislike'
+        } else {
+          story.dislikes += 1
+          story.relevance -= 1
+          story.user_vote = 'dislike'
+        }
+      }
+    }
+
     async function updateTags(id, tags) {
       try {
         const result = await updateStoryTags(id, tags)
@@ -291,7 +340,10 @@ export const useAssessStore = defineStore(
         }
         return true
       })
-      if (stories.value.items.length === 0 && stories.value.total_count > 0) {
+      if (
+        stories.value.items.length === 0 &&
+        storyCounts.value.total_count > 0
+      ) {
         updateStories()
       }
     }
@@ -299,7 +351,13 @@ export const useAssessStore = defineStore(
     function reset() {
       osint_sources.value = { total_count: 0, items: [] }
       osint_source_groups.value = { total_count: 0, items: [] }
-      stories.value = { total_count: 0, items: [] }
+      stories.value = { items: [] }
+      storyCounts.value = {
+        total_count: 0,
+        read_count: 0,
+        important_count: 0,
+        in_reports_count: 0
+      }
       newsItemSelection.value = []
       storySelection.value = []
       weekChartOptions.value = staticWeekChartOptions
@@ -310,6 +368,7 @@ export const useAssessStore = defineStore(
     return {
       osint_sources,
       osint_source_groups,
+      storyCounts,
       stories,
       newsItemSelection,
       storySelection,

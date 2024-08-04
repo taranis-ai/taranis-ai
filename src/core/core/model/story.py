@@ -3,10 +3,9 @@ from datetime import datetime, timedelta
 from typing import Any, Sequence
 from sqlalchemy import or_, func
 from sqlalchemy.orm import aliased, Mapped, relationship
-from sqlalchemy.sql.expression import false, null
+from sqlalchemy.sql.expression import false, null, true
 from sqlalchemy.sql import Select
-
-from collections import Counter
+from sqlalchemy.ext.hybrid import hybrid_property
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
@@ -90,7 +89,7 @@ class Story(BaseModel):
     def get_for_api(cls, item_id: str, user: User) -> tuple[dict[str, Any], int]:
         logger.debug(f"Getting {cls.__name__} {item_id}")
         if item := cls.get(item_id):
-            return item.to_detail_dict(user.id), 200
+            return item.to_detail_dict(), 200
         return {"error": f"{cls.__name__} {item_id} not found"}, 404
 
     @classmethod
@@ -136,6 +135,29 @@ class Story(BaseModel):
 
         # Apply the filter using NOT IN to exclude stories found in the subquery
         return query.filter(Story.id.notin_(subquery))
+
+    @classmethod
+    def get_additional_counts(cls, filter_query):
+        subquery = filter_query.subquery()
+        total_count_subquery = db.select(func.count()).select_from(subquery).scalar_subquery()
+        read_count_subquery = db.select(func.count()).select_from(subquery).where(subquery.c.read == true()).scalar_subquery()
+        important_count_subquery = db.select(func.count()).select_from(subquery).where(subquery.c.important == true()).scalar_subquery()
+        in_reports_count_subquery = (
+            db.select(func.count())
+            .select_from(subquery)
+            .join(ReportItemStory, ReportItemStory.story_id == subquery.c.id)
+            .distinct()
+            .scalar_subquery()
+        )
+
+        count_query = db.select(
+            read_count_subquery.label("read_count"),
+            important_count_subquery.label("important_count"),
+            total_count_subquery.label("total_count"),
+            in_reports_count_subquery.label("in_reports_count"),
+        )
+
+        return db.session.execute(count_query).one()
 
     @classmethod
     def get_filter_query(cls, filter_args: dict) -> Select:
@@ -197,7 +219,7 @@ class Story(BaseModel):
                 Story.id == ReportItemStory.story_id,
             )
         if in_report == "false":
-            query = query.join(
+            query = query.outerjoin(
                 ReportItemStory,
                 Story.id == ReportItemStory.story_id,
             ).filter(ReportItemStory.story_id == null())
@@ -234,7 +256,7 @@ class Story(BaseModel):
         return query
 
     @classmethod
-    def _add_sorting_to_query(cls, filter_args: dict, query):
+    def _add_sorting_to_query(cls, filter_args: dict, query: Select) -> Select:
         if sort := filter_args.get("sort", "date_desc").lower():
             if sort == "date_desc":
                 query = query.order_by(db.desc(cls.created))
@@ -257,7 +279,7 @@ class Story(BaseModel):
         return query
 
     @classmethod
-    def _add_paging_to_query(cls, filter_args: dict, query):
+    def _add_paging_to_query(cls, filter_args: dict, query: Select) -> Select:
         if offset := filter_args.get("offset"):
             query = query.offset(offset)
         if limit := filter_args.get("limit"):
@@ -265,16 +287,38 @@ class Story(BaseModel):
         return query
 
     @classmethod
-    def _add_ACL_check(cls, query, user: User):
+    def _add_ACL_check(cls, query: Select, user: User) -> Select:
         rbac = RBACQuery(user=user, resource_type=ItemType.OSINT_SOURCE)
         return RoleBasedAccessService.filter_query_with_acl(query, rbac)
 
     @classmethod
-    def _add_TLP_check(cls, query, user: User):
+    def _add_TLP_check(cls, query: Select, user: User) -> Select:
         return RoleBasedAccessService.filter_query_with_tlp(query, user)
 
     @classmethod
-    def get_by_filter(cls, filter_args: dict, user: User | None = None):
+    def enhance_with_user_votes(cls, query: Select, user_id: int) -> Select:
+        vote_subquery = (
+            db.select(NewsItemVote.item_id, NewsItemVote.user_vote_expr.label("user_vote")).filter(NewsItemVote.user_id == user_id).subquery()
+        )
+
+        query = query.outerjoin(vote_subquery, Story.id == vote_subquery.c.item_id)
+        query = query.add_columns(func.coalesce(vote_subquery.c.user_vote, "").label("user_vote"))
+        query = query.group_by(Story.id, vote_subquery.c.user_vote)
+
+        return query
+
+    @classmethod
+    def enhance_with_report_count(cls, query: Select) -> Select:
+        report_subquery = (
+            db.select(ReportItemStory.story_id, func.count().label("report_count")).group_by(ReportItemStory.story_id).subquery()
+        )
+        query = query.outerjoin(report_subquery, Story.id == report_subquery.c.story_id)
+        query = query.add_columns(func.coalesce(report_subquery.c.report_count, 0).label("report_count"))
+        query = query.group_by(Story.id, report_subquery.c.report_count)
+        return query
+
+    @classmethod
+    def get_by_filter(cls, filter_args: dict, user: User | None = None) -> tuple[list[dict[str, Any]], dict[str, int] | None]:
         base_query = cls.get_filter_query(filter_args)
         if user:
             base_query = cls._add_ACL_check(base_query, user)
@@ -283,52 +327,53 @@ class Story(BaseModel):
         query = cls._add_sorting_to_query(filter_args, base_query)
         query = cls._add_paging_to_query(filter_args, query)
 
+        if filter_args.get("worker", False) or not user:
+            return [s.to_worker_dict() for s in cls.get_filtered(query) or []], None
+
         if filter_args.get("no_count", False):
-            return cls.get_filtered(query), 0
-        return cls.get_filtered(query), cls.get_filtered_count(base_query)
+            return [s.to_dict() for s in cls.get_filtered(query) or []], None
 
-    @classmethod
-    def get_date_counts(cls, news_items: list[dict[str, Any]]) -> Counter:
-        return Counter(datetime.fromisoformat(news_item["published"]).strftime("%d-%m") for news_item in news_items)
+        stories = []
+        biggest_story = 0
+        query = cls.enhance_with_user_votes(query, user.id)
+        query = cls.enhance_with_report_count(query)
 
-    @classmethod
-    def get_max_item_count(cls, news_items: list[dict[str, Any]]) -> int:
-        date_counts = cls.get_date_counts(news_items)
-        return max(date_counts.values(), default=0)
+        for story, user_vote, report_count in db.session.execute(query):
+            story_data = story.to_dict()  # Assuming Story has a method to_dict()
+            story_data["user_vote"] = user_vote
+            story_data["in_reports_count"] = report_count
+            biggest_story = max(biggest_story, len(story_data["news_items"]))
+            stories.append(story_data)
 
-    @classmethod
-    def get_item_dict(cls, story: "Story", user: User) -> dict[str, Any]:
-        item = story.to_dict()
-        item["in_reports_count"] = ReportItemStory.count(story.id)
-        item["user_vote"] = NewsItemVote.get_user_vote(story.id, user.id)
-        return item
+        additional_counts = cls.get_additional_counts(base_query)
+
+        count_dict = {
+            "total_count": additional_counts.total_count,
+            "read_count": additional_counts.read_count,
+            "important_count": additional_counts.important_count,
+            "in_reports_count": additional_counts.in_reports_count,
+            "biggest_story": biggest_story,
+        }
+
+        return stories, count_dict
 
     @classmethod
     def get_by_filter_json(cls, filter_args, user):
         stories, count = cls.get_by_filter(filter_args=filter_args, user=user)
-        items = []
-        max_item_count = 0
 
         if not stories:
-            return {"items": []}, 404
+            return {"items": []}, 200
 
-        for story in stories:
-            item = cls.get_item_dict(story, user)
+        if count:
+            return {"items": stories, "counts": count}, 200
 
-            current_max_item = cls.get_max_item_count(item["news_items"])
-            max_item_count = max(max_item_count, current_max_item)
-
-            items.append(item)
-
-        if filter_args.get("no_count", False):
-            return {"items": items, "max_item": max_item_count}, 200
-
-        return {"total_count": count, "items": items, "max_item": max_item_count}
+        return {"items": stories}, 200
 
     @classmethod
     def get_for_worker(cls, filter_args: dict) -> list[dict[str, Any]]:
+        filter_args["worker"] = True
         stories, _ = cls.get_by_filter(filter_args=filter_args)
-        return [story.to_worker_dict() for story in stories] if stories else []
+        return stories
 
     @classmethod
     def add(cls, data) -> "Story":
@@ -580,7 +625,7 @@ class Story(BaseModel):
             if bot_type:
                 story.attributes.append(NewsItemAttribute(key=bot_type, value=f"{len(new_tags)}"))
             db.session.commit()
-            return {"message": "success"}, 200
+            return {"message": f"Successfully updated story: {story_id}, with {len(tags)} new tags"}, 200
         except Exception as e:
             logger.log_debug_trace("Update News Item Tags Failed")
             return {"error": str(e)}, 500
@@ -743,21 +788,21 @@ class Story(BaseModel):
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data["news_items"] = [news_item.to_dict() for news_item in self.news_items]
-        data["tags"] = [tag.to_small_dict() for tag in self.tags]
-        if attributes := self.attributes:
-            data["attributes"] = [news_item_attribute.to_dict() for news_item_attribute in attributes]
+        data["tags"] = [tag.to_dict() for tag in self.tags[:5]]
         return data
 
-    def to_detail_dict(self, user_id) -> dict[str, Any]:
-        data = self.to_dict()
-        data["in_reports_count"] = ReportItemStory.count(self.id)
-        data["user_vote"] = NewsItemVote.get_user_vote(self.id, user_id)
+    def to_detail_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
+        data["news_items"] = [news_item.to_detail_dict() for news_item in self.news_items]
+        data["tags"] = [tag.to_dict() for tag in self.tags]
+        if attributes := self.attributes:
+            data["attributes"] = [news_item_attribute.to_dict() for news_item_attribute in attributes]
         return data
 
     def to_worker_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data["news_items"] = [news_item.to_dict() for news_item in self.news_items]
-        data["tags"] = {tag.name: tag.to_dict() for tag in self.tags}
+        data["tags"] = {tag.name: tag.tag_type for tag in self.tags}
         if attributes := self.attributes:
             data["attributes"] = [news_item_attribute.to_dict() for news_item_attribute in attributes]
         return data
@@ -819,6 +864,22 @@ class NewsItemVote(BaseModel):
     item_id: Mapped[str] = db.Column(db.String(64))
     user_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=True)
 
+    @hybrid_property
+    def user_vote(self):
+        if self.like:
+            return "like"
+        elif self.dislike:
+            return "dislike"
+        return ""
+
+    @user_vote.expression
+    def user_vote_expr(cls):
+        return db.case(
+            (cls.like == true(), "like"),
+            (cls.dislike == true(), "dislike"),
+            else_="",
+        )
+
     def __init__(self, item_id, user_id, like=False, dislike=False):
         self.item_id = item_id
         self.user_id = user_id
@@ -849,8 +910,8 @@ class ReportItemStory(BaseModel):
 
     @classmethod
     def assigned(cls, story_id):
-        return db.session.query(db.exists().where(ReportItemStory.story_id == story_id)).scalar()
+        return db.session.query(db.exists().where(cls.story_id == story_id)).scalar()
 
     @classmethod
-    def count(cls, story):
-        return cls.get_filtered_count(db.select(cls).filter_by(story_id=story))
+    def count(cls, story_id):
+        return cls.get_filtered_count(db.select(cls).where(cls.story_id == story_id))

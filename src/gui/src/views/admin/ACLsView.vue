@@ -1,27 +1,36 @@
 <template>
-  <v-container fluid>
-    <v-card title="Important Usage Information" color="#8250DF">
-      <v-card-text>
-        For backwards compatibility ACLs are only active if there is at least on
-        ACL for a specific item_type.
-      </v-card-text>
-    </v-card>
-    <DataTable
-      v-model:items="acls.items"
-      :add-button="true"
-      :header-filter="['id', 'name', 'item_type', 'enabled', 'actions']"
-      sort-by-item="id"
-      @delete-item="deleteItem"
-      @edit-item="editItem"
-      @add-item="addItem"
-      @update-items="updateData"
-    />
-    <ACLForm
-      v-if="showForm"
-      :acl-prop="acl"
-      :edit="edit"
-      @submit="handleSubmit"
-    />
+  <v-container fluid class="pa-2">
+    <v-row no-gutters>
+      <v-col class="pa-2 mt-2">
+        <h1>ACL Settings</h1>
+      </v-col>
+    </v-row>
+    <v-row no-gutters>
+      <v-col class="pa-2">
+        <v-card title="Important Usage Information" color="primary">
+          <v-card-text>
+            For backwards compatibility ACLs are only active if there is at
+            least on ACL for a specific item_type.
+          </v-card-text>
+        </v-card>
+        <DataTable
+          v-model:items="acls.items"
+          :add-button="true"
+          :header-filter="['id', 'name', 'item_type', 'enabled', 'actions']"
+          sort-by-item="id"
+          @delete-item="deleteItem"
+          @edit-item="editItem"
+          @add-item="addItem"
+          @update-items="updateData"
+        />
+        <ACLForm
+          v-if="showForm"
+          :acl-prop="acl"
+          :edit="edit"
+          @submit="handleSubmit"
+        />
+      </v-col>
+    </v-row>
   </v-container>
 </template>
 

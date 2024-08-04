@@ -1,5 +1,9 @@
 import { defineStore } from 'pinia'
-import { notifyFailure, getMessageFromError } from '@/utils/helpers'
+import {
+  notifyFailure,
+  notifySuccess,
+  getMessageFromError
+} from '@/utils/helpers'
 import {
   getAllACLEntries,
   getAllAttributes,
@@ -20,7 +24,8 @@ import {
   getAllWorkers,
   getAllWorkerTypes,
   getQueueStatus,
-  getQueueTasks
+  getQueueTasks,
+  toggleOSINTSSource
 } from '@/api/config'
 import { ref, computed } from 'vue'
 
@@ -30,7 +35,7 @@ export const useConfigStore = defineStore(
     const acls = ref({ total_count: 0, items: [] })
     const attributes = ref({ total_count: 0, items: [] })
     const bots = ref({ total_count: 0, items: [] })
-    const organizations = ref({ count: 0, items: [] })
+    const organizations = ref({ total_count: 0, items: [] })
     const osint_sources = ref({ total_count: 0, items: [] })
     const osint_source_groups = ref({ total_count: 0, items: [] })
     const parameters = ref([])
@@ -165,7 +170,6 @@ export const useConfigStore = defineStore(
     async function loadOrganizations(data) {
       try {
         const response = await getAllOrganizations(data)
-        console.debug('loadOrganizations', response.data)
         organizations.value = response.data
       } catch (error) {
         notifyFailure(error)
@@ -282,6 +286,21 @@ export const useConfigStore = defineStore(
       }
     }
 
+    async function toggleOSINTSSourceState(source) {
+      try {
+        const new_state = source.state > '-2' ? 'disable' : 'enable'
+        const result = await toggleOSINTSSource(source.id, new_state)
+        // patch osint_sources.value with the new state
+        const index = osint_sources.value.items.findIndex(
+          (item) => item.id === source.id
+        )
+        osint_sources.value.items[index].state = result.data.state
+        notifySuccess(result.data.message)
+      } catch (error) {
+        notifyFailure(error)
+      }
+    }
+
     function reset() {
       acls.value = { total_count: 0, items: [] }
       attributes.value = { total_count: 0, items: [] }
@@ -354,6 +373,7 @@ export const useConfigStore = defineStore(
       loadQueueStatus,
       loadQueueTasks,
       loadWorkers,
+      toggleOSINTSSourceState,
       reset
     }
   },

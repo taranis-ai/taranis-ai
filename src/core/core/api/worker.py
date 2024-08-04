@@ -52,7 +52,7 @@ class QueueSchedule(MethodView):
     @api_key_required
     def get(self):
         try:
-            if schedules := ScheduleEntry.get_all():
+            if schedules := ScheduleEntry.get_all_for_collector():
                 return [sched.to_worker_dict() for sched in schedules], 200
             return {"error": "No schedules found"}, 404
         except Exception:
@@ -154,7 +154,7 @@ class SourceIcon(MethodView):
 class Stories(MethodView):
     @api_key_required
     def get(self):
-        filter_keys = ["search", "in_report", "timefrom", "sort", "range", "limit", "no_count", "exclude_attr", "story_id"]
+        filter_keys = ["search", "in_report", "timefrom", "sort", "range", "limit", "worker", "exclude_attr", "story_id"]
         filter_args: dict[str, str | int | list] = {k: v for k, v in request.args.items() if k in filter_keys}
         filter_list_keys = ["source", "group"]
         for key in filter_list_keys:
@@ -168,7 +168,7 @@ class Stories(MethodView):
 class Tags(MethodView):
     @api_key_required
     def get(self):
-        if tags := NewsItemTag.get_all():
+        if tags := NewsItemTag.get_all_for_collector():
             return {tag.name: tag.to_dict() for tag in tags}, 200
         return {"error": "No tags found"}, 404
 

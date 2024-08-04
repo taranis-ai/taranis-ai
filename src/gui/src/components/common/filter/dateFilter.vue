@@ -1,18 +1,25 @@
 <template>
-  <VueDatePicker
-    v-model="selected"
-    :name="'dateFilter-' + placeholder"
-    :placeholder="placeholder"
-    :max-date="maxDatePlus"
-    time-picker-inline
-    clearable
-    space-confirm
-    @open="openMenu()"
-  />
+  <div>
+    <VueDatePicker
+      v-model="selected"
+      :name="'dateFilter-' + placeholder"
+      :placeholder="placeholder"
+      :min-date="timefrom"
+      :max-date="timeto"
+      format="yyyy-MM-dd HH:mm:ss"
+      time-picker-inline
+      auto-apply
+      clearable
+      space-confirm
+      @open="openMenu()"
+    />
+    <v-tooltip activator="parent" :text="tooltipText" />
+  </div>
 </template>
 
 <script>
 import { ref, computed, watch } from 'vue'
+import { useUserStore } from '@/stores/UserStore'
 
 export default {
   name: 'DateFilter',
@@ -25,12 +32,21 @@ export default {
       type: String,
       default: 'Enter date'
     },
-    maxDate: {
-      type: Date,
-      default: new Date()
+    timeto: {
+      type: String,
+      default: null
+    },
+    timefrom: {
+      type: String,
+      default: null
     },
     defaultDate: {
       type: Date,
+      required: false,
+      default: null
+    },
+    tooltipText: {
+      type: String,
       required: false,
       default: null
     }
@@ -38,10 +54,10 @@ export default {
   emits: ['update:modelValue'],
   setup(props, { emit }) {
     const selected = ref(props.modelValue)
-    const maxDatePlus = computed(() => {
-      const newDate = new Date(props.maxDate.getTime())
-      newDate.setHours(newDate.getHours() + 1)
-      return newDate
+    const userStore = useUserStore()
+
+    const locale = computed(() => {
+      return userStore.language
     })
 
     function updateSelected(val) {
@@ -69,9 +85,9 @@ export default {
 
     return {
       openMenu,
-      maxDatePlus,
+      locale,
       selected: computed({
-        get: () => Date.parse(selected.value),
+        get: () => (selected.value ? new Date(selected.value) : null),
         set: updateSelected
       })
     }

@@ -3,7 +3,7 @@ $secondary: #34a5e8;
 $accent: #6daed9;
 $info: #2196f3;
 $error: #ba3b3b;
-$success: #4caf50;
+$success: #74b761;
 $warning: #ffc107;
 $cx-app-header: #c9c9c9;
 $cx-toolbar-filter: #ffffff;
@@ -25,6 +25,10 @@ $very-dark-grey: #313131;
 $awake-green-color: #77bb70;
 $awake-yellow-color: #e9c645;
 $awake-red-color: #d18e8e;
+
+html {
+  background: #f3f3f3;
+}
 
 .item-action-btn.btn-group button,
 button.item-action-btn,
@@ -74,7 +78,6 @@ a.item-action-btn {
 .meta-info-col {
   border-right: 1px solid #c0c0c0;
 }
-
 
 button.vertical-button .v-btn__append,
 button.vertical-button .v-btn__append i {

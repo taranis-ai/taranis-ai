@@ -13,6 +13,7 @@
     item-value="name"
     item-title="name"
     label="Tags"
+    menu-icon="mdi-chevron-down"
     multiple
   >
     <template #item="{ props, item }">

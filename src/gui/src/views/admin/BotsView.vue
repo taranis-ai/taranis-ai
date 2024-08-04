@@ -1,38 +1,47 @@
 <template>
-  <v-container fluid>
-    <DataTable
-      v-model:items="bots.items"
-      :add-button="true"
-      :header-filter="['name', 'description', 'type', 'index', 'actions']"
-      sort-by-item="index"
-      @delete-item="deleteItem"
-      @edit-item="editItem"
-      @add-item="addItem"
-      @selection-change="selectionChange"
-      @update-items="updateData"
-    >
-      <template #actionColumn="{ item }">
-        <v-tooltip left>
-          <template #activator="{ props }">
-            <v-icon
-              v-bind="props"
-              color="secondary"
-              icon="mdi-run"
-              @click.stop="executeBot(item)"
-            />
+  <v-container fluid class="pa-2">
+    <v-row no-gutters>
+      <v-col class="pa-2 mt-2">
+        <h1>Bots Settings</h1>
+      </v-col>
+    </v-row>
+    <v-row no-gutters>
+      <v-col class="pa-2">
+        <DataTable
+          v-model:items="bots.items"
+          :add-button="true"
+          :header-filter="['name', 'description', 'type', 'index', 'actions']"
+          sort-by-item="index"
+          @delete-item="deleteItem"
+          @edit-item="editItem"
+          @add-item="addItem"
+          @selection-change="selectionChange"
+          @update-items="updateData"
+        >
+          <template #actionColumn="{ item }">
+            <v-tooltip left>
+              <template #activator="{ props }">
+                <v-icon
+                  v-bind="props"
+                  color="primary"
+                  icon="mdi-run"
+                  @click.stop="executeBot(item)"
+                />
+              </template>
+              <span>Execute Bot</span>
+            </v-tooltip>
           </template>
-          <span>Execute Bot</span>
-        </v-tooltip>
-      </template>
-    </DataTable>
-    <EditConfig
-      v-if="showForm"
-      :config-data="formData"
-      :form-format="formFormat"
-      :parameters="parameters"
-      :title="editTitle"
-      @submit="handleSubmit"
-    />
+        </DataTable>
+        <EditConfig
+          v-if="showForm"
+          :config-data="formData"
+          :form-format="formFormat"
+          :parameters="parameters"
+          :title="editTitle"
+          @submit="handleSubmit"
+        />
+      </v-col>
+    </v-row>
   </v-container>
 </template>
 <script>

@@ -1,22 +1,29 @@
 <template>
-  <v-card-title>
+  <v-card-title class="d-flex justify-space-between">
     <span>
-      <v-icon :icon="tagIcon" />
+      <v-icon :icon="tagIcon" color="primary" class="mr-3" size="small" />
       <router-link :to="`/cluster/${tagType}`">
         {{ tagText }}
       </router-link>
     </span>
     <span class="ml-5"> Cluster size: {{ cluster.size }}</span>
-    <v-divider class="mt-2 mb-2" />
   </v-card-title>
+  <v-divider class="mt-2 mb-2" />
   <v-card-text>
-    <div v-for="item in cluster.tags" :key="item.id">
-      <router-link :to="'/assess?tags=' + item.name">
-        {{ item.name }}
-      </router-link>
-      <v-icon class="mr-2"> mdi-chevron-right </v-icon>
-      <span class="ml-5"> {{ item.size }} </span>
-    </div>
+    <v-list density="compact">
+      <div v-for="item in cluster.tags" :key="item.id">
+        <v-list-item
+          :to="'/assess?tags=' + item.name"
+          :title="item.name"
+          class="tag-item text-black"
+        >
+          <template #append>
+            <span> {{ item.size }} </span>
+          </template>
+        </v-list-item>
+        <v-divider />
+      </div>
+    </v-list>
   </v-card-text>
 </template>
 
@@ -48,3 +55,9 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+.tag-item:hover {
+  text-decoration: underline;
+}
+</style>

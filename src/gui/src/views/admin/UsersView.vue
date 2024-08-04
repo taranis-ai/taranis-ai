@@ -1,50 +1,59 @@
 <template>
-  <v-container fluid>
-    <DataTable
-      v-model:items="users.items"
-      :add-button="true"
-      :header-filter="[
-        'id',
-        'username',
-        'name',
-        'roles.length',
-        'permissions.length',
-        'actions'
-      ]"
-      :sort-by="sortBy"
-      @delete-item="deleteItem"
-      @edit-item="editItem"
-      @add-item="addItem"
-      @update-items="updateData"
-      @selection-change="selectionChange"
-    >
-      <template #titlebar>
-        <v-btn
-          color="green-darken-3"
-          dark
-          class="ml-4"
-          prepend-icon="mdi-import"
-          text="Import"
-          @click="importClicked"
+  <v-container fluid class="pa-2">
+    <v-row no-gutters>
+      <v-col class="pa-2 mt-2">
+        <h1>Users Settings</h1>
+      </v-col>
+    </v-row>
+    <v-row no-gutters>
+      <v-col class="pa-2">
+        <DataTable
+          v-model:items="users.items"
+          :add-button="true"
+          :header-filter="[
+            'id',
+            'username',
+            'name',
+            'roles.length',
+            'permissions.length',
+            'actions'
+          ]"
+          :sort-by="sortBy"
+          @delete-item="deleteItem"
+          @edit-item="editItem"
+          @add-item="addItem"
+          @update-items="updateData"
+          @selection-change="selectionChange"
+        >
+          <template #titlebar>
+            <v-btn
+              color="green-darken-3"
+              dark
+              class="ml-4"
+              prepend-icon="mdi-import"
+              text="Import"
+              @click="importClicked"
+            />
+            <ImportExport :show-import="false" @export="exportData" />
+          </template>
+        </DataTable>
+        <UserForm
+          v-if="showForm"
+          :user-prop="user"
+          :edit="edit"
+          @updated="formUpdated"
         />
-        <ImportExport :show-import="false" @export="exportData" />
-      </template>
-    </DataTable>
-    <UserForm
-      v-if="showForm"
-      :user-prop="user"
-      :edit="edit"
-      @updated="formUpdated"
-    />
-    <UserImportForm v-if="showImportForm" @import="importData" />
-    <v-alert
-      v-for="item in importResult"
-      :key="item.username"
-      :title="item.username"
-      type="success"
-      closable
-      :text="item.password"
-    />
+        <UserImportForm v-if="showImportForm" @import="importData" />
+        <v-alert
+          v-for="item in importResult"
+          :key="item.username"
+          :title="item.username"
+          type="success"
+          closable
+          :text="item.password"
+        />
+      </v-col>
+    </v-row>
   </v-container>
 </template>
 

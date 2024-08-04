@@ -296,8 +296,8 @@ class AssetCpe(BaseModel):
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
     value: Mapped[str] = db.Column(db.String())
 
-    asset_id = db.Column(db.Integer, db.ForeignKey("asset.id"))
-    asset = relationship("Asset")
+    asset_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("asset.id"))
+    asset: Mapped["Asset"] = relationship("Asset")
 
     def __init__(self, value):
         self.value = value

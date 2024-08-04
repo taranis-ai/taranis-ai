@@ -11,3 +11,7 @@ export function authRefresh() {
 export function authLogout() {
   return apiService.delete('/auth/logout')
 }
+
+export function getAuthMethod() {
+  return apiService.get('/auth/method')
+}

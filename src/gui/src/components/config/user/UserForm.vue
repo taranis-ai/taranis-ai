@@ -52,8 +52,8 @@
             :label="$t('user.organization')"
             :items="organizations"
             :rules="[rules.required]"
-          >
-          </v-select>
+            menu-icon="mdi-chevron-down"
+          />
         </v-col>
         <v-col cols="12" class="pl-1">
           <v-data-table
@@ -70,21 +70,6 @@
             <template v-if="roles.length < 10" #bottom />
           </v-data-table>
         </v-col>
-        <v-col cols="12" class="pt-2">
-          <v-data-table
-            v-model="user.permissions"
-            :headers="headers"
-            :items="permissions"
-            show-select
-          >
-            <template #top>
-              <v-toolbar-title class="ml-3 text-center">
-                {{ $t('user.permissions') }}
-              </v-toolbar-title>
-            </template>
-            <template v-if="permissions.length < 10" #bottom />
-          </v-data-table>
-        </v-col>
       </v-row>
       <v-row no-gutters>
         <v-btn type="submit" block color="success" class="mt-5"> Submit </v-btn>
@@ -96,7 +81,7 @@
 <script>
 import { createUser, updateUser } from '@/api/config'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useConfigStore } from '@/stores/ConfigStore'
 
 export default {
@@ -115,7 +100,7 @@ export default {
   emits: ['updated'],
   setup(props, { emit }) {
     const store = useConfigStore()
-    const { loadOrganizations, loadRoles, loadPermissions } = store
+    const { loadOrganizations, loadRoles } = store
     const form = ref(null)
 
     const headers = [
@@ -131,13 +116,6 @@ export default {
     const user = ref(props.userProp)
     const roles = computed(() => store.roles.items)
     const organizations = computed(() => store.organizations.items)
-    const permissions = computed(() => {
-      return [...store.permissions.items].sort(
-        (a, b) =>
-          user.value.permissions.indexOf(b.id) -
-          user.value.permissions.indexOf(a.id)
-      )
-    })
 
     const rules = {
       required: (value) => Boolean(value) || 'Required.'
@@ -187,14 +165,19 @@ export default {
     onMounted(() => {
       loadOrganizations()
       loadRoles()
-      loadPermissions()
     })
+
+    watch(
+      () => props.userProp,
+      (u) => {
+        user.value = u
+      }
+    )
 
     return {
       headers,
       rules,
       roles,
-      permissions,
       organizations,
       form,
       showPassword,
@@ -202,11 +185,6 @@ export default {
       user,
       generatePassword,
       addUser
-    }
-  },
-  watch: {
-    userProp(u) {
-      this.user = u
     }
   }
 }

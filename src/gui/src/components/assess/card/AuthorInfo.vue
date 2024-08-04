@@ -1,6 +1,6 @@
 <template>
   <tr v-if="author">
-    <td v-if="!compactView" style="max-width: 110px" class="py-0">
+    <td v-if="!compactView" style="max-width: 90px" class="py-0">
       <strong>{{ $t('assess.author') }}:</strong>
     </td>
     <td class="py-0">
@@ -11,6 +11,8 @@
 
 <script>
 import { computed } from 'vue'
+import { useFilterStore } from '@/stores/FilterStore'
+import { storeToRefs } from 'pinia'
 
 export default {
   name: 'AuthorInfo',
@@ -18,10 +20,6 @@ export default {
     newsItem: {
       type: Object,
       required: true
-    },
-    compactView: {
-      type: Boolean,
-      default: false
     }
   },
   setup(props) {
@@ -29,8 +27,12 @@ export default {
       return props.newsItem?.author
     })
 
+    const filterStore = useFilterStore()
+    const { compactView } = storeToRefs(filterStore)
+
     return {
-      author
+      author,
+      compactView
     }
   }
 }

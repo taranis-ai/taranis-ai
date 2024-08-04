@@ -15,7 +15,6 @@
     :items-per-page="reportFilter.limit"
     @delete-item="deleteItem"
     @edit-item="editItem"
-    @add-item="addItem"
     @update-items="updateData"
     @selection-change="selectionChange"
   >
@@ -36,19 +35,39 @@
         <span>Clone Report</span>
       </v-tooltip>
     </template>
+    <template #nodata>
+      <v-alert title="No Reports Found" type="warning">
+        <v-row no-gutters class="mt-5">
+          <v-btn
+            color="primary"
+            class="mr-2"
+            min-width="48%"
+            text="Reset Filter"
+            prepend-icon="mdi-refresh"
+            @click="resetFilter()"
+          />
+          <v-btn
+            color="primary"
+            class="ml-2"
+            min-width="48%"
+            text="Create new Report"
+            prepend-icon="mdi-chart-box-plus-outline"
+            @click="createReport()"
+          />
+        </v-row>
+      </v-alert>
+    </template>
   </DataTable>
 </template>
 
 <script>
 import DataTable from '@/components/common/DataTable.vue'
-import { deleteReportItem } from '@/api/analyze'
-import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import { useAnalyzeStore } from '@/stores/AnalyzeStore'
 import { useFilterStore } from '@/stores/FilterStore'
 import { useMainStore } from '@/stores/MainStore'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
-import { onMounted, ref, computed, onUnmounted } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 
 export default {
   name: 'AnalyzeView',
@@ -71,45 +90,28 @@ export default {
       () => analyzeStore.getReportItemsTableData
     )
 
-    const updateData = () => {
-      mainStore.itemCountTotal = report_items.value.total_count
-      mainStore.itemCountFiltered = report_items.value.items.length
-      analyzeStore.loadReportTypes()
+    async function updateData() {
+      await analyzeStore.loadReportTypes()
+      await analyzeStore.updateReportItems()
     }
 
-    const addItem = () => {
+    function createReport() {
       router.push('/report/')
     }
 
-    const editItem = (item) => {
+    function editItem(item) {
       router.push('/report/' + item.id)
     }
 
-    const deleteItem = (item) => {
-      deleteReportItem(item)
-        .then((response) => {
-          notifySuccess(response)
-          updateData()
-        })
-        .catch((error) => {
-          notifyFailure(error)
-        })
-    }
-
-    const cloneReport = (item_id) => {
-      analyzeStore.cloneReport(item_id)
-    }
-
-    const selectionChange = (new_selection) => {
+    function selectionChange(new_selection) {
       selected.value = new_selection.map((item) => item.id)
     }
 
-    onMounted(() => {
-      updateData()
-    })
+    function resetFilter() {
+      filterStore.resetFilter()
+    }
 
     onUnmounted(() => {
-      filterStore.setReportFilter({})
       mainStore.resetItemCount()
     })
 
@@ -121,10 +123,11 @@ export default {
       selected,
       sortBy,
       updateData,
-      addItem,
+      createReport,
+      resetFilter,
       editItem,
-      deleteItem,
-      cloneReport,
+      deleteItem: analyzeStore.removeReport,
+      cloneReport: analyzeStore.cloneReport,
       selectionChange
     }
   }

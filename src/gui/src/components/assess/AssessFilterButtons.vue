@@ -12,7 +12,7 @@
     />
     <filter-button
       v-model="storyFilter['in_report']"
-      label="items in reports"
+      label="in reports"
       icon="mdi-google-circles-communities"
     />
     <filter-button

@@ -39,6 +39,7 @@ async function initializeApp() {
     Sentry.init({
       app,
       dsn: sentryDSN,
+      replaysOnErrorSampleRate: 1.0,
       autoSessionTracking: true,
       integrations: [
         Sentry.browserTracingIntegration({ router }),

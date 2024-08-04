@@ -50,7 +50,7 @@ class NewsItems(MethodView):
 class NewsItem(MethodView):
     @auth_required("ASSESS_ACCESS")
     def get(self, item_id):
-        return news_item.NewsItem.get_for_api(item_id)
+        return news_item.NewsItem.get_for_api(item_id, current_user)
 
     @auth_required("ASSESS_UPDATE")
     @validate_json

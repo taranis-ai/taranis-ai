@@ -83,28 +83,6 @@ class Attributes(MethodView):
         return attribute.Attribute.delete(attribute_id)
 
 
-class AttributeEnums(MethodView):
-    @auth_required("CONFIG_ATTRIBUTE_ACCESS")
-    @extract_args("search", "offset", "limit")
-    def get(self, attribute_id=None, filter_args=None):
-        if attribute_id:
-            return attribute.AttributeEnum.get_for_api(attribute_id)
-        return attribute.AttributeEnum.get_all_for_api(filter_args, True)
-
-    @auth_required("CONFIG_ATTRIBUTE_UPDATE")
-    def post(self, attribute_id):
-        result = attribute.AttributeEnum.add(request.json)
-        return {"message": "Attribute enum added", "id": result.id}, 201
-
-    @auth_required("CONFIG_ATTRIBUTE_UPDATE")
-    def put(self, attribute_id, enum_id):
-        return attribute.AttributeEnum.update(enum_id, request.json)
-
-    @auth_required("CONFIG_ATTRIBUTE_UPDATE")
-    def delete(self, attribute_id, enum_id):
-        return attribute.AttributeEnum.delete(enum_id)
-
-
 class ReportItemTypesImport(MethodView):
     @auth_required("CONFIG_REPORT_TYPE_CREATE")
     def post(self):
@@ -372,7 +350,7 @@ class QueueSchedule(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
     def get(self):
         try:
-            if schedules := queue.ScheduleEntry.get_all():
+            if schedules := queue.ScheduleEntry.get_all_for_collector():
                 return [sched.to_dict() for sched in schedules], 200
             return {"error": "No schedules found"}, 404
         except Exception:
@@ -394,13 +372,13 @@ class OSINTSources(MethodView):
         return {"error": "OSINT source could not be created"}, 400
 
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
-    def put(self, source_id):
+    def put(self, source_id: str):
         if source := osint_source.OSINTSource.update(source_id, request.json):
             return {"message": f"OSINT Source {source.name} updated", "id": f"{source_id}"}, 200
         return {"error": f"OSINT Source with ID: {source_id} not found"}, 404
 
     @auth_required("CONFIG_OSINT_SOURCE_DELETE")
-    def delete(self, source_id):
+    def delete(self, source_id: str):
         force = request.args.get("force", default=False, type=bool)
         if not force and NewsItemService.has_related_news_items(source_id):
             return {
@@ -409,6 +387,11 @@ class OSINTSources(MethodView):
             }, 409
 
         return osint_source.OSINTSource.delete(source_id, force=force)
+
+    @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
+    def patch(self, source_id: str):
+        state = request.args.get("state", default="enabled", type=str)
+        return osint_source.OSINTSource.toggle_state(source_id, state)
 
 
 class OSINTSourceCollect(MethodView):
@@ -437,7 +420,8 @@ class OSINTSourcesExport(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
     def get(self):
         source_ids = request.args.getlist("ids")
-        data = osint_source.OSINTSource.export_osint_sources(source_ids)
+        with_groups = request.args.get("groups", default=False, type=bool)
+        data = osint_source.OSINTSource.export_osint_sources(source_ids, with_groups)
         if data is None:
             return {"error": "Unable to export"}, 400
         return send_file(
@@ -603,8 +587,6 @@ def initialize(app: Flask):
     app.add_url_rule(f"{base_route}/acls/<int:acl_id>", view_func=ACLEntries.as_view("acl"))
     app.add_url_rule(f"{base_route}/attributes", view_func=Attributes.as_view("attributes"))
     app.add_url_rule(f"{base_route}/attributes/<int:attribute_id>", view_func=Attributes.as_view("attribute"))
-    app.add_url_rule(f"{base_route}/attributes/<int:attribute_id>/enums", view_func=AttributeEnums.as_view("attribute_enums"))
-    app.add_url_rule(f"{base_route}/attributes/<int:attribute_id>/enums/<int:enum_id>", view_func=AttributeEnums.as_view("attribute_enum"))
     app.add_url_rule(f"{base_route}/bots", view_func=Bots.as_view("bots_config"))
     app.add_url_rule(f"{base_route}/bots/<string:bot_id>", view_func=Bots.as_view("bot_config"))
     app.add_url_rule(f"{base_route}/bots/<string:bot_id>/execute", view_func=BotExecute.as_view("bot_execute"))

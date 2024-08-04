@@ -326,7 +326,7 @@ export const router = createRouter({
       }
     },
     {
-      path: '/config/reportitems/attributes',
+      path: '/config/attributes',
       name: 'attributes',
       components: {
         default: () => import('@/views/admin/AttributesView.vue'),
@@ -399,7 +399,7 @@ export const router = createRouter({
     {
       path: '/login',
       name: 'login',
-      component: () => import('@/views/Login.vue')
+      component: () => import('@/views/LoginView.vue')
     },
     {
       path: '/403',

@@ -55,6 +55,7 @@ class NewsItem(BaseModel):
         link: str = "",
         published: datetime | str = datetime.now(),
         collected: datetime | str = datetime.now(),
+        language: str = "",
         hash: str | None = None,
         attributes=None,
         id=None,
@@ -68,6 +69,7 @@ class NewsItem(BaseModel):
         self.source = source
         self.link = link
         self.author = author
+        self.language = language
         self.hash = hash or self.get_hash(title, link, content)
         self.collected = collected if isinstance(collected, datetime) else datetime.fromisoformat(collected)
         self.published = published if isinstance(published, datetime) else datetime.fromisoformat(published)
@@ -97,8 +99,15 @@ class NewsItem(BaseModel):
     def has_attribute_value(self, value) -> bool:
         return any(attribute.value == value for attribute in self.attributes)
 
-    def to_dict(self) -> dict[str, Any]:
-        data = super().to_dict()
+    @classmethod
+    def get_for_api(cls, item_id: str, user: User | None = None) -> tuple[dict[str, Any], int]:
+        logger.debug(f"Getting {cls.__name__} {item_id}")
+        if item := cls.get(item_id):
+            return item.to_detail_dict(), 200
+        return {"error": f"{cls.__name__} {item_id} not found"}, 404
+
+    def to_detail_dict(self) -> dict[str, Any]:
+        data = self.to_dict()
         if attributes := self.attributes:
             data["attributes"] = [attribute.to_dict() for attribute in attributes]
         return data
@@ -228,10 +237,10 @@ class NewsItem(BaseModel):
                 query = query.order_by(db.asc(cls.published))
 
         if timefrom := filter_args.get("timefrom"):
-            query = query.filter(NewsItem.published >= datetime.fromisoformat(timefrom))
+            query = query.filter(cls.published >= datetime.fromisoformat(timefrom))
 
         if timeto := filter_args.get("timeto"):
-            query = query.filter(NewsItem.published <= datetime.fromisoformat(timeto))
+            query = query.filter(cls.published <= datetime.fromisoformat(timeto))
 
         offset = filter_args.get("offset", 0)
         limit = filter_args.get("limit", 20)

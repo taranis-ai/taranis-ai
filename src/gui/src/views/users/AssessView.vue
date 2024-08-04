@@ -1,7 +1,7 @@
 <template>
   <div class="w-100">
     <v-infinite-scroll
-      v-if="stories.total_count > 0 && !pagination"
+      v-if="stories.items.length > 0 && infiniteScroll"
       empty-text="All items loaded"
       color="primary"
       @load="displayMore"
@@ -21,7 +21,7 @@
       </template>
     </v-infinite-scroll>
 
-    <v-container v-else-if="stories.total_count > 0 && pagination" fluid>
+    <v-container v-else-if="stories.items.length > 0 && !infiniteScroll" fluid>
       <template v-for="item in stories.items" :key="item.id">
         <card-story :story="item" @refresh="refresh(item.id)" />
       </template>
@@ -34,19 +34,21 @@
       </v-row>
     </v-container>
     <v-row
-      v-if="stories.total_count == 0"
-      class="align-center justify-center mt-5"
+      v-if="stories.items.length == 0 && !loading"
+      class="align-center justify-center"
     >
       <v-col cols="12">
-        <v-alert
-          :value="true"
-          type="info"
-          text="No items found. Please change your filter."
-          class="mx-4 text-center text-h5"
-        />
+        <v-empty-state
+          icon="mdi-magnify"
+          text="Try adjusting your search terms or filters."
+          title="No items match."
+          class="my-5"
+        ></v-empty-state>
       </v-col>
-      <v-col cols="6">
-        <v-btn block class="mx-4" @click="resetFilter()">Reset Filter</v-btn>
+      <v-col cols="12" sm="6" md="2">
+        <v-btn block prepend-icon="mdi-refresh" @click="resetFilter()"
+          >reset filter</v-btn
+        >
       </v-col>
     </v-row>
     <assess-selection-toolbar />
@@ -56,7 +58,7 @@
 <script>
 import CardStory from '@/components/assess/CardStory.vue'
 import AssessSelectionToolbar from '@/components/assess/AssessSelectionToolbar.vue'
-import { defineComponent, computed, onDeactivated, onUpdated } from 'vue'
+import { defineComponent, computed, onUpdated, onUnmounted } from 'vue'
 import { useAssessStore } from '@/stores/AssessStore'
 import { useFilterStore } from '@/stores/FilterStore'
 import { useMainStore } from '@/stores/MainStore'
@@ -73,8 +75,8 @@ export default defineComponent({
     const assessStore = useAssessStore()
     const filterStore = useFilterStore()
     const mainStore = useMainStore()
-    const { stories, loading } = storeToRefs(assessStore)
-    const { storyFilter, storyPage } = storeToRefs(filterStore)
+    const { stories, loading, storyCounts } = storeToRefs(assessStore)
+    const { storyFilter, storyPage, infiniteScroll } = storeToRefs(filterStore)
 
     assessHotkeys()
     const page = computed({
@@ -87,7 +89,7 @@ export default defineComponent({
     })
     const numberOfPages = computed(() => {
       const count = Math.ceil(
-        stories.value.total_count / (storyFilter.value.limit || 20)
+        storyCounts.value.total_count / (storyFilter.value.limit || 20)
       )
       return count > 0 ? count : 1
     })
@@ -99,10 +101,6 @@ export default defineComponent({
     const refresh = (id) => {
       assessStore.updateStoryByID(id)
     }
-
-    const pagination = computed(() => {
-      return Boolean(storyFilter.value.timeto)
-    })
 
     const displayMore = async ({ done }) => {
       if (!moreToLoad.value) {
@@ -127,11 +125,11 @@ export default defineComponent({
     }
 
     onUpdated(() => {
-      mainStore.itemCountTotal = stories.value.total_count
-      mainStore.itemCountFiltered = stories.value.items.length
+      mainStore.itemCountTotal = storyCounts.value?.total_count || 0
+      mainStore.itemCountFiltered = stories.value?.items.length || 0
     })
 
-    onDeactivated(() => {
+    onUnmounted(() => {
       assessStore.clearSelection()
       mainStore.resetItemCount()
     })
@@ -140,9 +138,9 @@ export default defineComponent({
       stories,
       moreToLoad,
       numberOfPages,
+      infiniteScroll,
       page,
       loading,
-      pagination,
       storyFilter,
       refresh,
       resetFilter,

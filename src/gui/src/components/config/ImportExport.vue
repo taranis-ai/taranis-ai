@@ -5,7 +5,7 @@
       color="green-darken-3"
       dark
       class="ml-4"
-      prepend-icon="mdi-import"
+      prepend-icon="mdi-file-import-outline"
       text="Import"
       @click="importClick"
     />
@@ -14,7 +14,7 @@
       color="teal-darken-4"
       dark
       class="ml-4"
-      prepend-icon="mdi-export"
+      prepend-icon="mdi-file-export-outline"
       text="Export"
       @click="exportFile"
     />
@@ -55,7 +55,7 @@ export default {
       fileInput.value.click()
     }
 
-    const fileSelected = (event) => {
+    function fileSelected(event) {
       const file = event.target.files[0]
       const formData = new FormData()
       formData.append('file', file)

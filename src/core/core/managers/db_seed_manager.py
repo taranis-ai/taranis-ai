@@ -139,6 +139,7 @@ def pre_seed_roles():
 
 def pre_seed_attributes():
     from core.model.attribute import Attribute
+    from core.managers.pre_seed_data import attrs_with_enum
 
     base_attr = {
         "name": "Text",
@@ -165,17 +166,10 @@ def pre_seed_attributes():
         {"name": "Story", "description": "Story", "type": "STORY"},
     ]
 
-    for attr in attrs:
+    for attr in attrs + attrs_with_enum:
         if not Attribute.filter_by_name(attr["name"]):
             attr = {**base_attr, **attr}
             Attribute.add(attr)
-
-    from core.managers.pre_seed_data import attrs_with_enum
-
-    for attr in attrs_with_enum:
-        if not Attribute.filter_by_name(attr["name"]):
-            attr = {**base_attr, **attr}
-            Attribute.create_attribute_with_enum(attr)
 
 
 def pre_seed_report_items():
@@ -222,7 +216,6 @@ def pre_seed_default_user():
                     "username": "admin",
                     "name": "Arthur Dent",
                     "roles": [admin_role.id],
-                    "permissions": [],
                     "organization": {"id": 1},
                     "password": Config.PRE_SEED_PASSWORD_ADMIN,
                 }
@@ -249,7 +242,6 @@ def pre_seed_default_user():
                 "username": "user",
                 "name": "Terry Pratchett",
                 "roles": [user_role],
-                "permissions": [],
                 "organization": {"id": 2},
                 "password": Config.PRE_SEED_PASSWORD_USER,
             }

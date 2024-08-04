@@ -24,16 +24,16 @@ class ReportStories(MethodView):
     def put(self, report_item_id):
         request_data = request.json
         if not isinstance(request_data, list):
-            logger.debug("No data in request")
-            return "No data in request", 400
+            logger.warning("No data in request")
+            return {"error": "No data in request"}, 400
         return report_item.ReportItem.set_stories(report_item_id, request_data, current_user)
 
     @auth_required("ANALYZE_UPDATE")
     def post(self, report_item_id):
         request_data = request.json
         if not isinstance(request_data, list):
-            logger.debug("No data in request")
-            return "No data in request", 400
+            logger.warning("No data in request")
+            return {"error": "No data in request"}, 400
         return report_item.ReportItem.add_stories(report_item_id, request_data, current_user)
 
 

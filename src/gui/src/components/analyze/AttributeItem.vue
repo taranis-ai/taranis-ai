@@ -14,6 +14,14 @@
       :label="attributeItem.title"
       :hint="attributeItem.description"
     />
+    <v-text-field
+      v-if="attributeItem.type === 'NUMBER'"
+      v-model="input"
+      :readonly="readOnly"
+      :label="attributeItem.title"
+      type="number"
+      :hint="attributeItem.description"
+    />
     <v-checkbox
       v-if="attributeItem.type === 'BOOLEAN'"
       v-model="input"
@@ -28,6 +36,7 @@
       item-value="value"
       :items="attributeItem.render_data.attribute_enums"
       :label="attributeItem.title"
+      menu-icon="mdi-chevron-down"
     />
     <v-radio-group
       v-if="attributeItem.type === 'RADIO'"
@@ -100,11 +109,19 @@
       :readonly="readOnly"
       :label="attributeItem.title"
       :items="attributeItem.attribute_enums"
+      menu-icon="mdi-chevron-down"
     >
       <!-- TODO: Use MyAssets for Autocomplete -->
     </v-autocomplete>
     <AttributeStory
       v-if="attributeItem.type === 'STORY'"
+      v-model="input"
+      :readonly="readOnly"
+      :title="attributeItem.title"
+      :report-item-id="reportItemId"
+    />
+    <AttributeAttachment
+      v-if="attributeItem.type === 'ATTACHMENT'"
       v-model="input"
       :readonly="readOnly"
       :title="attributeItem.title"
@@ -116,6 +133,7 @@
 import { ref, computed } from 'vue'
 import CodeEditor from '../common/CodeEditor.vue'
 import AttributeTLP from './AttributeTLP.vue'
+import AttributeAttachment from './AttributeAttachment.vue'
 import AttributeStory from './AttributeStory.vue'
 
 export default {
@@ -123,7 +141,8 @@ export default {
   components: {
     CodeEditor,
     AttributeTLP,
-    AttributeStory
+    AttributeStory,
+    AttributeAttachment
   },
   props: {
     value: {
@@ -133,6 +152,10 @@ export default {
     },
     attributeItem: {
       type: Object,
+      required: true
+    },
+    reportItemId: {
+      type: String,
       required: true
     },
     readOnly: { type: Boolean, default: false }
@@ -158,7 +181,7 @@ export default {
   }
 }
 </script>
-<style>
+<style scoped>
 .hint-text {
   color: #888;
   font-size: 0.85rem;

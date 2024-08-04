@@ -1,74 +1,124 @@
 <template>
-  <v-container fluid>
-    <DataTable
-      :items="osint_sources"
-      :header-filter="[
-        'icon',
-        'state',
-        'name',
-        'parameters.FEED_URL',
-        'actions'
-      ]"
-      :add-button="true"
-      @edit-item="editItem"
-      @delete-item="deleteItem"
-      @add-item="addItem"
-      @update-items="updateData"
-      @selection-change="selectionChange"
-    >
-      <template #titlebar>
-        <ImportExport @import="importData" @export="exportData" />
-        <v-btn
-          dark
-          color="blue-grey"
-          class="ml-4"
-          prepend-icon="mdi-run"
-          @click="collectAllSources"
+  <v-container fluid class="pa-2">
+    <v-row no-gutters>
+      <v-col class="pa-2 mt-2">
+        <h1>OSINT Sources Settings</h1>
+      </v-col>
+    </v-row>
+    <v-row no-gutters>
+      <v-col class="pa-2">
+        <DataTable
+          :items="osint_sources"
+          :header-filter="[
+            'icon',
+            'state',
+            'name',
+            'parameters.FEED_URL',
+            'actions'
+          ]"
+          :add-button="true"
+          @edit-item="editItem"
+          @delete-item="deleteItem"
+          @add-item="addItem"
+          @update-items="updateData"
+          @selection-change="selectionChange"
         >
-          Collect Sources
-        </v-btn>
-      </template>
-      <template #actionColumn="source">
-        <v-tooltip left>
-          <template #activator="{ props }">
-            <v-icon
-              v-bind="props"
-              color="secondary"
-              icon="mdi-run"
-              @click.stop="collectSource(source.item)"
+          <template #titlebar>
+            <ImportExport
+              @import="importData"
+              @export="showExportPopup = true"
             />
+            <v-btn
+              dark
+              color="blue-grey"
+              class="ml-4"
+              prepend-icon="mdi-run"
+              @click="collectAllSources"
+            >
+              Collect Sources
+            </v-btn>
           </template>
-          <span>Collect Source</span>
-        </v-tooltip>
-        <v-tooltip left>
-          <template #activator="{ props }">
-            <v-icon
-              v-bind="props"
-              color="secondary"
-              icon="mdi-file-find"
-              @click.stop="previewSource(source.item)"
-            />
+          <template #actionColumn="source">
+            <v-tooltip left>
+              <template #activator="{ props }">
+                <v-icon
+                  v-bind="props"
+                  color="secondary"
+                  icon="mdi-run"
+                  @click.stop="collectSource(source.item)"
+                />
+              </template>
+              <span>Collect Source</span>
+            </v-tooltip>
+            <v-tooltip left>
+              <template #activator="{ props }">
+                <v-icon
+                  v-bind="props"
+                  color="secondary"
+                  icon="mdi-file-find"
+                  @click.stop="previewSource(source.item)"
+                />
+              </template>
+              <span>Preview Source</span>
+            </v-tooltip>
+            <v-tooltip left>
+              <template #activator="{ props }">
+                <v-icon
+                  v-bind="props"
+                  :color="source.item.state > '-2' ? 'green' : 'red'"
+                  :icon="
+                    source.item.state > '-2'
+                      ? 'mdi-toggle-switch-outline'
+                      : 'mdi-toggle-switch-off-outline'
+                  "
+                  @click.stop="toggleState(source.item)"
+                />
+              </template>
+              <span>{{ source.item.state > '-2' ? 'Disable' : 'Enable' }}</span>
+            </v-tooltip>
           </template>
-          <span>Preview Source</span>
-        </v-tooltip>
-      </template>
-    </DataTable>
-    <EditConfig
-      v-if="showForm"
-      :config-data="formData"
-      :form-format="formFormat"
-      :parameters="parameters"
-      :title="editTitle"
-      @submit="handleSubmit"
-    />
-    <v-dialog v-model="showDeletePopup" width="auto">
-      <popup-delete-item
-        :title="`Delete Source ${itemToDelete.name}?`"
-        message="Delete the source and all gathered News Items permanently."
-        @delete-item="forceDeleteItem(itemToDelete)"
-        @close="showDeletePopup = false"
-      />
-    </v-dialog>
+          <template #nodata>
+            <v-empty-state
+              icon="mdi-magnify"
+              title="No OSINTSources Found."
+              class="my-5"
+            >
+              <v-btn
+                text="refresh"
+                prepend-icon="mdi-refresh"
+                @click.stop="updateData"
+              />
+              <v-btn
+                text="load default sources"
+                prepend-icon="mdi-database"
+                @click.stop="loadDefaultSources()"
+              />
+            </v-empty-state>
+          </template>
+        </DataTable>
+        <EditConfig
+          v-if="showForm"
+          :config-data="formData"
+          :form-format="formFormat"
+          :parameters="parameters"
+          :title="editTitle"
+          @submit="handleSubmit"
+        />
+        <v-dialog v-model="showDeletePopup" width="auto">
+          <popup-delete-item
+            @delete-item="forceDeleteItem(itemToDelete)"
+            @close="showDeletePopup = false"
+          />
+        </v-dialog>
+        <v-dialog v-model="showExportPopup" width="auto">
+          <popup-export-source
+            :selected="selected"
+            :total-count="sourceTotalCount"
+            @close="showExportPopup = false"
+          />
+        </v-dialog>
+      </v-col>
+    </v-row>
   </v-container>
 </template>
 
@@ -77,11 +127,11 @@ import DataTable from '@/components/common/DataTable.vue'
 import EditConfig from '@/components/config/EditConfig.vue'
 import ImportExport from '@/components/config/ImportExport.vue'
 import PopupDeleteItem from '@/components/popups/PopupDeleteItem.vue'
+import PopupExportSource from '@/components/popups/PopupExportSource.vue'
 import {
   deleteOSINTSource,
   createOSINTSource,
   updateOSINTSource,
-  exportOSINTSources,
   importOSINTSources,
   collectOSINTSSource,
   previewOSINTSSource,
@@ -100,7 +150,8 @@ export default {
     DataTable,
     EditConfig,
     ImportExport,
-    PopupDeleteItem
+    PopupDeleteItem,
+    PopupExportSource
   },
   setup() {
     const configStore = useConfigStore()
@@ -123,6 +174,7 @@ export default {
     const showForm = ref(false)
     const showDeletePopup = ref(false)
     const itemToDelete = ref({})
+    const showExportPopup = ref(false)
 
     const formFormat = computed(() => {
       let base = [
@@ -180,18 +232,20 @@ export default {
       return base
     })
 
-    const updateData = () => {
+    function updateData() {
       configStore.loadOSINTSources().then(() => {
         mainStore.itemCountFiltered = configStore.osint_sources.items.length - 1
         mainStore.itemCountTotal = configStore.osint_sources.total_count - 1
       })
       configStore.loadWorkerTypes().then(() => {
-        collector_options.value = collector_types.value.map((collector) => {
-          return {
-            value: collector.type,
-            title: collector.name
-          }
-        })
+        collector_options.value = collector_types.value
+          .filter((collector) => collector.type !== 'manual_collector')
+          .map((collector) => {
+            return {
+              value: collector.type,
+              title: collector.name
+            }
+          })
       })
       configStore.loadParameters()
     }
@@ -254,7 +308,7 @@ export default {
       }
     }
 
-    const createItem = (item) => {
+    function createItem(item) {
       createOSINTSource(item)
         .then(() => {
           notifySuccess(`Successfully created ${item.name}`)
@@ -265,7 +319,7 @@ export default {
         })
     }
 
-    const updateItem = (item) => {
+    function updateItem(item) {
       updateOSINTSource(item)
         .then(() => {
           notifySuccess(`Successfully updated ${item.name}`)
@@ -276,30 +330,39 @@ export default {
         })
     }
 
-    const importData = (data) => {
-      importOSINTSources(data)
-        .then(() => {
-          notifySuccess(`Successfully imported ${data.get('file').name}`)
-          setTimeout(updateData(), 1000)
-        })
-        .catch(() => {
-          notifyFailure('Failed to import')
-        })
-    }
+    async function loadDefaultSources() {
+      const url = '/default_sources.json'
 
-    const exportData = () => {
-      let queryString = ''
-      if (selected.value.length > 0) {
-        queryString = 'ids=' + selected.value.join('&ids=')
+      try {
+        const response = await fetch(url)
+        if (!response.ok) {
+          notifyFailure('Failed to load default sources')
+        }
+
+        const file = await response.blob()
+        const formData = new FormData()
+        formData.append('file', file, 'default_sources.json')
+        await importData(formData)
+      } catch (error) {
+        notifyFailure('Failed to import default sources')
       }
-      exportOSINTSources(queryString)
     }
 
-    const selectionChange = (new_selection) => {
+    async function importData(data) {
+      try {
+        await importOSINTSources(data)
+        notifySuccess(`Successfully imported ${data.get('file').name}`)
+        setTimeout(updateData, 1000)
+      } catch (error) {
+        notifyFailure('Failed to import sources')
+      }
+    }
+
+    function selectionChange(new_selection) {
       selected.value = new_selection
     }
 
-    const collectAllSources = () => {
+    function collectAllSources() {
       collectAllOSINTSSources()
         .then(() => {
           notifySuccess('Successfully collected all sources')
@@ -309,7 +372,7 @@ export default {
         })
     }
 
-    const collectSource = (source) => {
+    function collectSource(source) {
       collectOSINTSSource(source.id)
         .then(() => {
           notifySuccess(`Successfully collected ${source.name}`)
@@ -319,7 +382,7 @@ export default {
         })
     }
 
-    const previewSource = (source) => {
+    function previewSource(source) {
       previewOSINTSSource(source.id)
         .then(() => {
           router.push({
@@ -332,6 +395,10 @@ export default {
         })
     }
 
+    async function toggleState(source) {
+      await configStore.toggleOSINTSSourceState(source)
+    }
+
     return {
       parameters,
       collector_options,
@@ -341,6 +408,8 @@ export default {
       editTitle,
       showForm,
       showDeletePopup,
+      showExportPopup,
+      sourceTotalCount: configStore.osint_sources.total_count - 1,
       itemToDelete,
       formFormat,
       updateData,
@@ -351,11 +420,12 @@ export default {
       createItem,
       updateItem,
       importData,
-      exportData,
       collectSource,
       previewSource,
       forceDeleteItem,
       collectAllSources,
+      loadDefaultSources,
+      toggleState,
       selectionChange
     }
   }

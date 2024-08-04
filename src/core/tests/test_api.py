@@ -33,6 +33,11 @@ def test_user_profile(client, auth_header):
     assert response.status_code == 200
 
 
-def test_auth_logout(client, auth_header):
+def test_auth_logout(app, client, auth_header):
+    from core.model.token_blacklist import TokenBlacklist
+
     response = client.delete("/api/auth/logout", headers=auth_header)
     assert response.status_code == 200
+
+    with app.app_context():
+        TokenBlacklist.delete_all()

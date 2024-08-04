@@ -2,6 +2,7 @@ import os
 import pytest
 
 import worker.collectors as collectors
+from worker.config import Config
 
 
 def file_loader(filename):
@@ -36,20 +37,21 @@ def rt_collector():
 
 @pytest.fixture
 def osint_source_update_mock(requests_mock):
-    requests_mock.put("http://taranis/api/worker/osint-sources/1", json={})
+    requests_mock.put(f"{Config.TARANIS_CORE_URL}/worker/osint-sources/1", json={})
 
 
 @pytest.fixture
 def news_item_upload_mock(requests_mock):
-    requests_mock.post("http://taranis/api/worker/news-items", json={})
+    requests_mock.post(f"{Config.TARANIS_CORE_URL}/worker/news-items", json={})
 
 
 @pytest.fixture
 def web_collector_url_mock(requests_mock):
-    from worker.tests.testdata import web_collector_url, head_request
+    from worker.tests.testdata import web_collector_url, web_collector_ref_url, head_request
 
     requests_mock.head(web_collector_url, json=head_request)
     requests_mock.get(web_collector_url, text=file_loader("testweb.html"), headers={"Content-Type": "text/html"})
+    requests_mock.get(web_collector_ref_url, text=file_loader("testweb.html"), headers={"Content-Type": "text/html"})
 
 
 @pytest.fixture

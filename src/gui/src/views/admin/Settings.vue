@@ -1,105 +1,129 @@
 <template>
-  <v-container fluid>
-    <h3 class="text-h3 my-5">Admin Settings</h3>
-
-    <v-row>
-      <v-col cols="12">
+  <v-container fluid class="pa-2">
+    <v-row no-gutters>
+      <v-col class="pa-2 mt-2">
+        <h1>Admin Settings</h1>
+      </v-col>
+    </v-row>
+    <v-row no-gutters>
+      <v-col class="pa-1">
         <v-card
+          class="admin-settings-card pa-3"
           title="Default TLP Level"
           text="Set the default TLP Level for new Sources, Roles, and Reports."
         >
+          <v-spacer></v-spacer>
           <v-card-actions>
             <v-select
               v-model="tlp"
               :items="tlpLevels"
               label="TLP Level"
-              outlined
+              variant="outlined"
+              menu-icon="mdi-chevron-down"
             />
           </v-card-actions>
         </v-card>
       </v-col>
     </v-row>
 
-    <v-expansion-panels class="mt-5">
-      <v-expansion-panel>
-        <v-expansion-panel-title class="warning my-5">
-          Everything in this section is dangerous. You can break things. Be
-          careful.
-        </v-expansion-panel-title>
-        <v-expansion-panel-text>
-          <v-row>
-            <v-col cols="6">
-              <v-card
-                title="Clear all Worker Queues"
-                text="Delete all messages from all worker queues. This action cannot be undone."
-              >
-                <v-card-actions>
-                  <v-btn
-                    variant="elevated"
-                    block
-                    color="red"
-                    text="Delete all Worker Queues"
-                    @click="purgeQueues"
-                  />
-                </v-card-actions>
-              </v-card>
-            </v-col>
+    <v-row>
+      <v-col class="pa-1 mx-4">
+        <v-expansion-panels class="mt-1 pa-0">
+          <v-expansion-panel class="bg-error">
+            <v-expansion-panel-title
+              class="my-5 admin-settings-expansion-panel-title"
+            >
+              <strong>
+                Everything in this section is dangerous. You can break things.
+                Be careful.
+              </strong>
+            </v-expansion-panel-title>
+            <v-expansion-panel-text>
+              <v-container fluid class="pa-0 pb-4">
+                <v-row no-gutters>
+                  <v-col cols="12" md="4">
+                    <v-card
+                      class="admin-settings-card"
+                      title="Clear all Worker Queues"
+                      text="Delete all messages from all worker queues. This action cannot be undone."
+                    >
+                      <v-spacer></v-spacer>
+                      <v-card-actions>
+                        <v-btn
+                          block
+                          color="error"
+                          variant="outlined"
+                          text="Delete all Worker Queues"
+                          @click="purgeQueues"
+                        />
+                      </v-card-actions>
+                    </v-card>
+                  </v-col>
 
-            <v-col cols="6">
-              <v-card
-                title="Delete all Tags"
-                text="Delete all tags from all Stories in the system. Reverting the Action of the NER, Wordlist, and Tagging Bots. This action cannot be undone."
-              >
-                <v-card-actions>
-                  <v-btn
-                    variant="elevated"
-                    block
-                    color="red"
-                    text="Delete all Tags"
-                    @click="deleteTags"
-                  />
-                </v-card-actions>
-              </v-card>
-            </v-col>
-            <v-col cols="6">
-              <v-card
-                title="Ungroup all Stories"
-                text="Ungroup all Stories in the system. Reverting the actions of the Story Clustering. This action cannot be undone."
-              >
-                <v-card-actions>
-                  <v-btn
-                    variant="elevated"
-                    block
-                    color="red"
-                    text="Ungroup all Stories"
-                    @click="ungroupAllStoriesAction"
-                  />
-                </v-card-actions>
-              </v-card>
-            </v-col>
-          </v-row>
-          <v-row>
-            <v-col cols="12">
-              <v-card
-                title="Delete Everything"
-                text="This may potentially fail and completly break the system.
+                  <v-col cols="12" md="4">
+                    <v-card
+                      class="admin-settings-card"
+                      title="Delete all Tags"
+                      text="Delete all tags from all Stories in the system. Reverting the Action of the NER, Wordlist, and Tagging Bots. This action cannot be undone."
+                    >
+                      <v-spacer></v-spacer>
+                      <v-card-actions>
+                        <v-btn
+                          block
+                          color="error"
+                          variant="outlined"
+                          text="Delete all Tags"
+                          @click="deleteTags"
+                        />
+                      </v-card-actions>
+                    </v-card>
+                  </v-col>
+                  <v-col cols="12" md="4">
+                    <v-card
+                      class="admin-settings-card"
+                      title="Ungroup all Stories"
+                      text="Ungroup all Stories in the system. Reverting the actions of the Story Clustering. This action cannot be undone."
+                    >
+                      <v-spacer></v-spacer>
+                      <v-card-actions>
+                        <v-btn
+                          block
+                          color="error"
+                          variant="outlined"
+                          text="Ungroup all Stories"
+                          @click="ungroupAllStoriesAction"
+                        />
+                      </v-card-actions>
+                    </v-card>
+                  </v-col>
+                </v-row>
+                <v-row no-gutters class="mt-2">
+                  <v-col cols="12">
+                    <v-card
+                      class="admin-settings-card"
+                      title="Delete Everything"
+                      text="This may potentially fail and completly break the system.
           Tries to delete all Report Items, Products, News Items and Stories."
-              >
-                <v-card-actions>
-                  <v-btn
-                    variant="elevated"
-                    block
-                    color="red"
-                    text="Delete Everything"
-                    @click="deleteEverything"
-                  />
-                </v-card-actions>
-              </v-card>
-            </v-col>
-          </v-row>
-        </v-expansion-panel-text>
-      </v-expansion-panel>
-    </v-expansion-panels>
+                    >
+                      <v-spacer></v-spacer>
+                      <v-card-actions>
+                        <v-btn
+                          block
+                          color="error"
+                          variant="outlined"
+                          text="Delete Everything"
+                          @click="deleteEverything"
+                        />
+                      </v-card-actions>
+                    </v-card>
+                  </v-col>
+                </v-row>
+              </v-container>
+            </v-expansion-panel-text>
+          </v-expansion-panel>
+        </v-expansion-panels>
+      </v-col>
+    </v-row>
   </v-container>
 </template>
 
@@ -194,8 +218,23 @@ export default {
 }
 </script>
 
-<style scoped>
-.warning {
-  background-color: #ffff00;
+<style lang="scss">
+.admin-settings-card {
+  border: 2px solid white;
+  transition: 180ms;
+  box-shadow: 1px 2px 9px 0px rgba(0, 0, 0, 0.15);
+  flex-grow: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  margin: 4px;
+  padding: 12px;
+
+  & a {
+    color: rgb(var(--v-theme-primary));
+  }
+}
+.admin-settings-expansion-panel-title .v-expansion-panel-title__overlay {
+  display: none !important;
 }
 </style>

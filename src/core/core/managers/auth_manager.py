@@ -8,14 +8,15 @@ from flask_jwt_extended.exceptions import JWTExtendedException
 # from core.managers import queue_manager
 from core.log import logger
 from core.auth.openid_authenticator import OpenIDAuthenticator
-from core.auth.test_authenticator import TestAuthenticator
+from core.auth.dev_authenticator import DevAuthenticator
 from core.auth.database_authenticator import DatabaseAuthenticator
+from core.auth.external_authenticator import ExternalAuthenticator
 from core.model.token_blacklist import TokenBlacklist
 from core.model.user import User
 
 from core.config import Config
 
-current_authenticator = TestAuthenticator()
+current_authenticator = DatabaseAuthenticator()
 api_key = Config.API_KEY
 jwt = JWTManager()
 
@@ -33,16 +34,15 @@ def initialize(app: Flask):
 
     authenticator = app.config.get("TARANIS_AUTHENTICATOR", None)
     if authenticator == "openid":
-        current_authenticator = OpenIDAuthenticator()
+        current_authenticator = OpenIDAuthenticator(app)
     elif authenticator == "database":
         current_authenticator = DatabaseAuthenticator()
-    elif authenticator == "test":
-        current_authenticator = TestAuthenticator()
+    elif authenticator == "dev":
+        current_authenticator = DevAuthenticator()
+    elif authenticator == "external":
+        current_authenticator = ExternalAuthenticator()
     else:
         raise ValueError(f"Unknown authenticator: {authenticator}")
-
-    with app.app_context():
-        current_authenticator.initialize(app)
 
 
 def authenticate(credentials: dict[str, str]) -> tuple[dict[str, Any], int]:
@@ -72,14 +72,12 @@ def auth_required(permissions: list | str):
             error = ({"error": "not authorized"}, 401)
             permissions_set = set(permissions) if isinstance(permissions, list) else {permissions}
 
-            # do we have a JWT token?
             try:
                 verify_jwt_in_request()
-            except JWTExtendedException:
-                logger.store_auth_error_activity("Missing JWT")
+            except JWTExtendedException as ex:
+                logger.exception(str(ex))
                 return error
 
-            # does it encode an identity?
             identity = get_jwt_identity()
             if not identity:
                 logger.store_auth_error_activity(f"Missing identity in JWT: {get_jwt()}")

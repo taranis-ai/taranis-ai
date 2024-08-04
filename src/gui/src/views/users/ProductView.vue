@@ -37,7 +37,7 @@ export default {
     const edit = ref(true)
     const readyToRender = ref(false)
 
-    const loadProducts = async () => {
+    const loadProduct = async () => {
       console.debug('Loading product', props.productId)
       if (props.productId) {
         const response = await getProduct(props.productId)
@@ -52,7 +52,7 @@ export default {
     }
 
     onBeforeMount(async () => {
-      product.value = await loadProducts()
+      product.value = await loadProduct()
       readyToRender.value = true
     })
 

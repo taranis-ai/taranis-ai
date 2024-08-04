@@ -30,6 +30,21 @@
       <v-icon icon="mdi-magnify" />
     </v-btn>
 
+    <v-tooltip v-if="detailView || reportView" text="edit story">
+      <template #activator="{ props }">
+        <v-btn
+          v-ripple="false"
+          color="#919191"
+          variant="tonal"
+          class="item-action-btn"
+          density="compact"
+          v-bind="props"
+          icon="mdi-book-edit-outline"
+          :to="`/story/${story.id}/edit`"
+        />
+      </template>
+    </v-tooltip>
+
     <v-btn
       v-if="!reportView && (!compactView || openSummary)"
       v-ripple="false"
@@ -60,7 +75,7 @@
     </v-tooltip>
 
     <v-tooltip
-      v-if="!reportView"
+      v-if="!reportView && (!compactView || openSummary)"
       :text="story.read ? 'mark as unread' : 'mark as read'"
     >
       <template #activator="{ props }">
@@ -157,20 +172,6 @@
           />
         </template>
       </v-tooltip>
-      <v-tooltip v-if="detailView" text="edit story">
-        <template #activator="{ props }">
-          <v-btn
-            v-ripple="false"
-            color="#919191"
-            variant="tonal"
-            class="item-action-btn"
-            density="compact"
-            v-bind="props"
-            icon="mdi-book-edit-outline"
-            :to="`/story/${story.id}/edit`"
-          />
-        </template>
-      </v-tooltip>
       <v-tooltip text="delete">
         <template #activator="{ props }">
           <v-btn
@@ -200,7 +201,7 @@
         />
       </template>
 
-      <v-list dense>
+      <v-list density="compact" width="56px">
         <v-list-item v-if="compactView" :to="'/story/' + story.id">
           <v-tooltip
             activator="parent"
@@ -217,12 +218,11 @@
           <v-icon icon="mdi-google-circles-communities" />
         </v-list-item>
         <v-list-item
-          v-if="detailView"
+          v-if="detailView || compactView"
           :prepend-icon="
             !story.read ? 'mdi-eye-outline' : 'mdi-eye-off-outline'
           "
           class="hidden-xl-only"
-          title="mark as read"
           @click.stop="markAsRead()"
         />
         <v-list-item @click.stop="markAsImportant()">
@@ -292,7 +292,7 @@
           />
         </v-list-item>
         <v-list-item :to="`/enter/${story.id}`">
-          <v-icon icon="mdi-pencil" title="create news item" />
+          <v-icon icon="mdi-pencil-outline" title="create news item" />
           <v-tooltip
             activator="parent"
             location="start"
@@ -441,7 +441,7 @@ export default {
 }
 </script>
 
-<style lang="scss">
+<style lang="scss" scoped>
 .item-action-btn {
   padding: 8px !important;
   margin: 1px !important;

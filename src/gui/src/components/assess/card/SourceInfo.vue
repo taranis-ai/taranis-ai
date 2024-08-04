@@ -1,18 +1,14 @@
 <template>
-  <v-tooltip>
-    <template #activator="{ props }">
-      <img
-        v-if="icon"
-        v-bind="props"
-        class="ml-4"
-        :src="'data:image/png;base64,' + icon"
-        :alt="source?.name"
-        height="32"
-      />
-      <v-icon v-else v-bind="props" :icon="typeIcon" />
-    </template>
-    <span>{{ source?.name }}</span>
-  </v-tooltip>
+  <div class="article-source-icon">
+    <v-tooltip activator="parent" class="mr-5" :text="source?.name" />
+    <img
+      v-if="icon"
+      :src="'data:image/png;base64,' + icon"
+      :alt="source?.name"
+      height="30"
+    />
+    <v-icon v-else :icon="typeIcon" />
+  </div>
 </template>
 
 <script>
@@ -25,10 +21,6 @@ export default {
     newsItem: {
       type: Object,
       required: true
-    },
-    compactView: {
-      type: Boolean,
-      default: false
     }
   },
   setup(props) {
@@ -58,3 +50,14 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+.article-source-icon {
+  width: 30px;
+  height: 30px;
+  max-width: 30px;
+  max-height: 30px;
+  overflow: hidden;
+  border-radius: 7px;
+}
+</style>

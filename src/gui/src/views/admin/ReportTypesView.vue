@@ -1,26 +1,35 @@
 <template>
-  <v-container fluid>
-    <data-table
-      v-model:items="report_item_types.items"
-      :add-button="true"
-      :header-filter="['id', 'title', 'description', 'actions']"
-      @delete-item="deleteItem"
-      @edit-item="editItem"
-      @add-item="addItem"
-      @update-items="updateData"
-      @selection-change="selectionChange"
-    >
-      <template #titlebar>
-        <ImportExport @import="importData" @export="exportData" />
-      </template>
-    </data-table>
-    <report-type-form
-      v-if="showForm"
-      :report-type-data="formData"
-      :attributes="attributes.items"
-      :edit="edit"
-      @updated="formUpdated"
-    />
+  <v-container fluid class="pa-2">
+    <v-row no-gutters>
+      <v-col class="pa-2 mt-2">
+        <h1>Report Types Settings</h1>
+      </v-col>
+    </v-row>
+    <v-row no-gutters>
+      <v-col class="pa-2">
+        <data-table
+          v-model:items="report_item_types.items"
+          :add-button="true"
+          :header-filter="['id', 'title', 'description', 'actions']"
+          @delete-item="deleteItem"
+          @edit-item="editItem"
+          @add-item="addItem"
+          @update-items="updateData"
+          @selection-change="selectionChange"
+        >
+          <template #titlebar>
+            <ImportExport @import="importData" @export="exportData" />
+          </template>
+        </data-table>
+        <report-type-form
+          v-if="showForm"
+          :report-type-data="formData"
+          :attributes="attributes.items"
+          :edit="edit"
+          @updated="formUpdated"
+        />
+      </v-col>
+    </v-row>
   </v-container>
 </template>
 

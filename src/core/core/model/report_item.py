@@ -17,6 +17,7 @@ from core.model.user import User
 from core.log import logger
 from core.model.attribute import AttributeType, AttributeEnum
 from core.service.role_based_access import RBACQuery, RoleBasedAccessService
+from core.service.news_item_tag import NewsItemTagService
 
 
 class ReportItem(BaseModel):
@@ -94,7 +95,7 @@ class ReportItem(BaseModel):
 
     def to_dict(self):
         data = super().to_dict()
-        data["stories"] = len(self.stories)
+        data["stories"] = [story.id for story in self.stories]
         return data
 
     def get_attribute_dict(self) -> dict[str, dict[str, dict[str, Any]]]:
@@ -178,7 +179,7 @@ class ReportItem(BaseModel):
                     "title": attribute_group_item.title,
                     "description": attribute_group_item.description,
                     "index": attribute_group_item.index,
-                    "multiple": attribute_group_item.multiple,
+                    "required": attribute_group_item.required,
                     "attribute_type": attribute_group_item.attribute.type,
                     "group_title": attribute_group.title,
                     "render_data": {},
@@ -256,8 +257,7 @@ class ReportItem(BaseModel):
 
     @classmethod
     def get_report_item_and_check_permission(cls, report_id: str, user: User) -> tuple[Optional["ReportItem"], dict, int]:
-        report_item = cls.get(report_id)
-        if not report_item:
+        if not (report_item := cls.get(report_id)):
             return None, {"error": "Report Item not Found"}, 404
 
         if not report_item.allowed_with_acl(user, True):
@@ -266,16 +266,19 @@ class ReportItem(BaseModel):
         return report_item, {}, 200
 
     @classmethod
-    def add_stories(cls, report_id: str, item_ids: list[int], user: User) -> tuple[dict, int]:
+    def add_stories(cls, report_id: str, story_ids: list[str], user: User) -> tuple[dict, int]:
         report_item, err, status = cls.get_report_item_and_check_permission(report_id, user)
         if err or not report_item:
             return err, status
 
-        items = Story.get_bulk(item_ids)
-        report_item.stories.extend(items)
+        stories = Story.get_bulk(story_ids)
+        report_item.stories.extend(stories)
         db.session.commit()
 
-        return {"message": f"Successfully added {item_ids} to {report_item.id}"}, 200
+        for story in stories:
+            NewsItemTagService.add_report_tag(story, report_item)
+
+        return {"message": f"Successfully added {story_ids} to {report_item.id}"}, 200
 
     @classmethod
     def remove_stories(cls, report_id: str, story_ids: list[int], user: User) -> tuple[dict, int]:
@@ -283,8 +286,11 @@ class ReportItem(BaseModel):
         if err or not report_item:
             return err, status
 
-        items = [Story.get(item_id) for item_id in story_ids]
-        report_item.stories = [item for item in report_item.stories if item not in items]
+        stories_to_remove = [story for story in (Story.get(item_id) for item_id in story_ids) if story is not None]
+        for story in stories_to_remove:
+            NewsItemTagService.remove_report_tag(story, report_item.id)
+
+        report_item.stories = [story for story in report_item.stories if story not in stories_to_remove]
         db.session.commit()
 
         return {"message": f"Successfully removed {story_ids} from {report_item.id}"}, 200
@@ -292,6 +298,26 @@ class ReportItem(BaseModel):
     @classmethod
     def set_stories(cls, report_id: str, story_ids: list, user: User) -> tuple[dict, int]:
         return cls.update_report_item(report_id, {"story_ids": story_ids}, user)
+
+    def update_stories(self, story_ids: list[str]):
+        new_stories = Story.get_bulk(story_ids)
+        new_story_ids_set = set(story_ids)
+
+        existing_story_ids_set = {story.id for story in self.stories}
+
+        # Identify stories to add and remove
+        stories_to_add = [story for story in new_stories if story.id not in existing_story_ids_set]
+        stories_to_remove = [story for story in self.stories if story.id not in new_story_ids_set]
+
+        # Add new stories and their tags
+        for story in stories_to_add:
+            NewsItemTagService.add_report_tag(story, self)
+            self.stories.append(story)
+
+        # Remove old stories and their tags
+        for story in stories_to_remove:
+            NewsItemTagService.remove_report_tag(story, self.id)
+            self.stories.remove(story)
 
     @classmethod
     def update_report_item(cls, report_id: str, data: dict, user: User) -> tuple[dict, int]:
@@ -311,7 +337,7 @@ class ReportItem(BaseModel):
 
         story_ids = data.get("story_ids")
         if story_ids is not None:
-            report_item.stories = Story.get_bulk(story_ids)
+            report_item.update_stories(story_ids)
 
         db.session.commit()
 
@@ -345,7 +371,7 @@ class ReportItemAttribute(BaseModel):
     description: Mapped[str] = db.Column(db.String())
 
     index: Mapped[int] = db.Column(db.Integer)
-    multiple: Mapped[bool] = db.Column(db.Boolean, default=False)
+    required: Mapped[bool] = db.Column(db.Boolean, default=False)
     attribute_type: Mapped[AttributeType] = db.Column(db.Enum(AttributeType))
     group_title: Mapped[str] = db.Column(db.String())
     render_data = db.Column(db.JSON)
@@ -359,7 +385,7 @@ class ReportItemAttribute(BaseModel):
         title=None,
         description=None,
         index=None,
-        multiple=None,
+        required=None,
         attribute_type=None,
         group_title=None,
         render_data=None,
@@ -371,7 +397,7 @@ class ReportItemAttribute(BaseModel):
         self.title = title or ""
         self.description = description or ""
         self.index = index or 0
-        self.multiple = multiple or False
+        self.required = required or False
         if attribute_type and attribute_type in AttributeType:
             self.attribute_type = attribute_type
         self.render_data = render_data
@@ -379,7 +405,6 @@ class ReportItemAttribute(BaseModel):
 
     @classmethod
     def update_values_from_report(cls, attribute_data):
-        # TODO: Add functionality to update multiple attributes at once, if muliple is True
         for attribute_dicts in attribute_data.values():
             for attribute_id, data in attribute_dicts.items():
                 if report_item_attribute := cls.get(attribute_id):
@@ -401,7 +426,7 @@ class ReportItemAttribute(BaseModel):
             "title": self.title,
             "description": self.description,
             "index": self.index,
-            "multiple": self.multiple,
+            "required": self.required,
             "type": self.attribute_type.name,
             "group_title": self.group_title,
             "render_data": self.render_data,
@@ -416,7 +441,7 @@ class ReportItemAttribute(BaseModel):
             title=self.title,
             description=self.description,
             index=self.index,
-            multiple=self.multiple,
+            required=self.required,
             attribute_type=self.attribute_type,
             group_title=self.group_title,
             render_data=self.render_data,

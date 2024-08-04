@@ -22,7 +22,11 @@
           item-title="name"
         />
 
-        <v-select v-else-if="ui === 'select'" :label="$t(parameter.name)" />
+        <v-select
+          v-else-if="ui === 'select'"
+          :label="$t(parameter.name)"
+          menu-icon="mdi-chevron-down"
+        />
 
         <v-textarea
           v-else-if="ui === 'textarea'"

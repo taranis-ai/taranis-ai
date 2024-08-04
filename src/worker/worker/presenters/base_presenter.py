@@ -12,14 +12,10 @@ class BasePresenter:
         logger.log_debug_trace("[{0}] {1}".format(self.name, error))
 
     def generate(self, product, template) -> dict[str, bytes | str]:
-        try:
-            env = jinja2.Environment(autoescape=False)
-            tmpl = env.from_string(template)
-            product["current_date"] = datetime.datetime.now().strftime("%Y-%m-%d")
+        env = jinja2.Environment(autoescape=False)
+        tmpl = env.from_string(template)
+        product["current_date"] = datetime.datetime.now().strftime("%Y-%m-%d")
 
-            output_text = tmpl.render(data=product).encode("utf-8")
+        output_text = tmpl.render(data=product).encode("utf-8")
 
-            return {"mime_type": product["mime_type"], "data": output_text}
-        except Exception as error:
-            BasePresenter.print_exception(self, error)
-            return {"error": str(error)}
+        return {"mime_type": product["mime_type"], "data": output_text}

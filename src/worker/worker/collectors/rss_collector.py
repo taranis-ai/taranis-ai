@@ -92,7 +92,7 @@ class RSSCollector(BaseWebCollector):
 
         return self.xpath_extraction(html_content, xpath)
 
-    def parse_feed_entry(self, feed_entry: feedparser.FeedParserDict, source) -> dict[str, str | datetime.datetime | list]:
+    def parse_feed_entry(self, feed_entry: feedparser.FeedParserDict, source) -> NewsItem:
         author: str = str(feed_entry.get("author", ""))
         title: str = str(feed_entry.get("title", ""))
         description: str = str(feed_entry.get("description", ""))
@@ -120,18 +120,19 @@ class RSSCollector(BaseWebCollector):
         for_hash: str = author + title + self.clean_url(link)
 
         return NewsItem(
-            source_id=source["id"],
+            osint_source_id=source["id"],
             hash=hashlib.sha256(for_hash.encode()).hexdigest(),
             author=author,
             title=title,
             content=content,
             web_url=link,
             published_date=published,
-        ).to_dict()
+            language=source.get("language", ""),
+            review=source.get("review", ""),
+        )
 
     # TODO: This function is renamed because of inheritance issues. Notice that @feed is/was not used in the function.
     def get_last_modified_feed(self, feed_content: requests.Response, feed: feedparser.FeedParserDict) -> datetime.datetime | None:
-        feed = feedparser.parse(feed_content.content)
         if last_modified := feed_content.headers.get("Last-Modified"):
             return dateparser.parse(last_modified, ignoretz=True)
         elif last_modified := feed.get(
@@ -157,11 +158,14 @@ class RSSCollector(BaseWebCollector):
         if not r.ok:
             return None
 
+        if "image" not in r.headers.get("content-type", ""):
+            return None
+
         icon_content = {"file": (r.headers.get("content-disposition", "file"), r.content)}
         self.core_api.update_osint_source_icon(source_id, icon_content)
         return None
 
-    def parse_feed(self, feed_entries: list[feedparser.FeedParserDict], source) -> dict[str, str | datetime.datetime | list]:
+    def parse_feed(self, feed_entries: list[feedparser.FeedParserDict], source) -> list[NewsItem]:
         news_items = []
         for feed_entry in feed_entries:
             try:
@@ -183,7 +187,7 @@ class RSSCollector(BaseWebCollector):
 
     def handle_digests(self, feed_entries: list[feedparser.FeedParserDict]) -> list[dict] | str:
         self.split_digest_urls = self.get_digest_url_list(feed_entries)
-        logger.info(f"RSS-Feed {self.source_id} returned {len(self.split_digest_urls)} available URLs")
+        logger.info(f"RSS-Feed {self.osint_source_id} returned {len(self.split_digest_urls)} available URLs")
 
         return self.parse_digests()
 
@@ -214,7 +218,7 @@ class RSSCollector(BaseWebCollector):
 
         logger.info(f"RSS-Feed {source['id']} returned feed with {len(feed['entries'])} entries")
 
-        news_items = self.get_news_items(feed, source)
+        self.news_items = self.get_news_items(feed, source)
 
-        self.publish(news_items, source)
+        self.publish(self.news_items, source)
         return None

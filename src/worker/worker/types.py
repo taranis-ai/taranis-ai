@@ -11,20 +11,24 @@ class Product:
 class NewsItem:
     def __init__(
         self,
-        source_id: str,
+        osint_source_id: str,
         hash: str = "",
         author: str = "",
         title: str = "",
+        language: str = None,
+        review: str | None = None,
         content: str = "",
         web_url: str = "",
         published_date: datetime | None = None,
         collected_date: datetime = datetime.now(),
         attributes: list = None,
     ):
-        self.source_id = source_id
+        self.osint_source_id = osint_source_id
         self.hash = hash
         self.author = author
         self.title = title
+        self.language = language
+        self.review = review
         self.content = content
         self.web_url = web_url
         if not published_date:
@@ -34,7 +38,7 @@ class NewsItem:
         self.attributes = attributes or []
 
     def to_dict(self):
-        return {
+        data = {
             "hash": self.hash,
             "title": self.title,
             "source": self.web_url,
@@ -42,7 +46,11 @@ class NewsItem:
             "published": self.published_date,
             "author": self.author,
             "collected": self.collected_date,
+            "language": self.language,
             "content": self.content,
-            "osint_source_id": self.source_id,
+            "osint_source_id": self.osint_source_id,
             "attributes": self.attributes,
         }
+        if self.review is not None:
+            data["review"] = self.review
+        return data

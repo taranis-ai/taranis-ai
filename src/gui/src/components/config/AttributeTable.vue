@@ -52,8 +52,8 @@
               <v-row>
                 <v-col>
                   <v-checkbox
-                    v-model="edited_attribute.multiple"
-                    :label="$t('attribute.multiple')"
+                    v-model="edited_attribute.required"
+                    :label="$t('attribute.required')"
                   />
                 </v-col>
               </v-row>
@@ -93,13 +93,13 @@
     </v-toolbar>
 
     <v-data-table :headers="headers" :items="attribute_contents">
-      <template #item.actions="{ item }">
+      <template #item.actions="{ item, index }">
         <div class="d-inline-flex">
           <v-tooltip left>
             <template #activator="{ props }">
               <v-icon
                 v-bind="props"
-                icon="mdi-pencil"
+                icon="mdi-pencil-outline"
                 @click.stop="editItem(item)"
               />
             </template>
@@ -111,7 +111,7 @@
                 v-bind="props"
                 color="red"
                 icon="mdi-delete"
-                @click.stop="deleteItem(item)"
+                @click.stop="deleteItem(index)"
               />
             </template>
             <span>Delete</span>
@@ -157,7 +157,7 @@ export default {
       attribute_id: -1,
       title: '',
       description: '',
-      multiple: false,
+      required: false,
       attribute: []
     })
     const default_attribute = ref({
@@ -165,11 +165,11 @@ export default {
       attribute_id: -1,
       title: '',
       description: '',
-      multiple: false,
+      required: false,
       attribute: []
     })
 
-    const headers = computed(() => [
+    const headers = [
       {
         title: 'Type',
         key: 'attribute_id',
@@ -178,9 +178,9 @@ export default {
       },
       { title: 'Name', key: 'title', sortable: false },
       { title: 'Description', key: 'description', sortable: false },
-      { title: 'Multiple', key: 'multiple', sortable: false },
+      { title: 'Required', key: 'required', sortable: false },
       { title: 'Actions', key: 'actions', align: 'right', sortable: false }
-    ])
+    ]
 
     const formTitle = computed(() =>
       edited_index.value === -1 ? 'Add Attribute' : 'Edit Attribute'
@@ -213,8 +213,7 @@ export default {
       close()
     }
 
-    const deleteItem = (item) => {
-      const index = attribute_contents.value.indexOf(item)
+    const deleteItem = (index) => {
       attribute_contents.value.splice(index, 1)
     }
 
