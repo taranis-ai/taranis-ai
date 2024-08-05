@@ -1,13 +1,6 @@
 from celery import Celery
 from flask import Flask
-import requests
-import contextlib
-from requests.auth import HTTPBasicAuth
-
 from core.log import logger
-from core.model.queue import ScheduleEntry
-from kombu.exceptions import OperationalError
-from kombu import Queue
 
 queue_manager: "QueueManager"
 periodic_tasks = [
@@ -19,10 +12,6 @@ class QueueManager:
     def __init__(self, app: Flask):
         self.celery: Celery = self.init_app(app)
         self.error: str = ""
-        self.mgmt_api = f"http://{app.config['QUEUE_BROKER_HOST']}:15672/api/"
-        self.queue_user = app.config["QUEUE_BROKER_USER"]
-        self.queue_password = app.config["QUEUE_BROKER_PASSWORD"]
-        self.queue_names = ["misc", "bots", "celery", "collectors", "presenters", "publishers"]
 
     def init_app(self, app: Flask):
         celery_app = Celery(app.name)
@@ -30,25 +19,6 @@ class QueueManager:
         celery_app.set_default()
         app.extensions["celery"] = celery_app
         return celery_app
-
-    def post_init(self):
-        self.clear_queues()
-        self.add_periodic_tasks()
-        self.update_task_queue_from_osint_sources()
-        self.schedule_word_list_gathering()
-        logger.debug(f"{self.get_queued_tasks()=}")
-
-    def add_periodic_tasks(self):
-        for task in periodic_tasks:
-            ScheduleEntry.add_or_update(task)
-
-    def clear_queues(self):
-        with queue_manager.celery.connection() as conn:
-            for queue_name in set(self.queue_names):
-                with contextlib.suppress(Exception):
-                    queue = Queue(name=queue_name, channel=conn)
-                    queue.purge()
-            logger.info("All queues cleared")
 
     def update_task_queue_from_osint_sources(self):
         from core.model.osint_source import OSINTSource
@@ -61,17 +31,6 @@ class QueueManager:
         word_lists = WordList.get_all_empty() or []
         for word_list in word_lists:
             self.celery.send_task("gather_word_list", args=[word_list.id], task_id=f"gather_word_list_{word_list.id}", queue="misc")
-
-    def get_queued_tasks(self):
-        if self.error:
-            return {"error": "QueueManager not initialized"}, 500
-        response = requests.get(f"{self.mgmt_api}queues/", auth=HTTPBasicAuth(self.queue_user, self.queue_password), timeout=5)
-        if not response.ok:
-            logger.error(response.text)
-            return {"error": "Could not reach rabbitmq"}, 500
-        tasks = [{key: d[key] for key in ("messages", "name") if key in d} for d in response.json()]
-        logger.debug(f"Queued tasks: {tasks}")
-        return tasks, 200
 
     def ping_workers(self):
         if self.error:
@@ -184,16 +143,3 @@ class QueueManager:
 def initialize(app: Flask, initial_setup: bool = True):
     global queue_manager
     queue_manager = QueueManager(app)
-    try:
-        with queue_manager.celery.connection() as conn:
-            conn.ensure_connection(max_retries=3)
-            queue_manager.error = ""
-        if initial_setup:
-            logger.info(f"QueueManager initialized: {queue_manager.celery.broker_connection().as_uri()}")
-            queue_manager.post_init()
-    except OperationalError:
-        logger.error("Could not reach rabbitmq")
-        queue_manager.error = "Could not reach rabbitmq"
-    except Exception:
-        logger.exception()
-        queue_manager.error = "Could not reach rabbitmq"

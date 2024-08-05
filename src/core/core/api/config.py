@@ -343,7 +343,7 @@ class QueueStatus(MethodView):
 class QueueTasks(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
     def get(self):
-        return queue_manager.queue_manager.get_queued_tasks()
+        return "Not implemented", 501
 
 
 class QueueSchedule(MethodView):

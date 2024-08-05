@@ -1,9 +1,3 @@
-# from worker import CeleryWorker
+from worker import TaranisWorker
 
-# cw = CeleryWorker()
-# celery = cw.app
-
-from worker import repo_info
-
-print("Starting prefect worker...")
-repo_info()
+tw = TaranisWorker()

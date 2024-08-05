@@ -4,7 +4,7 @@ from worker.config import Config
 from worker.core_api import CoreApi
 
 
-class CeleryWorker:
+class TaranisWorker:
     def __init__(self):
         celery_config = Config.CELERY
 
