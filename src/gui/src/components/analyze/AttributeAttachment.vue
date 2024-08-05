@@ -1,5 +1,11 @@
 <template>
-  <v-file-input v-model="input" :disabled="readOnly" :label="title" outlined />
+  <v-file-input
+    v-model="input"
+    :disabled="readOnly"
+    :label="title"
+    :rules="rules"
+    outlined
+  />
 </template>
 
 <script>
@@ -17,10 +23,13 @@ export default {
       type: String,
       default: 'TLP'
     },
-    readOnly: { type: Boolean, default: false }
+    readOnly: { type: Boolean, default: false },
+    required: { type: Boolean, default: false }
   },
   emits: ['update:modelValue'],
   setup(props, { emit }) {
+    const rules = [(v) => v.length > 0 || 'Required']
+
     const input = computed({
       get: () => {
         if (props.modelValue) {
@@ -50,7 +59,8 @@ export default {
     })
 
     return {
-      input
+      input,
+      rules
     }
   }
 }

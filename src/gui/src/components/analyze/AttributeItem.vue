@@ -6,6 +6,7 @@
       :readonly="readOnly"
       :label="attributeItem.title"
       :hint="attributeItem.description"
+      :rules="attributeItem.required ? [rules.required] : []"
     />
     <v-text-field
       v-if="attributeItem.type === 'STRING'"
@@ -13,6 +14,7 @@
       :readonly="readOnly"
       :label="attributeItem.title"
       :hint="attributeItem.description"
+      :rules="attributeItem.required ? [rules.required] : []"
     />
     <v-text-field
       v-if="attributeItem.type === 'NUMBER'"
@@ -21,12 +23,14 @@
       :label="attributeItem.title"
       type="number"
       :hint="attributeItem.description"
+      :rules="attributeItem.required ? [rules.required] : []"
     />
     <v-checkbox
       v-if="attributeItem.type === 'BOOLEAN'"
       v-model="input"
       :readonly="readOnly"
       :label="attributeItem.title"
+      :rules="attributeItem.required ? [rules.required] : []"
     />
     <v-select
       v-if="attributeItem.type === 'ENUM'"
@@ -36,6 +40,7 @@
       item-value="value"
       :items="attributeItem.render_data.attribute_enums"
       :label="attributeItem.title"
+      :rules="attributeItem.required ? [rules.required] : []"
       menu-icon="mdi-chevron-down"
     />
     <v-radio-group
@@ -43,6 +48,7 @@
       v-model="input"
       :disabled="readOnly"
       :label="attributeItem.title"
+      :rules="attributeItem.required ? [rules.required] : []"
     >
       <v-radio
         v-for="attr_enum in attributeItem.render_data.attribute_enums"
@@ -83,9 +89,11 @@
     <v-text-field
       v-if="attributeItem.type === 'CVE'"
       v-model="input"
-      :rules="[rules.cve]"
       :readonly="readOnly"
       :label="attributeItem.title"
+      :rules="
+        attributeItem.required ? [rules.required, rules.cve] : [rules.cve]
+      "
     />
     <v-text-field
       v-if="attributeItem.type === 'CVSS'"
@@ -109,6 +117,7 @@
       :readonly="readOnly"
       :label="attributeItem.title"
       :items="attributeItem.attribute_enums"
+      :rules="attributeItem.required ? [rules.required] : []"
       menu-icon="mdi-chevron-down"
     >
       <!-- TODO: Use MyAssets for Autocomplete -->
@@ -125,6 +134,7 @@
       v-model="input"
       :readonly="readOnly"
       :title="attributeItem.title"
+      :required="attributeItem.required"
     />
   </div>
 </template>
@@ -166,7 +176,8 @@ export default {
       cve: (val) =>
         val.match(/^$|CVE-\d{4}-\d{4,7}/)
           ? true
-          : 'Input is is not a CVE reference - CVE-YYYY-NNNN[NNN]'
+          : 'Input is is not a CVE reference - CVE-YYYY-NNNN[NNN]',
+      required: (v) => Boolean(v) || 'Required'
     })
 
     const input = computed({

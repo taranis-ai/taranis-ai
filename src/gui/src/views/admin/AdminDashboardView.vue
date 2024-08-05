@@ -2,7 +2,7 @@
   <v-container fluid class="pa-2">
     <v-row no-gutters>
       <v-col class="pa-2 mt-2">
-        <h1>Dashboard Settings</h1>
+        <h1>Admin Dashboard</h1>
       </v-col>
     </v-row>
     <v-row no-gutters>
@@ -123,7 +123,7 @@ import { notifyFailure } from '@/utils/helpers'
 import DashBoardCard from '@/components/common/DashBoardCard.vue'
 
 export default {
-  name: 'DashBoardConfig',
+  name: 'AdminDashboard',
   components: { DashBoardCard },
   setup() {
     const mainStore = useMainStore()

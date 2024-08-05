@@ -173,7 +173,7 @@ export const router = createRouter({
       alias: '/config',
       name: 'configDashboard',
       components: {
-        default: () => import('@/views/admin/DashBoardConfigView.vue'),
+        default: () => import('@/views/admin/AdminDashboardView.vue'),
         nav: () => import('@/views/nav/ConfigNav.vue')
       },
       meta: {

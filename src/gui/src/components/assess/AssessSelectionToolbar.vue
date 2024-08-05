@@ -41,12 +41,18 @@
             </v-btn>
             <v-btn
               v-if="showUnGroup"
-              text="ungroup"
               variant="outlined"
               prepend-icon="mdi-ungroup"
               class="ml-4"
               @click.stop="actionClicked('unGroup')"
-            />
+            >
+              <v-tooltip
+                activator="parent"
+                text="[ctrl+shift+u]"
+                location="top"
+              />
+              ungroup
+            </v-btn>
             <v-btn
               variant="outlined"
               prepend-icon="mdi-eye-check-outline"

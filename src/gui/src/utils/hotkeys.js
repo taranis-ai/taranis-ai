@@ -63,6 +63,9 @@ export function assessHotkeys() {
   useHotkeys('ctrl+shift+g', (event, handler) => {
     event.preventDefault()
     console.debug(`You pressed ${handler.key}`)
+    if (assessStore.storySelection.length === 1) {
+      assessStore.ungroupStories()
+    }
     if (assessStore.storySelection.length > 1) {
       assessStore.groupStories()
     }
