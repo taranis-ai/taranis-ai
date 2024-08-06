@@ -21,21 +21,6 @@ workers = [
         "type": "RSS_COLLECTOR",
     },
     {
-        "name": "EMAIL Collector",
-        "description": "Collector for gathering data from emails",
-        "parameters": [
-            {"parameter": "EMAIL_SERVER_TYPE"},
-            {"parameter": "EMAIL_SERVER_HOSTNAME"},
-            {"parameter": "EMAIL_SERVER_PORT", "type": "number"},
-            {"parameter": "EMAIL_USERNAME"},
-            {"parameter": "EMAIL_PASSWORD"},
-            {"parameter": "PROXY_SERVER"},
-            {"parameter": "TLP_LEVEL", "rules": "tlp"},
-            {"parameter": "REFRESH_INTERVAL"},
-        ],
-        "type": "EMAIL_COLLECTOR",
-    },
-    {
         "name": "Simple Web Collector",
         "description": "Collector for gathering data from a web site via python requests",
         "parameters": [
