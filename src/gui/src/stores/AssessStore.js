@@ -64,16 +64,11 @@ export const useAssessStore = defineStore(
       try {
         loading.value = true
         const storyFilter = useFilterStore().storyFilterQuery || ''
-        const mainStore = useMainStore()
         console.debug('Updating Stories with Filter', storyFilter)
         const response = await getStories(storyFilter)
         stories.value.items = response.data.items
         if (response.data.counts) {
           storyCounts.value = response.data.counts
-          mainStore.setItemCount(
-            response.data.counts.total_count,
-            response.data.items.length
-          )
           weekChartOptions.value.scales.y2.max =
             response.data.counts.biggest_story
         }
@@ -406,7 +401,7 @@ export const useAssessStore = defineStore(
   },
   {
     persist: {
-      paths: ['osint_sources', 'osint_source_groups', 'stories'],
+      paths: ['osint_sources', 'osint_source_groups', 'stories', 'storyCounts'],
       serializer: {
         deserialize: (value) => parse(value),
         serialize: (value) => stringify(value)

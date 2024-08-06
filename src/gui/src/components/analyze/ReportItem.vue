@@ -167,20 +167,19 @@ export default {
         ? Object.keys(report_item.value.attributes)
         : []
     )
-    const report_item_attributes = ref(
-      report_item.value.attributes
-        ? Object.values(report_item.value.attributes)
-        : []
-    )
     const required = ref([(v) => !!v || 'Required'])
     const { report_item_types, report_item_stories } = storeToRefs(store)
 
-    const used_story_ids = computed(() =>
-      report_item_attributes.value
+    const used_story_ids = computed(() => {
+      const report_item_attributes =
+        'Data' in report_item.value.attributes
+          ? Object.values(report_item.value.attributes.Data)
+          : []
+      return report_item_attributes
         .filter((item) => item.type === 'STORY')
         .map((item) => item.value.split(','))
         .flat()
-    )
+    })
 
     watch(
       () => used_story_ids.value,

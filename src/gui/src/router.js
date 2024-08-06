@@ -426,34 +426,25 @@ router.beforeEach((to) => {
   return true
 })
 
-router.afterEach((to) => {
+function updateFilterFromQuery(query, filterType) {
+  const filterStore = useFilterStore()
+  const cleanQuery = Object.fromEntries(
+    Object.entries(query).filter(([, v]) => v != null)
+  )
+  filterStore.setFilter(cleanQuery, filterType)
+}
+
+router.afterEach((to, from) => {
+  if (to.name === from.name) {
+    return
+  }
+
   if (to.meta.title) {
     document.title = `Taranis AI | ${to.meta.title}`
   } else {
     document.title = 'Taranis AI'
   }
-  if (to.name === 'assess') {
-    const filterStore = useFilterStore()
-    const query = Object.fromEntries(
-      Object.entries(to.query).filter(([, v]) => v != null)
-    )
-    filterStore.setFilter(query)
-    console.debug('assess with query', query)
-  }
-  if (to.name === 'analyze') {
-    const filterStore = useFilterStore()
-    const query = Object.fromEntries(
-      Object.entries(to.query).filter(([, v]) => v != null)
-    )
-    filterStore.setReportFilter(query)
-    console.debug('analyze with query', query)
-  }
-  if (to.name === 'publish') {
-    const filterStore = useFilterStore()
-    const query = Object.fromEntries(
-      Object.entries(to.query).filter(([, v]) => v != null)
-    )
-    filterStore.setProductFilter(query)
-    console.debug('publish with query', query)
+  if (['assess', 'analyze', 'publish'].includes(to.name)) {
+    updateFilterFromQuery(to.query, to.name)
   }
 })

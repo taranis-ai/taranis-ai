@@ -39,10 +39,9 @@
 </template>
 
 <script>
-import { ref, computed, onUnmounted } from 'vue'
+import { ref, computed } from 'vue'
 import DataTable from '@/components/common/DataTable.vue'
 import { usePublishStore } from '@/stores/PublishStore'
-import { useMainStore } from '@/stores/MainStore'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -54,7 +53,6 @@ export default {
     DataTable
   },
   setup() {
-    const mainStore = useMainStore()
     const publishStore = usePublishStore()
     const selected = ref([])
     const router = useRouter()
@@ -98,10 +96,6 @@ export default {
     function resetFilter() {
       filterStore.resetFilter()
     }
-
-    onUnmounted(() => {
-      mainStore.resetItemCount()
-    })
 
     return {
       selected,
