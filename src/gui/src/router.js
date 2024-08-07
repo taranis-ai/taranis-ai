@@ -1,7 +1,6 @@
 import { createWebHistory, createRouter } from 'vue-router'
 import Home from '@/views/Home.vue'
 import { useAuthStore } from './stores/AuthStore'
-import { useFilterStore } from './stores/FilterStore'
 import Permissions from '@/services/auth/permissions'
 
 export const router = createRouter({
@@ -426,34 +425,14 @@ router.beforeEach((to) => {
   return true
 })
 
-router.afterEach((to) => {
+router.afterEach((to, from) => {
+  if (to.name === from.name) {
+    return
+  }
+
   if (to.meta.title) {
     document.title = `Taranis AI | ${to.meta.title}`
   } else {
     document.title = 'Taranis AI'
-  }
-  if (to.name === 'assess') {
-    const filterStore = useFilterStore()
-    const query = Object.fromEntries(
-      Object.entries(to.query).filter(([, v]) => v != null)
-    )
-    filterStore.setFilter(query)
-    console.debug('assess with query', query)
-  }
-  if (to.name === 'analyze') {
-    const filterStore = useFilterStore()
-    const query = Object.fromEntries(
-      Object.entries(to.query).filter(([, v]) => v != null)
-    )
-    filterStore.setReportFilter(query)
-    console.debug('analyze with query', query)
-  }
-  if (to.name === 'publish') {
-    const filterStore = useFilterStore()
-    const query = Object.fromEntries(
-      Object.entries(to.query).filter(([, v]) => v != null)
-    )
-    filterStore.setProductFilter(query)
-    console.debug('publish with query', query)
   }
 })

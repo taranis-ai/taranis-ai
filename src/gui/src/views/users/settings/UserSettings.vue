@@ -39,6 +39,8 @@
             <v-switch
               v-model="sseStatus"
               :label="sseLabel"
+              :hint="sseConnectionState"
+              persistent-hint
               color="success"
               inset
             />
@@ -82,6 +84,7 @@
             />
           </v-col>
           <v-col cols="4" offset="1">
+            {{ $t('settings.end_of_shift') }}
             <VueDatePicker
               v-model="end_of_shift"
               time-picker
@@ -186,6 +189,7 @@ export default {
       infinite_scroll,
       end_of_shift,
       hotkeys,
+      sseConnectionState,
       saveUserSettings
     }
   }

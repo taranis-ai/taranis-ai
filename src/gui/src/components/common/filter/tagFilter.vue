@@ -81,9 +81,10 @@ export default {
       return tagIconFromType(tag_type)
     }
 
-    const querySelections = async (filter) => {
+    async function querySelections(filter) {
       loading.value = true
-      await getTags(filter).then((res) => {
+      try {
+        const res = await getTags(filter)
         available_tags.value = res.data
         if (typeof selected.value === 'string') {
           if (!available_tags.value.includes(selected.value)) {
@@ -99,7 +100,10 @@ export default {
           })
         }
         loading.value = false
-      })
+      } catch (error) {
+        console.error(error)
+        loading.value = false
+      }
     }
 
     onBeforeMount(async () => {

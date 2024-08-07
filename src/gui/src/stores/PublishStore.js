@@ -7,7 +7,6 @@ import {
   updateProduct
 } from '@/api/publish'
 import { useFilterStore } from './FilterStore'
-import { useMainStore } from './MainStore'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { notifyFailure, notifySuccess } from '@/utils/helpers'
@@ -93,12 +92,9 @@ export const usePublishStore = defineStore(
 
     async function updateProducts() {
       const filter = useFilterStore()
-      const mainStore = useMainStore()
       try {
         const response = await getAllProducts(filter.productFilterQuery)
         products.value = response.data
-        mainStore.itemCountTotal = products.value.total_count
-        mainStore.itemCountFiltered = products.value.items.length
       } catch (error) {
         products.value = { total_count: 0, items: [] }
         notifyFailure(error.message)
