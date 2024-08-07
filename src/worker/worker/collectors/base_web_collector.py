@@ -30,7 +30,7 @@ class BaseWebCollector(BaseCollector):
         self.set_proxies(source["parameters"].get("PROXY_SERVER", None))
         if user_agent := source["parameters"].get("USER_AGENT", None):
             self.headers = {"User-Agent": user_agent}
-        self.js_enabled = source["parameters"].get("ENABLE_JAVASCRIPT", False)
+        self.js_enabled = source["parameters"].get("IMPROVE_DS_WITH_JAVASCRIPT", "false")
 
         self.osint_source_id = source["id"]
 
@@ -61,10 +61,9 @@ class BaseWebCollector(BaseCollector):
         self.core_api.update_osint_source_icon(osint_source_id, icon_content)
         return None
 
-    def web_content_from_article(self, web_url: str) -> tuple[str, datetime.datetime | None]:
-        logger.warning(f"JavaScript is enabled: {self.js_enabled}")
-        if self.js_enabled == "true":
-            return asyncio.run(self.get_web_content_with_js(web_url)), None
+    def fetch_article_content(self, web_url: str, js_enabled: str = "false") -> tuple[str, datetime.datetime | None]:
+        if js_enabled == "true":
+            return asyncio.run(self.fetch_content_with_js(web_url)), None
         response = requests.get(web_url, headers=self.headers, proxies=self.proxies, timeout=60)
         if not response or not response.ok:
             return "", None
@@ -73,7 +72,7 @@ class BaseWebCollector(BaseCollector):
             return text, published_date
         return "", published_date
 
-    async def get_web_content_with_js(self, web_url: str) -> str:
+    async def fetch_content_with_js(self, web_url: str) -> str:
         logger.debug(f"Getting web content with JS for {web_url}")
 
         async with async_playwright() as pw:
@@ -132,7 +131,7 @@ class BaseWebCollector(BaseCollector):
         )
 
     def parse_web_content(self, web_url, xpath: str = "") -> dict[str, str | datetime.datetime | None]:
-        web_content, published_date = self.web_content_from_article(web_url)
+        web_content, published_date = self.fetch_article_content(web_url)
         content = ""
         if xpath:
             content = self.xpath_extraction(web_content, xpath)

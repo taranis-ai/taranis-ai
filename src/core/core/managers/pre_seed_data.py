@@ -30,12 +30,12 @@ workers = [
             {"parameter": "XPATH"},
             {"parameter": "TLP_LEVEL", "rules": "tlp"},
             {"parameter": "DIGEST_SPLITTING", "type": "switch"},
+            {"parameter": "IMPROVE_DS_WITH_JAVASCRIPT", "type": "switch"},
             {
                 "parameter": "DIGEST_SPLITTING_LIMIT",
                 "type": "number",
                 "rules": "digest_splitting_limit",
             },
-            {"parameter": "ENABLE_JAVASCRIPT", "type": "switch"},
         ],
         "type": "SIMPLE_WEB_COLLECTOR",
     },

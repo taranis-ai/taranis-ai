@@ -50,8 +50,9 @@ class SimpleWebCollector(BaseWebCollector):
     def handle_digests(self) -> list[NewsItem] | str:
         if not self.xpath:
             raise ValueError("No XPATH set for digest splitting")
-
-        web_content, _ = self.web_content_from_article(self.web_url)
+        
+        web_content, _ = self.fetch_article_content(self.web_url, js_enabled=self.js_enabled)
+        
         if content := self.xpath_extraction(web_content, self.xpath, False):
             self.split_digest_urls = self.get_urls(content)
             logger.info(f"Digest splitting {self.osint_source_id} returned {len(self.split_digest_urls)} available URLs")
