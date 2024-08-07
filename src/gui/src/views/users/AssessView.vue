@@ -58,11 +58,13 @@
 <script>
 import CardStory from '@/components/assess/CardStory.vue'
 import AssessSelectionToolbar from '@/components/assess/AssessSelectionToolbar.vue'
-import { defineComponent, computed, onDeactivated } from 'vue'
+import { defineComponent, computed, onDeactivated, onActivated } from 'vue'
 import { useAssessStore } from '@/stores/AssessStore'
 import { useFilterStore } from '@/stores/FilterStore'
 import { storeToRefs } from 'pinia'
 import { assessHotkeys } from '@/utils/hotkeys'
+import { updateFilterFromQuery } from '@/utils/helpers'
+import { useRoute } from 'vue-router'
 
 export default defineComponent({
   name: 'AssessView',
@@ -124,6 +126,10 @@ export default defineComponent({
 
     onDeactivated(() => {
       assessStore.clearSelection()
+    })
+
+    onActivated(() => {
+      updateFilterFromQuery(useRoute().query, 'assess')
     })
 
     return {

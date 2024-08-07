@@ -64,9 +64,10 @@
 import DataTable from '@/components/common/DataTable.vue'
 import { useAnalyzeStore } from '@/stores/AnalyzeStore'
 import { useFilterStore } from '@/stores/FilterStore'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, onBeforeMount } from 'vue'
+import { updateFilterFromQuery } from '@/utils/helpers'
 
 export default {
   name: 'AnalyzeView',
@@ -108,6 +109,10 @@ export default {
     function resetFilter() {
       filterStore.resetFilter()
     }
+
+    onBeforeMount(() => {
+      updateFilterFromQuery(useRoute().query, 'analyze')
+    })
 
     return {
       report_item_types,

@@ -39,13 +39,14 @@
 </template>
 
 <script>
-import { ref, computed } from 'vue'
+import { ref, computed, onBeforeMount } from 'vue'
 import DataTable from '@/components/common/DataTable.vue'
 import { usePublishStore } from '@/stores/PublishStore'
 import { storeToRefs } from 'pinia'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useFilterStore } from '@/stores/FilterStore'
+import { updateFilterFromQuery } from '@/utils/helpers'
 
 export default {
   name: 'ProductView',
@@ -96,6 +97,10 @@ export default {
     function resetFilter() {
       filterStore.resetFilter()
     }
+
+    onBeforeMount(() => {
+      updateFilterFromQuery(useRoute().query, 'publish')
+    })
 
     return {
       selected,

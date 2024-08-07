@@ -1,7 +1,6 @@
 import { createWebHistory, createRouter } from 'vue-router'
 import Home from '@/views/Home.vue'
 import { useAuthStore } from './stores/AuthStore'
-import { useFilterStore } from './stores/FilterStore'
 import Permissions from '@/services/auth/permissions'
 
 export const router = createRouter({
@@ -426,14 +425,6 @@ router.beforeEach((to) => {
   return true
 })
 
-function updateFilterFromQuery(query, filterType) {
-  const filterStore = useFilterStore()
-  const cleanQuery = Object.fromEntries(
-    Object.entries(query).filter(([, v]) => v != null)
-  )
-  filterStore.setFilter(cleanQuery, filterType)
-}
-
 router.afterEach((to, from) => {
   if (to.name === from.name) {
     return
@@ -443,8 +434,5 @@ router.afterEach((to, from) => {
     document.title = `Taranis AI | ${to.meta.title}`
   } else {
     document.title = 'Taranis AI'
-  }
-  if (['assess', 'analyze', 'publish'].includes(to.name)) {
-    updateFilterFromQuery(to.query, to.name)
   }
 })
