@@ -1,3 +1,4 @@
+import asyncio
 import contextlib
 import datetime
 import hashlib
@@ -7,6 +8,7 @@ import dateutil.parser as dateparser
 from urllib.parse import urlparse, urljoin
 from trafilatura import extract, extract_metadata
 from bs4 import BeautifulSoup
+from playwright.async_api import async_playwright
 
 from worker.log import logger
 from worker.collectors.base_collector import BaseCollector
@@ -28,6 +30,7 @@ class BaseWebCollector(BaseCollector):
         self.set_proxies(source["parameters"].get("PROXY_SERVER", None))
         if user_agent := source["parameters"].get("USER_AGENT", None):
             self.headers = {"User-Agent": user_agent}
+        self.js_enabled = source["parameters"].get("ENABLE_JAVASCRIPT", False)
 
         self.osint_source_id = source["id"]
 
@@ -59,6 +62,9 @@ class BaseWebCollector(BaseCollector):
         return None
 
     def web_content_from_article(self, web_url: str) -> tuple[str, datetime.datetime | None]:
+        logger.warning(f"JavaScript is enabled: {self.js_enabled}")
+        if self.js_enabled == "true":
+            return asyncio.run(self.get_web_content_with_js(web_url)), None
         response = requests.get(web_url, headers=self.headers, proxies=self.proxies, timeout=60)
         if not response or not response.ok:
             return "", None
@@ -66,6 +72,24 @@ class BaseWebCollector(BaseCollector):
         if text := response.text:
             return text, published_date
         return "", published_date
+
+    async def get_web_content_with_js(self, web_url: str) -> str:
+        logger.debug(f"Getting web content with JS for {web_url}")
+
+        async with async_playwright() as pw:
+            # TODO: Proxy and user agent support
+            if None in self.proxies.values():
+                browser = await pw.chromium.launch()
+            else:
+                browser = await pw.chromium.launch(
+                    proxy={"server": self.proxies["http"]},
+                )
+
+            page = await browser.new_page()
+            await page.goto(web_url)
+            await page.wait_for_timeout(5000)
+
+            return await page.content() or ""
 
     def xpath_extraction(self, html_content, xpath: str, get_content: bool = True) -> str | None:
         document = lxml.html.fromstring(html_content)
@@ -123,7 +147,15 @@ class BaseWebCollector(BaseCollector):
         return {"author": author, "title": title, "content": content, "published_date": published_date, "language": "", "review": ""}
 
     def create_news_item(
-        self, author: str, title: str, content: str, web_url: str, published_date: datetime.datetime | None, osint_source_id: str, language: str = None, review: str = None
+        self,
+        author: str,
+        title: str,
+        content: str,
+        web_url: str,
+        published_date: datetime.datetime | None,
+        osint_source_id: str,
+        language: str = None,
+        review: str = None,
     ) -> NewsItem:
         for_hash: str = author + title + self.clean_url(web_url)
 
@@ -141,9 +173,8 @@ class BaseWebCollector(BaseCollector):
 
     def get_urls(self, html_content: str) -> list:
         soup = BeautifulSoup(html_content, "html.parser")
-        urls = [a['href'] for a in soup.find_all("a", href=True)]
+        urls = [a["href"] for a in soup.find_all("a", href=True)]
         return [urljoin(self.web_url, url) for url in urls]
-
 
     def parse_digests(self) -> list[NewsItem] | str:
         news_items = []

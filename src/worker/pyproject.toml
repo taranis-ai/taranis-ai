@@ -19,12 +19,14 @@ dependencies = [
     "python-dotenv",
     "pydantic-settings",
     "requests",
+    
     # Collector
     "beautifulsoup4",
     "trafilatura",
     "feedparser",
     "pyopenssl",
     "lxml",
+    "playwright",
 
     # Publisher
     "pymisp",
