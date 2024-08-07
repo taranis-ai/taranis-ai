@@ -120,8 +120,8 @@ class StoryTags(MethodView):
             min_size = int(request.args.get("min_size", default_min_size))
             filter_args = {"limit": limit, "offset": offset, "search": search, "min_size": min_size}
             return news_item_tag.NewsItemTag.get_filtered_tags(filter_args)
-        except Exception as ex:
-            logger.log_debug(ex)
+        except Exception:
+            logger.exception()
             return {"error": "Failed to get Tags"}, 400
 
 
@@ -134,8 +134,8 @@ class StoryTagList(MethodView):
             offset = min(int(request.args.get("offset", 0)), (2**31) - 1)
             filter_args = {"limit": limit, "offset": offset, "search": search}
             return news_item_tag.NewsItemTag.get_list(filter_args)
-        except Exception as ex:
-            logger.log_debug(ex)
+        except Exception:
+            logger.exception()
             return {"error": "Failed to get Tags"}, 400
 
 

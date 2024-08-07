@@ -354,7 +354,7 @@ class QueueSchedule(MethodView):
                 return [sched.to_dict() for sched in schedules], 200
             return {"error": "No schedules found"}, 404
         except Exception:
-            logger.log_debug_trace()
+            logger.exception()
 
 
 class OSINTSources(MethodView):

@@ -31,7 +31,7 @@ class SummaryBot(BaseBot):
                 if summary := self.predict_summary(content_to_summarize[: self.summary_threshold]):
                     self.core_api.update_story_summary(story["id"], summary)
             except Exception:
-                logger.log_debug_trace(f"Could not generate summary for {story['id']}")
+                logger.exception(f"Could not generate summary for {story['id']}")
                 continue
 
             logger.debug(f"Created summary for : {story['id']}")

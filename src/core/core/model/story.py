@@ -603,7 +603,7 @@ class Story(BaseModel):
             db.session.commit()
             return {"message": "success"}, 200
         except Exception as e:
-            logger.log_debug_trace("Reset News Item Tags Failed")
+            logger.exception("Reset News Item Tags Failed")
             return {"error": str(e)}, 500
 
     @classmethod
@@ -627,7 +627,7 @@ class Story(BaseModel):
             db.session.commit()
             return {"message": f"Successfully updated story: {story_id}, with {len(tags)} new tags"}, 200
         except Exception as e:
-            logger.log_debug_trace("Update News Item Tags Failed")
+            logger.exception("Update News Item Tags Failed")
             return {"error": str(e)}, 500
 
     @classmethod
@@ -656,7 +656,7 @@ class Story(BaseModel):
             db.session.commit()
             return {"message": "success"}, 200
         except Exception:
-            logger.log_debug_trace("Grouping Stories Failed")
+            logger.exception("Grouping Stories Failed")
             return {"error": "grouping failed"}, 500
 
     @classmethod
@@ -733,7 +733,7 @@ class Story(BaseModel):
             cls.update_stories(processed_stories)
             return {"message": "success"}, 200
         except Exception:
-            logger.log_debug_trace("Grouping News Item stories Failed")
+            logger.exception("Grouping News Item stories Failed")
             return {"error": "ungroup failed"}, 500
 
     @classmethod

@@ -103,7 +103,7 @@ class WebCollector(BaseCollector):
         """extracts list of elements from the headless browser by selector"""
 
         prefix, selector = WebCollector.__get_prefix_and_selector(element_selector)
-        # logger.log_debug(driver.page_source)
+        # logger.debug(driver.page_source)
 
         elements = None
         if prefix == "id":
@@ -285,7 +285,7 @@ class WebCollector(BaseCollector):
 
     def __get_headless_driver_chrome(self):
         """Initializes and returns Chrome driver"""
-        logger.log_debug("Initializing Chrome driver...")
+        logger.debug("Initializing Chrome driver...")
 
         chrome_driver_executable = os.environ.get("SELENIUM_CHROME_DRIVER_PATH", "/usr/bin/chromedriver")
 
@@ -317,12 +317,12 @@ class WebCollector(BaseCollector):
         else:
             driver = webdriver.Chrome(executable_path=chrome_driver_executable, options=chrome_options)
 
-        logger.log_debug("Chrome driver initialized.")
+        logger.debug("Chrome driver initialized.")
         return driver
 
     def __get_headless_driver_firefox(self):
         """Initializes and returns Firefox driver"""
-        logger.log_debug("Initializing Firefox driver...")
+        logger.debug("Initializing Firefox driver...")
 
         firefox_driver_executable = os.environ.get("SELENIUM_FIREFOX_DRIVER_PATH", "/usr/local/bin/geckodriver")
 
@@ -374,7 +374,7 @@ class WebCollector(BaseCollector):
             capabilities=firefox_capabilities,
         )
 
-        logger.log_debug("Firefox driver initialized.")
+        logger.debug("Firefox driver initialized.")
         return driver
 
     def __get_headless_driver(self):
@@ -388,7 +388,7 @@ class WebCollector(BaseCollector):
             browser.implicitly_wait(15)  # how long to wait for elements when selector doesn't match
             return browser
         except Exception:
-            logger.log_debug(traceback.format_exc())
+            logger.debug(traceback.format_exc())
             return None
 
     def __dispose_of_headless_driver(self, driver):
@@ -459,7 +459,7 @@ class WebCollector(BaseCollector):
         except Exception:
             logger.log_collector_activity("web", self.source["id"], "Error obtaining title page")
             self.__dispose_of_headless_driver(browser)
-            logger.log_debug(traceback.format_exc())
+            logger.debug(traceback.format_exc())
             return False, "Error obtaining title page", 0, 0
 
         # if there is a popup selector, click on it!
@@ -518,7 +518,7 @@ class WebCollector(BaseCollector):
                     break
             except Exception:
                 logger.log_collector_activity("web", self.source["id"], "Error during page crawl (exception)")
-                logger.log_debug(traceback.format_exc())
+                logger.debug(traceback.format_exc())
                 break
 
             if page >= self.pagination_limit or not self.selectors["next_page"]:
@@ -594,7 +594,7 @@ class WebCollector(BaseCollector):
                     logger.log_collector_activity("web", self.source["id"], "Failed to parse an article")
             except Exception:
                 logger.log_collector_activity("web", self.source["id"], "Failed to parse an article (exception)")
-                logger.log_debug(traceback.format_exc())
+                logger.debug(traceback.format_exc())
 
             if len(browser.window_handles) == 1:
                 back_clicks = 1
@@ -663,18 +663,14 @@ class WebCollector(BaseCollector):
             published_date=published,
             collected_date=datetime.datetime.now(),
             review=article_description,
-            attributes=[]
+            attributes=[],
         )
 
         if self.selectors["additional_id"]:
             value = self.__find_element_text_by(browser, self.selectors["additional_id"])
             if value:
-                news_item.attributes.append({
-                    "id": uuid.uuid4(),
-                    "key": "Additional_ID",
-                    "value": value,
-                    "binary_mime_type": "",
-                    "binary_value": ""
-                })
+                news_item.attributes.append(
+                    {"id": uuid.uuid4(), "key": "Additional_ID", "value": value, "binary_mime_type": "", "binary_value": ""}
+                )
 
         return news_item
