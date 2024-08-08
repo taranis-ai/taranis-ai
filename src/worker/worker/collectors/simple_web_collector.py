@@ -1,4 +1,3 @@
-import asyncio
 import requests
 import logging
 
@@ -29,10 +28,6 @@ class SimpleWebCollector(BaseWebCollector):
             logger.error("No WEB_URL set")
             return {"error": "No WEB_URL set"}
 
-        self.digest_splitting = source["parameters"].get("DIGEST_SPLITTING", "false")
-        self.digest_splitting_limit = int(source["parameters"].get("DIGEST_SPLITTING_LIMIT", 30))
-        self.xpath = source["parameters"].get("XPATH", "")
-
     def collect(self, source, manual: bool = False):
         self.parse_source(source)
         logger.info(f"Website {source['id']} Starting collector for url: {self.web_url}")
@@ -55,7 +50,7 @@ class SimpleWebCollector(BaseWebCollector):
 
         web_content, _ = self.fetch_article_content(self.web_url, js_enabled=self.js_digest_split)
 
-        if content := self.xpath_extraction(web_content, self.xpath, False):
+        if content := self.xpath_extraction(web_content, False):
             self.split_digest_urls = self.get_urls(content)
             logger.info(f"Digest splitting {self.osint_source_id} returned {len(self.split_digest_urls)} available URLs")
 
@@ -67,7 +62,7 @@ class SimpleWebCollector(BaseWebCollector):
         self.start_playwright_if_needed()
         if self.digest_splitting == "true":
             return self.handle_digests()
-        news_items = [self.news_item_from_article(self.web_url, self.xpath)]
+        news_items = [self.news_item_from_article(self.web_url)]
         self.stop_playwright_if_needed()
         return news_items
 

@@ -5,7 +5,6 @@ import requests
 import logging
 from urllib.parse import urlparse
 import dateutil.parser as dateparser
-from trafilatura import extract
 
 from worker.collectors.base_web_collector import BaseWebCollector
 from worker.log import logger
@@ -24,8 +23,7 @@ class RSSCollector(BaseWebCollector):
         self.feed_url = ""
         self.feed_content = None
         self.last_modified = None
-        self.digest_splitting_limit = None
-        self.split_digest_urls = []
+
         logger_trafilatura = logging.getLogger("trafilatura")
         logger_trafilatura.setLevel(logging.WARNING)
 
@@ -84,14 +82,6 @@ class RSSCollector(BaseWebCollector):
     def get_article_content(self, link_for_article: str) -> str:
         return self.make_request(link_for_article) or ""
 
-    def content_from_article(self, url: str, xpath: str | None) -> str:
-        html_content = self.get_article_content(url)
-        if not xpath:
-            content = extract(html_content, include_links=False, include_comments=False, include_formatting=False, with_metadata=False)
-            return content or html_content
-
-        return self.xpath_extraction(html_content, xpath)
-
     def parse_feed_entry(self, feed_entry: feedparser.FeedParserDict, source) -> NewsItem:
         author: str = str(feed_entry.get("author", ""))
         title: str = str(feed_entry.get("title", ""))
@@ -108,7 +98,7 @@ class RSSCollector(BaseWebCollector):
         if content_from_feed:
             content = str(feed_entry[content_location])
         if link:
-            web_content = self.extract_web_content(link, source["parameters"].get("XPATH", None))
+            web_content = self.extract_web_content(link)
             content = content if content_from_feed else web_content.get("content")
             author = author or web_content.get("author")
             title = title or web_content.get("title")
@@ -179,8 +169,7 @@ class RSSCollector(BaseWebCollector):
         return [result for feed_entry in feed_entries for result in self.get_urls(feed_entry.get("summary"))]  # Flat list of URLs
 
     def get_news_items(self, feed, source) -> list | str:
-        digest_splitting = source["parameters"].get("DIGEST_SPLITTING", False)
-        if digest_splitting == "true":
+        if self.digest_splitting == "true":
             return self.handle_digests(feed["entries"][:42])
 
         return self.parse_feed(feed["entries"][:42], source)

@@ -7,7 +7,6 @@ import dateutil.parser as dateparser
 from urllib.parse import urlparse, urljoin
 from trafilatura import extract, extract_metadata
 from bs4 import BeautifulSoup
-from playwright.sync_api import sync_playwright
 
 from worker.log import logger
 from worker.collectors.base_collector import BaseCollector
@@ -25,9 +24,18 @@ class BaseWebCollector(BaseCollector, PlaywrightExtension):
         self.proxies = None
         self.headers = {}
         self.osint_source_id = None
+
+        self.digest_splitting_limit = None
+        self.split_digest_urls = []
+
+        self.js_all = None
+
         self.playwright = None
 
     def parse_source(self, source):
+        self.digest_splitting = source["parameters"].get("DIGEST_SPLITTING", "false")
+        self.digest_splitting_limit = int(source["parameters"].get("DIGEST_SPLITTING_LIMIT", 30))
+        self.xpath = source["parameters"].get("XPATH", "")
         self.set_proxies(source["parameters"].get("PROXY_SERVER", None))
         if user_agent := source["parameters"].get("USER_AGENT", None):
             self.headers = {"User-Agent": user_agent}
@@ -74,14 +82,13 @@ class BaseWebCollector(BaseCollector, PlaywrightExtension):
             return text, published_date
         return "", published_date
 
-    
-    def xpath_extraction(self, html_content, xpath: str, get_content: bool = True) -> str | None:
+    def xpath_extraction(self, html_content, get_content: bool = True) -> str | None:
         document = lxml.html.fromstring(html_content)
-        logger.debug(f"Checking result for XPATH {xpath}: {document.xpath(xpath)}")
-        if not document.xpath(xpath):
-            logger.error(f"No content found for XPath: {xpath}")
+        logger.debug(f"Checking result for XPATH {self.xpath}: {document.xpath(self.xpath)}")
+        if not document.xpath(self.xpath):
+            logger.error(f"No content found for XPath: {self.xpath}")
             return None
-        first_element = document.xpath(xpath)[0]
+        first_element = document.xpath(self.xpath)[0]
         if get_content:
             return first_element.text_content()
 
@@ -102,8 +109,8 @@ class BaseWebCollector(BaseCollector, PlaywrightExtension):
 
         return author or "", title or ""
 
-    def news_item_from_article(self, web_url: str, xpath: str = "") -> NewsItem:
-        web_content = self.extract_web_content(web_url, xpath)
+    def news_item_from_article(self, web_url: str) -> NewsItem:
+        web_content = self.extract_web_content(web_url)
         return self.create_news_item(
             web_content["author"],
             web_content["title"],
@@ -115,11 +122,11 @@ class BaseWebCollector(BaseCollector, PlaywrightExtension):
             web_content["review"],
         )
 
-    def extract_web_content(self, web_url, xpath: str = "") -> dict[str, str | datetime.datetime | None]:
+    def extract_web_content(self, web_url) -> dict[str, str | datetime.datetime | None]:
         web_content, published_date = self.fetch_article_content(web_url)
         content = ""
-        if xpath:
-            content = self.xpath_extraction(web_content, xpath)
+        if self.xpath:
+            content = self.xpath_extraction(web_content)
         elif web_content:
             content = extract(web_content, url=web_url)
 
