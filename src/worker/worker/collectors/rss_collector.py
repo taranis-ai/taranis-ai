@@ -79,9 +79,6 @@ class RSSCollector(BaseWebCollector):
         transformed_segments = [operation.replace("{}", segment) for segment, operation in zip(segments, transform_str.split("/"))]
         return f"{parsed_url.scheme}://{'/'.join(transformed_segments)}"
 
-    def get_article_content(self, link_for_article: str) -> str:
-        return self.make_request(link_for_article) or ""
-
     def parse_feed_entry(self, feed_entry: feedparser.FeedParserDict, source) -> NewsItem:
         author: str = str(feed_entry.get("author", ""))
         title: str = str(feed_entry.get("title", ""))
@@ -121,7 +118,7 @@ class RSSCollector(BaseWebCollector):
             review=source.get("review", ""),
         )
 
-    # TODO: This function is renamed because of inheritance issues. Notice that @feed is/was not used in the function.
+    # TODO: This function is renamed because of inheritance issues.
     def get_last_modified_feed(self, feed_content: requests.Response, feed: feedparser.FeedParserDict) -> datetime.datetime | None:
         if last_modified := feed_content.headers.get("Last-Modified"):
             return dateparser.parse(last_modified, ignoretz=True)
