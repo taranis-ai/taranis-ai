@@ -6,9 +6,8 @@ class PlaywrightExtension:
     def fetch_content_with_js(self, web_url: str) -> str:
         logger.debug(f"Getting web content with JS for {web_url}")
 
-        self.page = self.browser.new_page()
         self.page.goto(web_url)
-        self.page.wait_for_timeout(5000)
+        self.page.wait_for_load_state("networkidle")
 
         return self.page.content() or ""
 
@@ -25,6 +24,8 @@ class PlaywrightExtension:
             self.browser = self.playwright.chromium.launch(
                 proxy={"server": self.proxies["http"]},
             )
+        self.page = self.browser.new_page()
+
 
     def stop_playwright_if_needed(self) -> None:
         if self.playwright:
