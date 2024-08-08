@@ -14,7 +14,6 @@ class SimpleWebCollector(BaseWebCollector):
         self.description = "Collector for gathering news with Trafilatura"
 
         self.news_items = []
-        self.web_url = None
         self.xpath = None
         self.last_modified = None
         self.digest_splitting_limit = None
@@ -23,20 +22,20 @@ class SimpleWebCollector(BaseWebCollector):
 
     def parse_source(self, source):
         super().parse_source(source)
-        self.web_url = source["parameters"].get("WEB_URL", None)
-        if not self.web_url:
+        self.collector_url = source["parameters"].get("WEB_URL", None)
+        if not self.collector_url:
             logger.error("No WEB_URL set")
             return {"error": "No WEB_URL set"}
 
     def collect(self, source, manual: bool = False):
         self.parse_source(source)
-        logger.info(f"Website {source['id']} Starting collector for url: {self.web_url}")
+        logger.info(f"Website {source['id']} Starting collector for url: {self.collector_url}")
 
         try:
             return self.web_collector(source, manual)
         except Exception as e:
             logger.exception()
-            logger.error(f"Simple Web Collector for {self.web_url} failed with error: {str(e)}")
+            logger.error(f"Simple Web Collector for {self.collector_url} failed with error: {str(e)}")
             return str(e)
 
     def preview_collector(self, source):
@@ -48,7 +47,7 @@ class SimpleWebCollector(BaseWebCollector):
         if not self.xpath:
             raise ValueError("No XPATH set for digest splitting")
 
-        web_content, _ = self.fetch_article_content(self.web_url, js_enabled=self.js_digest_split)
+        web_content, _ = self.fetch_article_content(self.collector_url, js_enabled=self.js_digest_split)
 
         if content := self.xpath_extraction(web_content, False):
             self.split_digest_urls = self.get_urls(content)
@@ -62,19 +61,19 @@ class SimpleWebCollector(BaseWebCollector):
         self.start_playwright_if_needed()
         if self.digest_splitting == "true":
             return self.handle_digests()
-        news_items = [self.news_item_from_article(self.web_url)]
+        news_items = [self.news_item_from_article(self.collector_url)]
         self.stop_playwright_if_needed()
         return news_items
 
     def web_collector(self, source, manual: bool = False):
-        response = requests.head(self.web_url, headers=self.headers, proxies=self.proxies)
+        response = requests.head(self.collector_url, headers=self.headers, proxies=self.proxies)
         if not response or not response.ok:
             logger.info(f"Website {source['id']} returned no content")
             raise ValueError("Website returned no content")
 
         last_attempted = self.get_last_attempted(source)
         if not last_attempted:
-            self.update_favicon(self.web_url, self.osint_source_id)
+            self.update_favicon(self.collector_url, self.osint_source_id)
         last_modified = self.get_last_modified(response)
         self.last_modified = last_modified
         if last_modified and last_attempted and last_modified < last_attempted and not manual:
@@ -84,7 +83,7 @@ class SimpleWebCollector(BaseWebCollector):
         try:
             self.news_items = self.gather_news_items()
         except ValueError as e:
-            logger.error(f"Simple Web Collector for {self.web_url} failed with error: {str(e)}")
+            logger.error(f"Simple Web Collector for {self.collector_url} failed with error: {str(e)}")
 
         self.publish(self.news_items, source)
         return None

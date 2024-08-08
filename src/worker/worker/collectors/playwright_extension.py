@@ -26,6 +26,7 @@ class PlaywrightExtension:
             self.browser = self.playwright.chromium.launch(
                 proxy={"server": self.proxies["http"]},
             )
+            logger.debug("Playwright chromium launched with proxy")
         self.page = self.browser.new_page()
         logger.debug("Playwright new page created")
 

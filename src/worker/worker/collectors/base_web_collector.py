@@ -21,6 +21,7 @@ class BaseWebCollector(BaseCollector, PlaywrightExtension):
         self.name = "Base Web Collector"
         self.description = "Base abstract type for all collectors that use web scraping"
 
+        self.collector_url = None
         self.proxies = None
         self.headers = {}
         self.osint_source_id = None
@@ -165,7 +166,7 @@ class BaseWebCollector(BaseCollector, PlaywrightExtension):
     def get_urls(self, html_content: str) -> list:
         soup = BeautifulSoup(html_content, "html.parser")
         urls = [a["href"] for a in soup.find_all("a", href=True)]
-        return [urljoin(self.web_url, url) for url in urls]
+        return [urljoin(self.collector_url, url) for url in urls]
 
     def parse_digests(self) -> list[NewsItem] | str:
         news_items = []
