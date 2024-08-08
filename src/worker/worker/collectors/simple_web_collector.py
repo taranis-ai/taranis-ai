@@ -1,3 +1,4 @@
+import asyncio
 import requests
 import logging
 
@@ -28,6 +29,7 @@ class SimpleWebCollector(BaseWebCollector):
             logger.error("No WEB_URL set")
             return {"error": "No WEB_URL set"}
 
+        self.digest_splitting = source["parameters"].get("DIGEST_SPLITTING", "false")
         self.digest_splitting_limit = int(source["parameters"].get("DIGEST_SPLITTING_LIMIT", 30))
         self.xpath = source["parameters"].get("XPATH", "")
 
@@ -44,15 +46,15 @@ class SimpleWebCollector(BaseWebCollector):
 
     def preview_collector(self, source):
         self.parse_source(source)
-        self.news_items = self.gather_news_items(source)
+        self.news_items = self.gather_news_items()
         return self.preview(self.news_items, source)
 
     def handle_digests(self) -> list[NewsItem] | str:
         if not self.xpath:
             raise ValueError("No XPATH set for digest splitting")
-        
-        web_content, _ = self.fetch_article_content(self.web_url, js_enabled=self.js_enabled)
-        
+
+        web_content, _ = self.fetch_article_content(self.web_url, js_enabled=self.js_digest_split)
+
         if content := self.xpath_extraction(web_content, self.xpath, False):
             self.split_digest_urls = self.get_urls(content)
             logger.info(f"Digest splitting {self.osint_source_id} returned {len(self.split_digest_urls)} available URLs")
@@ -61,11 +63,13 @@ class SimpleWebCollector(BaseWebCollector):
 
         return []
 
-    def gather_news_items(self, source) -> list[NewsItem]:
-        digest_splitting = source["parameters"].get("DIGEST_SPLITTING", "false")
-        if digest_splitting == "true":
+    def gather_news_items(self) -> list[NewsItem]:
+        self.start_playwright_if_needed()
+        if self.digest_splitting == "true":
             return self.handle_digests()
-        return [self.news_item_from_article(self.web_url, self.xpath)]
+        news_items = [self.news_item_from_article(self.web_url, self.xpath)]
+        self.stop_playwright_if_needed()
+        return news_items
 
     def web_collector(self, source, manual: bool = False):
         response = requests.head(self.web_url, headers=self.headers, proxies=self.proxies)
@@ -83,7 +87,7 @@ class SimpleWebCollector(BaseWebCollector):
             return "Last-Modified < Last-Attempted"
 
         try:
-            self.news_items = self.gather_news_items(source)
+            self.news_items = self.gather_news_items()
         except ValueError as e:
             logger.error(f"Simple Web Collector for {self.web_url} failed with error: {str(e)}")
 

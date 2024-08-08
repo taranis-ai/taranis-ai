@@ -36,6 +36,7 @@ workers = [
                 "type": "number",
                 "rules": "digest_splitting_limit",
             },
+            {"parameter": "JAVASCRIPT_ALL", "type": "switch"},
         ],
         "type": "SIMPLE_WEB_COLLECTOR",
     },

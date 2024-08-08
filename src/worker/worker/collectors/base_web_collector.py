@@ -1,4 +1,3 @@
-import asyncio
 import contextlib
 import datetime
 import hashlib
@@ -8,14 +7,15 @@ import dateutil.parser as dateparser
 from urllib.parse import urlparse, urljoin
 from trafilatura import extract, extract_metadata
 from bs4 import BeautifulSoup
-from playwright.async_api import async_playwright
+from playwright.sync_api import sync_playwright
 
 from worker.log import logger
 from worker.collectors.base_collector import BaseCollector
 from worker.types import NewsItem
+from worker.collectors.playwright_extension import PlaywrightExtension
 
 
-class BaseWebCollector(BaseCollector):
+class BaseWebCollector(BaseCollector, PlaywrightExtension):
     def __init__(self):
         super().__init__()
         self.type = "BASE_WEB_COLLECTOR"
@@ -25,12 +25,14 @@ class BaseWebCollector(BaseCollector):
         self.proxies = None
         self.headers = {}
         self.osint_source_id = None
+        self.playwright = None
 
     def parse_source(self, source):
         self.set_proxies(source["parameters"].get("PROXY_SERVER", None))
         if user_agent := source["parameters"].get("USER_AGENT", None):
             self.headers = {"User-Agent": user_agent}
-        self.js_enabled = source["parameters"].get("IMPROVE_DS_WITH_JAVASCRIPT", "false")
+        self.js_digest_split = source["parameters"].get("IMPROVE_DS_WITH_JAVASCRIPT", "false")
+        self.js_all = source["parameters"].get("JAVASCRIPT_ALL", "false")
 
         self.osint_source_id = source["id"]
 
@@ -62,8 +64,8 @@ class BaseWebCollector(BaseCollector):
         return None
 
     def fetch_article_content(self, web_url: str, js_enabled: str = "false") -> tuple[str, datetime.datetime | None]:
-        if js_enabled == "true":
-            return asyncio.run(self.fetch_content_with_js(web_url)), None
+        if js_enabled == "true" or self.js_all == "true":
+            return self.fetch_content_with_js(web_url), None
         response = requests.get(web_url, headers=self.headers, proxies=self.proxies, timeout=60)
         if not response or not response.ok:
             return "", None
@@ -72,24 +74,7 @@ class BaseWebCollector(BaseCollector):
             return text, published_date
         return "", published_date
 
-    async def fetch_content_with_js(self, web_url: str) -> str:
-        logger.debug(f"Getting web content with JS for {web_url}")
-
-        async with async_playwright() as pw:
-            # TODO: Proxy and user agent support
-            if None in self.proxies.values():
-                browser = await pw.chromium.launch()
-            else:
-                browser = await pw.chromium.launch(
-                    proxy={"server": self.proxies["http"]},
-                )
-
-            page = await browser.new_page()
-            await page.goto(web_url)
-            await page.wait_for_timeout(5000)
-
-            return await page.content() or ""
-
+    
     def xpath_extraction(self, html_content, xpath: str, get_content: bool = True) -> str | None:
         document = lxml.html.fromstring(html_content)
         logger.debug(f"Checking result for XPATH {xpath}: {document.xpath(xpath)}")
@@ -118,7 +103,7 @@ class BaseWebCollector(BaseCollector):
         return author or "", title or ""
 
     def news_item_from_article(self, web_url: str, xpath: str = "") -> NewsItem:
-        web_content = self.parse_web_content(web_url, xpath)
+        web_content = self.extract_web_content(web_url, xpath)
         return self.create_news_item(
             web_content["author"],
             web_content["title"],
@@ -130,7 +115,7 @@ class BaseWebCollector(BaseCollector):
             web_content["review"],
         )
 
-    def parse_web_content(self, web_url, xpath: str = "") -> dict[str, str | datetime.datetime | None]:
+    def extract_web_content(self, web_url, xpath: str = "") -> dict[str, str | datetime.datetime | None]:
         web_content, published_date = self.fetch_article_content(web_url)
         content = ""
         if xpath:
