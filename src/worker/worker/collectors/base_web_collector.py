@@ -37,12 +37,12 @@ class BaseWebCollector(BaseCollector, PlaywrightExtension):
         self.digest_splitting_limit = int(source["parameters"].get("DIGEST_SPLITTING_LIMIT", 30))
         self.xpath = source["parameters"].get("XPATH", "")
         self.set_proxies(source["parameters"].get("PROXY_SERVER", None))
+        if additional_headers := source["parameters"].get("ADDITIONAL_HEADERS", {}):
+            self.headers.update(additional_headers)
         if user_agent := source["parameters"].get("USER_AGENT", None):
             self.headers = {"User-Agent": user_agent}
         self.js_digest_split = source["parameters"].get("IMPROVE_DS_WITH_JAVASCRIPT", "false")
         self.js_all = source["parameters"].get("JAVASCRIPT_ALL", "false")
-        if additional_headers := source["parameters"].get("ADDITIONAL_HEADERS", {}):
-            self.headers.update(additional_headers)
 
         self.osint_source_id = source["id"]
 

@@ -23,11 +23,12 @@ class PlaywrightExtension:
         else:
             self.start_browser_basic()
 
-        self.page = self.browser.new_page()
+        self.page = self.context.new_page()
         logger.debug("Playwright new page created")
 
     def start_browser_basic(self) -> None:
-        self.browser = self.playwright.chromium.launch(headless=False)
+        self.browser = self.playwright.chromium.launch()
+        self.context = self.browser.new_context()
         logger.debug("Playwright chromium launched")
 
     def start_browser_custom(self) -> None:
@@ -37,10 +38,10 @@ class PlaywrightExtension:
             username = parsed_url.username or ""
             password = parsed_url.password or ""
             proxy = {"server": self.proxies["http"], "username": username, "password": password}
-            logger.debug(f"Playwright chromium launching with a proxy: '{proxy}'")
+            logger.debug(f"Playwright chromium launching with a proxy for username: {username}")
         
-        self.browser = self.playwright.chromium.launch(headless=False, proxy=proxy)
-        self.browser.new_context(extra_http_headers=self.headers)
+        self.browser = self.playwright.chromium.launch(proxy=proxy)
+        self.context = self.browser.new_context(extra_http_headers=self.headers)
         logger.debug(f"Playwright chromium launching with additional headers: '{self.headers}'")
 
     def fetch_content_with_js(self, web_url: str) -> str:
@@ -48,6 +49,5 @@ class PlaywrightExtension:
 
         self.page.goto(web_url)
         self.page.wait_for_load_state("networkidle")
-        self.page.pause()
 
         return self.page.content() or ""
