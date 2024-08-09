@@ -12,7 +12,6 @@ from core.config import Config
 
 class TaranisLogger:
     def __init__(self, module: str, debug: bool, colored: bool, syslog_address: Optional[tuple[str, int]]):
-        self.module = module
         stream_handler = logging.StreamHandler(stream=sys.stdout)
         if colored:
             stream_handler.setFormatter(TaranisLogFormatter(module))
@@ -25,21 +24,17 @@ class TaranisLogger:
             except Exception:
                 print("Unable to connect to syslog server!")
 
-        lloggers = [logging.getLogger()]
+        self.logger = logging.getLogger(module)
+        self.logger.handlers.clear()
+        self.logger.setLevel(logging.INFO)
 
-        for llogger in lloggers:
-            llogger.handlers.clear()
-            llogger.setLevel(logging.INFO)
+        if debug:
+            self.logger.setLevel(logging.DEBUG)
 
-            if debug:
-                llogger.setLevel(logging.DEBUG)
+        if sys_log_handler:
+            self.logger.addHandler(sys_log_handler)
 
-            if sys_log_handler:
-                llogger.addHandler(sys_log_handler)
-
-            llogger.addHandler(stream_handler)
-
-        self.logger = lloggers[0]
+        self.logger.addHandler(stream_handler)
 
     def debug(self, message):
         self.logger.debug(message)
@@ -70,8 +65,7 @@ class TaranisLogFormatter(logging.Formatter):
         red = "\x1b[31;20m"
         bold_red = "\x1b[31;1m"
         reset = "\x1b[0m"
-        self.module = module
-        self.format_string = f"[{self.module}] [%(levelname)s] - %(message)s"
+        self.format_string = f"[{module}] [%(levelname)s] - %(message)s"
         self.FORMATS = {
             logging.DEBUG: grey + self.format_string + reset,
             logging.INFO: blue + self.format_string + reset,
