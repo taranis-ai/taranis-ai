@@ -38,6 +38,9 @@ class RTCollector(BaseWebCollector):
             raise ValueError("No RT_TOKEN set")
         self.headers = {"Authorization": f"token {rt_token}"}
 
+    def set_additional_headers(self, additional_headers):
+        self.headers.update(additional_headers)
+
     def setup_collector(self, source):
         if err := self.set_base_url(source.get("parameters").get("BASE_URL", None)):
             raise ValueError(err)
@@ -47,6 +50,9 @@ class RTCollector(BaseWebCollector):
 
         if err := self.set_headers(source.get("parameters").get("RT_TOKEN", None)):
             raise ValueError(err)
+
+        if additional_headers := source["parameters"].get("ADDITIONAL_HEADERS", None):
+            self.set_additional_headers(additional_headers)
 
     def preview_collector(self, source):
         if err := self.setup_collector(source):
