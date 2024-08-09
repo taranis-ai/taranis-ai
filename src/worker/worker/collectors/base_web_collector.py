@@ -41,8 +41,8 @@ class BaseWebCollector(BaseCollector, PlaywrightExtension):
             self.headers.update(additional_headers)
         if user_agent := source["parameters"].get("USER_AGENT", None):
             self.headers = {"User-Agent": user_agent}
-        self.js_digest_split = source["parameters"].get("IMPROVE_DS_WITH_JAVASCRIPT", "false")
-        self.js_all = source["parameters"].get("JAVASCRIPT_ALL", "false")
+        self.js_digest_split = source["parameters"].get("DS_BROWSER_MODE", "false")
+        self.js_all = source["parameters"].get("BROWSER_MODE", "false")
 
         self.osint_source_id = source["id"]
 
