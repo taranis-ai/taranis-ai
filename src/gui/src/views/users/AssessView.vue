@@ -58,7 +58,13 @@
 <script>
 import CardStory from '@/components/assess/CardStory.vue'
 import AssessSelectionToolbar from '@/components/assess/AssessSelectionToolbar.vue'
-import { defineComponent, computed, onDeactivated, onActivated } from 'vue'
+import {
+  defineComponent,
+  computed,
+  onDeactivated,
+  onActivated,
+  onBeforeMount
+} from 'vue'
 import { useAssessStore } from '@/stores/AssessStore'
 import { useFilterStore } from '@/stores/FilterStore'
 import { storeToRefs } from 'pinia'
@@ -123,6 +129,10 @@ export default defineComponent({
       filterStore.resetFilter()
       assessStore.updateStories()
     }
+
+    onBeforeMount(() => {
+      assessStore.updateStories()
+    })
 
     onDeactivated(() => {
       assessStore.clearSelection()

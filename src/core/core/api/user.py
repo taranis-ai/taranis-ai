@@ -1,5 +1,5 @@
 from flask_jwt_extended import jwt_required, current_user
-from flask import request, Flask
+from flask import Blueprint, request, Flask
 from flask.views import MethodView
 
 from core.model.user import User
@@ -32,8 +32,11 @@ class SSEConnected(MethodView):
 
 
 def initialize(app: Flask):
-    base_route = "/api/users"
-    app.add_url_rule(f"{base_route}/", view_func=UserInfo.as_view("user_info"))
-    app.add_url_rule(f"{base_route}/profile", view_func=UserProfile.as_view("user_profile"))
-    app.add_url_rule(f"{base_route}/profile/", view_func=UserProfile.as_view("user_profile_"))
-    app.add_url_rule(f"{base_route}/sse-connected", view_func=SSEConnected.as_view("sse_connected"))
+    user_bp = Blueprint("user", __name__, url_prefix="/api/users")
+
+    user_bp.add_url_rule("/", view_func=UserInfo.as_view("user_info"))
+    user_bp.add_url_rule("/profile", view_func=UserProfile.as_view("user_profile"))
+    user_bp.add_url_rule("/profile/", view_func=UserProfile.as_view("user_profile_"))
+    user_bp.add_url_rule("/sse-connected", view_func=SSEConnected.as_view("sse_connected"))
+
+    app.register_blueprint(user_bp)

@@ -1,19 +1,25 @@
 <template>
-  <span> {{ itemCountText }} / displayed: {{ itemFilteredText }} </span>
-  <v-tooltip v-if="showAssessTooltip" activator="parent" location="bottom">
-    <v-icon icon="mdi-eye-check-outline" size="x-small" class="mr-1" />
-    read: <strong>{{ storyCounts.read_count }}</strong
-    ><br />
-    <!-- <v-icon icon="mdi-eye-off-outline" size="x-small" class="mr-1" />
+  <span v-if="showCount">
+    {{ itemCountText }} / displayed: {{ itemFilteredText }}
+    <v-tooltip v-if="showAssessTooltip" activator="parent" location="bottom">
+      <v-icon icon="mdi-eye-check-outline" size="x-small" class="mr-1" />
+      read: <strong>{{ storyCounts.read_count }}</strong
+      ><br />
+      <!-- <v-icon icon="mdi-eye-off-outline" size="x-small" class="mr-1" />
         unread: <strong>{{ itemCountUnread }}</strong>
         <br /> -->
-    <v-icon icon="mdi-star-check-outline" size="x-small" class="mr-1" />
-    important: <strong>{{ storyCounts.important_count }}</strong>
-    <br />
-    <v-icon icon="mdi-google-circles-communities" size="x-small" class="mr-1" />
-    in report: <strong>{{ storyCounts.in_reports_count }}</strong>
-    <br />
-  </v-tooltip>
+      <v-icon icon="mdi-star-check-outline" size="x-small" class="mr-1" />
+      important: <strong>{{ storyCounts.important_count }}</strong>
+      <br />
+      <v-icon
+        icon="mdi-google-circles-communities"
+        size="x-small"
+        class="mr-1"
+      />
+      in report: <strong>{{ storyCounts.in_reports_count }}</strong>
+      <br />
+    </v-tooltip>
+  </span>
 </template>
 
 <script>
@@ -24,6 +30,7 @@ import { useAnalyzeStore } from '@/stores/AnalyzeStore'
 import { usePublishStore } from '@/stores/PublishStore'
 import { defineComponent, computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { useDisplay } from 'vuetify'
 
 export default defineComponent({
   name: 'ItemCount',
@@ -31,6 +38,7 @@ export default defineComponent({
     const mainStore = useMainStore()
     const assessStore = useAssessStore()
     const route = useRoute()
+    const { mdAndUp } = useDisplay()
 
     const { storyCounts } = storeToRefs(assessStore)
 
@@ -65,7 +73,12 @@ export default defineComponent({
       return route.name === 'assess'
     })
 
+    const showCount = computed(() => {
+      return itemFilteredText.value > 0 && mdAndUp
+    })
+
     return {
+      showCount,
       itemCountText,
       storyCounts,
       itemFilteredText,

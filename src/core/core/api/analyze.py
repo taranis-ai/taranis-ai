@@ -1,4 +1,4 @@
-from flask import request, abort, Flask
+from flask import Blueprint, request, abort, Flask
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 
@@ -127,12 +127,15 @@ class ReportItemUnlock(MethodView):
 
 
 def initialize(app: Flask):
-    base_route = "/api/analyze"
-    app.add_url_rule(f"{base_route}/report-types", view_func=ReportTypes.as_view("report_types"))
-    app.add_url_rule(f"{base_route}/report-items", view_func=ReportItem.as_view("report_items"))
-    app.add_url_rule(f"{base_route}/report-items/<string:report_item_id>", view_func=ReportItem.as_view("report_item"))
-    app.add_url_rule(f"{base_route}/report-items/<string:report_item_id>/clone", view_func=CloneReportItem.as_view("clone_report_item"))
-    app.add_url_rule(f"{base_route}/report-items/<string:report_item_id>/stories", view_func=ReportStories.as_view("report_stories"))
-    app.add_url_rule(f"{base_route}/report-items/<string:report_item_id>/locks", view_func=ReportItemLocks.as_view("report_item_locks"))
-    app.add_url_rule(f"{base_route}/report-items/<string:report_item_id>/lock", view_func=ReportItemLock.as_view("report_item_lock"))
-    app.add_url_rule(f"{base_route}/report-items/<string:report_item_id>/unlock", view_func=ReportItemUnlock.as_view("report_item_unlock"))
+    analyze_bp = Blueprint("analyze", __name__, url_prefix="/api/analyze")
+
+    analyze_bp.add_url_rule("/report-types", view_func=ReportTypes.as_view("report_types"))
+    analyze_bp.add_url_rule("/report-items", view_func=ReportItem.as_view("report_items"))
+    analyze_bp.add_url_rule("/report-items/<string:report_item_id>", view_func=ReportItem.as_view("report_item"))
+    analyze_bp.add_url_rule("/report-items/<string:report_item_id>/clone", view_func=CloneReportItem.as_view("clone_report_item"))
+    analyze_bp.add_url_rule("/report-items/<string:report_item_id>/stories", view_func=ReportStories.as_view("report_stories"))
+    analyze_bp.add_url_rule("/report-items/<string:report_item_id>/locks", view_func=ReportItemLocks.as_view("report_item_locks"))
+    analyze_bp.add_url_rule("/report-items/<string:report_item_id>/lock", view_func=ReportItemLock.as_view("report_item_lock"))
+    analyze_bp.add_url_rule("/report-items/<string:report_item_id>/unlock", view_func=ReportItemUnlock.as_view("report_item_unlock"))
+
+    app.register_blueprint(analyze_bp)

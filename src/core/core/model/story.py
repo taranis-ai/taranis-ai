@@ -718,11 +718,10 @@ class Story(BaseModel):
             processed_stories = set()
             for item in newsitem_ids:
                 news_item = NewsItem.get(item)
-                if not news_item:
+                if not news_item or not user:
                     continue
-                if user:
-                    if not news_item.allowed_with_acl(user, True):
-                        continue
+                if not news_item.allowed_with_acl(user, True):
+                    continue
                 story = Story.get(news_item.story_id)
                 if not story:
                     continue

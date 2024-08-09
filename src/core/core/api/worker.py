@@ -1,4 +1,4 @@
-from flask import request, send_file, Response, Flask
+from flask import Blueprint, request, send_file, Response, Flask
 from flask.views import MethodView
 from werkzeug.datastructures import FileStorage
 
@@ -250,20 +250,26 @@ def initialize(app: Flask):
     worker_url = "/api/worker"
     beat_url = "/api/beat"
 
-    app.add_url_rule(f"{beat_url}/schedule", view_func=QueueSchedule.as_view("queue_schedule"))
-    app.add_url_rule(f"{beat_url}/schedule/<string:schedule_id>", view_func=QueueScheduleEntry.as_view("queue_schedule_entry"))
-    app.add_url_rule(f"{beat_url}/next-run-time", view_func=NextRunTime.as_view("next_run_time"))
-    app.add_url_rule(f"{worker_url}/osint-sources/<string:source_id>", view_func=Sources.as_view("osint_sources_worker"))
-    app.add_url_rule(f"{worker_url}/osint-sources/<string:source_id>/icon", view_func=SourceIcon.as_view("osint_sources_worker_icon"))
-    app.add_url_rule(f"{worker_url}/products/<string:product_id>", view_func=Products.as_view("products_worker"))
-    app.add_url_rule(f"{worker_url}/products/<string:product_id>/render", view_func=ProductsRender.as_view("products_render_worker"))
-    app.add_url_rule(f"{worker_url}/presenters/<string:presenter>", view_func=Presenters.as_view("presenters_worker"))
-    app.add_url_rule(f"{worker_url}/publishers/<string:publisher>", view_func=Publishers.as_view("publishers_worker"))
-    app.add_url_rule(f"{worker_url}/news-items", view_func=AddNewsItems.as_view("news_items_worker"))
-    app.add_url_rule(f"{worker_url}/bots", view_func=BotInfo.as_view("bots_worker"))
-    app.add_url_rule(f"{worker_url}/tags", view_func=Tags.as_view("tags_worker"))
-    app.add_url_rule(f"{worker_url}/bots/<string:bot_id>", view_func=BotInfo.as_view("bot_info_worker"))
-    app.add_url_rule(f"{worker_url}/post-collection-bots", view_func=PostCollectionBots.as_view("post_collection_bots_worker"))
-    app.add_url_rule(f"{worker_url}/stories", view_func=Stories.as_view("stories_worker"))
-    app.add_url_rule(f"{worker_url}/word-lists", view_func=WordLists.as_view("word_lists_worker"))
-    app.add_url_rule(f"{worker_url}/word-list/<int:word_list_id>", view_func=WordLists.as_view("word_list_by_id_worker"))
+    worker_bp = Blueprint("worker", __name__, url_prefix=worker_url)
+    beat_bp = Blueprint("beat", __name__, url_prefix=beat_url)
+
+    beat_bp.add_url_rule("/schedule", view_func=QueueSchedule.as_view("queue_schedule"))
+    beat_bp.add_url_rule("/schedule/<string:schedule_id>", view_func=QueueScheduleEntry.as_view("queue_schedule_entry"))
+    beat_bp.add_url_rule("/next-run-time", view_func=NextRunTime.as_view("next_run_time"))
+    worker_bp.add_url_rule("/osint-sources/<string:source_id>", view_func=Sources.as_view("osint_sources_worker"))
+    worker_bp.add_url_rule("/osint-sources/<string:source_id>/icon", view_func=SourceIcon.as_view("osint_sources_worker_icon"))
+    worker_bp.add_url_rule("/products/<string:product_id>", view_func=Products.as_view("products_worker"))
+    worker_bp.add_url_rule("/products/<string:product_id>/render", view_func=ProductsRender.as_view("products_render_worker"))
+    worker_bp.add_url_rule("/presenters/<string:presenter>", view_func=Presenters.as_view("presenters_worker"))
+    worker_bp.add_url_rule("/publishers/<string:publisher>", view_func=Publishers.as_view("publishers_worker"))
+    worker_bp.add_url_rule("/news-items", view_func=AddNewsItems.as_view("news_items_worker"))
+    worker_bp.add_url_rule("/bots", view_func=BotInfo.as_view("bots_worker"))
+    worker_bp.add_url_rule("/tags", view_func=Tags.as_view("tags_worker"))
+    worker_bp.add_url_rule("/bots/<string:bot_id>", view_func=BotInfo.as_view("bot_info_worker"))
+    worker_bp.add_url_rule("/post-collection-bots", view_func=PostCollectionBots.as_view("post_collection_bots_worker"))
+    worker_bp.add_url_rule("/stories", view_func=Stories.as_view("stories_worker"))
+    worker_bp.add_url_rule("/word-lists", view_func=WordLists.as_view("word_lists_worker"))
+    worker_bp.add_url_rule("/word-list/<int:word_list_id>", view_func=WordLists.as_view("word_list_by_id_worker"))
+
+    app.register_blueprint(worker_bp)
+    app.register_blueprint(beat_bp)
