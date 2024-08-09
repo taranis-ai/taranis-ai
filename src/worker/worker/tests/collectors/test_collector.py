@@ -47,6 +47,18 @@ def test_rss_collector_initialization_with_invalid_headers(rss_collector_mock, r
 
     assert "Invalid JSON for headers" in str(excinfo.value)
 
+def test_rss_collector_with_multiple_additional_headers(rss_collector_mock, rss_collector):
+    from worker.tests.testdata import rss_collector_source_data
+
+    rss_collector_source_data["parameters"]["ADDITIONAL_HEADERS"] = '{"Authorization": "Bearer Token1234", "X-Custom-Header": "CustomValue"}'
+    result = rss_collector.collect(rss_collector_source_data)
+
+    assert result is None
+    assert "Authorization" in rss_collector.headers
+    assert rss_collector.headers["Authorization"] == "Bearer Token1234"
+    assert "X-Custom-Header" in rss_collector.headers
+    assert rss_collector.headers["X-Custom-Header"] == "CustomValue"
+
 def test_set_additional_headers_with_invalid_json():
     from worker.collectors.rt_collector import RTCollector
 
