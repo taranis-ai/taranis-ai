@@ -1,5 +1,5 @@
 from urllib.parse import quote
-from flask import redirect, make_response, request, Flask
+from flask import Blueprint, redirect, make_response, request, Flask
 from flask.views import MethodView
 from flask_jwt_extended import jwt_required, get_jwt, current_user
 
@@ -52,8 +52,11 @@ class AuthMethod(MethodView):
 
 
 def initialize(app: Flask):
-    base_route = "/api/auth"
-    app.add_url_rule(f"{base_route}/login", view_func=Login.as_view("login"))
-    app.add_url_rule(f"{base_route}/refresh", view_func=Refresh.as_view("refresh"))
-    app.add_url_rule(f"{base_route}/logout", view_func=Logout.as_view("logout"))
-    app.add_url_rule(f"{base_route}/method", view_func=AuthMethod.as_view("auth_method"))
+    auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
+
+    auth_bp.add_url_rule("/login", view_func=Login.as_view("login"))
+    auth_bp.add_url_rule("/refresh", view_func=Refresh.as_view("refresh"))
+    auth_bp.add_url_rule("/logout", view_func=Logout.as_view("logout"))
+    auth_bp.add_url_rule("/method", view_func=AuthMethod.as_view("auth_method"))
+
+    app.register_blueprint(auth_bp)

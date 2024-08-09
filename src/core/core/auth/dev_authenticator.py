@@ -19,7 +19,7 @@ class DevAuthenticator(BaseAuthenticator):
         self.name = "DevAuthenticator"
 
     def authenticate(self, credentials: dict[str, str]) -> tuple[dict[str, str], int]:
-        logger.log_debug(f"DEV AUTH with {credentials}")
+        logger.debug(f"DEV AUTH with {credentials}")
 
         username, password = credentials.get("username"), credentials.get("password")
 

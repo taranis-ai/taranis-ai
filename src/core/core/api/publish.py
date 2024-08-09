@@ -1,4 +1,4 @@
-from flask import request, Flask
+from flask import Blueprint, request, Flask
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 
@@ -59,11 +59,14 @@ class ProductsRender(MethodView):
 
 
 def initialize(app: Flask):
-    base_route = "/api/publish"
-    app.add_url_rule(f"{base_route}/products/<string:product_id>/render", view_func=ProductsRender.as_view("products_render"))
-    app.add_url_rule(
-        f"{base_route}/products/<string:product_id>/publishers/<string:publisher_id>", view_func=PublishProduct.as_view("publish_product")
+    publish_bp = Blueprint("publish", __name__, url_prefix="/api/publish")
+
+    publish_bp.add_url_rule("/products/<string:product_id>/render", view_func=ProductsRender.as_view("products_render"))
+    publish_bp.add_url_rule(
+        "/products/<string:product_id>/publishers/<string:publisher_id>", view_func=PublishProduct.as_view("publish_product")
     )
-    app.add_url_rule(f"{base_route}/products", view_func=Products.as_view("products"))
-    app.add_url_rule(f"{base_route}/products/<string:product_id>", view_func=Products.as_view("product"))
-    app.add_url_rule(f"{base_route}/product-types", view_func=ProductTypes.as_view("product_types"))
+    publish_bp.add_url_rule("/products", view_func=Products.as_view("products"))
+    publish_bp.add_url_rule("/products/<string:product_id>", view_func=Products.as_view("product"))
+    publish_bp.add_url_rule("/product-types", view_func=ProductTypes.as_view("product_types"))
+
+    app.register_blueprint(publish_bp)

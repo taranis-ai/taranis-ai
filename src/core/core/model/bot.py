@@ -52,7 +52,7 @@ class Bot(BaseModel):
             bot.schedule_bot()
             return bot
         except Exception:
-            logger.log_debug_trace("Update Bot Parameters Failed")
+            logger.exception("Update Bot Parameters Failed")
             return None
 
     @classmethod

@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Blueprint, Flask
 from flask.views import MethodView
 
 from core.managers.auth_manager import auth_required
@@ -42,9 +42,12 @@ class ClearQueues(MethodView):
 
 
 def initialize(app: Flask):
-    base_route = "/api/admin"
-    app.add_url_rule(f"{base_route}/", view_func=AdminSettings.as_view("admin_settings"))
-    app.add_url_rule(f"{base_route}/delete-tags", view_func=DeleteTags.as_view("delete_tags"))
-    app.add_url_rule(f"{base_route}/ungroup-stories", view_func=UngroupStories.as_view("ungroup_all_stories"))
-    app.add_url_rule(f"{base_route}/reset-database", view_func=ResetDatabase.as_view("reset_database"))
-    app.add_url_rule(f"{base_route}/clear-queues", view_func=ClearQueues.as_view("clear_queue"))
+    admin_bp = Blueprint("admin", __name__, url_prefix="/api/admin")
+
+    admin_bp.add_url_rule("/", view_func=AdminSettings.as_view("admin_settings"))
+    admin_bp.add_url_rule("/delete-tags", view_func=DeleteTags.as_view("delete_tags"))
+    admin_bp.add_url_rule("/ungroup-stories", view_func=UngroupStories.as_view("ungroup_all_stories"))
+    admin_bp.add_url_rule("/reset-database", view_func=ResetDatabase.as_view("reset_database"))
+    admin_bp.add_url_rule("/clear-queues", view_func=ClearQueues.as_view("clear_queue"))
+
+    app.register_blueprint(admin_bp)

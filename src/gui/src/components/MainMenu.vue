@@ -22,9 +22,7 @@
       />
     </v-app-bar-title>
 
-    <div v-if="mdAndUp" class="mr-4">
-      <ItemCount />
-    </div>
+    <ItemCount />
 
     <v-text-field
       v-if="showSearchBar"
@@ -99,7 +97,7 @@ export default defineComponent({
     const mainStore = useMainStore()
     const userStore = useUserStore()
     const filterStore = useFilterStore()
-    const { smAndDown, mdAndUp } = useDisplay()
+    const { smAndDown } = useDisplay()
     const route = useRoute()
 
     const { drawerVisible, buildDate } = storeToRefs(mainStore)
@@ -204,7 +202,6 @@ export default defineComponent({
     return {
       buildDate,
       smAndDown,
-      mdAndUp,
       searchState,
       showSearchBar,
       drawerVisible,

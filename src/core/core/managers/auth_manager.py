@@ -87,10 +87,8 @@ def auth_required(permissions: list | str):
 
             # is there at least one match with the permissions required by the call?
             if not permissions_set.intersection(permission_claims):
-                logger.store_user_auth_error_activity(
-                    identity,
-                    "",
-                    "Insufficient permissions in JWT for identity",
+                logger.store_auth_error_activity(
+                    f"user {identity.name} [{identity.id}] Insufficient permissions in JWT for identity",
                 )
                 return {"error": "forbidden"}, 403
 

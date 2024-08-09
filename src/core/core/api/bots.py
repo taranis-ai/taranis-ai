@@ -1,4 +1,4 @@
-from flask import request, Flask
+from flask import Blueprint, request, Flask
 from flask.views import MethodView
 from datetime import datetime, timedelta
 
@@ -95,32 +95,35 @@ class BotsInfo(MethodView):
 
 
 def initialize(app: Flask):
-    base_route = "/api/bots"
-    app.add_url_rule(f"{base_route}", view_func=BotsInfo.as_view("bots"))
-    app.add_url_rule(f"{base_route}/", view_func=BotsInfo.as_view("bots_info"))
-    app.add_url_rule(f"{base_route}/<string:bot_id>", view_func=BotsInfo.as_view("bot_info"))
-    app.add_url_rule(f"{base_route}/news-item", view_func=NewsItem.as_view("bots_news_item"))
-    app.add_url_rule(
-        f"{base_route}/news-item/<string:news_item_id>",
+    bots_bp = Blueprint("bots", __name__, url_prefix="/api/bots")
+
+    bots_bp.add_url_rule("", view_func=BotsInfo.as_view("bots"))
+    bots_bp.add_url_rule("/", view_func=BotsInfo.as_view("bots_info"))
+    bots_bp.add_url_rule("/<string:bot_id>", view_func=BotsInfo.as_view("bot_info"))
+    bots_bp.add_url_rule("/news-item", view_func=NewsItem.as_view("bots_news_item"))
+    bots_bp.add_url_rule(
+        "/news-item/<string:news_item_id>",
         view_func=NewsItem.as_view("update_news_item"),
     )
-    app.add_url_rule(
-        f"{base_route}/news-item/<string:news_item_id>/attributes",
+    bots_bp.add_url_rule(
+        "/news-item/<string:news_item_id>/attributes",
         view_func=UpdateNewsItemAttributes.as_view("update_news_item_attributes"),
     )
-    app.add_url_rule(
-        f"{base_route}/stories/group",
+    bots_bp.add_url_rule(
+        "/stories/group",
         view_func=BotGroupAction.as_view("group_stories"),
     )
-    app.add_url_rule(
-        f"{base_route}/stories/group-multiple",
+    bots_bp.add_url_rule(
+        "/stories/group-multiple",
         view_func=BotGroupMultipleAction.as_view("group_multiple_stories"),
     )
-    app.add_url_rule(
-        f"{base_route}/stories/ungroup",
+    bots_bp.add_url_rule(
+        "/stories/ungroup",
         view_func=BotUnGroupAction.as_view("ungroup_stories_bot"),
     )
-    app.add_url_rule(
-        f"{base_route}/story/<string:story_id>/summary",
+    bots_bp.add_url_rule(
+        "/story/<string:story_id>/summary",
         view_func=UpdateStorySummary.as_view("update_story_summary"),
     )
+
+    app.register_blueprint(bots_bp)

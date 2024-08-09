@@ -43,40 +43,22 @@ class TaranisLogger:
 
         self.logger = lloggers[0]
 
-    def log_debug(self, message):
-        self.logger.debug(message)
-
     def debug(self, message):
         self.logger.debug(message)
 
-    def log_debug_trace(self, message=None):
+    def exception(self, message=None):
         if message:
             self.logger.debug(message)
         self.logger.debug(traceback.format_exc())
 
-    def exception(self, message=None):
-        self.log_debug_trace(message)
-
-    def log_info(self, message):
-        self.logger.info(message)
-
     def info(self, message):
         self.logger.info(message)
-
-    def log_critical(self, message):
-        self.logger.critical(message)
 
     def critical(self, message):
         self.logger.critical(message)
 
-    def log_warning(self, message):
-        self.logger.warning(message)
-
     def warning(self, message):
         self.logger.warning(message)
-
-    def log_error(self, message):
-        self.logger.error(message)
 
     def error(self, message):
         self.logger.error(message)
@@ -112,7 +94,7 @@ class TaranisLogFormatter(logging.Formatter):
 class Logger(TaranisLogger):
     def log_worker_activity(self, worker_type, bot, message):
         log_text = f"WORKER {worker_type}/{bot}: {message}"
-        self.log_info(log_text)
+        self.info(log_text)
 
 
 class IgnoreHeartbeatTickFilter(logging.Filter):
