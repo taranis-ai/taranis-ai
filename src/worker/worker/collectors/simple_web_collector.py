@@ -49,7 +49,7 @@ class SimpleWebCollector(BaseWebCollector):
 
         web_content, _ = self.fetch_article_content(self.collector_url, js_enabled=self.js_digest_split)
 
-        if content := self.xpath_extraction(web_content, False):
+        if content := self.xpath_extraction(web_content, self.xpath, False):
             self.split_digest_urls = self.get_urls(content)
             logger.info(f"Digest splitting {self.osint_source_id} returned {len(self.split_digest_urls)} available URLs")
 
@@ -60,8 +60,10 @@ class SimpleWebCollector(BaseWebCollector):
     def gather_news_items(self) -> list[NewsItem]:
         self.start_playwright_if_needed()
         if self.digest_splitting == "true":
-            return self.handle_digests()
-        news_items = [self.news_item_from_article(self.collector_url)]
+            news_items = self.handle_digests()
+            self.stop_playwright_if_needed()
+            return news_items
+        news_items = [self.news_item_from_article(self.collector_url, self.xpath)]
         self.stop_playwright_if_needed()
         return news_items
 
@@ -87,3 +89,27 @@ class SimpleWebCollector(BaseWebCollector):
 
         self.publish(self.news_items, source)
         return None
+
+
+if __name__ == "__main__":
+    collector = SimpleWebCollector()
+    collector.collect(
+        {
+            "id": "test",
+            "parameters": {
+                "WEB_URL": "https://myhttpheader.com/",
+                "XPATH": "//*[@id='mCSB_1_container']",
+                "USER_AGENT": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.3",
+                "PROXY_SERVER": "http://username:password@proxyurl:80",
+                "DIGEST_SPLITTING": "true",
+                "JAVASCRIPT_ALL": "true",
+                "IMPROVE_DS_WITH_JAVASCRIPT": "false",
+                "ADDITIONAL_HEADERS": {
+                    "AUTHORIZATION": "Bearer Token1234",
+                    "X-API-KEY": "12345",
+                    "Cookie": "firstcookie=1234; second-cookie=4321",
+                    "Accept": "text/html",
+                },
+            },
+        }
+    )

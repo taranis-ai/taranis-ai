@@ -27,6 +27,7 @@ workers = [
             {"parameter": "WEB_URL", "rules": "required"},
             {"parameter": "USER_AGENT"},
             {"parameter": "PROXY_SERVER"},
+            {"parameter": "ADDITIONAL_HEADERS"},
             {"parameter": "XPATH"},
             {"parameter": "TLP_LEVEL", "rules": "tlp"},
             {"parameter": "DIGEST_SPLITTING", "type": "switch"},
