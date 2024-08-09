@@ -232,9 +232,7 @@ export default {
       const { description, summary, news_items } = props.story
       const defaultContent = news_items[0]?.content
 
-      return openSummary.value || props.detailView
-        ? defaultContent
-        : summary || description || defaultContent
+      return summary || description || defaultContent
     })
 
     const colorBasedOnLength = computed(() => {

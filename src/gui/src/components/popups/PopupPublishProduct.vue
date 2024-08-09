@@ -12,6 +12,7 @@
         item-title="name"
         item-value="id"
         :label="$t('product.publisher')"
+        no-data-text="No Publisher available - please create one under Admin > Publishers"
         menu-icon="mdi-chevron-down"
       />
     </v-card-text>
@@ -20,19 +21,18 @@
         variant="outlined"
         class="text-lowercase text-red-darken-3 ml-3"
         prepend-icon="mdi-close"
+        text="abort"
         @click="close()"
-      >
-        abort
-      </v-btn>
+      />
       <v-spacer></v-spacer>
       <v-btn
         variant="outlined"
         class="text-lowercase text-primary mr-3"
         prepend-icon="mdi-share-outline"
+        text="publish"
+        :disabled="!publisherSelection"
         @click="publish()"
-      >
-        publish
-      </v-btn>
+      />
     </v-card-actions>
   </v-card>
 </template>

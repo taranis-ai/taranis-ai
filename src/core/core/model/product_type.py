@@ -34,7 +34,8 @@ class ProductType(BaseModel):
         self.type = type
         self.description = description
         self.parameters = Worker.parse_parameters(type, parameters)
-        self.report_types = [ReportItemType.get(report_type) for report_type in report_types] if report_types else []
+        if report_types:
+            self.report_types = ReportItemType.get_bulk(report_types)
 
     def allowed_with_acl(self, user, require_write_access) -> bool:
         if not RoleBasedAccess.is_enabled() or not user:
@@ -105,7 +106,7 @@ class ProductType(BaseModel):
             product_type.parameters = ParameterValue.get_update_values(product_type.parameters, updated_product_type)
         report_types = data.get("report_types", None)
         if report_types is not None:
-            product_type.report_types = [ReportItemType.get(report_type) for report_type in report_types]
+            product_type.report_types = ReportItemType.get_bulk(report_types)
         if template_data := data.get("template"):
             if template_path := product_type.get_template():
                 write_base64_to_file(template_data, template_path)
@@ -158,6 +159,21 @@ class ProductType(BaseModel):
         if self.type.startswith("json"):
             return "application/json"
         return "application/octet-stream"
+
+    @classmethod
+    def delete(cls, product_id: int) -> tuple[dict[str, Any], int]:
+        from core.model.product import Product
+
+        product_type = cls.get(product_id)
+        if not product_type:
+            return {"error": "Product type not found"}, 404
+
+        if product := Product.query.where(Product.product_type_id == product_id).first():
+            return {"error": f"Product type is used in a product - {product.title}"}, 409
+
+        db.session.delete(product_type)
+        db.session.commit()
+        return {"message": f"Product type {product_id} deleted"}, 200
 
 
 class ProductTypeParameterValue(BaseModel):

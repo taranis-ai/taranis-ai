@@ -334,7 +334,7 @@ class TestProductTypes(BaseTest):
     def test_delete_product_type(self, client, auth_header, cleanup_product_types):
         product_type_id = cleanup_product_types["id"]
         response = self.assert_delete_ok(client, uri=f"product-types/{product_type_id}", auth_header=auth_header)
-        assert response.json["message"] == f"ProductType {product_type_id} deleted"
+        assert response.json["message"] == f"Product type {product_type_id} deleted"
 
 
 class TestPermissions(BaseTest):

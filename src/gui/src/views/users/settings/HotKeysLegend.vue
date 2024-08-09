@@ -53,6 +53,10 @@ export default {
         title: 'Ctrl + I',
         subtitle: 'Mark all selected items as important.'
       },
+      {
+        title: 'Ctrl + Shift + G',
+        subtitle: 'Merge selected stories.'
+      },
       { title: 'Ctrl + A', subtitle: 'Select all items currently loaded.' },
       {
         title: 'Ctrl + Shift + S',

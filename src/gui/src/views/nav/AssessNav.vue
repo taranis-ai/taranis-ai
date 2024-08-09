@@ -203,8 +203,10 @@
             block
             to="enter"
             prepend-icon="mdi-pencil-outline"
-            text="create new item"
-          />
+          >
+            create new item
+            <v-tooltip activator="parent" location="start" text="[ctrl+m]" />
+          </v-btn>
         </v-col>
       </v-row>
     </template>

@@ -1,6 +1,7 @@
 import { useMainStore } from '@/stores/MainStore'
 import { useFilterStore } from '@/stores/FilterStore'
 import { useAssessStore } from '@/stores/AssessStore'
+import { router } from '@/router'
 
 export function xorConcat(array, element) {
   const i = array.indexOf(element)
@@ -47,7 +48,7 @@ export function notifyFailure(text) {
   store.notification = {
     type: 'red',
     message: errorMessage,
-    timeout: 0,
+    timeout: -1,
     show: true
   }
 }
@@ -429,4 +430,20 @@ export const sourceStateMap = {
   '-1': { text: 'Unknown', color: 'grey' },
   0: { text: 'OK', color: 'green' },
   1: { text: 'Error', color: 'red' }
+}
+
+export function updateFilterFromQuery(query, filterType) {
+  const filterStore = useFilterStore()
+
+  console.debug(
+    `QUERY: ${JSON.stringify(query)} - Store: ${JSON.stringify(filterStore.getFilter(filterType))}`
+  )
+  if (query === null || Object.keys(query).length === 0) {
+    router.push({ query: filterStore.getFilter(filterType) })
+    return
+  }
+  const cleanQuery = Object.fromEntries(
+    Object.entries(query).filter(([, v]) => v != null)
+  )
+  filterStore.setFilter(cleanQuery, filterType)
 }

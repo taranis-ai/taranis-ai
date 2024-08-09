@@ -140,7 +140,7 @@ export const useFilterStore = defineStore(
       return filter
     }
 
-    function setFilter(rawFilter) {
+    function setStoryFilter(rawFilter) {
       const filter = parseFilter(rawFilter)
       if (filter.page && typeof filter.page === 'string') {
         storyPage.value = parseInt(filter.page)
@@ -211,6 +211,30 @@ export const useFilterStore = defineStore(
       showWeekChart.value = profile.show_charts
     }
 
+    function setFilter(filter, type) {
+      if (type === 'assess') {
+        setStoryFilter(filter)
+      } else if (type === 'asset') {
+        updateAssetFilter(filter)
+      } else if (type === 'analyze') {
+        updateReportFilter(filter)
+      } else if (type === 'publish') {
+        updateProductFilter(filter)
+      }
+    }
+
+    function getFilter(type) {
+      if (type === 'assess') {
+        return storyFilter.value
+      } else if (type === 'asset') {
+        return assetFilter.value
+      } else if (type === 'analyze') {
+        return reportFilter.value
+      } else if (type === 'publish') {
+        return productFilter.value
+      }
+    }
+
     function resetFilter() {
       storyFilter.value = {
         offset: undefined,
@@ -270,6 +294,8 @@ export const useFilterStore = defineStore(
       getFilterTags,
       infiniteScroll,
       setFilter,
+      getFilter,
+      setStoryFilter,
       appendTag,
       nextPage,
       updateFilter,

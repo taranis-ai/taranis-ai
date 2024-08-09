@@ -22,35 +22,8 @@
       />
     </v-app-bar-title>
 
-    <div
-      v-if="showItemCount && mdAndUp"
-      class="mr-4"
-      :class="showAssessTooltip ? 'menu-item-info' : ''"
-    >
-      <span>
-        total items: <strong>{{ itemCountTotal }}</strong>
-      </span>
-      <span v-if="isFiltered">
-        / displayed: <strong>{{ itemCountFiltered }}</strong>
-      </span>
-      <v-tooltip v-if="showAssessTooltip" activator="parent" location="bottom">
-        <v-icon icon="mdi-eye-check-outline" size="x-small" class="mr-1" />
-        read: <strong>{{ storyCounts.read_count }}</strong
-        ><br />
-        <!-- <v-icon icon="mdi-eye-off-outline" size="x-small" class="mr-1" />
-        unread: <strong>{{ itemCountUnread }}</strong>
-        <br /> -->
-        <v-icon icon="mdi-star-check-outline" size="x-small" class="mr-1" />
-        important: <strong>{{ storyCounts.important_count }}</strong>
-        <br />
-        <v-icon
-          icon="mdi-google-circles-communities"
-          size="x-small"
-          class="mr-1"
-        />
-        in report: <strong>{{ storyCounts.in_reports_count }}</strong>
-        <br />
-      </v-tooltip>
+    <div v-if="mdAndUp" class="mr-4">
+      <ItemCount />
     </div>
 
     <v-text-field
@@ -109,31 +82,27 @@
 
 <script>
 import UserMenu from '@/components/UserMenu.vue'
+import ItemCount from '@/components/common/ItemCount.vue'
 
 import { storeToRefs } from 'pinia'
 import { useMainStore } from '@/stores/MainStore'
 import { useUserStore } from '@/stores/UserStore'
 import { useFilterStore } from '@/stores/FilterStore'
-import { useAssessStore } from '@/stores/AssessStore'
 import { defineComponent, computed, ref } from 'vue'
 import { useDisplay } from 'vuetify'
 import { useRoute } from 'vue-router'
 
 export default defineComponent({
   name: 'MainMenu',
-  components: { UserMenu },
+  components: { UserMenu, ItemCount },
   setup() {
     const mainStore = useMainStore()
     const userStore = useUserStore()
     const filterStore = useFilterStore()
-    const assessStore = useAssessStore()
     const { smAndDown, mdAndUp } = useDisplay()
     const route = useRoute()
 
-    const { drawerVisible, itemCountTotal, itemCountFiltered, buildDate } =
-      storeToRefs(mainStore)
-
-    const { storyCounts } = storeToRefs(assessStore)
+    const { drawerVisible, buildDate } = storeToRefs(mainStore)
 
     const timeout = ref(null)
     const searchState = computed({
@@ -165,23 +134,9 @@ export default defineComponent({
       }
     })
 
-    const showItemCount = computed(() => {
-      return itemCountTotal.value !== undefined && itemCountTotal.value > 0
-    })
-
-    const isFiltered = computed(() => {
-      return itemCountFiltered.value === undefined
-        ? false
-        : itemCountFiltered.value !== itemCountTotal.value
-    })
-
     const navClicked = () => {
       mainStore.toggleDrawer()
     }
-
-    const showAssessTooltip = computed(() => {
-      return route.name === 'assess'
-    })
 
     const showSearchBar = computed(() => {
       return (
@@ -252,15 +207,9 @@ export default defineComponent({
       mdAndUp,
       searchState,
       showSearchBar,
-      isFiltered,
-      showItemCount,
-      itemCountFiltered,
-      itemCountTotal,
-      storyCounts,
       drawerVisible,
       showNavButton,
       buttonList,
-      showAssessTooltip,
       navClicked
     }
   }
@@ -294,9 +243,5 @@ export default defineComponent({
 
 .omni-search:focus-within {
   max-width: 800px;
-}
-
-.menu-item-info {
-  cursor: help;
 }
 </style>

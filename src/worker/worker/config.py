@@ -32,11 +32,10 @@ class Settings(BaseSettings):
     LANGUAGE_MODEL_MAPPING: dict[str, dict[str, str]] = {}
     DEFAULT_NLP_LANGUAGE: str = "en"
 
-
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def check_language_model_mapping(self):
-        supported_languages_path = os.path.join(os.path.dirname(__file__), 'supported_languages.json')
-        with open(supported_languages_path, 'r') as file:
+        supported_languages_path = os.path.join(os.path.dirname(__file__), "supported_languages.json")
+        with open(supported_languages_path, "r") as file:
             nlp_model_config = json.load(file)
 
         for lang in self.NLP_LANGUAGES:
@@ -44,7 +43,9 @@ class Settings(BaseSettings):
                 raise ValidationError(f"Language {lang} is not supported. Supported languages are {nlp_model_config.keys()}")
 
         if self.DEFAULT_NLP_LANGUAGE not in nlp_model_config.keys():
-            raise ValidationError(f"Default NLP Language {self.DEFAULT_NLP_LANGUAGE} is not supported. Supported languages are {nlp_model_config.keys()}")
+            raise ValidationError(
+                f"Default NLP Language {self.DEFAULT_NLP_LANGUAGE} is not supported. Supported languages are {nlp_model_config.keys()}"
+            )
         # Populate LANGUAGE_MODEL_MAPPING based on supported languages and fill missing keys
         updated_language_model_mapping = {}
         default_models = nlp_model_config[self.DEFAULT_NLP_LANGUAGE]
@@ -62,6 +63,7 @@ class Settings(BaseSettings):
 
         self.LANGUAGE_MODEL_MAPPING = updated_language_model_mapping
         return self
+
     @model_validator(mode="after")
     def set_celery(self):
         if self.CELERY and len(self.CELERY) > 1:
