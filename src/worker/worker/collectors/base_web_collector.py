@@ -38,13 +38,14 @@ class BaseWebCollector(BaseCollector):
     def set_proxies(self, proxy_server: str):
         self.proxies = {"http": proxy_server, "https": proxy_server, "ftp": proxy_server}
 
-    def set_additional_headers(self, additional_headers: str):
+    def set_additional_headers(self, additional_headers):
         try:
             headers = json.loads(additional_headers)
             if not isinstance(headers, dict):
                 raise ValueError("ADDITIONAL_HEADERS must be a valid JSON object")
             self.headers.update(headers)
         except json.JSONDecodeError as e:
+            logger.error(f"Invalid JSON for headers: {e}")
             raise ValueError(f"Invalid JSON for headers: {e}")
 
     def get_last_modified(self, response: requests.Response) -> datetime.datetime | None:
