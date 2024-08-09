@@ -6,7 +6,7 @@ from worker.log import logger
 
 class PlaywrightExtension:
     def start_playwright_if_needed(self) -> None:
-        if self.js_all == "true" or self.js_digest_split == "true":
+        if self.browser_mode == "true":
             self.playwright = sync_playwright().start()
             logger.debug("Playwright started")
             self.setup_browser()
@@ -44,10 +44,10 @@ class PlaywrightExtension:
         self.context = self.browser.new_context(extra_http_headers=self.headers)
         logger.debug(f"Playwright chromium launching with additional headers: '{self.headers}'")
 
-    def fetch_content_with_js(self, web_url: str) -> str:
-        logger.debug(f"Getting web content with JS for {web_url}")
+    def fetch_content_with_js(self, url: str) -> str:
+        logger.debug(f"Getting web content with JS for {url}")
 
-        self.page.goto(web_url)
+        self.page.goto(url)
         self.page.wait_for_load_state("networkidle")
 
         return self.page.content() or ""

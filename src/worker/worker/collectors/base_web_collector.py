@@ -29,7 +29,7 @@ class BaseWebCollector(BaseCollector, PlaywrightExtension):
         self.digest_splitting_limit = None
         self.split_digest_urls = []
 
-        self.js_all = None
+        self.browser_mode = None
         self.playwright = None
 
     def parse_source(self, source):
@@ -40,9 +40,8 @@ class BaseWebCollector(BaseCollector, PlaywrightExtension):
         if additional_headers := source["parameters"].get("ADDITIONAL_HEADERS", {}):
             self.headers.update(additional_headers)
         if user_agent := source["parameters"].get("USER_AGENT", None):
-            self.headers = {"User-Agent": user_agent}
-        self.js_digest_split = source["parameters"].get("DS_BROWSER_MODE", "false")
-        self.js_all = source["parameters"].get("BROWSER_MODE", "false")
+            self.headers.update({"User-Agent": user_agent})
+        self.browser_mode = source["parameters"].get("BROWSER_MODE", "false")
 
         self.osint_source_id = source["id"]
 
@@ -73,8 +72,8 @@ class BaseWebCollector(BaseCollector, PlaywrightExtension):
         self.core_api.update_osint_source_icon(osint_source_id, icon_content)
         return None
 
-    def fetch_article_content(self, web_url: str, js_enabled: str = "false") -> tuple[str, datetime.datetime | None]:
-        if js_enabled == "true" or self.js_all == "true":
+    def fetch_article_content(self, web_url: str) -> tuple[str, datetime.datetime | None]:
+        if self.browser_mode == "true":
             return self.fetch_content_with_js(web_url), None
         response = requests.get(web_url, headers=self.headers, proxies=self.proxies, timeout=60)
         if not response or not response.ok:

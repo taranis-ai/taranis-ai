@@ -47,7 +47,7 @@ class SimpleWebCollector(BaseWebCollector):
         if not self.xpath:
             raise ValueError("No XPATH set for digest splitting")
 
-        web_content, _ = self.fetch_article_content(self.collector_url, js_enabled=self.js_digest_split)
+        web_content, _ = self.fetch_article_content(self.collector_url)
 
         if content := self.xpath_extraction(web_content, self.xpath, False):
             self.split_digest_urls = self.get_urls(content)

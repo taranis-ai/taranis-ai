@@ -31,7 +31,6 @@ workers = [
             {"parameter": "XPATH"},
             {"parameter": "TLP_LEVEL", "rules": "tlp"},
             {"parameter": "DIGEST_SPLITTING", "type": "switch"},
-            {"parameter": "DS_BROWSER_MODE", "type": "switch"},
             {
                 "parameter": "DIGEST_SPLITTING_LIMIT",
                 "type": "number",
