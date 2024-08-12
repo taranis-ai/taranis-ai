@@ -38,14 +38,18 @@ def test_rss_collector_initialization_with_additional_headers(rss_collector_mock
     assert "Authorization" in rss_collector.headers
     assert rss_collector.headers["Authorization"] == "Bearer Token1234"
 
-def test_rss_collector_initialization_with_invalid_headers(rss_collector_mock, rss_collector):
+@pytest.mark.parametrize("header", [
+    '{"Authorization: "Bearer Token1234"}',
+    '{"key": "value", "invalid"}',
+    '{42: "numeric_key"}',
+    '{"missing_value":}',
+])
+def test_rss_collector_initialization_with_invalid_headers(rss_collector_mock, rss_collector, header):
     from worker.tests.testdata import rss_collector_source_data
-    rss_collector_source_data["parameters"]["ADDITIONAL_HEADERS"] = '{"Authorization: "Bearer Token1234"}'  # Invalid JSON
 
-    with pytest.raises(ValueError) as excinfo:
+    rss_collector_source_data["parameters"]["ADDITIONAL_HEADERS"] = header
+    with pytest.raises(ValueError, match="Invalid JSON for headers"):
         rss_collector.parse_source(rss_collector_source_data)
-
-    assert "Invalid JSON for headers" in str(excinfo.value)
 
 def test_rss_collector_with_multiple_additional_headers(rss_collector_mock, rss_collector):
     from worker.tests.testdata import rss_collector_source_data
@@ -58,14 +62,6 @@ def test_rss_collector_with_multiple_additional_headers(rss_collector_mock, rss_
     assert rss_collector.headers["Authorization"] == "Bearer Token1234"
     assert "X-Custom-Header" in rss_collector.headers
     assert rss_collector.headers["X-Custom-Header"] == "CustomValue"
-
-def test_set_additional_headers_with_invalid_json():
-    from worker.collectors.rt_collector import RTCollector
-
-    collector = RTCollector()
-    invalid_json = '{"Authorization": "Bearer Token1234"'  # Missing closing brace
-    with pytest.raises(ValueError):
-        collector.set_additional_headers(invalid_json)
 
 
 def test_simple_web_collector_basic(simple_web_collector_mock, simple_web_collector):

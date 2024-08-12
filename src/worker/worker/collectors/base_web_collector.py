@@ -45,7 +45,6 @@ class BaseWebCollector(BaseCollector):
                 raise ValueError("ADDITIONAL_HEADERS must be a valid JSON object")
             self.headers.update(headers)
         except json.JSONDecodeError as e:
-            logger.error(f"Invalid JSON for headers: {e}")
             raise ValueError(f"Invalid JSON for headers: {e}") from e
 
     def get_last_modified(self, response: requests.Response) -> datetime.datetime | None:
