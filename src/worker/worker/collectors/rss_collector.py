@@ -38,9 +38,6 @@ class RSSCollector(BaseWebCollector):
 
         self.digest_splitting_limit = int(source["parameters"].get("DIGEST_SPLITTING_LIMIT", 30))
 
-        additional_headers = source["parameters"].get("ADDITIONAL_HEADERS", "{}")
-        self.set_additional_headers(additional_headers)
-
     def collect(self, source, manual: bool = False):
         self.parse_source(source)
         try:
