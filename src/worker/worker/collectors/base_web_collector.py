@@ -11,10 +11,9 @@ from bs4 import BeautifulSoup
 from worker.log import logger
 from worker.types import NewsItem
 from worker.collectors.base_collector import BaseCollector
-from worker.collectors.playwright_extension import PlaywrightExtension
 
 
-class BaseWebCollector(BaseCollector, PlaywrightExtension):
+class BaseWebCollector(BaseCollector):
     def __init__(self):
         super().__init__()
         self.type = "BASE_WEB_COLLECTOR"
@@ -28,8 +27,8 @@ class BaseWebCollector(BaseCollector, PlaywrightExtension):
         self.digest_splitting_limit = None
         self.split_digest_urls = []
 
+        self.playwright_manager = None
         self.browser_mode = None
-        self.playwright = None
 
     def parse_source(self, source):
         self.digest_splitting = source["parameters"].get("DIGEST_SPLITTING", "false")
@@ -71,9 +70,9 @@ class BaseWebCollector(BaseCollector, PlaywrightExtension):
         self.core_api.update_osint_source_icon(osint_source_id, icon_content)
         return None
 
-    def fetch_article_content(self, web_url: str) -> tuple[str, datetime.datetime | None]:
+    def fetch_article_content(self, web_url: str, xpath: str = "") -> tuple[str, datetime.datetime | None]:
         if self.browser_mode == "true":
-            return self.fetch_content_with_js(web_url), None
+            return self.playwright_manager.fetch_content_with_js(web_url, xpath), None
         response = requests.get(web_url, headers=self.headers, proxies=self.proxies, timeout=60)
         if not response or not response.ok:
             return "", None

@@ -2,8 +2,9 @@ import requests
 import logging
 
 from worker.log import logger
-from worker.collectors.base_web_collector import BaseWebCollector
 from worker.types import NewsItem
+from worker.collectors.base_web_collector import BaseWebCollector
+from worker.collectors.playwright_extension import PlaywrightManager
 
 
 class SimpleWebCollector(BaseWebCollector):
@@ -48,7 +49,7 @@ class SimpleWebCollector(BaseWebCollector):
         if not self.xpath:
             raise ValueError("No XPATH set for digest splitting")
 
-        web_content, _ = self.fetch_article_content(self.web_url)
+        web_content, _ = self.fetch_article_content(self.web_url, self.xpath)
 
         if content := self.xpath_extraction(web_content, self.xpath, False):
             self.split_digest_urls = self.get_urls(self.web_url, content)
@@ -59,14 +60,15 @@ class SimpleWebCollector(BaseWebCollector):
         return []
 
     def gather_news_items(self) -> list[NewsItem]:
-        self.start_playwright_if_needed()
+        if self.browser_mode == "true":
+            self.playwright_manager = PlaywrightManager(self.proxies, self.headers)
         if self.digest_splitting == "true":
-            news_items = self.handle_digests()
-            self.stop_playwright_if_needed()
-            return news_items
-        news_items = [self.news_item_from_article(self.web_url, self.xpath)]
-        self.stop_playwright_if_needed()
-        return news_items
+            newsItems = self.handle_digests()
+            self.playwright_manager.stop_playwright_if_needed()
+            return newsItems
+        newsItems = [self.news_item_from_article(self.web_url, self.xpath)]
+        self.playwright_manager.stop_playwright_if_needed()
+        return newsItems
 
     def web_collector(self, source, manual: bool = False):
         response = requests.head(self.web_url, headers=self.headers, proxies=self.proxies)
