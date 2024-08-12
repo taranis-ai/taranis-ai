@@ -55,7 +55,6 @@ def browser_context_args(browser_context_args, browser_type_launch_args, request
     if request.config.getoption("--e2e-admin"):
         browser_type_launch_args["args"] = ["--window-size=1640,1338"]
 
-
     if request.config.getoption("--record-video"):
         if request.config.getoption("--e2e-admin"):
             browser_type_launch_args["args"] = ["--window-size=1964,1211"]
@@ -110,7 +109,6 @@ def stories(app, news_items_list):
             new_time = now - timedelta(hours=random_hours)
             item.update({"published": new_time.isoformat()})
             item.update({"collected": new_time.isoformat()})
-
 
     _generate_timestamp()
 

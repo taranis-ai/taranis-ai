@@ -262,7 +262,6 @@ export default {
       viewDetails,
       openSummary,
       selected,
-      content_cols,
       meta_cols,
       card_class,
       compactView,

@@ -1,6 +1,6 @@
 <template>
   <v-navigation-drawer
-    v-if="filteredLinks.length > 0 && drawerVisible"
+    v-model="drawerVisible"
     color="cx-drawer-bg"
     class="sidebar"
     :width="300"
