@@ -20,7 +20,7 @@ class RSSCollector(BaseWebCollector):
 
         self.news_items = []
         self.timeout = 60
-        self.collector_url = ""
+        self.feed_url = ""
         self.feed_content = None
         self.last_modified = None
 
@@ -29,8 +29,8 @@ class RSSCollector(BaseWebCollector):
 
     def parse_source(self, source):
         super().parse_source(source)
-        self.collector_url = source["parameters"].get("FEED_URL")
-        if not self.collector_url:
+        self.feed_url = source["parameters"].get("FEED_URL")
+        if not self.feed_url:
             logger.warning("No FEED_URL set")
             return {"error": "No FEED_URL set"}
 
@@ -132,8 +132,8 @@ class RSSCollector(BaseWebCollector):
         return None
 
     def update_favicon(self, feed: feedparser.FeedParserDict, source_id: str):
-        logger.info(f"RSS-Feed {self.collector_url} initial gather, get meta info about source like image icon and language")
-        icon_url = f"{urlparse(self.collector_url).scheme}://{urlparse(self.collector_url).netloc}/favicon.ico"
+        logger.info(f"RSS-Feed {self.feed_url} initial gather, get meta info about source like image icon and language")
+        icon_url = f"{urlparse(self.feed_url).scheme}://{urlparse(self.feed_url).netloc}/favicon.ico"
         icon = feed.get("icon", feed.get("image"))
         if isinstance(icon, feedparser.FeedParserDict):
             icon_url = str(icon.get("href"))
@@ -163,7 +163,7 @@ class RSSCollector(BaseWebCollector):
         return news_items
 
     def get_digest_url_list(self, feed_entries) -> list:
-        return [result for feed_entry in feed_entries for result in self.get_urls(feed_entry.get("summary"))]  # Flat list of URLs
+        return [result for feed_entry in feed_entries for result in self.get_urls(self.feed_url, feed_entry.get("summary"))]  # Flat list of URLs
 
     def get_news_items(self, feed, source) -> list | str:
         if self.digest_splitting == "true":
@@ -178,9 +178,9 @@ class RSSCollector(BaseWebCollector):
         return self.parse_digests()
 
     def get_feed(self) -> feedparser.FeedParserDict:
-        self.feed_content = self.make_request(self.collector_url)
+        self.feed_content = self.make_request(self.feed_url)
         if not self.feed_content:
-            logger.info(f"RSS-Feed {self.collector_url} returned no content")
+            logger.info(f"RSS-Feed {self.feed_url} returned no content")
             raise ValueError("RSS returned no content")
         return feedparser.parse(self.feed_content.content)
 
