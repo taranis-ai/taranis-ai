@@ -62,13 +62,19 @@ class SimpleWebCollector(BaseWebCollector):
     def gather_news_items(self) -> list[NewsItem]:
         if self.browser_mode == "true":
             self.playwright_manager = PlaywrightManager(self.proxies, self.headers)
+        try:
+            news_items = self.collect_news()
+        finally:
+            if self.playwright_manager:
+                self.playwright_manager.stop_playwright_if_needed()
+
+        return news_items
+
+    def collect_news(self) -> list[NewsItem]:
         if self.digest_splitting == "true":
-            newsItems = self.handle_digests()
-            self.playwright_manager.stop_playwright_if_needed()
-            return newsItems
-        newsItems = [self.news_item_from_article(self.web_url, self.xpath)]
-        self.playwright_manager.stop_playwright_if_needed()
-        return newsItems
+            return self.handle_digests()
+        else:
+            return [self.news_item_from_article(self.web_url, self.xpath)]
 
     def web_collector(self, source, manual: bool = False):
         response = requests.head(self.web_url, headers=self.headers, proxies=self.proxies)
@@ -92,3 +98,28 @@ class SimpleWebCollector(BaseWebCollector):
 
         self.publish(self.news_items, source)
         return None
+
+
+def browser_mode_test():
+    collector = SimpleWebCollector()
+    collector.collect(
+        {
+            "id": "test",
+            "parameters": {
+                "WEB_URL": "https://rubryka.com/en",
+                "XPATH": "//*[@id='mCSB_1_container']",
+                "DIGEST_SPLITTING": "true",
+                "BROWSER_MODE": "true",
+                # "PROXY_SERVER": "http://foo:B%40r@http-gateway.domain.org:80",
+                "ADDITIONAL_HEADERS:": {
+                    "AUTHORIZATION": "Bearer Token1234",
+                    "X-API-KEY": "12345",
+                    "Cookie": "firstcookie=1234; second-cookie=4321",
+                },
+            },
+        }
+    )
+
+
+if __name__ == "__main__":
+    browser_mode_test()

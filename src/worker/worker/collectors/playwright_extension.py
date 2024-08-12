@@ -7,13 +7,12 @@ from worker.log import logger
 class PlaywrightManager:
     def __init__(self, proxies: dict | None = None, headers: dict | None = None) -> None:
         self.playwright = sync_playwright().start()
-        self.context = self.setup_context(proxies, headers)
-        self.page = self.context.new_page()
-        self.browser = None
-
-
-    def setup_context(self, proxies: dict | None = None, headers: dict | None = None) -> BrowserContext:
         self.browser = self.playwright.chromium.launch(proxy=self.parse_proxies(proxies))
+        self.context = self.setup_context(headers)
+        self.page = self.context.new_page()
+
+
+    def setup_context(self, headers: dict | None = None) -> BrowserContext:
         if None not in headers.values():
             return self.browser.new_context(extra_http_headers=headers)
         return self.browser.new_context()
@@ -29,14 +28,13 @@ class PlaywrightManager:
         return {"server": parsed_url.geturl(), "username": username, "password": password}
     
     def stop_playwright_if_needed(self) -> None:
-        if self.playwright:
-            self.context.close()
-            self.browser.close()
-            self.playwright.stop()
-            logger.debug("Playwright context stopped")
+        self.context.close()
+        self.browser.close()
+        self.playwright.stop()
+        logger.debug("Playwright context stopped")
 
     def fetch_content_with_js(self, url: str, xpath: str = "") -> str:
-        logger.debug(f"Getting web content with JS for {url}")
+        logger.debug(f"Getting web content with JS for {url} and XPATH {xpath}")
 
         self.page.goto(url)
 
