@@ -19,7 +19,7 @@ permissions:
 jobs:
   build_npm:
     name: npm build
-    runs-on: ubuntu-22.04
+    runs-on: [self-hosted, taranis]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -46,7 +46,7 @@ jobs:
 
   build_docker:
     name: build docker
-    runs-on: ubuntu-22.04
+    runs-on: [self-hosted, taranis]
     steps:
       - uses: actions/checkout@v4
       - name: Set up Docker Buildx

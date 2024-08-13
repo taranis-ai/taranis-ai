@@ -46,14 +46,14 @@ class RTCollector(BaseWebCollector):
         if err := self.set_headers(source.get("parameters").get("RT_TOKEN", None)):
             raise ValueError(err)
 
-    def preview_collector(self, source):
+    def preview_collector(self, source: dict):
         if err := self.setup_collector(source):
             raise ValueError(err)
 
         if tickets := self.rt_collector(source):
             return self.preview(tickets, source)
 
-    def collect(self, source):
+    def collect(self, source: dict, manual: bool = False):
         if err := self.setup_collector(source):
             raise ValueError(err)
 

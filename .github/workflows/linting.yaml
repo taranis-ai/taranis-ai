@@ -7,7 +7,7 @@ on:
 jobs:
   test_core:
     name: pytest core
-    runs-on: ubuntu-22.04
+    runs-on: [self-hosted, taranis]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -39,7 +39,7 @@ jobs:
 
   test_worker:
     name: pytest worker
-    runs-on: ubuntu-22.04
+    runs-on: [self-hosted, taranis]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -67,7 +67,7 @@ jobs:
 
   eslint:
     name: eslint
-    runs-on: ubuntu-22.04
+    runs-on: [self-hosted, taranis]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
