@@ -5,11 +5,11 @@ workers = [
         "parameters": [
             {"parameter": "FEED_URL", "rules": "required"},
             {"parameter": "USER_AGENT"},
+            {"parameter": "PROXY_SERVER"},
+            {"parameter": "ADDITIONAL_HEADERS"},
             {"parameter": "CONTENT_LOCATION"},
             {"parameter": "XPATH"},
-            {"parameter": "PROXY_SERVER"},
             {"parameter": "TLP_LEVEL", "rules": "tlp"},
-            {"parameter": "MAX_ARTICLE_AGE", "type": "number"},
             {"parameter": "REFRESH_INTERVAL"},
             {"parameter": "DIGEST_SPLITTING", "type": "switch"},
             {
@@ -17,6 +17,7 @@ workers = [
                 "type": "number",
                 "rules": "digest_splitting_limit",
             },
+            {"parameter": "BROWSER_MODE", "type": "switch"},
         ],
         "type": "RSS_COLLECTOR",
     },
@@ -54,6 +55,7 @@ workers = [
         "parameters": [
             {"parameter": "BASE_URL", "rules": "required"},
             {"parameter": "RT_TOKEN", "rules": "required"},
+            {"parameter": "ADDITIONAL_HEADERS"},
             {"parameter": "TLP_LEVEL", "rules": "tlp"},
         ],
         "type": "RT_COLLECTOR",

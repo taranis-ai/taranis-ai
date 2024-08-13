@@ -11,7 +11,6 @@ import {
 import { defineStore } from 'pinia'
 import { useFilterStore } from './FilterStore'
 import { useAssessStore } from './AssessStore'
-import { useMainStore } from './MainStore'
 import { i18n } from '@/i18n/i18n'
 import { notifyFailure, notifySuccess } from '@/utils/helpers'
 import { ref, computed } from 'vue'
@@ -68,12 +67,9 @@ export const useAnalyzeStore = defineStore(
 
     async function updateReportItems() {
       const filterStore = useFilterStore()
-      const mainStore = useMainStore()
       try {
         const response = await getAllReportItems(filterStore.reportFilterQuery)
         report_items.value = response.data
-        mainStore.itemCountTotal = report_items.value.total_count
-        mainStore.itemCountFiltered = report_items.value.items.length
       } catch (error) {
         report_items.value = { total_count: 0, items: [] }
         notifyFailure(error)

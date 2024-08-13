@@ -7,6 +7,7 @@ import dateutil.parser as dateparser
 from urllib.parse import urlparse, urljoin
 from trafilatura import extract, extract_metadata
 from bs4 import BeautifulSoup
+import json
 
 from worker.log import logger
 from worker.types import NewsItem
@@ -41,10 +42,22 @@ class BaseWebCollector(BaseCollector):
             self.headers.update({"User-Agent": user_agent})
         self.browser_mode = source["parameters"].get("BROWSER_MODE", "false")
 
+        if additional_headers := source["parameters"].get("ADDITIONAL_HEADERS", None):
+            self.set_additional_headers(additional_headers)
+
         self.osint_source_id = source["id"]
 
     def set_proxies(self, proxy_server: str):
         self.proxies = {"http": proxy_server, "https": proxy_server, "ftp": proxy_server}
+
+    def set_additional_headers(self, additional_headers):
+        try:
+            headers = json.loads(additional_headers)
+            if not isinstance(headers, dict):
+                raise ValueError("ADDITIONAL_HEADERS must be a valid JSON object")
+            self.headers.update(headers)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid JSON for headers: {e}") from e
 
     def get_last_modified(self, response: requests.Response) -> datetime.datetime | None:
         if last_modified := response.headers.get("Last-Modified", None):

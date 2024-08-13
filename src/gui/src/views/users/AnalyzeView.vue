@@ -64,10 +64,10 @@
 import DataTable from '@/components/common/DataTable.vue'
 import { useAnalyzeStore } from '@/stores/AnalyzeStore'
 import { useFilterStore } from '@/stores/FilterStore'
-import { useMainStore } from '@/stores/MainStore'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
-import { ref, computed, onUnmounted } from 'vue'
+import { ref, computed, onBeforeMount } from 'vue'
+import { updateFilterFromQuery } from '@/utils/helpers'
 
 export default {
   name: 'AnalyzeView',
@@ -77,7 +77,6 @@ export default {
   setup() {
     const sortBy = ref([{ key: 'created', order: 'desc' }])
 
-    const mainStore = useMainStore()
     const analyzeStore = useAnalyzeStore()
     const filterStore = useFilterStore()
     const router = useRouter()
@@ -111,8 +110,8 @@ export default {
       filterStore.resetFilter()
     }
 
-    onUnmounted(() => {
-      mainStore.resetItemCount()
+    onBeforeMount(() => {
+      updateFilterFromQuery(useRoute().query, 'analyze')
     })
 
     return {

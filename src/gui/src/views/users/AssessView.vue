@@ -43,7 +43,7 @@
           text="Try adjusting your search terms or filters."
           title="No items match."
           class="my-5"
-        ></v-empty-state>
+        />
       </v-col>
       <v-col cols="12" sm="6" md="2">
         <v-btn block prepend-icon="mdi-refresh" @click="resetFilter()"
@@ -58,12 +58,13 @@
 <script>
 import CardStory from '@/components/assess/CardStory.vue'
 import AssessSelectionToolbar from '@/components/assess/AssessSelectionToolbar.vue'
-import { defineComponent, computed, onUpdated, onUnmounted } from 'vue'
+import { defineComponent, computed, onDeactivated, onActivated } from 'vue'
 import { useAssessStore } from '@/stores/AssessStore'
 import { useFilterStore } from '@/stores/FilterStore'
-import { useMainStore } from '@/stores/MainStore'
 import { storeToRefs } from 'pinia'
 import { assessHotkeys } from '@/utils/hotkeys'
+import { updateFilterFromQuery } from '@/utils/helpers'
+import { useRoute } from 'vue-router'
 
 export default defineComponent({
   name: 'AssessView',
@@ -74,7 +75,6 @@ export default defineComponent({
   setup() {
     const assessStore = useAssessStore()
     const filterStore = useFilterStore()
-    const mainStore = useMainStore()
     const { stories, loading, storyCounts } = storeToRefs(assessStore)
     const { storyFilter, storyPage, infiniteScroll } = storeToRefs(filterStore)
 
@@ -124,14 +124,12 @@ export default defineComponent({
       assessStore.updateStories()
     }
 
-    onUpdated(() => {
-      mainStore.itemCountTotal = storyCounts.value?.total_count || 0
-      mainStore.itemCountFiltered = stories.value?.items.length || 0
+    onDeactivated(() => {
+      assessStore.clearSelection()
     })
 
-    onUnmounted(() => {
-      assessStore.clearSelection()
-      mainStore.resetItemCount()
+    onActivated(() => {
+      updateFilterFromQuery(useRoute().query, 'assess')
     })
 
     return {
