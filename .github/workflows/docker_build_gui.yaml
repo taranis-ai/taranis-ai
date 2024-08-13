@@ -7,7 +7,6 @@ on:
     - 'docker/Dockerfile.gui'
     branches:
     - master
-    - awake
     tags:
     - "**"
 

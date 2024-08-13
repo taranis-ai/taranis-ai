@@ -5,10 +5,8 @@ on:
     paths:
     - 'src/core/**'
     - 'docker/Dockerfile.core'
-    - 'docker/gunicorn.conf.py'
     branches:
     - master
-    - awake
     tags:
     - "**"
 
@@ -25,13 +23,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-
-      - name: Cache pip dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/pip
-          key: ${{ hashFiles('src/core/pyproject.toml') }}
+          cache: 'pip'
 
       - name: Install dependencies
         working-directory: src/core
@@ -54,6 +46,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: 'pip'
       - name: build
         working-directory: src/core
         run: |

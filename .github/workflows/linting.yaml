@@ -13,13 +13,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-
-      - name: Cache pip dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/pip
-          key: ${{ hashFiles('src/core/pyproject.toml') }}
+          cache: 'pip'
 
       - name: Install dependencies
         working-directory: src/core
@@ -45,13 +39,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-
-      - name: Cache pip dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/pip
-          key: ${{ hashFiles('src/worker/pyproject.toml') }}
+          cache: 'pip'
 
       - name: Install dependencies
         working-directory: src/worker
