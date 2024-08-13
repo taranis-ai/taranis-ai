@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 import dateutil.parser as dateparser
 
 from worker.collectors.base_web_collector import BaseWebCollector
+from worker.collectors.playwright_manager import PlaywrightManager
 from worker.log import logger
 from worker.types import NewsItem
 
@@ -161,11 +162,19 @@ class RSSCollector(BaseWebCollector):
                 logger.warning(f"Error parsing feed entry: {str(e)}")
                 continue
         return news_items
+    
+    def gather_news_items(self, feed, source) -> list[NewsItem]:
+        if self.browser_mode == "true":
+            self.playwright_manager = PlaywrightManager(self.proxies, self.headers)
+        try:
+            news_items = self.collect_news(feed, source)
+        finally:
+            if self.playwright_manager:
+                self.playwright_manager.stop_playwright_if_needed()
 
-    def get_digest_url_list(self, feed_entries) -> list:
-        return [result for feed_entry in feed_entries for result in self.get_urls(self.feed_url, feed_entry.get("summary"))]  # Flat list of URLs
+            return news_items
 
-    def get_news_items(self, feed, source) -> list | str:
+    def collect_news(self, feed, source) -> list | str:
         if self.digest_splitting == "true":
             return self.handle_digests(feed["entries"][:42])
 
@@ -177,6 +186,11 @@ class RSSCollector(BaseWebCollector):
 
         return self.parse_digests()
 
+    def get_digest_url_list(self, feed_entries) -> list:
+        return [
+            result for feed_entry in feed_entries for result in self.get_urls(self.feed_url, feed_entry.get("summary"))
+        ]  # Flat list of URLs
+
     def get_feed(self) -> feedparser.FeedParserDict:
         self.feed_content = self.make_request(self.feed_url)
         if not self.feed_content:
@@ -187,7 +201,7 @@ class RSSCollector(BaseWebCollector):
     def preview_collector(self, source):
         self.parse_source(source)
         feed = self.get_feed()
-        news_items = self.get_news_items(feed, source)
+        news_items = self.gather_news_items(feed, source)
         return self.preview(news_items, source)
 
     def rss_collector(self, source, manual: bool = False):
@@ -204,7 +218,7 @@ class RSSCollector(BaseWebCollector):
 
         logger.info(f"RSS-Feed {source['id']} returned feed with {len(feed['entries'])} entries")
 
-        self.news_items = self.get_news_items(feed, source)
+        self.news_items = self.gather_news_items(feed, source)
 
         self.publish(self.news_items, source)
         return None

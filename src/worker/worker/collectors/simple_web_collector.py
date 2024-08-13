@@ -4,7 +4,7 @@ import logging
 from worker.log import logger
 from worker.types import NewsItem
 from worker.collectors.base_web_collector import BaseWebCollector
-from worker.collectors.playwright_extension import PlaywrightManager
+from worker.collectors.playwright_manager import PlaywrightManager
 
 
 class SimpleWebCollector(BaseWebCollector):
@@ -73,8 +73,8 @@ class SimpleWebCollector(BaseWebCollector):
     def collect_news(self) -> list[NewsItem]:
         if self.digest_splitting == "true":
             return self.handle_digests()
-        else:
-            return [self.news_item_from_article(self.web_url, self.xpath)]
+        
+        return [self.news_item_from_article(self.web_url, self.xpath)]
 
     def web_collector(self, source, manual: bool = False):
         response = requests.head(self.web_url, headers=self.headers, proxies=self.proxies)

@@ -28,9 +28,12 @@ class PlaywrightManager:
         return {"server": parsed_url.geturl(), "username": username, "password": password}
     
     def stop_playwright_if_needed(self) -> None:
-        self.context.close()
-        self.browser.close()
-        self.playwright.stop()
+        if self.context:
+            self.context.close()
+        if self.browser:
+            self.browser.close()
+        if self.playwright:
+            self.playwright.stop()
         logger.debug("Playwright context stopped")
 
     def fetch_content_with_js(self, url: str, xpath: str = "") -> str:
