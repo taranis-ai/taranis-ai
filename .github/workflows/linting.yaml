@@ -7,7 +7,7 @@ on:
 jobs:
   test_core:
     name: pytest core
-    runs-on: [self-hosted, taranis]
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -33,7 +33,7 @@ jobs:
 
   test_worker:
     name: pytest worker
-    runs-on: [self-hosted, taranis]
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -44,7 +44,7 @@ jobs:
       - name: Install dependencies
         working-directory: src/worker
         run: pip install -e .[dev]
-      
+
       - name: Update playwright
         working-directory: src/worker
         run: playwright install --with-deps
@@ -59,7 +59,7 @@ jobs:
 
   eslint:
     name: eslint
-    runs-on: [self-hosted, taranis]
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
