@@ -46,7 +46,10 @@ class RTCollector(BaseWebCollector):
         if err := self.set_headers(source.get("parameters").get("RT_TOKEN", None)):
             raise ValueError(err)
 
-    def preview_collector(self, source: dict):
+        if additional_headers := source["parameters"].get("ADDITIONAL_HEADERS", None):
+            self.set_additional_headers(additional_headers)
+
+    def preview_collector(self, source):
         if err := self.setup_collector(source):
             raise ValueError(err)
 

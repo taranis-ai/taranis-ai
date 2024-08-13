@@ -20,6 +20,49 @@ def test_rss_collector_digest_splitting(rss_collector_mock, rss_collector):
 
     assert result is None
 
+def test_rss_collector_with_additional_headers(rss_collector_mock, rss_collector):
+    from worker.tests.testdata import rss_collector_source_data
+
+    rss_collector_source_data["parameters"]["ADDITIONAL_HEADERS"] = '{"Authorization": "Bearer Token1234"}'
+    result = rss_collector.collect(rss_collector_source_data)
+
+    assert result is None
+    assert "Authorization" in rss_collector.headers
+    assert rss_collector.headers["Authorization"] == "Bearer Token1234"
+
+def test_rss_collector_initialization_with_additional_headers(rss_collector_mock, rss_collector):
+    from worker.tests.testdata import rss_collector_source_data
+    rss_collector_source_data["parameters"]["ADDITIONAL_HEADERS"] = '{"Authorization": "Bearer Token1234"}'
+    rss_collector.parse_source(rss_collector_source_data)
+
+    assert "Authorization" in rss_collector.headers
+    assert rss_collector.headers["Authorization"] == "Bearer Token1234"
+
+@pytest.mark.parametrize("header", [
+    '{"Authorization: "Bearer Token1234"}',
+    '{"key": "value", "invalid"}',
+    '{42: "numeric_key"}',
+    '{"missing_value":}',
+])
+def test_rss_collector_initialization_with_invalid_headers(rss_collector_mock, rss_collector, header):
+    from worker.tests.testdata import rss_collector_source_data
+
+    rss_collector_source_data["parameters"]["ADDITIONAL_HEADERS"] = header
+    with pytest.raises(ValueError, match="Invalid JSON for headers"):
+        rss_collector.parse_source(rss_collector_source_data)
+
+def test_rss_collector_with_multiple_additional_headers(rss_collector_mock, rss_collector):
+    from worker.tests.testdata import rss_collector_source_data
+
+    rss_collector_source_data["parameters"]["ADDITIONAL_HEADERS"] = '{"Authorization": "Bearer Token1234", "X-Custom-Header": "CustomValue"}'
+    result = rss_collector.collect(rss_collector_source_data)
+
+    assert result is None
+    assert "Authorization" in rss_collector.headers
+    assert rss_collector.headers["Authorization"] == "Bearer Token1234"
+    assert "X-Custom-Header" in rss_collector.headers
+    assert rss_collector.headers["X-Custom-Header"] == "CustomValue"
+
 
 def test_simple_web_collector_basic(simple_web_collector_mock, simple_web_collector):
     from worker.tests.testdata import web_collector_source_data
@@ -37,6 +80,15 @@ def test_simple_web_collector_xpath(simple_web_collector_mock, simple_web_collec
 
     assert result is None
 
+def test_simple_web_collector_with_additional_headers(simple_web_collector_mock, simple_web_collector):
+    from worker.tests.testdata import web_collector_source_data
+
+    web_collector_source_data["parameters"]["ADDITIONAL_HEADERS"] = '{"Authorization": "Bearer Token1234"}'
+    result = simple_web_collector.collect(web_collector_source_data)
+
+    assert result is None
+    assert "Authorization" in simple_web_collector.headers
+    assert simple_web_collector.headers["Authorization"] == "Bearer Token1234"
 
 def test_rt_collector_collect(rt_mock, rt_collector):
     import worker.tests.collectors.rt_testdata as rt_testdata
