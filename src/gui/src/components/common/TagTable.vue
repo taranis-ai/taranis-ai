@@ -4,6 +4,7 @@
     :items-length="totalItems"
     :items="clusters"
     :loading="loading"
+    :sort-by="[{ key: 'size', order: 'desc' }]"
     class="elevation-1"
     item-value="name"
     @update:options="loadItems"
