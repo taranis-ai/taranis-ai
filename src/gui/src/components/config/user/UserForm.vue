@@ -1,12 +1,19 @@
 <template>
   <v-container fluid class="mt-5 pt-0">
-    <span v-if="edit">ID: {{ user.id }}</span>
+    <v-text-field
+      v-if="edit"
+      label="ID"
+      density="compact"
+      :disabled="true"
+      :model-value="user.id"
+    />
     <v-form id="form" ref="form" validate-on="submit" @submit.prevent="addUser">
       <v-row no-gutters>
         <v-col cols="6" class="pa-1">
           <v-text-field
             v-model="user.username"
             :label="$t('user.username')"
+            variant="outlined"
             name="username"
             type="text"
             autocomplete="username"
@@ -16,6 +23,7 @@
         <v-col cols="6" class="pa-1">
           <v-text-field
             v-model="user.name"
+            variant="outlined"
             :label="$t('user.name')"
             name="name"
           />
@@ -24,6 +32,7 @@
           <v-text-field
             ref="password"
             v-model="user.password"
+            variant="outlined"
             :type="showPassword ? 'text' : 'password'"
             :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
             :rules="passwordRules"
@@ -35,6 +44,7 @@
         <v-col cols="6" class="pa-1">
           <v-btn
             color="primary"
+            block
             class="mt-4"
             text="generate password"
             @click="user.password = generatePassword()"
@@ -46,6 +56,7 @@
         <v-col cols="6" class="pr-1">
           <v-select
             v-model="user.organization"
+            variant="outlined"
             item-title="name"
             item-value="id"
             :hint="$t('user.organization')"
@@ -81,7 +92,7 @@
 <script>
 import { createUser, updateUser } from '@/api/config'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onBeforeMount, watch, onUpdated, onMounted } from 'vue'
 import { useConfigStore } from '@/stores/ConfigStore'
 
 export default {
@@ -162,9 +173,17 @@ export default {
       }
     }
 
-    onMounted(() => {
+    onUpdated(() => {
+      form.value.scrollIntoView({ behavior: 'smooth' })
+    })
+
+    onBeforeMount(() => {
       loadOrganizations()
       loadRoles()
+    })
+
+    onMounted(() => {
+      form.value.scrollIntoView({ behavior: 'smooth' })
     })
 
     watch(

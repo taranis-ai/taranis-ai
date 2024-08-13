@@ -121,7 +121,7 @@ class CoreApi:
 
     def get_words_for_tagging_bot(self) -> dict | None:
         try:
-            return self.api_get(url="/worker/word-lists?usage=4")
+            return self.api_get(url="/worker/word-lists?usage=4&with_entries=true")
         except Exception:
             return None
 

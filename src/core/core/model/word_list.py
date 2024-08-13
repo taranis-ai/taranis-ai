@@ -94,6 +94,24 @@ class WordList(BaseModel):
         return query
 
     @classmethod
+    def get_all_for_api(cls, filter_args: dict | None, with_count: bool = False, user=None) -> tuple[dict[str, Any], int]:
+        filter_args = filter_args or {}
+        logger.debug(f"Filtering {cls.__name__} with {filter_args}")
+        if user:
+            query = cls.get_filter_query_with_acl(filter_args, user)
+        else:
+            query = cls.get_filter_query(filter_args)
+        items = cls.get_filtered(query) or []
+        if filter_args.get("with_entries"):
+            result_items = [item.to_dict() for item in items]
+        else:
+            result_items = [item.to_small_dict() for item in items]
+        if with_count:
+            count = cls.get_filtered_count(query)
+            return {"total_count": count, "items": result_items}, 200
+        return {"items": result_items}, 200
+
+    @classmethod
     def get_filter_query(cls, filter_args: dict) -> Select:
         query = db.select(cls)
 
@@ -109,6 +127,12 @@ class WordList(BaseModel):
             query = query.filter(WordList.usage.op("&")(usage) > 0)
 
         return query.order_by(db.asc(cls.name))
+
+    def to_small_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
+        data["usage"] = self.get_usage_list()
+        data.pop("entries", None)
+        return data
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()

@@ -99,13 +99,6 @@ class NewsItemTag(BaseModel):
         return {"total_count": count, "items": list(items.values())}
 
     @classmethod
-    def get_tag_types(cls) -> list[tuple[str, int]]:
-        items = db.session.execute(
-            db.select(cls.tag_type, func.count(cls.name).label("type_count")).group_by(cls.tag_type).order_by(func.count(cls.name).desc())
-        ).all()
-        return [(row[0], row[1]) for row in items] if items else []
-
-    @classmethod
     def parse_tags(cls, tags: list | dict) -> dict[str, "NewsItemTag"]:
         if isinstance(tags, dict):
             return cls._parse_dict_tags(tags)

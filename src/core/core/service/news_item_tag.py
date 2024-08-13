@@ -68,8 +68,18 @@ class NewsItemTagService:
         return [{"name": row[0], "size": row[1]} for row in result]
 
     @classmethod
+    def get_tag_types(cls) -> list[tuple[str, int]]:
+        items = db.session.execute(
+            db.select(NewsItemTag.tag_type, func.count(NewsItemTag.name).label("type_count"))
+            .where(NewsItemTag.tag_type.not_ilike("report_%"))
+            .group_by(NewsItemTag.tag_type)
+            .order_by(func.count(NewsItemTag.name).desc())
+        ).all()
+        return [(row[0], row[1]) for row in items] if items else []
+
+    @classmethod
     def get_largest_tag_types(cls, days: int) -> list:
-        tag_types_with_count = NewsItemTag.get_tag_types()
+        tag_types_with_count = cls.get_tag_types()
         logger.debug(f"Tag types with count: {tag_types_with_count}")
         largest_tag_types = []
         for tag_type, count in tag_types_with_count:
@@ -87,4 +97,9 @@ class NewsItemTagService:
     @classmethod
     def remove_report_tag(cls, story: "Story", report_id: str):
         story.tags = [tag for tag in story.tags if tag.tag_type != f"report_{report_id}"]
+        db.session.commit()
+
+    @classmethod
+    def delete_tags_by_name(cls, tag_name: str):
+        db.session.execute(db.delete(NewsItemTag).where(NewsItemTag.name == tag_name))
         db.session.commit()

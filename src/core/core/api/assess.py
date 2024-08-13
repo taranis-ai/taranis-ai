@@ -1,4 +1,4 @@
-from flask import request, Flask
+from flask import Blueprint, request, Flask
 from flask.views import MethodView
 from urllib.parse import unquote
 from flask_jwt_extended import current_user
@@ -10,6 +10,7 @@ from core.model import news_item, osint_source, news_item_tag, story
 from core.managers.decorators import validate_json
 from core.managers import queue_manager
 from core.service.news_item import NewsItemService
+from core.audit import audit_logger
 
 
 class OSINTSourceGroupsList(MethodView):
@@ -120,8 +121,8 @@ class StoryTags(MethodView):
             min_size = int(request.args.get("min_size", default_min_size))
             filter_args = {"limit": limit, "offset": offset, "search": search, "min_size": min_size}
             return news_item_tag.NewsItemTag.get_filtered_tags(filter_args)
-        except Exception as ex:
-            logger.log_debug(ex)
+        except Exception:
+            logger.exception()
             return {"error": "Failed to get Tags"}, 400
 
 
@@ -134,8 +135,8 @@ class StoryTagList(MethodView):
             offset = min(int(request.args.get("offset", 0)), (2**31) - 1)
             filter_args = {"limit": limit, "offset": offset, "search": search}
             return news_item_tag.NewsItemTag.get_list(filter_args)
-        except Exception as ex:
-            logger.log_debug(ex)
+        except Exception:
+            logger.exception()
             return {"error": "Failed to get Tags"}, 400
 
 
@@ -216,16 +217,20 @@ class BotActions(MethodView):
 
 
 def initialize(app: Flask):
-    base_route = "/api/assess"
-    app.add_url_rule(f"{base_route}/stories", view_func=Stories.as_view("stories"))
-    app.add_url_rule(f"{base_route}/story/<string:story_id>", view_func=Story.as_view("story"))
-    app.add_url_rule(f"{base_route}/osint-source-group-list", view_func=OSINTSourceGroupsList.as_view("osint_source_groups-list"))
-    app.add_url_rule(f"{base_route}/osint-sources-list", view_func=OSINTSourcesList.as_view("osint_sources_list"))
-    app.add_url_rule(f"{base_route}/tags", view_func=StoryTags.as_view("tags"))
-    app.add_url_rule(f"{base_route}/taglist", view_func=StoryTagList.as_view("taglist"))
-    app.add_url_rule(f"{base_route}/news-items", view_func=NewsItems.as_view("news_items"))
-    app.add_url_rule(f"{base_route}/news-items/<string:item_id>", view_func=NewsItem.as_view("news_item"))
-    app.add_url_rule(f"{base_route}/stories/group", view_func=GroupAction.as_view("group_action"))
-    app.add_url_rule(f"{base_route}/stories/ungroup", view_func=UnGroupStories.as_view("ungroup_stories"))
-    app.add_url_rule(f"{base_route}/news-items/ungroup", view_func=UnGroupNewsItem.as_view("ungroup_news_items"))
-    app.add_url_rule(f"{base_route}/stories/botactions", view_func=BotActions.as_view("bot_actions"))
+    assess_bp = Blueprint("assess", __name__, url_prefix="/api/assess")
+
+    assess_bp.add_url_rule("/stories", view_func=Stories.as_view("stories"))
+    assess_bp.add_url_rule("/story/<string:story_id>", view_func=Story.as_view("story"))
+    assess_bp.add_url_rule("/osint-source-group-list", view_func=OSINTSourceGroupsList.as_view("osint_source_groups-list"))
+    assess_bp.add_url_rule("/osint-sources-list", view_func=OSINTSourcesList.as_view("osint_sources_list"))
+    assess_bp.add_url_rule("/tags", view_func=StoryTags.as_view("tags"))
+    assess_bp.add_url_rule("/taglist", view_func=StoryTagList.as_view("taglist"))
+    assess_bp.add_url_rule("/news-items", view_func=NewsItems.as_view("news_items"))
+    assess_bp.add_url_rule("/news-items/<string:item_id>", view_func=NewsItem.as_view("news_item"))
+    assess_bp.add_url_rule("/stories/group", view_func=GroupAction.as_view("group_action"))
+    assess_bp.add_url_rule("/stories/ungroup", view_func=UnGroupStories.as_view("ungroup_stories"))
+    assess_bp.add_url_rule("/news-items/ungroup", view_func=UnGroupNewsItem.as_view("ungroup_news_items"))
+    assess_bp.add_url_rule("/stories/botactions", view_func=BotActions.as_view("bot_actions"))
+
+    assess_bp.after_request(audit_logger.after_request_audit_log)
+    app.register_blueprint(assess_bp)

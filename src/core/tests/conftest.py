@@ -20,6 +20,10 @@ load_dotenv(dotenv_path=env_file, override=True)
 def app():
     from core.__init__ import create_app
 
+    with contextlib.suppress(Exception):
+        parsed_uri = urlparse(os.getenv("SQLALCHEMY_DATABASE_URI"))
+        os.remove(f"{parsed_uri.path}")
+
     app = create_app()
     app.config.update(
         {

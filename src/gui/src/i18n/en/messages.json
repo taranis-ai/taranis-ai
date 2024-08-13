@@ -151,7 +151,8 @@
         "new_item": "New Item",
         "save": "Save",
         "search": "Search",
-        "update": "Update"
+        "update": "Update",
+        "submit": "Submit"
     },
     "card_item": {
         "collected": "Collected",

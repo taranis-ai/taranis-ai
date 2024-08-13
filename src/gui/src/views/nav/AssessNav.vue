@@ -1,11 +1,9 @@
 <template>
   <filter-navigation
     :search="search"
-    :limit="storyFilter.limit"
-    :offset="storyFilter.offset"
+    :limit="storyFilter.limit || 20"
     @update:search="(value) => (search = value)"
     @update:limit="(value) => (storyFilter.limit = value)"
-    @update:offset="(value) => (storyFilter.offset = value)"
   >
     <template #appbar>
       <filter-button
