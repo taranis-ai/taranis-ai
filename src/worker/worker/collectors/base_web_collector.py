@@ -10,8 +10,8 @@ from bs4 import BeautifulSoup
 import json
 
 from worker.log import logger
-from worker.collectors.base_collector import BaseCollector
 from worker.types import NewsItem
+from worker.collectors.base_collector import BaseCollector
 
 
 class BaseWebCollector(BaseCollector):
@@ -25,25 +25,35 @@ class BaseWebCollector(BaseCollector):
         self.headers = {}
         self.osint_source_id = None
 
-    def parse_source(self, source):
-        self.set_proxies(source["parameters"].get("PROXY_SERVER", None))
-        if user_agent := source["parameters"].get("USER_AGENT", None):
-            self.headers = {"User-Agent": user_agent}
+        self.digest_splitting_limit = None
+        self.split_digest_urls = []
 
+        self.playwright_manager = None
+        self.browser_mode = None
+
+    def parse_source(self, source):
+        self.digest_splitting = source["parameters"].get("DIGEST_SPLITTING", "false")
+        self.digest_splitting_limit = int(source["parameters"].get("DIGEST_SPLITTING_LIMIT", 30))
+        self.xpath = source["parameters"].get("XPATH", "")
+        self.set_proxies(source["parameters"].get("PROXY_SERVER", None))
         if additional_headers := source["parameters"].get("ADDITIONAL_HEADERS", None):
-            self.set_additional_headers(additional_headers)
+            self.update_headers(additional_headers)
+        if user_agent := source["parameters"].get("USER_AGENT", None):
+            self.update_headers({"User-Agent": user_agent})
+        self.browser_mode = source["parameters"].get("BROWSER_MODE", "false")
+
 
         self.osint_source_id = source["id"]
 
     def set_proxies(self, proxy_server: str):
         self.proxies = {"http": proxy_server, "https": proxy_server, "ftp": proxy_server}
 
-    def set_additional_headers(self, additional_headers):
+    def update_headers(self, headers):
         try:
-            headers = json.loads(additional_headers)
-            if not isinstance(headers, dict):
+            headers_dict = json.loads(headers)
+            if not isinstance(headers_dict, dict):
                 raise ValueError("ADDITIONAL_HEADERS must be a valid JSON object")
-            self.headers.update(headers)
+            self.headers.update(headers_dict)
         except json.JSONDecodeError as e:
             raise ValueError(f"Invalid JSON for headers: {e}") from e
 
@@ -71,7 +81,9 @@ class BaseWebCollector(BaseCollector):
         self.core_api.update_osint_source_icon(osint_source_id, icon_content)
         return None
 
-    def web_content_from_article(self, web_url: str) -> tuple[str, datetime.datetime | None]:
+    def fetch_article_content(self, web_url: str, xpath: str = "") -> tuple[str, datetime.datetime | None]:
+        if self.browser_mode == "true":
+            return self.playwright_manager.fetch_content_with_js(web_url, xpath), None
         response = requests.get(web_url, headers=self.headers, proxies=self.proxies, timeout=60)
         if not response or not response.ok:
             return "", None
@@ -108,7 +120,7 @@ class BaseWebCollector(BaseCollector):
         return author or "", title or ""
 
     def news_item_from_article(self, web_url: str, xpath: str = "") -> NewsItem:
-        web_content = self.parse_web_content(web_url, xpath)
+        web_content = self.extract_web_content(web_url, xpath)
         return self.create_news_item(
             web_content["author"],
             web_content["title"],
@@ -120,8 +132,8 @@ class BaseWebCollector(BaseCollector):
             web_content["review"],
         )
 
-    def parse_web_content(self, web_url, xpath: str = "") -> dict[str, str | datetime.datetime | None]:
-        web_content, published_date = self.web_content_from_article(web_url)
+    def extract_web_content(self, web_url, xpath: str = "") -> dict[str, str | datetime.datetime | None]:
+        web_content, published_date = self.fetch_article_content(web_url)
         content = ""
         if xpath:
             content = self.xpath_extraction(web_content, xpath)
@@ -136,7 +148,15 @@ class BaseWebCollector(BaseCollector):
         return {"author": author, "title": title, "content": content, "published_date": published_date, "language": "", "review": ""}
 
     def create_news_item(
-        self, author: str, title: str, content: str, web_url: str, published_date: datetime.datetime | None, osint_source_id: str, language: str = None, review: str = None
+        self,
+        author: str,
+        title: str,
+        content: str,
+        web_url: str,
+        published_date: datetime.datetime | None,
+        osint_source_id: str,
+        language: str = None,
+        review: str = None,
     ) -> NewsItem:
         for_hash: str = author + title + self.clean_url(web_url)
 
@@ -152,11 +172,10 @@ class BaseWebCollector(BaseCollector):
             review=review,
         )
 
-    def get_urls(self, html_content: str) -> list:
+    def get_urls(self, collector_url: str, html_content: str) -> list:
         soup = BeautifulSoup(html_content, "html.parser")
-        urls = [a['href'] for a in soup.find_all("a", href=True)]
-        return [urljoin(self.web_url, url) for url in urls]
-
+        urls = [a["href"] for a in soup.find_all("a", href=True)]
+        return [urljoin(collector_url, url) for url in urls]
 
     def parse_digests(self) -> list[NewsItem] | str:
         news_items = []

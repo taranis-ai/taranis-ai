@@ -90,6 +90,27 @@ def test_simple_web_collector_with_additional_headers(simple_web_collector_mock,
     assert "Authorization" in simple_web_collector.headers
     assert simple_web_collector.headers["Authorization"] == "Bearer Token1234"
 
+def test_simple_web_collector_collect(simple_web_collector_mock, simple_web_collector):
+    from worker.tests.testdata import web_collector_url, web_collector_result_title, web_collector_result_content
+
+    result_item = simple_web_collector.news_item_from_article(web_collector_url)
+
+    assert result_item.title == web_collector_result_title
+    # assert result_item.author == "John Doe"
+    assert result_item.content.startswith(web_collector_result_content)
+
+
+def test_simple_web_collector_digest_splitting(simple_web_collector_mock, simple_web_collector):
+    from worker.tests.testdata import web_collector_source_data
+
+    web_collector_source_data["parameters"]["XPATH"] = "//*"
+    web_collector_source_data["parameters"]["DIGEST_SPLITTING"] = "true"
+    web_collector_source_data["parameters"]["DIGEST_SPLITTING_LIMIT"] = 2
+    result = simple_web_collector.collect(web_collector_source_data)
+
+    assert result is None
+
+
 def test_rt_collector_collect(rt_mock, rt_collector):
     import worker.tests.collectors.rt_testdata as rt_testdata
 
@@ -106,26 +127,6 @@ def test_rt_collector_ticket_transaction(rt_mock, rt_collector):
     result = rt_collector.get_ticket_transaction(1)
 
     assert result == "1"
-
-
-def test_simple_web_collector_collect(simple_web_collector_mock, simple_web_collector):
-    from worker.tests.testdata import web_collector_url, web_collector_result_title, web_collector_result_content
-
-    result_item = simple_web_collector.news_item_from_article(web_collector_url)
-
-    assert result_item.title == web_collector_result_title
-    # assert result_item.author == "John Doe"
-    assert result_item.content.startswith(web_collector_result_content)
-
-def test_simple_web_collector_digest_splitting(simple_web_collector_mock, simple_web_collector):
-    from worker.tests.testdata import web_collector_source_data
-
-    web_collector_source_data["parameters"]["XPATH"] = "//*"
-    web_collector_source_data["parameters"]["DIGEST_SPLITTING"] = "true"
-    web_collector_source_data["parameters"]["DIGEST_SPLITTING_LIMIT"] = 2
-    result = simple_web_collector.collect(web_collector_source_data)
-
-    assert result is None
 
 
 @pytest.mark.parametrize("input_news_items", [news_items, news_items[2:], news_items[:: len(news_items) - 1], [news_items[-1]]])

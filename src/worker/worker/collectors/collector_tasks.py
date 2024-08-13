@@ -64,7 +64,7 @@ class CollectorTask(Task):
     max_retries = 3
     priority = 5
     default_retry_delay = 60
-    time_limit = 60
+    time_limit = 300
     ignore_result = True
 
     def __init__(self):
@@ -79,7 +79,7 @@ class CollectorTask(Task):
         return f"Successfully collected source {osint_source_id}"
 
 
-@shared_task(time_limit=50, name="collector_preview", track_started=True, acks_late=True, priority=8)
+@shared_task(time_limit=300, name="collector_preview", track_started=True, acks_late=True, priority=8)
 def collector_preview(osint_source_id: str):
     collector = Collector()
     source, err = collector.get_source(osint_source_id)

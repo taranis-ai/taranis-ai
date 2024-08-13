@@ -327,3 +327,19 @@ head_request = {
     "Vary": "Accept-Encoding",
     "X-Fastly-Request-ID": "aa11111111111111111111111111111111111111",
 }
+
+headers = {
+    "AUTHORIZATION": "Bearer Token1234",
+    "X-API-KEY": "12345",
+    "Cookie": "firstcookie=1234; second-cookie=4321",
+}
+
+proxies = {
+    "http": "http://test_username:test_password@example.com:80",
+    "https": "http://test_username:test_password@example.com:80",
+    "ftp": "http://test_username:test_password@example.com:80",
+}
+
+proxies_empty = {"http": "", "https": "", "ftp": ""}
+
+proxy_parse_result = {"server": "http://test_username:test_password@example.com:80", "username": "test_username", "password": "test_password"}

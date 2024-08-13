@@ -5,9 +5,9 @@ import requests
 import logging
 from urllib.parse import urlparse
 import dateutil.parser as dateparser
-from trafilatura import extract
 
 from worker.collectors.base_web_collector import BaseWebCollector
+from worker.collectors.playwright_manager import PlaywrightManager
 from worker.log import logger
 from worker.types import NewsItem
 
@@ -24,8 +24,7 @@ class RSSCollector(BaseWebCollector):
         self.feed_url = ""
         self.feed_content = None
         self.last_modified = None
-        self.digest_splitting_limit = None
-        self.split_digest_urls = []
+
         logger_trafilatura = logging.getLogger("trafilatura")
         logger_trafilatura.setLevel(logging.WARNING)
 
@@ -81,17 +80,6 @@ class RSSCollector(BaseWebCollector):
         transformed_segments = [operation.replace("{}", segment) for segment, operation in zip(segments, transform_str.split("/"))]
         return f"{parsed_url.scheme}://{'/'.join(transformed_segments)}"
 
-    def get_article_content(self, link_for_article: str) -> str:
-        return self.make_request(link_for_article) or ""
-
-    def content_from_article(self, url: str, xpath: str | None) -> str:
-        html_content = self.get_article_content(url)
-        if not xpath:
-            content = extract(html_content, include_links=False, include_comments=False, include_formatting=False, with_metadata=False)
-            return content or html_content
-
-        return self.xpath_extraction(html_content, xpath)
-
     def parse_feed_entry(self, feed_entry: feedparser.FeedParserDict, source) -> NewsItem:
         author: str = str(feed_entry.get("author", ""))
         title: str = str(feed_entry.get("title", ""))
@@ -108,7 +96,7 @@ class RSSCollector(BaseWebCollector):
         if content_from_feed:
             content = str(feed_entry[content_location])
         if link:
-            web_content = self.parse_web_content(link, source["parameters"].get("XPATH", None))
+            web_content = self.extract_web_content(link, self.xpath)
             content = content if content_from_feed else web_content.get("content")
             author = author or web_content.get("author")
             title = title or web_content.get("title")
@@ -131,7 +119,7 @@ class RSSCollector(BaseWebCollector):
             review=source.get("review", ""),
         )
 
-    # TODO: This function is renamed because of inheritance issues. Notice that @feed is/was not used in the function.
+    # TODO: This function is renamed because of inheritance issues.
     def get_last_modified_feed(self, feed_content: requests.Response, feed: feedparser.FeedParserDict) -> datetime.datetime | None:
         if last_modified := feed_content.headers.get("Last-Modified"):
             return dateparser.parse(last_modified, ignoretz=True)
@@ -174,13 +162,20 @@ class RSSCollector(BaseWebCollector):
                 logger.warning(f"Error parsing feed entry: {str(e)}")
                 continue
         return news_items
+    
+    def gather_news_items(self, feed, source) -> list[NewsItem]:
+        if self.browser_mode == "true":
+            self.playwright_manager = PlaywrightManager(self.proxies, self.headers)
+        try:
+            news_items = self.collect_news(feed, source)
+        finally:
+            if self.playwright_manager:
+                self.playwright_manager.stop_playwright_if_needed()
 
-    def get_digest_url_list(self, feed_entries) -> list:
-        return [result for feed_entry in feed_entries for result in self.get_urls(feed_entry.get("summary"))]  # Flat list of URLs
+            return news_items
 
-    def get_news_items(self, feed, source) -> list | str:
-        digest_splitting = source["parameters"].get("DIGEST_SPLITTING", False)
-        if digest_splitting == "true":
+    def collect_news(self, feed, source) -> list | str:
+        if self.digest_splitting == "true":
             return self.handle_digests(feed["entries"][:42])
 
         return self.parse_feed(feed["entries"][:42], source)
@@ -190,6 +185,11 @@ class RSSCollector(BaseWebCollector):
         logger.info(f"RSS-Feed {self.osint_source_id} returned {len(self.split_digest_urls)} available URLs")
 
         return self.parse_digests()
+
+    def get_digest_url_list(self, feed_entries) -> list:
+        return [
+            result for feed_entry in feed_entries for result in self.get_urls(self.feed_url, feed_entry.get("summary"))
+        ]  # Flat list of URLs
 
     def get_feed(self) -> feedparser.FeedParserDict:
         self.feed_content = self.make_request(self.feed_url)
@@ -201,7 +201,7 @@ class RSSCollector(BaseWebCollector):
     def preview_collector(self, source):
         self.parse_source(source)
         feed = self.get_feed()
-        news_items = self.get_news_items(feed, source)
+        news_items = self.gather_news_items(feed, source)
         return self.preview(news_items, source)
 
     def rss_collector(self, source, manual: bool = False):
@@ -218,7 +218,7 @@ class RSSCollector(BaseWebCollector):
 
         logger.info(f"RSS-Feed {source['id']} returned feed with {len(feed['entries'])} entries")
 
-        self.news_items = self.get_news_items(feed, source)
+        self.news_items = self.gather_news_items(feed, source)
 
         self.publish(self.news_items, source)
         return None
