@@ -230,11 +230,11 @@ class Attribute(BaseModel):
                     element.clear()
                     desc = ""
                     if block_item_count == 1000:
-                        logger.log_debug(f"Processed CPE items: {item_count}")
+                        logger.debug(f"Processed CPE items: {item_count}")
                         block_item_count = 0
                         db.session.commit()
 
-        logger.log_debug(f"Processed CPE items: {str(item_count)}")
+        logger.debug(f"Processed CPE items: {str(item_count)}")
         db.session.commit()
 
     @classmethod

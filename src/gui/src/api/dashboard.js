@@ -11,11 +11,15 @@ export function getTrendingClusters(days = null) {
   return apiService.get('/dashboard/trending-clusters')
 }
 
-export function getCluster(tag_type, filter_data) {
+export function getClusterByType(tag_type, filter_data) {
   const filter = apiService.getQueryStringFromNestedObject(filter_data)
   return apiService.get(`/dashboard/cluster/${tag_type}?${filter}`)
 }
 
 export function getCoreBuildInfo() {
   return apiService.get('/dashboard/build-info')
+}
+
+export function deleteTag(tag_name) {
+  return apiService.delete(`/dashboard/delete-tag/${tag_name}`)
 }

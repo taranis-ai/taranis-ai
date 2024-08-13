@@ -7,19 +7,13 @@ on:
 jobs:
   test_core:
     name: pytest core
-    runs-on: ubuntu-22.04
+    runs-on: [self-hosted, taranis]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-
-      - name: Cache pip dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/pip
-          key: ${{ hashFiles('src/core/pyproject.toml') }}
+          cache: 'pip'
 
       - name: Install dependencies
         working-directory: src/core
@@ -39,19 +33,13 @@ jobs:
 
   test_worker:
     name: pytest worker
-    runs-on: ubuntu-22.04
+    runs-on: [self-hosted, taranis]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-
-      - name: Cache pip dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/pip
-          key: ${{ hashFiles('src/worker/pyproject.toml') }}
+          cache: 'pip'
 
       - name: Install dependencies
         working-directory: src/worker
@@ -71,7 +59,7 @@ jobs:
 
   eslint:
     name: eslint
-    runs-on: ubuntu-22.04
+    runs-on: [self-hosted, taranis]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

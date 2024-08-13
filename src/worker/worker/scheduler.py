@@ -51,7 +51,7 @@ class RESTScheduler(Scheduler):
                 next_run_time = current_datetime + estimate
                 estimates[s.name] = next_run_time.isoformat()
             except Exception:
-                logger.log_debug_trace(f"Failed to sync {s.name}")
+                logger.exception(f"Failed to sync {s.name}")
         # logger.debug(f"Updating next run times: {estimates}")
         self.core_api.update_next_run_time(estimates)
 

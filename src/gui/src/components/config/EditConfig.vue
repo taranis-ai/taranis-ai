@@ -15,6 +15,7 @@
         <v-text-field
           v-if="item.type === 'text' || item.type === 'number'"
           v-model="formData[item.flatKey]"
+          variant="outlined"
           :label="item.label"
           :rules="item.rules"
           :disabled="item['disabled']"
@@ -24,6 +25,7 @@
         <v-text-field
           v-if="item.type === 'date' && formData[item.flatKey]"
           :model-value="d(formData[item.flatKey], 'long')"
+          variant="outlined"
           :disabled="item['disabled']"
           :label="item.label"
           :bg-color="item.color"
@@ -31,6 +33,7 @@
         <v-textarea
           v-if="item.type === 'textarea'"
           v-model="formData[item.flatKey]"
+          variant="outlined"
           :label="item.label"
           :rules="item.rules"
           :disabled="item['disabled']"
@@ -39,6 +42,7 @@
         <v-select
           v-if="item.type === 'select' && item.items"
           v-model="formData[item.flatKey]"
+          variant="outlined"
           :label="item.label"
           :rules="item.rules"
           :disabled="item['disabled']"
@@ -49,6 +53,7 @@
         <v-switch
           v-if="item.type === 'switch'"
           v-model="formData[item.flatKey]"
+          variant="outlined"
           :label="item.label"
           :disabled="item['disabled']"
           true-value="true"
@@ -56,15 +61,16 @@
         />
         <v-list
           v-if="item.type === 'list'"
+          variant="outlined"
           width="100%"
           :items="formData[item.flatKey]"
           :label="item.label"
-          variant="outlined"
           density="compact"
           :disabled="true"
         />
         <v-file-input
           v-if="item.type === 'file'"
+          variant="outlined"
           :rules="item.rules"
           accept="image/png"
           :label="item.label"
@@ -102,9 +108,11 @@
                   <h2 class="ml-4">{{ item.label }}</h2>
                 </v-col>
                 <v-col md="1">
-                  <v-btn v-if="item.addButton" @click="addItem(item.name)">
-                    Add
-                  </v-btn>
+                  <v-btn
+                    v-if="item.addButton"
+                    :text="$t('button.add')"
+                    @click="addItem(item.name)"
+                  />
                 </v-col>
               </v-row>
               <v-row no-gutters>
@@ -127,7 +135,13 @@
         </v-col>
       </v-row>
       <slot name="additionalData"></slot>
-      <v-btn block class="mt-3" type="submit" color="success"> Submit </v-btn>
+      <v-btn
+        block
+        class="mt-3"
+        type="submit"
+        color="success"
+        :text="$t('button.submit')"
+      />
     </v-form>
   </v-card>
 </template>

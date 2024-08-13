@@ -25,7 +25,6 @@ class RTCollector(BaseWebCollector):
 
     def set_base_url(self, base_url):
         if not base_url:
-            logger.warning("No BASE_URL set")
             raise ValueError("No BASE_URL set")
         parsed = urlparse(base_url)
         if parsed.scheme not in ["http", "https"]:
@@ -34,7 +33,6 @@ class RTCollector(BaseWebCollector):
 
     def set_headers(self, rt_token):
         if not rt_token:
-            logger.warning("No RT_TOKEN set")
             raise ValueError("No RT_TOKEN set")
         self.headers = {"Authorization": f"token {rt_token}"}
 
@@ -58,7 +56,7 @@ class RTCollector(BaseWebCollector):
         if tickets := self.rt_collector(source):
             return self.preview(tickets, source)
 
-    def collect(self, source, manual: bool = False):
+    def collect(self, source: dict, manual: bool = False):
         if err := self.setup_collector(source):
             raise ValueError(err)
 
@@ -66,9 +64,7 @@ class RTCollector(BaseWebCollector):
             if tickets := self.rt_collector(source):
                 return self.publish(tickets, source)
         except Exception as e:
-            logger.exception()
-            logger.error(f"RT Collector for {self.base_url} failed with error: {str(e)}")
-            raise RuntimeError("RT Collector not available") from e
+            raise RuntimeError(f"RT Collector not available {self.base_url}") from e
 
     def get_ids_from_tickets(self, tickets) -> list:
         return [ticket.get("id") for ticket in tickets.get("items", [])]
@@ -159,7 +155,7 @@ class RTCollector(BaseWebCollector):
             collected_date=datetime.datetime.now(),
             language=source.get("language", ""),
             review=source.get("review", ""),
-            attributes=[]
+            attributes=[],
         )
 
     def get_tickets(self, ticket_ids: list, source) -> list:

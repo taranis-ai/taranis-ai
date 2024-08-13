@@ -1,4 +1,4 @@
-from flask import request, Flask
+from flask import Blueprint, request, Flask
 from flask.views import MethodView
 from flask_jwt_extended import jwt_required
 
@@ -59,6 +59,13 @@ class ClusterByType(MethodView):
         return NewsItemTag.get_cluster_by_filter(filter_args)
 
 
+class DeleteTag(MethodView):
+    @jwt_required()
+    def delete(self, tag_name: str):
+        NewsItemTagService.delete_tags_by_name(tag_name)
+        return {"message": f"Cluster {tag_name} deleted"}, 200
+
+
 class BuildInfo(MethodView):
     @jwt_required()
     def get(self):
@@ -69,10 +76,14 @@ class BuildInfo(MethodView):
 
 
 def initialize(app: Flask):
-    base_route = "/api/dashboard"
-    app.add_url_rule(f"{base_route}/", view_func=Dashboard.as_view("dashboard"))
-    app.add_url_rule(f"{base_route}", view_func=Dashboard.as_view("dashboard_"))
-    app.add_url_rule(f"{base_route}/trending-clusters", view_func=TrendingClusters.as_view("trending-clusters"))
-    app.add_url_rule(f"{base_route}/story-clusters", view_func=StoryClusters.as_view("story-clusters"))
-    app.add_url_rule(f"{base_route}/cluster/<string:tag_type>", view_func=ClusterByType.as_view("cluster-by-type"))
-    app.add_url_rule(f"{base_route}/build-info", view_func=BuildInfo.as_view("build-info"))
+    dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/api/dashboard")
+
+    dashboard_bp.add_url_rule("/", view_func=Dashboard.as_view("dashboard"))
+    dashboard_bp.add_url_rule("", view_func=Dashboard.as_view("dashboard_"))
+    dashboard_bp.add_url_rule("/trending-clusters", view_func=TrendingClusters.as_view("trending-clusters"))
+    dashboard_bp.add_url_rule("/story-clusters", view_func=StoryClusters.as_view("story-clusters"))
+    dashboard_bp.add_url_rule("/cluster/<string:tag_type>", view_func=ClusterByType.as_view("cluster-by-type"))
+    dashboard_bp.add_url_rule("/build-info", view_func=BuildInfo.as_view("build-info"))
+    dashboard_bp.add_url_rule("/delete-tag/<string:tag_name>", view_func=DeleteTag.as_view("delete-tag"))
+
+    app.register_blueprint(dashboard_bp)
