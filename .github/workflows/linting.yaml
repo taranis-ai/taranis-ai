@@ -47,7 +47,7 @@ jobs:
       
       - name: Update playwright
         working-directory: src/worker
-        run: playwright install
+        run: playwright install --with-deps
 
       - name: Lint with ruff
         working-directory: src/worker

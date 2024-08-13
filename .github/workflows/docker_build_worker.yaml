@@ -30,7 +30,7 @@ jobs:
 
       - name: Update playwright
         working-directory: src/worker
-        run: playwright install
+        run: playwright install --with-deps
 
       - name: test
         working-directory: src/worker
