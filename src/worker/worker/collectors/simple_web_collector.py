@@ -106,11 +106,11 @@ def browser_mode_test():
         {
             "id": "test",
             "parameters": {
-                "WEB_URL": "https://rubryka.com/en",
+                "WEB_URL": "",
                 "XPATH": "//*[@id='mCSB_1_container']",
                 "DIGEST_SPLITTING": "true",
                 "BROWSER_MODE": "true",
-                # "PROXY_SERVER": "http://foo:B%40r@http-gateway.domain.org:80",
+                # "PROXY_SERVER": "http://test_username:test_password@example.com:80",
                 "ADDITIONAL_HEADERS:": {
                     "AUTHORIZATION": "Bearer Token1234",
                     "X-API-KEY": "12345",
