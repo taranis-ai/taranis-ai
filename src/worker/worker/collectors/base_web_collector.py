@@ -36,26 +36,24 @@ class BaseWebCollector(BaseCollector):
         self.digest_splitting_limit = int(source["parameters"].get("DIGEST_SPLITTING_LIMIT", 30))
         self.xpath = source["parameters"].get("XPATH", "")
         self.set_proxies(source["parameters"].get("PROXY_SERVER", None))
-        if additional_headers := source["parameters"].get("ADDITIONAL_HEADERS", {}):
-            self.headers.update(additional_headers)
+        if additional_headers := source["parameters"].get("ADDITIONAL_HEADERS", None):
+            self.update_headers(additional_headers)
         if user_agent := source["parameters"].get("USER_AGENT", None):
-            self.headers.update({"User-Agent": user_agent})
+            self.update_headers({"User-Agent": user_agent})
         self.browser_mode = source["parameters"].get("BROWSER_MODE", "false")
 
-        if additional_headers := source["parameters"].get("ADDITIONAL_HEADERS", None):
-            self.set_additional_headers(additional_headers)
 
         self.osint_source_id = source["id"]
 
     def set_proxies(self, proxy_server: str):
         self.proxies = {"http": proxy_server, "https": proxy_server, "ftp": proxy_server}
 
-    def set_additional_headers(self, additional_headers):
+    def update_headers(self, headers):
         try:
-            headers = json.loads(additional_headers)
-            if not isinstance(headers, dict):
+            headers_dict = json.loads(headers)
+            if not isinstance(headers_dict, dict):
                 raise ValueError("ADDITIONAL_HEADERS must be a valid JSON object")
-            self.headers.update(headers)
+            self.headers.update(headers_dict)
         except json.JSONDecodeError as e:
             raise ValueError(f"Invalid JSON for headers: {e}") from e
 
