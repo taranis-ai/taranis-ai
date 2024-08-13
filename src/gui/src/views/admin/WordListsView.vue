@@ -38,11 +38,9 @@
             </v-tooltip>
           </template>
         </DataTable>
-        <EditConfig
+        <WordListForm
           v-if="showForm"
-          :config-data="formData"
-          :form-format="formFormat"
-          :title="editTitle"
+          :wordlist-id="word_list_id"
           @submit="handleSubmit"
         />
       </v-col>
@@ -51,9 +49,9 @@
 </template>
 
 <script>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import DataTable from '@/components/common/DataTable.vue'
-import EditConfig from '@/components/config/EditConfig.vue'
+import WordListForm from '@/components/config/WordListForm.vue'
 import ImportExport from '@/components/config/ImportExport.vue'
 import {
   deleteWordList,
@@ -63,7 +61,7 @@ import {
   importWordList,
   gatherWordListEntries
 } from '@/api/config'
-import { notifySuccess, objectFromFormat, notifyFailure } from '@/utils/helpers'
+import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import { useConfigStore } from '@/stores/ConfigStore'
 import { useMainStore } from '@/stores/MainStore'
 import { storeToRefs } from 'pinia'
@@ -72,8 +70,8 @@ export default {
   name: 'WordLists',
   components: {
     DataTable,
-    EditConfig,
-    ImportExport
+    ImportExport,
+    WordListForm
   },
   setup() {
     const showForm = ref(false)
@@ -81,56 +79,8 @@ export default {
     const mainStore = useMainStore()
 
     const selected = ref([])
-    const formData = ref({})
-    const edit = ref(false)
+    const word_list_id = ref(0)
     const { word_lists } = storeToRefs(configStore)
-
-    const formFormat = computed(() => [
-      {
-        name: 'id',
-        label: 'ID',
-        type: 'text',
-        disabled: true
-      },
-      {
-        name: 'name',
-        label: 'Name',
-        type: 'text',
-        rules: ['required']
-      },
-      {
-        name: 'description',
-        label: 'Description',
-        type: 'textarea'
-      },
-      {
-        name: 'link',
-        label: 'Link',
-        type: 'text'
-      },
-      {
-        name: 'usage',
-        label: 'Usage',
-        type: 'checkbox',
-        items: [
-          { value: 'COLLECTOR_INCLUDELIST', label: 'Collector Includelist' },
-          { value: 'COLLECTOR_EXCLUDELIST', label: 'Collector Excludelist' },
-          { value: 'TAGGING_BOT', label: 'Tagging Bot' }
-        ],
-        rules: ['required']
-      },
-      {
-        name: 'entries',
-        label: 'Words',
-        type: 'table',
-        headers: [
-          { title: 'Word', key: 'value' },
-          { title: 'Description', key: 'description' }
-        ],
-        groupBy: [{ key: 'category', order: 'asc' }],
-        disabled: true
-      }
-    ])
 
     const updateData = () => {
       configStore.loadWordLists().then(() => {
@@ -140,57 +90,19 @@ export default {
     }
 
     const addItem = () => {
-      formData.value = objectFromFormat(formFormat.value)
-      edit.value = false
       showForm.value = true
     }
 
     const editItem = (item) => {
-      formData.value = item
-      edit.value = true
+      word_list_id.value = item.id
       showForm.value = true
-    }
-
-    const editTitle = computed(() => {
-      return edit.value
-        ? `Edit Wordlist: '${formData.value['name']}'`
-        : 'Add Wordlist'
-    })
-
-    const parse_usage = (usage) => {
-      if (!usage || usage.length === 0) {
-        notifyFailure('Usage must contain at least one value')
-        return false
-      }
-
-      if (
-        usage.includes('COLLECTOR_INCLUDELIST') &&
-        usage.includes('COLLECTOR_EXCLUDELIST')
-      ) {
-        notifyFailure('Includelist and Excludelist are mutually exclusive')
-        return false
-      }
-      if (
-        usage.includes('COLLECTOR_EXCLUDELIST') &&
-        usage.includes('TAGGING_BOT')
-      ) {
-        notifyFailure('Excludelist and Tagging Bot are mutually exclusive')
-        return false
-      }
-      return true
     }
 
     const handleSubmit = (submittedData) => {
       delete submittedData.entries
-      if (!parse_usage(submittedData.usage)) {
-        return
-      }
 
-      if (edit.value) {
-        updateItem(submittedData)
-      } else {
-        createItem(submittedData)
-      }
+      updateItem(submittedData)
+
       showForm.value = false
     }
 
@@ -262,9 +174,7 @@ export default {
 
     return {
       selected,
-      formData,
-      formFormat,
-      editTitle,
+      word_list_id,
       word_lists,
       showForm,
       updateData,

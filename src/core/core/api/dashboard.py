@@ -59,6 +59,13 @@ class ClusterByType(MethodView):
         return NewsItemTag.get_cluster_by_filter(filter_args)
 
 
+class DeleteTag(MethodView):
+    @jwt_required()
+    def delete(self, tag_name: str):
+        NewsItemTagService.delete_tags_by_name(tag_name)
+        return {"message": f"Cluster {tag_name} deleted"}, 200
+
+
 class BuildInfo(MethodView):
     @jwt_required()
     def get(self):
@@ -77,5 +84,6 @@ def initialize(app: Flask):
     dashboard_bp.add_url_rule("/story-clusters", view_func=StoryClusters.as_view("story-clusters"))
     dashboard_bp.add_url_rule("/cluster/<string:tag_type>", view_func=ClusterByType.as_view("cluster-by-type"))
     dashboard_bp.add_url_rule("/build-info", view_func=BuildInfo.as_view("build-info"))
+    dashboard_bp.add_url_rule("/delete-tag/<string:tag_name>", view_func=DeleteTag.as_view("delete-tag"))
 
     app.register_blueprint(dashboard_bp)

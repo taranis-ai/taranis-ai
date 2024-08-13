@@ -98,3 +98,8 @@ class NewsItemTagService:
     def remove_report_tag(cls, story: "Story", report_id: str):
         story.tags = [tag for tag in story.tags if tag.tag_type != f"report_{report_id}"]
         db.session.commit()
+
+    @classmethod
+    def delete_tags_by_name(cls, tag_name: str):
+        db.session.execute(db.delete(NewsItemTag).where(NewsItemTag.name == tag_name))
+        db.session.commit()

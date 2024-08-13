@@ -509,8 +509,8 @@ class PublisherPresets(MethodView):
 
 class WordLists(MethodView):
     @auth_required("CONFIG_WORD_LIST_ACCESS")
-    @extract_args("search", "usage")
-    def get(self, word_list_id=None, filter_args=None):
+    @extract_args("search", "usage", "with_entries")
+    def get(self, word_list_id=None, filter_args: dict | None = None):
         if word_list_id:
             return word_list.WordList.get_for_api(word_list_id)
         return word_list.WordList.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)

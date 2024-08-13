@@ -232,6 +232,10 @@ export function exportUsers(filter) {
   )
 }
 
+export function getDetailedWordList(word_list_id) {
+  return apiService.get(`/config/word-lists/${word_list_id}`)
+}
+
 export function getAllWordLists(filter_data) {
   const filter = apiService.getQueryStringFromNestedObject(filter_data)
   return apiService.get(`/config/word-lists?${filter}`)
