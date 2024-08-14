@@ -55,8 +55,6 @@ import WordListForm from '@/components/config/WordListForm.vue'
 import ImportExport from '@/components/config/ImportExport.vue'
 import {
   deleteWordList,
-  createWordList,
-  updateWordList,
   exportWordList,
   importWordList,
   gatherWordListEntries
@@ -82,71 +80,57 @@ export default {
     const word_list_id = ref(0)
     const { word_lists } = storeToRefs(configStore)
 
-    const updateData = () => {
+    function updateData() {
       configStore.loadWordLists().then(() => {
         mainStore.itemCountTotal = word_lists.value.total_count
         mainStore.itemCountFiltered = word_lists.value.items.length
       })
     }
 
-    const addItem = () => {
+    function addItem() {
       showForm.value = true
     }
 
-    const editItem = (item) => {
+    function editItem(item) {
       word_list_id.value = item.id
       showForm.value = true
     }
 
-    const handleSubmit = (submittedData) => {
-      delete submittedData.entries
-
-      updateItem(submittedData)
-
+    function handleSubmit() {
+      updateData()
       showForm.value = false
     }
 
-    const deleteItem = (item) => {
-      deleteWordList(item)
-        .then(() => {
-          notifySuccess(`Successfully deleted ${item.name}`)
-          updateData()
-        })
-        .catch(() => {
-          notifyFailure(`Failed to delete ${item.name}`)
-        })
+    async function deleteItem(item) {
+      try {
+        await deleteWordList(item)
+        notifySuccess(`Successfully deleted ${item.name}`)
+        updateData()
+      } catch (error) {
+        notifyFailure(`Failed to delete ${item.name}`)
+      }
     }
 
-    const createItem = (item) => {
-      createWordList(item)
-        .then(() => {
-          notifySuccess(`Successfully created ${item.name}`)
-          updateData()
-        })
-        .catch(() => {
-          notifyFailure(`Failed to create ${item.name}`)
-        })
+    async function updateWordListEntries(item) {
+      try {
+        await gatherWordListEntries(item)
+        notifySuccess(`Triggered update for ${item.name}`)
+      } catch (error) {
+        notifyFailure(`Failed to trigger update for ${item.name}`)
+      }
     }
 
-    const updateItem = (item) => {
-      updateWordList(item)
-        .then(() => {
-          notifySuccess(`Successfully updated ${item.name}`)
-          updateData()
-        })
-        .catch(() => {
-          notifyFailure(`Failed to update ${item.name}`)
-        })
-    }
-
-    const importData = (data) => {
-      importWordList(data).then(() => {
+    async function importData(data) {
+      try {
+        await importWordList(data)
         notifySuccess('Successfully imported data')
         updateData()
-      })
+      } catch (error) {
+        // Handle error
+      }
     }
 
-    const exportData = () => {
+    function exportData() {
       let queryString = ''
       if (selected.value.length > 0) {
         queryString = 'ids=' + selected.value.join('&ids=')
@@ -154,18 +138,8 @@ export default {
       exportWordList(queryString)
     }
 
-    const selectionChange = (new_selection) => {
+    function selectionChange(new_selection) {
       selected.value = new_selection
-    }
-
-    const updateWordListEntries = (item) => {
-      gatherWordListEntries(item)
-        .then(() => {
-          notifySuccess(`Triggered update for ${item.name}`)
-        })
-        .catch(() => {
-          notifyFailure(`Failed to trigger update for ${item.name}`)
-        })
     }
 
     onMounted(() => {
@@ -182,8 +156,6 @@ export default {
       editItem,
       handleSubmit,
       deleteItem,
-      createItem,
-      updateItem,
       importData,
       exportData,
       selectionChange,

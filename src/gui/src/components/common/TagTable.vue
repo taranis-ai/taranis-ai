@@ -5,10 +5,30 @@
     :items="clusters"
     :loading="loading"
     :sort-by="[{ key: 'size', order: 'desc' }]"
+    :search="search"
     class="elevation-1"
     item-value="name"
     @update:options="loadItems"
   >
+    <template #top>
+      <v-card elevation="0">
+        <v-card-title>
+          <v-row no-gutters>
+            <v-text-field
+              v-model="search"
+              append-inner-icon="mdi-magnify"
+              density="compact"
+              label="Search"
+              variant="outlined"
+              single-line
+              class="mr-4"
+              hide-details
+            />
+          </v-row>
+        </v-card-title>
+      </v-card>
+    </template>
+
     <template #item.name="{ item }">
       <router-link :to="'/assess?tags=' + item.name">
         {{ item.name }}
@@ -52,6 +72,7 @@ export default {
     const totalItems = ref(0)
     const clusters = ref([])
     const store = useDashboardStore()
+    const search = ref('')
 
     async function loadItems({ page, itemsPerPage, sortBy }) {
       loading.value = true
@@ -59,7 +80,8 @@ export default {
         page: page,
         per_page: itemsPerPage,
         sort_by:
-          sortBy.length > 0 ? `${sortBy[0].key}_${sortBy[0].order}` : null
+          sortBy.length > 0 ? `${sortBy[0].key}_${sortBy[0].order}` : null,
+        search: search.value
       }
       console.debug('loadItems', params)
 
@@ -77,6 +99,7 @@ export default {
     }
 
     return {
+      search,
       loading,
       totalItems,
       headers,

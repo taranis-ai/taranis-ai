@@ -100,8 +100,8 @@ class BaseCollector:
         if tlp_level := source["parameters"].get("TLP_LEVEL", None):
             news_items = self.add_tlp(news_items, tlp_level)
 
-        for item in news_items:
-            item = self.sanitize_news_item(item, source)
+        news_items = [self.sanitize_news_item(item, source) for item in news_items if item.title or item.content]
+
         return news_items
 
     def publish(self, news_items: list[NewsItem], source: dict):
