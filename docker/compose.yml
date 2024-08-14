@@ -88,19 +88,29 @@ services:
         max-file: "10"
 
 
-  scheduler:
+  beat:
+    depends_on:
+      - rabbitmq
     deploy:
       restart_policy:
         condition: on-failure
         max_attempts: 3
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-scheduler:${TARANIS_TAG:-latest}"
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-worker:${TARANIS_TAG:-latest}"
+    command: "--app worker beat"
     environment:
       TARANIS_CORE_URL: "${TARANIS_CORE_URL:-http://core:8080/api}"
       API_KEY: "${API_KEY}"
       QUEUE_BROKER_HOST: "rabbitmq"
       QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
       QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-taranis}"
+      WORKER_TYPES: '[]'
       DEBUG: "${DEBUG:-False}"
+    healthcheck:
+      test: ["CMD-SHELL", "WORKER_TYPES='[]' celery --app worker celery inspect ping --destination $$QUEUE_BROKER_USER@$$QUEUE_BROKER_HOST"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
     logging:
       driver: "json-file"
       options:

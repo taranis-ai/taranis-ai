@@ -19,7 +19,7 @@
           <v-text-field
             v-model="wordlist.name"
             variant="outlined"
-            :label="$t('wordlist.name')"
+            :label="$t('word_list.name')"
             name="name"
             :rules="[rules.required]"
           />
@@ -28,7 +28,7 @@
           <v-textarea
             v-model="wordlist.description"
             variant="outlined"
-            :label="$t('wordlist.description')"
+            :label="$t('word_list.description')"
             name="description"
           />
         </v-col>
@@ -36,7 +36,7 @@
           <v-text-field
             v-model="wordlist.link"
             variant="outlined"
-            :label="$t('wordlist.link')"
+            :label="$t('word_list.link')"
             name="link"
             :rules="[rules.url]"
           />
@@ -76,6 +76,24 @@
                       class="mr-4"
                       hide-details
                     />
+                    <span class="ml-4">
+                      Entries: {{ wordlist.entry_count }}
+                    </span>
+                  </v-row>
+                  <v-row v-if="wordlist.entry_count > 1000" no-gutters>
+                    <v-alert dense type="warning">
+                      <v-icon left>mdi-alert</v-icon>
+                      <span>
+                        Showing only the first 1000 entries. Export WordList to
+                        see all entries.
+                      </span>
+                      <v-btn
+                        text="Export"
+                        color="primary"
+                        class="ml-2"
+                        @click="exportList"
+                      />
+                    </v-alert>
                   </v-row>
                 </v-card-title>
               </v-card>
@@ -95,6 +113,7 @@ import { watch, onMounted } from 'vue'
 import { ref } from 'vue'
 import { getDetailedWordList } from '@/api/config'
 import { notifyFailure } from '@/utils/helpers'
+import { createWordList, updateWordList, exportWordList } from '@/api/config'
 
 export default {
   name: 'WordListForm',
@@ -147,14 +166,36 @@ export default {
         return
       }
 
-      emit('submit', wordlist.value)
+      console.info(`Submitting wordlist: ${wordlist.value.name}`)
+
+      if (props.wordlistId > 0) {
+        await updateItem(wordlist.value)
+      } else {
+        await createItem(wordlist.value)
+      }
+    }
+
+    async function createItem(item) {
+      try {
+        const response = await createWordList(item)
+        notifySuccess(response.data.message)
+        emit('submit')
+      } catch (error) {
+        notifyFailure(`Failed to create ${item.name}`)
+      }
+    }
+
+    async function updateItem(item) {
+      try {
+        const response = await updateWordList(item)
+        notifySuccess(response.data.message)
+        emit('submit', wordlist.value)
+      } catch (error) {
+        notifyFailure(`Failed to update ${item.name}`)
+      }
     }
 
     function parse_usage(usage) {
-      if (!usage || usage.length === 0) {
-        return 'Usage must contain at least one value'
-      }
-
       if (
         usage.includes('COLLECTOR_INCLUDELIST') &&
         usage.includes('COLLECTOR_EXCLUDELIST')
@@ -168,6 +209,11 @@ export default {
         return 'Excludelist and Tagging Bot are mutually exclusive'
       }
       return true
+    }
+
+    function exportList() {
+      const queryString = 'ids=' + props.wordlistId
+      exportWordList(queryString)
     }
 
     async function loadWordList(word_list_id) {
@@ -190,7 +236,6 @@ export default {
     watch(
       () => props.wordlistId,
       (w) => {
-        console.debug('watch', w)
         loadWordList(w)
       }
     )
@@ -204,7 +249,8 @@ export default {
       usage_types,
       rules,
       groupBy,
-      updatewordlist
+      updatewordlist,
+      exportList
     }
   }
 }

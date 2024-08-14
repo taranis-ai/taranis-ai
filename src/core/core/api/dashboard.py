@@ -55,7 +55,8 @@ class ClusterByType(MethodView):
         page = int(request.args.get("page", 0))
         sort = request.args.get("sort_by")
         offset = min(((page - 1) * per_page), (2**31) - 1)
-        filter_args = {"tag_type": tag_type, "limit": per_page, "offset": offset, "sort": sort}
+        search = request.args.get("search", None)
+        filter_args = {"tag_type": tag_type, "limit": per_page, "offset": offset, "sort": sort, "search": search}
         return NewsItemTag.get_cluster_by_filter(filter_args)
 
 

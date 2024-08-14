@@ -248,14 +248,14 @@ class WordLists(MethodView):
 
 def initialize(app: Flask):
     worker_url = "/api/worker"
-    scheduler_url = "/api/scheduler"
+    beat_url = "/api/beat"
 
     worker_bp = Blueprint("worker", __name__, url_prefix=worker_url)
-    scheduler_bp = Blueprint("scheduler", __name__, url_prefix=scheduler_url)
+    beat_bp = Blueprint("beat", __name__, url_prefix=beat_url)
 
-    scheduler_bp.add_url_rule("/", view_func=QueueSchedule.as_view("queue_schedule"))
-    scheduler_bp.add_url_rule("/<string:schedule_id>", view_func=QueueScheduleEntry.as_view("queue_schedule_entry"))
-    scheduler_bp.add_url_rule("/next-run-time", view_func=NextRunTime.as_view("next_run_time"))
+    beat_bp.add_url_rule("/schedule", view_func=QueueSchedule.as_view("queue_schedule"))
+    beat_bp.add_url_rule("/schedule/<string:schedule_id>", view_func=QueueScheduleEntry.as_view("queue_schedule_entry"))
+    beat_bp.add_url_rule("/next-run-time", view_func=NextRunTime.as_view("next_run_time"))
     worker_bp.add_url_rule("/osint-sources/<string:source_id>", view_func=Sources.as_view("osint_sources_worker"))
     worker_bp.add_url_rule("/osint-sources/<string:source_id>/icon", view_func=SourceIcon.as_view("osint_sources_worker_icon"))
     worker_bp.add_url_rule("/products/<string:product_id>", view_func=Products.as_view("products_worker"))
@@ -272,4 +272,4 @@ def initialize(app: Flask):
     worker_bp.add_url_rule("/word-list/<int:word_list_id>", view_func=WordLists.as_view("word_list_by_id_worker"))
 
     app.register_blueprint(worker_bp)
-    app.register_blueprint(scheduler_bp)
+    app.register_blueprint(beat_bp)
