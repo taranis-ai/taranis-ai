@@ -61,6 +61,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'npm'
+          cache-dependency-path: |
+            src/gui/package-lock.json
       - name: install dependencies
         run: npm --prefix src/gui ci
       - name: lint with eslint
