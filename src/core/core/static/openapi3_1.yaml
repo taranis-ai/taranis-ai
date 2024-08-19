@@ -2656,8 +2656,11 @@ paths:
                   total_database_items:
                     type: integer
                   latest_collected:
-                    type: string
-                    format: date-time
+                    oneOf:
+                      - type: string
+                        format: date-time
+                      - type: string
+                        enum: ['']
         '401':
           $ref: "#/components/responses/401Unauthorized"
         '404':
@@ -3715,6 +3718,8 @@ components:
         lock_time:
           type: string
           format: date-time
+        report_item_id:
+          type: string
 
   securitySchemes:
     APIKey:
