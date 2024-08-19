@@ -4,16 +4,16 @@
       v-if="!reportView && !detailView"
       v-ripple="false"
       variant="tonal"
-      :color="openSummary ? 'primary' : '#919191'"
+      :color="detailView ? 'primary' : '#919191'"
       class="item-action-btn"
       density="compact"
       @click.stop="openCard"
     >
       <v-tooltip
         activator="parent"
-        :text="openSummary ? 'hide details' : 'show details'"
+        :text="detailView ? 'hide details' : 'show details'"
       />
-      <v-icon :icon="openSummary ? 'mdi-chevron-up' : 'mdi-chevron-down'" />
+      <v-icon :icon="detailView ? 'mdi-chevron-up' : 'mdi-chevron-down'" />
     </v-btn>
     <v-btn
       v-if="!detailView"
@@ -46,7 +46,7 @@
     </v-tooltip>
 
     <v-btn
-      v-if="!reportView && (!compactView || openSummary)"
+      v-if="!reportView && (!compactView || detailView)"
       v-ripple="false"
       variant="tonal"
       class="item-action-btn"
@@ -75,7 +75,7 @@
     </v-tooltip>
 
     <v-tooltip
-      v-if="!reportView && (!compactView || openSummary)"
+      v-if="!reportView && (!compactView || detailView)"
       :text="story.read ? 'mark as unread' : 'mark as read'"
     >
       <template #activator="{ props }">
@@ -92,7 +92,7 @@
       </template>
     </v-tooltip>
 
-    <div v-if="openSummary">
+    <div v-if="detailView">
       <v-tooltip
         :text="story.important ? 'uncheck important' : 'mark as important'"
       >
@@ -188,7 +188,7 @@
       </v-tooltip>
     </div>
 
-    <v-menu v-if="!reportView && !openSummary" location="bottom" offset-y>
+    <v-menu v-if="!reportView && !detailView" location="bottom" offset-y>
       <template #activator="{ props }">
         <v-btn
           v-ripple="false"
@@ -353,7 +353,6 @@ export default {
     const active = ref(true)
 
     const viewDetails = ref(false)
-    const openSummary = ref(props.detailView)
     const sharingDialog = ref(false)
     const deleteDialog = ref(false)
     const assessStore = useAssessStore()
@@ -376,20 +375,19 @@ export default {
       props.story.news_items ? props.story.news_items.length : 0
     )
 
-    const openCard = () => {
-      openSummary.value = !openSummary.value
+    function openCard() {
       emit('open-details')
     }
 
-    const markAsRead = () => {
+    function markAsRead() {
       assessStore.markStoryAsRead(props.story.id)
     }
 
-    const markAsImportant = () => {
+    function markAsImportant() {
       assessStore.markStoryAsImportant(props.story.id)
     }
 
-    const deleteNewsItem = () => {
+    function deleteNewsItem() {
       assessStore.removeStoryByID(props.story.id)
     }
 
@@ -421,7 +419,6 @@ export default {
     return {
       active,
       viewDetails,
-      openSummary,
       selected,
       allow_edit,
       compactView,

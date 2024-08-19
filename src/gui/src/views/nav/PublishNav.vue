@@ -35,7 +35,7 @@
 import { computed, onUnmounted } from 'vue'
 import { useFilterStore } from '@/stores/FilterStore'
 import FilterNavigation from '@/components/common/FilterNavigation.vue'
-import dateChips from '@/components/common/filter/dateChips.vue'
+import dateChips from '@/components/analyze/dateChips.vue'
 import { storeToRefs } from 'pinia'
 import { router } from '@/router'
 

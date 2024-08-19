@@ -68,24 +68,25 @@ class NewsItemTagService:
         return [{"name": row[0], "size": row[1]} for row in result]
 
     @classmethod
-    def get_tag_types(cls) -> list[tuple[str, int]]:
+    def get_tag_types(cls) -> list[str]:
         items = db.session.execute(
-            db.select(NewsItemTag.tag_type, func.count(NewsItemTag.name).label("type_count"))
+            db.select(NewsItemTag.tag_type)
             .where(NewsItemTag.tag_type.not_ilike("report_%"))
             .group_by(NewsItemTag.tag_type)
             .order_by(func.count(NewsItemTag.name).desc())
         ).all()
-        return [(row[0], row[1]) for row in items] if items else []
+        return [row[0] for row in items] if items else []
 
     @classmethod
     def get_largest_tag_types(cls, days: int) -> list:
-        tag_types_with_count = cls.get_tag_types()
-        logger.debug(f"Tag types with count: {tag_types_with_count}")
+        tag_types = cls.get_tag_types()
         largest_tag_types = []
-        for tag_type, count in tag_types_with_count:
+        for tag_type in tag_types:
             if tags := cls.get_n_biggest_tags_by_type(tag_type, 5, days=days):
-                largest_tag_types.append({"size": count, "name": tag_type, "tags": tags})
+                cluster_size = sum(tag["size"] for tag in tags)
+                largest_tag_types.append({"size": cluster_size, "name": tag_type, "tags": tags})
 
+        logger.debug(f"Found {len(largest_tag_types)} tag clusters")
         return largest_tag_types
 
     @classmethod

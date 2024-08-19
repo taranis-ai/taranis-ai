@@ -32,23 +32,9 @@ export default {
   },
   setup(props) {
     const filterStore = useFilterStore()
-    const newest_published_date = new Date(
-      Math.max(
-        ...props.story.news_items.map((item) => new Date(item.published))
-      )
-    )
-    const timespanDate = new Date()
-    timespanDate.setDate(timespanDate.getDate() - props.timespan)
 
     const shouldRender = computed(() => {
-      if (
-        props.story &&
-        filterStore.showWeekChart &&
-        newest_published_date >= timespanDate
-      ) {
-        return true
-      }
-      return false
+      return props.story && filterStore.showWeekChart
     })
 
     return {

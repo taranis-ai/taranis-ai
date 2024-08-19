@@ -212,7 +212,7 @@
 </template>
 
 <script>
-import dateChips from '@/components/common/filter/dateChips.vue'
+import dateChips from '@/components/assess/dateChips.vue'
 import dateFilter from '@/components/common/filter/dateFilter.vue'
 import tagFilter from '@/components/common/filter/tagFilter.vue'
 import filterButton from '@/components/common/filter/filterButton.vue'
