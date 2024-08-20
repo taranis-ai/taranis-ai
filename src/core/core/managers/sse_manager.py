@@ -58,7 +58,7 @@ class SSEManager:
             if self.report_item_locks[report_item_id]["user_id"] == user_id:
                 self.report_item_locks[report_item_id]["lock_time"] = datetime.now()
             return self.to_report_item_json(report_item_id), 200
-        self.report_item_locks[report_item_id] = {"user_id": user_id, "lock_time": datetime.now(tz="UTC")}
+        self.report_item_locks[report_item_id] = {"user_id": user_id, "lock_time": datetime.now()}
         self.publish(
             {
                 "data": report_item_id,

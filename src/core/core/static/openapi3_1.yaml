@@ -3186,6 +3186,9 @@ components:
 
     report_item.base:
       type: object
+      required:
+        - title
+        - report_item_type_id
       properties:
         id:
           type: string
