@@ -92,7 +92,7 @@ export default defineComponent({
     const mainStore = useMainStore()
     const dashboardStore = useDashboardStore()
     const { dashboard_data, clusters } = storeToRefs(dashboardStore)
-    const trendingClusterScope = ref(0)
+    const trendingClusterScope = ref('7')
 
     function toggleScope() {
       dashboardStore.loadClusters(trendingClusterScope.value)
@@ -100,7 +100,7 @@ export default defineComponent({
 
     onMounted(() => {
       dashboardStore.loadDashboardData()
-      dashboardStore.loadClusters()
+      dashboardStore.loadClusters(trendingClusterScope.value)
       mainStore.resetItemCount()
     })
     return {

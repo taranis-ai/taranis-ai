@@ -89,7 +89,7 @@ export const useAssessStore = defineStore(
         const page = filter.nextPage()
 
         let { storyFilterQuery } = filter
-        if (storyFilterQuery === '') {
+        if (!storyFilterQuery || storyFilterQuery === '') {
           storyFilterQuery += `page=${page}&no_count=true`
         } else if (storyFilterQuery.includes('page')) {
           storyFilterQuery = storyFilterQuery.replace(

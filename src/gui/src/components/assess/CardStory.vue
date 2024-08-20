@@ -84,7 +84,7 @@
         <v-col class="action-bar mr-1">
           <story-actions
             :story="story"
-            :detail-view="detailView"
+            :detail-view="openSummary"
             :report-view="reportView"
             :action-cols="meta_cols"
             @open-details="openCard()"

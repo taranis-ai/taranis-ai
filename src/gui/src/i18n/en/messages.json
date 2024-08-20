@@ -409,6 +409,7 @@
     "word_list": {
         "collector_excludelist": "Excludelist during collection",
         "collector_includelist": "Includelist during collection",
+        "name": "Name",
         "description": "Description",
         "download_from_link": "Download from URL",
         "error": "Could not save this word list",
@@ -418,7 +419,6 @@
         "removed_error": "Word list is in use and could not be deleted",
         "successful": "New word list was successfully added",
         "successful_edit": "Word list was successfully updated",
-        "value": "Value",
         "words": "Words"
     }
 }

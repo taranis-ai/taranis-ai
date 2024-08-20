@@ -642,9 +642,7 @@ paths:
         in: path
         required: true
         schema:
-          type: integer
-          minimum: 1
-          format: int32
+          type: string
     get:
       security:
       - UserAuth: []
@@ -2656,8 +2654,11 @@ paths:
                   total_database_items:
                     type: integer
                   latest_collected:
-                    type: string
-                    format: date-time
+                    anyOf:
+                      - type: string
+                        format: date-time
+                      - type: string
+                        enum: ['']
         '401':
           $ref: "#/components/responses/401Unauthorized"
         '404':
@@ -3183,6 +3184,9 @@ components:
 
     report_item.base:
       type: object
+      required:
+        - title
+        - report_item_type_id
       properties:
         id:
           type: string
@@ -3715,6 +3719,8 @@ components:
         lock_time:
           type: string
           format: date-time
+        report_item_id:
+          type: string
 
   securitySchemes:
     APIKey:
