@@ -17,6 +17,7 @@ from core.model.role_based_access import ItemType
 from core.model.osint_source import OSINTSourceGroup, OSINTSource, OSINTSourceGroupOSINTSource
 from core.model.news_item import NewsItem
 from core.model.news_item_attribute import NewsItemAttribute
+# from core.model.story_links import StoryLinks
 from core.service.role_based_access import RBACQuery, RoleBasedAccessService
 
 
@@ -38,7 +39,7 @@ class Story(BaseModel):
 
     comments: Mapped[str] = db.Column(db.String(), default="")
     summary: Mapped[str] = db.Column(db.Text, default="")
-    news_items: Mapped[list["NewsItem"]] = relationship("NewsItem")
+    # links: Mapped[list["StoryLinks"]] = relationship("StoryLinks", back_populates="story", cascade="all, delete-orphan")
     attributes: Mapped[list["NewsItemAttribute"]] = relationship("NewsItemAttribute", secondary="story_news_item_attribute")
     tags: Mapped[list["NewsItemTag"]] = relationship("NewsItemTag", back_populates="story", cascade="all, delete-orphan")
 
@@ -51,6 +52,7 @@ class Story(BaseModel):
         important: bool = False,
         summary: str = "",
         comments: str = "",
+        links=None,
         attributes=None,
         news_items=None,
         id=None,
@@ -64,6 +66,8 @@ class Story(BaseModel):
         self.summary = summary
         self.comments = comments
         self.news_items = self.load_news_items(news_items)
+        # if links:
+        #     self.links = StoryLinks.load_multiple(links)
         if attributes:
             self.attributes = NewsItemAttribute.load_multiple(attributes)
 
@@ -488,6 +492,9 @@ class Story(BaseModel):
         if "attributes" in data:
             story.update_attributes(data["attributes"])
 
+        # if "links" in data:
+        #     story.links = data["links"]
+
         story.update_status()
         db.session.commit()
         return {"message": "Story updated Successful", "id": f"{story_id}"}, 200
@@ -503,6 +510,45 @@ class Story(BaseModel):
             self.attributes.append(attribute)
         else:
             attribute.value = value
+
+    # @classmethod
+    # def update_links(cls, story_id: str, tags: list | dict, bot_type: str = "") -> tuple[dict, int]:
+    #     try:
+    #         story = cls.get(story_id)
+    #         if not story:
+    #             logger.error(f"Story {story_id} not found")
+    #             return {"error": "not_found"}, 404
+
+    #         new_tags = NewsItemTag.parse_tags(tags)
+    #         for tag_name, new_tag in new_tags.items():
+    #             if tag_name in [tag.name for tag in story.tags]:
+    #                 continue
+    #             if existing_tag := NewsItemTag.find_by_name(tag_name):
+    #                 new_tag.name = existing_tag.name
+    #                 new_tag.tag_type = existing_tag.tag_type
+    #             story.tags.append(new_tag)
+    #         if bot_type:
+    #             story.attributes.append(NewsItemAttribute(key=bot_type, value=f"{len(new_tags)}"))
+    #         db.session.commit()
+    #         return {"message": f"Successfully updated story: {story_id}, with {len(tags)} new tags"}, 200
+    #     except Exception as e:
+    #         logger.exception("Update News Item Tags Failed")
+    #         return {"error": str(e)}, 500
+
+    # @classmethod
+    # def reset_links(cls, story_id: str) -> tuple[dict, int]:
+    #     try:
+    #         story = cls.get(story_id)
+    #         if not story:
+    #             logger.error(f"Story {story_id} not found")
+    #             return {"error": "not_found"}, 404
+
+    #         story.tags = []
+    #         db.session.commit()
+    #         return {"message": "success"}, 200
+    #     except Exception as e:
+    #         logger.exception("Reset News Item Tags Failed")
+    #         return {"error": str(e)}, 500
 
     def vote(self, vote_data, user_id):
         if not (vote := NewsItemVote.get_by_filter(item_id=self.id, user_id=user_id)):

@@ -180,7 +180,8 @@
         "add_to_story": "Add to story",
         "content_placeholder": "Enter your content here...\n\n\n\n\n",
         "comment_placeholder": "Enter your comment here...\n\n\n\n\n",
-        "summary_placeholder": "Enter your summary here...\n\n\n\n\n"
+        "summary_placeholder": "Enter your summary here...\n\n\n\n\n",
+        "updatelinks": "Update Links"
     },
     "error": {
         "story_in_use": "Some of selected stories are already assigned to a report item",
