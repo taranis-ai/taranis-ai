@@ -642,9 +642,7 @@ paths:
         in: path
         required: true
         schema:
-          type: integer
-          minimum: 1
-          format: int32
+          type: string
     get:
       security:
       - UserAuth: []
@@ -2656,7 +2654,7 @@ paths:
                   total_database_items:
                     type: integer
                   latest_collected:
-                    oneOf:
+                    anyOf:
                       - type: string
                         format: date-time
                       - type: string
