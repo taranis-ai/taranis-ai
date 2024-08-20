@@ -6,21 +6,13 @@
     selected-class="text-primary"
     class="d-flex flex-row"
   >
-    <v-btn class="flex-grow-1" variant="outlined" value="shift">
-      <v-tooltip
-        activator="parent"
-        location="top"
-        text="from end of last shift"
-      />
-      last shift
-    </v-btn>
     <v-btn class="flex-grow-1" variant="outlined" value="week">
       <v-tooltip activator="parent" location="top" text="from last monday" />
       week
     </v-btn>
-    <v-btn class="flex-grow-1" variant="outlined" value="24h">
-      <v-tooltip activator="parent" location="top" text="last 24 hours" />
-      24h
+    <v-btn class="flex-grow-1" variant="outlined" value="month">
+      <v-tooltip activator="parent" location="top" text="from first of month" />
+      month
     </v-btn>
   </v-btn-toggle>
 </template>

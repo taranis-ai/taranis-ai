@@ -3,7 +3,6 @@ from functools import wraps
 from flask import request, Flask
 from typing import Any
 from flask_jwt_extended import JWTManager, get_jwt, get_jwt_identity, verify_jwt_in_request, current_user
-from flask_jwt_extended.exceptions import JWTExtendedException
 
 # from core.managers import queue_manager
 from core.log import logger
@@ -74,7 +73,7 @@ def auth_required(permissions: list | str):
 
             try:
                 verify_jwt_in_request()
-            except JWTExtendedException as ex:
+            except Exception as ex:
                 logger.exception(str(ex))
                 return error
 
