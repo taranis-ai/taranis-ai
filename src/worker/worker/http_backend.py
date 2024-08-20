@@ -14,7 +14,6 @@ class HTTPBackend(BaseBackend):
             "result": self.encode_result(result, status),
             "traceback": traceback,
         }
-        # You might want to handle exceptions here
         self.core_api.store_task_result(data)
 
     def _get_task_meta_for(self, task_id, default=None):

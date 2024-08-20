@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { getProfile, updateProfile, getUserDetails } from '@/api/user'
 import { i18n } from '@/i18n/i18n'
 import { vuetify } from '@/plugins/vuetify'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useFilterStore } from './FilterStore'
 import { notifyFailure, notifySuccess } from '@/utils/helpers'
 
@@ -26,6 +26,18 @@ export const useUserStore = defineStore(
     const sseConnectionState = ref('CLOSED')
     const filterStore = useFilterStore()
 
+    const nextEndOfShift = computed(() => {
+      const nextEOF = new Date()
+      nextEOF.setDate(nextEOF.getDate() - 1)
+      nextEOF.setHours(
+        end_of_shift.value.hours,
+        end_of_shift.value.minutes,
+        0,
+        0
+      )
+      return nextEOF
+    })
+
     const reset_user = () => {
       user_id.value = null
       name.value = ''
@@ -39,7 +51,7 @@ export const useUserStore = defineStore(
       show_charts.value = false
       dark_theme.value = false
       infinite_scroll.value = false
-      end_of_shift.value = null
+      end_of_shift.value = { hours: 18, minutes: 0 }
       language.value = 'en'
       sseConnectionState.value = 'CLOSED'
     }
@@ -82,7 +94,11 @@ export const useUserStore = defineStore(
       show_charts.value = profile.show_charts
       dark_theme.value = profile.dark_theme
       language.value = profile.language
-      end_of_shift.value = profile.end_of_shift
+      const shift = profile.end_of_shift.split(':')
+      end_of_shift.value = {
+        hours: parseInt(shift[0]),
+        minutes: parseInt(shift[1])
+      }
       infinite_scroll.value = profile.infinite_scroll
 
       i18n.global.locale.value = profile.language
@@ -100,6 +116,7 @@ export const useUserStore = defineStore(
       sseConnectionState,
       infinite_scroll,
       end_of_shift,
+      nextEndOfShift,
       hotkeys,
       split_view,
       compact_view,

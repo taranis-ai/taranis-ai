@@ -78,7 +78,7 @@
             placeholder="First Day"
             tooltip-text="Filter Stories starting from this date"
             :timeto="storyFilter.timeto"
-            :default-date="defaultFromDate"
+            :default-date="nextEndOfShift"
           />
         </v-col>
 
@@ -212,7 +212,7 @@
 </template>
 
 <script>
-import dateChips from '@/components/common/filter/dateChips.vue'
+import dateChips from '@/components/assess/dateChips.vue'
 import dateFilter from '@/components/common/filter/dateFilter.vue'
 import tagFilter from '@/components/common/filter/tagFilter.vue'
 import filterButton from '@/components/common/filter/filterButton.vue'
@@ -253,14 +253,7 @@ export default {
       compactViewSetByUser
     } = storeToRefs(filterStore)
 
-    const defaultFromDate = new Date()
-    defaultFromDate.setDate(defaultFromDate.getDate() - 1)
-    defaultFromDate.setHours(
-      userStore.end_of_shift.hours,
-      userStore.end_of_shift.minutes,
-      0,
-      0
-    )
+    const { nextEndOfShift } = storeToRefs(userStore)
 
     const filter_range = computed({
       get() {
@@ -271,7 +264,7 @@ export default {
         const now = new Date()
         switch (value) {
           case 'shift': {
-            storyFilter.value.timefrom = defaultFromDate.toISOString()
+            storyFilter.value.timefrom = nextEndOfShift.value.toISOString()
             break
           }
           case 'week': {
@@ -332,7 +325,7 @@ export default {
       compactView,
       filter_range,
       disableWeekChart,
-      defaultFromDate,
+      nextEndOfShift,
       OSINTSourcesList,
       OSINTSourceGroupsList,
       storyFilter,

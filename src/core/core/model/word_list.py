@@ -137,7 +137,8 @@ class WordList(BaseModel):
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data["usage"] = self.get_usage_list()
-        data["entries"] = [entry.to_word_list_dict() for entry in self.entries if entry]
+        data["entries"] = [entry.to_word_list_dict() for entry in self.entries[:1000] if entry]
+        data["entry_count"] = len(self.entries)
         return data
 
     def to_export_dict(self) -> dict[str, Any]:
