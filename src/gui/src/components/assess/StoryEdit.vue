@@ -67,7 +67,7 @@ import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import CodeEditor from '@/components/common/CodeEditor.vue'
 import EditTags from '@/components/assess/EditTags.vue'
 import AttributesTable from '@/components/common/AttributesTable.vue'
-import StoryLinks from './StoryLinks.vue'
+import StoryLinks from '@/components/assess/StoryLinks.vue'
 import { useRouter } from 'vue-router'
 
 export default {
