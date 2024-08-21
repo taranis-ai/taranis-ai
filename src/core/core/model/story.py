@@ -526,21 +526,6 @@ class Story(BaseModel):
             logger.exception("Update News Item Tags Failed")
             return {"error": str(e)}, 500
 
-    @classmethod
-    def reset_links(cls, story_id: str) -> tuple[dict, int]:
-        try:
-            story = cls.get(story_id)
-            if not story:
-                logger.error(f"Story {story_id} not found")
-                return {"error": "not_found"}, 404
-
-            story.tags = []
-            db.session.commit()
-            return {"message": "success"}, 200
-        except Exception as e:
-            logger.exception("Reset News Item Tags Failed")
-            return {"error": str(e)}, 500
-
     def vote(self, vote_data, user_id):
         if not (vote := NewsItemVote.get_by_filter(item_id=self.id, user_id=user_id)):
             vote = self.create_new_vote(vote, user_id, vote_data)
