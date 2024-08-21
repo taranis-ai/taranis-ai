@@ -66,8 +66,7 @@ class Story(BaseModel):
         self.summary = summary
         self.comments = comments
         self.news_items = self.load_news_items(news_items)
-        if links:
-            self.links = self.load_multiple(links)
+        self.links = links
         if attributes:
             self.attributes = NewsItemAttribute.load_multiple(attributes)
 
@@ -493,7 +492,7 @@ class Story(BaseModel):
             story.update_attributes(data["attributes"])
 
         if "links" in data:
-            story.links = story.update_links(story_id, data["links"])
+            story.links = data["links"]
 
         story.update_status()
         db.session.commit()
@@ -510,18 +509,6 @@ class Story(BaseModel):
             self.attributes.append(attribute)
         else:
             attribute.value = value
-
-    @classmethod
-    def update_links(cls, story_id: str, new_links: list[dict]) -> tuple[dict, int]:
-        link_list = []
-        for link in new_links:
-            if isinstance(link, str):
-                link = {story_id: link}
-            link_list.append(link)
-            logger.debug(f"{link_list=}")
-        cls.links = link_list
-        db.session.commit()
-        return {"message": f"Successfully updated story: {story_id}, with {len(cls.links)} links"}, 200
 
     def vote(self, vote_data, user_id):
         if not (vote := NewsItemVote.get_by_filter(item_id=self.id, user_id=user_id)):
