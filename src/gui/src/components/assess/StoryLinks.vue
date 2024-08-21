@@ -35,7 +35,6 @@ export default {
       default: () => []
     }
   },
-
   emits: ['update:modelValue'],
   setup(props, { emit }) {
     const currentLinks = ref(props.modelValue)
