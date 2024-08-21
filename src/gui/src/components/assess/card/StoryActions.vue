@@ -4,16 +4,16 @@
       v-if="!reportView && !detailView"
       v-ripple="false"
       variant="tonal"
-      :color="detailView ? 'primary' : '#919191'"
+      :color="openSummary ? 'primary' : '#919191'"
       class="item-action-btn"
       density="compact"
       @click.stop="openCard"
     >
       <v-tooltip
         activator="parent"
-        :text="detailView ? 'hide details' : 'show details'"
+        :text="openSummary ? 'hide details' : 'show details'"
       />
-      <v-icon :icon="detailView ? 'mdi-chevron-up' : 'mdi-chevron-down'" />
+      <v-icon :icon="openSummary ? 'mdi-chevron-up' : 'mdi-chevron-down'" />
     </v-btn>
     <v-btn
       v-if="!detailView"
@@ -30,7 +30,7 @@
       <v-icon icon="mdi-magnify" />
     </v-btn>
 
-    <v-tooltip v-if="detailView || reportView" text="edit story">
+    <v-tooltip v-if="openSummary || reportView" text="edit story">
       <template #activator="{ props }">
         <v-btn
           v-ripple="false"
@@ -46,7 +46,7 @@
     </v-tooltip>
 
     <v-btn
-      v-if="!reportView && (!compactView || detailView)"
+      v-if="!reportView && (!compactView || openSummary)"
       v-ripple="false"
       variant="tonal"
       class="item-action-btn"
@@ -75,7 +75,7 @@
     </v-tooltip>
 
     <v-tooltip
-      v-if="!reportView && (!compactView || detailView)"
+      v-if="!reportView && (!compactView || openSummary)"
       :text="story.read ? 'mark as unread' : 'mark as read'"
     >
       <template #activator="{ props }">
@@ -92,7 +92,7 @@
       </template>
     </v-tooltip>
 
-    <div v-if="detailView">
+    <div v-if="openSummary">
       <v-tooltip
         :text="story.important ? 'uncheck important' : 'mark as important'"
       >
@@ -188,7 +188,7 @@
       </v-tooltip>
     </div>
 
-    <v-menu v-if="!reportView && !detailView" location="bottom" offset-y>
+    <v-menu v-if="!reportView && !openSummary" location="bottom" offset-y>
       <template #activator="{ props }">
         <v-btn
           v-ripple="false"
@@ -344,7 +344,8 @@ export default {
       required: true
     },
     detailView: { type: Boolean, default: false },
-    reportView: { type: Boolean, default: false }
+    reportView: { type: Boolean, default: false },
+    openSummary: { type: Boolean, default: false }
   },
   emits: ['remove-from-report', 'open-details'],
   setup(props, { emit }) {
