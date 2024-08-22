@@ -199,7 +199,11 @@ export default {
         ['red', 'amber', 'amber+strict', 'green', 'clear', undefined].includes(
           v
         ) ||
-        'Invalid TLP allowed values: red, amber, amber+strict, green, clear'
+        'Invalid TLP allowed values: red, amber, amber+strict, green, clear',
+      json: (v) =>
+        Boolean(v.length == 0) ||
+        Boolean(JSON.parse(v[0])) ||
+        'Invalid JSON format'
     }
 
     const { d } = useI18n()
