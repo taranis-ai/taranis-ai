@@ -21,7 +21,8 @@
 </template>
 
 <script>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
+import { v4 as uuidv4 } from 'uuid'
 
 export default {
   name: 'StoryLinks',
@@ -37,7 +38,7 @@ export default {
   },
   emits: ['update:modelValue'],
   setup(props, { emit }) {
-    const currentLinks = ref(props.modelValue)
+    const currentLinks = ref([...props.modelValue])
 
     function updateLinks(val) {
       currentLinks.value = val
@@ -45,14 +46,41 @@ export default {
     }
 
     function updateLinksFromNewsItems() {
-      const links = props.newsItems.map((item) => {
+      const manualEntries = currentLinks.value.filter((link) =>
+        link.news_item_id.startsWith('manual_')
+      )
+
+      const newsItemLinks = props.newsItems.map((item) => {
         return {
           news_item_id: item.id,
           link: item.link
         }
       })
-      updateLinks(links)
+
+      const updatedLinks = [...manualEntries, ...newsItemLinks]
+
+      updateLinks(updatedLinks)
     }
+
+    watch(
+      () => currentLinks.value,
+      (newVal, oldVal) => {
+        if (newVal.length > oldVal.length) {
+          const lastEntry = newVal[newVal.length - 1]
+          if (typeof lastEntry === 'string') {
+            const newLink = {
+              news_item_id: `manual_${uuidv4()}`,
+              link: lastEntry
+            }
+
+            const updatedLinks = [...currentLinks.value]
+            updatedLinks.splice(updatedLinks.length - 1, 1, newLink)
+
+            updateLinks(updatedLinks)
+          }
+        }
+      }
+    )
 
     return {
       links: computed({
