@@ -200,10 +200,17 @@ export default {
           v
         ) ||
         'Invalid TLP allowed values: red, amber, amber+strict, green, clear',
-      json: (v) =>
-        Boolean(v.length == 0) ||
-        Boolean(JSON.parse(v[0])) ||
-        'Invalid JSON format'
+      json: (v) => {
+        if (!v || v.length === 0) {
+          return true
+        }
+        try {
+          JSON.parse(v)
+          return true
+        } catch (error) {
+          return 'Invalid JSON format'
+        }
+      }
     }
 
     const { d } = useI18n()
