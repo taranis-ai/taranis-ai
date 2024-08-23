@@ -55,7 +55,7 @@ def test_rss_collector_initialization_with_invalid_headers(rss_collector_mock, r
     from worker.tests.testdata import rss_collector_source_data
 
     rss_collector_source_data["parameters"]["ADDITIONAL_HEADERS"] = header
-    with pytest.raises(ValueError, match="ADDITIONAL_HEADERS has to be valid JSON"):
+    with pytest.raises(ValueError, match='ADDITIONAL_HEADERS: {"missing_value":} has to be valid JSON'):
         rss_collector.parse_source(rss_collector_source_data)
 
 
