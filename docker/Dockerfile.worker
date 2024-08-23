@@ -27,8 +27,6 @@ COPY ./src/worker/. /app/
 
 RUN pip install --no-cache-dir -e /app/
 
-RUN python -m playwright install --with-deps
-
 FROM python:3.12-slim
 
 WORKDIR /app
@@ -47,6 +45,8 @@ COPY --from=builder --chown=user:user /root/.cache /app/.cache
 
 ENV PYTHONPATH=/app
 ENV PATH="/app/.venv/bin:$PATH"
+
+RUN python -m playwright install chromium --with-deps
 
 RUN python -c 'from worker.bots.bot_tasks import BotTask; BotTask()'
 
