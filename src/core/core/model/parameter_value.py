@@ -4,6 +4,7 @@ from sqlalchemy.orm import Mapped
 
 from core.managers.db_manager import db
 from core.model.base_model import BaseModel
+from core.log import logger
 
 
 class PARAMETER_TYPES(StrEnum):
@@ -64,9 +65,17 @@ class ParameterValue(BaseModel):
 
     @classmethod
     def get_update_values(cls, base_parameters: list["ParameterValue"], update_parameters: list["ParameterValue"]) -> list["ParameterValue"]:
-        for parameter in base_parameters:
-            if parameter.parameter in [parameter.parameter for parameter in update_parameters]:
-                parameter.value = cls.find_value_by_parameter(update_parameters, parameter.parameter)
+        base_parameters_dict = {parameter.parameter: parameter for parameter in base_parameters}
+
+        for update_parameter in update_parameters:
+            if update_parameter.parameter in base_parameters_dict:
+                logger.debug(f"Updating: {update_parameter.parameter}")
+                base_parameters_dict[update_parameter.parameter].value = update_parameter.value
+            else:
+                # Add new parameters from update_parameters that are not in base_parameters
+                logger.debug(f"Adding new parameter: {update_parameter.parameter}")
+                base_parameters.append(update_parameter)
+
         return base_parameters
 
     @classmethod
