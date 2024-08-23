@@ -373,8 +373,13 @@ class OSINTSources(MethodView):
 
     @auth_required("CONFIG_OSINT_SOURCE_UPDATE")
     def put(self, source_id: str):
-        if source := osint_source.OSINTSource.update(source_id, request.json):
-            return {"message": f"OSINT Source {source.name} updated", "id": f"{source_id}"}, 200
+        if not (update_data := request.json):
+            return {"error": "No update data passed"}, 400
+        try:
+            if source := osint_source.OSINTSource.update(source_id, update_data):
+                return {"message": f"OSINT Source {source.name} updated", "id": f"{source_id}"}, 200
+        except ValueError as e:
+            return {"error": str(e)}, 500
         return {"error": f"OSINT Source with ID: {source_id} not found"}, 404
 
     @auth_required("CONFIG_OSINT_SOURCE_DELETE")

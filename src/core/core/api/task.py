@@ -26,7 +26,7 @@ class Task(MethodView):
         result = data.get("result")
         status = data.get("status")
 
-        if not result or not status:
+        if not result or not status or "error" in result:
             logger.error(f"{task_id=} - {result=} - {status=}")
             return {"status": "error"}, 400
 
