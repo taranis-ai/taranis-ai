@@ -319,15 +319,14 @@ export default {
         })
     }
 
-    function updateItem(item) {
-      updateOSINTSource(item)
-        .then(() => {
-          notifySuccess(`Successfully updated ${item.name}`)
-          updateData()
-        })
-        .catch(() => {
-          notifyFailure(`Failed to update ${item.name}`)
-        })
+    async function updateItem(item) {
+      try {
+        const result = await updateOSINTSource(item)
+        notifySuccess(result.data.message)
+        updateData()
+      } catch (error) {
+        notifyFailure(error)
+      }
     }
 
     async function loadDefaultSources() {

@@ -166,13 +166,13 @@ class OSINTSource(BaseModel):
         return {"message": f"OSINT Source {osint_source.name} state toggled", "id": f"{source_id}", "state": osint_source.state}, 200
 
     @classmethod
-    def update(cls, osint_source_id, data):
+    def update(cls, osint_source_id: str, data: dict) -> "OSINTSource|None":
         osint_source = cls.get(osint_source_id)
         if not osint_source:
             return None
         if name := data.get("name"):
             osint_source.name = name
-        osint_source.description = data.get("description")
+        osint_source.description = data.get("description", "")
         icon_str = data.get("icon")
         if icon_str is not None and (icon := osint_source.is_valid_base64(icon_str)):
             osint_source.icon = icon

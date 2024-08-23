@@ -84,9 +84,10 @@
         <v-col class="action-bar mr-1">
           <story-actions
             :story="story"
-            :detail-view="openSummary"
+            :detail-view="detailView"
             :report-view="reportView"
             :action-cols="meta_cols"
+            :open-summary="openSummary"
             @open-details="openCard()"
             @refresh="emitRefresh()"
             @remove-from-report="$emit('remove-from-report')"
