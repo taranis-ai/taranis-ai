@@ -21,7 +21,7 @@
 </template>
 
 <script>
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { v4 as uuidv4 } from 'uuid'
 
 export default {
@@ -41,8 +41,18 @@ export default {
     const currentLinks = ref([...props.modelValue])
 
     function updateLinks(val) {
-      currentLinks.value = val
-      emit('update:modelValue', val)
+      const transformedLinks = val.map((item) => {
+        if (typeof item === 'string') {
+          return {
+            news_item_id: `manual_${uuidv4()}`,
+            link: item
+          }
+        }
+        return item
+      })
+
+      currentLinks.value = transformedLinks
+      emit('update:modelValue', transformedLinks)
     }
 
     function updateLinksFromNewsItems() {
@@ -61,26 +71,6 @@ export default {
 
       updateLinks(updatedLinks)
     }
-
-    watch(
-      () => currentLinks.value,
-      (newVal, oldVal) => {
-        if (newVal.length > oldVal.length) {
-          const lastEntry = newVal[newVal.length - 1]
-          if (typeof lastEntry === 'string') {
-            const newLink = {
-              news_item_id: `manual_${uuidv4()}`,
-              link: lastEntry
-            }
-
-            const updatedLinks = [...currentLinks.value]
-            updatedLinks.splice(updatedLinks.length - 1, 1, newLink)
-
-            updateLinks(updatedLinks)
-          }
-        }
-      }
-    )
 
     return {
       links: computed({
