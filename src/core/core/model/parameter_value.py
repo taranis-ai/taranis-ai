@@ -1,3 +1,4 @@
+import json
 from typing import Any
 from enum import StrEnum, auto
 from sqlalchemy.orm import Mapped
@@ -43,7 +44,7 @@ class ParameterValue(BaseModel):
         return {self.parameter: self.value}
 
     def get_copy(self) -> "ParameterValue":
-        return ParameterValue(self.parameter, self.value, self.type)
+        return ParameterValue(parameter=self.parameter, value=self.value, type=self.type, rules=self.rules)
 
     @classmethod
     def find_value_by_parameter(cls, parameters: list["ParameterValue"], parameter_key: str) -> str:
@@ -76,8 +77,29 @@ class ParameterValue(BaseModel):
                 logger.debug(f"Adding new parameter: {update_parameter.parameter}")
                 base_parameters.append(update_parameter)
 
+        for parameter in base_parameters:
+            parameter.check_rules()
+
         return base_parameters
 
     @classmethod
     def from_parameter_list(cls, parameters: list[str]) -> list["ParameterValue"]:
         return [cls(parameter=parameter) for parameter in parameters]
+
+    def check_rules(self) -> bool:
+        if not self.rules:
+            return True
+        for rule in self.rules.split(","):
+            if rule == "required":
+                if not self.value:
+                    raise ValueError("This parameter is required")
+            if rule == "tlp":
+                if self.value not in ["red", "amber", "amber+strict", "green", "clear", None, ""]:
+                    raise ValueError("Invalid TLP allowed values: red, amber, amber+strict, green, clear")
+            if rule == "json":
+                if self.value:
+                    json_dict = json.loads(self.value)
+                    if not isinstance(json_dict, dict):
+                        raise ValueError('Input has to be a json of format \'{"<str>": "<str>"}\'')
+
+        return True

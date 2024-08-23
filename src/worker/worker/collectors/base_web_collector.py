@@ -51,10 +51,10 @@ class BaseWebCollector(BaseCollector):
         try:
             headers_dict = json.loads(headers)
             if not isinstance(headers_dict, dict):
-                raise ValueError("ADDITIONAL_HEADERS must be a valid JSON object")
+                raise ValueError(f"ADDITIONAL_HEADERS: {headers} must be a valid JSON object")
             self.headers.update(headers_dict)
         except (json.JSONDecodeError, TypeError) as e:
-            raise ValueError(f"ADDITIONAL_HEADERS has to be valid JSON: {e}") from e
+            raise ValueError(f"ADDITIONAL_HEADERS: {headers} has to be valid JSON\n{e}") from e
 
     def get_last_modified(self, response: requests.Response) -> datetime.datetime | None:
         if last_modified := response.headers.get("Last-Modified", None):
