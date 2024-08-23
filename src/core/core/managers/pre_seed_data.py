@@ -6,7 +6,7 @@ workers = [
             {"parameter": "FEED_URL", "rules": "required"},
             {"parameter": "USER_AGENT"},
             {"parameter": "PROXY_SERVER"},
-            {"parameter": "ADDITIONAL_HEADERS"},
+            {"parameter": "ADDITIONAL_HEADERS", "rules": "json"},
             {"parameter": "CONTENT_LOCATION"},
             {"parameter": "XPATH"},
             {"parameter": "TLP_LEVEL", "rules": "tlp"},

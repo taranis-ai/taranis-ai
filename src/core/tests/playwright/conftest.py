@@ -113,7 +113,12 @@ def stories(app, news_items_list):
     _generate_timestamp()
 
     with app.app_context():
-        yield Story.add_news_items(news_items_list)[0].get("ids")
+        story_ids = Story.add_news_items(news_items_list)[0].get("ids")
+        if not story_ids:
+            raise ValueError("Error getting stories")
+        story_groups = [[story_ids[0], story_ids[1]], [story_ids[2], story_ids[3]]]
+        Story.group_multiple_stories(story_groups)
+        yield story_ids
 
 
 @pytest.fixture(scope="session")

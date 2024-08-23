@@ -64,7 +64,10 @@ class BaseCollector:
         return BeautifulSoup(html, "lxml").text
 
     def sanitize_url(self, url: str):
-        return quote(url, safe="/:?&=")
+        """
+        Sanitize URL to be compliant with RFC 3986
+        """
+        return quote(url, safe="/:@?&=+$,;")
 
     def sanitize_date(self, date: str | None):
         if isinstance(date, datetime.datetime):

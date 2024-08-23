@@ -42,20 +42,19 @@ class BaseWebCollector(BaseCollector):
             self.update_headers({"User-Agent": user_agent})
         self.browser_mode = source["parameters"].get("BROWSER_MODE", "false")
 
-
         self.osint_source_id = source["id"]
 
     def set_proxies(self, proxy_server: str):
         self.proxies = {"http": proxy_server, "https": proxy_server, "ftp": proxy_server}
 
-    def update_headers(self, headers):
+    def update_headers(self, headers: str):
         try:
             headers_dict = json.loads(headers)
             if not isinstance(headers_dict, dict):
-                raise ValueError("ADDITIONAL_HEADERS must be a valid JSON object")
+                raise ValueError(f"ADDITIONAL_HEADERS: {headers} must be a valid JSON object")
             self.headers.update(headers_dict)
-        except json.JSONDecodeError as e:
-            raise ValueError(f"Invalid JSON for headers: {e}") from e
+        except (json.JSONDecodeError, TypeError) as e:
+            raise ValueError(f"ADDITIONAL_HEADERS: {headers} has to be valid JSON\n{e}") from e
 
     def get_last_modified(self, response: requests.Response) -> datetime.datetime | None:
         if last_modified := response.headers.get("Last-Modified", None):

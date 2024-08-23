@@ -93,8 +93,9 @@ class NewsItem(BaseModel):
 
     @classmethod
     def latest_collected(cls):
-        news_item = cls.get_first(db.select(cls).order_by(db.desc(cls.collected)).limit(1))
-        return news_item.collected.isoformat() if news_item else ""
+        if news_item := cls.get_first(db.select(cls).order_by(db.desc(cls.collected)).limit(1)):
+            return news_item.collected.replace(microsecond=0).isoformat()
+        return ""
 
     def has_attribute_value(self, value) -> bool:
         return any(attribute.value == value for attribute in self.attributes)

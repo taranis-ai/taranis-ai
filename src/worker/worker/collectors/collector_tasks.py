@@ -69,9 +69,9 @@ class CollectorTask(Task):
 
     def __init__(self):
         self.core_api = CoreApi()
-        self.collector = Collector()
 
     def run(self, osint_source_id: str, manual: bool = False):
+        self.collector = Collector()
         logger.info(f"Starting collector task {self.name}")
         if err := self.collector.collect_by_source_id(osint_source_id, manual):
             return err
