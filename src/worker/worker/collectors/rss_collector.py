@@ -154,25 +154,24 @@ class RSSCollector(BaseWebCollector):
         return None
 
     def parse_feed(self, feed_entries: list[feedparser.FeedParserDict], source) -> list[NewsItem]:
-        news_items = []
         for feed_entry in feed_entries:
             try:
-                news_items.append(self.parse_feed_entry(feed_entry, source))
+                self.news_items.append(self.parse_feed_entry(feed_entry, source))
             except Exception as e:
                 logger.warning(f"Error parsing feed entry: {str(e)}")
                 continue
-        return news_items
+        return self.news_items
     
     def gather_news_items(self, feed, source) -> list[NewsItem]:
         if self.browser_mode == "true":
             self.playwright_manager = PlaywrightManager(self.proxies, self.headers)
         try:
-            news_items = self.collect_news(feed, source)
+            self.news_items = self.collect_news(feed, source)
         finally:
             if self.playwright_manager:
                 self.playwright_manager.stop_playwright_if_needed()
 
-            return news_items
+            return self.news_items
 
     def collect_news(self, feed, source) -> list | str:
         if self.digest_splitting == "true":
@@ -201,8 +200,8 @@ class RSSCollector(BaseWebCollector):
     def preview_collector(self, source):
         self.parse_source(source)
         feed = self.get_feed()
-        news_items = self.gather_news_items(feed, source)
-        return self.preview(news_items, source)
+        self.news_items = self.gather_news_items(feed, source)
+        return self.preview(self.news_items, source)
 
     def rss_collector(self, source, manual: bool = False):
         feed = self.get_feed()
