@@ -19,7 +19,8 @@ class TestEndToEndUser:
             element => {
                 element.scrollIntoView({
                     behavior: 'smooth',
-                    block: 'center'
+                    block: 'center',
+                    inline: 'nearest'
                 });
             }
         """)
@@ -28,7 +29,7 @@ class TestEndToEndUser:
         if self.ci_run:
             return locator
         style_content = """
-        .highlight-element { background-color: yellow; outline: 4px solid red; }
+        .highlight-element { background-color: yellow !important; outline: 4px solid red !important; }
         """
 
         wait_duration = self.wait_duration if transition else 1
@@ -305,16 +306,29 @@ class TestEndToEndUser:
 
             self.highlight_element(page.locator(".cm-activeLine").first, scroll=False).click()
             self.highlight_element(
-                page.locator("#form div").filter(has_text="Comment91›Enter your comment").get_by_role("textbox"), scroll=False
-            ).fill("I like this story, it needs to be reviewed.")
-            self.highlight_element(
                 page.locator("#form div").filter(has_text="Summary91›Enter your summary").get_by_role("textbox"), scroll=False
             ).fill("This story informs about the current security state.")
+            self.highlight_element(
+                page.locator("#form div").filter(has_text="Comment91›Enter your comment").get_by_role("textbox"), scroll=False
+            ).fill("I like this story, it needs to be reviewed.")
 
             page.screenshot(path="./tests/playwright/screenshots/screenshot_edit_story_1.png")
             self.highlight_element(page.get_by_role("button", name="Update"), scroll=False).click()
             self.short_sleep(0.5)
             page.screenshot(path="./tests/playwright/screenshots/screenshot_edit_story_2.png")
+        
+        def infinite_scroll_all_items():
+            self.smooth_scroll(page.locator("div:nth-child(21)").first)
+            self.smooth_scroll(page.locator("div:nth-child(41) > div:nth-child(2) > div"))
+            self.smooth_scroll(page.locator("div:nth-child(53) > div:nth-child(2) > div"))
+            self.short_sleep(duration=1)
+
+        def items_per_page():
+            # page.locator("div").filter(has_text=re.compile(r"^20$")).first
+            
+            self.highlight_element(page.locator("input:near(:text(\"Items per page\"))").first).click()
+            self.highlight_element(page.get_by_label("Items per page")).click()
+            self.highlight_element(page.get_by_role("option", name="100")).click()
 
         page = taranis_frontend
         self.add_keystroke_overlay(page)
@@ -330,14 +344,9 @@ class TestEndToEndUser:
         self.short_sleep(duration=2)
         page.keyboard.press("Escape")
         self.short_sleep(duration=1)
-
-        self.smooth_scroll(page.locator("div:nth-child(21)").first)
-        self.smooth_scroll(page.locator("div:nth-child(41) > div:nth-child(2) > div"))
-        self.smooth_scroll(page.locator("div:nth-child(53) > div:nth-child(2) > div"))
-        self.short_sleep(duration=1)
-
-        # self.highlight_element(page.get_by_label("Items per page")).click()
-        # self.highlight_element(page.get_by_role("option", name="100")).click()
+        
+        items_per_page()
+        # smooth_scroll()
 
         story_1()
         story_2()
@@ -433,11 +442,11 @@ class TestEndToEndUser:
             self.highlight_element(page.get_by_label("handler", exact=True), scroll=False).fill("John Doe")
             self.highlight_element(page.get_by_label("co_handler"), scroll=False).fill("Arthur Doyle")
             self.highlight_element(page.get_by_label("Open").nth(1), scroll=False).click()
-            self.highlight_element(page.get_by_role("option", name="Global Mining Espionage by"), scroll=False).click()
-            self.highlight_element(page.get_by_role("option", name="Advanced Phishing Techniques"), scroll=False).click()
+            self.highlight_element(page.get_by_text("Global Mining Espionage by APT67", exact=True).nth(1), scroll=False).click()
+            self.highlight_element(page.get_by_text("Advanced Phishing Techniques by APT58", exact=True).nth(1), scroll=False).click()
             self.highlight_element(page.get_by_label("Close"), scroll=False).click()
             self.highlight_element(page.get_by_label("Open").nth(2), scroll=False).click()
-            self.highlight_element(page.get_by_role("option", name="Genetic Engineering Data"), scroll=False).click()
+            self.highlight_element(page.get_by_text("Genetic Engineering Data Theft by APT81", exact=True).nth(1), scroll=False).click()
             self.highlight_element(page.get_by_label("Close"), scroll=False).click()
             self.highlight_element(page.get_by_label("Side-by-side"), scroll=False).check()
             self.highlight_element(page.get_by_role("button", name="Save"), scroll=False).click()
@@ -496,6 +505,6 @@ class TestEndToEndUser:
         self.highlight_element(page.get_by_label("Title")).fill("Test Product")
         self.highlight_element(page.get_by_label("Description")).click()
         self.highlight_element(page.get_by_label("Description")).fill("Test Description")
-        self.highlight_element(page.get_by_role("button", name="Create")).click()
+        self.highlight_element(page.get_by_role("button", name="Save")).click()
         self.highlight_element(page.get_by_role("main").locator("header").get_by_role("button", name="Render Product")).click()
         page.screenshot(path="./tests/playwright/screenshots/screenshot_publish.png")
