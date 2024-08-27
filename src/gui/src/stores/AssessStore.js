@@ -90,6 +90,7 @@ export const useAssessStore = defineStore(
 
         let { storyFilterQuery } = filter
         if (!storyFilterQuery || storyFilterQuery === '') {
+          // TODO: Check for null value
           storyFilterQuery += `page=${page}&no_count=true`
         } else if (storyFilterQuery.includes('page')) {
           storyFilterQuery = storyFilterQuery.replace(
@@ -303,17 +304,21 @@ export const useAssessStore = defineStore(
       console.debug('Triggerd News items update')
       new_stories.value = true
     }
-    function markStoryAsRead(id) {
+    function markStoryAsRead(id, filter = true) {
       const item = stories.value.items.find((item) => item.id === id)
       item.read = !item.read
-      filterStories()
+      if (filter) {
+        filterStories()
+      }
       readStory(id, item.read)
     }
 
-    function markStoryAsImportant(id) {
+    function markStoryAsImportant(id, filter = true) {
       const item = stories.value.items.find((item) => item.id === id)
       item.important = !item.important
-      filterStories()
+      if (filter) {
+        filterStories()
+      }
       importantStory(id, item.important)
     }
 
@@ -331,6 +336,13 @@ export const useAssessStore = defineStore(
           (storyFilter.important === 'true' && !item.important) ||
           (storyFilter.important === 'false' && item.important)
         ) {
+          return false
+        }
+        return true
+      })
+      storySelection.value = storySelection.value.filter((id) => {
+        const item = stories.value.items.find((item) => item.id === id)
+        if (!item) {
           return false
         }
         return true

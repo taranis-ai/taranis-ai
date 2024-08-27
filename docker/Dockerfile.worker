@@ -36,6 +36,8 @@ RUN apt-get update && apt-get upgrade -y && \
       libpango-1.0-0 \
       libpangoft2-1.0-0
 
+RUN python -m playwright install chromium --with-deps
+
 RUN groupadd user && useradd --home-dir /app -g user user && chown -R user:user /app
 USER user
 COPY --from=builder /usr/lib/x86_64-linux-gnu/* /usr/lib/x86_64-linux-gnu/
@@ -45,8 +47,6 @@ COPY --from=builder --chown=user:user /root/.cache /app/.cache
 
 ENV PYTHONPATH=/app
 ENV PATH="/app/.venv/bin:$PATH"
-
-RUN python -m playwright install chromium --with-deps
 
 RUN python -c 'from worker.bots.bot_tasks import BotTask; BotTask()'
 

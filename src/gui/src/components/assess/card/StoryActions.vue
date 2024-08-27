@@ -245,12 +245,7 @@
         <v-list-item
           v-if="!reportView && news_item_length > 1"
           @click.stop="ungroup()"
-        >
-          <v-tooltip
-            activator="parent"
-            location="start"
-            text="remove all news items"
-          />
+          >detail
           <v-icon icon="mdi-ungroup" title="ungroup" />
         </v-list-item>
         <v-list-item
@@ -381,11 +376,11 @@ export default {
     }
 
     function markAsRead() {
-      assessStore.markStoryAsRead(props.story.id)
+      assessStore.markStoryAsRead(props.story.id, !props.detailView)
     }
 
     function markAsImportant() {
-      assessStore.markStoryAsImportant(props.story.id)
+      assessStore.markStoryAsImportant(props.story.id, !props.detailView)
     }
 
     function deleteNewsItem() {
