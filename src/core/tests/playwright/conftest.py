@@ -100,6 +100,7 @@ def fake_source(app):
 @pytest.fixture(scope="session")
 def stories(app, news_items_list):
     from core.model.story import Story
+    from core.model.user import User
 
     def _generate_timestamp():
         now = datetime.now()
@@ -114,8 +115,15 @@ def stories(app, news_items_list):
 
     with app.app_context():
         story_ids = Story.add_news_items(news_items_list)[0].get("ids")
+        user = User
+        user.id = 1
         if not story_ids:
             raise ValueError("Error getting stories")
+        Story.update(story_ids[0], data={"important": True}, user=user)
+        Story.update(story_ids[8], data={"important": True}, user=user)
+        Story.update(story_ids[13], data={"important": True}, user=user)
+        Story.update(story_ids[17], data={"important": True}, user=user)
+        Story.update(story_ids[21], data={"important": True}, user=user)
         story_groups = [
             [story_ids[0], story_ids[1], story_ids[2], story_ids[3], story_ids[4], story_ids[5], story_ids[6], story_ids[7]],
             [story_ids[8], story_ids[9], story_ids[10], story_ids[11], story_ids[12]],
@@ -124,6 +132,7 @@ def stories(app, news_items_list):
             [story_ids[21], story_ids[22], story_ids[23]],
         ]
         Story.group_multiple_stories(story_groups)
+
         yield story_ids
 
 
