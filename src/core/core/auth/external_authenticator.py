@@ -1,5 +1,5 @@
+from flask import Response
 from werkzeug.datastructures import Headers
-from flask_jwt_extended import create_access_token
 
 from core.auth.base_authenticator import BaseAuthenticator
 from core.config import Config
@@ -18,21 +18,14 @@ class ExternalAuthenticator(BaseAuthenticator):
     def __init__(self):
         self.name: str = "ExternalAuthenticator"
 
-    def authenticate(self, credentials: dict[str, str]) -> tuple[dict[str, str], int]:
+    def authenticate(self, credentials: dict[str, str]) -> Response:
         logger.debug(f"{credentials=}")
         username = credentials.get("username")
         if not username:
             return BaseAuthenticator.generate_error()
 
         user = self.create_user_if_not_exists(username, credentials)
-        logger.store_user_activity(user, "LOGIN", "Successful")
-
-        access_token = create_access_token(
-            identity=user,
-            additional_claims={"user_claims": {"id": user.id, "name": user.name, "roles": user.get_roles()}},
-        )
-
-        return {"access_token": access_token}, 200
+        return BaseAuthenticator.generate_jwt(user.username)
 
     @staticmethod
     def get_credentials(headers: Headers) -> dict[str, str]:

@@ -39,6 +39,7 @@ class Story(BaseModel):
     comments: Mapped[str] = db.Column(db.String(), default="")
     summary: Mapped[str] = db.Column(db.Text, default="")
     news_items: Mapped[list["NewsItem"]] = relationship("NewsItem")
+    links: Mapped[list[str]] = db.Column(db.JSON, default=[])
     attributes: Mapped[list["NewsItemAttribute"]] = relationship("NewsItemAttribute", secondary="story_news_item_attribute")
     tags: Mapped[list["NewsItemTag"]] = relationship("NewsItemTag", back_populates="story", cascade="all, delete-orphan")
 
@@ -51,6 +52,7 @@ class Story(BaseModel):
         important: bool = False,
         summary: str = "",
         comments: str = "",
+        links=None,
         attributes=None,
         news_items=None,
         id=None,
@@ -64,6 +66,7 @@ class Story(BaseModel):
         self.summary = summary
         self.comments = comments
         self.news_items = self.load_news_items(news_items)
+        self.links = links or []
         if attributes:
             self.attributes = NewsItemAttribute.load_multiple(attributes)
 
@@ -487,6 +490,9 @@ class Story(BaseModel):
 
         if "attributes" in data:
             story.update_attributes(data["attributes"])
+
+        if "links" in data:
+            story.links = data["links"]
 
         story.update_status()
         db.session.commit()

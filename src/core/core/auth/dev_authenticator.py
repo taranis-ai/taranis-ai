@@ -1,3 +1,4 @@
+from flask import Response
 from core.log import logger
 from core.auth.base_authenticator import BaseAuthenticator
 
@@ -18,7 +19,7 @@ class DevAuthenticator(BaseAuthenticator):
     def __init__(self):
         self.name = "DevAuthenticator"
 
-    def authenticate(self, credentials: dict[str, str]) -> tuple[dict[str, str], int]:
+    def authenticate(self, credentials: dict[str, str]) -> Response:
         logger.debug(f"DEV AUTH with {credentials}")
 
         username, password = credentials.get("username"), credentials.get("password")
