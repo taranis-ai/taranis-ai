@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import re
+import time
 import pytest
 from playwright.sync_api import expect
 
@@ -9,7 +10,7 @@ from playwright_helpers import PlaywrightHelpers
 @pytest.mark.e2e_user_workflow
 class TestUserWorkflow(PlaywrightHelpers):
     wait_duration = 1
-    ci_run = False
+    ci_run = True
     record_video = False
 
     def test_e2e_login(self, taranis_frontend):
@@ -83,7 +84,6 @@ class TestUserWorkflow(PlaywrightHelpers):
         def apply_filter():
             # Set time filter
             self.highlight_element(page.locator("div").filter(has_text=re.compile(r"^FilterTagsTags$")).get_by_role("button").first).click()
-            self.highlight_element(page.get_by_role("button", name="relevance"), scroll=False).click()
             self.highlight_element(page.get_by_role("button", name="read")).click()
             self.highlight_element(page.get_by_role("button", name="read")).click()
             expect(page.get_by_role("button", name="not read")).to_be_visible()
@@ -93,20 +93,22 @@ class TestUserWorkflow(PlaywrightHelpers):
 
         def assess_workflow_1():
             # Check summary and mark as read
-            self.highlight_element(page.locator("xpath=/html/body/div[1]/div/div/main/div/div/div[2]/div[2]/div/div[1]/div/div[2]/span/span"))
             self.highlight_element(
-                page.locator("xpath=//*[@id='app']/div/div/main/div/div/div[2]/div[2]/div/div[2]/div/button[3]/span[3]/i")
+                page.locator("xpath=/html/body/div[1]/div/div/main/div/div/div[2]/div[2]/div/div[1]/div/div[2]/span/span"), scroll=False
+            )
+            self.highlight_element(
+                page.locator("xpath=//*[@id='app']/div/div/main/div/div/div[2]/div[2]/div/div[2]/div/button[3]/span[3]/i"), scroll=False
             ).click()
             self.highlight_element(page.locator("xpath=/html/body/div[1]/div/div/main/div/div/div[2]/div[2]/div/div[1]/div/div[2]/span/span"))
             self.highlight_element(
-                page.locator("xpath=//*[@id='app']/div/div/main/div/div/div[2]/div[2]/div/div[2]/div/button[3]/span[3]/i")
+                page.locator("xpath=//*[@id='app']/div/div/main/div/div/div[2]/div[2]/div/div[2]/div/button[3]/span[3]/i"), scroll=False
             ).click()
 
             for _ in range(1, 6):
                 page.locator("xpath=/html/body/div[1]/div/div/main/div/div/div[2]/div[2]/div/div[1]/div/div[2]/span/span")
 
                 self.highlight_element(
-                    page.locator("xpath=//*[@id='app']/div/div/main/div/div/div[2]/div[2]/div/div[2]/div/button[3]/span[3]/i")
+                    page.locator("xpath=//*[@id='app']/div/div/main/div/div/div[2]/div[2]/div/div[2]/div/button[3]/span[3]/i"), scroll=False
                 ).click()
 
             for i in range(2, 4):
@@ -123,18 +125,6 @@ class TestUserWorkflow(PlaywrightHelpers):
             self.highlight_element(page.get_by_role("button", name="not important")).click()
             self.highlight_element(page.get_by_role("button", name="important")).click()
             expect(page.get_by_role("button", name="important")).to_be_visible()
-
-            self.highlight_element(
-                page.locator("div").filter(has_text="Global Mining Espionage by APT67").nth(5).get_by_role("button").nth(3)
-            ).click()
-            self.highlight_element(page.get_by_role("listbox").get_by_role("link").nth(0)).click()
-            self.highlight_element(
-                page.locator("#form div").filter(has_text="Summary91›Enter your summary").get_by_role("textbox"), scroll=False
-            ).fill(
-                "TRecent cyber activities highlight significant threats from various Advanced Persistent Threat (APT) groups. APT67 has been conducting espionage operations targeting the global mining industry, while APT55 has been injecting malicious code into widely used applications by attacking software development firms. Additionally, APT56 has been involved in cross-border hacking operations affecting government websites. Meanwhile, APT65 has led a malware campaign that leaked sensitive data from several legal firms. These incidents underscore the persistent and diverse nature of cyber threats posed by these groups across industries and regions."
-            )
-            self.highlight_element(page.get_by_role("button", name="Update")).click()
-            go_to_assess()
 
             page.locator("div:nth-child(4) > .v-container > div > div:nth-child(2) > .ml-auto > button").first.click()
             page.get_by_role("button", name="0").first.click()
@@ -165,6 +155,7 @@ class TestUserWorkflow(PlaywrightHelpers):
             # self.highlight_element(page.locator("div").filter(has_text="Patient Data Harvesting by APT60").nth(5).get_by_role("button").nth(4)).click()
             go_to_assess()
             # Open story
+            page.pause()
             self.highlight_element(
                 page.locator("div").filter(has_text="Global Mining Espionage by APT67").nth(5).get_by_role("button").nth(0)
             ).click()
@@ -195,6 +186,18 @@ class TestUserWorkflow(PlaywrightHelpers):
             self.highlight_element(page.locator("div").filter(has_text="APT73 Exploits Global Shipping").nth(5)).click()
             self.highlight_element(page.get_by_role("button", name="merge")).click()
 
+            self.highlight_element(
+                page.locator("div").filter(has_text="Global Mining Espionage by APT67").nth(5).get_by_role("button").nth(3)
+            ).click()
+            self.highlight_element(page.get_by_role("listbox").get_by_role("link").nth(0)).click()
+            self.highlight_element(
+                page.locator("#form div").filter(has_text="Summary91›Enter your summary").get_by_role("textbox"), scroll=False
+            ).fill(
+                "TRecent cyber activities highlight significant threats from various Advanced Persistent Threat (APT) groups. APT67 has been conducting espionage operations targeting the global mining industry, while APT55 has been injecting malicious code into widely used applications by attacking software development firms. Additionally, APT56 has been involved in cross-border hacking operations affecting government websites. Meanwhile, APT65 has led a malware campaign that leaked sensitive data from several legal firms. These incidents underscore the persistent and diverse nature of cyber threats posed by these groups across industries and regions."
+            )
+            self.highlight_element(page.get_by_role("button", name="Update")).click()
+            go_to_assess()
+
         page = taranis_frontend
         self.add_keystroke_overlay(page)
 
@@ -204,3 +207,69 @@ class TestUserWorkflow(PlaywrightHelpers):
         apply_filter()
         assess_workflow_1()
         assess_workflow_2()
+
+    def test_reports(self, taranis_frontend):
+        def go_to_analyze():
+            self.highlight_element(page.get_by_role("link", name="Analyze").first).click()
+            page.wait_for_url("**/analyze", wait_until="domcontentloaded")
+            expect(page).to_have_title("Taranis AI | Analyze")
+
+        def report_1():
+            self.highlight_element(page.get_by_role("button", name="New Report").first).click()
+            self.highlight_element(page.get_by_role("combobox")).click()
+
+            expect(page.get_by_role("listbox")).to_contain_text("CERT Report")
+            expect(page.get_by_role("listbox")).to_contain_text("Disinformation")
+            expect(page.get_by_role("listbox")).to_contain_text("OSINT Report")
+            expect(page.get_by_role("listbox")).to_contain_text("Vulnerability Report")
+
+            time.sleep(0.5)
+            page.screenshot(path="./tests/playwright/screenshots/report_item_add.png")
+
+            self.highlight_element(page.get_by_text("CERT Report")).click()
+            self.highlight_element(page.get_by_label("Title")).fill("Test Report")
+            self.highlight_element(page.get_by_role("button", name="Save")).click()
+
+        def report_2():
+            self.highlight_element(page.get_by_role("button", name="New Report")).click()
+            self.highlight_element(page.get_by_role("combobox")).click()
+            self.highlight_element(page.get_by_text("Disinformation")).click()
+            self.highlight_element(page.get_by_label("Title")).fill("Test Disinformation Title")
+            self.highlight_element(page.get_by_role("button", name="Save")).click()
+
+        def add_stories_to_report_1():
+            self.highlight_element(
+                page.locator("div").filter(has_text="Global Mining Espionage by APT67").nth(5).get_by_role("button").nth(1)
+            ).click()
+            self.highlight_element(page.get_by_role("dialog").get_by_label("Open")).click()
+            self.highlight_element(page.get_by_role("option", name="Test Report")).click()
+            self.highlight_element(page.get_by_role("button", name="share")).click()
+
+            self.highlight_element(
+                page.locator("div").filter(has_text="Advanced Phishing Techniques by APT58").nth(5).get_by_role("button").nth(1)
+            ).click()
+
+            self.highlight_element(page.get_by_role("dialog").get_by_label("Open")).click()
+            self.highlight_element(page.get_by_role("option", name="Test Report")).click()
+            self.highlight_element(page.get_by_role("button", name="share")).click()
+
+        def add_stories_to_report_2():
+            self.highlight_element(
+                page.locator("div").filter(has_text="Genetic Engineering Data Theft by APT81").nth(5).get_by_role("button").nth(1)
+            ).click()
+
+            self.highlight_element(page.get_by_role("dialog").get_by_label("Open")).click()
+            self.highlight_element(page.get_by_role("option", name="Test Disinformation Title")).click()
+            self.highlight_element(page.get_by_role("button", name="share")).click()
+
+        page = taranis_frontend
+
+        go_to_analyze()
+        report_1()
+        go_to_analyze()
+        report_2()
+
+        self.highlight_element(page.get_by_role("link", name="Assess")).click()
+        add_stories_to_report_1()
+        add_stories_to_report_2()
+        page.pause()
