@@ -242,6 +242,18 @@ export const router = createRouter({
       }
     },
     {
+      path: '/config/scheduler',
+      name: 'scheduler',
+      components: {
+        default: () => import('@/views/admin/SchedulerView.vue'),
+        nav: () => import('@/views/nav/ConfigNav.vue')
+      },
+      meta: {
+        requiresAuth: true,
+        requiresPerm: Permissions.CONFIG_WORKER_ACCESS
+      }
+    },
+    {
       path: '/config/bots',
       name: 'bots',
       components: {

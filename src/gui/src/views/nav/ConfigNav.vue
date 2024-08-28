@@ -3,6 +3,7 @@
 </template>
 
 <script>
+import { ref } from 'vue'
 import IconNavigation from '@/components/common/IconNavigation.vue'
 
 export default {
@@ -10,8 +11,8 @@ export default {
   components: {
     IconNavigation
   },
-  data: () => ({
-    links: [
+  setup() {
+    const links = ref([
       {
         icon: 'mdi-view-dashboard-variant-outline',
         title: 'nav_menu.dashboard',
@@ -46,6 +47,12 @@ export default {
         icon: 'mdi-account-hard-hat-outline',
         title: 'nav_menu.workers',
         route: '/config/workers',
+        permission: 'CONFIG_WORKER_ACCESS'
+      },
+      {
+        icon: 'mdi-calendar-clock',
+        title: 'nav_menu.scheduler',
+        route: '/config/scheduler',
         permission: 'CONFIG_WORKER_ACCESS'
       },
       {
@@ -116,7 +123,11 @@ export default {
         title: 'nav_menu.settings',
         route: '/config/settings'
       }
-    ]
-  })
+    ])
+
+    return {
+      links
+    }
+  }
 }
 </script>
