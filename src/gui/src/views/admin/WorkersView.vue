@@ -81,7 +81,6 @@ export default {
       await Promise.all([
         configStore.loadOSINTSources(),
         configStore.loadQueueStatus(),
-        configStore.loadSchedule(),
         configStore.loadWorkers(),
         configStore.loadQueueTasks()
       ])
