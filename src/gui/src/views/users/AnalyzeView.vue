@@ -107,10 +107,13 @@ export default {
     }
 
     function resetFilter() {
+      analyzeStore.reset()
       filterStore.resetFilter()
+      updateData()
     }
 
     onBeforeMount(() => {
+      updateData()
       updateFilterFromQuery(useRoute().query, 'analyze')
     })
 

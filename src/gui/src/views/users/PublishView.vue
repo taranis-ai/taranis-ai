@@ -95,10 +95,13 @@ export default {
     }
 
     function resetFilter() {
+      publishStore.reset()
       filterStore.resetFilter()
+      updateData()
     }
 
     onBeforeMount(() => {
+      updateData()
       updateFilterFromQuery(useRoute().query, 'publish')
     })
 
