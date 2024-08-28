@@ -6,7 +6,7 @@
       </v-col>
     </v-row>
     <v-row no-gutters>
-      <iframe src="http://localhost:8088/" width="100%" height="800px"></iframe>
+      <iframe src="/scheduler" width="100%" height="800px"></iframe>
     </v-row>
   </v-container>
 </template>
