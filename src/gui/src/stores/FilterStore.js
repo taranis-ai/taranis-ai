@@ -29,9 +29,9 @@ export const useFilterStore = defineStore(
     })
 
     const storyPage = ref(0)
-    const storyFilterQuery = ref(null)
-    const reportFilterQuery = ref(null)
-    const productFilterQuery = ref(null)
+    const storyFilterQuery = ref('')
+    const reportFilterQuery = ref('')
+    const productFilterQuery = ref('')
 
     const assetFilter = ref({
       offset: undefined,

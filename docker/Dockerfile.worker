@@ -1,4 +1,4 @@
-FROM python:3.12-slim as builder
+FROM python:3.12-slim AS builder
 
 WORKDIR /app/
 
@@ -16,11 +16,14 @@ RUN python3 -m venv /app/.venv
 ENV PATH="/app/.venv/bin:$PATH"
 
 RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch && \
-    pip install --no-cache-dir --upgrade pip wheel transformers nltk sentence_transformers
+    pip install --no-cache-dir --upgrade pip wheel transformers nltk sentence_transformers playwright
+
+# Install browser to /root/.cache/ms-playwright
+RUN python -m playwright install chromium --with-deps
 
 COPY ./src/worker/model_download.py /model_download.py
 
-# bake spacy modell into Image
+# Install NLP models to /root/.cache/huggingface
 RUN python /model_download.py
 
 COPY ./src/worker/. /app/
@@ -36,7 +39,6 @@ RUN apt-get update && apt-get upgrade -y && \
       libpango-1.0-0 \
       libpangoft2-1.0-0
 
-RUN python -m playwright install chromium --with-deps
 
 RUN groupadd user && useradd --home-dir /app -g user user && chown -R user:user /app
 USER user

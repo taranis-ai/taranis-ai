@@ -89,15 +89,9 @@ export const useAssessStore = defineStore(
         const page = filter.nextPage()
 
         let { storyFilterQuery } = filter
-        if (!storyFilterQuery || storyFilterQuery === '') {
-          // TODO: Check for null value
-          storyFilterQuery += `page=${page}&no_count=true`
-        } else if (storyFilterQuery.includes('page')) {
-          storyFilterQuery = storyFilterQuery.replace(
-            /page=\d+/,
-            `page=${page}`
-          )
-          storyFilterQuery += '&no_count=true'
+
+        if (storyFilterQuery === '' || storyFilterQuery === null) {
+          storyFilterQuery = `page=${page}&no_count=true`
         } else {
           storyFilterQuery += `&page=${page}&no_count=true`
         }
