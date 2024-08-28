@@ -2,24 +2,30 @@
 import re
 import time
 
-from playwright.sync_api import Page
+from playwright.sync_api import Page, expect
 import pytest
+
+from playwright_helpers import PlaywrightHelpers
 
 
 @pytest.mark.e2e_admin
-class TestEndToEndAdmin:
+class TestEndToEndAdmin(PlaywrightHelpers):
     wait_duration = 0
     ci_run = True
     record_video = False
 
-    def test_doc_login(self, taranis_frontend: Page):
-        from tests.playwright.test_e2e_user import TestEndToEndUser
-
+    def test_login(self, taranis_frontend: Page):
         page = taranis_frontend
+        self.add_keystroke_overlay(page)
 
-        e2e = TestEndToEndUser()
-        e2e.ci_run = self.ci_run
-        e2e.test_e2e_login(taranis_frontend=page)
+        expect(page).to_have_title("Taranis AI", timeout=5000)
+
+        self.highlight_element(page.get_by_placeholder("Username"))
+        page.get_by_placeholder("Username").fill("admin")
+        self.highlight_element(page.get_by_placeholder("Password"))
+        page.get_by_placeholder("Password").fill("admin")
+        self.highlight_element(page.locator("role=button")).click()
+        page.screenshot(path="./tests/playwright/screenshots/screenshot_login.png")
 
     def test_admin_user_management(self, taranis_frontend: Page):
         page = taranis_frontend
@@ -170,7 +176,7 @@ class TestEndToEndAdmin:
             page.get_by_role("button", name="New Attribute", exact=True).click()
             page.get_by_label("Open").click()
             page.locator("div").filter(has_text=re.compile(r"^MISP Attribute Distribution$")).first.click()
-            page.locator("input:below(:text(\"attribute\"))").nth(1).fill("Attribute 1")
+            page.locator('input:below(:text("attribute"))').nth(1).fill("Attribute 1")
             page.get_by_label("Index").fill("1")
             time.sleep(0.3)
             page.screenshot(path="./tests/playwright/screenshots/docs_report_type_select_attribute.png")

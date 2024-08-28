@@ -1,26 +1,40 @@
 #!/usr/bin/env python3
 import re
 import time
-
-from playwright.sync_api import expect, Page
 import pytest
+from playwright.sync_api import expect, Page
 
-from e2e_base import E2eBase
+from playwright_helpers import PlaywrightHelpers
 
 
 @pytest.mark.e2e_user
 @pytest.mark.e2e_user_ci
 @pytest.mark.usefixtures("e2e_ci")
-class TestEndToEndUser(E2eBase):
+class TestEndToEndUser(PlaywrightHelpers):
     wait_duration = 2
     ci_run = False
     record_video = False
 
     @pytest.mark.e2e_publish
-    def test_e2e_loging(self, taranis_frontend: Page):
-        self.e2e_login(taranis_frontend=taranis_frontend)
+    def test_e2e_login(self, taranis_frontend: Page):
+        page = taranis_frontend
+        self.add_keystroke_overlay(page)
+
+        expect(page).to_have_title("Taranis AI", timeout=5000)
+
+        self.highlight_element(page.get_by_placeholder("Username"))
+        page.get_by_placeholder("Username").fill("admin")
+        self.highlight_element(page.get_by_placeholder("Password"))
+        page.get_by_placeholder("Password").fill("admin")
+        self.highlight_element(page.locator("role=button")).click()
+        page.screenshot(path="./tests/playwright/screenshots/screenshot_login.png")
 
     def test_e2e_assess(self, taranis_frontend: Page, e2e_server, pic_prefix=""):
+        def go_to_assess():
+            self.highlight_element(page.get_by_role("link", name="Assess").first).click()
+            page.wait_for_url("**/assess", wait_until="domcontentloaded")
+            expect(page).to_have_title("Taranis AI | Assess")
+
         def paging(base_url):
             self.highlight_element(page.get_by_placeholder("Until")).click()
             self.highlight_element(page.locator('[data-test="select-button"]')).click()
@@ -32,16 +46,33 @@ class TestEndToEndUser(E2eBase):
             page.goto(f"{base_url}")
 
         def assert_stories():
-            expect(page.get_by_role("main")).to_contain_text("Genetic Engineering Data Theft by APT81 (8) This story informs about the current security state.")
-            expect(page.get_by_role("main")).to_contain_text("Article:geneticresearchsecurity.com Author:Irene ThompsonGenetic Engineering Data Theft by APT81APT81 targets national research labs to steal genetic engineering data.")
-            expect(page.get_by_role("main")).to_contain_text("Article:smartcityupdate.com Author:Bethany WhiteSmart City Sabotage by APT74 in EuropeAPT74 involved in sabotaging smart city projects across Europe.")
-            expect(page.get_by_role("main")).to_contain_text("Article:mediasecurityfocus.com Author:Charles LeeInternational Media Manipulation by APT75APT75 uses sophisticated cyber attacks to manipulate international media outlets.")
-            expect(page.get_by_role("main")).to_contain_text("Article:pharmasecuritytoday.com Author:Diana BrooksPharmaceutical Trade Secrets Theft by APT76APT76 implicated in stealing trade secrets from global pharmaceutical companies.")
-            expect(page.get_by_role("main")).to_contain_text("Article:powergridsecurityfocus.com Author:Evan MoralesPower Grid Disruptions in Asia by APT77APT77 deploys disruptive attacks against national power grids in Asia.")
-            expect(page.get_by_role("main")).to_contain_text("Article:aerospacesecuritytoday.com Author:Fiona GarciaEspionage in Aerospace Industries by APT78APT78 targets aerospace industries with espionage aimed at stealing futuristic propulsion tech.")
-            expect(page.get_by_role("main")).to_contain_text("Article:sportseventsecurity.com Author:Gregory PhillipsOlympic Website DDoS Attacks by APT79APT79 conducts large-scale denial of service attacks on major sports events websites during the Olympics.")
-            expect(page.get_by_role("main")).to_contain_text("Article:telecomsecurityupdate.com Author:Holly JensenGlobal Telecommunications Disrupted by APT80APT80 hacks into satellite communication systems, causing widespread disruptions in global telecommunications.")
-
+            expect(page.get_by_role("main")).to_contain_text(
+                "Genetic Engineering Data Theft by APT81 (8) This story informs about the current security state."
+            )
+            expect(page.get_by_role("main")).to_contain_text(
+                "Article:geneticresearchsecurity.com Author:Irene ThompsonGenetic Engineering Data Theft by APT81APT81 targets national research labs to steal genetic engineering data."
+            )
+            expect(page.get_by_role("main")).to_contain_text(
+                "Article:smartcityupdate.com Author:Bethany WhiteSmart City Sabotage by APT74 in EuropeAPT74 involved in sabotaging smart city projects across Europe."
+            )
+            expect(page.get_by_role("main")).to_contain_text(
+                "Article:mediasecurityfocus.com Author:Charles LeeInternational Media Manipulation by APT75APT75 uses sophisticated cyber attacks to manipulate international media outlets."
+            )
+            expect(page.get_by_role("main")).to_contain_text(
+                "Article:pharmasecuritytoday.com Author:Diana BrooksPharmaceutical Trade Secrets Theft by APT76APT76 implicated in stealing trade secrets from global pharmaceutical companies."
+            )
+            expect(page.get_by_role("main")).to_contain_text(
+                "Article:powergridsecurityfocus.com Author:Evan MoralesPower Grid Disruptions in Asia by APT77APT77 deploys disruptive attacks against national power grids in Asia."
+            )
+            expect(page.get_by_role("main")).to_contain_text(
+                "Article:aerospacesecuritytoday.com Author:Fiona GarciaEspionage in Aerospace Industries by APT78APT78 targets aerospace industries with espionage aimed at stealing futuristic propulsion tech."
+            )
+            expect(page.get_by_role("main")).to_contain_text(
+                "Article:sportseventsecurity.com Author:Gregory PhillipsOlympic Website DDoS Attacks by APT79APT79 conducts large-scale denial of service attacks on major sports events websites during the Olympics."
+            )
+            expect(page.get_by_role("main")).to_contain_text(
+                "Article:telecomsecurityupdate.com Author:Holly JensenGlobal Telecommunications Disrupted by APT80APT80 hacks into satellite communication systems, causing widespread disruptions in global telecommunications."
+            )
 
         def hotkeys():
             self.highlight_element(page.get_by_text("Genetic Engineering Data Theft by APT81 (8)")).click()
@@ -114,6 +145,50 @@ class TestEndToEndUser(E2eBase):
             self.highlight_element(page.get_by_label("Items per page")).click()
             self.highlight_element(page.get_by_role("option", name="100")).click()
 
+        def enter_hotkey_menu():
+            page.keyboard.press("Control+Shift+L")
+            self.short_sleep(duration=1)
+            assert_hotkey_menu()
+            self.short_sleep(duration=2)
+            page.keyboard.press("Escape")
+            self.short_sleep(duration=1)
+
+        def assert_hotkey_menu():
+            expect(page.get_by_role("listbox")).to_contain_text("General")
+            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + Shift + L")
+            expect(page.get_by_role("listbox")).to_contain_text("Open the HotKeys Legend.")
+            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + K")
+            expect(page.get_by_role("listbox")).to_contain_text("Focus the Search Bar.")
+            expect(page.get_by_role("listbox")).to_contain_text("Assess")
+            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + Space")
+            expect(page.get_by_role("listbox")).to_contain_text(
+                "Mark all selected items as read (if all are read already, mark them as unread)."
+            )
+            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + I")
+            expect(page.get_by_role("listbox")).to_contain_text("Mark all selected items as important.")
+            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + A")
+            expect(page.get_by_role("listbox")).to_contain_text("Select all items currently loaded.")
+            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + Shift + S")
+            expect(page.get_by_role("listbox")).to_contain_text("Add selected items to last report.")
+            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + E")
+            expect(page.get_by_role("listbox")).to_contain_text("Open Edit View of Story")
+            expect(page.get_by_role("listbox")).to_contain_text("Stories")
+            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + M")
+            expect(page.get_by_role("listbox")).to_contain_text("Create a new story.")
+            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + Space")
+            expect(page.get_by_role("listbox")).to_contain_text(
+                "Mark all selected items as read (if all are read already, mark them as unread)."
+            )
+            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + I")
+            expect(page.get_by_role("listbox")).to_contain_text("Mark all selected items as important.")
+            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + Shift + S")
+            expect(page.get_by_role("listbox")).to_contain_text("Add open story to last report.")
+            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + E")
+            expect(page.get_by_role("listbox")).to_contain_text("Open Edit View of Story")
+            expect(page.get_by_role("listbox")).to_contain_text("Reports")
+            expect(page.get_by_role("listbox")).to_contain_text("Ctrl + M")
+            expect(page.get_by_role("listbox")).to_contain_text("Create a new report.")
+
         page = taranis_frontend
         self.add_keystroke_overlay(page)
 
@@ -122,8 +197,8 @@ class TestEndToEndUser(E2eBase):
         # go_to_assess()
         # paging(base_url)
 
-        self.go_to_assess(page)
-        self.enter_hotkey_menu(page)
+        go_to_assess()
+        enter_hotkey_menu()
         items_per_page()
 
         # TODO: Uncomment when infinite scroll is fixed
@@ -136,7 +211,6 @@ class TestEndToEndUser(E2eBase):
 
         # TODO: Uncomment when "relevance" button is fixed (ref: Various bugs)
         # go_to_assess()
-        page.pause()
         assert_stories()
 
         # TODO: uncomment when frontend charts is fixed
@@ -145,6 +219,11 @@ class TestEndToEndUser(E2eBase):
 
     def test_e2e_analyze(self, e2e_server, taranis_frontend: Page, pic_prefix=""):
         base_url = e2e_server.url()
+
+        def go_to_analyze():
+            self.highlight_element(page.get_by_role("link", name="Analyze").first).click()
+            page.wait_for_url("**/analyze", wait_until="domcontentloaded")
+            expect(page).to_have_title("Taranis AI | Analyze")
 
         def report_1():
             self.highlight_element(page.get_by_role("button", name="New Report").first).click()
@@ -234,24 +313,24 @@ class TestEndToEndUser(E2eBase):
         page = taranis_frontend
         self.add_keystroke_overlay(page)
 
-        self.go_to_analyze(page)
+        go_to_analyze()
         report_1()
-        self.go_to_analyze(page)
+        go_to_analyze()
         report_2()
-        self.go_to_analyze(page)
+        go_to_analyze()
         report_3()
-        self.go_to_analyze(page)
+        go_to_analyze()
         report_4()
         add_stories_to_report_1()
 
-        self.go_to_analyze(page)
+        go_to_analyze()
         modify_report_1()
 
-        self.go_to_analyze(page)
+        go_to_analyze()
         assert_analyze()
 
         tag_filter(base_url)
-        self.go_to_analyze(page)
+        go_to_analyze()
 
         page.screenshot(path=f"./tests/playwright/screenshots/{pic_prefix}analyze_view.png")
 
