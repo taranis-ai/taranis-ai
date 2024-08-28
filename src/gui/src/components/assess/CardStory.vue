@@ -252,6 +252,9 @@ export default {
     }
 
     function toggleSelection() {
+      if (props.reportView) {
+        return
+      }
       assessStore.selectStory(props.story.id)
     }
 
