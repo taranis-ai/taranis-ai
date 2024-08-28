@@ -4,6 +4,7 @@
       v-if="stories.items.length > 0 && infiniteScroll"
       empty-text="All items loaded"
       color="primary"
+      mode="manual"
       @load="displayMore"
     >
       <template v-for="item in stories.items" :key="item.id">
@@ -104,11 +105,11 @@ export default defineComponent({
       return storyPage.value + 1 < numberOfPages.value
     })
 
-    const refresh = (id) => {
+    function refresh(id) {
       assessStore.updateStoryByID(id)
     }
 
-    const displayMore = async ({ done }) => {
+    async function displayMore({ done }) {
       if (!moreToLoad.value) {
         done('empty')
         return
@@ -124,7 +125,7 @@ export default defineComponent({
       }
     }
 
-    const resetFilter = () => {
+    function resetFilter() {
       assessStore.reset()
       filterStore.resetFilter()
       assessStore.updateStories()

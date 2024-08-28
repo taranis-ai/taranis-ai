@@ -38,6 +38,8 @@
 
           <attributes-table v-model="story.attributes" />
 
+          <story-links v-model="story.links" :news-items="story.news_items" />
+
           <v-spacer class="pt-1"></v-spacer>
           <v-btn block class="mt-5" type="submit" color="success">
             {{ $t('button.update') }}
@@ -65,6 +67,7 @@ import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import CodeEditor from '@/components/common/CodeEditor.vue'
 import EditTags from '@/components/assess/EditTags.vue'
 import AttributesTable from '@/components/common/AttributesTable.vue'
+import StoryLinks from '@/components/assess/StoryLinks.vue'
 import { useRouter } from 'vue-router'
 
 export default {
@@ -72,6 +75,7 @@ export default {
   components: {
     CodeEditor,
     EditTags,
+    StoryLinks,
     AttributesTable
   },
   props: {
@@ -104,7 +108,8 @@ export default {
           tags: story.value.tags,
           comments: story.value.comments,
           summary: story.value.summary,
-          attributes: story.value.attributes
+          attributes: story.value.attributes,
+          links: story.value.links
         })
         notifySuccess(result)
       } catch (e) {

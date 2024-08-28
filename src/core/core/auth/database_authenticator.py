@@ -1,3 +1,4 @@
+from flask import Response
 from core.log import logger
 from core.auth.base_authenticator import BaseAuthenticator
 from werkzeug.security import check_password_hash
@@ -8,7 +9,7 @@ class DatabaseAuthenticator(BaseAuthenticator):
     def __init__(self):
         self.name: str = "DatabaseAuthenticator"
 
-    def authenticate(self, credentials: dict[str, str]) -> tuple[dict[str, str], int]:
+    def authenticate(self, credentials: dict[str, str]) -> Response:
         username = credentials.get("username")
         password = credentials.get("password")
         if username is None or password is None:
