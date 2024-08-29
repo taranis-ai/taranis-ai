@@ -1,6 +1,6 @@
 <template>
   <v-dialog v-model="hotkeyDialogVisible" max-width="600px">
-    <HotKeysLegend />
+    <HotKeysLegend :show-close-button="true" />
   </v-dialog>
 </template>
 
