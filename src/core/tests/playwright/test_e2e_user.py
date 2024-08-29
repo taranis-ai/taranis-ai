@@ -75,7 +75,7 @@ class TestEndToEndUser(PlaywrightHelpers):
             )
 
         def hotkeys():
-            self.highlight_element(page.get_by_text("Genetic Engineering Data Theft by APT81 (8)")).click()
+            self.highlight_element(page.get_by_text("Genetic Engineering Data Theft by APT81")).click()
             self.highlight_element(page.get_by_text("APT73 Exploits Global Shipping Container Systems (5)")).click()
             self.highlight_element(page.get_by_text("Patient Data Harvesting by APT60 (4)")).click()
             self.short_sleep(0.5)
@@ -128,8 +128,10 @@ class TestEndToEndUser(PlaywrightHelpers):
             ).fill("I like this story, it needs to be reviewed.")
 
             page.screenshot(path="./tests/playwright/screenshots/screenshot_edit_story_1.png")
-            self.highlight_element(page.get_by_role("button", name="Update"), scroll=False).click()
-            self.short_sleep(0.5)
+            self.highlight_element(page.get_by_role("button", name="Update", exact=True), scroll=False).click()
+            page.pause()
+            page.locator("div").filter(has_text="updated").nth(2).click()
+            time.sleep(0.5)
             page.screenshot(path="./tests/playwright/screenshots/screenshot_edit_story_2.png")
 
         def infinite_scroll_all_items():
@@ -196,7 +198,7 @@ class TestEndToEndUser(PlaywrightHelpers):
         # base_url = e2e_server.url()
         # go_to_assess()
         # paging(base_url)
-
+        
         go_to_assess()
         enter_hotkey_menu()
         items_per_page()
@@ -240,6 +242,7 @@ class TestEndToEndUser(PlaywrightHelpers):
             self.highlight_element(page.get_by_text("CERT Report")).click()
             self.highlight_element(page.get_by_label("Title")).fill("Test Report")
             self.highlight_element(page.get_by_role("button", name="Save")).click()
+            page.locator("div").filter(has_text="created").nth(2).click()
 
         def report_2():
             self.highlight_element(page.get_by_role("button", name="New Report")).click()
@@ -247,6 +250,7 @@ class TestEndToEndUser(PlaywrightHelpers):
             self.highlight_element(page.get_by_text("Disinformation")).click()
             self.highlight_element(page.get_by_label("Title")).fill("Test Disinformation Title")
             self.highlight_element(page.get_by_role("button", name="Save")).click()
+            page.locator("div").filter(has_text="created").nth(2).click()
 
         def report_3():
             self.highlight_element(page.get_by_role("button", name="New Report")).click()
@@ -254,6 +258,7 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.get_by_text("OSINT Report").click()
             page.get_by_label("Title").fill("Test OSINT Title")
             page.get_by_role("button", name="Save").click()
+            page.locator("div").filter(has_text="created").nth(2).click()
 
         def report_4():
             page.get_by_role("button", name="New Report").click()
@@ -261,6 +266,7 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.get_by_text("Vulnerability Report").click()
             page.get_by_label("Title").fill("Test Vulnerability Title")
             page.get_by_role("button", name="Save").click()
+            page.locator("div").filter(has_text="created").nth(2).click()
 
         def add_stories_to_report_1():
             self.highlight_element(page.get_by_role("link", name="Assess")).click()
@@ -294,6 +300,7 @@ class TestEndToEndUser(PlaywrightHelpers):
             self.highlight_element(page.get_by_label("Close"), scroll=False).click()
             self.highlight_element(page.get_by_label("Side-by-side"), scroll=False).check()
             self.highlight_element(page.get_by_role("button", name="Save"), scroll=False).click()
+            page.locator("div").filter(has_text="updated").nth(2).click()
             time.sleep(1)
             page.screenshot(path=f"./tests/playwright/screenshots/{pic_prefix}report_item_view.png")
 
@@ -351,4 +358,5 @@ class TestEndToEndUser(PlaywrightHelpers):
         self.highlight_element(page.get_by_label("Description")).fill("Test Description")
         self.highlight_element(page.get_by_role("button", name="Save")).click()
         self.highlight_element(page.get_by_role("main").locator("header").get_by_role("button", name="Render Product")).click()
+        page.locator("div").filter(has_text="failed").nth(2).click()
         page.screenshot(path="./tests/playwright/screenshots/screenshot_publish.png")

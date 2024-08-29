@@ -295,7 +295,9 @@ class TestUserWorkflow(PlaywrightHelpers):
             self.highlight_element(page.get_by_text("Test Report")).click()
             page.locator(".w-100").click()
             page.keyboard.press("Control+A")
+            self.short_sleep(duration=1)
             page.keyboard.press("Control+Space")
+            self.short_sleep(duration=1)
 
         page = taranis_frontend
 

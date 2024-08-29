@@ -24,8 +24,8 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         page.get_by_placeholder("Username").fill("admin")
         self.highlight_element(page.get_by_placeholder("Password"))
         page.get_by_placeholder("Password").fill("admin")
-        self.highlight_element(page.locator("role=button")).click()
         page.screenshot(path="./tests/playwright/screenshots/screenshot_login.png")
+        self.highlight_element(page.locator("role=button")).click()
 
     def test_admin_user_management(self, taranis_frontend: Page):
         page = taranis_frontend
@@ -101,13 +101,16 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_label("Tagging Bot").uncheck()
             page.get_by_label("Tagging Bot").check()
             page.get_by_role("button", name="Submit").click()
+            page.locator("div").filter(has_text="updated").nth(2).click()
             page.get_by_role("cell", name="Countries", exact=True).click()
             page.get_by_label("Collector Includelist").check()
             page.get_by_role("button", name="Submit").click()
+            page.locator("div").filter(has_text="updated").nth(2).click()
             page.get_by_role("cell", name="Länder", exact=True).click()
             page.get_by_label("Collector Includelist").check()
             page.screenshot(path="./tests/playwright/screenshots/docs_wordlist_usage.png")
             page.get_by_role("button", name="Submit").click()
+            page.locator("div").filter(has_text="updated").nth(2).click()
 
         def enable_wordlists():
             page.get_by_role("link", name="Source Groups").click()
@@ -127,6 +130,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_label("Index").click()
             page.locator("div").filter(has_text=re.compile(r"^RUN_AFTER_COLLECTOR$")).nth(3).click()
             time.sleep(0.3)
+
             page.screenshot(path="./tests/playwright/screenshots/docs_bot_selection.png")
 
         def osint_sources():
@@ -158,6 +162,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             time.sleep(0.3)
             page.screenshot(path="./tests/playwright/screenshots/docs_add_attribute.png")
             page.get_by_role("button", name="Submit").click()
+            page.locator("div").filter(has_text="created").nth(2).click()
 
         def new_report_type():
             page.get_by_role("link", name="Report Types").click()
@@ -175,6 +180,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         def add_attribute_to_group():
             page.get_by_role("button", name="New Attribute", exact=True).click()
             page.get_by_label("Open").click()
+            page.wait_for_load_state("domcontentloaded")
             page.locator("div").filter(has_text=re.compile(r"^MISP Attribute Distribution$")).first.click()
             page.locator('input:below(:text("attribute"))').nth(1).fill("Attribute 1")
             page.get_by_label("Index").fill("1")
