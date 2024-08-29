@@ -112,7 +112,7 @@
 import { watch, onMounted } from 'vue'
 import { ref } from 'vue'
 import { getDetailedWordList } from '@/api/config'
-import { notifyFailure } from '@/utils/helpers'
+import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import { createWordList, updateWordList, exportWordList } from '@/api/config'
 
 export default {
@@ -161,7 +161,7 @@ export default {
     ]
 
     async function updatewordlist() {
-      const { valid } = await form.value.validate()
+      const { valid } = await config_form.value.validate()
       if (!valid) {
         return
       }
@@ -191,6 +191,7 @@ export default {
         notifySuccess(response.data.message)
         emit('submit', wordlist.value)
       } catch (error) {
+        console.error(error)
         notifyFailure(`Failed to update ${item.name}`)
       }
     }

@@ -1,7 +1,6 @@
 from datetime import datetime, timedelta
 from functools import wraps
-from flask import request, Flask
-from typing import Any
+from flask import Response, request, Flask
 from flask_jwt_extended import JWTManager, get_jwt, get_jwt_identity, verify_jwt_in_request, current_user
 
 # from core.managers import queue_manager
@@ -44,7 +43,7 @@ def initialize(app: Flask):
         raise ValueError(f"Unknown authenticator: {authenticator}")
 
 
-def authenticate(credentials: dict[str, str]) -> tuple[dict[str, Any], int]:
+def authenticate(credentials: dict[str, str]) -> Response:
     return current_authenticator.authenticate(credentials)
 
 
@@ -122,10 +121,6 @@ def api_key_required(fn):
         return fn(*args, **kwargs)
 
     return wrapper
-
-
-def get_access_key():
-    return request.headers["Authorization"].replace("Bearer ", "")
 
 
 @jwt.user_lookup_loader

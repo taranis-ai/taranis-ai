@@ -63,12 +63,12 @@ class SimpleWebCollector(BaseWebCollector):
         if self.browser_mode == "true":
             self.playwright_manager = PlaywrightManager(self.proxies, self.headers)
         try:
-            news_items = self.collect_news()
+            self.news_items = self.collect_news()
         finally:
             if self.playwright_manager:
                 self.playwright_manager.stop_playwright_if_needed()
 
-        return news_items
+        return self.news_items
 
     def collect_news(self) -> list[NewsItem]:
         if self.digest_splitting == "true":
@@ -106,7 +106,7 @@ def browser_mode_test():
         {
             "id": "test",
             "parameters": {
-                "WEB_URL": "",
+                "WEB_URL": "https://playwright.dev/python/docs/api/class-playwright",
                 "XPATH": "//*[@id='mCSB_1_container']",
                 "DIGEST_SPLITTING": "true",
                 "BROWSER_MODE": "true",
