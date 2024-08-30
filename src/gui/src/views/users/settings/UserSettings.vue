@@ -87,6 +87,7 @@
             {{ $t('settings.end_of_shift') }}
             <VueDatePicker
               v-model="end_of_shift"
+              :clearable="false"
               time-picker
               auto-apply
               :label="$t('settings.end_of_shift')"
