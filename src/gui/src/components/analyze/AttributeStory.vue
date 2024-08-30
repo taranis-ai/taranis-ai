@@ -6,6 +6,7 @@
     :items="report_item_stories[reportItemId]"
     :multiple="multiple"
     closable-chips
+    chips
     center-affix
     clearable
     variant="outlined"
