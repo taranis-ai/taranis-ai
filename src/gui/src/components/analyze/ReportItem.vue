@@ -171,6 +171,9 @@ export default {
     const { report_item_types, report_item_stories } = storeToRefs(store)
 
     const used_story_ids = computed(() => {
+      if (!report_item.value || !report_item.value.attributes) {
+        return []
+      }
       const report_item_attributes =
         'Data' in report_item.value.attributes
           ? Object.values(report_item.value.attributes.Data)
