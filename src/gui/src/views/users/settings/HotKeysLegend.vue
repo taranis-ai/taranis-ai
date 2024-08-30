@@ -34,7 +34,7 @@ export default {
   props: {
     showCloseButton: {
       type: Boolean,
-      default: false // Default value if not passed
+      default: false
     }
   },
   setup() {
