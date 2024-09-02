@@ -32,7 +32,6 @@ class BaseWebCollector(BaseCollector):
         self.browser_mode = None
 
     def parse_source(self, source):
-        logger.debug(f"Source: {source=}")
         self.digest_splitting = source["parameters"].get("DIGEST_SPLITTING", "false")
         self.digest_splitting_limit = int(source["parameters"].get("DIGEST_SPLITTING_LIMIT", 30))
         self.xpath = source["parameters"].get("XPATH", "")
@@ -51,13 +50,11 @@ class BaseWebCollector(BaseCollector):
         self.proxies = {"http": proxy_server, "https": proxy_server, "ftp": proxy_server}
 
     def update_headers(self, headers: str):
-        logger.debug(f"{headers=}")
         try:
             headers_dict = json.loads(headers)
             if not isinstance(headers_dict, dict):
                 raise ValueError(f"ADDITIONAL_HEADERS: {headers} must be a valid JSON object")
             self.headers.update(headers_dict)
-            logger.debug(f"{self.headers=}")
         except (json.JSONDecodeError, TypeError) as e:
             raise ValueError(f"ADDITIONAL_HEADERS: {headers} has to be valid JSON\n{e}") from e
 
