@@ -14,6 +14,8 @@ export async function getLocalConfig() {
     } else {
       console.error('Error parsing config file:', error.message)
     }
-    return null
+    return {
+      TARANIS_CORE_API: '/api'
+    }
   }
 }
