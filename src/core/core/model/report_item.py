@@ -319,13 +319,20 @@ class ReportItem(BaseModel):
             NewsItemTagService.remove_report_tag(story, self.id)
             self.stories.remove(story)
 
+    def retag_stories(self):
+        for story in self.stories:
+            NewsItemTagService.remove_report_tag(story, self.id)
+            NewsItemTagService.add_report_tag(story, self)
+
     @classmethod
     def update_report_item(cls, report_id: str, data: dict, user: User) -> tuple[dict, int]:
         report_item, err, status = cls.get_report_item_and_check_permission(report_id, user)
+        retag_stories = False
         if err or not report_item:
             return err, status
 
         if title := data.get("title"):
+            retag_stories = True
             report_item.title = title
 
         completed = data.get("completed")
@@ -340,6 +347,9 @@ class ReportItem(BaseModel):
             report_item.update_stories(story_ids)
 
         db.session.commit()
+
+        if retag_stories:
+            report_item.retag_stories()
 
         logger.debug(f"Updated Report Item {report_item.id}")
 
