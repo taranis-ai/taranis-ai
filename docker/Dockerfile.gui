@@ -8,9 +8,10 @@ RUN npm ci
 COPY ./src/gui/ /app/
 ARG git_info
 ENV GIT_INFO=$git_info
+ARG PUBLIC_BASE_PATH=/
 
 ENV NODE_OPTIONS=--openssl-legacy-provider
-RUN npm run build
+RUN npm run build -- --base=${PUBLIC_BASE_PATH}
 
 RUN gzip -k -9 /app/dist/assets/*
 
