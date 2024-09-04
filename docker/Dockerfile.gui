@@ -8,7 +8,7 @@ RUN npm ci
 COPY ./src/gui/ /app/
 ARG git_info
 ENV GIT_INFO=$git_info
-ARG PUBLIC_BASE_PATH=/
+ARG PUBLIC_BASE_PATH='__TARANIS_BASE_PATH__'
 
 ENV NODE_OPTIONS=--openssl-legacy-provider
 RUN npm run build -- --base=${PUBLIC_BASE_PATH}
@@ -18,11 +18,11 @@ RUN gzip -k -9 /app/dist/assets/*
 FROM nginx:mainline
 
 RUN mkdir -p /etc/nginx/templates
-ENV TARANIS_CORE_UPSTREAM=core
+ENV TARANIS_CORE_UPSTREAM=core:8080
+ENV TARANIS_BASE_PATH=/
 
+COPY ./src/gui/extras/25-base_uri_envsubst_entrypoint.sh /docker-entrypoint.d/
 COPY ./src/gui/extras/30-update_config_from_env.sh /docker-entrypoint.d/
 COPY ./src/gui/extras/default.conf.template /etc/nginx/templates/default.conf.template
-
-RUN envsubst '${TARANIS_CORE_UPSTREAM}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
 
 COPY --from=build-stage /app/dist /usr/share/nginx/html

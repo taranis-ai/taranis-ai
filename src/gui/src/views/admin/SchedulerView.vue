@@ -6,7 +6,7 @@
       </v-col>
     </v-row>
     <v-row no-gutters>
-      <iframe src="/scheduler" width="100%" height="800px"></iframe>
+      <iframe :src="iframeSrc" width="100%" height="800px"></iframe>
     </v-row>
   </v-container>
 </template>
@@ -15,7 +15,8 @@
 export default {
   name: 'SchedulerView',
   setup() {
-    return {}
+    const iframeSrc = `${import.meta.env.BASE_URL}scheduler`
+    return { iframeSrc }
   }
 }
 </script>

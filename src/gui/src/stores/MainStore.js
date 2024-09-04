@@ -28,7 +28,8 @@ export const useMainStore = defineStore(
       const config = await getLocalConfig()
       buildDate.value = config.BUILD_DATE ?? new Date().toISOString()
       gitInfo.value = config.GIT_INFO ?? ''
-      coreAPIURL.value = config.TARANIS_CORE_API ?? '/api'
+      coreAPIURL.value =
+        config.TARANIS_CORE_API ?? `${import.meta.env.BASE_URL}/api`
       // if config.TARANIS_CORE_API is set replace /api with /sse else just use /sse
       coreSSEURL.value =
         config.TARANIS_CORE_API && config.TARANIS_CORE_API !== '/api'
