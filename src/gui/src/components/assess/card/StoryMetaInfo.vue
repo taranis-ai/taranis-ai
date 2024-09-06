@@ -1,80 +1,82 @@
 <template>
   <table class="story-meta-info" :class="compactView ? 'compact-view' : ''">
-    <tr>
-      <td v-if="!compactView">
-        <strong>{{ t('assess.published') }}:</strong>
-      </td>
-      <td class="text-no-wrap">
-        <span
-          v-if="getPublishedDate.length > 1"
-          :class="published_date_outdated ? 'text-error' : ''"
-        >
-          {{ getPublishedDate[0] }}<br />
-          {{ getPublishedDate[1] }}
-        </span>
-        <span v-else :class="published_date_outdated ? 'text-error' : ''">
-          {{ getPublishedDate[0] }}
-        </span>
-        <v-icon
-          v-if="published_date_outdated"
-          class="ml-1"
-          size="small"
-          color="error"
-          icon="mdi-alert-outline"
-        />
-      </td>
-      <td v-if="story_in_reports > 0" class="shared-icons-container">
-        <v-icon
-          v-for="n in story_in_reports"
-          :key="n"
-          :style="getSharingIcon(n)"
-          icon="mdi-share"
-        />
-      </td>
-    </tr>
+    <tbody>
+      <tr>
+        <td v-if="!compactView">
+          <strong>{{ t('assess.published') }}:</strong>
+        </td>
+        <td class="text-no-wrap">
+          <span
+            v-if="getPublishedDate.length > 1"
+            :class="published_date_outdated ? 'text-error' : ''"
+          >
+            {{ getPublishedDate[0] }}<br />
+            {{ getPublishedDate[1] }}
+          </span>
+          <span v-else :class="published_date_outdated ? 'text-error' : ''">
+            {{ getPublishedDate[0] }}
+          </span>
+          <v-icon
+            v-if="published_date_outdated"
+            class="ml-1"
+            size="small"
+            color="error"
+            icon="mdi-alert-outline"
+          />
+        </td>
+        <td v-if="story_in_reports > 0" class="shared-icons-container">
+          <v-icon
+            v-for="n in story_in_reports"
+            :key="n"
+            :style="getSharingIcon(n)"
+            icon="mdi-share"
+          />
+        </td>
+      </tr>
 
-    <tr v-if="!compactView && story.tags && !reportView">
-      <td>
-        <strong> Tags: </strong>
-      </td>
-      <td>
-        <tag-list
-          :tags="filteredTags"
-          :truncate="!detailView"
-          :color="detailView"
-          :editable="detailView"
-          @edit="editTags"
-        />
-      </td>
-      <td>
-        <relevance-indicator :relevance="story.relevance" />
-      </td>
-    </tr>
+      <tr v-if="!compactView && story.tags && !reportView">
+        <td>
+          <strong> Tags: </strong>
+        </td>
+        <td>
+          <tag-list
+            :tags="filteredTags"
+            :truncate="!detailView"
+            :color="detailView"
+            :editable="detailView"
+            @edit="editTags"
+          />
+        </td>
+        <td>
+          <relevance-indicator :relevance="story.relevance" />
+        </td>
+      </tr>
 
-    <tr v-if="detailView">
-      <td v-if="!compactView"><strong>Vote:</strong></td>
-      <td>
-        <v-list-item class="px-0">
-          <story-votes :story="story" />
-        </v-list-item>
-      </td>
-    </tr>
+      <tr v-if="detailView">
+        <td v-if="!compactView"><strong>Vote:</strong></td>
+        <td>
+          <v-list-item class="px-0">
+            <story-votes :story="story" />
+          </v-list-item>
+        </td>
+      </tr>
 
-    <article-info
-      :news-item="story.news_items[0]"
-      :compact-view="compactView"
-    />
-    <author-info
-      v-if="detailView && story.news_items.length === 1"
-      :news-item="story.news_items[0]"
-    />
-    <v-dialog v-model="showTagDialog" width="auto">
-      <popup-edit-tags
-        :tags="story.tags"
-        :story-id="story.id"
-        @close="showTagDialog = false"
+      <article-info
+        :news-item="story.news_items[0]"
+        :compact-view="compactView"
       />
-    </v-dialog>
+      <author-info
+        v-if="detailView && story.news_items.length === 1"
+        :news-item="story.news_items[0]"
+      />
+      <v-dialog v-model="showTagDialog" width="auto">
+        <popup-edit-tags
+          :tags="story.tags"
+          :story-id="story.id"
+          @close="showTagDialog = false"
+        />
+      </v-dialog>
+    </tbody>
   </table>
 </template>
 

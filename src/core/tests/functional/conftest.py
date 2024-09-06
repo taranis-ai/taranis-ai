@@ -86,7 +86,7 @@ def stories(app, news_items):
         from core.model.story import Story
         from core.model.news_item_tag import NewsItemTag
 
-        yield Story.add_news_items(news_items)[0].get("ids")
+        yield Story.add_news_items(news_items)[0].get("story_ids")
 
         NewsItemTag.delete_all()
 
