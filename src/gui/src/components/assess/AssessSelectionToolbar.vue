@@ -179,8 +179,10 @@ export default {
         assessStore.ungroupStories()
       } else if (action === 'markAsRead') {
         assessStore.markSelectionAsRead()
+        assessStore.clearSelection()
       } else if (action === 'markAsImportant') {
         assessStore.markSelectionAsImportant()
+        assessStore.clearSelection()
       }
     }
 

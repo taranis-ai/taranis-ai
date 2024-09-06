@@ -1,8 +1,9 @@
 <template>
   <v-card class="pa-5">
     <v-card-title>
-      Keyboard Shurtcuts
+      Keyboard Shortcuts
       <v-icon
+        v-if="showCloseButton"
         icon="mdi-close"
         class="float-right"
         right
@@ -30,6 +31,12 @@ import { storeToRefs } from 'pinia'
 
 export default {
   name: 'HotKeysLegend',
+  props: {
+    showCloseButton: {
+      type: Boolean,
+      default: false
+    }
+  },
   setup() {
     const { hotkeyDialogVisible } = storeToRefs(useMainStore())
 

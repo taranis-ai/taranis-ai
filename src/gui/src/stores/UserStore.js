@@ -94,7 +94,7 @@ export const useUserStore = defineStore(
       show_charts.value = profile.show_charts
       dark_theme.value = profile.dark_theme
       language.value = profile.language
-      end_of_shift.value = profile.end_of_shift
+      end_of_shift.value = profile.end_of_shift || { hours: 18, minutes: 0 }
       infinite_scroll.value = profile.infinite_scroll
 
       i18n.global.locale.value = profile.language

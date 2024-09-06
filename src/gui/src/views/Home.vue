@@ -6,6 +6,7 @@
         class="mb-1"
         variant="tonal"
         selected-class="active-toggle"
+        mandatory
         @update:model-value="toggleScope"
       >
         <v-btn value="0">

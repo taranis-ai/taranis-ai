@@ -286,13 +286,11 @@ export const useAssessStore = defineStore(
       storySelection.value.forEach((id) => {
         markStoryAsRead(id)
       })
-      clearStorySelection()
     }
     function markSelectionAsImportant() {
       storySelection.value.forEach((id) => {
         markStoryAsImportant(id)
       })
-      clearStorySelection()
     }
     function sseNewsItemsUpdated() {
       console.debug('Triggerd News items update')
