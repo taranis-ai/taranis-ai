@@ -52,12 +52,14 @@ export function assessHotkeys() {
     event.preventDefault()
     console.debug(`You pressed ${handler.key}`)
     assessStore.markSelectionAsRead()
+    assessStore.clearSelection()
   })
 
   useHotkeys('ctrl+i', (event, handler) => {
     event.preventDefault()
     console.debug(`You pressed ${handler.key}`)
     assessStore.markSelectionAsImportant()
+    assessStore.clearSelection()
   })
 
   useHotkeys('ctrl+shift+g', (event, handler) => {
@@ -108,6 +110,14 @@ export function assessHotkeys() {
     event.preventDefault()
     console.debug(`You pressed ${handler.key}`)
     router.push({ name: 'enter' })
+  })
+
+  useHotkeys('ctrl+j', (event, handler) => {
+    event.preventDefault()
+    console.debug(`You pressed ${handler.key}`)
+    assessStore.markSelectionAsImportant()
+    assessStore.markSelectionAsRead()
+    assessStore.clearSelection()
   })
 }
 
