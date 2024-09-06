@@ -1,8 +1,11 @@
 import time
 
+
 class PlaywrightHelpers:
+    """A collection of helper methods for Playwright tests."""
 
     def smooth_scroll(self, locator):
+        """Smoothly scroll the given element into view."""
         locator.evaluate("""
             element => {
                 element.scrollIntoView({
@@ -14,6 +17,7 @@ class PlaywrightHelpers:
         """)
 
     def highlight_element(self, locator, scroll: bool = True, transition: bool = True):
+        """Highlight an element on the page for visual debugging."""
         if self.ci_run:
             return locator
         style_content = """
@@ -33,6 +37,7 @@ class PlaywrightHelpers:
         return locator
 
     def add_keystroke_overlay(self, page):
+        """Add an overlay to display keystrokes during test execution."""
         if self.ci_run:
             return
         style_content = """
@@ -85,6 +90,7 @@ class PlaywrightHelpers:
             """)
 
     def short_sleep(self, duration=0.2):
+        """Pause execution for a short duration, if not in CI environment."""
         if self.ci_run:
             return
         time.sleep(duration)
