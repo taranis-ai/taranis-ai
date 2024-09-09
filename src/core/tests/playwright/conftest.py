@@ -114,7 +114,7 @@ def stories(app, news_items_list):
     _generate_timestamp()
 
     with app.app_context():
-        story_ids = Story.add_news_items(news_items_list)[0].get("ids")
+        story_ids = Story.add_news_items(news_items_list)[0].get("story_ids")
         user = User
         user.id = 1
         if not story_ids:

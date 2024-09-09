@@ -129,15 +129,15 @@ class TestEndToEndUser(PlaywrightHelpers):
 
             page.screenshot(path="./tests/playwright/screenshots/screenshot_edit_story_1.png")
             self.highlight_element(page.get_by_role("button", name="Update", exact=True), scroll=False).click()
-            page.pause()
             page.locator("div").filter(has_text="updated").nth(2).click()
             time.sleep(0.5)
             page.screenshot(path="./tests/playwright/screenshots/screenshot_edit_story_2.png")
 
         def infinite_scroll_all_items():
             self.smooth_scroll(page.locator("div:nth-child(21)").first)
-            self.smooth_scroll(page.locator("div:nth-child(41) > div:nth-child(2) > div"))
-            self.smooth_scroll(page.locator("div:nth-child(53) > div:nth-child(2) > div"))
+            self.highlight_element(page.get_by_role("button", name="Load more"), scroll=False).click()
+            self.smooth_scroll(page.locator("div:nth-child(31) > .v-container > div"))
+            self.highlight_element(page.get_by_role("button", name="Load more"), scroll=False).click()
             self.short_sleep(duration=1)
 
         def items_per_page():
@@ -198,13 +198,12 @@ class TestEndToEndUser(PlaywrightHelpers):
         # base_url = e2e_server.url()
         # go_to_assess()
         # paging(base_url)
-        
+
         go_to_assess()
         enter_hotkey_menu()
-        items_per_page()
-
-        # TODO: Uncomment when infinite scroll is fixed
-        # smooth_scroll()
+        infinite_scroll_all_items()
+        # Alternative to smooth_scroll()
+        # items_per_page()
 
         self.highlight_element(page.get_by_role("button", name="relevance"), scroll=False).click()
         hotkeys()
@@ -230,6 +229,7 @@ class TestEndToEndUser(PlaywrightHelpers):
         def report_1():
             self.highlight_element(page.get_by_role("button", name="New Report").first).click()
             self.highlight_element(page.get_by_role("combobox")).click()
+            time.sleep(0.5)
 
             expect(page.get_by_role("listbox")).to_contain_text("CERT Report")
             expect(page.get_by_role("listbox")).to_contain_text("Disinformation")
@@ -294,10 +294,10 @@ class TestEndToEndUser(PlaywrightHelpers):
             self.highlight_element(page.get_by_label("Open").nth(1), scroll=False).click()
             self.highlight_element(page.get_by_text("Global Mining Espionage by APT67", exact=True).nth(1), scroll=False).click()
             self.highlight_element(page.get_by_text("Advanced Phishing Techniques by APT58", exact=True).nth(1), scroll=False).click()
-            self.highlight_element(page.get_by_label("Close"), scroll=False).click()
+            self.highlight_element(page.get_by_label("Close").last, scroll=False).click()
             self.highlight_element(page.get_by_label("Open").nth(2), scroll=False).click()
             self.highlight_element(page.get_by_text("Genetic Engineering Data Theft by APT81", exact=True).nth(1), scroll=False).click()
-            self.highlight_element(page.get_by_label("Close"), scroll=False).click()
+            self.highlight_element(page.get_by_label("Close").last, scroll=False).click()
             self.highlight_element(page.get_by_label("Side-by-side"), scroll=False).check()
             self.highlight_element(page.get_by_role("button", name="Save"), scroll=False).click()
             page.locator("div").filter(has_text="updated").nth(2).click()
@@ -331,6 +331,7 @@ class TestEndToEndUser(PlaywrightHelpers):
         add_stories_to_report_1()
 
         go_to_analyze()
+        page.pause()
         modify_report_1()
 
         go_to_analyze()

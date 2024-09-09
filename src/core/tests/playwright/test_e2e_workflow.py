@@ -83,7 +83,7 @@ class TestUserWorkflow(PlaywrightHelpers):
 
         def apply_filter():
             # Set time filter
-            self.highlight_element(page.locator("div").filter(has_text=re.compile(r"^FilterTagsTags$")).get_by_role("button").first).click()
+            self.highlight_element(page.locator("div").filter(has_text=re.compile(r"^Filter more details TagsTags$")).get_by_role("button").first).click()
             self.highlight_element(page.get_by_role("button", name="read")).click()
             self.highlight_element(page.get_by_role("button", name="read")).click()
             expect(page.get_by_role("button", name="not read")).to_be_visible()
@@ -277,10 +277,10 @@ class TestUserWorkflow(PlaywrightHelpers):
             self.highlight_element(page.get_by_label("Open").nth(1), scroll=False).click()
             self.highlight_element(page.get_by_text("Global Mining Espionage by APT67", exact=True).nth(1), scroll=False).click()
             self.highlight_element(page.get_by_text("Advanced Phishing Techniques by APT58", exact=True).nth(1), scroll=False).click()
-            self.highlight_element(page.get_by_label("Close"), scroll=False).click()
+            self.highlight_element(page.get_by_label("Close").last, scroll=False).click()
             self.highlight_element(page.get_by_label("Open").nth(2), scroll=False).click()
             self.highlight_element(page.get_by_text("Genetic Engineering Data Theft by APT81", exact=True).nth(1), scroll=False).click()
-            self.highlight_element(page.get_by_label("Close"), scroll=False).click()
+            self.highlight_element(page.get_by_label("Close").last, scroll=False).click()
             self.highlight_element(page.get_by_label("Side-by-side"), scroll=False).check()
 
             self.highlight_element(page.get_by_label("Completed"), scroll=False).check()
@@ -305,10 +305,15 @@ class TestUserWorkflow(PlaywrightHelpers):
         report_1()
         go_to_analyze()
         report_2()
+        go_to_analyze()
+        expect(page.get_by_text("Test Report")).to_be_visible()
+        expect(page.get_by_text("Test Disinformation Title")).to_be_visible()
+
         self.highlight_element(page.get_by_role("link", name="Assess")).click()
         add_stories_to_report_1()
 
         go_to_analyze()
+
 
         modify_report_1()
 
