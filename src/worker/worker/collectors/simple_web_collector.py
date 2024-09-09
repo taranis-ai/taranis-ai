@@ -73,7 +73,7 @@ class SimpleWebCollector(BaseWebCollector):
     def collect_news(self) -> list[NewsItem]:
         if self.digest_splitting == "true":
             return self.handle_digests()
-        
+
         return [self.news_item_from_article(self.web_url, self.xpath)]
 
     def web_collector(self, source, manual: bool = False):
@@ -104,19 +104,20 @@ def browser_mode_test():
     collector = SimpleWebCollector()
     collector.collect(
         {
-            "id": "test",
+            "description": "",
+            "id": "1",
+            "last_attempted": "2000-01-01T00:00:00.000000",
+            "last_collected": "2000-01-01T00:00:00.000000",
+            "last_error_message": None,
+            "name": "TestName",
             "parameters": {
-                "WEB_URL": "https://playwright.dev/python/docs/api/class-playwright",
-                "XPATH": "//*[@id='mCSB_1_container']",
-                "DIGEST_SPLITTING": "true",
-                "BROWSER_MODE": "true",
-                # "PROXY_SERVER": "http://test_username:test_password@example.com:80",
-                "ADDITIONAL_HEADERS:": {
-                    "AUTHORIZATION": "Bearer Token1234",
-                    "X-API-KEY": "12345",
-                    "Cookie": "firstcookie=1234; second-cookie=4321",
-                },
+                "ADDITIONAL_HEADERS": '{"User-Agent": "Chromium/1.0", "Authorization": "Bearer Token1234", "X-API-KEY": "12345", "Cookie": "firstcookie=1234; second-cookie=4321"}',
+                "FEED_URL": "www.hello.hello.com",
+                "USER_AGENT": "Mozilla/5.0",
             },
+            "state": 0,
+            "type": "rss_collector",
+            "word_lists": [],
         }
     )
 

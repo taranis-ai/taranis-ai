@@ -72,6 +72,19 @@ def test_rss_collector_with_multiple_additional_headers(rss_collector_mock, rss_
     assert rss_collector.headers["X-Custom-Header"] == "CustomValue"
 
 
+def test_rss_collector_with_complex(rss_collector_mock, rss_collector):
+    from worker.tests.testdata import rss_collector_source_data_complex
+
+    result = rss_collector.collect(rss_collector_source_data_complex)
+
+    assert result is None
+    assert "User-Agent" in rss_collector.headers
+    assert rss_collector.headers["User-Agent"] == "Mozilla/5.0"
+    assert rss_collector.headers["Authorization"] == "Bearer Token1234"
+    assert rss_collector.headers["X-API-KEY"] == "12345"
+    assert rss_collector.headers["Cookie"] == "firstcookie=1234; second-cookie=4321"
+
+
 def test_simple_web_collector_basic(simple_web_collector_mock, simple_web_collector):
     from worker.tests.testdata import web_collector_source_data
 

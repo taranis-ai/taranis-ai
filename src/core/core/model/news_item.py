@@ -49,7 +49,7 @@ class NewsItem(BaseModel):
         title: str,
         source: str,
         content: str,
-        osint_source_id: str,
+        osint_source_id: str = "manual",
         review: str = "",
         author: str = "",
         link: str = "",
@@ -66,6 +66,8 @@ class NewsItem(BaseModel):
         self.content = content
         if osint_source := OSINTSource.get(osint_source_id):
             self.osint_source = osint_source
+        else:
+            raise ValueError(f"OSINT Source {osint_source_id} not found")
         self.source = source
         self.link = link
         self.author = author
