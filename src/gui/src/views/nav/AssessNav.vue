@@ -1,8 +1,8 @@
 <template>
   <filter-navigation
-    :search="search"
+    :search="storyFilter.search"
     :limit="storyFilter.limit || 20"
-    @update:search="(value) => (search = value)"
+    @update:search="(value) => (storyFilter.search = value)"
     @update:limit="(value) => (storyFilter.limit = value)"
   >
     <template #appbar>
@@ -298,15 +298,6 @@ export default {
       return !xxl.value || compactView.value
     })
 
-    const search = computed({
-      get() {
-        return storyFilter.value.search
-      },
-      set(value) {
-        filterStore.updateFilter({ search: value })
-      }
-    })
-
     onBeforeMount(async () => {
       assessStore.updateOSINTSourceGroupsList()
       assessStore.updateOSINTSources()
@@ -327,7 +318,6 @@ export default {
 
     return {
       xxl,
-      search,
       mdAndDown,
       smAndUp,
       highlight,
