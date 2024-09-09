@@ -64,8 +64,18 @@
       <v-divider class="my-2 mt-4"></v-divider>
 
       <v-row no-gutters class="ma-2 mb-0 px-2">
-        <v-col cols="12" class="py-1">
+        <v-col cols="7" class="py-1">
           <h4>Filter</h4>
+        </v-col>
+        <v-col>
+          <a
+            href="https://taranis.ai/docs/assess/#details"
+            target="_blank"
+            style="color: grey; text-decoration: none"
+          >
+            more details
+            <v-icon size="x-small" icon="mdi-open-in-new" />
+          </a>
         </v-col>
 
         <v-col cols="12" class="pt-1">
