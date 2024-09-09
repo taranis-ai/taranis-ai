@@ -86,7 +86,7 @@
           <date-filter
             v-model="storyFilter.timefrom"
             placeholder="First Day"
-            tooltip-text="Filter Stories starting from this date"
+            tooltip-text="The Story's creation date, typically matching the oldest News Item's 'published date'"
             :timeto="storyFilter.timeto"
             :default-date="nextEndOfShift"
           />
@@ -96,7 +96,7 @@
           <date-filter
             v-model="storyFilter.timeto"
             placeholder="Last Day"
-            tooltip-text="Filter Stories ending on this date"
+            tooltip-text="The Story's update date, usually reflecting the latest addition or change"
             :timefrom="storyFilter.timefrom"
             :default-date="new Date()"
           />
