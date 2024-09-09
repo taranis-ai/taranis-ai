@@ -39,7 +39,7 @@ class BaseWebCollector(BaseCollector):
         if additional_headers := source["parameters"].get("ADDITIONAL_HEADERS", None):
             self.update_headers(additional_headers)
         if user_agent := source["parameters"].get("USER_AGENT", None):
-            self.update_headers({"User-Agent": user_agent})
+            self.headers.update({"User-Agent": user_agent})
         self.browser_mode = source["parameters"].get("BROWSER_MODE", "false")
 
         self.osint_source_id = source["id"]

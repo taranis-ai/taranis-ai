@@ -35,7 +35,7 @@ class TestAssessApi(BaseTest):
         assert response.content_type == "application/json"
         assert response.data
         assert response.status_code == 200
-        assert uuid.UUID(response.get_json()["id"], version=4)
+        assert uuid.UUID(response.get_json()["story_id"], version=4)
 
     def test_get_stories_auth(self, client, stories, auth_header):
         """
