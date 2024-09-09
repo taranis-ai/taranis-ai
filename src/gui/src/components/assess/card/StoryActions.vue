@@ -245,7 +245,7 @@
         <v-list-item
           v-if="!reportView && news_item_length > 1"
           @click.stop="ungroup()"
-          >detail
+        >
           <v-icon icon="mdi-ungroup" title="ungroup" />
         </v-list-item>
         <v-list-item

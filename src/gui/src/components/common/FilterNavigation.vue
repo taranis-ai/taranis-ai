@@ -97,7 +97,11 @@ export default {
     watch(
       () => props.search,
       () => {
-        searchState.value = props.search
+        if (props.search === '') {
+          searchState.value = undefined
+        } else {
+          searchState.value = props.search
+        }
       }
     )
 
