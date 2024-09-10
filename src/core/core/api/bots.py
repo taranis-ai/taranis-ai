@@ -73,6 +73,23 @@ class UpdateNewsItemAttributes(MethodView):
         news_item.NewsItem.update_attributes(news_item_id, request.json)
 
 
+class StoryAttributes(MethodView):
+    @api_key_required
+    def get(self, story_id):
+        if current_story := story.Story.get(story_id):
+            return current_story.attributes
+        return {"message": f"Story {story_id} not found"}, 404
+
+    @api_key_required
+    def patch(self, story_id):
+        if current_story := story.Story.get(story_id):
+            if input_data := request.json:
+                current_story.patch_attributes(input_data)
+            else:
+                return {"error": "No data provided"}, 400
+        return {"error": f"Story {story_id} not found"}, 404
+
+
 class UpdateStorySummary(MethodView):
     @api_key_required
     def put(self, story_id):
@@ -108,6 +125,10 @@ def initialize(app: Flask):
     bots_bp.add_url_rule(
         "/news-item/<string:news_item_id>/attributes",
         view_func=UpdateNewsItemAttributes.as_view("update_news_item_attributes"),
+    )
+    bots_bp.add_url_rule(
+        "/stories/<string:story_id>/attributes",
+        view_func=StoryAttributes.as_view("update_news_item_attributes"),
     )
     bots_bp.add_url_rule(
         "/stories/group",
