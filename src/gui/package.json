@@ -20,7 +20,7 @@
     "@codemirror/lang-json": "^6.0.1",
     "@intlify/unplugin-vue-i18n": "^2.0.0",
     "@mdi/font": "^7.4.47",
-    "@sentry/vue": "^8.28.0",
+    "@sentry/vue": "^8.29.0",
     "@vuepic/vue-datepicker": "^8.8.1",
     "@vueuse/core": "^10.11.1",
     "axios": "^1.7.7",
@@ -47,7 +47,7 @@
     "@vue/eslint-config-typescript": "^12.0.0",
     "prettier": "^3.3.3",
     "sass": "^1.78.0",
-    "typescript": "^5.5.4",
+    "typescript": "^5.6.2",
     "vite": "^5.4.3",
     "vite-plugin-vuetify": "^2.0.4",
     "vue-tsc": "^2.1.6"
