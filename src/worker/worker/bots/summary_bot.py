@@ -35,7 +35,7 @@ class SummaryBot(BaseBot):
                 continue
 
             logger.debug(f"Created summary for : {story['id']}")
-        return "Summarized stories"
+        return {"message": f"Summarized {len(data)} stories"}
 
     def predict_summary(self, text_to_summarize: str) -> str:
         min_length = int(len(text_to_summarize.split()) * 0.2)

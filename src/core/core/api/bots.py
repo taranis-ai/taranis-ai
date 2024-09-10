@@ -128,7 +128,7 @@ def initialize(app: Flask):
     )
     bots_bp.add_url_rule(
         "/stories/<string:story_id>/attributes",
-        view_func=StoryAttributes.as_view("update_news_item_attributes"),
+        view_func=StoryAttributes.as_view("story_attributes"),
     )
     bots_bp.add_url_rule(
         "/stories/group",
