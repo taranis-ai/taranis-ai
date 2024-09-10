@@ -72,6 +72,11 @@ export default {
   max-width: 110px;
 }
 
+.newsitem-meta-info {
+  word-wrap: anywhere;
+  width: 100%;
+}
+
 .newsitem-meta-info tr td {
   vertical-align: top;
 }

@@ -1,8 +1,8 @@
 <template>
   <filter-navigation
-    :search="search"
+    :search="storyFilter.search"
     :limit="storyFilter.limit || 20"
-    @update:search="(value) => (search = value)"
+    @update:search="(value) => (storyFilter.search = value)"
     @update:limit="(value) => (storyFilter.limit = value)"
   >
     <template #appbar>
@@ -86,7 +86,7 @@
           <date-filter
             v-model="storyFilter.timefrom"
             placeholder="First Day"
-            tooltip-text="Filter Stories starting from this date"
+            tooltip-text="The Story's creation date, typically matching the oldest News Item's 'published date'"
             :timeto="storyFilter.timeto"
             :default-date="nextEndOfShift"
           />
@@ -96,7 +96,7 @@
           <date-filter
             v-model="storyFilter.timeto"
             placeholder="Last Day"
-            tooltip-text="Filter Stories ending on this date"
+            tooltip-text="The Story's update date, usually reflecting the latest addition or change"
             :timefrom="storyFilter.timefrom"
             :default-date="new Date()"
           />
@@ -298,15 +298,6 @@ export default {
       return !xxl.value || compactView.value
     })
 
-    const search = computed({
-      get() {
-        return storyFilter.value.search
-      },
-      set(value) {
-        filterStore.updateFilter({ search: value })
-      }
-    })
-
     onBeforeMount(async () => {
       assessStore.updateOSINTSourceGroupsList()
       assessStore.updateOSINTSources()
@@ -327,7 +318,6 @@ export default {
 
     return {
       xxl,
-      search,
       mdAndDown,
       smAndUp,
       highlight,
