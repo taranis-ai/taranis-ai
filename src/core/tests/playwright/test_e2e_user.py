@@ -38,7 +38,6 @@ class TestEndToEndUser(PlaywrightHelpers):
         def paging(base_url):
             self.highlight_element(page.get_by_placeholder("Until")).click()
             self.highlight_element(page.locator('[data-test="select-button"]')).click()
-            self.scroll_to_the_bottom(scroll_step=400)
             self.highlight_element(page.get_by_label("Go to page 2")).click()
             self.highlight_element(page.get_by_label("Page 2, Current page")).press("Insert")
             self.highlight_element(page.get_by_label("Go to page 3")).click()

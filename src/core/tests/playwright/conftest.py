@@ -79,7 +79,28 @@ def taranis_frontend(e2e_server, browser_context_args, browser: Browser):
 
 
 @pytest.fixture(scope="session")
-def fake_source(app):
+def e2e_setup(app):
+    with app.app_context():
+        from core.model.user import User
+
+        current_user = User.find_by_name("admin")
+        if not current_user:
+            pytest.fail("Admin user not found")
+        user_profile = {
+            "dark_theme": False,
+            "hotkeys": {},
+            "split_view": False,
+            "compact_view": False,
+            "show_charts": False,
+            "infinite_scroll": False,
+            "end_of_shift": {"hours": 18, "minutes": 0},
+            "language": "en",
+        }
+        User.update_profile(current_user, user_profile)
+
+
+@pytest.fixture(scope="session")
+def fake_source(app, e2e_setup):
     with app.app_context():
         from core.model.osint_source import OSINTSource
 
