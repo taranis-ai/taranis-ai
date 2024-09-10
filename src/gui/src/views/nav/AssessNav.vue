@@ -1,8 +1,8 @@
 <template>
   <filter-navigation
-    :search="search"
+    :search="storyFilter.search"
     :limit="storyFilter.limit || 20"
-    @update:search="(value) => (search = value)"
+    @update:search="(value) => (storyFilter.search = value)"
     @update:limit="(value) => (storyFilter.limit = value)"
   >
     <template #appbar>
@@ -64,8 +64,18 @@
       <v-divider class="my-2 mt-4"></v-divider>
 
       <v-row no-gutters class="ma-2 mb-0 px-2">
-        <v-col cols="12" class="py-1">
+        <v-col cols="7" class="py-1">
           <h4>Filter</h4>
+        </v-col>
+        <v-col>
+          <a
+            href="https://taranis.ai/docs/assess/#details"
+            target="_blank"
+            style="color: grey; text-decoration: none"
+          >
+            more details
+            <v-icon size="x-small" icon="mdi-open-in-new" />
+          </a>
         </v-col>
 
         <v-col cols="12" class="pt-1">
@@ -76,7 +86,7 @@
           <date-filter
             v-model="storyFilter.timefrom"
             placeholder="First Day"
-            tooltip-text="Filter Stories starting from this date"
+            tooltip-text="The Story's creation date, typically matching the oldest News Item's 'published date'"
             :timeto="storyFilter.timeto"
             :default-date="nextEndOfShift"
           />
@@ -86,7 +96,7 @@
           <date-filter
             v-model="storyFilter.timeto"
             placeholder="Last Day"
-            tooltip-text="Filter Stories ending on this date"
+            tooltip-text="The Story's update date, usually reflecting the latest addition or change"
             :timefrom="storyFilter.timefrom"
             :default-date="new Date()"
           />
@@ -288,15 +298,6 @@ export default {
       return !xxl.value || compactView.value
     })
 
-    const search = computed({
-      get() {
-        return storyFilter.value.search
-      },
-      set(value) {
-        filterStore.updateFilter({ search: value })
-      }
-    })
-
     onBeforeMount(async () => {
       assessStore.updateOSINTSourceGroupsList()
       assessStore.updateOSINTSources()
@@ -317,7 +318,6 @@ export default {
 
     return {
       xxl,
-      search,
       mdAndDown,
       smAndUp,
       highlight,

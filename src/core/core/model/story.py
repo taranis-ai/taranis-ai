@@ -398,21 +398,17 @@ class Story(BaseModel):
         return items
 
     @classmethod
-    def add_from_news_item(cls, news_item: dict) -> str | None:
+    def add_from_news_item(cls, news_item: dict) -> "Story | None":
         if NewsItem.identical(news_item.get("hash")):
             return None
-        try:
-            return cls.add(
-                {
-                    "title": news_item.get("title"),
-                    "description": news_item.get("review", news_item.get("content")),
-                    "created": news_item.get("published"),
-                    "news_items": [news_item],
-                }
-            ).id
-        except Exception as e:
-            logger.warning(f"Error creating NewsItem - {str(e)}")
-            return None
+        return cls.add(
+            {
+                "title": news_item.get("title"),
+                "description": news_item.get("review", news_item.get("content")),
+                "created": news_item.get("published"),
+                "news_items": [news_item],
+            }
+        )
 
     @classmethod
     def check_news_item_data(cls, news_item: dict) -> dict | None:
@@ -428,33 +424,35 @@ class Story(BaseModel):
         if err := cls.check_news_item_data(news_item):
             return err, 400
         try:
-            if story_id := cls.add_from_news_item(news_item):
+            if story := cls.add_from_news_item(news_item):
                 db.session.commit()
             else:
                 return {"error": "NewsItem already exists"}, 400
         except Exception as e:
-            logger.exception(f"Failed to add news items: {e}")
+            logger.exception("Failed to add news items")
             return {"error": f"Failed to add news items: {e}"}, 400
 
-        return {"message": "success", "id": story_id}, 200
+        return {"message": "success", "story_id": story.id, "news_item_id": story.news_items[0].id}, 200
 
     @classmethod
     def add_news_items(cls, news_items_list: list[dict]):
-        ids = []
+        story_ids = []
+        news_item_ids = []
         try:
             for news_item in news_items_list:
                 if err := cls.check_news_item_data(news_item):
                     logger.warning(err)
                     continue
-                if story_id := cls.add_from_news_item(news_item):
-                    ids.append(story_id)
+                if story := cls.add_from_news_item(news_item):
+                    story_ids.append(story.id)
+                    news_item_ids += [news_item.id for news_item in story.news_items]
             db.session.commit()
         except Exception as e:
-            logger.exception(f"Failed to add news items: {e}")
+            logger.exception("Failed to add news items")
             return {"error": f"Failed to add news items: {e}"}, 400
 
-        logger.info(f"Added {len(ids)} news items - {ids}")
-        return {"message": f"Added {len(ids)} news items", "ids": ids}, 200
+        logger.info(f"Added {len(story_ids)} news items - {story_ids}")
+        return {"message": f"Added {len(story_ids)} news items", "story_ids": story_ids, "news_item_ids": news_item_ids}, 200
 
     @classmethod
     def update(cls, story_id: str, data, user=None):
@@ -911,7 +909,7 @@ class StoryNewsItemAttribute(BaseModel):
 
 class ReportItemStory(BaseModel):
     report_item_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("report_item.id", ondelete="CASCADE"), primary_key=True)
-    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id"), primary_key=True)
+    story_id: Mapped[str] = db.Column(db.String(64), db.ForeignKey("story.id", ondelete="CASCADE"), primary_key=True)
 
     @classmethod
     def assigned(cls, story_id):

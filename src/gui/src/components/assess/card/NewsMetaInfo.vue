@@ -1,19 +1,21 @@
 <template>
   <table class="newsitem-meta-info">
-    <tr>
-      <td v-if="!compactView" class="info-title py-0">
-        <strong v-if="published_date">{{ $t('assess.published') }}:</strong>
-        <strong v-else>{{ $t('assess.collected') }}:</strong>
-      </td>
-      <td v-if="published_date" class="py-0">
-        {{ published_date }}
-      </td>
-      <td v-else class="py-0">
-        {{ collected_date }}
-      </td>
-    </tr>
-    <article-info :news-item="newsItem" />
-    <author-info :news-item="newsItem" />
+    <tbody>
+      <tr>
+        <td v-if="!compactView" class="info-title py-0">
+          <strong v-if="published_date">{{ $t('assess.published') }}:</strong>
+          <strong v-else>{{ $t('assess.collected') }}:</strong>
+        </td>
+        <td v-if="published_date" class="py-0">
+          {{ published_date }}
+        </td>
+        <td v-else class="py-0">
+          {{ collected_date }}
+        </td>
+      </tr>
+      <article-info :news-item="newsItem" />
+      <author-info :news-item="newsItem" />
+    </tbody>
   </table>
 </template>
 
@@ -68,6 +70,11 @@ export default {
 <style scoped>
 .info-title {
   max-width: 110px;
+}
+
+.newsitem-meta-info {
+  word-wrap: anywhere;
+  width: 100%;
 }
 
 .newsitem-meta-info tr td {

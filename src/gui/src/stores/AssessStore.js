@@ -63,9 +63,9 @@ export const useAssessStore = defineStore(
     async function updateStories() {
       try {
         loading.value = true
-        const storyFilter = useFilterStore().storyFilterQuery || ''
-        console.debug('Updating Stories with Filter', storyFilter)
-        const response = await getStories(storyFilter)
+        const filterQuery = useFilterStore().storyFilterQuery || ''
+        console.debug('Updating Stories with Filter', filterQuery)
+        const response = await getStories(filterQuery)
         stories.value.items = response.data.items
         if (response.data.counts) {
           storyCounts.value = response.data.counts
@@ -286,13 +286,11 @@ export const useAssessStore = defineStore(
       storySelection.value.forEach((id) => {
         markStoryAsRead(id)
       })
-      clearStorySelection()
     }
     function markSelectionAsImportant() {
       storySelection.value.forEach((id) => {
         markStoryAsImportant(id)
       })
-      clearStorySelection()
     }
     function sseNewsItemsUpdated() {
       console.debug('Triggerd News items update')

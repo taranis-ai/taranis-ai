@@ -215,7 +215,7 @@
         "acls": "ACL",
         "attributes": "Attributes",
         "bots": "Bots",
-        "dashboard": "Dashboard",
+        "dashboard": "Admin Dashboard",
         "openapi": "OpenAPI",
         "organizations": "Organizations",
         "osint_source_groups": "Source Groups",
