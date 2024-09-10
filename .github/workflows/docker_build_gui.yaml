@@ -7,9 +7,6 @@ on:
     - 'docker/Dockerfile.gui'
     branches:
     - master
-    tags:
-    - "**"
-
 
 permissions:
   packages: write

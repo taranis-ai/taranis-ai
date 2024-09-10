@@ -7,8 +7,6 @@ on:
     - 'docker/Dockerfile.worker'
     branches:
     - master
-    tags:
-    - "**"
 
 permissions:
   packages: write

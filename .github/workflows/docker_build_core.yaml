@@ -7,8 +7,6 @@ on:
     - 'docker/Dockerfile.core'
     branches:
     - master
-    tags:
-    - "**"
 
 permissions:
   packages: write
