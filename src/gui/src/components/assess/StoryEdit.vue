@@ -21,22 +21,33 @@
             :header="$t('enter.summary')"
             :placeholder="$t('enter.summary_placeholder')"
           />
-
-          <v-btn
-            prepend-icon="mdi-auto-fix"
-            text="AI based summary"
-            @click="triggerSummaryBot"
-          />
-
+          <v-row>
+            <v-col cols="auto">
+              <v-btn
+                prepend-icon="mdi-auto-fix"
+                text="AI based summary"
+                @click="triggerSummaryBot"
+              />
+            </v-col>
+          </v-row>
           <code-editor
             v-model:content="story.comments"
             :header="$t('enter.comment')"
             :placeholder="$t('enter.comment_placeholder')"
           />
-
+          
           <edit-tags v-model="story.tags" />
 
           <attributes-table v-model="story.attributes" />
+          <v-row>
+            <v-col cols="auto">
+              <v-btn
+                prepend-icon="mdi-pulse"
+                text="AI based sentiment analysis"
+                @click="triggerSentimentAnalysisBot"
+              />
+            </v-col>
+          </v-row>
 
           <story-links v-model="story.links" :news-items="story.news_items" />
 
@@ -54,8 +65,7 @@
         :title="news_item.title"
         :text="news_item.content"
         :value="news_item.id"
-      >
-      </v-expansion-panel>
+      />
     </v-expansion-panels>
   </v-container>
 </template>
@@ -126,6 +136,15 @@ export default {
         notifyFailure(e)
       }
     }
+    
+    async function triggerSentimentAnalysisBot(){
+      try {
+        const result = await triggerBot('sentiment_analysis_bot', props.storyProp.id)
+        notifySuccess(result.data.message)
+      } catch (e) {
+        notifyFailure(e)
+      }
+    }
 
     return {
       panels,
@@ -133,7 +152,8 @@ export default {
       form,
       rules,
       submit,
-      triggerSummaryBot
+      triggerSummaryBot,
+      triggerSentimentAnalysisBot
     }
   }
 }

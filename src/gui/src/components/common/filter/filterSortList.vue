@@ -12,6 +12,15 @@
     >
       {{ option.label }}
     </v-btn>
+    <v-btn
+      class="vertical-button mb-1"
+      :color="currentSort !== 'NONE' ? 'primary' : 'default'"
+      :prepend-icon="currentSortIcon"
+      variant="text"
+      @click="cycleSentimentSort"
+    >
+      {{ currentSortLabel }}
+    </v-btn>
   </div>
 </template>
 
@@ -78,10 +87,48 @@ export default {
           : ''
     }
 
+    const sentimentStates = ['POSITIVE', 'NEUTRAL', 'NEGATIVE', 'NONE']
+    const currentSortIndex = ref(3) // Start with no selected state
+    
+    const sortIcons = {
+      POSITIVE: 'mdi-emoticon-happy-outline',
+      NEUTRAL: 'mdi-emoticon-neutral-outline',
+      NEGATIVE: 'mdi-emoticon-sad-outline',
+      NONE: 'mdi-sort'
+    }
+
+    const sortLabels = {
+      POSITIVE: 'positive sentiment',
+      NEUTRAL: 'neutral sentiment',
+      NEGATIVE: 'negative sentiment',
+      NONE: 'sentiment score'
+    }
+
+    const currentSort = ref('NONE')
+    const currentSortIcon = ref(sortIcons['NONE'])
+    const currentSortLabel = ref(sortLabels['NONE'])
+
+    const cycleSentimentSort = () => {
+      currentSortIndex.value = (currentSortIndex.value + 1) % sentimentStates.length
+      currentSort.value = sentimentStates[currentSortIndex.value]
+      currentSortIcon.value = sortIcons[currentSort.value]
+      currentSortLabel.value = sortLabels[currentSort.value]
+
+      if (currentSort.value !== 'NONE') {
+        emit('update:modelValue', currentSort.value)
+      } else {
+        emit('update:modelValue', undefined)
+      }
+    }
+
     return {
       selectedButton,
       onButtonClick,
-      activeIcon
+      activeIcon,
+      currentSort,
+      currentSortIcon,
+      currentSortLabel,
+      cycleSentimentSort
     }
   }
 }
