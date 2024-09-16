@@ -10,9 +10,13 @@ from playwright_helpers import PlaywrightHelpers
 
 @pytest.mark.e2e_admin
 class TestEndToEndAdmin(PlaywrightHelpers):
-    wait_duration = 0
-    ci_run = True
-    record_video = False
+    """End-to-end tests for the Taranis AI admin interface."""
+
+    wait_duration: float = 0
+    ci_run: bool = True
+
+    def test_setup_pwhelpers(self, taranis_frontend: Page):
+        PlaywrightHelpers.config_pwhelpers(self, wait_duration=self.wait_duration, ci_run=self.ci_run)
 
     def test_login(self, taranis_frontend: Page):
         page = taranis_frontend

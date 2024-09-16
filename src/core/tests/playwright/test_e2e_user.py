@@ -11,9 +11,11 @@ from playwright_helpers import PlaywrightHelpers
 @pytest.mark.e2e_user_ci
 @pytest.mark.usefixtures("e2e_ci")
 class TestEndToEndUser(PlaywrightHelpers):
-    wait_duration = 2
-    ci_run = False
-    record_video = False
+    wait_duration: float = 2
+    ci_run: bool = False
+
+    def test_setup_pwhelpers(self, taranis_frontend: Page):
+        PlaywrightHelpers.config_pwhelpers(self, wait_duration=self.wait_duration, ci_run=self.ci_run)
 
     @pytest.mark.e2e_publish
     def test_e2e_login(self, taranis_frontend: Page):
@@ -28,6 +30,13 @@ class TestEndToEndUser(PlaywrightHelpers):
         page.get_by_placeholder("Password").fill("admin")
         self.highlight_element(page.locator("role=button")).click()
         page.screenshot(path="./tests/playwright/screenshots/screenshot_login.png")
+
+    def test_enable_infinite_scroll(self, taranis_frontend: Page):
+        page = taranis_frontend
+        page.get_by_role("button").nth(1).click()
+        page.get_by_text("Settings").click()
+        page.get_by_label("Infinite Scroll").check()
+        page.get_by_role("button", name="Save").click()
 
     def test_e2e_assess(self, taranis_frontend: Page, e2e_server, pic_prefix=""):
         def go_to_assess():
@@ -133,14 +142,12 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.screenshot(path="./tests/playwright/screenshots/screenshot_edit_story_2.png")
 
         def infinite_scroll_all_items():
+            page.pause()
             self.smooth_scroll(page.locator("div:nth-child(21)").first)
             self.highlight_element(page.get_by_role("button", name="Load more"), scroll=False).click()
             self.smooth_scroll(page.locator("div:nth-child(31) > .v-container > div"))
             self.highlight_element(page.get_by_role("button", name="Load more"), scroll=False).click()
             self.short_sleep(duration=1)
-
-        def items_per_page():
-            # page.locator("div").filter(has_text=re.compile(r"^20$")).first
 
             self.highlight_element(page.locator('input:near(:text("Items per page"))').first).click()
             self.highlight_element(page.get_by_label("Items per page")).click()
@@ -193,24 +200,15 @@ class TestEndToEndUser(PlaywrightHelpers):
         page = taranis_frontend
         self.add_keystroke_overlay(page)
 
-        # TODO: Uncomment when paging is fixed
-        # base_url = e2e_server.url()
-        # go_to_assess()
-        # paging(base_url)
-
         go_to_assess()
         enter_hotkey_menu()
         infinite_scroll_all_items()
-        # Alternative to smooth_scroll()
-        # items_per_page()
 
         self.highlight_element(page.get_by_role("button", name="relevance"), scroll=False).click()
         hotkeys()
         page.screenshot(path="./tests/playwright/screenshots/assess_landing_page.png")
         interact_with_story()
 
-        # TODO: Uncomment when "relevance" button is fixed (ref: Various bugs)
-        # go_to_assess()
         assert_stories()
 
         # TODO: uncomment when frontend charts is fixed
@@ -330,7 +328,6 @@ class TestEndToEndUser(PlaywrightHelpers):
         add_stories_to_report_1()
 
         go_to_analyze()
-        page.pause()
         modify_report_1()
 
         go_to_analyze()
@@ -358,5 +355,5 @@ class TestEndToEndUser(PlaywrightHelpers):
         self.highlight_element(page.get_by_label("Description")).fill("Test Description")
         self.highlight_element(page.get_by_role("button", name="Save")).click()
         self.highlight_element(page.get_by_role("main").locator("header").get_by_role("button", name="Render Product")).click()
-        page.locator("div").filter(has_text="failed").nth(2).click()
+        page.locator("div").filter(has_text="Could not").nth(2).click()
         page.screenshot(path="./tests/playwright/screenshots/screenshot_publish.png")

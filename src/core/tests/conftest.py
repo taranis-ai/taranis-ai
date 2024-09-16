@@ -186,7 +186,7 @@ def pytest_addoption(parser):
     group.addoption("--highlight-delay", action="store", default="2", help="delay for highlighting elements in e2e tests")
     group.addoption("--record-video", action="store_true", default=False, help="create screenshots and record video")
     group.addoption("--e2e-admin", action="store_true", default=False, help="generate documentation screenshots")
-    group.addoption("--e2e-user-workflow", action="store_const", const="e2e_user_workflow", default=None, help="run e2e tests for user workflow")
+    group.addoption("--e2e-user-workflow", action="store_true", default=False, help="run e2e tests for user workflow")
 
 
 def skip_for_e2e(e2e_test: str, items):
@@ -230,7 +230,7 @@ def pytest_collection_modifyitems(config, items):
     if e2e_user_workflow:
         config.option.start_live_server = False
         config.option.headed = True
-        skip_for_e2e(e2e_user_workflow, items)
+        skip_for_e2e_user_workflow(items)
         return
 
     # Skip all e2e and e2e_admin tests if no relevant flag is provided

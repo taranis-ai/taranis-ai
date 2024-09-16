@@ -1,8 +1,22 @@
 import time
 
+from core.log import logger
+
 
 class PlaywrightHelpers:
-    """A collection of helper methods for Playwright tests."""
+    """A collection of helper methods for Playwright tests.
+    Attributes:
+        ci_run (bool, optional): Whether the test is running in a CI environment. Defaults to True.
+        wait_duration (float, optional): The duration to wait for visual effects. Defaults to 0.
+    """
+
+    wait_duration: float = 0
+    ci_run: bool = True
+
+    def config_pwhelpers(self, wait_duration: float = 0, ci_run: bool = False):
+        PlaywrightHelpers.wait_duration: float = wait_duration
+        PlaywrightHelpers.ci_run: bool = ci_run
+        logger.info(f"{PlaywrightHelpers.ci_run=}, and {PlaywrightHelpers.wait_duration=}")
 
     def smooth_scroll(self, locator):
         """Smoothly scroll the given element into view."""
@@ -18,13 +32,13 @@ class PlaywrightHelpers:
 
     def highlight_element(self, locator, scroll: bool = True, transition: bool = True):
         """Highlight an element on the page for visual debugging."""
-        if self.ci_run:
+        if PlaywrightHelpers.ci_run:
             return locator
         style_content = """
         .highlight-element { background-color: yellow !important; outline: 4px solid red !important; }
         """
 
-        wait_duration = self.wait_duration if transition else 1
+        wait_duration = PlaywrightHelpers.wait_duration if transition else 1
 
         if scroll:
             self.smooth_scroll(locator)
@@ -38,7 +52,7 @@ class PlaywrightHelpers:
 
     def add_keystroke_overlay(self, page):
         """Add an overlay to display keystrokes during test execution."""
-        if self.ci_run:
+        if PlaywrightHelpers.ci_run:
             return
         style_content = """
             .keystroke-overlay {
@@ -91,6 +105,6 @@ class PlaywrightHelpers:
 
     def short_sleep(self, duration=0.2):
         """Pause execution for a short duration, if not in CI environment."""
-        if self.ci_run:
+        if PlaywrightHelpers.ci_run:
             return
         time.sleep(duration)

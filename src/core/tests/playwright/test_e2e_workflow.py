@@ -9,9 +9,11 @@ from playwright_helpers import PlaywrightHelpers
 
 @pytest.mark.e2e_user_workflow
 class TestUserWorkflow(PlaywrightHelpers):
-    wait_duration = 1
-    ci_run = False
-    record_video = False
+    wait_duration: float = 1.5
+    ci_run: bool = False
+
+    def test_setup_pwhelpers(self, taranis_frontend: Page):
+        PlaywrightHelpers.config_pwhelpers(self, wait_duration=self.wait_duration, ci_run=self.ci_run)
 
     def test_e2e_login(self, taranis_frontend: Page):
         page = taranis_frontend
@@ -83,7 +85,9 @@ class TestUserWorkflow(PlaywrightHelpers):
 
         def apply_filter():
             # Set time filter
-            self.highlight_element(page.locator("div").filter(has_text=re.compile(r"^Filter more details TagsTags$")).get_by_role("button").first).click()
+            self.highlight_element(
+                page.locator("div").filter(has_text=re.compile(r"^Filter more details TagsTags$")).get_by_role("button").first
+            ).click()
             self.highlight_element(page.get_by_role("button", name="read")).click()
             self.highlight_element(page.get_by_role("button", name="read")).click()
             expect(page.get_by_role("button", name="not read")).to_be_visible()
@@ -94,24 +98,24 @@ class TestUserWorkflow(PlaywrightHelpers):
         def assess_workflow_1():
             # Check summary and mark as read
             self.highlight_element(
-                page.locator("xpath=/html/body/div[1]/div/div/main/div/div/div[2]/div[2]/div/div[1]/div/div[2]/span/span"), scroll=False
+                page.locator("xpath=/html/body/div[1]/div/div/main/div/div/div[1]/div[2]/div/div[1]/div/div[2]/span/span"), scroll=False
             )
             self.highlight_element(
-                page.locator("xpath=//*[@id='app']/div/div/main/div/div/div[2]/div[2]/div/div[2]/div/button[3]/span[3]/i"), scroll=False
+                page.locator("xpath=//*[@id='app']/div/div/main/div/div/div[1]/div[2]/div/div[2]/div/button[3]/span[3]/i"), scroll=False
             ).click()
-            self.highlight_element(page.locator("xpath=/html/body/div[1]/div/div/main/div/div/div[2]/div[2]/div/div[1]/div/div[2]/span/span"))
+            self.highlight_element(page.locator("xpath=/html/body/div[1]/div/div/main/div/div/div[1]/div[2]/div/div[1]/div/div[2]/span/span"))
             self.highlight_element(
-                page.locator("xpath=//*[@id='app']/div/div/main/div/div/div[2]/div[2]/div/div[2]/div/button[3]/span[3]/i"), scroll=False
+                page.locator("xpath=//*[@id='app']/div/div/main/div/div/div[1]/div[2]/div/div[2]/div/button[3]/span[3]/i"), scroll=False
             ).click()
 
             for _ in range(1, 6):
-                page.locator("xpath=/html/body/div[1]/div/div/main/div/div/div[2]/div[2]/div/div[1]/div/div[2]/span/span")
+                page.locator("xpath=/html/body/div[1]/div/div/main/div/div/div[1]/div[2]/div/div[1]/div/div[2]/span/span")
 
                 self.highlight_element(
-                    page.locator("xpath=//*[@id='app']/div/div/main/div/div/div[2]/div[2]/div/div[2]/div/button[3]/span[3]/i"), scroll=False
+                    page.locator("xpath=//*[@id='app']/div/div/main/div/div/div[1]/div[2]/div/div[2]/div/button[3]/span[3]/i"), scroll=False
                 ).click()
 
-            for i in range(2, 4):
+            for i in range(1, 4):
                 self.highlight_element(
                     page.locator(f"xpath=/html/body/div[1]/div/div/main/div/div/div[{i}]/div[2]/div/div[1]/div/div[2]/span/span")
                 ).click()
@@ -119,24 +123,25 @@ class TestUserWorkflow(PlaywrightHelpers):
             self.highlight_element(page.get_by_role("button", name="mark as read")).click()
 
             for _ in range(1, 20):
-                page.locator(".v-infinite-scroll > div:nth-child(2)").get_by_role("button").nth(2).click()
+                page.locator("xpath=//*[@id='app']/div/div/main/div/div/div[1]/div[2]/div/div[2]/div/button[3]/span[3]/i").click()
 
         def assess_workflow_2():
             self.highlight_element(page.get_by_role("button", name="not important")).click()
             self.highlight_element(page.get_by_role("button", name="important")).click()
             expect(page.get_by_role("button", name="important")).to_be_visible()
 
-            # Check stories            
+            # Check stories
+            page.pause()
             self.highlight_element(page.locator(".ml-auto > button").first).click()
             self.highlight_element(page.locator(".ml-auto > button").first).click()
+            self.highlight_element(page.locator("div:nth-child(2) > .v-container > div > div:nth-child(2) > .ml-auto > button").first).click()
+            self.highlight_element(page.locator("div:nth-child(2) > .v-container > div > div:nth-child(2) > .ml-auto > button").first).click()
             self.highlight_element(page.locator("div:nth-child(3) > .v-container > div > div:nth-child(2) > .ml-auto > button").first).click()
             self.highlight_element(page.locator("div:nth-child(3) > .v-container > div > div:nth-child(2) > .ml-auto > button").first).click()
             self.highlight_element(page.locator("div:nth-child(4) > .v-container > div > div:nth-child(2) > .ml-auto > button").first).click()
             self.highlight_element(page.locator("div:nth-child(4) > .v-container > div > div:nth-child(2) > .ml-auto > button").first).click()
             self.highlight_element(page.locator("div:nth-child(5) > .v-container > div > div:nth-child(2) > .ml-auto > button").first).click()
             self.highlight_element(page.locator("div:nth-child(5) > .v-container > div > div:nth-child(2) > .ml-auto > button").first).click()
-            self.highlight_element(page.locator("div:nth-child(6) > .v-container > div > div:nth-child(2) > .ml-auto > button").first).click()
-            self.highlight_element(page.locator("div:nth-child(6) > .v-container > div > div:nth-child(2) > .ml-auto > button").first).click()
 
             # Open story
             self.highlight_element(
@@ -158,7 +163,7 @@ class TestUserWorkflow(PlaywrightHelpers):
             self.highlight_element(page.get_by_role("button", name="read")).click()
             self.highlight_element(page.get_by_role("button", name="read")).click()
             self.highlight_element(page.get_by_role("button", name="important")).click()
-            
+
             # Merge stories
             self.highlight_element(page.locator("div").filter(has_text="Advanced Phishing Techniques by APT58").nth(5)).click()
             self.highlight_element(page.locator("div").filter(has_text="APT73 Exploits Global Shipping").nth(5)).click()
@@ -214,7 +219,6 @@ class TestUserWorkflow(PlaywrightHelpers):
 
         go_to_assess()
         enter_hotkey_menu()
-        items_per_page()
         apply_filter()
         assess_workflow_1()
         assess_workflow_2()
@@ -313,7 +317,6 @@ class TestUserWorkflow(PlaywrightHelpers):
         add_stories_to_report_1()
 
         go_to_analyze()
-
 
         modify_report_1()
 
