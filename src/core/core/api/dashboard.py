@@ -1,6 +1,5 @@
 from flask import Blueprint, request, Flask
 from flask.views import MethodView
-from flask_jwt_extended import jwt_required
 
 from core.model.news_item import NewsItem
 from core.model.story import Story
@@ -9,11 +8,12 @@ from core.service.news_item_tag import NewsItemTagService
 from core.model.product import Product
 from core.model.report_item import ReportItem
 from core.model.queue import ScheduleEntry
+from core.managers.auth_manager import auth_required
 from core.config import Config
 
 
 class Dashboard(MethodView):
-    @jwt_required()
+    @auth_required()
     def get(self):
         total_news_items = NewsItem.get_count()
         total_products = Product.get_count()
@@ -34,14 +34,14 @@ class Dashboard(MethodView):
 
 
 class TrendingClusters(MethodView):
-    @jwt_required()
+    @auth_required()
     def get(self):
         days = int(request.args.get("days", 7))
         return NewsItemTagService.get_largest_tag_types(days)
 
 
 class StoryClusters(MethodView):
-    @jwt_required()
+    @auth_required()
     def get(self):
         days = int(request.args.get("days", 7))
         limit = int(request.args.get("limit", 12))
@@ -49,7 +49,7 @@ class StoryClusters(MethodView):
 
 
 class ClusterByType(MethodView):
-    @jwt_required()
+    @auth_required()
     def get(self, tag_type: str):
         per_page = min(int(request.args.get("per_page", 50)), 100)
         page = int(request.args.get("page", 0))
@@ -61,14 +61,14 @@ class ClusterByType(MethodView):
 
 
 class DeleteTag(MethodView):
-    @jwt_required()
+    @auth_required()
     def delete(self, tag_name: str):
         NewsItemTagService.delete_tags_by_name(tag_name)
         return {"message": f"Cluster {tag_name} deleted"}, 200
 
 
 class BuildInfo(MethodView):
-    @jwt_required()
+    @auth_required()
     def get(self):
         result = {"build_date": Config.BUILD_DATE.isoformat()}
         if Config.GIT_INFO:

@@ -3655,10 +3655,12 @@ components:
   securitySchemes:
     APIKey:
       type: http
+      in: header
       scheme: bearer
       bearerFormat: APIKEY
     UserAuth:
       type: http
+      in: header
       scheme: bearer
       bearerFormat: JWT
 

@@ -4,9 +4,8 @@ from flask import Blueprint, request, send_file, jsonify, Flask
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 
-from core.managers import (
-    queue_manager,
-)
+from core.managers import queue_manager
+from core.managers.schedule_manager import Scheduler
 from core.log import logger
 from core.managers.auth_manager import auth_required
 from core.managers.data_manager import get_template_as_base64, write_base64_to_file, get_presenter_templates, delete_template
@@ -22,7 +21,6 @@ from core.model import (
     role_based_access,
     user,
     word_list,
-    queue,
     task,
     worker,
 )
@@ -350,8 +348,8 @@ class QueueSchedule(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
     def get(self):
         try:
-            if schedules := queue.ScheduleEntry.get_all_for_collector():
-                return [sched.to_dict() for sched in schedules], 200
+            if schedules := Scheduler().get_periodic_tasks():
+                return {"schedules": schedules}, 200
             return {"error": "No schedules found"}, 404
         except Exception:
             logger.exception()
