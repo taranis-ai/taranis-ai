@@ -78,11 +78,6 @@ class TestUserWorkflow(PlaywrightHelpers):
             page.wait_for_url("**/assess**", wait_until="domcontentloaded")
             expect(page).to_have_title("Taranis AI | Assess")
 
-        def items_per_page():
-            self.highlight_element(page.locator('input:near(:text("Items per page"))').first).click()
-            self.highlight_element(page.get_by_label("Items per page")).click()
-            self.highlight_element(page.get_by_role("option", name="100")).click()
-
         def apply_filter():
             # Set time filter
             self.highlight_element(
@@ -131,7 +126,6 @@ class TestUserWorkflow(PlaywrightHelpers):
             expect(page.get_by_role("button", name="important")).to_be_visible()
 
             # Check stories
-            page.pause()
             self.highlight_element(page.locator(".ml-auto > button").first).click()
             self.highlight_element(page.locator(".ml-auto > button").first).click()
             self.highlight_element(page.locator("div:nth-child(2) > .v-container > div > div:nth-child(2) > .ml-auto > button").first).click()

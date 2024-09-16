@@ -30,6 +30,14 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         page.get_by_placeholder("Password").fill("admin")
         page.screenshot(path="./tests/playwright/screenshots/screenshot_login.png")
         self.highlight_element(page.locator("role=button")).click()
+    
+    def test_enable_infinite_scroll(self, taranis_frontend: Page):
+        page = taranis_frontend
+        page.get_by_role("button").nth(1).click()
+        page.get_by_text("Settings").click()
+        page.get_by_label("Infinite Scroll").check()
+        page.get_by_role("button", name="Save").click()
+        page.locator("div").filter(has_text="Profile updated").nth(2).click()
 
     def test_admin_user_management(self, taranis_frontend: Page):
         page = taranis_frontend
@@ -186,6 +194,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_label("Open").click()
             page.wait_for_load_state("domcontentloaded")
             page.locator("div").filter(has_text=re.compile(r"^MISP Attribute Distribution$")).first.click()
+            time.sleep(0.3)
             page.locator('input:below(:text("attribute"))').nth(1).fill("Attribute 1")
             page.get_by_label("Index").fill("1")
             time.sleep(0.3)

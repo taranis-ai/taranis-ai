@@ -37,21 +37,13 @@ class TestEndToEndUser(PlaywrightHelpers):
         page.get_by_text("Settings").click()
         page.get_by_label("Infinite Scroll").check()
         page.get_by_role("button", name="Save").click()
+        page.locator("div").filter(has_text="Profile updated").nth(2).click()
 
     def test_e2e_assess(self, taranis_frontend: Page, e2e_server, pic_prefix=""):
         def go_to_assess():
             self.highlight_element(page.get_by_role("link", name="Assess").first).click()
             page.wait_for_url("**/assess", wait_until="domcontentloaded")
             expect(page).to_have_title("Taranis AI | Assess")
-
-        def paging(base_url):
-            self.highlight_element(page.get_by_placeholder("Until")).click()
-            self.highlight_element(page.locator('[data-test="select-button"]')).click()
-            self.highlight_element(page.get_by_label("Go to page 2")).click()
-            self.highlight_element(page.get_by_label("Page 2, Current page")).press("Insert")
-            self.highlight_element(page.get_by_label("Go to page 3")).click()
-            self.highlight_element(page.locator("svg").nth(2)).click()
-            page.goto(f"{base_url}")
 
         def assert_stories():
             expect(page.get_by_role("main")).to_contain_text(
@@ -142,7 +134,6 @@ class TestEndToEndUser(PlaywrightHelpers):
             page.screenshot(path="./tests/playwright/screenshots/screenshot_edit_story_2.png")
 
         def infinite_scroll_all_items():
-            page.pause()
             self.smooth_scroll(page.locator("div:nth-child(21)").first)
             self.highlight_element(page.get_by_role("button", name="Load more"), scroll=False).click()
             self.smooth_scroll(page.locator("div:nth-child(31) > .v-container > div"))
