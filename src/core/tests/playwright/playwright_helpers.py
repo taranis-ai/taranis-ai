@@ -30,7 +30,7 @@ class PlaywrightHelpers:
             }
         """)
 
-    def highlight_element(self, locator, scroll: bool = True, transition: bool = True):
+    def highlight_element(self, locator, scroll: bool = False, transition: bool = True):
         """Highlight an element on the page for visual debugging."""
         if PlaywrightHelpers.ci_run:
             return locator
