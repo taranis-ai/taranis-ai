@@ -1,13 +1,6 @@
 from flask import Flask
 
-from core.managers import (
-    db_manager,
-    auth_manager,
-    api_manager,
-    queue_manager,
-    data_manager,
-    sentry_manager,
-)
+from core.managers import db_manager, auth_manager, api_manager, queue_manager, data_manager, sentry_manager, schedule_manager
 
 
 def create_app(initial_setup: bool = True):
@@ -27,3 +20,4 @@ def initialize_managers(app: Flask, initial_setup: bool = False):
     api_manager.initialize(app)
     queue_manager.initialize(app, initial_setup)
     data_manager.initialize(initial_setup)
+    schedule_manager.initialize()

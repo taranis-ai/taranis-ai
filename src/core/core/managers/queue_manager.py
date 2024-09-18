@@ -21,7 +21,7 @@ class QueueManager:
         self.queue_names = ["misc", "bots", "celery", "collectors", "presenters", "publishers"]
 
     def init_app(self, app: Flask):
-        celery_app = Celery(app.name)
+        celery_app = Celery("taranis-ai")
         celery_app.config_from_object(app.config["CELERY"])
         celery_app.set_default()
         app.extensions["celery"] = celery_app
