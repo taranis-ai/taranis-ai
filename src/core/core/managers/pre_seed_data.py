@@ -148,6 +148,17 @@ workers = [
         "description": "Bot for tagging news items by wordlist",
     },
     {
+    "type": "SENTIMENT_ANALYSIS_BOT",
+    "name": "Sentiment Analysis Bot",
+    "parameters": [
+        {"parameter": "ITEM_FILTER"},
+        {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch", "value": "true"},
+        {"parameter": "REFRESH_INTERVAL"},
+    ],
+        "description": "Bot for analyzing sentiment of news items",
+
+    },
+    {
         "type": "PDF_PRESENTER",
         "description": "Presenter for generating PDF documents",
         "parameters": [{"parameter": "TEMPLATE_PATH", "rules": "required"}],
