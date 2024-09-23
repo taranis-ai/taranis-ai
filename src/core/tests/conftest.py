@@ -186,6 +186,7 @@ def pytest_addoption(parser):
     group.addoption("--highlight-delay", action="store", default="2", help="delay for highlighting elements in e2e tests")
     group.addoption("--record-video", action="store_true", default=False, help="create screenshots and record video")
     group.addoption("--e2e-admin", action="store_true", default=False, help="generate documentation screenshots")
+    group.addoption("--e2e-user-workflow", action="store_true", default=False, help="run e2e tests for user workflow")
 
 
 def skip_for_e2e(e2e_test: str, items):
@@ -202,9 +203,17 @@ def skip_for_e2e_admin(items):
             item.add_marker(skip_non_doc_pictures)
 
 
+def skip_for_e2e_user_workflow(items):
+    skip_non_doc_pictures = pytest.mark.skip(reason="need --e2e-user-workflow option to run tests marked with e2e_user_workflow")
+    for item in items:
+        if "e2e_user_workflow" not in item.keywords:
+            item.add_marker(skip_non_doc_pictures)
+
+
 def pytest_collection_modifyitems(config, items):
     e2e_type = config.getoption("--e2e-user-ci") or config.getoption("--e2e-user")
     e2e_admin = config.getoption("--e2e-admin")
+    e2e_user_workflow = config.getoption("--e2e-user-workflow")
 
     if e2e_type:
         config.option.start_live_server = False
@@ -218,8 +227,19 @@ def pytest_collection_modifyitems(config, items):
         skip_for_e2e_admin(items)
         return
 
+    if e2e_user_workflow:
+        config.option.start_live_server = False
+        config.option.headed = True
+        skip_for_e2e_user_workflow(items)
+        return
+
     # Skip all e2e and e2e_admin tests if no relevant flag is provided
-    skip_all = pytest.mark.skip(reason="need --e2e-user, --e2e-user-ci, or --e2e-admin option to run these tests")
+    skip_all = pytest.mark.skip(reason="need --e2e-user, --e2e-user-ci, --e2e-user-workflow, or --e2e-admin option to run these tests")
     for item in items:
-        if "e2e_user" in item.keywords or "e2e_user_ci" in item.keywords or "e2e_admin" in item.keywords:
+        if (
+            "e2e_user" in item.keywords
+            or "e2e_user_ci" in item.keywords
+            or "e2e_admin" in item.keywords
+            or "e2e_user_workflow" in item.keywords
+        ):
             item.add_marker(skip_all)

@@ -1,5 +1,6 @@
 import schemathesis
 import logging
+import werkzeug
 from dotenv import load_dotenv
 from hypothesis import settings, HealthCheck
 
@@ -10,6 +11,20 @@ load_dotenv(dotenv_path="tests/.env", override=True)
 app = create_app()
 schemathesis.experimental.OPEN_API_3_1.enable()
 schema = schemathesis.from_wsgi("/api/doc/swagger.json", app, skip_deprecated_operations=True)
+
+
+@schema.auth()
+class UserAuth:
+    def get(self, case, context):
+        client = werkzeug.Client(context.app)
+        response = client.post("/api/auth/login", json={"username": "admin", "password": app.config["PRE_SEED_PASSWORD_ADMIN"]})
+        if not response or not response.json:
+            raise AssertionError(response.text)
+        return response.json["access_token"]
+
+    def set(self, case, data, context):
+        case.headers = case.headers or {}
+        case.headers["Authorization"] = f"Bearer {data}"
 
 
 def check_401(response, case):
@@ -24,22 +39,22 @@ def check_not_401(response, case):
 
 @schema.parametrize(endpoint="^/api/analyze")
 @settings(max_examples=20, suppress_health_check=(HealthCheck.function_scoped_fixture,))
-def test_analyze(case, auth_header):
-    response = case.call_wsgi(headers=auth_header)
+def test_analyze(case):
+    response = case.call_wsgi()
     case.validate_response(response, additional_checks=(check_401,))
 
 
 @schema.parametrize(endpoint="^/api/assess")
 @settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
-def test_assess(case, auth_header):
-    response = case.call_wsgi(headers=auth_header)
+def test_assess(case):
+    response = case.call_wsgi()
     case.validate_response(response, additional_checks=(check_401,))
 
 
 @schema.parametrize(endpoint="^/api/dashboard")
 @settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
-def test_dashboard(case, auth_header):
-    response = case.call_wsgi(headers=auth_header)
+def test_dashboard(case):
+    response = case.call_wsgi()
     case.validate_response(response, additional_checks=(check_401,))
 
 
