@@ -3,8 +3,6 @@ import logging
 import werkzeug
 from dotenv import load_dotenv
 from hypothesis import settings, HealthCheck
-from schemathesis.checks import not_a_server_error
-from schemathesis.specs.openapi.checks import status_code_conformance, negative_data_rejection, content_type_conformance
 
 from core.__init__ import create_app
 
@@ -43,20 +41,14 @@ def check_not_401(response, case):
 @settings(max_examples=20, suppress_health_check=(HealthCheck.function_scoped_fixture,))
 def test_analyze(case):
     response = case.call_wsgi()
-    case.validate_response(
-        response,
-        checks=(check_401, status_code_conformance, negative_data_rejection, content_type_conformance, not_a_server_error),
-    )
+    case.validate_response(response, additional_checks=(check_401,))
 
 
 @schema.parametrize(endpoint="^/api/assess")
 @settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
 def test_assess(case):
     response = case.call_wsgi()
-    case.validate_response(
-        response,
-        checks=(check_401, status_code_conformance, negative_data_rejection, content_type_conformance, not_a_server_error),
-    )
+    case.validate_response(response, additional_checks=(check_401,))
 
 
 @schema.auth(UserAuth)
@@ -64,10 +56,7 @@ def test_assess(case):
 @settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
 def test_dashboard(case):
     response = case.call_wsgi()
-    case.validate_response(
-        response,
-        checks=(check_401, status_code_conformance, negative_data_rejection, content_type_conformance, not_a_server_error),
-    )
+    case.validate_response(response, additional_checks=(check_401,))
 
 
 @schema.parametrize(endpoint=r"^/api/(?!auth|isalive)")

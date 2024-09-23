@@ -31,7 +31,6 @@ class QueueManager:
         self.clear_queues()
         self.update_task_queue_from_osint_sources()
         self.schedule_word_list_gathering()
-        logger.debug(f"{self.get_queued_tasks()=}")
 
     def clear_queues(self):
         with self.celery.connection() as conn:
