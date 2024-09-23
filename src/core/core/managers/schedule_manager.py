@@ -1,6 +1,7 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 
+from core.managers import queue_manager
 from core.config import Config
 from core.log import logger
 
@@ -18,14 +19,14 @@ class Scheduler:
         if cls._instance is None:
             cls._instance = super(Scheduler, cls).__new__(cls)
             cls._scheduler = BackgroundScheduler(jobstores={"default": SQLAlchemyJobStore(url=Config.SQLALCHEMY_DATABASE_URI)})
+            cls._scheduler.start()
         return cls._scheduler
 
     @classmethod
     def add_celery_task(cls, task: dict):
         celery_options = task.get("celery", {})
-        func = "scheduler.jobs:send_celery_task"
         Scheduler().add_job(
-            func=func,
+            func=queue_manager.queue_manager.celery.send_task,
             id=task["id"],
             kwargs=celery_options,
             **task["jobs_params"],
@@ -39,5 +40,6 @@ class Scheduler:
 
 
 def initialize():
-    Scheduler.add_celery_task(cleanup_blacklist_periodic_task)
+    if not Scheduler().get_job(cleanup_blacklist_periodic_task["id"]):
+        Scheduler.add_celery_task(cleanup_blacklist_periodic_task)
     logger.debug(f"Scheduler initialized {Scheduler.get_periodic_tasks()}")
