@@ -13,8 +13,11 @@ From `src/core` folder run:
 pytest --e2e-user
 ```
 
-Other flags:
+All flags:
+- `--e2e-user` - extensive tests of user parts (headful)
+- `--e2e-user-ci` - extensive tests of user parts (headless)
 - `--e2e-admin` - end to end tests of admin section; generate pictures for documentation (also User sections)
+- `--e2e-user-workflow` - test of defined user workflow (headful)
 - `--record-video` - record a video (save to `src/core/tests/playwright/videos`)
 - `--highlight-delay=<float>` - control time (seconds) to highlight elements in the video (`default=2`)
 - `-s` - see all logs on stdout
@@ -27,7 +30,7 @@ playwright codegen --viewport-size=1920,1080 localhost:<port>
 To use the preseeded test instance for writing tests, place:
 
 ```python
-expect(page).to_have_title("Uncomment and halt test run for test writing purposes", timeout=0)
+page.pause()
 
 ```
 Where desired, to stop the test execution and allow to connect to the instance with Codegen tool.
