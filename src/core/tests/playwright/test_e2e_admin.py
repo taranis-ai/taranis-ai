@@ -37,6 +37,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         page.get_by_text("Settings").click()
         page.get_by_label("Infinite Scroll").check()
         page.get_by_role("button", name="Save").click()
+        expect(page.get_by_text("Profile updated")).to_be_visible()
         page.locator("div").filter(has_text="Profile updated").nth(2).click()
 
     def test_admin_user_management(self, taranis_frontend: Page):
@@ -55,6 +56,10 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_label("Country").fill("Test Country")
             time.sleep(0.3)
             page.screenshot(path="./tests/playwright/screenshots/docs_organization_add.png")
+            page.get_by_role("button", name="Submit").click()
+            expect(page.get_by_text("Successfully created Test")).to_be_visible()
+            page.locator("div").filter(has_text="Profile updated").nth(2).click()
+
 
         def add_role():
             page.get_by_role("link", name="Roles").click()
@@ -74,6 +79,11 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("row", name="ASSESS_ACCESS Assess access").get_by_role("cell").first.click()
             time.sleep(1)
             page.screenshot(path="./tests/playwright/screenshots/docs_organization_edit_user_role.png")
+            page.get_by_role("button", name="Submit").click()
+            expect(page.get_by_text("Successfully")).to_be_visible()
+            page.locator("div").filter(has_text="Successfully").nth(2).click()
+
+
 
         def add_user():
             page.get_by_role("link", name="Users").click()
@@ -83,8 +93,12 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_label("Name", exact=True).fill("test")
             page.get_by_label("Password", exact=True).fill("testasdfasdf")
             page.get_by_role("combobox").first.click()
+            page.get_by_text("The Clacks").click()
+            page.get_by_role("button", name="Submit").click()
+            page.get_by_text("created").click()
             time.sleep(0.3)
             page.screenshot(path="./tests/playwright/screenshots/docs_organization_add_new_user.png")
+            page.get_by_role("button", name="Submit").click()
 
         add_organization()
         add_role()
