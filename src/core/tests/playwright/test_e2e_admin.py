@@ -30,7 +30,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         page.get_by_placeholder("Password").fill("admin")
         page.screenshot(path="./tests/playwright/screenshots/screenshot_login.png")
         self.highlight_element(page.locator("role=button")).click()
-    
+
     def test_enable_infinite_scroll(self, taranis_frontend: Page):
         page = taranis_frontend
         page.get_by_role("button").nth(1).click()
@@ -58,13 +58,12 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.screenshot(path="./tests/playwright/screenshots/docs_organization_add.png")
             page.get_by_role("button", name="Submit").click()
             expect(page.get_by_text("Successfully created Test")).to_be_visible()
-            page.locator("div").filter(has_text="Profile updated").nth(2).click()
-
+            page.locator("div").filter(has_text="Successfully created").nth(2).click()
 
         def add_role():
             page.get_by_role("link", name="Roles").click()
             page.get_by_role("button", name="New Item").click()
-            page.get_by_label("Name").fill("User")
+            page.get_by_label("Name").fill("New Role")
             page.get_by_label("Description").fill("Basic user role")
             page.get_by_role("combobox").first.click()
             page.get_by_role("option", name="Clear").click()
@@ -80,10 +79,9 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             time.sleep(1)
             page.screenshot(path="./tests/playwright/screenshots/docs_organization_edit_user_role.png")
             page.get_by_role("button", name="Submit").click()
-            expect(page.get_by_text("Successfully")).to_be_visible()
-            page.locator("div").filter(has_text="Successfully").nth(2).click()
-
-
+            page.pause()
+            expect(page.get_by_text("Successfully created new role")).to_be_visible()
+            page.locator("div").filter(has_text="Successfully created new role").nth(2).click()
 
         def add_user():
             page.get_by_role("link", name="Users").click()
@@ -94,11 +92,11 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_label("Password", exact=True).fill("testasdfasdf")
             page.get_by_role("combobox").first.click()
             page.get_by_text("The Clacks").click()
-            page.get_by_role("button", name="Submit").click()
-            page.get_by_text("created").click()
             time.sleep(0.3)
+            page.pause()
             page.screenshot(path="./tests/playwright/screenshots/docs_organization_add_new_user.png")
             page.get_by_role("button", name="Submit").click()
+            page.locator("div").filter(has_text="New user was successfully added").nth(2).click()
 
         add_organization()
         add_role()
@@ -112,6 +110,13 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("button", name="New Item").click()
             time.sleep(1)
             page.screenshot(path="./tests/playwright/screenshots/docs_osint_sources_add.png")
+            page.get_by_label("Name").fill("New Source")
+            page.locator("#edit_config_form i").nth(3).click()
+            page.get_by_text("Simple Web Collector").click()
+            page.get_by_label("WEB_URL").click()
+            page.get_by_label("WEB_URL").fill("www.example.com")
+            page.get_by_role("button", name="Submit").click()
+            page.get_by_text("Successfully created New").click()
 
         def wordlists():
             page.get_by_role("link", name="Word Lists").click()
