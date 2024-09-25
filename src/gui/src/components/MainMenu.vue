@@ -150,7 +150,8 @@ export default defineComponent({
         route.name === 'analyze' ||
         route.name === 'publish' ||
         route.name === 'assets' ||
-        route.path.startsWith('/config')
+        (route.path.startsWith('/config') &&
+          !/^\/config\/sources\/[^/]+/.test(route.path))
       )
     })
 

@@ -295,6 +295,22 @@ web_collector_result_title = "National CERT Importance"
 
 rss_collector_url = "https://rss.example.com/en/category/security-news/feed/"
 rss_collector_source_data = {"id": 1, "parameters": {"FEED_URL": f"{rss_collector_url}"}}
+rss_collector_source_data_complex = {
+    "description": "",
+    "id": "1",
+    "last_attempted": "2000-01-01T00:00:00.000000",
+    "last_collected": "2000-01-01T00:00:00.000000",
+    "last_error_message": None,
+    "name": "TestName",
+    "parameters": {
+        "ADDITIONAL_HEADERS": '{"User-Agent": "Chromium/1.0", "Authorization": "Bearer Token1234", "X-API-KEY": "12345", "Cookie": "firstcookie=1234; second-cookie=4321"}',
+        "FEED_URL": f"{rss_collector_url}",
+        "USER_AGENT": "Mozilla/5.0",
+    },
+    "state": 0,
+    "type": "rss_collector",
+    "word_lists": [],
+}
 rss_collector_fav_icon_url = "https://rss.example.com/favicon.ico"
 rss_collector_targets = [
     "https://ai-policy.eu/blog/2024/1/ai-regulation-framework",
