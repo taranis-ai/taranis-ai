@@ -1,8 +1,6 @@
 from .base_bot import BaseBot
 from worker.log import logger
-from sentiment_analysis_bot import analyze_sentiment, categorize_text
-
-
+from sentiment_analysis.sentiment_analysis_xlmrobertabase import analyze_sentiment, categorize_text
 class SentimentAnalysisBot(BaseBot):
     def __init__(self):
         super().__init__()
@@ -23,8 +21,13 @@ class SentimentAnalysisBot(BaseBot):
         self.update_news_items(sentiment_results)
 
         logger.info(f"Sentiment analysis complete with results: {sentiment_results}")
+        self.update_news_items(sentiment_results)
 
-        return sentiment_results
+
+        return {
+            "sentiment_score": sentiment_results.get(list(sentiment_results.keys())[0])["sentiment"],  # Get score from first item
+            "message": "Sentiment analysis complete"
+            }
     
     def analyze_stories(self, stories: list) -> dict:
         results = {}

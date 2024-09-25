@@ -46,6 +46,7 @@
                 text="AI based sentiment analysis"
                 @click="triggerSentimentAnalysisBot"
               />
+              <span v-if="sentimentScore">({{ sentimentScore }})</span> 
             </v-col>
           </v-row>
 
@@ -100,6 +101,7 @@ export default {
     const router = useRouter()
     const story = ref(props.storyProp)
     const panels = ref(story.value.news_items.map((item) => item.id))
+    const sentimentScore = ref(null)
 
     const rules = {
       required: (v) => !!v || 'Required'
@@ -140,7 +142,9 @@ export default {
     async function triggerSentimentAnalysisBot(){
       try {
         const result = await triggerBot('sentiment_analysis_bot', props.storyProp.id)
+        sentimentScore.value = result.data.sentiment_score
         notifySuccess(result.data.message)
+        
       } catch (e) {
         notifyFailure(e)
       }
@@ -153,7 +157,9 @@ export default {
       rules,
       submit,
       triggerSummaryBot,
-      triggerSentimentAnalysisBot
+      triggerSentimentAnalysisBot,
+      sentimentScore
+
     }
   }
 }
