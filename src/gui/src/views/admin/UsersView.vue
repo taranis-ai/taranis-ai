@@ -10,7 +10,14 @@
         <DataTable
           v-model:items="users.items"
           :add-button="true"
-          :header-filter="['id', 'username', 'name', 'roles.length', 'actions']"
+          :header-filter="[
+            'id',
+            'username',
+            'name',
+            'roles.length',
+            'permissions.length',
+            'actions'
+          ]"
           :sort-by="sortBy"
           @delete-item="deleteItem"
           @edit-item="editItem"
