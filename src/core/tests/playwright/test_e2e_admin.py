@@ -79,7 +79,6 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             time.sleep(1)
             page.screenshot(path="./tests/playwright/screenshots/docs_organization_edit_user_role.png")
             page.get_by_role("button", name="Submit").click()
-            page.pause()
             expect(page.get_by_text("Successfully created new role")).to_be_visible()
             page.locator("div").filter(has_text="Successfully created new role").nth(2).click()
 
@@ -93,7 +92,6 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("combobox").first.click()
             page.get_by_text("The Clacks").click()
             time.sleep(0.3)
-            page.pause()
             page.screenshot(path="./tests/playwright/screenshots/docs_organization_add_new_user.png")
             page.get_by_role("button", name="Submit").click()
             page.locator("div").filter(has_text="New user was successfully added").nth(2).click()
