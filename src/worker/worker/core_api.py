@@ -14,10 +14,10 @@ class CoreApi:
         self.verify = Config.SSL_VERIFICATION
         self.timeout = Config.REQUESTS_TIMEOUT
 
-    def get_headers(self) -> dict:
+    def get_headers(self) -> dict[str, str]:
         return {"Authorization": f"Bearer {self.api_key}", "Content-type": "application/json"}
 
-    def check_response(self, response, url):
+    def check_response(self, response: requests.Response, url: str):
         try:
             if response.ok:
                 return response.json()
@@ -26,28 +26,28 @@ class CoreApi:
         logger.error(f"Call to {url} failed {response.status_code}: {response.text}")
         return None
 
-    def api_put(self, url, json_data=None):
+    def api_put(self, url: str, json_data=None):
         url = f"{self.api_url}{url}"
         if not json_data:
             json_data = {}
         response = requests.put(url=url, headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout)
         return self.check_response(response, url)
 
-    def api_post(self, url, json_data=None):
+    def api_post(self, url: str, json_data=None):
         url = f"{self.api_url}{url}"
         if not json_data:
             json_data = {}
         response = requests.post(url=url, headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout)
         return self.check_response(response, url)
 
-    def api_get(self, url, params=None):
+    def api_get(self, url: str, params=None):
         url = f"{self.api_url}{url}"
         if params:
             url += f"?{urlencode(params)}"
         response = requests.get(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
         return self.check_response(response, url)
 
-    def api_delete(self, url):
+    def api_delete(self, url: str):
         url = f"{self.api_url}{url}"
         response = requests.delete(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
         return self.check_response(response, url)
@@ -93,12 +93,6 @@ class CoreApi:
             requests.put(url=url, data=product["data"], headers=headers, verify=self.verify, timeout=self.timeout), url
         )
 
-    def get_schedule(self) -> dict | None:
-        try:
-            return self.api_get(url="/beat/schedule")
-        except Exception:
-            return None
-
     def get_word_list(self, word_list_id: int) -> dict | None:
         try:
             return self.api_get(
@@ -113,7 +107,7 @@ class CoreApi:
         except Exception:
             return None
 
-    def get_stories(self, filter_dict: dict) -> list:
+    def get_stories(self, filter_dict: dict) -> list | None:
         return self.api_get("/worker/stories", params=filter_dict)
 
     def get_tags(self) -> dict | None:
@@ -135,12 +129,6 @@ class CoreApi:
         try:
             data = {"summary": summary}
             return self.api_put(url=f"/bots/story/{story_id}/summary", json_data=data)
-        except Exception:
-            return None
-
-    def update_schedule(self, schedule) -> dict | None:
-        try:
-            return self.api_put(url="/beat/schedule", json_data=schedule)
         except Exception:
             return None
 
@@ -174,12 +162,6 @@ class CoreApi:
             headers = self.headers.copy()
             headers.pop("Content-type", None)
             return self.check_response(requests.put(url=url, files=icon, headers=headers, verify=self.verify, timeout=self.timeout), url)
-        except Exception:
-            return None
-
-    def update_next_run_time(self, next_run_times: dict) -> dict | None:
-        try:
-            return self.api_put(url="/beat/next-run-time", json_data=next_run_times)
         except Exception:
             return None
 
@@ -224,9 +206,9 @@ class CoreApi:
         except Exception:
             return None
 
-    def get_task(self, task_id) -> dict | None:
+    def get_task(self, task_id) -> requests.Response:
         try:
             url = f"{self.api_url}/tasks/{task_id}"
             return requests.get(url=url, headers=self.headers, verify=self.verify, timeout=self.timeout)
-        except Exception:
-            return None
+        except Exception as e:
+            raise e

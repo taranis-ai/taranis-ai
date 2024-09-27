@@ -6,7 +6,6 @@
       </v-col>
     </v-row>
     <v-row no-gutters>
-      {{ JSON.stringify(dashboard_data) }}
       <dash-board-card link-to="/assess" link-text="Assess" cols="6">
         <template #content>
           <v-icon class="mr-2"> mdi-email-multiple-outline </v-icon>

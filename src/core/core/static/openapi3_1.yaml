@@ -3347,46 +3347,6 @@ components:
           type: string
         id:
           type: string
-    ScheduleEntry:
-      type: object
-      properties:
-        id:
-          type: string
-        bot_id:
-          type: string
-        source_id:
-          type: string
-        frequency:
-          type: string
-        next_run_time:
-          type: string
-          format: date-time
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-      required:
-        - id
-        - bot_id
-        - source_id
-        - frequency
-        - next_run_time
-    NextRunTime:
-      type: object
-      properties:
-        bot_id:
-          type: string
-        source_id:
-          type: string
-        next_run_time:
-          type: string
-          format: date-time
-      required:
-        - bot_id
-        - source_id
-        - next_run_time
 
     osint_source_update_status:
       type: object

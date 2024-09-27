@@ -54,8 +54,7 @@ Open `http://<url>:<TARANIS_PORT>/config/sources` and click [Import] to import j
 
 ## Advanced monitoring
 
-Taranis AI supports advanced monitoring of `gui`, `core` and `database` using (Sentry)[https://docs.sentry.io/]. It can be enabled by setting respective `SENTRY_DSN` environment variables described below.
-
+Taranis AI supports advanced monitoring of `gui`, `core` and `database` using [Sentry](https://docs.sentry.io/). It can be enabled by setting respective `SENTRY_DSN` environment variables described below.
 
 ## Advanced build methods
 
@@ -113,7 +112,7 @@ Any configuration options are available at [https://hub.docker.com/\_/postgres](
 | `JWT_SECRET_KEY`              | JWT token secret key.                      | `supersecret` |
 | `TARANIS_CORE_SENTRY_DSN`     | DSN address for Sentry; includes DB as well| ''            |
 
-### `worker`, `beat`
+### `worker`
 
 | Environment variable    | Description                         | Default                     |
 | ----------------------- | ----------------------------------- | --------------------------- |

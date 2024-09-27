@@ -7,7 +7,6 @@ from core.log import logger
 from core.managers import queue_manager
 from core.model.osint_source import OSINTSource
 from core.model.product import Product
-from core.model.queue import ScheduleEntry
 from core.model.product_type import ProductType
 from core.model.publisher_preset import PublisherPreset
 from core.model.word_list import WordList
@@ -27,47 +26,6 @@ class AddNewsItems(MethodView):
         result, status = Story.add_news_items(json_data)
         sse_manager.news_items_updated()
         return result, status
-
-
-class QueueScheduleEntry(MethodView):
-    @api_key_required
-    def get(self, schedule_id: str):
-        return ScheduleEntry.get_for_worker(schedule_id)
-
-
-class NextRunTime(MethodView):
-    @api_key_required
-    def put(self):
-        try:
-            data = request.json
-            if not data:
-                return {"error": "No data provided"}, 400
-            ScheduleEntry.update_next_run_time(data)
-            return {"message": "Next run time updated"}, 200
-        except Exception:
-            logger.exception()
-
-
-class QueueSchedule(MethodView):
-    @api_key_required
-    def get(self):
-        try:
-            if schedules := ScheduleEntry.get_all_for_collector():
-                return [sched.to_worker_dict() for sched in schedules], 200
-            return {"error": "No schedules found"}, 404
-        except Exception:
-            logger.exception()
-
-    @api_key_required
-    def put(self):
-        try:
-            if not (data := request.json):
-                return {"error": "No data provided"}, 400
-            if not (entries := [ScheduleEntry.from_dict(entry) for entry in data]):
-                return {"error": "No entries provided"}, 400
-            return ScheduleEntry.sync(entries), 200
-        except Exception:
-            logger.exception()
 
 
 class Products(MethodView):
@@ -248,14 +206,8 @@ class WordLists(MethodView):
 
 def initialize(app: Flask):
     worker_url = "/api/worker"
-    scheduler_url = "/api/scheduler"
 
     worker_bp = Blueprint("worker", __name__, url_prefix=worker_url)
-    scheduler_bp = Blueprint("scheduler", __name__, url_prefix=scheduler_url)
-
-    scheduler_bp.add_url_rule("/", view_func=QueueSchedule.as_view("queue_schedule"))
-    scheduler_bp.add_url_rule("/<string:schedule_id>", view_func=QueueScheduleEntry.as_view("queue_schedule_entry"))
-    scheduler_bp.add_url_rule("/next-run-time", view_func=NextRunTime.as_view("next_run_time"))
     worker_bp.add_url_rule("/osint-sources/<string:source_id>", view_func=Sources.as_view("osint_sources_worker"))
     worker_bp.add_url_rule("/osint-sources/<string:source_id>/icon", view_func=SourceIcon.as_view("osint_sources_worker_icon"))
     worker_bp.add_url_rule("/products/<string:product_id>", view_func=Products.as_view("products_worker"))
@@ -272,4 +224,3 @@ def initialize(app: Flask):
     worker_bp.add_url_rule("/word-list/<int:word_list_id>", view_func=WordLists.as_view("word_list_by_id_worker"))
 
     app.register_blueprint(worker_bp)
-    app.register_blueprint(scheduler_bp)

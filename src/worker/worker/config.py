@@ -82,7 +82,6 @@ class Settings(BaseSettings):
             "broker_connection_retry_on_startup": True,
             "result_backend": "worker.http_backend:HTTPBackend",
             "broker_connection_retry": False,  # To suppress deprecation warning
-            "beat_scheduler": "worker.scheduler:RESTScheduler",
             "enable_utc": True,
             "worker_hijack_root_logger": False,
             "task_queues": task_queues,

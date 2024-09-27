@@ -15,13 +15,13 @@ class NewsItem:
         hash: str = "",
         author: str = "",
         title: str = "",
-        language: str = None,
+        language: str | None = None,
         review: str | None = None,
         content: str = "",
         web_url: str = "",
         published_date: datetime | None = None,
         collected_date: datetime = datetime.now(),
-        attributes: list = None,
+        attributes: list | None = None,
     ):
         self.osint_source_id = osint_source_id
         self.hash = hash
