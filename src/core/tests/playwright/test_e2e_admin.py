@@ -38,7 +38,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         page.get_by_label("Infinite Scroll").check()
         page.get_by_role("button", name="Save").click()
         expect(page.get_by_text("Profile updated")).to_be_visible()
-        page.locator("div").filter(has_text="Profile updated").nth(2).click()
+
 
     def test_admin_user_management(self, taranis_frontend: Page):
         page = taranis_frontend
