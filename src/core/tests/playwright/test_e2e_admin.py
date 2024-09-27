@@ -38,7 +38,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         page.get_by_label("Infinite Scroll").check()
         page.get_by_role("button", name="Save").click()
         expect(page.get_by_text("Profile updated")).to_be_visible()
-
+        page.locator("div").filter(has_text="Profile updated").nth(2).click()
 
     def test_admin_user_management(self, taranis_frontend: Page):
         page = taranis_frontend
@@ -96,9 +96,26 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("button", name="Submit").click()
             page.locator("div").filter(has_text="New user was successfully added").nth(2).click()
 
+        def update_user():
+            page.get_by_role("cell", name="test").nth(1).click()
+            page.get_by_role("button", name="generate password").click()
+            page.locator("#input-199").check()
+            page.locator("#input-200").check()
+            page.locator("#input-201").check()
+            page.get_by_role("button", name="Submit").click()
+            page.get_by_text("User was successfully updated").click()
+
+        def remove_user():
+            page.locator("tr:nth-child(2) > td").first.click()
+            page.get_by_role("button", name="Delete").click()
+            # TODO: Update the string to match the actual message when bug resolved (#various-bugs)
+            page.get_by_text("Successfully deleted").click()
+
         add_organization()
         add_role()
         add_user()
+        update_user()
+        remove_user()
 
     def test_admin_osint_workflow(self, taranis_frontend: Page):
         page = taranis_frontend

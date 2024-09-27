@@ -7,17 +7,17 @@ from worker.log import logger
 class PlaywrightManager:
     def __init__(self, proxies: dict | None = None, headers: dict | None = None) -> None:
         self.playwright = sync_playwright().start()
-        self.browser = self.playwright.chromium.launch(proxy=self.parse_proxies(proxies))
+        self.browser = self.playwright.chromium.launch(proxy=self.parse_proxies(proxies))  # type: ignore
         self.context = self.setup_context(headers)
         self.page = self.context.new_page()
 
     def setup_context(self, headers: dict | None = None) -> BrowserContext:
-        if None not in headers.values():
+        if headers and None not in headers.values():
             return self.browser.new_context(extra_http_headers=headers)
         return self.browser.new_context()
 
-    def parse_proxies(self, proxies: dict | None = None) -> dict:
-        http_proxy = proxies.get("http")
+    def parse_proxies(self, proxies: dict | None = None) -> dict | None:
+        http_proxy = proxies.get("http") if proxies else None
         if not http_proxy:
             return None
         parsed_url = urlparse(http_proxy)
@@ -57,7 +57,9 @@ class PlaywrightManager:
 
             self.page.wait_for_load_state("networkidle")
         except TimeoutError as e:
-            logger.error(f"Fetching content with JS for {url} with {xpath=} has timed out, invalid XPath could be the reason, check for details. \nDetails: \n{str(e)}")
+            logger.error(
+                f"Fetching content with JS for {url} with {xpath=} has timed out, invalid XPath could be the reason, check for details. \nDetails: \n{str(e)}"
+            )
         except Exception as e:
             logger.error(f"Error fetching content with JS: {str(e)}")
         return self.page.content() or ""
