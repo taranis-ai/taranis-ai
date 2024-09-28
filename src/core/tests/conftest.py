@@ -243,3 +243,13 @@ def pytest_collection_modifyitems(config, items):
             or "e2e_user_workflow" in item.keywords
         ):
             item.add_marker(skip_all)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def disable_scheduler(app):
+    with app.app_context():
+        from core.managers.schedule_manager import Scheduler
+
+        Scheduler().shutdown()
+
+    yield

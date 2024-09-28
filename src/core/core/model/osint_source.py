@@ -221,7 +221,7 @@ class OSINTSource(BaseModel):
         return {"message": f"Schedule for source {self.id} updated"}, 200
 
     def unschedule_osint_source(self):
-        entry_id = self.to_task_dict()["id"]
+        entry_id = self.to_task_id()
         Scheduler.remove_periodic_task(entry_id)
         logger.info(f"Schedule for source {self.id} removed")
         return {"message": f"Schedule for source {self.id} removed"}, 200

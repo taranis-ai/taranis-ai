@@ -96,7 +96,7 @@ class NewsItem(BaseModel):
     @classmethod
     def latest_collected(cls):
         if news_item := cls.get_first(db.select(cls).order_by(db.desc(cls.collected)).limit(1)):
-            return news_item.collected.replace(microsecond=0).isoformat()
+            return news_item.collected.astimezone().isoformat()
         return ""
 
     def has_attribute_value(self, value) -> bool:
