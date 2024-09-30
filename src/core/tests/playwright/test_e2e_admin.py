@@ -99,9 +99,10 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         def update_user():
             page.get_by_role("cell", name="test").nth(1).click()
             page.get_by_role("button", name="generate password").click()
-            page.locator("#input-199").check()
-            page.locator("#input-200").check()
-            page.locator("#input-201").check()
+            page.pause()
+            page.get_by_role("row", name="Admin Administrator role").get_by_role("cell").first.click()
+            page.get_by_role("row", name="New Role Basic user role").get_by_role("cell").first.click()
+            page.get_by_role("row", name="User Basic user role").get_by_role("cell").first.click()
             page.get_by_role("button", name="Submit").click()
             page.get_by_text("User was successfully updated").click()
 
@@ -114,6 +115,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         add_organization()
         add_role()
         add_user()
+        update_user()
         update_user()
         remove_user()
 
