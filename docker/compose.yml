@@ -26,6 +26,8 @@ services:
     depends_on:
       database:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     deploy:
       restart_policy:
         condition: on-failure
@@ -76,6 +78,7 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "sh -c 'pg_isready -U ${DB_USER:-taranis} -d ${DB_DATABASE:-taranis}'"]
       interval: 10s
+      start_period: 10s
       timeout: 3s
       retries: 3
     volumes:
@@ -104,7 +107,8 @@ services:
 
   collector:
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
     deploy:
       restart_policy:
         condition: on-failure
@@ -133,7 +137,8 @@ services:
 
   publisher:
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
     deploy:
       restart_policy:
         condition: on-failure
@@ -161,6 +166,7 @@ services:
 
   rabbitmq:
     image: "${DOCKER_IMAGE_NAMESPACE}/rabbitmq:latest"
+    user: rabbitmq
     # ports:
     #  - "${TARANIS_RABBITMQ_PORT:-5672}:5672"
     #  - "${TARANIS_RABBITMQ_MGMT_PORT:-15672}:15672"
@@ -169,6 +175,12 @@ services:
     environment:
       - "RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-taranis}"
       - "RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-taranis}"
+    healthcheck:
+      test: "rabbitmqctl await_startup"
+      interval: 10s
+      start_period: 10s
+      timeout: 3s
+      retries: 3
     logging:
       driver: "json-file"
       options:

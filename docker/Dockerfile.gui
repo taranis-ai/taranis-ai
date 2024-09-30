@@ -10,6 +10,7 @@ ARG git_info
 ENV GIT_INFO=$git_info
 
 ENV NODE_OPTIONS=--openssl-legacy-provider
+ENV VITE_TARANIS_CONFIG_JSON=/config.json
 RUN npm run build:docker
 
 FROM nginx:mainline
