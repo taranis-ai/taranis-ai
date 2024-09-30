@@ -98,6 +98,7 @@ services:
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-scheduler:${TARANIS_TAG:-latest}"
     environment:
       TARANIS_CORE_URL: "${TARANIS_CORE_URL:-http://core:8080/api}"
+      APPLICATION_ROOT: "/"
       DEBUG: "${DEBUG:-False}"
     logging:
       driver: "json-file"

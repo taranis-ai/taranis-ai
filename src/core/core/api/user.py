@@ -36,7 +36,6 @@ def initialize(app: Flask):
 
     user_bp.add_url_rule("/", view_func=UserInfo.as_view("user_info"))
     user_bp.add_url_rule("/profile", view_func=UserProfile.as_view("user_profile"))
-    user_bp.add_url_rule("/profile/", view_func=UserProfile.as_view("user_profile_"))
     user_bp.add_url_rule("/sse-connected", view_func=SSEConnected.as_view("sse_connected"))
 
     app.register_blueprint(user_bp)

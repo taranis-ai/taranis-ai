@@ -11,6 +11,7 @@ def initialize(app):
     Cache(app)
     CORS(app)
 
+    app.url_map.strict_slashes = False
     app.register_error_handler(400, handle_bad_request)
     app.register_error_handler(401, handle_unauthorized)
     app.register_error_handler(404, handle_not_found)
