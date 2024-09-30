@@ -73,4 +73,4 @@ class Scheduler:
 def initialize():
     if not Scheduler().get_job(cleanup_blacklist_periodic_task["id"]):
         Scheduler.add_celery_task(cleanup_blacklist_periodic_task)
-    logger.debug(f"Scheduler initialized {Scheduler.get_periodic_tasks()}")
+    logger.debug("Scheduler initialized")

@@ -50,7 +50,6 @@ services:
       PRE_SEED_PASSWORD_ADMIN: "${PRE_SEED_PASSWORD_ADMIN:-admin}"
       PRE_SEED_PASSWORD_USER: "${PRE_SEED_PASSWORD_USER:-user}"
       JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
-      SECRET_KEY: "${API_KEY}"
       API_KEY: "${API_KEY}"
       DEBUG: "${DEBUG:-False}"
     volumes:
@@ -96,10 +95,6 @@ services:
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-scheduler:${TARANIS_TAG:-latest}"
     environment:
       TARANIS_CORE_URL: "${TARANIS_CORE_URL:-http://core:8080/api}"
-      API_KEY: "${API_KEY}"
-      QUEUE_BROKER_HOST: "rabbitmq"
-      QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
-      QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-taranis}"
       DEBUG: "${DEBUG:-False}"
     logging:
       driver: "json-file"

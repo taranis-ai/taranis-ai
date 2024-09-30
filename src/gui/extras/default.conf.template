@@ -33,6 +33,7 @@ server {
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
+    resolver 127.0.0.11 valid=3s
 
     location ${TARANIS_BASE_PATH}api {
         proxy_pass http://core/api/;

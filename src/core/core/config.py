@@ -1,4 +1,4 @@
-from pydantic import model_validator
+from pydantic import model_validator, field_validator, ValidationInfo
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Any, Literal
 from datetime import datetime
@@ -10,8 +10,8 @@ class Settings(BaseSettings):
     API_KEY: str = "supersecret"
     MODULE_ID: str = "Core"
     DEBUG: bool = False
-    SECRET_KEY: str = "supersecret"
 
+    JWT_SECRET_KEY: str = "supersecret"
     JWT_IDENTITY_CLAIM: str = "sub"
     JWT_ACCESS_TOKEN_EXPIRES: int = 14400
     JWT_TOKEN_LOCATION: list = ["headers", "cookies"]
@@ -85,6 +85,12 @@ class Settings(BaseSettings):
             "enable_utc": True,
         }
         return self
+
+    @field_validator("JWT_SECRET_KEY", "API_KEY", mode="before")
+    def check_non_empty_string(cls, v: str, info: ValidationInfo) -> str:
+        if not isinstance(v, str) or not v.strip():
+            raise ValueError(f"{info.field_name} must be a non-empty string")
+        return v
 
 
 Config = Settings()
