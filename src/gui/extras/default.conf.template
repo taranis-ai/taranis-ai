@@ -1,12 +1,12 @@
-upstream core {
+upstream coreupstream {
   server ${TARANIS_CORE_UPSTREAM};
 }
 
-upstream sse {
+upstream sseupstream {
   server ${TARANIS_SSE_UPSTREAM};
 }
 
-upstream scheduler {
+upstream schedulerupstream {
   server ${TARANIS_SCHEDULER_UPSTREAM};
 }
 
@@ -34,15 +34,12 @@ server {
     proxy_set_header X-Forwarded-Proto $scheme;
 
     location ${TARANIS_BASE_PATH}api {
-        proxy_pass http://core/api/;
-    }
-
-    location ${TARANIS_BASE_PATH}api/v1 {
-        proxy_pass http://core/api/;
+        proxy_pass http://coreupstream/api/;
+        proxy_redirect off;
     }
 
     location ${TARANIS_BASE_PATH}sse {
-        proxy_pass http://sse/events/;
+        proxy_pass http://sseupstream/events/;
         proxy_read_timeout 24h;
         proxy_set_header Connection '';
         proxy_http_version 1.1;
@@ -50,7 +47,7 @@ server {
     }
 
     location ${TARANIS_BASE_PATH}scheduler {
-        proxy_pass http://scheduler/;
+        proxy_pass http://schedulerupstream/;
     }
 
 

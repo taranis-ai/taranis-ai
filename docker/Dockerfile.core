@@ -47,6 +47,4 @@ ENV GRANIAN_BLOCKING_THREADS=4
 VOLUME ["/app/data"]
 EXPOSE 8080
 
-HEALTHCHECK --interval=60s --timeout=3s --retries=5 CMD curl --fail http://localhost:8080/api/isalive || exit 1
-
 CMD ["/app/start-granian.py"]

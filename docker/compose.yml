@@ -56,6 +56,12 @@ services:
       DEBUG: "${DEBUG:-False}"
     volumes:
       - "core_data:/app/data"
+    healthcheck:
+      test: ["CMD-SHELL", "sh -c 'curl --fail http://localhost:${TARANIS_CORE_LISTEN_PORT:-8080}'"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 3s
     logging:
       driver: "json-file"
       options:
