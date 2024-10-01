@@ -87,7 +87,7 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("button", name="New Item").click()
             page.get_by_label("Username").click()
             page.get_by_label("Username").fill("test")
-            page.get_by_label("Name", exact=True).fill("test")
+            page.get_by_label("Name", exact=True).fill("testname")
             page.get_by_label("Password", exact=True).fill("testasdfasdf")
             page.get_by_role("combobox").first.click()
             page.get_by_text("The Clacks").click()
@@ -99,7 +99,6 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         def update_user():
             page.get_by_role("cell", name="test").nth(1).click()
             page.get_by_role("button", name="generate password").click()
-            page.pause()
             page.get_by_role("row", name="Admin Administrator role").get_by_role("cell").first.click()
             page.get_by_role("row", name="New Role Basic user role").get_by_role("cell").first.click()
             page.get_by_role("row", name="User Basic user role").get_by_role("cell").first.click()
@@ -112,11 +111,19 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             # TODO: Update the string to match the actual message when bug resolved (#various-bugs)
             page.get_by_text("Successfully deleted").click()
 
+        def assert_update_user():
+            expect(page.locator(":right-of(:text('testname'))").nth(0)).to_have_text("3")
+
+        def assert_update_user_2():
+            expect(page.locator(":right-of(:text('testname'))").nth(0)).to_have_text("0")
+
         add_organization()
         add_role()
         add_user()
-        update_user()
-        update_user()
+        update_user()  # assign roles to user
+        assert_update_user()
+        update_user()  # deassign roles from a user
+        assert_update_user_2()
         remove_user()
 
     def test_admin_osint_workflow(self, taranis_frontend: Page):
