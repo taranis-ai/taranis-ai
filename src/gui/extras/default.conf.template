@@ -34,12 +34,12 @@ server {
     proxy_set_header X-Forwarded-Proto $scheme;
 
     location ${TARANIS_BASE_PATH}api {
-        proxy_pass http://coreupstream/api/;
+        proxy_pass http://coreupstream;
         proxy_redirect off;
     }
 
     location ${TARANIS_BASE_PATH}sse {
-        proxy_pass http://sseupstream/events/;
+        proxy_pass http://sseupstream;
         proxy_read_timeout 24h;
         proxy_set_header Connection '';
         proxy_http_version 1.1;
@@ -47,7 +47,7 @@ server {
     }
 
     location ${TARANIS_BASE_PATH}scheduler {
-        proxy_pass http://schedulerupstream/;
+        proxy_pass http://schedulerupstream;
     }
 
 

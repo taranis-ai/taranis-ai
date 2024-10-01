@@ -57,7 +57,7 @@ services:
     volumes:
       - "core_data:/app/data"
     healthcheck:
-      test: ["CMD-SHELL", "sh -c 'curl --fail http://localhost:${TARANIS_CORE_LISTEN_PORT:-8080}'"]
+      test: ["CMD-SHELL", "sh -c 'curl --fail http://localhost:${TARANIS_CORE_LISTEN_PORT:-8080}/api/isalive'"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -101,10 +101,11 @@ services:
       restart_policy:
         condition: on-failure
         max_attempts: 3
+    ports:
+      - "8000:8000"
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-scheduler:${TARANIS_TAG:-latest}"
     environment:
       TARANIS_CORE_URL: "${TARANIS_CORE_URL:-http://core:8080/api}"
-      APPLICATION_ROOT: "/"
       DEBUG: "${DEBUG:-False}"
     logging:
       driver: "json-file"
@@ -130,7 +131,7 @@ services:
       WORKER_TYPES: '["Collectors", "Bots"]'
       DEBUG: "${DEBUG:-False}"
     healthcheck:
-      test: ["CMD-SHELL", "WORKER_TYPES='[]' celery --app worker celery inspect ping --destination $$QUEUE_BROKER_USER@$$QUEUE_BROKER_HOST"]
+      test: ["CMD-SHELL", "WORKER_TYPES='[]' celery --app worker status | grep $(hostname) | grep -q 'OK'"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -160,7 +161,7 @@ services:
       WORKER_TYPES: '["Presenters", "Publishers"]'
       DEBUG: "${DEBUG:-False}"
     healthcheck:
-      test: ["CMD-SHELL", "WORKER_TYPES='[]' celery --app worker celery inspect ping --destination $$QUEUE_BROKER_USER@$$QUEUE_BROKER_HOST"]
+      test: ["CMD-SHELL", "WORKER_TYPES='[]' celery --app worker status | grep $(hostname) | grep -q 'OK'"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -196,10 +197,11 @@ services:
 
   sse:
     image: "${DOCKER_IMAGE_NAMESPACE}/sse-broker:latest"
-    # ports:
-    #  - "${TARANIS_SSE_PORT:-8088}:8088"
+    ports:
+     - "${TARANIS_SSE_PORT:-8088}:8088"
     environment:
       JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
+      SSE_PATH: "${TARANIS_SSE_PATH:-/sse}"
       API_KEY: "${API_KEY}"
     logging:
       driver: "json-file"
