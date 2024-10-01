@@ -119,7 +119,6 @@ export default {
   emits: ['updated'],
   setup(props, { emit }) {
     const { user_id } = useUserStore()
-    // const user_id = userStore.user_id
     const store = useConfigStore()
     const { loadOrganizations, loadRoles } = store
     const form = ref(null)
