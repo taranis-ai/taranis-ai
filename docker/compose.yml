@@ -101,9 +101,9 @@ services:
       restart_policy:
         condition: on-failure
         max_attempts: 3
-    ports:
-      - "8000:8000"
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-scheduler:${TARANIS_TAG:-latest}"
+    # ports:
+    #   - "8000:8000"
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-scheduler:${TARANIS_SCHEDULER_TAG:-latest}"
     environment:
       TARANIS_CORE_URL: "${TARANIS_CORE_URL:-http://core:8080/api}"
       DEBUG: "${DEBUG:-False}"
@@ -197,8 +197,8 @@ services:
 
   sse:
     image: "${DOCKER_IMAGE_NAMESPACE}/sse-broker:latest"
-    ports:
-     - "${TARANIS_SSE_PORT:-8088}:8088"
+    # ports:
+    #  - "${TARANIS_SSE_PORT:-8088}:8088"
     environment:
       JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
       SSE_PATH: "${TARANIS_SSE_PATH:-/sse}"
