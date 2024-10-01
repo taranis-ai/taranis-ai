@@ -113,8 +113,7 @@ export default {
         username: '',
         name: '',
         organization: undefined,
-        roles: [],
-        permissions: []
+        roles: []
       }
       edit.value = false
       showForm.value = true

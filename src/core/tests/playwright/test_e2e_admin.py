@@ -30,13 +30,14 @@ class TestEndToEndAdmin(PlaywrightHelpers):
         page.get_by_placeholder("Password").fill("admin")
         page.screenshot(path="./tests/playwright/screenshots/screenshot_login.png")
         self.highlight_element(page.locator("role=button")).click()
-    
+
     def test_enable_infinite_scroll(self, taranis_frontend: Page):
         page = taranis_frontend
         page.get_by_role("button").nth(1).click()
         page.get_by_text("Settings").click()
         page.get_by_label("Infinite Scroll").check()
         page.get_by_role("button", name="Save").click()
+        expect(page.get_by_text("Profile updated")).to_be_visible()
         page.locator("div").filter(has_text="Profile updated").nth(2).click()
 
     def test_admin_user_management(self, taranis_frontend: Page):
@@ -55,11 +56,14 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_label("Country").fill("Test Country")
             time.sleep(0.3)
             page.screenshot(path="./tests/playwright/screenshots/docs_organization_add.png")
+            page.get_by_role("button", name="Submit").click()
+            expect(page.get_by_text("Successfully created Test")).to_be_visible()
+            page.locator("div").filter(has_text="Successfully created").nth(2).click()
 
         def add_role():
             page.get_by_role("link", name="Roles").click()
             page.get_by_role("button", name="New Item").click()
-            page.get_by_label("Name").fill("User")
+            page.get_by_label("Name").fill("New Role")
             page.get_by_label("Description").fill("Basic user role")
             page.get_by_role("combobox").first.click()
             page.get_by_role("option", name="Clear").click()
@@ -74,21 +78,53 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("row", name="ASSESS_ACCESS Assess access").get_by_role("cell").first.click()
             time.sleep(1)
             page.screenshot(path="./tests/playwright/screenshots/docs_organization_edit_user_role.png")
+            page.get_by_role("button", name="Submit").click()
+            expect(page.get_by_text("Successfully created new role")).to_be_visible()
+            page.locator("div").filter(has_text="Successfully created new role").nth(2).click()
 
         def add_user():
             page.get_by_role("link", name="Users").click()
             page.get_by_role("button", name="New Item").click()
             page.get_by_label("Username").click()
             page.get_by_label("Username").fill("test")
-            page.get_by_label("Name", exact=True).fill("test")
+            page.get_by_label("Name", exact=True).fill("testname")
             page.get_by_label("Password", exact=True).fill("testasdfasdf")
             page.get_by_role("combobox").first.click()
+            page.get_by_text("The Clacks").click()
             time.sleep(0.3)
             page.screenshot(path="./tests/playwright/screenshots/docs_organization_add_new_user.png")
+            page.get_by_role("button", name="Submit").click()
+            page.locator("div").filter(has_text="New user was successfully added").nth(2).click()
+
+        def update_user():
+            page.get_by_role("cell", name="test").nth(1).click()
+            page.get_by_role("button", name="generate password").click()
+            page.get_by_role("row", name="Admin Administrator role").get_by_role("cell").first.click()
+            page.get_by_role("row", name="New Role Basic user role").get_by_role("cell").first.click()
+            page.get_by_role("row", name="User Basic user role").get_by_role("cell").first.click()
+            page.get_by_role("button", name="Submit").click()
+            page.get_by_text("User was successfully updated").click()
+
+        def remove_user():
+            page.locator("tr:nth-child(2) > td").first.click()
+            page.get_by_role("button", name="Delete").click()
+            # TODO: Update the string to match the actual message when bug resolved (#various-bugs)
+            page.get_by_text("Successfully deleted").click()
+
+        def assert_update_user():
+            expect(page.locator(":right-of(:text('testname'))").nth(0)).to_have_text("3")
+
+        def assert_update_user_2():
+            expect(page.locator(":right-of(:text('testname'))").nth(0)).to_have_text("0")
 
         add_organization()
         add_role()
         add_user()
+        update_user()  # assign roles to user
+        assert_update_user()
+        update_user()  # deassign roles from a user
+        assert_update_user_2()
+        remove_user()
 
     def test_admin_osint_workflow(self, taranis_frontend: Page):
         page = taranis_frontend
@@ -98,6 +134,13 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.get_by_role("button", name="New Item").click()
             time.sleep(1)
             page.screenshot(path="./tests/playwright/screenshots/docs_osint_sources_add.png")
+            page.get_by_label("Name").fill("New Source")
+            page.locator("#edit_config_form i").nth(3).click()
+            page.get_by_text("Simple Web Collector").click()
+            page.get_by_label("WEB_URL").click()
+            page.get_by_label("WEB_URL").fill("www.example.com")
+            page.get_by_role("button", name="Submit").click()
+            page.get_by_text("Successfully created New").click()
 
         def wordlists():
             page.get_by_role("link", name="Word Lists").click()

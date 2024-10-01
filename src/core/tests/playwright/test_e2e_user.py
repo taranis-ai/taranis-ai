@@ -345,6 +345,6 @@ class TestEndToEndUser(PlaywrightHelpers):
         self.highlight_element(page.get_by_label("Description")).click()
         self.highlight_element(page.get_by_label("Description")).fill("Test Description")
         self.highlight_element(page.get_by_role("button", name="Save")).click()
-        self.highlight_element(page.get_by_role("main").locator("header").get_by_role("button", name="Render Product")).click()
-        page.locator("div").filter(has_text="Could not").nth(2).click()
+        page.get_by_text("Product created").click()
+        self.highlight_element(page.get_by_role("main").locator("header").get_by_role("button", name="Render Product"))
         page.screenshot(path="./tests/playwright/screenshots/screenshot_publish.png")
