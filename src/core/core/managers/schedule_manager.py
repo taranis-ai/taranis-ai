@@ -65,7 +65,14 @@ class Scheduler:
     @classmethod
     def serialize_job(cls, job: Job) -> dict:
         try:
-            return job.__getstate__()
+            return {
+                "id": job.id,
+                "trigger": str(job.trigger),
+                "args": str(job.args),
+                "kwargs": str(job.kwargs),
+                "name": job.name,
+                "next_run_time": job.next_run_time,
+            }
         except Exception:
             return {}
 
