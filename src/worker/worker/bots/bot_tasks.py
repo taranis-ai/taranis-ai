@@ -24,6 +24,7 @@ class BotTask(Task):
             "story_bot": worker.bots.StoryBot(),
             "ioc_bot": worker.bots.IOCBot(),
             "summary_bot": worker.bots.SummaryBot(),
+            "sentiment_analysis_bot": worker.bots.SentimentAnalysisBot(),
         }
 
     def run(self, bot_id: str, filter: dict | None = None):
