@@ -27,6 +27,7 @@ from core.model import (
 from core.service.news_item import NewsItemService
 from core.model.permission import Permission
 from core.managers.decorators import extract_args
+from core.config import Config
 
 
 class DictionariesReload(MethodView):
@@ -589,7 +590,7 @@ class Workers(MethodView):
 
 
 def initialize(app: Flask):
-    config_bp = Blueprint("config", __name__, url_prefix="/api/config")
+    config_bp = Blueprint("config", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/config")
 
     config_bp.add_url_rule("/acls", view_func=ACLEntries.as_view("acls"))
     config_bp.add_url_rule("/acls/<int:acl_id>", view_func=ACLEntries.as_view("acl"))

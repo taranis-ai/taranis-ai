@@ -15,6 +15,7 @@ from core.model.news_item_tag import NewsItemTag
 from core.managers.sse_manager import sse_manager
 from core.model.bot import Bot
 from core.managers.decorators import extract_args
+from core.config import Config
 
 
 class AddNewsItems(MethodView):
@@ -205,9 +206,8 @@ class WordLists(MethodView):
 
 
 def initialize(app: Flask):
-    worker_url = "/api/worker"
+    worker_bp = Blueprint("worker", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/worker")
 
-    worker_bp = Blueprint("worker", __name__, url_prefix=worker_url)
     worker_bp.add_url_rule("/osint-sources/<string:source_id>", view_func=Sources.as_view("osint_sources_worker"))
     worker_bp.add_url_rule("/osint-sources/<string:source_id>/icon", view_func=SourceIcon.as_view("osint_sources_worker_icon"))
     worker_bp.add_url_rule("/products/<string:product_id>", view_func=Products.as_view("products_worker"))

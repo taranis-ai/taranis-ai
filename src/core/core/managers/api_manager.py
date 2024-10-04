@@ -5,6 +5,7 @@ from flask_caching import Cache
 from flask_cors import CORS
 
 import core.api as core_api
+from core.config import Config
 
 
 def initialize(app):
@@ -17,7 +18,7 @@ def initialize(app):
     app.register_error_handler(404, handle_not_found)
 
     openapi_yaml = Path(__file__).parent.parent / "static" / "openapi3_1.yaml"
-    api_doc(app, config_path=openapi_yaml, url_prefix="/api/doc", editor=False)
+    api_doc(app, config_path=openapi_yaml, url_prefix=f"{Config.APPLICATION_ROOT}api/doc", editor=False)
 
     core_api.admin.initialize(app)
     core_api.analyze.initialize(app)

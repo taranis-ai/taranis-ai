@@ -77,10 +77,9 @@ class BuildInfo(MethodView):
 
 
 def initialize(app: Flask):
-    dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/api/dashboard")
+    dashboard_bp = Blueprint("dashboard", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/dashboard")
 
-    dashboard_bp.add_url_rule("/", view_func=Dashboard.as_view("dashboard"))
-    dashboard_bp.add_url_rule("", view_func=Dashboard.as_view("dashboard_"))
+    dashboard_bp.add_url_rule("", view_func=Dashboard.as_view("dashboard"))
     dashboard_bp.add_url_rule("/trending-clusters", view_func=TrendingClusters.as_view("trending-clusters"))
     dashboard_bp.add_url_rule("/story-clusters", view_func=StoryClusters.as_view("story-clusters"))
     dashboard_bp.add_url_rule("/cluster/<string:tag_type>", view_func=ClusterByType.as_view("cluster-by-type"))

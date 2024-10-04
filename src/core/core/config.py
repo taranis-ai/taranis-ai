@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     API_KEY: str = "supersecret"
+    APPLICATION_ROOT: str = "/"
     MODULE_ID: str = "Core"
     DEBUG: bool = False
 
@@ -91,6 +92,10 @@ class Settings(BaseSettings):
         if not isinstance(v, str) or not v.strip():
             raise ValueError(f"{info.field_name} must be a non-empty string")
         return v
+
+    @field_validator("APPLICATION_ROOT", mode="before")
+    def ensure_trailing_slash(cls, v: str, info: ValidationInfo) -> str:
+        return v if v.endswith("/") else f"{v}/"
 
 
 Config = Settings()

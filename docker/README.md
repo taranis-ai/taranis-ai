@@ -111,6 +111,7 @@ Any configuration options are available at [https://hub.docker.com/\_/postgres](
 | `DB_PASSWORD`                 | PostgreSQL database password               | `supersecret` |
 | `JWT_SECRET_KEY`              | JWT token secret key.                      | `supersecret` |
 | `TARANIS_CORE_SENTRY_DSN`     | DSN address for Sentry; includes DB as well| ''            |
+| `TARANIS_BASE_PATH`           | Path under which Taranis AI is reachable   | `/`           |
 
 ### `worker`
 
@@ -125,10 +126,11 @@ Any configuration options are available at [https://hub.docker.com/\_/postgres](
 
 ### `gui`
 
-| Environment variable     | Description                                                  | Default |
-| ------------------------ | ------------------------------------------------------------ | ------- |
-| `TARANIS_CORE_API`       | URL of the Taranis core API.                                 | `/api/` |
-| `TARANIS_CORE_UPSTREAM`  | nginx upstream for the Taranis Core                          | `core`  |
-| `TARANIS_GUI_SENTRY_DSN` | Sentry DSN                                                   | ''      |
-| `NGINX_WORKERS`          | Number of nginx worker threads to spawn.                     | `4`     |
-| `NGINX_CONNECTIONS`      | Maximum number of allowed connections per one worker thread. | `16`    |
+| Environment variable     | Description                                       | Default      |
+| ------------------------ | ------------------------------------------------- | ------------ |
+| `TARANIS_CORE_API`       | URL of the Taranis core API.                      | `/api/`      |
+| `TARANIS_CORE_UPSTREAM`  | nginx upstream for the Taranis Core               | `core:8080`  |
+| `TARANIS_GUI_SENTRY_DSN` | Sentry DSN                                        | ''           |
+| `NGINX_WORKERS`          | Number of nginx worker threads to spawn.          | `4`          |
+| `NGINX_CONNECTIONS`      | Maximum number of connections per worker thread.  | `16`         |
+| `TARANIS_BASE_PATH`      | Path under which Taranis AI is reachable          | `/`          |

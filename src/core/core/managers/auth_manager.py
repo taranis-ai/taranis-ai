@@ -55,14 +55,6 @@ def logout(jti):
     return current_authenticator.logout(jti)
 
 
-def no_auth(fn):
-    @wraps(fn)
-    def wrapper(*args, **kwargs):
-        return fn(*args, **kwargs)
-
-    return wrapper
-
-
 def auth_required(permissions: list | str | None = None):
     def auth_required_wrap(fn):
         @wraps(fn)

@@ -16,6 +16,7 @@ services:
       TARANIS_CORE_UPSTREAM: "${TARANIS_CORE_UPSTREAM:-core:8080}"
       TARANIS_SSE_UPSTREAM: "${TARANIS_SSE_UPSTREAM:-sse:8088}"
       TARANIS_GUI_SENTRY_DSN: "${TARANIS_GUI_SENTRY_DSN:-}"
+      TARANIS_BASE_PATH: "${TARANIS_BASE_PATH:-/}"
     logging:
       driver: "json-file"
       options:
@@ -41,6 +42,7 @@ services:
       DB_USER: "${DB_USER:-taranis}"
       DB_PASSWORD: "${POSTGRES_PASSWORD:-taranis}"
       TARANIS_AUTHENTICATOR: "${TARANIS_AUTHENTICATOR:-database}"
+      APPLICATION_ROOT: "${TARANIS_BASE_PATH:-/}"
 
       QUEUE_BROKER_HOST: "rabbitmq"
       QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
@@ -106,6 +108,7 @@ services:
     image: "${DOCKER_IMAGE_NAMESPACE}/taranis-scheduler:${TARANIS_SCHEDULER_TAG:-latest}"
     environment:
       TARANIS_CORE_URL: "${TARANIS_CORE_URL:-http://core:8080/api}"
+      APPLICATION_ROOT: "${TARANIS_BASE_PATH:-/}scheduler"
       DEBUG: "${DEBUG:-False}"
     logging:
       driver: "json-file"
@@ -201,7 +204,7 @@ services:
     #  - "${TARANIS_SSE_PORT:-8088}:8088"
     environment:
       JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
-      SSE_PATH: "${TARANIS_SSE_PATH:-/sse}"
+      SSE_PATH: "${TARANIS_BASE_PATH:-/}sse"
       API_KEY: "${API_KEY}"
     logging:
       driver: "json-file"

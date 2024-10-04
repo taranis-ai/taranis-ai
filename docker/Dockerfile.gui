@@ -15,15 +15,14 @@ RUN npm run build:docker
 
 FROM nginx:mainline
 
-RUN mkdir -p /etc/nginx/templates
 ENV TARANIS_CORE_UPSTREAM=core:8080
 ENV TARANIS_SCHEDULER_UPSTREAM=scheduler:8000
 ENV TARANIS_SSE_UPSTREAM=sse:8088
 ENV TARANIS_BASE_PATH=/
 
+COPY ./src/gui/extras/default.conf.template /etc/nginx/default.conf.template
 COPY ./src/gui/extras/19-base_uri_envsubst_entrypoint.sh /docker-entrypoint.d/
 COPY ./src/gui/extras/35-update_config_from_env.sh /docker-entrypoint.d/
 COPY ./src/gui/extras/40-compress-assets.sh /docker-entrypoint.d/
-COPY ./src/gui/extras/default.conf.template /etc/nginx/templates/default.conf.template
 
 COPY --from=build-stage /app/dist /usr/share/nginx/html

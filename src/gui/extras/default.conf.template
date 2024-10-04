@@ -17,11 +17,13 @@ server {
     root   /usr/share/nginx/html;
     client_max_body_size 50m;
 
-    location /assets {
+    location ${TARANIS_BASE_PATH}assets {
+        alias /usr/share/nginx/html/assets/;
         add_header Cache-Control "max-age=300, must-revalidate, s-maxage=300";
     }
 
-    location / {
+    location ${TARANIS_BASE_PATH} {
+        alias /usr/share/nginx/html/;
         expires -1;
         add_header Pragma "no-cache";
         add_header Cache-Control "no-store, no-cache, must-revalidate, post-check=0, pre-check=0";
