@@ -9,7 +9,6 @@ export async function getLocalConfig() {
 
     console.debug(`Loading config from ${configJson}`)
 
-    console.debug(`typeof: ${typeof import.meta.env.VITE_TARANIS_CONFIG_JSON}`)
     const response = await axios.get(configJson, {
       baseURL: import.meta.env.BASE_URL
     })

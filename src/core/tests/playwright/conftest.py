@@ -23,7 +23,13 @@ def build_gui(install_node_modules):
     try:
         if not os.path.isdir("../gui/dist"):
             print("Building GUI")
-            result = subprocess.call(["npm", "run", "build"], cwd="../gui")
+            env = os.environ.copy()
+            env["VITE_TARANIS_CONFIG_JSON"] = "/config.json"
+            result = subprocess.call(
+                ["npm", "run", "build"],
+                cwd="../gui",
+                env=env,
+            )
             assert result == 0, f"Build failed with status code: {result}"
         else:
             print("Reusing existing dist folder, delete it to force a rebuild")

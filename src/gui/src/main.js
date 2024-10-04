@@ -30,7 +30,6 @@ async function initializeApp() {
   await mainStore.updateFromLocalConfig()
   const { coreAPIURL, sentryDSN } = mainStore
 
-  console.debug('BasePath ', import.meta.env.BASE_URL)
   console.debug('CoreAPI initialized ', coreAPIURL, sentryDSN)
 
   apiService = new ApiService(coreAPIURL)
