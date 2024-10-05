@@ -29,10 +29,14 @@ export const useMainStore = defineStore(
       buildDate.value = config.BUILD_DATE ?? new Date().toISOString()
       gitInfo.value = config.GIT_INFO ?? ''
 
-      coreAPIURL.value =
-        [import.meta.env.BASE_URL, config.TARANIS_CORE_API]
-          .join('/')
-          .replace(/\/{2,}/g, '/') ?? '/api'
+      if (/^https?:\/\//.test(config.TARANIS_CORE_API)) {
+        coreAPIURL.value = config.TARANIS_CORE_API
+      } else {
+        coreAPIURL.value =
+          [import.meta.env.BASE_URL, config.TARANIS_CORE_API]
+            .join('/')
+            .replace(/\/{2,}/g, '/') ?? '/api'
+      }
 
       coreSSEURL.value =
         config.TARANIS_SSE_URL ??

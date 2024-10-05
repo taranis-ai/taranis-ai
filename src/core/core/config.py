@@ -94,8 +94,11 @@ class Settings(BaseSettings):
         return v
 
     @field_validator("APPLICATION_ROOT", mode="before")
-    def ensure_trailing_slash(cls, v: str, info: ValidationInfo) -> str:
-        return v if v.endswith("/") else f"{v}/"
+    def ensure_start_and_end_slash(cls, v: str, info: ValidationInfo) -> str:
+        if not v or v == "/":
+            return "/"
+
+        return f"/{v.strip('/')}/"
 
 
 Config = Settings()
