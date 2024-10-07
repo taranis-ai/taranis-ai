@@ -290,7 +290,7 @@ class TestUserWorkflow(PlaywrightHelpers):
             self.highlight_element(page.get_by_role("button", name="reset filter")).click()
             self.highlight_element(page.get_by_label("Tags", exact=True)).click()
             self.highlight_element(page.get_by_label("Tags", exact=True)).fill("test")
-            self.highlight_element(page.get_by_text("Test Report")).click()
+            self.highlight_element(page.get_by_text("Test Report").last).click()
             page.locator(".w-100").click()
             page.keyboard.press("Control+A")
             self.short_sleep(duration=1)

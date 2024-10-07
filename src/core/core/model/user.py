@@ -95,7 +95,7 @@ class User(BaseModel):
         if organization := data.pop("organization", None):
             if update_org := Organization.get(organization):
                 user.organization = update_org
-        if roles := data.pop("roles", None):
+        if (roles := data.pop("roles", None)) is not None:
             user.roles = Role.get_bulk(roles)
         if update_password := data.pop("password", None):
             user.password = generate_password_hash(update_password)
