@@ -39,9 +39,10 @@ def build_gui(install_node_modules):
 
 @pytest.fixture(scope="class")
 def e2e_ci(request):
-    request.cls.ci_run = request.config.getoption("--e2e-user-ci") == "e2e_user_ci"
+    request.cls.ci_run = request.config.getoption("--e2e-ci") == "e2e_ci"
     request.cls.wait_duration = float(request.config.getoption("--highlight-delay"))
-    request.cls.record_video = request.config.getoption("--record-video")
+    if request.cls.ci_run:
+        print("Running in CI mode")
 
 
 @pytest.fixture(scope="session")
@@ -52,6 +53,13 @@ def e2e_server(app, live_server, stories, build_gui):
     live_server.app = app
     live_server.start()
     yield live_server
+
+
+@pytest.fixture(scope="session")
+def pic_prefix(request):
+    if request.config.getoption("--e2e-admin"):
+        yield "docs_"
+    yield ""
 
 
 @pytest.fixture(scope="session")

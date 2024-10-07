@@ -9,12 +9,6 @@ from playwright_helpers import PlaywrightHelpers
 
 @pytest.mark.e2e_user_workflow
 class TestUserWorkflow(PlaywrightHelpers):
-    wait_duration: float = 2
-    ci_run: bool = False
-
-    def test_setup_pwhelpers(self, taranis_frontend: Page):
-        PlaywrightHelpers.config_pwhelpers(self, wait_duration=self.wait_duration, ci_run=self.ci_run)
-
     def test_e2e_login(self, taranis_frontend: Page):
         page = taranis_frontend
         self.add_keystroke_overlay(page)
@@ -128,14 +122,30 @@ class TestUserWorkflow(PlaywrightHelpers):
             # Check stories
             self.highlight_element(page.locator(".ml-auto > button").first).click()
             self.highlight_element(page.locator(".ml-auto > button").first).click()
-            self.highlight_element(page.locator("div:nth-child(2) > .v-container > div > div:nth-child(2) > .ml-auto > button").first, scroll=True).click()
-            self.highlight_element(page.locator("div:nth-child(2) > .v-container > div > div:nth-child(2) > .ml-auto > button").first, scroll=True).click()
-            self.highlight_element(page.locator("div:nth-child(3) > .v-container > div > div:nth-child(2) > .ml-auto > button").first, scroll=True).click()
-            self.highlight_element(page.locator("div:nth-child(3) > .v-container > div > div:nth-child(2) > .ml-auto > button").first, scroll=True).click()
-            self.highlight_element(page.locator("div:nth-child(4) > .v-container > div > div:nth-child(2) > .ml-auto > button").first, scroll=True).click()
-            self.highlight_element(page.locator("div:nth-child(4) > .v-container > div > div:nth-child(2) > .ml-auto > button").first, scroll=True).click()
-            self.highlight_element(page.locator("div:nth-child(5) > .v-container > div > div:nth-child(2) > .ml-auto > button").first, scroll=True).click()
-            self.highlight_element(page.locator("div:nth-child(5) > .v-container > div > div:nth-child(2) > .ml-auto > button").first, scroll=True).click()
+            self.highlight_element(
+                page.locator("div:nth-child(2) > .v-container > div > div:nth-child(2) > .ml-auto > button").first, scroll=True
+            ).click()
+            self.highlight_element(
+                page.locator("div:nth-child(2) > .v-container > div > div:nth-child(2) > .ml-auto > button").first, scroll=True
+            ).click()
+            self.highlight_element(
+                page.locator("div:nth-child(3) > .v-container > div > div:nth-child(2) > .ml-auto > button").first, scroll=True
+            ).click()
+            self.highlight_element(
+                page.locator("div:nth-child(3) > .v-container > div > div:nth-child(2) > .ml-auto > button").first, scroll=True
+            ).click()
+            self.highlight_element(
+                page.locator("div:nth-child(4) > .v-container > div > div:nth-child(2) > .ml-auto > button").first, scroll=True
+            ).click()
+            self.highlight_element(
+                page.locator("div:nth-child(4) > .v-container > div > div:nth-child(2) > .ml-auto > button").first, scroll=True
+            ).click()
+            self.highlight_element(
+                page.locator("div:nth-child(5) > .v-container > div > div:nth-child(2) > .ml-auto > button").first, scroll=True
+            ).click()
+            self.highlight_element(
+                page.locator("div:nth-child(5) > .v-container > div > div:nth-child(2) > .ml-auto > button").first, scroll=True
+            ).click()
 
             # Open story
             self.highlight_element(
