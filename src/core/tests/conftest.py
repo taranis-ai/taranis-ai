@@ -189,72 +189,32 @@ def pytest_addoption(parser):
     group.addoption("--e2e-user-workflow", action="store_true", default=False, help="run e2e tests for user workflow")
 
 
-def skip_for_e2e_ci(items):
-    skip_non_e2e = pytest.mark.skip(reason="skip for --e2e-ci test")
+def skip_tests(items, keyword, reason):
+    skip_marker = pytest.mark.skip(reason=reason)
     for item in items:
-        if "e2e_ci" not in item.keywords:
-            item.add_marker(skip_non_e2e)
-
-
-def skip_for_e2e_user(items):
-    skip_non_e2e = pytest.mark.skip(reason="skip for --e2e-user test")
-    for item in items:
-        if "e2e_user" not in item.keywords:
-            item.add_marker(skip_non_e2e)
-
-
-def skip_for_e2e_admin(items):
-    skip_non_doc_pictures = pytest.mark.skip(reason="need --e2e-admin option to run tests marked with e2e_admin")
-    for item in items:
-        if "e2e_admin" not in item.keywords:
-            item.add_marker(skip_non_doc_pictures)
-
-
-def skip_for_e2e_user_workflow(items):
-    skip_non_doc_pictures = pytest.mark.skip(reason="need --e2e-user-workflow option to run tests marked with e2e_user_workflow")
-    for item in items:
-        if "e2e_user_workflow" not in item.keywords:
-            item.add_marker(skip_non_doc_pictures)
+        if keyword not in item.keywords:
+            item.add_marker(skip_marker)
 
 
 def pytest_collection_modifyitems(config, items):
-    e2e_ci = config.getoption("--e2e-ci")
-    e2e_user = config.getoption("--e2e-user")
-    e2e_admin = config.getoption("--e2e-admin")
-    e2e_user_workflow = config.getoption("--e2e-user-workflow")
+    options = {
+        "--e2e-ci": ("e2e_ci", "skip for --e2e-ci test"),
+        "--e2e-user": ("e2e_user", "skip for --e2e-user test"),
+        "--e2e-admin": ("e2e_admin", "need --e2e-admin option to run tests marked with e2e_admin"),
+        "--e2e-user-workflow": ("e2e_user_workflow", "need --e2e-user-workflow option to run tests marked with e2e_user_workflow"),
+    }
 
     config.option.start_live_server = False
     config.option.headed = True
 
-    if e2e_ci:
-        config.option.headed = False
-        skip_for_e2e_ci(items)
-        return
+    for option, (keyword, reason) in options.items():
+        if config.getoption(option):
+            if option == "--e2e-ci":
+                config.option.headed = False
+            skip_tests(items, keyword, reason)
+            return
 
-    if e2e_user:
-        skip_for_e2e_user(items)
-        return
-
-    if e2e_admin:
-        skip_for_e2e_admin(items)
-        return
-
-    if e2e_user_workflow:
-        skip_for_e2e_user_workflow(items)
-        return
-
-    # Skip all e2e and e2e_admin tests if no relevant flag is provided
     skip_all = pytest.mark.skip(reason="need --e2e-user, --e2e-ci, --e2e-user-workflow, or --e2e-admin option to run these tests")
     for item in items:
-        if "e2e_user" in item.keywords or "e2e_ci" in item.keywords or "e2e_admin" in item.keywords or "e2e_user_workflow" in item.keywords:
+        if any(keyword in item.keywords for keyword in options.values()):
             item.add_marker(skip_all)
-
-
-@pytest.fixture(scope="session", autouse=True)
-def disable_scheduler(app):
-    with app.app_context():
-        from core.managers.schedule_manager import Scheduler
-
-        Scheduler().shutdown()
-
-    yield

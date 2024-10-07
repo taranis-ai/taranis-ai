@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     CACHE_DEFAULT_TIMEOUT: int = 300
     SSE_URL: str = "http://sse:8088/publish"
     DISABLE_SSE: bool = False
-
+    DISABLE_SCHEDULER: bool = False
     TARANIS_CORE_SENTRY_DSN: str | None = None
 
     @model_validator(mode="after")  # type: ignore

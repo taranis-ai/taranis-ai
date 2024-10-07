@@ -5,6 +5,7 @@ from apscheduler.job import Job
 from core.managers import queue_manager
 from core.log import logger
 from core.managers.db_manager import db
+from core.config import Config
 
 cleanup_blacklist_periodic_task = {
     "id": "cleanup_token_blacklist",
@@ -26,7 +27,8 @@ class Scheduler:
         if cls._instance is None:
             cls._instance = super(Scheduler, cls).__new__(cls)
             cls._scheduler = BackgroundScheduler(jobstores={"default": SQLAlchemyJobStore(engine=db.engine)})
-            cls._scheduler.start()
+            if not Config.DISABLE_SCHEDULER:
+                cls._scheduler.start()
         return cls._scheduler
 
     @classmethod
