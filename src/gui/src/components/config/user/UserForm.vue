@@ -226,10 +226,8 @@ export default {
   margin-bottom: 16px;
 }
 
-/* Use Vuetify's CSS variable for the error color */
 .alert-text {
   color: var(--v-theme-error);
-  /* Optional: Adjust font size or other styles */
   font-size: 16px;
 }
 input::-ms-clear,

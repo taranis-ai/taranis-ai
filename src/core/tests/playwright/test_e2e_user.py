@@ -257,17 +257,17 @@ class TestEndToEndUser(PlaywrightHelpers):
             self.highlight_element(page.locator("button:below(:text('Global Mining Espionage by APT67 (4)'))").first).click()
             self.highlight_element(page.get_by_role("dialog").get_by_label("Open")).click()
             self.highlight_element(page.get_by_role("option", name="Test Report")).click()
-            self.highlight_element(page.get_by_role("button", name="share")).click()
+            self.highlight_element(page.get_by_role("button", name="add to report")).click()
 
             self.highlight_element(page.locator("button:below(:text('Advanced Phishing Techniques by APT58 (3)'))").first).click()
             self.highlight_element(page.get_by_role("dialog").get_by_label("Open")).click()
             self.highlight_element(page.get_by_role("option", name="Test Report")).click()
-            self.highlight_element(page.get_by_role("button", name="share")).click()
+            self.highlight_element(page.get_by_role("button", name="add to report")).click()
 
             self.highlight_element(page.locator("button:below(:text('Genetic Engineering Data Theft by APT81 (8)'))").first).click()
             self.highlight_element(page.get_by_role("dialog").get_by_label("Open")).click()
             self.highlight_element(page.get_by_role("option", name="Test Report")).click()
-            self.highlight_element(page.get_by_role("button", name="share")).click()
+            self.highlight_element(page.get_by_role("button", name="add to report")).click()
 
         def modify_report_1():
             self.highlight_element(page.get_by_role("cell", name="Test Report")).click()

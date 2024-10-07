@@ -266,7 +266,7 @@ class TestUserWorkflow(PlaywrightHelpers):
             self.highlight_element(page.get_by_role("button", name="add to report")).click()
             self.highlight_element(page.get_by_role("dialog").get_by_label("Open")).click()
             self.highlight_element(page.get_by_role("option", name="Test Report")).click()
-            self.highlight_element(page.get_by_role("button", name="share")).click()
+            self.highlight_element(page.get_by_role("button", name="add to report").last).click()
             page.keyboard.press("Escape")
 
             self.highlight_element(
@@ -274,7 +274,7 @@ class TestUserWorkflow(PlaywrightHelpers):
             ).click()
             self.highlight_element(page.get_by_role("dialog").get_by_label("Open")).click()
             self.highlight_element(page.get_by_role("option", name="Test Disinformation Title")).click()
-            self.highlight_element(page.get_by_role("button", name="share")).click()
+            self.highlight_element(page.get_by_role("button", name="add to report")).click()
 
         def modify_report_1():
             self.highlight_element(page.get_by_role("cell", name="Test Report")).click()
