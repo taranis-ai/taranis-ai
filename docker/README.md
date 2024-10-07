@@ -115,14 +115,21 @@ Any configuration options are available at [https://hub.docker.com/\_/postgres](
 
 ### `worker`
 
-| Environment variable    | Description                         | Default                     |
-| ----------------------- | ----------------------------------- | --------------------------- |
-| `TARANIS_CORE_URL`      | URL of the Taranis AI core API      | `http://127.0.0.1:8080/api` |
-| `API_KEY`               | API Key for communication with core | `supersecret`               |
-| `QUEUE_BROKER_HOST`     | RabbitMQ Host address               | `rabbitmq`                  |
-| `QUEUE_BROKER_USER`     | RabbitMQ user                       | `taranis`                   |
-| `QUEUE_BROKER_PASSWORD` | RabbitMQ password                   | `supersecret`               |
-| `DEBUG`                 | Debug logging                       | `False`                     |
+| Environment variable    | Description                                | Default                     |
+| ----------------------- | ------------------------------------------ | --------------------------- |
+| `TARANIS_CORE_URL`      | URL of the Taranis AI core API             | '' *                        |
+| `TARANIS_BASE_PATH`     | Path under which Taranis AI is reachable   | `/`                         |
+| `TARANIS_CORE_HOST`*    | Hostname and Port of the Taranis AI core   | `core:8080`                 |
+| `API_KEY`               | API Key for communication with core        | `supersecret`               |
+| `QUEUE_BROKER_HOST`     | RabbitMQ Host address                      | `rabbitmq`                  |
+| `QUEUE_BROKER_USER`     | RabbitMQ user                              | `taranis`                   |
+| `QUEUE_BROKER_PASSWORD` | RabbitMQ password                          | `supersecret`               |
+| `DEBUG`                 | Debug logging                              | `False`                     |
+
+> [!NOTE]
+> ** If `TARANIS_CORE_URL` is not set it will be calculated as: `http://{TARANIS_CORE_HOST}/{TARANIS_BASE_PATH}/api`.
+>
+> If you set `TARANIS_CORE_URL`: `TARANIS_CORE_HOST` and `TARANIS_BASE_PATH` will be ignored.
 
 ### `gui`
 
