@@ -87,7 +87,8 @@ def browser_context_args(browser_context_args, browser_type_launch_args, request
 def taranis_frontend(request, e2e_server, browser_context_args, browser: Browser):
     context = browser.new_context(**browser_context_args)
     # Drop timeout from 30s to 10s
-    context.set_default_timeout(10000)
+    timeout = int(request.config.getoption("--e2e-timeout"))
+    context.set_default_timeout(timeout)
     if request.config.getoption("--e2e-ci") == "e2e_ci":
         context.tracing.start(screenshots=True, snapshots=True, sources=True)
 
@@ -138,21 +139,24 @@ def fake_source(app, e2e_setup):
         yield source_data["id"]
 
 
+def random_timestamp_last_5_days() -> str:
+    now = datetime.now()
+    start_time = now - timedelta(days=5)
+    return (start_time + timedelta(seconds=random.randint(0, int((now - start_time).total_seconds())))).isoformat()
+
+
 @pytest.fixture(scope="session")
 def stories(app, news_items_list):
     from core.model.story import Story
     from core.model.user import User
 
-    def _generate_timestamp():
-        now = datetime.now()
-
+    def _renew_story_timestamps():
         for item in news_items_list:
-            random_hours = random.randint(1, 4)
-            new_time = now - timedelta(hours=random_hours)
-            item.update({"published": new_time.isoformat()})
-            item.update({"collected": new_time.isoformat()})
+            new_time = random_timestamp_last_5_days()
+            item.update({"published": new_time})
+            item.update({"collected": new_time})
 
-    _generate_timestamp()
+    _renew_story_timestamps()
 
     with app.app_context():
         story_ids = Story.add_news_items(news_items_list)[0].get("story_ids")
