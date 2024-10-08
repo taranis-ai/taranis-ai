@@ -48,19 +48,15 @@ jobs:
         working-directory: src/core
         run: playwright install --with-deps chromium
 
+      - name: Set Artifact Name
+        shell: bash
+        run: |
+          ARTIFACT_NAME="playwright-traces-${{ github.ref_name }}-${{ github.event.pull_request.number || github.run_number }}"
+          echo "SANITIZED_ARTIFACT_NAME=${ARTIFACT_NAME//\//-}" >> $GITHUB_ENV
+      
       - name: Run e2e tests
         working-directory: src/core
         run: pytest --e2e-ci
-
-      - name: Set Artifact Name
-        shell: bash
-        env:
-          REF_NAME: ${{ github.ref_name }}
-          PR_NUMBER: ${{ github.event.pull_request.number || github.run_number }}
-        run: |
-          ARTIFACT_NAME="playwright-traces-${REF_NAME}-${PR_NUMBER}"
-          SANITIZED_NAME=${ARTIFACT_NAME//\//-}
-          echo "SANITIZED_ARTIFACT_NAME=${SANITIZED_NAME}" >> $GITHUB_ENV
 
       - name: Upload a Build Artifact
         uses: actions/upload-artifact@v4
