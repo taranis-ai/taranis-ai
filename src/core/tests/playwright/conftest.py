@@ -41,6 +41,7 @@ def build_gui(install_node_modules):
 def e2e_ci(request):
     request.cls.ci_run = request.config.getoption("--e2e-ci") == "e2e_ci"
     request.cls.wait_duration = float(request.config.getoption("--highlight-delay"))
+
     if request.cls.ci_run:
         print("Running in CI mode")
 
@@ -83,13 +84,18 @@ def browser_context_args(browser_context_args, browser_type_launch_args, request
 
 
 @pytest.fixture(scope="session")
-def taranis_frontend(e2e_server, browser_context_args, browser: Browser):
+def taranis_frontend(request, e2e_server, browser_context_args, browser: Browser):
     context = browser.new_context(**browser_context_args)
     # Drop timeout from 30s to 10s
     context.set_default_timeout(10000)
+    if request.config.getoption("--e2e-ci") == "e2e_ci":
+        context.tracing.start(screenshots=True, snapshots=True, sources=True)
+
     page = context.new_page()
     page.goto(e2e_server.url())
     yield page
+    if request.config.getoption("--e2e-ci") == "e2e_ci":
+        context.tracing.stop(path="trace.zip")
 
 
 @pytest.fixture(scope="session")
