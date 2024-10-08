@@ -4,7 +4,7 @@ import { useAuthStore } from './stores/AuthStore'
 import Permissions from '@/services/auth/permissions'
 
 export const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/',
@@ -234,6 +234,18 @@ export const router = createRouter({
       name: 'workers',
       components: {
         default: () => import('@/views/admin/WorkersView.vue'),
+        nav: () => import('@/views/nav/ConfigNav.vue')
+      },
+      meta: {
+        requiresAuth: true,
+        requiresPerm: Permissions.CONFIG_WORKER_ACCESS
+      }
+    },
+    {
+      path: '/config/scheduler',
+      name: 'scheduler',
+      components: {
+        default: () => import('@/views/admin/SchedulerView.vue'),
         nav: () => import('@/views/nav/ConfigNav.vue')
       },
       meta: {

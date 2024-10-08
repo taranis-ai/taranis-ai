@@ -108,7 +108,8 @@ class User(BaseModel):
         return {"message": f"User {user_id} updated", "id": user_id}, 200
 
     def get_permissions(self) -> list[str]:
-        return [permission for role in self.roles if role for permission in role.get_permissions()]
+        permissions = {permission for role in self.roles if role for permission in role.get_permissions()}
+        return list(permissions)
 
     def get_roles(self):
         return [role.id for role in self.roles]

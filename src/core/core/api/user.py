@@ -4,6 +4,7 @@ from flask.views import MethodView
 
 from core.model.user import User
 from core.managers.sse_manager import sse_manager
+from core.config import Config
 
 
 class UserInfo(MethodView):
@@ -32,11 +33,10 @@ class SSEConnected(MethodView):
 
 
 def initialize(app: Flask):
-    user_bp = Blueprint("user", __name__, url_prefix="/api/users")
+    user_bp = Blueprint("user", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/users")
 
     user_bp.add_url_rule("/", view_func=UserInfo.as_view("user_info"))
     user_bp.add_url_rule("/profile", view_func=UserProfile.as_view("user_profile"))
-    user_bp.add_url_rule("/profile/", view_func=UserProfile.as_view("user_profile_"))
     user_bp.add_url_rule("/sse-connected", view_func=SSEConnected.as_view("sse_connected"))
 
     app.register_blueprint(user_bp)

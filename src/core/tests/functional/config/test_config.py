@@ -175,6 +175,7 @@ class TestUserConfigApi(BaseTest):
         assert response.json["items"][0]["username"] == cleanup_user["username"]
         assert response.json["items"][0]["name"] == "Testy McTestFace"
         assert response.json["items"][0]["id"] == user_id
+        assert len(response.json["items"][0]["permissions"]) == 14
         assert "password" not in response.json["items"][0]
 
     def test_delete_user(self, client, auth_header, cleanup_user):

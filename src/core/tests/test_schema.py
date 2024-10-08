@@ -51,6 +51,7 @@ def test_assess(case):
     case.validate_response(response, additional_checks=(check_401,))
 
 
+@schema.auth(UserAuth)
 @schema.parametrize(endpoint="^/api/dashboard")
 @settings(max_examples=50, suppress_health_check=(HealthCheck.function_scoped_fixture,))
 def test_dashboard(case):

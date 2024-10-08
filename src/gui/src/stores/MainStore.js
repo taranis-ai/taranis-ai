@@ -28,12 +28,20 @@ export const useMainStore = defineStore(
       const config = await getLocalConfig()
       buildDate.value = config.BUILD_DATE ?? new Date().toISOString()
       gitInfo.value = config.GIT_INFO ?? ''
-      coreAPIURL.value = config.TARANIS_CORE_API ?? '/api'
-      // if config.TARANIS_CORE_API is set replace /api with /sse else just use /sse
+
+      if (/^https?:\/\//.test(config.TARANIS_CORE_API)) {
+        coreAPIURL.value = config.TARANIS_CORE_API
+      } else {
+        coreAPIURL.value =
+          [import.meta.env.BASE_URL, config.TARANIS_CORE_API]
+            .join('/')
+            .replace(/\/{2,}/g, '/') ?? '/api'
+      }
+
       coreSSEURL.value =
-        config.TARANIS_CORE_API && config.TARANIS_CORE_API !== '/api'
-          ? config.TARANIS_CORE_API.replace('/api', '/sse')
-          : '/sse'
+        config.TARANIS_SSE_URL ??
+        coreAPIURL.value.replace('/api', '/sse') ??
+        '/sse'
       sentryDSN.value = config.TARANIS_GUI_SENTRY_DSN ?? ''
       upstreamRepoUrl.value =
         config.TARANIS_UPSTREAM_REPO_URL ??

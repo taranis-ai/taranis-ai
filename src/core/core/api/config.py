@@ -4,9 +4,8 @@ from flask import Blueprint, request, send_file, jsonify, Flask
 from flask.views import MethodView
 from flask_jwt_extended import current_user
 
-from core.managers import (
-    queue_manager,
-)
+from core.managers import queue_manager
+from core.managers.schedule_manager import Scheduler
 from core.log import logger
 from core.managers.auth_manager import auth_required
 from core.managers.data_manager import get_template_as_base64, write_base64_to_file, get_presenter_templates, delete_template
@@ -22,13 +21,13 @@ from core.model import (
     role_based_access,
     user,
     word_list,
-    queue,
     task,
     worker,
 )
 from core.service.news_item import NewsItemService
 from core.model.permission import Permission
 from core.managers.decorators import extract_args
+from core.config import Config
 
 
 class DictionariesReload(MethodView):
@@ -346,12 +345,16 @@ class QueueTasks(MethodView):
         return queue_manager.queue_manager.get_queued_tasks()
 
 
-class QueueSchedule(MethodView):
+class Schedule(MethodView):
     @auth_required("CONFIG_WORKER_ACCESS")
-    def get(self):
+    def get(self, task_id: str | None = None):
         try:
-            if schedules := queue.ScheduleEntry.get_all_for_collector():
-                return [sched.to_dict() for sched in schedules], 200
+            if task_id:
+                if result := Scheduler.get_periodic_task(task_id):
+                    return result, 200
+                return {"error": "Task not found"}, 404
+            if schedules := Scheduler.get_periodic_tasks():
+                return schedules, 200
             return {"error": "No schedules found"}, 404
         except Exception:
             logger.exception()
@@ -587,7 +590,7 @@ class Workers(MethodView):
 
 
 def initialize(app: Flask):
-    config_bp = Blueprint("config", __name__, url_prefix="/api/config")
+    config_bp = Blueprint("config", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/config")
 
     config_bp.add_url_rule("/acls", view_func=ACLEntries.as_view("acls"))
     config_bp.add_url_rule("/acls/<int:acl_id>", view_func=ACLEntries.as_view("acl"))
@@ -635,7 +638,9 @@ def initialize(app: Flask):
     config_bp.add_url_rule("/import-word-lists", view_func=WordListImport.as_view("word_list_import"))
     config_bp.add_url_rule("/workers", view_func=WorkerInstances.as_view("workers"))
     config_bp.add_url_rule("/workers/queue-status", view_func=QueueStatus.as_view("queue_status"))
-    config_bp.add_url_rule("/workers/schedule", view_func=QueueSchedule.as_view("queue_schedule_config"))
+    config_bp.add_url_rule("/workers/schedule", view_func=Schedule.as_view("queue_schedule_config"))
+    config_bp.add_url_rule("/schedule", view_func=Schedule.as_view("queue_schedule"))
+    config_bp.add_url_rule("/schedule/<string:task_id>", view_func=Schedule.as_view("queue_schedule_task"))
     config_bp.add_url_rule("/workers/tasks", view_func=QueueTasks.as_view("queue_tasks"))
     config_bp.add_url_rule("/worker-types", view_func=Workers.as_view("worker_types"))
     config_bp.add_url_rule("/worker-types/<string:worker_id>", view_func=Workers.as_view("worker_type_patch"))

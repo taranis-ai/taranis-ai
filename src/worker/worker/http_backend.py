@@ -7,11 +7,11 @@ class HTTPBackend(BaseBackend):
         super().__init__(app, **kwargs)
         self.core_api = CoreApi()
 
-    def store_result(self, task_id, result, status, traceback=None, request=None, **kwargs):
+    def store_result(self, task_id, result, state, traceback=None, request=None, **kwargs):
         data = {
             "task_id": task_id,
-            "status": status,
-            "result": self.encode_result(result, status),
+            "status": state,
+            "result": self.encode_result(result, state),
             "traceback": traceback,
         }
         self.core_api.store_task_result(data)

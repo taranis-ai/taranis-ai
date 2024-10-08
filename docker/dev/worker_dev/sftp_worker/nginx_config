@@ -6,8 +6,7 @@ server {
     index index.html;
 
     location / {
-		  autoindex on;
+        autoindex on;
         try_files $uri $uri/ =404;
     }
 }
-

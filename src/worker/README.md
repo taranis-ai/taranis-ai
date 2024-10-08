@@ -16,12 +16,6 @@ As a worker
 celery -A worker worker
 ```
 
-as a scheduler
-
-```bash
-celery -A worker beat
-```
-
 ## Architecture
 
 see [docs](https://github.com/taranis-ai/taranis-ai/tree/master/doc)

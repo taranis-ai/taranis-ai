@@ -4,11 +4,12 @@
       :headers="headers"
       :items="modelValue"
       :items-per-page="5"
+      :hide-default-footer="modelValue.length < 5"
       class="elevation-1"
     >
       <template #top>
         <v-row class="justify-center">
-          <h3>Attributes</h3>
+          <h4>Attributes</h4>
         </v-row>
         <v-row class="justify-center">
           <v-btn

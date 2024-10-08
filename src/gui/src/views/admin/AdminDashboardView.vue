@@ -49,17 +49,16 @@
           <v-icon class="mr-2" color="green">
             mdi-lightbulb-off-outline
           </v-icon>
-          <span class="caption"
-            >Tasks are scheduled
-            <b>{{ dashboard_data.schedule_length }}</b>
+          <span class="caption">
+            There are <b>{{ dashboard_data.schedule_length }}</b> tasks
+            scheduled
           </span>
           <v-divider inset></v-divider>
 
           <v-icon class="mr-2"> mdi-clock-check-outline </v-icon>
-          <span class="caption"
-            >Last successful run
-            <b>{{ dashboard_data.latest_collected }}</b></span
-          >
+          <span class="caption">
+            Last successful run <b>{{ dashboard_data.latest_collected }}</b>
+          </span>
         </template>
       </dash-board-card>
       <dash-board-card link-to="#" link-text="Database">

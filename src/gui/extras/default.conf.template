@@ -1,9 +1,13 @@
-upstream core {
+upstream coreupstream {
   server ${TARANIS_CORE_UPSTREAM};
 }
 
-upstream sse {
+upstream sseupstream {
   server ${TARANIS_SSE_UPSTREAM};
+}
+
+upstream schedulerupstream {
+  server ${TARANIS_SCHEDULER_UPSTREAM};
 }
 
 server {
@@ -13,11 +17,13 @@ server {
     root   /usr/share/nginx/html;
     client_max_body_size 50m;
 
-    location /assets {
+    location ${TARANIS_BASE_PATH}assets {
+        alias /usr/share/nginx/html/assets/;
         add_header Cache-Control "max-age=300, must-revalidate, s-maxage=300";
     }
 
-    location / {
+    location ${TARANIS_BASE_PATH} {
+        alias /usr/share/nginx/html/;
         expires -1;
         add_header Pragma "no-cache";
         add_header Cache-Control "no-store, no-cache, must-revalidate, post-check=0, pre-check=0";
@@ -25,26 +31,27 @@ server {
         try_files $uri /index.html =404;
     }
 
-    proxy_set_header Host ${TARANIS_CORE_UPSTREAM};
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
 
-    location /api {
-        proxy_pass http://core/api;
+    location ${TARANIS_BASE_PATH}api {
+        proxy_pass http://coreupstream;
+        proxy_redirect off;
     }
 
-    location /api/v1 {
-        proxy_pass http://core/api;
-    }
-
-    location /sse {
-        proxy_pass http://sse/events;
+    location ${TARANIS_BASE_PATH}sse {
+        proxy_pass http://sseupstream;
         proxy_read_timeout 24h;
         proxy_set_header Connection '';
         proxy_http_version 1.1;
         proxy_buffering off;
     }
+
+    location ${TARANIS_BASE_PATH}scheduler {
+        proxy_pass http://schedulerupstream;
+    }
+
 
     error_page   500 502 503 504  /50x.html;
     location = /50x.html {

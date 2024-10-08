@@ -7,8 +7,6 @@ on:
     - 'docker/Dockerfile.core'
     branches:
     - master
-    tags:
-    - "**"
 
 permissions:
   packages: write
@@ -29,9 +27,13 @@ jobs:
         working-directory: src/core
         run: pip install -e .[dev]
 
-      - name: test
+      - name: unit tests
         working-directory: src/core
         run: pytest
+
+      - name: e2e tests
+        working-directory: src/core
+        run: pytest --e2e-ci
 
   build_wheel:
     name: build wheel

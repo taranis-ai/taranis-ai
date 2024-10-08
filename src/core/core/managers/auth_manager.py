@@ -55,20 +55,17 @@ def logout(jti):
     return current_authenticator.logout(jti)
 
 
-def no_auth(fn):
-    @wraps(fn)
-    def wrapper(*args, **kwargs):
-        return fn(*args, **kwargs)
-
-    return wrapper
-
-
-def auth_required(permissions: list | str):
+def auth_required(permissions: list | str | None = None):
     def auth_required_wrap(fn):
         @wraps(fn)
         def wrapper(*args, **kwargs):
             error = ({"error": "not authorized"}, 401)
-            permissions_set = set(permissions) if isinstance(permissions, list) else {permissions}
+            if permissions is None:
+                permissions_set = set()
+            elif isinstance(permissions, list):
+                permissions_set = set(permissions)
+            else:
+                permissions_set = {permissions}
 
             try:
                 verify_jwt_in_request()
@@ -83,8 +80,8 @@ def auth_required(permissions: list | str):
 
             permission_claims = current_user.get_permissions()
 
-            # is there at least one match with the permissions required by the call?
-            if not permissions_set.intersection(permission_claims):
+            # is there at least one match with the permissions required by the call or no permissions required
+            if permissions_set and not permissions_set.intersection(permission_claims):
                 logger.store_auth_error_activity(
                     f"user {identity.name} [{identity.id}] Insufficient permissions in JWT for identity",
                 )

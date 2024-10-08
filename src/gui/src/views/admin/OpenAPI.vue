@@ -9,6 +9,7 @@ export default {
   name: 'OpenAPI',
   setup() {
     const store = useMainStore()
+    store.resetItemCount()
     const iframeSrc = store.coreAPIURL + '/doc'
     return { iframeSrc }
   }

@@ -7,6 +7,7 @@ from core.managers.sse_manager import sse_manager
 from core.log import logger
 from core.managers.auth_manager import auth_required
 from core.model import report_item, report_item_type
+from core.config import Config
 
 
 class ReportTypes(MethodView):
@@ -127,7 +128,7 @@ class ReportItemUnlock(MethodView):
 
 
 def initialize(app: Flask):
-    analyze_bp = Blueprint("analyze", __name__, url_prefix="/api/analyze")
+    analyze_bp = Blueprint("analyze", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/analyze")
 
     analyze_bp.add_url_rule("/report-types", view_func=ReportTypes.as_view("report_types"))
     analyze_bp.add_url_rule("/report-items", view_func=ReportItem.as_view("report_items"))

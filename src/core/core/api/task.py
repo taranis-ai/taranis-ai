@@ -1,4 +1,4 @@
-from flask import request, Flask
+from flask import request, Flask, Blueprint
 from flask.views import MethodView
 from datetime import datetime, timedelta
 
@@ -7,6 +7,7 @@ from core.model.task import Task as TaskModel
 from core.log import logger
 from core.model.word_list import WordList
 from core.model.token_blacklist import TokenBlacklist
+from core.config import Config
 
 
 class Task(MethodView):
@@ -44,6 +45,8 @@ class Task(MethodView):
 
 
 def initialize(app: Flask):
-    app.add_url_rule("/api/tasks", view_func=Task.as_view("tasks"))
-    app.add_url_rule("/api/tasks/", view_func=Task.as_view("tasks_"))
-    app.add_url_rule("/api/tasks/<string:task_id>", view_func=Task.as_view("task"))
+    task_bp = Blueprint("tasks", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/tasks")
+
+    task_bp.add_url_rule("", view_func=Task.as_view("tasks"))
+    task_bp.add_url_rule("/<string:task_id>", view_func=Task.as_view("task"))
+    app.register_blueprint(task_bp)

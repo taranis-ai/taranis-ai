@@ -182,64 +182,40 @@ def auth_header_user_permissions(access_token_user_permissions):
 def pytest_addoption(parser):
     group = parser.getgroup("e2e")
     group.addoption("--e2e-user", action="store_const", const="e2e_user", default=None, help="run e2e tests")
-    group.addoption("--e2e-user-ci", action="store_const", const="e2e_user_ci", default=None, help="run e2e tests for CI")
+    group.addoption("--e2e-ci", action="store_const", const="e2e_ci", default=None, help="run e2e tests for CI")
+    group.addoption("--e2e-timeout", action="store", default="10000", help="milliseconds to wait for e2e tests")
     group.addoption("--highlight-delay", action="store", default="2", help="delay for highlighting elements in e2e tests")
     group.addoption("--record-video", action="store_true", default=False, help="create screenshots and record video")
     group.addoption("--e2e-admin", action="store_true", default=False, help="generate documentation screenshots")
     group.addoption("--e2e-user-workflow", action="store_true", default=False, help="run e2e tests for user workflow")
 
 
-def skip_for_e2e(e2e_test: str, items):
-    skip_non_e2e = pytest.mark.skip(reason=f"skip for {e2e_test} test")
+def skip_tests(items, keyword, reason):
+    skip_marker = pytest.mark.skip(reason=reason)
     for item in items:
-        if e2e_test not in item.keywords:
-            item.add_marker(skip_non_e2e)
-
-
-def skip_for_e2e_admin(items):
-    skip_non_doc_pictures = pytest.mark.skip(reason="need --e2e-admin option to run tests marked with e2e_admin")
-    for item in items:
-        if "e2e_admin" not in item.keywords:
-            item.add_marker(skip_non_doc_pictures)
-
-
-def skip_for_e2e_user_workflow(items):
-    skip_non_doc_pictures = pytest.mark.skip(reason="need --e2e-user-workflow option to run tests marked with e2e_user_workflow")
-    for item in items:
-        if "e2e_user_workflow" not in item.keywords:
-            item.add_marker(skip_non_doc_pictures)
+        if keyword not in item.keywords:
+            item.add_marker(skip_marker)
 
 
 def pytest_collection_modifyitems(config, items):
-    e2e_type = config.getoption("--e2e-user-ci") or config.getoption("--e2e-user")
-    e2e_admin = config.getoption("--e2e-admin")
-    e2e_user_workflow = config.getoption("--e2e-user-workflow")
+    options = {
+        "--e2e-ci": ("e2e_ci", "skip for --e2e-ci test"),
+        "--e2e-user": ("e2e_user", "skip for --e2e-user test"),
+        "--e2e-admin": ("e2e_admin", "need --e2e-admin option to run tests marked with e2e_admin"),
+        "--e2e-user-workflow": ("e2e_user_workflow", "need --e2e-user-workflow option to run tests marked with e2e_user_workflow"),
+    }
 
-    if e2e_type:
-        config.option.start_live_server = False
-        config.option.headed = e2e_type == "e2e_user"
-        skip_for_e2e(e2e_type, items)
-        return
+    config.option.start_live_server = False
+    config.option.headed = True
 
-    if e2e_admin:
-        config.option.start_live_server = False
-        config.option.headed = True
-        skip_for_e2e_admin(items)
-        return
+    for option, (keyword, reason) in options.items():
+        if config.getoption(option):
+            if option == "--e2e-ci":
+                config.option.headed = False
+            skip_tests(items, keyword, reason)
+            return
 
-    if e2e_user_workflow:
-        config.option.start_live_server = False
-        config.option.headed = True
-        skip_for_e2e_user_workflow(items)
-        return
-
-    # Skip all e2e and e2e_admin tests if no relevant flag is provided
-    skip_all = pytest.mark.skip(reason="need --e2e-user, --e2e-user-ci, --e2e-user-workflow, or --e2e-admin option to run these tests")
+    skip_all = pytest.mark.skip(reason="need --e2e-user, --e2e-ci, --e2e-user-workflow, or --e2e-admin option to run these tests")
     for item in items:
-        if (
-            "e2e_user" in item.keywords
-            or "e2e_user_ci" in item.keywords
-            or "e2e_admin" in item.keywords
-            or "e2e_user_workflow" in item.keywords
-        ):
+        if any(keyword in item.keywords for keyword, _ in options.values()):
             item.add_marker(skip_all)

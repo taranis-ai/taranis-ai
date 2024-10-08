@@ -42,7 +42,7 @@ class BaseModel(db.Model):
         data = {c.name: getattr(self, c.name) for c in table.columns}
         for key, value in data.items():
             if isinstance(value, datetime):
-                data[key] = value.isoformat()
+                data[key] = value.astimezone().isoformat()
             elif isinstance(value, Enum):
                 data[key] = value.value
         return data

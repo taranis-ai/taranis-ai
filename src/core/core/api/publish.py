@@ -6,6 +6,7 @@ from core.managers import queue_manager
 from core.managers.auth_manager import auth_required
 from core.model import product_type, product
 from core.service.product import ProductService
+from core.config import Config
 
 
 class ProductTypes(MethodView):
@@ -59,7 +60,7 @@ class ProductsRender(MethodView):
 
 
 def initialize(app: Flask):
-    publish_bp = Blueprint("publish", __name__, url_prefix="/api/publish")
+    publish_bp = Blueprint("publish", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/publish")
 
     publish_bp.add_url_rule("/products/<string:product_id>/render", view_func=ProductsRender.as_view("products_render"))
     publish_bp.add_url_rule(

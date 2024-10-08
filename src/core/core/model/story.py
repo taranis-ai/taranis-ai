@@ -262,22 +262,22 @@ class Story(BaseModel):
     def _add_sorting_to_query(cls, filter_args: dict, query: Select) -> Select:
         if sort := filter_args.get("sort", "date_desc").lower():
             if sort == "date_desc":
-                query = query.order_by(db.desc(cls.created))
+                query = query.order_by(db.desc(cls.created), db.desc(cls.title))
 
             elif sort == "date_asc":
-                query = query.order_by(db.asc(cls.created))
+                query = query.order_by(db.asc(cls.created), db.asc(cls.title))
 
             elif sort == "relevance_desc":
-                query = query.order_by(db.desc(cls.relevance))
+                query = query.order_by(db.desc(cls.relevance), db.desc(cls.created))
 
             elif sort == "relevance_asc":
-                query = query.order_by(db.asc(cls.relevance))
+                query = query.order_by(db.asc(cls.relevance), db.asc(cls.created))
 
             elif sort == "updated_desc":
-                query = query.order_by(db.desc(cls.updated))
+                query = query.order_by(db.desc(cls.updated), db.desc(cls.title))
 
             elif sort == "updated_asc":
-                query = query.order_by(db.asc(cls.updated))
+                query = query.order_by(db.asc(cls.updated), db.asc(cls.title))
 
         return query
 
