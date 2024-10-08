@@ -10,7 +10,7 @@ If you wish to develop and build the GUI separately, read on.
 
 Install the dependencies
 
-```
+```bash
 npm install
 ```
 
@@ -29,10 +29,10 @@ to run the applicaiton locally add `VITE_TARANIS_CONFIG_JSON = "/config.local.js
 ```
 
 {
-"TARANIS_CORE_API": "http://localhost:5000/api"
+"TARANIS_CORE_API": "<http://localhost:5000/api>"
 }
 
-```
+```bash
 npm run dev
 ```
 
@@ -40,7 +40,7 @@ npm run dev
 
 When you are ready to generate the final static version of the GUI, run
 
-```
+```bash
 npm run build
 ```
 
@@ -48,11 +48,11 @@ The static html/js/css files will be stored under the `dist/` subdirectory.
 
 ### Testing and linting
 
-```
+```bash
 npm run test
 npm run lint
 ```
 
 ### Customize the configuration
 
-See [Configuration Reference](https://cli.vuejs.org/config/).
+See [Configuration Reference](https://vite.dev/config/).

@@ -57,8 +57,6 @@ jobs:
         run: |
           echo "GHCR_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >>${GITHUB_ENV}
           echo "GIT_INFO=$(./docker/git_info.sh)" >>${GITHUB_ENV}
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
       - name: Build and push gui
         uses: docker/build-push-action@v5
         with:

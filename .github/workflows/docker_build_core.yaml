@@ -23,6 +23,10 @@ jobs:
           python-version: "3.12"
           cache: 'pip'
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
       - name: Install dependencies
         working-directory: src/core
         run: pip install -e .[dev]
@@ -45,6 +49,7 @@ jobs:
         with:
           python-version: "3.12"
           cache: 'pip'
+
       - name: build
         working-directory: src/core
         run: |
