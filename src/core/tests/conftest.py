@@ -207,7 +207,6 @@ def pytest_collection_modifyitems(config, items):
     config.option.start_live_server = False
     config.option.headed = True
 
-
     for option, (keyword, reason) in options.items():
         if config.getoption(option):
             if option == "--e2e-ci":
@@ -215,8 +214,7 @@ def pytest_collection_modifyitems(config, items):
             skip_tests(items, keyword, reason)
             return
 
-
     skip_all = pytest.mark.skip(reason="need --e2e-user, --e2e-ci, --e2e-user-workflow, or --e2e-admin option to run these tests")
     for item in items:
-        if any(keyword in item.keywords for keyword in options.values()):
+        if any(keyword in item.keywords for keyword, _ in options.values()):
             item.add_marker(skip_all)
