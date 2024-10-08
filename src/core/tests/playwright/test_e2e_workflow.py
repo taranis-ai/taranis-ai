@@ -240,6 +240,7 @@ class TestUserWorkflow(PlaywrightHelpers):
 
         def report_1():
             self.highlight_element(page.get_by_role("button", name="New Report").first).click()
+            page.wait_for_url("**/report/", wait_until="domcontentloaded")
             self.highlight_element(page.get_by_role("combobox")).click()
 
             expect(page.get_by_role("listbox")).to_contain_text("CERT Report")

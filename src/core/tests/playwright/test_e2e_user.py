@@ -212,6 +212,7 @@ class TestEndToEndUser(PlaywrightHelpers):
 
         def report_1():
             self.highlight_element(page.get_by_role("button", name="New Report").first).click()
+            page.wait_for_url("**/report/", wait_until="domcontentloaded")
             self.highlight_element(page.get_by_role("combobox")).click()
             time.sleep(0.5)
 
