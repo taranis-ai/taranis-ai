@@ -52,13 +52,23 @@ jobs:
         working-directory: src/core
         run: pytest --e2e-ci
 
+      - name: Set Artifact Name
+        shell: bash
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.run_number }}
+        run: |
+          ARTIFACT_NAME="playwright-traces-${REF_NAME}-${PR_NUMBER}"
+          SANITIZED_NAME=${ARTIFACT_NAME//\//-}
+          echo "SANITIZED_ARTIFACT_NAME=${SANITIZED_NAME}" >> $GITHUB_ENV
+
       - name: Upload a Build Artifact
         uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
           retention-days: 7
           overwrite: true
-          name: playwright-traces-${{ replace(github.ref_name, '/', '-') }}-${{ github.event.pull_request.number }}
+          name: ${{ env.SANITIZED_ARTIFACT_NAME }}
           path: src/core/trace.zip
 
   test_worker:
