@@ -58,7 +58,7 @@ jobs:
         with:
           retention-days: 7
           overwrite: true
-          name: ${{ format('playwright-traces-{0}-{1}', github.ref_name, github.event.pull_request.number) | replace('/', '-') }}
+          name: playwright-traces-${{ replace(github.ref_name, '/', '-') }}-${{ github.event.pull_request.number }}
           path: src/core/trace.zip
 
   test_worker:
