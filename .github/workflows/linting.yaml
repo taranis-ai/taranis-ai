@@ -58,8 +58,16 @@ jobs:
         with:
           retention-days: 7
           overwrite: true
-          name: ${{ format('playwright-traces-{0}-{1}', github.ref_name, github.event.pull_request.number) }}
+<<<<<<< Updated upstream
+          name: ${{ format('playwright-traces-{0}-{1}', github.ref_name, github.event.pull_request.number) | replace('/', '-') }}
           path: src/core/trace.zip
+||||||| Stash base
+          name: ${{ 'playwright-traces-' + github.ref_name + github.event.pull_request.number }}
+          path: trace.zip
+=======
+          name: ${{ 'playwright-traces-' + (github.ref_name || 'pr-' + github.event.pull_request.number) | replace('/', '-') }}
+          path: trace.zip
+>>>>>>> Stashed changes
 
   test_worker:
     name: pytest worker
