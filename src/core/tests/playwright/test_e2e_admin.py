@@ -9,8 +9,6 @@ from playwright_helpers import PlaywrightHelpers
 
 
 @pytest.mark.e2e_admin
-@pytest.mark.e2e_ci
-@pytest.mark.usefixtures("e2e_ci")
 class TestEndToEndAdmin(PlaywrightHelpers):
     """End-to-end tests for the Taranis AI admin interface."""
 
