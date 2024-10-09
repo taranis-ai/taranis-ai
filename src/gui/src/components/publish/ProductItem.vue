@@ -21,7 +21,7 @@
       </v-btn>
       <v-btn
         prepend-icon="mdi-content-save"
-        color="success"
+        :color="dirty ? 'warning' : 'success'"
         class="ml-3"
         variant="flat"
         @click="saveProduct"
@@ -109,6 +109,13 @@
               @close="publishDialog = false"
             />
           </v-dialog>
+          <v-dialog v-model="dirtyDialog" width="auto" min-width="500px">
+            <!-- TODO: Implement PopupDirty.vue -->
+            <!-- <popup-dirty
+              :dirty="dirty"
+              @close="dirty = false"
+            /> -->
+          </v-dialog>
         </v-col>
         <v-col v-if="showPreview" :cols="6" class="pa-5">
           <div v-if="renderedProduct">
@@ -193,6 +200,12 @@ export default {
     const showPreview = ref(props.edit)
     const publishDialog = ref(false)
     const form = ref(null)
+    const product = ref(props.productProp)
+    const preset = ref({ selected: null, name: 'Preset' })
+    const required = [(v) => Boolean(v) || 'Required']
+    const router = useRouter()
+    const dirty = ref(false) // set to true in watcher below if product has been altered and set to false after saveProduct
+    const dirtyDialog = ref(false) // set to true when dirty and user tries to either rerenderProduct or thies to open "publishDialog"
 
     useHotkeys('ctrl+p', (event, handler) => {
       event.preventDefault()
@@ -214,11 +227,6 @@ export default {
     const product_types = computed(() => {
       return publishStore.product_types.items
     })
-
-    const product = ref(props.productProp)
-    const preset = ref({ selected: null, name: 'Preset' })
-    const required = [(v) => Boolean(v) || 'Required']
-    const router = useRouter()
 
     const supported_report_types = computed(() => {
       const p = product_types.value.find(
@@ -347,6 +355,15 @@ export default {
       }
     )
 
+    watch(
+      () => product.value,
+      (newVal) => {
+        // TODO: check if product has been altered from the props.productProp
+        // if so set dirty flag dirty.value = true
+        console.debug('Product changed', newVal)
+      }
+    )
+
     onMounted(() => {
       publishStore.loadProductTypes()
       analyzeStore.loadReportItems()
@@ -360,6 +377,8 @@ export default {
 
     return {
       form,
+      dirty,
+      dirtyDialog,
       product,
       required,
       preset,
