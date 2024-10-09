@@ -1,15 +1,16 @@
 {
-  "name": "taranis-ui",
-  "private": true,
+  "name": "@taranis-ai/taranis-ui",
+  "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/taranis-ai/taranis-ai.git"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build && npm run patch_config",
     "build:docker": "vite build --base='/__TARANIS_BASE_PATH__/' && npm run patch_config",
     "preview": "vite preview",
-    "prepack": "node ./extras/update_version.js",
-    "postpack": "node ./extras/remove_version.js",
     "lint": "eslint --ext .js,.vue --fix src",
-    "package": "npm run prepack && npm pack && npm run postpack",
     "format": "prettier --write \"src/**/*.{js,vue}\"",
     "lint_and_format": "npm run lint && npm run format",
     "patch_config": "node ./extras/patch_config_json.js",

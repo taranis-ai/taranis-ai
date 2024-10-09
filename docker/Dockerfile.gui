@@ -1,6 +1,4 @@
-FROM node:lts as build-stage
-
-RUN npm install -g npm@latest
+FROM node:lts AS build-stage
 
 WORKDIR /app
 COPY ./src/gui/package*.json ./

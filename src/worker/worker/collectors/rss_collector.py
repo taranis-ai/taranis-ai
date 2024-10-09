@@ -19,10 +19,10 @@ class RSSCollector(BaseWebCollector):
         self.name = "RSS Collector"
         self.description = "Collector for gathering data from RSS feeds"
 
-        self.news_items = []
+        self.news_items: list[NewsItem] = []
         self.timeout = 60
         self.feed_url = ""
-        self.feed_content = None
+        self.feed_content: requests.Response
         self.last_modified = None
 
         logger_trafilatura = logging.getLogger("trafilatura")
@@ -32,8 +32,8 @@ class RSSCollector(BaseWebCollector):
         super().parse_source(source)
         self.feed_url = source["parameters"].get("FEED_URL")
         if not self.feed_url:
-            logger.warning("No FEED_URL set")
-            return {"error": "No FEED_URL set"}
+            logger.error("No FEED_URL set")
+            raise ValueError("No FEED_URL set")
 
         self.digest_splitting_limit = int(source["parameters"].get("DIGEST_SPLITTING_LIMIT", 30))
 
@@ -42,8 +42,7 @@ class RSSCollector(BaseWebCollector):
         try:
             return self.rss_collector(source, manual)
         except Exception as e:
-            logger.exception()
-            logger.error(f"RSS collector failed with error: {str(e)}")
+            logger.exception(f"RSS collector failed with error: {str(e)}")
             return str(e)
 
     def make_request(self, url: str) -> None | requests.Response:
@@ -85,6 +84,7 @@ class RSSCollector(BaseWebCollector):
         title: str = str(feed_entry.get("title", ""))
         description: str = str(feed_entry.get("description", ""))
         link: str = str(feed_entry.get("link", ""))
+        content: str = ""
 
         if link_transformer := source["parameters"].get("LINK_TRANSFORMER", None):
             link = self.link_transformer(link, link_transformer)
@@ -97,9 +97,9 @@ class RSSCollector(BaseWebCollector):
             content = str(feed_entry[content_location])
         if link:
             web_content = self.extract_web_content(link, self.xpath)
-            content = content if content_from_feed else web_content.get("content")
-            author = author or web_content.get("author")
-            title = title or web_content.get("title")
+            content = content if content_from_feed else str(web_content.get("content"))
+            author = author or str(web_content.get("author"))
+            title = title or str(web_content.get("title"))
             published = published or web_content.get("published_date") or self.last_modified
 
         if content == description:
@@ -132,7 +132,7 @@ class RSSCollector(BaseWebCollector):
                 return None
         return None
 
-    def update_favicon(self, feed: feedparser.FeedParserDict, source_id: str):
+    def update_favicon_from_feed(self, feed: feedparser.FeedParserDict, source_id: str):
         logger.info(f"RSS-Feed {self.feed_url} initial gather, get meta info about source like image icon and language")
         icon_url = f"{urlparse(self.feed_url).scheme}://{urlparse(self.feed_url).netloc}/favicon.ico"
         icon = feed.get("icon", feed.get("image"))
@@ -161,7 +161,7 @@ class RSSCollector(BaseWebCollector):
                 logger.warning(f"Error parsing feed entry: {str(e)}")
                 continue
         return self.news_items
-    
+
     def gather_news_items(self, feed, source) -> list[NewsItem]:
         if self.browser_mode == "true":
             self.playwright_manager = PlaywrightManager(self.proxies, self.headers)
@@ -173,13 +173,13 @@ class RSSCollector(BaseWebCollector):
 
             return self.news_items
 
-    def collect_news(self, feed, source) -> list | str:
+    def collect_news(self, feed, source) -> list[NewsItem]:
         if self.digest_splitting == "true":
             return self.handle_digests(feed["entries"][:42])
 
         return self.parse_feed(feed["entries"][:42], source)
 
-    def handle_digests(self, feed_entries: list[feedparser.FeedParserDict]) -> list[dict] | str:
+    def handle_digests(self, feed_entries: list[feedparser.FeedParserDict]) -> list[NewsItem]:
         self.split_digest_urls = self.get_digest_url_list(feed_entries)
         logger.info(f"RSS-Feed {self.osint_source_id} returned {len(self.split_digest_urls)} available URLs")
 
@@ -208,7 +208,7 @@ class RSSCollector(BaseWebCollector):
 
         last_attempted = self.get_last_attempted(source)
         if not last_attempted:
-            self.update_favicon(feed.feed, source["id"])
+            self.update_favicon_from_feed(feed.feed, source["id"])  # type: ignore
         last_modified = self.get_last_modified_feed(self.feed_content, feed)
         self.last_modified = last_modified
         if last_modified and last_attempted and last_modified < last_attempted and not manual:

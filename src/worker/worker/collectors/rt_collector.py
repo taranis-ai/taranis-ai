@@ -47,14 +47,16 @@ class RTCollector(BaseWebCollector):
             raise ValueError(err)
 
         if additional_headers := source["parameters"].get("ADDITIONAL_HEADERS", None):
-            self.set_additional_headers(additional_headers)
+            self.update_headers(additional_headers)
 
-    def preview_collector(self, source):
+    def preview_collector(self, source: dict) -> list[dict]:
         if err := self.setup_collector(source):
             raise ValueError(err)
 
         if tickets := self.rt_collector(source):
             return self.preview(tickets, source)
+
+        return []
 
     def collect(self, source: dict, manual: bool = False):
         if err := self.setup_collector(source):

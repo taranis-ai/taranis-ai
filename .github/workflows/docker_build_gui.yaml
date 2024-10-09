@@ -1,10 +1,11 @@
-name: GUI Docker image
+name: build gui
 
 on:
   push:
     paths:
     - 'src/gui/**'
     - 'docker/Dockerfile.gui'
+    - '.github/workflows/docker_build_gui.yaml'
     branches:
     - master
 
@@ -22,6 +23,8 @@ jobs:
         with:
           node-version: 20
           cache: 'npm'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@taranis-ai'
           cache-dependency-path: |
             src/gui/package-lock.json
       - name: Install dependencies
@@ -30,15 +33,12 @@ jobs:
       - name: Rebuild the dist/ directory
         working-directory: src/gui
         run: npm run build
-      - name: Package dist/
+      - name: Publish to GitHub Packages
         working-directory: src/gui
-        run: npm run package
-      - name: Release
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/v')
-        with:
-          files: |
-            src/gui/taranis-ui*.tgz
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 
   build_docker:
     name: build docker

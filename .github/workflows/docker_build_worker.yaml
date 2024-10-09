@@ -1,10 +1,11 @@
-name: Worker Docker image
+name: build worker
 
 on:
   push:
     paths:
     - 'src/worker/**'
     - 'docker/Dockerfile.worker'
+    - '.github/workflows/docker_build_worker.yaml'
     branches:
     - master
 

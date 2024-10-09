@@ -23,7 +23,7 @@ class BaseCollector:
         if not word_lists:
             return news_items
 
-        include_patterns: frozenset[str] = {
+        include_patterns: frozenset[re.Pattern] = {
             re.compile(r"\b" + re.escape(entry["value"]) + r"\b", re.IGNORECASE)
             for word_list in word_lists
             if "COLLECTOR_INCLUDELIST" in word_list["usage"]
@@ -52,10 +52,12 @@ class BaseCollector:
         return news_items
 
     def collect(self, source: dict, manual: bool = False):
-        pass
+        logger.error("Collector not implemented")
+        return "Collector not implemented"
 
-    def preview_collector(self, source: dict):
+    def preview_collector(self, source: dict) -> list[dict]:
         logger.error("Preview not implemented")
+        return []
 
     def sanitize_html(self, html: str):
         if not html:

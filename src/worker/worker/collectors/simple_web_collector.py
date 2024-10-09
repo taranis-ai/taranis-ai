@@ -15,10 +15,10 @@ class SimpleWebCollector(BaseWebCollector):
         self.description = "Collector for gathering news with Trafilatura"
 
         self.news_items = []
-        self.web_url = None
-        self.xpath = None
+        self.web_url: str
+        self.xpath: str
         self.last_modified = None
-        self.digest_splitting_limit = None
+        self.digest_splitting_limit: int
         logger_trafilatura = logging.getLogger("trafilatura")
         logger_trafilatura.setLevel(logging.WARNING)
 
@@ -27,7 +27,7 @@ class SimpleWebCollector(BaseWebCollector):
         self.web_url = source["parameters"].get("WEB_URL", None)
         if not self.web_url:
             logger.error("No WEB_URL set")
-            return {"error": "No WEB_URL set"}
+            raise ValueError("No WEB_URL set")
 
     def collect(self, source, manual: bool = False):
         self.parse_source(source)
@@ -36,8 +36,7 @@ class SimpleWebCollector(BaseWebCollector):
         try:
             return self.web_collector(source, manual)
         except Exception as e:
-            logger.exception()
-            logger.error(f"Simple Web Collector for {self.web_url} failed with error: {str(e)}")
+            logger.exception(f"Simple Web Collector for {self.web_url} failed with error: {str(e)}")
             return str(e)
 
     def preview_collector(self, source):

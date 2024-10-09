@@ -1,4 +1,3 @@
-import contextlib
 import datetime
 import hashlib
 import requests
@@ -7,11 +6,13 @@ import dateutil.parser as dateparser
 from urllib.parse import urlparse, urljoin
 from trafilatura import extract, extract_metadata
 from bs4 import BeautifulSoup
+from typing import Any
 import json
 
 from worker.log import logger
 from worker.types import NewsItem
 from worker.collectors.base_collector import BaseCollector
+from worker.collectors.playwright_manager import PlaywrightManager
 
 
 class BaseWebCollector(BaseCollector):
@@ -23,12 +24,12 @@ class BaseWebCollector(BaseCollector):
 
         self.proxies = None
         self.headers = {}
-        self.osint_source_id = None
+        self.osint_source_id: str
 
-        self.digest_splitting_limit = None
+        self.digest_splitting_limit: int
         self.split_digest_urls = []
 
-        self.playwright_manager = None
+        self.playwright_manager: PlaywrightManager | None = None
         self.browser_mode = None
 
     def parse_source(self, source):
@@ -81,7 +82,7 @@ class BaseWebCollector(BaseCollector):
         return None
 
     def fetch_article_content(self, web_url: str, xpath: str = "") -> tuple[str, datetime.datetime | None]:
-        if self.browser_mode == "true":
+        if self.browser_mode == "true" and self.playwright_manager:
             return self.playwright_manager.fetch_content_with_js(web_url, xpath), None
         response = requests.get(web_url, headers=self.headers, proxies=self.proxies, timeout=60)
         if not response or not response.ok:
@@ -101,15 +102,13 @@ class BaseWebCollector(BaseCollector):
         if get_content:
             return first_element.text_content()
 
-        return lxml.html.tostring(first_element).decode()
+        return lxml.html.tostring(first_element).decode()  # type: ignore   TODO: set encoding='unicode'
 
     def clean_url(self, url: str) -> str:
         return url.split("?")[0].split("#")[0]
 
     def extract_meta(self, web_content, web_url) -> tuple[str, str]:
-        # See https://github.com/adbar/htmldate/pull/145
-        with contextlib.suppress(ValueError):
-            metadata = extract_metadata(web_content, default_url=web_url)
+        metadata = extract_metadata(web_content, default_url=web_url)
         if metadata is None:
             return "", ""
 
@@ -131,7 +130,7 @@ class BaseWebCollector(BaseCollector):
             web_content["review"],
         )
 
-    def extract_web_content(self, web_url, xpath: str = "") -> dict[str, str | datetime.datetime | None]:
+    def extract_web_content(self, web_url, xpath: str = "") -> dict[str, Any]:
         web_content, published_date = self.fetch_article_content(web_url)
         content = ""
         if xpath:
@@ -154,8 +153,8 @@ class BaseWebCollector(BaseCollector):
         web_url: str,
         published_date: datetime.datetime | None,
         osint_source_id: str,
-        language: str = None,
-        review: str = None,
+        language: str | None = None,
+        review: str | None = None,
     ) -> NewsItem:
         for_hash: str = author + title + self.clean_url(web_url)
 
@@ -176,7 +175,7 @@ class BaseWebCollector(BaseCollector):
         urls = [a["href"] for a in soup.find_all("a", href=True)]
         return [urljoin(collector_url, url) for url in urls]
 
-    def parse_digests(self) -> list[NewsItem] | str:
+    def parse_digests(self) -> list[NewsItem]:
         news_items = []
         max_elements = min(len(self.split_digest_urls), self.digest_splitting_limit)
         for split_digest_url in self.split_digest_urls[:max_elements]:
