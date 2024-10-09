@@ -16,7 +16,7 @@
 </template>
 
 <script>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 
 export default {
   name: 'FilterSortList',
@@ -77,6 +77,21 @@ export default {
           ? 'mdi-arrow-down'
           : ''
     }
+
+    watch(
+      () => props.modelValue,
+      (newValue) => {
+        console.debug(`filterSortList: modelValue changed to ${newValue}`)
+        if (newValue) {
+          const [type, state] = newValue.split('_')
+          selectedButton.value = type
+          buttonState.value[type] = state
+        } else {
+          selectedButton.value = ''
+          buttonState.value = {}
+        }
+      }
+    )
 
     return {
       selectedButton,

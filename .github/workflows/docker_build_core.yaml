@@ -7,8 +7,6 @@ on:
     - 'docker/Dockerfile.core'
     branches:
     - master
-    tags:
-    - "**"
 
 permissions:
   packages: write
@@ -25,13 +23,21 @@ jobs:
           python-version: "3.12"
           cache: 'pip'
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
       - name: Install dependencies
         working-directory: src/core
         run: pip install -e .[dev]
 
-      - name: test
+      - name: unit tests
         working-directory: src/core
         run: pytest
+
+      - name: e2e tests
+        working-directory: src/core
+        run: pytest --e2e-ci
 
   build_wheel:
     name: build wheel
@@ -43,6 +49,7 @@ jobs:
         with:
           python-version: "3.12"
           cache: 'pip'
+
       - name: build
         working-directory: src/core
         run: |

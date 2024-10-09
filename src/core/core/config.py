@@ -1,23 +1,21 @@
-from pydantic import model_validator
-from pydantic_settings import BaseSettings
+from pydantic import model_validator, field_validator, ValidationInfo
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Any, Literal
 from datetime import datetime
 
 
 class Settings(BaseSettings):
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        extra = "ignore"
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     API_KEY: str = "supersecret"
+    APPLICATION_ROOT: str = "/"
     MODULE_ID: str = "Core"
     DEBUG: bool = False
-    SECRET_KEY: str = "supersecret"
 
+    JWT_SECRET_KEY: str = "supersecret"
     JWT_IDENTITY_CLAIM: str = "sub"
     JWT_ACCESS_TOKEN_EXPIRES: int = 14400
-    JWT_TOKEN_LOCATION: list = ["headers", "query_string"]
+    JWT_TOKEN_LOCATION: list = ["headers", "cookies"]
 
     DB_URL: str = "localhost"
     DB_DATABASE: str = "taranis"
@@ -36,7 +34,7 @@ class Settings(BaseSettings):
     CACHE_DEFAULT_TIMEOUT: int = 300
     SSE_URL: str = "http://sse:8088/publish"
     DISABLE_SSE: bool = False
-
+    DISABLE_SCHEDULER: bool = False
     TARANIS_CORE_SENTRY_DSN: str | None = None
 
     @model_validator(mode="after")  # type: ignore
@@ -88,6 +86,19 @@ class Settings(BaseSettings):
             "enable_utc": True,
         }
         return self
+
+    @field_validator("JWT_SECRET_KEY", "API_KEY", mode="before")
+    def check_non_empty_string(cls, v: str, info: ValidationInfo) -> str:
+        if not isinstance(v, str) or not v.strip():
+            raise ValueError(f"{info.field_name} must be a non-empty string")
+        return v
+
+    @field_validator("APPLICATION_ROOT", mode="before")
+    def ensure_start_and_end_slash(cls, v: str, info: ValidationInfo) -> str:
+        if not v or v == "/":
+            return "/"
+
+        return f"/{v.strip('/')}/"
 
 
 Config = Settings()

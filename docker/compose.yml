@@ -16,6 +16,7 @@ services:
       TARANIS_CORE_UPSTREAM: "${TARANIS_CORE_UPSTREAM:-core:8080}"
       TARANIS_SSE_UPSTREAM: "${TARANIS_SSE_UPSTREAM:-sse:8088}"
       TARANIS_GUI_SENTRY_DSN: "${TARANIS_GUI_SENTRY_DSN:-}"
+      TARANIS_BASE_PATH: "${TARANIS_BASE_PATH:-/}"
     logging:
       driver: "json-file"
       options:
@@ -25,6 +26,8 @@ services:
   core:
     depends_on:
       database:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     deploy:
       restart_policy:
@@ -39,6 +42,7 @@ services:
       DB_USER: "${DB_USER:-taranis}"
       DB_PASSWORD: "${POSTGRES_PASSWORD:-taranis}"
       TARANIS_AUTHENTICATOR: "${TARANIS_AUTHENTICATOR:-database}"
+      APPLICATION_ROOT: "${TARANIS_BASE_PATH:-/}"
 
       QUEUE_BROKER_HOST: "rabbitmq"
       QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
@@ -50,11 +54,16 @@ services:
       PRE_SEED_PASSWORD_ADMIN: "${PRE_SEED_PASSWORD_ADMIN:-admin}"
       PRE_SEED_PASSWORD_USER: "${PRE_SEED_PASSWORD_USER:-user}"
       JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
-      SECRET_KEY: "${API_KEY}"
       API_KEY: "${API_KEY}"
       DEBUG: "${DEBUG:-False}"
     volumes:
       - "core_data:/app/data"
+    healthcheck:
+      test: ["CMD-SHELL", "sh -c 'curl --fail http://localhost:${TARANIS_CORE_LISTEN_PORT:-8080}${TARANIS_BASE_PATH:-/}api/isalive'"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 3s
     logging:
       driver: "json-file"
       options:
@@ -77,6 +86,7 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "sh -c 'pg_isready -U ${DB_USER:-taranis} -d ${DB_DATABASE:-taranis}'"]
       interval: 10s
+      start_period: 10s
       timeout: 3s
       retries: 3
     volumes:
@@ -88,29 +98,18 @@ services:
         max-file: "10"
 
 
-  beat:
-    depends_on:
-      - rabbitmq
+  scheduler:
     deploy:
       restart_policy:
         condition: on-failure
         max_attempts: 3
-    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-worker:${TARANIS_TAG:-latest}"
-    command: "--app worker beat"
+    # ports:
+    #   - "8000:8000"
+    image: "${DOCKER_IMAGE_NAMESPACE}/taranis-scheduler:${TARANIS_SCHEDULER_TAG:-latest}"
     environment:
       TARANIS_CORE_URL: "${TARANIS_CORE_URL:-http://core:8080/api}"
-      API_KEY: "${API_KEY}"
-      QUEUE_BROKER_HOST: "rabbitmq"
-      QUEUE_BROKER_USER: "${RABBITMQ_USER:-taranis}"
-      QUEUE_BROKER_PASSWORD: "${RABBITMQ_PASSWORD:-taranis}"
-      WORKER_TYPES: '[]'
+      APPLICATION_ROOT: "${TARANIS_BASE_PATH:-/}scheduler"
       DEBUG: "${DEBUG:-False}"
-    healthcheck:
-      test: ["CMD-SHELL", "WORKER_TYPES='[]' celery --app worker celery inspect ping --destination $$QUEUE_BROKER_USER@$$QUEUE_BROKER_HOST"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 5s
     logging:
       driver: "json-file"
       options:
@@ -119,7 +118,8 @@ services:
 
   collector:
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
     deploy:
       restart_policy:
         condition: on-failure
@@ -134,7 +134,7 @@ services:
       WORKER_TYPES: '["Collectors", "Bots"]'
       DEBUG: "${DEBUG:-False}"
     healthcheck:
-      test: ["CMD-SHELL", "WORKER_TYPES='[]' celery --app worker celery inspect ping --destination $$QUEUE_BROKER_USER@$$QUEUE_BROKER_HOST"]
+      test: ["CMD-SHELL", "WORKER_TYPES='[]' celery --app worker status | grep $(hostname) | grep -q 'OK'"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -148,7 +148,8 @@ services:
 
   publisher:
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
     deploy:
       restart_policy:
         condition: on-failure
@@ -163,7 +164,7 @@ services:
       WORKER_TYPES: '["Presenters", "Publishers"]'
       DEBUG: "${DEBUG:-False}"
     healthcheck:
-      test: ["CMD-SHELL", "WORKER_TYPES='[]' celery --app worker celery inspect ping --destination $$QUEUE_BROKER_USER@$$QUEUE_BROKER_HOST"]
+      test: ["CMD-SHELL", "WORKER_TYPES='[]' celery --app worker status | grep $(hostname) | grep -q 'OK'"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -176,6 +177,7 @@ services:
 
   rabbitmq:
     image: "${DOCKER_IMAGE_NAMESPACE}/rabbitmq:latest"
+    user: rabbitmq
     # ports:
     #  - "${TARANIS_RABBITMQ_PORT:-5672}:5672"
     #  - "${TARANIS_RABBITMQ_MGMT_PORT:-15672}:15672"
@@ -184,6 +186,12 @@ services:
     environment:
       - "RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-taranis}"
       - "RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-taranis}"
+    healthcheck:
+      test: "rabbitmqctl await_startup"
+      interval: 10s
+      start_period: 10s
+      timeout: 3s
+      retries: 3
     logging:
       driver: "json-file"
       options:
@@ -196,6 +204,7 @@ services:
     #  - "${TARANIS_SSE_PORT:-8088}:8088"
     environment:
       JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
+      SSE_PATH: "${TARANIS_BASE_PATH:-/}sse"
       API_KEY: "${API_KEY}"
     logging:
       driver: "json-file"

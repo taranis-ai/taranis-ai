@@ -50,7 +50,9 @@ install_basic_utils() {
         curl \
         ca-certificates \
         build-essential \
-        software-properties-common
+        software-properties-common \
+        libpq-dev \
+        clang
 }
 
 install_astral() {

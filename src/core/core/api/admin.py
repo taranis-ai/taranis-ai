@@ -4,6 +4,7 @@ from flask.views import MethodView
 from core.managers.auth_manager import auth_required
 from core.model.news_item_tag import NewsItemTag
 from core.managers import queue_manager
+from core.config import Config
 
 
 class AdminSettings(MethodView):
@@ -42,7 +43,7 @@ class ClearQueues(MethodView):
 
 
 def initialize(app: Flask):
-    admin_bp = Blueprint("admin", __name__, url_prefix="/api/admin")
+    admin_bp = Blueprint("admin", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/admin")
 
     admin_bp.add_url_rule("/", view_func=AdminSettings.as_view("admin_settings"))
     admin_bp.add_url_rule("/delete-tags", view_func=DeleteTags.as_view("delete_tags"))

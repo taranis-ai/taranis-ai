@@ -1027,76 +1027,6 @@ paths:
         '404':
           $ref: "#/components/responses/404NotFound"
 
-  /beat/schedule:
-    get:
-      security:
-      - APIKey: []
-      description: Get all schedule entries
-      responses:
-        '200':
-          description: OK
-        '404':
-          description: Not found
-        '401':
-          $ref: "#/components/responses/401Unauthorized"
-
-    put:
-      security:
-      - APIKey: []
-      description: Sync schedule entries
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: array
-              items:
-                $ref: '#/components/schemas/ScheduleEntry'
-      responses:
-        '200':
-          description: OK
-        '400':
-          description: Bad request
-        '401':
-          $ref: "#/components/responses/401Unauthorized"
-  /beat/schedule/{schedule_id}:
-    get:
-      security:
-      - APIKey: []
-      description: Get schedule entry by ID
-      parameters:
-        - name: schedule_id
-          in: path
-          required: true
-          schema:
-            type: string
-          description: ID of the schedule entry to retrieve
-      responses:
-        '200':
-          description: OK
-        '404':
-          description: Not found
-        '401':
-          $ref: "#/components/responses/401Unauthorized"
-  /beat/next-run-time:
-    put:
-      security:
-      - APIKey: []
-      description: Update next run time
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/NextRunTime'
-      responses:
-        '200':
-          description: OK
-        '400':
-          description: Bad request
-        '401':
-          $ref: "#/components/responses/401Unauthorized"
-
   /bots/news-item:
     get:
       security:
@@ -3417,46 +3347,6 @@ components:
           type: string
         id:
           type: string
-    ScheduleEntry:
-      type: object
-      properties:
-        id:
-          type: string
-        bot_id:
-          type: string
-        source_id:
-          type: string
-        frequency:
-          type: string
-        next_run_time:
-          type: string
-          format: date-time
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-      required:
-        - id
-        - bot_id
-        - source_id
-        - frequency
-        - next_run_time
-    NextRunTime:
-      type: object
-      properties:
-        bot_id:
-          type: string
-        source_id:
-          type: string
-        next_run_time:
-          type: string
-          format: date-time
-      required:
-        - bot_id
-        - source_id
-        - next_run_time
 
     osint_source_update_status:
       type: object
@@ -3725,10 +3615,12 @@ components:
   securitySchemes:
     APIKey:
       type: http
+      in: header
       scheme: bearer
       bearerFormat: APIKEY
     UserAuth:
       type: http
+      in: header
       scheme: bearer
       bearerFormat: JWT
 

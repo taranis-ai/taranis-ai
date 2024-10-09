@@ -11,6 +11,7 @@ from core.managers.decorators import validate_json
 from core.managers import queue_manager
 from core.service.news_item import NewsItemService
 from core.audit import audit_logger
+from core.config import Config
 
 
 class OSINTSourceGroupsList(MethodView):
@@ -217,7 +218,7 @@ class BotActions(MethodView):
 
 
 def initialize(app: Flask):
-    assess_bp = Blueprint("assess", __name__, url_prefix="/api/assess")
+    assess_bp = Blueprint("assess", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/assess")
 
     assess_bp.add_url_rule("/stories", view_func=Stories.as_view("stories"))
     assess_bp.add_url_rule("/story/<string:story_id>", view_func=Story.as_view("story"))

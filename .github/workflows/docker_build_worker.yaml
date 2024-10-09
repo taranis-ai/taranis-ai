@@ -7,8 +7,6 @@ on:
     - 'docker/Dockerfile.worker'
     branches:
     - master
-    tags:
-    - "**"
 
 permissions:
   packages: write
@@ -23,6 +21,10 @@ jobs:
         with:
           python-version: "3.12"
           cache: 'pip'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
 
       - name: Install dependencies
         working-directory: src/worker

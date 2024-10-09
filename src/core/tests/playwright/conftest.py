@@ -23,7 +23,13 @@ def build_gui(install_node_modules):
     try:
         if not os.path.isdir("../gui/dist"):
             print("Building GUI")
-            result = subprocess.call(["npm", "run", "build"], cwd="../gui")
+            env = os.environ.copy()
+            env["VITE_TARANIS_CONFIG_JSON"] = "/config.json"
+            result = subprocess.call(
+                ["npm", "run", "build"],
+                cwd="../gui",
+                env=env,
+            )
             assert result == 0, f"Build failed with status code: {result}"
         else:
             print("Reusing existing dist folder, delete it to force a rebuild")
@@ -33,9 +39,11 @@ def build_gui(install_node_modules):
 
 @pytest.fixture(scope="class")
 def e2e_ci(request):
-    request.cls.ci_run = request.config.getoption("--e2e-user-ci") == "e2e_user_ci"
+    request.cls.ci_run = request.config.getoption("--e2e-ci") == "e2e_ci"
     request.cls.wait_duration = float(request.config.getoption("--highlight-delay"))
-    request.cls.record_video = request.config.getoption("--record-video")
+
+    if request.cls.ci_run:
+        print("Running in CI mode")
 
 
 @pytest.fixture(scope="session")
@@ -46,6 +54,13 @@ def e2e_server(app, live_server, stories, build_gui):
     live_server.app = app
     live_server.start()
     yield live_server
+
+
+@pytest.fixture(scope="session")
+def pic_prefix(request):
+    if request.config.getoption("--e2e-admin"):
+        yield "docs_"
+    yield ""
 
 
 @pytest.fixture(scope="session")
@@ -69,13 +84,19 @@ def browser_context_args(browser_context_args, browser_type_launch_args, request
 
 
 @pytest.fixture(scope="session")
-def taranis_frontend(e2e_server, browser_context_args, browser: Browser):
+def taranis_frontend(request, e2e_server, browser_context_args, browser: Browser):
     context = browser.new_context(**browser_context_args)
     # Drop timeout from 30s to 10s
-    context.set_default_timeout(10000)
+    timeout = int(request.config.getoption("--e2e-timeout"))
+    context.set_default_timeout(timeout)
+    if request.config.getoption("--e2e-ci") == "e2e_ci":
+        context.tracing.start(screenshots=True, snapshots=True, sources=True)
+
     page = context.new_page()
     page.goto(e2e_server.url())
     yield page
+    if request.config.getoption("--e2e-ci") == "e2e_ci":
+        context.tracing.stop(path="trace.zip")
 
 
 @pytest.fixture(scope="session")
@@ -118,21 +139,24 @@ def fake_source(app, e2e_setup):
         yield source_data["id"]
 
 
+def random_timestamp_last_5_days() -> str:
+    now = datetime.now()
+    start_time = now - timedelta(days=5)
+    return (start_time + timedelta(seconds=random.randint(0, int((now - start_time).total_seconds())))).isoformat()
+
+
 @pytest.fixture(scope="session")
 def stories(app, news_items_list):
     from core.model.story import Story
     from core.model.user import User
 
-    def _generate_timestamp():
-        now = datetime.now()
-
+    def _renew_story_timestamps():
         for item in news_items_list:
-            random_hours = random.randint(1, 4)
-            new_time = now - timedelta(hours=random_hours)
-            item.update({"published": new_time.isoformat()})
-            item.update({"collected": new_time.isoformat()})
+            new_time = random_timestamp_last_5_days()
+            item.update({"published": new_time})
+            item.update({"collected": new_time})
 
-    _generate_timestamp()
+    _renew_story_timestamps()
 
     with app.app_context():
         story_ids = Story.add_news_items(news_items_list)[0].get("story_ids")

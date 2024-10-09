@@ -54,30 +54,6 @@
         </DataTable>
       </v-col>
     </v-row>
-    <v-row no-gutters>
-      <v-col class="pa-2">
-        <DataTable
-          :items="enhanced_schedule"
-          :add-button="false"
-          :header-filter="[
-            'task',
-            'schedule',
-            'args',
-            'last_run_at',
-            'total_run_count',
-            'actions'
-          ]"
-          @delete-item="deleteItem"
-          @selection-change="selectionChange"
-        >
-          <template #titlebar>
-            <v-col cols="12" class="mt-3">
-              <h3 class="text-primary">Schedule</h3>
-            </v-col>
-          </template>
-        </DataTable>
-      </v-col>
-    </v-row>
   </v-container>
 </template>
 
@@ -99,14 +75,12 @@ export default {
     const selected = ref([])
     const configStore = useConfigStore()
 
-    const { enhanced_schedule, workers, queue_status, queue_tasks } =
-      storeToRefs(configStore)
+    const { workers, queue_status, queue_tasks } = storeToRefs(configStore)
 
     async function updateData() {
       await Promise.all([
         configStore.loadOSINTSources(),
         configStore.loadQueueStatus(),
-        configStore.loadSchedule(),
         configStore.loadWorkers(),
         configStore.loadQueueTasks()
       ])
@@ -131,7 +105,6 @@ export default {
       workers,
       queue_status,
       queue_tasks,
-      enhanced_schedule,
       updateData,
       deleteItem,
       selectionChange

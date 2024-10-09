@@ -12,12 +12,6 @@ from playwright_helpers import PlaywrightHelpers
 class TestEndToEndAdmin(PlaywrightHelpers):
     """End-to-end tests for the Taranis AI admin interface."""
 
-    wait_duration: float = 0
-    ci_run: bool = True
-
-    def test_setup_pwhelpers(self, taranis_frontend: Page):
-        PlaywrightHelpers.config_pwhelpers(self, wait_duration=self.wait_duration, ci_run=self.ci_run)
-
     def test_login(self, taranis_frontend: Page):
         page = taranis_frontend
         self.add_keystroke_overlay(page)
@@ -285,23 +279,3 @@ class TestEndToEndAdmin(PlaywrightHelpers):
             page.screenshot(path="./tests/playwright/screenshots/docs_publish_panel.png")
 
         show_publish()
-
-    def test_analyze(self, e2e_server, taranis_frontend: Page):
-        from tests.playwright.test_e2e_user import TestEndToEndUser
-
-        page = taranis_frontend
-
-        def delete_multiple_reports():
-            page.get_by_role("checkbox").nth(2).click()
-            page.get_by_role("checkbox").nth(4).click()
-            time.sleep(0.5)
-            page.screenshot(path="./tests/playwright/screenshots/docs_report_item_delete_multiple.png")
-
-        e2e = TestEndToEndUser()
-        e2e.ci_run = self.ci_run
-
-        e2e.test_e2e_assess(taranis_frontend=page, e2e_server=e2e_server, pic_prefix="docs_")
-        print(e2e_server.url())
-        e2e.test_e2e_analyze(e2e_server=e2e_server, taranis_frontend=page, pic_prefix="docs_")
-
-        delete_multiple_reports()

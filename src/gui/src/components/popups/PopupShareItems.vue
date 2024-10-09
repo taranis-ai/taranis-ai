@@ -28,7 +28,7 @@
         prepend-icon="mdi-share-outline"
         @click="share()"
       >
-      Add to Report
+        Add to Report
       </v-btn>
     </v-card-actions>
   </v-card>

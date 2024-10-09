@@ -6,7 +6,12 @@ export async function getLocalConfig() {
       typeof import.meta.env.VITE_TARANIS_CONFIG_JSON === 'undefined'
         ? '/config.json'
         : import.meta.env.VITE_TARANIS_CONFIG_JSON
-    const response = await axios.get(configJson, { baseURL: '' })
+
+    console.debug(`Loading config from ${configJson}`)
+
+    const response = await axios.get(configJson, {
+      baseURL: import.meta.env.BASE_URL
+    })
     return response.data
   } catch (error) {
     if (error.response && error.response.status === 404) {
@@ -14,6 +19,8 @@ export async function getLocalConfig() {
     } else {
       console.error('Error parsing config file:', error.message)
     }
-    return null
+    return {
+      TARANIS_CORE_API: '/api'
+    }
   }
 }
