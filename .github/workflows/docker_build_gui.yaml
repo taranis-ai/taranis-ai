@@ -1,10 +1,11 @@
-name: GUI Docker image
+name: build gui
 
 on:
   push:
     paths:
     - 'src/gui/**'
     - 'docker/Dockerfile.gui'
+    - '.github/workflows/docker_build_gui.yaml'
     branches:
     - master
 
@@ -30,15 +31,6 @@ jobs:
       - name: Rebuild the dist/ directory
         working-directory: src/gui
         run: npm run build
-      - name: Package dist/
-        working-directory: src/gui
-        run: npm run package
-      - name: Release
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/v')
-        with:
-          files: |
-            src/gui/taranis-ui*.tgz
 
   build_docker:
     name: build docker

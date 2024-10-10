@@ -1,10 +1,11 @@
-name: Core Docker image
+name: build core
 
 on:
   push:
     paths:
     - 'src/core/**'
     - 'docker/Dockerfile.core'
+    - '.github/workflows/docker_build_core.yaml'
     branches:
     - master
 
