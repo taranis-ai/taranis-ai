@@ -13,7 +13,9 @@ Analysts then refine these AI-augmented articles into structured reports that se
 
 For production deployments see our [Deployment Guide using docker compose](https://taranis.ai/docs/getting-started/deployment/)
 
-For Development read our [Dev Setup Guide](./docker/dev/README.md)
+## Contributions
+
+We welcome contributions from the community! If you're interested in contributing to Taranis AI, please read our [Development Setup Guide](./docker/dev/README.md) to get started.
 
 ## Documentation
 

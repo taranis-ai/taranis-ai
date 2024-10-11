@@ -45,7 +45,7 @@ class RSSCollector(BaseWebCollector):
             logger.exception(f"RSS collector failed with error: {str(e)}")
             return str(e)
 
-    def make_request(self, url: str) -> None | requests.Response:
+    def make_request(self, url: str) -> requests.Response:
         response = requests.get(url, headers=self.headers, proxies=self.proxies, timeout=self.timeout)
         if not response.ok:
             raise RuntimeError(f"Response not ok: {response.status_code}")
