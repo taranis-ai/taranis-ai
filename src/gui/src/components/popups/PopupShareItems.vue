@@ -1,8 +1,8 @@
 <template>
   <v-card>
-    <v-card-title> Share Items </v-card-title>
+    <v-card-title> Add to Report </v-card-title>
     <v-card-text>
-      Select a report to share the item with:
+      Select a report to add the item to:
       <v-autocomplete
         v-model="reportItemSelection"
         single-line
@@ -28,7 +28,7 @@
         prepend-icon="mdi-share-outline"
         @click="share()"
       >
-        share
+        Add to Report
       </v-btn>
     </v-card-actions>
   </v-card>

@@ -1,15 +1,13 @@
-name: GUI Docker image
+name: build gui
 
 on:
   push:
     paths:
     - 'src/gui/**'
     - 'docker/Dockerfile.gui'
+    - '.github/workflows/docker_build_gui.yaml'
     branches:
     - master
-    tags:
-    - "**"
-
 
 permissions:
   packages: write
@@ -33,15 +31,6 @@ jobs:
       - name: Rebuild the dist/ directory
         working-directory: src/gui
         run: npm run build
-      - name: Package dist/
-        working-directory: src/gui
-        run: npm run package
-      - name: Release
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/v')
-        with:
-          files: |
-            src/gui/taranis-ui*.tgz
 
   build_docker:
     name: build docker
@@ -60,8 +49,6 @@ jobs:
         run: |
           echo "GHCR_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >>${GITHUB_ENV}
           echo "GIT_INFO=$(./docker/git_info.sh)" >>${GITHUB_ENV}
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
       - name: Build and push gui
         uses: docker/build-push-action@v5
         with:

@@ -9,15 +9,13 @@ Analysts then refine these AI-augmented articles into structured reports that se
 
 ![Screenshot](./resources/images/screenshot.png)
 
-
 ## Getting Started
-
 
 For production deployments see our [Deployment Guide using docker compose](https://taranis.ai/docs/getting-started/deployment/)
 
+## Contributions
 
-For Development read our [Dev Setup Guide](./docker/dev/README.md)
-
+We welcome contributions from the community! If you're interested in contributing to Taranis AI, please read our [Development Setup Guide](./docker/dev/README.md) to get started.
 
 ## Documentation
 
@@ -25,23 +23,22 @@ See [ADVANCED OSINT ANALYSIS FOR NIS AUTHORITIES, CSIRT TEAMS AND ORGANISATIONS]
 
 See [taranis.ai](https://taranis.ai/docs/) for documentation of user stories and deployment guides.
 
-
 ## Services
+
 | Type      | Name      | Description                           |
 | :-------- | :-------- | :------------------------------------ |
 | Backend   | core      | Backend for communication with the Database and offering REST Endpoints to workers and frontend |
 | Frontend  | gui       | Vuejs3 based Frontend |
 | Worker    | worker    | Celery Worker offering collectors, bots, presenters and publisher features |
-| Worker    | beat      | Celery Beat instance for scheduling tasks |
-
 
 ### Support services
+
 | Type            | Name                 | Description                           |
 | :-------------- | :------------------- | :------------------------------------ |
 | Database        | database             | Supported are PostgreSQL and SQLite with PostgreSQL as our primary citizen |
 | Message-broker  | rabbitmq             | Message Broker for distribution of Workers and Publish Subscribe Queue Management |
 | SSE             | sse                  | [SSE Broker](https://github.com/taranis-ai/sse-broker) |
-
+| Scheduler       | scheduler            | [taranis-scheduler](https://github.com/taranis-ai/taranis-scheduler) |
 
 ## Features
 
@@ -52,26 +49,24 @@ See [taranis.ai](https://taranis.ai/docs/) for documentation of user stories and
 * Seamless Publishing: Facilitates the effortless publication of finalized intelligence products, ensuring timely dissemination of critical information.
 
 ### OpenAPI
+
 <img src="https://validator.swagger.io/validator?url=https://raw.githubusercontent.com/taranis-ai/taranis-ai/master/src/core/core/static/openapi3_1.yaml">
 
 An [OpenAPI spec](./src/core/core/static/openapi3_1.yaml) for the REST API is included and can be accessed in a running installation under `config/openapi`.
 
-
-
 ### Hardware requirements
-To use all NLP features make sure to have at least: 16 GB RAM, 4 CPU cores and 50GB of disk storage.
 
+To use all NLP features make sure to have at least: 16 GB RAM, 4 CPU cores and 50GB of disk storage.
 
 Without NLP: 2 GB of RAM, 2 CPU cores and 20 GB of disk storage
 
-
 ### Directory structure
 
-- src/ - Taranis AI source code:
-  - [Core](src/core/) is the REST API, the central component of Taranis AI
-  - [GUI](src/gui/) is the web user interface
-  - [Worker](src/worker/) retrieve OSINT information from various sources (such as web, twitter, email, atom, rss, slack, and more) and create **news items**.
-- [docker/](docker/) - Support files for Docker image creation and example docker-compose file
+* src/ - Taranis AI source code:
+  * [core](src/core/) is the REST API, the central component of Taranis AI
+  * [gui](src/gui/) is the web user interface
+  * [worker](src/worker/) retrieve OSINT information from various sources (such as web, twitter, email, atom, rss, slack, and more) and create **news items**.
+* [docker/](docker/) - Support files for Docker image creation and example docker-compose file
 
 ## About
 

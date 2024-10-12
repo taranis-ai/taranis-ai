@@ -1,14 +1,13 @@
-name: Worker Docker image
+name: build worker
 
 on:
   push:
     paths:
     - 'src/worker/**'
     - 'docker/Dockerfile.worker'
+    - '.github/workflows/docker_build_worker.yaml'
     branches:
     - master
-    tags:
-    - "**"
 
 permissions:
   packages: write
@@ -23,6 +22,10 @@ jobs:
         with:
           python-version: "3.12"
           cache: 'pip'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
 
       - name: Install dependencies
         working-directory: src/worker

@@ -23,14 +23,14 @@ class BaseCollector:
         if not word_lists:
             return news_items
 
-        include_patterns: frozenset[str] = {
+        include_patterns: set[re.Pattern] = {
             re.compile(r"\b" + re.escape(entry["value"]) + r"\b", re.IGNORECASE)
             for word_list in word_lists
             if "COLLECTOR_INCLUDELIST" in word_list["usage"]
             for entry in word_list["entries"]
         }
 
-        exclude_patterns: frozenset[str] = {
+        exclude_patterns: set[re.Pattern] = {
             re.compile(r"\b" + re.escape(entry["value"]) + r"\b", re.IGNORECASE)
             for word_list in word_lists
             if "COLLECTOR_EXCLUDELIST" in word_list["usage"]
@@ -52,10 +52,10 @@ class BaseCollector:
         return news_items
 
     def collect(self, source: dict, manual: bool = False):
-        pass
+        raise NotImplementedError
 
-    def preview_collector(self, source: dict):
-        logger.error("Preview not implemented")
+    def preview_collector(self, source: dict) -> list[dict]:
+        raise NotImplementedError
 
     def sanitize_html(self, html: str):
         if not html:
@@ -69,13 +69,13 @@ class BaseCollector:
         """
         return quote(url, safe="/:@?&=+$,;")
 
-    def sanitize_date(self, date: str | None):
+    def sanitize_date(self, date: str | None | datetime.datetime) -> datetime.datetime:
         if isinstance(date, datetime.datetime):
-            return date.isoformat()
+            return date
         if isinstance(date, str):
             with contextlib.suppress(ValueError):
-                return datetime.datetime.fromisoformat(date).isoformat()
-        return datetime.datetime.now().isoformat()
+                return datetime.datetime.fromisoformat(date)
+        return datetime.datetime.now()
 
     def sanitize_news_item(self, item: NewsItem, source: dict) -> NewsItem:
         if not item.osint_source_id:

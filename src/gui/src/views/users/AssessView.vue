@@ -1,5 +1,15 @@
 <template>
   <div class="w-100">
+    <div v-if="loading" class="d-flex justify-center align-center">
+      <v-progress-circular
+        color="primary"
+        indeterminate
+        size="64"
+        width="8"
+        class="mr-3 mt-3 mb-5"
+      />
+      loading new items ...
+    </div>
     <v-infinite-scroll
       v-if="stories.items.length > 0 && infiniteScroll"
       empty-text="All items loaded"
@@ -10,16 +20,7 @@
       <template v-for="item in stories.items" :key="item.id">
         <card-story :story="item" @refresh="refresh(item.id)" />
       </template>
-      <template #loading>
-        <v-progress-circular
-          color="primary"
-          indeterminate
-          size="24"
-          width="4"
-          class="mr-3 mt-3 mb-5"
-        />
-        loading new items ...
-      </template>
+      <template #loading />
     </v-infinite-scroll>
 
     <v-container v-else-if="stories.items.length > 0 && !infiniteScroll" fluid>
@@ -64,7 +65,8 @@ import {
   computed,
   onDeactivated,
   onActivated,
-  onBeforeMount
+  onBeforeMount,
+  watch
 } from 'vue'
 import { useAssessStore } from '@/stores/AssessStore'
 import { useFilterStore } from '@/stores/FilterStore'
@@ -84,6 +86,8 @@ export default defineComponent({
     const filterStore = useFilterStore()
     const { stories, loading, storyCounts } = storeToRefs(assessStore)
     const { storyFilter, storyPage, infiniteScroll } = storeToRefs(filterStore)
+
+    let doneCallback = null
 
     assessHotkeys()
     const page = computed({
@@ -110,6 +114,8 @@ export default defineComponent({
     }
 
     async function displayMore({ done }) {
+      console.debug(`moreToLoad: ${moreToLoad.value}`)
+      doneCallback = done
       if (!moreToLoad.value) {
         done('empty')
         return
@@ -130,6 +136,12 @@ export default defineComponent({
       filterStore.resetFilter()
       assessStore.updateStories()
     }
+
+    watch(storyFilter.value, () => {
+      if (typeof doneCallback === 'function') {
+        doneCallback('ok')
+      }
+    })
 
     onBeforeMount(() => {
       assessStore.updateStories()

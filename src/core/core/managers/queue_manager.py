@@ -5,14 +5,10 @@ import contextlib
 from requests.auth import HTTPBasicAuth
 
 from core.log import logger
-from core.model.queue import ScheduleEntry
 from kombu.exceptions import OperationalError
 from kombu import Queue
 
 queue_manager: "QueueManager"
-periodic_tasks = [
-    {"id": "cleanup_token_blacklist", "task": "cleanup_token_blacklist", "schedule": "daily", "options": {"queue": "misc"}},
-]
 
 
 class QueueManager:
@@ -25,7 +21,7 @@ class QueueManager:
         self.queue_names = ["misc", "bots", "celery", "collectors", "presenters", "publishers"]
 
     def init_app(self, app: Flask):
-        celery_app = Celery(app.name)
+        celery_app = Celery("taranis-ai")
         celery_app.config_from_object(app.config["CELERY"])
         celery_app.set_default()
         app.extensions["celery"] = celery_app
@@ -33,17 +29,11 @@ class QueueManager:
 
     def post_init(self):
         self.clear_queues()
-        self.add_periodic_tasks()
         self.update_task_queue_from_osint_sources()
         self.schedule_word_list_gathering()
-        logger.debug(f"{self.get_queued_tasks()=}")
-
-    def add_periodic_tasks(self):
-        for task in periodic_tasks:
-            ScheduleEntry.add_or_update(task)
 
     def clear_queues(self):
-        with queue_manager.celery.connection() as conn:
+        with self.celery.connection() as conn:
             for queue_name in set(self.queue_names):
                 with contextlib.suppress(Exception):
                     queue = Queue(name=queue_name, channel=conn)
@@ -100,7 +90,7 @@ class QueueManager:
     def get_queue_status(self) -> tuple[dict, int]:
         if self.error:
             return {"error": "Could not reach rabbitmq", "url": ""}, 500
-        return {"status": "🚀 Up and running 🏃", "url": f"{queue_manager.celery.broker_connection().as_uri()}"}, 200
+        return {"status": "🚀 Up and running 🏃", "url": f"{self.celery.broker_connection().as_uri()}"}, 200
 
     def get_task(self, task_id) -> tuple[dict, int]:
         if self.error:

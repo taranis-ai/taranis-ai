@@ -52,7 +52,7 @@ class AuthMethod(MethodView):
 
 
 def initialize(app: Flask):
-    auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
+    auth_bp = Blueprint("auth", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/auth")
 
     auth_bp.add_url_rule("/login", view_func=Login.as_view("login"))
     auth_bp.add_url_rule("/refresh", view_func=Refresh.as_view("refresh"))

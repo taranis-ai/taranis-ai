@@ -1,25 +1,21 @@
 #!/usr/bin/env python3
-import re
-import time
-import pytest
-from playwright.sync_api import expect, Page
 
+import pytest
+import time
+import re
+from playwright.sync_api import expect, Page
 from playwright_helpers import PlaywrightHelpers
 
 
 @pytest.mark.e2e_user
-@pytest.mark.e2e_user_ci
+@pytest.mark.e2e_ci
 @pytest.mark.usefixtures("e2e_ci")
 class TestEndToEndUser(PlaywrightHelpers):
-    wait_duration: float = 2
-    ci_run: bool = False
-
-    def test_setup_pwhelpers(self, taranis_frontend: Page):
-        PlaywrightHelpers.config_pwhelpers(self, wait_duration=self.wait_duration, ci_run=self.ci_run)
-
     @pytest.mark.e2e_publish
     def test_e2e_login(self, taranis_frontend: Page):
         page = taranis_frontend
+        expect(page).to_have_title("Taranis AI", timeout=5000)
+
         self.add_keystroke_overlay(page)
 
         expect(page).to_have_title("Taranis AI", timeout=5000)
@@ -39,7 +35,7 @@ class TestEndToEndUser(PlaywrightHelpers):
         page.get_by_role("button", name="Save").click()
         page.locator("div").filter(has_text="Profile updated").nth(2).click()
 
-    def test_e2e_assess(self, taranis_frontend: Page, e2e_server, pic_prefix=""):
+    def test_e2e_assess(self, taranis_frontend: Page, e2e_server):
         def go_to_assess():
             self.highlight_element(page.get_by_role("link", name="Assess").first).click()
             page.wait_for_url("**/assess", wait_until="domcontentloaded")
@@ -206,7 +202,7 @@ class TestEndToEndUser(PlaywrightHelpers):
         # self.highlight_element(page.get_by_role("button", name="show charts")).click()
         # page.locator("canvas").first.wait_for()
 
-    def test_e2e_analyze(self, e2e_server, taranis_frontend: Page, pic_prefix=""):
+    def test_e2e_analyze(self, e2e_server, taranis_frontend: Page, pic_prefix):
         base_url = e2e_server.url()
 
         def go_to_analyze():
@@ -216,6 +212,7 @@ class TestEndToEndUser(PlaywrightHelpers):
 
         def report_1():
             self.highlight_element(page.get_by_role("button", name="New Report").first).click()
+            page.wait_for_url("**/report/", wait_until="domcontentloaded")
             self.highlight_element(page.get_by_role("combobox")).click()
             time.sleep(0.5)
 
@@ -261,17 +258,17 @@ class TestEndToEndUser(PlaywrightHelpers):
             self.highlight_element(page.locator("button:below(:text('Global Mining Espionage by APT67 (4)'))").first).click()
             self.highlight_element(page.get_by_role("dialog").get_by_label("Open")).click()
             self.highlight_element(page.get_by_role("option", name="Test Report")).click()
-            self.highlight_element(page.get_by_role("button", name="share")).click()
+            self.highlight_element(page.get_by_role("button", name="add to report")).click()
 
             self.highlight_element(page.locator("button:below(:text('Advanced Phishing Techniques by APT58 (3)'))").first).click()
             self.highlight_element(page.get_by_role("dialog").get_by_label("Open")).click()
             self.highlight_element(page.get_by_role("option", name="Test Report")).click()
-            self.highlight_element(page.get_by_role("button", name="share")).click()
+            self.highlight_element(page.get_by_role("button", name="add to report")).click()
 
             self.highlight_element(page.locator("button:below(:text('Genetic Engineering Data Theft by APT81 (8)'))").first).click()
             self.highlight_element(page.get_by_role("dialog").get_by_label("Open")).click()
             self.highlight_element(page.get_by_role("option", name="Test Report")).click()
-            self.highlight_element(page.get_by_role("button", name="share")).click()
+            self.highlight_element(page.get_by_role("button", name="add to report")).click()
 
         def modify_report_1():
             self.highlight_element(page.get_by_role("cell", name="Test Report")).click()
@@ -345,6 +342,6 @@ class TestEndToEndUser(PlaywrightHelpers):
         self.highlight_element(page.get_by_label("Description")).click()
         self.highlight_element(page.get_by_label("Description")).fill("Test Description")
         self.highlight_element(page.get_by_role("button", name="Save")).click()
-        self.highlight_element(page.get_by_role("main").locator("header").get_by_role("button", name="Render Product")).click()
-        page.locator("div").filter(has_text="Could not").nth(2).click()
+        page.get_by_text("Product created").click()
+        self.highlight_element(page.get_by_role("main").locator("header").get_by_role("button", name="Render Product"))
         page.screenshot(path="./tests/playwright/screenshots/screenshot_publish.png")

@@ -4,8 +4,7 @@ Core could be called the "backend" of Taranis AI.
 
 It offers API Endpoints to the Frontend, is the sole persistence layer (via SQLAlchemy) and schedules tasks via Celery.
 
-Furthermore it offers SSE to the Frontend and acts as celery scheduler backend.
-
+Furthermore it acts as celery scheduler backend.
 
 ## Requirements
 
@@ -13,10 +12,12 @@ Furthermore it offers SSE to the Frontend and acts as celery scheduler backend.
 * SQLite or PostgreSQL
 * [Optional] RabbitMQ
 
-
 ## Setup
 
-`pip install -e .[dev]`
+```bash
+uv venv
+uv pip install -Ue .[dev]
+```
 
 ## Run
 

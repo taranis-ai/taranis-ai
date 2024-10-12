@@ -7,6 +7,7 @@ from core.log import logger
 from core.managers.auth_manager import api_key_required
 from core.model import news_item, bot, story
 from core.managers.decorators import extract_args
+from core.config import Config
 
 
 class BotGroupAction(MethodView):
@@ -112,10 +113,9 @@ class BotsInfo(MethodView):
 
 
 def initialize(app: Flask):
-    bots_bp = Blueprint("bots", __name__, url_prefix="/api/bots")
+    bots_bp = Blueprint("bots", __name__, url_prefix=f"{Config.APPLICATION_ROOT}api/bots")
 
     bots_bp.add_url_rule("", view_func=BotsInfo.as_view("bots"))
-    bots_bp.add_url_rule("/", view_func=BotsInfo.as_view("bots_info"))
     bots_bp.add_url_rule("/<string:bot_id>", view_func=BotsInfo.as_view("bot_info"))
     bots_bp.add_url_rule("/news-item", view_func=NewsItem.as_view("bots_news_item"))
     bots_bp.add_url_rule(

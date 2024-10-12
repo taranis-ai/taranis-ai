@@ -15,13 +15,13 @@ class NewsItem:
         hash: str = "",
         author: str = "",
         title: str = "",
-        language: str = None,
+        language: str | None = None,
         review: str | None = None,
         content: str = "",
         web_url: str = "",
         published_date: datetime | None = None,
         collected_date: datetime = datetime.now(),
-        attributes: list = None,
+        attributes: list | None = None,
     ):
         self.osint_source_id = osint_source_id
         self.hash = hash
@@ -43,9 +43,9 @@ class NewsItem:
             "title": self.title,
             "source": self.web_url,
             "link": self.web_url,
-            "published": self.published_date,
+            "published": self.published_date.isoformat(),
             "author": self.author,
-            "collected": self.collected_date,
+            "collected": self.collected_date.isoformat(),
             "language": self.language,
             "content": self.content,
             "osint_source_id": self.osint_source_id,

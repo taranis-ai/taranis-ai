@@ -15,7 +15,7 @@ class BasePublisher:
         self.core_api = CoreApi()
 
     def publish(self, publisher: dict, product: dict, rendered_product: Product) -> str:
-        pass
+        raise NotImplementedError
 
     def print_exception(self, error):
         logger.exception(f"Publishing Failed: {self.type} - {error}")

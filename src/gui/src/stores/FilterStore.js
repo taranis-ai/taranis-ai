@@ -65,6 +65,7 @@ export const useFilterStore = defineStore(
     watch(
       storyFilter,
       (filter) => {
+        storyPage.value = 0
         const newFilterQuery = getQueryStringFromNestedObject(filter)
         console.debug(
           `newFilterQuery: ${newFilterQuery} - created from filter: ${JSON.stringify(filter)}`

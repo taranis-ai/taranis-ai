@@ -2,7 +2,7 @@ import os
 import json
 from pydantic_settings import BaseSettings
 from typing import Literal, Any
-from pydantic import model_validator, ValidationError
+from pydantic import model_validator, ValidationError, ValidationInfo, field_validator
 from kombu import Queue
 
 
@@ -13,7 +13,9 @@ class Settings(BaseSettings):
         extra = "ignore"
 
     API_KEY: str = "supersecret"
-    TARANIS_CORE_URL: str = "http://taranis/api"
+    TARANIS_CORE_URL: str = ""
+    TARANIS_BASE_PATH: str = "/"
+    TARANIS_CORE_HOST: str = "core:8080"
     MODULE_ID: str = "Workers"
     COLORED_LOGS: bool = True
     DEBUG: bool = False
@@ -82,11 +84,25 @@ class Settings(BaseSettings):
             "broker_connection_retry_on_startup": True,
             "result_backend": "worker.http_backend:HTTPBackend",
             "broker_connection_retry": False,  # To suppress deprecation warning
-            "beat_scheduler": "worker.scheduler:RESTScheduler",
             "enable_utc": True,
             "worker_hijack_root_logger": False,
             "task_queues": task_queues,
         }
+        return self
+
+    @field_validator("TARANIS_BASE_PATH", mode="before")
+    def ensure_start_and_end_slash(cls, v: str, info: ValidationInfo) -> str:
+        # sourcery skip: assign-if-exp, reintroduce-else
+        if not v or v == "/":
+            return "/"
+
+        return f"/{v.strip('/')}/"
+
+    @model_validator(mode="after")
+    def set_taranis_core(self):
+        if self.TARANIS_CORE_URL:
+            return self
+        self.TARANIS_CORE_URL = f"http://{self.TARANIS_CORE_HOST}{self.TARANIS_BASE_PATH}api"
         return self
 
 

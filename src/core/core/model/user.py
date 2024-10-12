@@ -44,7 +44,7 @@ class User(BaseModel):
             "compact_view": False,
             "show_charts": False,
             "infinite_scroll": True,
-            "end_of_shift": { "hours": 18, "minutes": 0 },
+            "end_of_shift": {"hours": 18, "minutes": 0},
             "language": "en",
         }
 
@@ -65,7 +65,7 @@ class User(BaseModel):
         del data["password"]
         data["organization"] = data.pop("organization_id")
         data["roles"] = [role.id for role in self.roles if role]
-        data["permissions"] = (self.get_permissions(),)
+        data["permissions"] = self.get_permissions()
         return data
 
     def to_detail_dict(self):
@@ -95,7 +95,7 @@ class User(BaseModel):
         if organization := data.pop("organization", None):
             if update_org := Organization.get(organization):
                 user.organization = update_org
-        if roles := data.pop("roles", None):
+        if (roles := data.pop("roles", None)) is not None:
             user.roles = Role.get_bulk(roles)
         if update_password := data.pop("password", None):
             user.password = generate_password_hash(update_password)
@@ -108,7 +108,8 @@ class User(BaseModel):
         return {"message": f"User {user_id} updated", "id": user_id}, 200
 
     def get_permissions(self) -> list[str]:
-        return [permission for role in self.roles if role for permission in role.get_permissions()]
+        permissions = {permission for role in self.roles if role for permission in role.get_permissions()}
+        return list(permissions)
 
     def get_roles(self):
         return [role.id for role in self.roles]

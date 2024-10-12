@@ -19,7 +19,6 @@ import {
   getAllUsers,
   getAllWordLists,
   getAllParameters,
-  getAllSchedule,
   getAllTemplates,
   getAllWorkers,
   getAllWorkerTypes,
@@ -47,7 +46,6 @@ export const useConfigStore = defineStore(
     const users = ref({ total_count: 0, items: [] })
     const templates = ref({ total_count: 0, items: [] })
     const word_lists = ref({ total_count: 0, items: [] })
-    const schedule = ref([])
     const workers = ref([])
     const worker_types = ref({ total_count: 0, items: [] })
     const queue_status = ref({})
@@ -93,15 +91,6 @@ export const useConfigStore = defineStore(
       return word_lists.value.items.filter((word_list) =>
         word_list.usage.some((usage) => usage.includes('COLLECTOR'))
       )
-    })
-
-    const enhanced_schedule = computed(() => {
-      return schedule.value.map((item) => {
-        if (item.task === 'collector_task') {
-          item.args = getOSINTSourceNameByID.value(item.args)
-        }
-        return item
-      })
     })
 
     async function loadAttributes(data) {
@@ -248,15 +237,6 @@ export const useConfigStore = defineStore(
       }
     }
 
-    async function loadSchedule(data) {
-      try {
-        const response = await getAllSchedule(data)
-        schedule.value = response.data
-      } catch (error) {
-        notifyFailure(error)
-      }
-    }
-
     async function loadQueueStatus(data) {
       try {
         const response = await getQueueStatus(data)
@@ -317,7 +297,6 @@ export const useConfigStore = defineStore(
       users.value = { total_count: 0, items: [] }
       templates.value = { total_count: 0, items: [] }
       word_lists.value = { total_count: 0, items: [] }
-      schedule.value = []
       workers.value = []
       worker_types.value = { total_count: 0, items: [] }
       queue_status.value = {}
@@ -340,7 +319,6 @@ export const useConfigStore = defineStore(
       users,
       templates,
       word_lists,
-      schedule,
       workers,
       worker_types,
       queue_status,
@@ -352,7 +330,6 @@ export const useConfigStore = defineStore(
       publisher_types,
       presenter_types,
       collector_word_lists,
-      enhanced_schedule,
       loadAttributes,
       loadBots,
       loadReportTypes,
@@ -369,7 +346,6 @@ export const useConfigStore = defineStore(
       loadPublisher,
       loadParameters,
       loadTemplates,
-      loadSchedule,
       loadQueueStatus,
       loadQueueTasks,
       loadWorkers,

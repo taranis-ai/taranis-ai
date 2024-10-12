@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   database:
     image: "postgres:${POSTGRES_TAG:-14-alpine}"

@@ -5,6 +5,7 @@ from flask_jwt_extended import current_user
 from core.managers.auth_manager import auth_required
 from core.model import asset
 from core.managers.decorators import extract_args
+from core.config import Config
 
 
 class AssetGroups(MethodView):
@@ -71,7 +72,7 @@ class AssetVulnerability(MethodView):
 
 
 def initialize(app: Flask):
-    base_route = "/api"
+    base_route = f"{Config.APPLICATION_ROOT}api"
     app.add_url_rule(f"{base_route}/assets", view_func=Assets.as_view("assets"))
     app.add_url_rule(f"{base_route}/assets/<int:asset_id>", view_func=Assets.as_view("asset"))
     app.add_url_rule(

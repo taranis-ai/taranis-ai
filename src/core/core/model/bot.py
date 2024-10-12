@@ -10,7 +10,7 @@ from core.managers.db_manager import db
 from core.model.base_model import BaseModel
 from core.model.parameter_value import ParameterValue
 from core.model.worker import BOT_TYPES, Worker
-from core.model.queue import ScheduleEntry
+from core.managers.schedule_manager import Scheduler
 
 
 class Bot(BaseModel):
@@ -98,14 +98,14 @@ class Bot(BaseModel):
     def schedule_bot(self):
         if interval := self.get_schedule():
             entry = self.to_task_dict(interval)
-            ScheduleEntry.add_or_update(entry)
+            Scheduler.add_celery_task(entry)
             logger.info(f"Schedule for bot {self.id} updated with - {entry}")
             return {"message": f"Schedule for bot {self.id} updated"}, 200
         return {"message": "Bot has no refresh interval"}, 200
 
     def unschedule_bot(self):
         entry_id = self.to_task_id()
-        ScheduleEntry.delete(entry_id)
+        Scheduler.remove_periodic_task(entry_id)
         logger.info(f"Schedule for bot {self.id} removed")
         return {"message": f"Schedule for bot {self.id} removed"}, 200
 
@@ -116,10 +116,14 @@ class Bot(BaseModel):
     def to_task_dict(self, interval: str):
         return {
             "id": self.to_task_id(),
-            "task": "bot_task",
-            "schedule": interval,
-            "args": [self.id],
-            "options": {"queue": "bots", "task_id": self.to_task_id()},
+            "name": f"{self.type}_{self.name}",
+            "jobs_params": {"trigger": "interval", "minutes": int(interval), "max_instances": 1},
+            "celery": {
+                "name": "bot_task",
+                "args": [self.id],
+                "queue": "bots",
+                "task_id": self.to_task_id(),
+            },
         }
 
     @classmethod

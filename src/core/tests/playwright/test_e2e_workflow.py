@@ -9,12 +9,6 @@ from playwright_helpers import PlaywrightHelpers
 
 @pytest.mark.e2e_user_workflow
 class TestUserWorkflow(PlaywrightHelpers):
-    wait_duration: float = 2
-    ci_run: bool = False
-
-    def test_setup_pwhelpers(self, taranis_frontend: Page):
-        PlaywrightHelpers.config_pwhelpers(self, wait_duration=self.wait_duration, ci_run=self.ci_run)
-
     def test_e2e_login(self, taranis_frontend: Page):
         page = taranis_frontend
         self.add_keystroke_overlay(page)
@@ -128,14 +122,30 @@ class TestUserWorkflow(PlaywrightHelpers):
             # Check stories
             self.highlight_element(page.locator(".ml-auto > button").first).click()
             self.highlight_element(page.locator(".ml-auto > button").first).click()
-            self.highlight_element(page.locator("div:nth-child(2) > .v-container > div > div:nth-child(2) > .ml-auto > button").first, scroll=True).click()
-            self.highlight_element(page.locator("div:nth-child(2) > .v-container > div > div:nth-child(2) > .ml-auto > button").first, scroll=True).click()
-            self.highlight_element(page.locator("div:nth-child(3) > .v-container > div > div:nth-child(2) > .ml-auto > button").first, scroll=True).click()
-            self.highlight_element(page.locator("div:nth-child(3) > .v-container > div > div:nth-child(2) > .ml-auto > button").first, scroll=True).click()
-            self.highlight_element(page.locator("div:nth-child(4) > .v-container > div > div:nth-child(2) > .ml-auto > button").first, scroll=True).click()
-            self.highlight_element(page.locator("div:nth-child(4) > .v-container > div > div:nth-child(2) > .ml-auto > button").first, scroll=True).click()
-            self.highlight_element(page.locator("div:nth-child(5) > .v-container > div > div:nth-child(2) > .ml-auto > button").first, scroll=True).click()
-            self.highlight_element(page.locator("div:nth-child(5) > .v-container > div > div:nth-child(2) > .ml-auto > button").first, scroll=True).click()
+            self.highlight_element(
+                page.locator("div:nth-child(2) > .v-container > div > div:nth-child(2) > .ml-auto > button").first, scroll=True
+            ).click()
+            self.highlight_element(
+                page.locator("div:nth-child(2) > .v-container > div > div:nth-child(2) > .ml-auto > button").first, scroll=True
+            ).click()
+            self.highlight_element(
+                page.locator("div:nth-child(3) > .v-container > div > div:nth-child(2) > .ml-auto > button").first, scroll=True
+            ).click()
+            self.highlight_element(
+                page.locator("div:nth-child(3) > .v-container > div > div:nth-child(2) > .ml-auto > button").first, scroll=True
+            ).click()
+            self.highlight_element(
+                page.locator("div:nth-child(4) > .v-container > div > div:nth-child(2) > .ml-auto > button").first, scroll=True
+            ).click()
+            self.highlight_element(
+                page.locator("div:nth-child(4) > .v-container > div > div:nth-child(2) > .ml-auto > button").first, scroll=True
+            ).click()
+            self.highlight_element(
+                page.locator("div:nth-child(5) > .v-container > div > div:nth-child(2) > .ml-auto > button").first, scroll=True
+            ).click()
+            self.highlight_element(
+                page.locator("div:nth-child(5) > .v-container > div > div:nth-child(2) > .ml-auto > button").first, scroll=True
+            ).click()
 
             # Open story
             self.highlight_element(
@@ -230,6 +240,7 @@ class TestUserWorkflow(PlaywrightHelpers):
 
         def report_1():
             self.highlight_element(page.get_by_role("button", name="New Report").first).click()
+            page.wait_for_url("**/report/", wait_until="domcontentloaded")
             self.highlight_element(page.get_by_role("combobox")).click()
 
             expect(page.get_by_role("listbox")).to_contain_text("CERT Report")
@@ -256,7 +267,7 @@ class TestUserWorkflow(PlaywrightHelpers):
             self.highlight_element(page.get_by_role("button", name="add to report")).click()
             self.highlight_element(page.get_by_role("dialog").get_by_label("Open")).click()
             self.highlight_element(page.get_by_role("option", name="Test Report")).click()
-            self.highlight_element(page.get_by_role("button", name="share")).click()
+            self.highlight_element(page.get_by_role("button", name="add to report").last).click()
             page.keyboard.press("Escape")
 
             self.highlight_element(
@@ -264,7 +275,7 @@ class TestUserWorkflow(PlaywrightHelpers):
             ).click()
             self.highlight_element(page.get_by_role("dialog").get_by_label("Open")).click()
             self.highlight_element(page.get_by_role("option", name="Test Disinformation Title")).click()
-            self.highlight_element(page.get_by_role("button", name="share")).click()
+            self.highlight_element(page.get_by_role("button", name="add to report")).click()
 
         def modify_report_1():
             self.highlight_element(page.get_by_role("cell", name="Test Report")).click()
@@ -290,7 +301,7 @@ class TestUserWorkflow(PlaywrightHelpers):
             self.highlight_element(page.get_by_role("button", name="reset filter")).click()
             self.highlight_element(page.get_by_label("Tags", exact=True)).click()
             self.highlight_element(page.get_by_label("Tags", exact=True)).fill("test")
-            self.highlight_element(page.get_by_text("Test Report")).click()
+            self.highlight_element(page.get_by_text("Test Report").last).click()
             page.locator(".w-100").click()
             page.keyboard.press("Control+A")
             self.short_sleep(duration=1)

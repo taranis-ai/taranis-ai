@@ -54,8 +54,7 @@ Open `http://<url>:<TARANIS_PORT>/config/sources` and click [Import] to import j
 
 ## Advanced monitoring
 
-Taranis AI supports advanced monitoring of `gui`, `core` and `database` using (Sentry)[https://docs.sentry.io/]. It can be enabled by setting respective `SENTRY_DSN` environment variables described below.
-
+Taranis AI supports advanced monitoring of `gui`, `core` and `database` using [Sentry](https://docs.sentry.io/). It can be enabled by setting respective `SENTRY_DSN` environment variables described below.
 
 ## Advanced build methods
 
@@ -112,24 +111,33 @@ Any configuration options are available at [https://hub.docker.com/\_/postgres](
 | `DB_PASSWORD`                 | PostgreSQL database password               | `supersecret` |
 | `JWT_SECRET_KEY`              | JWT token secret key.                      | `supersecret` |
 | `TARANIS_CORE_SENTRY_DSN`     | DSN address for Sentry; includes DB as well| ''            |
+| `TARANIS_BASE_PATH`           | Path under which Taranis AI is reachable   | `/`           |
 
-### `worker`, `beat`
+### `worker`
 
-| Environment variable    | Description                         | Default                     |
-| ----------------------- | ----------------------------------- | --------------------------- |
-| `TARANIS_CORE_URL`      | URL of the Taranis AI core API      | `http://127.0.0.1:8080/api` |
-| `API_KEY`               | API Key for communication with core | `supersecret`               |
-| `QUEUE_BROKER_HOST`     | RabbitMQ Host address               | `rabbitmq`                  |
-| `QUEUE_BROKER_USER`     | RabbitMQ user                       | `taranis`                   |
-| `QUEUE_BROKER_PASSWORD` | RabbitMQ password                   | `supersecret`               |
-| `DEBUG`                 | Debug logging                       | `False`                     |
+| Environment variable    | Description                                | Default                     |
+| ----------------------- | ------------------------------------------ | --------------------------- |
+| `TARANIS_CORE_URL`      | URL of the Taranis AI core API             | '' *                        |
+| `TARANIS_BASE_PATH`     | Path under which Taranis AI is reachable   | `/`                         |
+| `TARANIS_CORE_HOST`*    | Hostname and Port of the Taranis AI core   | `core:8080`                 |
+| `API_KEY`               | API Key for communication with core        | `supersecret`               |
+| `QUEUE_BROKER_HOST`     | RabbitMQ Host address                      | `rabbitmq`                  |
+| `QUEUE_BROKER_USER`     | RabbitMQ user                              | `taranis`                   |
+| `QUEUE_BROKER_PASSWORD` | RabbitMQ password                          | `supersecret`               |
+| `DEBUG`                 | Debug logging                              | `False`                     |
+
+> [!NOTE]
+> ** If `TARANIS_CORE_URL` is not set it will be calculated as: `http://{TARANIS_CORE_HOST}/{TARANIS_BASE_PATH}/api`.
+>
+> If you set `TARANIS_CORE_URL`: `TARANIS_CORE_HOST` and `TARANIS_BASE_PATH` will be ignored.
 
 ### `gui`
 
-| Environment variable     | Description                                                  | Default |
-| ------------------------ | ------------------------------------------------------------ | ------- |
-| `TARANIS_CORE_API`       | URL of the Taranis core API.                                 | `/api/` |
-| `TARANIS_CORE_UPSTREAM`  | nginx upstream for the Taranis Core                          | `core`  |
-| `TARANIS_GUI_SENTRY_DSN` | Sentry DSN                                                   | ''      |
-| `NGINX_WORKERS`          | Number of nginx worker threads to spawn.                     | `4`     |
-| `NGINX_CONNECTIONS`      | Maximum number of allowed connections per one worker thread. | `16`    |
+| Environment variable     | Description                                       | Default      |
+| ------------------------ | ------------------------------------------------- | ------------ |
+| `TARANIS_CORE_API`       | URL of the Taranis core API.                      | `/api/`      |
+| `TARANIS_CORE_UPSTREAM`  | nginx upstream for the Taranis Core               | `core:8080`  |
+| `TARANIS_GUI_SENTRY_DSN` | Sentry DSN                                        | ''           |
+| `NGINX_WORKERS`          | Number of nginx worker threads to spawn.          | `4`          |
+| `NGINX_CONNECTIONS`      | Maximum number of connections per worker thread.  | `16`         |
+| `TARANIS_BASE_PATH`      | Path under which Taranis AI is reachable          | `/`          |

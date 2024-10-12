@@ -1,5 +1,12 @@
 <template>
   <v-container fluid class="mt-5 pt-0">
+    <div v-if="user_id === user.id" class="alert">
+      <v-icon color="error">mdi-alert-circle</v-icon>
+      <span class="alert-text">
+        Please be aware, you are editing your own user. You could lock yourself
+        out!
+      </span>
+    </div>
     <v-text-field
       v-if="edit"
       label="ID"
@@ -94,6 +101,7 @@ import { createUser, updateUser } from '@/api/config'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import { ref, computed, onBeforeMount, watch, onUpdated, onMounted } from 'vue'
 import { useConfigStore } from '@/stores/ConfigStore'
+import { useUserStore } from '@/stores/UserStore'
 
 export default {
   name: 'UserForm',
@@ -110,6 +118,7 @@ export default {
   },
   emits: ['updated'],
   setup(props, { emit }) {
+    const { user_id } = useUserStore()
     const store = useConfigStore()
     const { loadOrganizations, loadRoles } = store
     const form = ref(null)
@@ -202,6 +211,7 @@ export default {
       showPassword,
       passwordRules,
       user,
+      user_id,
       generatePassword,
       addUser
     }
@@ -210,6 +220,16 @@ export default {
 </script>
 
 <style scoped>
+.alert {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.alert-text {
+  color: var(--v-theme-error);
+  font-size: 16px;
+}
 input::-ms-clear,
 input::-ms-reveal {
   display: none;

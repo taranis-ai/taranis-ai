@@ -1,6 +1,4 @@
-FROM node:lts as build-stage
-
-RUN npm install -g npm@latest
+FROM node:lts AS build-stage
 
 WORKDIR /app
 COPY ./src/gui/package*.json ./
@@ -10,18 +8,19 @@ ARG git_info
 ENV GIT_INFO=$git_info
 
 ENV NODE_OPTIONS=--openssl-legacy-provider
-RUN npm run build
-
-RUN gzip -k -9 /app/dist/assets/*
+ENV VITE_TARANIS_CONFIG_JSON=/config.json
+RUN npm run build:docker
 
 FROM nginx:mainline
 
-RUN mkdir -p /etc/nginx/templates
-ENV TARANIS_CORE_UPSTREAM=core
+ENV TARANIS_CORE_UPSTREAM=core:8080
+ENV TARANIS_SCHEDULER_UPSTREAM=scheduler:8000
+ENV TARANIS_SSE_UPSTREAM=sse:8088
+ENV TARANIS_BASE_PATH=/
 
-COPY ./src/gui/extras/30-update_config_from_env.sh /docker-entrypoint.d/
-COPY ./src/gui/extras/default.conf.template /etc/nginx/templates/default.conf.template
-
-RUN envsubst '${TARANIS_CORE_UPSTREAM}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
+COPY ./src/gui/extras/default.conf.template /etc/nginx/default.conf.template
+COPY ./src/gui/extras/19-base_uri_envsubst_entrypoint.sh /docker-entrypoint.d/
+COPY ./src/gui/extras/35-update_config_from_env.sh /docker-entrypoint.d/
+COPY ./src/gui/extras/40-compress-assets.sh /docker-entrypoint.d/
 
 COPY --from=build-stage /app/dist /usr/share/nginx/html

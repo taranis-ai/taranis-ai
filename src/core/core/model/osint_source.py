@@ -13,7 +13,7 @@ from core.model.role_based_access import RoleBasedAccess, ItemType
 from core.model.parameter_value import ParameterValue
 from core.model.word_list import WordList
 from core.model.base_model import BaseModel
-from core.model.queue import ScheduleEntry
+from core.managers.schedule_manager import Scheduler
 from core.model.worker import COLLECTOR_TYPES, Worker
 from core.service.role_based_access import RoleBasedAccessService, RBACQuery
 
@@ -119,7 +119,7 @@ class OSINTSource(BaseModel):
         }
 
     def to_task_id(self) -> str:
-        return f"{self.__tablename__}_{self.id}_{self.type}"
+        return f"{self.type}_{self.id}"
 
     def get_schedule(self) -> str:
         refresh_interval = ParameterValue.find_value_by_parameter(self.parameters, "REFRESH_INTERVAL")
@@ -128,10 +128,14 @@ class OSINTSource(BaseModel):
     def to_task_dict(self):
         return {
             "id": self.to_task_id(),
-            "task": "collector_task",
-            "schedule": self.get_schedule(),
-            "args": [self.id],
-            "options": {"queue": "collectors", "task_id": self.to_task_id()},
+            "name": f"{self.type}_{self.name}",
+            "jobs_params": {"trigger": "interval", "minutes": int(self.get_schedule()), "max_instances": 1},
+            "celery": {
+                "name": "collector_task",
+                "args": [self.id],
+                "queue": "collectors",
+                "task_id": self.to_task_id(),
+            },
         }
 
     @classmethod
@@ -205,8 +209,6 @@ class OSINTSource(BaseModel):
         else:
             self.last_collected = datetime.now()
             self.state = 0
-            if schedule_entry := ScheduleEntry.get(self.to_task_id()):
-                schedule_entry.last_run_at = datetime.now()
         self.last_error_message = error_message
         db.session.commit()
 
@@ -214,13 +216,13 @@ class OSINTSource(BaseModel):
         if self.type == COLLECTOR_TYPES.MANUAL_COLLECTOR:
             return {"message": "Manual collector does not need to be scheduled"}, 200
         entry = self.to_task_dict()
-        ScheduleEntry.add_or_update(entry)
+        Scheduler.add_celery_task(entry)
         logger.info(f"Schedule for source {self.id} updated with - {entry}")
         return {"message": f"Schedule for source {self.id} updated"}, 200
 
     def unschedule_osint_source(self):
-        entry_id = self.to_task_dict()["id"]
-        ScheduleEntry.delete(entry_id)
+        entry_id = self.to_task_id()
+        Scheduler.remove_periodic_task(entry_id)
         logger.info(f"Schedule for source {self.id} removed")
         return {"message": f"Schedule for source {self.id} removed"}, 200
 

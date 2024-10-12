@@ -37,28 +37,26 @@ class RTCollector(BaseWebCollector):
         self.headers = {"Authorization": f"token {rt_token}"}
 
     def setup_collector(self, source):
-        if err := self.set_base_url(source.get("parameters").get("BASE_URL", None)):
-            raise ValueError(err)
+        self.set_base_url(source.get("parameters").get("BASE_URL", None))
         self.set_api_url()
 
         logger.info(f"Website {source.get('id')} Starting collector for url: {self.base_url}")
 
-        if err := self.set_headers(source.get("parameters").get("RT_TOKEN", None)):
-            raise ValueError(err)
+        self.set_headers(source.get("parameters").get("RT_TOKEN", None))
 
         if additional_headers := source["parameters"].get("ADDITIONAL_HEADERS", None):
-            self.set_additional_headers(additional_headers)
+            self.update_headers(additional_headers)
 
-    def preview_collector(self, source):
-        if err := self.setup_collector(source):
-            raise ValueError(err)
+    def preview_collector(self, source: dict) -> list[dict]:
+        self.setup_collector(source)
 
         if tickets := self.rt_collector(source):
             return self.preview(tickets, source)
 
+        return []
+
     def collect(self, source: dict, manual: bool = False):
-        if err := self.setup_collector(source):
-            raise ValueError(err)
+        self.setup_collector(source)
 
         try:
             if tickets := self.rt_collector(source):
