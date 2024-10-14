@@ -1,13 +1,13 @@
 # Taranis AI
 
-![Logo](./resources/images/logo.svg)
+![updated_logo](https://github.com/user-attachments/assets/7216001d-121c-4375-a75d-972ed01dc0cc)
 
 Taranis AI is an advanced Open-Source Intelligence (OSINT) tool, leveraging Artificial Intelligence to revolutionize information gathering and situational analysis.
 
 Taranis navigates through diverse data sources like websites to collect unstructured news articles, utilizing Natural Language Processing and Artificial Intelligence to enhance content quality.
 Analysts then refine these AI-augmented articles into structured reports that serve as the foundation for deliverables such as PDF files, which are ultimately published.
 
-![updated_logo](https://github.com/user-attachments/assets/7216001d-121c-4375-a75d-972ed01dc0cc)
+![Screenshot](./resources/images/screenshot.png)
 
 ## Getting Started
 
