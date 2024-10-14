@@ -1,6 +1,6 @@
 # Taranis AI
 
-![updated_logo](https://github.com/user-attachments/assets/7216001d-121c-4375-a75d-972ed01dc0cc)
+![Logo](./resources/images/logo.svg)
 
 Taranis AI is an advanced Open-Source Intelligence (OSINT) tool, leveraging Artificial Intelligence to revolutionize information gathering and situational analysis.
 
