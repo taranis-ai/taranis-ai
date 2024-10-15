@@ -61,8 +61,8 @@ jobs:
           name: taranis_worker
           overwrite: true
           path: |
-            src/core/dist/taranis_worker-*.whl
-            src/core/dist/taranis_worker-*.tar.gz
+            src/worker/dist/taranis_worker-*.whl
+            src/worker/dist/taranis_worker-*.tar.gz
 
   build_docker:
     name: build docker
