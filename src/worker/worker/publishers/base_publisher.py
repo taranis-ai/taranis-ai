@@ -5,6 +5,7 @@ from worker.log import logger
 from worker.core_api import CoreApi
 from worker.types import Product
 
+from sentiment_analysis.sentiment_analysis_multimodel import analyze_sentiment
 
 class BasePublisher:
     def __init__(self):

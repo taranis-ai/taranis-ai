@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -eou pipefail
 
 backup_dir="backups/$(date +%FT%H%M%S)"
 
@@ -7,14 +7,14 @@ mkdir -p "${backup_dir}"
 
 [[ -f .env ]] && source .env
 
-TMP_CORE_NAME=$(docker compose ps -f '{{.Names}}' | grep core)
+TMP_CORE_NAME=$(docker compose ps -f '{{.Names}}' | grep core)  || TMP_CORE_NAME=""
 if [[ -z "$TMP_CORE_NAME" ]]; then
   echo "Error: No running services found." >&2
   exit 1
 fi
 export TMP_CORE_NAME
 
-TMP_DB_NAME=$(docker compose ps -f '{{.Names}}' | grep database)
+TMP_DB_NAME=$(docker compose ps -f '{{.Names}}' | grep database) || TMP_DB_NAME=""
 if [[ -z "$TMP_DB_NAME" ]]; then
   echo "Error: No running services found." >&2
   exit 1
