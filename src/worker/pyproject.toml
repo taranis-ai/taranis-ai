@@ -47,7 +47,7 @@ dependencies = [
     "py3langid",
     "nltk",
     "taranis-story-clustering==0.8.1",
-    "taranis-sentiment-analysis==1.0.0"
+    "taranis-sentiment-analysis==1.1.0"
 ]
 dynamic = ["version"]
 
