@@ -1,6 +1,7 @@
 from .base_bot import BaseBot
 from worker.log import logger
-from sentiment_analysis.sentiment_analysis_xlmrobertabase import analyze_sentiment, categorize_text
+from sentiment_analysis.sentiment_analysis_multimodel import analyze_sentiment, categorize_text
+
 class SentimentAnalysisBot(BaseBot):
     def __init__(self):
         super().__init__()
@@ -36,10 +37,15 @@ class SentimentAnalysisBot(BaseBot):
             logger.info(f"Extracted text for sentiment analysis: {text_content}")
 
             sentiment = analyze_sentiment(text_content)
-            category = categorize_text(text_content)
+            if "score" not in sentiment:
+                logger.error(f"Sentiment analysis failed for story {story['id']}:")
+                continue
+
+
+            category = categorize_text(sentiment)
 
             results[story["id"]] = {
-                "sentiment": sentiment,
+                "sentiment": sentiment["score"],
                 "category": category,
             }
 
@@ -52,8 +58,8 @@ class SentimentAnalysisBot(BaseBot):
     def update_news_items(self, sentiment_results: dict):
         for news_item_id, sentiment_data in sentiment_results.items():
             attributes = [
-                {"key": "sentiment_score", "value": str(sentiment_data["sentiment_score"])},
-                {"key": "sentiment_category", "value": sentiment_data["sentiment_category"]},
+                {"key": "sentiment_score", "value": str(sentiment_data["sentiment", "N/A"])},
+                {"key": "sentiment_category", "value": sentiment_data["category", "N/A"]},
             ]
 
             if self.core_api.update_news_item_attributes(news_item_id, attributes):
