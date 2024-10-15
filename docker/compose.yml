@@ -71,7 +71,7 @@ services:
         max-file: "10"
 
   database:
-    image: "docker.io/library/postgres:${POSTGRES_TAG:-14-alpine}"
+    image: "docker.io/library/postgres:${POSTGRES_TAG:-17-alpine}"
     # ports:
     # - 6543:5432
     deploy:
