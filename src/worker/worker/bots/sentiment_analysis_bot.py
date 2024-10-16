@@ -26,7 +26,7 @@ class SentimentAnalysisBot(BaseBot):
 
 
         return {
-            "sentiment_score": sentiment_results.get(list(sentiment_results.keys())[0])["sentiment"],  # Get score from first item
+            "sentiment_score": sentiment_results.get(list(sentiment_results.keys())[0])["sentiment"],  
             "message": "Sentiment analysis complete"
             }
     
@@ -58,11 +58,13 @@ class SentimentAnalysisBot(BaseBot):
     def update_news_items(self, sentiment_results: dict):
         for news_item_id, sentiment_data in sentiment_results.items():
             attributes = [
-                {"key": "sentiment_score", "value": str(sentiment_data["sentiment", "N/A"])},
-                {"key": "sentiment_category", "value": sentiment_data["category", "N/A"]},
+                {"key": "sentiment_score", "value": str(sentiment_data.get("sentiment", "N/A"))},
+                {"key": "sentiment_category", "value": sentiment_data.get("category", "N/A")},
             ]
 
-            if self.core_api.update_news_item_attributes(news_item_id, attributes):
+            if success := self.core_api.update_news_item_attributes(news_item_id, attributes):  # noqa: F841
                 logger.info(f"Updated news item {news_item_id} with sentiment attributes.")
+                return {"status": "success", "message": "Attributes updated"}
             else:
                 logger.error(f"Failed to update news item {news_item_id} with sentiment attributes.")
+                return {"status": "failure", "message": "Failed to update attributes"}
