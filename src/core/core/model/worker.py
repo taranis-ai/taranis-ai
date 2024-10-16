@@ -27,6 +27,7 @@ class BOT_TYPES(StrEnum):
     STORY_BOT = auto()
     SUMMARY_BOT = auto()
     WORDLIST_BOT = auto()
+    SENTIMENT_ANALYSIS_BOT = auto()
 
 
 class PRESENTER_TYPES(StrEnum):
@@ -59,6 +60,7 @@ class WORKER_TYPES(StrEnum):
     TAGGING_BOT = auto()
     STORY_BOT = auto()
     SUMMARY_BOT = auto()
+    SENTIMENT_ANALYSIS_BOT = auto()
     WORDLIST_BOT = auto()
     PDF_PRESENTER = auto()
     HTML_PRESENTER = auto()
@@ -67,7 +69,7 @@ class WORKER_TYPES(StrEnum):
     FTP_PUBLISHER = auto()
     SFTP_PUBLISHER = auto()
     EMAIL_PUBLISHER = auto()
-    TWITTER_PUBLISHER = auto()
+    TWITTER_PUBLISHER = auto() 
     WORDPRESS_PUBLISHER = auto()
     MISP_PUBLISHER = auto()
 
