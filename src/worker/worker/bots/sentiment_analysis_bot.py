@@ -19,17 +19,17 @@ class SentimentAnalysisBot(BaseBot):
         logger.info(f"Analyzing sentiment for {len(data)} news items")
 
         # Process each story
-        sentiment_results = self.analyze_stories(data)
+        sentiment_results = self.analyze_news_items(data)
         self.update_news_items(sentiment_results)
 
         logger.info(f"Sentiment analysis complete with results: {sentiment_results}")
 
         return {
-            "sentiment_score": sentiment_results.get(list(sentiment_results.keys())[0])["sentiment"],
-            "message": "Sentiment analysis complete",
-        }
-
-    def analyze_stories(self, stories: list) -> dict:
+            "sentiment_score": sentiment_results.get(list(sentiment_results.keys())[0])["sentiment"],  
+            "message": "Sentiment analysis complete"
+            }
+    
+    def analyze_news_items(self, stories: list) -> dict:
         results = {}
         news_items = stories[0].get("news_items", [])
         for news_item in news_items:
@@ -42,16 +42,13 @@ class SentimentAnalysisBot(BaseBot):
                 continue
 
             category = categorize_text(sentiment)
-            results[news_item["id"]] = {
+            news_item_id = news_item["id"]
+            results[news_item_id] = {
                 "sentiment": sentiment["score"],
                 "category": category,
             }
 
         return results
-
-    def extract_content_from_story(self, story: dict) -> str:  #
-        content = [item.get("content", "") for item in story.get("news_items", [])]
-        return " ".join(content)
 
     def update_news_items(self, sentiment_results: dict):
         for news_item_id, sentiment_data in sentiment_results.items():
