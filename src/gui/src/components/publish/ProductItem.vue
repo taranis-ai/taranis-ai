@@ -20,12 +20,13 @@
         <span>{{ $t('product.render') }}</span>
       </v-btn>
       <v-btn
-        prepend-icon="mdi-content-save"
-        color="success"
+        :color="dirty ? 'warning' : 'success'"
         class="ml-3"
         variant="flat"
         @click="saveProduct"
       >
+      <v-icon v-if="dirty">mdi-alert</v-icon>
+      <v-icon v-else>mdi-content-save</v-icon>
         {{ $t('button.save') }}
         <v-tooltip activator="parent" text="[ctrl+shift+s]" location="bottom" />
       </v-btn>
@@ -109,6 +110,13 @@
               @close="publishDialog = false"
             />
           </v-dialog>
+          <v-dialog v-model="dirtyDialog" width="auto" min-width="500px">
+            <popup-dirty
+            v-bind:model-value="dirtyDialog"
+            @update:model-value="dirtyDialog = $event"
+            @saveAndContinue="saveProduct"
+            />
+          </v-dialog>
         </v-col>
         <v-col v-if="showPreview" :cols="6" class="pa-5">
           <div v-if="renderedProduct">
@@ -165,6 +173,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { createProduct, triggerRenderProduct } from '@/api/publish'
 import PopupPublishProduct from '../popups/PopupPublishProduct.vue'
+import PopupDirty from '../popups/PopupDirty.vue'
 import { useI18n } from 'vue-i18n'
 import { useAnalyzeStore } from '@/stores/AnalyzeStore'
 import { usePublishStore } from '@/stores/PublishStore'
@@ -176,7 +185,8 @@ import { useHotkeys } from 'vue-use-hotkeys'
 export default {
   name: 'ProductItem',
   components: {
-    PopupPublishProduct
+    PopupPublishProduct,
+    PopupDirty
   },
   props: {
     productProp: {
@@ -193,6 +203,12 @@ export default {
     const showPreview = ref(props.edit)
     const publishDialog = ref(false)
     const form = ref(null)
+    const product = ref(props.productProp)
+    const preset = ref({ selected: null, name: 'Preset' })
+    const required = [(v) => Boolean(v) || 'Required']
+    const router = useRouter()
+    const dirty = ref(false) // set to true in watcher below if product has been altered and set to false after saveProduct
+    const dirtyDialog = ref(false) // set to true when dirty and user tries to either rerenderProduct or thies to open "publishDialog"
 
     useHotkeys('ctrl+p', (event, handler) => {
       event.preventDefault()
@@ -214,11 +230,6 @@ export default {
     const product_types = computed(() => {
       return publishStore.product_types.items
     })
-
-    const product = ref(props.productProp)
-    const preset = ref({ selected: null, name: 'Preset' })
-    const required = [(v) => Boolean(v) || 'Required']
-    const router = useRouter()
 
     const supported_report_types = computed(() => {
       const p = product_types.value.find(
@@ -261,6 +272,10 @@ export default {
     async function saveProduct() {
       const { valid } = await form.value.validate()
       if (!valid) return
+      if (dirty.value) {
+        dirtyDialog.value = true  // Open the dirty state popup
+        return
+      }
       if (props.edit) {
         publishStore.patchProduct(product.value)
       } else {
@@ -277,6 +292,7 @@ export default {
             notifyFailure(error)
           })
       }
+      dirty.value = false
     }
 
     async function rerenderProduct() {
@@ -347,6 +363,17 @@ export default {
       }
     )
 
+    watch(
+      () => product.value,
+      (newVal) => {
+        dirty.value = JSON.stringify(newVal) !== JSON.stringify(props.productProp)
+        // TODO: check if product has been altered from the props.productProp
+        // if so set dirty flag dirty.value = true
+        console.debug('Product changed', newVal)
+      },
+      { deep: true }
+    )
+
     onMounted(() => {
       publishStore.loadProductTypes()
       analyzeStore.loadReportItems()
@@ -360,6 +387,8 @@ export default {
 
     return {
       form,
+      dirty,
+      dirtyDialog,
       product,
       required,
       preset,
