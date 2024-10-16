@@ -19,7 +19,7 @@ class SFTPPublisher(BasePublisher):
         self.description = "Publisher for publishing to a SFTP server"
 
     def publish(self, publisher, product, rendered_product):
-        parameters = publisher.get("parameters")
+        parameters = publisher.get("parameters", {})
         ftp_url = parameters.get("SFTP_URL")
         private_key = parameters.get("PRIVATE_KEY")
 
