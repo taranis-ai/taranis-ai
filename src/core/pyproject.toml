@@ -28,7 +28,7 @@ dependencies = [
     "python-dotenv",
     "granian",
     "psycopg",
-    "swagger-ui-py",
+    "swagger-ui-py @ https://github.com/b3n4kh/swagger-ui-py/releases/download/24.10.15/swagger_ui_py-24.10.15.tar.gz",
     "requests",
     "authlib",
     "setuptools",

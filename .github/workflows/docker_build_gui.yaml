@@ -31,6 +31,13 @@ jobs:
       - name: Rebuild the dist/ directory
         working-directory: src/gui
         run: npm run build
+      - name: Upload dist to artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: taranis_gui
+          overwrite: true
+          path: |
+            src/gui/dist/
 
   build_docker:
     name: build docker

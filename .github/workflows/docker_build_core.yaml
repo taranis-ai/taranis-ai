@@ -56,19 +56,14 @@ jobs:
         run: |
           python -m pip install --upgrade pip setuptools wheel build
           python -m build
-      - name: Release
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Upload wheel to artifacts
+        uses: actions/upload-artifact@v4
         with:
-          files: |
+          name: taranis_core
+          overwrite: true
+          path: |
             src/core/dist/taranis_core-*.whl
             src/core/dist/taranis_core-*.tar.gz
-      - name: Release to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        if: startsWith(github.ref, 'refs/tags/v')
-        with:
-          password: ${{ secrets.PYPI_API_TOKEN_CORE }}
-          packages-dir: src/core/dist/
 
   build_docker:
     name: build docker

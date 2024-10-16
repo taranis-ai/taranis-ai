@@ -175,6 +175,13 @@ export default defineComponent({
           sortable: false,
           width: '30px'
         }
+      } else if (key === 'created') {
+        return {
+          title: 'Created',
+          key: 'created',
+          sortable: true,
+          sort: (a, b) => new Date(a) - new Date(b)
+        }
       }
 
       return { title: key, key: key }
