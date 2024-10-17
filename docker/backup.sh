@@ -12,13 +12,13 @@ mkdir -p "${backup_dir}"
 
 [[ -f .env ]] && source .env
 
-TMP_CORE_NAME=$(docker compose ps --format '{{.Names}}' | grep core)
+TMP_CORE_NAME=$(docker compose ps --format '{{.Names}}' | grep core) || TMP_CORE_NAME=""
 if [[ -z "$TMP_CORE_NAME" ]]; then
   echo "Error: No running 'core' service found." >&2
   exit 1
 fi
 
-TMP_DB_NAME=$(docker compose ps --format '{{.Names}}' | grep database)
+TMP_DB_NAME=$(docker compose ps --format '{{.Names}}' | grep database) || TMP_DB_NAME=""
 if [[ -z "$TMP_DB_NAME" ]]; then
   echo "Error: No running 'database' service found." >&2
   exit 1
