@@ -1,6 +1,6 @@
 #!/bin/bash
-set -euox pipefail
-source ./backup.sh
+set -euo pipefail
+source ./backup.sh --upgrade
 docker compose down core gui && \
 docker compose down database --volumes && \
 source ./restore.sh --database $backup_dir && \

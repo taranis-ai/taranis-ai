@@ -1,5 +1,4 @@
 #!/bin/bash
-
 set -euo pipefail
 
 # Function to display script usage
@@ -34,7 +33,7 @@ restore_postgresql() {
         -v ./$backup_dir:/tmp \
         -v ./db_init.sh:/docker-entrypoint-initdb.d/db_init.sh:z \
         -v $volume_name:/var/lib/postgresql/data \
-        --name "${compose_project_name}_database_restore" docker.io/library/postgres:14
+        --name "${compose_project_name}_database_restore" docker.io/library/postgres:17
 
     if [ $? -ne 0 ]; then echo "Database restoration failed"; exit 1; fi
 }
