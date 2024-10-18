@@ -50,5 +50,8 @@ if [ $? -ne 0 ]; then echo "Copying database backup failed"; exit 1; fi
 docker compose exec database rm -f /tmp/database_backup.tar
 if [ $? -ne 0 ]; then echo "Failed to remove temporary backup file /tmp/database_backup.tar"; exit 1; fi
 
-echo "Backup directory: ${backup_dir}"
-
+if [ "$UPGRADE_MODE" == "true" ]; then
+  echo "${backup_dir}"
+else
+  echo "Backup created successfully in ${backup_dir}"
+fi
