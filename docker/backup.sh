@@ -41,7 +41,7 @@ else
   PG_DUMP_OPTIONS=""
 fi
 
-docker compose exec database pg_dump -U taranis $PG_DUMP_OPTIONS --format=tar -f /tmp/database_backup.tar "${DB_DATABASE:-taranis}"
+docker compose exec database pg_dump -U "${DB_USER:-taranis}" $PG_DUMP_OPTIONS --format=tar -f /tmp/database_backup.tar "${DB_DATABASE:-taranis}"
 if [ $? -ne 0 ]; then echo "Database backup failed"; exit 1; fi
 
 docker cp "${TMP_DB_NAME}:/tmp/database_backup.tar" "${backup_dir}/database_backup.tar"
