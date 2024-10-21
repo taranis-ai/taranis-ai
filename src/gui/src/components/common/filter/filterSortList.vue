@@ -29,27 +29,28 @@ import { ref, watch } from 'vue'
 
 export default {
   setup(props, { emit }) {
-    const sentimentStates = ['POSITIVE', 'NEUTRAL', 'NEGATIVE', 'NONE'];
-    const currentSortIndex = ref(3); 
+    const sentimentStates = ['POSITIVE', 'NEUTRAL', 'NEGATIVE', 'NONE']
+    const currentSortIndex = ref(3)
     const sortIcons = {
       POSITIVE: 'mdi-emoticon-happy-outline',
       NEUTRAL: 'mdi-emoticon-neutral-outline',
       NEGATIVE: 'mdi-emoticon-sad-outline',
-      NONE: 'mdi-sort',
+      NONE: 'mdi-sort'
     }
     const sortLabels = {
       POSITIVE: 'positive sentiment',
       NEUTRAL: 'neutral sentiment',
       NEGATIVE: 'negative sentiment',
-      NONE: 'sentiment score',
+      NONE: 'sentiment score'
     }
 
-    const currentSort = ref('NONE');
+    const currentSort = ref('NONE')
     const currentSortIcon = ref(sortIcons['NONE'])
     const currentSortLabel = ref(sortLabels['NONE'])
 
     const cycleSentimentSort = () => {
-      currentSortIndex.value = (currentSortIndex.value + 1) % sentimentStates.length
+      currentSortIndex.value =
+        (currentSortIndex.value + 1) % sentimentStates.length
       currentSort.value = sentimentStates[currentSortIndex.value]
       currentSortIcon.value = sortIcons[currentSort.value]
       currentSortLabel.value = sortLabels[currentSort.value]
@@ -70,20 +71,25 @@ export default {
     }
 
     const activeIcon = (type) => {
-      return buttonState.value[type] === 'DESC' ? 'mdi-arrow-down' : 'mdi-arrow-up'
+      return buttonState.value[type] === 'DESC'
+        ? 'mdi-arrow-down'
+        : 'mdi-arrow-up'
     }
 
-    watch(() => props.modelValue, (newValue) => {
-      console.debug(`filterSortList: modelValue changed to ${newValue}`)
-      if (newValue) {
-        const [type, state] = newValue.split('_')
-        selectedButton.value = type
-        buttonState.value[type] = state
-      } else {
-        selectedButton.value = ''
-        buttonState.value = {}
+    watch(
+      () => props.modelValue,
+      (newValue) => {
+        console.debug(`filterSortList: modelValue changed to ${newValue}`)
+        if (newValue) {
+          const [type, state] = newValue.split('_')
+          selectedButton.value = type
+          buttonState.value[type] = state
+        } else {
+          selectedButton.value = ''
+          buttonState.value = {}
+        }
       }
-    })
+    )
 
     return {
       selectedButton,

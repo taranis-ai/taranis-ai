@@ -35,7 +35,7 @@
             :header="$t('enter.comment')"
             :placeholder="$t('enter.comment_placeholder')"
           />
-          
+
           <edit-tags v-model="story.tags" />
 
           <attributes-table v-model="story.attributes" />
@@ -46,7 +46,7 @@
                 text="AI based sentiment analysis"
                 @click="triggerSentimentAnalysisBot"
               />
-              <span v-if="sentimentScore">({{ sentimentScore }})</span> 
+              <span v-if="sentimentScore">({{ sentimentScore }})</span>
             </v-col>
           </v-row>
 
@@ -64,9 +64,19 @@
         v-for="news_item in story.news_items"
         :key="news_item.id"
         :title="news_item.title"
-        :text="news_item.content"
         :value="news_item.id"
-      />
+      >
+        <template #text>
+          <router-link
+            :to="{
+              name: 'newsitem',
+              params: { itemId: news_item.id }
+            }"
+            class="d-flex fill-height align-center text-decoration-none"
+            >{{ news_item.content }}
+          </router-link>
+        </template>
+      </v-expansion-panel>
     </v-expansion-panels>
   </v-container>
 </template>
@@ -138,13 +148,15 @@ export default {
         notifyFailure(e)
       }
     }
-    
-    async function triggerSentimentAnalysisBot(){
+
+    async function triggerSentimentAnalysisBot() {
       try {
-        const result = await triggerBot('sentiment_analysis_bot', props.storyProp.id)
+        const result = await triggerBot(
+          'sentiment_analysis_bot',
+          props.storyProp.id
+        )
         sentimentScore.value = result.data.sentiment_score
         notifySuccess(result.data.message)
-        
       } catch (e) {
         notifyFailure(e)
       }
@@ -159,7 +171,6 @@ export default {
       triggerSummaryBot,
       triggerSentimentAnalysisBot,
       sentimentScore
-
     }
   }
 }
