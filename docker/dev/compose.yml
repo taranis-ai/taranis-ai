@@ -1,6 +1,6 @@
 services:
   database:
-    image: "postgres:${POSTGRES_TAG:-14-alpine}"
+    image: "postgres:${POSTGRES_TAG:-17-alpine}"
     ports:
       - "${TARANIS_DATABASE_PORT:-5432}:5432"
     environment:
