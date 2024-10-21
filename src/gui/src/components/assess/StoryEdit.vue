@@ -67,8 +67,8 @@
       </v-col>
       <v-col cols="3">
         <v-text-field
-          v-if="story.attributes.sentiment"
-          v-model="story.attributes.sentiment"
+          v-if="storySentiment"
+          v-model="storySentiment"
           density="dense"
           readonly
         />
@@ -146,6 +146,12 @@ export default {
       })
     })
 
+    const storySentiment = computed(() => {
+      return JSON.stringify(
+        story.value.attributes.find((attr) => attr.key === 'sentiment').value
+      )
+    })
+
     async function submit() {
       const { valid } = await form.value.validate()
 
@@ -198,6 +204,7 @@ export default {
       submit,
       triggerSummaryBot,
       triggerSentimentAnalysisBot,
+      storySentiment,
       filteredStoryAttributes,
       showallattributes
     }

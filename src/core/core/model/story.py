@@ -817,7 +817,7 @@ class Story(BaseModel):
         data["tags"] = [tag.to_dict() for tag in self.tags]
         data["attributes"] = [attribute.to_small_dict() for attribute in self.attributes]
         if sentiment := self.get_story_sentiment():
-            data["attributes"].append({"sentiment": sentiment})
+            data["attributes"].append({"key": "sentiment", "value": sentiment})
         return data
 
     def to_worker_dict(self) -> dict[str, Any]:
