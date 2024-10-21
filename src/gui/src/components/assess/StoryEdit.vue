@@ -39,17 +39,6 @@
           <edit-tags v-model="story.tags" />
 
           <attributes-table v-model="story.attributes" />
-          <v-row>
-            <v-col cols="auto">
-              <v-btn
-                prepend-icon="mdi-pulse"
-                text="AI based sentiment analysis"
-                @click="triggerSentimentAnalysisBot"
-              />
-              <span v-if="sentimentScore">({{ sentimentScore }})</span>
-            </v-col>
-          </v-row>
-
           <story-links v-model="story.links" :news-items="story.news_items" />
 
           <v-spacer class="pt-1"></v-spacer>
@@ -59,6 +48,24 @@
         </v-form>
       </v-card-text>
     </v-card>
+    <v-row class="my-2">
+      <v-col cols="2">
+        <v-btn
+          prepend-icon="mdi-pulse"
+          text="AI based sentiment analysis"
+          @click="triggerSentimentAnalysisBot"
+        />
+      </v-col>
+      <v-col cols="3">
+        <v-text-field
+          v-if="story.attributes.sentiment"
+          v-model="story.attributes.sentiment"
+          density="dense"
+          readonly
+        />
+        <v-text-field v-else value="Not available" readonly density="dense" />
+      </v-col>
+    </v-row>
     <v-expansion-panels v-model="panels" multiple>
       <v-expansion-panel
         v-for="news_item in story.news_items"
@@ -111,7 +118,6 @@ export default {
     const router = useRouter()
     const story = ref(props.storyProp)
     const panels = ref(story.value.news_items.map((item) => item.id))
-    const sentimentScore = ref(null)
 
     const rules = {
       required: (v) => !!v || 'Required'
@@ -155,7 +161,6 @@ export default {
           'sentiment_analysis_bot',
           props.storyProp.id
         )
-        sentimentScore.value = result.data.sentiment_score
         notifySuccess(result.data.message)
       } catch (e) {
         notifyFailure(e)
@@ -169,8 +174,7 @@ export default {
       rules,
       submit,
       triggerSummaryBot,
-      triggerSentimentAnalysisBot,
-      sentimentScore
+      triggerSentimentAnalysisBot
     }
   }
 }

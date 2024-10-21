@@ -69,7 +69,7 @@ class WORKER_TYPES(StrEnum):
     FTP_PUBLISHER = auto()
     SFTP_PUBLISHER = auto()
     EMAIL_PUBLISHER = auto()
-    TWITTER_PUBLISHER = auto() 
+    TWITTER_PUBLISHER = auto()
     WORDPRESS_PUBLISHER = auto()
     MISP_PUBLISHER = auto()
 

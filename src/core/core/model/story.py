@@ -765,6 +765,19 @@ class Story(BaseModel):
         StorySearchIndex.prepare(new_story)
         new_story.update_status()
 
+    def get_story_sentiment(self) -> dict | None:
+        sentiment = {"positive": 0, "negative": 0, "neutral": 0}
+        for news_item in self.news_items:
+            if news_item.get_sentiment() == "positive":
+                sentiment["positive"] += 1
+            elif news_item.get_sentiment() == "negative":
+                sentiment["negative"] += 1
+            elif news_item.get_sentiment() == "neutral":
+                sentiment["neutral"] += 1
+        if sentiment["positive"] == 0 and sentiment["negative"] == 0 and sentiment["neutral"] == 0:
+            return None
+        return sentiment
+
     def update_status(self):
         if len(self.news_items) == 0:
             StorySearchIndex.remove(self)
@@ -802,8 +815,9 @@ class Story(BaseModel):
         data = super().to_dict()
         data["news_items"] = [news_item.to_detail_dict() for news_item in self.news_items]
         data["tags"] = [tag.to_dict() for tag in self.tags]
-        if attributes := self.attributes:
-            data["attributes"] = [news_item_attribute.to_dict() for news_item_attribute in attributes]
+        data["attributes"] = [attribute.to_dict() for attribute in self.attributes]
+        if sentiment := self.get_story_sentiment():
+            data["attributes"].append({"sentiment": sentiment})
         return data
 
     def to_worker_dict(self) -> dict[str, Any]:
@@ -811,7 +825,7 @@ class Story(BaseModel):
         data["news_items"] = [news_item.to_dict() for news_item in self.news_items]
         data["tags"] = {tag.name: tag.tag_type for tag in self.tags}
         if attributes := self.attributes:
-            data["attributes"] = [news_item_attribute.to_dict() for news_item_attribute in attributes]
+            data["attributes"] = [attribute.to_dict() for attribute in attributes]
         return data
 
 
