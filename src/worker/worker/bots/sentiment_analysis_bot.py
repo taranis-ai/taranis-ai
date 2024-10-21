@@ -31,22 +31,23 @@ class SentimentAnalysisBot(BaseBot):
     
     def analyze_news_items(self, stories: list) -> dict:
         results = {}
-        news_items = stories[0].get("news_items", [])
-        for news_item in news_items:
-            text_content = news_item.get("content", "")
-            logger.info(f"Extracted text for sentiment analysis: {text_content}")
+        for story in stories:
+            news_items = story.get("news_items", [])
+            for news_item in news_items:
+                text_content = news_item.get("content", "")
+                logger.info(f"Extracted text for sentiment analysis: {text_content}")
 
-            sentiment = analyze_sentiment(text_content)
-            if "score" not in sentiment:
-                logger.error(f"Sentiment analysis failed for story {news_item['id']}:")
-                continue
+                sentiment = analyze_sentiment(text_content)
+                if "score" not in sentiment:
+                    logger.error(f"Sentiment analysis failed for story {news_item['id']}:")
+                    continue
 
-            category = categorize_text(sentiment)
-            news_item_id = news_item["id"]
-            results[news_item_id] = {
-                "sentiment": sentiment["score"],
-                "category": category,
-            }
+                category = categorize_text(sentiment)
+                news_item_id = news_item["id"]
+                results[news_item_id] = {
+                    "sentiment": sentiment["score"],
+                    "category": category,
+                }
 
         return results
 
