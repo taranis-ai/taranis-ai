@@ -173,6 +173,7 @@ class NewsItem(BaseModel):
             if not news_item.has_attribute_value(attribute.value):
                 news_item.attributes.append(attribute)
 
+        db.session.commit()
         return {"message": "Attributes updated"}, 200
 
     def get_tlp(self) -> str | None:

@@ -38,7 +38,16 @@
 
           <edit-tags v-model="story.tags" />
 
-          <attributes-table v-model="story.attributes" />
+          <attributes-table v-model="filteredStoryAttributes">
+            <template #top>
+              <v-btn
+                class="mt-4"
+                density="compact"
+                text="show all attributes"
+                @click="showallattributes = true"
+              />
+            </template>
+          </attributes-table>
           <story-links v-model="story.links" :news-items="story.news_items" />
 
           <v-spacer class="pt-1"></v-spacer>
@@ -49,7 +58,7 @@
       </v-card-text>
     </v-card>
     <v-row class="my-2">
-      <v-col cols="2">
+      <v-col cols="3">
         <v-btn
           prepend-icon="mdi-pulse"
           text="AI based sentiment analysis"
@@ -89,7 +98,7 @@
 </template>
 
 <script>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { patchStory, triggerBot } from '@/api/assess'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import CodeEditor from '@/components/common/CodeEditor.vue'
@@ -118,10 +127,24 @@ export default {
     const router = useRouter()
     const story = ref(props.storyProp)
     const panels = ref(story.value.news_items.map((item) => item.id))
+    const showallattributes = ref(false)
 
     const rules = {
       required: (v) => !!v || 'Required'
     }
+
+    const filteredStoryAttributes = computed(() => {
+      if (showallattributes.value) {
+        return story.value.attributes
+      }
+      return story.value.attributes.filter((attr) => {
+        return (
+          Object.prototype.hasOwnProperty.call(attr, 'key') &&
+          attr.key !== 'sentiment' &&
+          !attr.key.includes('_BOT_')
+        )
+      })
+    })
 
     async function submit() {
       const { valid } = await form.value.validate()
@@ -174,7 +197,9 @@ export default {
       rules,
       submit,
       triggerSummaryBot,
-      triggerSentimentAnalysisBot
+      triggerSentimentAnalysisBot,
+      filteredStoryAttributes,
+      showallattributes
     }
   }
 }

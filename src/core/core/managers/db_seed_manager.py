@@ -1,3 +1,5 @@
+from sqlalchemy.engine import Engine
+from sqlalchemy import text
 from core.log import logger
 from core.config import Config
 
@@ -39,9 +41,23 @@ def pre_seed():
         logger.critical("Pre Seed failed")
 
 
-def pre_seed_update():
-    from core.managers.pre_seed_data import workers
-    from core.model.worker import Worker
+def sync_enum_with_db(enum_type, connection):
+    enum_name = enum_type.__name__.lower()
+    existing_enum_values = connection.execute(text(f"SELECT unnest(enum_range(NULL::{enum_name}))")).fetchall()
+
+    existing_values = {val[0] for val in existing_enum_values}
+    new_values = {e.name for e in enum_type}
+
+    if missing_values := new_values - existing_values:
+        for value in missing_values:
+            connection.execute(text(f"ALTER TYPE {enum_name} ADD VALUE '{value}'"))
+        connection.commit()
+
+
+def pre_seed_update(db_engine: Engine):
+    from core.managers.pre_seed_data import workers, bots
+    from core.model.worker import Worker, WORKER_CATEGORY, WORKER_TYPES, BOT_TYPES, COLLECTOR_TYPES, PRESENTER_TYPES, PUBLISHER_TYPES
+    from core.model.bot import Bot
 
     pre_seed_source_groups()
     pre_seed_manual_source()
@@ -51,6 +67,21 @@ def pre_seed_update():
             worker.update(w)
         else:
             Worker.add(w)
+
+    for b in bots:
+        bot = Bot.filter_by_type(b["type"])
+        if not bot:
+            Bot.add(b)
+
+    with db_engine.connect() as connection:
+        if connection.dialect.name == "sqlite":
+            return
+        sync_enum_with_db(WORKER_CATEGORY, connection)
+        sync_enum_with_db(WORKER_TYPES, connection)
+        sync_enum_with_db(BOT_TYPES, connection)
+        sync_enum_with_db(COLLECTOR_TYPES, connection)
+        sync_enum_with_db(PRESENTER_TYPES, connection)
+        sync_enum_with_db(PUBLISHER_TYPES, connection)
 
 
 def pre_seed_source_groups():

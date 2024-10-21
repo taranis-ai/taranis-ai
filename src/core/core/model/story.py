@@ -815,7 +815,7 @@ class Story(BaseModel):
         data = super().to_dict()
         data["news_items"] = [news_item.to_detail_dict() for news_item in self.news_items]
         data["tags"] = [tag.to_dict() for tag in self.tags]
-        data["attributes"] = [attribute.to_dict() for attribute in self.attributes]
+        data["attributes"] = [attribute.to_small_dict() for attribute in self.attributes]
         if sentiment := self.get_story_sentiment():
             data["attributes"].append({"sentiment": sentiment})
         return data

@@ -148,15 +148,14 @@ workers = [
         "description": "Bot for tagging news items by wordlist",
     },
     {
-    "type": "SENTIMENT_ANALYSIS_BOT",
-    "name": "Sentiment Analysis Bot",
-    "parameters": [
-        {"parameter": "ITEM_FILTER"},
-        {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch", "value": "true"},
-        {"parameter": "REFRESH_INTERVAL"},
-    ],
+        "type": "SENTIMENT_ANALYSIS_BOT",
+        "name": "Sentiment Analysis Bot",
+        "parameters": [
+            {"parameter": "ITEM_FILTER"},
+            {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch", "value": "true"},
+            {"parameter": "REFRESH_INTERVAL"},
+        ],
         "description": "Bot for analyzing sentiment of news items",
-
     },
     {
         "type": "PDF_PRESENTER",
@@ -272,6 +271,16 @@ bots = [
         "type": "STORY_BOT",
         "parameters": [
             {"parameter": "ITEM_FILTER", "value": "limit=666"},
+        ],
+    },
+    {
+        "name": "Sentiment Analysis Bot",
+        "description": "Bot for analyzing sentiment of news items",
+        "type": "SENTIMENT_ANALYSIS_BOT",
+        "parameters": [
+            {"parameter": "ITEM_FILTER"},
+            {"parameter": "RUN_AFTER_COLLECTOR", "type": "switch"},
+            {"parameter": "REFRESH_INTERVAL"},
         ],
     },
     {

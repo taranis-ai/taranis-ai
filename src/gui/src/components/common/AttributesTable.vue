@@ -20,6 +20,7 @@
             @click="showDialog = true"
           />
         </v-row>
+        <slot name="top"></slot>
       </template>
       <template #item="{ item, index }">
         <tr>
