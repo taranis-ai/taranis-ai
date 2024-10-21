@@ -5,7 +5,7 @@
     </td>
     <td class="py-0">
       {{ sentiment_category }}
-      <v-tooltip activator="parent" location="left">
+      <v-tooltip activator="parent" location="bottom">
         <v-icon
           :color="
             sentiment_category === 'positive'
@@ -38,11 +38,15 @@ export default {
   },
   setup(props) {
     const sentiment_category = computed(() => {
-      return props.newsItem?.attributes?.sentiment_category
+      return props.newsItem?.attributes?.find(
+        (attr) => attr.key === 'sentiment_category'
+      )?.value
     })
 
     const sentiment_score = computed(() => {
-      return props.newsItem?.attributes?.sentiment_score
+      return props.newsItem?.attributes?.find(
+        (attr) => attr.key === 'sentiment_score'
+      )?.value
     })
 
     const filterStore = useFilterStore()
