@@ -1,4 +1,3 @@
-from requests import Response
 import requests
 from urllib.parse import urlencode
 
