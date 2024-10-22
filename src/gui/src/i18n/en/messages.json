@@ -48,6 +48,7 @@
         "article": "Article",
         "attributes": "Attributes",
         "author": "Author",
+        "sentiment": "Sentiment",
         "collected": "Collected",
         "comments": "Comments",
         "description": "Description",

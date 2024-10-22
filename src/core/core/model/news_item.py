@@ -115,6 +115,9 @@ class NewsItem(BaseModel):
             data["attributes"] = [attribute.to_dict() for attribute in attributes]
         return data
 
+    def get_sentiment(self) -> str:
+        return next((attr.value for attr in self.attributes if attr.key == "sentiment_category"), "")
+
     def upsert(self):
         """Insert a NewsItem into the database or skip if hash exists."""
         if db.engine.dialect.name == "postgresql":
@@ -169,7 +172,7 @@ class NewsItem(BaseModel):
         for attribute in attributes:
             if not news_item.has_attribute_value(attribute.value):
                 news_item.attributes.append(attribute)
-
+        db.session.commit()
         return {"message": "Attributes updated"}, 200
 
     def get_tlp(self) -> str | None:

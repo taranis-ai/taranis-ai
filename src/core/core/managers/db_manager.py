@@ -21,15 +21,15 @@ def initialize(app, initial_setup: bool = True):
 
     if initial_setup:
         logger.info(f"Connecting Database: {app.config.get('SQLALCHEMY_DATABASE_URI')}")
-
-    if is_db_empty() and initial_setup:
-        logger.debug("Create new Database")
+        is_empty = is_db_empty()
         db.create_all()
-        pre_seed()
-        mark(app, initial_setup)
-    else:
-        migrate(app, initial_setup)
-        pre_seed_update()
+        if is_empty:
+            logger.debug("Create new Database")
+            pre_seed()
+            mark(app, initial_setup)
+        else:
+            migrate(app, initial_setup)
+            pre_seed_update(db.engine)
 
 
 @event.listens_for(Engine, "connect")

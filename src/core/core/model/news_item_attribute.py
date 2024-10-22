@@ -37,6 +37,9 @@ class NewsItemAttribute(BaseModel):
         data.pop("binary_data", None)
         return data
 
+    def to_small_dict(self) -> dict[str, Any]:
+        return {"key": self.key, "value": self.value}
+
     @classmethod
     def get_by_key(cls, attributes: list["NewsItemAttribute"], key: str) -> "NewsItemAttribute | None":
         return next((attribute for attribute in attributes if attribute.key == key), None)  # type: ignore
