@@ -38,6 +38,10 @@ class Organization(BaseModel):
         }
 
     @classmethod
+    def find_by_name(cls, organization: str) -> "Organization|None":
+        return cls.get_first(db.select(cls).filter_by(name=organization))
+
+    @classmethod
     def get_filter_query(cls, filter_args: dict) -> Select:
         query = db.select(cls)
 
