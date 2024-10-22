@@ -12,15 +12,6 @@
     >
       {{ option.label }}
     </v-btn>
-    <v-btn
-      class="vertical-button mb-1"
-      :color="currentSort !== 'NONE' ? 'primary' : 'default'"
-      :prepend-icon="currentSortIcon"
-      variant="text"
-      @click="cycleSentimentSort"
-    >
-      {{ currentSortLabel }}
-    </v-btn>
   </div>
 </template>
 
@@ -28,52 +19,63 @@
 import { ref, watch } from 'vue'
 
 export default {
+  name: 'FilterSortList',
+  props: {
+    modelValue: {
+      type: String,
+      default: ''
+    },
+    orderOptions: {
+      type: Array,
+      default: () => [
+        {
+          label: 'published date',
+          icon: 'mdi-calendar-range-outline',
+          type: 'DATE'
+        },
+        {
+          label: 'relevance',
+          icon: 'mdi-speedometer',
+          type: 'RELEVANCE'
+        }
+      ]
+    }
+  },
+  emits: ['update:modelValue'],
   setup(props, { emit }) {
-    const sentimentStates = ['POSITIVE', 'NEUTRAL', 'NEGATIVE', 'NONE']
-    const currentSortIndex = ref(3)
-    const sortIcons = {
-      POSITIVE: 'mdi-emoticon-happy-outline',
-      NEUTRAL: 'mdi-emoticon-neutral-outline',
-      NEGATIVE: 'mdi-emoticon-sad-outline',
-      NONE: 'mdi-sort'
-    }
-    const sortLabels = {
-      POSITIVE: 'positive sentiment',
-      NEUTRAL: 'neutral sentiment',
-      NEGATIVE: 'negative sentiment',
-      NONE: 'sentiment score'
-    }
+    const selectedButton = ref('')
+    const buttonState = ref({})
 
-    const currentSort = ref('NONE')
-    const currentSortIcon = ref(sortIcons['NONE'])
-    const currentSortLabel = ref(sortLabels['NONE'])
+    const onButtonClick = (button) => {
+      if (selectedButton.value === button) {
+        if (buttonState.value[button] === 'DESC') {
+          buttonState.value[button] = 'ASC'
+        } else if (buttonState.value[button] === 'ASC') {
+          buttonState.value[button] = ''
+          selectedButton.value = ''
+        }
+      } else {
+        selectedButton.value = button
+        buttonState.value[button] = 'DESC'
+      }
 
-    const cycleSentimentSort = () => {
-      currentSortIndex.value =
-        (currentSortIndex.value + 1) % sentimentStates.length
-      currentSort.value = sentimentStates[currentSortIndex.value]
-      currentSortIcon.value = sortIcons[currentSort.value]
-      currentSortLabel.value = sortLabels[currentSort.value]
-
-      if (currentSort.value !== 'NONE') {
-        emit('update:modelValue', currentSort.value)
+      if (selectedButton.value) {
+        emit(
+          'update:modelValue',
+          selectedButton.value + '_' + buttonState.value[button]
+        )
       } else {
         emit('update:modelValue', undefined)
       }
     }
 
-    const selectedButton = ref('')
-    const buttonState = ref({})
-
-    const onButtonClick = (type) => {
-      selectedButton.value = type
-      emit('button-clicked', type)
-    }
-
-    const activeIcon = (type) => {
-      return buttonState.value[type] === 'DESC'
-        ? 'mdi-arrow-down'
-        : 'mdi-arrow-up'
+    function activeIcon(type) {
+      if (selectedButton.value !== type) return ''
+      return buttonState.value[type] === 'ASC'
+        ? 'mdi-arrow-up'
+        : buttonState.value[type] === 'DESC'
+          ? 'mdi-arrow-down'
+          : ''
     }
 
     watch(
@@ -94,11 +96,7 @@ export default {
     return {
       selectedButton,
       onButtonClick,
-      activeIcon,
-      currentSort,
-      currentSortIcon,
-      currentSortLabel,
-      cycleSentimentSort
+      activeIcon
     }
   }
 }
