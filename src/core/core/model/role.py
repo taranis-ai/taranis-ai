@@ -40,7 +40,7 @@ class Role(BaseModel):
             self.permissions = Permission.get_bulk(permissions)
 
     @classmethod
-    def filter_by_name(cls, role_name) -> "Role|None":
+    def filter_by_name(cls, role_name: str) -> "Role|None":
         return cls.get_first(db.select(cls).filter_by(name=role_name))
 
     @classmethod
