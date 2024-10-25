@@ -13,6 +13,8 @@
 import { ref, onBeforeMount } from 'vue'
 import { getProduct } from '@/api/publish'
 import ProductItem from '@/components/publish/ProductItem.vue'
+import { useRoute } from 'vue-router'
+import { useAnalyzeStore } from '@/stores/AnalyzeStore'
 
 export default {
   name: 'ProductView',
@@ -36,14 +38,31 @@ export default {
 
     const edit = ref(true)
     const readyToRender = ref(false)
+    const analyzeStore = useAnalyzeStore()
+    const route = useRoute()
 
     const loadProduct = async () => {
+      await analyzeStore.loadReportTypes()
+      await analyzeStore.loadReportItems()
+
       console.debug('Loading product', props.productId)
       if (props.productId) {
         const response = await getProduct(props.productId)
         return response.data
       }
       edit.value = false
+      if (route.query.report) {
+        const reports =
+          typeof route.query.report === 'string'
+            ? [route.query.report]
+            : route.query.report
+        console.debug('Reports', reports)
+        return {
+          ...defaultProduct.value,
+          report_items: reports
+        }
+      }
+
       return defaultProduct.value
     }
 

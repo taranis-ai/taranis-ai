@@ -185,7 +185,7 @@
       "search": "Vyhľadávanie",
       "update": "Aktualizovať"
     },
-    "card_item": {
+    "generic": {
       "collected": "Zozbierané",
       "created": "Vytvorené",
       "description": "Popis",
@@ -384,21 +384,9 @@
     },
     "report_item": {
       "attributes": "Atribúty",
-      "delete_existing_codes": "Odstráňte existujúce kódy CVE/CPE",
-      "import_csv": "Importovať súbor CSV",
-      "import_from_csv": "Importujte CVE/CPE z CSV",
       "no_stories": "Nenašli sa žiadne príbehy, pridajte jeden na karte Vyhodnotiť",
       "report_type": "Typ položky prehľadu",
-      "select": "Vyberte položku Prehľad položiek",
-      "title": "Názov",
-      "tooltip": {
-        "add_value": "Pridajte k tomuto atribútu novú hodnotu",
-        "cvss_detail": "Zobraziť definíciu CVSS kalkulačky",
-        "delete_value": "Odstrániť hodnotu z tohto atribútu",
-        "enum_selector": "Zobraziť okno vyhľadávania hodnôt",
-        "sort_time": "Zoradiť hodnoty od najnovších",
-        "sort_user": "Ukážte najprv moje hodnoty a potom ostatným"
-      }
+      "enum_selector": "Zobraziť okno vyhľadávania hodnôt"
     },
     "report_type": {
       "description": "Popis",

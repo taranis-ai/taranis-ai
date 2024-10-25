@@ -75,7 +75,7 @@ export default defineComponent({
 <style src="./assets/common.css"></style>
 
 <style lang="scss">
-@import '@/styles/awake.scss';
+@use '@/styles/awake.scss' as *;
 
 .v-application {
   font-size: 14px;

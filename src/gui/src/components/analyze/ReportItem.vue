@@ -7,7 +7,7 @@
         v-model="verticalView"
         style="max-width: 250px"
         class="mr-4"
-        label="Side-by-side"
+        :label="$t('analyze.vertical_view')"
         hide-details
         color="success"
         density="compact"
@@ -17,10 +17,28 @@
         v-model="report_item.completed"
         style="max-width: 250px"
         hide-details
-        label="Completed"
+        :label="$t('analyze.completed')"
         color="success"
         density="compact"
       />
+      <v-btn
+        v-if="edit"
+        prepend-icon="mdi-chart-box-plus-outline"
+        color="primary"
+        class="ml-4"
+        variant="flat"
+        text="New Product from Report"
+        :to="newProductProps"
+      />
+      <v-btn
+        prepend-icon="mdi-delete-outline"
+        color="error"
+        variant="flat"
+        class="ml-4"
+        @click="removeAllFromReport"
+      >
+        {{ $t('analyze.remove_all_stories') }}
+      </v-btn>
       <v-btn
         prepend-icon="mdi-content-save"
         color="success"
@@ -30,16 +48,6 @@
       >
         <v-tooltip activator="parent" text="[ctrl+shift+s]" location="bottom" />
         {{ $t('button.save') }}
-      </v-btn>
-      <v-btn
-        v-if="report_item.stories.length"
-        prepend-icon="mdi-delete-outline"
-        color="error"
-        variant="flat"
-        class="ml-4"
-        @click="removeAllFromReport"
-      >
-        remove all stories
       </v-btn>
     </v-toolbar>
     <v-card-text>
@@ -67,7 +75,7 @@
               <v-col cols="8" class="pr-3">
                 <v-text-field
                   v-model="report_item.title"
-                  :label="$t('report_item.title')"
+                  :label="$t('generic.title')"
                   name="title"
                   type="text"
                   :rules="required"
@@ -169,6 +177,10 @@ export default {
     )
     const required = ref([(v) => !!v || 'Required'])
     const { report_item_types, report_item_stories } = storeToRefs(store)
+    const newProductProps = ref({
+      name: 'product',
+      query: { report: report_item.value.id }
+    })
 
     const used_story_ids = computed(() => {
       if (!report_item.value || !report_item.value.attributes) {
@@ -238,7 +250,11 @@ export default {
       }
 
       try {
-        const response = await createReportItem(report_item.value)
+        const new_report_item = {
+          ...report_item.value,
+          stories: report_item.value.stories.map((story) => story.id)
+        }
+        const response = await createReportItem(new_report_item)
         console.debug('Report item created:', response.data)
         router.push('/report/' + response.data.id)
         emit('reportcreated', response.data.id)
@@ -285,6 +301,7 @@ export default {
       form,
       required,
       report_item_types,
+      newProductProps,
       container_title,
       saveReportItem,
       removeAllFromReport,

@@ -50,9 +50,19 @@ export const useAnalyzeStore = defineStore(
       )
     })
 
-    const getReportItemsByIDs = computed(() => (report_item_ids) => {
+    const getReportItemsByIDs = computed(() => (report_ids) => {
       const items = report_items.value.items.filter((item) =>
-        report_item_ids.includes(item.report_item_type_id)
+        report_ids.includes(item.id)
+      )
+
+      return items.map((item) =>
+        mapReportItem(item, report_item_types.value.items)
+      )
+    })
+
+    const getReportItemsByTypeIDs = computed(() => (report_type_ids) => {
+      const items = report_items.value.items.filter((item) =>
+        report_type_ids.includes(item.report_item_type_id)
       )
 
       return items.map((item) =>
@@ -63,6 +73,16 @@ export const useAnalyzeStore = defineStore(
     async function loadReportItems() {
       const response = await getAllReportItems('')
       report_items.value = response.data
+    }
+
+    async function getReportyID(id) {
+      let report = report_items.value.items.filter((item) => item.id === id)[0]
+      if (!report) {
+        const response = getReportItem(id)
+        report = response.data
+        report_items.value.items.push(report)
+      }
+      return report
     }
 
     async function updateReportItems() {
@@ -171,6 +191,8 @@ export const useAnalyzeStore = defineStore(
       getReportItemsList,
       getReportItemsTableData,
       getReportItemsByIDs,
+      getReportItemsByTypeIDs,
+      getReportyID,
       patchReportItem,
       loadReportItems,
       updateReportItems,

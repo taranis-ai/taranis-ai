@@ -15,12 +15,12 @@
                   <v-icon center>{{ card.tag }}</v-icon>
                 </v-col>
                 <v-col>
-                  <div class="grey--text">{{ $t('card_item.title') }}</div>
+                  <div class="grey--text">{{ $t('generic.title') }}</div>
                   <span>{{ card.title }}</span>
                 </v-col>
                 <v-col>
                   <div class="grey--text">
-                    {{ $t('card_item.description') }}
+                    {{ $t('generic.description') }}
                   </div>
                   <span>{{ card.subtitle }}</span>
                 </v-col>

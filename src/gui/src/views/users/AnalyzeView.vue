@@ -50,7 +50,7 @@
             color="primary"
             class="ml-2"
             min-width="48%"
-            text="Create new Report"
+            :text="$t('analyze.new_report')"
             prepend-icon="mdi-chart-box-plus-outline"
             @click="createReport()"
           />
