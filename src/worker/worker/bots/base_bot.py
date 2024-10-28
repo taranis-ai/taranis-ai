@@ -19,7 +19,7 @@ class BaseBot:
             parameters = {}
         return {"message": "No action defined for this bot"}
 
-    def get_filter_dict(self, parameters) -> dict:
+    def get_filter_dict(self, parameters: dict) -> dict:
         filter_dict = {}
         if item_filter := parameters.pop("ITEM_FILTER", None):
             filter_dict = {k: v[0] if len(v) == 1 else v for k, v in parse_qs(item_filter).items()}
@@ -47,11 +47,12 @@ class BaseBot:
             filter_dict["offset"] = limit
         return filter_dict
 
-    def get_stories(self, parameters: dict = None) -> list:
+    def get_stories(self, parameters: dict) -> list:
         filter_dict = self.get_filter_dict(parameters)
         data = self.core_api.get_stories(filter_dict)
-        if not data:
+        if data is None:
             logger.debug(f"No Stories for filter: {filter_dict}")
+            return []
         return data
 
     def refresh(self):

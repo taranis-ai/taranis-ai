@@ -42,8 +42,10 @@ export default {
     const route = useRoute()
 
     const loadProduct = async () => {
-      await analyzeStore.loadReportTypes()
-      await analyzeStore.loadReportItems()
+      await Promise.all([
+        analyzeStore.loadReportTypes(),
+        analyzeStore.loadReportItems()
+      ])
 
       console.debug('Loading product', props.productId)
       if (props.productId) {
@@ -56,7 +58,6 @@ export default {
           typeof route.query.report === 'string'
             ? [route.query.report]
             : route.query.report
-        console.debug('Reports', reports)
         return {
           ...defaultProduct.value,
           report_items: reports

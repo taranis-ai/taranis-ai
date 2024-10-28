@@ -112,11 +112,11 @@ class RSSCollector(BaseWebCollector):
             hash=hashlib.sha256(for_hash.encode()).hexdigest(),
             author=author,
             title=title,
+            source=self.feed_url,
             content=content,
             web_url=link,
             published_date=published,
             language=source.get("language", ""),
-            review=source.get("review", ""),
         )
 
     # TODO: This function is renamed because of inheritance issues.
