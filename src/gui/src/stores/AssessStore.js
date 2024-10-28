@@ -123,8 +123,18 @@ export const useAssessStore = defineStore(
       }
     }
 
+    async function getStoriesByID(ids) {
+      return ids.map((id) => getStoryByID(id))
+    }
+
     function getStoryByID(id) {
-      return stories.value.items.filter((item) => item.id === id)[0]
+      let story = stories.value.items.filter((item) => item.id === id)[0]
+      if (!story) {
+        const response = getStory(id)
+        story = response.data
+        stories.value.items.push(story)
+      }
+      return story
     }
     function removeStoryByID(id) {
       deleteStory(id)
@@ -383,6 +393,7 @@ export const useAssessStore = defineStore(
       ungroupStories,
       appendStories,
       getStoryByID,
+      getStoriesByID,
       removeStoryByID,
       updateStoryByID,
       voteOnStory,

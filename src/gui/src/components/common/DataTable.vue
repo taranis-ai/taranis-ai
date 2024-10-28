@@ -100,7 +100,7 @@
       <slot name="nodata">
         <v-empty-state
           icon="mdi-magnify"
-          title="No Data Found."
+          title="No Data Found"
           class="my-5"
           action-text="Reload Data"
           @click:action="updateItems()"

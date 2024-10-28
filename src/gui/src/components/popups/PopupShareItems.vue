@@ -11,17 +11,24 @@
         :items="reportItems"
         menu-icon="mdi-chevron-down"
       />
+      <v-spacer />
+      <v-btn variant="outlined" block :to="reportItemProps">
+        <v-tooltip
+          activator="parent"
+          text="Create a new report with these Stories"
+        />
+        Create new Report
+      </v-btn>
     </v-card-text>
     <v-card-actions class="mt-1">
       <v-btn
         variant="outlined"
         class="text-lowercase text-red-darken-3 ml-3"
         prepend-icon="mdi-close"
+        :text="$t('generic.abort')"
         @click="close()"
-      >
-        abort
-      </v-btn>
-      <v-spacer></v-spacer>
+      />
+      <v-spacer />
       <v-btn
         variant="outlined"
         class="text-lowercase text-primary mr-3"
@@ -51,9 +58,19 @@ export default {
   setup(props, { emit }) {
     const analyzeStore = useAnalyzeStore()
     const reportItemSelection = ref(analyzeStore.last_report)
-    console.debug(analyzeStore.last_report)
 
     const reportItems = computed(() => analyzeStore.getReportItemsList)
+
+    if (
+      reportItemSelection.value &&
+      !reportItems.value.find((r) => r.value === reportItemSelection.value)
+    ) {
+      analyzeStore.last_report = null
+    }
+    const reportItemProps = ref({
+      name: 'report',
+      query: { story: props.itemIds }
+    })
 
     const share = () => {
       analyzeStore.addStoriesToReport(reportItemSelection.value, props.itemIds)
@@ -71,6 +88,7 @@ export default {
     return {
       reportItems,
       reportItemSelection,
+      reportItemProps,
       share,
       close
     }
