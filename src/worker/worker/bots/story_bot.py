@@ -32,6 +32,7 @@ class StoryBot(BaseBot):
             clustering_results = incremental_clustering_v2(to_cluster, already_clustered)
             logger.info(f"Clustering results: {clustering_results['event_clusters']}")
             self.core_api.news_items_grouping_multiple(clustering_results["event_clusters"])
+        return {"message": f"Clustering {len(data)} news items"}
 
     def initial_clustering_event_handler(self, corpus):
         events = extract_events_from_corpus(corpus=corpus)

@@ -6,7 +6,6 @@ from core.config import Config
 from core.model.user import User
 from core.model.role import Role
 from core.model.organization import Organization
-from core.log import logger
 
 
 class ExternalAuthenticator(BaseAuthenticator):
@@ -21,7 +20,6 @@ class ExternalAuthenticator(BaseAuthenticator):
         self.name: str = "ExternalAuthenticator"
 
     def authenticate(self, credentials: dict[str, str]) -> Response:
-        logger.debug(f"{credentials=}")
         username = credentials.get("username")
         if not username:
             return BaseAuthenticator.generate_error()

@@ -12,7 +12,9 @@
 <script>
 import { ref, onBeforeMount } from 'vue'
 import { getReportItem } from '@/api/analyze'
+import { useAssessStore } from '@/stores/AssessStore'
 import ReportItem from '@/components/analyze/ReportItem.vue'
+import { useRoute } from 'vue-router'
 
 export default {
   name: 'ReportView',
@@ -22,10 +24,14 @@ export default {
   props: {
     reportId: {
       type: String,
-      required: true
+      required: false,
+      default: null
     }
   },
   setup(props) {
+    const route = useRoute()
+    const assessStore = useAssessStore()
+
     const default_report_item = ref({
       title: '',
       completed: false,
@@ -43,6 +49,13 @@ export default {
         return response.data
       }
       edit.value = false
+      if (route.query.story) {
+        const stories = await assessStore.getStoriesByID(route.query.story)
+        return {
+          ...default_report_item.value,
+          stories: stories
+        }
+      }
       return default_report_item.value
     }
 

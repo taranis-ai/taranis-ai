@@ -70,7 +70,7 @@ class NLPBot(BaseBot):
 
     def extract_ner(self, text: str, all_keywords) -> dict:
         sentence = Sentence(text, use_tokenizer=False)
-        self.model.predict(sentence)
+        self.model.predict(sentence)  # type: ignore
         current_keywords = {}
         for ent in sentence.get_labels():
             tag = ent.data_point.text

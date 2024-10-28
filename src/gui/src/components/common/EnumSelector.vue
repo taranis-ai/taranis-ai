@@ -1,11 +1,6 @@
 <template>
   <v-row>
-    <v-btn
-      text
-      small
-      :title="$t('report_item.tooltip.enum_selector')"
-      @click="show"
-    >
+    <v-btn text small :title="$t('report_item.enum_selector')" @click="show">
       <v-icon>mdi-feature-search-outline</v-icon>
     </v-btn>
     <v-dialog v-model="visible">

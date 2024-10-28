@@ -80,7 +80,7 @@
           <template #nodata>
             <v-empty-state
               icon="mdi-magnify"
-              title="No OSINTSources Found."
+              title="No OSINTSources Found"
               class="my-5"
             >
               <v-btn
@@ -89,6 +89,7 @@
                 @click.stop="updateData"
               />
               <v-btn
+                v-if="sourceTotalCount === 0"
                 text="load default sources"
                 prepend-icon="mdi-database"
                 @click.stop="loadDefaultSources()"

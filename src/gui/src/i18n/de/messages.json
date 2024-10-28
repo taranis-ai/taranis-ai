@@ -185,7 +185,7 @@
         "search": "Suchen",
         "update": "Aktualisieren"
     },
-    "card_item": {
+    "generic": {
         "collected": "Gesammelt",
         "created": "Erstellt",
         "description": "Beschreibung",
@@ -380,21 +380,8 @@
     },
     "report_item": {
       "attributes": "Attribute",
-      "delete_existing_codes": "Löschen Sie vorhandene CVE/CPE-Codes",
-      "import_csv": "CSV importieren",
-      "import_from_csv": "CVE/CPE aus CSV importieren",
       "no_stories": "Keine Geschichten gefunden, bitte fügen Sie eine über die Registerkarte „Bewerten“ hinzu",
-      "report_type": "Berichtselementtyp",
-      "select": "Wählen Sie Berichtselemente aus",
-      "title": "Titel",
-      "tooltip": {
-        "add_value": "Fügen Sie diesem Attribut einen neuen Wert hinzu",
-        "cvss_detail": "Definition des CVSS-Rechners anzeigen",
-        "delete_value": "Wert aus diesem Attribut löschen",
-        "enum_selector": "Wertsuchfenster anzeigen",
-        "sort_time": "Sortieren Sie die Werte nach dem Neuesten",
-        "sort_user": "Zeige zuerst meine Werte, dann andere"
-      }
+      "report_type": "Berichtselementtyp"
     },
     "report_type": {
       "description": "Beschreibung",
