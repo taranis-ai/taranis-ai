@@ -124,7 +124,10 @@ class WordList(BaseModel):
             )
 
         if usage := filter_args.get("usage"):
-            query = query.filter(WordList.usage.op("&")(usage) > 0)
+            try:
+                query = query.filter(WordList.usage.op("&")(int(usage)) > 0)
+            except ValueError:
+                logger.error(f"Invalid usage filter: {usage}")
 
         return query.order_by(db.asc(cls.name))
 

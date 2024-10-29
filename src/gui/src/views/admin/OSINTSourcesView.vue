@@ -138,6 +138,8 @@ import {
   previewOSINTSSource,
   collectAllOSINTSSources
 } from '@/api/config'
+
+import { getDefaultSoures } from '@/api/static'
 import { notifySuccess, objectFromFormat, notifyFailure } from '@/utils/helpers'
 import { storeToRefs } from 'pinia'
 import { useConfigStore } from '@/stores/ConfigStore'
@@ -331,15 +333,9 @@ export default {
     }
 
     async function loadDefaultSources() {
-      const url = '/default_sources.json'
-
       try {
-        const response = await fetch(url)
-        if (!response.ok) {
-          notifyFailure('Failed to load default sources')
-        }
-
-        const file = await response.blob()
+        const response = await getDefaultSoures()
+        const file = await response.data
         const formData = new FormData()
         formData.append('file', file, 'default_sources.json')
         await importData(formData)

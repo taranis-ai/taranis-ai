@@ -37,6 +37,25 @@
               <span>Update Wordlist</span>
             </v-tooltip>
           </template>
+          <template #nodata>
+            <v-empty-state
+              icon="mdi-magnify"
+              title="No word lists Found"
+              class="my-5"
+            >
+              <v-btn
+                text="refresh"
+                prepend-icon="mdi-refresh"
+                @click.stop="updateData"
+              />
+              <v-btn
+                v-if="wordListTotalCount === 0"
+                text="load default lists"
+                prepend-icon="mdi-database"
+                @click.stop="loadDefaultWordLists"
+              />
+            </v-empty-state>
+          </template>
         </DataTable>
         <WordListForm
           v-if="showForm"
@@ -59,6 +78,10 @@ import {
   importWordList,
   gatherWordListEntries
 } from '@/api/config'
+
+import {
+  getDefaultWordLists
+} from '@/api/static'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import { useConfigStore } from '@/stores/ConfigStore'
 import { useMainStore } from '@/stores/MainStore'
@@ -130,6 +153,18 @@ export default {
       }
     }
 
+    async function loadDefaultWordLists() {
+      try {
+        const response = await getDefaultWordLists()
+        const file = response.data
+        const formData = new FormData()
+        formData.append('file', file, 'default_word_list.json')
+        await importData(formData)
+      } catch (error) {
+        notifyFailure('Failed to import default word list')
+      }
+    }
+
     function exportData() {
       let queryString = ''
       if (selected.value.length > 0) {
@@ -155,11 +190,13 @@ export default {
       addItem,
       editItem,
       handleSubmit,
+      wordListTotalCount: configStore.word_lists.total_count,
       deleteItem,
       importData,
       exportData,
       selectionChange,
-      updateWordListEntries
+      updateWordListEntries,
+      loadDefaultWordLists
     }
   }
 }
