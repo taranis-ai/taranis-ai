@@ -26,7 +26,7 @@ jobs:
 
       - name: Lint with ruff
         working-directory: src/core
-        run: ruff check --output-format=github .
+        run: uv run ruff check --output-format=github .
 
       - name: Run tests
         working-directory: src/core
@@ -100,11 +100,11 @@ jobs:
 
       - name: Install playwright dependencies
         working-directory: src/worker
-        run: playwright install --with-deps chromium
+        run: uv run playwright install --with-deps chromium
 
       - name: Lint with ruff
         working-directory: src/worker
-        run: ruff check --output-format=github .
+        run: uv run ruff check --output-format=github .
 
       - name: Run tests
         working-directory: src/worker
