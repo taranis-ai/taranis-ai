@@ -8,7 +8,6 @@ on:
     - '.github/workflows/build_core.yaml'
     branches:
     - master
-    - feature/pipeline_improvements
 
 permissions:
   packages: write

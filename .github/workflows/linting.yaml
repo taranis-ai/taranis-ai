@@ -11,14 +11,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v2
         with:
-          python-version: "3.12"
-          cache: 'pip'
+          enable-cache: true
 
-      - name: Install dependencies
+      - name: Set up Python
         working-directory: src/core
-        run: pip install -e .[dev]
+        run: uv python install
+
+      - name: Install the project
+        working-directory: src/core
+        run: uv sync --all-extras --dev
 
       - name: Lint with ruff
         working-directory: src/core
@@ -26,7 +30,7 @@ jobs:
 
       - name: Run tests
         working-directory: src/core
-        run: pytest
+        run: uv run pytest
 
   e2e_tests:
     name: End-to-End Tests
@@ -35,28 +39,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v2
         with:
-          python-version: "3.12"
-          cache: 'pip'
+          enable-cache: true
 
-      - name: Install dependencies
+      - name: Set up Python
         working-directory: src/core
-        run: pip install -e .[dev]
+        run: uv python install
+
+      - name: Install the project
+        working-directory: src/core
+        run: uv sync --all-extras --dev
 
       - name: Install Playwright dependencies
         working-directory: src/core
-        run: playwright install --with-deps chromium
+        run: uv run playwright install --with-deps chromium
 
       - name: Set Artifact Name
         shell: bash
         run: |
           ARTIFACT_NAME="playwright-traces-${{ github.ref_name }}-${{ github.event.pull_request.number || github.run_number }}"
           echo "SANITIZED_ARTIFACT_NAME=${ARTIFACT_NAME//\//-}" >> $GITHUB_ENV
-      
+
       - name: Run e2e tests
         working-directory: src/core
-        run: pytest --e2e-ci
+        run: uv run pytest --e2e-ci
 
       - name: Upload a Build Artifact
         uses: actions/upload-artifact@v4
@@ -73,14 +81,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v2
         with:
-          python-version: "3.12"
-          cache: 'pip'
+          enable-cache: true
 
-      - name: Install dependencies
+      - name: Set up Python
         working-directory: src/worker
-        run: pip install -e .[dev]
+        run: uv python install
+
+      - name: Install the project
+        working-directory: src/worker
+        run: uv sync --all-extras --dev
+
+      - name: Run tests
+        working-directory: src/worker
+        run: uv run pytest
 
       - name: Install playwright dependencies
         working-directory: src/worker
@@ -92,20 +108,26 @@ jobs:
 
       - name: Run tests
         working-directory: src/worker
-        run: pytest
+        run: uv run pytest
 
-  eslint:
-    name: eslint
+  test_gui:
+    name: test gui
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
+          cache: 'pnpm'
           cache-dependency-path: |
-            src/gui/package-lock.json
+            src/gui/pnpm-lock.yaml
       - name: Install dependencies
-        run: npm --prefix src/gui ci
+        working-directory: src/gui
+        run: pnpm install
       - name: Lint with eslint
-        run: npm --prefix src/gui run lint_and_format
+        working-directory: src/gui
+        run: pnpm run lint_and_format
