@@ -4,8 +4,8 @@ on:
   push:
     paths:
     - 'src/gui/**'
-    - 'docker/Dockerfile.gui'
-    - '.github/workflows/docker_build_gui.yaml'
+    - 'docker/Containerfile.gui'
+    - '.github/workflows/build_gui.yaml'
     branches:
     - master
 
@@ -59,7 +59,7 @@ jobs:
       - name: Build and push gui
         uses: docker/build-push-action@v5
         with:
-          file: docker/Dockerfile.gui
+          file: docker/Containerfile.gui
           push: true
           tags: |
             ghcr.io/${{ env.GHCR_OWNER }}/taranis-gui:latest

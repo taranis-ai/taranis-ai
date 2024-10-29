@@ -70,9 +70,9 @@ Afterwards go to the cloned repository and launch the `docker build` command for
 
 ```bash
 cd Taranis AI
-docker build -t taranis-core . -f ./docker/Dockerfile.core
-docker build -t taranis-gui . -f ./docker/Dockerfile.gui
-docker build -t taranis-worker . -f ./docker/Dockerfile.worker
+docker build -t taranis-core . -f ./docker/Containerfile.core
+docker build -t taranis-gui . -f ./docker/Containerfile.gui
+docker build -t taranis-worker . -f ./docker/Containerfile.worker
 ```
 
 There are several Dockerfiles and each of them builds a different component of the system. These Dockerfiles exist:

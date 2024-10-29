@@ -19,7 +19,7 @@ dependencies = [
     "python-dotenv",
     "pydantic-settings",
     "requests",
-    
+
     # Collector
     "beautifulsoup4",
     "trafilatura",
@@ -49,6 +49,9 @@ dependencies = [
     "taranis-story-clustering==0.8.1"
 ]
 dynamic = ["version"]
+
+[project.scripts]
+taranis-worker = "taranis_worker"
 
 [project.optional-dependencies]
 dev = [

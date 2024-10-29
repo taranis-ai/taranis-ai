@@ -49,8 +49,10 @@ requires = [
 ]
 build-backend = "setuptools.build_meta"
 
+[project.scripts]
+taranis-ai = "core.granian:main"
+
 [tool.setuptools_scm]
-fallback_version = "0.0.0"
 root = "../.."
 
 [project.optional-dependencies]

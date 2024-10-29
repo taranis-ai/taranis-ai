@@ -1,16 +1,18 @@
-name: build worker
+name: build core
 
 on:
   push:
     paths:
-    - 'src/worker/**'
-    - 'docker/Dockerfile.worker'
-    - '.github/workflows/docker_build_worker.yaml'
+    - 'src/core/**'
+    - 'docker/Containerfile.core'
+    - '.github/workflows/build_core.yaml'
     branches:
     - master
+    - feature/pipeline_improvements
 
 permissions:
   packages: write
+  contents: write
 
 jobs:
   test:
@@ -28,16 +30,16 @@ jobs:
           node-version: 20
 
       - name: Install dependencies
-        working-directory: src/worker
+        working-directory: src/core
         run: pip install -e .[dev]
 
-      - name: Update playwright
-        working-directory: src/worker
-        run: playwright install --with-deps
-
-      - name: test
-        working-directory: src/worker
+      - name: unit tests
+        working-directory: src/core
         run: pytest
+
+      - name: e2e tests
+        working-directory: src/core
+        run: pytest --e2e-ci
 
   build_wheel:
     name: build wheel
@@ -51,21 +53,21 @@ jobs:
           cache: 'pip'
 
       - name: build
-        working-directory: src/worker
+        working-directory: src/core
         run: |
           python -m pip install --upgrade pip setuptools wheel build
           python -m build
       - name: Upload wheel to artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: taranis_worker
+          name: taranis_core
           overwrite: true
           path: |
-            src/worker/dist/taranis_worker-*.whl
-            src/worker/dist/taranis_worker-*.tar.gz
+            src/core/dist/taranis_core-*.whl
+            src/core/dist/taranis_core-*.tar.gz
 
-  build_docker:
-    name: build docker
+  build_container:
+    name: build container
     runs-on: [self-hosted, taranis]
     needs: test
     steps:
@@ -77,16 +79,19 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: get ghcr owner repository
+      - name: set build env
         run: |
           echo "GHCR_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >>${GITHUB_ENV}
-      - name: Build and push worker image
+          echo "GIT_INFO=$(./docker/git_info.sh)" >>${GITHUB_ENV}
+      - name: Build and push core
         uses: docker/build-push-action@v5
         with:
-          file: docker/Dockerfile.worker
+          file: docker/Containerfile.core
           push: true
           tags: |
-            ghcr.io/${{ env.GHCR_OWNER }}/taranis-worker:latest
-            ghcr.io/${{ env.GHCR_OWNER }}/taranis-worker:${{ github.ref_name }}
+            ghcr.io/${{ env.GHCR_OWNER }}/taranis-core:latest
+            ghcr.io/${{ env.GHCR_OWNER }}/taranis-core:${{ github.ref_name }}
+          build-args: |
+            git_info=${{ env.GIT_INFO }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
