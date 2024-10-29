@@ -12,7 +12,7 @@ classifiers = [
     "Framework :: Flask",
     "Topic :: Security",
 ]
-requires-python = ">=3.12"
+requires-python = "3.12"
 dependencies = [
     "apscheduler",
     "Flask",
