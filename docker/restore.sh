@@ -15,7 +15,9 @@ usage() {
 # Function to check if a volume exists
 check_volume_exists() {
     local volume_name=$1
-    if docker volume ls | grep -q "$volume_name"; then 
+    echo "Checking if the volume exists: ${compose_project_name}_$volume_name"
+
+    if docker volume ls | grep -q "${compose_project_name}_$volume_name"; then
         echo "Error: Volume ${volume_name} already exists. Ensure you have a backup of your data and delete the volume before continuing your restore."
         exit 1
     fi
@@ -30,7 +32,7 @@ restore_postgresql() {
         -e POSTGRES_DB="${DB_DATABASE:-taranis}" \
         -e POSTGRES_USER="${DB_USER:-taranis}" \
         -e POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-taranis}" \
-        -v ./$backup_dir:/tmp \
+        -v $backup_file:/tmp/database_backup.tar \
         -v ./db_init.sh:/docker-entrypoint-initdb.d/db_init.sh:z \
         -v $volume_name:/var/lib/postgresql/data \
         --name "${compose_project_name}_database_restore" docker.io/library/postgres:17
@@ -129,8 +131,6 @@ if $run_core && [ ! -f "$core_data_backup_file" ]; then
     exit 1
 fi
 
-echo "Checking if the necessary volumes exist..."
-
 if $run_core; then
     check_volume_exists "core_data"
 fi
@@ -140,6 +140,7 @@ if $run_database; then
 fi
 
 # Restore operations
+docker compose up --no-start core database
 
 if $run_core; then
     restore_volume_data "$core_data_backup_file" "core_data"

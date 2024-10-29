@@ -16,4 +16,3 @@ docker compose down core gui && \
 docker compose down database --volumes && \
 ./restore.sh --database "$backup_dir" && \
 docker compose up -d
-
