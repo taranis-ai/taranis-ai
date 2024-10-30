@@ -48,6 +48,13 @@ def app_loader(target):
     return create_app(initial_setup=False)
 
 
-wait_for_db()
-create_app(initial_setup=True)
-Granian("core", interface=Interfaces.WSGI, address=address, port=port, log_level=loglevel, workers=workers).serve(target_loader=app_loader)
+def main():
+    wait_for_db()
+    create_app(initial_setup=True)
+    Granian("core", interface=Interfaces.WSGI, address=address, port=port, log_level=loglevel, workers=workers).serve(
+        target_loader=app_loader
+    )
+
+
+if __name__ == "__main__":
+    main()

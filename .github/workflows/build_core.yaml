@@ -4,8 +4,8 @@ on:
   push:
     paths:
     - 'src/core/**'
-    - 'docker/Dockerfile.core'
-    - '.github/workflows/docker_build_core.yaml'
+    - 'docker/Containerfile.core'
+    - '.github/workflows/build_core.yaml'
     branches:
     - master
 
@@ -65,8 +65,8 @@ jobs:
             src/core/dist/taranis_core-*.whl
             src/core/dist/taranis_core-*.tar.gz
 
-  build_docker:
-    name: build docker
+  build_container:
+    name: build container
     runs-on: [self-hosted, taranis]
     needs: test
     steps:
@@ -85,7 +85,7 @@ jobs:
       - name: Build and push core
         uses: docker/build-push-action@v5
         with:
-          file: docker/Dockerfile.core
+          file: docker/Containerfile.core
           push: true
           tags: |
             ghcr.io/${{ env.GHCR_OWNER }}/taranis-core:latest

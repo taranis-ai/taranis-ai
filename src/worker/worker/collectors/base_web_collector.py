@@ -31,7 +31,7 @@ class BaseWebCollector(BaseCollector):
 
         self.playwright_manager: PlaywrightManager | None = None
         self.browser_mode = None
-        self.web_url: str | None = None
+        self.web_url: str = ""
 
     def parse_source(self, source):
         self.digest_splitting = source["parameters"].get("DIGEST_SPLITTING", "false")

@@ -79,7 +79,7 @@ setup_nodejs() {
 
 
 main() {
-    [[ -f ./docker/dev/.installed ]] && exit 0
+    [[ -f ./dev/.installed ]] && exit 0
     check_sudo_access
     check_if_installed
     update_packages
@@ -87,7 +87,7 @@ main() {
     install_astral
     install_docker
     setup_nodejs
-    touch ./docker/dev/.installed
+    touch ./dev/.installed
 }
 
 # Execute the main function

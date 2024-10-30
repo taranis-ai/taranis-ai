@@ -15,7 +15,7 @@ For production deployments see our [Deployment Guide using docker compose](https
 
 ## Contributions
 
-We welcome contributions from the community! If you're interested in contributing to Taranis AI, please read our [Development Setup Guide](./docker/dev/README.md) to get started.
+We welcome contributions from the community! If you're interested in contributing to Taranis AI, please read our [Development Setup Guide](./dev/README.md) to get started.
 
 ## Documentation
 
