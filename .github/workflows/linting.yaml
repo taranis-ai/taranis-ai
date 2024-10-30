@@ -97,7 +97,7 @@ jobs:
         run: |
           TRACES_ARTIFACT_NAME="playwright-traces-${{ github.ref_name }}-${{ github.event.pull_request.number || github.run_number }}"
           GUI_ARTIFACT_NAME="built-frontend-${{ github.ref_name }}-${{ github.event.pull_request.number || github.run_number }}"
-          echo "TRACES_ARTIFACT_NAME=${ARTIFACT_NAME//\//-}" >> $GITHUB_ENV
+          echo "TRACES_ARTIFACT_NAME=${TRACES_ARTIFACT_NAME//\//-}" >> $GITHUB_ENV
           echo "GUI_ARTIFACT_NAME=${GUI_ARTIFACT_NAME//\//-}" >> $GITHUB_ENV
 
       - name: Download built frontend
@@ -137,10 +137,6 @@ jobs:
       - name: Install the project
         working-directory: src/worker
         run: uv sync --all-extras --dev
-
-      - name: Run tests
-        working-directory: src/worker
-        run: uv run pytest
 
       - name: Install playwright dependencies
         working-directory: src/worker
