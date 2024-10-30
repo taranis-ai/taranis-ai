@@ -35,7 +35,7 @@ restore_postgresql() {
         -v $backup_file:/tmp/database_backup.tar \
         -v ./db_init.sh:/docker-entrypoint-initdb.d/db_init.sh:z \
         -v $volume_name:/var/lib/postgresql/data \
-        --name "${compose_project_name}_database_restore" docker.io/library/postgres:17
+        --name "${compose_project_name}_database_restore" docker.io/library/postgres:17-alpine
 
     if [ $? -ne 0 ]; then echo "Database restoration failed"; exit 1; fi
 }
