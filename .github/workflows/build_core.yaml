@@ -8,6 +8,7 @@ on:
     - '.github/workflows/build_core.yaml'
     branches:
     - master
+    - feature/testci
 
 permissions:
   packages: write
@@ -19,26 +20,39 @@ jobs:
     runs-on: [self-hosted, taranis]
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v2
         with:
-          python-version: "3.12"
-          cache: 'pip'
+          enable-cache: true
+
+      - name: Set up Python
+        working-directory: src/core
+        run: uv python install
+
+      - name: Install dependencies
+        working-directory: src/core
+        run: uv sync --all-extras --dev
+
+      - name: unit tests
+        working-directory: src/core
+        run: uv run pytest
+
+      - name: Install Playwright dependencies
+        working-directory: src/core
+        run: uv run playwright install --with-deps chromium
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
 
       - uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Install dependencies
-        working-directory: src/core
-        run: pip install -e .[dev]
-
-      - name: unit tests
-        working-directory: src/core
-        run: pytest
-
       - name: e2e tests
         working-directory: src/core
-        run: pytest --e2e-ci
+        run: uv run pytest --e2e-ci
 
   build_wheel:
     name: build wheel
@@ -46,16 +60,19 @@ jobs:
     needs: test
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v2
         with:
-          python-version: "3.12"
-          cache: 'pip'
+          enable-cache: true
+
+      - name: Set up Python
+        working-directory: src/core
+        run: uv python install
 
       - name: build
         working-directory: src/core
-        run: |
-          python -m pip install --upgrade pip setuptools wheel build
-          python -m build
+        run: uv build
+
       - name: Upload wheel to artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -88,9 +105,9 @@ jobs:
           file: docker/Containerfile.core
           push: true
           tags: |
-            ghcr.io/${{ env.GHCR_OWNER }}/taranis-core:latest
-            ghcr.io/${{ env.GHCR_OWNER }}/taranis-core:${{ github.ref_name }}
+            ghcr.io/${{ env.GHCR_OWNER }}/taranis-core:testci
           build-args: |
             git_info=${{ env.GIT_INFO }}
+            BUILDKIT_CONTEXT_KEEP_GIT_DIR=true
           cache-from: type=gha
           cache-to: type=gha,mode=max
