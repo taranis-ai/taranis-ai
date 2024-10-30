@@ -4,8 +4,8 @@ on:
   push:
     paths:
     - 'src/gui/**'
-    - 'docker/Dockerfile.gui'
-    - '.github/workflows/docker_build_gui.yaml'
+    - 'docker/Containerfile.gui'
+    - '.github/workflows/build_gui.yaml'
     branches:
     - master
 
@@ -19,18 +19,22 @@ jobs:
     runs-on: [self-hosted, taranis]
     steps:
       - uses: actions/checkout@v4
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
+          cache: 'pnpm'
           cache-dependency-path: |
-            src/gui/package-lock.json
+            src/gui/pnpm-lock.yaml
       - name: Install dependencies
         working-directory: src/gui
-        run: npm ci
+        run: pnpm install
       - name: Rebuild the dist/ directory
         working-directory: src/gui
-        run: npm run build
+        run: pnpm run build
       - name: Upload dist to artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -40,7 +44,7 @@ jobs:
             src/gui/dist/
 
   build_docker:
-    name: build docker
+    name: build with docker
     runs-on: [self-hosted, taranis]
     steps:
       - uses: actions/checkout@v4
@@ -59,7 +63,7 @@ jobs:
       - name: Build and push gui
         uses: docker/build-push-action@v5
         with:
-          file: docker/Dockerfile.gui
+          file: docker/Containerfile.gui
           push: true
           tags: |
             ghcr.io/${{ env.GHCR_OWNER }}/taranis-gui:latest

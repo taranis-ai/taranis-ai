@@ -4,8 +4,8 @@ on:
   push:
     paths:
     - 'src/worker/**'
-    - 'docker/Dockerfile.worker'
-    - '.github/workflows/docker_build_worker.yaml'
+    - 'docker/Containerfile.worker'
+    - '.github/workflows/build_worker.yaml'
     branches:
     - master
 
@@ -83,7 +83,7 @@ jobs:
       - name: Build and push worker image
         uses: docker/build-push-action@v5
         with:
-          file: docker/Dockerfile.worker
+          file: docker/Containerfile.worker
           push: true
           tags: |
             ghcr.io/${{ env.GHCR_OWNER }}/taranis-worker:latest

@@ -253,12 +253,14 @@ class OSINTSource(BaseModel):
             osint_source.cleanup_parameters()
             id_to_index_map[osint_source.id] = idx
 
-        groups = OSINTSourceGroup.get_all_without_default() or []
         export_data = {
             "version": 3,
             "sources": [osint_source.to_export_dict(id_to_index_map, with_groups) for osint_source in data],
-            "groups": [group.to_export_dict(id_to_index_map) for group in groups] if with_groups else [],
         }
+        if with_groups:
+            groups = OSINTSourceGroup.get_all_without_default() or []
+            export_data["groups"] = [group.to_export_dict(id_to_index_map) for group in groups]
+
         logger.debug(f"Exporting {len(export_data['sources'])} sources")
         return json.dumps(export_data).encode("utf-8")
 
