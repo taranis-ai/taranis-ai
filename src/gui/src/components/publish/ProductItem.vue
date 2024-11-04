@@ -51,7 +51,7 @@
               <v-col cols="6" class="pr-3">
                 <v-text-field
                   v-model="product.title"
-                  :label="$t('product.title')"
+                  :label="$t('generic.title')"
                   name="title"
                   :rules="required"
                   required
@@ -246,7 +246,7 @@ export default {
     })
 
     const reportItems = computed(() => {
-      return analyzeStore.getReportItemsByIDs(supported_report_types.value)
+      return analyzeStore.getReportItemsByTypeIDs(supported_report_types.value)
     })
     const render_html = computed(() => {
       return (
@@ -430,8 +430,6 @@ export default {
 
     onMounted(() => {
       publishStore.loadProductTypes()
-      analyzeStore.loadReportItems()
-      analyzeStore.loadReportTypes()
       if (props.edit) {
         setTimeout(() => {
           publishStore.loadRenderedProduct(product.value.id)

@@ -31,6 +31,7 @@ class BaseWebCollector(BaseCollector):
 
         self.playwright_manager: PlaywrightManager | None = None
         self.browser_mode = None
+        self.web_url: str = ""
 
     def parse_source(self, source):
         self.digest_splitting = source["parameters"].get("DIGEST_SPLITTING", "false")
@@ -119,15 +120,18 @@ class BaseWebCollector(BaseCollector):
 
     def news_item_from_article(self, web_url: str, xpath: str = "") -> NewsItem:
         web_content = self.extract_web_content(web_url, xpath)
-        return self.create_news_item(
-            web_content["author"],
-            web_content["title"],
-            web_content["content"],
-            web_url,
-            web_content["published_date"],
-            self.osint_source_id,
-            web_content["language"],
-            web_content["review"],
+        for_hash: str = web_content["author"] + web_content["title"] + self.clean_url(web_url)
+        return NewsItem(
+            osint_source_id=self.osint_source_id,
+            hash=hashlib.sha256(for_hash.encode()).hexdigest(),
+            author=web_content["author"],
+            title=web_content["title"],
+            content=web_content["content"],
+            web_url=web_url,
+            source=self.web_url or web_url,
+            published_date=web_content["published_date"],
+            language=web_content["language"],
+            review=web_content["review"],
         )
 
     def extract_web_content(self, web_url, xpath: str = "") -> dict[str, Any]:
@@ -144,31 +148,6 @@ class BaseWebCollector(BaseCollector):
 
         author, title = self.extract_meta(web_content, web_url)
         return {"author": author, "title": title, "content": content, "published_date": published_date, "language": "", "review": ""}
-
-    def create_news_item(
-        self,
-        author: str,
-        title: str,
-        content: str,
-        web_url: str,
-        published_date: datetime.datetime | None,
-        osint_source_id: str,
-        language: str | None = None,
-        review: str | None = None,
-    ) -> NewsItem:
-        for_hash: str = author + title + self.clean_url(web_url)
-
-        return NewsItem(
-            osint_source_id=osint_source_id,
-            hash=hashlib.sha256(for_hash.encode()).hexdigest(),
-            author=author,
-            title=title,
-            content=content,
-            web_url=web_url,
-            published_date=published_date,
-            language=language,
-            review=review,
-        )
 
     def get_urls(self, collector_url: str, html_content: str) -> list:
         soup = BeautifulSoup(html_content, "html.parser")

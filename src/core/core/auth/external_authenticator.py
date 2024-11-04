@@ -4,7 +4,8 @@ from werkzeug.datastructures import Headers
 from core.auth.base_authenticator import BaseAuthenticator
 from core.config import Config
 from core.model.user import User
-from core.log import logger
+from core.model.role import Role
+from core.model.organization import Organization
 
 
 class ExternalAuthenticator(BaseAuthenticator):
@@ -19,7 +20,6 @@ class ExternalAuthenticator(BaseAuthenticator):
         self.name: str = "ExternalAuthenticator"
 
     def authenticate(self, credentials: dict[str, str]) -> Response:
-        logger.debug(f"{credentials=}")
         username = credentials.get("username")
         if not username:
             return BaseAuthenticator.generate_error()
@@ -37,11 +37,22 @@ class ExternalAuthenticator(BaseAuthenticator):
         }
 
     def create_user_if_not_exists(self, username: str, credentials: dict[str, str]) -> "User":
-        name = credentials.get("name")
-        organization = credentials.get("organization")
-        roles = credentials.get("roles")
-
         if user := User.find_by_name(username):
             return user
 
-        return User.add({"username": username, "name": name, "organization": organization, "roles": roles})
+        name = credentials.get("name")
+
+        if role_names := credentials.get("roles"):
+            roles = [Role.filter_by_name(role_name) for role_name in role_names.split(",")]
+            role_ids = [role.id for role in roles if role]
+        else:
+            role_ids = []
+
+        if org_name := credentials.get("organization"):
+            if not (organization := Organization.find_by_name(org_name)):
+                organization = Organization.add({"name": org_name})
+            organization_id = organization.id
+        else:
+            organization_id = None
+
+        return User.add({"username": username, "name": name, "organization": organization_id, "roles": role_ids})

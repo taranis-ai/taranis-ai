@@ -12,7 +12,7 @@ def install_node_modules():
         if not os.path.isdir("../gui/node_modules"):
             print("Building node_modules")
             print(os.path.isdir("../gui/node_modules"))
-            result = subprocess.call(["npm", "install"], cwd="../gui")
+            result = subprocess.call(["pnpm", "install"], cwd="../gui")
             assert result == 0, f"Install failed with status code: {result}"
     except Exception as e:
         pytest.fail(str(e))
@@ -26,7 +26,7 @@ def build_gui(install_node_modules):
             env = os.environ.copy()
             env["VITE_TARANIS_CONFIG_JSON"] = "/config.json"
             result = subprocess.call(
-                ["npm", "run", "build"],
+                ["pnpm", "run", "build"],
                 cwd="../gui",
                 env=env,
             )

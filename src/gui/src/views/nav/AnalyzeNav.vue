@@ -10,7 +10,7 @@
         <v-col cols="12" align-self="center" class="py-1">
           <v-btn color="primary" block @click="addReport()">
             <v-icon left dark> mdi-file-document-plus-outline </v-icon>
-            New Report
+            {{ $t('analyze.new_report') }}
           </v-btn>
         </v-col>
       </v-row>

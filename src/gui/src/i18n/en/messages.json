@@ -17,34 +17,15 @@
         "writeable": "Writeable"
     },
     "analyze": {
-        "sort": "Sort by",
-        "tooltip": {
-            "delete_item": "Delete report item",
-            "delete_items": "Delete report items",
-            "filter_completed": "Show/hide completed report items",
-            "filter_incomplete": "Show/hide incomplete report items",
-            "publish_item": "Create product from report item",
-            "publish_items": "Create product from report items",
-            "range": {
-                "ALL": "Show all report items",
-                "MONTH": "Show report items for the last month",
-                "TODAY": "Show today's report items",
-                "WEEK": "Show report items for the last week"
-            },
-            "sort": {
-                "time": {
-                    "ascending": "Sort report items by creation date ascending",
-                    "descending": "Sort report items by creation date descending"
-                }
-            },
-            "toggle_selection": "Toggle report items selection mode"
-        }
+      "completed": "completed",
+      "remove_all_stories": "Remove all stories",
+      "vertical_view": "Side-by-side",
+      "new_report": "New Report"
     },
     "assess": {
         "story_description": "Description",
         "story_detail": "Detail",
         "story_info": "Info",
-        "story_title": "Title",
         "article": "Article",
         "attributes": "Attributes",
         "author": "Author",
@@ -59,7 +40,6 @@
             "enter_filter_mode": "Entered filter mode. Exit with Escape."
         },
         "source": "Source",
-        "title": "Title",
         "tooltip": {
             "analyze_item": "Create analysis report from news item",
             "analyze_items": "Create analysis report from news items",
@@ -154,7 +134,7 @@
         "update": "Update",
         "submit": "Submit"
     },
-    "card_item": {
+    "generic": {
         "collected": "Collected",
         "created": "Created",
         "description": "Description",
@@ -165,7 +145,8 @@
         "status": "Status",
         "title": "Title",
         "url": "Url",
-        "username": "Username"
+        "username": "Username",
+        "abort": "abort"
     },
     "enter": {
         "title": "Title",
@@ -279,14 +260,11 @@
         "description": "Description",
         "edit": "Edit OSINT source group",
         "error": "Could not save this OSINT source group",
-        "name": "Name",
         "osint_sources": "OSINT Sources",
         "removed": "OSINT source group was successfully removed",
         "removed_error": "OSINT source group is in use and could not be deleted",
-        "save": "Save",
         "successful": "New OSINT source group was successfully added",
-        "successful_edit": "OSINT source group was successfully updated",
-        "title": "Title"
+        "successful_edit": "OSINT source group was successfully updated"
     },
     "product": {
         "description": "Description",
@@ -295,8 +273,7 @@
         "product_type": "Product Type",
         "publish": "Publish product",
         "publisher": "Publisher",
-        "render": "Render Product",
-        "title": "Title"
+        "render": "Render Product"
     },
     "product_type": {
         "choose_report_type": "Choose report type",
@@ -304,7 +281,6 @@
         "edit": "Edit new product type",
         "error": "Could not create this product type.",
         "help": "Template parameters description",
-        "name": "Name",
         "news_items": "News Items",
         "presenter": "Presenter",
         "removed": "Product type was successfully removed",
@@ -314,39 +290,14 @@
         "successful_edit": "Product type was successfully updated"
     },
     "publish": {
-        "tooltip": {
-            "delete_item": "Delete product",
-            "range": {
-                "ALL": "Show all products",
-                "MONTH": "Show products for the last month",
-                "TODAY": "Show today's products",
-                "WEEK": "Show products for the last week"
-            },
-            "sort": {
-                "time": {
-                    "ascending": "Sort products by creation date ascending",
-                    "descending": "Sort products by creation date descending"
-                }
-            }
-        }
+      "delete_item": "Delete product"
     },
     "report_item": {
         "attributes": "Attributes",
-        "delete_existing_codes": "Delete existing CVE/CPE codes",
-        "import_csv": "Import CSV",
-        "import_from_csv": "Import CVE/CPE from CSV",
+        "add_to_report": "Add to report",
         "no_stories": "No stories found, please add one from Assess tab",
         "report_type": "Report Item Type",
-        "select": "Select Report Items",
-        "title": "Title",
-        "tooltip": {
-            "add_value": "Add new value to this attribute",
-            "cvss_detail": "Show CVSS calculator definition",
-            "delete_value": "Delete value from this attribute",
-            "enum_selector": "Show value search window",
-            "sort_time": "Sort values from newest",
-            "sort_user": "Show my values first then others"
-        }
+        "enum_selector": "Show value search window"
     },
     "report_type": {
         "description": "Description",
@@ -368,8 +319,7 @@
         "removed_error": "Role is in use and could not be deleted",
         "save": "Save",
         "successful": "New role was successfully added",
-        "successful_edit": "Role was successfully updated",
-        "title": "Title"
+        "successful_edit": "Role was successfully updated"
     },
     "settings": {
         "dark_theme": "Dark Theme",

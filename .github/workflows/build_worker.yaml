@@ -4,8 +4,8 @@ on:
   push:
     paths:
     - 'src/worker/**'
-    - 'docker/Dockerfile.worker'
-    - '.github/workflows/docker_build_worker.yaml'
+    - 'docker/Containerfile.worker'
+    - '.github/workflows/build_worker.yaml'
     branches:
     - master
 
@@ -18,26 +18,35 @@ jobs:
     runs-on: [self-hosted, taranis]
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v2
         with:
-          python-version: "3.12"
-          cache: 'pip'
+          enable-cache: true
+
+      - name: Set up Python
+        working-directory: src/core
+        run: uv python install
+
+      - name: Install dependencies
+        working-directory: src/worker
+        run: uv sync --all-extras --dev
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
 
       - uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Install dependencies
+      - name: Install Playwright dependencies
         working-directory: src/worker
-        run: pip install -e .[dev]
+        run: uv run playwright install --with-deps chromium
 
-      - name: Update playwright
+      - name: pytest
         working-directory: src/worker
-        run: playwright install --with-deps
-
-      - name: test
-        working-directory: src/worker
-        run: pytest
+        run: uv run pytest
 
   build_wheel:
     name: build wheel
@@ -45,16 +54,19 @@ jobs:
     needs: test
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v2
         with:
-          python-version: "3.12"
-          cache: 'pip'
+          enable-cache: true
+
+      - name: Set up Python
+        working-directory: src/core
+        run: uv python install
 
       - name: build
         working-directory: src/worker
         run: |
-          python -m pip install --upgrade pip setuptools wheel build
-          python -m build
+          uv build
       - name: Upload wheel to artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -83,7 +95,7 @@ jobs:
       - name: Build and push worker image
         uses: docker/build-push-action@v5
         with:
-          file: docker/Dockerfile.worker
+          file: docker/Containerfile.worker
           push: true
           tags: |
             ghcr.io/${{ env.GHCR_OWNER }}/taranis-worker:latest

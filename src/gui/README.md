@@ -11,7 +11,7 @@ If you wish to develop and build the GUI separately, read on.
 Install the dependencies
 
 ```bash
-npm install
+pnpm install
 ```
 
 ### Developing
@@ -33,7 +33,7 @@ to run the applicaiton locally add `VITE_TARANIS_CONFIG_JSON = "/config.local.js
 }
 
 ```bash
-npm run dev
+pnpm run dev
 ```
 
 ### Building the static version
@@ -41,7 +41,7 @@ npm run dev
 When you are ready to generate the final static version of the GUI, run
 
 ```bash
-npm run build
+pnpm run build
 ```
 
 The static html/js/css files will be stored under the `dist/` subdirectory.
@@ -49,8 +49,8 @@ The static html/js/css files will be stored under the `dist/` subdirectory.
 ### Testing and linting
 
 ```bash
-npm run test
-npm run lint
+pnpm run test
+pnpm run lint
 ```
 
 ### Customize the configuration
