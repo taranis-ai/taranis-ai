@@ -226,49 +226,51 @@ class OSINTSource(BaseModel):
         logger.info(f"Schedule for source {self.id} removed")
         return {"message": f"Schedule for source {self.id} removed"}, 200
 
-    def to_export_dict(self, id_to_index_map: dict, wtih_groups: bool = False) -> dict[str, Any]:
+    def to_export_dict(self, id_to_index_map: dict, export_args: dict) -> dict[str, Any]:
         export_dict = {
             "name": self.name,
             "description": self.description,
             "type": self.type,
-            "parameters": [parameter.to_dict() for parameter in self.parameters if parameter.value],
+            "parameters": self.get_export_parameters(export_args.get("with_secrets", False)),
         }
         # test if source is in a group that is not default
-        if wtih_groups and any(group for group in self.groups if not group.default):
+        if export_args.get("with_groups", False) and any(group for group in self.groups if not group.default):
             export_dict["group_idx"] = id_to_index_map.get(self.id)
+
         return export_dict
 
     @classmethod
-    def export_osint_sources(cls, source_ids: list[str] | None = None, with_groups: bool = False) -> bytes:
+    def export_osint_sources(cls, export_args: dict | None = None) -> bytes:
+        export_args = export_args or {}
         query = db.select(cls).where(cls.type != COLLECTOR_TYPES.MANUAL_COLLECTOR)
-        if source_ids:
+        if source_ids := export_args.get("source_ids", False):
             query = query.filter(cls.id.in_(source_ids))
 
         data = cls.get_filtered(query)
         if not data:
             return json.dumps({"error": "no sources found"}).encode("utf-8")
 
-        id_to_index_map = {}
-        for idx, osint_source in enumerate(data, 1):
-            osint_source.cleanup_parameters()
-            id_to_index_map[osint_source.id] = idx
-
+        id_to_index_map = {osint_source.id: idx for idx, osint_source in enumerate(data, 1)}
         export_data = {
             "version": 3,
-            "sources": [osint_source.to_export_dict(id_to_index_map, with_groups) for osint_source in data],
+            "sources": [osint_source.to_export_dict(id_to_index_map, export_args) for osint_source in data],
         }
-        if with_groups:
+        if export_args.get("with_groups", False):
             groups = OSINTSourceGroup.get_all_without_default() or []
             export_data["groups"] = [group.to_export_dict(id_to_index_map) for group in groups]
 
         logger.debug(f"Exporting {len(export_data['sources'])} sources")
         return json.dumps(export_data).encode("utf-8")
 
-    def cleanup_parameters(self) -> "OSINTSource":
+    def get_export_parameters(self, with_secrets: bool = False) -> list[dict[str, str]]:
+        parameters = []
         for parameter in self.parameters:
-            if parameter.parameter == "PROXY_SERVER":
-                parameter.value = ""
-        return self
+            if not with_secrets and parameter.parameter == "PROXY_SERVER":
+                parameters.append({parameter.parameter: "<REDACTED>"})
+                continue
+            if parameter.value:
+                parameters.append(parameter.to_dict())
+        return parameters
 
     @classmethod
     def parse_version_1(cls, data: list) -> list:

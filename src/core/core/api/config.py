@@ -429,7 +429,9 @@ class OSINTSourcesExport(MethodView):
     def get(self):
         source_ids = request.args.getlist("ids")
         with_groups = request.args.get("groups", default=False, type=bool)
-        data = osint_source.OSINTSource.export_osint_sources(source_ids, with_groups)
+        with_secrets = request.args.get("secrets", default=False, type=bool)
+        export_args = {"source_ids": source_ids, "with_groups": with_groups, "with_secrets": with_secrets}
+        data = osint_source.OSINTSource.export_osint_sources(export_args)
         if data is None:
             return {"error": "Unable to export"}, 400
         return send_file(

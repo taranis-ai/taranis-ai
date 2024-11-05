@@ -79,9 +79,7 @@ import {
   gatherWordListEntries
 } from '@/api/config'
 
-import {
-  getDefaultWordLists
-} from '@/api/static'
+import { getDefaultWordLists } from '@/api/static'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import { useConfigStore } from '@/stores/ConfigStore'
 import { useMainStore } from '@/stores/MainStore'
