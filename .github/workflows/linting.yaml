@@ -106,6 +106,18 @@ jobs:
           name: ${{ env.GUI_ARTIFACT_NAME }}
           path: src/gui/dist
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+          cache-dependency-path: |
+            src/gui/pnpm-lock.yaml
+
       - name: Run e2e tests
         working-directory: src/core
         run: uv run pytest --e2e-ci

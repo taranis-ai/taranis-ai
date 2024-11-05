@@ -32,6 +32,12 @@ export class ApiService {
     })
   }
 
+  async getBlob(resource) {
+    return await this._axios.get(resource, {
+      responseType: 'blob'
+    })
+  }
+
   post(resource, data) {
     return this._axios.post(resource, data)
   }
