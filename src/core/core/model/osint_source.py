@@ -265,7 +265,7 @@ class OSINTSource(BaseModel):
     def get_export_parameters(self, with_secrets: bool = False) -> list[dict[str, str]]:
         parameters = []
         for parameter in self.parameters:
-            if not with_secrets and parameter.parameter == "PROXY_SERVER":
+            if not with_secrets and parameter.parameter == "PROXY_SERVER" and parameter.value:
                 parameters.append({parameter.parameter: "<REDACTED>"})
                 continue
             if parameter.value:
