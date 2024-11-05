@@ -49,6 +49,8 @@ jobs:
         with:
           node-version: 20
           cache: 'pnpm'
+          cache-dependency-path: |
+            src/gui/pnpm-lock.yaml
 
       - name: e2e tests
         working-directory: src/core

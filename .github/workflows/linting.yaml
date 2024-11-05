@@ -115,6 +115,8 @@ jobs:
         with:
           node-version: 20
           cache: 'pnpm'
+          cache-dependency-path: |
+            src/gui/pnpm-lock.yaml
 
       - name: Run e2e tests
         working-directory: src/core
@@ -165,6 +167,8 @@ jobs:
         with:
           node-version: 20
           cache: 'pnpm'
+          cache-dependency-path: |
+            src/gui/pnpm-lock.yaml
 
       - name: Run tests
         working-directory: src/worker
