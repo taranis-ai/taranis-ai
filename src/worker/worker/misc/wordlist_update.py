@@ -11,7 +11,11 @@ def update_wordlist(word_list_id: int):
         logger.error("No word list id provided")
         return {"error": "No word list id provided"}
 
-    word_list = core_api.get_word_list(word_list_id)
+    try:
+        word_list = core_api.get_word_list(word_list_id)
+    except Exception as e:
+        logger.error(f"Failed to get word list {word_list_id}: {e}")
+        return {"error": f"Failed to get word list {word_list_id}: {e}"}
 
     if not word_list:
         logger.error(f"Word list with id {word_list_id} not found")

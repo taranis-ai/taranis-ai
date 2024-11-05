@@ -8,7 +8,6 @@ on:
     - '.github/workflows/build_core.yaml'
     branches:
     - master
-    - feature/testci
 
 permissions:
   packages: write
@@ -49,6 +48,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'pnpm'
+          cache-dependency-path: |
+            src/gui/pnpm-lock.yaml
 
       - name: e2e tests
         working-directory: src/core
@@ -105,7 +107,8 @@ jobs:
           file: docker/Containerfile.core
           push: true
           tags: |
-            ghcr.io/${{ env.GHCR_OWNER }}/taranis-core:testci
+            ghcr.io/${{ env.GHCR_OWNER }}/taranis-core:latest
+            ghcr.io/${{ env.GHCR_OWNER }}/taranis-core:${{ github.ref_name }}
           build-args: |
             git_info=${{ env.GIT_INFO }}
             BUILDKIT_CONTEXT_KEEP_GIT_DIR=true
