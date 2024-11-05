@@ -161,7 +161,7 @@ export default {
         formData.append('file', file, 'default_word_list.json')
         await importData(formData)
       } catch (error) {
-        notifyFailure('Failed to import default word list')
+        notifyFailure(`Failed to import default word list: ${error.message}`)
       }
     }
 
