@@ -101,12 +101,9 @@ class CoreApi:
         )
 
     def get_word_list(self, word_list_id: int) -> dict | None:
-        try:
-            return self.api_get(
-                url=f"/worker/word-list/{word_list_id}",
-            )
-        except Exception:
-            return None
+        return self.api_get(
+            url=f"/worker/word-list/{word_list_id}",
+        )
 
     def get_news_items(self, limit) -> dict | None:
         try:

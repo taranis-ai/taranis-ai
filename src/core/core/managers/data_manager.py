@@ -79,6 +79,15 @@ def get_presenter_templates() -> list[str]:
     return [file.name for file in filter(Path.is_file, path.glob("*")) if file.name not in ["README.md", "template_hashes.json"]]
 
 
+def get_default_json(filename: str) -> str:
+    package_file = Path(__file__).parent.parent / "static" / filename
+    data_file = Path(Config.DATA_FOLDER) / filename
+
+    source_file = data_file if data_file.exists() else package_file
+
+    return source_file.parent.absolute().as_posix()
+
+
 def get_template_as_base64(presenter_template: str) -> str:
     try:
         filepath = get_presenter_template_path(presenter_template)

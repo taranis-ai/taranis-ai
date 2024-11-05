@@ -124,9 +124,6 @@ class WordList(BaseModel):
             )
 
         if usage := filter_args.get("usage"):
-            # convert usage to an integer it is a string
-            if isinstance(usage, str):
-                usage = int(usage)
             query = query.filter(WordList.usage.op("&")(usage) > 0)
 
         return query.order_by(db.asc(cls.name))

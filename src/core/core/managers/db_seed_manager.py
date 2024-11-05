@@ -24,9 +24,6 @@ def pre_seed():
         pre_seed_report_items()
         logger.debug("Report items seeded")
 
-        pre_seed_wordlists()
-        logger.debug("Wordlists seeded")
-
         pre_seed_workers()
         logger.debug("Workers seeded")
 
@@ -210,15 +207,6 @@ def pre_seed_report_items():
     for report_type in report_types:
         if not ReportItemType.get_by_title(title=report_type["title"]):
             ReportItemType.add(report_type)
-
-
-def pre_seed_wordlists():
-    from core.model.word_list import WordList
-    from core.managers.pre_seed_data import word_lists
-
-    for word_list in word_lists:
-        if not WordList.find_by_name(name=word_list["name"]):
-            WordList.add(word_list)
 
 
 def pre_seed_default_user():
