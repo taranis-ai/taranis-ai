@@ -396,6 +396,7 @@ export default {
         pendingRoute.value = null
       })
       .catch((error) => {
+        notifyFailure('Failed to save changes. Please try again.')
       })
     }
 
@@ -412,6 +413,8 @@ export default {
         dirtyDialog.value = true
         next(false)
       } else {
+        pendingAction.value = null
+        pendingRoute.value = null
         next()
       }
     })

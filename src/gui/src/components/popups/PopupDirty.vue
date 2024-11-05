@@ -1,5 +1,5 @@
 <template>
-  <v-dialog v-model="internalModelValue" width="400">
+  <v-dialog v-model="modelValue" width="400">
     <v-card>
       <v-btn
         outlined
@@ -41,7 +41,8 @@
 </template>
 
 <script>
-export default {
+import { ref, watch, defineComponent } from 'vue'
+export default defineComponent({
   name: 'PopupDirty',
   props: {
     modelValue: {
@@ -50,30 +51,40 @@ export default {
     },
   },
   emits: ['update:modelValue', 'saveAndContinue', 'cancel'],
-  data() {
+  setup(props, { emit }) {
+    const dialogValue = ref(props.modelValue)
+
+    watch(
+      () => props.modelValue,
+      (newVal) => {
+        dialogValue.value = newVal
+      }
+    );
+
+    watch(
+      dialogValue,
+      (newVal) => {
+        emit('update:modelValue', newVal)
+      }
+    )
+
+    function onCancel() {
+      emit('cancel')
+      dialogValue.value = false 
+    }
+
+    function onSaveAndContinue() {
+      emit('saveAndContinue')
+      dialogValue.value = false
+    }
+
     return {
-      internalModelValue: this.modelValue,
-    };
+      dialogValue,
+      onCancel,
+      onSaveAndContinue,
+    }
   },
-  watch: {
-    modelValue(val) {
-      this.internalModelValue = val
-    },
-    internalModelValue(val) {
-      this.$emit('update:modelValue', val)
-    },
-  },
-  methods: {
-    onCancel() {
-      this.$emit('cancel');
-      this.internalModelValue = false // Close the dialog
-    },
-    onSaveAndContinue() {
-      this.$emit('saveAndContinue');
-      this.internalModelValue = false // Close the dialog after saving
-    },
-  },
-}
+})
 </script>
 
 <style scoped>
