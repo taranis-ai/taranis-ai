@@ -158,18 +158,6 @@ jobs:
         working-directory: src/worker
         run: uv run ruff check --output-format=github .
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'pnpm'
-          cache-dependency-path: |
-            src/gui/pnpm-lock.yaml
-
       - name: Run tests
         working-directory: src/worker
         run: uv run pytest
