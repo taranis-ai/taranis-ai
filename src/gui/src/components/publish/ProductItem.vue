@@ -213,7 +213,11 @@ export default {
     useHotkeys('ctrl+shift+s', (event, handler) => {
       console.debug(`You pressed ${handler.key}`)
       event.preventDefault()
-      saveProduct()
+      if (dirtyDialog.value){
+        handleSaveAndContinue()
+      } else {
+        saveProduct()
+      }
     })
 
     useHotkeys('ctrl+p', (event, handler) => {
@@ -385,6 +389,7 @@ export default {
       saveProduct()
       .then(() => {
         dirtyDialog.value = false
+        dirty.value = false
         if (pendingAction.value === 'rerender') {
           rerenderProduct()
         } else if (pendingAction.value === 'publish') {
