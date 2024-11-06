@@ -41,7 +41,7 @@
 </template>
 
 <script>
-import { ref, watch, defineComponent } from 'vue'
+import { defineComponent } from 'vue'
 export default defineComponent({
   name: 'PopupDirty',
   props: {
@@ -52,34 +52,17 @@ export default defineComponent({
   },
   emits: ['update:modelValue', 'saveAndContinue', 'cancel'],
   setup(props, { emit }) {
-    const dialogValue = ref(props.modelValue)
-
-    watch(
-      () => props.modelValue,
-      (newVal) => {
-        dialogValue.value = newVal
-      }
-    );
-
-    watch(
-      dialogValue,
-      (newVal) => {
-        emit('update:modelValue', newVal)
-      }
-    )
-
     function onCancel() {
       emit('cancel')
-      dialogValue.value = false 
+      emit('update:modelValue', false)
     }
 
     function onSaveAndContinue() {
       emit('saveAndContinue')
-      dialogValue.value = false
+      emit('update:modelValue', false)
     }
 
     return {
-      dialogValue,
       onCancel,
       onSaveAndContinue,
     }
