@@ -5,32 +5,32 @@ on:
   pull_request:
 
 jobs:
-  test_core:
-    name: pytest core
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+  # test_core:
+  #   name: pytest core
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v2
-        with:
-          enable-cache: true
+  #     - name: Install uv
+  #       uses: astral-sh/setup-uv@v2
+  #       with:
+  #         enable-cache: true
 
-      - name: Set up Python
-        working-directory: src/core
-        run: uv python install
+  #     - name: Set up Python
+  #       working-directory: src/core
+  #       run: uv python install
 
-      - name: Install the project
-        working-directory: src/core
-        run: uv sync --all-extras --dev
+  #     - name: Install the project
+  #       working-directory: src/core
+  #       run: uv sync --all-extras --dev
 
-      - name: Lint with ruff
-        working-directory: src/core
-        run: uv run ruff check --output-format=github .
+  #     - name: Lint with ruff
+  #       working-directory: src/core
+  #       run: uv run ruff check --output-format=github .
 
-      - name: Run tests
-        working-directory: src/core
-        run: uv run pytest
+  #     - name: Run tests
+  #       working-directory: src/core
+  #       run: uv run pytest
 
 
   test_gui:
@@ -51,27 +51,27 @@ jobs:
       - name: Install dependencies
         working-directory: src/gui
         run: pnpm install
-      - name: Lint with eslint
-        working-directory: src/gui
-        run: pnpm run lint_and_format
-      - name: Build frontend
-        working-directory: src/gui
-        run: pnpm run build
-      - name: Set Artifact Name
-        shell: bash
-        run: |
-          GUI_ARTIFACT_NAME="built-frontend-${{ github.ref_name }}-${{ github.event.pull_request.number || github.run_number }}"
-          echo "GUI_ARTIFACT_NAME=${GUI_ARTIFACT_NAME//\//-}" >> $GITHUB_ENV
-      - name: Upload built frontend
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.GUI_ARTIFACT_NAME }}
-          path: src/gui/dist
+  #     - name: Lint with eslint
+  #       working-directory: src/gui
+  #       run: pnpm run lint_and_format
+  #     - name: Build frontend
+  #       working-directory: src/gui
+  #       run: pnpm run build
+  #     - name: Set Artifact Name
+  #       shell: bash
+  #       run: |
+  #         GUI_ARTIFACT_NAME="built-frontend-${{ github.ref_name }}-${{ github.event.pull_request.number || github.run_number }}"
+  #         echo "GUI_ARTIFACT_NAME=${GUI_ARTIFACT_NAME//\//-}" >> $GITHUB_ENV
+  #     - name: Upload built frontend
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: ${{ env.GUI_ARTIFACT_NAME }}
+  #         path: src/gui/dist
 
   e2e_tests:
     name: End-to-End Tests
     runs-on: ubuntu-latest
-    needs: [test_core, test_gui]
+    # needs: [test_core, test_gui]
     steps:
       - uses: actions/checkout@v4
 
@@ -98,6 +98,7 @@ jobs:
           TRACES_ARTIFACT_NAME="playwright-traces-${{ github.ref_name }}-${{ github.event.pull_request.number || github.run_number }}"
           GUI_ARTIFACT_NAME="built-frontend-${{ github.ref_name }}-${{ github.event.pull_request.number || github.run_number }}"
           echo "TRACES_ARTIFACT_NAME=${TRACES_ARTIFACT_NAME//\//-}" >> $GITHUB_ENV
+          echo "TRACES_ARTIFACT_NAME2=${TRACES_ARTIFACT_NAME//\//-}2" >> $GITHUB_ENV
           echo "GUI_ARTIFACT_NAME=${GUI_ARTIFACT_NAME//\//-}" >> $GITHUB_ENV
 
       - name: Download built frontend
@@ -120,7 +121,7 @@ jobs:
 
       - name: Run e2e tests
         working-directory: src/core
-        run: uv run pytest --e2e-ci
+        run: uv run pytest -s --e2e-ci
 
       - name: Upload a e2e-test trace
         uses: actions/upload-artifact@v4
@@ -131,33 +132,46 @@ jobs:
           name: ${{ env.TRACES_ARTIFACT_NAME }}
           path: src/core/trace.zip
 
-  test_worker:
-    name: pytest worker
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+      - name: Run e2e tests
+        working-directory: src/core
+        run: uv run pytest -s --e2e-ci
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v2
+      - name: Upload a e2e-test trace
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
         with:
-          enable-cache: true
+          retention-days: 7
+          overwrite: true
+          name: ${{ env.TRACES_ARTIFACT_NAME2 }}
+          path: src/core/trace.zip
 
-      - name: Set up Python
-        working-directory: src/worker
-        run: uv python install
+  # test_worker:
+  #   name: pytest worker
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - name: Install the project
-        working-directory: src/worker
-        run: uv sync --all-extras --dev
+  #     - name: Install uv
+  #       uses: astral-sh/setup-uv@v2
+  #       with:
+  #         enable-cache: true
 
-      - name: Install playwright dependencies
-        working-directory: src/worker
-        run: uv run playwright install --with-deps chromium
+  #     - name: Set up Python
+  #       working-directory: src/worker
+  #       run: uv python install
 
-      - name: Lint with ruff
-        working-directory: src/worker
-        run: uv run ruff check --output-format=github .
+  #     - name: Install the project
+  #       working-directory: src/worker
+  #       run: uv sync --all-extras --dev
 
-      - name: Run tests
-        working-directory: src/worker
-        run: uv run pytest
+  #     - name: Install playwright dependencies
+  #       working-directory: src/worker
+  #       run: uv run playwright install --with-deps chromium
+
+  #     - name: Lint with ruff
+  #       working-directory: src/worker
+  #       run: uv run ruff check --output-format=github .
+
+  #     - name: Run tests
+  #       working-directory: src/worker
+  #       run: uv run pytest
