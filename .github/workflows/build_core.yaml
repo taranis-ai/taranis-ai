@@ -62,7 +62,7 @@ jobs:
       
       - name: Upload a e2e-test trace
         uses: actions/upload-artifact@v4
-        if: steps.e2e_tests.outcome == 'failure'
+        if: ${{ !cancelled() }} && steps.e2e_tests.outcome == 'failure'
         with:
           retention-days: 7
           overwrite: true
