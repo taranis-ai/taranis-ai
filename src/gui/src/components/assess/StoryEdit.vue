@@ -147,9 +147,8 @@ export default {
     })
 
     const storySentiment = computed(() => {
-      return JSON.stringify(
-        story.value.attributes.find((attr) => attr.key === 'sentiment').value
-      )
+      const sentimentAttr = story.value.attributes.find((attr) => attr.key === 'sentiment')
+      return sentimentAttr ? JSON.stringify(sentimentAttr.value) : 'Not available'
     })
 
     async function submit() {
