@@ -120,12 +120,13 @@ jobs:
             src/gui/pnpm-lock.yaml
 
       - name: Run e2e tests
+        id: run_e2e
         working-directory: src/core
-        run: uv run pytest -s --e2e-ci
+        run: uv run pytest --e2e-ci
 
       - name: Upload a e2e-test trace
         uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() }}
+        if: steps.run_e2e.outcome == 'failure'
         with:
           retention-days: 7
           overwrite: true
@@ -133,12 +134,13 @@ jobs:
           path: src/core/trace.zip
 
       - name: Run e2e tests2
+        id: run_e2e2
         working-directory: src/core
-        run: uv run pytest -s --e2e-ci
+        run: uv run pytest --e2e-ci
 
       - name: Upload a e2e-test trace2
         uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() }}
+        if: steps.run_e2e2.outcome == 'failure'
         with:
           retention-days: 7
           overwrite: true
