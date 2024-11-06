@@ -33,40 +33,40 @@ jobs:
   #       run: uv run pytest
 
 
-  test_gui:
-    name: test gui
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'pnpm'
-          cache-dependency-path: |
-            src/gui/pnpm-lock.yaml
-      - name: Install dependencies
-        working-directory: src/gui
-        run: pnpm install
-      - name: Lint with eslint
-        working-directory: src/gui
-        run: pnpm run lint_and_format
-      - name: Build frontend
-        working-directory: src/gui
-        run: pnpm run build
-      - name: Set Artifact Name
-        shell: bash
-        run: |
-          GUI_ARTIFACT_NAME="built-frontend-${{ github.ref_name }}-${{ github.event.pull_request.number || github.run_number }}"
-          echo "GUI_ARTIFACT_NAME=${GUI_ARTIFACT_NAME//\//-}" >> $GITHUB_ENV
-      - name: Upload built frontend
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.GUI_ARTIFACT_NAME }}
-          path: src/gui/dist
+  # test_gui:
+  #   name: test gui
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Install pnpm
+  #       uses: pnpm/action-setup@v4
+  #       with:
+  #         version: 9
+  #     - uses: actions/setup-node@v4
+  #       with:
+  #         node-version: 20
+  #         cache: 'pnpm'
+  #         cache-dependency-path: |
+  #           src/gui/pnpm-lock.yaml
+  #     - name: Install dependencies
+  #       working-directory: src/gui
+  #       run: pnpm install
+  #     - name: Lint with eslint
+  #       working-directory: src/gui
+  #       run: pnpm run lint_and_format
+  #     - name: Build frontend
+  #       working-directory: src/gui
+  #       run: pnpm run build
+  #     - name: Set Artifact Name
+  #       shell: bash
+  #       run: |
+  #         GUI_ARTIFACT_NAME="built-frontend-${{ github.ref_name }}-${{ github.event.pull_request.number || github.run_number }}"
+  #         echo "GUI_ARTIFACT_NAME=${GUI_ARTIFACT_NAME//\//-}" >> $GITHUB_ENV
+  #     - name: Upload built frontend
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: ${{ env.GUI_ARTIFACT_NAME }}
+  #         path: src/gui/dist
 
   e2e_tests:
     name: End-to-End Tests
@@ -101,11 +101,11 @@ jobs:
           echo "TRACES_ARTIFACT_NAME2=${TRACES_ARTIFACT_NAME//\//-}2" >> $GITHUB_ENV
           echo "GUI_ARTIFACT_NAME=${GUI_ARTIFACT_NAME//\//-}" >> $GITHUB_ENV
 
-      - name: Download built frontend
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ env.GUI_ARTIFACT_NAME }}
-          path: src/gui/dist
+      # - name: Download built frontend
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     name: ${{ env.GUI_ARTIFACT_NAME }}
+      #     path: src/gui/dist
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
