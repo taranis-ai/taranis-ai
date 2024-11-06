@@ -70,5 +70,5 @@ jobs:
             ghcr.io/${{ env.GHCR_OWNER }}/taranis-gui:${{ github.ref_name }}
           build-args: |
             git_info=${{ env.GIT_INFO }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=registry,ref=ghcr.io/${{ env.GHCR_OWNER }}/taranis-gui-cache:latest
+          cache-to: type=registry,ref=ghcr.io/${{ env.GHCR_OWNER }}/taranis-gui-cache:latest,mode=max

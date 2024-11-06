@@ -112,5 +112,5 @@ jobs:
           build-args: |
             git_info=${{ env.GIT_INFO }}
             BUILDKIT_CONTEXT_KEEP_GIT_DIR=true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=registry,ref=ghcr.io/${{ env.GHCR_OWNER }}/taranis-core-cache:latest
+          cache-to: type=registry,ref=ghcr.io/${{ env.GHCR_OWNER }}/taranis-core-cache:latest,mode=max

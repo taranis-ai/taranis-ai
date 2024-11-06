@@ -100,5 +100,5 @@ jobs:
           tags: |
             ghcr.io/${{ env.GHCR_OWNER }}/taranis-worker:latest
             ghcr.io/${{ env.GHCR_OWNER }}/taranis-worker:${{ github.ref_name }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=registry,ref=ghcr.io/${{ env.GHCR_OWNER }}/taranis-worker-cache:latest
+          cache-to: type=registry,ref=ghcr.io/${{ env.GHCR_OWNER }}/taranis-worker-cache:latest,mode=max
