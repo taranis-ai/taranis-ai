@@ -317,7 +317,6 @@ class TestEndToEndUser(PlaywrightHelpers):
 
         go_to_analyze()
         modify_report_1()
-        page.pause()
 
         go_to_analyze()
         assert_analyze()
