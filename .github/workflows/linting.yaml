@@ -98,7 +98,6 @@ jobs:
           TRACES_ARTIFACT_NAME="playwright-traces-${{ github.ref_name }}-${{ github.event.pull_request.number || github.run_number }}"
           GUI_ARTIFACT_NAME="built-frontend-${{ github.ref_name }}-${{ github.event.pull_request.number || github.run_number }}"
           echo "TRACES_ARTIFACT_NAME=${TRACES_ARTIFACT_NAME//\//-}" >> $GITHUB_ENV
-          echo "TRACES_ARTIFACT_NAME2=${TRACES_ARTIFACT_NAME//\//-}2" >> $GITHUB_ENV
           echo "GUI_ARTIFACT_NAME=${GUI_ARTIFACT_NAME//\//-}" >> $GITHUB_ENV
 
       - name: Download built frontend
