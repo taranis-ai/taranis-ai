@@ -53,7 +53,7 @@ jobs:
             src/gui/pnpm-lock.yaml
       
       - name: Set Artifact Name
-        run: echo "TRACES_ARTIFACT_NAME="playwright-traces-build-core" >> ${GITHUB_ENV}
+        run: echo "TRACES_ARTIFACT_NAME=playwright-traces-build-core" >> ${GITHUB_ENV}
 
       - name: e2e tests
         id: e2e_tests
