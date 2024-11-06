@@ -51,22 +51,22 @@ jobs:
       - name: Install dependencies
         working-directory: src/gui
         run: pnpm install
-  #     - name: Lint with eslint
-  #       working-directory: src/gui
-  #       run: pnpm run lint_and_format
-  #     - name: Build frontend
-  #       working-directory: src/gui
-  #       run: pnpm run build
-  #     - name: Set Artifact Name
-  #       shell: bash
-  #       run: |
-  #         GUI_ARTIFACT_NAME="built-frontend-${{ github.ref_name }}-${{ github.event.pull_request.number || github.run_number }}"
-  #         echo "GUI_ARTIFACT_NAME=${GUI_ARTIFACT_NAME//\//-}" >> $GITHUB_ENV
-  #     - name: Upload built frontend
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: ${{ env.GUI_ARTIFACT_NAME }}
-  #         path: src/gui/dist
+      - name: Lint with eslint
+        working-directory: src/gui
+        run: pnpm run lint_and_format
+      - name: Build frontend
+        working-directory: src/gui
+        run: pnpm run build
+      - name: Set Artifact Name
+        shell: bash
+        run: |
+          GUI_ARTIFACT_NAME="built-frontend-${{ github.ref_name }}-${{ github.event.pull_request.number || github.run_number }}"
+          echo "GUI_ARTIFACT_NAME=${GUI_ARTIFACT_NAME//\//-}" >> $GITHUB_ENV
+      - name: Upload built frontend
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.GUI_ARTIFACT_NAME }}
+          path: src/gui/dist
 
   e2e_tests:
     name: End-to-End Tests
