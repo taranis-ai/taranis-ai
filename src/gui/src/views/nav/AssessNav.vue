@@ -85,7 +85,7 @@
         <v-col cols="12" class="pt-1">
           <date-filter
             v-model="storyFilter.timefrom"
-            placeholder="First Day"
+            label="First Day"
             tooltip-text="The Story's creation date, typically matching the oldest News Item's 'published date'"
             :timeto="storyFilter.timeto"
             :default-date="nextEndOfShift"
@@ -95,7 +95,7 @@
         <v-col cols="12" class="pt-1">
           <date-filter
             v-model="storyFilter.timeto"
-            placeholder="Last Day"
+            label="Last Day"
             tooltip-text="The Story's update date, usually reflecting the latest addition or change"
             :timefrom="storyFilter.timefrom"
             :default-date="new Date()"

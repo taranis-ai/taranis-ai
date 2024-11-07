@@ -1,24 +1,47 @@
 <template>
   <div>
-    <VueDatePicker
+    <v-date-input
       v-model="selected"
-      :name="'dateFilter-' + placeholder"
-      :placeholder="placeholder"
-      :min-date="timefrom"
-      :max-date="timeto"
-      format="yyyy-MM-dd HH:mm:ss"
-      time-picker-inline
-      auto-apply
+      variant="outlined"
+      first-day-of-week="1"
+      :label="label"
+      :name="'dateFilter-' + label"
+      :min="timefrom"
+      :max="timeto"
       clearable
-      space-confirm
-      @open="openMenu()"
+      @open="openMenu"
+      @click:clear="selected = null"
     />
     <v-tooltip activator="parent" :text="tooltipText" />
   </div>
-</template>
 
+  <v-text-field
+    v-model="time"
+    label="Time input"
+    prepend-icon="mdi-clock-time-four-outline"
+    readonly
+    @click="openTimeMenu"
+  >
+    <template #append>
+      <v-menu
+        v-model="menu2"
+        :close-on-content-click="false"
+        activator="parent"
+        transition="scale-transition"
+        offset-y
+      >
+        <v-time-picker
+          v-if="menu2"
+          v-model="time"
+          full-width
+          @click:close="menu2 = false"
+        />
+      </v-menu>
+    </template>
+  </v-text-field>
+</template>
 <script>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { useUserStore } from '@/stores/UserStore'
 
 export default {
@@ -28,7 +51,7 @@ export default {
       type: String,
       default: null
     },
-    placeholder: {
+    label: {
       type: String,
       default: 'Enter date'
     },
@@ -54,6 +77,8 @@ export default {
   emits: ['update:modelValue'],
   setup(props, { emit }) {
     const selected = ref(props.modelValue)
+    const time = ref(null)
+    const menu2 = ref(false)
     const userStore = useUserStore()
 
     const locale = computed(() => {
@@ -70,10 +95,16 @@ export default {
     }
 
     function openMenu() {
-      console.debug(props.defaultDate)
       if (selected.value === null && props.defaultDate !== null) {
         selected.value = props.defaultDate
       }
+    }
+
+    function openTimeMenu() {
+      menu2.value = false
+      nextTick(() => {
+        menu2.value = true
+      })
     }
 
     watch(
@@ -85,11 +116,14 @@ export default {
 
     return {
       openMenu,
+      openTimeMenu,
       locale,
       selected: computed({
         get: () => (selected.value ? new Date(selected.value) : null),
         set: updateSelected
-      })
+      }),
+      time,
+      menu2
     }
   }
 }
