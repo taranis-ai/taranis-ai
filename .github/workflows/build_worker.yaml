@@ -60,7 +60,7 @@ jobs:
           enable-cache: true
 
       - name: Set up Python
-        working-directory: src/core
+        working-directory: src/worker
         run: uv python install
 
       - name: build
