@@ -8,6 +8,7 @@
       :name="'dateFilter-' + label"
       :min="timefrom"
       :max="timeto"
+      format="yyyy-MM-dd HH:mm:ss"
       clearable
       @open="openMenu"
       @click:clear="selected = null"
@@ -15,33 +16,32 @@
     <v-tooltip activator="parent" :text="tooltipText" />
   </div>
 
-  <v-text-field
-    v-model="time"
-    label="Time input"
-    prepend-icon="mdi-clock-time-four-outline"
-    readonly
-    @click="openTimeMenu"
+  <v-menu
+    v-model="menu2"
+    :close-on-content-click="false"
+    transition="scale-transition"
+    offset-y
   >
-    <template #append>
-      <v-menu
-        v-model="menu2"
-        :close-on-content-click="false"
-        activator="parent"
-        transition="scale-transition"
-        offset-y
-      >
-        <v-time-picker
-          v-if="menu2"
-          v-model="time"
-          full-width
-          @click:close="menu2 = false"
-        />
-      </v-menu>
+    <template #activator="{ props }">
+      <v-text-field
+        v-model="time"
+        label="Time input"
+        prepend-icon="mdi-clock-time-four-outline"
+        variant="outlined"
+        readonly
+        v-bind="props"
+      />
     </template>
-  </v-text-field>
+    <v-time-picker
+      v-if="menu2"
+      v-model="time"
+      full-width
+      @click:close="menu2 = false"
+    />
+  </v-menu>
 </template>
 <script>
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useUserStore } from '@/stores/UserStore'
 
 export default {
@@ -81,9 +81,7 @@ export default {
     const menu2 = ref(false)
     const userStore = useUserStore()
 
-    const locale = computed(() => {
-      return userStore.language
-    })
+    const locale = computed(() => userStore.language)
 
     function updateSelected(val) {
       if (val === null) {
@@ -100,13 +98,6 @@ export default {
       }
     }
 
-    function openTimeMenu() {
-      menu2.value = false
-      nextTick(() => {
-        menu2.value = true
-      })
-    }
-
     watch(
       () => props.modelValue,
       (val) => {
@@ -116,7 +107,6 @@ export default {
 
     return {
       openMenu,
-      openTimeMenu,
       locale,
       selected: computed({
         get: () => (selected.value ? new Date(selected.value) : null),
@@ -128,3 +118,4 @@ export default {
   }
 }
 </script>
+
