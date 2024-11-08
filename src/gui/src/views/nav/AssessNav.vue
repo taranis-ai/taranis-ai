@@ -89,7 +89,6 @@
             time-label="Start Time"
             tooltip-date-text="The Story's creation date, typically matching the oldest News Item's 'published date'"
             :timeto="storyFilter.timeto"
-            :default-date="nextEndOfShift"
           />
         </v-col>
 
@@ -100,7 +99,6 @@
             time-label="End Time"
             tooltip-date-text="The Story's update date, usually reflecting the latest addition or change"
             :timefrom="storyFilter.timefrom"
-            :default-date="new Date()"
           />
         </v-col>
         <v-col cols="12" class="pt-1">

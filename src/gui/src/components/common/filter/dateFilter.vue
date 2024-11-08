@@ -9,8 +9,7 @@
       :min="timefrom"
       :max="timeto"
       clearable
-      @open="openMenu"
-      @click:clear="selectedDate = null"
+      @click:clear="clearDate"
     />
     <v-tooltip activator="parent" :text="tooltipDateText" />
   </div>
@@ -30,19 +29,21 @@
         v-bind="props"
         readonly
         clearable
+        @click:clear="clearTime"
       />
     </template>
     <v-time-picker
       v-show="time_menu"
-      v-model:hour="selectedTime.hour"
-      v-model:minute="selectedTime.minute"
+      v-model:hour="selectedHour"
+      v-model:minute="selectedMinute"
       @click:close="time_menu = false"
       format="24hr"
     />
   </v-menu>
 </template>
+
 <script>
-import { ref, computed, reactive, watch, onMounted} from 'vue'
+import { ref, computed } from 'vue'
 import { useUserStore } from '@/stores/UserStore'
 
 export default {
@@ -68,97 +69,116 @@ export default {
       type: String,
       default: null
     },
-    defaultDate: {
-      type: Date,
-      required: false,
-      default: null
-    },
     tooltipDateText: {
       type: String,
-      required: false,
-      default: null
+      default: 'Select a date'
     }
   },
   emits: ['update:modelValue'],
   setup(props, { emit }) {
     const userStore = useUserStore()
+    const locale = computed(() => userStore.language)
 
-    const locale = computed(() => {
-      return userStore.language
-    })
-
-    const selectedDate = ref(null)
-    const selectedTime = reactive({
-      hour: null,
-      minute: null
-    })
-    const formattedTime = ref('')
-    const time_menu = ref(false)
-
-    onMounted(() => {
-      if (props.modelValue) {
-        const datetime = new Date(props.modelValue)
-        selectedDate.value = new Date(
-          datetime.getFullYear(),
-          datetime.getMonth(),
-          datetime.getDate()
-        )
-        selectedTime.hour = datetime.getHours()
-        selectedTime.minute = datetime.getMinutes()
-      }
-    })
-
-    // Update formattedTime whenever selectedTime changes
-    watch(
-      selectedTime,
-      () => {
-        if (selectedTime.hour != null && selectedTime.minute != null) {
-          const hour = String(selectedTime.hour).padStart(2, '0')
-          const minute = String(selectedTime.minute).padStart(2, '0')
-          formattedTime.value = `${hour}:${minute}`
-        } else {
-          formattedTime.value = ''
+    const selectedDate = computed({
+      get() {
+        if (props.modelValue) {
+          const datetime = new Date(props.modelValue)
+          return new Date(
+            datetime.getFullYear(),
+            datetime.getMonth(),
+            datetime.getDate()
+          )
         }
+        return null
       },
-      { immediate: true, deep: true }
-    )
-
-    // Emit update:modelValue when selectedDate or selectedTime changes
-    watch(
-      [selectedDate, formattedTime],
-      () => {
-        if (selectedDate.value && formattedTime.value) {
-          const [hourStr, minuteStr] = formattedTime.value.split(':')
-          const datetime = new Date(selectedDate.value)
-          datetime.setHours(parseInt(hourStr, 10))
-          datetime.setMinutes(parseInt(minuteStr, 10))
-          datetime.setSeconds(0)
-          datetime.setMilliseconds(0)
-          emit('update:modelValue', datetime.toISOString())
-        } else if (selectedDate.value) {
-          const datetime = new Date(selectedDate.value)
-          datetime.setHours(0, 0, 0, 0)
-          emit('update:modelValue', datetime.toISOString())
+      set(newDate) {
+        if (newDate) {
+          const currentTime = props.modelValue
+            ? new Date(props.modelValue)
+            : new Date()
+          currentTime.setFullYear(
+            newDate.getFullYear(),
+            newDate.getMonth(),
+            newDate.getDate()
+          )
+          emit('update:modelValue', currentTime.toISOString())
         } else {
           emit('update:modelValue', null)
         }
-      },
-      { immediate: true }
-    )
-
-    function openMenu() {
-      if (!selectedDate.value && props.defaultDate) {
-        selectedDate.value = props.defaultDate
       }
+    })
+
+    const selectedHour = computed({
+      get() {
+        if (props.modelValue) {
+          return new Date(props.modelValue).getHours()
+        }
+        return null
+      },
+      set(newHour) {
+        if (newHour !== null) {
+          const currentDate = props.modelValue
+            ? new Date(props.modelValue)
+            : new Date()
+          currentDate.setHours(newHour)
+          emit('update:modelValue', currentDate.toISOString())
+        }
+      }
+    })
+
+    const selectedMinute = computed({
+      get() {
+        if (props.modelValue) {
+          return new Date(props.modelValue).getMinutes()
+        }
+        return null
+      },
+      set(newMinute) {
+        if (newMinute !== null) {
+          const currentDate = props.modelValue
+            ? new Date(props.modelValue)
+            : new Date()
+          currentDate.setMinutes(newMinute)
+          emit('update:modelValue', currentDate.toISOString())
+        }
+      }
+    })
+
+    const formattedTime = computed(() => {
+      if (selectedHour.value !== null && selectedMinute.value !== null) {
+        const hour = selectedHour.value.toString().padStart(2, '0')
+        const minute = selectedMinute.value.toString().padStart(2, '0')
+        return `${hour}:${minute}`
+      }
+      return ''
+    })
+
+    const time_menu = ref(false)
+
+    const clearDate = () => {
+      selectedDate.value = null
+      emit('update:modelValue', null)
+    }
+
+    const clearTime = () => {
+      selectedHour.value = null
+      selectedMinute.value = null
+      const currentDate = props.modelValue
+        ? new Date(props.modelValue)
+        : new Date()
+      currentDate.setHours(0, 0)
+      emit('update:modelValue', currentDate.toISOString())
     }
 
     return {
-      openMenu,
+      locale,
       selectedDate,
-      selectedTime,
+      selectedHour,
+      selectedMinute,
       formattedTime,
       time_menu,
-      locale
+      clearDate,
+      clearTime
     }
   }
 }
