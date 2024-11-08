@@ -1,47 +1,48 @@
 <template>
   <div>
     <v-date-input
-      v-model="selected"
+      v-model="selectedDate"
       variant="outlined"
       first-day-of-week="1"
-      :label="label"
-      :name="'dateFilter-' + label"
+      :placeholder="dateLabel"
+      :name="'dateFilter-' + dateLabel"
       :min="timefrom"
       :max="timeto"
-      format="yyyy-MM-dd HH:mm:ss"
       clearable
       @open="openMenu"
-      @click:clear="selected = null"
+      @click:clear="selectedDate = null"
     />
-    <v-tooltip activator="parent" :text="tooltipText" />
+    <v-tooltip activator="parent" :text="tooltipDateText" />
   </div>
 
   <v-menu
-    v-model="menu2"
+    v-model="time_menu"
     :close-on-content-click="false"
     transition="scale-transition"
     offset-y
   >
     <template #activator="{ props }">
       <v-text-field
-        v-model="time"
-        label="Time input"
+        v-model="formattedTime"
+        :placeholder="timeLabel"
         prepend-icon="mdi-clock-time-four-outline"
         variant="outlined"
-        readonly
         v-bind="props"
+        readonly
+        clearable
       />
     </template>
     <v-time-picker
-      v-if="menu2"
-      v-model="time"
-      full-width
-      @click:close="menu2 = false"
+      v-show="time_menu"
+      v-model:hour="selectedTime.hour"
+      v-model:minute="selectedTime.minute"
+      @click:close="time_menu = false"
+      format="24hr"
     />
   </v-menu>
 </template>
 <script>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, reactive, watch, onMounted} from 'vue'
 import { useUserStore } from '@/stores/UserStore'
 
 export default {
@@ -51,9 +52,13 @@ export default {
       type: String,
       default: null
     },
-    label: {
+    dateLabel: {
       type: String,
       default: 'Enter date'
+    },
+    timeLabel: {
+      type: String,
+      default: 'Enter time'
     },
     timeto: {
       type: String,
@@ -68,7 +73,7 @@ export default {
       required: false,
       default: null
     },
-    tooltipText: {
+    tooltipDateText: {
       type: String,
       required: false,
       default: null
@@ -76,46 +81,85 @@ export default {
   },
   emits: ['update:modelValue'],
   setup(props, { emit }) {
-    const selected = ref(props.modelValue)
-    const time = ref(null)
-    const menu2 = ref(false)
     const userStore = useUserStore()
 
-    const locale = computed(() => userStore.language)
+    const locale = computed(() => {
+      return userStore.language
+    })
 
-    function updateSelected(val) {
-      if (val === null) {
-        selected.value = null
-      } else {
-        selected.value = val.toISOString()
+    const selectedDate = ref(null)
+    const selectedTime = reactive({
+      hour: null,
+      minute: null
+    })
+    const formattedTime = ref('')
+    const time_menu = ref(false)
+
+    onMounted(() => {
+      if (props.modelValue) {
+        const datetime = new Date(props.modelValue)
+        selectedDate.value = new Date(
+          datetime.getFullYear(),
+          datetime.getMonth(),
+          datetime.getDate()
+        )
+        selectedTime.hour = datetime.getHours()
+        selectedTime.minute = datetime.getMinutes()
       }
-      emit('update:modelValue', selected.value)
-    }
+    })
+
+    // Update formattedTime whenever selectedTime changes
+    watch(
+      selectedTime,
+      () => {
+        if (selectedTime.hour != null && selectedTime.minute != null) {
+          const hour = String(selectedTime.hour).padStart(2, '0')
+          const minute = String(selectedTime.minute).padStart(2, '0')
+          formattedTime.value = `${hour}:${minute}`
+        } else {
+          formattedTime.value = ''
+        }
+      },
+      { immediate: true, deep: true }
+    )
+
+    // Emit update:modelValue when selectedDate or selectedTime changes
+    watch(
+      [selectedDate, formattedTime],
+      () => {
+        if (selectedDate.value && formattedTime.value) {
+          const [hourStr, minuteStr] = formattedTime.value.split(':')
+          const datetime = new Date(selectedDate.value)
+          datetime.setHours(parseInt(hourStr, 10))
+          datetime.setMinutes(parseInt(minuteStr, 10))
+          datetime.setSeconds(0)
+          datetime.setMilliseconds(0)
+          emit('update:modelValue', datetime.toISOString())
+        } else if (selectedDate.value) {
+          const datetime = new Date(selectedDate.value)
+          datetime.setHours(0, 0, 0, 0)
+          emit('update:modelValue', datetime.toISOString())
+        } else {
+          emit('update:modelValue', null)
+        }
+      },
+      { immediate: true }
+    )
 
     function openMenu() {
-      if (selected.value === null && props.defaultDate !== null) {
-        selected.value = props.defaultDate
+      if (!selectedDate.value && props.defaultDate) {
+        selectedDate.value = props.defaultDate
       }
     }
-
-    watch(
-      () => props.modelValue,
-      (val) => {
-        selected.value = val
-      }
-    )
 
     return {
       openMenu,
-      locale,
-      selected: computed({
-        get: () => (selected.value ? new Date(selected.value) : null),
-        set: updateSelected
-      }),
-      time,
-      menu2
+      selectedDate,
+      selectedTime,
+      formattedTime,
+      time_menu,
+      locale
     }
   }
 }
 </script>
-
