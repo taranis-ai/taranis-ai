@@ -51,16 +51,15 @@ jobs:
           cache: 'pnpm'
           cache-dependency-path: |
             src/gui/pnpm-lock.yaml
-      
+
       - name: Set Artifact Name
-        shell: bash
         run: echo "TRACES_ARTIFACT_NAME=playwright-traces-build-core" >> ${GITHUB_ENV}
 
       - name: e2e tests
         id: e2e_tests
         working-directory: src/core
         run: uv run pytest --e2e-ci
-      
+
       - name: Upload a e2e-test trace
         uses: actions/upload-artifact@v4
         if: ${{ !cancelled() && steps.e2e_tests.outcome == 'failure' }}
