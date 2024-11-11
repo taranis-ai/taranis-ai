@@ -79,7 +79,7 @@ class TwitterCollector(BaseCollector):
                         collected_date=datetime.datetime.now(),
                         content=content,
                         language=source.get("language", ""),
-                        attributes=[]
+                        attributes=[],
                     )
 
                     news_items.append(news_item)

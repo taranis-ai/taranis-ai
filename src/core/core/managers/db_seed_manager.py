@@ -59,6 +59,16 @@ def pre_seed_update(db_engine: Engine):
     pre_seed_source_groups()
     pre_seed_manual_source()
 
+    with db_engine.connect() as connection:
+        if connection.dialect.name == "sqlite":
+            return
+        sync_enum_with_db(WORKER_CATEGORY, connection)
+        sync_enum_with_db(WORKER_TYPES, connection)
+        sync_enum_with_db(BOT_TYPES, connection)
+        sync_enum_with_db(COLLECTOR_TYPES, connection)
+        sync_enum_with_db(PRESENTER_TYPES, connection)
+        sync_enum_with_db(PUBLISHER_TYPES, connection)
+
     for w in workers:
         if worker := Worker.filter_by_type(w["type"]):
             worker.update(w)
@@ -69,16 +79,6 @@ def pre_seed_update(db_engine: Engine):
         bot = Bot.filter_by_type(b["type"])
         if not bot:
             Bot.add(b)
-
-    with db_engine.connect() as connection:
-        if connection.dialect.name == "sqlite":
-            return
-        sync_enum_with_db(WORKER_CATEGORY, connection)
-        sync_enum_with_db(WORKER_TYPES, connection)
-        sync_enum_with_db(BOT_TYPES, connection)
-        sync_enum_with_db(COLLECTOR_TYPES, connection)
-        sync_enum_with_db(PRESENTER_TYPES, connection)
-        sync_enum_with_db(PUBLISHER_TYPES, connection)
 
 
 def pre_seed_source_groups():

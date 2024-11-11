@@ -10,7 +10,7 @@
         @click="downloadProduct()"
       >
         <span>{{ $t('product.download') }}</span>
-      </v-btn> 
+      </v-btn>
       <v-btn
         v-if="edit"
         variant="outlined"
@@ -18,18 +18,18 @@
         @click="attemptRerenderProduct"
       >
         <span>{{ $t('product.render') }}</span>
-      </v-btn>    
+      </v-btn>
       <v-btn
-        :color="dirty ? 'warning' : 'success'" 
+        :color="dirty ? 'warning' : 'success'"
         class="ml-3"
         variant="flat"
         @click="saveProduct"
       >
-        <v-icon v-if="dirty" >mdi-alert</v-icon> 
+        <v-icon v-if="dirty">mdi-alert</v-icon>
         {{ $t('button.save') }}
         <v-tooltip activator="parent" text="[ctrl+shift+s]" location="bottom" />
       </v-btn>
-    </v-toolbar>   
+    </v-toolbar>
     <v-card-text>
       <v-row no-gutters>
         <v-col :cols="showPreview ? 6 : 12">
@@ -47,7 +47,7 @@
                   required
                   menu-icon="mdi-chevron-down"
                 />
-              </v-col>             
+              </v-col>
               <v-col cols="6" class="pr-3">
                 <v-text-field
                   v-model="product.title"
@@ -56,7 +56,7 @@
                   :rules="required"
                   required
                 />
-              </v-col>         
+              </v-col>
               <v-col cols="12" class="pr-3">
                 <v-textarea
                   v-model="product.description"
@@ -110,9 +110,9 @@
             />
           </v-dialog>
           <popup-dirty
-              v-model="dirtyDialog"
-              @save-and-continue="handleSaveAndContinue" 
-              @cancel="handleCancel"
+            v-model="dirtyDialog"
+            @save-and-continue="handleSaveAndContinue"
+            @cancel="handleCancel"
           />
         </v-col>
         <v-col v-if="showPreview" :cols="6" class="pa-5">
@@ -130,7 +130,7 @@
             <pre v-if="renderedProductMimeType === 'text/plain'">
               {{ renderedProduct }}
             </pre>
-          </div>      
+          </div>
           <div v-else-if="renderError">
             <v-row class="justify-center mb-4">
               <h2>Failed to render Product</h2>
@@ -213,7 +213,7 @@ export default {
     useHotkeys('ctrl+shift+s', (event, handler) => {
       console.debug(`You pressed ${handler.key}`)
       event.preventDefault()
-      if (dirtyDialog.value){
+      if (dirtyDialog.value) {
         handleSaveAndContinue()
       } else {
         saveProduct()
@@ -278,19 +278,20 @@ export default {
       if (!valid) return
 
       if (props.edit) {
-        return publishStore.patchProduct(product.value)
-        .then(() => {
-          notifySuccess('Product updated successfully')
-          dirty.value = false  // Reset dirty state after a successful save
-          originalProduct.value = JSON.parse(JSON.stringify(product.value))
+        return publishStore
+          .patchProduct(product.value)
+          .then(() => {
+            notifySuccess('Product updated successfully')
+            dirty.value = false // Reset dirty state after a successful save
+            originalProduct.value = JSON.parse(JSON.stringify(product.value))
           })
-        .catch((error) => {
-          notifyFailure(error)
+          .catch((error) => {
+            notifyFailure(error)
           })
       } else {
         return createProduct(product.value)
-        .then((response) => {
-          const new_id = response.data.id
+          .then((response) => {
+            const new_id = response.data.id
             product.value.id = new_id
             dirty.value = false
             originalProduct.value = JSON.parse(JSON.stringify(product.value))
@@ -377,7 +378,7 @@ export default {
     }
 
     function attemptPublish() {
-      if(dirty.value){
+      if (dirty.value) {
         pendingAction.value = 'publish'
         dirtyDialog.value = true
       } else {
@@ -387,31 +388,31 @@ export default {
 
     function handleSaveAndContinue() {
       saveProduct()
-      .then(() => {
-        dirtyDialog.value = false
-        dirty.value = false
-        if (pendingAction.value === 'rerender') {
-          rerenderProduct()
-        } else if (pendingAction.value === 'publish') {
-          publishDialog.value = true
-        } else if (pendingAction.value === 'leave') {
-          router.push(pendingRoute.value)
-        }
-        pendingAction.value = null
-        pendingRoute.value = null
-      })
-      .catch((error) => {
-        notifyFailure('Failed to save changes. Please try again.')
-      })
+        .then(() => {
+          dirtyDialog.value = false
+          dirty.value = false
+          if (pendingAction.value === 'rerender') {
+            rerenderProduct()
+          } else if (pendingAction.value === 'publish') {
+            publishDialog.value = true
+          } else if (pendingAction.value === 'leave') {
+            router.push(pendingRoute.value)
+          }
+          pendingAction.value = null
+          pendingRoute.value = null
+        })
+        .catch((error) => {
+          notifyFailure('Failed to save changes. Please try again.')
+        })
     }
 
-    function handleCancel(){
+    function handleCancel() {
       dirtyDialog.value = false
       pendingAction.value = null
       pendingRoute.value = null
     }
 
-    onBeforeRouteLeave((to, from, next ) => {
+    onBeforeRouteLeave((to, from, next) => {
       if (dirty.value) {
         pendingAction.value = 'leave'
         pendingRoute.value = to.fullPath
@@ -427,7 +428,7 @@ export default {
     watch(
       product,
       (newVal) => {
-        if (JSON.stringify(newVal) !== JSON.stringify(originalProduct.value)){
+        if (JSON.stringify(newVal) !== JSON.stringify(originalProduct.value)) {
           dirty.value = true
         } else {
           dirty.value = false
