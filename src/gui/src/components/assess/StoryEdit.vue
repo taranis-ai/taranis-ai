@@ -57,22 +57,27 @@
         </v-form>
       </v-card-text>
     </v-card>
-    <v-row class="my-2">
-      <v-col cols="3">
+    <v-row class="my-2" align="center" justify="start" wrap>
+      <v-col cols="12" sm="6" md="4" class="d-flex justify-center mb-2">
         <v-btn
-          prepend-icon="mdi-pulse"
-          text="AI based sentiment analysis"
+          prepend-icon="mdi-pulse"  
           @click="triggerSentimentAnalysisBot"
-        />
+          class="text-truncate"
+          style="width: 100%; max-width: 240px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
+          >
+          AI Based Sentiment Analysis
+        </v-btn>
       </v-col>
-      <v-col cols="3">
+      <v-col cols="12" sm="6" md="4" class="d-flex justify-center">
         <v-text-field
           v-if="storySentiment"
           v-model="storySentiment"
           density="dense"
           readonly
+          class="text-truncate"
+          style="width: 100%; max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
         />
-        <v-text-field v-else value="Not available" readonly density="dense" />
+        <v-text-field v-else value="Not available" readonly density="dense" style="width: 100%; max-width: 300px;" />
       </v-col>
     </v-row>
     <v-expansion-panels v-model="panels" multiple>
