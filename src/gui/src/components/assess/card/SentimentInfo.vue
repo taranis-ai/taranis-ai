@@ -4,7 +4,7 @@
       <strong>{{ $t('assess.sentiment') }}:</strong>
     </td>
     <td class="py-0">
-      {{ sentiment_category }}
+      {{ formattedSentiment }}
       <v-tooltip activator="parent" location="bottom">
         <v-icon
           :color="
@@ -17,16 +17,12 @@
           size="x-small"
           icon="mdi-emoticon-outline"
         />
-        {{ sentiment_score }}
       </v-tooltip>
     </td>
   </tr>
 </template>
-
 <script>
 import { computed } from 'vue'
-import { useFilterStore } from '@/stores/FilterStore'
-import { storeToRefs } from 'pinia'
 
 export default {
   name: 'SentimentInfo',
@@ -44,18 +40,24 @@ export default {
     })
 
     const sentiment_score = computed(() => {
-      return props.newsItem?.attributes?.find(
-        (attr) => attr.key === 'sentiment_score'
-      )?.value
+      return parseFloat(
+        props.newsItem?.attributes?.find((attr) => attr.key === 'sentiment_score')?.value
+      )
     })
 
-    const filterStore = useFilterStore()
-    const { compactView } = storeToRefs(filterStore)
+    const formattedSentiment = computed(() => {
+      if (!sentiment_score.value || isNaN(sentiment_score.value)) {
+        return "Sentiment: Not available"
+      }
+      
+      const percentage = (sentiment_score.value * 100).toFixed(2)
+      return `${sentiment_category.value}: ${percentage}%`
+    })
 
     return {
       sentiment_category,
       sentiment_score,
-      compactView
+      formattedSentiment
     }
   }
 }

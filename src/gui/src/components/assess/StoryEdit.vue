@@ -70,14 +70,12 @@
       </v-col>
       <v-col cols="12" sm="6" md="4" class="d-flex justify-center">
         <v-text-field
-          v-if="storySentiment"
-          v-model="storySentiment"
+         :value="storySentiment"
           density="dense"
           readonly
           class="text-truncate"
           style="width: 100%; max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
         />
-        <v-text-field v-else value="Not available" readonly density="dense" style="width: 100%; max-width: 300px;" />
       </v-col>
     </v-row>
     <v-expansion-panels v-model="panels" multiple>
@@ -134,13 +132,31 @@ export default {
     const panels = ref(story.value.news_items.map((item) => item.id))
     const showallattributes = ref(false)
 
+    const storySentiment = computed(() => {
+      const sentimentAttr = story.value.attributes.find((attr) => attr.key === 'sentiment');
+      console.log("All story attributes:", story.value.attributes)
+      console.log("Sentiment Score Attribute:", sentimentScoreAttr);
+      console.log("Sentiment Category Attribute:", sentimentCategoryAttr);
+
+      if (!sentimentScoreAttr || !sentimentCategoryAttr) {
+        console.warn("Sentiment attribute not found or is incorrectly structured")
+        return 'Sentiment: Incomplete data'
+  }
+        const score = parseFloat(sentimentScoreAttr.value) * 100 // Convert to percentage
+        const category = sentimentCategoryAttr.value.charAt(0).toUpperCase() + sentimentCategoryAttr.value.slice(1)
+
+      console.log(`Displaying Sentiment - Category: ${category}, Score: ${score}%`)
+      return `${score.toFixed(2)}% - ${category}`
+
+  })
+
     const rules = {
       required: (v) => !!v || 'Required'
     }
 
     const filteredStoryAttributes = computed(() => {
       if (showallattributes.value) {
-        return story.value.attributes
+        return story.value.attributes;
       }
       return story.value.attributes.filter((attr) => {
         return (
@@ -151,16 +167,11 @@ export default {
       })
     })
 
-    const storySentiment = computed(() => {
-      const sentimentAttr = story.value.attributes.find((attr) => attr.key === 'sentiment')
-      return sentimentAttr ? JSON.stringify(sentimentAttr.value) : 'Not available'
-    })
-
     async function submit() {
-      const { valid } = await form.value.validate()
+      const { valid } = await form.value.validate();
 
       if (!valid) {
-        return
+        return;
       }
 
       try {
@@ -171,7 +182,7 @@ export default {
           summary: story.value.summary,
           attributes: story.value.attributes,
           links: story.value.links
-        })
+        });
         notifySuccess(result)
       } catch (e) {
         notifyFailure(e)
@@ -182,21 +193,18 @@ export default {
     async function triggerSummaryBot() {
       try {
         const result = await triggerBot('summary_bot', props.storyProp.id)
-        notifySuccess(result.data.message)
+        notifySuccess(result.data.message);
       } catch (e) {
-        notifyFailure(e)
+        notifyFailure(e);
       }
     }
 
     async function triggerSentimentAnalysisBot() {
       try {
-        const result = await triggerBot(
-          'sentiment_analysis_bot',
-          props.storyProp.id
-        )
+        const result = await triggerBot('sentiment_analysis_bot', props.storyProp.id)
         notifySuccess(result.data.message)
       } catch (e) {
-        notifyFailure(e)
+        notifyFailure(e);
       }
     }
 
@@ -215,3 +223,4 @@ export default {
   }
 }
 </script>
+
