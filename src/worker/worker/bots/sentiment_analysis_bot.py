@@ -1,6 +1,6 @@
 from .base_bot import BaseBot
 from worker.log import logger
-from sentiment_analysis.sentiment_analysis_multimodel import analyze_sentiment, categorize_text
+from sentiment_analysis.sentiment_analysis_multimodel import analyze_sentiment
 
 
 class SentimentAnalysisBot(BaseBot):
@@ -43,11 +43,11 @@ class SentimentAnalysisBot(BaseBot):
                     logger.error(f"Sentiment analysis failed for news item {news_item['id']}")
                     continue
 
-                category = categorize_text(sentiment)
+                logger.info(f"Received sentiment label: {sentiment['label']} with score: {sentiment['score']}")
                 news_item_id = news_item["id"]
                 results[news_item_id] = {
                     "sentiment": sentiment["score"],
-                    "category": category,
+                    "category": sentiment["label"],  
                 }
 
         return results
