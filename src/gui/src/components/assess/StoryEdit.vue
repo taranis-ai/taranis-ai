@@ -74,7 +74,7 @@
           density="dense"
           readonly
           class="text-truncate"
-          style="width: 100%; max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
+          style="width: 100%; max-width: 240px; height: 36px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 0;"
         />
       </v-col>
     </v-row>

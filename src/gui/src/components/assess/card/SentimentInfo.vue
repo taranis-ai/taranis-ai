@@ -9,7 +9,6 @@
         <template v-slot:activator="{ props }">
           <v-icon
             v-bind="props"
-            :color="sentimentIconColor"
             size="x-small"
             icon="mdi-emoticon-outline"
           />
@@ -58,16 +57,6 @@ export default {
       return `${sentiment_category.value}: ${percentage}%`
     })
 
-    const sentimentIconColor = computed(() => {
-      if (sentiment_category.value === 'positive') {
-        return 'success'
-      } else if (sentiment_category.value === 'negative') {
-        return 'error'
-      } else {
-        return 'grey'
-      }
-    })
-
     const sentimentTooltip = computed(() => {
       return `Sentiment is ${sentiment_category.value} with a score of ${(sentiment_score.value * 100).toFixed(2)}%`
     })
@@ -76,7 +65,6 @@ export default {
       sentiment_category,
       sentiment_score,
       formattedSentiment,
-      sentimentIconColor,
       sentimentTooltip
     }
   }
