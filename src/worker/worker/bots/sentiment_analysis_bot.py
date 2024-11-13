@@ -35,8 +35,6 @@ class SentimentAnalysisBot(BaseBot):
             news_items = story.get("news_items", [])
             for news_item in news_items:
                 text_content = news_item.get("content", "")
-                logger.info(f"Extracted text for sentiment analysis: {text_content}")
-
                 sentiment = analyze_sentiment(text_content)
                 logger.info(f"Sentiment analysis result for news item {news_item['id']}: {sentiment}")
                 if "score" not in sentiment:
