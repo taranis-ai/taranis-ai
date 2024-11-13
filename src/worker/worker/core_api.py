@@ -30,8 +30,12 @@ class CoreApi:
         url = f"{self.api_url}{url}"
         if not json_data:
             json_data = {}
-        response = requests.put(url=url, headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout)
-        return self.check_response(response, url)
+        try:
+            response = requests.put(url=url, headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout)
+            return self.check_response(response, url)
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error during PUT request to URL: {url} with data: {json_data}. Error: {e}")
+            return None
 
     def api_patch(self, url, json_data=None):
         url = f"{self.api_url}{url}"
@@ -138,8 +142,16 @@ class CoreApi:
 
     def update_news_item_attributes(self, news_id: str, attributes) -> dict | None:
         try:
-            return self.api_put(url=f"/bots/news-item/{news_id}/attributes", json_data=attributes)
+            logger.info(f"Updating news item attributes for news_id: {news_id} with attributes: {attributes}")
+            response = self.api_put(url=f"/bots/news-item/{news_id}/attributes", json_data=attributes)
+            if response:
+                logger.info(f"Successfully updated news item attributes for news_id: {news_id}. Response: {response}")
+            else:
+                logger.error(f"Failed to update news item attributes for news_id: {news_id}. No response received.")
+
+            return response
         except Exception:
+            logger.exception(f"Exception occurred while updating news item attributes for news_id: {news_id} with attributes: {attributes}. Error: {e}")
             return None
 
     def update_story_attributes(self, story_id: str, attributes: dict) -> dict | None:

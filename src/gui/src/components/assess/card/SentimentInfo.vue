@@ -6,21 +6,20 @@
     <td class="py-0">
       {{ formattedSentiment }}
       <v-tooltip activator="parent" location="bottom">
-        <v-icon
-          :color="
-            sentiment_category === 'positive'
-              ? 'success'
-              : sentiment_category === 'negative'
-                ? 'error'
-                : 'grey'
-          "
-          size="x-small"
-          icon="mdi-emoticon-outline"
-        />
+        <template v-slot:activator="{ props }">
+          <v-icon
+            v-bind="props"
+            :color="sentimentIconColor"
+            size="x-small"
+            icon="mdi-emoticon-outline"
+          />
+        </template>
+        <span>{{ sentimentTooltip }}</span>
       </v-tooltip>
     </td>
   </tr>
 </template>
+
 <script>
 import { computed } from 'vue'
 
@@ -30,6 +29,10 @@ export default {
     newsItem: {
       type: Object,
       required: true
+    },
+    compactView: {
+      type: Boolean,
+      default: false
     }
   },
   setup(props) {
@@ -40,24 +43,41 @@ export default {
     })
 
     const sentiment_score = computed(() => {
-      return parseFloat(
-        props.newsItem?.attributes?.find((attr) => attr.key === 'sentiment_score')?.value
-      )
+      const score = props.newsItem?.attributes?.find(
+        (attr) => attr.key === 'sentiment_score'
+      )?.value
+      return score !== undefined ? parseFloat(score) : NaN
     })
 
     const formattedSentiment = computed(() => {
-      if (!sentiment_score.value || isNaN(sentiment_score.value)) {
-        return "Sentiment: Not available"
+      if (isNaN(sentiment_score.value)) {
+        return 'Sentiment: Not available'
       }
-      
+
       const percentage = (sentiment_score.value * 100).toFixed(2)
       return `${sentiment_category.value}: ${percentage}%`
+    })
+
+    const sentimentIconColor = computed(() => {
+      if (sentiment_category.value === 'positive') {
+        return 'success'
+      } else if (sentiment_category.value === 'negative') {
+        return 'error'
+      } else {
+        return 'grey'
+      }
+    })
+
+    const sentimentTooltip = computed(() => {
+      return `Sentiment is ${sentiment_category.value} with a score of ${(sentiment_score.value * 100).toFixed(2)}%`
     })
 
     return {
       sentiment_category,
       sentiment_score,
-      formattedSentiment
+      formattedSentiment,
+      sentimentIconColor,
+      sentimentTooltip
     }
   }
 }

@@ -38,8 +38,9 @@ class SentimentAnalysisBot(BaseBot):
                 logger.info(f"Extracted text for sentiment analysis: {text_content}")
 
                 sentiment = analyze_sentiment(text_content)
+                logger.info(f"Sentiment analysis result for news item {news_item['id']}: {sentiment}")
                 if "score" not in sentiment:
-                    logger.error(f"Sentiment analysis failed for story {news_item['id']}:")
+                    logger.error(f"Sentiment analysis failed for news item {news_item['id']}")
                     continue
 
                 category = categorize_text(sentiment)
@@ -57,10 +58,9 @@ class SentimentAnalysisBot(BaseBot):
                 {"key": "sentiment_score", "value": str(sentiment_data.get("sentiment", "N/A"))},
                 {"key": "sentiment_category", "value": sentiment_data.get("category", "N/A")},
             ]
+            logger.info(f"Updating news item {news_item_id} with attributes: {attributes}")
 
             if success := self.core_api.update_news_item_attributes(news_item_id, attributes):  # noqa: F841
-                logger.info(f"Updated news item {news_item_id} with sentiment attributes.")
-                return {"status": "success", "message": "Attributes updated"}
+                logger.info(f"Successfully updated news item {news_item_id} with sentiment attributes.")
             else:
                 logger.error(f"Failed to update news item {news_item_id} with sentiment attributes.")
-                return {"status": "failure", "message": "Failed to update attributes"}
