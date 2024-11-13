@@ -1,19 +1,16 @@
 <template>
   <v-dialog v-model="modelValue" width="400">
     <v-card>
-      <v-btn
-        outlined
-        color="#d18e8e"
-        class="close-btn"
-        @click="onCancel"
-      >
+      <v-btn outlined color="#d18e8e" class="close-btn" @click="onCancel">
         <v-icon>mdi-close</v-icon>
       </v-btn>
 
       <v-container>
         <v-row>
           <v-col cols="12">
-            <h2 class="font-weight-regular dark-grey--text text-capitalize pt-0">
+            <h2
+              class="font-weight-regular dark-grey--text text-capitalize pt-0"
+            >
               Unsaved Changes
             </h2>
           </v-col>
@@ -21,7 +18,9 @@
 
         <v-row class="pb-4">
           <v-col cols="12" class="pl-5 d-flex flex-column align-start">
-            <p>You have unsaved changes. Do you want to save before continuing?</p>
+            <p>
+              You have unsaved changes. Do you want to save before continuing?
+            </p>
             <v-row class="mt-4">
               <v-btn outlined color="gray" class="mr-4" @click="onCancel">
                 <v-icon left>mdi-close</v-icon>
@@ -47,8 +46,8 @@ export default defineComponent({
   props: {
     modelValue: {
       type: Boolean,
-      required: true,
-    },
+      required: true
+    }
   },
   emits: ['update:modelValue', 'saveAndContinue', 'cancel'],
   setup(props, { emit }) {
@@ -64,9 +63,9 @@ export default defineComponent({
 
     return {
       onCancel,
-      onSaveAndContinue,
+      onSaveAndContinue
     }
-  },
+  }
 })
 </script>
 

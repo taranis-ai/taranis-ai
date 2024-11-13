@@ -25,10 +25,10 @@ class SentimentAnalysisBot(BaseBot):
         logger.info(f"Sentiment analysis complete with results: {sentiment_results}")
 
         return {
-            "sentiment_score": sentiment_results.get(list(sentiment_results.keys())[0])["sentiment"],  
-            "message": "Sentiment analysis complete"
-            }
-    
+            "sentiment_score": sentiment_results.get(list(sentiment_results.keys())[0])["sentiment"],
+            "message": "Sentiment analysis complete",
+        }
+
     def analyze_news_items(self, stories: list) -> dict:
         results = {}
         for story in stories:
