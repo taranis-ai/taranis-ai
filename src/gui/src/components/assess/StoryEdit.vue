@@ -57,20 +57,20 @@
         </v-form>
       </v-card-text>
     </v-card>
-    <v-row class="my-2" align="center" justify="start" wrap>
+    <v-row v-if="story" class="my-2" align="center" justify="start" wrap>
       <v-col cols="12" sm="6" md="4" class="d-flex justify-center mb-2">
         <v-btn
-          prepend-icon="mdi-pulse"  
+          prepend-icon="mdi-pulse"
           @click="triggerSentimentAnalysisBot"
           class="text-truncate"
           style="width: 100%; max-width: 240px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
-          >
+        >
           AI Based Sentiment Analysis
         </v-btn>
       </v-col>
       <v-col cols="12" sm="6" md="4" class="d-flex justify-center">
         <v-text-field
-         :value="storySentiment"
+          :value="storySentiment"
           density="dense"
           readonly
           class="text-truncate"
@@ -78,7 +78,7 @@
         />
       </v-col>
     </v-row>
-    <v-expansion-panels v-model="panels" multiple>
+    <v-expansion-panels v-if="story" v-model="panels" multiple>
       <v-expansion-panel
         v-for="news_item in story.news_items"
         :key="news_item.id"
@@ -101,8 +101,8 @@
 </template>
 
 <script>
-import { ref, computed } from 'vue'
-import { patchStory, triggerBot } from '@/api/assess'
+import { ref, computed, onMounted, watch } from 'vue'
+import { patchStory, triggerBot, getStory } from '@/api/assess'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import CodeEditor from '@/components/common/CodeEditor.vue'
 import EditTags from '@/components/assess/EditTags.vue'
@@ -129,34 +129,47 @@ export default {
     const form = ref(null)
     const router = useRouter()
     const story = ref(props.storyProp)
-    const panels = ref(story.value.news_items.map((item) => item.id))
+    const panels = ref(story.value.news_items ? story.value.news_items.map((item) => item.id) : [])
     const showallattributes = ref(false)
 
     const storySentiment = computed(() => {
-      const sentimentAttr = story.value.attributes.find((attr) => attr.key === 'sentiment');
-      console.log("All story attributes:", story.value.attributes)
-      console.log("Sentiment Score Attribute:", sentimentScoreAttr);
-      console.log("Sentiment Category Attribute:", sentimentCategoryAttr);
+      if (!story.value || !story.value.news_items || story.value.news_items.length === 0) {
+        return 'Sentiment: Not available'
+      }
+
+      // Find the news item with valid sentiment analysis
+      const sentimentNewsItem = story.value.news_items.find(
+        (item) => item.attributes && item.attributes.some((attr) => attr.key === 'sentiment_score')
+      );
+
+      if (!sentimentNewsItem || !sentimentNewsItem.attributes) {
+        return 'Sentiment: Not available'
+      }
+
+      // Extract sentiment score and category from the found news item
+      const sentimentScoreAttr = sentimentNewsItem.attributes.find((attr) => attr.key === 'sentiment_score')
+      const sentimentCategoryAttr = sentimentNewsItem.attributes.find((attr) => attr.key === 'sentiment_category')
 
       if (!sentimentScoreAttr || !sentimentCategoryAttr) {
-        console.warn("Sentiment attribute not found or is incorrectly structured")
         return 'Sentiment: Incomplete data'
-  }
-        const score = parseFloat(sentimentScoreAttr.value) * 100 // Convert to percentage
-        const category = sentimentCategoryAttr.value.charAt(0).toUpperCase() + sentimentCategoryAttr.value.slice(1)
+      }
 
-      console.log(`Displaying Sentiment - Category: ${category}, Score: ${score}%`)
-      return `${score.toFixed(2)}% - ${category}`
+      const score = parseFloat(sentimentScoreAttr.value) * 100 // Convert to percentage
+      const category = sentimentCategoryAttr.value.charAt(0).toUpperCase() + sentimentCategoryAttr.value.slice(1)
 
-  })
+      return `${score.toFixed(2)}% ${category}`
+    })
 
     const rules = {
       required: (v) => !!v || 'Required'
     }
 
     const filteredStoryAttributes = computed(() => {
+      if (!story.value || !story.value.attributes) {
+        return []
+      }
       if (showallattributes.value) {
-        return story.value.attributes;
+        return story.value.attributes
       }
       return story.value.attributes.filter((attr) => {
         return (
@@ -168,10 +181,10 @@ export default {
     })
 
     async function submit() {
-      const { valid } = await form.value.validate();
+      const { valid } = await form.value.validate()
 
       if (!valid) {
-        return;
+        return
       }
 
       try {
@@ -182,7 +195,7 @@ export default {
           summary: story.value.summary,
           attributes: story.value.attributes,
           links: story.value.links
-        });
+        })
         notifySuccess(result)
       } catch (e) {
         notifyFailure(e)
@@ -193,20 +206,42 @@ export default {
     async function triggerSummaryBot() {
       try {
         const result = await triggerBot('summary_bot', props.storyProp.id)
-        notifySuccess(result.data.message);
+        notifySuccess(result.data.message)
       } catch (e) {
-        notifyFailure(e);
+        notifyFailure(e)
+      }
+    }
+
+    async function fetchStoryData(storyId) {
+      try {
+        const response = await getStory(storyId)
+        console.log("Fetched story data:", response.data)
+        story.value = response.data
+      } catch (e) {
+        console.error('Failed to fetch story data:', e)
+        notifyFailure(e)
       }
     }
 
     async function triggerSentimentAnalysisBot() {
       try {
         const result = await triggerBot('sentiment_analysis_bot', props.storyProp.id)
-        notifySuccess(result.data.message)
+        notifySuccess(result.data.message)     
+        await fetchStoryData(props.storyProp.id)
       } catch (e) {
-        notifyFailure(e);
+        notifyFailure(e)
       }
     }
+
+    onMounted(() => {
+      fetchStoryData(props.storyProp.id)
+    })
+
+    watch(() => story.value, (newStory) => {
+      if (newStory && newStory.news_items) {
+        panels.value = newStory.news_items.map((item) => item.id)
+      }
+    })
 
     return {
       panels,
@@ -223,4 +258,3 @@ export default {
   }
 }
 </script>
-
