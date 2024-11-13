@@ -137,7 +137,6 @@ export default {
         return 'Sentiment: Not available'
       }
 
-      // Find the news item with valid sentiment analysis
       const sentimentNewsItem = story.value.news_items.find(
         (item) => item.attributes && item.attributes.some((attr) => attr.key === 'sentiment_score')
       );
@@ -146,7 +145,6 @@ export default {
         return 'Sentiment: Not available'
       }
 
-      // Extract sentiment score and category from the found news item
       const sentimentScoreAttr = sentimentNewsItem.attributes.find((attr) => attr.key === 'sentiment_score')
       const sentimentCategoryAttr = sentimentNewsItem.attributes.find((attr) => attr.key === 'sentiment_category')
 
@@ -154,7 +152,7 @@ export default {
         return 'Sentiment: Incomplete data'
       }
 
-      const score = parseFloat(sentimentScoreAttr.value) * 100 // Convert to percentage
+      const score = parseFloat(sentimentScoreAttr.value) * 100 
       const category = sentimentCategoryAttr.value.charAt(0).toUpperCase() + sentimentCategoryAttr.value.slice(1)
 
       return `${score.toFixed(2)}% ${category}`
@@ -178,15 +176,6 @@ export default {
           !attr.key.includes('_BOT_')
         )
       })
-    })
-
-    const storySentiment = computed(() => {
-      const sentimentAttr = story.value.attributes.find(
-        (attr) => attr.key === 'sentiment'
-      )
-      return sentimentAttr
-        ? JSON.stringify(sentimentAttr.value)
-        : 'Not available'
     })
 
     async function submit() {
