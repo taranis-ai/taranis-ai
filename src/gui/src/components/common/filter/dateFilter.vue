@@ -55,9 +55,15 @@
 
 <script>
 import { ref, watch } from 'vue'
+import { VDateInput } from 'vuetify/labs/VDateInput'
+import { VTimePicker } from 'vuetify/labs/VTimePicker'
 
 export default {
   name: 'DateFilter',
+  components: {
+    VDateInput,
+    VTimePicker
+  },
   props: {
     modelValue: String,
     dateLabel: { type: String, default: 'Enter date' },
