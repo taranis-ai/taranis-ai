@@ -69,13 +69,17 @@
         </v-btn>
       </v-col>
       <v-col cols="12" sm="6" md="4" class="d-flex justify-center">
-        <v-text-field
-          :value="storySentiment"
-          density="dense"
-          readonly
-          class="text-truncate"
-          style="width: 100%; max-width: 240px; height: 36px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 0;"
-        />
+        <div class="d-flex flex-wrap" style="gap: 8px;">
+          <v-chip
+            v-for="(count, sentiment) in sentimentCounts"
+            :key="sentiment"
+            :color="getColor(sentiment)"
+            text-color="white"
+            label
+          >
+            {{ sentiment.charAt(0).toUpperCase() + sentiment.slice(1) }}: {{ count }}
+          </v-chip>
+        </div>
       </v-col>
     </v-row>
     <v-expansion-panels v-if="story" v-model="panels" multiple>
@@ -92,8 +96,7 @@
               params: { itemId: news_item.id }
             }"
             class="d-flex fill-height align-center text-decoration-none"
-            >{{ news_item.content }}
-          </router-link>
+          >{{ news_item.content }}</router-link>
         </template>
       </v-expansion-panel>
     </v-expansion-panels>
@@ -132,31 +135,42 @@ export default {
     const panels = ref(story.value.news_items ? story.value.news_items.map((item) => item.id) : [])
     const showallattributes = ref(false)
 
-    const storySentiment = computed(() => {
-      if (!story.value || !story.value.news_items || story.value.news_items.length === 0) {
-        return 'Sentiment: Not available'
+    const sentimentCounts = computed(() => {
+      if (!story.value || !story.value.news_items) {
+        return {}
       }
 
-      const sentimentNewsItem = story.value.news_items.find(
-        (item) => item.attributes && item.attributes.some((attr) => attr.key === 'sentiment_score')
-      );
-
-      if (!sentimentNewsItem || !sentimentNewsItem.attributes) {
-        return 'Sentiment: Not available'
+      const counts = {
+        positive: 0,
+        negative: 0,
+        neutral: 0
       }
+      story.value.news_items.forEach((newsItem) => {
+        const sentimentCategoryAttr = newsItem.attributes?.find((attr) => attr.key === 'sentiment_category')
 
-      const sentimentScoreAttr = sentimentNewsItem.attributes.find((attr) => attr.key === 'sentiment_score')
-      const sentimentCategoryAttr = sentimentNewsItem.attributes.find((attr) => attr.key === 'sentiment_category')
+        if (sentimentCategoryAttr) {
+          const sentiment = sentimentCategoryAttr.value.toLowerCase()
+          if (counts.hasOwnProperty(sentiment)) {
+            counts[sentiment]++
+          }
+        }
+      })
 
-      if (!sentimentScoreAttr || !sentimentCategoryAttr) {
-        return 'Sentiment: Incomplete data'
-      }
-
-      const score = parseFloat(sentimentScoreAttr.value) * 100 
-      const category = sentimentCategoryAttr.value.charAt(0).toUpperCase() + sentimentCategoryAttr.value.slice(1)
-
-      return `${score.toFixed(2)}% ${category}`
+      return Object.fromEntries(Object.entries(counts).filter(([_, count]) => count > 0))
     })
+
+    const getColor = (sentiment) => {
+      switch (sentiment) {
+        case 'positive':
+          return 'green'
+        case 'negative':
+          return 'red'
+        case 'neutral':
+          return 'gray'
+        default:
+          return 'blue'
+      }
+    }
 
     const rules = {
       required: (v) => !!v || 'Required'
@@ -249,7 +263,8 @@ export default {
       submit,
       triggerSummaryBot,
       triggerSentimentAnalysisBot,
-      storySentiment,
+      sentimentCounts,
+      getColor,
       filteredStoryAttributes,
       showallattributes
     }
