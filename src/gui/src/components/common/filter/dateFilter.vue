@@ -1,5 +1,4 @@
 <template>
-  {{ modelValue }}
   <div>
     <v-date-input
       v-model="selectedDate"
@@ -29,6 +28,7 @@
         <v-text-field
           v-model="timeInput"
           density="compact"
+          :disabled="!selectedDate"
           :placeholder="timeLabel"
           prepend-icon="mdi-clock-time-four-outline"
           variant="outlined"
@@ -40,7 +40,7 @@
         />
       </template>
       <v-time-picker
-        v-if="timeMenu"
+        v-if="timeMenu && selectedDate"
         v-model:hour="selectedHour"
         v-model:minute="selectedMinute"
         @click:close="timeMenu = false"
