@@ -2,7 +2,7 @@
   <table class="newsitem-meta-info">
     <tbody>
       <tr>
-        <td v-if="!compactView" class="info-title py-0">
+        <td v-if="!compactView" class="py-0 news-item-title">
           <strong v-if="published_date">{{ $t('assess.published') }}:</strong>
           <strong v-else>{{ $t('assess.collected') }}:</strong>
         </td>
@@ -70,10 +70,6 @@ export default {
 </script>
 
 <style scoped>
-.info-title {
-  max-width: 110px;
-}
-
 .newsitem-meta-info {
   word-wrap: anywhere;
   width: 100%;

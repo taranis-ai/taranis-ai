@@ -1,16 +1,16 @@
 <template>
   <tr v-if="sentiment_category">
-    <td v-if="!compactView" style="max-width: 90px" class="py-0">
+    <td v-if="!compactView" class="py-0 news-item-title">
       <strong>{{ $t('assess.sentiment') }}:</strong>
     </td>
     <td class="py-0">
-      {{ formattedSentiment }}
+      {{ sentiment_category }}
       <v-tooltip activator="parent" location="bottom">
         <template v-slot:activator="{ props }">
           <v-icon
             v-bind="props"
             size="x-small"
-            icon="mdi-emoticon-outline"
+            :icon="sentimentEmoji"
           />
         </template>
         <span>{{ sentimentTooltip }}</span>
@@ -48,24 +48,31 @@ export default {
       return score !== undefined ? parseFloat(score) : NaN
     })
 
-    const formattedSentiment = computed(() => {
+    const sentimentTooltip = computed(() => {
       if (isNaN(sentiment_score.value)) {
-        return 'Sentiment: Not available'
+        return `Sentiment is ${sentiment_category.value} with no score available`
       }
-
-      const percentage = (sentiment_score.value * 100).toFixed(2)
-      return `${sentiment_category.value}: ${percentage}%`
+      return `Sentiment is ${sentiment_category.value} with a score of ${(sentiment_score.value * 100).toFixed(2)}%`
     })
 
-    const sentimentTooltip = computed(() => {
-      return `Sentiment is ${sentiment_category.value} with a score of ${(sentiment_score.value * 100).toFixed(2)}%`
+    const sentimentEmoji = computed(() => {
+      switch (sentiment_category.value?.toLowerCase()) {
+        case 'positive':
+          return 'mdi-emoticon-happy-outline'
+        case 'negative':
+          return 'mdi-emoticon-sad-outline'
+        case 'neutral':
+          return 'mdi-emoticon-neutral-outline'
+        default:
+          return 'mdi-emoticon-outline'
+      }
     })
 
     return {
       sentiment_category,
       sentiment_score,
-      formattedSentiment,
-      sentimentTooltip
+      sentimentTooltip,
+      sentimentEmoji
     }
   }
 }
