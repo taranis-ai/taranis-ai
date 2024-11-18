@@ -3,48 +3,54 @@
     <v-date-input
       v-model="selectedDate"
       variant="outlined"
+      density="compact"
       first-day-of-week="1"
       :placeholder="dateLabel"
       :name="'dateFilter-' + dateLabel"
       :min="timefrom"
       :max="timeto"
       clearable
+      hide-details
       @click:clear="clearDate"
     />
-    <v-tooltip activator="parent" :text="tooltipDateText" />
+    <v-tooltip activator="parent" :text="tooltipTextDate" />
   </div>
 
-  <v-menu
-    v-model="time_menu"
-    :close-on-content-click="false"
-    transition="scale-transition"
-    offset-y
-  >
-    <template #activator="{ props }">
-      <v-text-field
-        v-model="formattedTime"
-        :placeholder="timeLabel"
-        prepend-icon="mdi-clock-time-four-outline"
-        variant="outlined"
-        v-bind="props"
-        readonly
-        clearable
-        @click:clear="clearTime"
+  <div class="pt-1">
+    <v-menu
+      v-model="time_menu"
+      :close-on-content-click="false"
+      transition="scale-transition"
+      offset-y
+    >
+      <template #activator="{ props }">
+        <v-text-field
+          v-model="formattedTime"
+          density="compact"
+          :placeholder="timeLabel"
+          prepend-icon="mdi-clock-time-four-outline"
+          variant="outlined"
+          v-bind="props"
+          readonly
+          clearable
+          hide-details
+          @click:clear="clearTime"
+        />
+      </template>
+      <v-time-picker
+        v-show="time_menu"
+        v-model:hour="selectedHour"
+        v-model:minute="selectedMinute"
+        @click:close="time_menu = false"
+        format="24hr"
       />
-    </template>
-    <v-time-picker
-      v-show="time_menu"
-      v-model:hour="selectedHour"
-      v-model:minute="selectedMinute"
-      @click:close="time_menu = false"
-      format="24hr"
-    />
-  </v-menu>
+    </v-menu>
+    <v-tooltip activator="parent" :text="tooltipTextTime" />
+  </div>
 </template>
 
 <script>
 import { ref, computed } from 'vue'
-import { useUserStore } from '@/stores/UserStore'
 
 export default {
   name: 'DateFilter',
@@ -69,16 +75,17 @@ export default {
       type: String,
       default: null
     },
-    tooltipDateText: {
+    tooltipTextDate: {
       type: String,
-      default: 'Select a date'
+      default: 'Date'
+    },
+    tooltipTextTime: {
+      type: String,
+      default: 'Time'
     }
   },
   emits: ['update:modelValue'],
   setup(props, { emit }) {
-    const userStore = useUserStore()
-    const locale = computed(() => userStore.language)
-
     const selectedDate = computed({
       get() {
         if (props.modelValue) {
@@ -171,7 +178,6 @@ export default {
     }
 
     return {
-      locale,
       selectedDate,
       selectedHour,
       selectedMinute,
