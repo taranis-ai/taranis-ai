@@ -1,4 +1,5 @@
 <template>
+  {{ modelValue }}
   <div>
     <v-date-input
       v-model="selectedDate"
@@ -11,6 +12,7 @@
       :max="timeto"
       clearable
       hide-details
+      @update:modelValue="onDateChange"
       @click:clear="clearDate"
     />
     <v-tooltip activator="parent" :text="tooltipTextDate" />
@@ -18,14 +20,14 @@
 
   <div class="pt-1">
     <v-menu
-      v-model="time_menu"
+      v-model="timeMenu"
       :close-on-content-click="false"
       transition="scale-transition"
       offset-y
     >
       <template #activator="{ props }">
         <v-text-field
-          v-model="formattedTime"
+          v-model="timeInput"
           density="compact"
           :placeholder="timeLabel"
           prepend-icon="mdi-clock-time-four-outline"
@@ -38,10 +40,12 @@
         />
       </template>
       <v-time-picker
-        v-show="time_menu"
+        v-if="timeMenu"
         v-model:hour="selectedHour"
         v-model:minute="selectedMinute"
-        @click:close="time_menu = false"
+        @click:close="timeMenu = false"
+        @update:hour="onTimeChange"
+        @update:minute="onTimeChange"
         format="24hr"
       />
     </v-menu>
@@ -50,139 +54,102 @@
 </template>
 
 <script>
-import { ref, computed } from 'vue'
+import { ref, watch } from 'vue'
 
 export default {
   name: 'DateFilter',
   props: {
-    modelValue: {
-      type: String,
-      default: null
-    },
-    dateLabel: {
-      type: String,
-      default: 'Enter date'
-    },
-    timeLabel: {
-      type: String,
-      default: 'Enter time'
-    },
-    timeto: {
-      type: String,
-      default: null
-    },
-    timefrom: {
-      type: String,
-      default: null
-    },
-    tooltipTextDate: {
-      type: String,
-      default: 'Date'
-    },
-    tooltipTextTime: {
-      type: String,
-      default: 'Time'
-    }
+    modelValue: String,
+    dateLabel: { type: String, default: 'Enter date' },
+    timeLabel: { type: String, default: 'Enter time' },
+    timeto: String,
+    timefrom: String,
+    tooltipTextDate: { type: String, default: 'Date' },
+    tooltipTextTime: { type: String, default: 'Time' }
   },
   emits: ['update:modelValue'],
   setup(props, { emit }) {
-    const selectedDate = computed({
-      get() {
-        if (props.modelValue) {
-          const datetime = new Date(props.modelValue)
-          return new Date(
-            datetime.getFullYear(),
-            datetime.getMonth(),
-            datetime.getDate()
-          )
-        }
-        return null
-      },
-      set(newDate) {
-        if (newDate) {
-          const currentTime = props.modelValue
-            ? new Date(props.modelValue)
-            : new Date()
-          currentTime.setFullYear(
-            newDate.getFullYear(),
-            newDate.getMonth(),
-            newDate.getDate()
-          )
-          emit('update:modelValue', currentTime.toISOString())
-        } else {
-          emit('update:modelValue', null)
-        }
-      }
-    })
+    const selectedDate = ref(null)
+    const selectedHour = ref(null)
+    const selectedMinute = ref(null)
+    const timeInput = ref('')
+    const timeMenu = ref(false)
 
-    const selectedHour = computed({
-      get() {
-        if (props.modelValue) {
-          return new Date(props.modelValue).getHours()
+    const parseModelValue = () => {
+      if (props.modelValue) {
+        const initialDate = new Date(props.modelValue)
+        if (!isNaN(initialDate)) {
+          selectedDate.value = new Date(initialDate.toDateString())
+          selectedHour.value = initialDate.getHours()
+          selectedMinute.value = initialDate.getMinutes()
+          timeInput.value = `${String(initialDate.getHours()).padStart(2, '0')}:${String(initialDate.getMinutes()).padStart(2, '0')}`
         }
-        return null
-      },
-      set(newHour) {
-        if (newHour !== null) {
-          const currentDate = props.modelValue
-            ? new Date(props.modelValue)
-            : new Date()
-          currentDate.setHours(newHour)
-          emit('update:modelValue', currentDate.toISOString())
-        }
+      } else {
+        selectedDate.value = null
+        selectedHour.value = null
+        selectedMinute.value = null
+        timeInput.value = ''
       }
-    })
+    }
 
-    const selectedMinute = computed({
-      get() {
-        if (props.modelValue) {
-          return new Date(props.modelValue).getMinutes()
-        }
-        return null
-      },
-      set(newMinute) {
-        if (newMinute !== null) {
-          const currentDate = props.modelValue
-            ? new Date(props.modelValue)
-            : new Date()
-          currentDate.setMinutes(newMinute)
-          emit('update:modelValue', currentDate.toISOString())
-        }
+    parseModelValue()
+
+    watch(
+      () => props.modelValue,
+      () => {
+        parseModelValue()
       }
-    })
+    )
 
-    const formattedTime = computed(() => {
+    const onDateChange = (newDate) => {
+      selectedDate.value = newDate
+      updateModelValue()
+    }
+
+    const onTimeChange = () => {
+      updateTimeInput()
+      updateModelValue()
+    }
+
+    const updateModelValue = () => {
+      if (selectedDate.value) {
+        const datetime = new Date(selectedDate.value)
+        datetime.setHours(selectedHour.value || 0)
+        datetime.setMinutes(selectedMinute.value || 0)
+        emit('update:modelValue', datetime.toISOString())
+      } else {
+        emit('update:modelValue', null)
+      }
+    }
+
+    const updateTimeInput = () => {
       if (selectedHour.value !== null && selectedMinute.value !== null) {
-        const hour = selectedHour.value.toString().padStart(2, '0')
-        const minute = selectedMinute.value.toString().padStart(2, '0')
-        return `${hour}:${minute}`
+        timeInput.value = `${String(selectedHour.value).padStart(2, '0')}:${String(selectedMinute.value).padStart(2, '0')}`
+      } else {
+        timeInput.value = ''
       }
-      return ''
-    })
-
-    const time_menu = ref(false)
+    }
 
     const clearDate = () => {
       selectedDate.value = null
-      emit('update:modelValue', null)
+      updateModelValue()
     }
 
     const clearTime = () => {
       selectedHour.value = null
       selectedMinute.value = null
-      const currentDate = props.modelValue
-        ? new Date(props.modelValue)
-        : new Date()
-      currentDate.setHours(0, 0)
-      emit('update:modelValue', currentDate.toISOString())
+      timeInput.value = ''
+      updateModelValue()
     }
 
     return {
+      timeMenu,
       selectedDate,
       selectedHour,
       selectedMinute,
-      formattedTime,
-      time_menu,
+      timeInput,
+      onDateChange,
+      onTimeChange,
       clearDate,
       clearTime
     }
