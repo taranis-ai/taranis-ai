@@ -19,9 +19,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install uv
-        uses: astral-sh/setup-uv@v2
+        uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
+          prune-cache: false
 
       - name: Set up Python
         working-directory: src/core
@@ -55,12 +56,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install uv
-        uses: astral-sh/setup-uv@v2
+        uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
+          prune-cache: false
 
       - name: Set up Python
-        working-directory: src/core
+        working-directory: src/worker
         run: uv python install
 
       - name: build
@@ -100,5 +102,5 @@ jobs:
           tags: |
             ghcr.io/${{ env.GHCR_OWNER }}/taranis-worker:latest
             ghcr.io/${{ env.GHCR_OWNER }}/taranis-worker:${{ github.ref_name }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=registry,ref=ghcr.io/${{ env.GHCR_OWNER }}/taranis-worker-cache:latest
+          cache-to: type=registry,ref=ghcr.io/${{ env.GHCR_OWNER }}/taranis-worker-cache:latest,mode=max

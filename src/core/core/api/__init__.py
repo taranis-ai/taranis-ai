@@ -1,4 +1,4 @@
-from core.api import admin, analyze, assess, assets, auth, bots, config, dashboard, isalive, publish, user, task, worker, frontend
+from core.api import admin, analyze, assess, assets, auth, bots, config, dashboard, isalive, publish, user, task, worker, frontend, static
 
 __all__ = [
     "admin",
@@ -14,5 +14,6 @@ __all__ = [
     "user",
     "task",
     "worker",
+    "static",
     "frontend",
 ]

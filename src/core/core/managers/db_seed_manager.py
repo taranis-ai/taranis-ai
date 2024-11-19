@@ -1,3 +1,5 @@
+from sqlalchemy.engine import Engine
+from sqlalchemy import text
 from core.log import logger
 from core.config import Config
 
@@ -22,9 +24,6 @@ def pre_seed():
         pre_seed_report_items()
         logger.debug("Report items seeded")
 
-        pre_seed_wordlists()
-        logger.debug("Wordlists seeded")
-
         pre_seed_workers()
         logger.debug("Workers seeded")
 
@@ -39,18 +38,47 @@ def pre_seed():
         logger.critical("Pre Seed failed")
 
 
-def pre_seed_update():
-    from core.managers.pre_seed_data import workers
-    from core.model.worker import Worker
+def sync_enum_with_db(enum_type, connection):
+    enum_name = enum_type.__name__.lower()
+    existing_enum_values = connection.execute(text(f"SELECT unnest(enum_range(NULL::{enum_name}))")).fetchall()
+
+    existing_values = {val[0] for val in existing_enum_values}
+    new_values = {e.name for e in enum_type}
+
+    if missing_values := new_values - existing_values:
+        for value in missing_values:
+            connection.execute(text(f"ALTER TYPE {enum_name} ADD VALUE '{value}'"))
+        connection.commit()
+
+
+def pre_seed_update(db_engine: Engine):
+    from core.managers.pre_seed_data import workers, bots
+    from core.model.worker import Worker, WORKER_CATEGORY, WORKER_TYPES, BOT_TYPES, COLLECTOR_TYPES, PRESENTER_TYPES, PUBLISHER_TYPES
+    from core.model.bot import Bot
 
     pre_seed_source_groups()
     pre_seed_manual_source()
+
+    with db_engine.connect() as connection:
+        if connection.dialect.name == "sqlite":
+            return
+        sync_enum_with_db(WORKER_CATEGORY, connection)
+        sync_enum_with_db(WORKER_TYPES, connection)
+        sync_enum_with_db(BOT_TYPES, connection)
+        sync_enum_with_db(COLLECTOR_TYPES, connection)
+        sync_enum_with_db(PRESENTER_TYPES, connection)
+        sync_enum_with_db(PUBLISHER_TYPES, connection)
 
     for w in workers:
         if worker := Worker.filter_by_type(w["type"]):
             worker.update(w)
         else:
             Worker.add(w)
+
+    for b in bots:
+        bot = Bot.filter_by_type(b["type"])
+        if not bot:
+            Bot.add(b)
 
 
 def pre_seed_source_groups():
@@ -179,15 +207,6 @@ def pre_seed_report_items():
     for report_type in report_types:
         if not ReportItemType.get_by_title(title=report_type["title"]):
             ReportItemType.add(report_type)
-
-
-def pre_seed_wordlists():
-    from core.model.word_list import WordList
-    from core.managers.pre_seed_data import word_lists
-
-    for word_list in word_lists:
-        if not WordList.find_by_name(name=word_list["name"]):
-            WordList.add(word_list)
 
 
 def pre_seed_default_user():

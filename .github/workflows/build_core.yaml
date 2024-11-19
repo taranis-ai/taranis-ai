@@ -8,7 +8,6 @@ on:
     - '.github/workflows/build_core.yaml'
     branches:
     - master
-    - feature/testci
 
 permissions:
   packages: write
@@ -21,9 +20,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install uv
-        uses: astral-sh/setup-uv@v2
+        uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
+          prune-cache: false
 
       - name: Set up Python
         working-directory: src/core
@@ -49,10 +49,26 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'pnpm'
+          cache-dependency-path: |
+            src/gui/pnpm-lock.yaml
+
+      - name: Set Artifact Name
+        run: echo "TRACES_ARTIFACT_NAME=playwright-traces-build-core" >> ${GITHUB_ENV}
 
       - name: e2e tests
+        id: e2e_tests
         working-directory: src/core
         run: uv run pytest --e2e-ci
+
+      - name: Upload a e2e-test trace
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() && steps.e2e_tests.outcome == 'failure' }}
+        with:
+          retention-days: 7
+          overwrite: true
+          name: ${{ env.TRACES_ARTIFACT_NAME }}
+          path: src/core/trace.zip
 
   build_wheel:
     name: build wheel
@@ -61,9 +77,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install uv
-        uses: astral-sh/setup-uv@v2
+        uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
+          prune-cache: false
 
       - name: Set up Python
         working-directory: src/core
@@ -105,9 +122,10 @@ jobs:
           file: docker/Containerfile.core
           push: true
           tags: |
-            ghcr.io/${{ env.GHCR_OWNER }}/taranis-core:testci
+            ghcr.io/${{ env.GHCR_OWNER }}/taranis-core:latest
+            ghcr.io/${{ env.GHCR_OWNER }}/taranis-core:${{ github.ref_name }}
           build-args: |
             git_info=${{ env.GIT_INFO }}
             BUILDKIT_CONTEXT_KEEP_GIT_DIR=true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=registry,ref=ghcr.io/${{ env.GHCR_OWNER }}/taranis-core-cache:latest
+          cache-to: type=registry,ref=ghcr.io/${{ env.GHCR_OWNER }}/taranis-core-cache:latest,mode=max

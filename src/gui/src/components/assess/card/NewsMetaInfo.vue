@@ -2,7 +2,7 @@
   <table class="newsitem-meta-info">
     <tbody>
       <tr>
-        <td v-if="!compactView" class="info-title py-0">
+        <td v-if="!compactView" class="py-0 news-item-title">
           <strong v-if="published_date">{{ $t('assess.published') }}:</strong>
           <strong v-else>{{ $t('assess.collected') }}:</strong>
         </td>
@@ -15,6 +15,7 @@
       </tr>
       <article-info :news-item="newsItem" />
       <author-info :news-item="newsItem" />
+      <sentiment-info :news-item="newsItem" />
     </tbody>
   </table>
 </template>
@@ -24,12 +25,13 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ArticleInfo from '@/components/assess/card/ArticleInfo.vue'
 import AuthorInfo from '@/components/assess/card/AuthorInfo.vue'
+import SentimentInfo from '@/components/assess/card/SentimentInfo.vue'
 import { storeToRefs } from 'pinia'
 import { useFilterStore } from '@/stores/FilterStore'
 
 export default {
   name: 'NewsMetaInfo',
-  components: { ArticleInfo, AuthorInfo },
+  components: { ArticleInfo, AuthorInfo, SentimentInfo },
   props: {
     newsItem: {
       type: Object,
@@ -68,10 +70,6 @@ export default {
 </script>
 
 <style scoped>
-.info-title {
-  max-width: 110px;
-}
-
 .newsitem-meta-info {
   word-wrap: anywhere;
   width: 100%;

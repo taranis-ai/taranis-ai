@@ -292,7 +292,7 @@ class TestEndToEndUser(PlaywrightHelpers):
         def assert_analyze():
             expect(page.locator("tbody")).to_contain_text("CERT Report")
             expect(page.locator("tbody")).to_contain_text("Test Report")
-            expect(page.locator("tbody")).to_contain_text("1")
+            expect(page.locator("td:left-of(.mdi-content-copy.mdi.v-icon.v-icon--clickable)").first).to_contain_text("3")
 
         def tag_filter(base_url):
             page.goto(f"{base_url}")  # needed for a refresh; any other reload is failing to load from the live_server

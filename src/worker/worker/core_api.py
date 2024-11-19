@@ -33,7 +33,14 @@ class CoreApi:
         response = requests.put(url=url, headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout)
         return self.check_response(response, url)
 
-    def api_post(self, url: str, json_data=None):
+    def api_patch(self, url, json_data=None):
+        url = f"{self.api_url}{url}"
+        if not json_data:
+            json_data = {}
+        response = requests.patch(url=url, headers=self.headers, verify=self.verify, json=json_data, timeout=self.timeout)
+        return self.check_response(response, url)
+
+    def api_post(self, url, json_data=None):
         url = f"{self.api_url}{url}"
         if not json_data:
             json_data = {}
@@ -94,12 +101,9 @@ class CoreApi:
         )
 
     def get_word_list(self, word_list_id: int) -> dict | None:
-        try:
-            return self.api_get(
-                url=f"/worker/word-list/{word_list_id}",
-            )
-        except Exception:
-            return None
+        return self.api_get(
+            url=f"/worker/word-list/{word_list_id}",
+        )
 
     def get_news_items(self, limit) -> dict | None:
         try:
@@ -108,7 +112,7 @@ class CoreApi:
             return None
 
     def get_stories(self, filter_dict: dict) -> list | None:
-        return self.api_get("/worker/stories", params=filter_dict)
+        return self.api_get("/worker/stories", params=filter_dict) or []
 
     def get_tags(self) -> dict | None:
         return self.api_get("/worker/tags")
@@ -131,10 +135,21 @@ class CoreApi:
             return self.api_put(url=f"/bots/story/{story_id}/summary", json_data=data)
         except Exception:
             return None
-
     def update_news_item_attributes(self, news_id: str, attributes) -> dict | None:
         try:
             return self.api_put(url=f"/bots/news-item/{news_id}/attributes", json_data=attributes)
+        except Exception:
+            return None
+
+    def update_story_attributes(self, story_id: str, attributes: dict) -> dict | None:
+        """Patch story attributes
+
+        Example:
+
+        update_story_attributes("story_id", {"attribute1": "value1", "attribute2": "value2"})
+        """
+        try:
+            return self.api_patch(url=f"/bots/story/{story_id}/attributes", json_data=attributes)
         except Exception:
             return None
 

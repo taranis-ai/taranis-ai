@@ -1,7 +1,7 @@
 
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.7.1
+    rev: v0.7.3
     hooks:
       - id: ruff
         files: ^(src/core|src/worker)
@@ -13,7 +13,7 @@ repos:
       - id: eslint
         name: lint
         language: node
-        entry: npm --prefix src/gui run lint_and_format
+        entry: pnpm --prefix src/gui run lint_and_format
         files: ^src/gui
         types_or: [javascript, jsx, ts, tsx, vue]
         pass_filenames: false
