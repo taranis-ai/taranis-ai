@@ -1,6 +1,6 @@
 <template>
   <tr v-if="author">
-    <td v-if="!compactView" style="max-width: 90px" class="py-0">
+    <td v-if="!compactView" class="py-0 news-item-title">
       <strong>{{ $t('assess.author') }}:</strong>
     </td>
     <td class="py-0">

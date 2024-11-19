@@ -1,6 +1,6 @@
 <template>
   <tr>
-    <td v-if="!compactView" style="max-width: 90px" class="py-0">
+    <td v-if="!compactView" class="py-0 news-item-title">
       <strong>{{ $t('assess.article') }}:</strong>
     </td>
     <td class="py-0">

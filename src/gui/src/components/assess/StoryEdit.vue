@@ -57,25 +57,32 @@
         </v-form>
       </v-card-text>
     </v-card>
-    <v-row class="my-2">
-      <v-col cols="3">
+    <v-row v-if="story" class="my-2" align="center" justify="start" wrap>
+      <v-col cols="12" sm="6" md="4" class="d-flex justify-center mb-2">
         <v-btn
           prepend-icon="mdi-pulse"
-          text="AI based sentiment analysis"
           @click="triggerSentimentAnalysisBot"
-        />
+          class="text-truncate"
+          style="width: 100%; max-width: 240px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
+        >
+          AI Based Sentiment Analysis
+        </v-btn>
       </v-col>
-      <v-col cols="3">
-        <v-text-field
-          v-if="storySentiment"
-          v-model="storySentiment"
-          density="dense"
-          readonly
-        />
-        <v-text-field v-else value="Not available" readonly density="dense" />
+      <v-col cols="12" sm="6" md="4" class="d-flex justify-center">
+        <div class="d-flex flex-wrap" style="gap: 8px;">
+          <v-chip
+            v-for="(count, sentiment) in sentimentCounts"
+            :key="sentiment"
+            :color="getColor(sentiment)"
+            text-color="white"
+            label
+          >
+            {{ sentiment.charAt(0).toUpperCase() + sentiment.slice(1) }}: {{ count }}
+          </v-chip>
+        </div>
       </v-col>
     </v-row>
-    <v-expansion-panels v-model="panels" multiple>
+    <v-expansion-panels v-if="story" v-model="panels" multiple>
       <v-expansion-panel
         v-for="news_item in story.news_items"
         :key="news_item.id"
@@ -89,8 +96,7 @@
               params: { itemId: news_item.id }
             }"
             class="d-flex fill-height align-center text-decoration-none"
-            >{{ news_item.content }}
-          </router-link>
+          >{{ news_item.content }}</router-link>
         </template>
       </v-expansion-panel>
     </v-expansion-panels>
@@ -98,8 +104,8 @@
 </template>
 
 <script>
-import { ref, computed } from 'vue'
-import { patchStory, triggerBot } from '@/api/assess'
+import { ref, computed, onMounted, watch } from 'vue'
+import { patchStory, triggerBot, getStory } from '@/api/assess'
 import { notifySuccess, notifyFailure } from '@/utils/helpers'
 import CodeEditor from '@/components/common/CodeEditor.vue'
 import EditTags from '@/components/assess/EditTags.vue'
@@ -126,14 +132,54 @@ export default {
     const form = ref(null)
     const router = useRouter()
     const story = ref(props.storyProp)
-    const panels = ref(story.value.news_items.map((item) => item.id))
+    const panels = ref(story.value.news_items ? story.value.news_items.map((item) => item.id) : [])
     const showallattributes = ref(false)
+
+    const sentimentCounts = computed(() => {
+      if (!story.value || !story.value.news_items) {
+        return {}
+      }
+
+      const counts = {
+        positive: 0,
+        negative: 0,
+        neutral: 0
+      }
+      story.value.news_items.forEach((newsItem) => {
+        const sentimentCategoryAttr = newsItem.attributes?.find((attr) => attr.key === 'sentiment_category')
+
+        if (sentimentCategoryAttr) {
+          const sentiment = sentimentCategoryAttr.value.toLowerCase()
+          if (counts.hasOwnProperty(sentiment)) {
+            counts[sentiment]++
+          }
+        }
+      })
+
+      return Object.fromEntries(Object.entries(counts).filter(([_, count]) => count > 0))
+    })
+
+    const getColor = (sentiment) => {
+      switch (sentiment) {
+        case 'positive':
+          return 'green'
+        case 'negative':
+          return 'red'
+        case 'neutral':
+          return 'gray'
+        default:
+          return 'blue'
+      }
+    }
 
     const rules = {
       required: (v) => !!v || 'Required'
     }
 
     const filteredStoryAttributes = computed(() => {
+      if (!story.value || !story.value.attributes) {
+        return []
+      }
       if (showallattributes.value) {
         return story.value.attributes
       }
@@ -144,15 +190,6 @@ export default {
           !attr.key.includes('_BOT_')
         )
       })
-    })
-
-    const storySentiment = computed(() => {
-      const sentimentAttr = story.value.attributes.find(
-        (attr) => attr.key === 'sentiment'
-      )
-      return sentimentAttr
-        ? JSON.stringify(sentimentAttr.value)
-        : 'Not available'
     })
 
     async function submit() {
@@ -187,17 +224,36 @@ export default {
       }
     }
 
+    async function fetchStoryData(storyId) {
+      try {
+        const response = await getStory(storyId)
+        console.log("Fetched story data:", response.data)
+        story.value = response.data
+      } catch (e) {
+        console.error('Failed to fetch story data:', e)
+        notifyFailure(e)
+      }
+    }
+
     async function triggerSentimentAnalysisBot() {
       try {
-        const result = await triggerBot(
-          'sentiment_analysis_bot',
-          props.storyProp.id
-        )
-        notifySuccess(result.data.message)
+        const result = await triggerBot('sentiment_analysis_bot', props.storyProp.id)
+        notifySuccess(result.data.message)     
+        await fetchStoryData(props.storyProp.id)
       } catch (e) {
         notifyFailure(e)
       }
     }
+
+    onMounted(() => {
+      fetchStoryData(props.storyProp.id)
+    })
+
+    watch(() => story.value, (newStory) => {
+      if (newStory && newStory.news_items) {
+        panels.value = newStory.news_items.map((item) => item.id)
+      }
+    })
 
     return {
       panels,
@@ -207,7 +263,8 @@ export default {
       submit,
       triggerSummaryBot,
       triggerSentimentAnalysisBot,
-      storySentiment,
+      sentimentCounts,
+      getColor,
       filteredStoryAttributes,
       showallattributes
     }

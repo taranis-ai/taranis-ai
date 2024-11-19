@@ -1,23 +1,19 @@
 <template>
   <tr v-if="sentiment_category">
-    <td v-if="!compactView" style="max-width: 90px" class="py-0">
+    <td v-if="!compactView" class="py-0 news-item-title">
       <strong>{{ $t('assess.sentiment') }}:</strong>
     </td>
     <td class="py-0">
       {{ sentiment_category }}
       <v-tooltip activator="parent" location="bottom">
-        <v-icon
-          :color="
-            sentiment_category === 'positive'
-              ? 'success'
-              : sentiment_category === 'negative'
-                ? 'error'
-                : 'grey'
-          "
-          size="x-small"
-          icon="mdi-emoticon-outline"
-        />
-        {{ sentiment_score }}
+        <template v-slot:activator="{ props }">
+          <v-icon
+            v-bind="props"
+            size="x-small"
+            :icon="sentimentEmoji"
+          />
+        </template>
+        <span>{{ sentimentTooltip }}</span>
       </v-tooltip>
     </td>
   </tr>
@@ -25,8 +21,6 @@
 
 <script>
 import { computed } from 'vue'
-import { useFilterStore } from '@/stores/FilterStore'
-import { storeToRefs } from 'pinia'
 
 export default {
   name: 'SentimentInfo',
@@ -34,6 +28,10 @@ export default {
     newsItem: {
       type: Object,
       required: true
+    },
+    compactView: {
+      type: Boolean,
+      default: false
     }
   },
   setup(props) {
@@ -44,18 +42,37 @@ export default {
     })
 
     const sentiment_score = computed(() => {
-      return props.newsItem?.attributes?.find(
+      const score = props.newsItem?.attributes?.find(
         (attr) => attr.key === 'sentiment_score'
       )?.value
+      return score !== undefined ? parseFloat(score) : NaN
     })
 
-    const filterStore = useFilterStore()
-    const { compactView } = storeToRefs(filterStore)
+    const sentimentTooltip = computed(() => {
+      if (isNaN(sentiment_score.value)) {
+        return `Sentiment is ${sentiment_category.value} with no score available`
+      }
+      return `Sentiment is ${sentiment_category.value} with a score of ${(sentiment_score.value * 100).toFixed(2)}%`
+    })
+
+    const sentimentEmoji = computed(() => {
+      switch (sentiment_category.value?.toLowerCase()) {
+        case 'positive':
+          return 'mdi-emoticon-happy-outline'
+        case 'negative':
+          return 'mdi-emoticon-sad-outline'
+        case 'neutral':
+          return 'mdi-emoticon-neutral-outline'
+        default:
+          return 'mdi-emoticon-outline'
+      }
+    })
 
     return {
       sentiment_category,
       sentiment_score,
-      compactView
+      sentimentTooltip,
+      sentimentEmoji
     }
   }
 }
