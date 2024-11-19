@@ -16,13 +16,13 @@ class SentimentAnalysisBot(BaseBot):
         if not (data := self.get_stories(parameters)):
             return {"message": "No stories found for sentiment analysis"}
 
-        logger.info(f"Analyzing sentiment for {len(data)} news items")
+        logger.debug(f"Analyzing sentiment for {len(data)} news items")
 
         # Process each story
         sentiment_results = self.analyze_news_items(data)
         self.update_news_items(sentiment_results)
 
-        logger.info(f"Sentiment analysis complete with results: {sentiment_results}")
+        logger.debug(f"Sentiment analysis complete with results: {sentiment_results}")
 
         return {
             "sentiment_score": sentiment_results.get(list(sentiment_results.keys())[0])["sentiment"],
@@ -36,12 +36,11 @@ class SentimentAnalysisBot(BaseBot):
             for news_item in news_items:
                 text_content = news_item.get("content", "")
                 sentiment = analyze_sentiment(text_content)
-                logger.info(f"Sentiment analysis result for news item {news_item['id']}: {sentiment}")
                 if "score" not in sentiment:
                     logger.error(f"Sentiment analysis failed for news item {news_item['id']}")
                     continue
 
-                logger.info(f"Received sentiment label: {sentiment['label']} with score: {sentiment['score']}")
+                logger.debug(f"Received sentiment label: {sentiment['label']} with score: {sentiment['score']}")
                 news_item_id = news_item["id"]
                 results[news_item_id] = {
                     "sentiment": sentiment["score"],
@@ -56,9 +55,9 @@ class SentimentAnalysisBot(BaseBot):
                 {"key": "sentiment_score", "value": str(sentiment_data.get("sentiment", "N/A"))},
                 {"key": "sentiment_category", "value": sentiment_data.get("category", "N/A")},
             ]
-            logger.info(f"Updating news item {news_item_id} with attributes: {attributes}")
+            logger.debug(f"Updating news item {news_item_id} with attributes: {attributes}")
 
             if success := self.core_api.update_news_item_attributes(news_item_id, attributes):  # noqa: F841
-                logger.info(f"Successfully updated news item {news_item_id} with sentiment attributes.")
+                logger.debug(f"Successfully updated news item {news_item_id} with sentiment attributes.")
             else:
                 logger.error(f"Failed to update news item {news_item_id} with sentiment attributes.")
