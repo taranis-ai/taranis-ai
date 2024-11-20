@@ -1,8 +1,7 @@
 import base64
 import datetime
 import hashlib
-
-# from typing import Sequence
+from typing import Sequence
 from urllib.parse import urlparse, urljoin
 import requests
 import json
@@ -73,49 +72,10 @@ class RTCollector(BaseWebCollector):
     def get_ids_from_tickets(self, tickets) -> list:
         return [ticket.get("id") for ticket in tickets.get("items", [])]
 
-    def get_ticket_transaction(self, ticket_id: int) -> int:
-        response = requests.get(f"{self.api_url}ticket/{ticket_id}/history", headers=self.headers)
-        if not response or not response.ok:
-            logger.error(f"Ticket transaction for {ticket_id} returned with {response.status_code}")
-            raise ValueError("No ticket history returned")
-        return response.json().get("items")[0].get("_url").rsplit("/", 1)[1]
-
-    def check_attach_for_text(self, attachment_items) -> list:
-        attachment_ids = [attachment.get("_url").rsplit("/", 1)[1] for attachment in attachment_items]
-        valid_text_attachments = []
-        for id in attachment_ids:
-            attachment = requests.get(f"{self.api_url}attachment/{id}", headers=self.headers)
-            if not attachment or not attachment.ok:
-                logger.error(f"Attachment of id: {id} returned with {attachment.status_code}")
-                raise ValueError("No attachment returned")
-            content_type = attachment.json().get("ContentType", "")
-            if content_type.startswith("multipart") or content_type.startswith("text"):
-                valid_text_attachments.append(id)
-
-        return valid_text_attachments
-
-    def get_content_attachment_data(self, transaction: int) -> tuple[list, str, str]:
-        ticket_transaction = requests.get(f"{self.api_url}transaction/{transaction}", headers=self.headers)
-        if not ticket_transaction or not ticket_transaction.ok:
-            logger.error(f"Ticket transaction returned with {ticket_transaction.status_code}")
-            raise ValueError("No transaction returned")
-        # Limiting to only two relevant attachments.
-        if len(ticket_transaction.json().get("_hyperlinks")) > 2:
-            attachment_items = [
-                item for item in ticket_transaction.json().get("_hyperlinks")[:3] if item.get("ref", "").startswith("attachment")
-            ]
-        else:
-            attachment_items = [item for item in ticket_transaction.json().get("_hyperlinks") if item.get("ref", "").startswith("attachment")]
-
-        return (
-            self.check_attach_for_text(attachment_items),
-            ticket_transaction.json().get("Created"),
-            ticket_transaction.json().get("Creator").get("id"),
-        )
-
     def decode64(self, ticket_content) -> str:
         if isinstance(ticket_content, str):
             ticket_content = base64.b64decode(ticket_content).decode("utf-8")
+            logger.debug(f"{ticket_content=}")
             return ticket_content
         logger.error("Unable to decode the ticket content")
         raise ValueError("ticket_content is not a string")
@@ -127,47 +87,12 @@ class RTCollector(BaseWebCollector):
         ticket_content = attachment.get("Content")
         return self.decode64(ticket_content)
 
-    def get_ticket_data(self, ticket_id: int, source) -> NewsItem:
-        ticket_transaction = self.get_ticket_transaction(ticket_id)
-        ticket_attachment_id, ticket_published, ticket_author = self.get_content_attachment_data(ticket_transaction)
-
-        attachment = requests.get(f"{self.api_url}attachment/{ticket_attachment_id[0]}", headers=self.headers)
-        if not attachment or not attachment.ok:
-            logger.error(f"Ticket of id: {ticket_id} returned with {attachment.status_code}")
-            raise ValueError("No ticket attachment returned")
-        ticket_subject = self.get_ticket_subject(attachment.json())
-
-        # Tickets don't form uniform transactions.
-        # This covers a case, where in the first attachment is the subject, and in the second attach is the content.
-        if len(ticket_attachment_id) > 1:
-            attachment = requests.get(f"{self.api_url}attachment/{ticket_attachment_id[1]}", headers=self.headers)
-            if not attachment or not attachment.ok:
-                logger.error(f"Ticket of id: {ticket_id} returned with {attachment.status_code}")
-                raise ValueError("No ticket attachment returned")
-
-        ticket_content = self.get_ticket_content(attachment.json())
-        for_hash: str = str(ticket_id) + ticket_content
-
-        return NewsItem(
-            osint_source_id=source.get("id"),
-            hash=hashlib.sha256(for_hash.encode()).hexdigest(),
-            title=ticket_subject,
-            content=ticket_content,
-            web_url=f"{self.base_url}{self.ticket_path}{ticket_id}",
-            published_date=datetime.datetime.fromisoformat(ticket_published),
-            author=ticket_author,
-            collected_date=datetime.datetime.now(),
-            language=source.get("language", ""),
-            review=source.get("review", ""),
-            attributes=[],
-        )
-
     def get_unique_content_from_hyperlinks(self, hyperlinks_full) -> list[dict]:
         """Clean up `_hyperlinks` from `CustomFields`"""
         return [hyperlink for hyperlink in hyperlinks_full if hyperlink.get("type") != "customfield"]
 
-    def get_ticket_meta_item(self, ticket_id: int, source: dict) -> NewsItem:
-        ticket = self.get_ticket(ticket_id, source)
+    def get_meta_news_item(self, ticket_id: int, source: dict) -> NewsItem:
+        ticket = self.get_ticket(ticket_id)
 
         ticket_custom_fields: list[dict] = ticket.pop("CustomFields")
         ticket_hyperlinks: list = ticket.pop("_hyperlinks")
@@ -195,26 +120,56 @@ class RTCollector(BaseWebCollector):
             attributes=[],
         )
 
-    # def get_news_items(self, ticket_id: int, source: dict):
-    #     if self.rt:
-    #         ticket_attachments: Sequence[dict[str, str]] = self.rt.get_attachments(ticket_id)
-    #         logger.debug(f"{ticket_attachments=}")
+    def get_attachment_news_item(self, ticket_id: int, attachments: dict, source: dict) -> NewsItem:
+        attachment = self.get_attachment(attachments.get("_url", ""))
+        logger.debug(f"{attachment=}")
 
-    def json_to_string(self, json_data):
+        for_hash: str = str(ticket_id) + attachment.get("Content", "")
+
+        return NewsItem(
+            osint_source_id=source.get("id", ""),
+            hash=hashlib.sha256(for_hash.encode()).hexdigest(),
+            title="attachment",
+            content=self.decode64(attachment.get("Content", "")),
+            web_url=f"{self.base_url}{self.ticket_path}{ticket_id}",
+            published_date=datetime.datetime.fromisoformat(attachment.get("Created", "")),
+            author=attachments.get("Creator", {}).get("id", ""),
+            collected_date=datetime.datetime.now(),
+            language=source.get("language", ""),
+            review=source.get("review", ""),
+            attributes=[],
+        )
+
+    def get_attachment(self, attachment_url: str) -> dict:
+        response = requests.get(attachment_url, headers=self.headers)
+        if not response or not response.ok:
+            logger.error(f"Attachment of url: {attachment_url} returned with {response.status_code}")
+            raise ValueError("No attachment content returned")
+        return response.json()
+
+    def get_news_items(self, ticket_id: int, source: dict) -> list[NewsItem]:
+        if self.rt:
+            ticket_attachments: Sequence[dict[str, str]] = self.rt.get_attachments(ticket_id)
+            logger.debug(f"{ticket_attachments=}")
+            return [self.get_attachment_news_item(ticket_id, attachment, source) for attachment in ticket_attachments]
+        return []
+
+    def json_to_string(self, json_data) -> str:
         if isinstance(json_data, str):
             json_data = json.loads(json_data)
         result = [f"{key}: {json.dumps(value)}" for key, value in json_data.items()]
         return "\n".join(result)
 
-    def get_ticket(self, ticket_id: int, source) -> dict:
+    def get_ticket(self, ticket_id: int) -> dict:
         response = requests.get(f"{self.api_url}ticket/{ticket_id}", headers=self.headers)
         return response.json()
 
     def get_tickets(self, ticket_ids: list, source) -> list[NewsItem]:
         ticket_news_items = []
         for ticket_id in ticket_ids:
-            ticket_news_items.append(self.get_ticket_meta_item(ticket_id, source))
-            # self.get_news_items(ticket_id, source)
+            ticket_news_items.append(self.get_meta_news_item(ticket_id, source))
+            if news_items := self.get_news_items(ticket_id, source):
+                ticket_news_items.extend(news_items)
 
         return ticket_news_items
 
