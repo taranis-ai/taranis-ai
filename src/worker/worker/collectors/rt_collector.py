@@ -1,8 +1,12 @@
 import base64
 import datetime
 import hashlib
+
+# from typing import Sequence
 from urllib.parse import urlparse, urljoin
 import requests
+import json
+import rt.rest2
 
 from worker.log import logger
 from worker.collectors.base_web_collector import BaseWebCollector
@@ -19,6 +23,7 @@ class RTCollector(BaseWebCollector):
         self.api_url = ""
         self.api = "/REST/2.0/"
         self.ticket_path = "/Ticket/Display.html?id="
+        self.rt = None
 
     def set_api_url(self):
         self.api_url = urljoin(self.base_url, self.api)
@@ -35,6 +40,7 @@ class RTCollector(BaseWebCollector):
         if not rt_token:
             raise ValueError("No RT_TOKEN set")
         self.headers = {"Authorization": f"token {rt_token}"}
+        self.rt = rt.rest2.Rt(self.base_url + self.api, token=rt_token)
 
     def setup_collector(self, source):
         self.set_base_url(source.get("parameters").get("BASE_URL", None))
@@ -62,7 +68,7 @@ class RTCollector(BaseWebCollector):
             if tickets := self.rt_collector(source):
                 return self.publish(tickets, source)
         except Exception as e:
-            raise RuntimeError(f"RT Collector not available {self.base_url}") from e
+            raise RuntimeError(f"RT Collector not available {self.base_url} with exception: {e}") from e
 
     def get_ids_from_tickets(self, tickets) -> list:
         return [ticket.get("id") for ticket in tickets.get("items", [])]
@@ -156,10 +162,63 @@ class RTCollector(BaseWebCollector):
             attributes=[],
         )
 
-    def get_tickets(self, ticket_ids: list, source) -> list:
-        return [self.get_ticket_data(ticket_id, source) for ticket_id in ticket_ids]
+    def get_unique_content_from_hyperlinks(self, hyperlinks_full) -> list[dict]:
+        """Clean up `_hyperlinks` from `CustomFields`"""
+        return [hyperlink for hyperlink in hyperlinks_full if hyperlink.get("type") != "customfield"]
 
-    def rt_collector(self, source):
+    def get_ticket_meta_item(self, ticket_id: int, source: dict) -> NewsItem:
+        ticket = self.get_ticket(ticket_id, source)
+
+        ticket_custom_fields: list[dict] = ticket.pop("CustomFields")
+        ticket_hyperlinks: list = ticket.pop("_hyperlinks")
+        title: str = ticket.get("Subject", "No title found")
+        metadata: str = self.json_to_string(ticket)
+        logger.debug(f"{title=}")
+        logger.debug(f"{metadata=}")
+        logger.debug(f"{ticket_custom_fields=}")
+
+        hyperlinks_unique: list[dict] = self.get_unique_content_from_hyperlinks(ticket_hyperlinks)
+        ticket_fields: list[dict] = ticket_custom_fields + hyperlinks_unique
+        for_hash: str = str(ticket_id) + title  # TODO: check what the ideal hash should be
+
+        return NewsItem(
+            osint_source_id=source.get("id", ""),
+            hash=hashlib.sha256(for_hash.encode()).hexdigest(),
+            title=title,
+            content=str(ticket_id) + str(ticket_fields) + metadata,
+            web_url=f"{self.base_url}{self.ticket_path}{ticket_id}",
+            published_date=datetime.datetime.fromisoformat(ticket.get("Created", "")),
+            author=ticket.get("Owner", {}).get("id", ""),
+            collected_date=datetime.datetime.now(),
+            language=source.get("language", ""),
+            review=source.get("review", "metadata"),
+            attributes=[],
+        )
+
+    # def get_news_items(self, ticket_id: int, source: dict):
+    #     if self.rt:
+    #         ticket_attachments: Sequence[dict[str, str]] = self.rt.get_attachments(ticket_id)
+    #         logger.debug(f"{ticket_attachments=}")
+
+    def json_to_string(self, json_data):
+        if isinstance(json_data, str):
+            json_data = json.loads(json_data)
+        result = [f"{key}: {json.dumps(value)}" for key, value in json_data.items()]
+        return "\n".join(result)
+
+    def get_ticket(self, ticket_id: int, source) -> dict:
+        response = requests.get(f"{self.api_url}ticket/{ticket_id}", headers=self.headers)
+        return response.json()
+
+    def get_tickets(self, ticket_ids: list, source) -> list[NewsItem]:
+        ticket_news_items = []
+        for ticket_id in ticket_ids:
+            ticket_news_items.append(self.get_ticket_meta_item(ticket_id, source))
+            # self.get_news_items(ticket_id, source)
+
+        return ticket_news_items
+
+    def rt_collector(self, source) -> list[NewsItem]:
         response = requests.get(f"{self.api_url}tickets?query=*", headers=self.headers)
         if not response or not response.ok:
             logger.error(f"Website {source.get('id')} returned no content with response: {response}")
@@ -170,9 +229,27 @@ class RTCollector(BaseWebCollector):
             raise ValueError("No tickets available")
 
         try:
-            tickets = self.get_tickets(tickets_ids_list, source)
+            tickets: list[NewsItem] = self.get_tickets(tickets_ids_list, source)
         except RuntimeError as e:
             logger.error(f"RT Collector for {self.base_url} failed with error: {str(e)}")
             raise RuntimeError(f"RT Collector for {self.base_url} failed with error: {str(e)}") from e
 
         return tickets
+
+
+if __name__ == "__main__":
+    rt_collector = RTCollector()
+    rt_collector.collect(
+        {
+            "description": "",
+            "id": "752cae6a-9d48-463e-a91e-1365f6d96eb4",
+            "last_attempted": None,
+            "last_collected": None,
+            "last_error_message": None,
+            "name": "rt collector",
+            "parameters": {"BASE_URL": "http://rt.lab", "RT_TOKEN": "1-14-f56697548241b7c1fbc51522b34e8efb"},
+            "state": -1,
+            "type": "rt_collector",
+            "word_lists": [],
+        }
+    )
