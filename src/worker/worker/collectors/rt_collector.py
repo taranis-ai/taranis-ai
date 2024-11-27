@@ -104,7 +104,11 @@ class RTCollector(BaseWebCollector):
 
         hyperlinks_unique: list[dict] = self.get_unique_content_from_hyperlinks(ticket_hyperlinks)
         ticket_fields: list[dict] = ticket_custom_fields + hyperlinks_unique
-        for_hash: str = str(ticket_id) + title  # TODO: check what the ideal hash should be
+        for_hash: str = str(ticket_id) + ticket.get("Subject", "") + ticket.get("Created", "")  # TODO: check what the ideal hash should be
+        attributes = [
+            {"key": attr.get("name", ""), "value": attr.get("values", [])[0]} for attr in ticket_custom_fields if attr.get("values")
+        ] or []
+        print(f"{attributes=}")
 
         return NewsItem(
             osint_source_id=source.get("id", ""),
@@ -117,7 +121,7 @@ class RTCollector(BaseWebCollector):
             collected_date=datetime.datetime.now(),
             language=source.get("language", ""),
             review=source.get("review", "metadata"),
-            attributes=[],
+            attributes=attributes,
         )
 
     def get_attachment_news_item(self, ticket_id: int, attachments: dict, source: dict) -> NewsItem:
