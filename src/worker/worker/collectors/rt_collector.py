@@ -20,6 +20,7 @@ class RTCollector(BaseWebCollector):
         self.api_url = ""
         self.api = "/REST/2.0/"
         self.ticket_path = "/Ticket/Display.html?id="
+        self.search_query = ""
 
     def set_api_url(self):
         self.api_url = urljoin(self.base_url, self.api)
@@ -45,6 +46,8 @@ class RTCollector(BaseWebCollector):
 
         self.set_headers(source.get("parameters").get("RT_TOKEN", None))
 
+        if search_query := source.get("parameters").get("SEARCH_QUERY", None):
+            self.search_query = search_query
         if additional_headers := source["parameters"].get("ADDITIONAL_HEADERS", None):
             self.update_headers(additional_headers)
 
@@ -174,7 +177,7 @@ class RTCollector(BaseWebCollector):
         return [self.get_story_news_items(ticket_id, source) for ticket_id in ticket_ids]
 
     def rt_collector(self, source) -> list[list[NewsItem]]:
-        response = requests.get(f"{self.api_url}tickets?query=*", headers=self.headers)
+        response = requests.get(f"{self.api_url}tickets?query={self.search_query}", headers=self.headers)
         if not response or not response.ok:
             logger.error(f"Website {source.get('id')} returned no content with response: {response}")
             raise ValueError("Website returned no content, check your RT_TOKEN")

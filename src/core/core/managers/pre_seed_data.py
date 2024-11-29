@@ -55,6 +55,7 @@ workers = [
         "parameters": [
             {"parameter": "BASE_URL", "rules": "required"},
             {"parameter": "RT_TOKEN", "rules": "required"},
+            {"parameter": "SEARCH_QUERY"},
             {"parameter": "ADDITIONAL_HEADERS"},
             {"parameter": "TLP_LEVEL", "rules": "tlp"},
         ],
