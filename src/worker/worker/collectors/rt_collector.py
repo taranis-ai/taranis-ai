@@ -76,13 +76,6 @@ class RTCollector(BaseWebCollector):
         logger.error("Unable to decode the ticket content")
         raise ValueError("ticket_content is not a string")
 
-    def get_ticket_subject(self, attachment) -> str:
-        return attachment.get("Subject")
-
-    def get_ticket_content(self, attachment) -> str:
-        ticket_content = attachment.get("Content")
-        return self.decode64(ticket_content)
-
     def get_unique_content_from_hyperlinks(self, hyperlinks_full) -> list[dict]:
         """Clean up `_hyperlinks` from `CustomFields`"""
         return [hyperlink for hyperlink in hyperlinks_full if hyperlink.get("type") != "customfield"]
