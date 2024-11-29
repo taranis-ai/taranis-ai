@@ -1,11 +1,9 @@
 import base64
 import datetime
 import hashlib
-from typing import Sequence
 from urllib.parse import urlparse, urljoin
 import requests
 import json
-import rt.rest2
 
 from worker.log import logger
 from worker.collectors.base_web_collector import BaseWebCollector
@@ -22,7 +20,6 @@ class RTCollector(BaseWebCollector):
         self.api_url = ""
         self.api = "/REST/2.0/"
         self.ticket_path = "/Ticket/Display.html?id="
-        self.rt = None
 
     def set_api_url(self):
         self.api_url = urljoin(self.base_url, self.api)
@@ -39,7 +36,6 @@ class RTCollector(BaseWebCollector):
         if not rt_token:
             raise ValueError("No RT_TOKEN set")
         self.headers = {"Authorization": f"token {rt_token}"}
-        self.rt = rt.rest2.Rt(self.base_url + self.api, token=rt_token)
 
     def setup_collector(self, source):
         self.set_base_url(source.get("parameters").get("BASE_URL", None))
@@ -55,8 +51,8 @@ class RTCollector(BaseWebCollector):
     def preview_collector(self, source: dict) -> list[dict]:
         self.setup_collector(source)
 
-        if tickets := self.rt_collector(source):
-            return self.preview(tickets, source)
+        if story_list := self.rt_collector(source):
+            return self.preview([item for news_item_list in story_list for item in news_item_list], source)
 
         return []
 
@@ -65,7 +61,7 @@ class RTCollector(BaseWebCollector):
 
         try:
             if tickets := self.rt_collector(source):
-                return self.publish(tickets, source)
+                return self.publish_stories(tickets, source)
         except Exception as e:
             raise RuntimeError(f"RT Collector not available {self.base_url} with exception: {e}") from e
 
@@ -124,10 +120,7 @@ class RTCollector(BaseWebCollector):
             attributes=attributes,
         )
 
-    def get_attachment_news_item(self, ticket_id: int, attachments: dict, source: dict) -> NewsItem:
-        attachment = self.get_attachment(attachments.get("_url", ""))
-        logger.debug(f"{attachment=}")
-
+    def get_attachment_news_item(self, ticket_id: int, attachment: dict, source: dict) -> NewsItem:
         for_hash: str = str(ticket_id) + attachment.get("Content", "")
 
         return NewsItem(
@@ -137,26 +130,31 @@ class RTCollector(BaseWebCollector):
             content=self.decode64(attachment.get("Content", "")),
             web_url=f"{self.base_url}{self.ticket_path}{ticket_id}",
             published_date=datetime.datetime.fromisoformat(attachment.get("Created", "")),
-            author=attachments.get("Creator", {}).get("id", ""),
+            author=attachment.get("Creator", {}).get("id", ""),
             collected_date=datetime.datetime.now(),
             language=source.get("language", ""),
             review=source.get("review", ""),
             attributes=[],
         )
 
-    def get_attachment(self, attachment_url: str) -> dict:
+    def get_attachment_values(self, attachment_url: str) -> dict:
         response = requests.get(attachment_url, headers=self.headers)
         if not response or not response.ok:
             logger.error(f"Attachment of url: {attachment_url} returned with {response.status_code}")
             raise ValueError("No attachment content returned")
         return response.json()
 
-    def get_news_items(self, ticket_id: int, source: dict) -> list[NewsItem]:
-        if self.rt:
-            ticket_attachments: Sequence[dict[str, str]] = self.rt.get_attachments(ticket_id)
+    def get_ticket_attachments(self, ticket_id: int, source: dict) -> list:
+        """An Attachment represents a NewsItem"""
+        if response := requests.get(
+            f"{self.api_url}ticket/{ticket_id}/attachments",
+            headers=self.headers,
+        ):
+            ticket_attachments: list[dict] = response.json().get("items", [])
             logger.debug(f"{ticket_attachments=}")
-            return [self.get_attachment_news_item(ticket_id, attachment, source) for attachment in ticket_attachments]
-        return []
+            attachments_content: list[dict] = []
+            attachments_content.extend(self.get_attachment_values(attachment.get("_url", "")) for attachment in ticket_attachments)
+        return attachments_content or []
 
     def json_to_string(self, json_data) -> str:
         if isinstance(json_data, str):
@@ -168,16 +166,21 @@ class RTCollector(BaseWebCollector):
         response = requests.get(f"{self.api_url}ticket/{ticket_id}", headers=self.headers)
         return response.json()
 
-    def get_tickets(self, ticket_ids: list, source) -> list[NewsItem]:
-        ticket_news_items = []
-        for ticket_id in ticket_ids:
-            ticket_news_items.append(self.get_meta_news_item(ticket_id, source))
-            if news_items := self.get_news_items(ticket_id, source):
-                ticket_news_items.extend(news_items)
+    def get_story_news_items(self, ticket_id: int, source) -> list[NewsItem]:
+        story_news_items = [self.get_meta_news_item(ticket_id, source)]
+        if ticket_attachments := self.get_ticket_attachments(ticket_id, source):
+            for attachment in ticket_attachments:
+                if attachment.get("Content", "") is None:
+                    continue
+                story_news_items.append(self.get_attachment_news_item(ticket_id, attachment, source))
 
-        return ticket_news_items
+        return story_news_items
 
-    def rt_collector(self, source) -> list[NewsItem]:
+    def get_news_item_lists(self, ticket_ids: list, source) -> list[list[NewsItem]]:
+        """A Ticket represents a Story"""
+        return [self.get_story_news_items(ticket_id, source) for ticket_id in ticket_ids]
+
+    def rt_collector(self, source) -> list[list[NewsItem]]:
         response = requests.get(f"{self.api_url}tickets?query=*", headers=self.headers)
         if not response or not response.ok:
             logger.error(f"Website {source.get('id')} returned no content with response: {response}")
@@ -188,7 +191,7 @@ class RTCollector(BaseWebCollector):
             raise ValueError("No tickets available")
 
         try:
-            tickets: list[NewsItem] = self.get_tickets(tickets_ids_list, source)
+            tickets: list[list[NewsItem]] = self.get_news_item_lists(tickets_ids_list, source)
         except RuntimeError as e:
             logger.error(f"RT Collector for {self.base_url} failed with error: {str(e)}")
             raise RuntimeError(f"RT Collector for {self.base_url} failed with error: {str(e)}") from e

@@ -113,3 +113,17 @@ class BaseCollector:
         news_items_dicts = [item.to_dict() for item in news_items]
         self.core_api.add_news_items(news_items_dicts)
         self.core_api.update_osintsource_status(source["id"], None)
+
+    def publish_stories(self, story_lists: list[list[NewsItem]], source: dict):
+        logger.debug(f"{story_lists=}")
+        for story_news_items in story_lists:
+            news_items = self.process_news_items(story_news_items, source)
+            logger.info(f"Publishing {len(news_items)} news items to core api")
+            news_items_dicts = [item.to_dict() for item in news_items]
+            if result := self.core_api.add_news_items(news_items_dicts):
+                if isinstance(result, dict):
+                    story_ids = result.get("story_ids", [])
+                    logger.debug(f"{result=}")
+                    self.core_api.news_items_grouping(story_ids)
+
+            self.core_api.update_osintsource_status(source["id"], None)

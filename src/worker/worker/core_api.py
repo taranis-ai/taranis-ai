@@ -135,6 +135,7 @@ class CoreApi:
             return self.api_put(url=f"/bots/story/{story_id}/summary", json_data=data)
         except Exception:
             return None
+
     def update_news_item_attributes(self, news_id: str, attributes) -> dict | None:
         try:
             return self.api_put(url=f"/bots/news-item/{news_id}/attributes", json_data=attributes)
@@ -204,13 +205,11 @@ class CoreApi:
         except Exception:
             return None
 
-    def add_news_items(self, news_items) -> bool:
+    def add_news_items(self, news_items) -> dict | bool | None:
+        url = f"{self.api_url}{"/worker/news-items"}"
         try:
-            response = requests.post(
-                f"{self.api_url}/worker/news-items", json=news_items, headers=self.headers, verify=self.verify, timeout=self.timeout
-            )
-
-            return response.ok
+            response = requests.post(url=url, json=news_items, headers=self.headers, verify=self.verify, timeout=self.timeout)
+            return self.check_response(response, url)
         except Exception:
             logger.exception("Cannot add Newsitem")
             return False
