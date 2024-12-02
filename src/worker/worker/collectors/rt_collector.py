@@ -20,7 +20,7 @@ class RTCollector(BaseWebCollector):
         self.api_url = ""
         self.api = "/REST/2.0/"
         self.ticket_path = "/Ticket/Display.html?id="
-        self.search_query = ""
+        self.search_query = "*"
 
     def set_api_url(self):
         self.api_url = urljoin(self.base_url, self.api)
@@ -166,7 +166,7 @@ class RTCollector(BaseWebCollector):
         story_news_items = [self.get_meta_news_item(ticket_id, source)]
         if ticket_attachments := self.get_ticket_attachments(ticket_id, source):
             for attachment in ticket_attachments:
-                if attachment.get("Content", "") is None:
+                if attachment.get("Content", ""):
                     continue
                 story_news_items.append(self.get_attachment_news_item(ticket_id, attachment, source))
 
@@ -205,7 +205,11 @@ if __name__ == "__main__":
             "last_collected": None,
             "last_error_message": None,
             "name": "rt collector",
-            "parameters": {"BASE_URL": "http://rt.lab", "RT_TOKEN": "1-14-f56697548241b7c1fbc51522b34e8efb"},
+            "parameters": {
+                "BASE_URL": "http://rt.lab",
+                "RT_TOKEN": "1-14-f56697548241b7c1fbc51522b34e8efb",
+                # "SEARCH_QUERY": "Started > '2018-04-04' AND Status != 'resolved'",
+            },
             "state": -1,
             "type": "rt_collector",
             "word_lists": [],
