@@ -24,6 +24,7 @@ class RSSCollector(BaseWebCollector):
         self.feed_url = ""
         self.feed_content: requests.Response
         self.last_modified = None
+        self.language = None
 
         logger_trafilatura = logging.getLogger("trafilatura")
         logger_trafilatura.setLevel(logging.WARNING)
@@ -116,7 +117,7 @@ class RSSCollector(BaseWebCollector):
             content=content,
             web_url=link,
             published_date=published,
-            language=source.get("language", ""),
+            language=self.language,
         )
 
     # TODO: This function is renamed because of inheritance issues.
@@ -211,6 +212,7 @@ class RSSCollector(BaseWebCollector):
             self.update_favicon_from_feed(feed.feed, source["id"])  # type: ignore
         last_modified = self.get_last_modified_feed(self.feed_content, feed)
         self.last_modified = last_modified
+        self.detect_language_from_feed(feed)
         if last_modified and last_attempted and last_modified < last_attempted and not manual:
             logger.debug(f"Last-Modified: {last_modified} < Last-Attempted {last_attempted} skipping")
             return "Last-Modified < Last-Attempted"
@@ -221,3 +223,7 @@ class RSSCollector(BaseWebCollector):
 
         self.publish(self.news_items, source)
         return None
+
+    def detect_language_from_feed(self, feed: dict):
+        if language := feed.get("feed", {}).get("language"):
+            self.language = language

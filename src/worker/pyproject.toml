@@ -27,6 +27,7 @@ dependencies = [
     "pyopenssl",
     "lxml",
     "playwright",
+    "langcodes",
 
     # Publisher
     "pymisp",
@@ -42,9 +43,9 @@ dependencies = [
     "matplotlib==3.8.4",
     "ioc-finder",
     "ioc-fanger",
+    "langdetect",
     "flair",
     "transformers",
-    "py3langid",
     "nltk",
     "taranis-story-clustering==0.8.1",
     "taranis-sentiment-analysis==1.2.0"
