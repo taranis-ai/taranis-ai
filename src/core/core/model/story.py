@@ -578,7 +578,7 @@ class Story(BaseModel):
         if cls.is_assigned_to_report([story_id]):
             return {"error": f"Story with: {story_id} assigned to a report"}, 500
 
-        for news_item in story.news_items:
+        for news_item in story.news_items[:]:
             if news_item.allowed_with_acl(user, True):
                 story.news_items.remove(news_item)
                 news_item.delete_item()
