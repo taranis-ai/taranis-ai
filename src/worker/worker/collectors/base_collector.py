@@ -114,19 +114,13 @@ class BaseCollector:
         self.core_api.add_news_items(news_items_dicts)
         self.core_api.update_osintsource_status(source["id"], None)
 
-    def publish_stories(self, story_lists: list[list[NewsItem]], source: dict, story_attributes_for_rt: bool = False):
-        """(RT_Collector) The story_lists variable contains NewsItems for each story.
+    def publish_stories(self, story_lists: list[dict], source: dict):
+        """story_lists example: [{title: str, news_items: list[NewsItem]}]"""
 
-        The first NewsItem of each list contains story attributes."""
-        for story_news_items in story_lists:
-            news_items = self.process_news_items(story_news_items, source)
+        for story_dict in story_lists:
+            news_items = self.process_news_items(story_dict.get("news_items", []), source)
             logger.info(f"Publishing {len(news_items)} news items to core api")
             news_items_list = [item.to_dict() for item in news_items]
-            story_title = news_items_list[0].get("title", "Story")
-            story_attributes = []
-            if story_attributes_for_rt:
-                story_attributes = news_items_list[0].get("attributes", [])  # TODO: This could eventually include all NewsItemAttributes
-            self.core_api.api_post(
-                "/worker/stories", json_data={"title": story_title, "attributes": story_attributes, "news_items": news_items_list}
-            )
+            story_dict.update({"news_items": news_items_list})
+            self.core_api.api_post("/worker/stories", json_data=story_dict)
             self.core_api.update_osintsource_status(source["id"], None)

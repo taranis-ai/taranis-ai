@@ -64,9 +64,21 @@ class RTCollector(BaseWebCollector):
 
         try:
             if tickets := self.rt_collector(source):
-                return self.publish_stories(tickets, source, story_attributes_for_rt=True)
+                story_dicts = [RTCollector.to_story_dict(news_items_list) for news_items_list in tickets]
+                return self.publish_stories(story_dicts, source)
         except Exception as e:
             raise RuntimeError(f"RT Collector not available {self.base_url} with exception: {e}") from e
+
+    @staticmethod
+    def to_story_dict(news_items_list: list[NewsItem]) -> dict:
+        # Get title and attributes from the first news item (meta item)
+        story_title = news_items_list[0].title
+        story_attributes = news_items_list[0].attributes
+        return {
+            "title": story_title,
+            "attributes": story_attributes,
+            "news_items": news_items_list,
+        }
 
     def get_ids_from_tickets(self, tickets) -> list:
         return [ticket.get("id") for ticket in tickets.get("items", [])]
