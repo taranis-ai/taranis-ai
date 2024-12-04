@@ -389,9 +389,9 @@ class Story(BaseModel):
         try:
             original_count = len(story.news_items)
             story.news_items = [news_item for news_item in story.news_items if not NewsItem.identical(news_item.hash)]
-            removed_count = original_count - len(story.news_items)
-            if removed_count > 0:
-                logger.info(f"Removed {removed_count} identical news items.")
+            skip_count = original_count - len(story.news_items)
+            if skip_count > 0:
+                logger.info(f"Skipped {skip_count} identical news items.")
         except Exception as e:
             logger.exception(f"Error while filtering news items for story: {e}")
             return None

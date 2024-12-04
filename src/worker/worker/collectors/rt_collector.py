@@ -59,7 +59,7 @@ class RTCollector(BaseWebCollector):
 
         return []
 
-    def collect(self, source: dict, manual: bool = False):
+    def collect(self, source: dict):
         self.setup_collector(source)
 
         try:
@@ -148,7 +148,7 @@ class RTCollector(BaseWebCollector):
             raise ValueError("No attachment content returned")
         return response.json()
 
-    def get_ticket_attachments(self, ticket_id: int, source: dict) -> list:
+    def get_ticket_attachments(self, ticket_id: int) -> list:
         """An Attachment represents a NewsItem"""
         if response := requests.get(
             f"{self.api_url}ticket/{ticket_id}/attachments",
@@ -171,7 +171,7 @@ class RTCollector(BaseWebCollector):
 
     def get_story_news_items(self, ticket_id: int, source) -> list[NewsItem]:
         story_news_items = [self.get_meta_news_item(ticket_id, source)]
-        if ticket_attachments := self.get_ticket_attachments(ticket_id, source):
+        if ticket_attachments := self.get_ticket_attachments(ticket_id):
             for attachment in ticket_attachments:
                 if attachment.get("Content", ""):
                     story_news_items.append(self.get_attachment_news_item(ticket_id, attachment, source))
