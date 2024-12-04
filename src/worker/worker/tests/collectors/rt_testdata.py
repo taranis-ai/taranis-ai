@@ -1,3 +1,5 @@
+from worker.config import Config
+
 rt_collector_source_data = {"id": 1, "parameters": {"BASE_URL": "http://rt.taranis.ai/", "RT_TOKEN": "1-11-11111111111111111111111111111111"}}
 
 rt_base_url = "http://rt.taranis.ai/REST/2.0/"
@@ -70,7 +72,7 @@ rt_ticket_attachments = {
     "count": 1,
     "total": 1,
 }
-worker_stories_url = "http://127.0.0.1:5000/api/worker/stories"
+worker_stories_url = f"{Config.TARANIS_CORE_URL}/worker/stories"
 worker_stories = {"id": 1, "title": "Test Ticket 1", "news_items": []}
 
 rt_collector_result = {}
