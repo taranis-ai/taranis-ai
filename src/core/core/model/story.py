@@ -379,13 +379,43 @@ class Story(BaseModel):
         return stories
 
     @classmethod
-    def add(cls, data) -> "Story":
-        item = cls.from_dict(data)
-        db.session.add(item)
-        db.session.commit()
-        StorySearchIndex.prepare(item)
-        item.update_tlp()
-        return item
+    def add(cls, data) -> "Story | None":
+        try:
+            story = cls.from_dict(data)
+        except Exception as e:
+            logger.exception(f"Failed to create story from data: {data}. Error: {e}")
+            return None
+
+        try:
+            original_count = len(story.news_items)
+            story.news_items = [news_item for news_item in story.news_items if not NewsItem.identical(news_item.hash)]
+            removed_count = original_count - len(story.news_items)
+            if removed_count > 0:
+                logger.info(f"Removed {removed_count} identical news items.")
+        except Exception as e:
+            logger.exception(f"Error while filtering news items for story: {e}")
+            return None
+
+        if story.news_items:
+            try:
+                db.session.add(story)
+                db.session.commit()
+            except Exception as e:
+                logger.exception(f"Failed to add story to the database: {e}")
+                db.session.rollback()
+                return None
+        else:
+            logger.info("No news items to add to the story. Skipping database insert.")
+
+        try:
+            StorySearchIndex.prepare(story)
+            story.update_tlp()
+        except Exception as e:
+            logger.exception(f"Error during post-save operations for story: {e}")
+            return None
+
+        logger.info(f"Story added successfully: {story}")
+        return story
 
     @classmethod
     def add_multiple(cls, json_data) -> Sequence["Story"]:

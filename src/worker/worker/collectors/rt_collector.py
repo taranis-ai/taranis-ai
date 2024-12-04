@@ -64,7 +64,7 @@ class RTCollector(BaseWebCollector):
 
         try:
             if tickets := self.rt_collector(source):
-                return self.publish_stories(tickets, source)
+                return self.publish_stories(tickets, source, story_attributes_for_rt=True)
         except Exception as e:
             raise RuntimeError(f"RT Collector not available {self.base_url} with exception: {e}") from e
 
@@ -74,7 +74,6 @@ class RTCollector(BaseWebCollector):
     def decode64(self, ticket_content) -> str:
         if isinstance(ticket_content, str):
             ticket_content = base64.b64decode(ticket_content).decode("utf-8")
-            logger.debug(f"{ticket_content=}")
             return ticket_content
         logger.error("Unable to decode the ticket content")
         raise ValueError("ticket_content is not a string")
@@ -90,9 +89,6 @@ class RTCollector(BaseWebCollector):
         ticket_hyperlinks: list = ticket.pop("_hyperlinks")
         title: str = ticket.get("Subject", "No title found")
         metadata: str = self.json_to_string(ticket)
-        logger.debug(f"{title=}")
-        logger.debug(f"{metadata=}")
-        logger.debug(f"{ticket_custom_fields=}")
 
         hyperlinks_unique: list[dict] = self.get_unique_content_from_hyperlinks(ticket_hyperlinks)
         ticket_fields: list[dict] = ticket_custom_fields + hyperlinks_unique
@@ -147,7 +143,6 @@ class RTCollector(BaseWebCollector):
             headers=self.headers,
         ):
             ticket_attachments: list[dict] = response.json().get("items", [])
-            logger.debug(f"{ticket_attachments=}")
             attachments_content: list[dict] = []
             attachments_content.extend(self.get_attachment_values(attachment.get("_url", "")) for attachment in ticket_attachments)
         return attachments_content or []
@@ -167,8 +162,7 @@ class RTCollector(BaseWebCollector):
         if ticket_attachments := self.get_ticket_attachments(ticket_id, source):
             for attachment in ticket_attachments:
                 if attachment.get("Content", ""):
-                    continue
-                story_news_items.append(self.get_attachment_news_item(ticket_id, attachment, source))
+                    story_news_items.append(self.get_attachment_news_item(ticket_id, attachment, source))
 
         return story_news_items
 

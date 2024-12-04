@@ -123,6 +123,12 @@ class Stories(MethodView):
             return story, 200
         return {"error": "No stories found"}, 404
 
+    @api_key_required
+    def post(self):
+        if story := Story.add(request.json):
+            return story.to_dict(), 200
+        return {"error": "Could not create story"}, 400
+
 
 class Tags(MethodView):
     @api_key_required
