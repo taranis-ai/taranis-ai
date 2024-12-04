@@ -116,7 +116,6 @@ class RTCollector(BaseWebCollector):
             for attr in ticket_custom_fields
             if attr.get("values") and (not self.fields_to_include or attr.get("name", "") in self.fields_to_include)
         ] or []
-        print(f"{attributes=}")
 
         return NewsItem(
             osint_source_id=source.get("id", ""),
