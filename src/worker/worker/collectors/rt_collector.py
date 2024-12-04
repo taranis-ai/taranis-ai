@@ -21,6 +21,7 @@ class RTCollector(BaseWebCollector):
         self.api = "/REST/2.0/"
         self.ticket_path = "/Ticket/Display.html?id="
         self.search_query = "*"
+        self.fields_to_include = ""
 
     def set_api_url(self):
         self.api_url = urljoin(self.base_url, self.api)
@@ -38,6 +39,9 @@ class RTCollector(BaseWebCollector):
             raise ValueError("No RT_TOKEN set")
         self.headers = {"Authorization": f"token {rt_token}"}
 
+    def parse_fields_to_include(self, fields_to_include):
+        self.fields_to_include = [field.strip() for field in fields_to_include.split(",")]
+
     def setup_collector(self, source):
         self.set_base_url(source.get("parameters").get("BASE_URL", None))
         self.set_api_url()
@@ -48,6 +52,8 @@ class RTCollector(BaseWebCollector):
 
         if search_query := source.get("parameters").get("SEARCH_QUERY", None):
             self.search_query = search_query
+        if fields_to_include := source.get("parameters").get("FIELDS_TO_INCLUDE", None):
+            self.parse_fields_to_include(fields_to_include)
         if additional_headers := source["parameters"].get("ADDITIONAL_HEADERS", None):
             self.update_headers(additional_headers)
 
@@ -59,7 +65,7 @@ class RTCollector(BaseWebCollector):
 
         return []
 
-    def collect(self, source: dict):
+    def collect(self, source: dict, manual: bool = False):
         self.setup_collector(source)
 
         try:
@@ -106,7 +112,9 @@ class RTCollector(BaseWebCollector):
         ticket_fields: list[dict] = ticket_custom_fields + hyperlinks_unique
         for_hash: str = str(ticket_id) + ticket.get("Subject", "") + ticket.get("Created", "")  # TODO: check what the ideal hash should be
         attributes = [
-            {"key": attr.get("name", ""), "value": attr.get("values", [])[0]} for attr in ticket_custom_fields if attr.get("values")
+            {"key": attr.get("name", ""), "value": attr.get("values", [])[0]}
+            for attr in ticket_custom_fields
+            if attr.get("values") and (not self.fields_to_include or attr.get("name", "") in self.fields_to_include)
         ] or []
         print(f"{attributes=}")
 
@@ -215,6 +223,7 @@ if __name__ == "__main__":
                 "BASE_URL": "http://rt.lab",
                 "RT_TOKEN": "1-14-f56697548241b7c1fbc51522b34e8efb",
                 # "SEARCH_QUERY": "Started > '2018-04-04' AND Status != 'resolved'",
+                # "FIELDS_TO_INCLUDE": "Sektor, Meldungstyp,Herkunft des Vorfalls,  Zeitpunkt des Vorfalls (vermutlich), helllo, telefonnummer",
             },
             "state": -1,
             "type": "rt_collector",
