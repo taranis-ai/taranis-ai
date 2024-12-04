@@ -544,7 +544,7 @@ class Story(BaseModel):
 
     def vote(self, vote_data, user_id):
         if not (vote := NewsItemVote.get_by_filter(item_id=self.id, user_id=user_id)):
-            vote = self.create_new_vote(vote, user_id, vote_data)
+            vote = self.create_new_vote(user_id)
 
         if vote.like and vote_data == "like":
             vote = self.remove_like_vote(vote)
@@ -594,7 +594,7 @@ class Story(BaseModel):
         vote.dislike = False
         return vote
 
-    def create_new_vote(self, vote, user_id, vote_data):
+    def create_new_vote(self, user_id):
         vote = NewsItemVote(item_id=self.id, user_id=user_id)
         db.session.add(vote)
         return vote
