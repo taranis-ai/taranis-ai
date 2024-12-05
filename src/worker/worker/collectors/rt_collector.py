@@ -137,7 +137,7 @@ class RTCollector(BaseWebCollector):
         hyperlinks_unique: list[dict] = self.get_unique_content_from_hyperlinks(ticket_hyperlinks)
         ticket_fields: list[dict] = ticket_custom_fields + hyperlinks_unique
 
-        for_hash: str = str(ticket_id) + ticket.get("Subject", "") + ticket.get("Created", "")
+        for_hash: str = str(ticket_id) + ticket.get("Created", "")
         attributes = [
             {"key": attr.get("name", ""), "value": attr.get("values", [])[0]}
             for attr in ticket_custom_fields
