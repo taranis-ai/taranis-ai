@@ -406,7 +406,7 @@ class Story(BaseModel):
             StorySearchIndex.prepare(story)
             story.update_tlp()
 
-            logger.info(f"Story added successfully: {story}")
+            logger.info(f"Story added successfully: {story.id}")
             return story, {"message": "Story added successfully"}, 200
 
         except Exception as e:
@@ -433,9 +433,18 @@ class Story(BaseModel):
                 if stories_to_group := Story.add_from_news_item(news_item):
                     new_stories.append(stories_to_group.id)
 
-            cls.group_stories(new_stories)
+            result = cls.group_stories(new_stories)
+            if "message" in result[0]:
+                logger.info(result[0])
+            elif "error" in result:
+                logger.error(result[0])
+            result = cls.update(existing_story_id, data)
+            if "message" in result[0]:
+                logger.info(result[0])
+            elif "error" in result:
+                logger.error(result[0])
 
-            return {"message": f"Story: {existing_story_id} updated successfully"}, 200
+            return {"message": f"No errors occured during Story ({existing_story_id}) update"}, 200
         except Exception as e:
             logger.exception(f"Failed to update story cluster: {e}")
             return {"error": "An unexpected error occurred while updating story cluster"}, 500
@@ -519,7 +528,7 @@ class Story(BaseModel):
         return {"message": f"Added {len(story_ids)} news items", "story_ids": story_ids, "news_item_ids": news_item_ids}, 200
 
     @classmethod
-    def update(cls, story_id: str, data, user=None):
+    def update(cls, story_id: str, data, user=None) -> tuple[dict, int]:
         story = cls.get(story_id)
         if not story:
             return {"error": "Story not found", "id": f"{story_id}"}, 404
