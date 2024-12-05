@@ -100,6 +100,32 @@ class RTCollector(BaseWebCollector):
         """Clean up `_hyperlinks` from `CustomFields`"""
         return [hyperlink for hyperlink in hyperlinks_full if hyperlink.get("type") != "customfield"]
 
+    def create_base_news_item(
+        self,
+        ticket_id: int,
+        source: dict,
+        hash_input: str,
+        title: str,
+        content: str,
+        published_date: str,
+        author: str,
+        review: str = "",
+        attributes: list[dict] | None = None,
+    ) -> NewsItem:
+        return NewsItem(
+            osint_source_id=source.get("id", ""),
+            hash=hashlib.sha256(hash_input.encode()).hexdigest(),
+            title=title,
+            content=content,
+            web_url=f"{self.base_url}{self.ticket_path}{ticket_id}",
+            published_date=datetime.datetime.fromisoformat(published_date),
+            author=author,
+            collected_date=datetime.datetime.now(),
+            language=source.get("language", ""),
+            review=review,
+            attributes=attributes or [],
+        )
+
     def get_meta_news_item(self, ticket_id: int, source: dict) -> NewsItem:
         ticket = self.get_ticket(ticket_id)
 
@@ -110,40 +136,38 @@ class RTCollector(BaseWebCollector):
 
         hyperlinks_unique: list[dict] = self.get_unique_content_from_hyperlinks(ticket_hyperlinks)
         ticket_fields: list[dict] = ticket_custom_fields + hyperlinks_unique
-        for_hash: str = str(ticket_id) + ticket.get("Subject", "") + ticket.get("Created", "")  # TODO: check what the ideal hash should be
+
+        for_hash: str = str(ticket_id) + ticket.get("Subject", "") + ticket.get("Created", "")
         attributes = [
             {"key": attr.get("name", ""), "value": attr.get("values", [])[0]}
             for attr in ticket_custom_fields
             if attr.get("values") and (not self.fields_to_include or attr.get("name", "") in self.fields_to_include)
-        ] or []
+        ]
 
-        return NewsItem(
-            osint_source_id=source.get("id", ""),
-            hash=hashlib.sha256(for_hash.encode()).hexdigest(),
+        return self.create_base_news_item(
+            ticket_id=ticket_id,
+            source=source,
+            hash_input=for_hash,
             title=title,
             content=str(ticket_id) + str(ticket_fields) + metadata,
-            web_url=f"{self.base_url}{self.ticket_path}{ticket_id}",
-            published_date=datetime.datetime.fromisoformat(ticket.get("Created", "")),
+            published_date=ticket.get("Created", ""),
             author=ticket.get("Owner", {}).get("id", ""),
-            collected_date=datetime.datetime.now(),
-            language=source.get("language", ""),
-            review=source.get("review", "metadata"),
+            review="metadata",
             attributes=attributes,
         )
 
     def get_attachment_news_item(self, ticket_id: int, attachment: dict, source: dict) -> NewsItem:
         for_hash: str = str(ticket_id) + attachment.get("Content", "")
+        decoded_content: str = self.decode64(attachment.get("Content", ""))
 
-        return NewsItem(
-            osint_source_id=source.get("id", ""),
-            hash=hashlib.sha256(for_hash.encode()).hexdigest(),
+        return self.create_base_news_item(
+            ticket_id=ticket_id,
+            source=source,
+            hash_input=for_hash,
             title="attachment",
-            content=self.decode64(attachment.get("Content", "")),
-            web_url=f"{self.base_url}{self.ticket_path}{ticket_id}",
-            published_date=datetime.datetime.fromisoformat(attachment.get("Created", "")),
+            content=decoded_content,
+            published_date=attachment.get("Created", ""),
             author=attachment.get("Creator", {}).get("id", ""),
-            collected_date=datetime.datetime.now(),
-            language=source.get("language", ""),
             review=source.get("review", ""),
             attributes=[],
         )
