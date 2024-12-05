@@ -122,5 +122,8 @@ class BaseCollector:
             logger.info(f"Publishing {len(news_items)} news items to core api")
             news_items_list = [item.to_dict() for item in news_items]
             story_dict.update({"news_items": news_items_list})
-            self.core_api.api_post("/worker/stories", json_data=story_dict)
+            response = self.core_api.add_stories(story_dict)
+            logger.debug(f"Add stories response: {response}")
+            if response.status_code == 422:
+                self.core_api.update_stories(story_dict)
             self.core_api.update_osintsource_status(source["id"], None)

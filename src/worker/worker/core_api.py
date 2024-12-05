@@ -214,6 +214,23 @@ class CoreApi:
             logger.exception("Cannot add Newsitem")
             return False
 
+    def add_stories(self, stories):
+        try:
+            return requests.post(
+                url=f"{self.api_url}/worker/stories", json=stories, headers=self.headers, verify=self.verify, timeout=self.timeout
+            )
+        except Exception:
+            raise Exception("Cannot add Stories")
+            return None
+
+    def update_stories(self, stories):
+        try:
+            return requests.put(
+                url=f"{self.api_url}/worker/stories", json=stories, headers=self.headers, verify=self.verify, timeout=self.timeout
+            )
+        except Exception:
+            return None
+
     def store_task_result(self, data) -> dict | None:
         try:
             return self.api_post(url="/tasks/", json_data=data)

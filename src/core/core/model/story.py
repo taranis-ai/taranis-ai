@@ -379,43 +379,66 @@ class Story(BaseModel):
         return stories
 
     @classmethod
-    def add(cls, data) -> "Story | None":
-        try:
-            story = cls.from_dict(data)
-        except Exception as e:
-            logger.exception(f"Failed to create story from data: {data}. Error: {e}")
-            return None
-
-        try:
+    def add(cls, data) -> "tuple[Story | None, dict, int]":
+        def filter_news_items(story):
             original_count = len(story.news_items)
-            story.news_items = [news_item for news_item in story.news_items if not NewsItem.identical(news_item.hash)]
+            story.news_items = [ni for ni in story.news_items if not NewsItem.identical(ni.hash)]
             skip_count = original_count - len(story.news_items)
             if skip_count > 0:
                 logger.info(f"Skipped {skip_count} identical news items.")
-        except Exception as e:
-            logger.exception(f"Error while filtering news items for story: {e}")
-            return None
-
-        if story.news_items:
-            try:
-                db.session.add(story)
-                db.session.commit()
-            except Exception as e:
-                logger.exception(f"Failed to add story to the database: {e}")
-                db.session.rollback()
-                return None
-        else:
-            logger.info("No news items to add to the story. Skipping database insert.")
+            return original_count, skip_count, bool(story.news_items)
 
         try:
+            story = cls.from_dict(data)
+            original_count, skip_count, has_new_items = filter_news_items(story)
+
+            if not has_new_items:
+                logger.info("No items to add to the story. Skipping database insert.")
+                return None, {"error": "All items are duplicates"}, 409
+
+            if skip_count > 0 and skip_count < original_count:
+                logger.info("Partial match detected. Update the story instead.")
+                return None, {"error": "Partial match detected. Update the story instead."}, 422
+
+            db.session.add(story)
+            db.session.commit()
+
             StorySearchIndex.prepare(story)
             story.update_tlp()
-        except Exception as e:
-            logger.exception(f"Error during post-save operations for story: {e}")
-            return None
 
-        logger.info(f"Story added successfully: {story}")
-        return story
+            logger.info(f"Story added successfully: {story}")
+            return story, {"message": "Story added successfully"}, 200
+
+        except Exception as e:
+            logger.exception(f"Failed to process story: {e}")
+            db.session.rollback()
+            return None, {"error": "An unexpected error occurred"}, 500
+
+    @classmethod
+    def update_story_cluster(cls, data) -> tuple[dict, int]:
+        try:
+            existing_story_id = None
+            missing_news_items = []
+            for news_item in data.get("news_items", []):
+                if item := NewsItem.find_by_hash(news_item.get("hash")):
+                    existing_story_id = item[0].story_id
+                else:
+                    missing_news_items.append(news_item)
+
+            if not existing_story_id:
+                return {"error": "Story not found"}, 404
+
+            new_stories = [existing_story_id]
+            for news_item in missing_news_items:
+                if stories_to_group := Story.add_from_news_item(news_item):
+                    new_stories.append(stories_to_group.id)
+
+            cls.group_stories(new_stories)
+
+            return {"message": f"Story: {existing_story_id} updated successfully"}, 200
+        except Exception as e:
+            logger.exception(f"Failed to update story cluster: {e}")
+            return {"error": "An unexpected error occurred while updating story cluster"}, 500
 
     @classmethod
     def add_multiple(cls, json_data) -> Sequence["Story"]:
@@ -430,15 +453,26 @@ class Story(BaseModel):
     @classmethod
     def add_from_news_item(cls, news_item: dict) -> "Story | None":
         if NewsItem.identical(news_item.get("hash")):
+            logger.info("Identical news item found. Skipping...")
             return None
-        return cls.add(
-            {
-                "title": news_item.get("title"),
-                "description": news_item.get("review", news_item.get("content")),
-                "created": news_item.get("published"),
-                "news_items": [news_item],
-            }
-        )
+
+        data = {
+            "title": news_item.get("title"),
+            "description": news_item.get("review", news_item.get("content")),
+            "created": news_item.get("published"),
+            "news_items": [news_item],
+        }
+
+        story, response, status = cls.add(data)
+
+        if status == 200:
+            return story
+        elif status in (409, 422):
+            logger.warning(f"Failed to add story: {response.get('error')}")
+            return None
+        else:
+            logger.error(f"Unexpected failure: {response.get('error')}")
+            return None
 
     @classmethod
     def check_news_item_data(cls, news_item: dict) -> dict | None:

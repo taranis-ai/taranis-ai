@@ -125,9 +125,13 @@ class Stories(MethodView):
 
     @api_key_required
     def post(self):
-        if story := Story.add(request.json):
-            return story.to_dict(), 200
-        return {"error": "Could not create story"}, 400
+        _, response_data, status_code = Story.add(request.json)
+        return response_data, status_code
+
+    @api_key_required
+    def put(self):
+        response_data, status_code = Story.update_story_cluster(request.json)
+        return response_data, status_code
 
 
 class Tags(MethodView):
