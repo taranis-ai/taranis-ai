@@ -124,6 +124,5 @@ class BaseCollector:
             story_dict.update({"news_items": news_items_list})
             response = self.core_api.add_stories(story_dict)
             logger.debug(f"Add stories response: {response}")
-            if response.status_code == 422:
-                self.core_api.update_stories(story_dict)
+            self.core_api.update_stories(story_dict)
             self.core_api.update_osintsource_status(source["id"], None)
