@@ -125,12 +125,7 @@ class Stories(MethodView):
 
     @api_key_required
     def post(self):
-        _, response_data, status_code = Story.add(request.json)
-        return response_data, status_code
-
-    @api_key_required
-    def put(self):
-        response_data, status_code = Story.update_story_cluster(request.json)
+        _, response_data, status_code = Story.add_or_update_on_attr(request.json, story_attribute_key=request.args.get("story_attribute_key"))
         return response_data, status_code
 
 

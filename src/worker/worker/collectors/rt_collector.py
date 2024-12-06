@@ -71,7 +71,7 @@ class RTCollector(BaseWebCollector):
         try:
             if tickets := self.rt_collector(source):
                 story_dicts = [RTCollector.to_story_dict(news_items_list) for news_items_list in tickets]
-                return self.publish_stories(story_dicts, source)
+                return self.publish_stories(story_dicts, source, "rt_id")
         except Exception as e:
             raise RuntimeError(f"RT Collector not available {self.base_url} with exception: {e}") from e
 
@@ -112,6 +112,10 @@ class RTCollector(BaseWebCollector):
         review: str = "",
         attributes: list[dict] | None = None,
     ) -> NewsItem:
+        if not attributes:
+            attributes = [{"key": "rt_id", "value": f"{ticket_id}/{published_date}"}]
+        else:
+            attributes.append({"key": "rt_id", "value": f"{ticket_id}/{published_date}"})
         return NewsItem(
             osint_source_id=source.get("id", ""),
             hash=hashlib.sha256(hash_input.encode()).hexdigest(),

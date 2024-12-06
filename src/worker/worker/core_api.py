@@ -214,19 +214,15 @@ class CoreApi:
             logger.exception("Cannot add Newsitem")
             return False
 
-    def add_stories(self, stories):
+    def add_or_update_story_on_attr(self, stories, story_attribute_key: str | None = None):
         try:
             return requests.post(
-                url=f"{self.api_url}/worker/stories", json=stories, headers=self.headers, verify=self.verify, timeout=self.timeout
-            )
-        except Exception:
-            raise Exception("Cannot add Stories")
-            return None
-
-    def update_stories(self, stories):
-        try:
-            return requests.put(
-                url=f"{self.api_url}/worker/stories", json=stories, headers=self.headers, verify=self.verify, timeout=self.timeout
+                url=f"{self.api_url}/worker/stories",
+                json=stories,
+                headers=self.headers,
+                verify=self.verify,
+                timeout=self.timeout,
+                params={"story_attribute_key": story_attribute_key},
             )
         except Exception:
             return None
