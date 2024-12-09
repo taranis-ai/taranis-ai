@@ -11,6 +11,7 @@ import {
   getAllOrganizations,
   getAllOSINTSourceGroups,
   getAllOSINTSources,
+  getAllConnectors,
   getAllPermissions,
   getAllProductTypes,
   getAllPublisher,
@@ -37,6 +38,7 @@ export const useConfigStore = defineStore(
     const organizations = ref({ total_count: 0, items: [] })
     const osint_sources = ref({ total_count: 0, items: [] })
     const osint_source_groups = ref({ total_count: 0, items: [] })
+    const connectors = ref({ total_count: 0, items: [] })
     const parameters = ref([])
     const permissions = ref({ total_count: 0, items: [] })
     const product_types = ref({ total_count: 0, items: [] })
@@ -66,6 +68,12 @@ export const useConfigStore = defineStore(
     const collector_types = computed(() => {
       return worker_types.value.items.filter((worker_type) =>
         worker_type.type.endsWith('collector')
+      )
+    })
+
+    const connector_types = computed(() => {
+      return worker_types.value.items.filter((worker_type) =>
+        worker_type.type.endsWith('connector')
       )
     })
 
@@ -187,6 +195,15 @@ export const useConfigStore = defineStore(
       try {
         const response = await getAllOSINTSources(data)
         osint_sources.value = response.data
+      } catch (error) {
+        notifyFailure(error)
+      }
+    }
+
+    async function loadConnectors(data) {
+      try {
+        const response = await getAllConnectors(data)
+        connectors.value = response.data
       } catch (error) {
         notifyFailure(error)
       }
@@ -326,6 +343,8 @@ export const useConfigStore = defineStore(
       getUserByID,
       getOSINTSourceNameByID,
       collector_types,
+      connectors,
+      connector_types,
       bot_types,
       publisher_types,
       presenter_types,
@@ -341,6 +360,7 @@ export const useConfigStore = defineStore(
       loadUsers,
       loadWordLists,
       loadOSINTSources,
+      loadConnectors,
       loadWorkerTypes,
       loadOSINTSourceGroups,
       loadPublisher,

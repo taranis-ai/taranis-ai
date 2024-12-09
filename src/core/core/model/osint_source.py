@@ -147,12 +147,6 @@ class OSINTSource(BaseModel):
         osint_source.schedule_osint_source()
         return osint_source
 
-    def is_valid_base64(self, s) -> bytes | None:
-        try:
-            return base64.b64decode(s, validate=True)
-        except Exception:
-            return None
-
     @classmethod
     def toggle_state(cls, source_id: str, state: str) -> tuple[dict, int]:
         osint_source = cls.get(source_id)

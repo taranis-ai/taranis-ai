@@ -16,6 +16,7 @@ from core.model import (
     publisher_preset,
     organization,
     osint_source,
+    connector,
     report_item_type,
     role,
     role_based_access,
@@ -360,6 +361,48 @@ class Schedule(MethodView):
             logger.exception()
 
 
+class Connectors(MethodView):
+    @auth_required("CONFIG_CONNECTOR_ACCESS")
+    @extract_args("search")
+    def get(self, source_id=None, filter_args=None):
+        if source_id:
+            return connector.Connector.get_for_api(source_id)
+        return connector.Connector.get_all_for_api(filter_args=filter_args, with_count=True, user=current_user)
+
+    @auth_required("CONFIG_CONNECTOR_CREATE")
+    def post(self):
+        if source := connector.Connector.add(request.json):
+            return {"id": source.id, "message": "Connector created successfully"}, 201
+        return {"error": "Connector could not be created"}, 400
+
+    @auth_required("CONFIG_CONNECTOR_UPDATE")
+    def put(self, source_id: str):
+        if not (update_data := request.json):
+            return {"error": "No update data passed"}, 400
+        try:
+            if source := connector.Connector.update(source_id, update_data):
+                return {"message": f"OSINT Source {source.name} updated", "id": f"{source_id}"}, 200
+        except ValueError as e:
+            return {"error": str(e)}, 500
+        return {"error": f"OSINT Source with ID: {source_id} not found"}, 404
+
+    @auth_required("CONFIG_CONNECTOR_DELETE")
+    def delete(self, source_id: str):
+        force = request.args.get("force", default=False, type=bool)
+        if not force and NewsItemService.has_related_news_items(source_id):
+            return {
+                "error": f"""OSINT Source with ID: {source_id} has related News Items.
+                To delete this item and all related News Items, set the 'force' flag."""
+            }, 409
+
+        return osint_source.OSINTSource.delete(source_id, force=force)
+
+    @auth_required("CONFIG_CONNECTOR_UPDATE")
+    def patch(self, source_id: str):
+        state = request.args.get("state", default="enabled", type=str)
+        return osint_source.OSINTSource.toggle_state(source_id, state)
+
+
 class OSINTSources(MethodView):
     @auth_required("CONFIG_OSINT_SOURCE_ACCESS")
     @extract_args("search")
@@ -646,5 +689,6 @@ def initialize(app: Flask):
     config_bp.add_url_rule("/workers/tasks", view_func=QueueTasks.as_view("queue_tasks"))
     config_bp.add_url_rule("/worker-types", view_func=Workers.as_view("worker_types"))
     config_bp.add_url_rule("/worker-types/<string:worker_id>", view_func=Workers.as_view("worker_type_patch"))
+    config_bp.add_url_rule("/connectors", view_func=Connectors.as_view("connectors"))
 
     app.register_blueprint(config_bp)

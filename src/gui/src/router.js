@@ -266,6 +266,18 @@ export const router = createRouter({
       }
     },
     {
+      path: '/config/connectors',
+      name: 'connectors',
+      components: {
+        default: () => import('@/views/admin/ConnectorsView.vue'),
+        nav: () => import('@/views/nav/ConfigNav.vue')
+      },
+      meta: {
+        requiresAuth: true,
+        requiresPerm: Permissions.CONFIG_CONNECTOR_ACCESS
+      }
+    },
+    {
       path: '/config/sources',
       name: 'osint_sources',
       components: {

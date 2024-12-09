@@ -215,7 +215,8 @@
         "scheduler": "Scheduler",
         "word_lists": "Word Lists",
         "worker_types": "Worker Types",
-        "workers": "Workers"
+        "workers": "Workers",
+        "connectors": "Connectors"
     },
     "notification": {
         "close": "Close",
